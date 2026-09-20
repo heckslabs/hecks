@@ -1,4 +1,4 @@
-// THE MATCHING LOGIC FOR THE GENERATED `QueryComparator` ENUM.
+// The matching logic for the generated `QueryComparator` enum.
 //
 // The enum itself — variants, `ALL`, `name`, `from_name` — is
 // `vocab::QueryComparator`, projected from `Vocabulary::QueryComparator`
@@ -10,20 +10,20 @@
 // `matches` below stops compiling until it handles it — no hand-kept
 // variant list, `ALL`, or `parse` table is left to drift.
 //
-// GROUND TRUTH FOR THE MATCHING LOGIC ITSELF, read directly rather than
+// Ground truth for the matching logic itself, read directly rather than
 // guessed at: `QuerySpecification::Common::Comparison#holds?`
 // (lib/hecks/query_specification/common/comparison.rb), the one comparator
 // table both Ruby query engines share. Proven against real cases by
 // spec/query_comparators_spec.rb (the banking bluebook) and
 // spec/adapters/query_agreement_spec.rb (Memory, Sqlite, Postgres, D1).
 //
-// WHAT DISPATCHES HERE, TODAY: `kernel/cli.rs`'s ad hoc, single-clause
-// "query" step — the OBJECT form, `{"aggregate", "field", "op", "value"}`
-// — via `repository.rs`'s `filter_entries`; and a NAMED/declared bluebook
+// **What dispatches here, today**: `kernel/cli.rs`'s ad hoc, single-clause
+// "query" step — the object form, `{"aggregate", "field", "op", "value"}`
+// — via `repository.rs`'s `filter_entries`; and a named/declared bluebook
 // `query "X" do ... end` ask (`rust/project/queries.rb`/
 // `kernel/named_query.rs`) for the subset expressible as field-comparator
 // conditions against one aggregate's own attributes. A where clause that
-// HOPS THROUGH A REFERENCE (`customer.status`) stays ungenerated —
+// hops through a reference (`customer.status`) stays ungenerated —
 // `rust/project/queries.rb`'s own header has the argument. `NoneInState`
 // has real matching logic (`none_in_state_matches`, below) but is never
 // generated as a condition: no generated call site can hand it the
@@ -36,16 +36,16 @@ pub use super::vocab::QueryComparator;
 impl QueryComparator {
     /// The wire's `op` string, read against the closed set — `None` for
     /// anything else. Ruby validates a declared where-clause's `op:` at
-    /// BLUEBOOK DECLARE TIME (`admits: "Vocabulary::QueryComparator"`);
+    /// bluebook declare time (`admits: "Vocabulary::QueryComparator"`);
     /// this wire protocol has no declare-time gate (a caller can put any
-    /// string in `"op"`), so an unrecognized comparator REFUSES
+    /// string in `"op"`), so an unrecognized comparator refuses
     /// (`kernel/cli.rs` turns `None` into `Refusal::TypeMismatch`) rather
     /// than defaulting to `eq`. The generated `from_name` is the lookup.
     pub fn parse(op: &str) -> Option<Self> {
         QueryComparator::from_name(op)
     }
 
-    /// `Comparison#holds?`, ported directly. `held`/`want` arrive ALREADY
+    /// `Comparison#holds?`, ported directly. `held`/`want` arrive already
     /// reduced through `comparable` (below) — its caller does that once,
     /// up front (`repository.rs`'s `filter_entries`).
     pub fn matches(self, held: &Json, want: &Json) -> bool {
@@ -59,10 +59,10 @@ impl QueryComparator {
             QueryComparator::In => members(want).iter().any(|member| member == &to_s(held)),
             QueryComparator::Contains => contains(held, want),
             // `held`/`want` alone can never answer this — it needs a
-            // REPOSITORY (possibly another domain's own).
+            // repository (possibly another domain's own).
             // `repository.rs`'s `filter_entries_cross_domain` special-
             // cases `NoneInState` and calls `none_in_state_matches`
-            // BEFORE ever reaching here — this arm exists only so the
+            // before ever reaching here — this arm exists only so the
             // match stays exhaustive, and answers the same safe "not
             // excluded" default `none_in_state_matches` falls back to
             // with no repository access (Ruby's `return true unless
@@ -73,13 +73,13 @@ impl QueryComparator {
 }
 
 /// `Comparison#none_in_state?` (lib/hecks/query_specification/
-/// common/comparison.rb), ported directly — the ONE comparator this
+/// common/comparison.rb), ported directly — the one comparator this
 /// kernel answers with real repository access rather than a pure `held`/
 /// `want` comparison. `want` is `"Aggregate:state"` (already `comparable`
 /// -reduced like every other comparator's own `want`, but this one's
 /// value is always a plain string wire literal in practice — the where-
 /// clause's own RHS, never a caller-bound arg); `held` is the referring
-/// record's own foreign-key field, read the SAME `comparable`-reduced way
+/// record's own foreign-key field, read the same `comparable`-reduced way
 /// every other comparator's `held` already is.
 ///
 /// `cross_domain` — `(domain name, that domain's own AggregateScan)`
@@ -87,16 +87,16 @@ impl QueryComparator {
 /// `find_aggregate_by_name`'s `registry.bluebooks.each` exactly (a bare
 /// aggregate name is ambiguous across domains in principle; Ruby doesn't
 /// refuse on the ambiguity, it picks the first, since a where-clause
-/// never raises). An EMPTY slice — every real production caller today,
+/// never raises). An empty slice — every real production caller today,
 /// `filter_entries`'s own thin wrapper below — answers `true`
 /// unconditionally, the same "not excluded" default Ruby's own `return
 /// true unless registry` falls back to when nothing is threaded through:
-/// no REAL deployed Lambda ever populates a second domain's own Store in
+/// no real deployed Lambda ever populates a second domain's own Store in
 /// the same running process (rust/src/generated/mod.rs's own header —
 /// `active` is a Cargo-feature choice of exactly one), so this default is
 /// not a placeholder waiting to be wired up, it is the honest, permanent
 /// answer for every real caller that exists today. The search-every-
-/// domain MECHANISM itself is proven correct below (`#[cfg(test)]`)
+/// domain mechanism itself is proven correct below (`#[cfg(test)]`)
 /// against a synthetic multi-domain fixture, matching Ruby's own code
 /// path — not against anything a real corpus or a real deployment
 /// exercises, since nothing does.
@@ -122,12 +122,12 @@ pub fn none_in_state_matches(cross_domain: &[(&str, &dyn super::AggregateScan)],
     true
 }
 
-/// gt/gte/lt/lte are numeric-only and silently FALSE otherwise — ported
+/// gt/gte/lt/lte are numeric-only and silently false otherwise — ported
 /// from `Ports::Query::InMemory.ordered?`/`QueryInterpreter#ordered?`
 /// verbatim. A where-clause never raises the way a `given` does, so a
 /// comparator asked to order a String (or a `nil`/`Json::Null`) just
 /// answers "no match" for every record it's asked about, not a refusal —
-/// this is the real, proven TYPE-MISMATCH behavior (that file's own
+/// this is the real, proven type-mismatch behavior (that file's own
 /// comment: "lt was already exactly this permissive"), not an assumption.
 fn ordered(held: &Json, want: &Json) -> bool {
     matches!(held, Json::Num(_) | Json::Float(_)) && matches!(want, Json::Num(_) | Json::Float(_))
@@ -151,7 +151,7 @@ pub(crate) fn as_f64(value: &Json) -> f64 {
     }
 }
 
-/// Ruby's own `#to_s` on a comparator's held/wanted SCALAR — only ever
+/// Ruby's own `#to_s` on a comparator's held/wanted scalar — only ever
 /// called on a value `comparable` (below) has already reduced to a
 /// scalar, except inside `members`, which maps it over an Array's own
 /// elements (a `list_of` field's members, each comparable-reduced
@@ -174,7 +174,7 @@ pub(crate) fn to_s(value: &Json) -> String {
         }
         Json::Bool(b) => b.to_string(),
         Json::Null => String::new(),
-        // Array/Object: `comparable` already collapses every ORDINARY
+        // Array/Object: `comparable` already collapses every ordinary
         // held/want value before this is ever reached; a multi-member
         // value object with no numeric member is the one real case that
         // still arrives structured here. `to_json_string` is a
@@ -185,7 +185,7 @@ pub(crate) fn to_s(value: &Json) -> String {
     }
 }
 
-/// `Ports::Query::InMemory#comparable`, ported directly. ONE LEVEL ONLY
+/// `Ports::Query::InMemory#comparable`, ported directly. One level only
 /// — it does not recurse into a nested value object's own nested value
 /// objects, matching Ruby exactly (comparable is applied fresh to each
 /// dug field, never chained): a numeric member wins if the value object
@@ -206,8 +206,8 @@ pub fn comparable(value: &Json) -> Json {
     value.clone()
 }
 
-/// `in`'s own reading of ITS ARGUMENT (`want`), and `contains`'s reading
-/// of a `list_of` field's STORED value (`held`) — ported from
+/// `in`'s own reading of its argument (`want`), and `contains`'s reading
+/// of a `list_of` field's stored value (`held`) — ported from
 /// `Ports::Query::InMemory#members`. A real JSON array survives as
 /// elements, each reduced through `comparable` before stringifying (the
 /// same unwrapping a lone scalar field already gets); anything else —
@@ -220,7 +220,7 @@ fn members(value: &Json) -> Vec<String> {
     to_s(value).split(',').map(|piece| piece.trim().to_string()).collect()
 }
 
-/// `contains` means two different things depending on what's HELD — real
+/// `contains` means two different things depending on what's held — real
 /// element membership for a `list_of` field (already a genuine JSON
 /// array with nothing to split), plain substring for anything else.
 /// Ported from `Ports::Query::InMemory#contains?` — matching SQL's own
@@ -236,14 +236,14 @@ fn contains(held: &Json, want: &Json) -> bool {
 
 // Item #9, whole-project table-unification survey — `none_in_state_matches`
 // had zero coverage of its own before this (the real corpus's one usage,
-// spec/query_none_in_state_growth_spec.rb, exercises Ruby's OWN
+// spec/query_none_in_state_growth_spec.rb, exercises Ruby's own
 // `none_in_state?` end to end, never this Rust port). Proven here against
-// a hand-rolled multi-domain `AggregateScan` fixture — the SAME-DOMAIN
+// a hand-rolled multi-domain `AggregateScan` fixture — the same-domain
 // cases mirror that Ruby spec's own scenario exactly (a `Claim` a
 // `Board::Assignment` points at, "held" vs "released" vs never-filed); the
-// CROSS-DOMAIN cases have no real corpus or deployment analog at all (this
+// cross-domain cases have no real corpus or deployment analog at all (this
 // file's own header on `none_in_state_matches` has the full story) — they
-// prove the search-every-domain MECHANISM matches Ruby's own
+// prove the search-every-domain mechanism matches Ruby's own
 // `registry.bluebooks.each`/`find_aggregate_by_name`, first-match-wins
 // included, not that any real caller exercises it. `#[cfg(test)]` only —
 // compiled out of every real build.
@@ -253,7 +253,7 @@ mod none_in_state_tests {
     use crate::kernel::AggregateScan;
 
     /// A hand-rolled stand-in for a real generated `Store` — `domain`
-    /// plus `(bare aggregate name, entries)` pairs, searched by the SAME
+    /// plus `(bare aggregate name, entries)` pairs, searched by the same
     /// domain-qualified name (`"Domain::Aggregate"`) a real `Store::scan`
     /// matches against. Real generated stores never coexist like this in
     /// one process (see this module's own header) — this fixture is what
@@ -319,7 +319,7 @@ mod none_in_state_tests {
 
     #[test]
     fn searches_a_second_domain_when_the_first_does_not_declare_the_aggregate() {
-        // THE CROSS-DOMAIN CASE — no real corpus or deployment analog
+        // **The cross-domain case** — no real corpus or deployment analog
         // (this file's own header), but Ruby's own `find_aggregate_by_
         // name` genuinely searches every loaded domain, so this proves
         // the Rust mechanism matches that exactly.
@@ -332,10 +332,10 @@ mod none_in_state_tests {
 
     #[test]
     fn first_match_wins_when_two_domains_declare_the_same_bare_aggregate_name() {
-        // Mirrors Ruby's OWN documented ambiguity policy
+        // Mirrors Ruby's own documented ambiguity policy
         // (comparison.rb's `find_aggregate_by_name`: "ambiguity ...
         // picks the first match rather than refusing") — proving the
-        // SEARCH ORDER itself, not merely that some match exists:
+        // search order itself, not merely that some match exists:
         // DomainA's own "c1" is "held" (excludes); DomainB's is
         // "released" (would keep) — if the search consulted DomainB
         // instead of stopping at DomainA, this would wrongly read `true`.

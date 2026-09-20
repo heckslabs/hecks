@@ -95,6 +95,40 @@ module Hecks
 
           deploy_settings = world.for_verb("deployed_to")
 
+          # **`PII` detection** — structural only, no live boot: `load_bluebooks`/a
+          # bare `.hecksagon` `Kernel.load` populate `registry.pending_privacy_
+          # markings` (`AggregateDoor#mark_sensitive`/`BindingProxy#mark_sensitive`,
+          # lib/hecks/runtime/registry.rb) the same way `Runtime::Loader.boot`'s
+          # own first phase does, without that method's later `run_boot_gates!`/
+          # `dispatcher_for` steps — those need a live persistence adapter (a real
+          # Postgres connection for a PostgresEra-bound domain), which a static
+          # template generator must never require. A registry of its own, not
+          # `cross_domain_registry` — that one boots this domain's bluebook too,
+          # but through a different, hand-rolled port/adapter load (persistence
+          # + extraction + memory + prism only) than the one `pending_privacy_
+          # markings` was verified against; kept separate rather than assumed
+          # equivalent.
+          pii_registry = Hecks::Runtime::Registry.new
+          Hecks.with_registry(pii_registry) do
+            bootstrap = Hecks::Ports::Loading.bootstrap
+            bluebook_dir = File.join(domain, "bluebook")
+            bootstrap.load_library
+            bootstrap.load_project(bootstrap.shared_root(nil, bluebook_dir))
+            bootstrap.load_bluebooks(bluebook_dir)
+            Dir.glob(File.join(bluebook_dir, "*.hecksagon")).each { |file| Kernel.load(file) }
+          end
+
+          # Only `category: "pii"` counts — `phi` or any other vocabulary a
+          # consuming domain's own `mark_sensitive` calls use stays a Governance/
+          # redaction concern (Privacy::Marking's own mechanism) without also
+          # provisioning CloudFront/WAF, which this generator has no way to know
+          # is warranted for, say, health data under a different compliance
+          # regime entirely. A domain wanting the same protection for a
+          # non-"pii" category marks it "pii" too — the category string is
+          # open-ended by design (privacy.bluebook's own header), not a closed
+          # enum this generator could instead enumerate.
+          pii_detected = pii_registry.pending_privacy_markings.any? { |marking| marking[:category].to_s == "pii" }
+
           # **The tenant override itself** — see this file's own header comment on
           # `--tenant`/`--schema` for the full reasoning. Applied here, before
           # `infra_name`/`hecks_schema` are computed below, so both read it the
@@ -256,6 +290,32 @@ module Hecks
           aurora   = database == "Aurora"
           shared   = database == "Shared"
           rust_web = target.state[:web].value == "Rust"
+
+          # **`WAFv2` for CloudFront needs us-east-1** — not a preference, a hard
+          # AWS API constraint (`AWS::WAFv2::WebACL` with `Scope: CLOUDFRONT` is
+          # refused by CloudFormation outside us-east-1, independent of which
+          # region the distribution itself, being global, would otherwise
+          # suggest). Refused here, before writing a single file, the same
+          # discipline this generator already holds every other one of its own
+          # refusals to — a generated template that would only fail at deploy
+          # time, in a region a caller may not think to suspect, is a worse
+          # failure mode than refusing now with the fix named.
+          if pii_detected && region != "us-east-1"
+            raise ArgumentError, "#{world_file} marks a field \"pii\" but deployed_to(\"AwsLambda\") sets region " \
+                                  "#{region.inspect} — a CloudFront-scoped WAFv2 WebACL can only be created in " \
+                                  "us-east-1. Set region \"us-east-1\", or remove the pii marking if this domain " \
+                                  "genuinely holds none."
+          end
+
+          # Read straight off `deploy_settings` (the raw `WorldBuilder` bag), not
+          # through `target` — these two are optional and pii-only, unlike every
+          # `target.state[...]` field above, which `LambdaTarget` validates as
+          # always-present for every `AwsLambda` deployment regardless of pii.
+          # "none" (`RestrictionType: none`, `Locations: []`) is CloudFront's own
+          # default shape for "no restriction configured" — declaring one later
+          # is a `deployed_to` edit, not a template rewrite.
+          geo_restriction_type      = deploy_settings[:geo_restriction] || "none"
+          geo_restriction_countries = deploy_settings[:geo_restriction_countries] || []
 
           # **The storehouse** — this domain provisions no RDS/VPC of its own at all;
           # it borrows another already-deployed domain's instance instead,
@@ -1121,6 +1181,27 @@ module Hecks
           # A plain, unconditional `String#sub` after the fact has no such
           # interaction with the text it's replacing into.
           template_yaml = template_yaml.sub(/^([ \t]*)# TMPL:cross_domain_lambda_policies\n/) { Shared.cross_domain_invoke_policy_yaml(cross_domain_lambda_targets, $1) }
+
+          # **The `PII` → CloudFront splice** — operates on the already-fully-rendered
+          # string, the same reason the `dispatch_none` splice (below) does rather
+          # than threading a third reindentation layer through the main heredoc
+          # above: `pii_cloudfront_yaml` builds its own already-correctly-indented
+          # text from scratch (its own `reindent` lambda), so there is nothing here
+          # for a heredoc dedent computation to interact with badly.
+          # `fronted_logical_id`/`use_oac` are resolved here, not earlier, because
+          # both need `web_handler_present`/`web_logical_id`/`rust_web`/`logical_id`
+          # — every one of which is computed after this generator's own pii
+          # detection, above.
+          if pii_detected
+            fronted_logical_id = web_handler_present ? web_logical_id : logical_id
+            use_oac             = !web_handler_present && !rust_web
+
+            pii_resources = pii_cloudfront_yaml(
+              fronted_logical_id: fronted_logical_id, use_oac: use_oac,
+              geo_restriction_type: geo_restriction_type, geo_restriction_countries: geo_restriction_countries
+            )
+            template_yaml = template_yaml.sub(/^Outputs:\n/) { "#{pii_resources}Outputs:\n  PiiDistributionDomainName:\n    Value: !GetAtt PiiDistribution.DomainName\n" }
+          end
 
           # `dispatch "None"` — surgical removal, POST-render, rather than a
           # fourth reindentation layer threaded through the heredoc above.
@@ -2143,6 +2224,197 @@ bastion_yaml = shared ? nil : Shared.bastion_yaml(
           files["Makefile"] = makefile_content
           files["samconfig.toml"] = samconfig_toml
           files
+        end
+
+        # Builds the CloudFront/WAFv2/logging resources a `PII`-marked domain gets fronted by.
+        #
+        # **`PII` → CloudFront** — once a domain marks a field "pii", its own public
+        # surface (`WebFunction` when one exists, `#{logical_id}` otherwise —
+        # `fronted_logical_id`, computed where both are known, in `call`) gets
+        # fronted by a distribution carrying a WAFv2 WebACL (AWS managed rule
+        # groups), security response headers, geo-restriction, and access
+        # logging — every other domain's own template is untouched
+        # (`pii_detected` false means `call` never invokes this at all).
+        #
+        # **`OAC` only for the AWS_IAM case** (`use_oac`) — the already-public
+        # `WebFunction`/`rust_web` shape (`AuthType: NONE`) is left exactly as
+        # reachable as it already was; CloudFront adds WAF/headers/geo/logging
+        # on top of that, it does not change who could already call the
+        # Function URL directly. `#{logical_id}` itself (the AWS_IAM,
+        # internal-dispatch default) is the opposite: OAC lets CloudFront sign
+        # requests to it via SigV4 while `PiiLambdaInvokePermission`'s own
+        # `SourceArn` admits only this one distribution — direct, unsigned
+        # access to the Function URL stays refused exactly as it was before
+        # this ran.
+        #
+        # **Managed cache/origin-request policy ids** — not custom resources.
+        # `4135ea2d-6df8-44a3-9df3-4b5a84be39ad`/`216adef6-5c7f-47e4-b989-
+        # 5492eafa07d3` are AWS's own permanent, account-independent
+        # `Managed-CachingDisabled`/`Managed-AllViewer` ids (the same ones the
+        # console's own dropdown offers) — this fronts a Lambda dispatch
+        # endpoint, not a static site; caching a response meant for exactly
+        # one caller would be a real correctness bug, not a performance choice
+        # made once here.
+        #
+        # @param fronted_logical_id [String] the Lambda resource this distribution fronts
+        # @param use_oac [Boolean] true only when `fronted_logical_id`'s own FunctionUrlConfig is
+        #   AWS_IAM (never true for WebFunction/rust_web, both always `NONE`)
+        # @param geo_restriction_type ["none", "allowlist", "blocklist"] `deployed_to`'s own
+        #   `geo_restriction` setting; "none" (no restriction, structurally present so a later
+        #   change is a one-line `deployed_to` edit, not a template rewrite) when unset
+        # @param geo_restriction_countries [Array<String>] ISO 3166-1 alpha-2 codes; ignored when
+        #   `geo_restriction_type` is "none"
+        # @return [String] the Resources entries to splice in before Outputs:, absolutely
+        #   indented to 2 spaces (this stack's own top-level Resources entry column)
+        def pii_cloudfront_yaml(fronted_logical_id:, use_oac:, geo_restriction_type:, geo_restriction_countries:)
+          reindent = ->(text) { text.each_line.map { |line| line.strip.empty? ? line : "  #{line}" }.join }
+
+          # Not pre-reindented (unlike the return value as a whole, below) — each
+          # is spliced back into the still-being-dedented RESOURCES heredoc via
+          # `#{...}`, which the outer `reindent.call` already shifts by 2
+          # spaces once; reindenting here too would double it.
+          origin_access_control = use_oac ? <<~OAC : ""
+            PiiOriginAccessControl:
+              Type: AWS::CloudFront::OriginAccessControl
+              Properties:
+                OriginAccessControlConfig:
+                  Name: !Sub "${AWS::StackName}-pii-oac"
+                  OriginAccessControlOriginType: lambda
+                  SigningBehavior: always
+                  SigningProtocol: sigv4
+          OAC
+
+          invoke_permission = <<~PERMISSION
+            PiiLambdaInvokePermission:
+              Type: AWS::Lambda::Permission
+              Properties:
+                Action: lambda:InvokeFunctionUrl
+                FunctionName: !Ref #{fronted_logical_id}
+                Principal: cloudfront.amazonaws.com
+                SourceArn: !Sub "arn:aws:cloudfront::${AWS::AccountId}:distribution/${PiiDistribution}"
+                FunctionUrlAuthType: #{use_oac ? "AWS_IAM" : "NONE"}
+          PERMISSION
+
+          countries_yaml = geo_restriction_countries.map { |code| "              - #{code}" }.join("\n")
+
+          reindent.call(<<~RESOURCES)
+            PiiAccessLogsBucket:
+              Type: AWS::S3::Bucket
+              Properties:
+                # `BucketOwnerPreferred`, not the newer `BucketOwnerEnforced`
+                # default — CloudFront's own classic access-log delivery
+                # (`Logging:`, on PiiDistribution below) still authorizes itself
+                # via a canned ACL (`AccessControlTranslation` between accounts is
+                # a distinct, newer mechanism this bucket has no other account to
+                # need), which an ACLs-disabled bucket refuses outright.
+                OwnershipControls:
+                  Rules:
+                    - ObjectOwnership: BucketOwnerPreferred
+                AccessControl: LogDeliveryWrite
+                LifecycleConfiguration:
+                  Rules:
+                    - Id: ExpirePiiAccessLogs
+                      Status: Enabled
+                      ExpirationInDays: 365
+
+            PiiResponseHeadersPolicy:
+              Type: AWS::CloudFront::ResponseHeadersPolicy
+              Properties:
+                ResponseHeadersPolicyConfig:
+                  Name: !Sub "${AWS::StackName}-pii-headers"
+                  SecurityHeadersConfig:
+                    StrictTransportSecurity:
+                      AccessControlMaxAgeSec: 63072000
+                      IncludeSubdomains: true
+                      Override: true
+                    ContentTypeOptions:
+                      Override: true
+                    FrameOptions:
+                      FrameOption: DENY
+                      Override: true
+                    ReferrerPolicy:
+                      ReferrerPolicy: same-origin
+                      Override: true
+                    XSSProtection:
+                      ModeBlock: true
+                      Protection: true
+                      Override: true
+
+            PiiWebAcl:
+              Type: AWS::WAFv2::WebACL
+              Properties:
+                Name: !Sub "${AWS::StackName}-pii-waf"
+                Scope: CLOUDFRONT
+                DefaultAction:
+                  Allow: {}
+                VisibilityConfig:
+                  SampledRequestsEnabled: true
+                  CloudWatchMetricsEnabled: true
+                  MetricName: !Sub "${AWS::StackName}PiiWebAcl"
+                Rules:
+                  - Name: AWSManagedRulesCommonRuleSet
+                    Priority: 0
+                    OverrideAction:
+                      None: {}
+                    Statement:
+                      ManagedRuleGroupStatement:
+                        VendorName: AWS
+                        Name: AWSManagedRulesCommonRuleSet
+                    VisibilityConfig:
+                      SampledRequestsEnabled: true
+                      CloudWatchMetricsEnabled: true
+                      MetricName: !Sub "${AWS::StackName}PiiCommonRuleSet"
+                  - Name: AWSManagedRulesKnownBadInputsRuleSet
+                    Priority: 1
+                    OverrideAction:
+                      None: {}
+                    Statement:
+                      ManagedRuleGroupStatement:
+                        VendorName: AWS
+                        Name: AWSManagedRulesKnownBadInputsRuleSet
+                    VisibilityConfig:
+                      SampledRequestsEnabled: true
+                      CloudWatchMetricsEnabled: true
+                      MetricName: !Sub "${AWS::StackName}PiiKnownBadInputs"
+
+            #{origin_access_control}
+            PiiDistribution:
+              Type: AWS::CloudFront::Distribution
+              Properties:
+                DistributionConfig:
+                  Enabled: true
+                  HttpVersion: http2
+                  WebACLId: !GetAtt PiiWebAcl.Arn
+                  Restrictions:
+                    GeoRestriction:
+                      RestrictionType: #{geo_restriction_type}
+                      Locations:#{geo_restriction_type == "none" ? " []" : "\n" + countries_yaml}
+                  Logging:
+                    Bucket: !GetAtt PiiAccessLogsBucket.RegionalDomainName
+                    IncludeCookies: false
+                    Prefix: cloudfront/
+                  Origins:
+                    - Id: PiiOrigin
+                      # `!Select [2, !Split ["/", ...]]` — the standard AWS-documented
+                      # way to pull the bare hostname out of a Function URL's own
+                      # `https://<id>.lambda-url.<region>.on.aws/` shape for use as a
+                      # CustomOriginConfig DomainName, which admits no scheme or path.
+                      DomainName: !Select [2, !Split ["/", !GetAtt #{fronted_logical_id}Url.FunctionUrl]]
+                      CustomOriginConfig:
+                        OriginProtocolPolicy: https-only
+                        OriginSSLProtocols: [TLSv1.2]
+            #{use_oac ? "          OriginAccessControlId: !Ref PiiOriginAccessControl" : ""}
+                  DefaultCacheBehavior:
+                    TargetOriginId: PiiOrigin
+                    ViewerProtocolPolicy: redirect-to-https
+                    AllowedMethods: [GET, HEAD, OPTIONS, PUT, PATCH, POST, DELETE]
+                    CachedMethods: [GET, HEAD]
+                    CachePolicyId: 4135ea2d-6df8-44a3-9df3-4b5a84be39ad
+                    OriginRequestPolicyId: 216adef6-5c7f-47e4-b989-5492eafa07d3
+                    ResponseHeadersPolicyId: !Ref PiiResponseHeadersPolicy
+
+            #{invoke_permission}
+          RESOURCES
         end
 
       end

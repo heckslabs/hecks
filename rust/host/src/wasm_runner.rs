@@ -1,8 +1,8 @@
-// THE SANDBOX BOUNDARY — runs the compiled `.wasm` artifact (built by
+// **The sandbox boundary** — runs the compiled `.wasm` artifact (built by
 // bin/project_wasm, the exact same wasm32-wasip1 module
 // bin/rust_conformance's own WASM mode already verifies byte-for-byte
 // against native) through an embedded wasmtime instance. This is the
-// ONLY place in rust/host that touches wasmtime; everything else (the
+// only place in rust/host that touches wasmtime; everything else (the
 // Postgres journal, the Lambda handler) only ever sees plain JSON
 // strings in and out — the module itself never gets a socket, a file,
 // or any ambient capability beyond the stdin bytes it's handed here.
@@ -56,30 +56,30 @@ impl StdoutStream for StepsOut {
     }
 }
 
-// COMPILED ONCE PER (warm) LAMBDA EXECUTION ENVIRONMENT, not once per
-// CALL — `Engine`/`Module` hold only the compiled artifact, no
+// Compiled once per (warm) lambda execution environment, not once per
+// call — `Engine`/`Module` hold only the compiled artifact, no
 // per-invocation state at all (that lives entirely in `Store`, still
 // created fresh below, every call), so caching them leaks nothing
-// between invocations. This used to be a real, live cost: every
-// COMMAND dispatch (`dispatch::handle`) runs through here, and
-// `Module::from_file` is wasmtime doing real JIT compilation from raw
-// bytes — a genuine multi-second cost on Lambda's own CPU allocation,
-// paid again on every single warm call, not just a true cold start.
-// `dispatch::read`'s own fast path (a snapshot with nothing to
-// replay) never reaches this function at all, which is why reads
-// stayed fast while every command got slower than the actual
-// rehydrate-replay work here ever needed to be.
+// between invocations. Without this caching, every command dispatch
+// (`dispatch::handle`) would pay a real, live cost: it runs through
+// here, and `Module::from_file` is wasmtime doing real JIT compilation
+// from raw bytes — a genuine multi-second cost on Lambda's own CPU
+// allocation, paid again on every single warm call, not just a true
+// cold start. `dispatch::read`'s own fast path (a snapshot with nothing
+// to replay) never reaches this function at all, which is why reads
+// stay fast while every command would otherwise cost far more than the
+// actual rehydrate-replay work here ever needs to.
 //
-// KEYED BY `wasm_path`, NOT A BARE SINGLE SLOT — a deployed Lambda's own
+// Keyed by `wasm_path`, not a bare single slot — a deployed Lambda's own
 // `HECKS_WASM_PATH` never changes across its whole warm lifetime, which
 // is exactly why the original single-slot `OnceLock<(Engine, Module)>`
-// stayed invisible in production: EVERY call in that process really was
-// the same path, forever. FOUND LIVE, in this crate's own `cargo test`:
-// one test binary genuinely dispatches against TWO different domains'
+// stayed invisible in production: every call in that process really was
+// the same path, forever. Found live, in this crate's own `cargo test`:
+// one test binary genuinely dispatches against two different domains'
 // `.wasm` files in the same process (dispatch.rs's own banking.wasm
 // fixtures alongside web.rs's lifeadelics.wasm ones, run concurrently
 // by cargo test's own thread pool) — whichever path happened to compile
-// FIRST silently won for every subsequent call regardless of its own
+// first silently won for every subsequent call regardless of its own
 // `wasm_path` argument, so a banking dispatch got lifeadelics' compiled
 // module back and refused every real Banking verb as "unknown command."
 // `Engine`/`Module` are both cheap-`Clone` (wasmtime's own docs: each
@@ -96,8 +96,8 @@ fn engine_and_module(wasm_path: &Path) -> anyhow::Result<(Engine, Module)> {
 
     let engine = Engine::default();
     let module = Module::from_file(&engine, wasm_path)?;
-    // A LOST RACE IS HARMLESS, NOT WASTED WORK TO AVOID — two calls for
-    // the SAME new path, both missing the check above, would each
+    // A lost race is harmless, not wasted work to avoid — two calls for
+    // the same new path, both missing the check above, would each
     // compile once; `entry(...).or_insert_with` just keeps whichever
     // one gets the lock first and drops the other's Engine/Module,
     // same "simpler and just as correct as coordinating who compiles"

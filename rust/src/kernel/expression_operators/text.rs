@@ -2,7 +2,7 @@
 // (projection.json: `.split`, `.start_with?`, `.end_with?` — three
 // symbols, three interpreter nodes sharing one category, the same
 // `sized.rs`-style grouping precedent: different node shapes, one
-// category, because all three ask a question of a STRING specifically)
+// category, because all three ask a question of a string specifically)
 // — `Resolver::Split`/`::StartsWith`/`::EndsWith` (resolver.rb's
 // `split_value`/`starts_with?`/`ends_with?`), read directly. String-only,
 // same reasoning the Ruby resolver's own comments give: every corpus

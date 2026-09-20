@@ -4,7 +4,7 @@
 //! Every `*_skip_reason` in this crate answers `None` (generate it) or one
 //! of these. `text` is the reason string, unchanged; `construct` is the
 //! short, machine-readable family name (`reference_hop_where`,
-//! `optional_source`, ...) the SAME branch set when it decided, written to
+//! `optional_source`, ...) the same branch set when it decided, written to
 //! `manifest.json` beside the reason so `bin/rust_coverage` and the
 //! differential fuzzer read the family, never the prose.
 

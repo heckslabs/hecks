@@ -2,12 +2,12 @@
 //! to Rust — the crate's own orchestration core. Reads a domain's
 //! `.bluebook`/`.hecksagon` header text (plain scanning, never a
 //! `Kernel.load`-equivalent — there is no interpreter here to load
-//! anything INTO), shells out to `hecks-parse`/`hecks-codegen` exactly
+//! anything into), shells out to `hecks-parse`/`hecks-codegen` exactly
 //! the way the Ruby original shells out to the same two binaries, runs
 //! this crate's own `optional_pass::run` (the Rust port of
 //! `mark_append_optional_fields!`) on each chapter's freshly-parsed
 //! `ir.json` before handing it to codegen, runs `lineage_pass::run` on
-//! the TARGET chapter's own `ir.json` only (matching the default Ruby
+//! the target chapter's own `ir.json` only (matching the default Ruby
 //! path's own `target_ir[:lineage] = ...` — never set on a framework
 //! chapter or on `meta`), writes the same sidecars, and syncs
 //! `rust/Cargo.toml`. See each helper module's own header for the piece
@@ -15,7 +15,7 @@
 //! `RustProjectPipeline.call`'s own body step for step.
 //!
 //! `manifest.json` is written per directory by `hecks-codegen full` itself
-//! (rust/codegen/src/manifest.rs). The `lineage` key gap is CLOSED
+//! (rust/codegen/src/manifest.rs). The `lineage` key gap is closed
 //! (`lineage_pass`'s own header has the full reasoning) — see
 //! `rust/project_rust_pipeline.rb`'s own header for that fix's own
 //! Ruby-side account, which this crate mirrors rather than re-deriving.
@@ -59,7 +59,7 @@ pub fn run(root: &Path, domain: &str, opts: &Options) -> Result<(), String> {
         .ok_or_else(|| format!("could not determine a module name from domain path {domain:?}"))?
         .to_string();
 
-    // SAME GUARD, SAME REASON as bin/project_rust's own default path (R5)
+    // Same guard, same reason as bin/project_rust's own default path (R5)
     // — see `cargo_sync::valid_domain_mod_name`'s own header.
     if !cargo_sync::valid_domain_mod_name(&target_mod_name) {
         return Err(format!(
@@ -95,19 +95,19 @@ pub fn run(root: &Path, domain: &str, opts: &Options) -> Result<(), String> {
         target_files.push(p.clone());
     }
     let target_ir_text = parse_chapter_with_optionals(&parser_bin, &target_chapter_name, &target_files)?;
-    // ONLY the target — see this file's own header on why a framework
+    // Only the target — see this file's own header on why a framework
     // chapter or `meta` never gets a `lineage` key either. A second,
     // independent parse/mutate/re-emit pass over the already-derived
     // text, mirroring `derive_lineage(target_ir_text, hecksagon_path)`
-    // (Ruby) taking a STRING and re-`JSON.parse`ing it rather than
+    // (Ruby) taking a string and re-`JSON.parse`ing it rather than
     // chaining a live object through both passes — the same structure,
     // not an accident of this port.
     let mut target_ir = Json::parse(&target_ir_text).map_err(|e| format!("re-parsing target ir.json for lineage: {e}"))?;
     lineage_pass::run(&mut target_ir, hecksagon_path.as_deref(), root)?;
     let target_ir_text = crate::json::write(&target_ir);
 
-    // EVERY OTHER CHAPTER `uses_framework` NAMES — resolved through the
-    // SAME `Hecks::Framework.members`-equivalent directory listing
+    // **Every other chapter `uses_framework` names** — resolved through the
+    // same `Hecks::Framework.members`-equivalent directory listing
     // (`resolve::framework_members`) the Ruby pipeline itself calls,
     // never hand-derived.
     let framework_members = resolve::framework_members(root)?;
@@ -136,14 +136,14 @@ pub fn run(root: &Path, domain: &str, opts: &Options) -> Result<(), String> {
         });
     }
 
-    // EVERY VENDORED PACKAGE `uses_embryonaut_bluebook` NAMES — same real
+    // Every vendored package `uses_embryonaut_bluebook` names — same real
     // packages the Ruby default path's own `EmbryonautBluebook.load!`
-    // pulls in, resolved the SAME way that module resolves them
-    // (`resolve::vendored_bluebook_files`). Previously missing entirely
-    // in this crate (`resolve::resolve_uses_framework` was the only
-    // resolution called), so `hecks-build` silently dropped a vendored
-    // chapter from its own output — this loop mirrors the
-    // `uses_framework` one above step for step.
+    // pulls in, resolved the same way that module resolves them
+    // (`resolve::vendored_bluebook_files`). Without this loop,
+    // `resolve::resolve_uses_framework` would be the only resolution
+    // called, so `hecks-build` would silently drop a vendored chapter from
+    // its own output — this loop mirrors the `uses_framework` one above
+    // step for step.
     for pkg_name in &uses_embryonaut_bluebook_names {
         let pkg_files = resolve::vendored_bluebook_files(&domain_path, pkg_name)?;
         let pkg_chapter_name = resolve::header_chapter_name(&pkg_files[0])?;
@@ -163,8 +163,8 @@ pub fn run(root: &Path, domain: &str, opts: &Options) -> Result<(), String> {
         }
         let pkg_ir_text = parse_chapter_with_optionals(&parser_bin, &pkg_chapter_name, &pkg_bluebooks)?;
         chapters.push(Chapter {
-            // SAME DERIVATION as the framework loop's own `fw_name.
-            // to_lowercase()` (off the DECLARED chapter name, asserted
+            // Same derivation as the framework loop's own `fw_name.
+            // to_lowercase()` (off the declared chapter name, asserted
             // equal to `expected_chapter_name` just above) — not
             // `pkg_name.to_lowercase()` off the raw argument, which
             // diverges the moment a package name contains an
@@ -175,7 +175,7 @@ pub fn run(root: &Path, domain: &str, opts: &Options) -> Result<(), String> {
         });
     }
 
-    // NO SILENT COLLISION between a `uses_framework`- and a
+    // No silent collision between a `uses_framework`- and a
     // `uses_embryonaut_bluebook`-derived entry — mirrors the same guard
     // `rust/project_rust_pipeline.rb`'s own opt-in Ruby pipeline carries
     // for the identical reason (a duplicate `mod_name` would silently
@@ -194,7 +194,7 @@ pub fn run(root: &Path, domain: &str, opts: &Options) -> Result<(), String> {
         }
     }
 
-    // THE SELF-HOSTED LANGUAGE, COMPILED IN TOO — one discovered concept
+    // **The self-hosted language, compiled in too** — one discovered concept
     // folder, the same "Bluebook" chapter name.
     let grammar_files = resolve::grammar_files(root)?;
     let meta_ir_text = parse_chapter_with_optionals(&parser_bin, "Bluebook", &grammar_files)?;
@@ -202,8 +202,8 @@ pub fn run(root: &Path, domain: &str, opts: &Options) -> Result<(), String> {
     let out_root = root.join("rust/src/generated");
     std::fs::create_dir_all(&out_root).map_err(|e| format!("creating {}: {e}", out_root.display()))?;
 
-    // SCOPED clearing — identical reasoning to both Ruby pipelines'
-    // own: multiple domains coexist on disk, so only THIS run's own
+    // Scoped clearing — identical reasoning to both Ruby pipelines'
+    // own: multiple domains coexist on disk, so only this run's own
     // directories are wiped first.
     remove_dir_if_exists(&out_root.join("meta"))?;
     remove_dir_if_exists(&out_root.join("active"))?;

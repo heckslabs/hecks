@@ -16,7 +16,8 @@ module Hecks
 
       attr_reader :root, :bluebooks, :hecksagons, :ports, :adapters, :worlds, :event_log,
                   :reaction_log, :saga_log, :saga_instances, :translations, :saga_mutex,
-                  :saga_dispatch_log, :policy_dispatch_log, :bluebook_sources
+                  :saga_dispatch_log, :policy_dispatch_log, :bluebook_sources,
+                  :pending_privacy_markings
 
       # @param root [String, nil] the booting project's root directory, the base
       #   a shared ports/adapters root and a `.world`'s own relative paths resolve
@@ -33,6 +34,14 @@ module Hecks
         @event_log    = []
         @reaction_log = []
         @saga_log = []
+        # A DECLARATIVE FACT, NOT YET A DISPATCHED ONE — `AggregateDoor#
+        # mark_sensitive` (called from a `.hecksagon` file, the same way
+        # `port`/`persisted_by` already are) appends here at
+        # hecksagon-build time; `Runtime::Loader.boot`'s own post-dispatcher
+        # step turns each entry into a real `Privacy::Marking.Mark`,
+        # idempotently, the same "declared here, taken effect once boot
+        # actually has a dispatcher" shape `redrive_outbox!` already has.
+        @pending_privacy_markings = []
         # **Additive, Ruby-only** — never merged into saga_log/reaction_log.
         # rust/src/kernel/orchestrate.rs ports those two arrays' exact
         # shape byte-for-byte (spec/rust_conformance_spec.rb's own
@@ -215,6 +224,26 @@ module Hecks
       # @return [Array<Bluebook::Translation>] every translation registered so far,
       #   `item` last
       def add_translation(item) = @translations << item
+
+      # Declares one attribute of one domain's own aggregate sensitive — called from a
+      # terminal `has_<category>(readable_by:)` on a `Bluebook::DSL::AttributePath`
+      # (reached by chaining off a bare `Domain::Aggregate` inside a `.hecksagon` file
+      # being `Kernel.load`ed, or off an already-installed `AggregateDoor`), same timing
+      # (and same thread-safety argument, above) as `add_bluebook`/`add_port`. Recorded,
+      # not dispatched: `Runtime::Loader.boot`'s own `seed_privacy_markings!` turns each
+      # entry into a real `Privacy::Marking.Mark` once a dispatcher exists.
+      #
+      # @param domain [String] the marked attribute's own aggregate FQN, e.g.
+      #   `"Lifeadelics::Registration"`
+      # @param attribute_path [String] the dotted path within that aggregate, e.g.
+      #   `"attendee.medications"`
+      # @param category [String] the marking's own sensitivity category, e.g. `"phi"`
+      # @param readable_by [String] the Governance role a read must hold, unredacted
+      # @return [void]
+      def add_pending_privacy_marking(domain:, attribute_path:, category:, readable_by:)
+        @pending_privacy_markings << { domain: domain, attribute_path: attribute_path,
+                                        category: category, readable_by: readable_by }
+      end
       # rubocop:enable Hecks/ThreadSharedIvarMutation
 
       # {domain name => era ordinal} as resolved by the boot-time era

@@ -1,34 +1,34 @@
-// HAND-WRITTEN, ONCE, GENERIC — a direct port of `Dispatcher#dispatch`'s
+// **Hand-written, once, generic** — a direct port of `Dispatcher#dispatch`'s
 // own reaction plumbing (lib/hecks/runtime/dispatcher.rb, read
-// directly): every command dispatch runs its OWN pipeline, then hands
-// each event it announced to policy matching AND process-manager
+// directly): every command dispatch runs its own pipeline, then hands
+// each event it announced to policy matching and process-manager
 // advancement, re-entering dispatch for whatever either fires —
-// recursively, inside the SAME call, bounded by a reaction-depth ceiling
+// recursively, inside the same call, bounded by a reaction-depth ceiling
 // rather than a queue or a separate tick. `PolicyInterpreter#react`+
 // `SagaInterpreter#advance` are the Ruby originals this ports; both run
-// off the SAME announced-event list, in the order C10.2 fixes for both
+// off the same announced-event list, in the order C10.2 fixes for both
 // runtimes — the whole batch logged first, then per event in `emits`
 // order: that event's policies, then its sagas (`Outbox::Relay#deliver`'s
 // own loop) — which is why they're one function here too, not two.
 //
-// THE REACTION/SAGA LOG (`registry.reaction_log`/`saga_log`) IS PRODUCED
-// NOW, not just the side effects — `PolicyInterpreter#deliver`'s and
+// The reaction/saga log (`registry.reaction_log`/`saga_log`) is produced
+// now, not just the side effects — `PolicyInterpreter#deliver`'s and
 // `SagaInterpreter`'s own record-building, ported record shape for record
 // shape (`begin_saga`/`advance_saga`/`deliver_saga_dispatch`/`unwind`/
-// `end_saga`, split into the SAME five functions below rather than one
+// `end_saga`, split into the same five functions below rather than one
 // merged pass, because Ruby's own `advance` calls all three of `begin_
-// saga`/`advance_saga`/`end_saga` UNCONDITIONALLY per (pm, event) pair —
+// saga`/`advance_saga`/`end_saga` unconditionally per (pm, event) pair —
 // each independently gated on its own structural check (`event.name ==
 // pm.starts_on`, `pm.handler_for(event.name)`, `event.name == pm.ends_on`)
-// — and a single merged gate (this file's OWN prior shape) silently
+// — and a single merged gate (this file's own prior shape) silently
 // produces fewer log entries than Ruby whenever those three checks
 // would have disagreed about whether to fire at all.
 //
-// ONE DELIBERATE, DOCUMENTED, PERMANENT GAP: Ruby's `rescue StandardError`
+// **One deliberate, documented, permanent gap**: Ruby's `rescue StandardError`
 // branch (`delivered: false, defect: true, error_class: ...`) has no
-// Rust equivalent and is NOT ported. That branch exists because Ruby's
+// Rust equivalent and is not ported. That branch exists because Ruby's
 // dynamically-typed interpreter can raise a NoMethodError/TypeError/etc.
-// from WITHIN a reaction dispatch — a genuine runtime crash a static,
+// from within a reaction dispatch — a genuine runtime crash a static,
 // compiled `dispatch_fn` (`Result<Vec<Event>, Refusal>`, never an
 // exception) cannot produce the equivalent of. A bug in generated Rust
 // dispatch code is a Rust bug (a compile error, or — if it ever slipped
@@ -41,19 +41,19 @@
 // Ruby's `defect: true` reaction_log entries for exactly this reason —
 // see that file's own header.
 //
-// CROSS-DOMAIN POLICIES (`across "OtherDomain"`) are matched here the
-// SAME way a same-domain policy is (event_name/event_qualifier), but
+// Cross-domain policies (`across "OtherDomain"`) are matched here the
+// same way a same-domain policy is (event_name/event_qualifier), but
 // never dispatched here — this module is the WASM-sandboxed kernel
 // (docs/implemented/decisions/0012), no network, no way to reach another domain's
 // own deployed Lambda. `react_policies` below pushes a
 // `PendingCrossDomainReaction` instead of recursing into `orchestrate`,
 // and `kernel::cli::run` carries that list out through this call's own
-// JSON output for rust/host (the UNSANDBOXED layer, real AWS SDK access)
+// JSON output for rust/host (the unsandboxed layer, real AWS SDK access)
 // to actually deliver — `rust/host/src/lambda_client.rs` is that
 // delivery, a direct port of `Adapters::Lambda::Client`'s own
 // function-name computation and invoke shape. See that file's own header
-// for the full mirror. NEITHER SIDE OF THAT SPLIT PRODUCES A `reaction_
-// log` ENTRY for a cross-domain match today — this kernel genuinely
+// for the full mirror. Neither side of that split produces a `reaction_
+// log` entry for a cross-domain match today — this kernel genuinely
 // cannot know the delivery outcome (that only exists once rust/host
 // finishes the call), and rust/host doesn't build one either yet. A
 // real, separate, documented gap — docs/HECKS_IMPLEMENTATION_PLAN.md's
@@ -90,13 +90,13 @@ pub struct PolicyRule {
     /// this `const` table; the generated fn builds it on demand.
     pub where_expr: Option<fn() -> Expr>,
     /// `PolicyInterpreter#deliver_for_each` — the query verb a fan-out
-    /// runs, ALREADY domain-qualified by the generator (Ruby's own
+    /// runs, already domain-qualified by the generator (Ruby's own
     /// `Behaviour::Policy#for_each_route` resolves the bare
     /// "Aggregate.query" spelling against the policy's own domain, and
     /// the answer is a fact about the source, so it is settled at
     /// codegen rather than re-derived here).
     pub for_each: Option<&'static str>,
-    /// THE NAME EACH MATCHED ROW'S ID IS MINTED UNDER — resolved at
+    /// The name each matched row's ID is minted under — resolved at
     /// codegen by asking Ruby's own `Behaviour::Command#addressing_key_
     /// for`, never re-derived here. Two different answers are correct
     /// (`account` for a command self-referencing its own aggregate,
@@ -105,7 +105,7 @@ pub struct PolicyRule {
     /// the aggregate name — reimplementing that judgement in a second
     /// language is how the two runtimes would drift.
     pub for_each_key: Option<&'static str>,
-    /// `trigger ..., with:` — WHAT THE TRIGGER IS GIVEN. Empty forwards
+    /// `trigger ..., with:` — what the trigger is given. Empty forwards
     /// the event's whole payload verbatim. Each pair is
     /// `(argument_name, binding)`, and a binding beginning ":" names a
     /// field on the source the way `Literal::render` spells a Symbol —
@@ -118,11 +118,11 @@ pub struct PolicyRule {
 /// Consequences section named this gap by name: this single-domain
 /// `Store` never compiled `OtherDomain`'s aggregates in, so there is no
 /// `dispatch_fn` this WASM module could route into even if it wanted to.
-/// PREVIOUSLY this row was simply never emitted (`reactions.rb`'s
-/// `emit_policy_table` filtered it out entirely) — represented now
-/// instead, the same "loud, not silent" instinct `emit_policy_table`'s own
-/// header already applies to the domain-mismatch case. `policy_name` rides
-/// along purely for the delivery record a HOST layer produces once this
+/// This row is represented, not filtered out — `reactions.rb`'s
+/// `emit_policy_table` never drops it, the same "loud, not silent"
+/// instinct `emit_policy_table`'s own header already applies to the
+/// domain-mismatch case. `policy_name` rides
+/// along purely for the delivery record a host layer produces once this
 /// fires (below) — `PolicyRule` has no equivalent field because nothing
 /// downstream of a same-domain reaction ever needed to name the policy
 /// that caused it; a cross-Lambda invoke that might fail is exactly the
@@ -137,17 +137,17 @@ pub struct CrossDomainPolicyRule {
     pub target_verb: &'static str,
 }
 
-/// ONE MATCHED-BUT-UNROUTABLE cross-domain reaction — this WASM module's
+/// One matched-but-unroutable cross-domain reaction — this WASM module's
 /// own honest confession that a policy fired and it could not deliver it,
-/// carrying everything an UNSANDBOXED host layer (network access this
+/// carrying everything an unsandboxed host layer (network access this
 /// module structurally lacks — see this file's header and rust/host's own
 /// `lambda_client.rs`) needs to finish the job: which Lambda to invoke
 /// (`target_domain`), what to invoke it with (`target_verb`), and the
-/// SAME whole-payload-verbatim forwarding `react_policies`'s local branch
+/// same whole-payload-verbatim forwarding `react_policies`'s local branch
 /// already does for a same-domain policy (this file's own comment on
 /// "not reshaped, not filtered" — identical rule, just deferred to a
 /// caller instead of applied here). `event_name` — the triggering event's
-/// own name — exists ONLY so rust/host can build a `reaction_log`-shaped
+/// own name — exists only so rust/host can build a `reaction_log`-shaped
 /// record (`{policy, on, trigger, delivered, reason}`, matching the
 /// same-domain shape below) once it learns the real delivery outcome;
 /// this module itself never reads it back (see this file's own header:
@@ -180,8 +180,8 @@ pub struct DispatchSpec {
     /// `compensates` — per-dispatch saga compensation (mirrors `ir::
     /// DispatchSpec::compensates`/`Hecks::Bluebook::DispatchSpec#compensates`,
     /// `lib/hecks/bluebook/process_manager.rb`): the command that undoes
-    /// THIS dispatch specifically, if any. `&'static` (a reference into
-    /// the SAME generated static table this dispatch itself sits in),
+    /// this dispatch specifically, if any. `&'static` (a reference into
+    /// the same generated static table this dispatch itself sits in),
     /// not `Box` — every table in this file is `const`-constructible
     /// generated data (`rust/project/reactions.rb`), and a reference to
     /// a sibling `static`/promoted-const `DispatchSpec` literal is the
@@ -200,7 +200,7 @@ pub struct Handler {
 
 /// One `process_manager "Name" do ... end` block. `initial_state` is
 /// `states.first` (Ruby's `begin_saga`: `state: pm.states.first`) —
-/// nothing else here needs the FULL declared state list, only the one
+/// nothing else here needs the full declared state list, only the one
 /// value a freshly-born instance starts at, so that's all this keeps.
 pub struct ProcessManagerDef {
     pub name: &'static str,
@@ -217,38 +217,38 @@ pub const REFUSED: &str = "refused";
 
 /// One live process-manager instance — `SagaInterpreter`'s own
 /// `{state:, memory:}` shape, keyed `(process_manager_name, correlation)`
-/// by whoever owns the map (`kernel/cli.rs` — deliberately NOT a `Store`
+/// by whoever owns the map (`kernel/cli.rs` — deliberately not a `Store`
 /// field: process managers are domain-level, not per-aggregate, and
 /// nothing about `Store`'s own generated shape needs to know they exist).
 #[derive(Clone)]
 pub struct SagaInstance {
     pub state: String,
     pub memory: Json,
-    /// `SagaInterpreter`'s own `completed_compensations` — a PER-INSTANCE,
-    /// DYNAMIC runtime ledger, kept deliberately distinct from the
-    /// STATIC, declaration-only `Handler::dispatches` (what a saga
-    /// COULD undo): which of THIS instance's own dispatches actually
+    /// `SagaInterpreter`'s own `completed_compensations` — a per-instance,
+    /// dynamic runtime ledger, kept deliberately distinct from the
+    /// static, declaration-only `Handler::dispatches` (what a saga
+    /// could undo): which of this instance's own dispatches actually
     /// completed and declared a `compensates`, oldest-completed-first
     /// (so `Vec::pop` in `compensate` below drains newest-first,
     /// matching Ruby's own `instance[:completed_compensations]`).
-    /// Recorded SPECULATIVELY, before the forward dispatch it undoes
+    /// Recorded speculatively, before the forward dispatch it undoes
     /// ever runs — see `deliver_saga_dispatch`'s own header for why
     /// "after success" is too late.
     pub completed_compensations: Vec<CompletedCompensation>,
 }
 
 /// One entry in `SagaInstance::completed_compensations` — `command_name` and
-/// ALREADY-RESOLVED `args` for the compensation a completed forward
+/// already-resolved `args` for the compensation a completed forward
 /// dispatch declared (`DispatchSpec::compensates`), mirroring
 /// `SagaInterpreter#deliver_saga_dispatch`'s own `{command_name:, args:}`
 /// ledger entry shape exactly. `args` is resolved once, at the moment
-/// this entry is pushed (against the SAME event/memory context the
+/// this entry is pushed (against the same event/memory context the
 /// forward dispatch itself resolves its own `with:` from) —
 /// `deliver_derived_compensation` fires it verbatim later, skipping
 /// `build_dispatch_args` entirely, the same way Ruby's own `entry[:args]`
-/// does. `command_name` is OWNED (`String`, not `&'static str`) — unlike
+/// does. `command_name` is owned (`String`, not `&'static str`) — unlike
 /// `DispatchSpec`, this is per-instance runtime data, not a reference
-/// into a generated static table: it has to round-trip through the SAME
+/// into a generated static table: it has to round-trip through the same
 /// durable saga-persistence seed/snapshot JSON `state`/`memory` already
 /// do (`kernel::cli::run`'s own `"sagas"` input / `"saga_snapshot"`
 /// output, `rust/host/src/journal.rs`'s own
@@ -262,7 +262,7 @@ pub struct CompletedCompensation {
 /// `pm.correlates_by.split(".").first` — `IR::ProcessManager#correlation_
 /// head`, read directly (`@correlates_by.to_s.split(".").first.to_sym`).
 /// A pure syntactic derivation, computed here rather than carried as a
-/// SEPARATE generated field on `ProcessManagerDef` — `resolve_with`
+/// separate generated field on `ProcessManagerDef` — `resolve_with`
 /// below already derived it inline the same way before this existed;
 /// factored out once a second call site (`correlation_of`'s new middle
 /// tier) needed the identical derivation.
@@ -295,12 +295,12 @@ fn correlation_head(correlates_by: &str) -> &str {
 /// header. Every tier's result is treated as absent when empty, matching
 /// every one of Ruby's own three callers (`begin_saga`/`advance_saga`/
 /// `end_saga`) independently checking `correlation.to_s.empty?` after
-/// calling this — folded into ONE emptiness check here instead of three
+/// calling this — folded into one emptiness check here instead of three
 /// repeated ones at every call site, since nothing downstream ever wants
 /// an empty-string correlation to behave differently from a genuinely
 /// absent one.
 fn correlation_of(pm: &ProcessManagerDef, event: &Event, reference_key_fn: fn(&str) -> Option<&'static str>) -> Option<String> {
-    // TIER 1 — a dotted path into the CURRENT event's own payload
+    // Tier 1 — a dotted path into the current event's own payload
     // (`TransferRequested`'s `reference.value`, a fresh declaration).
     if let Some(v) = event.payload.dig(pm.correlates_by) {
         if let Ok(id) = v.to_id_component() {
@@ -310,13 +310,13 @@ fn correlation_of(pm: &ProcessManagerDef, event: &Event, reference_key_fn: fn(&s
         }
     }
 
-    // TIER 2 — THE STAMP: `event.correlation[pm.correlation_head]`, set
-    // by a PRIOR call to `orchestrate` when THIS event's own dispatch was
+    // Tier 2 — the stamp: `event.correlation[pm.correlation_head]`, set
+    // by a prior call to `orchestrate` when this event's own dispatch was
     // itself a saga leg (`deliver_saga_dispatch`'s own `saga_correlation:`
     // argument, mirrored by `orchestrate`'s own stamping step below). The
     // corpus example this exists for: `AccountDebited`'s handler reaches
-    // `:destination`, which is present only on the ORIGINAL
-    // `TransferRequested` — but the correlation ITSELF (`:reference`,
+    // `:destination`, which is present only on the original
+    // `TransferRequested` — but the correlation itself (`:reference`,
     // tier 1's own field) is also absent from `AccountDebited`'s payload,
     // so without this tier there would be no way to find the right saga
     // instance to advance at all.
@@ -328,9 +328,9 @@ fn correlation_of(pm: &ProcessManagerDef, event: &Event, reference_key_fn: fn(&s
         }
     }
 
-    // TIER 3 — `Naming.reference_key(event.aggregate)`: a leg dispatched
-    // through its OWN `reference_to` argument (`Transfer.Credited`'s
-    // `transfer:`) announces an event whose payload carries THAT key, not
+    // Tier 3 — `Naming.reference_key(event.aggregate)`: a leg dispatched
+    // through its own `reference_to` argument (`Transfer.Credited`'s
+    // `transfer:`) announces an event whose payload carries that key, not
     // `correlates_by`'s dotted field — see this file's header and
     // `reactions.rb`'s `emit_reference_key_table`.
     let key = reference_key_fn(&event.aggregate)?;
@@ -344,7 +344,7 @@ fn correlation_of(pm: &ProcessManagerDef, event: &Event, reference_key_fn: fn(&s
 
 /// `Correlation#dispatch_args`'s value resolution, first tier only (this
 /// file's header) — the correlation head resolves to the correlation
-/// itself; anything else checks the CURRENT event's payload, then falls
+/// itself; anything else checks the current event's payload, then falls
 /// back to the saga's own stashed memory of the event that began it
 /// (`AccountDebited`'s handler reaching `:destination`, present only on
 /// the original `TransferRequested`, is the corpus's real example of the
@@ -367,27 +367,26 @@ fn resolve_with(pm: &ProcessManagerDef, value: &WithValue, event: &Event, correl
     }
 }
 
-// `SagaInterpreter#qualified` (saga_interpreter.rb), read directly, as it
-// stands AFTER BUG#6 (PR #532): `"#{domain}::#{command_name}"` —
-// unconditional, no `command_name.include?("::")` guess any more. That
-// guess used to pick the cross-domain reading for ANY leftover `::`,
-// which cannot tell a genuinely cross-domain command (`Banking::Account.
-// Debit`) apart from a same-domain command owned by a NESTED ENTITY
+// `SagaInterpreter#qualified` (saga_interpreter.rb), read directly, as
+// BUG#6 fixed it: `"#{domain}::#{command_name}"` — unconditional, no
+// `command_name.include?("::")` guess. Guessing from any leftover `::`
+// cannot tell a genuinely cross-domain command (`Banking::Account.
+// Debit`) apart from a same-domain command owned by a nested entity
 // (`Manifest::Slot.Fill` — `Naming.command_ref`'s own rewrite only ever
-// strips the LAST `::`, so entity nesting leaves one behind too); BUG#6
-// fixed Ruby by dropping the guess entirely; every real saga leg in the
-// corpus dispatches inside its own domain (that bug's own `cause`).
+// strips the last `::`, so entity nesting leaves one behind too); every
+// real saga leg in the corpus dispatches inside its own domain (that
+// bug's own `cause`).
 //
 // This crate's own dispatch table is not Ruby's `Naming.split_verb`
 // (runtime string-splitting at lookup time) — `registry.rs`'s generated
-// match arms are compile-time LITERAL strings, already dot-joined past
+// match arms are compile-time literal strings, already dot-joined past
 // the domain::aggregate boundary (`"Waybill::Manifest.Slot.Fill"`, never
 // `"Waybill::Manifest::Slot.Fill"`). So qualifying here needs the same
 // fold `split_verb` performs at lookup time, not just Ruby's own simpler
-// prefix: `command_name`'s OWN first `::` (the entity-nesting artifact,
+// prefix: `command_name`'s own first `::` (the entity-nesting artifact,
 // when there is one) becomes `.` too, matching the literal arm a same-
 // domain nested-entity dispatch must resolve to. BUG#9 — this file had
-// carried the PRE-BUG#6 Ruby heuristic verbatim (see the comment this
+// carried the pre-BUG#6 Ruby heuristic verbatim (see the comment this
 // replaced, still readable at PR history for `deliver_saga_dispatch`),
 // so a same-domain entity-command saga leg (`waybill`'s own `Packing`
 // dispatching `Manifest::Slot.Fill`) was never domain-qualified at all —
@@ -399,14 +398,14 @@ fn qualify_saga_command_name(domain_name: &str, command_name: &str) -> String {
 
 fn build_dispatch_args(pm: &ProcessManagerDef, spec: &DispatchSpec, event: &Event, correlation: &str, memory: &Json, domain_name: &str, tables: &Tables) -> Json {
     let projected = Json::Object(spec.with.iter().map(|(key, value)| (key.to_string(), resolve_with(pm, value, event, correlation, memory))).collect());
-    // A saga leg's own `dispatch ..., with: {...}` is ALWAYS an explicit
+    // A saga leg's own `dispatch ..., with: {...}` is always an explicit
     // projection (`DispatchSpec.with` has no "undeclared" shape the way a
     // policy's own `with_spec` does) — split_routed_args's own header.
     //
-    // `spec.command_name` is BARE on the wire (`deliver_saga_dispatch`'s
+    // `spec.command_name` is bare on the wire (`deliver_saga_dispatch`'s
     // own comment on why) — `command_creates_fn`/`identity_head_fn` are
-    // both keyed by the FULLY qualified verb, so this needs the identical
-    // qualification BEFORE the lookup, not after. See
+    // both keyed by the fully qualified verb, so this needs the identical
+    // qualification before the lookup, not after. See
     // `qualify_saga_command_name`'s own header (BUG#6/BUG#9) for why this
     // is not a plain `contains("::")` guess.
     let qualified = qualify_saga_command_name(domain_name, spec.command_name);
@@ -423,7 +422,7 @@ pub struct Tables<'a> {
     pub cross_domain_policies: &'a [CrossDomainPolicyRule],
     pub process_managers: &'a [ProcessManagerDef],
     pub reference_key_fn: fn(&str) -> Option<&'static str>,
-    /// A FAN-OUT RUNS A DECLARED QUERY, so the reaction path needs the
+    /// A fan-out runs a declared query, so the reaction path needs the
     /// same table `cli::run` already answers top-level asks from.
     pub queries: &'a [crate::kernel::QueryDef],
     /// `split_routed_args`'s own three tables — `reactions.rb`'s `emit_
@@ -437,7 +436,7 @@ pub struct Tables<'a> {
     /// `ReactionInvocation.command_facts` (`args.slice(*declared)`). See
     /// `emit_command_attributes_table`'s own header for the full story.
     pub command_attributes_fn: fn(&str) -> &'static [&'static str],
-    /// BUG#10 — a ONE-LEVEL-deep entity command's own identity head,
+    /// BUG#10 — a one-level-deep entity command's own identity head,
     /// keyed by "Domain::Aggregate.Entity" — `route_dispatch_args`'s own
     /// header has the full argument; `reactions.rb`'s `emit_entity_
     /// identity_head_table` is the generator side.
@@ -445,14 +444,14 @@ pub struct Tables<'a> {
 }
 
 /// The recursive reentry loop `Dispatcher#dispatch`/`#reenter` are, ported
-/// generic over the STORE type — `dispatch_fn` is generated `registry.rs`'s
+/// generic over the store type — `dispatch_fn` is generated `registry.rs`'s
 /// own `dispatch_by_name`, a plain `fn` pointer (not a closure) so this can
 /// recurse without fighting Rust's borrow checker over a self-referential
-/// closure. Appends EVERY event — the top verb's own AND every reaction's,
+/// closure. Appends every event — the top verb's own and every reaction's,
 /// depth-first, in the order they actually happened — into `all_events`,
 /// matching `runtime.events`' own flat, whole-boot accumulation (not just
 /// `Result#events`, which only ever carries one dispatch's own direct
-/// announcements). Returns `Err` only when the TOP-level `verb` itself
+/// announcements). Returns `Err` only when the top-level `verb` itself
 /// refuses — a reaction's own downstream refusal is swallowed exactly the
 /// way `PolicyInterpreter#deliver`/`SagaInterpreter#deliver_saga_dispatch`'s
 /// `rescue *DOMAIN_REFUSALS` swallows it, but now logged there too (this
@@ -460,7 +459,7 @@ pub struct Tables<'a> {
 ///
 /// `saga_correlation` — `Dispatcher#dispatch`'s own stamping step,
 /// `announced.each { (event.correlation ||= {}).merge!(saga_correlation) }`
-/// — applied here, once, to every event THIS call's own `dispatch_fn`
+/// — applied here, once, to every event this call's own `dispatch_fn`
 /// just produced, before any of them reaches a reaction. `None` at the
 /// top-level call (`kernel::cli::run`) and every policy reentry (policies
 /// never stamp); `Some(&stamp)` only from `deliver_saga_dispatch` below.
@@ -473,9 +472,9 @@ pub fn orchestrate<S: AggregateScan>(
     verb: &str,
     args: &Json,
     caller_role: Option<&str>,
-    // `Caller#actor_id` — the SAME sibling opt-in `caller_role` always
+    // `Caller#actor_id` — the same sibling opt-in `caller_role` always
     // was (`repository.rs`'s own `check_role` doc comment has the full
-    // story). Threaded through this OUTERMOST dispatch only, exactly
+    // story). Threaded through this outermost dispatch only, exactly
     // like `caller_role` itself: every recursive `orchestrate` call this
     // function makes below (a policy reaction, a saga leg) passes `None`
     // here too, matching `Dispatcher#reenter`'s own `Caller.without` —
@@ -484,11 +483,11 @@ pub fn orchestrate<S: AggregateScan>(
     caller_actor_id: Option<&str>,
     saga_correlation: Option<&HashMap<String, String>>,
     // `mod.rs`'s own `Event::occurred_at` field doc has the full
-    // reasoning. UNLIKE `saga_correlation` (narrow — `None` for a
+    // reasoning. Unlike `saga_correlation` (narrow — `None` for a
     // policy reaction, `Some` only for a saga leg's own dispatch), this
-    // is threaded UNCHANGED into every recursive `orchestrate` call this
+    // is threaded unchanged into every recursive `orchestrate` call this
     // function makes, below — one host-supplied wall-clock moment for
-    // the WHOLE synchronous cascade a single top-level step causes,
+    // the whole synchronous cascade a single top-level step causes,
     // stamped onto every event it produces at any depth, not narrowed
     // per reaction the way correlation legitimately is.
     occurred_at: Option<&str>,
@@ -513,26 +512,26 @@ pub fn orchestrate<S: AggregateScan>(
         }
     }
 
-    // LOGGED THE MOMENT ITS OWN COMMAND COMMITS — the WHOLE batch, before
+    // Logged the moment its own command commits — the whole batch, before
     // any reaction to any of it runs (C10.1/C10.2, docs/semantics/
     // bluebook-semantics.md), mirroring `CommandInterpreter#step_emit`
     // committing every announced event before `Dispatcher#dispatch` ever
     // calls `@policies.react`/`@sagas.advance` on the first. A reaction
-    // fires off an ALREADY-LOGGED fact, and a two-event command's second
+    // fires off an already-logged fact, and a two-event command's second
     // event is logged before the first event's reactions, never after.
     for event in &events {
         all_events.push(event.clone());
     }
 
-    // THEN PER EVENT, in `emits` order — its policies, then its sagas
+    // Then per event, in `emits` order — its policies, then its sagas
     // (C10.2): `Outbox::Relay#deliver`'s own loop.
     for event in events {
-        // NOT depth-gated here — Ruby's own `SagaInterpreter#advance`
-        // calls `begin_saga`/`advance_saga`/`end_saga` UNCONDITIONALLY
+        // Not depth-gated here — Ruby's own `SagaInterpreter#advance`
+        // calls `begin_saga`/`advance_saga`/`end_saga` unconditionally
         // for every event, regardless of depth (this file's header); the
-        // depth ceiling only ever gates the REENTER attempt itself,
+        // depth ceiling only ever gates the reenter attempt itself,
         // checked inside `react_policies`/`deliver_saga_dispatch` below,
-        // per match — not a blanket skip here, which used to silently
+        // per match — not a blanket skip here, which would silently
         // produce fewer log entries than Ruby whenever it fired.
         react_policies(store, dispatch_fn, tables, sagas, &event, occurred_at, depth, all_events, mutations, cross_domain, reaction_log, saga_log);
         begin_saga(tables, sagas, &event, saga_log);
@@ -543,15 +542,15 @@ pub fn orchestrate<S: AggregateScan>(
     Ok(())
 }
 
-/// WHAT THE TRIGGER IS GIVEN — `PolicyInterpreter#trigger_args`.
+/// **What the trigger is given** — `PolicyInterpreter#trigger_args`.
 ///
 /// An empty `with_spec` forwards the event's whole payload verbatim, the
 /// behaviour every policy had before `with:` existed. Declared, each
-/// binding's value either NAMES a field on the source (spelled with a
-/// leading ":", `Literal::render`'s own Symbol spelling) or IS a literal
+/// binding's value either names a field on the source (spelled with a
+/// leading ":", `Literal::render`'s own Symbol spelling) or is a literal
 /// the policy supplies itself.
 ///
-/// `extra` is a fan-out's row key, merged into the SOURCE before the
+/// `extra` is a fan-out's row key, merged into the source before the
 /// projection rather than onto its result — which is what lets a
 /// `for_each` trigger name the row and be given nothing else.
 /// `PolicyInterpreter#where_holds?` — true with no `where`, else the
@@ -559,7 +558,7 @@ pub fn orchestrate<S: AggregateScan>(
 /// evaluation that cannot resolve reads as not holding.
 /// `Literal.read` (`lib/hecks/literal.rb`), the scalar cases only — a
 /// policy's `trigger ..., with: { rank: "officer" }` rides the wire
-/// ALREADY `Literal.render`'d (`reactions.rb`'s own `with_spec_expr`
+/// already `Literal.render`'d (`reactions.rb`'s own `with_spec_expr`
 /// comment: "so a Symbol keeps its leading colon and stays
 /// distinguishable from a literal string of the same spelling"), so
 /// `binding` here is never the bare value — a String literal arrives as
@@ -573,7 +572,7 @@ pub fn orchestrate<S: AggregateScan>(
 /// }`, never actually fired in Rust before this. Hash/Array cases are
 /// Ruby's own `Literal.render`/`.read`, not built here — no policy
 /// `with:` literal in the corpus is one yet (`.strip_prefix(':')`'s own
-/// caller only ever routes a NON-symbol binding here for a scalar), and
+/// caller only ever routes a non-symbol binding here for a scalar), and
 /// building either without a real corpus example to verify against would
 /// be exactly the guessed-at generality this codebase's own staging
 /// discipline argues against.
@@ -643,16 +642,16 @@ fn trigger_args(policy: &PolicyRule, event: &Event, extra: Option<(&str, String)
         // attribute for it), so without this the record can never be
         // found.
         // Never for a `for_each` dispatch (`extra.is_some()`): its own row
-        // identity is ALREADY merged into `source` above, under whatever
+        // identity is already merged into `source` above, under whatever
         // name the fan-out itself resolved — a for_each row's own
-        // aggregate is routinely a DIFFERENT one from the emitting
+        // aggregate is routinely a different one from the emitting
         // event's, so an `event.aggregate` match here would be
         // coincidence, not signal.
         if extra.is_none() && !(tables.command_creates_fn)(target_verb) {
             if let Some(aggregate_name) = target_verb.rsplit_once('.').map(|(agg, _)| agg) {
                 if aggregate_name == event.aggregate {
                     // `args.merge(to: inherited_receiver)` — the lifted receiver
-                    // REPLACES any `to` the payload itself carried (a chess
+                    // replaces any `to` the payload itself carried (a chess
                     // move's own destination square), so that fact never reaches
                     // the target as a fact. Read directly off `build`.
                     source.retain(|(name, _)| name != "to");
@@ -663,9 +662,9 @@ fn trigger_args(policy: &PolicyRule, event: &Event, extra: Option<(&str, String)
         return Json::Object(source);
     }
 
-    // THE EMITTING RECORD'S OWN IDENTITY IS A FACT A PROJECTION MAY READ
+    // The emitting record's own identity is a fact a projection may read
     // — `PolicyInterpreter#emitter_identity`: offered under the emitting
-    // aggregate's own identity head, to an EXPLICIT projection only, never
+    // aggregate's own identity head, to an explicit projection only, never
     // over a value the payload itself carries. A cross-aggregate reaction
     // (chess's per-game Graveyard, fed from every piece's own Captured
     // event) names its receiver this way — `with: { label: :label }` —
@@ -691,14 +690,14 @@ fn trigger_args(policy: &PolicyRule, event: &Event, extra: Option<(&str, String)
             ((*name).to_string(), value)
         })
         .collect();
-    // ONLY WHEN `with:` IS EXPLICITLY DECLARED — matching `ReactionInvocation
+    // **Only when `with:` is explicitly declared** — matching `ReactionInvocation
     // .build`'s own `explicit` gate exactly (an undeclared projection keeps
     // forwarding the event's whole payload verbatim, above, unsplit, the
     // behaviour every policy had before `with:` existed at all).
     let routed = split_routed_args(Json::Object(projected), target_verb, tables);
     // `aggregate_identity ||= inherited_receiver` — the explicit path's own
     // fallback (`build`, read directly): nothing in the projection named
-    // the target's identity, so the receiver is the SOURCE's own when the
+    // the target's identity, so the receiver is the source's own when the
     // target is the same aggregate and not creating (`source_receiver_
     // for`). Every projected fact — a `to` among them (chess:
     // OpenEnPassant's `with: { to: :to }`, the double-stepped pawn's own
@@ -719,25 +718,25 @@ fn trigger_args(policy: &PolicyRule, event: &Event, extra: Option<(&str, String)
 }
 
 /// `ReactionInvocation.build`'s own routing split (`{to:, with:}`), ported
-/// for the ONE shape this corpus needs: a SINGLE-COMPONENT aggregate
-/// identity, addressing an ACTING (non-creating) target. `PolicyInterpreter
+/// for the one shape this corpus needs: a single-component aggregate
+/// identity, addressing an acting (non-creating) target. `PolicyInterpreter
 /// #trigger_args`/`SagaInterpreter#dispatch_args`'s own resolved args used
 /// to forward straight into `dispatch_by_name` as a flat legacy object —
-/// correct for a CREATING target (nothing to route to yet), but leaking
+/// correct for a creating target (nothing to route to yet), but leaking
 /// the addressing key into the acting target's own event payload
 /// otherwise (`Compliance::AccountFreezeReview`/`Banking::ExternalTransfer
 /// ::SendTransfer`, found live diffing `rust_conformance_spec` against
 /// Ruby: `AccountFrozen`'s real payload is `{}`, Ruby's own `ctx.args`
-/// never carries the reference key an ACTING command's own hydrate reads
-/// it from a SEPARATE channel — `CommandInvocation`'s `to:`, not `with:`).
+/// never carries the reference key an acting command's own hydrate reads
+/// it from a separate channel — `CommandInvocation`'s `to:`, not `with:`).
 ///
-/// Tries the target's own declared identity field name FIRST (`identity_
+/// Tries the target's own declared identity field name first (`identity_
 /// head_fn`, `Identity.of`'s own move), then the generic snake-cased
 /// aggregate-name alias (`reference_key_fn`, `Naming.reference_key`'s own
-/// move) — the SAME two (of `aggregate_aliases`' three) `Reaction
-/// Invocation.identity_for` tries, in the SAME order, minus the bare
+/// move) — the same two (of `aggregate_aliases`' three) `Reaction
+/// Invocation.identity_for` tries, in the same order, minus the bare
 /// `:aggregate` literal key and minus per-command `addressing_key_for`
-/// (this corpus's own real cases never need either). A COMPOSITE identity
+/// (this corpus's own real cases never need either). A composite identity
 /// (`identity_head_fn` returns `None` for one) or a target this table
 /// simply has no data for (`command_creates_fn`'s own `_ => false`
 /// default — the honest "don't know, so don't route" answer, never a
@@ -745,20 +744,20 @@ fn trigger_args(policy: &PolicyRule, event: &Event, extra: Option<(&str, String)
 /// a real, narrower gap than Ruby's own full `identity_for`, not silently
 /// assumed to cover every shape.
 ///
-/// R1 (docs/audits/2026-08-11-bug-triage.md) — `facts` below is the SAME
+/// R1 (docs/audits/2026-08-11-bug-triage.md) — `facts` below is the same
 /// slice `ReactionInvocation.command_facts` computes on the Ruby side
-/// (`args.slice(*declared)`), taken from the ORIGINAL, unfiltered
+/// (`args.slice(*declared)`), taken from the original, unfiltered
 /// `pairs` rather than by removing whichever key got promoted into
 /// `to:` — an identity/reference/correlation key a policy or process
 /// manager's own `with:` mapping resolved (`reference: :reference`
 /// forwarding a Transfer's own reference onto its saga-dispatched
 /// Account::Debit/Credit legs is the corpus's own live example) almost
-/// never doubles as a declared attribute of the TARGET command, so it's
+/// never doubles as a declared attribute of the target command, so it's
 /// already excluded from `facts` without needing to be found and
-/// removed first; a command that DOES happen to redeclare its own
+/// removed first; a command that does happen to redeclare its own
 /// identity/reference field as a real attribute keeps it in `facts` too,
 /// exactly as Ruby's own slice would. Applied before the creates-check
-/// split, same as Ruby's own `command_facts` call sits above BOTH of
+/// split, same as Ruby's own `command_facts` call sits above both of
 /// `ReactionInvocation.build`'s branches.
 fn split_routed_args(projected: Json, target_verb: &str, tables: &Tables) -> Json {
     let Json::Object(pairs) = projected else { return projected };
@@ -787,13 +786,13 @@ fn split_routed_args(projected: Json, target_verb: &str, tables: &Tables) -> Jso
 }
 
 /// Splits a qualified verb into (aggregate_qualified, entity_qualified)
-/// for a ONE-LEVEL-deep entity command ("Domain::Aggregate.Entity.
+/// for a one-level-deep entity command ("Domain::Aggregate.Entity.
 /// Command") only — `None` for a plain aggregate command (one dot total)
-/// or a TWO-level-deep entity command (BUG#11's own separate, larger,
+/// or a two-level-deep entity command (BUG#11's own separate, larger,
 /// still-open gap: `command_rest.contains('.')` below catches it and
 /// bails, deliberately never attempted here). `split_once`, not
 /// `rsplit_once` — `target_verb`'s own domain::aggregate boundary is a
-/// `::`, never a `.`, so the FIRST `.` is always the one separating the
+/// `::`, never a `.`, so the first `.` is always the one separating the
 /// aggregate from whatever comes after it, one dot or several.
 fn entity_command_paths(target_verb: &str) -> Option<(&str, String)> {
     let (aggregate_name, rest) = target_verb.split_once('.')?;
@@ -810,7 +809,7 @@ fn entity_command_paths(target_verb: &str) -> Option<(&str, String)> {
 /// (`Slot`'s own `number`, `SlotNumber`) that's the nested `{"value":
 /// ...}` object every VO round-trips as, not a bare scalar
 /// `to_id_component` alone accepts. The correlation-head special case
-/// (`resolve_with`'s own `if *name == head`) is the ONLY existing path
+/// (`resolve_with`'s own `if *name == head`) is the only existing path
 /// that ever hands `split_routed_args`'s candidates loop a bare string
 /// today — an ordinary field lookup never did, until `route_dispatch_
 /// args` became the first caller to resolve an identity from one.
@@ -825,12 +824,12 @@ fn resolved_id_component(v: &Json) -> Option<String> {
 }
 
 /// BUG#10 — generalizes `split_routed_args`'s own single-aggregate-
-/// scalar routing to a ONE-LEVEL-deep entity-owned saga dispatch target
+/// scalar routing to a one-level-deep entity-owned saga dispatch target
 /// too (`qa/stress_domains/waybill`'s own `Packing` saga, leg 3:
 /// `Manifest::Slot.Fill`). `split_routed_args` alone can never resolve
 /// this shape: `Fill`'s own `with: { number: :number, item: :item }`
 /// carries no field named after `Manifest`'s own identity head
-/// (`reference`) at all — Ruby resolves the PARENT aggregate's identity
+/// (`reference`) at all — Ruby resolves the parent aggregate's identity
 /// through an entirely separate channel, `SagaInterpreter#deliver_saga_
 /// dispatch`'s own `source_receiver: { aggregate: event.aggregate,
 /// identity: event.id }` (the triggering event's own aggregate/id, fed
@@ -857,10 +856,10 @@ fn route_dispatch_args(projected: Json, target_verb: &str, tables: &Tables, even
     let Some((aggregate_name, entity_qualified)) = entity_command_paths(target_verb) else { return routed };
     let Json::Object(pairs) = &projected else { return routed };
 
-    // ENTITY IDENTITY — the SAME structural match `ReactionInvocation.
+    // **Entity identity** — the same structural match `ReactionInvocation.
     // identity_for`'s own `Identity.of` tries first on the Ruby side: the
     // entity's own declared identity attribute, present in the projected
-    // `with:` facts by that EXACT name (`reactions.rb`'s own `emit_
+    // `with:` facts by that exact name (`reactions.rb`'s own `emit_
     // entity_identity_head_table` header has the full argument for why
     // this table only ever carries a single-component identity).
     let Some(entity_head) = (tables.entity_identity_head_fn)(&entity_qualified) else { return routed };
@@ -868,14 +867,14 @@ fn route_dispatch_args(projected: Json, target_verb: &str, tables: &Tables, even
         return routed;
     };
 
-    // AGGREGATE IDENTITY — tried the SAME way `split_routed_args`'s own
+    // **Aggregate identity** — tried the same way `split_routed_args`'s own
     // candidates loop already tries it (an explicit with:-projected
-    // field naming the aggregate's own identity/reference key), THEN
+    // field naming the aggregate's own identity/reference key), then
     // falls back to the triggering event's own aggregate/id exactly like
     // Ruby's `source_receiver_for`/`ReactionInvocation.build`'s own
     // `aggregate_identity ||= inherited_receiver` — the parent record a
     // saga leg dispatching into one of its own entities is always
-    // already IN, never invented.
+    // already in, never invented.
     let candidates = [(tables.identity_head_fn)(aggregate_name), (tables.reference_key_fn)(aggregate_name)];
     let aggregate_id = candidates
         .into_iter()
@@ -907,7 +906,7 @@ fn react_policies<S: AggregateScan>(
     reaction_log: &mut Vec<Json>,
     saga_log: &mut Vec<Json>,
 ) {
-    // `Naming.demodulise(event.aggregate)` — the LAST "::" segment
+    // `Naming.demodulise(event.aggregate)` — the last "::" segment
     // ("Banking::Account" -> "Account").
     let emitting = event.aggregate.rsplit("::").next().unwrap_or(event.aggregate.as_str());
 
@@ -926,7 +925,7 @@ fn react_policies<S: AggregateScan>(
 
         // `PolicyInterpreter#deliver`'s own `record = { policy: policy.
         // name, on: event.name, trigger: target }` — `policy.target_verb`
-        // IS `target` already (domain-qualified by `reactions.rb`'s own
+        // is `target` already (domain-qualified by `reactions.rb`'s own
         // `local_policy_rows`), no further string-building needed.
         let record = |extra: Vec<(&str, Json)>| -> Json {
             let mut fields = vec![
@@ -946,9 +945,9 @@ fn react_policies<S: AggregateScan>(
             continue;
         }
 
-        // A FAN-OUT DISPATCHES ONCE PER ROW its declared query answers,
+        // A fan-out dispatches once per row its declared query answers,
         // never once for the event — `PolicyInterpreter#deliver_for_each`.
-        // Each row's own id is merged into the SOURCE a `with:`
+        // Each row's own id is merged into the source a `with:`
         // projection reads from, not onto its result, so a trigger can
         // name the row and be given nothing else.
         if let Some(for_each) = policy.for_each {
@@ -959,9 +958,9 @@ fn react_policies<S: AggregateScan>(
                 ]));
                 continue;
             };
-            // THE QUERY READS THE EVENT, never the projection: `with:`
-            // says what the TRIGGER is given, and the fan-out is asking
-            // a different question (WHICH rows) in the event's own
+            // The query reads the event, never the projection: `with:`
+            // says what the trigger is given, and the fan-out is asking
+            // a different question (which rows) in the event's own
             // vocabulary.
             // `None` — a policy's own for_each fan-out is system-triggered,
             // the same `Caller.without` reasoning this file's own
@@ -1006,12 +1005,12 @@ fn react_policies<S: AggregateScan>(
             continue;
         }
 
-        // Without `with:`, the event's WHOLE payload forwards verbatim as
+        // Without `with:`, the event's whole payload forwards verbatim as
         // the trigger's own args — docs/implemented/guides/policies-and-process-
         // managers.md: "not reshaped, not filtered." `caller_role: None`
         // — `Dispatcher#reenter`'s own `Caller.without`: a policy
         // reaction is system-triggered, never carries whatever caller the
-        // ORIGINAL step bound. `saga_correlation: None` — policies never
+        // original step bound. `saga_correlation: None` — policies never
         // stamp (only a saga leg's own dispatch does).
         let args = trigger_args(policy, event, None, policy.target_verb, &tables);
         let outcome = orchestrate(
@@ -1024,7 +1023,7 @@ fn react_policies<S: AggregateScan>(
             // not fatal to the command that emitted `event` — matching
             // `rescue *DOMAIN_REFUSALS`. A genuine Rust panic (this
             // file's own header: the `defect` case's real analogue) is
-            // NOT caught here and propagates, on purpose.
+            // not caught here and propagates, on purpose.
             Err(refusal) => reaction_log.push(record(vec![
                 ("delivered", Json::Bool(false)),
                 ("reason", Json::str(refusal.to_string())),
@@ -1032,11 +1031,11 @@ fn react_policies<S: AggregateScan>(
         }
     }
 
-    // CROSS-DOMAIN — matched the identical way, but never dispatched here
-    // (this file's own header). Recorded, not recursed into, and NOT
+    // **Cross-domain** — matched the identical way, but never dispatched here
+    // (this file's own header). Recorded, not recursed into, and not
     // logged into `reaction_log` either (this file's header: the delivery
     // outcome doesn't exist yet at this point). Whatever that target verb
-    // itself goes on to react to is a SEPARATE WASM module's own
+    // itself goes on to react to is a separate WASM module's own
     // `orchestrate` call, run by rust/host after it delivers this one via
     // `lambda_client.rs`, not this call.
     for policy in tables.cross_domain_policies {
@@ -1062,7 +1061,7 @@ fn react_policies<S: AggregateScan>(
 }
 
 /// `SagaInterpreter#begin_saga` — births a fresh instance the moment the
-/// STARTING event arrives. NO log entry at all when `event.name !=
+/// starting event arrives. No log entry at all when `event.name !=
 /// pm.starts_on` (Ruby's own `return unless ...`, silent) or when the
 /// instance already exists (a re-arrival of `starts_on` for an ongoing
 /// conversation — also silent in Ruby).
@@ -1099,7 +1098,7 @@ fn begin_saga(tables: Tables<'static>, sagas: &mut HashMap<(String, String), Sag
 }
 
 /// `SagaInterpreter#advance_saga` — the handler lookup, the from_state
-/// check, then the state transition and its own dispatch fan-out. NO log
+/// check, then the state transition and its own dispatch fan-out. No log
 /// entry when `pm.handler_for(event.name)` finds nothing (Ruby's own
 /// `return unless handler`) or when correlation resolves to nothing
 /// (Ruby's own `return if correlation.to_s.empty?`) — both silent.
@@ -1142,7 +1141,7 @@ fn advance_saga<S: AggregateScan>(
             ]));
             continue;
         };
-        // THE LEG IS CHOSEN BY (EVENT, CURRENT STATE) — C10.3
+        // The leg is chosen by (event, current state) — C10.3
         // (`SagaInterpreter#advance_saga`'s own `handler_for(event.name,
         // instance[:state])`). Two legs on the same event from different
         // states each answer exactly when their own state is current;
@@ -1174,7 +1173,7 @@ fn advance_saga<S: AggregateScan>(
         let mut refused = false;
         for spec in handler.dispatches {
             let args = build_dispatch_args(pm, spec, event, &correlation, &memory, domain_name, &tables);
-            // Resolved BEFORE the forward dispatch runs, against the SAME
+            // Resolved before the forward dispatch runs, against the same
             // event/memory context — `deliver_saga_dispatch`'s own header
             // on why the ledger entry has to be pushed speculatively, not
             // after the dispatch succeeds.
@@ -1195,29 +1194,29 @@ fn advance_saga<S: AggregateScan>(
 }
 
 /// `SagaInterpreter#deliver_saga_dispatch` — one dispatch spec, shared by
-/// BOTH `advance_saga`'s own fan-out above and `compensate`'s (unwind's)
+/// both `advance_saga`'s own fan-out above and `compensate`'s (unwind's)
 /// below, matching Ruby's own single method serving both callers.
 /// Returns `Some(true)`/`Some(false)` for delivered/refused (the caller's
 /// own signal for whether to unwind), `None` when the depth ceiling
 /// stopped this leg before it ever tried (Ruby's own early return — no
 /// refusal to compensate for, because nothing was attempted).
 ///
-/// `compensation_args` — the CALLER's already-resolved args for `spec.
+/// `compensation_args` — the caller's already-resolved args for `spec.
 /// compensates` (`None` when `spec` declares no compensation at all),
 /// pushed onto `sagas[(pm.name, correlation)].completed_compensations`
-/// SPECULATIVELY, BEFORE the forward dispatch below ever runs — a real
+/// speculatively, before the forward dispatch below ever runs — a real
 /// bug found live in Ruby's own development and ported here rather than
 /// the naive "record after success" version: the `orchestrate` call
-/// below can recursively RE-ENTER THIS SAME saga interpreter (an event
-/// THIS dispatch itself emits can trigger a LATER handler for the SAME
+/// below can recursively re-enter this same saga interpreter (an event
+/// this dispatch itself emits can trigger a later handler for the same
 /// instance, which can itself refuse and unwind — entirely within this
 /// one call, before it ever returns here). Recording "after orchestrate
-/// returns Ok" would be too late for a NESTED refusal
-/// (`compensate`, reached via that recursive call, reading THIS SAME
+/// returns Ok" would be too late for a nested refusal
+/// (`compensate`, reached via that recursive call, reading this same
 /// instance's `completed_compensations`) to ever see this leg's own
 /// compensation — confirmed live on Ruby's side: `examples/banking`'s
-/// own Settlement saga refuses `Account.Credit` and unwinds from INSIDE
-/// `Account.Debit`'s own re-entrant call. Popped back off below if THIS
+/// own Settlement saga refuses `Account.Credit` and unwinds from inside
+/// `Account.Debit`'s own re-entrant call. Popped back off below if this
 /// leg's own attempt is the one that fails — never left recorded for a
 /// refusal that was never this leg's own to compensate for.
 #[allow(clippy::too_many_arguments)]
@@ -1241,7 +1240,7 @@ fn deliver_saga_dispatch<S: AggregateScan>(
     stamp: &HashMap<String, String>,
     compensation_args: Option<Json>,
 ) -> Option<bool> {
-    // `record`'s own `dispatch` field stays BARE — `SagaInterpreter#
+    // `record`'s own `dispatch` field stays bare — `SagaInterpreter#
     // deliver_saga_dispatch`'s own `record = { ..., dispatch: spec.
     // command_name }`, read directly: Ruby logs the UNqualified name and
     // qualifies separately, only at the actual dispatch call below. This
@@ -1267,7 +1266,7 @@ fn deliver_saga_dispatch<S: AggregateScan>(
     }
 
     // `spec.command_name` is bare on the wire (confirmed via `bin/ir`
-    // against the real exported IR; the OLD comment here claiming it was
+    // against the real exported IR; the old comment here claiming it was
     // "ALREADY fully domain-qualified on the wire" was simply wrong), so
     // `dispatch_by_name`'s own fully-qualified match arms
     // (`"Banking::Account.Debit"`) could never route to it without
@@ -1275,9 +1274,9 @@ fn deliver_saga_dispatch<S: AggregateScan>(
     // (BUG#6/BUG#9) for why this is not a plain `contains("::")` guess.
     let qualified = qualify_saga_command_name(domain_name, spec.command_name);
 
-    // THE SPECULATIVE RECORD — see this function's own header. Pushed
-    // BEFORE the `orchestrate` call below, so a nested re-entry into
-    // THIS SAME instance (via a downstream reaction to an event this
+    // **The speculative record** — see this function's own header. Pushed
+    // before the `orchestrate` call below, so a nested re-entry into
+    // this same instance (via a downstream reaction to an event this
     // dispatch itself emits) already sees this leg counted as completed.
     let key = (pm.name.to_string(), correlation.to_string());
     let mut compensation_recorded = false;
@@ -1290,7 +1289,7 @@ fn deliver_saga_dispatch<S: AggregateScan>(
 
     // `caller_role: None` — same `Caller.without` reasoning as
     // `react_policies`: a saga leg is system-triggered. `saga_correlation:
-    // Some(stamp)` — THE stamp this file's header describes, applied by
+    // Some(stamp)` — the stamp this file's header describes, applied by
     // `orchestrate` to every event this recursive dispatch itself
     // produces.
     let outcome = orchestrate(
@@ -1303,16 +1302,16 @@ fn deliver_saga_dispatch<S: AggregateScan>(
             Some(true)
         }
         Err(refusal) => {
-            // THE ROLLBACK HALF — THIS leg's own attempt is the one that
+            // **The rollback half** — this leg's own attempt is the one that
             // failed, so whatever was just pushed for it above was never
             // actually earned. `.pop()`, not a search-and-delete: nothing
-            // else can have pushed AFTER this leg's own entry without
+            // else can have pushed after this leg's own entry without
             // this leg's own `orchestrate` call having already returned
             // (the recursive re-entry this whole mechanism exists for
-            // only ever runs BETWEEN the push above and this leg's own
+            // only ever runs between the push above and this leg's own
             // return, and a nested refusal that consumed it already
             // popped it itself via `compensate`'s own drain loop) — this
-            // rollback only ever runs for THIS leg's own, still-present
+            // rollback only ever runs for this leg's own, still-present
             // entry.
             if compensation_recorded {
                 if let Some(slot) = sagas.get_mut(&key) {
@@ -1328,15 +1327,15 @@ fn deliver_saga_dispatch<S: AggregateScan>(
     }
 }
 
-/// `SagaInterpreter#deliver_derived_compensation` — fires ONE entry
+/// `SagaInterpreter#deliver_derived_compensation` — fires one entry
 /// drained from `completed_compensations` (newest-first — `compensate`'s
 /// own drain loop below pops from the end, and entries are pushed in
-/// COMPLETION order, so the end is always the most-recently-completed
-/// leg). `entry.args` is ALREADY RESOLVED (pushed speculatively by
+/// completion order, so the end is always the most-recently-completed
+/// leg). `entry.args` is already resolved (pushed speculatively by
 /// `deliver_saga_dispatch` before the forward dispatch it undoes ever
 /// ran), so this skips `build_dispatch_args` entirely and dispatches
-/// straight through the SAME `orchestrate` re-entry every other saga leg
-/// uses. NEVER re-triggers `compensate` on its own failure — a
+/// straight through the same `orchestrate` re-entry every other saga leg
+/// uses. Never re-triggers `compensate` on its own failure — a
 /// compensation that itself refuses is a real, pre-existing gap this
 /// feature makes visible rather than closes (matching Ruby's own
 /// class-level comment: no second-order compensation exists) — tagged
@@ -1404,8 +1403,8 @@ fn deliver_derived_compensation<S: AggregateScan>(
 }
 
 /// `SagaInterpreter#end_saga` — the instance is done, whether it just
-/// advanced INTO its `ends_on` event or transitioned straight there with
-/// no dispatches of its own. NO log entry when `event.name != pm.ends_on`,
+/// advanced into its `ends_on` event or transitioned straight there with
+/// no dispatches of its own. No log entry when `event.name != pm.ends_on`,
 /// correlation is absent, or no instance existed to remove — all three
 /// silent in Ruby.
 fn end_saga(tables: Tables<'static>, sagas: &mut HashMap<(String, String), SagaInstance>, event: &Event, saga_log: &mut Vec<Json>) {
@@ -1429,12 +1428,12 @@ fn end_saga(tables: Tables<'static>, sagas: &mut HashMap<(String, String), SagaI
 }
 
 /// `SagaInterpreter#unwind` — the `on :refused` leg, run once, against the
-/// CURRENT (post-transition) state a failed dispatch left the instance in.
+/// current (post-transition) state a failed dispatch left the instance in.
 /// Its own dispatches never themselves compensate on failure — matching
 /// Ruby's own guard (the state has already moved past `from_state` before
 /// a second refusal could reach this same branch again). Shares `deliver_
 /// saga_dispatch` with `advance_saga` above, exactly like Ruby's own
-/// `unwind` calls the SAME `deliver_saga_dispatch` its sibling does.
+/// `unwind` calls the same `deliver_saga_dispatch` its sibling does.
 #[allow(clippy::too_many_arguments)]
 fn compensate<S: AggregateScan>(
     store: &mut S,
@@ -1457,7 +1456,7 @@ fn compensate<S: AggregateScan>(
     let Some(current_state) = sagas.get(key).map(|instance| instance.state.clone()) else { return };
     // `pm.handles?(REFUSED)` first — a procedure with no compensating
     // leg at all is silent (Ruby's own `return unless ... handles?`).
-    // The leg itself is then selected by (REFUSED, current state) —
+    // The leg itself is then selected by (`REFUSED`, current state) —
     // C10.3, one rule for every leg — and a state no compensating leg
     // answers from is logged as its own `advanced: false` finding, the
     // entry Ruby's `leg_mismatch` produces for exactly this case.
@@ -1496,13 +1495,13 @@ fn compensate<S: AggregateScan>(
     // reason.
     let domain_name = event.aggregate.split("::").next().unwrap_or(&event.aggregate);
 
-    // DERIVED COMPENSATION FIRST, NEWEST-FIRST — every leg THIS INSTANCE
+    // **Derived compensation first, newest-first** — every leg this instance
     // actually completed that declared its own `compensates`, popped and
     // dispatched in reverse completion order (`SagaInterpreter#unwind`'s
-    // own comment). Re-fetched from `sagas` by KEY on every iteration,
+    // own comment). Re-fetched from `sagas` by key on every iteration,
     // not snapshotted into a local `Vec` up front — a nested reaction
     // triggered by one derived compensation's own dispatch could in
-    // principle push a NEW completed compensation onto this SAME
+    // principle push a new completed compensation onto this same
     // instance before this loop finishes, and re-fetching (mirroring
     // Ruby's own live `instance[:completed_compensations]` array
     // reference, which `until compensations.empty?` polls fresh each
@@ -1513,7 +1512,7 @@ fn compensate<S: AggregateScan>(
     // but draining rather than leaving the ledger populated is what
     // makes that true by construction too, not only by the guard. (A
     // narrower, undocumented gap this shares with Ruby only in spirit,
-    // not in mechanism: if a nested reaction ever fully REMOVES this
+    // not in mechanism: if a nested reaction ever fully removes this
     // instance — e.g. its own `ends_on` fires — mid-drain, `sagas.
     // get_mut(key)` starts returning `None` and this loop stops early,
     // where Ruby's local `instance` variable would keep working off the
@@ -1546,7 +1545,7 @@ mod tests {
     // already `Literal.render`'d (`reactions.rb`'s own `with_spec_expr`),
     // so the un-decoded text is never the real value. Found live:
     // `Roster::Roster.Honor`'s own `trigger ..., with: { rank: "officer"
-    // }` passed the RAW wire text `"officer"` (9 chars, quotes included)
+    // }` passed the raw wire text `"officer"` (9 chars, quotes included)
     // straight through as a JSON string, and `Rank::from_json` refused
     // it — the trigger silently never fired.
     #[test]
@@ -1591,15 +1590,15 @@ mod tests {
         None
     }
 
-    // TIER 2, in isolation — `Correlation#saga_correlation`'s own middle
+    // Tier 2, in isolation — `Correlation#saga_correlation`'s own middle
     // tier: the corpus scenario this exists for (`AccountDebited`'s
-    // handler reaching `:destination`, only present on the ORIGINAL
+    // handler reaching `:destination`, only present on the original
     // `TransferRequested`) always has tier 1 (a genuinely present
     // `reference`-shaped field) available too, so the full conformance
-    // corpus alone never proves tier 2 fires on its OWN. This does: tier
+    // corpus alone never proves tier 2 fires on its own. This does: tier
     // 1 finds nothing (`correlates_by` names a field the payload doesn't
     // have at all), tier 3 finds nothing (no reference-key function
-    // configured), so only the STAMP `orchestrate`'s own event.
+    // configured), so only the stamp `orchestrate`'s own event.
     // correlation field carries can resolve it.
     #[test]
     fn correlation_of_reads_the_stamp_when_the_payload_has_nothing_and_no_reference_key_applies() {
@@ -1708,23 +1707,23 @@ mod tests {
         assert_eq!(events[0].occurred_at, None);
     }
 
-    // Reproduces the EXACT reentrancy shape `SagaInterpreter#deliver_saga_
+    // Reproduces the exact reentrancy shape `SagaInterpreter#deliver_saga_
     // dispatch`'s own header describes and this file's own `deliver_saga_
-    // dispatch`/`compensate` mirror: THREE sequential legs (A, then B
+    // dispatch`/`compensate` mirror: three sequential legs (A, then B
     // triggered by A's own event, then C triggered by B's own event),
     // where A and B each declare their own `compensates` and C — the one
-    // that actually refuses — declares none. The refusal happens TWO
+    // that actually refuses — declares none. The refusal happens two
     // calls deep, inside A's own `orchestrate` recursion (via B's),
     // before A's own `deliver_saga_dispatch` call has returned to
     // `advance_saga`'s own loop — the exact "a nested refusal reads a
     // still-open outer frame's own ledger entry" shape that makes the
-    // SPECULATIVE record (pushed before dispatching, not after) load-
+    // speculative record (pushed before dispatching, not after) load-
     // bearing rather than cosmetic. A naive "record after the dispatch
-    // succeeds" implementation would find `completed_compensations` EMPTY
+    // succeeds" implementation would find `completed_compensations` empty
     // when `compensate` drains it here (A's and B's own `orchestrate`
-    // calls haven't returned yet), firing neither RA nor RB — this test
+    // calls haven't returned yet), firing neither `RA` nor `RB` — this test
     // fails under that version and passes only under the speculative-
-    // record-then-rollback-on-OWN-failure one this file implements.
+    // record-then-rollback-on-own-failure one this file implements.
     struct MultiLegTestStore;
     impl AggregateScan for MultiLegTestStore {}
 
@@ -1781,9 +1780,9 @@ mod tests {
     fn multi_leg_reentrant_saga_fires_completed_compensations_newest_first_on_a_later_legs_refusal() {
         // `DISPATCH_RA`/`DISPATCH_RB` are named statics (referenced by
         // `&DISPATCH_RA`/`&DISPATCH_RB` below); the forward legs A/B/C
-        // are written INLINE inside `HANDLERS`' own `dispatches` arrays
+        // are written inline inside `HANDLERS`' own `dispatches` arrays
         // instead of through a same-shaped named static of their own —
-        // `&[DISPATCH_A]` would try to MOVE a named static's value into
+        // `&[DISPATCH_A]` would try to move a named static's value into
         // a new array (`DispatchSpec` isn't `Copy`), which a static
         // item's own value can never be moved out of; an inline struct
         // literal promotes into the array directly instead, the exact
@@ -1885,17 +1884,17 @@ mod tests {
             })
             .collect();
 
-        // C refuses (not a compensation); RB and RA fire as DERIVED
+        // C refuses (not a compensation); `RB` and `RA` fire as derived
         // compensations, newest-first (B completed after A, so B's own
-        // compensation fires first); THEN A's and B's own "delivered: true"
+        // compensation fires first); then a's and B's own "delivered: true"
         // entries appear — pushed only once their whole downstream
         // cascade (including the nested refusal and its compensation)
         // has already returned. This exact order is the load-bearing
         // assertion: it can only be produced if `completed_compensations`
-        // already held BOTH entries at the moment `compensate` (nested
+        // already held both entries at the moment `compensate` (nested
         // two calls deep inside A's own `orchestrate`) drained it — the
-        // naive "record after success" version would have an EMPTY
-        // ledger at that point and produce no RB/RA entries here at all.
+        // naive "record after success" version would have an empty
+        // ledger at that point and produce no `RB`/`RA` entries here at all.
         assert_eq!(
             dispatch_entries,
             vec![
@@ -1912,21 +1911,21 @@ mod tests {
     }
 
     // BUG#9 (the Rust-side counterpart of BUG#6, saga_interpreter.rb) —
-    // a SAME-DOMAIN entity command reference still carries one leftover
+    // a same-domain entity command reference still carries one leftover
     // `::` past `Naming.command_ref`'s own rewrite (`Manifest::Slot.
     // Fill`, `qa/stress_domains/waybill`'s own `Packing` saga dispatching
     // `Manifest::Slot::Fill`), textually indistinguishable from a
-    // genuinely cross-domain one. This file used to guess from that
-    // leftover `::` alone (`spec.command_name.contains("::")`) — the
-    // exact pre-BUG#6 Ruby heuristic — so a same-domain entity command
-    // was never domain-qualified before reaching `dispatch_fn`, and
-    // every such saga leg failed "unknown command" (`registry.rs`'s own
-    // generated match arms are always fully domain-qualified AND
-    // dot-joined past the aggregate boundary: `"Waybill::Manifest.Slot
-    // .Fill"`, never bare `"Manifest::Slot.Fill"`). This test's own fake
-    // `dispatch_fn` panics on anything else, so it fails under the old
-    // heuristic and passes only once `qualify_saga_command_name` always
-    // prefixes the domain AND folds the entity-nesting `::` to `.`.
+    // genuinely cross-domain one. Guessing from that leftover `::` alone
+    // (`spec.command_name.contains("::")`, the pre-BUG#6 Ruby heuristic)
+    // would leave a same-domain entity command never domain-qualified
+    // before reaching `dispatch_fn`, and every such saga leg would fail
+    // "unknown command" (`registry.rs`'s own generated match arms are
+    // always fully domain-qualified and dot-joined past the aggregate
+    // boundary: `"Waybill::Manifest.Slot.Fill"`, never bare
+    // `"Manifest::Slot.Fill"`). This test's own fake `dispatch_fn` panics
+    // on anything else, so it only passes because
+    // `qualify_saga_command_name` always prefixes the domain and folds
+    // the entity-nesting `::` to `.`.
     fn entity_command_test_dispatch(
         _store: &mut MultiLegTestStore,
         verb: &str,
@@ -1952,7 +1951,7 @@ mod tests {
                 occurred_at: None,
                 correlation: None,
             }]),
-            // THE FULLY QUALIFIED, DOT-JOINED shape a real generated
+            // The fully qualified, dot-joined shape a real generated
             // `registry.rs` match arm actually uses — never the bare,
             // unqualified `"Manifest::Slot.Fill"` the pre-fix heuristic
             // would have passed straight through unqualified.
@@ -1968,7 +1967,7 @@ mod tests {
                 event_type: "Started",
                 from_state: "start",
                 to_state: "filling",
-                // BARE on the wire, entity-nested — `Naming.command_ref`'s
+                // Bare on the wire, entity-nested — `Naming.command_ref`'s
                 // own rewrite artifact, read directly off `qa/stress_
                 // domains/waybill/bluebook/waybill.bluebook`'s own
                 // `Packing` saga.
@@ -2068,14 +2067,14 @@ mod tests {
         // A plain aggregate command has only one dot total — never an
         // entity command.
         assert_eq!(entity_command_paths("Waybill::Manifest.AddSlot"), None);
-        // A TWO-level-deep entity command (BUG#11's own separate, larger,
+        // A two-level-deep entity command (BUG#11's own separate, larger,
         // still-open gap) is deliberately never attempted here.
         assert_eq!(entity_command_paths("Domain::Workspace.Board.Card.Annotate"), None);
     }
 
-    // A FIXED FIXTURE, shared by both tests below — a one-level entity
+    // A fixed fixture, shared by both tests below — a one-level entity
     // command ("Widgets::Crate.Slot.Fill") whose `with:` carries the
-    // ENTITY's own identity ("number", Slot's own `identified_by`) but
+    // entity's own identity ("number", Slot's own `identified_by`) but
     // never the parent aggregate's — BUG#10's own exact shape (`Manifest
     // ::Slot.Fill`'s own `with: { number: :number, item: :item }`, one
     // level up). Plain, non-capturing `fn`s, matching the real shape a
@@ -2118,7 +2117,7 @@ mod tests {
         // `Fill`'s own `with: { number: :number, item: :item }` —
         // `number` is Slot's own identity, VO-nested (`{"value": ...}`)
         // the way an ordinary event-payload lookup hands it back (BUG#10's
-        // own root cause: NEITHER field names the parent aggregate's own
+        // own root cause: neither field names the parent aggregate's own
         // identity at all — that comes only from the triggering event,
         // mirroring Ruby's `SagaInterpreter#deliver_saga_dispatch`'s own
         // `source_receiver: { aggregate: event.aggregate, identity: event.
@@ -2150,7 +2149,7 @@ mod tests {
     #[test]
     fn route_dispatch_args_falls_through_unchanged_when_the_triggering_event_is_a_different_aggregate() {
         // Same fixture as above, but the triggering event names a
-        // DIFFERENT aggregate — Ruby's own `source_receiver_for`'s
+        // different aggregate — Ruby's own `source_receiver_for`'s
         // `same_aggregate` guard refuses to invent a receiver here
         // either, so this must fall straight through to split_routed_
         // args's own (unrouted) answer, never fabricate an aggregate
@@ -2179,7 +2178,7 @@ mod tests {
 
     // C10.3 — the kernel half of spec/corpus/semantics/
     // saga_leg_selected_by_state.json (whose domain is Ruby-only): two
-    // legs on ONE event from different states, each reached exactly when
+    // legs on one event from different states, each reached exactly when
     // its own from: is the instance's current state.
     fn two_leg_test_dispatch(
         _store: &mut MultiLegTestStore,

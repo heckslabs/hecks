@@ -5,7 +5,51 @@ Dates are when a change landed on `main`, not when this file was written.
 Entries below are grouped by theme, not itemized commit-by-commit; see
 `git log` for the full history.
 
-## [Unreleased]
+## [1.5.0] - 2026-09-19
+
+**A new `Privacy` framework member: attribute-level sensitivity marking,
+read-side redaction, and cryptoshredding.** `uses_framework "Privacy"`
+attaches `Marking` (`domain`, `attribute_path`, `category`,
+`readable_by`) — declared by chaining off the marked attribute itself
+inside a `.hecksagon` file, `Registration.attendee.medications.has_phi(
+readable_by: "Privacy officer")`, never inside the domain's own
+`.bluebook` (a domain never states its own attributes are sensitive;
+that's a wiring decision, the same restraint a persistence bind already
+holds to). `Facade::Handle`'s own `#[]`/`#to_h`/dot-reader now redact any
+marked field to the literal `"[redacted]"` unless the ambient caller
+holds a live Governance grant of that marking's own `readable_by` —
+always the strong, identified-actor check, never the weak string-only
+fallback a command's own `role` allows an unidentified caller. A
+declared marking takes effect once a dispatcher exists
+(`Runtime::Loader.boot`'s own `seed_privacy_markings!`, idempotent
+across reboots, the same shape `redrive_outbox!` already has).
+`Compliance` gains a third review shape, `PrivacyReview`, reached via a
+`translates` reaction to `Marking.Marked`. Also new: `Privacy::SubjectKey`
+(`Issue`/`Shred`), a right-to-erasure mechanism satisfied by destroying
+an external encryption key rather than rewriting or deleting a single
+event.
+
+**A durable `Tenancy` bounded context, and a new `translates` wiring
+word.** `Tenancy::Tenant` (`Register`/`Suspend`/`Reactivate`/`Retire`,
+`Active`/`BySlug` queries) is the durable, reactable fact `Deploy::Tenant`'s
+own header long deferred — booted centrally, never `uses_framework`-attached
+(a single-row-per-tenant copy folded into every tenant's own boot would
+defeat the point of a cross-tenant list). `translates "Name" do on
+Foreign::Event; trigger Local::Command, with: {...}; end` is a new
+`.hecksagon`-context word for a cross-domain reaction declared as a
+wiring decision rather than a `.bluebook` `policy` block — builds the
+exact same `Policy` IR a `policy` block would (no new runtime
+semantics), with a Rust parser mirror. Also: `Deploy::Tenant.port
+"TenantProvisioning"` plus a real driven port replaces
+`bin/project_tenant`'s inline file IO/boot with a real dispatch; a
+real, previously-unguarded `Registry#add_bluebook` name-collision bug
+is now caught (only when contributing files resolve to more than one
+package root, so the self-hosted grammar's own legitimate multi-file
+accumulation is untouched). Found and fixed along the way:
+`bin/model_check`'s own `deaf_policy` check had no acknowledgment
+mechanism for a `translates`-shaped reaction (a local target, a
+foreign event) — `global_emitted_events:` closes it, checked only as
+a fallback, so every pre-existing call site is unaffected.
 
 **`uses_embryonaut_bluebook` proven Rust-conformant** (docs/decisions/0058). A new
 minimal example, `examples/embryonaut_vendoring_demo` (consuming domain `Gadget`) plus a

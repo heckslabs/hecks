@@ -1,0 +1,155 @@
+Hecks.bluebook "Privacy" do
+  vision "Which fields of a domain's own aggregates are sensitive is a fact about that domain, declared apart from it — the domain itself never spells out that one of its own attributes is PII or PHI."
+  supporting
+
+  # A DOMAIN ATTACHING THIS NEVER MARKS ITSELF — `Mark`'s `role
+  # "Deployment"` matches every other wiring-time command in this
+  # codebase (`Hecksagon::UsesFramework`, `Tenancy::Tenant.Register`):
+  # something outside the domain's own bluebook decides a field is
+  # sensitive, the same way persistence binds are a wiring decision
+  # and not baked into an aggregate's own declaration.
+  aggregate "Marking" do
+    description "One attribute of one domain's own aggregate, flagged sensitive — and the role required to read it unredacted."
+
+    attribute :domain,         MarkingDomain
+    attribute :attribute_path, AttributePath
+    attribute :category,       Category
+    attribute :readable_by,    RoleName
+
+    identified_by :domain, :attribute_path
+
+    value_object "MarkingDomain" do
+      attribute :value, String
+      invariant("a marking names the domain it applies to") { !value.to_s.empty? }
+    end
+
+    # DOTTED, same convention Forms' own `Field#path` and a query's
+    # cross-object `where` clause already use — `"attendee.medications"`,
+    # not a bare leaf name, so a marking can reach into a nested value
+    # object rather than only a top-level attribute.
+    value_object "AttributePath" do
+      attribute :value, String
+      invariant("a marking names an attribute path") { !value.to_s.empty? }
+    end
+
+    # OPEN-ENDED ON PURPOSE — "pii", "phi", whatever else a consuming
+    # domain finds itself needing, none of it enumerated here. This
+    # bluebook is the mechanism (mark, gate, redact); it does not also
+    # own the vocabulary of sensitivity categories that exist in the
+    # world.
+    value_object "Category" do
+      attribute :value, String
+      invariant("a marking is categorized") { !value.to_s.empty? }
+    end
+
+    value_object "RoleName" do
+      attribute :value, String
+      invariant("reading a marked field unredacted requires a named role") { !value.to_s.empty? }
+    end
+
+    command "Mark" do
+      role "Deployment"
+      goal "Flag one attribute of a domain's own aggregate as sensitive, gating who may read it unredacted"
+
+      attribute :domain,         MarkingDomain
+      attribute :attribute_path, AttributePath
+      attribute :category,       Category
+      attribute :readable_by,    RoleName
+
+      emits Marked
+    end
+
+    command "Unmark" do
+      role "Deployment"
+      goal "Remove a sensitivity flag from an attribute"
+
+      reference_to Marking
+
+      emits Unmarked
+    end
+
+    query "ForDomain" do
+      description "Every marking declared for one domain, read by whatever gates or redacts that domain's own records."
+      attribute :domain, MarkingDomain
+      where(domain: :domain)
+    end
+  end
+
+  # **Cryptoshredding** — a right-to-erasure request satisfied without
+  # rewriting or deleting a single event. `key_reference` is an opaque
+  # handle a caller obtains from `Ports::KeyVault.issue` before
+  # dispatching `Issue`, the same "nothing is minted inside a bluebook"
+  # convention `Identity::Register`'s own `identity_id` and
+  # `Delivery::Record`'s own `message_id` already hold to (the
+  # expression sublanguage cannot call a port at all). The key material
+  # itself never appears here or on any emitted event — only the fact
+  # that a reference exists, and the fact that it was destroyed.
+  aggregate "SubjectKey" do
+    description "One data subject's own encryption key, from the moment it exists to the moment it is destroyed."
+
+    attribute :domain,        KeyDomain
+    attribute :subject_id,    SubjectId
+    attribute :key_reference, KeyReference
+
+    identified_by :domain, :subject_id
+
+    value_object "KeyDomain" do
+      attribute :value, String
+      invariant("a key names the domain its subject belongs to") { !value.to_s.empty? }
+    end
+
+    value_object "SubjectId" do
+      attribute :value, String
+      invariant("a key names the subject it was issued for") { !value.to_s.empty? }
+    end
+
+    value_object "KeyReference" do
+      attribute :value, String
+      invariant("a key carries the vault's own opaque reference to it") { !value.to_s.empty? }
+    end
+
+    # `Shred`'s own guard against running twice — the same mechanism
+    # `Compliance::PrivacyReview`'s `Clear`/`Escalate` already use rather
+    # than an optional timestamp plus a hand-written `given`.
+    lifecycle :status, default: "active" do
+      transition "Shred" => "shredded", from: "active"
+    end
+
+    command "Issue" do
+      role "System"
+      goal "Record that a subject's data is now encrypted under a fresh, dedicated key"
+
+      attribute :domain,        KeyDomain
+      attribute :subject_id,    SubjectId
+      attribute :key_reference, KeyReference
+
+      sets :domain
+      sets :subject_id
+      sets :key_reference
+
+      emits SubjectKeyIssued
+    end
+
+    # **Records destruction, never performs it** — the actual
+    # `Ports::KeyVault.destroy` call happens in driving-side code before
+    # this is ever dispatched, the same boundary `send_issue.rb` draws
+    # around `Delivery::Record` for an already-sent email. This
+    # command's own job is to make an already-irreversible fact
+    # durable, not to cause it.
+    command "Shred" do
+      role "Privacy officer"
+      goal "Mark this subject's key destroyed, so its ciphertext is recorded as permanently unrecoverable"
+
+      reference_to SubjectKey
+
+      emits SubjectKeyShredded
+    end
+
+    query "ForSubject" do
+      description "One subject's key record, checked before any attempt to decrypt their sensitive fields."
+      attribute :domain,     KeyDomain
+      attribute :subject_id, SubjectId
+      where(domain: :domain, subject_id: :subject_id)
+    end
+  end
+end

@@ -1,8 +1,8 @@
-// THE LAMBDA ENTRY POINT — provided.al2023 custom runtime, no
+// **The lambda entry point** — provided.al2023 custom runtime, no
 // container (per explicit direction: PackageType Zip, not Image). A
-// Lambda event is EITHER a command (`{"verb": "...", "args": {...}}`,
+// Lambda event is either a command (`{"verb": "...", "args": {...}}`,
 // the same shape a single entry of the kernel's own `{"steps": [...]}`
-// array already has — no new request shape invented for that path) OR
+// array already has — no new request shape invented for that path) or
 // a read (`{"read": true}` — no verb at all, checked first so it can
 // never be confused with a command that simply omitted one). Both
 // response shapes are the kernel's own `{"instances","events",
@@ -10,7 +10,7 @@
 // to read bin/rust_conformance's JSON (a human, a test, future
 // tooling) reads this Lambda's response either way.
 //
-// Postgres and wasmtime are BOTH held only here and in the two modules
+// Postgres and wasmtime are both held only here and in the two modules
 // this file composes (journal, wasm_runner) — dispatch.rs is the only
 // place that sees both at once. The `.wasm` module itself never learns
 // either exists.
@@ -45,7 +45,7 @@ use tokio::sync::Mutex;
 async fn main() -> Result<(), Error> {
     // DB_SECRET_ARN — bin/project_deploy's own default now (template.yaml's
     // Environment.Variables comment has the full story): the password
-    // itself is fetched from Secrets Manager HERE, at cold start, over
+    // itself is fetched from Secrets Manager here, at cold start, over
     // the AWS SDK, rather than trusted from a CloudFormation dynamic
     // reference already resolved into this function's own
     // Environment.Variables — which is readable in plaintext by any
@@ -54,12 +54,12 @@ async fn main() -> Result<(), Error> {
     // protection its own name suggests. DB_HOST/DB_NAME travel as plain
     // (non-secret) Environment.Variables alongside it.
     //
-    // FALLS BACK TO DATABASE_URL directly when DB_SECRET_ARN is absent —
+    // Falls back to DATABASE_URL directly when DB_SECRET_ARN is absent —
     // the one legitimate case being a human hand-debugging over an SSM
     // tunnel with DATABASE_URL set manually (project_deploy's own
     // ExcludeCharacters comment already anticipates exactly this).
     //
-    // ONE FETCHER, built eagerly and reused below for GOOGLE_OAUTH_SECRET_ID/
+    // One fetcher, built eagerly and reused below for GOOGLE_OAUTH_SECRET_ID/
     // SESSION_SECRET_ARN too -- a real deploy always sets DB_SECRET_ARN
     // (bin/project_deploy's own default), so this is the common path in
     // practice; building it even in the DATABASE_URL-fallback debugging
@@ -74,8 +74,8 @@ async fn main() -> Result<(), Error> {
                 .await
                 .map_err(|e| format!("fetching DB_SECRET_ARN from Secrets Manager: {e:#}"))?;
             let password = secrets::extract_field(&secret_json, "password")?;
-            // Composed exactly the way template.yaml's own retired
-            // `{{resolve:secretsmanager:...}}` DATABASE_URL Sub used to —
+            // Composed to match the format template.yaml's retired
+            // `{{resolve:secretsmanager:...}}` DATABASE_URL Sub produced:
             // literal, unescaped, no percent-encoding. parse_database_url
             // below never percent-decodes the password segment either way.
             format!("postgres://postgres:{password}@{db_host}:5432/{db_name}")
@@ -84,15 +84,15 @@ async fn main() -> Result<(), Error> {
             .map_err(|_| "either DB_SECRET_ARN (+ DB_HOST/DB_NAME) or DATABASE_URL is required")?,
     };
 
-    // GOOGLE_OAUTH_SECRET_ID/SESSION_SECRET_ARN — the SAME
+    // GOOGLE_OAUTH_SECRET_ID/SESSION_SECRET_ARN — the same
     // {{resolve:secretsmanager:...}}-into-Environment.Variables exposure
     // DB_SECRET_ARN above replaced, applied to auth.rs's own
     // GOOGLE_CLIENT_ID/GOOGLE_CLIENT_SECRET and web.rs's own
     // SESSION_SECRET. Fetched here, once, then `unsafe { set_var }`'d
-    // into the SAME env keys auth.rs/web.rs already read via
+    // into the same env keys auth.rs/web.rs already read via
     // `std::env::var(...)` — neither file changes at all; from their
     // own point of view this is indistinguishable from a human having
-    // exported the real value directly. SAFETY: this runs before
+    // exported the real value directly. Safety: this runs before
     // `tokio::spawn` below or any request is ever dispatched — nothing
     // else in this process reads or writes the environment concurrently
     // with these two calls.
@@ -122,11 +122,11 @@ async fn main() -> Result<(), Error> {
         std::env::var("HECKS_WASM_PATH").unwrap_or_else(|_| "banking.wasm".to_string()),
     );
 
-    // Read BEFORE the Postgres connection opens — `SET search_path`
+    // Read before the Postgres connection opens — `SET search_path`
     // below has to run before `journal::ensure_schema`/anything else
     // touches the connection, or those calls resolve unqualified names
     // against Postgres's own default search_path instead of this
-    // domain's. `HECKS_SCHEMA` is OPTIONAL, same as Ruby's own
+    // domain's. `HECKS_SCHEMA` is optional, same as Ruby's own
     // `settings[:schema]` (postgres.rb) — a domain with its own
     // dedicated instance (today's default, not the storehouse) sets
     // nothing here and keeps Postgres's ordinary default search_path,
@@ -136,7 +136,7 @@ async fn main() -> Result<(), Error> {
 
     // RDS Postgres refuses a plain NoTls connection by default (real,
     // live error: "no pg_hba.conf entry ... no encryption") -- and
-    // needs AWS's own RDS CA specifically, not a generic public bundle
+    // needs AWS's own RDS ca specifically, not a generic public bundle
     // (see Cargo.toml's own comment on both points).
     let mut roots = rustls::RootCertStore::empty();
     for cert in rustls_pemfile::certs(&mut include_bytes!("../rds-ca-bundle.pem").as_slice()) {
@@ -146,12 +146,12 @@ async fn main() -> Result<(), Error> {
         .with_root_certificates(roots)
         .with_no_client_auth();
     let tls = tokio_postgres_rustls::MakeRustlsConnect::new(tls_config);
-    // NOT tokio_postgres::connect(&database_url, tls) -- that parses
-    // DATABASE_URL as a strict URI, where `?`/`#` are RESERVED
+    // Not tokio_postgres::connect(&database_url, tls) -- that parses
+    // DATABASE_URL as a strict URI, where `?`/`#` are reserved
     // delimiter characters (query-string/fragment starts). template.yaml's
     // own DATABASE_URL is composed by CloudFormation's `!Sub` straight
     // from RDS/Aurora's auto-generated ManageMasterUserPassword secret
-    // -- which AWS excludes `/`, `"`, `@`, and whitespace from, but NOT
+    // -- which AWS excludes `/`, `"`, `@`, and whitespace from, but not
     // `?`/`#`/other URI-reserved characters, and CloudFormation has no
     // way to percent-encode inline. A real, live "db error" (an
     // authentication failure, the password silently truncated at the
@@ -159,14 +159,14 @@ async fn main() -> Result<(), Error> {
     // a URI query string starting at `?`, leaving only `EiP$wT3S9Gi` as
     // the "password" tokio_postgres actually sent. `parse_database_url`
     // below never percent-decodes or URI-parses the password segment at
-    // all -- splits on the LAST `@` (safe: AWS's own exclusion list
+    // all -- splits on the last `@` (safe: AWS's own exclusion list
     // guarantees no literal `@` in the password) and hands the
     // remaining bytes to `Config::password` completely literally.
     let mut config = parse_database_url(&database_url)?;
-    // EXPLICIT, not Config::new()'s own default -- confirmed live that
+    // Explicit, not Config::new()'s own default -- confirmed live that
     // leaving this implicit produced an opaque, undiagnosable "db
     // error" with no further detail even from {:?} (Debug), while a
-    // manual psql/openssl s_client reproduction against the SAME
+    // manual psql/openssl s_client reproduction against the same
     // credentials/host over an SSM tunnel succeeded fine on both
     // `sslmode=require` and `sslmode=disable` -- ruling out the
     // credentials, the TLS cert chain (rds-ca-bundle.pem verifies
@@ -196,11 +196,11 @@ async fn main() -> Result<(), Error> {
         }
     });
 
-    // SHARED-INSTANCE ISOLATION — same reasoning as postgres_era.rb's own
+    // **Shared-instance isolation** — same reasoning as postgres_era.rb's own
     // `connect_for`: every unqualified table/view reference this binary
     // ever issues (hecks_lambda_journal, hecks_lambda_snapshot,
     // hecks_eras, the era-partitioned lineage tables in journal.rs)
-    // resolves through search_path, so this one SET is what makes a
+    // resolves through search_path, so this one set is what makes a
     // shared instance's per-domain schemas transparent to the rest of
     // this binary — no other call site needs to change.
     //
@@ -209,18 +209,18 @@ async fn main() -> Result<(), Error> {
     // provisioning tenant_isolation_spec.rb's own multi-schema fixture
     // by hand"), missing here until a Shared-mode domain's Lambda
     // actually booted against a schema neither Banking nor Pizzas ever
-    // needed created THIS way (their own schemas were already created
+    // needed created this way (their own schemas were already created
     // by `make mint-era`'s Ruby-side tunnel boot before their Lambda's
     // own first real invocation ever ran) — found live deploying
     // lifeadelics, the first Shared-mode domain whose Lambda genuinely
     // raced a still-nonexistent schema: `SET search_path` to a schema
     // that doesn't exist yet succeeds in Postgres (search_path accepts
-    // any name), so the FIRST real failure only surfaced one step
+    // any name), so the first real failure only surfaced one step
     // later, `ensure_schema`'s own `CREATE TABLE ... IF NOT EXISTS`
     // refusing with "no schema has been selected to create in" — a
     // genuinely confusing message pointing nowhere near the real cause.
     // Idempotent, same as Ruby's: a schema that already exists is the
-    // ORDINARY case on every boot after the first, not news.
+    // ordinary case on every boot after the first, not news.
     if let Some(schema) = &schema {
         client
             .batch_execute(&format!("CREATE SCHEMA IF NOT EXISTS {}", journal::quote_ident(schema)))
@@ -253,10 +253,10 @@ async fn main() -> Result<(), Error> {
     // mint/hold/audit sequence below, per-aggregate head-snapshot
     // journaling) is only provisioned when something actually needs it:
     // at least one aggregate this domain's own ir.json marks lineage-
-    // capable, OR Google auth is configured at all (`GOOGLE_CLIENT_ID`
+    // capable, or Google auth is configured at all (`GOOGLE_CLIENT_ID`
     // set) — `auth.rs`'s own Member sessions always require the lineage
     // subsystem present, by design (ADR 0034's own Decision), regardless
-    // of what any OTHER aggregate in this domain binds to. A domain with
+    // of what any other aggregate in this domain binds to. A domain with
     // neither never touches `hecks_eras`, never mints, never partitions —
     // structurally absent from this boot's own call graph, the same
     // "conditional on real capability, not a no-op" shape ADR 0031
@@ -268,7 +268,7 @@ async fn main() -> Result<(), Error> {
         // idempotent, gated by `provisioner?` on the connecting role's own
         // ownership (mint.rs's own header), so calling this every boot is
         // exactly as cheap and safe as `journal::ensure_schema` above.
-        // MUST run before the very first `journal::held_eras` call below —
+        // Must run before the very first `journal::held_eras` call below —
         // on a truly fresh Postgres instance (no domain has ever minted
         // anything yet), `hecks_eras` itself doesn't exist until this runs;
         // found live, by `mint_harness` (ADR-0030-in-progress step 8's own
@@ -276,8 +276,8 @@ async fn main() -> Result<(), Error> {
         // no prior test had ever exercised this boot path against.
         mint::ensure_base(&client, &domain).await.map_err(|e| format!("provisioning hecks_eras for {domain}: {e:#}"))?;
 
-        // THE BOOT GATE — no longer a bare `HECKS_ERA` ordinal comparison.
-        // This binary computes ITS OWN shape hash (`storage_shape`, over
+        // **The boot gate** — no longer a bare `HECKS_ERA` ordinal comparison.
+        // This binary computes its own shape hash (`storage_shape`, over
         // `ir::ir()` — the same `ir.json` sidecar this crate already loads
         // generically) and decides for itself: does a held era already
         // name this exact shape (boot at it, whichever ordinal — RLS
@@ -285,7 +285,7 @@ async fn main() -> Result<(), Error> {
         // guarantee `journal::lineage_tests::
         // a_stale_era_write_is_refused_by_postgres_rls_not_this_crate`
         // already proves), is this domain brand new (mint era 1 itself,
-        // `mint::hold_first`), or has it drifted (find the ONE translation
+        // `mint::hold_first`), or has it drifted (find the one translation
         // edge leaving the latest held era, mint the next one itself,
         // `mint::mint_era` — refusing by name toward `bin/scaffold_
         // translation` if none covers it, or `bin/translation_audit
@@ -299,10 +299,10 @@ async fn main() -> Result<(), Error> {
         // whichever of its four outcomes came back, the only part that
         // genuinely needs `client`/`ir`.
         let ordinal: i32 = match mint::decide_boot_action(&held, &my_label) {
-            // ADOPTING AN ERA SOMEONE ELSE MINTED still has to provision
+            // Adopting an era someone else minted still has to provision
             // what this binary is about to write into. Ruby does this on
             // every boot, for every repository, "regardless of era" —
-            // this crate only ever did it while MINTING, so a host that
+            // this crate only ever did it while minting, so a host that
             // matched an existing era's label wrote its first mutation
             // into a head-snapshot table nobody had created. Found live
             // on embryonautfoundersapp, whose era 2 was minted by Ruby
@@ -344,7 +344,7 @@ async fn main() -> Result<(), Error> {
                 // The approval gate — every edge in the chain that carries a
                 // compute/rekey rule, not just the newest link (a chain built
                 // from a domain that skipped several boots in a row could
-                // carry more than one). `approval::check` needs the RAW
+                // carry more than one). `approval::check` needs the raw
                 // ir.json Value for each edge (the digest-relevant shape,
                 // never `mint::Edge`'s own already-compiled-SQL-bearing
                 // struct), found by the same from/to pair `edge_chain` just
@@ -362,7 +362,7 @@ async fn main() -> Result<(), Error> {
                 }
 
                 // Layer 2 of the live audit — CoverageCheck#audit!'s own
-                // ordering: BEFORE anything is minted, over the live
+                // ordering: before anything is minted, over the live
                 // compiled chain (plain SELECTs, never a persisted matview),
                 // so a refusal leaves no half-born era. `watermarks` uses
                 // `held` exactly as fetched above — era `ordinal` genuinely
@@ -400,13 +400,13 @@ async fn main() -> Result<(), Error> {
     // See dispatch.rs's own comment for what that guards against.
     let client = Arc::new(Mutex::new(client));
     let wasm_path = Arc::new(wasm_path);
-    // ONE `AwsLambdaInvoker` for this process's whole lifetime, same
+    // One `AwsLambdaInvoker` for this process's whole lifetime, same
     // reasoning as `client`/`wasm_path` above — `aws_config::load_defaults`
     // resolves credentials/region once at boot (an IAM role's own
     // environment, inside a deployed Lambda), not per invocation.
     // `lambda_client.rs`'s own header has the full story on what this is
     // for: delivering a cross-domain policy reaction the compiled `.wasm`
-    // module could only MATCH, never dispatch (no network inside that
+    // module could only match, never dispatch (no network inside that
     // sandbox, structurally).
     let invoker = Arc::new(lambda_client::AwsLambdaInvoker::from_env().await);
 
@@ -444,13 +444,13 @@ async fn main() -> Result<(), Error> {
                 .and_then(|v| v.as_str())
                 .ok_or("event missing \"verb\"")?
                 .to_string();
-            // `"role"` -- OPTIONAL, mirroring `args` immediately above:
+            // `"role"` -- optional, mirroring `args` immediately above:
             // `Adapters::Lambda::Client#dispatch` (Ruby) only puts this
             // key on the wire when a caller is actually bound
             // (`payload["role"] = role if role`), so an absent key here
             // means exactly what it always has -- no caller asserted a
             // role, and `dispatch::handle`'s own `check_role` stays on
-            // its unchecked path, unchanged. THIS is the fix for a real
+            // its unchecked path, unchanged. This is the fix for a real
             // wiring gap, not new behavior: `check_role`
             // (kernel/repository.rs) and `cli.rs`'s own
             // `step.get("role")` were both already correct and already
@@ -520,17 +520,17 @@ async fn main() -> Result<(), Error> {
     .await
 }
 
-// Parses `postgres://user:password@host:port/dbname` WITHOUT treating
+// Parses `postgres://user:password@host:port/dbname` without treating
 // it as a URI — see main()'s own comment on why: an RDS/Aurora
 // auto-generated password can contain `?`/`#`/other URI-reserved
 // characters CloudFormation's `!Sub` never percent-encodes, and a real
 // URI parser (tokio_postgres::connect's own string-form path)
 // misinterprets them as delimiters, silently truncating the password.
-// Splits on the LAST `@` (never inside the password -- AWS's own
+// Splits on the last `@` (never inside the password -- AWS's own
 // managed-secret generation excludes `@` unconditionally, confirmed:
 // https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-properties-rds-database-instance.html#aws-properties-rds-database-instance-return-values
 // documents `/`, `"`, `@`, and whitespace as always excluded) and the
-// FIRST `:` in the user:password segment (the user, "postgres", never
+// first `:` in the user:password segment (the user, "postgres", never
 // contains one) -- the password segment itself is never percent-decoded
 // or re-parsed after that, handed to `Config::password` completely
 // literally.

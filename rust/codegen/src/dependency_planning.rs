@@ -1,5 +1,5 @@
 //! Port of `rust/project/dependency_planning.rb` — read that file's own
-//! header in full for why this is a SEPARATE, independent re-derivation
+//! header in full for why this is a separate, independent re-derivation
 //! (never a shared field ferried through ir.json) of `Runtime::
 //! DependencyPlanning::Analyzer#call`'s `complete_state? &&
 //! state_independent?` predicate, and why that's the right shape for
@@ -17,7 +17,7 @@ use std::collections::{HashMap, HashSet};
 /// `complete_state_creation?` — see the Ruby file's own header (BUG#22,
 /// QualityControl ledger): `state_independent?`'s conjunct alone, split
 /// out because `registry.rb`'s router needs it independently, to decide
-/// whether a route given to a CREATING command should be checked against
+/// whether a route given to a creating command should be checked against
 /// its derived identity at all (`complete_state?` true) or force a plain
 /// find-or-`NotFound` instead (`complete_state?` false, the legacy path).
 pub fn complete_state_creation(aggregate: &Json, command: &Json, value_objects_by_name: &HashMap<String, &Json>) -> bool {
@@ -29,8 +29,8 @@ pub fn complete_state_creation(aggregate: &Json, command: &Json, value_objects_b
 }
 
 /// `state_independent_creation?` — see the Ruby file's own header.
-/// ONLY MEANINGFUL for a command `crate::shared::creates_owner` already
-/// answered `true` for. `value_objects_by_name` — the SAME domain-wide
+/// Only meaningful for a command `crate::shared::creates_owner` already
+/// answered `true` for. `value_objects_by_name` — the same domain-wide
 /// map `emit_command`'s own caller already built, reused rather than
 /// rebuilt.
 pub fn state_independent_creation(aggregate: &Json, command: &Json, value_objects_by_name: &HashMap<String, &Json>) -> bool {
@@ -88,7 +88,7 @@ fn classify_symbol(name: &str, payload_fields: &HashSet<String>, owner_fields: &
 
 /// `creation_classify_source`, ported directly — `"state"` (a `StateRef`)
 /// mirrors the live Ruby Analyzer's own missing `when StateRef` branch
-/// (falls to `else -> true`) FAITHFULLY, not "correctly" — see the Ruby
+/// (falls to `else -> true`) faithfully, not "correctly" — see the Ruby
 /// file's own comment on this exact point.
 fn classify_source(source: &Json, payload_fields: &HashSet<String>, owner_fields: &HashSet<String>) -> Classification {
     match source.get("kind").map(Json::to_s).as_deref() {
@@ -154,7 +154,7 @@ fn known_writes(
                 }
             }
             "increment" | "decrement" | "multiply" | "clamp" | "remove" => {
-                // STATEFUL — never contributes to `known_writes`; `target`
+                // Stateful — never contributes to `known_writes`; `target`
                 // staying out of it is already enough (see the Ruby
                 // file's own comment on this exact arm).
             }

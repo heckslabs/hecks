@@ -555,7 +555,7 @@ RSpec.describe "the expression sublanguage" do
 
       theirs = begin
         locals = bindings.map { |name, value| "#{name} = #{value.inspect}; " }.join
-        eval("#{locals}#{expression}", binding, __FILE__, __LINE__) # e.g. amount = 7; amount.modulo(3)
+        eval("#{locals}#{expression}", binding, __FILE__, __LINE__) # e.g. amount.modulo(3)
       rescue StandardError
         :raised
       end

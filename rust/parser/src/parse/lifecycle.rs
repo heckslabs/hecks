@@ -1,8 +1,8 @@
 //! The `Lifecycle` construct (`lib/hecks/bluebook/ir/lifecycle.rb`).
-//! NOT a category of its own in `syntax.bluebook`'s `Keyword.opens` column
-//! — it's a DECLARED FOLD onto whichever of `Aggregate`/`Entity` opened it
+//! Not a category of its own in `syntax.bluebook`'s `Keyword.opens` column
+//! — it's a declared fold onto whichever of `Aggregate`/`Entity` opened it
 //! (`lifecycle`'s own row: `opens: ""`, `fills: "state_field"`); Stage 2+
-//! folding logic has to land the built `Lifecycle` on the ENCLOSING
+//! folding logic has to land the built `Lifecycle` on the enclosing
 //! record rather than treat it as independent. `parse::walk_body` still
 //! recurses into `Lifecycle` context the same way any other `do`-body
 //! does — real gating for every `transition` line inside — and reports
@@ -21,7 +21,7 @@ pub fn not_implemented(file: &str, line: usize, word: &str) -> Diagnostic {
 }
 
 /// Parses a `lifecycle :field, default: "..." do ... end` body — `field`/
-/// `default` are already read at the ENCLOSING (Aggregate/Entity)
+/// `default` are already read at the enclosing (Aggregate/Entity)
 /// context, since `lifecycle`'s own header line is gated there (`opens:
 /// ""` — this is a fold, not its own category, per this module's own
 /// header).
@@ -83,10 +83,10 @@ pub fn parse_body(
 /// bluebook-semantics.md): two transitions for one command whose `from:`
 /// sets overlap (or where either has no `from:`) were silently
 /// first-wins; refused once the state machine can be read whole. Rows
-/// are already EXPANDED one per `from:` state, so an overlap is one
+/// are already expanded one per `from:` state, so an overlap is one
 /// command reaching two different targets from one `from_state` (`None`
 /// overlaps everything). A `from:` naming a state nothing declares is
-/// NOT refused — that is a `bin/model_check` reachability finding a
+/// not refused — that is a `bin/model_check` reachability finding a
 /// bluebook may exhibit on purpose. Same wording as Ruby's.
 fn refuse_ambiguity(file: &str, line: usize, lifecycle: &ir::Lifecycle) -> ParseResult<()> {
     let mut seen: Vec<(&str, Option<&str>, &str)> = Vec::new();

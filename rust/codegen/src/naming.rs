@@ -74,7 +74,7 @@ fn plain_lower_identifier(name: &str) -> bool {
         && chars.all(|c| c == '_' || c.is_ascii_lowercase() || c.is_ascii_digit())
 }
 
-/// Mirrors `legal_aggregate_mod_identifier?` — the identifier-SHAPE half
+/// Mirrors `legal_aggregate_mod_identifier?` — the identifier-shape half
 /// only, against the downcased name.
 pub fn legal_aggregate_mod_identifier(name: &str) -> bool {
     plain_lower_identifier(&name.to_lowercase())
@@ -133,7 +133,7 @@ pub fn rust_ident_field(name: &str) -> String {
 }
 
 /// A closed-set member's value is business text, not a pre-sanitized Rust
-/// identifier — split on ANY run of non-alphanumeric characters (see
+/// identifier — split on any run of non-alphanumeric characters (see
 /// naming.rb's own header on why plain `_`/whitespace splitting broke on
 /// glob-shaped members like `"*.port"`).
 ///
@@ -240,7 +240,7 @@ pub fn emit_closed_set_fielded_impl(vo: &crate::json::Json) -> String {
 pub fn literal_rhs(literal: &crate::json::Json) -> String {
     match literal {
         crate::json::Json::String(s) => format!("{}.to_string()", ruby_inspect_string(s)),
-        // `Integer, Float then literal.to_s` — ONE Ruby case, but `to_s`
+        // `Integer, Float then literal.to_s` — one Ruby case, but `to_s`
         // renders differently per real type (`0.to_s == "0"`, `0.0.to_s ==
         // "0.0"`) — kept as two Rust match arms so a whole-number Float
         // default still renders as a valid `f64` literal (`0.0`, not the

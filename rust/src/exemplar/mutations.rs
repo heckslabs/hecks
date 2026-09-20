@@ -1,5 +1,5 @@
-// EXEMPLAR shapes for rust/project/mutations.rb — see mod.rs's own
-// header. Every shape here is a single generated STATEMENT line
+// Exemplar shapes for rust/project/mutations.rb — see mod.rs's own
+// header. Every shape here is a single generated statement line
 // (`record.field = ...;`, `record.field.push(...);`, one arithmetic
 // block) — the same single-line-statement risk class as constraints.rs's
 // `admits_check`/`pattern_check`, not the multi-branch structural risk
@@ -7,7 +7,7 @@
 // (`mutation_set_rhs`, `append_field_rhs`, `arithmetic_amount_expr`,
 // mutations.rb) stay plain Ruby, same scoping call as json_codec.rb's
 // own scalar-accessor helpers — the structural risk lives in getting the
-// STATEMENT shape right, not in which field a value came from. Every
+// statement shape right, not in which field a value came from. Every
 // host below takes `record: &mut Tmpl...` as a plain parameter, not
 // `&mut self` — the real generated mutation closures all operate on a
 // `record` binding (`kernel::dispatch`'s own mutation closure
@@ -74,13 +74,13 @@ fn tmpl_mutation_arithmetic_host(record: &mut TmplArithmeticHost) {
     // TMPL:mutation_arithmetic END
 }
 
-// BUG#32 (QualityControl ledger) — `remove:` against an ENTITY-typed
+// BUG#32 (QualityControl ledger) — `remove:` against an entity-typed
 // list, matched by the entity's own identity field (`tmpl_id_field`)
 // rather than whole-element equality (`Runtime::EntityElement.
 // list_element_match?`'s own comment, Ruby side, gives the full
 // reasoning: an entity is a plain struct, never one comparable whole
 // value the way a value object is). `retain` keeps every element whose
-// identity DOESN'T match the offered value — the inverse of the
+// identity doesn't match the offered value — the inverse of the
 // `reject { |element| element == value }` shape Ruby's own
 // `MutationApplier#removed`/`EntityElement#removed_from_element` share.
 struct TmplRemoveElement {

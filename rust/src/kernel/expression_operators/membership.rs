@@ -3,12 +3,12 @@
 // interpretation (evaluator.rb's `includes?`), read directly.
 //
 // Real corpus `given`/`ensures`/invariant text only ever calls `.include?`
-// with a String haystack directly, OR a literal-array haystack
+// with a String haystack directly, or a literal-array haystack
 // (`["issued", "active"].include?(status)`) — `rust/project/
-// expr_emitter.rb`'s own `emit_include` rewrites the LATTER into an
-// OR-of-equalities at codegen time (see its header), so it never reaches
-// this file as a `Value::Array` at all. A `Value::Array` DOES reach here
-// for real, though, the moment a haystack is COMPUTED rather than
+// expr_emitter.rb`'s own `emit_include` rewrites the latter into an
+// or-of-equalities at codegen time (see its header), so it never reaches
+// this file as a `Value::Array` at all. A `Value::Array` does reach here
+// for real, though, the moment a haystack is computed rather than
 // written literally — `x.split("::").include?("a")` composes `Split`
 // (`expression_operators::text`) with `.include?` exactly this way, and
 // unlike the literal case there is no fixed set of elements at codegen

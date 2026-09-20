@@ -41,9 +41,9 @@ pub fn modulo(expr: &Expr, ctx: &EvalContext) -> Result<Value, Refusal> {
 }
 
 // Ruby's `Integer#%` (resolver.rb's `apply_modulo`, read directly:
-// `receiver.to_i % divisor.to_i`) is FLOORED — the result takes the
+// `receiver.to_i % divisor.to_i`) is floored — the result takes the
 // divisor's own sign (or 0), same as Ruby's `-7 % 3 == 2`. Rust's native
-// `%` is TRUNCATED — the result takes the dividend's own sign (or 0), so
+// `%` is truncated — the result takes the dividend's own sign (or 0), so
 // `-7 % 3 == -1` in plain Rust. Item #7, whole-project table-unification
 // survey — found as a real, live, silent semantic divergence for any
 // negative operand; no real corpus predicate uses `.modulo` with one yet,
@@ -149,11 +149,11 @@ mod sum_tests {
 // Bignum parity isn't achievable here without a real bignum dependency.
 // Rust's own unchecked `+` on `i64` is wrong either way it could go: it
 // panics in a debug build (an uncontrolled crash, not a refusal) and
-// silently WRAPS in a release build (`i64::MAX + 1` becomes `i64::MIN` —
+// silently wraps in a release build (`i64::MAX + 1` becomes `i64::MIN` —
 // corrupted data, not even a plausible-looking wrong number). `checked_add`
 // plus a clean refusal is the honest middle ground used elsewhere in this
 // file (`modulo`'s divide-by-zero check, above): refuse loudly and
-// specifically rather than silently corrupt OR crash uncontrolled.
+// specifically rather than silently corrupt or crash uncontrolled.
 fn sum(lhs: &Value, rhs: &Value) -> Result<Value, Refusal> {
     if let (Value::Int(l), Value::Int(r)) = (lhs, rhs) {
         return l.checked_add(*r).map(Value::Int).ok_or_else(|| eval_error(format!("addition overflowed: {l} + {r} does not fit in a 64-bit integer")));

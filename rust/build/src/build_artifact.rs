@@ -1,4 +1,4 @@
-//! THE NEW PART — actually invoking `cargo build` for the domain's own
+//! **The new part** — actually invoking `cargo build` for the domain's own
 //! compiled artifact, native at minimum and optionally WASM. This is
 //! what makes the whole pipeline end-to-end: `.bluebook` source in, a
 //! compiled binary out, one command, zero Ruby anywhere in the chain —
@@ -8,7 +8,7 @@
 //! itself a Ruby process and this repo's own separate `bin/project_wasm`
 //! already does the WASM half by shelling out to `bin/project_rust`
 //! first — so neither Ruby script actually needed to also invoke `cargo`
-//! from inside itself for the same reason this crate does: for THEM,
+//! from inside itself for the same reason this crate does: for them,
 //! Ruby is already running; for this crate, `cargo build` closing the
 //! loop in-process is the entire point.
 
@@ -31,7 +31,7 @@ pub fn build_native(rust_dir: &Path) -> Result<(), String> {
 /// crate reports rather than treats as a code bug when it isn't), builds
 /// through `rustup run stable cargo ...` rather than a bare `cargo`
 /// (that script's own comment: a Homebrew `cargo`/`rustc` earlier on
-/// PATH never saw `rustup target add` and fails opaquely otherwise),
+/// path never saw `rustup target add` and fails opaquely otherwise),
 /// then copies the artifact plus its `ir.json` sidecar into `rust/dist/`
 /// under the domain's own name.
 pub fn build_wasm(root: &Path, rust_dir: &Path, target_mod_name: &str) -> Result<(), String> {

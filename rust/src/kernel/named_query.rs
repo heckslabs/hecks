@@ -1,16 +1,16 @@
-// HAND-WRITTEN, ONCE, GENERIC — the same "compile shapes, interpret
-// behavior" split this kernel already holds every OTHER reaction/mutation
+// **Hand-written, once, generic** — the same "compile shapes, interpret
+// behavior" split this kernel already holds every other reaction/mutation
 // table to (`PolicyRule`/orchestrate.rs, `ProcessManagerDef`/orchestrate.rs):
 // a declared bluebook `query "Name" do ... end` block compiles down to a
 // static `QueryDef` row (`rust/project/queries.rb`'s own `query_conditions`,
 // `rust/project/registry.rb`'s own `emit_query_table`), and `run` below is
-// the ONE hand-written interpreter every generated domain's own `QUERIES`
+// the one hand-written interpreter every generated domain's own `QUERIES`
 // table is walked through — never bespoke per-query Rust control flow.
 //
-// SCOPE: exactly the subset `rust/project/queries.rb`'s own
+// Scope: exactly the subset `rust/project/queries.rb`'s own
 // `query_skip_reason` admits — one or more field-comparator conditions,
-// ANDed together, against a single aggregate's OWN attributes, PLUS (as of
-// 2026-08-11) a declared `order_by`/`limit` on that same result set, PLUS
+// ANDed together, against a single aggregate's own attributes, plus (as of
+// 2026-08-11) a declared `order_by`/`limit` on that same result set, plus
 // (as of Phase 10, equivalence-gap plan) a declared `offset` on it too —
 // still no cursor/consistency/freshness/authorization/null_semantics/
 // inspection/index_hints; no where clause hopping through a
@@ -18,33 +18,33 @@
 // exported IR can't recover; no order_by field that doesn't reduce to a
 // plain JSON string or number. A declared query outside that subset
 // simply has no row in the generated table at all — `kernel/cli.rs`'s own
-// STRING-shaped "query" step refuses it the same clean way an unrouted
+// string-shaped "query" step refuses it the same clean way an unrouted
 // command already does, never silently wrong.
 //
-// GROUND TRUTH: `Runtime::QueryInterpreter#interpret`
-// (lib/hecks/runtime/query_interpreter.rb), read directly — for THIS
+// **Ground truth**: `Runtime::QueryInterpreter#interpret`
+// (lib/hecks/runtime/query_interpreter.rb), read directly — for this
 // subset specifically (no hop), `interpret` and its own differential twin
-// `reference_interpret` are PROVABLY the identical answer, order_by/
+// `reference_interpret` are provably the identical answer, order_by/
 // offset/limit included: both share the exact same `ordered`/`skipped`/
 // `capped` sequence — `ordered = ordered(matched, declared.order_by,
 // declared.null_semantics)`, then `skipped = declared.offset ? ordered.
 // drop(resolve_query_value(declared.offset.value, args).to_i) : ordered`
 // (OFFSET FIRST — SQL's own `LIMIT n OFFSET m` order, not the reverse),
 // then `capped = declared.limit ? skipped.first(resolve_query_value(
-// declared.limit.value, args).to_i) : skipped` — applied AFTER the where
+// declared.limit.value, args).to_i) : skipped` — applied after the where
 // clauses (`matched`), which is the only place the two interpreters ever
 // differ (`reference_where_holds?` vs plain `where_holds?`); a hop-free
 // where clause makes `reference_where_holds?` fall straight through to
 // `where_holds?` via its own early return (`return where_holds?(clause,
 // record, args) unless step`), so order_by/offset/limit run on an
-// IDENTICAL `matched` set either way, never a second, separately-computed
+// identical `matched` set either way, never a second, separately-computed
 // answer.
-// `kernel/cli.rs`'s STRING-form dispatch leans on exactly this property
+// `kernel/cli.rs`'s string-form dispatch leans on exactly this property
 // to report `reference_rows` as a clone of `rows` rather than actually
 // re-running a second walk.
 //
-// order_by/limit ARE NOT hand-written here a second time — `query_ordering
-// ::apply` (kernel/query_ordering.rs) is the SAME identity-sort/declared-
+// order_by/limit are not hand-written here a second time — `query_ordering
+// ::apply` (kernel/query_ordering.rs) is the same identity-sort/declared-
 // order/limit tail `read_model::run` already calls for a read model's own
 // eligible head; that module's own header has the full argument for why a
 // declared query needing this was simple reuse rather than new invention
@@ -55,18 +55,18 @@
 use super::refusal_wording::UnauthorizedTenantRequiredArgs;
 use super::{query_comparators::QueryComparator, query_ordering, repository, AggregateScan, Json, Refusal};
 
-/// ONE declared query, compiled. `verb` is the fully-qualified
-/// "Domain::Aggregate.QueryName" `kernel/cli.rs`'s STRING-form "query" step
+/// One declared query, compiled. `verb` is the fully-qualified
+/// "Domain::Aggregate.QueryName" `kernel/cli.rs`'s string-form "query" step
 /// matches against; `aggregate` is the bare "Domain::Aggregate"
-/// `AggregateScan::scan` expects — the SAME prefix the ad hoc OBJECT-form
+/// `AggregateScan::scan` expects — the same prefix the ad hoc object-form
 /// filter step (`kernel/cli.rs`'s own `run_filter`) already resolves
 /// through, so a query and an ad hoc filter against the same aggregate
-/// always answer the SAME "unknown aggregate" refusal path.
+/// always answer the same "unknown aggregate" refusal path.
 /// `order_by`/`limit` are `None` for a query that declares neither — the
-/// ordinary case, and the ONLY case before 2026-08-11. Both reuse
+/// ordinary case, and the only case before 2026-08-11. Both reuse
 /// `query_ordering::OrderBy`/`Limit` directly (no `named_query`-local
 /// wrapper type the way `read_model::ReadModelOrderBy`/`ReadModelLimit`
-/// briefly were before THEY became aliases for the same reason) — this is
+/// briefly were before they became aliases for the same reason) — this is
 /// a brand-new consumer of that shared shape, so there was never a
 /// pre-existing local type here to migrate away from.
 #[derive(Debug, Clone, Copy)]
@@ -82,12 +82,12 @@ pub struct QueryDef {
     pub order_by: Option<query_ordering::OrderBy>,
     /// `None` for the ordinary case (no declared `offset`, true for every
     /// declared query before this field existed). `query_ordering::apply`
-    /// runs this BEFORE `limit` — see that function's own header for why.
+    /// runs this before `limit` — see that function's own header for why.
     pub offset: Option<query_ordering::Offset>,
     pub limit: Option<query_ordering::Limit>,
     /// `None` for the ordinary case — no declared `authorize`, or one
     /// declared with no `tenant:` (`Runtime::TenantScope.apply`'s own
-    /// `return declared unless tenant` — a REAL, harmless no-op in Ruby
+    /// `return declared unless tenant` — a real, harmless no-op in Ruby
     /// too, not merely unsupported). See `TenantAuth`'s own doc for what
     /// this actually does.
     pub authorization: Option<TenantAuth>,
@@ -97,25 +97,25 @@ pub struct QueryDef {
 /// plan. Ground truth: `Runtime::TenantScope.apply` (lib/hecks/runtime/
 /// tenant_scope.rb), read directly. That module's own header is explicit
 /// about what this is and is not: "the boundary itself, made mandatory...
-/// whether THIS caller actually holds `policy` for THIS tenant needs real
+/// whether this caller actually holds `policy` for this tenant needs real
 /// identity infrastructure this runtime does not have — that stays a
 /// named, open gap." `policy` itself is never read by `TenantScope.apply`
 /// at all (only `.tenant` is) — this generator matches that exactly,
 /// carrying no `policy` field here either.
 ///
-/// TWO EFFECTS, both ported: (1) `args.key?(tenant)` must hold or Ruby
+/// Two effects, both ported: (1) `args.key?(tenant)` must hold or Ruby
 /// raises `Unauthorized`/`tenant_required` — `run_cross_domain` below
-/// checks this explicitly, since a QUIETLY missing arg would otherwise
+/// checks this explicitly, since a quietly missing arg would otherwise
 /// resolve through `QueryConditionValue::Arg`'s own `unwrap_or(Json::
 /// Null)` miss-is-null reading and just filter to an empty (or wrong)
 /// result instead of refusing. (2) a synthetic `field == args[tenant]`
 /// where-clause gets ANDed onto the query's own declared ones
 /// (`Scoped#wheres = __getobj__.wheres + [@clause]`) — baked in at
-/// CODEGEN TIME here instead (`rust/project/queries.rb`'s own
+/// codegen time here instead (`rust/project/queries.rb`'s own
 /// `query_conditions` appends it), since the compiled shape never
 /// changes: always `Eq` against `QueryConditionValue::Arg(tenant_field)`.
-/// `tenant_field` doing double duty as both the where-clause FIELD name
-/// and the wire ARG key name is Ruby's own convention, not an accident —
+/// `tenant_field` doing double duty as both the where-clause field name
+/// and the wire arg key name is Ruby's own convention, not an accident —
 /// `TenantScope.apply`'s `tenant = tenant.to_sym` is the one value both
 /// checks and the synthetic clause all read.
 #[derive(Debug, Clone, Copy)]
@@ -127,11 +127,11 @@ pub struct TenantAuth {
     /// declared.name, field: tenant)`'s exact placeholder value.
     pub query_name: &'static str,
     pub tenant_field: &'static str,
-    /// `authorize policy, tenant: :field`'s own FIRST argument — carried
-    /// here, but DELIBERATELY NOT ENFORCED. This is a real, Rust-only
+    /// `authorize policy, tenant: :field`'s own first argument — carried
+    /// here, but deliberately not enforced. This is a real, Rust-only
     /// addition beyond what `Runtime::TenantScope.apply` itself checks:
-    /// that module's own header says plainly "whether THIS caller
-    /// actually holds `policy` for THIS tenant needs real identity
+    /// that module's own header says plainly "whether this caller
+    /// actually holds `policy` for this tenant needs real identity
     /// infrastructure this runtime does not have — that stays a named,
     /// open gap," and Ruby genuinely never reads `policy` at all (only
     /// `.tenant`). Building real enforcement here, unilaterally, would
@@ -140,16 +140,16 @@ pub struct TenantAuth {
     /// differential testing between the two (spec/parser_parity_spec.rb,
     /// spec/rust_conformance_spec.rb). `caller_role` is threaded into
     /// `run`/`run_cross_domain` below (mirroring `orchestrate`'s own
-    /// parameter) specifically so a FUTURE enforcement pass has
+    /// parameter) specifically so a future enforcement pass has
     /// everything it needs already wired — once Ruby's own identity gap
     /// closes, ideally behind its own ADR (mirroring 0019's) so both
     /// sides change together instead of Rust silently diverging first.
     pub policy: &'static str,
 }
 
-/// ONE where clause, compiled — `field`/`comparator` read exactly like the
+/// One where clause, compiled — `field`/`comparator` read exactly like the
 /// ad hoc filter's own (query_comparators.rs); `value` is the one axis a
-/// DECLARED query adds over that ad hoc shape.
+/// declared query adds over that ad hoc shape.
 #[derive(Debug, Clone, Copy)]
 pub struct QueryCondition {
     pub field: &'static str,
@@ -159,16 +159,16 @@ pub struct QueryCondition {
 
 #[derive(Debug, Clone, Copy)]
 pub enum QueryConditionValue {
-    /// A rendered wire STRING, baked in at codegen time.
+    /// A rendered wire string, baked in at codegen time.
     /// `rust/project/queries.rb`'s own `query_where_skip_reason` only ever
-    /// lets a literal reach here when the target field is PROVABLY
+    /// lets a literal reach here when the target field is provably
     /// string-shaped (a plain `String`/lifecycle attribute, a bare
     /// `Reference<X>` id, or a value object that collapses to a single
     /// non-numeric member) or when the comparator is `in`/`contains` —
-    /// both of which stringify their OWN argument unconditionally in Ruby
+    /// both of which stringify their own argument unconditionally in Ruby
     /// too (`Ports::Query::InMemory#members`/`#contains?`, read directly),
     /// so a rendered-string literal is exactly as correct there as the
-    /// ORIGINAL value would have been, whatever its real type. Never used
+    /// original value would have been, whatever its real type. Never used
     /// for gt/gte/lt/lte — a literal's true numeric-vs-string identity is
     /// unrecoverable from the exported IR, so those queries simply have no
     /// row at all rather than a wrong or silently-approximated one.
@@ -186,22 +186,22 @@ pub enum QueryConditionValue {
     /// caller, so the Int-vs-Float wire distinction `Json::Float`
     /// exists to preserve doesn't apply here.
     NumericLiteral(f64),
-    /// A caller-bound Symbol — the declared query's OWN attribute name,
-    /// read off THIS call's `args` object at dispatch time. Missing
+    /// A caller-bound Symbol — the declared query's own attribute name,
+    /// read off this call's `args` object at dispatch time. Missing
     /// entirely reads as `Json::Null`, mirroring Ruby's own
     /// `resolve_query_value` (`args[value]` — a plain Hash miss, never a
     /// raise) exactly.
     Arg(&'static str),
 }
 
-/// THE GENERIC INTERPRETER — every condition ANDed together by chaining
+/// **The generic interpreter** — every condition ANDed together by chaining
 /// `repository::filter_entries` (repository.rs's own header: "id-
-/// ascending, ALWAYS" — chaining preserves that through every step, so the
+/// ascending, always" — chaining preserves that through every step, so the
 /// final result stays sorted by id exactly like a single-condition filter
 /// already is, matching `Runtime::QueryInterpreter#interpret`'s own
-/// single-pass `wheres.all? { ... }` AND for this hop-free subset), THEN
+/// single-pass `wheres.all? { ... }` and for this hop-free subset), then
 /// `query_ordering::apply` for the declared `order_by`/`limit` — Ruby's
-/// own `ordered`/`capped` sequence, run AFTER `matched` the identical way
+/// own `ordered`/`capped` sequence, run after `matched` the identical way
 /// `interpret` itself orders: this module's own header has the full
 /// ground-truth citation for why that sequencing (filter first, order/cap
 /// second) is provably right, not just a plausible guess at Ruby's order
@@ -210,7 +210,7 @@ pub enum QueryConditionValue {
 /// here is domain-specific, only the `QueryDef` data a generated `QUERIES`
 /// table hands it is. `caller_role` — TenantAuth's own doc has the full
 /// story: carried through to `run_cross_domain` below purely so it's
-/// available there for a FUTURE enforcement pass, unused by this
+/// available there for a future enforcement pass, unused by this
 /// function's own logic today.
 pub fn run(store: &impl AggregateScan, def: &QueryDef, args: &Json, caller_role: Option<&str>) -> Result<Vec<(String, Json)>, Refusal> {
     run_cross_domain(store, def, args, &[], caller_role)
@@ -262,14 +262,14 @@ pub fn run_cross_domain(
     Ok(query_ordering::apply(entries, def.order_by.as_ref(), def.offset.as_ref(), def.limit.as_ref(), args))
 }
 
-/// The lookup `kernel/cli.rs`'s STRING-form "query" step dispatches
+/// The lookup `kernel/cli.rs`'s string-form "query" step dispatches
 /// through — a linear scan over a generated domain's own `QUERIES` table
 /// (small in every real corpus; no index structure earns its keep here).
 pub fn find<'a>(table: &'a [QueryDef], verb: &str) -> Option<&'a QueryDef> {
     table.iter().find(|def| def.verb == verb)
 }
 
-/// A declared ENTITY query (`Domain::Aggregate.Entity.Query`), compiled —
+/// A declared entity query (`Domain::Aggregate.Entity.Query`), compiled —
 /// `Runtime::QueryInterpreter#entity_rows`, read directly: every
 /// aggregate record's `list_field` elements, filtered by the declared
 /// wheres, each row `{ parent_key => record.id }.merge(element)`, ordered
@@ -319,9 +319,9 @@ pub fn run_entity(store: &impl AggregateScan, def: &EntityQueryDef, args: &Json)
         entries = repository::filter_entries(entries, condition.field, condition.comparator, &want);
     }
 
-    // THE IDENTITY ORDER — parent id, then each identity key's comparable
+    // **The identity order** — parent id, then each identity key's comparable
     // value. `query_ordering::apply` re-sorts by entry id (the parent's)
-    // STABLY, so this order survives within each parent.
+    // stably, so this order survives within each parent.
     entries.sort_by(|(parent_a, a), (parent_b, b)| parent_a.cmp(parent_b).then_with(|| identity_order(a, b, def.identity_keys)));
     let ordered = query_ordering::apply(entries, def.order_by.as_ref(), def.offset.as_ref(), def.limit.as_ref(), args);
 

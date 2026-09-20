@@ -1,8 +1,8 @@
 // Implements the `:composite` branch of `Runtime::Value::Coercion::SHAPES`
 // (lib/hecks/runtime/value/coercion.rb) — `for_attribute`'s
-// `coerced =` line: the attribute's type names a DECLARED value object,
+// `coerced =` line: the attribute's type names a declared value object,
 // rebuilt recursively via `Value.build`. By the time an expression is
-// being EVALUATED, that rebuilding has already happened (a generated
+// being evaluated, that rebuilding has already happened (a generated
 // struct's own `from_json`/mutation-application built the nested value
 // ahead of time) — what this file owns is reading it back:
 // `Resolver#fetch`'s own recursive per-segment walk (resolver.rb), one
@@ -15,9 +15,9 @@ use crate::kernel::expr::{eval_error, Field, Value};
 use crate::kernel::Refusal;
 
 /// One segment further into a nested value object — `obj.field(seg)`,
-/// Ruby's own recursion inside `Resolver#fetch`. `head` (the FIRST path
+/// Ruby's own recursion inside `Resolver#fetch`. `head` (the first path
 /// segment) is carried through only for the "no such nested field"
-/// wording; `path` (the WHOLE dotted string) only for "the field so far
+/// wording; `path` (the whole dotted string) only for "the field so far
 /// isn't an object to walk further into" — matching `lookup`'s own two
 /// distinct messages exactly.
 pub fn step<'a>(current: Field<'a>, seg: &str, head: &str, path: &str) -> Result<Field<'a>, Refusal> {
@@ -31,7 +31,7 @@ pub fn step<'a>(current: Field<'a>, seg: &str, head: &str, path: &str) -> Result
 /// whole dotted path resolved to (the ordinary case, every real corpus
 /// `Lookup`), or still a nested object (a path that names a value object
 /// or a dereferenced reference itself rather than one of its own
-/// fields). `Fielded::as_scalar` (expr.rs) is that object's own OPTIONAL
+/// fields). `Fielded::as_scalar` (expr.rs) is that object's own optional
 /// "collapse me to a comparable scalar" reading — `DerefNode`'s own
 /// override (`reference_lookup.rs`) is the real, live example (`source
 /// != destination`); everything else still answers `None`, so a bare

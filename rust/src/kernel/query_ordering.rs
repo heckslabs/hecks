@@ -1,26 +1,24 @@
-// EXTRACTED FROM `kernel/read_model.rs` (2026-08-11), NOT REINVENTED — this
+// Extracted from `kernel/read_model.rs` (2026-08-11), not reinvented — this
 // was `apply_declared_order`/`resolve_limit`/`order_key`/`compare_comparable`
-// plus the TIER-1-identity/TIER-2-declared-order shape of `apply_filtered_
+// plus the tier-1-identity/tier-2-declared-order shape of `apply_filtered_
 // head_options`, moved here unchanged so `kernel/named_query.rs` can call
-// the SAME code for a declared AGGREGATE query's own `order_by`/`limit`
-// rather than growing a second, drifting copy. `read_model.rs`'s own
-// header used to say (before this extraction) "no existing kernel
-// capability sorts at all... so this is a new, hand-written shape" — that
-// was true the day it was written and is exactly what made it new; it
-// stopped being true the moment a second caller needed the identical
-// logic, which is what this file is for.
+// the same code for a declared aggregate query's own `order_by`/`limit`
+// rather than growing a second, drifting copy. A single implementation
+// is deliberate: once a second caller needs the identical sorting
+// logic, keeping it in one place is what prevents the two from
+// drifting apart.
 //
-// GROUND TRUTH — read directly, not assumed identical between callers:
+// **Ground truth** — read directly, not assumed identical between callers:
 //
 //   `Runtime::QueryInterpreter#interpret` (lib/hecks/runtime/
-//   query_interpreter.rb) — a declared AGGREGATE query's own path:
+//   query_interpreter.rb) — a declared aggregate query's own path:
 //   `ordered = ordered(matched, declared.order_by, declared.null_semantics)`
 //   then `capped = declared.limit ? ordered.first(resolve_query_value(
 //   declared.limit.value, args).to_i) : ordered`. `ordered` itself is
 //   `Ports::Query::Ordering.apply(records, order_by, null_semantics,
 //   identity: ->(record) { record.id.to_s }) { |record| comparable(record
 //   [field]) }` — id-string identity, exactly what `apply` below sorts by
-//   in its own TIER 1.
+//   in its own tier 1.
 //
 //   `Ports::Query::InMemory.execute` (lib/hecks/ports/query/
 //   in_memory.rb) — the read model's own path (`ReadModelInterpreter#
@@ -28,20 +26,20 @@
 //   apply(matched, declared.order_by, declared.null_semantics, identity:
 //   ->(record) { record.id.to_s }) { comparable(FieldPath.dig(record,
 //   field)) }` then `matched.first(resolve(declared.limit.value, args).
-//   to_i) if declared.limit`. IDENTICAL shape to `interpret` above —
+//   to_i) if declared.limit`. Identical shape to `interpret` above —
 //   same `Ordering.apply` call, same id-string identity block, same
 //   `.first(N)` capping (`Vec::truncate` here is `Array#first`'s own
 //   effect on an owned, already-sorted Vec: keep the first N, drop the
 //   rest — the two are the same operation read from opposite ends).
 //
-// THE ONE REAL STRUCTURAL DIFFERENCE BETWEEN THE TWO CALLERS, confirmed by
-// reading both interpreters rather than assumed: a declared query has NO
-// `filtered_head` concept at all — `interpret` orders/caps its OWN single
+// The one real structural difference between the two callers, confirmed by
+// reading both interpreters rather than assumed: a declared query has no
+// `filtered_head` concept at all — `interpret` orders/caps its own single
 // matched set directly, because a query never chooses among several
 // aggregate heads the way a read model's `report` block does. `read_model.
-// rs`'s `apply_filtered_head_options` calls `apply` below on ONE head's
+// rs`'s `apply_filtered_head_options` calls `apply` below on one head's
 // own rows (the one `filtered_head` names); `named_query.rs`'s `run` calls
-// it on the query's own (only) result set. Everything AFTER that
+// it on the query's own (only) result set. Everything after that
 // selection — identity sort, declared order, limit — is the same function,
 // because Ruby's own `Ordering.apply`/`.first(N)` never knew or cared
 // which caller it was serving either.
@@ -53,7 +51,7 @@ use super::{query_comparators, Json};
 /// own `direction.to_s == "desc"` test to a bool once, at codegen time,
 /// rather than re-testing a string on every row compared. `nulls` is a
 /// declared `nulls :first`/`:last` (`QuerySpecification::Common::
-/// NullSemantics`, Phase 10 of the equivalence-gap plan) — a SEPARATE,
+/// NullSemantics`, Phase 10 of the equivalence-gap plan) — a separate,
 /// top-level query option in Ruby's own IR (not nested inside `order_by`
 /// there), but folded into this same struct here since it only ever means
 /// anything alongside a declared order, and every real generated
@@ -73,7 +71,7 @@ pub struct OrderBy {
 /// policy&.mode.to_s; when "first"...when "last"...else...` has no
 /// validation on `mode` at all (`nulls(mode)` — lib/hecks/
 /// query_specification/common/dsl.rb — accepts anything) — an
-/// unrecognized mode falls through to the SAME `else` (native) arm a
+/// unrecognized mode falls through to the same `else` (native) arm a
 /// real absence does, never a refusal, so this generator matches that:
 /// `rust/project/queries.rb`'s own `null_semantics_variant` maps anything
 /// that isn't literally `"first"`/`"last"` to `Native` too.
@@ -85,12 +83,12 @@ pub enum NullsMode {
 }
 
 /// A declared `limit N` — either a literal count baked in at codegen
-/// time, or a caller-bound Symbol arg resolved from THIS call's own wire
+/// time, or a caller-bound Symbol arg resolved from this call's own wire
 /// `args` at dispatch time, the identical Literal/Arg split `named_query::
 /// QueryConditionValue` already draws for a where clause's own value.
 /// Ground truth: `Ports::Query::InMemory.execute`'s own `resolve(declared.
 /// limit.value, args).to_i` / `QueryInterpreter#interpret`'s own
-/// `resolve_query_value(declared.limit.value, args).to_i` — the SAME
+/// `resolve_query_value(declared.limit.value, args).to_i` — the same
 /// resolution both callers this module serves already agree on.
 #[derive(Debug, Clone, Copy)]
 pub enum Limit {
@@ -101,7 +99,7 @@ pub enum Limit {
 /// A declared `offset N` reuses `Limit` directly rather than a separate
 /// `Offset` enum — `Runtime::QueryInterpreter#interpret`'s own
 /// `resolve_query_value(declared.offset.value, args).to_i` is the
-/// IDENTICAL Literal/Arg resolution `declared.limit.value` already gets
+/// identical Literal/Arg resolution `declared.limit.value` already gets
 /// (both ride `QuerySpecification.render_value`'s same wire encoding),
 /// so two fields with the same shape and the same resolution rule share
 /// one Rust type instead of duplicating it. Only `named_query::QueryDef`
@@ -111,29 +109,29 @@ pub enum Limit {
 /// on that caller's path.
 pub type Offset = Limit;
 
-/// THE SHARED TAIL of both callers' own answer: sort by identity, layer a
+/// The shared tail of both callers' own answer: sort by identity, layer a
 /// declared order on top if there is one, skip a declared offset if there
-/// is one, cap at a declared limit if there is one. Where-FILTERING
+/// is one, cap at a declared limit if there is one. Where-filtering
 /// happens before this runs and is each caller's own job
 /// (`repository::filter_entries`, chained per condition — identical in
 /// both `read_model::apply_filtered_head_options` and `named_query::run`,
 /// so there was nothing to extract there; the dedicated logic to a
 /// query/read model was never the filtering, it was always this tail).
 ///
-/// TIER 1 — IDENTITY. `Ports::Query::Ordering.apply`'s own header: "the
+/// Tier 1 — identity. `Ports::Query::Ordering.apply`'s own header: "the
 /// identity tier is what makes an ask total" — every answer is sorted by
-/// id ascending FIRST, order_by declared or not, so a tie in the declared
+/// id ascending first, order_by declared or not, so a tie in the declared
 /// order (or the total absence of one) still has a total, deterministic
 /// answer rather than leaking whatever order the store happened to hold.
 /// Kept unconditional (not skipped when `order_by`/`limit` are both
 /// `None`) for the same reason `read_model.rs`'s own predecessor of this
 /// function kept it unconditional: a caller with `conditions`/`wheres`
 /// already re-sorts by id on every `filter_entries` step, so this is a
-/// no-op then, but a caller declaring ONLY `order_by`/`limit` (no `where`
+/// no-op then, but a caller declaring only `order_by`/`limit` (no `where`
 /// at all) still needs the same identity base Ruby's own two-tier scheme
 /// guarantees on every path.
 ///
-/// OFFSET FIRST, THEN LIMIT — `Runtime::QueryInterpreter#interpret`'s own
+/// **Offset first, then limit** — `Runtime::QueryInterpreter#interpret`'s own
 /// order: `skipped = declared.offset ? ordered.drop(...) : ordered;
 /// capped = declared.limit ? skipped.first(...) : skipped` — the order
 /// SQL means by `LIMIT n OFFSET m` (skip m, then take n of what's left),
@@ -163,20 +161,20 @@ pub fn apply(
     rows
 }
 
-/// TIER 2 — the declared order, layered on top of the identity base `rows`
+/// Tier 2 — the declared order, layered on top of the identity base `rows`
 /// already carries in. `QuerySpecification::Common::NullPolicy.order`,
 /// ported directly: partition into null/valued by the declared field's own
 /// `comparable`-reduced value; sort the valued partition by that value
-/// (Rust's `Vec::sort_by` is STABLE — unlike Ruby's `Array#sort_by` — so the
+/// (Rust's `Vec::sort_by` is stable — unlike Ruby's `Array#sort_by` — so the
 /// identity order the caller already established survives ties for free,
 /// with no index tie-break to carry along by hand the way Ruby's own
-/// `NullPolicy.order` has to); reverse BOTH partitions for `desc`; THEN —
+/// `NullPolicy.order` has to); reverse both partitions for `desc`; then —
 /// same order Ruby's own `case policy&.mode.to_s` runs in, direction
 /// reversal always happens first — decide final placement by `nulls`:
 /// `First`/`Last` pin nulls to that end regardless of direction; `Native`
 /// (no declared `nulls`, or an unrecognized mode — see `NullsMode`'s own
-/// doc) falls through to the direction-dependent default: FIRST for
-/// ascending, LAST for descending.
+/// doc) falls through to the direction-dependent default: first for
+/// ascending, last for descending.
 fn apply_declared_order(rows: Vec<(String, Json)>, order_by: &OrderBy) -> Vec<(String, Json)> {
     let (mut null_rows, mut valued_rows): (Vec<(String, Json)>, Vec<(String, Json)>) =
         rows.into_iter().partition(|(_, record)| order_key(record, order_by.field) == Json::Null);
@@ -225,7 +223,7 @@ fn compare_comparable(a: &Json, b: &Json) -> std::cmp::Ordering {
 /// `Ports::Query::InMemory.execute`'s own `resolve(declared.limit.value,
 /// args).to_i` / `QueryInterpreter#interpret`'s own `resolve_query_value(
 /// declared.limit.value, args).to_i`, ported: a literal count rides
-/// straight through; a Symbol arg resolves from THIS call's own wire
+/// straight through; a Symbol arg resolves from this call's own wire
 /// `args`, missing or non-numeric reading as `0` (Ruby's own `nil.to_i` —
 /// a missing/wrong-shaped arg is `0`, never a panic or a refusal, matching
 /// `QueryConditionValue::Arg`'s own `unwrap_or(Json::Null)` miss-is-null

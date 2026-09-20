@@ -1,6 +1,6 @@
-// HAND-WRITTEN, ONCE, GENERIC — the wire format the WASM/CLI boundary
+// **Hand-written, once, generic** — the wire format the WASM/CLI boundary
 // speaks. Zero Cargo dependencies, same style as the rest of this kernel:
-// expr.rs's `Value` is the domain-EXPRESSION runtime value (Int/Float/Str/
+// expr.rs's `Value` is the domain-expression runtime value (Int/Float/Str/
 // Bool/List/Nil, no Object/Array); this `Json` is a separate, general JSON
 // value every generated `to_json`/`from_json` (rust/project/json_codec.rb)
 // and `dispatch_by_name`'s stdin/stdout CLI contract (kernel/cli.rs) speak.
@@ -21,11 +21,11 @@ pub enum Json {
     Array(Vec<Json>),
     Str(String),
     Num(f64),
-    /// A declared-Float value, distinct from `Num` ONLY in how it
-    /// SERIALISES: `Num` is `f64` used for both Integer- and Float-typed
+    /// A declared-Float value, distinct from `Num` only in how it
+    /// serialises: `Num` is `f64` used for both Integer- and Float-typed
     /// attributes alike, and its own `write` renders a whole-number value
-    /// WITHOUT a decimal point (correct for an Integer attribute that
-    /// happens through). `Float` renders WITH one always, matching Ruby's
+    /// without a decimal point (correct for an Integer attribute that
+    /// happens through). `Float` renders with one always, matching Ruby's
     /// own `Float#to_json` (`10.0`, never bare `10`) for a Float-typed
     /// attribute whose value happens to be whole. Every other operation
     /// (comparison, ordering, `as_f64`, expression-evaluator field
@@ -36,7 +36,7 @@ pub enum Json {
     Null,
 }
 
-/// A `Json` value AS a `Fielded` — what a policy's own `where { … }`
+/// A `Json` value as a `Fielded` — what a policy's own `where { … }`
 /// evaluates against: `Evaluator.call(policy.where, {}, event.payload)`
 /// (`PolicyInterpreter#where_holds?`, read directly), the payload being a
 /// plain Hash there. An object answers its keys, an array its length (and
@@ -56,7 +56,7 @@ impl super::Fielded for Json {
                 Some(i) => Field::Value(Value::Int(i)),
                 None => Field::Value(Value::Float(*n)),
             },
-            // A declared-Float value's field access is ALWAYS Value::Float
+            // A declared-Float value's field access is always Value::Float
             // -- unlike Num, whose Integer-or-Float split is a guess off
             // `integral_i64`, Float already carries the answer.
             Json::Float(n) => Field::Value(Value::Float(*n)),
@@ -89,14 +89,14 @@ impl super::Fielded for Json {
         )
     }
 
-    // Exactly ONE pair, whatever its key — the payload side of "a
+    // Exactly one pair, whatever its key — the payload side of "a
     // single-element value object strictly answers `.value`". A `Json`
     // carries no declaration to consult (unlike a generated struct,
-    // whose `as_scalar` was rendered FROM the declared attribute list),
+    // whose `as_scalar` was rendered from the declared attribute list),
     // so "one key" is the whole shape test here — relaxed from the old
     // `pairs[0].0 != "value"` name gate in lockstep with the Ruby
     // oracle's own `Resolver#unwrap_scalar` (which now reads a declared
-    // value's `sole_attribute` by COUNT, never by name) and the
+    // value's `sole_attribute` by count, never by name) and the
     // generated structs' own `as_scalar_expr`. A one-pair object whose
     // value is itself nested still answers `None` — `field()` hands
     // back `Field::Nested`, not a `Value`, exactly as before.
@@ -142,11 +142,11 @@ impl Json {
     /// isn't the only way that scalar arrives: a `Reference<X>` argument
     /// (Transfer's own `source`/`destination`, forwarded verbatim by a
     /// process manager's `with:` into a `number:` slot Account's own
-    /// `identified_by` expects wrapped) is a BARE string, the same
+    /// `identified_by` expects wrapped) is a bare string, the same
     /// coercion Ruby's `Value.for_attribute` performs implicitly for a
     /// single-field VO. If the walk still has segments left but the
-    /// current value ISN'T an object to walk further into, the value
-    /// found so far IS the answer, not a dead end.
+    /// current value isn't an object to walk further into, the value
+    /// found so far is the answer, not a dead end.
     pub fn dig(&self, path: &str) -> Option<&Json> {
         let mut current = self;
         for segment in path.split('.') {
@@ -165,16 +165,16 @@ impl Json {
     /// String gets quoted (the same escaping `write_escaped_string`
     /// already does for the wire format); a number/bool prints bare.
     ///
-    /// An Array IS actually offered here in practice — BUG#144: a
+    /// An Array is actually offered here in practice — BUG#144: a
     /// single-attribute closed-set (`one_of`) value object auto-wraps
     /// any bare, non-Hash argument into its one attribute's slot
     /// untouched (`Value.fields_for`'s own coercion, admission.rb's own
     /// comment), so `Chess::Game.DeclineDraw given by: [5, 4]` hands
     /// `admit_member` the raw Array `[5, 4]` as `offered`, and Ruby's
     /// `Array#inspect` — called on that raw Array, `admission.rb`'s
-    /// `offered.inspect` — spells it `"[5, 4]"`, comma AND a space, each
+    /// `offered.inspect` — spells it `"[5, 4]"`, comma and a space, each
     /// element inspected the same recursive way. `to_json_string`'s own
-    /// compact wire format (`"[5,4]"`, no space) is NOT that, so it
+    /// compact wire format (`"[5,4]"`, no space) is not that, so it
     /// can no longer be the fallback for this case.
     ///
     /// An Object stays on the `to_json_string` fallback below: the one
@@ -183,7 +183,7 @@ impl Json {
     /// rendered/compared as compact JSON on the Ruby side too (`given
     /// {"file":830,"rank":514}`, not `Hash#inspect`'s own `=>`-arrow
     /// spelling), so `to_json_string` is already the correct match for
-    /// THAT shape — this is a per-type fix, not a switch to one
+    /// that shape — this is a per-type fix, not a switch to one
     /// unified format.
     pub fn inspect(&self) -> String {
         match self {
@@ -216,8 +216,8 @@ impl Json {
 
     /// Ruby's own `#to_s`, close enough for `Value::Admission#member_matches?`'s
     /// `fields[field].to_s == value.to_s` — a closed-set (`one_of`) membership
-    /// check compares the RAW offered value's string form against each
-    /// member's own already-stringified text, with NO shape check run first
+    /// check compares the raw offered value's string form against each
+    /// member's own already-stringified text, with no shape check run first
     /// (Ruby's `fields_for` auto-wraps any bare, non-Hash value into the
     /// single attribute's slot untouched — an Array, a Bool, whatever arrived
     /// — and `admit_member` runs on that raw value directly). A String
@@ -275,7 +275,7 @@ impl Json {
         }
     }
 
-    /// The RUNTIME half of a single-field value object's own bare-scalar
+    /// The runtime half of a single-field value object's own bare-scalar
     /// admission — `rust/project/json_codec.rb`'s `emit_from_json_flat`/
     /// `emit_from_json_state` call this before handing a composite
     /// field's raw JSON to its own `from_json`, whenever the target type
@@ -286,7 +286,7 @@ impl Json {
     /// the sole field's own value, unwrapped. Already-object input
     /// passes through unchanged (the wrapped `{"value": "large"}`
     /// spelling keeps working); anything else becomes a one-field object
-    /// under `field_name`, the SAME field the target type's own
+    /// under `field_name`, the same field the target type's own
     /// `from_json` then looks up by name — so a genuinely wrong scalar
     /// (`Money.cents` given `"lots"`) still fails exactly where it
     /// always did, one level down inside that type's own field check,
@@ -308,7 +308,7 @@ impl Json {
     }
 
     /// `CommandInterpreter::ArgumentGate#refuse_unknown_arguments`'s own
-    /// check, ported to the ONE place a command's JSON args has no static
+    /// check, ported to the one place a command's JSON args has no static
     /// shape yet — before `from_json` builds the typed struct that makes an
     /// extra field structurally impossible to construct. `known` is the
     /// declared attributes plus whatever `json_codec.rb`'s
@@ -328,21 +328,21 @@ impl Json {
         }
     }
 
-    /// `registry.rs`'s own `stamp_payload` needs BOTH halves of the story
+    /// `registry.rs`'s own `stamp_payload` needs both halves of the story
     /// an event's payload tells: the router's raw, unfiltered
     /// `args_json` (0013/0014's own fix — an identity-reference argument
     /// like `number:` isn't a declared struct field, so a saga's
-    /// correlation forwarding needs it to survive onto the payload), AND
-    /// the TYPED args struct's own `to_json()` (whose `from_json` already
+    /// correlation forwarding needs it to survive onto the payload), and
+    /// the typed args struct's own `to_json()` (whose `from_json` already
     /// filled in any declared `default:` a bare/partial raw value never
     /// carried — `Transfer`'s own `amount` forwards `{"cents": N}` with no
     /// `currency` field at all into `Account.Debit`'s `PositiveMoney`,
-    /// which DOES declare `currency: "USD"` as a default; Ruby's own
+    /// which does declare `currency: "USD"` as a default; Ruby's own
     /// event payload reflects the post-coercion value, this kernel's raw
     /// `args_json` alone does not). `overlay` merges them the way Ruby's
     /// own `payload: args` effectively already is (a coerced args hash,
     /// not the raw wire input) — for each top-level key `patch` declares,
-    /// its value REPLACES `base`'s own (the fuller, defaulted nested
+    /// its value replaces `base`'s own (the fuller, defaulted nested
     /// value); every key `patch` doesn't touch (an identity/reference
     /// argument no declared attribute names) passes through from `base`
     /// unchanged. Non-`Object` inputs pass through `base` unchanged —
@@ -365,7 +365,7 @@ impl Json {
     /// [target_key, ctx.args[source_key]] })` —
     /// `CommandInterpreter#step_delegate_to_entity`, read directly: the
     /// facts a delegating door hands its entity command are the door's
-    /// OWN args plus, under each target name the `with:` mapping
+    /// own args plus, under each target name the `with:` mapping
     /// declares, the door arg that mapping names. Same-named pairs are
     /// harmless re-assignments; a pair whose source the door never
     /// declared adds nothing, exactly as Ruby's `args[source_key]` is
@@ -392,26 +392,26 @@ impl Json {
     ///
     /// R4 (docs/audits/2026-08-11-bug-triage.md) — an empty string is
     /// refused here the same way `Runtime::Identity.of` refuses one on
-    /// the Ruby side: "A BLANK PART NAMES NOTHING, the same as an ABSENT
-    /// one — AN ID IS A SCALAR, and '' is not a fact about anything"
+    /// the Ruby side: "a blank part names nothing, the same as an absent
+    /// one — an ID is a scalar, and '' is not a fact about anything"
     /// (`identity.rb`'s own comment, verbatim). Ruby's `Identity.of`
-    /// treats a blank part as absent and returns `nil` for the WHOLE
+    /// treats a blank part as absent and returns `nil` for the whole
     /// identity, refused later wherever the caller's own `|| raise(...)`
     /// chain bottoms out (dispatch time — `acting_no_identity`/
     /// `creating_no_identity`/`entity_parent_no_identity`, never a
     /// separate boot-time check). This kernel has no `nil`-vs-"identity
     /// resolved" distinction of its own to thread the same way; refusing
-    /// HERE, at the one place every identity-component read funnels
+    /// here, at the one place every identity-component read funnels
     /// through (`extract_id`'s own `c0`/`c1` chain, each already wrapped
     /// in `.ok()?` — an `Err` here already reads as "this component
     /// didn't resolve" one level up, the same as a genuinely absent
     /// field), reaches the identical outcome at the identical pipeline
     /// stage: dispatch time, when this id is actually needed, not any
-    /// earlier. Before this fix, an empty string round-tripped through
-    /// unchanged and was accepted as a real, empty-string identity — a
-    /// record silently addressable by an id no caller could have meant,
-    /// and a real, persisted-state divergence from Ruby (which never
-    /// persists such a record at all).
+    /// earlier. Without this check, an empty string would round-trip
+    /// through unchanged and be accepted as a real, empty-string
+    /// identity — a record silently addressable by an id no caller could
+    /// have meant, and a real, persisted-state divergence from Ruby
+    /// (which never persists such a record at all).
     pub fn to_id_component(&self) -> Result<String, Refusal> {
         match self {
             Json::Str(s) if s.is_empty() => {
@@ -438,27 +438,27 @@ impl Json {
         }
     }
 
-    /// BUG#140 — `to_id_component`'s own sibling for ENTITY-ELEMENT
+    /// BUG#140 — `to_id_component`'s own sibling for entity-element
     /// addressing, not aggregate/root identity: `EntityElement#element_of`
-    /// (entity_element.rb), read directly, only ever refuses a MISSING
+    /// (entity_element.rb), read directly, only ever refuses a missing
     /// identity key (`raw = args[head] || raise(...)` — Ruby's `||` is
     /// falsy-or-nil, so an empty string is truthy and never trips that
-    /// raise) — a PRESENT blank value flows on into VO coercion as an
+    /// raise) — a present blank value flows on into VO coercion as an
     /// ordinary, merely non-matching value, exactly as any other
     /// well-formed-but-unmatched identity would. `to_id_component`'s own
-    /// blank refusal is right for a ROOT aggregate's identity (R4, this
+    /// blank refusal is right for a root aggregate's identity (R4, this
     /// type's own comment above) — `Identity.of`/`Hydrate::Create`/`Act`
     /// genuinely have no "present but blank, still worth comparing"
     /// case, an aggregate is either addressed or it doesn't exist yet —
-    /// but applying that SAME refusal to an entity element's own identity
+    /// but applying that same refusal to an entity element's own identity
     /// read collapses two different Ruby outcomes (`entity_element_
     /// no_identity` for an absent key, `entity_element_missing` for a
     /// present-but-unmatched one) into the one generic `TypeMismatch`
-    /// neither wording ever describes. Used ONLY at entity/nested-entity
+    /// neither wording ever describes. Used only at entity/nested-entity
     /// addressing call sites (`rust/project/json_codec.rb`'s `emit_
     /// extract_id_lenient`, wired into `commands.rb`'s `delegate_prelude`
     /// and `registry.rb`'s `entity_arms`/`nested_entity_arms`) — never at
-    /// a ROOT aggregate's own `extract_id`, which keeps calling the
+    /// a root aggregate's own `extract_id`, which keeps calling the
     /// strict `to_id_component` above unchanged. Everything else (numeric/
     /// bool coercion, the non-scalar `TypeMismatch`) stays identical to
     /// `to_id_component` — a malformed (non-scalar) identity value is
@@ -518,9 +518,9 @@ impl Json {
             }
             // Always a decimal point, even for a whole-number value --
             // matching Ruby's own Float#to_json (`10.0`, never bare `10`).
-            // `Num`'s own branch, above, deliberately does the OPPOSITE
+            // `Num`'s own branch, above, deliberately does the opposite
             // for a whole number, because it also carries Integer-typed
-            // values, which must NOT grow a spurious `.0`. `n.to_string()`
+            // values, which must not grow a spurious `.0`. `n.to_string()`
             // already renders a fractional value correctly (`"3.5"`); the
             // only case needing help is a whole number, which f64's own
             // Display renders bare (`"10"`, no `.`/`e`).
@@ -538,21 +538,21 @@ impl Json {
 }
 
 /// Whether a JSON number is safely representable as an `i64` — both a
-/// whole number (`fract() == 0.0`) AND within `i64::MIN..=i64::MAX`.
+/// whole number (`fract() == 0.0`) and within `i64::MIN..=i64::MAX`.
 /// Every `Json::Num` is an `f64` (this file's own header: zero Cargo
 /// dependencies, no arbitrary-precision integer type), and Rust's `as i64`
-/// cast on an out-of-range float doesn't panic or truncate — it SATURATES
-/// to `i64::MAX`/`i64::MIN` silently, which every direct `*n as i64` in
-/// this file used to do unguarded. Ruby has no such ceiling (`Integer`
+/// cast on an out-of-range float doesn't panic or truncate — it saturates
+/// to `i64::MAX`/`i64::MIN` silently, exactly what a direct, unguarded
+/// `*n as i64` anywhere in this file would do. Ruby has no such ceiling (`Integer`
 /// promotes to Bignum), so a value this kernel can't represent must be
 /// refused (or, where the call site has no `Result` to refuse through,
-/// handled some way OTHER than silently pretending it was `i64::MAX`) —
+/// handled some way other than silently pretending it was `i64::MAX`) —
 /// never quietly clamped into a wrong-but-plausible-looking number.
 ///
 /// The bound check compares against `i64::MAX as f64`/`i64::MIN as f64`
 /// rather than a hand-picked constant: `i64::MIN` (`-2^63`) is exactly
 /// representable in `f64`, so `>=` is correct at that end; `i64::MAX`
-/// (`2^63 - 1`) is NOT exactly representable and rounds UP to `2^63` when
+/// (`2^63 - 1`) is not exactly representable and rounds up to `2^63` when
 /// widened to `f64`, so a strict `<` against that rounded value correctly
 /// excludes `2^63` itself (which would saturate) while admitting every
 /// float below it (all of which cast to `i64` without saturating).
@@ -607,10 +607,10 @@ mod integral_i64_tests {
     #[test]
     fn as_i64_refuses_out_of_range_where_the_old_cast_would_have_saturated() {
         // A JSON number bigger than i64::MAX, e.g. from a huge command
-        // argument — `Json::Num(n).as_i64()` used to silently become
-        // `Some(i64::MAX)`. It must now be `None`, letting every generated
+        // argument, must become `None` rather than `Json::Num(n).as_i64()`
+        // silently saturating to `Some(i64::MAX)`, so every generated
         // `from_json` call site's existing `.ok_or_else(|| Refusal::TypeMismatch(...))`
-        // refuse cleanly instead.
+        // refuses cleanly instead.
         let huge = Json::Num(1e30);
         assert_eq!(huge.as_i64(), None);
     }
@@ -645,7 +645,7 @@ mod integral_i64_tests {
     fn to_id_component_lenient_accepts_an_empty_string() {
         // BUG#140 — the whole point of the sibling: `EntityElement#
         // element_of`'s own `raw = args[head] || raise(...)` only trips
-        // on a genuinely ABSENT key, never a present-but-blank one — an
+        // on a genuinely absent key, never a present-but-blank one — an
         // empty string is truthy in Ruby and flows on as an ordinary,
         // merely non-matching value.
         let blank = Json::Str(String::new());
@@ -678,7 +678,7 @@ fn write_escaped_string(s: &str, out: &mut String) {
     out.push('"');
 }
 
-// ── PARSER — recursive descent over `Peekable<Chars>`, not raw bytes:
+// ── Parser — recursive descent over `Peekable<Chars>`, not raw bytes:
 // the input is already a valid `&str`, so walking chars sidesteps
 // hand-rolling UTF-8 continuation-byte handling for no real benefit here.
 struct Parser<'a> {

@@ -136,7 +136,7 @@ const BLOCK_OPENERS: [(&str, Option<BlockMode>); 4] =
 
 /// Port of `Resolver::parse_block_opener` — Ruby's
 /// `/\A(.+?)\.(all?|any?|none?|find)\s*\{\s*\|(\w+)\|\s*/m`, matched
-/// by hand: the EARLIEST `.suffix` (receiver at least one character,
+/// by hand: the earliest `.suffix` (receiver at least one character,
 /// the non-greedy `.+?`) that is followed by `{ |param| `, then the
 /// brace-balanced body, then whatever trails the closing brace — which
 /// for `find` may be a dotted projection path and for the three modes
@@ -279,7 +279,7 @@ fn quoted(expr: &str) -> Option<&str> {
 }
 
 /// Port of `resolver.rb`'s own `array_elements` — the elements of a
-/// bracketed literal, or `None` if this isn't one. Splits on TOP-LEVEL
+/// bracketed literal, or `None` if this isn't one. Splits on top-level
 /// commas only — quote-aware and depth-aware, the same discipline
 /// `split_addition` already applies, so a nested array or a comma inside
 /// a string element stays whole rather than splitting the literal in

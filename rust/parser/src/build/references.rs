@@ -5,7 +5,7 @@
 
 use crate::ir;
 
-/// The ONE shape every `reference_to` attribute-mint reduces to:
+/// The one shape every `reference_to` attribute-mint reduces to:
 /// `attribute(as || snake(target), Reference(target))` — bare, no
 /// `_id` suffix (ADR 0025; the live parser never needs the
 /// shadow-parsing fork `AttributeCollector#default_reference_name`

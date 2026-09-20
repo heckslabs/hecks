@@ -1,7 +1,7 @@
 //! Subprocess helpers — the Rust equivalent of
 //! `rust/project_rust_pipeline.rb`'s own `run_capture!`/`run!`/`build!`
 //! (`Open3.capture3`/`system`), unchanged in spirit: shell out, check the
-//! exit status, surface stderr on failure. This is the crate's ONLY way
+//! exit status, surface stderr on failure. This is the crate's only way
 //! of talking to `hecks-parse`/`hecks-codegen`/`cargo` — see this crate's
 //! own main.rs header for why subprocess, not a library dependency, is
 //! the deliberate architecture here.
