@@ -60,7 +60,6 @@ Parameters:
     Type: String
   OwningDatabaseSecretArn:
     Type: String
-
 Resources:
   
 
@@ -76,8 +75,8 @@ Resources:
       # "configured for me, in the projection" standard every other
       # piece of generated deploy config already holds to. Matches
       # `stack_name` above exactly — one name, two places it's read
-      # from, never out of sync since both derive from `domain_name`.
-      FunctionName: hecks-banking
+      # from, never out of sync since both derive from `infra_name`.
+      FunctionName: hecksagain-banking
       # EXPLICIT, not omitted -- `sam build EmbryonautFunction` and
       # `sam build --use-container WebFunction` run as TWO SEPARATE
       # single-resource invocations (deploy:'s own comment on why:
@@ -115,21 +114,48 @@ Resources:
       Timeout: 10
       Environment:
         Variables:
-          # {{resolve:secretsmanager:...}} is a CloudFormation dynamic
-          # reference — resolved by the platform at deploy time, never
-          # rendered into the template, this tool's output, or any
-          # CloudTrail/console view of the function's own config as
-          # plaintext outside AWS's own encrypted handling.
-          DATABASE_URL: !Sub
-            - "postgres://postgres:${DbPass}@${DbHost}:5432/embryonaut"
-            - DbPass: !Sub "{{resolve:secretsmanager:${OwningDatabaseSecretArn}:SecretString:password}}"
-              DbHost: !Ref OwningDatabaseEndpoint
+          # NOT a `{{resolve:secretsmanager:...}}`-composed DATABASE_URL
+          # anymore (the WebFunction handler below still uses that
+          # mechanism, unchanged) -- that dynamic reference genuinely
+          # IS resolved fresh at deploy time and never rendered into
+          # this template, this tool's output, or the CloudFormation
+          # console. But once it resolves INTO a Lambda's own
+          # Environment.Variables entry, the resolved PLAINTEXT is
+          # stored in the function's OWN configuration:
+          # `lambda:GetFunctionConfiguration` returns it decrypted,
+          # and the Lambda console's Configuration tab displays it, to
+          # ANY principal holding read-only account access (AWS's own
+          # managed ReadOnlyAccess policy included) -- caught
+          # reviewing this template, not live; AWS's own guidance is
+          # to fetch a secret from Secrets Manager at RUNTIME instead,
+          # precisely to avoid this. DB_HOST/DB_NAME/DB_SECRET_ARN
+          # below are not secrets themselves -- an endpoint address, a
+          # database name, and a Secrets Manager ARN authenticate
+          # nothing on their own -- so sitting here as plain
+          # Environment.Variables values costs nothing; main.rs itself
+          # fetches the actual password from Secrets Manager at cold
+          # start, over the AWS SDK, and never hands it back to
+          # CloudFormation or Lambda's own configuration at all.
+          # BankingFunction's own least-privilege Policies grant (below,
+          # sibling of VpcConfig) is the one runtime IAM permission
+          # that fetch needs, scoped to this one secret ARN.
+          DB_HOST: !Ref OwningDatabaseEndpoint
+          DB_NAME: embryonaut
+          DB_SECRET_ARN: !Sub "${OwningDatabaseSecretArn}"
+          # `domain_name`, NOT `infra_name` — this names the actual
+          # .wasm FILE bin/project_wasm writes (rust/dist/banking.wasm,
+          # its own target_mod_name convention, a Rust-build-pipeline
+          # concern unrelated to AWS resource identity) and what the
+          # Makefile below actually bundles into the Lambda package
+          # under. Confirmed the hard way: pinning this to infra_name
+          # alongside the real AWS-identity fields left it looking for
+          # a file bin/project_wasm never produces.
           HECKS_WASM_PATH: !Sub "/var/task/banking.wasm"
           # STATIC, not a deploy-time parameter — HECKS_DOMAIN is this
           # domain's own declared name, known at generation time the
           # same way DBName/HECKS_WASM_PATH already are. HECKS_ERA is
           # "1" because that's what a FRESH database always gets:
-          # Postgres::LineageManager::EraResolver#check! mints era 1
+          # PostgresEra::LineageManager::EraResolver#check! mints era 1
           # unconditionally the first time any Ruby process boots
           # against an empty `hecks_eras` (era_resolver.rb's own
           # `held.empty?` branch) — deterministic, not guessed. `make
@@ -137,8 +163,28 @@ Resources:
           # triggers that first boot; a LATER real schema evolution
           # (era 2+) is a separate, later re-generation, not this one.
           HECKS_DOMAIN: Banking
+          # UNCONDITIONAL, not gated on `rust_web` — `rust/host/src/main.rs`'s
+          # own boot sequence reads `ir::ir().ok_or(...)?` for every domain
+          # regardless of web mode (era-lineage bookkeeping needs the IR, not
+          # just the optional in-process web UI), so a Shared-mode domain with
+          # no web layer still needs this sidecar path to boot at all. Previously
+          # gated on `rust_web`, which left every such domain's Lambda crashing
+          # on cold start — checkout.rs's own header flagged this exact
+          # contradiction, confirmed live against Banking's committed template.
+          HECKS_IR_PATH: !Sub "/var/task/banking.ir.json"
           HECKS_ERA: "1"
           HECKS_SCHEMA: banking
+      # LEAST-PRIVILEGE -- BankingFunction's own execution role is
+      # otherwise SAM's bare default (logging only); this is the one
+      # runtime AWS permission the DB_SECRET_ARN handling above needs,
+      # scoped to the single secret ARN this stack itself depends on,
+      # never `Resource: "*"`.
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action: secretsmanager:GetSecretValue
+              Resource: !Sub "${OwningDatabaseSecretArn}"
+        
       VpcConfig:
         SubnetIds: [!Ref OwningSubnetAId, !Ref OwningSubnetBId]
         SecurityGroupIds: [!Ref OwningSecurityGroupId]
@@ -162,7 +208,7 @@ Resources:
 Outputs:
   FunctionUrl:
     Value: !GetAtt BankingFunctionUrl.FunctionUrl
-  # STACK_OUTPUTS (bin/project_deploy, above the heredocs) is the ONE
+  # stack_outputs (bin/project_deploy, above the heredocs) is the ONE
   # place these four names live — DatabaseEndpoint/DatabaseSecretArn
   # feed `make mint-era`'s own boot step directly; VpcId/
   # DbSecurityGroupId ALSO feed bastion.yaml's own Parameters (a

@@ -35,6 +35,20 @@ module CiSkipBackstop
 
   UNROUTED_BUGS = [
     Bug.new(
+      pattern:   /\Aan :external RUST_ELSEWHERE destination isn't checked out on this machine/,
+      call_site: "spec/corpus_rust_spec.rb",
+      literal:   "an :external RUST_ELSEWHERE destination isn't checked out on this machine",
+      jobs:      %w[rspec_shard],
+      why:       "corpus_rust_spec.rb's two \"attaches\" checks for an :external RUST_ELSEWHERE domain " \
+                 "(embryonaut, lifeadelics) read that domain's own hecksagon files straight off this machine's " \
+                 "filesystem (~/Projects/<name>) — no CI runner has ever had that checkout, confirmed by checking " \
+                 "this exact example was already \"skipping\", not passing, on main's own last known-good " \
+                 "merge_group run before this backstop entry existed. Not fixable by seeding CI the way the " \
+                 "pizzas entry above is: an :external domain's whole point is that its source lives in a separate " \
+                 "repo this one doesn't check out. Real, full-strength verification only happens on a developer's " \
+                 "own machine with every external product cloned alongside this one."
+    ),
+    Bug.new(
       pattern:   %r{\Adocuments examples/pizzas' own real era-1→2 migration},
       call_site: "spec/guides_spec.rb",
       literal:   "documents examples/pizzas' own real era-1→2 migration",

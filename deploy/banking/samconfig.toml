@@ -3,10 +3,10 @@
 version = 0.1
 
 [default.deploy.parameters]
-stack_name = "hecks-banking"
+stack_name = "hecksagain-banking"
 region = "us-east-1"
 resolve_s3 = true
-s3_prefix = "hecks-banking"
+s3_prefix = "hecksagain-banking"
 capabilities = "CAPABILITY_IAM"
 confirm_changeset = false
 disable_rollback = false
