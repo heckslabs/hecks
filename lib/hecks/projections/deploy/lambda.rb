@@ -108,7 +108,7 @@ module Hecks
           # + extraction + memory + prism only) than the one `pending_privacy_
           # markings` was verified against; kept separate rather than assumed
           # equivalent.
-          pii_registry = Hecks::Runtime::Registry.new
+          pii_registry = Hecks::Runtime::Registry.new(root: File.expand_path(domain))
           Hecks.with_registry(pii_registry) do
             bootstrap = Hecks::Ports::Loading.bootstrap
             bluebook_dir = File.join(domain, "bluebook")
