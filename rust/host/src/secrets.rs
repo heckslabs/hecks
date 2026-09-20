@@ -1,12 +1,13 @@
-// FETCHES THE DB PASSWORD AT RUNTIME, not deploy time -- template.yaml
-// (bin/project_deploy) used to compose DATABASE_URL itself via a
+// Fetches the DB password at runtime, not deploy time -- a
 // CloudFormation `{{resolve:secretsmanager:...}}` dynamic reference
-// baked straight into this function's own Environment.Variables. That
-// reference genuinely never touches the template or the CloudFormation
-// console as plaintext -- but once it resolves INTO a Lambda's
+// baked straight into this function's own Environment.Variables to
+// compose DATABASE_URL would be the alternative, and template.yaml
+// (bin/project_deploy) avoids it deliberately: that reference genuinely
+// never touches the template or the CloudFormation console as
+// plaintext -- but once it resolves into a Lambda's
 // Environment.Variables entry, the resolved plaintext lands in the
-// function's own configuration: `lambda:GetFunctionConfiguration`
-// returns it decrypted, to any principal holding read-only account
+// function's own configuration, where `lambda:GetFunctionConfiguration`
+// returns it decrypted to any principal holding read-only account
 // access. AWS's own guidance is exactly what this module does instead:
 // fetch the secret at runtime, over the SDK, and never let
 // CloudFormation/Lambda configuration see it at all. main.rs's own
@@ -14,7 +15,7 @@
 // secrets themselves -- an ARN, an endpoint, and a database name
 // authenticate nothing on their own) and calls this module once.
 //
-// NOT JUST THE DB PASSWORD ANYMORE -- GOOGLE_OAUTH_SECRET_ID
+// Not just the DB password anymore -- GOOGLE_OAUTH_SECRET_ID
 // (`{"client_id":"...","client_secret":"..."}`, make sync-google-oauth's
 // own JSON shape) and SESSION_SECRET_ARN (`{"session_secret":"..."}`,
 // GenerateSecretString's own template) went through the identical
@@ -27,7 +28,7 @@
 // as they always have, whether that env var came from a real
 // deploy's fetch-then-set or a human's own manually-exported value.
 //
-// NO TRAIT/MOCK BOUNDARY HERE, unlike lambda_client.rs's own
+// No trait/mock boundary here, unlike lambda_client.rs's own
 // LambdaInvoker -- that trait exists because dispatch.rs's real test
 // suite threads through many call sites and needs to prove behavior
 // without live AWS credentials. This module has exactly one call site

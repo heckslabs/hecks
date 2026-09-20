@@ -1,18 +1,18 @@
 //! The `Aggregate` construct (`lib/hecks/bluebook/ir/aggregate.rb`,
-//! built by `Hecks::Bluebook::DSL::AggregateBuilder`). STAGE 3 adds
-//! the MULTI-PATH `identified_by do ... end`/`identified_by { ... }`
+//! built by `Hecks::Bluebook::DSL::AggregateBuilder`). Stage 3 adds
+//! the multi-path `identified_by do ... end`/`identified_by { ... }`
 //! source form (`build/identity.rs`'s own header explains why it needs no
-//! `build/*.rs` derivation at all — its body IS the identity, captured
+//! `build/*.rs` derivation at all — its body is the identity, captured
 //! raw) and inline `one_of(...)` closed-set synthesis
 //! (`build/closed_sets.rs`) folded into this aggregate's own
-//! `value_objects`. STAGE 4 adds `provenance` (a raw captured Hash,
+//! `value_objects`. Stage 4 adds `provenance` (a raw captured Hash,
 //! `ir::Literal` — see `ir.rs`'s own comment), a nested `policy` (hoisted
-//! onto the CHAPTER by Ruby's own `AggregateBuilder#policy`, so this
-//! module returns it SEPARATELY rather than folding it into
+//! onto the chapter by Ruby's own `AggregateBuilder#policy`, so this
+//! module returns it separately rather than folding it into
 //! `ir::Aggregate` — `parse::chapter`'s own header explains the bubbling
 //! order), `belongs_to`/`has_one` (`has_many` stays unbuilt — no real
-//! corpus member exercises it yet), and a real `entity` (`parse::entity`,
-//! previously fully stubbed). Still open: the bare-FIELD `identified_by`
+//! corpus member exercises it yet), and a real `entity` (`parse::entity`
+//! implements it in full). Still open: the bare-field `identified_by`
 //! form (`identified_by :field`, not exercised by any real corpus member
 //! yet).
 
@@ -28,29 +28,29 @@ pub fn not_implemented(file: &str, line: usize, word: &str) -> Diagnostic {
     Diagnostic::not_yet_implemented(file, line, format!("Aggregate.{word}"))
 }
 
-/// Parses an `aggregate "Name" do ... end` body. `identified_by`'s TYPE
-/// form is DEFERRED to the end (mirroring `AggregateBuilder#build`'s own
+/// Parses an `aggregate "Name" do ... end` body. `identified_by`'s type
+/// form is deferred to the end (mirroring `AggregateBuilder#build`'s own
 /// `resolve_pending_identity!`, called only once every `value_object`
 /// inside this same body has been declared) — pizzas.bluebook's own
-/// `PizzaName` value object is declared AFTER `identified_by PizzaName,
+/// `PizzaName` value object is declared after `identified_by PizzaName,
 /// as: :name`, so resolving eagerly would find no value objects yet. The
-/// SOURCE (block) form needs no such deferral — its paths are already
+/// source (block) form needs no such deferral — its paths are already
 /// literal text, not a lookup — so it's resolved immediately, matching
 /// `AggregateBuilder#identified_by`'s own `@identity_paths = paths`
 /// direct assignment.
 ///
 /// Inline `one_of(...)` closed sets (`attribute :tone, one_of(...)`) are
-/// collected SEPARATELY from `value_object "Name" do ... end` blocks and
-/// appended AFTER them — mirroring `AggregateBuilder#build`'s own
-/// `@value_objects + closed_sets` ORDER exactly (confirmed against
+/// collected separately from `value_object "Name" do ... end` blocks and
+/// appended after them — mirroring `AggregateBuilder#build`'s own
+/// `@value_objects + closed_sets` order exactly (confirmed against
 /// console_settings.bluebook's own `StateStyle`: its three explicit
 /// `value_object`s come first in `ir.json`, `Tone` — synthesized from
-/// `attribute :tone, one_of(...)`, written BEFORE two of those three in
+/// `attribute :tone, one_of(...)`, written before two of those three in
 /// the source — comes last regardless).
-/// Returns the built aggregate ALONGSIDE any `policy`s declared directly
-/// inside it — `AggregateBuilder#policy` HOISTS a nested policy onto the
-/// CHAPTER (`IR::Policy#aggregate`'s own comment: "a policy written
-/// inside an aggregate is HOISTED onto the chapter by the builder"), and
+/// Returns the built aggregate alongside any `policy`s declared directly
+/// inside it — `AggregateBuilder#policy` hoists a nested policy onto the
+/// chapter (`IR::Policy#aggregate`'s own comment: "a policy written
+/// inside an aggregate is hoisted onto the chapter by the builder"), and
 /// `IR::Aggregate#to_h` never spells `policies` at all — confirmed by
 /// reading `aggregate.rb` directly. So this can't fold a nested policy
 /// into `ir::Aggregate` the way it does `commands`/`queries`/etc; the
@@ -58,11 +58,11 @@ pub fn not_implemented(file: &str, line: usize, word: &str) -> Diagnostic {
 /// `ir::Bluebook.policies` itself, in the exact order
 /// `BluebookBuilder#build`'s own `@aggregates.flat_map(&:policies) +
 /// @policies` produces (every aggregate's own policies, in aggregate
-/// order, THEN every chapter-level one).
-/// BARE `given(desc)` — CHAPTER-WIDE REFERENCE
+/// order, then every chapter-level one).
+/// Bare `given(desc)` — chapter-wide reference
 /// (`docs/implemented/resolution-rules/chapter-given.md`). Mirrors `parse::command::
 /// try_reference_named_given`'s own shape one level up: peeks the next
-/// physical line WITHOUT consuming it unless it actually matches (word
+/// physical line without consuming it unless it actually matches (word
 /// `given`, `Opener::None`) — anything else (a fresh `given("x") { ... }`
 /// declaration, or any other word entirely) falls through untouched to
 /// the ordinary `next_line` gate, which already handles it.
@@ -70,28 +70,28 @@ pub fn not_implemented(file: &str, line: usize, word: &str) -> Diagnostic {
 /// `AggregateBuilder#given`'s own bare-reference form has no narrower
 /// "in-between" scope to check first — an aggregate is not nested inside
 /// anything else `given` could mean here — so, unlike the command-level
-/// version, there is only ONE pool to check: `chapter_named_givens`.
+/// version, there is only one pool to check: `chapter_named_givens`.
 ///
-/// KEYED BY (owner name, `Given`) PAIRS, not a flat `Given` list — a
-/// SECOND aggregate can independently declare the SAME description under
-/// a genuinely DIFFERENT canonical (real corpus: `Account`'s own
+/// Keyed by (owner name, `Given`) pairs, not a flat `Given` list — a
+/// second aggregate can independently declare the same description under
+/// a genuinely different canonical (real corpus: `Account`'s own
 /// "customer is active" reads bare `customer.status`; `ATMCard`'s own
 /// reads `account.customer.status`, reached through `Account`), so this
 /// mirrors `AggregateBuilder#given`'s own Ruby-side `declared_by:`
 /// disambiguation (`docs/implemented/resolution-rules/chapter-given.md`) rather than
-/// the earlier single-candidate-only shape: an OPTIONAL `declared_by:
+/// the earlier single-candidate-only shape: an optional `declared_by:
 /// SomeAggregate` argument picks the exact owner when more than one
 /// candidate is registered under the same description; omitted, it
-/// resolves only when EXACTLY one candidate exists — never guesses among
+/// resolves only when exactly one candidate exists — never guesses among
 /// several.
 ///
-/// A CHAPTER MAY BE SPLIT ACROSS FILES — the target of a bare reference
-/// here may be declared in a file that has not been parsed YET, the
+/// A chapter may be split across files — the target of a bare reference
+/// here may be declared in a file that has not been parsed yet, the
 /// mirror of Ruby's own `AggregateBuilder#pending_chapter_given`
 /// (`BluebookBuilder#resolve_pending_chapter_givens!`, run once every
 /// file in the chapter has loaded). So "not found among `chapter_named_
 /// givens` so far" is no longer immediately refused here — only genuine
-/// AMBIGUITY is (more files can only ADD candidates, never remove one,
+/// ambiguity is (more files can only add candidates, never remove one,
 /// so a conflict seen now stays a conflict regardless of what loads
 /// later). `ChapterGivenLookup::Pending` carries everything the final
 /// pass (`parse::chapter::parse_chapter`'s own resolution loop, after
@@ -179,8 +179,8 @@ fn try_reference_named_chapter_given(
     Ok(Some(resolved))
 }
 
-/// ONE ENTRY PER UNRESOLVED BARE CHAPTER-GIVEN this aggregate's own file
-/// left pending — `precondition_index` names WHERE in this aggregate's
+/// One entry per unresolved bare chapter-given this aggregate's own file
+/// left pending — `precondition_index` names where in this aggregate's
 /// own `preconditions` the eventual real `Given` gets patched in
 /// (`parse::chapter::parse_chapter`'s own final resolution pass, once
 /// every file in the chapter has loaded and stamped an `aggregate_index`
@@ -201,7 +201,7 @@ pub fn parse_body(
     pos: &mut usize,
     name: &str,
     chapter_named_givens: &mut Vec<(String, ir::Given)>,
-    // ONE LEVEL WIDER STILL — the CHAPTER-WIDE, ENTITY-SCOPED pool (the
+    // **One level wider still** — the chapter-wide, entity-scoped pool (the
     // piece analogue of `chapter_named_givens`, above). See
     // `entity::parse_body`'s own header for what this closes; threaded
     // straight through, unchanged, to every top-level entity this
@@ -222,11 +222,11 @@ pub fn parse_body(
     let mut pending_identity: Option<super::PendingIdentity> = None;
     let mut closed_sets: Vec<ir::ValueObject> = Vec::new();
     let mut policies: Vec<ir::Policy> = Vec::new();
-    // EVERY BARE CHAPTER-GIVEN THIS AGGREGATE'S OWN FILE LEFT PENDING —
+    // Every bare chapter-given this aggregate's own file left pending —
     // see `PendingChapterGiven`'s own comment for what each entry means
     // and where it drains.
     let mut pending_chapter_givens: Vec<PendingChapterGiven> = Vec::new();
-    // ONE LEVEL DEEPER — every bare chapter-ENTITY-given (and any
+    // **One level deeper** — every bare chapter-entity-given (and any
     // command-level bare reference to one) some entity nested under this
     // aggregate left pending — see `entity::PendingChapterEntityGiven`/
     // `entity::PendingEntityCommandGiven`'s own comments. `entity_path`
@@ -234,8 +234,8 @@ pub fn parse_body(
     // (the entity-drain loop below stamps it that way as it bubbles up).
     let mut pending_chapter_entity_givens: Vec<entity::PendingChapterEntityGiven> = Vec::new();
     let mut pending_entity_command_givens: Vec<entity::PendingEntityCommandGiven> = Vec::new();
-    // DEFERRED CONSTRUCTION — see `parse::mod::PendingBody`'s own header.
-    // `entity`/`command`/`query` only QUEUE here; built for real by the
+    // **Deferred construction** — see `parse::mod::PendingBody`'s own header.
+    // `entity`/`command`/`query` only queue here; built for real by the
     // drain below, once this aggregate's own top-level line-range is
     // fully walked and `aggregate.value_objects`/`.entities`/
     // `.preconditions`/`.attributes` are the real, final lists —
@@ -244,24 +244,24 @@ pub fn parse_body(
     let mut pending_commands: Vec<(String, Option<ir::CommandFrom>, super::PendingBody)> =
         Vec::new();
     let mut pending_queries: Vec<(String, super::PendingBody)> = Vec::new();
-    // THE ROOT of the cross-entity given pool
-    // (`docs/resolution-rules/cross-entity-given.md`) — ONE `Vec`, owned
+    // The root of the cross-entity given pool
+    // (`docs/resolution-rules/cross-entity-given.md`) — one `Vec`, owned
     // here, threaded as a mutable borrow into every piece this aggregate
     // builds however deep (`entity::parse_body`'s own header). Always
-    // empty when read back for THIS aggregate's own commands, below — an
+    // empty when read back for this aggregate's own commands, below — an
     // aggregate-owned command has no sibling piece to reach across.
     let mut entity_named_givens: Vec<ir::Given> = Vec::new();
 
     loop {
-        // BARE `given(desc)` — CHAPTER-WIDE REFERENCE
-        // (`docs/implemented/resolution-rules/chapter-given.md`) — peeked BEFORE the
+        // Bare `given(desc)` — chapter-wide reference
+        // (`docs/implemented/resolution-rules/chapter-given.md`) — peeked before the
         // ordinary grammar-gated `next_line` below, the identical trick
         // `parse::command::try_reference_named_given`'s own header
         // explains: `syntax.bluebook`'s own grammar row for `given`/
         // Aggregate still declares `body: "source"` (block required) —
-        // unchanged, on purpose, since a FRESH declaration still needs
+        // unchanged, on purpose, since a fresh declaration still needs
         // one — so a genuinely bare `given` has to be recognized and
-        // consumed HERE, by raw lexing, before that gate would refuse it.
+        // consumed here, by raw lexing, before that gate would refuse it.
         if let Some(outcome) =
             try_reference_named_chapter_given(file, lines, pos, chapter_named_givens)?
         {
@@ -274,7 +274,7 @@ pub fn parse_body(
                     line,
                 } => {
                     let precondition_index = aggregate.preconditions.len();
-                    // A PLACEHOLDER — `description` set for readability if
+                    // **A placeholder** — `description` set for readability if
                     // something inspects the IR mid-parse, `canonical`
                     // deliberately empty; the final resolution pass
                     // (`parse::chapter::parse_chapter`) overwrites this
@@ -312,7 +312,7 @@ pub fn parse_body(
                     1,
                 )?)
             }
-            // `AggregateBuilder#provenance(from:)` — ORIGIN, not identity:
+            // `AggregateBuilder#provenance(from:)` — origin, not identity:
             // captured raw, the same "whatever the author wrote" shape
             // `attribute ..., default: { ... }` already uses for a
             // literal Hash. `IR::Aggregate#to_h`'s own `provenance:
@@ -393,7 +393,7 @@ pub fn parse_body(
                 });
             }
             // `AggregateBuilder#reference_to(type, as: nil)` — mints a
-            // reference attribute directly on the aggregate, the SAME
+            // reference attribute directly on the aggregate, the same
             // shape `references::reference_attribute` already builds for
             // a command's own `reference_to` (`command.rs`'s
             // `apply_reference_to`). Confirmed real: identity.bluebook's
@@ -401,7 +401,7 @@ pub fn parse_body(
             // `as:` — mints `identity_id`). Unlike the command form,
             // there's no "self-reference means acts_on, not an
             // attribute" distinction here at all — an aggregate's own
-            // `reference_to` is ALWAYS an attribute mint.
+            // `reference_to` is always an attribute mint.
             "reference_to" => {
                 let target_raw =
                     super::positional_constant(file, line, "reference_to", &gated.args, 1)?;
@@ -419,7 +419,7 @@ pub fn parse_body(
                     ));
             }
             // `has_one`/`belongs_to` — sugar over `reference_to` minting
-            // NO `_id` suffix (`AggregateBuilder#has_one`: `reference_to(type,
+            // no `_id` suffix (`AggregateBuilder#has_one`: `reference_to(type,
             // as: as || Naming.snake(Naming.demodulise(type)).to_sym)`),
             // `belongs_to` a bare alias of `has_one`. Confirmed real:
             // banking.bluebook's own `OnboardingCase` (`belongs_to
@@ -442,11 +442,11 @@ pub fn parse_body(
                         false,
                     ));
             }
-            // `has_many` — the SAME sugar, but `reference_to(Naming
+            // `has_many` — the same sugar, but `reference_to(Naming
             // .singularize(plural), as: as || Naming.snake(plural).to_sym)`:
-            // the TARGET named is singularized (`has_many Invoices` points
+            // the target named is singularized (`has_many Invoices` points
             // at `Invoice`) while the minted attribute's own name keeps
-            // the PLURAL spelling as written. Declared in syntax.bluebook
+            // the plural spelling as written. Declared in syntax.bluebook
             // but not exercised by any real corpus member yet — built
             // anyway (identical shape to `has_one` above, near-zero extra
             // risk), kept correct rather than left a guess.
@@ -468,7 +468,7 @@ pub fn parse_body(
                         true,
                     ));
             }
-            // THE AGGREGATE BOUNDARY (S10, ADR 0025 — "Rules") — the same
+            // The aggregate boundary (S10, ADR 0025 — "Rules") — the same
             // `source`-body capture `value_object::parse_body`'s own
             // `invariant` arm already does, one level up (that module's
             // own header explains the two legal spellings).
@@ -480,12 +480,12 @@ pub fn parse_body(
                     canonical: canonical::apply(&raw),
                 });
             }
-            // A PRECONDITION SHARED ACROSS COMMANDS, DECLARED ONCE (S10,
-            // ADR 0025) — block REQUIRED here (`syntax.bluebook`'s own
-            // row: only ONE row for `given`/Aggregate, `body: "source"`),
-            // a fresh declaration. The BARE form (no block, a CHAPTER-
-            // WIDE reference — `docs/implemented/resolution-rules/chapter-given.md`)
-            // is peeked and consumed BEFORE `next_line` ever reaches this
+            // A precondition shared across commands, declared once (S10,
+            // ADR 0025) — block required here (`syntax.bluebook`'s own
+            // row: only one row for `given`/Aggregate, `body: "source"`),
+            // a fresh declaration. The bare form (no block, a chapter-
+            // wide reference — `docs/implemented/resolution-rules/chapter-given.md`)
+            // is peeked and consumed before `next_line` ever reaches this
             // match arm at all — see `try_reference_named_chapter_given`,
             // above the loop.
             "given" => {
@@ -496,15 +496,15 @@ pub fn parse_body(
                     canonical: canonical::apply(&raw),
                 };
                 aggregate.preconditions.push(built.clone());
-                // WRITE-THROUGH, first-declared-wins PER OWNER — keyed
+                // Write-through, first-declared-wins per owner — keyed
                 // by (description, this aggregate's own name), not
                 // description alone (Ruby's own `pool[description]
                 // [owner_name] ||=`, one Rust `Vec<(owner, Given)>` pair
                 // standing in for that nested Hash — Rust has no
-                // `Hash#||=`, so this checks "no existing entry for THIS
+                // `Hash#||=`, so this checks "no existing entry for this
                 // exact [description, owner] pair" before pushing). A
-                // DIFFERENT owner independently declaring the identical
-                // description registers its OWN entry alongside, never
+                // different owner independently declaring the identical
+                // description registers its own entry alongside, never
                 // overwriting another owner's — see
                 // `try_reference_named_chapter_given`'s own header for
                 // why (the real corpus case this disambiguates).
@@ -514,18 +514,18 @@ pub fn parse_body(
                     chapter_named_givens.push((name.to_string(), built));
                 }
             }
-            // A FIELD READ THROUGH A REFERENCE, HELD LOCALLY (S12, ADR
+            // A field read through a reference, held locally (S12, ADR
             // 0025 — "Consistency across aggregate boundaries") —
-            // `from:` names a dotted path, split on the LAST "." the
+            // `from:` names a dotted path, split on the last "." the
             // same way `AggregateBuilder#projects`'s own
             // `from.to_s.rpartition(".")` does: `reference` is
             // everything before it, `remote_field` the bare name
-            // after. TARGET-side resolution (does the reference
+            // after. Target-side resolution (does the reference
             // actually resolve, does the remote aggregate actually
             // declare that field) stays Ruby-DSL-builder-only, the
             // same as a command's own block-less `given` above —
             // `BluebookBuilder#validate_projected_fields!` needs the
-            // WHOLE chapter assembled, which this single-aggregate
+            // whole chapter assembled, which this single-aggregate
             // parse never has.
             "projects" => {
                 let field_name = super::positional_symbol(file, line, "projects", &gated.args, 1)?;
@@ -545,9 +545,9 @@ pub fn parse_body(
                 });
             }
             // `owner_value_objects` — `AggregateBuilder#value_object`'s own
-            // `owner_value_objects: @value_objects + closed_sets`, SO FAR
+            // `owner_value_objects: @value_objects + closed_sets`, so far
             // (source order): this aggregate's own explicit value objects
-            // built by earlier iterations of THIS loop, plus any inline
+            // built by earlier iterations of this loop, plus any inline
             // `attribute :x, one_of(...)` closed set synthesized by an
             // earlier `attribute` line — the two Vecs `value_object::
             // parse_body`'s own `try_reference_named_invariant` resolves a
@@ -555,26 +555,26 @@ pub fn parse_body(
             // `value_object` line (not threaded as a running Vec) since
             // `aggregate.value_objects`/`closed_sets` are two separate
             // local Vecs, each still growing.
-            // TWO KEYWORD ROWS FOR ONE WORD — the same block/blockless
+            // Two keyword rows for one word — the same block/blockless
             // split `identified_by` already carries: `body: "keywords"`
             // is the block form (attributes declared inside), `body:
-            // "none"` is THE BARE SHORTHAND — `value_object "Price",
-            // Integer` — declaring exactly one attribute, NAMED `value`,
+            // "none"` is the bare shorthand — `value_object "Price",
+            // Integer` — declaring exactly one attribute, named `value`,
             // of the given type (`AggregateBuilder#value_object`'s own
             // comment; sugar for the block form's single `attribute
             // :value, Type` line). `body_gate` has already picked which
             // row this line is, so `gated.row.body` is the branch. The
-            // TYPE argument routes through `resolve_type_expression` —
+            // type argument routes through `resolve_type_expression` —
             // the same door the block form's own `attribute` line uses —
             // so `one_of(...)`/`list_of(...)` in the type position
             // synthesize/mark exactly as they would there, closed set
-            // included. Type AND block together is refused below (the
+            // included. Type and block together is refused below (the
             // argument rows are shared across both keyword rows, so the
             // gate alone cannot see the body to refuse it) — mirroring
             // `AggregateBuilder#value_object`'s own Malformed byte for
             // byte in spirit: two answers to "what are the fields" is an
             // authoring error, never a merge. Bare `value_object "Foo"`
-            // (no type, no block) builds an EMPTY attribute list — the
+            // (no type, no block) builds an empty attribute list — the
             // exact thing Ruby's own builder has always built for that
             // spelling, newly parseable here only because the `none` row
             // now exists at all.
@@ -657,14 +657,14 @@ pub fn parse_body(
                 aggregate.lifecycle =
                     Some(lifecycle::parse_body(file, lines, pos, &field, &default)?);
             }
-            // DEFERRED CONSTRUCTION — see `parse::mod::PendingBody`'s own
-            // header. `AggregateBuilder#entity` now only QUEUES too; the
+            // **Deferred construction** — see `parse::mod::PendingBody`'s own
+            // header. `AggregateBuilder#entity` now only queues too; the
             // real build happens in the drain below, against this
-            // aggregate's COMPLETE `value_objects` (this one's own TYPE-
+            // aggregate's complete `value_objects` (this one's own type-
             // form `identified_by` — and, one level down, its own
-            // entities'/commands' resolution — needs the FULL set, not
+            // entities'/commands' resolution — needs the full set, not
             // just what was declared textually before this line: a
-            // value_object declared AFTER an entity that identifies by
+            // value_object declared after an entity that identifies by
             // it is real, confirmed corpus shape —
             // `model_check/lifecycle_findings.bluebook`'s own `Part`).
             "entity" => {
@@ -702,31 +702,31 @@ pub fn parse_body(
         }
     }
 
-    // EXPLICIT value objects first, closed sets appended after — see this
-    // function's own header. Done BEFORE resolving a pending TYPE-form
+    // Explicit value objects first, closed sets appended after — see this
+    // function's own header. Done before resolving a pending type-form
     // identity, matching Ruby's own `resolve_identity_type!(..., @value_objects
-    // + closed_sets, ...)` call — the target value object a TYPE-form
+    // + closed_sets, ...)` call — the target value object a type-form
     // `identified_by` names could, in principle, itself be an inline
     // closed set (not exercised by any real corpus member today, kept
     // correct anyway).
     let mut identity_value_object_insert_at = aggregate.value_objects.len();
     aggregate.value_objects.extend(closed_sets);
 
-    // DEFERRED CONSTRUCTION, DRAINED — `AggregateBuilder#drain_pending!`'s
-    // own mirror, in the SAME order (entities first and fully, then
-    // commands, then queries), run AFTER `aggregate.value_objects` is the
-    // real, final, merged list above and BEFORE this aggregate's own
+    // **Deferred construction, drained** — `AggregateBuilder#drain_pending!`'s
+    // own mirror, in the same order (entities first and fully, then
+    // commands, then queries), run after `aggregate.value_objects` is the
+    // real, final, merged list above and before this aggregate's own
     // pending identity resolves (matching `AggregateBuilder#build`'s own
     // `drain_pending!` then `resolve_pending_identity!` order exactly —
     // the two don't actually depend on each other, but nothing is lost by
     // keeping the identical order). Declared-order preserved throughout:
     // each `pending_*` Vec was pushed to in textual order and `.map` walks
     // it in that same order, so `aggregate.entities`/`.commands`/
-    // `.queries` end up in the SAME order they always did.
-    // AN EXPLICIT LOOP — see `entity::parse_body`'s own identical
+    // `.queries` end up in the same order they always did.
+    // An explicit loop — see `entity::parse_body`'s own identical
     // conversion, one level down, for why: `entity_named_givens` reborrows
     // sequentially into each piece's own recursive build, so a
-    // LATER-declared piece sees an EARLIER sibling's write-through.
+    // later-declared piece sees an earlier sibling's write-through.
     let mut entities = Vec::with_capacity(pending_entities.len());
     for (e_name, pending) in pending_entities {
         let entity_index = entities.len();
@@ -750,7 +750,7 @@ pub fn parse_body(
                 )
             })?;
         entities.push(built);
-        // BUBBLE UP, PREPENDING THIS ENTITY'S OWN INDEX INTO
+        // Bubble up, prepending this entity's own index into
         // `aggregate.entities` — see `entity::PendingChapterEntityGiven`'s
         // own header on why `entity_path` is built bottom-up.
         pending_chapter_entity_givens.extend(child_pending_given.into_iter().map(|mut entry| {
@@ -785,10 +785,10 @@ pub fn parse_body(
         })
         .collect::<ParseResult<Vec<_>>>()?;
 
-    // BUBBLE EACH COMMAND'S OWN PENDING chapter-given references, STAMPED
-    // WITH THIS COMMAND'S OWN INDEX — `command::parse_body` only knows
+    // Bubble each command's own pending chapter-given references, stamped
+    // with this command's own index — `command::parse_body` only knows
     // its own `given_index`/`precondition_index` (see `PendingCommandGiven`
-    // 's own comment); which COMMAND it belongs to is only known here,
+    // 's own comment); which command it belongs to is only known here,
     // by iteration order, the same reason `pending_chapter_givens`'s own
     // `aggregate_index` is stamped one level up in `parse::chapter`.
     let mut pending_command_givens: Vec<(usize, command::PendingCommandGiven)> = Vec::new();

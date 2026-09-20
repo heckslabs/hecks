@@ -6,18 +6,18 @@
 //! them as a second hand-written table.
 //!
 //! Used for `given`/`ensures`/`invariant`/`identified_by { }` bodies —
-//! these are captured as RAW TEXT and canonicalized, NEVER interpreted.
+//! these are captured as raw text and canonicalized, never interpreted.
 //! The existing `evaluator.rb`/`resolver.rb`/`expr_emitter.rb`/
 //! `rust/src/kernel/expr.rs` pipeline for predicate text is untouched and
 //! out of scope for this parser; this module only has to reproduce the
-//! byte-for-byte TEXT the Ruby side would capture for the same source
+//! byte-for-byte text the Ruby side would capture for the same source
 //! span, not understand what the text means.
 //!
-//! THE TWO RULES ARE HAND-MIRRORED, not generated. Unlike keywords.rs
+//! The two rules are hand-mirrored, not generated. Unlike keywords.rs
 //! (~230 rows, changes as the language grows), projection.json's own
 //! `normalisations` array is two small, stable entries — hand-mirroring
 //! is honest here (each rule cites its Ruby source), and this module notes
-//! plainly that a THIRD rule landing in projection.json without a matching
+//! plainly that a third rule landing in projection.json without a matching
 //! update here would silently drift; if this table ever needs to grow
 //! past "small and stable" it should become generated the same way
 //! keywords.rs is, not stay hand-maintained past the point that's safe.
@@ -34,7 +34,7 @@ pub fn slice(source: &str, start: usize, end: usize) -> &str {
 /// `CanonicalForm.apply` — collapse all whitespace runs to a single space,
 /// then replace `.length` with `.size` at a word boundary, then trim.
 /// Rule order matches projection.json's own `position` column (1, then 2).
-/// Both rules run OUTSIDE string literals only — mirroring Ruby's
+/// Both rules run outside string literals only — mirroring Ruby's
 /// `map_outside_strings` (`canonical_form.rb:71-116`, the M7 fix):
 /// quoted runs (either quote character) pass through byte-for-byte, so
 /// whitespace inside `"a  b"` survives and `".length"` inside a literal

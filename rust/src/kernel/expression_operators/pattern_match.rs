@@ -5,13 +5,13 @@
 // pattern, taken as-is between the slashes (no sub-grammar to recurse
 // into, same precedent `pattern`/`flags` on the Ruby struct already set).
 //
-// THE ONE DEPENDENCY THIS CRATE HAS. Every other file under
+// **The one dependency this crate has**. Every other file under
 // rust/src/kernel/ holds itself to zero Cargo dependencies (ADR 0012 —
 // WASM-via-WASI binary size and auditability; see json.rs's and
 // arithmetic.rs's own headers for the same constraint stated twice
 // already). `regex` is a deliberate, single, documented exception: the
 // resolver.rb comment on `MatchesRegex` itself calls `.match?` "the
-// SINGLE most impactful corpus-wide dispatch-time gap of the whole
+// single most impactful corpus-wide dispatch-time gap of the whole
 // migration" — email/phone/ISO-8601-timestamp/zip format-validation
 // rules, in nearly every value_object across every corpus this
 // migration touched — and no hand-rolled subset (character classes,
@@ -20,10 +20,10 @@
 // larger and more failure-prone undertaking than one well-audited,
 // pure-Rust dependency. `regex` itself has no transitive C dependency
 // (confirmed via `cargo tree`, the same check rust/host's own Cargo.toml
-// comments already lean on for every dependency THAT crate accepts) —
+// comments already lean on for every dependency that crate accepts) —
 // it does not reopen the cross-compile/aarch64-toolchain problem
 // `rust/host/Cargo.toml`'s own comments document at length for crates
-// that DO carry one.
+// that do carry one.
 //
 // `expr.rs`'s `category_of` guarantees `interpret` below is only ever
 // called with `MatchesRegex` — see `logical.rs`'s header for why the

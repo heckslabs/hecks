@@ -1,26 +1,26 @@
 //! Port of `rust/project/domain_generator.rb`'s `DomainGenerator.call` —
-//! the FULL per-aggregate `.rs` file (value objects, entities incl. their
+//! the full per-aggregate `.rs` file (value objects, entities incl. their
 //! own commands, the record, aggregate-level commands, port operations)
 //! plus `registry.rs`. Read that file's own header comments in full.
 //!
-//! Deliberately NOT reused from `prelude.rs`: the real Ruby file
-//! INTERLEAVES entity commands (`entity[:commands].each`) inside the
-//! `aggregate[:entities].each` loop, BEFORE `emit_record` — a real
+//! Deliberately not reused from `prelude.rs`: the real Ruby file
+//! interleaves entity commands (`entity[:commands].each`) inside the
+//! `aggregate[:entities].each` loop, before `emit_record` — a real
 //! aggregate with entity commands (banking's `SafeDepositBox`/`ATMCard`)
-//! would get the WRONG full-file shape from `prelude.rs`'s own entities
+//! would get the wrong full-file shape from `prelude.rs`'s own entities
 //! loop, which only ever emitted entity struct/codec/extract_id, never
 //! entity commands (a real, confirmed gap in the prior stage's own
 //! "prelude" scope — see this module's own report). This file
 //! reimplements the whole per-aggregate walk from scratch instead, so it
 //! is correct for any aggregate, not just ones without entity commands.
 //!
-//! NOT ported here: `metadata.rs` (embeds `ir.json` as a Rust string
+//! Not ported here: `metadata.rs` (embeds `ir.json` as a Rust string
 //! constant via Ruby's own `.inspect` — needs a JSON pretty-printer this
 //! crate does not have, see `json.rs`'s own header on why: this crate
-//! only ever READS `ir.json`, never re-emits it) and `ir.json` itself (the
+//! only ever reads `ir.json`, never re-emits it) and `ir.json` itself (the
 //! same reason) — named, honest gaps, not silently dropped.
 //!
-//! `manifest.json` IS ported (`manifest.rs`): every `manifest_entry` call
+//! `manifest.json` is ported (`manifest.rs`): every `manifest_entry` call
 //! site in the Ruby file has a `manifest.*` call at the matching decision
 //! point below, with byte-identical reason text.
 
@@ -65,13 +65,13 @@ pub struct GeneratedFile {
 }
 
 pub struct GeneratedDomain {
-    /// One entry per NOT-skipped aggregate: `<name_downcase>.rs`.
+    /// One entry per not-skipped aggregate: `<name_downcase>.rs`.
     pub aggregate_files: Vec<GeneratedFile>,
     pub registry_rs: String,
     pub mod_rs: String,
     /// Returned for a multi-chapter caller the same way
     /// `domain_generator.rb#call`'s own return value is — used by
-    /// `main.rs::run_full` (STAGE 8) to build a TARGET domain's own
+    /// `main.rs::run_full` (stage 8) to build a target domain's own
     /// `merged.rs`, unioning this chapter's own aggregates/queries/read
     /// models with every attached framework chapter's own, exactly the
     /// way `bin/project_rust`'s Ruby orchestration already does with
@@ -131,18 +131,18 @@ fn reference_checks(
 /// Port of `rust/project/domain_generator.rb#state_reference_checks` —
 /// see that method's own header for the full argument. `CommandRules::
 /// References#resolve_state_references`' own case (references.rb): a
-/// reference field redeclared on THIS command under a plain value object
+/// reference field redeclared on this command under a plain value object
 /// (`attribute :member, Handle; sets :member` — `Referral.Reassign`'s
 /// own shape, ADR 0037 Finding 5, reopened as QualityControl BUG#26),
-/// checked against the AGGREGATE's own `Reference<X>` attribute of the
+/// checked against the aggregate's own `Reference<X>` attribute of the
 /// same name instead of the command's (non-reference) one, which
 /// `reference_checks` above cannot see. A bare `sets :field` mutation
-/// copies its source ARGUMENT's value straight into the aggregate's
+/// copies its source argument's value straight into the aggregate's
 /// field, unconditionally, so the settled value this needs is already
 /// sitting in `args` before dispatch even runs — this reuses the exact
 /// same pre-dispatch check shape `reference_checks` already emits, just
 /// resolved against the aggregate's own attribute. Skips a source
-/// argument that is ALREADY `Reference<X>`-typed (`Referral.Issue`'s own
+/// argument that is already `Reference<X>`-typed (`Referral.Issue`'s own
 /// `member`) — `reference_checks` above already covers that shape.
 fn state_reference_checks(
     aggregate: &Json,
@@ -231,7 +231,7 @@ fn tenant_field_for(aggregate: &Json) -> Option<String> {
 }
 
 /// Port of `rust/project/domain_generator.rb#tenant_boundary_checks` — the
-/// ANGLE-8 write-side tenant boundary (`CommandRules::References#enforce_
+/// angle-8 write-side tenant boundary (`CommandRules::References#enforce_
 /// tenant_boundary`), read at codegen time; see that method's own header
 /// for the full argument. Fires only when both this aggregate and a
 /// referenced one declare a tenant field and both tenant attributes have
@@ -314,7 +314,7 @@ fn list_reference_check_item(
 
 /// Port of `rust/project/domain_generator.rb#state_reference_check_accessor`
 /// — see that method's own header for the full argument. `None` for a
-/// multi-attribute value object, or an OPTIONAL single-attribute one
+/// multi-attribute value object, or an optional single-attribute one
 /// (`check_reference`'s optional-argument template assumes `Option<
 /// String>`, not `Option<Struct>`) — both real, narrow, deliberately
 /// uncovered gaps, matching ADR 0037 Finding 5's own precedent.
@@ -385,7 +385,7 @@ pub fn generate(
 
     let mut aggregate_files: Vec<GeneratedFile> = Vec::new();
     let mut registry_aggregates: Vec<AggregateEntry> = Vec::new();
-    // THE COVERAGE MANIFEST — `domain_generator.rb`'s own `manifest`
+    // **The coverage manifest** — `domain_generator.rb`'s own `manifest`
     // array; see `manifest.rs`.
     let mut manifest = Manifest::default();
     let process_managers: Vec<Json> = ir
@@ -394,8 +394,8 @@ pub fn generate(
         .unwrap_or(&[])
         .to_vec();
 
-    // WHICH AGGREGATE OWNS EACH VALUE OBJECT, across this WHOLE domain — a
-    // COMMAND's own attribute can name ANY value object the domain
+    // Which aggregate owns each value object, across this whole domain — a
+    // command's own attribute can name any value object the domain
     // declares, not just one its own owner also happens to declare
     // (`Banking::SafeDepositBox.Rent`'s own `attribute :customer,
     // CustomerNumber` — `CustomerNumber` is `Customer`'s own, never
@@ -412,11 +412,11 @@ pub fn generate(
             );
         }
     }
-    // THE VALUE OBJECTS THEMSELVES, same domain-wide reach — `bridging.rs`'s
-    // own `bridgeable_value_types`/`value_rhs` need the actual DEFINITION
+    // The value objects themselves, same domain-wide reach — `bridging.rs`'s
+    // own `bridgeable_value_types`/`value_rhs` need the actual definition
     // (not just which aggregate owns it) to bridge a cross-aggregate command
     // argument's type into its target field. Merged into each aggregate's
-    // own LOCAL map below with the local map winning any name collision.
+    // own local map below with the local map winning any name collision.
     let mut domain_value_objects_by_name: HashMap<String, &Json> = HashMap::new();
     for a in all_aggregates {
         for vo in a.get("value_objects").map(Json::each).unwrap_or(&[]) {
@@ -442,9 +442,9 @@ pub fn generate(
             )
         }));
 
-        // Checked against the DOMAIN-MERGED value-object map, exactly as
+        // Checked against the domain-merged value-object map, exactly as
         // `domain_generator.rb` does (`Projector.unsupported_attribute_
-        // types(aggregate, value_objects_by_name)`), and CASCADED into
+        // types(aggregate, value_objects_by_name)`), and cascaded into
         // the manifest: every command/entity/entity-command/port-op the
         // skipped aggregate owns gets its own entry tracing back to the
         // same root cause.
@@ -558,11 +558,11 @@ pub fn generate(
 
         let mut entity_commands: Vec<EntityCommandEntry> = Vec::new();
         let mut nested_entity_commands: Vec<NestedEntityCommandEntry> = Vec::new();
-        // THIS AGGREGATE'S OWN NESTED ENTITIES, name + identity paths
+        // This aggregate's own nested entities, name + identity paths
         // only (BUG#10) — mirrors `domain_generator.rb`'s own identical
         // `entities:` collection, one level up from `entity_commands`
         // above: every entity this aggregate directly declares gets an
-        // entry here regardless of whether any of its OWN commands ended
+        // entry here regardless of whether any of its own commands ended
         // up routable (`entity_can_route`, below) — `reactions.rs`'s own
         // `emit_entity_identity_head_table` needs the entity's identity
         // shape, not its own command routability.
@@ -611,13 +611,13 @@ pub fn generate(
             );
             puts_blank(&mut out);
 
-            // S17, ADR 0026 — AN ENTITY NESTED INSIDE THIS ONE
+            // S17, ADR 0026 — an entity nested inside this one
             // (`ProcessManager.Handler.Dispatch`). Struct + JSON codec,
             // mirroring rust/project/domain_generator.rb's own identical
             // shape exactly.
             //
-            // BUG#11 (loop-parity) — ITS OWN COMMANDS ARE NOW ROUTED
-            // TOO, for the ROUTED (`to: { aggregate:, entities: [...] }`)
+            // BUG#11 (loop-parity) — its own commands are now routed
+            // too, for the routed (`to: { aggregate:, entities: [...] }`)
             // addressing shape. See `commands.rs::emit_nested_entity_
             // command`'s own doc comment and `rust/project/domain_
             // generator.rb`'s own header for the full argument — short
@@ -625,11 +625,11 @@ pub fn generate(
             // command` (dispatch.rs) were already generic enough to
             // compose one hop deeper with no kernel change at all, so
             // this was a real, bounded codegen gap, not an architecture
-            // mismatch. Deliberately NOT generalized past two levels —
+            // mismatch. Deliberately not generalized past two levels —
             // still real, separate, still-open scope.
             //
-            // BUG#19 (loop-parity) — BUG#11 deliberately shipped ROUTED
-            // ONLY, refusing every FLAT-args depth-2 dispatch (one
+            // BUG#19 (loop-parity) — BUG#11 deliberately shipped routed
+            // only, refusing every flat-args depth-2 dispatch (one
             // identity head per hop, no `to:` at all — the same
             // convention `entity_arms`'s own depth-1 `None =>` branch
             // already resolves) with `TypeMismatch`, even though Ruby's
@@ -685,17 +685,17 @@ pub fn generate(
                     ),
                 );
                 puts_blank(&mut out);
-                // `identity()` — what a ROUTED dispatch needs off a
+                // `identity()` — what a routed dispatch needs off a
                 // doubly-nested element (`matches = |el| el.identity()
                 // == hop2_id`), emitted unconditionally the way
                 // `entity`'s own always is.
                 puts_str(&mut out, &json_codec::emit_self_identity(exemplar, nested));
                 puts_blank(&mut out);
 
-                // BUG#19 — `extract_id`/`extract_wants`, back FLAT-args
+                // BUG#19 — `extract_id`/`extract_wants`, back flat-args
                 // addressing at this depth exactly the way `entity_can_
                 // route` already backs it one hop shallower (below,
-                // `entity`'s own). Needs BOTH hops' identity shape to
+                // `entity`'s own). Needs both hops' identity shape to
                 // support it (a flat dispatch has to resolve `hop1_id`
                 // off `entity`'s own `extract_id` too — `registry.rs`'s
                 // own `nested_entity_arms`, `None =>` branch), so this is
@@ -805,7 +805,7 @@ pub fn generate(
                             .collect::<Vec<_>>()
                             .join(", "),
                         unrouted_supported,
-                        // ARGUMENT GATES — no `structural_precheck` field any more
+                        // **Argument gates** — no `structural_precheck` field any more
                         // (roadmap D2): `registry.rs` builds `kernel::ArgumentGates` out of
                         // this command's own generated gate functions (`json_codec::emit_
                         // argument_gates`) and the kernel calls them in vocabulary order,
@@ -852,8 +852,8 @@ pub fn generate(
                 );
                 puts_blank(&mut out);
 
-                // THE ROUTABILITY SPLIT — the function above is real, but
-                // unreachable through the JSON router when the ENTITY's
+                // **The routability split** — the function above is real, but
+                // unreachable through the JSON router when the entity's
                 // identity isn't `extract_id`-supported.
                 if !entity_can_route {
                     manifest.unrouted(
@@ -926,7 +926,7 @@ pub fn generate(
                         .map(Json::to_s)
                         .collect::<Vec<_>>()
                         .join(", "),
-                    // ARGUMENT GATES — no `structural_precheck` field any more
+                    // **Argument gates** — no `structural_precheck` field any more
                     // (roadmap D2): `registry.rs` builds `kernel::ArgumentGates` out of
                     // this command's own generated gate functions (`json_codec::emit_
                     // argument_gates`) and the kernel calls them in vocabulary order,
@@ -1038,7 +1038,7 @@ pub fn generate(
                 ),
             );
             puts_blank(&mut out);
-            // THE ARGUMENT GATES (roadmap D2) — one generated function
+            // The argument gates (roadmap D2) — one generated function
             // per declared argument-gate step, called in vocabulary order
             // by `kernel::decode_aggregate_arguments`; see
             // `json_codec::emit_argument_gates`' own header.
@@ -1070,7 +1070,7 @@ pub fn generate(
             }
             manifest.routed("command", command_verb);
 
-            // ARGUMENT GATES — no `structural_precheck` field any more
+            // **Argument gates** — no `structural_precheck` field any more
             // (roadmap D2): `registry.rs` builds `kernel::ArgumentGates` out of
             // this command's own generated gate functions (`json_codec::emit_
             // argument_gates`) and the kernel calls them in vocabulary order,
@@ -1148,16 +1148,16 @@ pub fn generate(
                             == Some(agg_name)
                     })
                     .map(|attr| crate::attr::name(attr).to_string());
-                // `to:`-DECLARED OPERATIONS — mirrors
+                // `to:`-declared operations — mirrors
                 // Dispatcher#port_invocation's own second, additive
                 // branch (lib/hecks/runtime/dispatcher.rb): no
                 // Reference-typed attribute exists for these
                 // (legacy_receiver_field is always None), so the
-                // receiver instead comes from a PLAIN external-fact
+                // receiver instead comes from a plain external-fact
                 // attribute named for the owning aggregate's own
                 // identified_by field. Kept as a genuinely separate
                 // field from legacy_receiver_field, not folded into it
-                // — the kernel side (split_aggregate_receiver) must NOT
+                // — the kernel side (split_aggregate_receiver) must not
                 // strip this one out of the payload the way it strips a
                 // legacy receiver, since it's a real declared fact, not
                 // routing-only synthetic state.
@@ -1232,7 +1232,7 @@ pub fn generate(
         });
     }
 
-    // ── QUERIES.
+    // ── Queries.
     let mut query_defs: Vec<queries::QueryDef> = Vec::new();
     let assignments_verb = queries::provided_assignments(ir);
     for aggregate in all_aggregates {
@@ -1322,7 +1322,7 @@ pub fn generate(
         }
     }
 
-    // ── READ MODELS.
+    // ── **Read models**.
     let mut read_model_defs: Vec<read_models::ReadModelDef> = Vec::new();
     for read_model in ir.get("read_models").map(Json::each).unwrap_or(&[]) {
         let read_model_id = format!("{domain_name}::{}", node_name(read_model));
@@ -1338,7 +1338,7 @@ pub fn generate(
         ));
     }
 
-    // ── POLICIES / PROCESS MANAGERS — no per-instance skip condition on
+    // ── **Policies / process managers** — no per-instance skip condition on
     // either (see `domain_generator.rb`'s own comments on both loops).
     for policy in ir.get("policies").map(Json::each).unwrap_or(&[]) {
         manifest.routed("policy", format!("{domain_name}::{}", node_name(policy)));
@@ -1346,7 +1346,7 @@ pub fn generate(
     for pm in &process_managers {
         manifest.routed("process_manager", format!("{domain_name}::{}", node_name(pm)));
     }
-    // ── LINEAGE-CAPABLE AGGREGATES — `ir[:lineage][:capable_aggregates]`,
+    // ── **Lineage-capable aggregates** — `ir[:lineage][:capable_aggregates]`,
     // generated/routed unconditionally (rust/host's journal path is
     // generic over `storage_name`).
     let lineage_aggregates = ir.get("lineage").and_then(|l| l.get("capable_aggregates")).map(Json::each).unwrap_or(&[]);
@@ -1366,7 +1366,7 @@ pub fn generate(
     }
 
     let policies: Vec<Json> = ir.get("policies").map(Json::each).unwrap_or(&[]).to_vec();
-    // The RAW aggregate JSON, not `registry_aggregates` — a fan-out's
+    // The raw aggregate JSON, not `registry_aggregates` — a fan-out's
     // addressing key is read off the target command's own declared
     // `references`/`attributes`, which `AggregateEntry` does not carry.
     let policy_aggregates: Vec<Json> = ir.get("aggregates").map(Json::each).unwrap_or(&[]).to_vec();

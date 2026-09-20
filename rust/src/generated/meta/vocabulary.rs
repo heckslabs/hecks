@@ -215,7 +215,7 @@ impl ToStringType {
     }
 
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
-        // A `one_of` closed set is admission-checked on the RAW offered
+        // A `one_of` closed set is admission-checked on the raw offered
         // value, no shape check first — `Value::Admission#admit_member`
         // runs on whatever `Value::Coercion#fields_for` auto-wrapped into
         // the sole attribute's slot (a bare Array, a Bool, anything), never
@@ -224,31 +224,32 @@ impl ToStringType {
         // `{"type": ...}` shape's inner value if `v` is an
         // object, or `v` itself untouched if it isn't (matching
         // `fields_for`'s single-field auto-wrap of a bare scalar/array/
-        // whatever). Only THEN is admission checked — a non-member value
+        // whatever). Only then is admission checked — a non-member value
         // refuses `InvariantViolation`, matching Ruby's own refusal kind,
         // never `TypeMismatch` for a shape a member set never declared.
         //
-        // BUG#14 (qa/bluebook/quality_control.bluebook) — a MISSING field
+        // BUG#14 (qa/bluebook/quality_control.bluebook) — a missing field
         // is not "a shape a member set never declared" the way a present-
         // but-wrong value is; it is `Value::Coercion#check_required_fields`
-        // (runtime/value/coercion.rb) firing, and that check runs BEFORE
+        // (runtime/value/coercion.rb) firing, and that check runs before
         // `admit_member` in `validate!`'s own order. A caller-supplied
-        // `null` for a REQUIRED command argument of this type is translated
+        // `null` for a required command argument of this type is translated
         // by `required_composite_argument_expr` (json_codec.rb, BUG#4) into
-        // an EMPTY object — "build the value object from no fields at all",
+        // an empty object — "build the value object from no fields at all",
         // matching `Value::Coercion#nil_argument`'s own `build(value_object,
         // {}, aggregate)` exactly — so `v.dig` above finding nothing is
         // genuinely indistinguishable, at this point, from a Hash-shaped
         // caller argument that simply never named the sole field's own key
-        // either way: BOTH are that field's OWN absence, not a member
+        // either way: both are that field's own absence, not a member
         // mismatch.
-        // Before this fix, that absence still fell through to the admission
-        // match below, stringified as `Json::Null`'s own `ruby_to_s` (never
-        // a real member), so a required-but-omitted closed-set argument
-        // always misreported `InvariantViolation` where Ruby raises
-        // `TypeMismatch` ("{type}.{field} expects {expected}, got nil" —
-        // the same `numeric_field` wording `required_field_expr` already
-        // gives every OTHER composite field's own missing-key case).
+        // Without this explicit null check, that absence would still fall
+        // through to the admission match below, stringified as
+        // `Json::Null`'s own `ruby_to_s` (never a real member), so a
+        // required-but-omitted closed-set argument would misreport
+        // `InvariantViolation` where Ruby raises `TypeMismatch`
+        // ("{type}.{field} expects {expected}, got nil" — the same
+        // `numeric_field` wording `required_field_expr` already gives
+        // every other composite field's own missing-key case).
         let candidate = v.dig("type").cloned().unwrap_or(crate::kernel::Json::Null);
         if matches!(candidate, crate::kernel::Json::Null) {
             return Err(crate::kernel::Refusal::TypeMismatch("ToStringType.type expects String, got nil".to_string()));
@@ -303,7 +304,7 @@ impl SizedType {
     }
 
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
-        // A `one_of` closed set is admission-checked on the RAW offered
+        // A `one_of` closed set is admission-checked on the raw offered
         // value, no shape check first — `Value::Admission#admit_member`
         // runs on whatever `Value::Coercion#fields_for` auto-wrapped into
         // the sole attribute's slot (a bare Array, a Bool, anything), never
@@ -312,31 +313,32 @@ impl SizedType {
         // `{"type": ...}` shape's inner value if `v` is an
         // object, or `v` itself untouched if it isn't (matching
         // `fields_for`'s single-field auto-wrap of a bare scalar/array/
-        // whatever). Only THEN is admission checked — a non-member value
+        // whatever). Only then is admission checked — a non-member value
         // refuses `InvariantViolation`, matching Ruby's own refusal kind,
         // never `TypeMismatch` for a shape a member set never declared.
         //
-        // BUG#14 (qa/bluebook/quality_control.bluebook) — a MISSING field
+        // BUG#14 (qa/bluebook/quality_control.bluebook) — a missing field
         // is not "a shape a member set never declared" the way a present-
         // but-wrong value is; it is `Value::Coercion#check_required_fields`
-        // (runtime/value/coercion.rb) firing, and that check runs BEFORE
+        // (runtime/value/coercion.rb) firing, and that check runs before
         // `admit_member` in `validate!`'s own order. A caller-supplied
-        // `null` for a REQUIRED command argument of this type is translated
+        // `null` for a required command argument of this type is translated
         // by `required_composite_argument_expr` (json_codec.rb, BUG#4) into
-        // an EMPTY object — "build the value object from no fields at all",
+        // an empty object — "build the value object from no fields at all",
         // matching `Value::Coercion#nil_argument`'s own `build(value_object,
         // {}, aggregate)` exactly — so `v.dig` above finding nothing is
         // genuinely indistinguishable, at this point, from a Hash-shaped
         // caller argument that simply never named the sole field's own key
-        // either way: BOTH are that field's OWN absence, not a member
+        // either way: both are that field's own absence, not a member
         // mismatch.
-        // Before this fix, that absence still fell through to the admission
-        // match below, stringified as `Json::Null`'s own `ruby_to_s` (never
-        // a real member), so a required-but-omitted closed-set argument
-        // always misreported `InvariantViolation` where Ruby raises
-        // `TypeMismatch` ("{type}.{field} expects {expected}, got nil" —
-        // the same `numeric_field` wording `required_field_expr` already
-        // gives every OTHER composite field's own missing-key case).
+        // Without this explicit null check, that absence would still fall
+        // through to the admission match below, stringified as
+        // `Json::Null`'s own `ruby_to_s` (never a real member), so a
+        // required-but-omitted closed-set argument would misreport
+        // `InvariantViolation` where Ruby raises `TypeMismatch`
+        // ("{type}.{field} expects {expected}, got nil" — the same
+        // `numeric_field` wording `required_field_expr` already gives
+        // every other composite field's own missing-key case).
         let candidate = v.dig("type").cloned().unwrap_or(crate::kernel::Json::Null);
         if matches!(candidate, crate::kernel::Json::Null) {
             return Err(crate::kernel::Refusal::TypeMismatch("SizedType.type expects String, got nil".to_string()));
@@ -392,7 +394,7 @@ impl Primitive {
     }
 
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
-        // A `one_of` closed set is admission-checked on the RAW offered
+        // A `one_of` closed set is admission-checked on the raw offered
         // value, no shape check first — `Value::Admission#admit_member`
         // runs on whatever `Value::Coercion#fields_for` auto-wrapped into
         // the sole attribute's slot (a bare Array, a Bool, anything), never
@@ -401,31 +403,32 @@ impl Primitive {
         // `{"name": ...}` shape's inner value if `v` is an
         // object, or `v` itself untouched if it isn't (matching
         // `fields_for`'s single-field auto-wrap of a bare scalar/array/
-        // whatever). Only THEN is admission checked — a non-member value
+        // whatever). Only then is admission checked — a non-member value
         // refuses `InvariantViolation`, matching Ruby's own refusal kind,
         // never `TypeMismatch` for a shape a member set never declared.
         //
-        // BUG#14 (qa/bluebook/quality_control.bluebook) — a MISSING field
+        // BUG#14 (qa/bluebook/quality_control.bluebook) — a missing field
         // is not "a shape a member set never declared" the way a present-
         // but-wrong value is; it is `Value::Coercion#check_required_fields`
-        // (runtime/value/coercion.rb) firing, and that check runs BEFORE
+        // (runtime/value/coercion.rb) firing, and that check runs before
         // `admit_member` in `validate!`'s own order. A caller-supplied
-        // `null` for a REQUIRED command argument of this type is translated
+        // `null` for a required command argument of this type is translated
         // by `required_composite_argument_expr` (json_codec.rb, BUG#4) into
-        // an EMPTY object — "build the value object from no fields at all",
+        // an empty object — "build the value object from no fields at all",
         // matching `Value::Coercion#nil_argument`'s own `build(value_object,
         // {}, aggregate)` exactly — so `v.dig` above finding nothing is
         // genuinely indistinguishable, at this point, from a Hash-shaped
         // caller argument that simply never named the sole field's own key
-        // either way: BOTH are that field's OWN absence, not a member
+        // either way: both are that field's own absence, not a member
         // mismatch.
-        // Before this fix, that absence still fell through to the admission
-        // match below, stringified as `Json::Null`'s own `ruby_to_s` (never
-        // a real member), so a required-but-omitted closed-set argument
-        // always misreported `InvariantViolation` where Ruby raises
-        // `TypeMismatch` ("{type}.{field} expects {expected}, got nil" —
-        // the same `numeric_field` wording `required_field_expr` already
-        // gives every OTHER composite field's own missing-key case).
+        // Without this explicit null check, that absence would still fall
+        // through to the admission match below, stringified as
+        // `Json::Null`'s own `ruby_to_s` (never a real member), so a
+        // required-but-omitted closed-set argument would misreport
+        // `InvariantViolation` where Ruby raises `TypeMismatch`
+        // ("{type}.{field} expects {expected}, got nil" — the same
+        // `numeric_field` wording `required_field_expr` already gives
+        // every other composite field's own missing-key case).
         let candidate = v.dig("name").cloned().unwrap_or(crate::kernel::Json::Null);
         if matches!(candidate, crate::kernel::Json::Null) {
             return Err(crate::kernel::Refusal::TypeMismatch("Primitive.name expects String, got nil".to_string()));
@@ -477,7 +480,7 @@ impl NormalisationStrategy {
     }
 
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
-        // A `one_of` closed set is admission-checked on the RAW offered
+        // A `one_of` closed set is admission-checked on the raw offered
         // value, no shape check first — `Value::Admission#admit_member`
         // runs on whatever `Value::Coercion#fields_for` auto-wrapped into
         // the sole attribute's slot (a bare Array, a Bool, anything), never
@@ -486,31 +489,32 @@ impl NormalisationStrategy {
         // `{"name": ...}` shape's inner value if `v` is an
         // object, or `v` itself untouched if it isn't (matching
         // `fields_for`'s single-field auto-wrap of a bare scalar/array/
-        // whatever). Only THEN is admission checked — a non-member value
+        // whatever). Only then is admission checked — a non-member value
         // refuses `InvariantViolation`, matching Ruby's own refusal kind,
         // never `TypeMismatch` for a shape a member set never declared.
         //
-        // BUG#14 (qa/bluebook/quality_control.bluebook) — a MISSING field
+        // BUG#14 (qa/bluebook/quality_control.bluebook) — a missing field
         // is not "a shape a member set never declared" the way a present-
         // but-wrong value is; it is `Value::Coercion#check_required_fields`
-        // (runtime/value/coercion.rb) firing, and that check runs BEFORE
+        // (runtime/value/coercion.rb) firing, and that check runs before
         // `admit_member` in `validate!`'s own order. A caller-supplied
-        // `null` for a REQUIRED command argument of this type is translated
+        // `null` for a required command argument of this type is translated
         // by `required_composite_argument_expr` (json_codec.rb, BUG#4) into
-        // an EMPTY object — "build the value object from no fields at all",
+        // an empty object — "build the value object from no fields at all",
         // matching `Value::Coercion#nil_argument`'s own `build(value_object,
         // {}, aggregate)` exactly — so `v.dig` above finding nothing is
         // genuinely indistinguishable, at this point, from a Hash-shaped
         // caller argument that simply never named the sole field's own key
-        // either way: BOTH are that field's OWN absence, not a member
+        // either way: both are that field's own absence, not a member
         // mismatch.
-        // Before this fix, that absence still fell through to the admission
-        // match below, stringified as `Json::Null`'s own `ruby_to_s` (never
-        // a real member), so a required-but-omitted closed-set argument
-        // always misreported `InvariantViolation` where Ruby raises
-        // `TypeMismatch` ("{type}.{field} expects {expected}, got nil" —
-        // the same `numeric_field` wording `required_field_expr` already
-        // gives every OTHER composite field's own missing-key case).
+        // Without this explicit null check, that absence would still fall
+        // through to the admission match below, stringified as
+        // `Json::Null`'s own `ruby_to_s` (never a real member), so a
+        // required-but-omitted closed-set argument would misreport
+        // `InvariantViolation` where Ruby raises `TypeMismatch`
+        // ("{type}.{field} expects {expected}, got nil" — the same
+        // `numeric_field` wording `required_field_expr` already gives
+        // every other composite field's own missing-key case).
         let candidate = v.dig("name").cloned().unwrap_or(crate::kernel::Json::Null);
         if matches!(candidate, crate::kernel::Json::Null) {
             return Err(crate::kernel::Refusal::TypeMismatch("NormalisationStrategy.name expects String, got nil".to_string()));
@@ -609,7 +613,7 @@ impl QueryComparator {
     }
 
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
-        // A `one_of` closed set is admission-checked on the RAW offered
+        // A `one_of` closed set is admission-checked on the raw offered
         // value, no shape check first — `Value::Admission#admit_member`
         // runs on whatever `Value::Coercion#fields_for` auto-wrapped into
         // the sole attribute's slot (a bare Array, a Bool, anything), never
@@ -618,31 +622,32 @@ impl QueryComparator {
         // `{"name": ...}` shape's inner value if `v` is an
         // object, or `v` itself untouched if it isn't (matching
         // `fields_for`'s single-field auto-wrap of a bare scalar/array/
-        // whatever). Only THEN is admission checked — a non-member value
+        // whatever). Only then is admission checked — a non-member value
         // refuses `InvariantViolation`, matching Ruby's own refusal kind,
         // never `TypeMismatch` for a shape a member set never declared.
         //
-        // BUG#14 (qa/bluebook/quality_control.bluebook) — a MISSING field
+        // BUG#14 (qa/bluebook/quality_control.bluebook) — a missing field
         // is not "a shape a member set never declared" the way a present-
         // but-wrong value is; it is `Value::Coercion#check_required_fields`
-        // (runtime/value/coercion.rb) firing, and that check runs BEFORE
+        // (runtime/value/coercion.rb) firing, and that check runs before
         // `admit_member` in `validate!`'s own order. A caller-supplied
-        // `null` for a REQUIRED command argument of this type is translated
+        // `null` for a required command argument of this type is translated
         // by `required_composite_argument_expr` (json_codec.rb, BUG#4) into
-        // an EMPTY object — "build the value object from no fields at all",
+        // an empty object — "build the value object from no fields at all",
         // matching `Value::Coercion#nil_argument`'s own `build(value_object,
         // {}, aggregate)` exactly — so `v.dig` above finding nothing is
         // genuinely indistinguishable, at this point, from a Hash-shaped
         // caller argument that simply never named the sole field's own key
-        // either way: BOTH are that field's OWN absence, not a member
+        // either way: both are that field's own absence, not a member
         // mismatch.
-        // Before this fix, that absence still fell through to the admission
-        // match below, stringified as `Json::Null`'s own `ruby_to_s` (never
-        // a real member), so a required-but-omitted closed-set argument
-        // always misreported `InvariantViolation` where Ruby raises
-        // `TypeMismatch` ("{type}.{field} expects {expected}, got nil" —
-        // the same `numeric_field` wording `required_field_expr` already
-        // gives every OTHER composite field's own missing-key case).
+        // Without this explicit null check, that absence would still fall
+        // through to the admission match below, stringified as
+        // `Json::Null`'s own `ruby_to_s` (never a real member), so a
+        // required-but-omitted closed-set argument would misreport
+        // `InvariantViolation` where Ruby raises `TypeMismatch`
+        // ("{type}.{field} expects {expected}, got nil" — the same
+        // `numeric_field` wording `required_field_expr` already gives
+        // every other composite field's own missing-key case).
         let candidate = v.dig("name").cloned().unwrap_or(crate::kernel::Json::Null);
         if matches!(candidate, crate::kernel::Json::Null) {
             return Err(crate::kernel::Refusal::TypeMismatch("QueryComparator.name expects String, got nil".to_string()));
@@ -706,7 +711,7 @@ impl LoadOrder {
     }
 
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
-        // A `one_of` closed set is admission-checked on the RAW offered
+        // A `one_of` closed set is admission-checked on the raw offered
         // value, no shape check first — `Value::Admission#admit_member`
         // runs on whatever `Value::Coercion#fields_for` auto-wrapped into
         // the sole attribute's slot (a bare Array, a Bool, anything), never
@@ -715,31 +720,32 @@ impl LoadOrder {
         // `{"glob": ...}` shape's inner value if `v` is an
         // object, or `v` itself untouched if it isn't (matching
         // `fields_for`'s single-field auto-wrap of a bare scalar/array/
-        // whatever). Only THEN is admission checked — a non-member value
+        // whatever). Only then is admission checked — a non-member value
         // refuses `InvariantViolation`, matching Ruby's own refusal kind,
         // never `TypeMismatch` for a shape a member set never declared.
         //
-        // BUG#14 (qa/bluebook/quality_control.bluebook) — a MISSING field
+        // BUG#14 (qa/bluebook/quality_control.bluebook) — a missing field
         // is not "a shape a member set never declared" the way a present-
         // but-wrong value is; it is `Value::Coercion#check_required_fields`
-        // (runtime/value/coercion.rb) firing, and that check runs BEFORE
+        // (runtime/value/coercion.rb) firing, and that check runs before
         // `admit_member` in `validate!`'s own order. A caller-supplied
-        // `null` for a REQUIRED command argument of this type is translated
+        // `null` for a required command argument of this type is translated
         // by `required_composite_argument_expr` (json_codec.rb, BUG#4) into
-        // an EMPTY object — "build the value object from no fields at all",
+        // an empty object — "build the value object from no fields at all",
         // matching `Value::Coercion#nil_argument`'s own `build(value_object,
         // {}, aggregate)` exactly — so `v.dig` above finding nothing is
         // genuinely indistinguishable, at this point, from a Hash-shaped
         // caller argument that simply never named the sole field's own key
-        // either way: BOTH are that field's OWN absence, not a member
+        // either way: both are that field's own absence, not a member
         // mismatch.
-        // Before this fix, that absence still fell through to the admission
-        // match below, stringified as `Json::Null`'s own `ruby_to_s` (never
-        // a real member), so a required-but-omitted closed-set argument
-        // always misreported `InvariantViolation` where Ruby raises
-        // `TypeMismatch` ("{type}.{field} expects {expected}, got nil" —
-        // the same `numeric_field` wording `required_field_expr` already
-        // gives every OTHER composite field's own missing-key case).
+        // Without this explicit null check, that absence would still fall
+        // through to the admission match below, stringified as
+        // `Json::Null`'s own `ruby_to_s` (never a real member), so a
+        // required-but-omitted closed-set argument would misreport
+        // `InvariantViolation` where Ruby raises `TypeMismatch`
+        // ("{type}.{field} expects {expected}, got nil" — the same
+        // `numeric_field` wording `required_field_expr` already gives
+        // every other composite field's own missing-key case).
         let candidate = v.dig("glob").cloned().unwrap_or(crate::kernel::Json::Null);
         if matches!(candidate, crate::kernel::Json::Null) {
             return Err(crate::kernel::Refusal::TypeMismatch("LoadOrder.glob expects String, got nil".to_string()));
@@ -822,7 +828,7 @@ impl AggregateDispatchOrder {
     }
 
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
-        // A `one_of` closed set is admission-checked on the RAW offered
+        // A `one_of` closed set is admission-checked on the raw offered
         // value, no shape check first — `Value::Admission#admit_member`
         // runs on whatever `Value::Coercion#fields_for` auto-wrapped into
         // the sole attribute's slot (a bare Array, a Bool, anything), never
@@ -831,31 +837,32 @@ impl AggregateDispatchOrder {
         // `{"step": ...}` shape's inner value if `v` is an
         // object, or `v` itself untouched if it isn't (matching
         // `fields_for`'s single-field auto-wrap of a bare scalar/array/
-        // whatever). Only THEN is admission checked — a non-member value
+        // whatever). Only then is admission checked — a non-member value
         // refuses `InvariantViolation`, matching Ruby's own refusal kind,
         // never `TypeMismatch` for a shape a member set never declared.
         //
-        // BUG#14 (qa/bluebook/quality_control.bluebook) — a MISSING field
+        // BUG#14 (qa/bluebook/quality_control.bluebook) — a missing field
         // is not "a shape a member set never declared" the way a present-
         // but-wrong value is; it is `Value::Coercion#check_required_fields`
-        // (runtime/value/coercion.rb) firing, and that check runs BEFORE
+        // (runtime/value/coercion.rb) firing, and that check runs before
         // `admit_member` in `validate!`'s own order. A caller-supplied
-        // `null` for a REQUIRED command argument of this type is translated
+        // `null` for a required command argument of this type is translated
         // by `required_composite_argument_expr` (json_codec.rb, BUG#4) into
-        // an EMPTY object — "build the value object from no fields at all",
+        // an empty object — "build the value object from no fields at all",
         // matching `Value::Coercion#nil_argument`'s own `build(value_object,
         // {}, aggregate)` exactly — so `v.dig` above finding nothing is
         // genuinely indistinguishable, at this point, from a Hash-shaped
         // caller argument that simply never named the sole field's own key
-        // either way: BOTH are that field's OWN absence, not a member
+        // either way: both are that field's own absence, not a member
         // mismatch.
-        // Before this fix, that absence still fell through to the admission
-        // match below, stringified as `Json::Null`'s own `ruby_to_s` (never
-        // a real member), so a required-but-omitted closed-set argument
-        // always misreported `InvariantViolation` where Ruby raises
-        // `TypeMismatch` ("{type}.{field} expects {expected}, got nil" —
-        // the same `numeric_field` wording `required_field_expr` already
-        // gives every OTHER composite field's own missing-key case).
+        // Without this explicit null check, that absence would still fall
+        // through to the admission match below, stringified as
+        // `Json::Null`'s own `ruby_to_s` (never a real member), so a
+        // required-but-omitted closed-set argument would misreport
+        // `InvariantViolation` where Ruby raises `TypeMismatch`
+        // ("{type}.{field} expects {expected}, got nil" — the same
+        // `numeric_field` wording `required_field_expr` already gives
+        // every other composite field's own missing-key case).
         let candidate = v.dig("step").cloned().unwrap_or(crate::kernel::Json::Null);
         if matches!(candidate, crate::kernel::Json::Null) {
             return Err(crate::kernel::Refusal::TypeMismatch("AggregateDispatchOrder.step expects String, got nil".to_string()));
@@ -947,7 +954,7 @@ impl EntityDispatchOrder {
     }
 
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
-        // A `one_of` closed set is admission-checked on the RAW offered
+        // A `one_of` closed set is admission-checked on the raw offered
         // value, no shape check first — `Value::Admission#admit_member`
         // runs on whatever `Value::Coercion#fields_for` auto-wrapped into
         // the sole attribute's slot (a bare Array, a Bool, anything), never
@@ -956,31 +963,32 @@ impl EntityDispatchOrder {
         // `{"step": ...}` shape's inner value if `v` is an
         // object, or `v` itself untouched if it isn't (matching
         // `fields_for`'s single-field auto-wrap of a bare scalar/array/
-        // whatever). Only THEN is admission checked — a non-member value
+        // whatever). Only then is admission checked — a non-member value
         // refuses `InvariantViolation`, matching Ruby's own refusal kind,
         // never `TypeMismatch` for a shape a member set never declared.
         //
-        // BUG#14 (qa/bluebook/quality_control.bluebook) — a MISSING field
+        // BUG#14 (qa/bluebook/quality_control.bluebook) — a missing field
         // is not "a shape a member set never declared" the way a present-
         // but-wrong value is; it is `Value::Coercion#check_required_fields`
-        // (runtime/value/coercion.rb) firing, and that check runs BEFORE
+        // (runtime/value/coercion.rb) firing, and that check runs before
         // `admit_member` in `validate!`'s own order. A caller-supplied
-        // `null` for a REQUIRED command argument of this type is translated
+        // `null` for a required command argument of this type is translated
         // by `required_composite_argument_expr` (json_codec.rb, BUG#4) into
-        // an EMPTY object — "build the value object from no fields at all",
+        // an empty object — "build the value object from no fields at all",
         // matching `Value::Coercion#nil_argument`'s own `build(value_object,
         // {}, aggregate)` exactly — so `v.dig` above finding nothing is
         // genuinely indistinguishable, at this point, from a Hash-shaped
         // caller argument that simply never named the sole field's own key
-        // either way: BOTH are that field's OWN absence, not a member
+        // either way: both are that field's own absence, not a member
         // mismatch.
-        // Before this fix, that absence still fell through to the admission
-        // match below, stringified as `Json::Null`'s own `ruby_to_s` (never
-        // a real member), so a required-but-omitted closed-set argument
-        // always misreported `InvariantViolation` where Ruby raises
-        // `TypeMismatch` ("{type}.{field} expects {expected}, got nil" —
-        // the same `numeric_field` wording `required_field_expr` already
-        // gives every OTHER composite field's own missing-key case).
+        // Without this explicit null check, that absence would still fall
+        // through to the admission match below, stringified as
+        // `Json::Null`'s own `ruby_to_s` (never a real member), so a
+        // required-but-omitted closed-set argument would misreport
+        // `InvariantViolation` where Ruby raises `TypeMismatch`
+        // ("{type}.{field} expects {expected}, got nil" — the same
+        // `numeric_field` wording `required_field_expr` already gives
+        // every other composite field's own missing-key case).
         let candidate = v.dig("step").cloned().unwrap_or(crate::kernel::Json::Null);
         if matches!(candidate, crate::kernel::Json::Null) {
             return Err(crate::kernel::Refusal::TypeMismatch("EntityDispatchOrder.step expects String, got nil".to_string()));
@@ -1069,7 +1077,7 @@ impl DomainRefusal {
     }
 
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
-        // A `one_of` closed set is admission-checked on the RAW offered
+        // A `one_of` closed set is admission-checked on the raw offered
         // value, no shape check first — `Value::Admission#admit_member`
         // runs on whatever `Value::Coercion#fields_for` auto-wrapped into
         // the sole attribute's slot (a bare Array, a Bool, anything), never
@@ -1078,31 +1086,32 @@ impl DomainRefusal {
         // `{"name": ...}` shape's inner value if `v` is an
         // object, or `v` itself untouched if it isn't (matching
         // `fields_for`'s single-field auto-wrap of a bare scalar/array/
-        // whatever). Only THEN is admission checked — a non-member value
+        // whatever). Only then is admission checked — a non-member value
         // refuses `InvariantViolation`, matching Ruby's own refusal kind,
         // never `TypeMismatch` for a shape a member set never declared.
         //
-        // BUG#14 (qa/bluebook/quality_control.bluebook) — a MISSING field
+        // BUG#14 (qa/bluebook/quality_control.bluebook) — a missing field
         // is not "a shape a member set never declared" the way a present-
         // but-wrong value is; it is `Value::Coercion#check_required_fields`
-        // (runtime/value/coercion.rb) firing, and that check runs BEFORE
+        // (runtime/value/coercion.rb) firing, and that check runs before
         // `admit_member` in `validate!`'s own order. A caller-supplied
-        // `null` for a REQUIRED command argument of this type is translated
+        // `null` for a required command argument of this type is translated
         // by `required_composite_argument_expr` (json_codec.rb, BUG#4) into
-        // an EMPTY object — "build the value object from no fields at all",
+        // an empty object — "build the value object from no fields at all",
         // matching `Value::Coercion#nil_argument`'s own `build(value_object,
         // {}, aggregate)` exactly — so `v.dig` above finding nothing is
         // genuinely indistinguishable, at this point, from a Hash-shaped
         // caller argument that simply never named the sole field's own key
-        // either way: BOTH are that field's OWN absence, not a member
+        // either way: both are that field's own absence, not a member
         // mismatch.
-        // Before this fix, that absence still fell through to the admission
-        // match below, stringified as `Json::Null`'s own `ruby_to_s` (never
-        // a real member), so a required-but-omitted closed-set argument
-        // always misreported `InvariantViolation` where Ruby raises
-        // `TypeMismatch` ("{type}.{field} expects {expected}, got nil" —
-        // the same `numeric_field` wording `required_field_expr` already
-        // gives every OTHER composite field's own missing-key case).
+        // Without this explicit null check, that absence would still fall
+        // through to the admission match below, stringified as
+        // `Json::Null`'s own `ruby_to_s` (never a real member), so a
+        // required-but-omitted closed-set argument would misreport
+        // `InvariantViolation` where Ruby raises `TypeMismatch`
+        // ("{type}.{field} expects {expected}, got nil" — the same
+        // `numeric_field` wording `required_field_expr` already gives
+        // every other composite field's own missing-key case).
         let candidate = v.dig("name").cloned().unwrap_or(crate::kernel::Json::Null);
         if matches!(candidate, crate::kernel::Json::Null) {
             return Err(crate::kernel::Refusal::TypeMismatch("DomainRefusal.name expects String, got nil".to_string()));
@@ -1403,7 +1412,7 @@ impl Trigger {
     }
 
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
-        // A `one_of` closed set is admission-checked on the RAW offered
+        // A `one_of` closed set is admission-checked on the raw offered
         // value, no shape check first — `Value::Admission#admit_member`
         // runs on whatever `Value::Coercion#fields_for` auto-wrapped into
         // the sole attribute's slot (a bare Array, a Bool, anything), never
@@ -1412,31 +1421,32 @@ impl Trigger {
         // `{"name": ...}` shape's inner value if `v` is an
         // object, or `v` itself untouched if it isn't (matching
         // `fields_for`'s single-field auto-wrap of a bare scalar/array/
-        // whatever). Only THEN is admission checked — a non-member value
+        // whatever). Only then is admission checked — a non-member value
         // refuses `InvariantViolation`, matching Ruby's own refusal kind,
         // never `TypeMismatch` for a shape a member set never declared.
         //
-        // BUG#14 (qa/bluebook/quality_control.bluebook) — a MISSING field
+        // BUG#14 (qa/bluebook/quality_control.bluebook) — a missing field
         // is not "a shape a member set never declared" the way a present-
         // but-wrong value is; it is `Value::Coercion#check_required_fields`
-        // (runtime/value/coercion.rb) firing, and that check runs BEFORE
+        // (runtime/value/coercion.rb) firing, and that check runs before
         // `admit_member` in `validate!`'s own order. A caller-supplied
-        // `null` for a REQUIRED command argument of this type is translated
+        // `null` for a required command argument of this type is translated
         // by `required_composite_argument_expr` (json_codec.rb, BUG#4) into
-        // an EMPTY object — "build the value object from no fields at all",
+        // an empty object — "build the value object from no fields at all",
         // matching `Value::Coercion#nil_argument`'s own `build(value_object,
         // {}, aggregate)` exactly — so `v.dig` above finding nothing is
         // genuinely indistinguishable, at this point, from a Hash-shaped
         // caller argument that simply never named the sole field's own key
-        // either way: BOTH are that field's OWN absence, not a member
+        // either way: both are that field's own absence, not a member
         // mismatch.
-        // Before this fix, that absence still fell through to the admission
-        // match below, stringified as `Json::Null`'s own `ruby_to_s` (never
-        // a real member), so a required-but-omitted closed-set argument
-        // always misreported `InvariantViolation` where Ruby raises
-        // `TypeMismatch` ("{type}.{field} expects {expected}, got nil" —
-        // the same `numeric_field` wording `required_field_expr` already
-        // gives every OTHER composite field's own missing-key case).
+        // Without this explicit null check, that absence would still fall
+        // through to the admission match below, stringified as
+        // `Json::Null`'s own `ruby_to_s` (never a real member), so a
+        // required-but-omitted closed-set argument would misreport
+        // `InvariantViolation` where Ruby raises `TypeMismatch`
+        // ("{type}.{field} expects {expected}, got nil" — the same
+        // `numeric_field` wording `required_field_expr` already gives
+        // every other composite field's own missing-key case).
         let candidate = v.dig("name").cloned().unwrap_or(crate::kernel::Json::Null);
         if matches!(candidate, crate::kernel::Json::Null) {
             return Err(crate::kernel::Refusal::TypeMismatch("Trigger.name expects String, got nil".to_string()));
@@ -1611,7 +1621,7 @@ impl RustReservedWord {
     }
 
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
-        // A `one_of` closed set is admission-checked on the RAW offered
+        // A `one_of` closed set is admission-checked on the raw offered
         // value, no shape check first — `Value::Admission#admit_member`
         // runs on whatever `Value::Coercion#fields_for` auto-wrapped into
         // the sole attribute's slot (a bare Array, a Bool, anything), never
@@ -1620,31 +1630,32 @@ impl RustReservedWord {
         // `{"word": ...}` shape's inner value if `v` is an
         // object, or `v` itself untouched if it isn't (matching
         // `fields_for`'s single-field auto-wrap of a bare scalar/array/
-        // whatever). Only THEN is admission checked — a non-member value
+        // whatever). Only then is admission checked — a non-member value
         // refuses `InvariantViolation`, matching Ruby's own refusal kind,
         // never `TypeMismatch` for a shape a member set never declared.
         //
-        // BUG#14 (qa/bluebook/quality_control.bluebook) — a MISSING field
+        // BUG#14 (qa/bluebook/quality_control.bluebook) — a missing field
         // is not "a shape a member set never declared" the way a present-
         // but-wrong value is; it is `Value::Coercion#check_required_fields`
-        // (runtime/value/coercion.rb) firing, and that check runs BEFORE
+        // (runtime/value/coercion.rb) firing, and that check runs before
         // `admit_member` in `validate!`'s own order. A caller-supplied
-        // `null` for a REQUIRED command argument of this type is translated
+        // `null` for a required command argument of this type is translated
         // by `required_composite_argument_expr` (json_codec.rb, BUG#4) into
-        // an EMPTY object — "build the value object from no fields at all",
+        // an empty object — "build the value object from no fields at all",
         // matching `Value::Coercion#nil_argument`'s own `build(value_object,
         // {}, aggregate)` exactly — so `v.dig` above finding nothing is
         // genuinely indistinguishable, at this point, from a Hash-shaped
         // caller argument that simply never named the sole field's own key
-        // either way: BOTH are that field's OWN absence, not a member
+        // either way: both are that field's own absence, not a member
         // mismatch.
-        // Before this fix, that absence still fell through to the admission
-        // match below, stringified as `Json::Null`'s own `ruby_to_s` (never
-        // a real member), so a required-but-omitted closed-set argument
-        // always misreported `InvariantViolation` where Ruby raises
-        // `TypeMismatch` ("{type}.{field} expects {expected}, got nil" —
-        // the same `numeric_field` wording `required_field_expr` already
-        // gives every OTHER composite field's own missing-key case).
+        // Without this explicit null check, that absence would still fall
+        // through to the admission match below, stringified as
+        // `Json::Null`'s own `ruby_to_s` (never a real member), so a
+        // required-but-omitted closed-set argument would misreport
+        // `InvariantViolation` where Ruby raises `TypeMismatch`
+        // ("{type}.{field} expects {expected}, got nil" — the same
+        // `numeric_field` wording `required_field_expr` already gives
+        // every other composite field's own missing-key case).
         let candidate = v.dig("word").cloned().unwrap_or(crate::kernel::Json::Null);
         if matches!(candidate, crate::kernel::Json::Null) {
             return Err(crate::kernel::Refusal::TypeMismatch("RustReservedWord.word expects String, got nil".to_string()));
@@ -1768,7 +1779,7 @@ impl CargoReservedName {
     }
 
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
-        // A `one_of` closed set is admission-checked on the RAW offered
+        // A `one_of` closed set is admission-checked on the raw offered
         // value, no shape check first — `Value::Admission#admit_member`
         // runs on whatever `Value::Coercion#fields_for` auto-wrapped into
         // the sole attribute's slot (a bare Array, a Bool, anything), never
@@ -1777,31 +1788,32 @@ impl CargoReservedName {
         // `{"name": ...}` shape's inner value if `v` is an
         // object, or `v` itself untouched if it isn't (matching
         // `fields_for`'s single-field auto-wrap of a bare scalar/array/
-        // whatever). Only THEN is admission checked — a non-member value
+        // whatever). Only then is admission checked — a non-member value
         // refuses `InvariantViolation`, matching Ruby's own refusal kind,
         // never `TypeMismatch` for a shape a member set never declared.
         //
-        // BUG#14 (qa/bluebook/quality_control.bluebook) — a MISSING field
+        // BUG#14 (qa/bluebook/quality_control.bluebook) — a missing field
         // is not "a shape a member set never declared" the way a present-
         // but-wrong value is; it is `Value::Coercion#check_required_fields`
-        // (runtime/value/coercion.rb) firing, and that check runs BEFORE
+        // (runtime/value/coercion.rb) firing, and that check runs before
         // `admit_member` in `validate!`'s own order. A caller-supplied
-        // `null` for a REQUIRED command argument of this type is translated
+        // `null` for a required command argument of this type is translated
         // by `required_composite_argument_expr` (json_codec.rb, BUG#4) into
-        // an EMPTY object — "build the value object from no fields at all",
+        // an empty object — "build the value object from no fields at all",
         // matching `Value::Coercion#nil_argument`'s own `build(value_object,
         // {}, aggregate)` exactly — so `v.dig` above finding nothing is
         // genuinely indistinguishable, at this point, from a Hash-shaped
         // caller argument that simply never named the sole field's own key
-        // either way: BOTH are that field's OWN absence, not a member
+        // either way: both are that field's own absence, not a member
         // mismatch.
-        // Before this fix, that absence still fell through to the admission
-        // match below, stringified as `Json::Null`'s own `ruby_to_s` (never
-        // a real member), so a required-but-omitted closed-set argument
-        // always misreported `InvariantViolation` where Ruby raises
-        // `TypeMismatch` ("{type}.{field} expects {expected}, got nil" —
-        // the same `numeric_field` wording `required_field_expr` already
-        // gives every OTHER composite field's own missing-key case).
+        // Without this explicit null check, that absence would still fall
+        // through to the admission match below, stringified as
+        // `Json::Null`'s own `ruby_to_s` (never a real member), so a
+        // required-but-omitted closed-set argument would misreport
+        // `InvariantViolation` where Ruby raises `TypeMismatch`
+        // ("{type}.{field} expects {expected}, got nil" — the same
+        // `numeric_field` wording `required_field_expr` already gives
+        // every other composite field's own missing-key case).
         let candidate = v.dig("name").cloned().unwrap_or(crate::kernel::Json::Null);
         if matches!(candidate, crate::kernel::Json::Null) {
             return Err(crate::kernel::Refusal::TypeMismatch("CargoReservedName.name expects String, got nil".to_string()));
@@ -1917,7 +1929,6 @@ impl Vocabulary {
 }
 
 fn vocabulary_invariants() -> crate::kernel::InvariantSet {
-    use crate::kernel::Expr;
     crate::kernel::InvariantSet {
         aggregate: vec![],
         entities: vec![],

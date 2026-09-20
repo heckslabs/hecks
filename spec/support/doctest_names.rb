@@ -76,6 +76,7 @@ module DoctestNames
     architecture-map.md
     command-form-and-query-form-bluebook.md
     COMMENT_STYLE_GUIDE.md
+    COMMENT_STYLE_GUIDE_RUST.md
     dsl-work-slices.md
     event-storming-policies.md
     future-features.md

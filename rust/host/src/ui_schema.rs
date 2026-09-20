@@ -1,12 +1,12 @@
-// THE WHOLE CONSOLE UI, DERIVED — a Rust port of embryonaut_console's
+// **The whole console UI, derived** — a Rust port of embryonaut_console's
 // `web/ui_schema.rb`, rule for rule: one live domain IR plus the
 // presentation config (presentation.rs) in, the exact JSON document
 // `GET /api/ui-schema` has always served out — nav, per-collection
 // columns, detail fields, field shapes, lifecycle transitions and
 // create forms.
 //
-// WHY A SECOND FIELD-SHAPE WALKER LIVES IN THIS CRATE. web.rs already
-// has one (`resolve_field`/`value_object_field`), and it is NOT this
+// Why a second field-shape walker lives in this crate. web.rs already
+// has one (`resolve_field`/`value_object_field`), and it is not this
 // one: that one mirrors `Hecks::Presentation::FieldShape`, which
 // answers "what HTML input collects this attribute" for this host's own
 // server-rendered forms. This one mirrors `UiSchema.field`, which
@@ -20,7 +20,7 @@
 // `{value: ...}` and not a bare scalar. Collapsing them would mean one
 // of the two consumers reading a shape that was decided for the other.
 //
-// EVERY DEVIATION WOULD BE A BUG A PERSON SEES — a column that renders
+// Every deviation would be a bug a person sees — a column that renders
 // "[object Object]", a picker that offers a record the server will
 // refuse, a nav item that lands nowhere. So the port is literal: same
 // dispatch order, same fallbacks, same key names (`targetKey`,
@@ -69,10 +69,10 @@ pub fn build(domain_ir: &Value, config: &Value) -> Value {
 
 /// `GET /api/schema`'s own body — every real aggregate, its real
 /// lifecycle states and its real declared queries, each query argument
-/// shaped through the SAME `field` a create form's own inputs go
+/// shaped through the same `field` a create form's own inputs go
 /// through (so a reference argument still earns a real picker). A pure
 /// structural fact with no presentation opinion in it — except the
-/// collection KEYS the argument shapes point at, which is why it still
+/// collection keys the argument shapes point at, which is why it still
 /// takes the config.
 pub fn schema(domain_ir: &Value, config: &Value) -> Value {
     let aggregates = aggregates(domain_ir);
@@ -212,7 +212,7 @@ fn state_facet(state_cfg: &Value, facet: &str) -> Value {
     Value::Object(out)
 }
 
-/// EXPLICIT OPT-IN, NOT A GUESS FROM TONE — a state earns a place on
+/// Explicit opt-in, not a guess from tone — a state earns a place on
 /// the Overview's attention list only when config says `attention:`.
 fn status_attention(state_cfg: &Value) -> Value {
     let mut out = Vec::new();
@@ -230,7 +230,7 @@ fn status_attention(state_cfg: &Value) -> Value {
 
 fn build_columns(configured: Option<&Value>, fields: &[Value], aggregate: &Value, by_name: &HashMap<&str, &Value>, key_for: &KeyFor) -> Value {
     let entries = match configured.filter(|v| !v.is_null()) {
-        // A CONFIGURED EMPTY LIST IS A REAL ANSWER, not "unconfigured"
+        // A configured empty list is a real answer, not "unconfigured"
         // — Ruby's `configured || default` only falls through on nil,
         // and `[]` is truthy there.
         Some(list) => list.as_array().cloned().unwrap_or_default(),
@@ -289,7 +289,7 @@ fn column_for(entry: &Value, fields: &[Value], aggregate: &Value, by_name: &Hash
     merge(overridden, sort)
 }
 
-/// UNCONFIGURED = SORTABLE, ASCENDING FIRST — only a hash entry has
+/// UNCONFIGURED = sortable, ascending first — only a hash entry has
 /// anywhere to carry `sortable:`/`sort_default:` at all, so a plain
 /// string column always takes the generous default.
 fn sort_config(entry: &Value) -> Value {
@@ -329,7 +329,7 @@ fn detail_field_for(entry: &Value, fields: &[Value], aggregate: &Value, by_name:
     merge(base, json!({"display": display}))
 }
 
-/// WHICH OF A ROWS FIELD'S OWN SUB-COLUMNS TO SHOW, AND IN WHAT ORDER.
+/// Which of a rows field's own sub-columns to show, and in what order.
 fn apply_row_columns_filter(base: Value, entry: &Value) -> Value {
     let Some(wanted) = entry.get("columns").and_then(|v| v.as_array()) else { return base };
     let existing = base.get("columns").and_then(|v| v.as_array()).cloned().unwrap_or_default();
@@ -343,7 +343,7 @@ fn apply_row_columns_filter(base: Value, entry: &Value) -> Value {
     merge(base, json!({"columns": kept}))
 }
 
-/// ONLY THE ROWS CURRENTLY IN SOME STATE — a `list_of(entity)` field
+/// Only the rows currently in some state — a `list_of(entity)` field
 /// otherwise shows every element ever appended, removed ones included
 /// (a transition changes the stored element in place, it never drops
 /// it). The frontend does the filtering; this only stamps what to
@@ -360,8 +360,8 @@ fn apply_row_state_filter(base: Value, entry: &Value, aggregate: &Value) -> Valu
     merge(base, json!({"stateFilter": {"field": field_name, "value": state_filter}}))
 }
 
-/// A SECOND HOP, FOR DISPLAY ONLY — resolve this reference, then
-/// resolve one of ITS references, and show what that points at
+/// **A second hop, for display only** — resolve this reference, then
+/// resolve one of its references, and show what that points at
 /// (Payment carries `invoice_id` but not `client_id`). Falls back to
 /// the plain one-hop field when the config names something that
 /// doesn't resolve: degrade, don't break the page over a mistake that
@@ -417,7 +417,7 @@ pub(crate) fn lifecycle_states(aggregate: &Value) -> Vec<String> {
 }
 
 /// `from: nil` means "no constraint at all" here — which is why an
-/// unconstrained transition is offered from EVERY state rather than
+/// unconstrained transition is offered from every state rather than
 /// resolved to one: the honest reading of an edge nothing narrowed.
 fn build_transitions(aggregate: &Value, others: &[&Value], key_for: &KeyFor, formats: &Value) -> Value {
     let Some(lifecycle) = lifecycle(aggregate) else { return json!({}) };
@@ -451,7 +451,7 @@ fn build_transitions(aggregate: &Value, others: &[&Value], key_for: &KeyFor, for
     Value::Object(by_state)
 }
 
-/// A command with NO lifecycle transition at all isn't stateless by
+/// A command with no lifecycle transition at all isn't stateless by
 /// omission (Contract's `Revise`, RecurringPayment's `AdvanceCycle`) —
 /// it fires regardless of state. An aggregate with no lifecycle at all
 /// has every non-creating command here, by the same reasoning.
@@ -479,7 +479,7 @@ fn command_inputs(command: &Value, aggregate: &Value, key_for: &KeyFor, formats:
     Value::Array(array(command, "attributes").iter().map(|a| field(a, aggregate, key_for, formats)).collect())
 }
 
-/// A CREATE-FORM REFERENCE FIELD, TOLD WHAT IT MAY POINT AT — config
+/// A create-form reference field, told what it may point at — config
 /// says a field must reference a record currently in some state
 /// ("engagement_id must be a demoed Engagement"); this stamps that on
 /// the descriptor so the client can filter its picker, while the
@@ -500,8 +500,8 @@ fn field_with_precondition(attribute: &Value, aggregate: &Value, key_for: &KeyFo
 
 // ---- nav and overview -----------------------------------------------
 
-/// DECLARATION ORDER, UNLESS TOLD OTHERWISE — `nav_order` is a plain
-/// number per aggregate; a nav item earns the LOWEST order among its
+/// **Declaration order, unless told otherwise** — `nav_order` is a plain
+/// number per aggregate; a nav item earns the lowest order among its
 /// own members when several share one (`nav_group`), and anything
 /// unset keeps its declaration position rather than jumping to either
 /// end.
@@ -560,7 +560,7 @@ fn build_nav(aggregates: &[&Value], config: &Value, key_for: &KeyFor) -> Value {
     )
 }
 
-/// OVERVIEW STATS, AS DATA — a fold over a collection filtered by a
+/// **Overview stats, as data** — a fold over a collection filtered by a
 /// `where` clause, evaluated client-side against records the frontend
 /// already has: this answers "what does the app look like", never
 /// "what does the data say right now".
@@ -591,7 +591,7 @@ fn overview_stat(stat: &Value) -> Value {
 /// attributes when it renders as a table row.
 ///
 /// `formats` is `collections.<Name>.field_formats`, the one place
-/// config layers a hint ON TOP OF a derived shape rather than
+/// config layers a hint on top of a derived shape rather than
 /// replacing it: nothing in the IR marks a lone String as date-shaped
 /// or a lone Float as a percentage the way `{cents, currency}`
 /// unambiguously marks money.
@@ -605,14 +605,14 @@ pub fn field(attribute: &Value, aggregate: &Value, key_for: &KeyFor, formats: &V
         "optional": attribute.get("optional").and_then(|v| v.as_bool()).unwrap_or(false),
     });
 
-    // THE WIRE VALUE FOR THIS KEY IS ALREADY DECIDED, whatever the
+    // The wire value for this key is already decided, whatever the
     // attribute's own declared type — `to_h` ends `state.merge(id:
     // @id)`, and `@id` is always the aggregate's already-reduced
-    // scalar identity. Normally that's a NEW key beside the real one;
-    // an aggregate that names its OWN identity-bearing attribute
+    // scalar identity. Normally that's a new key beside the real one;
+    // an aggregate that names its own identity-bearing attribute
     // literally `id` collides, and the same key that would hold
     // `{value: "..."}` holds a bare string instead. Named `id`
-    // SPECIFICALLY — an aggregate identified by some other attribute
+    // specifically — an aggregate identified by some other attribute
     // (Client's own `reference`) has no such collision, and telling
     // the client to expect a bare scalar there rendered a live
     // "[object Object]".
@@ -635,7 +635,7 @@ pub fn field(attribute: &Value, aggregate: &Value, key_for: &KeyFor, formats: &V
         return merge(base, primitive_shape(ty, format));
     }
 
-    // `aggregate.value_object` is the OWNING aggregate's own table and
+    // `aggregate.value_object` is the owning aggregate's own table and
     // nothing wider — an attribute typed by a value object declared on
     // some other aggregate falls through here exactly as it does in
     // Ruby (to the entity check, then to the defensive text_value).
@@ -649,7 +649,7 @@ pub fn field(attribute: &Value, aggregate: &Value, key_for: &KeyFor, formats: &V
         return merge(base, scalar_vo_shape(value_object, aggregate, key_for, formats, format));
     }
 
-    // AN ENTITY, NOT A VALUE OBJECT — a `list_of` attribute holding
+    // **An entity, not a value object** — a `list_of` attribute holding
     // pieces rather than plain values. An entity's attributes answer
     // the same shape a value object's do, through the same recursion,
     // so a piece's own `reference_to` earns real reference rendering
@@ -732,10 +732,10 @@ fn row_columns(shape: &Value, aggregate: &Value, key_for: &KeyFor, formats: &Val
     )
 }
 
-/// ALWAYS CARRIES `field:` — a scalar value object's wire value is
+/// Always carries `field:` — a scalar value object's wire value is
 /// `{<attr name>: ...}`, never the bare scalar (which is what
 /// `primitive_shape` is for, and why it carries no `field:` on
-/// purpose: the client reads that absence as "the raw value IS the
+/// purpose: the client reads that absence as "the raw value is the
 /// scalar"). "value"/"text"/"address" are the names this domain
 /// happens to use; anything else still resolves, because `field:`
 /// names it exactly rather than assuming a fixed vocabulary.
@@ -841,7 +841,7 @@ fn money_shaped(value_object: &Value) -> bool {
 }
 
 /// `Presentation::ValueObjectShape.sole_attribute` — a value object
-/// with exactly one attribute is a NAME for a scalar, not a group.
+/// with exactly one attribute is a name for a scalar, not a group.
 fn sole_attribute(value_object: &Value) -> Option<&Value> {
     let attributes = array(value_object, "attributes");
     (attributes.len() == 1).then(|| &attributes[0])
@@ -855,7 +855,7 @@ fn numeric(ty: &str) -> bool {
 
 /// `config.dig(...)` with Ruby's own truthiness: a missing key and an
 /// explicit null are both "not configured". An empty array or object
-/// is NOT — it is a real, configured answer, which is what keeps a
+/// is not — it is a real, configured answer, which is what keeps a
 /// deliberately-empty `columns:` from falling back to the derived
 /// default.
 fn dig<'a>(config: &'a Value, path: &[&str]) -> Option<&'a Value> {
@@ -882,7 +882,7 @@ fn string_or(config: &Value, key: &str, fallback: &str) -> String {
     config.get(key).and_then(|v| v.as_str()).map(String::from).unwrap_or_else(|| fallback.to_string())
 }
 
-/// Ruby's `Hash#merge`: a key already present keeps its POSITION and
+/// Ruby's `Hash#merge`: a key already present keeps its position and
 /// takes the new value; a new key lands at the end. serde_json's
 /// `preserve_order` (IndexMap) gives exactly that, which is what keeps
 /// a column descriptor's own key order identical to Ruby's.
@@ -929,12 +929,12 @@ pub fn plural(word: &str) -> String {
 }
 
 /// `UiSchema.humanize_words` — snake_case, then each word capitalized.
-/// NOT `Naming.words` (which preserves acronyms): this is the
+/// Not `Naming.words` (which preserves acronyms): this is the
 /// console's own spelling, and "ATMCard" reads "Atm Card" here exactly
 /// as it does in Ruby.
 fn humanize_words(text: &str) -> String {
-    // RUBY'S `String#split("_")` DROPS TRAILING EMPTY SEGMENTS AND KEEPS
-    // LEADING ONES — not a detail worth mirroring in the abstract, but
+    // Ruby's `String#split("_")` drops trailing empty segments and keeps
+    // leading ones — not a detail worth mirroring in the abstract, but
     // it is load-bearing here: the state column arrives from stored
     // config as `{"field": "__state__"}` (a hash, never a bare string),
     // which misses `column_for`'s own `__state__` branch and gets
@@ -942,7 +942,7 @@ fn humanize_words(text: &str) -> String {
     // Rust's way instead renders `"  State  "`, a visible difference in
     // every table header in the app. Found by diffing this module's
     // output against the Ruby engine's for the real Embryonaut domain,
-    // where it was the ONLY disagreement.
+    // where it was the only disagreement.
     let snaked = snake(text);
     let mut words: Vec<&str> = snaked.split('_').collect();
     while words.last() == Some(&"") {
@@ -1108,7 +1108,7 @@ mod tests {
         assert_eq!(plural("company"), "companies");
         assert_eq!(plural("address"), "addresses");
         assert_eq!(plural("box"), "boxes");
-        // A VOWEL before the y takes a plain "s" — "days", not "daies".
+        // A vowel before the y takes a plain "s" — "days", not "daies".
         assert_eq!(plural("day"), "days");
     }
 
@@ -1119,7 +1119,7 @@ mod tests {
         assert_eq!(humanize_words("RecurringPayment"), "Recurring Payment");
     }
 
-    // THE ONE DISAGREEMENT a full diff against the Ruby engine turned
+    // The one disagreement a full diff against the Ruby engine turned
     // up, and the reason `humanize_words` drops trailing empty
     // segments: Ruby's `String#split("_")` drops them, Rust's does
     // not, and `"__state__"` is humanized literally often enough to
@@ -1131,8 +1131,8 @@ mod tests {
         assert_eq!(humanize_words(""), "");
     }
 
-    // A FAITHFUL PORT OF A REAL QUIRK. `column_for`'s own `__state__`
-    // branch fires for a BARE STRING entry — which is what an
+    // A faithful port of a real quirk. `column_for`'s own `__state__`
+    // branch fires for a bare string entry — which is what an
     // unconfigured collection's derived column list produces. Stored
     // config never produces one: `presentation_config.rb` reshapes
     // every column into `{"field": ...}`, so a configured state column
@@ -1167,7 +1167,7 @@ mod tests {
     fn an_address_named_scalar_earns_the_address_shape_and_a_text_named_one_earns_prose() {
         assert_eq!(field_named(&client(), "contact_email")["shape"], "address");
         assert_eq!(field_named(&client(), "contact_email")["field"], "address");
-        // `notes` is a LIST of a sole-attribute VO — lines, not rows.
+        // `notes` is a list of a sole-attribute VO — lines, not rows.
         assert_eq!(field_named(&client(), "notes"), json!({"key": "notes", "label": "Notes", "optional": true, "shape": "lines", "field": "text"}));
     }
 
@@ -1224,7 +1224,7 @@ mod tests {
         });
 
         assert_eq!(field_named(&aggregate, "id"), json!({"key": "id", "label": "Id", "optional": false, "shape": "text_value"}));
-        // …while an aggregate identified by any OTHER attribute keeps
+        // …while an aggregate identified by any other attribute keeps
         // its real wrapped shape, `field: "value"` and all.
         assert_eq!(field_named(&client(), "reference")["field"], "value");
     }

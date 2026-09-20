@@ -3,9 +3,9 @@
 //! (`ReadModelBuilder#add_aggregate_head`).
 //!
 //! `aggregate_heads` below, called from `parse::read_model`, handles both
-//! shapes for real: ROOTLESS (no `reference_to` — confirmed real by
+//! shapes for real: rootless (no `reference_to` — confirmed real by
 //! console_settings.bluebook's `Styles`/`Curated` reports, every
-//! `include`d head `many: true`) and ROOTED (`reference_to` declared —
+//! `include`d head `many: true`) and rooted (`reference_to` declared —
 //! confirmed real, and under live byte-exact parity testing today, by
 //! Banking's `CustomerPortfolio`/`ComplianceDashboard`), correctly
 //! splitting `many: target != reference_target` for whichever
@@ -25,7 +25,7 @@ use crate::ir;
 /// Ruby too: "The includes are collected raw and resolved at build, when
 /// the reference is known"). `output` defaults to `Naming.plural(Naming
 /// .snake(target))` when `many` (every include when `reference_target`
-/// is `None` — rootless — or when the include names a DIFFERENT
+/// is `None` — rootless — or when the include names a different
 /// aggregate than a declared `reference_target` — rooted) and no `as:`
 /// was given; the root's own head (`target == reference_target`) instead
 /// snake-cases singular, matching Ruby's own "not `many`" branch.

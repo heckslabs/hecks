@@ -1,11 +1,11 @@
 //! Mirror of `lib/hecks/bluebook/expression/ast_json.rb` — walks the
 //! `Evaluator`/`Resolver` tree this module's own `parse` produces and
-//! emits the SAME `"op"`-tagged JSON every Ruby rule row carries as
+//! emits the same `"op"`-tagged JSON every Ruby rule row carries as
 //! `ast`. Key order per node matches the Ruby file's Hash literal order
 //! exactly, because parser parity compares the pretty-printed document
 //! byte for byte — a reordered key is a parity failure, by design.
 //!
-//! The literal-array `include?` rewrite (OR of equalities; empty array →
+//! The literal-array `include?` rewrite (or of equalities; empty array →
 //! `{"op":"bool","value":false}`) is mirrored too — see the Ruby file's
 //! `emit_include` comment for the reasoning. `SignTest` drops its `test`
 //! spelling in favour of the comparison triple, exactly as Ruby does.

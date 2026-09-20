@@ -2,7 +2,7 @@
 // (projection.json: `.positive?`, `.negative?`, `.zero?` — three
 // symbols, one interpreter node) — `Resolver::SignTest`
 // (resolver.rb's `sign_test_node`/`apply_sign_test`), read directly: a
-// sign test is SUGAR for comparing its receiver against the literal
+// sign test is sugar for comparing its receiver against the literal
 // integer 0 through the exact same `comparison::apply` algebra `>`/`<`/
 // `==` themselves run through (`SIGN_TEST_OPERATORS`, resolver.rb, maps
 // each symbol to which comparison it stands for) — not a fourth,
@@ -21,7 +21,7 @@ pub fn interpret(expr: &Expr, ctx: &EvalContext) -> Result<Value, Refusal> {
         return Err(Refusal::TypeMismatch(format!("sign_test::interpret called with a non-sign-test node {expr:?} — a router bug")));
     };
 
-    // No int/float distinction needed here the way a STATIC compiler
+    // No int/float distinction needed here the way a static compiler
     // would need one — `comparison::apply`/`less_than` already compare
     // through `scalar::numeric` (`f64`) uniformly regardless of which
     // literal type the receiver's value carries.

@@ -1,9 +1,9 @@
 //! A Rust port of `Exporter.lineage` (`lib/hecks/projector/exporter.rb`)
-//! by way of `rust/project_rust_pipeline.rb::derive_lineage` — the SECOND
+//! by way of `rust/project_rust_pipeline.rb::derive_lineage` — the second
 //! (and, as of this module, LAST) named gap `pipeline.rs`'s own header used
 //! to carry. Read `rust/project_rust_pipeline.rb`'s own header on
 //! `derive_lineage` in full before touching this file — it explains, at
-//! length, exactly why a narrow text scan for ONE specific bind shape
+//! length, exactly why a narrow text scan for one specific bind shape
 //! (`<Ns>::<Aggregate>.persisted_by("Adapter")`, no `role:`) closes this
 //! gap without reopening ADR 0023's own permanent open-vocabulary escape
 //! for `.hecksagon` adapter binds (`parse::hecksagon` still shape-matches
@@ -12,7 +12,7 @@
 //! `optional_pass` already occupies, never inside `rust/parser`/
 //! `rust/codegen` themselves.
 //!
-//! THE ONE FACT NEEDED PER AGGREGATE: which adapter its sole authoritative
+//! **The one fact needed per aggregate**: which adapter its sole authoritative
 //! `persisted_by` bind names (`Ports::Persistence::BindingPolicy.resolve`),
 //! checked against which adapters declare `lineage_capable? = true`
 //! (`EraCheck.lineage_capable?`) — read off both sources the same "plain
@@ -70,12 +70,12 @@ pub fn run(ir: &mut Json, hecksagon_path: Option<&Path>, root: &Path) -> Result<
     Ok(())
 }
 
-/// PLAIN TEXT SCANNING for one specific shape — see this module's own
+/// Plain text scanning for one specific shape — see this module's own
 /// header. Skips any line naming a `role:` (the sole exclusion
 /// `BindingPolicy.resolve`'s own "authoritative" filter applies; every
 /// real corpus `persisted_by` call today is role-less, so this is a
-/// completeness guard against a FUTURE role-bearing bind, not dead code
-/// against the present corpus). The aggregate's own BARE name is
+/// completeness guard against a future role-bearing bind, not dead code
+/// against the present corpus). The aggregate's own bare name is
 /// whatever identifier run sits immediately before `.persisted_by(` —
 /// `Naming.demodulise`'s own job (strip everything up to the last `::`)
 /// falls out of taking the LAST identifier-character run in that
@@ -180,10 +180,10 @@ fn top_level_class_name(text: &str) -> Option<String> {
 /// real aggregate name in this corpus is plain ASCII PascalCase, the
 /// same assumption `Naming.snake`'s own callers already make):
 ///
-/// PASS 1 (`gsub(/([A-Z]+)([A-Z][a-z])/, '\1_\2')`) — an ACRONYM-TO-WORD
+/// Pass 1 (`gsub(/([A-Z]+)([A-Z][a-z])/, '\1_\2')`) — an acronym-to-word
 /// boundary: a maximal run of 2+ uppercase letters immediately followed
 /// by a lowercase letter gets an underscore inserted before the run's
-/// OWN LAST letter (`"ATMCard"` → `"ATM_Card"`: the run is `"ATMC"`,
+/// own last letter (`"ATMCard"` → `"ATM_Card"`: the run is `"ATMC"`,
 /// followed by `'a'`, so the underscore lands before `'C'` — verified
 /// against `Hecks::Naming.snake("ATMCard")` directly, a real
 /// corpus name (`Banking::ATMCard`) this exact shape needs). A run of
@@ -192,7 +192,7 @@ fn top_level_class_name(text: &str) -> Option<String> {
 /// capture group), so an ordinary word-initial capital
 /// (`"SafeDepositBox"`'s own `S`/`D`/`B`) is untouched here.
 ///
-/// PASS 2 (`gsub(/([a-z\d])([A-Z])/, '\1_\2')`) — the ordinary
+/// Pass 2 (`gsub(/([a-z\d])([A-Z])/, '\1_\2')`) — the ordinary
 /// camelCase boundary: a lowercase letter or digit immediately followed
 /// by an uppercase letter gets an underscore inserted between them
 /// (`"SafeDepositBox"` → `"Safe_Deposit_Box"`).

@@ -7,11 +7,11 @@
 //! typed struct rather than a second alphabetically-ordered
 //! `BTreeMap`). Confirmed real by banking.bluebook: `SafeDepositBox
 //! .Rented`'s own `authorize :vault_access, tenant: :branch_code`.
-//! `offset`/`cursor`/`nulls`/`inspect_query` are NOT exercised by any real
+//! `offset`/`cursor`/`nulls`/`inspect_query` are not exercised by any real
 //! corpus member yet — built anyway, the same "correct even if
 //! unreachable today" basis `emit.rs`'s own entity/process-manager
-//! renderers already used before Stage 4 exercised THEM for real.
-//! `consistency`/`freshness`/`use_index` are GONE (ADR 0025, "reads") —
+//! renderers already used before Stage 4 exercised them for real.
+//! `consistency`/`freshness`/`use_index` are gone (ADR 0025, "reads") —
 //! declared and parsed by nothing but the HTML form renderer, so they
 //! failed the corpus-use-and-doctest bar and were deleted rather than
 //! deprecated.
@@ -24,7 +24,7 @@ use crate::ruby_value;
 /// Applies one already-gated option call onto `options` — `word` is one
 /// of the five this module's own header names; `context` (`"Query"` or
 /// `"ReadModel"`) is passed through only for `positional_symbol`'s own
-/// diagnostic wording, since the two contexts declare IDENTICAL argument
+/// diagnostic wording, since the two contexts declare identical argument
 /// shapes for every one of these words.
 pub fn apply(
     file: &str,
@@ -35,7 +35,7 @@ pub fn apply(
 ) -> ParseResult<()> {
     match word {
         // `OffsetSpec`/`CursorSpec#to_h`'s own `{value: render_value(value)}`
-        // — the SAME "already-rendered text" shape `ir::LimitSpec.value`
+        // — the same "already-rendered text" shape `ir::LimitSpec.value`
         // uses, regardless of the argument's own declared lexical `kind`
         // (a number for `offset`, a symbol for `cursor` per
         // syntax.bluebook's own rows) — `ruby_value::read`/`render`
@@ -48,7 +48,7 @@ pub fn apply(
         // (`query_derive::refuse_on_target`'s own header explains why).
         "offset" => options.offset = Some(rendered_positional(args, 1)),
         "cursor" => options.cursor = Some(rendered_positional(args, 1)),
-        // `AuthorizationSpec#to_h` — BOTH fields bare `.to_s` (never
+        // `AuthorizationSpec#to_h` — both fields bare `.to_s` (never
         // Literal-rendered): `policy`/`tenant` a Symbol's plain name, no
         // leading colon. `positional_symbol`/`named_symbol` already strip
         // it, so no extra rendering step is needed here.
@@ -68,7 +68,7 @@ pub fn apply(
             }
         }
         // `def inspect_query(mode = :sql)` — the one option word whose
-        // positional argument is genuinely OPTIONAL (`required: "false"`
+        // positional argument is genuinely optional (`required: "false"`
         // in syntax.bluebook), defaulting to `:sql` when omitted.
         "inspect_query" => {
             let mode = match args.positional.iter().find(|(idx, _)| *idx == 1) {

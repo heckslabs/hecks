@@ -7,11 +7,11 @@ use crate::naming;
 use crate::skip_reason::{skip, SkipReason};
 use std::collections::HashMap;
 
-/// A list attribute carrying `admits:`/`pattern:` used to be refused
-/// here too (`constraint_list_problems`) — removed (docs/decisions/0051):
-/// confirmed against Ruby's real dispatch pipeline that neither is ever
-/// enforced on a list attribute regardless, so refusing to generate the
-/// operation at all was MORE restrictive than Ruby, not a real gap.
+/// A list attribute carrying `admits:`/`pattern:` is not refused here
+/// (docs/decisions/0051): confirmed against Ruby's real dispatch
+/// pipeline that neither is ever enforced on a list attribute
+/// regardless, so refusing to generate the operation at all would be
+/// more restrictive than Ruby, not a real gap.
 pub fn port_operation_skip_reason(
     operation: &Json,
     _owner_name: &str,
@@ -47,7 +47,7 @@ pub fn port_operation_skip_reason(
     None
 }
 
-/// ── ONE emitter per port operation.
+/// ── One emitter per port operation.
 pub fn emit_port_operation(
     exemplar: &Exemplar,
     operation: &Json,

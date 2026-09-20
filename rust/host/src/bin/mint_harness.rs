@@ -1,17 +1,17 @@
-// THE DIFFERENTIAL-PARITY HARNESS'S RUST-MINTS-IT-TOO SIDE (ADR-0030-
+// The differential-parity harness's Rust-mints-it-too side (ADR-0030-
 // in-progress step 8) — a small, dedicated binary, the same shape
-// `lineage_harness.rs` already established for the READ/WRITE half of
+// `lineage_harness.rs` already established for the read/write half of
 // this proof: no WASM kernel, no Lambda runtime, no RDS/TLS ceremony,
-// just the ONE boot-time decision `main.rs`'s own boot gate makes
+// just the one boot-time decision `main.rs`'s own boot gate makes
 // (`mint::decide_boot_action`, then whichever of hold_first/mint_era it
-// names), run ONCE per invocation — matching a real deployment's own
+// names), run once per invocation — matching a real deployment's own
 // "one boot decides, once" shape, not a loop over every possible era.
 //
 // This is the piece `rust_host_lineage_conformance_spec.rb`'s original
-// fixtures never needed: those all mint via REAL RUBY
-// (`LineageManager.check!`/`mint!`) and only ever prove Rust READS/
-// WRITES an already-minted era correctly. This binary lets the spec
-// mint the SAME edge a SECOND, independent way — Rust alone, zero Ruby
+// fixtures never needed: those all mint via real Ruby
+// (`LineageManager.check!`/`mint!`) and only ever prove Rust reads/
+// writes an already-minted era correctly. This binary lets the spec
+// mint the same edge a second, independent way — Rust alone, zero Ruby
 // process — against a separate scratch database, so the two `_head`
 // views can be diffed byte-for-byte: the actual proof that Rust's own
 // mint (schema DDL, translated data, everything) agrees with Ruby's,
@@ -46,16 +46,16 @@ use std::collections::HashMap;
 use tokio_postgres::NoTls;
 
 // CLI: `mint_harness <db_name> <owner_role> <domain> <ir_json_path>` —
-// connects as the SCHEMA OWNER (this binary's whole job is DDL/mint,
+// connects as the schema owner (this binary's whole job is DDL/mint,
 // never an RLS-fenced app read/write — that stays `lineage_harness`'s
 // job), same positional-arg convention (no URL) `lineage_harness.rs`'s
 // own header explains and justifies.
 //
-// `ir_json_path` points at a REAL `ir.json` (or a hand-built fixture
+// `ir_json_path` points at a real `ir.json` (or a hand-built fixture
 // shaped exactly like one) — this binary reads it exactly as
 // `crate::ir::ir()` does inside `bootstrap`, just from a file path
 // argument instead of `HECKS_IR_PATH`, so a spec can point two
-// successive invocations at two different shapes of the SAME domain
+// successive invocations at two different shapes of the same domain
 // (v1's ir.json with no `translations`, then v2's with the edge added)
 // to exercise era 1 and the drift-mint in two separate, ordinary boots.
 //
@@ -64,7 +64,7 @@ use tokio_postgres::NoTls;
 // era) is a non-zero exit with the error on stderr — this binary never
 // prints a fabricated "ok" for a boot that didn't actually happen,
 // unlike `lineage_harness`'s own per-operation error reporting (there
-// is only ONE operation here: boot).
+// is only one operation here: boot).
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let args: Vec<String> = std::env::args().collect();
@@ -90,7 +90,7 @@ async fn main() -> anyhow::Result<()> {
     let my_label = storage_shape::mint_label(&ir);
 
     // `ir.json`'s `aggregates` array, taken whole — a real deployment
-    // filters this to lineage-CAPABLE aggregates only (`ir::
+    // filters this to lineage-capable aggregates only (`ir::
     // lineage_capable_aggregates`, `bootstrap`'s own job); this harness
     // is only ever pointed at fixtures built for it, every one of them
     // entirely lineage-capable, so that filter has nothing to do here.
@@ -127,7 +127,7 @@ async fn main() -> anyhow::Result<()> {
                 .map_err(|e| anyhow::anyhow!("drifted from era {from_ordinal} ({from_label}) to {my_label} with no covering edge -- {e}"))?;
 
             // Approval-gate checking (compute/rekey edges) is deliberately
-            // NOT wired into this harness -- `approval.rs`'s own tests
+            // not wired into this harness -- `approval.rs`'s own tests
             // already prove that gate in isolation, and no fixture this
             // binary is used with declares a compute/rekey rule. A real
             // one would fail loudly inside `audit_before_mint`/`mint_era`
