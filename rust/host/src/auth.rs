@@ -169,6 +169,34 @@ async fn verify_id_token(id_token: &str, client_id: &str) -> Result<Claims, Stri
     })
 }
 
+// ---------- Account token (Accounts::Account's own email+password login) ----------
+
+// A flat, HMAC-signed claim -- ported behavior-for-behavior from
+// lifeadelics/adapters/http_server.rb's own sign_token/verify_token
+// (that file's own comment: "not a JWT library, since there's exactly
+// one shape to sign"). Deliberately separate from Session/
+// session_cookie above: those carry identity_id/role for the Governance/
+// Member-shaped admin console (auth.rs's own header), which
+// Accounts::Account has none of by design (accounts.bluebook's own
+// vision: "presupposes nothing about roles, permissions") -- an email
+// and an expiry is the whole claim.
+pub fn account_token(secret: &str, email: &str, ttl_secs: u64) -> String {
+    let payload = json!({"email": email, "exp": now_secs() + ttl_secs});
+    let encoded = base64_encode(payload.to_string().as_bytes());
+    format!("{encoded}.{}", sign(secret, &encoded))
+}
+
+pub fn verify_account_token(secret: &str, token: &str) -> Option<String> {
+    let payload = verify_sig(secret, token)?;
+    let bytes = base64_decode(&payload);
+    let value: Value = serde_json::from_slice(&bytes).ok()?;
+    let exp = value.get("exp")?.as_u64()?;
+    if now_secs() > exp {
+        return None;
+    }
+    value.get("email")?.as_str().map(|s| s.to_string())
+}
+
 // ---------- Session cookie ----------
 
 pub fn session_cookie(secret: &str, session: &Session) -> String {
@@ -662,6 +690,23 @@ mod tests {
 
     fn sign_test_token(secret: &str, payload: &str) -> String {
         format!("{payload}.{}", sign(secret, payload))
+    }
+
+    #[test]
+    fn account_token_round_trips_and_rejects_tampering_or_the_wrong_secret() {
+        let token = account_token("s3cret", "chris@embryonaut.ai", 60);
+        assert_eq!(verify_account_token("s3cret", &token).as_deref(), Some("chris@embryonaut.ai"));
+        assert_eq!(verify_account_token("wrong-secret", &token), None);
+        assert_eq!(verify_account_token("s3cret", "garbage.notasignature"), None);
+    }
+
+    #[test]
+    fn account_token_rejects_once_expired() {
+        // ttl_secs=0 -- now_secs() + 0 is already <= now_secs() by the
+        // time verify_account_token's own now_secs() check runs.
+        let token = account_token("s3cret", "chris@embryonaut.ai", 0);
+        std::thread::sleep(std::time::Duration::from_secs(1));
+        assert_eq!(verify_account_token("s3cret", &token), None);
     }
 
     #[test]
