@@ -212,6 +212,22 @@ module Hecks
               Type: AWS::EC2::Subnet::Id
             OwningSubnetBId:
               Type: AWS::EC2::Subnet::Id
+            # PUBLIC subnets, NOT OwningSubnetAId/OwningSubnetBId above — a
+            # real, live deploy (lifeadelics-platform) found the ALB placed in
+            # the private pair creates successfully and reports its target
+            # health as healthy (health checks run from inside the VPC), yet
+            # is completely unreachable from outside it:
+            # OwningSubnetAId/OwningSubnetBId have MapPublicIpOnLaunch: false
+            # and no Internet Gateway route. These two — resolved from the
+            # owner stack's own PublicSubnetId/BastionSubnetId Outputs,
+            # MapPublicIpOnLaunch: true with a real 0.0.0.0/0 -> igw route —
+            # are the pair that actually works for an internet-facing ALB.
+            # Service.NetworkConfiguration below still (correctly) uses the
+            # private pair for the tasks themselves — only the ALB moves.
+            OwningPublicSubnetAId:
+              Type: AWS::EC2::Subnet::Id
+            OwningPublicSubnetBId:
+              Type: AWS::EC2::Subnet::Id
             OwningSecurityGroupId:
               Type: AWS::EC2::SecurityGroup::Id
             OwningDatabaseEndpoint:
@@ -338,6 +354,15 @@ module Hecks
                   Family: #{infra_name}
                   RequiresCompatibilities: [FARGATE]
                   NetworkMode: awsvpc
+                  # ARM64, not Fargate's own x86_64 default — matching the
+                  # generated Makefile's own aarch64-unknown-linux-gnu build
+                  # (below) and Lambda's own arm64 toolchain this reuses; a
+                  # container built for the wrong arch fails at task start,
+                  # not at build time, so this has to agree with the image
+                  # docker-build actually pushes.
+                  RuntimePlatform:
+                    CpuArchitecture: ARM64
+                    OperatingSystemFamily: LINUX
                   Cpu: "#{cpu}"
                   Memory: "#{memory}"
                   ExecutionRoleArn: !GetAtt #{execution_role_id}.Arn
@@ -373,6 +398,20 @@ module Hecks
                         # Lambda path.
                         - Name: HECKS_WEB
                           Value: #{target.state[:web].value}
+                        # HECKS_WASM_PATH/HECKS_IR_PATH — main.rs requires
+                        # both unconditionally at boot (ir::ir().ok_or(...)?,
+                        # no fallback, and HECKS_WASM_PATH for every
+                        # dispatch) regardless of `web`/HECKS_SERVE_MODE. A
+                        # container built with neither set crashes before
+                        # ever reaching its own serve loop — found live
+                        # deploying lifeadelics-platform's own domain
+                        # container, fixed here so every Fargate domain ships
+                        # both sidecars by default. Paths match the
+                        # Dockerfile's own COPY destinations, below.
+                        - Name: HECKS_WASM_PATH
+                          Value: /usr/local/bin/#{domain_name}.wasm
+                        - Name: HECKS_IR_PATH
+                          Value: /usr/local/bin/#{domain_name}.ir.json
                         # TMPL:db_env
 
               #{target_group_id}:
@@ -392,7 +431,7 @@ module Hecks
                   Scheme: internet-facing
                   Type: application
                   SecurityGroups: [!Ref #{alb_sg_id}]
-                  Subnets: #{shared ? "[!Ref OwningSubnetAId, !Ref OwningSubnetBId]" : "[!Ref #{db_id}PublicSubnet, !Ref #{db_id}BastionPublicSubnet]"}
+                  Subnets: #{shared ? "[!Ref OwningPublicSubnetAId, !Ref OwningPublicSubnetBId]" : "[!Ref #{db_id}PublicSubnet, !Ref #{db_id}BastionPublicSubnet]"}
 
               #{listener_id}:
                 Type: AWS::ElasticLoadBalancingV2::Listener
@@ -471,6 +510,11 @@ module Hecks
                 && rm -rf /var/lib/apt/lists/*
 
             COPY #{domain_name}-host /usr/local/bin/#{domain_name}-host
+            # The .wasm/.ir.json sidecars main.rs requires at boot —
+            # HECKS_WASM_PATH/HECKS_IR_PATH (template.yaml's own
+            # ContainerDefinitions Environment) point at these exact paths.
+            COPY #{domain_name}.wasm /usr/local/bin/#{domain_name}.wasm
+            COPY #{domain_name}.ir.json /usr/local/bin/#{domain_name}.ir.json
 
             ENV PORT=#{port}
             ENV BIND=0.0.0.0
@@ -495,9 +539,25 @@ module Hecks
             IMAGE_TAG  := latest
 
             build:
-            \t@rustup target list --installed 2>/dev/null | grep -qx x86_64-unknown-linux-gnu || rustup target add x86_64-unknown-linux-gnu
-            \tcd $(ROOT)/rust/host && rustup run stable cargo build --release --target x86_64-unknown-linux-gnu
-            \tcp $(ROOT)/rust/host/target/x86_64-unknown-linux-gnu/release/bootstrap #{domain_name}-host
+            # aarch64, not x86_64 — matches template.yaml's own
+            # RuntimePlatform: ARM64 (this Makefile has to build the same
+            # architecture the task definition declares, or the container
+            # fails at task start, not at build time), and reuses the same
+            # working aarch64-unknown-linux-gnu toolchain the Lambda deploy
+            # path already depends on, rather than standing up a second,
+            # x86_64-only one.
+            \t@rustup target list --installed 2>/dev/null | grep -qx aarch64-unknown-linux-gnu || rustup target add aarch64-unknown-linux-gnu
+            # The .wasm/.ir.json sidecars main.rs requires at boot,
+            # unconditionally — see template.yaml's own HECKS_WASM_PATH/
+            # HECKS_IR_PATH comment for why. bin/project_wasm is the same
+            # generator the Lambda deploy path already uses to produce
+            # rust/dist/#{domain_name}.wasm/.ir.json from this domain's own
+            # .bluebook.
+            \tcd $(ROOT) && bin/project_wasm $(DOMAIN)
+            \tcd $(ROOT)/rust/host && rustup run stable cargo build --release --target aarch64-unknown-linux-gnu
+            \tcp $(ROOT)/rust/host/target/aarch64-unknown-linux-gnu/release/bootstrap #{domain_name}-host
+            \tcp $(ROOT)/rust/dist/#{domain_name}.wasm #{domain_name}.wasm
+            \tcp $(ROOT)/rust/dist/#{domain_name}.ir.json #{domain_name}.ir.json
 
             .PHONY: ecr-login
             ecr-login:
@@ -505,7 +565,10 @@ module Hecks
 
             .PHONY: docker-build
             docker-build: build
-            \tdocker build --platform linux/amd64 -t #{infra_name}:$(IMAGE_TAG) .
+            # linux/arm64, not the generator's old amd64 default — has to
+            # match RuntimePlatform/the binary this Makefile's own build:
+            # step just cross-compiled, above.
+            \tdocker build --platform linux/arm64 -t #{infra_name}:$(IMAGE_TAG) .
 
             .PHONY: docker-push
             docker-push: ecr-login
