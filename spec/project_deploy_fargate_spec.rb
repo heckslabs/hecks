@@ -96,6 +96,23 @@ RSpec.describe "bin/project_deploy — deployed_to(\"AwsFargate\")", :io do
     expect(types).to include("AWS::ECS::TaskDefinition", "AWS::ECS::Service", "AWS::ECR::Repository")
   end
 
+  it "fronts the ALB with a CloudFront distribution pinned to Managed-CachingDisabled" do
+    files = generate(valid_fargate_world)
+    doc = YAML.safe_load(files["template.yaml"], permitted_classes: [], aliases: true)
+    distribution = doc["Resources"].values.find { |resource| resource["Type"] == "AWS::CloudFront::Distribution" }
+
+    expect(distribution).not_to be_nil
+    behavior = distribution["Properties"]["DistributionConfig"]["DefaultCacheBehavior"]
+    # Managed-CachingDisabled/Managed-AllViewer — the safe default this
+    # generator has no way to reason its way past; fargate.rb's own
+    # CloudFront resource comment has the full reasoning (a hand-authored
+    # stack that loosened this, lifeadelics, 2026-09-21, served one
+    # signed-in session's own response to a different request).
+    expect(behavior["CachePolicyId"]).to eq("4135ea2d-6df8-44a3-9df3-4b5a84be39ad")
+    expect(behavior["OriginRequestPolicyId"]).to eq("216adef6-5c7f-47e4-b989-5492eafa07d3")
+    expect(doc["Outputs"]).to have_key("CloudFrontDomain")
+  end
+
   it "sizes the TaskDefinition from the domain's own cpu/memory/port settings" do
     files = generate(valid_fargate_world)
     doc = YAML.safe_load(files["template.yaml"], permitted_classes: [], aliases: true)
