@@ -10,8 +10,6 @@
 # `--no-default-features --features <name>`.
 [features]
 default = ["has_many_fixture"]
-accounts_fixture = []
-checkout_fixture = []
 lifeadelics = []
 embryonaut_vendoring_demo = []
 generated_route_append = []
