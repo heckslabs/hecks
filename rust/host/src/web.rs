@@ -339,6 +339,19 @@ async fn auth_route(
 
         ("GET", "/accounts/me") => Some(accounts_me_route(cookies, secret)),
 
+        // GET /accounts/sso-token, ported from http_server.rb's own
+        // route (found missing live, not in #786's own port: every
+        // "Site Content" click 401'd here, silently bounced through
+        // /admin-login.html and back to /admin.html — looked like the
+        // dashboard reloading itself inside its own iframe). Verified by
+        // cms/src/endpoints/sso.ts's own verifyHandoffToken, using the
+        // exact same account_token wire format (base64url payload +
+        // hex-HMAC-SHA256 signature) as the lifeadelics_session cookie
+        // itself — deploy-aws/platform/template.yaml's own SessionSecret
+        // is shared with the cms container as AUTH_SECRET specifically
+        // so the two sides verify the same token.
+        ("GET", "/accounts/sso-token") => Some(accounts_sso_token_route(cookies, secret)),
+
         ("GET", "/auth/google") => match auth::authorization_url(&redirect_uri(), secret) {
             Ok(url) => Some(redirect(&url)),
             Err(e) => Some(respond(500, "text/plain", &format!("Google sign-in isn't configured: {e}"))),
@@ -475,6 +488,26 @@ fn accounts_me_route(cookies: &HashMap<String, String>, secret: &str) -> Value {
         Some(email) => respond(200, "application/json", &json!({"email": email}).to_string()),
         None => not_logged_in(),
     }
+}
+
+// GET /accounts/sso-token — mints the short-lived (60s, Ruby's own
+// SSO_TOKEN_TTL: "one redirect's worth, deliberately tight") handoff
+// token src/pages/api/cms-sso.ts exchanges for a real Payload session at
+// cms/src/endpoints/sso.ts. Re-verifies the requester's own
+// lifeadelics_session cookie first — same account_token scheme, just a
+// much shorter TTL and returned as JSON instead of a cookie, since this
+// token is a one-shot redirect target, never stored.
+fn accounts_sso_token_route(cookies: &HashMap<String, String>, secret: &str) -> Value {
+    const SSO_TOKEN_TTL_SECS: u64 = 60;
+    let not_logged_in = || respond(401, "application/json", &json!({"error": "not logged in"}).to_string());
+    let Some(token) = cookies.get("lifeadelics_session") else {
+        return not_logged_in();
+    };
+    let Some(email) = auth::verify_account_token(secret, token) else {
+        return not_logged_in();
+    };
+    let sso_token = auth::account_token(secret, &email, SSO_TOKEN_TTL_SECS);
+    respond(200, "application/json", &json!({"token": sso_token}).to_string())
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -2944,6 +2977,33 @@ mod tests {
         let mut tampered = HashMap::new();
         tampered.insert("lifeadelics_session".to_string(), "garbage.notasignature".to_string());
         assert_eq!(accounts_me_route(&tampered, secret)["statusCode"], 401);
+    }
+
+    #[test]
+    fn accounts_sso_token_route_mints_a_short_lived_token_verifiable_by_the_same_secret() {
+        let secret = "s3cret";
+        let session_token = auth::account_token(secret, "ada@example.com", 60 * 60 * 24 * 14);
+
+        let mut cookies = HashMap::new();
+        cookies.insert("lifeadelics_session".to_string(), session_token);
+        let response = accounts_sso_token_route(&cookies, secret);
+        assert_eq!(response["statusCode"], 200, "{response:?}");
+        let body: Value = serde_json::from_str(response["body"].as_str().unwrap()).unwrap();
+        let sso_token = body["token"].as_str().expect("a sso token string");
+
+        // The whole point: cms/src/endpoints/sso.ts verifies this same
+        // token with the same wire format (verify_account_token is the
+        // Rust side of that same scheme) — a real, decodable token, not
+        // an opaque string this route just happens to return 200 with.
+        assert_eq!(auth::verify_account_token(secret, sso_token).as_deref(), Some("ada@example.com"));
+
+        // Missing or invalid session cookie -- refused, no token minted.
+        let empty = HashMap::new();
+        assert_eq!(accounts_sso_token_route(&empty, secret)["statusCode"], 401);
+
+        let mut tampered = HashMap::new();
+        tampered.insert("lifeadelics_session".to_string(), "garbage.notasignature".to_string());
+        assert_eq!(accounts_sso_token_route(&tampered, secret)["statusCode"], 401);
     }
 
     #[tokio::test]
