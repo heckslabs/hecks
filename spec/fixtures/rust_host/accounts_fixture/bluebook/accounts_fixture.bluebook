@@ -1,17 +1,15 @@
 # web.rs's accounts_register_route/accounts_login_route/accounts_me_route
-# tests dispatch into this — a verbatim copy of embryonaut_bluebooks' own
-# accounts package (vendor/embryonaut_bluebooks/accounts/bluebook/
-# accounts.bluebook, lifeadelics repo), not trimmed: that package is
-# already minimal by its own design (its own vision comment:
-# "deliberately kept minimal (email + password hash, one Register
-# command)"). Its OWN fixture directory, not folded into checkout_fixture
-# alongside it -- confirmed live: adding a second top-level
-# Hecks.hecksagon/bluebook chapter named "Accounts" there flipped
-# bin/project_wasm's own primary-domain selection away from
-# "CheckoutFixture" (alphabetically, "Accounts" sorts first), silently
-# dropping Event/Registration from checkout_fixture.ir.json's own
-# aggregate list and breaking every api.rs presentation test that reads
-# it. A dedicated, single-chapter fixture has no such ambiguity.
+# tests dispatch into this -- embryonaut_bluebooks' own accounts package
+# (vendor/embryonaut_bluebooks/accounts/bluebook/accounts.bluebook,
+# lifeadelics repo), minus its own "Listing" query (see below). Its OWN
+# fixture directory, not folded into checkout_fixture alongside it --
+# confirmed live: adding a second top-level Hecks.hecksagon/bluebook
+# chapter named "Accounts" there flipped bin/project_wasm's own
+# primary-domain selection away from "CheckoutFixture" (alphabetically,
+# "Accounts" sorts first), silently dropping Event/Registration from
+# checkout_fixture.ir.json's own aggregate list and breaking every api.rs
+# presentation test that reads it. A dedicated, single-chapter fixture
+# has no such ambiguity.
 Hecks.bluebook "Accounts" do
   vision "A small, reusable admin-identity capability: one login record per human, so a consuming project's own admin UI never has to hand-roll password storage. Deliberately kept minimal (email + password hash, one Register command) — the same generic-subdomain restraint the notes package documents for itself: this presupposes nothing about roles, permissions, or what an account is FOR beyond being able to authenticate. A consuming project that syncs this into another system (e.g. a headless CMS's own users collection, for single-sign-on) does that syncing itself, in its own driving adapter — this package has no concept of any other system existing."
   supporting
@@ -46,9 +44,19 @@ Hecks.bluebook "Accounts" do
       emits "AccountRegistered"
     end
 
-    query "Listing" do
-      description "Every account, alphabetically by email."
-      order_by "email.value"
-    end
+    # THE REAL PACKAGE'S OWN "Listing" QUERY IS DELIBERATELY LEFT OUT --
+    # none of web.rs's accounts_register_route/accounts_login_route/
+    # accounts_me_route dispatch or need it (login reads raw instances
+    # via dispatch::read + instances_for, not a declared query), and its
+    # own `order_by "email.value"` exposed a real, previously-undiscovered
+    # Ruby/Rust parser gap: Ruby's builder accepts a STRING order_by
+    # argument naming a nested value-object member; hecks-parse (Rust)
+    # refuses it outright ("reads as text (expected one of: symbol)") --
+    # confirmed live, this exact fixture is the first time that package's
+    # own real source ever ran through Rust's parser-parity corpus at
+    # all (it normally only loads via uses_embryonaut_bluebook, from
+    # lifeadelics, a separate repo this corpus never parses). A real,
+    # separate parser bug worth a follow-up, not something this fixture
+    # needs to work around by testing a query nothing here exercises.
   end
 end
