@@ -19,29 +19,41 @@ module Hecks
       #
       # A plain CloudFormation stack — an `AWS::ECR::Repository`, an
       # `AWS::ECS::TaskDefinition` (`RequiresCompatibilities: [FARGATE]`,
-      # `NetworkMode: awsvpc`) running one container built from the
-      # domain's own `rust/host`, an `AWS::ECS::Service` behind an
-      # Application Load Balancer, and least-privilege task execution/task
+      # `NetworkMode: awsvpc`, `RuntimePlatform: ARM64` — matching the
+      # generated Makefile's own aarch64 cross-compile, and the arm64
+      # toolchain the Lambda target already depends on) running one
+      # container built from the domain's own `rust/host`, an
+      # `AWS::ECS::Service` behind an Application Load Balancer fronted
+      # by an `AWS::CloudFront::Distribution` (real HTTPS, and a
+      # `DefaultCacheBehavior` pinned to Managed-CachingDisabled — see
+      # that resource's own comment for why nothing more permissive is a
+      # safe default here), and least-privilege task execution/task
       # roles — plus the same private VPC/RDS-or-Aurora instance and
       # temporary era-minting bastion `Lambda` generates, via `Shared`.
       #
       # No SAM: this is deployed with plain `aws cloudformation deploy`,
       # never `sam deploy`, so there is no `samconfig.toml` here. A
-      # `Dockerfile` packages `rust/host`'s own compiled binary — built by
-      # the generated Makefile before `docker build` ever runs, the same
-      # "build outside the container, ship the artifact" shape
-      # `lifeadelics/domain/Dockerfile` already uses for a tebako-pressed
-      # Ruby binary.
+      # `Dockerfile` packages `rust/host`'s own compiled binary, plus the
+      # `.wasm`/`.ir.json` sidecar `main.rs` requires unconditionally at
+      # boot — built by the generated Makefile before `docker build`
+      # ever runs, the same "build outside the container, ship the
+      # artifact" shape `lifeadelics/domain/Dockerfile` already uses for
+      # a tebako-pressed Ruby binary.
       #
       # ## What this assumes, and does not build
       #
-      # `rust/host` running as a long-lived HTTP server on this domain's
-      # own `port`, rather than as a Lambda custom-runtime process
-      # (`bootstrap`, `Lambda`'s own binary), is a real, separate
-      # capability this target assumes exists — not one this generator
-      # builds. The generated `ContainerDefinitions` and target group both
-      # assume the container answers plain HTTP on `port`; wiring that
-      # serve loop into `rust/host/src/main.rs` is future, undone work.
+      # `rust/host` runs as a long-lived HTTP server on this domain's own
+      # `port` here, not as a Lambda custom-runtime process (`bootstrap`,
+      # `Lambda`'s own binary): `HECKS_SERVE_MODE: "1"` (below, in
+      # `ContainerDefinitions[0].Environment`) is `rust/host/src/main.rs`'s
+      # own top-of-`main` switch into `server.rs`'s axum-based server,
+      # which answers this stack's own `GET /` health check with a bare,
+      # dispatch-free `200` and routes every other request through the
+      # same per-invocation dispatch logic the Lambda target's `bootstrap`
+      # binary already runs — see `server.rs`'s own header for the
+      # concurrency reasoning (the boot-time Postgres client is already
+      # `Arc<Mutex<...>>`-shared, and already anticipated exactly this,
+      # per `dispatch.rs`'s own comment on `handle`'s locking).
       module Fargate
         extend Projector::Target
 
@@ -192,6 +204,7 @@ module Hecks
           alb_id             = "#{logical_id}Alb"
           alb_sg_id          = "#{logical_id}AlbSecurityGroup"
           listener_id        = "#{logical_id}Listener"
+          distribution_id    = "#{logical_id}Distribution"
 
           stack_outputs = Shared.stack_outputs(
             shared: shared, db_id: db_id, db_ref_id: db_ref_id, secret_intrinsic: secret_intrinsic,
@@ -263,12 +276,25 @@ module Hecks
                 Type: AWS::EC2::SecurityGroup
                 Properties:
                   VpcId: #{shared ? "!Ref OwningVpcId" : "!Ref #{db_id}Vpc"}
-                  GroupDescription: #{alb_sg_id} - public HTTP ingress, forwarded to #{logical_id} only
+                  GroupDescription: #{alb_sg_id} - HTTP ingress from CloudFront only, forwarded to #{logical_id} only
                   SecurityGroupIngress:
+                    # pl-3b927c52 — com.amazonaws.global.cloudfront.origin-
+                    # facing, AWS's own global, account-agnostic managed
+                    # prefix list (confirmed live: `aws ec2 describe-managed-
+                    # prefix-lists`, OwnerId "AWS", same id in every
+                    # account/region). NOT 0.0.0.0/0 — the whole reason
+                    # #{distribution_id} below exists is Managed-
+                    # CachingDisabled on every session-cookie-driven route;
+                    # leaving the ALB itself open to the public internet on
+                    # this same port would let anyone bypass that
+                    # distribution (and its HTTPS) entirely and hit the
+                    # plain-HTTP origin directly — the exact gap a real code
+                    # review caught the first time this resource was added
+                    # (lifeadelics-platform, 2026-09-21).
                     - IpProtocol: tcp
                       FromPort: 80
                       ToPort: 80
-                      CidrIp: 0.0.0.0/0
+                      SourcePrefixListId: pl-3b927c52
 
               #{logical_id}IngressFromAlb:
                 Type: AWS::EC2::SecurityGroupIngress
@@ -385,17 +411,25 @@ module Hecks
                           Value: "1"
                         - Name: PORT
                           Value: "#{port}"
+                        # `rust/host/src/server.rs`'s own top-of-`main`
+                        # switch — without it, this container runs as the
+                        # Lambda custom-runtime process `Lambda`'s own
+                        # generated binary always has, which blocks
+                        # forever polling a Runtime API that doesn't exist
+                        # here, never answering the health check or
+                        # anything else on `port`.
+                        - Name: HECKS_SERVE_MODE
+                          Value: "1"
                         # `web "Rust"` vs `web "None"` is otherwise inert
                         # here today — both modes generate the identical
                         # task/service/target-group shape, since a Fargate
                         # task always answers HTTP on `port` for dispatch
                         # requests either way. Passed through so
-                        # `rust/host`'s own future long-lived server loop
-                        # (this module's own header names the gap) can read
-                        # it and decide whether to also serve the public
-                        # web UI in-process, the same `web`-shaped choice
-                        # `Lambda`'s own `rust_web` already makes for the
-                        # Lambda path.
+                        # `rust/host`'s own server loop (server.rs) can
+                        # read it and decide whether to also serve the
+                        # public web UI in-process, the same `web`-shaped
+                        # choice `Lambda`'s own `rust_web` already makes
+                        # for the Lambda path.
                         - Name: HECKS_WEB
                           Value: #{target.state[:web].value}
                         # HECKS_WASM_PATH/HECKS_IR_PATH — main.rs requires
@@ -462,9 +496,76 @@ module Hecks
                       ContainerPort: #{port}
                       TargetGroupArn: !Ref #{target_group_id}
 
+              # Real HTTPS (the ALB's own Listener above is HTTP-only —
+              # nothing else in this stack terminates TLS) and, just as
+              # important, the ONE safe default this generator can offer
+              # for caching it has no way to reason about: Managed-
+              # CachingDisabled. This domain's own routes — including
+              # every hecks-native /login, /logout, /auth/google(/callback),
+              # /admin/members request (web.rs's own auth_gate/auth_route,
+              # generic across every domain, not just this one's own
+              # dispatch commands) — are all session-cookie-driven, and
+              # this generator has no way to tell which of a domain's own
+              # paths would ever be safe to cache. Found live, the hard
+              # way (lifeadelics, 2026-09-21): a hand-authored CloudFront
+              # stack applied the OPPOSITE default — a custom, cookie-
+              # blind cache policy with a 90-120s TTL — and it served one
+              # signed-in session's own response (a short-lived SSO
+              # handoff token among them) back to a different, unrelated
+              # request within that window. A domain that DOES know one
+              # of its own paths is genuinely safe to cache (a public,
+              # non-personalized page) adds its own more specific
+              # CacheBehavior by hand, the same way lifeadelics's own
+              # hand-extended three-container stack already does for
+              # /_astro/*, /videos/*, and friends — never by loosening
+              # this one.
+              #{distribution_id}:
+                Type: AWS::CloudFront::Distribution
+                Properties:
+                  DistributionConfig:
+                    Enabled: true
+                    HttpVersion: http2
+                    # No ACM/custom domain here — this generator has no
+                    # notion of one (deploy.bluebook's own FargateTarget
+                    # declares no `domain` attribute for it) and CloudFront
+                    # requires an ACM cert in us-east-1 specifically to
+                    # attach a custom Aliases entry, a real cross-region
+                    # dependency this generator can't assume. CloudFront's
+                    # own default *.cloudfront.net certificate/hostname
+                    # are what Outputs.CloudFrontDomain below reports;
+                    # point a real domain's DNS at it by hand, same
+                    # "generated, extend by hand" posture this whole file
+                    # already has for anything past its own baseline.
+                    ViewerCertificate:
+                      CloudFrontDefaultCertificate: true
+                    Origins:
+                      - Id: #{alb_id}Origin
+                        DomainName: !GetAtt #{alb_id}.DNSName
+                        CustomOriginConfig:
+                          OriginProtocolPolicy: http-only
+                          HTTPPort: 80
+                          HTTPSPort: 443
+                    DefaultCacheBehavior:
+                      TargetOriginId: #{alb_id}Origin
+                      ViewerProtocolPolicy: redirect-to-https
+                      Compress: true
+                      AllowedMethods: [GET, HEAD, OPTIONS, PUT, PATCH, POST, DELETE]
+                      CachedMethods: [GET, HEAD]
+                      # Managed-CachingDisabled — see this resource's own
+                      # header comment for why nothing else is safe here
+                      # by default.
+                      CachePolicyId: 4135ea2d-6df8-44a3-9df3-4b5a84be39ad
+                      # Managed-AllViewer — forwards every cookie/header/
+                      # query string through uncached, so rust/host's own
+                      # session-cookie-based auth sees the real request
+                      # exactly as the browser sent it.
+                      OriginRequestPolicyId: 216adef6-5c7f-47e4-b989-5492eafa07d3
+
             Outputs:
               ServiceUrl:
                 Value: !Sub "http://${#{alb_id}.DNSName}"
+              CloudFrontDomain:
+                Value: !GetAtt #{distribution_id}.DomainName
               #{stack_outputs.map { |o| "#{o[:key]}:\n    Value: #{o[:ref]}" }.join("\n  ")}
           YAML
 
