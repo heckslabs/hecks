@@ -113,6 +113,20 @@ RSpec.describe "bin/project_deploy — deployed_to(\"AwsFargate\")", :io do
     expect(doc["Outputs"]).to have_key("CloudFrontDomain")
   end
 
+  it "restricts the ALB's own HTTP ingress to CloudFront's own prefix list, not the open internet" do
+    files = generate(valid_fargate_world)
+    doc = YAML.safe_load(files["template.yaml"], permitted_classes: [], aliases: true)
+    _name, alb_sg = doc["Resources"].find { |name, _resource| name.end_with?("AlbSecurityGroup") }
+    rule = alb_sg["Properties"]["SecurityGroupIngress"].first
+
+    # pl-3b927c52 — com.amazonaws.global.cloudfront.origin-facing. A
+    # CachingDisabled distribution in front of an ALB that's still open
+    # on 0.0.0.0/0 protects nothing: anyone can bypass it and hit the
+    # plain-HTTP origin directly.
+    expect(rule["SourcePrefixListId"]).to eq("pl-3b927c52")
+    expect(rule).not_to have_key("CidrIp")
+  end
+
   it "sizes the TaskDefinition from the domain's own cpu/memory/port settings" do
     files = generate(valid_fargate_world)
     doc = YAML.safe_load(files["template.yaml"], permitted_classes: [], aliases: true)

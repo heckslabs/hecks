@@ -275,12 +275,25 @@ module Hecks
                 Type: AWS::EC2::SecurityGroup
                 Properties:
                   VpcId: #{shared ? "!Ref OwningVpcId" : "!Ref #{db_id}Vpc"}
-                  GroupDescription: #{alb_sg_id} - public HTTP ingress, forwarded to #{logical_id} only
+                  GroupDescription: #{alb_sg_id} - HTTP ingress from CloudFront only, forwarded to #{logical_id} only
                   SecurityGroupIngress:
+                    # pl-3b927c52 — com.amazonaws.global.cloudfront.origin-
+                    # facing, AWS's own global, account-agnostic managed
+                    # prefix list (confirmed: `aws ec2 describe-managed-
+                    # prefix-lists`, OwnerId "AWS", same id in every
+                    # account/region). NOT 0.0.0.0/0 — the whole reason
+                    # #{distribution_id} above exists is Managed-
+                    # CachingDisabled on every session-cookie-driven
+                    # route; leaving the ALB itself open to the public
+                    # internet on this same port would let anyone bypass
+                    # that distribution (and its HTTPS) entirely and hit
+                    # the plain-HTTP origin directly — the exact gap a
+                    # code review caught the first time this resource was
+                    # added.
                     - IpProtocol: tcp
                       FromPort: 80
                       ToPort: 80
-                      CidrIp: 0.0.0.0/0
+                      SourcePrefixListId: pl-3b927c52
 
               #{logical_id}IngressFromAlb:
                 Type: AWS::EC2::SecurityGroupIngress
