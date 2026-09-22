@@ -26,6 +26,9 @@ module Hecks
 
           @hecksagons.each_value do |hexagon|
             refuse_ungoverned_roles!(hexagon)
+            refuse_unwired_framework_members!(hexagon)
+            refuse_unwired_vendored_bluebooks!(hexagon)
+            refuse_bounded_without_acl!(hexagon)
 
             hexagon.binds.each do |bind|
               # A domain-level default (§0) — `persisted_by "Heki"` bare,
@@ -259,6 +262,65 @@ module Hecks
                 "#{hexagon.domain}'s hecksagon never #{authorization_attachment_hint} — role is only " \
                 "real access control once an authorization provider is attached to check it against; " \
                 "without that it is silent decoration, the exact defect this refusal exists to catch"
+        end
+
+        # A vendored embryonaut bluebook is a bounded context, not a pile of
+        # types the consumer inlines. `uses_embryonaut_bluebook` only loads
+        # the package's `.bluebook` files — persistence, Governance, and the
+        # anti-corruption layer (`translates` field mapping) live on a named
+        # sibling hecksagon the CONSUMER must declare. Without that hexagon
+        # the package has no wiring of its own, and cross-context field
+        # mapping has nowhere to be written. Breaking in 2.0: attaching a
+        # vendored chapter without `Hecks.hecksagon "PackageName"` refuses
+        # at boot rather than silently sharing the consumer's hexagon.
+        def refuse_unwired_vendored_bluebooks!(hexagon)
+          Array(hexagon.vendored_bluebooks).each do |package|
+            chapter_name = Naming.pascal(package)
+            next if hecksagon(chapter_name)
+
+            raise WiringError,
+                  "#{hexagon.domain} attaches vendored bluebook #{package.inspect} " \
+                  "(bounded context #{chapter_name}) but never declared " \
+                  "Hecks.hecksagon #{chapter_name.inspect} — put that sibling " \
+                  "(and any `translates` ACL) in context_map.hecksagon; " \
+                  "same-name blocks merge, order-independent."
+          end
+        end
+
+        # Same gate as vendored packages: `uses_framework` loads a bounded
+        # context, and the consumer must declare the sibling hecksagon that
+        # is its ACL. Governance/Identity/Privacy already follow this in
+        # every real consumer; boot now refuses a silent miss.
+        def refuse_unwired_framework_members!(hexagon)
+          Array(hexagon.framework_members).each do |member|
+            next if hecksagon(member)
+
+            raise WiringError,
+                  "#{hexagon.domain} attaches framework member #{member.inspect} " \
+                  "(bounded context) but never declared Hecks.hecksagon " \
+                  "#{member.inspect} — put that sibling (and any `translates` " \
+                  "ACL) in context_map.hecksagon; same-name blocks merge, " \
+                  "order-independent."
+          end
+        end
+
+        # An explicit `bounded` mark on a consumer chapter always needs an
+        # ACL — at least one `translates` block. Any field can be mapped;
+        # the BC does not list which. `uses_framework` / `uses_embryonaut_bluebook`
+        # mark the ATTACHED chapter bounded (module wrap, no Object shortcut)
+        # and require the sibling hecksagon above; they do not require a
+        # `translates` on that sibling unless the consumer also wrote `bounded`.
+        def refuse_bounded_without_acl!(hexagon)
+          return unless hexagon.bounded?
+          return if hexagon.translates.any?
+
+          raise WiringError,
+                "#{hexagon.domain} is marked bounded but never declared a " \
+                "translates ACL — a bounded chapter wraps in its own module and " \
+                "cross-context field mapping lives on the hecksagon, not in " \
+                "rust/host and not as a field list on the bluebook. " \
+                "Add `translates \"Name\" do on Foreign::Event; trigger Local::Command, " \
+                "with: { ... } end` (any field) or drop `bounded`."
         end
 
         # The suggestion, derived from whichever framework members actually

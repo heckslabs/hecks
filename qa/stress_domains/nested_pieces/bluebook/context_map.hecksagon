@@ -1,0 +1,7 @@
+# ANTI-CORRUPTION LAYER — sibling bounded-context hecksagons.
+# Same-name blocks merge with nested_pieces.hecksagon, order-independent.
+
+Hecks.hecksagon "Governance" do
+  Governance::RoleAssignment.persisted_by("Memory")
+  Governance::RoleTransition.persisted_by("Memory")
+end

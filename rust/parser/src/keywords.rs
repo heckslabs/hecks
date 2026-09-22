@@ -173,6 +173,7 @@ pub static KEYWORDS: &[KeywordRow] = &[
     KeywordRow { word: "uses_embryonaut_bluebook", context: "Hecksagon", body: "none", inner: "", opens: "", fills: "vendored_bluebooks", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
     KeywordRow { word: "port", context: "Hecksagon", body: "keywords", inner: "DomainPort", opens: "DomainPort", fills: "", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
     KeywordRow { word: "translates", context: "Hecksagon", body: "keywords", inner: "Policy", opens: "Policy", fills: "", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
+    KeywordRow { word: "bounded", context: "Hecksagon", body: "none", inner: "", opens: "", fills: "", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
     KeywordRow { word: "reference_to", context: "PortOperation", body: "none", inner: "", opens: "", fills: "attributes", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
     KeywordRow { word: "attribute", context: "PortOperation", body: "none", inner: "", opens: "", fills: "attributes", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
     KeywordRow { word: "emits", context: "PortOperation", body: "none", inner: "", opens: "", fills: "emits", status: "admitted", was: "", resolves_via: "", disambiguator: "" },

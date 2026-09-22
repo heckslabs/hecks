@@ -51,10 +51,13 @@ module Hecks
         binds:              many(:binds),
         subscriptions:      -> { subscriptions.map(&:to_s) },
         framework_members:  -> { framework_members.map(&:to_s) },
-        vendored_bluebooks: -> { vendored_bluebooks.map(&:to_s) }
+        vendored_bluebooks: -> { vendored_bluebooks.map(&:to_s) },
+        bounded:            :bounded,
+        translates:         -> { translates.map(&:to_s) }
       )
 
-      attr_reader :domain, :binds, :subscriptions, :framework_members, :vendored_bluebooks
+      attr_reader :domain, :binds, :subscriptions, :framework_members, :vendored_bluebooks,
+                  :translates
 
       # @param domain [String, Symbol] the domain this hecksagon wires
       # @param binds [Array<Bluebook::Bind>] the declared adapter binds
@@ -64,13 +67,25 @@ module Hecks
       #   (`Governance`, `Identity`, ...) this domain attaches
       # @param vendored_bluebooks [Array<String, Symbol>] the vendored embryonaut
       #   bluebook package names this domain attaches
-      def initialize(domain:, binds: [], subscriptions: [], framework_members: [], vendored_bluebooks: [])
+      # @param bounded [Boolean] whether this chapter is an explicit bounded context
+      #   (consumer-owned; `uses_framework` / `uses_embryonaut_bluebook` mark
+      #   attached chapters bounded on the registry instead)
+      # @param translates [Array<String>] names of `translates` ACL blocks declared here
+      def initialize(domain:, binds: [], subscriptions: [], framework_members: [],
+                     vendored_bluebooks: [], bounded: false, translates: [])
         @domain             = domain.to_s
         @binds              = binds
         @subscriptions      = subscriptions
         @framework_members  = framework_members
         @vendored_bluebooks = vendored_bluebooks
+        @bounded            = bounded ? true : false
+        @translates         = Array(translates).map(&:to_s)
       end
+
+      # Says whether this hecksagon marked its own chapter `bounded`.
+      #
+      # @return [Boolean] whether `bounded` was declared on this block
+      def bounded? = @bounded
     end
 
     # The built form of a `.world` file, produced by `DSL::WorldBuilder` —
