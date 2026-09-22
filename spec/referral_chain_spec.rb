@@ -44,6 +44,7 @@ RSpec.describe "ReferralChain" do
         ReferralChain::Member.persisted_by("Memory")
         ReferralChain::Referral.persisted_by("Memory")
       end
+      sibling_governance!
     end
 
     registry.verify!

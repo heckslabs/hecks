@@ -24,6 +24,7 @@ RSpec.describe "LedgerOrdering" do
 
         LedgerOrdering::Folder.persisted_by("Memory")
       end
+      sibling_governance!
     end
 
     registry.verify!

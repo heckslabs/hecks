@@ -62,6 +62,7 @@ RSpec.describe "Waybill" do
         Waybill::Consignment.persisted_by("Memory")
         Waybill::Manifest.persisted_by("Memory")
       end
+      sibling_governance!
     end
 
     registry.verify!

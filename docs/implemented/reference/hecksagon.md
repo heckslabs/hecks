@@ -11,9 +11,9 @@ between them is hand-written and survives regeneration.*
 
 `port`, `subscribe`, and `uses_framework` are wiring, so they run against
 `examples/banking` with a hecksagon written here rather than the one the
-example ships. `translates` gets its own small boot further down — it
-needs two cooperating domains, which this page's own Banking boot never
-declares two of:
+example ships. `translates` and `bounded` get their own small boot further
+down — they need two cooperating domains, which this page's own Banking
+boot never declares two of:
 
 ```ruby boot
 Hecks::Adapters::Folder.new.load_bluebooks(File.join(InMemoryDomain::ROOT, "examples/banking/bluebook"))
@@ -249,4 +249,90 @@ runtime.registry.repository("Tenancy", runtime.registry.bluebook("Tenancy").aggr
 ```
 
 Once `Deploy::Tenant.Provision` emits `TenantProvisioned`, this reaction dispatches `Tenancy::Tenant.Register` — the two domains stay separately modeled; this is the one explicit seam where a fact from one becomes a fact in the other.
+
+## bounded
+
+<!-- generated:begin word=bounded -->
+`bounded`
+<!-- generated:end -->
+
+A consumer-owned bounded-context mark. Framework and vendored packages
+never write this word in their own files — `uses_framework` /
+`uses_embryonaut_bluebook` mark those chapters bounded automatically.
+A bounded chapter wraps in its own module (`Domain::Aggregate`) and does
+not install Object shortcuts, so two BCs can both declare `Person`.
+
+Writing `bounded` on a consumer chapter always requires a `translates`
+ACL or boot refuses. Mapping lives on the hecksagon, not in rust/host.
+
+The boot above already declared two chapters; this one reuses that
+shape and marks Tenancy bounded, with the same `translates` ACL the
+section above already needs:
+
+```ruby
+hexagon = runtime.registry.hecksagon("Tenancy")
+hexagon.bounded?     # => false — the boot above did not write bounded
+hexagon.translates   # => ["RegisterProvisionedTenant"]
+```
+
+A chapter that *does* write it, and the ACL that lets it boot:
+
+```ruby boot
+Hecks.bluebook "BoundedThing" do
+  aggregate "Thing" do
+    identified_by :id
+    attribute :id, Id
+
+    value_object "Id" do
+      attribute :value, String
+      invariant("an id is present") { !value.to_s.empty? }
+    end
+
+    command "Fire" do
+      goal "emit a fact another domain reacts to"
+      attribute :id, Id
+      sets :id
+      emits "ThingFired"
+    end
+  end
+end
+
+Hecks.bluebook "BoundedEcho" do
+  aggregate "Echo" do
+    identified_by :id
+    attribute :id, Id
+
+    value_object "Id" do
+      attribute :value, String
+      invariant("an id is present") { !value.to_s.empty? }
+    end
+
+    command "Register" do
+      goal "record the echo"
+      attribute :id, Id
+      sets :id
+      emits "EchoRegistered"
+    end
+  end
+end
+
+Hecks.hecksagon "BoundedThing" do
+  BoundedThing::Thing.persisted_by("Memory")
+end
+
+Hecks.hecksagon "BoundedEcho" do
+  bounded
+  BoundedEcho::Echo.persisted_by("Memory")
+  translates "EchoOnThingFired" do
+    on Thing::ThingFired
+    trigger Echo::Register
+  end
+end
+```
+
+```ruby
+runtime.registry.hecksagon("BoundedEcho").bounded?    # => true
+runtime.registry.hecksagon("BoundedEcho").translates  # => ["EchoOnThingFired"]
+runtime.registry.bounded?("BoundedEcho")              # => true
+```
 

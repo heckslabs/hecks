@@ -135,6 +135,17 @@ RSpec.describe "the DSL surface" do
       expect(registry.hecksagon("Hexed").framework_members).to eq(["Governance"])
     end
 
+    it ".hecksagon's bounded marks this chapter as a bounded context" do
+      registry = in_registry do
+        Hecks.hecksagon("Hexed") do
+          bounded
+          Hexed::Thing.posted_by("Carrier")
+        end
+      end
+
+      expect(registry.hecksagon("Hexed").bounded?).to be true
+    end
+
     it ".hecksagon's uses_embryonaut_bluebook records the name and needs a registry root to vendor from" do
       # `in_registry`'s bare `Registry.new` sets no root — the exact real
       # guard this exercises (EmbryonautBluebook.load!'s own refusal),

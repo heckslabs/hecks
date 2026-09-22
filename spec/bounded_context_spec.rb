@@ -60,32 +60,33 @@ RSpec.describe "bounded contexts" do
     end
   end
 
-  it "marks a uses_framework member bounded without writing bounded in that bluebook" do
-    registry = registry_with do
-      Hecks.bluebook "Probe" do
-        aggregate "Widget" do
-          identified_by :id
+  def declare_probe
+    Hecks.bluebook "Probe" do
+      aggregate "Widget" do
+        identified_by :id
+        attribute :id, Id
+        value_object "Id" do
+          attribute :value, String
+          invariant("an id is present") { !value.to_s.empty? }
+        end
+        command "Make" do
+          goal "make"
           attribute :id, Id
-          value_object "Id" do
-            attribute :value, String
-            invariant("an id is present") { !value.to_s.empty? }
-          end
-          command "Make" do
-            goal "make"
-            attribute :id, Id
-            sets :id
-            emits "Made"
-          end
+          sets :id
+          emits "Made"
         end
       end
+    end
+  end
+
+  it "marks a uses_framework member bounded without writing bounded in that bluebook" do
+    registry = registry_with do
+      declare_probe
       Hecks.hecksagon "Probe" do
         uses_framework "Governance"
         Probe::Widget.persisted_by("Memory")
       end
-      Hecks.hecksagon "Governance" do
-        Governance::RoleAssignment.persisted_by("Memory")
-        Governance::RoleTransition.persisted_by("Memory")
-      end
+      sibling_governance!
     end
 
     expect(registry.bounded?("Governance")).to be true
@@ -95,22 +96,7 @@ RSpec.describe "bounded contexts" do
 
   it "refuses boot when uses_framework has no sibling hecksagon" do
     registry = registry_with do
-      Hecks.bluebook "Probe" do
-        aggregate "Widget" do
-          identified_by :id
-          attribute :id, Id
-          value_object "Id" do
-            attribute :value, String
-            invariant("an id is present") { !value.to_s.empty? }
-          end
-          command "Make" do
-            goal "make"
-            attribute :id, Id
-            sets :id
-            emits "Made"
-          end
-        end
-      end
+      declare_probe
       Hecks.hecksagon "Probe" do
         uses_framework "Governance"
         Probe::Widget.persisted_by("Memory")
@@ -157,6 +143,9 @@ RSpec.describe "bounded contexts" do
     expect(registry.bounded?("BoundedEcho")).to be true
   end
 
+  # Two full boots (opposite load order) is the whole claim; splitting
+  # would re-pay declare_echo/declare_thing without proving more.
+  # rubocop:disable-next RSpec/ExampleLength
   it "merges same-name hecksagon blocks order-independently" do
     first = registry_with do
       declare_echo

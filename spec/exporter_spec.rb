@@ -95,6 +95,9 @@ RSpec.describe Hecks::Projector::Exporter do
       expect(described_class.identity(pizzas_registry(with_hecksagon: true), "Pizzas")).to eq({})
     end
 
+    # One boot, four expects on the same identity binding — splitting would
+    # re-pay the Identity+Governance load four times to prove nothing more.
+    # rubocop:disable-next RSpec/ExampleLength
     it "names the attached chapter that provides identity, with its declared verbs qualified" do
       registry = Hecks::Runtime::Registry.new
       Hecks.with_registry(registry) do
@@ -113,10 +116,7 @@ RSpec.describe Hecks::Projector::Exporter do
           Identity::Identity.persisted_by("Memory")
           Identity::ExternalIdentifier.persisted_by("Memory")
         end
-        Hecks.hecksagon("Governance") do
-          Governance::RoleAssignment.persisted_by("Memory")
-          Governance::RoleTransition.persisted_by("Memory")
-        end
+        sibling_governance!
       end
 
       expect(described_class.identity(registry, "Probe")).to eq(
