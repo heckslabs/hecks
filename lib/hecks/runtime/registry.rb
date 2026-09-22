@@ -332,8 +332,17 @@ module Hecks
         hexagon = hecksagon(domain)
         vendored = Array(hexagon&.vendored_bluebooks).map { |name| Naming.pascal(name) }
         names = [domain.to_s, *Array(hexagon&.framework_members), *vendored]
-        names.filter_map { |name| bluebook(name) }
-             .find { |chapter| chapter.provides?(Bluebook::Capabilities::MEMBERSHIP) }
+        attached = names.filter_map { |name| bluebook(name) }
+                        .find { |chapter| chapter.provides?(Bluebook::Capabilities::MEMBERSHIP) }
+        return attached if attached
+
+        # Sibling hecksagons — Lifeadelics vendors Membership as
+        # `Hecks.hecksagon "Membership"` (so Person::Admit can attach
+        # Governance on that named hexagon), not via uses_embryonaut_bluebook
+        # on the consuming domain. The chapter is loaded; it just isn't
+        # listed on Lifeadelics' own hexagon. Any loaded chapter that
+        # provides membership is the bounded-context answer.
+        @bluebooks.values.find { |chapter| chapter.provides?(Bluebook::Capabilities::MEMBERSHIP) }
       end
 
       # Resolves and memoizes `aggregate`'s authoritative repository.
