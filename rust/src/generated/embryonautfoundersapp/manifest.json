@@ -1,0 +1,488 @@
+[
+  {
+    "kind": "aggregate",
+    "id": "EmbryonautFoundersApp::Member",
+    "generated": true
+  },
+  {
+    "kind": "command",
+    "id": "EmbryonautFoundersApp::Member.Admit",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "EmbryonautFoundersApp::Member.Depart",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "EmbryonautFoundersApp::Member.GrantAccess",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "EmbryonautFoundersApp::Member.LinkIdentity",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "EmbryonautFoundersApp::Member.Revise",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "aggregate",
+    "id": "EmbryonautFoundersApp::FoundingAgreement",
+    "generated": true
+  },
+  {
+    "kind": "command",
+    "id": "EmbryonautFoundersApp::FoundingAgreement.Draft",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "EmbryonautFoundersApp::FoundingAgreement.Circulate",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "EmbryonautFoundersApp::FoundingAgreement.Execute",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "EmbryonautFoundersApp::FoundingAgreement.Withdraw",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "EmbryonautFoundersApp::FoundingAgreement.Revise",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "aggregate",
+    "id": "EmbryonautFoundersApp::Client",
+    "generated": true
+  },
+  {
+    "kind": "command",
+    "id": "EmbryonautFoundersApp::Client.AddProspect",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "EmbryonautFoundersApp::Client.Engage",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "EmbryonautFoundersApp::Client.Pause",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "EmbryonautFoundersApp::Client.Reactivate",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "EmbryonautFoundersApp::Client.Churn",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "EmbryonautFoundersApp::Client.Revise",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "aggregate",
+    "id": "EmbryonautFoundersApp::Engagement",
+    "generated": true
+  },
+  {
+    "kind": "command",
+    "id": "EmbryonautFoundersApp::Engagement.Schedule",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "EmbryonautFoundersApp::Engagement.CompleteWorkshop",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "EmbryonautFoundersApp::Engagement.DraftDomain",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "EmbryonautFoundersApp::Engagement.ShowDemo",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "EmbryonautFoundersApp::Engagement.Abandon",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "EmbryonautFoundersApp::Engagement.Revise",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "aggregate",
+    "id": "EmbryonautFoundersApp::Proposal",
+    "generated": true
+  },
+  {
+    "kind": "command",
+    "id": "EmbryonautFoundersApp::Proposal.Draft",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "EmbryonautFoundersApp::Proposal.Send",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "EmbryonautFoundersApp::Proposal.Accept",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "EmbryonautFoundersApp::Proposal.Decline",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "EmbryonautFoundersApp::Proposal.Expire",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "EmbryonautFoundersApp::Proposal.Withdraw",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "EmbryonautFoundersApp::Proposal.Revise",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "aggregate",
+    "id": "EmbryonautFoundersApp::Contract",
+    "generated": true
+  },
+  {
+    "kind": "command",
+    "id": "EmbryonautFoundersApp::Contract.Draft",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "EmbryonautFoundersApp::Contract.Send",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "EmbryonautFoundersApp::Contract.Sign",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "EmbryonautFoundersApp::Contract.Activate",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "EmbryonautFoundersApp::Contract.Complete",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "EmbryonautFoundersApp::Contract.Terminate",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "EmbryonautFoundersApp::Contract.Revise",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "aggregate",
+    "id": "EmbryonautFoundersApp::Product",
+    "generated": true
+  },
+  {
+    "kind": "command",
+    "id": "EmbryonautFoundersApp::Product.Conceive",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "EmbryonautFoundersApp::Product.SetVision",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "EmbryonautFoundersApp::Product.BeginDevelopment",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "EmbryonautFoundersApp::Product.Launch",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "EmbryonautFoundersApp::Product.Sunset",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "EmbryonautFoundersApp::Product.Revise",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "aggregate",
+    "id": "EmbryonautFoundersApp::Invoice",
+    "generated": true
+  },
+  {
+    "kind": "command",
+    "id": "EmbryonautFoundersApp::Invoice.Draft",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "EmbryonautFoundersApp::Invoice.Send",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "EmbryonautFoundersApp::Invoice.MarkPaid",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "EmbryonautFoundersApp::Invoice.MarkOverdue",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "EmbryonautFoundersApp::Invoice.Void",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "EmbryonautFoundersApp::Invoice.Revise",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "aggregate",
+    "id": "EmbryonautFoundersApp::Payment",
+    "generated": true
+  },
+  {
+    "kind": "command",
+    "id": "EmbryonautFoundersApp::Payment.Record",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "EmbryonautFoundersApp::Payment.Refund",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "aggregate",
+    "id": "EmbryonautFoundersApp::RecurringPayment",
+    "generated": true
+  },
+  {
+    "kind": "command",
+    "id": "EmbryonautFoundersApp::RecurringPayment.Start",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "EmbryonautFoundersApp::RecurringPayment.AdvanceCycle",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "EmbryonautFoundersApp::RecurringPayment.Pause",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "EmbryonautFoundersApp::RecurringPayment.Resume",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "EmbryonautFoundersApp::RecurringPayment.Cancel",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "EmbryonautFoundersApp::RecurringPayment.Revise",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "query",
+    "id": "EmbryonautFoundersApp::Member.Active",
+    "generated": true
+  },
+  {
+    "kind": "query",
+    "id": "EmbryonautFoundersApp::Member.ByIdentityId",
+    "generated": true
+  },
+  {
+    "kind": "query",
+    "id": "EmbryonautFoundersApp::FoundingAgreement.Executed",
+    "generated": true
+  },
+  {
+    "kind": "query",
+    "id": "EmbryonautFoundersApp::Client.Prospects",
+    "generated": true
+  },
+  {
+    "kind": "query",
+    "id": "EmbryonautFoundersApp::Client.Active",
+    "generated": true
+  },
+  {
+    "kind": "query",
+    "id": "EmbryonautFoundersApp::Client.Churned",
+    "generated": true
+  },
+  {
+    "kind": "query",
+    "id": "EmbryonautFoundersApp::Engagement.ReadyToPropose",
+    "generated": true
+  },
+  {
+    "kind": "query",
+    "id": "EmbryonautFoundersApp::Proposal.Open",
+    "generated": true
+  },
+  {
+    "kind": "query",
+    "id": "EmbryonautFoundersApp::Proposal.Accepted",
+    "generated": true
+  },
+  {
+    "kind": "query",
+    "id": "EmbryonautFoundersApp::Contract.AwaitingSignature",
+    "generated": true
+  },
+  {
+    "kind": "query",
+    "id": "EmbryonautFoundersApp::Contract.Active",
+    "generated": true
+  },
+  {
+    "kind": "query",
+    "id": "EmbryonautFoundersApp::Contract.Completed",
+    "generated": true
+  },
+  {
+    "kind": "query",
+    "id": "EmbryonautFoundersApp::Product.InDevelopment",
+    "generated": true
+  },
+  {
+    "kind": "query",
+    "id": "EmbryonautFoundersApp::Product.Launched",
+    "generated": true
+  },
+  {
+    "kind": "query",
+    "id": "EmbryonautFoundersApp::Invoice.Outstanding",
+    "generated": true
+  },
+  {
+    "kind": "query",
+    "id": "EmbryonautFoundersApp::Invoice.Overdue",
+    "generated": true
+  },
+  {
+    "kind": "query",
+    "id": "EmbryonautFoundersApp::Invoice.Paid",
+    "generated": true
+  },
+  {
+    "kind": "query",
+    "id": "EmbryonautFoundersApp::Payment.Recorded",
+    "generated": true
+  },
+  {
+    "kind": "query",
+    "id": "EmbryonautFoundersApp::Payment.Refunded",
+    "generated": true
+  },
+  {
+    "kind": "query",
+    "id": "EmbryonautFoundersApp::RecurringPayment.Active",
+    "generated": true
+  }
+]

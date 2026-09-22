@@ -1,0 +1,1732 @@
+{
+  "ir_version": 1,
+  "name": "ConsoleSettings",
+  "version": null,
+  "vision": "A generic admin console's own curated UI facts — nav, columns, state tones, which rows a detail panel shows — as real dispatched data instead of a hand-rewritten YAML file. A UI opinion the DOMAIN it's pointed at has no way to answer, never a business record; see embryonaut_console's own presentation_config.rb for the fuller story.",
+  "classification": "supporting",
+  "formerly_known_as": null,
+  "aggregates": [
+    {
+      "name": "StateStyle",
+      "description": "One aggregate's one lifecycle state, styled — a tone and whether it needs attention. Every real state gets a row, even a bare one (PresentationConfig's own missing_state_entries! check), so Declare and the two Set commands are separate: a bare row is a real, valid thing to have.",
+      "identified_by": [
+        "agg.value",
+        "state.value"
+      ],
+      "attributes": [
+        {
+          "name": "agg",
+          "type": "StateStyleText",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
+          "name": "state",
+          "type": "StateStyleText",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
+          "name": "tone",
+          "type": "Tone",
+          "list": false,
+          "default": null,
+          "optional": true,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
+          "name": "attention",
+          "type": "Flag",
+          "list": false,
+          "default": null,
+          "optional": true,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
+          "name": "extra_json",
+          "type": "StateStyleExtra",
+          "list": false,
+          "default": null,
+          "optional": true,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        }
+      ],
+      "value_objects": [
+        {
+          "name": "StateStyleText",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "names something",
+              "canonical": "!value.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "value"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          ],
+          "closed_set": false,
+          "members": []
+        },
+        {
+          "name": "Flag",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [],
+          "closed_set": false,
+          "members": []
+        },
+        {
+          "name": "StateStyleExtra",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [],
+          "closed_set": false,
+          "members": []
+        },
+        {
+          "name": "Tone",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [],
+          "closed_set": true,
+          "members": [
+            [
+              [
+                "value",
+                "good"
+              ]
+            ],
+            [
+              [
+                "value",
+                "warn"
+              ]
+            ],
+            [
+              [
+                "value",
+                "danger"
+              ]
+            ],
+            [
+              [
+                "value",
+                "muted"
+              ]
+            ],
+            [
+              [
+                "value",
+                "accent"
+              ]
+            ]
+          ]
+        }
+      ],
+      "commands": [
+        {
+          "name": "Declare",
+          "role": "Console",
+          "goal": "Give one aggregate's one state a presentation row, styled or bare",
+          "references": null,
+          "attributes": [
+            {
+              "name": "agg",
+              "type": "StateStyleText",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "state",
+              "type": "StateStyleText",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [
+            {
+              "description": "a style names its own aggregate",
+              "canonical": "!agg.value.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "agg",
+                        "value"
+                      ]
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "description": "a style names its own state",
+              "canonical": "!state.value.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "state",
+                        "value"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          ],
+          "ensures": [],
+          "mutations": [],
+          "emits": [
+            "StateStyleDeclared"
+          ],
+          "from": null,
+          "provenance": null
+        },
+        {
+          "name": "SetTone",
+          "role": "Console",
+          "goal": "Color one state",
+          "references": "StateStyle",
+          "attributes": [
+            {
+              "name": "tone",
+              "type": "Tone",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [],
+          "ensures": [],
+          "mutations": [
+            {
+              "target": "tone",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "tone"
+              }
+            }
+          ],
+          "emits": [
+            "ToneSet"
+          ],
+          "from": null,
+          "provenance": null
+        },
+        {
+          "name": "SetAttention",
+          "role": "Console",
+          "goal": "Mark whether one state needs a person's attention",
+          "references": "StateStyle",
+          "attributes": [
+            {
+              "name": "attention",
+              "type": "Flag",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [],
+          "ensures": [],
+          "mutations": [
+            {
+              "target": "attention",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "attention"
+              }
+            }
+          ],
+          "emits": [
+            "AttentionSet"
+          ],
+          "from": null,
+          "provenance": null
+        },
+        {
+          "name": "SetExtra",
+          "role": "Console",
+          "goal": "Carry whatever per-state fields aren't individually modeled yet (label, note, ...)",
+          "references": "StateStyle",
+          "attributes": [
+            {
+              "name": "extra_json",
+              "type": "StateStyleExtra",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [],
+          "ensures": [],
+          "mutations": [
+            {
+              "target": "extra_json",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "extra_json"
+              }
+            }
+          ],
+          "emits": [
+            "StateStyleExtraSet"
+          ],
+          "from": null,
+          "provenance": null
+        }
+      ],
+      "invariants": [],
+      "preconditions": [],
+      "projected_fields": [],
+      "lifecycle": null,
+      "entities": [],
+      "queries": [],
+      "ports": [],
+      "provenance": null
+    },
+    {
+      "name": "Collection",
+      "description": "One app aggregate's own console presentation — nav label, curated columns, detail-panel fields (with an optional entity state_filter and a row_columns subset), identity-assignment strategy, field formats, preconditions, and which query lists it. Every list-shaped piece is rows on this root, never a nested list inside a value object — the same 'an open map is rows on a head' shape Wiring::Setting and Query::AskOption already use, and the same reason: no value object here can hold a map, and this sidesteps ever needing to find out whether one can hold a plain list either.",
+      "identified_by": [
+        "agg.value"
+      ],
+      "attributes": [
+        {
+          "name": "agg",
+          "type": "SettingsText",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
+          "name": "label",
+          "type": "SettingsText",
+          "list": false,
+          "default": null,
+          "optional": true,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
+          "name": "key",
+          "type": "SettingsText",
+          "list": false,
+          "default": null,
+          "optional": true,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
+          "name": "nav_order",
+          "type": "SettingsNumber",
+          "list": false,
+          "default": null,
+          "optional": true,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
+          "name": "primary_field",
+          "type": "SettingsText",
+          "list": false,
+          "default": null,
+          "optional": true,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
+          "name": "list_query",
+          "type": "SettingsText",
+          "list": false,
+          "default": null,
+          "optional": true,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
+          "name": "identity_field",
+          "type": "SettingsText",
+          "list": false,
+          "default": null,
+          "optional": true,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
+          "name": "identity_strategy",
+          "type": "IdentityStrategy",
+          "list": false,
+          "default": null,
+          "optional": true,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
+          "name": "identity_source",
+          "type": "SettingsText",
+          "list": false,
+          "default": null,
+          "optional": true,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
+          "name": "identity_prefix",
+          "type": "SettingsText",
+          "list": false,
+          "default": null,
+          "optional": true,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
+          "name": "identity_extra_json",
+          "type": "CollectionExtra",
+          "list": false,
+          "default": null,
+          "optional": true,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
+          "name": "columns",
+          "type": "Column",
+          "list": true,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
+          "name": "detail_fields",
+          "type": "DetailField",
+          "list": true,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
+          "name": "detail_field_columns",
+          "type": "DetailFieldColumn",
+          "list": true,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
+          "name": "preconditions",
+          "type": "Precondition",
+          "list": true,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
+          "name": "field_formats",
+          "type": "FieldFormat",
+          "list": true,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
+          "name": "extra_json",
+          "type": "CollectionExtra",
+          "list": false,
+          "default": null,
+          "optional": true,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        }
+      ],
+      "value_objects": [
+        {
+          "name": "SettingsText",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "names something",
+              "canonical": "!value.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "value"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          ],
+          "closed_set": false,
+          "members": []
+        },
+        {
+          "name": "SettingsNumber",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "Integer",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [],
+          "closed_set": false,
+          "members": []
+        },
+        {
+          "name": "CollectionExtra",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [],
+          "closed_set": false,
+          "members": []
+        },
+        {
+          "name": "Column",
+          "attributes": [
+            {
+              "name": "field",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "sortable",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": true,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "sort_default",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": true,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "extra_json",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": true,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [],
+          "closed_set": false,
+          "members": []
+        },
+        {
+          "name": "DetailField",
+          "attributes": [
+            {
+              "name": "field",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "display",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": true,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "state_filter",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": true,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "extra_json",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": true,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [],
+          "closed_set": false,
+          "members": []
+        },
+        {
+          "name": "DetailFieldColumn",
+          "attributes": [
+            {
+              "name": "field",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "column",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [],
+          "closed_set": false,
+          "members": []
+        },
+        {
+          "name": "Precondition",
+          "attributes": [
+            {
+              "name": "field",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "state",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "extra_json",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": true,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [],
+          "closed_set": false,
+          "members": []
+        },
+        {
+          "name": "FieldFormat",
+          "attributes": [
+            {
+              "name": "field",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "format",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [],
+          "closed_set": false,
+          "members": []
+        },
+        {
+          "name": "IdentityStrategy",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [],
+          "closed_set": true,
+          "members": [
+            [
+              [
+                "value",
+                "slug"
+              ]
+            ],
+            [
+              [
+                "value",
+                "sequence"
+              ]
+            ],
+            [
+              [
+                "value",
+                "port"
+              ]
+            ]
+          ]
+        }
+      ],
+      "commands": [
+        {
+          "name": "Declare",
+          "role": "Console",
+          "goal": "Give one app aggregate a presentation row, before anything is curated on it yet",
+          "references": null,
+          "attributes": [
+            {
+              "name": "agg",
+              "type": "SettingsText",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [
+            {
+              "description": "a collection names its own aggregate",
+              "canonical": "!agg.value.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "agg",
+                        "value"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          ],
+          "ensures": [],
+          "mutations": [],
+          "emits": [
+            "CollectionDeclared"
+          ],
+          "from": null,
+          "provenance": null
+        },
+        {
+          "name": "SetLabel",
+          "role": "Console",
+          "goal": "Name a collection's own nav label",
+          "references": "Collection",
+          "attributes": [
+            {
+              "name": "label",
+              "type": "SettingsText",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [],
+          "ensures": [],
+          "mutations": [
+            {
+              "target": "label",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "label"
+              }
+            }
+          ],
+          "emits": [
+            "LabelSet"
+          ],
+          "from": null,
+          "provenance": null
+        },
+        {
+          "name": "SetKey",
+          "role": "Console",
+          "goal": "Override a collection's own nav/route key",
+          "references": "Collection",
+          "attributes": [
+            {
+              "name": "key",
+              "type": "SettingsText",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [],
+          "ensures": [],
+          "mutations": [
+            {
+              "target": "key",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "key"
+              }
+            }
+          ],
+          "emits": [
+            "KeySet"
+          ],
+          "from": null,
+          "provenance": null
+        },
+        {
+          "name": "SetNavOrder",
+          "role": "Console",
+          "goal": "Place a collection in the nav",
+          "references": "Collection",
+          "attributes": [
+            {
+              "name": "nav_order",
+              "type": "SettingsNumber",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [],
+          "ensures": [],
+          "mutations": [
+            {
+              "target": "nav_order",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "nav_order"
+              }
+            }
+          ],
+          "emits": [
+            "NavOrderSet"
+          ],
+          "from": null,
+          "provenance": null
+        },
+        {
+          "name": "SetPrimaryField",
+          "role": "Console",
+          "goal": "Name which field stands in for a whole record",
+          "references": "Collection",
+          "attributes": [
+            {
+              "name": "primary_field",
+              "type": "SettingsText",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [],
+          "ensures": [],
+          "mutations": [
+            {
+              "target": "primary_field",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "primary_field"
+              }
+            }
+          ],
+          "emits": [
+            "PrimaryFieldSet"
+          ],
+          "from": null,
+          "provenance": null
+        },
+        {
+          "name": "SetListQuery",
+          "role": "Console",
+          "goal": "Name which of an aggregate's own queries lists its records",
+          "references": "Collection",
+          "attributes": [
+            {
+              "name": "list_query",
+              "type": "SettingsText",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [],
+          "ensures": [],
+          "mutations": [
+            {
+              "target": "list_query",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "list_query"
+              }
+            }
+          ],
+          "emits": [
+            "ListQuerySet"
+          ],
+          "from": null,
+          "provenance": null
+        },
+        {
+          "name": "SetIdentity",
+          "role": "Console",
+          "goal": "Name how a collection assigns its own new records' identity",
+          "references": "Collection",
+          "attributes": [
+            {
+              "name": "identity_field",
+              "type": "SettingsText",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "identity_strategy",
+              "type": "IdentityStrategy",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "identity_source",
+              "type": "SettingsText",
+              "list": false,
+              "default": null,
+              "optional": true,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "identity_prefix",
+              "type": "SettingsText",
+              "list": false,
+              "default": null,
+              "optional": true,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "identity_extra_json",
+              "type": "CollectionExtra",
+              "list": false,
+              "default": null,
+              "optional": true,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [],
+          "ensures": [],
+          "mutations": [
+            {
+              "target": "identity_field",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "identity_field"
+              }
+            },
+            {
+              "target": "identity_strategy",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "identity_strategy"
+              }
+            },
+            {
+              "target": "identity_source",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "identity_source"
+              }
+            },
+            {
+              "target": "identity_prefix",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "identity_prefix"
+              }
+            },
+            {
+              "target": "identity_extra_json",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "identity_extra_json"
+              }
+            }
+          ],
+          "emits": [
+            "IdentitySet"
+          ],
+          "from": null,
+          "provenance": null
+        },
+        {
+          "name": "SetExtra",
+          "role": "Console",
+          "goal": "Carry whatever per-collection fields aren't individually modeled yet (noun_sing, create_label, nav_group, ...)",
+          "references": "Collection",
+          "attributes": [
+            {
+              "name": "extra_json",
+              "type": "CollectionExtra",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [],
+          "ensures": [],
+          "mutations": [
+            {
+              "target": "extra_json",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "extra_json"
+              }
+            }
+          ],
+          "emits": [
+            "CollectionExtraSet"
+          ],
+          "from": null,
+          "provenance": null
+        },
+        {
+          "name": "ReplaceColumns",
+          "role": "Console",
+          "goal": "Replace a collection's own whole list of table columns",
+          "references": "Collection",
+          "attributes": [
+            {
+              "name": "columns",
+              "type": "Column",
+              "list": true,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [],
+          "ensures": [],
+          "mutations": [
+            {
+              "target": "columns",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "columns"
+              }
+            }
+          ],
+          "emits": [
+            "ColumnsReplaced"
+          ],
+          "from": null,
+          "provenance": null
+        },
+        {
+          "name": "ReplaceDetailFields",
+          "role": "Console",
+          "goal": "Replace a collection's own whole list of detail-panel fields",
+          "references": "Collection",
+          "attributes": [
+            {
+              "name": "detail_fields",
+              "type": "DetailField",
+              "list": true,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [],
+          "ensures": [],
+          "mutations": [
+            {
+              "target": "detail_fields",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "detail_fields"
+              }
+            }
+          ],
+          "emits": [
+            "DetailFieldsReplaced"
+          ],
+          "from": null,
+          "provenance": null
+        },
+        {
+          "name": "ReplaceDetailFieldColumns",
+          "role": "Console",
+          "goal": "Replace every rows-field's own sub-column filter, whole",
+          "references": "Collection",
+          "attributes": [
+            {
+              "name": "detail_field_columns",
+              "type": "DetailFieldColumn",
+              "list": true,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [],
+          "ensures": [],
+          "mutations": [
+            {
+              "target": "detail_field_columns",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "detail_field_columns"
+              }
+            }
+          ],
+          "emits": [
+            "DetailFieldColumnsReplaced"
+          ],
+          "from": null,
+          "provenance": null
+        },
+        {
+          "name": "ReplacePreconditions",
+          "role": "Console",
+          "goal": "Replace a collection's own whole list of dispatch preconditions",
+          "references": "Collection",
+          "attributes": [
+            {
+              "name": "preconditions",
+              "type": "Precondition",
+              "list": true,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [],
+          "ensures": [],
+          "mutations": [
+            {
+              "target": "preconditions",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "preconditions"
+              }
+            }
+          ],
+          "emits": [
+            "PreconditionsReplaced"
+          ],
+          "from": null,
+          "provenance": null
+        },
+        {
+          "name": "ReplaceFieldFormats",
+          "role": "Console",
+          "goal": "Replace a collection's own whole list of field display formats",
+          "references": "Collection",
+          "attributes": [
+            {
+              "name": "field_formats",
+              "type": "FieldFormat",
+              "list": true,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [],
+          "ensures": [],
+          "mutations": [
+            {
+              "target": "field_formats",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "field_formats"
+              }
+            }
+          ],
+          "emits": [
+            "FieldFormatsReplaced"
+          ],
+          "from": null,
+          "provenance": null
+        }
+      ],
+      "invariants": [],
+      "preconditions": [],
+      "projected_fields": [],
+      "lifecycle": null,
+      "entities": [],
+      "queries": [],
+      "ports": [],
+      "provenance": null
+    },
+    {
+      "name": "Overview",
+      "description": "The console's own dashboard stat cards, whole. One row, ever — `key` is always the literal 'overview', never chosen. Every stat gets replaced as a whole list on save, the same 'replace whole, never patch one' convention Collection's own columns/detail_fields/preconditions/field_formats already use.",
+      "identified_by": [
+        "key.value"
+      ],
+      "attributes": [
+        {
+          "name": "key",
+          "type": "OverviewKey",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
+          "name": "stats",
+          "type": "Stat",
+          "list": true,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        }
+      ],
+      "value_objects": [
+        {
+          "name": "OverviewKey",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "is the one true singleton key",
+              "canonical": "value == \"overview\"",
+              "ast": {
+                "op": "compare",
+                "cmp": {
+                  "less_than": false,
+                  "equal": true,
+                  "negated": false
+                },
+                "left": {
+                  "op": "lookup",
+                  "path": [
+                    "value"
+                  ]
+                },
+                "right": {
+                  "op": "str",
+                  "value": "overview"
+                }
+              }
+            }
+          ],
+          "closed_set": false,
+          "members": []
+        },
+        {
+          "name": "Stat",
+          "attributes": [
+            {
+              "name": "label",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "collection",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "as",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": true,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "field",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": true,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "where_json",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": true,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [],
+          "closed_set": false,
+          "members": []
+        }
+      ],
+      "commands": [
+        {
+          "name": "Declare",
+          "role": "Console",
+          "goal": "Create the one console-wide overview row, before any stat is curated",
+          "references": null,
+          "attributes": [
+            {
+              "name": "key",
+              "type": "OverviewKey",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [
+            {
+              "description": "only the one true singleton key is ever declared",
+              "canonical": "key.value == \"overview\"",
+              "ast": {
+                "op": "compare",
+                "cmp": {
+                  "less_than": false,
+                  "equal": true,
+                  "negated": false
+                },
+                "left": {
+                  "op": "lookup",
+                  "path": [
+                    "key",
+                    "value"
+                  ]
+                },
+                "right": {
+                  "op": "str",
+                  "value": "overview"
+                }
+              }
+            }
+          ],
+          "ensures": [],
+          "mutations": [],
+          "emits": [
+            "OverviewDeclared"
+          ],
+          "from": null,
+          "provenance": null
+        },
+        {
+          "name": "ReplaceStats",
+          "role": "Console",
+          "goal": "Replace the dashboard's whole list of stat cards",
+          "references": "Overview",
+          "attributes": [
+            {
+              "name": "stats",
+              "type": "Stat",
+              "list": true,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [],
+          "ensures": [],
+          "mutations": [
+            {
+              "target": "stats",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "stats"
+              }
+            }
+          ],
+          "emits": [
+            "StatsReplaced"
+          ],
+          "from": null,
+          "provenance": null
+        }
+      ],
+      "invariants": [],
+      "preconditions": [],
+      "projected_fields": [],
+      "lifecycle": null,
+      "entities": [],
+      "queries": [],
+      "ports": [],
+      "provenance": null
+    }
+  ],
+  "read_models": [
+    {
+      "name": "Styles",
+      "description": "Every StateStyle row, nested by the aggregate and state it styles.",
+      "reference_name": null,
+      "reference_target": null,
+      "query_name": "styles",
+      "wheres": [],
+      "order_by": null,
+      "limit": null,
+      "aggregate_heads": [
+        {
+          "aggregate": "StateStyle",
+          "as": "state_styles",
+          "many": true
+        }
+      ],
+      "group_by": [
+        {
+          "field": "agg"
+        },
+        {
+          "field": "state"
+        }
+      ]
+    },
+    {
+      "name": "Curated",
+      "description": "Every Collection row, nested by the app aggregate it curates.",
+      "reference_name": null,
+      "reference_target": null,
+      "query_name": "curated",
+      "wheres": [],
+      "order_by": null,
+      "limit": null,
+      "aggregate_heads": [
+        {
+          "aggregate": "Collection",
+          "as": "collections",
+          "many": true
+        }
+      ],
+      "group_by": [
+        {
+          "field": "agg"
+        }
+      ]
+    }
+  ],
+  "policies": [],
+  "process_managers": [],
+  "attaches_to": [],
+  "provides": [],
+  "canonical_form": [
+    {
+      "strategy": "collapse_whitespace",
+      "source_token": "",
+      "replacement": "",
+      "boundary": "none",
+      "position": "1"
+    },
+    {
+      "strategy": "replace",
+      "source_token": ".length",
+      "replacement": ".size",
+      "boundary": "word",
+      "position": "2"
+    }
+  ]
+}
