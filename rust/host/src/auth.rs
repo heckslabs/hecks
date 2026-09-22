@@ -17,20 +17,16 @@
 //
 // Generic over which aggregate is "MEMBERSHIP," not just Embryonaut's —
 // `member_row_by_email`/`member_rows`/`append_member_state`/
-// `session_for_member_by_identity` resolve the aggregate name through
-// `membership_aggregate`, which reads `HECKS_MEMBERSHIP_AGGREGATE`
-// against `ir::lineage_capable_aggregates` (that function's own header
-// has the "why an env var, not a bluebook-level IR marker" reasoning),
-// rather than hardcoding "member"/"Member" directly. Still
-// Embryonaut-shaped in spirit — the OAuth flow, the "GrantAccess happens
-// separately from Admit" rule, the whole `Session`/provisioning protocol
-// below — just not hardcoded to Embryonaut's own aggregate name.
-// `rust/host` still links no kernel
-// crate and has no Cargo feature of its own — `HECKS_DOMAIN`, read once
-// at main.rs boot, remains the only runtime domain selector this binary
-// has; `HECKS_MEMBERSHIP_AGGREGATE` is a second, independent env var
-// naming which of that domain's own lineage-capable aggregates this
-// module treats as membership.
+// `session_for_member_by_identity` resolve the aggregate through
+// `membership_aggregate`, which reads `ir.json`'s own `membership` key
+// (`Exporter.membership` / a chapter's `provides "membership"`), rather
+// than an env var (`HECKS_MEMBERSHIP_AGGREGATE`) or a hardcoded
+// "member"/"Member". Same declared-not-named shape authorization
+// already uses for Governance. Still Embryonaut-shaped in spirit — the
+// OAuth flow, the "GrantAccess happens separately from Admit" rule, the
+// whole `Session`/provisioning protocol below — just not hardcoded to
+// Embryonaut's own aggregate name. `HECKS_DOMAIN`, read once at main.rs
+// boot, remains the only runtime domain selector this binary has.
 
 use crate::dispatch;
 use crate::journal;
@@ -283,53 +279,26 @@ async fn member_rows(client: &Mutex<Client>, domain_ir: &Value) -> anyhow::Resul
     journal::read_lineage_head_all(&*guard, domain, &storage_name).await
 }
 
-// Which lineage-capable aggregate this deployment treats as "the
-// membership one" — `HECKS_MEMBERSHIP_AGGREGATE` names it (bare,
-// non-domain-qualified, e.g. "Member"), resolved against `ir::
-// lineage_capable_aggregates(domain_ir)` rather than trusted blind, so a
-// typo'd env var fails loudly here instead of silently reading/writing
-// the wrong (or a nonexistent) table. An env var, not a new bluebook-
-// level IR marker: Embryonaut's own bluebook source lives in a separate
-// repo not present in this checkout, so an IR-marker design would need
-// changes in a repo this crate can't reach or test — the env var keeps
-// the whole resolution inside rust/host, consistent with every other
-// deploy-time binding this crate already makes as an env var
-// (`HECKS_DOMAIN`, `DATABASE_URL`, `SESSION_SECRET`). Resolved lazily,
-// at request time, not required at main.rs's own boot — the same
-// reasoning `session_secret()`'s own header already gives: not every
-// domain uses Google-auth/Member provisioning at all.
+// Which aggregate this deployment treats as "the membership one" —
+// `ir.json`'s own `membership` key (`Exporter.membership`, from a
+// chapter's `provides "membership"`) names it. No env var and no
+// lookup against lineage_capable_aggregates: the chapter declaration
+// is the fact, same as authorization already is for Governance. Bare
+// name + snake storage_name, so Person → ("Person", "person").
+// Resolved lazily, at request time — not every domain uses Google-auth.
 fn membership_aggregate(domain_ir: &Value) -> anyhow::Result<(String, String)> {
-    let wanted = std::env::var("HECKS_MEMBERSHIP_AGGREGATE").map_err(|_| {
+    let provider = crate::ir::membership_provider(domain_ir).ok_or_else(|| {
         anyhow::anyhow!(
-            "HECKS_MEMBERSHIP_AGGREGATE is required for Member/GrantAccess/provision -- names \
-             which lineage-capable aggregate is this domain's own membership record"
+            "this domain attaches no chapter that provides \"membership\" — cannot resolve who may sign in"
         )
     })?;
-    resolve_membership_aggregate(&wanted, domain_ir)
+    Ok(membership_names(&provider.aggregate))
 }
 
-// Pure and separately unit-tested from the env read above -- same split
-// `session_secret()`/`validate_session_secret()` already use, and for
-// the same reason: `cargo test` runs this crate's tests concurrently in
-// one process, so asserting an env var is unset (the real "no value at
-// all" case `membership_aggregate` itself refuses) can't be done safely
-// against the real process environment without racing every other test
-// that might set it. Everything this function actually decides --
-// matching against `lineage_capable_aggregates`, refusing an unknown
-// name -- is exercised here instead, with no env var involved at all.
-fn resolve_membership_aggregate(wanted: &str, domain_ir: &Value) -> anyhow::Result<(String, String)> {
-    crate::ir::lineage_capable_aggregates(domain_ir)
-        .into_iter()
-        .find_map(|(qualified, storage_name)| {
-            let bare = qualified.rsplit("::").next().unwrap_or(&qualified).to_string();
-            (bare == wanted).then_some((bare, storage_name))
-        })
-        .ok_or_else(|| {
-            anyhow::anyhow!(
-                "HECKS_MEMBERSHIP_AGGREGATE={wanted:?} names an aggregate lineage_capable_aggregates \
-                 doesn't know about for this domain -- check it's persisted_by an era-capable adapter"
-            )
-        })
+fn membership_names(aggregate: &str) -> (String, String) {
+    let bare = aggregate.rsplit("::").next().unwrap_or(aggregate).to_string();
+    let storage_name = crate::journal::snake(&bare);
+    (bare, storage_name)
 }
 
 // `Adapters::PostgresEra#append`, ported verbatim (postgres_era.rb:176-201) --
@@ -769,18 +738,22 @@ mod tests {
     }
 
     #[test]
-    fn resolve_membership_aggregate_matches_by_bare_name_and_refuses_an_unknown_one() {
+    fn membership_names_snakes_the_bare_aggregate() {
+        assert_eq!(membership_names("Member"), ("Member".to_string(), "member".to_string()));
+        assert_eq!(membership_names("Membership::Person"), ("Person".to_string(), "person".to_string()));
+    }
+
+    #[test]
+    fn membership_aggregate_reads_the_declared_capability_not_an_env_var() {
         let domain_ir = json!({
-            "name": "Embryonaut",
-            "lineage": {"capable_aggregates": [{"name": "Member", "storage_name": "member"}]},
+            "name": "Lifeadelics",
+            "membership": {"provider": "Membership", "aggregate": "Membership::Person"},
         });
+        let (aggregate, storage_name) = membership_aggregate(&domain_ir).unwrap();
+        assert_eq!(aggregate, "Person");
+        assert_eq!(storage_name, "person");
 
-        let (aggregate, storage_name) = resolve_membership_aggregate("Member", &domain_ir).unwrap();
-        assert_eq!(aggregate, "Member");
-        assert_eq!(storage_name, "member");
-
-        assert!(resolve_membership_aggregate("Nonexistent", &domain_ir).is_err());
-        assert!(resolve_membership_aggregate("Member", &json!({"name": "Embryonaut"})).is_err());
+        assert!(membership_aggregate(&json!({"name": "Pizzas"})).is_err());
     }
 
     // A real, throwaway Postgres database per test, matching the real
@@ -834,24 +807,19 @@ mod tests {
     }
 
     // A minimal `ir.json`-shaped fixture naming exactly one lineage-
-    // capable aggregate, "Member" (storage_name "member") -- everything
-    // `resolve_membership_aggregate`/`lineage_capable_aggregates`
-    // actually reads. `HECKS_MEMBERSHIP_AGGREGATE=Member` set once,
-    // never unset -- both real-DB integration tests below want the
-    // identical value, and nothing else in this file's own test module
-    // ever reads this env var, so setting (never clearing) it carries
-    // none of the cross-test race risk `resolve_membership_aggregate`'s
-    // own unit tests are deliberately structured to avoid.
+    // capable aggregate, "Member" (storage_name "member"), plus the
+    // `membership` key Exporter.membership writes -- everything
+    // `resolve_membership_aggregate`/`membership_aggregate` actually reads.
     fn member_domain_ir() -> Value {
         json!({
             "name": "Embryonaut",
             "lineage": {"capable_aggregates": [{"name": "Member", "storage_name": "member"}]},
+            "membership": {"provider": "Embryonaut", "aggregate": "Embryonaut::Member"},
         })
     }
 
     #[tokio::test]
     async fn member_lookups_query_the_real_member_head_shape() {
-        std::env::set_var("HECKS_MEMBERSHIP_AGGREGATE", "Member");
         let domain_ir = member_domain_ir();
         let db = scratch_member_db("hecks_host_auth_test_member_lookups").await;
         {
@@ -890,7 +858,6 @@ mod tests {
 
     #[tokio::test]
     async fn append_member_state_writes_the_journal_and_advances_the_head_snapshot() {
-        std::env::set_var("HECKS_MEMBERSHIP_AGGREGATE", "Member");
         let domain_ir = member_domain_ir();
         let db = scratch_member_db("hecks_host_auth_test_append_member").await;
         let config = LineageConfig { domain: "Embryonaut".to_string(), era: Some(1), mirrored: None };

@@ -126,6 +126,31 @@ module Hecks
         }
       end
 
+      # Same seam as `authorization` — which chapter answers "who may
+      # sign in" (`Registry#membership_provider_for`), with its declared
+      # verbs qualified and the membership aggregate named off `admit`.
+      # rust/host reads this instead of HECKS_MEMBERSHIP_AGGREGATE.
+      # `{}` when nothing this domain attaches provides membership.
+      # @param registry [Runtime::Registry] the booted registry `domain_name` is loaded in
+      # @param domain_name [String] the domain to export the membership binding for
+      # @return [Hash{Symbol => String, nil}] `:provider` (name), `:admit`, `:grant`,
+      #   `:people` (qualified verbs), and `:aggregate` (`:admit`'s own leading
+      #   aggregate name); `{}` if nothing this domain attaches provides membership
+      def membership(registry, domain_name)
+        provider = registry.membership_provider_for(domain_name)
+        return {} unless provider
+
+        capability = Bluebook::Capabilities::MEMBERSHIP
+        admit = provider.provided_verb(capability, :admit)
+        {
+          provider:  provider.name,
+          admit:     admit,
+          grant:     provider.provided_verb(capability, :grant),
+          people:    provider.provided_verb(capability, :people),
+          aggregate: admit&.split(".")&.first
+        }
+      end
+
       # Translation IR, always as an array, with each aggregate's
       # precompiled SQL attached (`compiled_translation_aggregate`) —
       # this is the export a consumer embeds (`ir.json`'s `translations`
