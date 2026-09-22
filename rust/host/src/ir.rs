@@ -36,7 +36,8 @@ pub fn ir() -> Option<&'static Value> {
 /// aggregate qualifies, same as today.
 ///
 /// **A real call site** — `auth::membership_aggregate` (auth.rs) resolves
-/// `HECKS_MEMBERSHIP_AGGREGATE` against this list to pick which
+/// `ir.json`'s own `membership` key (`Exporter.membership` / a chapter's
+/// `provides "membership"`) against this list to pick which
 /// lineage-capable aggregate auth.rs's own Member-handling functions
 /// (`member_row_by_email`/`member_rows`/`append_member_state`/
 /// `session_for_member_by_identity`) actually read/write, rather than a
@@ -136,6 +137,29 @@ pub fn authorization_provider(domain_ir: &Value) -> Option<AuthorizationProvider
     })
 }
 
+/// The chapter that answers "who may sign in" — `Exporter.membership`
+/// (exporter.rb), a binding fact like `authorization` above, read off
+/// `ir.json`'s own top-level `membership` key. `None` when the domain
+/// attaches nothing that declares `provides "membership"` (the key is
+/// omitted entirely). Replaces the former HECKS_MEMBERSHIP_AGGREGATE
+/// env var: the aggregate is named by what the chapter declares, not
+/// by a deploy-time string.
+#[derive(Debug, Clone, PartialEq)]
+pub struct MembershipProvider {
+    /// Chapter name, e.g. `Membership`.
+    pub provider: String,
+    /// Qualified aggregate, e.g. `Membership::Person`.
+    pub aggregate: String,
+}
+
+pub fn membership_provider(domain_ir: &Value) -> Option<MembershipProvider> {
+    let fact = domain_ir.get("membership")?;
+    Some(MembershipProvider {
+        provider: fact.get("provider")?.as_str()?.to_string(),
+        aggregate: fact.get("aggregate")?.as_str()?.to_string(),
+    })
+}
+
 pub fn refuse_unsupported_persistence_adapters(domain_ir: &Value) -> Result<(), String> {
     let unsupported: Vec<String> = persistence_adapters(domain_ir)
         .into_iter()
@@ -222,6 +246,18 @@ mod tests {
         let err = refuse_unsupported_persistence_adapters(&ir).unwrap_err();
         assert!(err.contains("Account"), "error should name the offending aggregate: {err}");
         assert!(err.contains("Heki"), "error should name the unsupported adapter: {err}");
+    }
+
+    #[test]
+    fn membership_provider_reads_the_declared_capability() {
+        let ir = serde_json::json!({
+            "name": "Lifeadelics",
+            "membership": { "provider": "Membership", "aggregate": "Membership::Person" }
+        });
+        let provider = membership_provider(&ir).expect("should find membership");
+        assert_eq!(provider.provider, "Membership");
+        assert_eq!(provider.aggregate, "Membership::Person");
+        assert!(membership_provider(&serde_json::json!({ "name": "Pizzas" })).is_none());
     }
 
     #[test]

@@ -254,13 +254,24 @@ async fn main() -> Result<(), Error> {
     let my_hash = storage_shape::mint_hash(ir);
     let my_label = storage_shape::mint_label(ir);
 
-    let aggregates: Vec<mint::Aggregate> = ir::lineage_capable_aggregates(ir)
+    let mut aggregates: Vec<mint::Aggregate> = ir::lineage_capable_aggregates(ir)
         .into_iter()
         .map(|(qualified, storage_name)| {
             let name = qualified.rsplit("::").next().unwrap_or(&qualified).to_string();
             mint::Aggregate { name, storage_name }
         })
         .collect();
+    // A chapter that `provides "membership"` names who may sign in
+    // (Person, Member, …). That aggregate is often vendored, so it is
+    // not in this domain's own lineage.capable_aggregates — still mint
+    // its head under HECKS_DOMAIN so rust/host Google-auth can read it.
+    if let Some(membership) = ir::membership_provider(ir) {
+        let name = membership.aggregate.rsplit("::").next().unwrap_or(&membership.aggregate).to_string();
+        let storage_name = journal::snake(&name);
+        if !aggregates.iter().any(|a| a.storage_name == storage_name) {
+            aggregates.push(mint::Aggregate { name, storage_name });
+        }
+    }
 
     // ADR 0034 — the era-partitioned lineage subsystem (hecks_eras, the
     // mint/hold/audit sequence below, per-aggregate head-snapshot
