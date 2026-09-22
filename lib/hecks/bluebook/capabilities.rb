@@ -11,6 +11,11 @@ module Hecks
     #   key => :command | :query   the kind of verb that key must name
     module Capabilities
       AUTHORIZATION = "authorization".freeze
+      # Who may sign in, and with what role — rust/host's Google-OAuth
+      # provision/member_rows resolve this instead of an env var naming
+      # the aggregate (HECKS_MEMBERSHIP_AGGREGATE). Same declared-
+      # not-named shape AUTHORIZATION already is for Governance.
+      MEMBERSHIP = "membership".freeze
 
       CONTRACTS = {
         AUTHORIZATION => {
@@ -20,6 +25,14 @@ module Hecks
           grant:       :command,
           # every grant of one role acting as another
           transitions: :query
+        }.freeze,
+        MEMBERSHIP    => {
+          # recognize a person who may eventually sign in
+          admit:  :command,
+          # grant an admitted person a role (the access-grant half)
+          grant:  :command,
+          # every admitted person, for the admin listing
+          people: :query
         }.freeze
       }.freeze
     end

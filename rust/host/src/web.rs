@@ -57,10 +57,10 @@ pub async fn render(
     // Payments::Payment chapter beside them) the checkout routes
     // dispatch against; unset, or naming a different domain, these
     // routes don't exist. An env var rather than an IR-driven "outbound
-    // port"/"webhook signature scheme" capability, the same trade
-    // `HECKS_MEMBERSHIP_AGGREGATE` makes in auth.rs — considered for
+    // port"/"webhook signature scheme" capability — considered for
     // real (equivalence-gap plan 3.3) and declined; checkout.rs's own
-    // header has the reasoning. The verb shapes these routes hardcode
+    // header has the reasoning. Membership, unlike checkout, *did* move
+    // onto a declared capability (`provides "membership"`). The verb shapes these routes hardcode
     // are pinned by spec/fixtures/rust_host/checkout_fixture, which this
     // module's tests run against. Checked before the ir()/HECKS_IR_PATH
     // gate below, deliberately: a Shared-mode deploy with no generic

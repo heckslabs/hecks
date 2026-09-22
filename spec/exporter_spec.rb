@@ -53,23 +53,23 @@ RSpec.describe Hecks::Projector::Exporter do
     end
   end
 
-  describe ".authorization" do
-    # Pizzas' own hecksagon attaches Governance (`uses_framework`), whose
-    # bluebook declares `provides "authorization"`; the bare bluebook alone
-    # attaches nothing.
-    def pizzas_registry(with_hecksagon:)
-      registry = Hecks::Runtime::Registry.new
-      Hecks.with_registry(registry) do
-        Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
-        Kernel.load(InMemoryDomain::EXTRACTION_PORT)
-        Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
-        Kernel.load(InMemoryDomain::PRISM_ADAPTER)
-        Kernel.load(InMemoryDomain::PIZZAS_BLUEBOOK)
-        Kernel.load(File.join(InMemoryDomain::ROOT, "examples/pizzas/bluebook/pizzas.hecksagon")) if with_hecksagon
-      end
-      registry
+  # Pizzas' own hecksagon attaches Governance (`uses_framework`), whose
+  # bluebook declares `provides "authorization"`; the bare bluebook alone
+  # attaches nothing. Shared by `.authorization` and `.membership`.
+  def pizzas_registry(with_hecksagon:)
+    registry = Hecks::Runtime::Registry.new
+    Hecks.with_registry(registry) do
+      Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
+      Kernel.load(InMemoryDomain::EXTRACTION_PORT)
+      Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
+      Kernel.load(InMemoryDomain::PRISM_ADAPTER)
+      Kernel.load(InMemoryDomain::PIZZAS_BLUEBOOK)
+      Kernel.load(File.join(InMemoryDomain::ROOT, "examples/pizzas/bluebook/pizzas.hecksagon")) if with_hecksagon
     end
+    registry
+  end
 
+  describe ".authorization" do
     it "names the attached chapter that provides authorization, with its declared verbs qualified" do
       expect(described_class.authorization(pizzas_registry(with_hecksagon: true), "Pizzas")).to eq(
         provider:             "Governance",
@@ -81,6 +81,12 @@ RSpec.describe Hecks::Projector::Exporter do
 
     it "answers empty for a domain that attaches no authorization provider" do
       expect(described_class.authorization(pizzas_registry(with_hecksagon: false), "Pizzas")).to eq({})
+    end
+  end
+
+  describe ".membership" do
+    it "answers empty for a domain that attaches no membership provider" do
+      expect(described_class.membership(pizzas_registry(with_hecksagon: true), "Pizzas")).to eq({})
     end
   end
 

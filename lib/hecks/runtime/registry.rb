@@ -1,6 +1,7 @@
 require_relative "registry/verification"
 require_relative "registry/saga_persistence"
 require_relative "outbox"
+require_relative "../naming"
 
 module Hecks
   module Runtime
@@ -306,6 +307,42 @@ module Hecks
       #   authorization
       def authorization_providers
         @bluebooks.values.select { |chapter| chapter.provides?(Bluebook::Capabilities::AUTHORIZATION) }
+      end
+
+      # The chapter that answers "who may sign in" for `domain` — the
+      # domain's own chapter, any framework member its hecksagon attaches,
+      # or any vendored embryonaut bluebook it attaches, that declares
+      # `provides "membership"`. Nil when none does. Replaces rust/host's
+      # own HECKS_MEMBERSHIP_AGGREGATE env var: Membership is recognised
+      # by what it declares (Person.Admit/GrantAccess/All), and a chapter
+      # that declares the same thing (Embryonaut::Member, say) is
+      # recognised the same way.
+      #
+      # Vendored packages are included here and not in
+      # `authorization_provider_for` because membership is a vendored
+      # embryonaut_bluebooks chapter (`uses_embryonaut_bluebook
+      # "membership"`), not a framework member shipped inside hecks.
+      # `Naming.pascal` is the same directory-to-chapter convention
+      # `EmbryonautBluebook.load!` already uses.
+      #
+      # @param domain [String, Symbol] the domain whose sign-in aggregate is being resolved
+      # @return [Bluebook::Chapter, nil] the chapter that answers `domain`'s membership
+      #   questions, or nil if none does
+      def membership_provider_for(domain)
+        hexagon = hecksagon(domain)
+        vendored = Array(hexagon&.vendored_bluebooks).map { |name| Naming.pascal(name) }
+        names = [domain.to_s, *Array(hexagon&.framework_members), *vendored]
+        attached = names.filter_map { |name| bluebook(name) }
+                        .find { |chapter| chapter.provides?(Bluebook::Capabilities::MEMBERSHIP) }
+        return attached if attached
+
+        # Sibling hecksagons — Lifeadelics vendors Membership as
+        # `Hecks.hecksagon "Membership"` (so Person::Admit can attach
+        # Governance on that named hexagon), not via uses_embryonaut_bluebook
+        # on the consuming domain. The chapter is loaded; it just isn't
+        # listed on Lifeadelics' own hexagon. Any loaded chapter that
+        # provides membership is the bounded-context answer.
+        @bluebooks.values.find { |chapter| chapter.provides?(Bluebook::Capabilities::MEMBERSHIP) }
       end
 
       # Resolves and memoizes `aggregate`'s authoritative repository.
