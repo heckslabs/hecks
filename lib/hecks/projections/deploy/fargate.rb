@@ -141,8 +141,8 @@ module Hecks
           # *declare* GOOGLE_OAUTH_SECRET_ID + a redirect URI parameter —
           # the secret itself is never a stack resource.
           google_oauth_present = rust_web &&
-            File.exist?(File.join(domain, ".env.local")) &&
-            File.read(File.join(domain, ".env.local")).match?(/^GOOGLE_CLIENT_ID=\S/)
+                                 File.exist?(File.join(domain, ".env.local")) &&
+                                 File.read(File.join(domain, ".env.local")).match?(/^GOOGLE_CLIENT_ID=\S/)
 
           # Every policy in every loaded chapter — see `Lambda.call`'s own
           # comment on why this reads the whole registry, not only this
@@ -245,6 +245,25 @@ module Hecks
               Type: String
               Default: ""
           OAUTHPARAMS
+          # Built outside the template heredoc so Layout/HeredocIndentation
+          # cannot re-indent YAML that must match SessionSecretRead / env.
+          # First interpolated line sits at the `\#{...}` column; later lines
+          # get that same left pad (lambda.rb's own OAUTHPOLICY pattern).
+          oauth_task_policy_yaml = google_oauth_present ? <<~OAUTHPOLICY.rstrip : ""
+            - PolicyName: GoogleOauthSecretRead
+              PolicyDocument:
+                Version: '2012-10-17'
+                Statement:
+                  - Effect: Allow
+                    Action: secretsmanager:GetSecretValue
+                    Resource: !Sub "arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:#{stack_name}-web-google-oauth-*"
+          OAUTHPOLICY
+          oauth_task_env_yaml = google_oauth_present ? <<~OAUTHENV.rstrip : ""
+            - Name: GOOGLE_OAUTH_SECRET_ID
+              Value: #{stack_name}-web-google-oauth
+            - Name: GOOGLE_REDIRECT_URI
+              Value: !Sub "${WebRedirectBaseUrl}/auth/google/callback"
+          OAUTHENV
           owning_params_yaml = shared ? <<~SHAREDPARAMS.rstrip : ""
             # The storehouse — #{owner_domain_name}'s own live stack Outputs,
             # looked up at deploy time (the generated Makefile's own `deploy:`
@@ -425,15 +444,7 @@ module Hecks
                           - Effect: Allow
                             Action: secretsmanager:GetSecretValue
                             Resource: !Ref #{session_secret_id}
-                    #{google_oauth_present ? <<~OAUTHPOLICY.rstrip : ""}
-                    - PolicyName: GoogleOauthSecretRead
-                      PolicyDocument:
-                        Version: '2012-10-17'
-                        Statement:
-                          - Effect: Allow
-                            Action: secretsmanager:GetSecretValue
-                            Resource: !Sub "arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:#{stack_name}-web-google-oauth-*"
-                    OAUTHPOLICY
+                    #{oauth_task_policy_yaml.each_line.with_index.map { |l, i| i.zero? ? l : "                    " + l }.join}
                     # TMPL:cross_domain_fargate_policies
 
               #{task_definition_id}:
@@ -512,12 +523,7 @@ module Hecks
                           Value: !Ref #{session_secret_id}
                         - Name: HECKS_CHECKOUT_DOMAIN
                           Value: #{declared_domain_name}
-                        #{google_oauth_present ? <<~OAUTHENV.rstrip : ""}
-                        - Name: GOOGLE_OAUTH_SECRET_ID
-                          Value: #{stack_name}-web-google-oauth
-                        - Name: GOOGLE_REDIRECT_URI
-                          Value: !Sub "${WebRedirectBaseUrl}/auth/google/callback"
-                        OAUTHENV
+                        #{oauth_task_env_yaml.each_line.with_index.map { |l, i| i.zero? ? l : "                        " + l }.join}
                         # TMPL:db_env
 
               #{target_group_id}:
