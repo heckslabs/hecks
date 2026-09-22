@@ -271,7 +271,7 @@ section above already needs:
 
 ```ruby
 hexagon = runtime.registry.hecksagon("Tenancy")
-hexagon.bounded?     # => false — the boot above did not write bounded
+hexagon.bounded?     # => false
 hexagon.translates   # => ["RegisterProvisionedTenant"]
 ```
 

@@ -115,6 +115,9 @@ RSpec.describe "environment overlays and vendored bluebooks" do
   end
 
   describe "environment: overlay (World)" do
+    # World overlay + sibling ACL in one boot; splitting would re-pay the
+    # tmpdir write without proving more than this one merge already does.
+    # rubocop:disable-next RSpec/ExampleLength
     it "merges an environments/<name>.world overlay's settings into the base rather than replacing them" do
       Dir.mktmpdir do |dir|
         write(dir, "overlaid.bluebook", bluebook_source(role: "Someone"))
