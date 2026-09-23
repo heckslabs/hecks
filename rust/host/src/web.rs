@@ -77,7 +77,11 @@ pub async fn render(
         return Some(respond(500, "text/plain", "HECKS_IR_PATH not set or unreadable — this domain has no web layer configured"));
     };
 
-    let query = parse_form(body.get("rawQueryString").and_then(|v| v.as_str()).unwrap_or(""));
+    // Query strings are RFC 3986, not application/x-www-form-urlencoded:
+    // `+` is a literal plus. Google's OAuth `code` routinely contains `+`;
+    // treating it as space (HTML-form rules) breaks the token exchange and
+    // surfaces as `/login?error=google_failed`. Form bodies still use parse_form.
+    let query = parse_query(body.get("rawQueryString").and_then(|v| v.as_str()).unwrap_or(""));
     let cookies = extract_cookies(body);
 
     Some(route(domain_ir, method, path, &query, &raw_body, &cookies, client, wasm_path, config, invoker).await)
@@ -520,20 +524,33 @@ async fn google_callback(
     secret: &str,
     invoker: &dyn LambdaInvoker,
 ) -> Value {
-    let Some(code) = query.get("code") else { return redirect("/login?error=google_failed") };
-    let Some(state) = query.get("state") else { return redirect("/login?error=google_failed") };
-    if auth::verify_state(state, secret).is_err() {
+    let Some(code) = query.get("code") else {
+        eprintln!("google_callback: missing code");
+        return redirect("/login?error=google_failed");
+    };
+    let Some(state) = query.get("state") else {
+        eprintln!("google_callback: missing state");
+        return redirect("/login?error=google_failed");
+    };
+    if let Err(e) = auth::verify_state(state, secret) {
+        eprintln!("google_callback: state: {e}");
         return redirect("/login?error=google_failed");
     }
 
     let claims = match auth::verify(code, &redirect_uri()).await {
         Ok(c) => c,
-        Err(_) => return redirect("/login?error=google_failed"),
+        Err(e) => {
+            eprintln!("google_callback: token exchange: {e}");
+            return redirect("/login?error=google_failed");
+        }
     };
 
     let read = match dispatch::read(client, wasm_path).await {
         Ok(r) => r,
-        Err(_) => return redirect("/login?error=google_failed"),
+        Err(e) => {
+            eprintln!("google_callback: read: {e:#}");
+            return redirect("/login?error=google_failed");
+        }
     };
     let instances = read.get("instances").cloned().unwrap_or(json!({}));
 
@@ -1849,22 +1866,34 @@ fn split_format(segment: &str) -> (String, String) {
 }
 
 fn parse_form(text: &str) -> HashMap<String, String> {
+    parse_urlencoded(text, true)
+}
+
+fn parse_query(text: &str) -> HashMap<String, String> {
+    parse_urlencoded(text, false)
+}
+
+fn parse_urlencoded(text: &str, plus_as_space: bool) -> HashMap<String, String> {
     text.split('&')
         .filter(|s| !s.is_empty())
-        .filter_map(|pair| {
+        .map(|pair| {
             let (k, v) = pair.split_once('=').unwrap_or((pair, ""));
-            Some((percent_decode(k), percent_decode(v)))
+            (percent_decode_impl(k, plus_as_space), percent_decode_impl(v, plus_as_space))
         })
         .collect()
 }
 
 pub(crate) fn percent_decode(s: &str) -> String {
+    percent_decode_impl(s, true)
+}
+
+fn percent_decode_impl(s: &str, plus_as_space: bool) -> String {
     let bytes = s.as_bytes();
     let mut out = Vec::with_capacity(bytes.len());
     let mut i = 0;
     while i < bytes.len() {
         match bytes[i] {
-            b'+' => {
+            b'+' if plus_as_space => {
                 out.push(b' ');
                 i += 1;
             }
@@ -2389,6 +2418,15 @@ mod tests {
     fn nest_is_unaffected_by_an_unrelated_sibling_sharing_no_prefix() {
         let result = nest(vec![("price.cents".to_string(), json!(500)), ("name".to_string(), json!("Widget"))]).unwrap();
         assert_eq!(result, json!({"price": {"cents": 500}, "name": "Widget"}));
+    }
+
+    #[test]
+    fn parse_query_keeps_a_literal_plus_so_google_oauth_codes_round_trip() {
+        let q = parse_query("code=abc+def%2Fgh&state=1.sig");
+        assert_eq!(q.get("code").map(String::as_str), Some("abc+def/gh"));
+        assert_eq!(q.get("state").map(String::as_str), Some("1.sig"));
+        let form = parse_form("code=abc+def");
+        assert_eq!(form.get("code").map(String::as_str), Some("abc def"), "HTML forms still treat + as space");
     }
 
     #[test]
