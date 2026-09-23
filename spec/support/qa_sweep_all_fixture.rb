@@ -198,12 +198,14 @@ RSpec.shared_context "with a qa_sweep_all fixture" do |database_name|
     # `hecks_qa`, an ordinary owner role — PostgresEra refuses to boot as
     # the ambient superuser (BUG#24). `bin/qa_postgres_role`, run for
     # real below, is what makes it connectable.
+    url = QaLedgerRole.url(@qa_sweep_all_database)
     File.write(File.join(@fixture_dir, "quality_control.world"), <<~RUBY)
       Hecks.world "QualityControl" do
         realm "QA"
-        persisted_by("PostgresEra") { database "#{QaLedgerRole.url(@qa_sweep_all_database)}" }
+        persisted_by("PostgresEra") { database "#{url}" }
       end
     RUBY
+    File.write(File.join(@fixture_dir, "governance.world"), InMemoryDomain.governance_postgres_era_world(url))
 
     # Living inside the real repo `ROOT`, not `/tmp` — `bin/qa_sweep`
     # always resolves a `Target`'s own `path` against the real repository

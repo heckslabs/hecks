@@ -130,12 +130,15 @@ RSpec.describe "bin/qa_sweep concurrency", :io do
     FileUtils.ln_s(File.join(InMemoryDomain::ROOT, "qa/bluebook/quality_control.bluebook"),
                    File.join(@fixture_dir, "quality_control.bluebook"))
     File.write(File.join(@fixture_dir, "quality_control.hecksagon"), LEDGER_HECKSAGON_FOR_CONCURRENCY_SPEC)
+    File.write(File.join(@fixture_dir, "context_map.hecksagon"), InMemoryDomain::GOVERNANCE_POSTGRES_ERA_HECKSAGON)
+    url = QaLedgerRole.url(QA_SWEEP_CONCURRENCY_LEDGER_DATABASE)
     File.write(File.join(@fixture_dir, "quality_control.world"), <<~RUBY)
       Hecks.world "QualityControl" do
         realm "QA"
-        persisted_by("PostgresEra") { database "#{QaLedgerRole.url(QA_SWEEP_CONCURRENCY_LEDGER_DATABASE)}" }
+        persisted_by("PostgresEra") { database "#{url}" }
       end
     RUBY
+    File.write(File.join(@fixture_dir, "governance.world"), InMemoryDomain.governance_postgres_era_world(url))
 
     # Prefixed `qa-sweep-cc-target-`, not the mode's own name — see
     # `qa_sweep_era_boundary_spec.rb`'s identical comment for why.

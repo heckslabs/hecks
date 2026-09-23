@@ -68,6 +68,18 @@ module InMemoryDomain
     end
   HECKSAGON
 
+  # Sibling world PostgresEra needs once the hecksagon above binds it —
+  # EraCheck looks up registry.world("Governance"), not QualityControl's.
+  # @param database_url [String] the same URL the consuming domain's world uses
+  # @return [String] a `Hecks.world "Governance"` file body
+  def self.governance_postgres_era_world(database_url)
+    <<~RUBY
+      Hecks.world "Governance" do
+        persisted_by("PostgresEra") { database "#{database_url}" }
+      end
+    RUBY
+  end
+
   # @param adapter [String] persistence adapter name (default Memory)
   # @return [void]
   def sibling_governance!(adapter: "Memory")
