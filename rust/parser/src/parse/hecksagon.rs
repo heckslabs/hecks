@@ -125,7 +125,7 @@ pub fn apply(
         if let LineShape::Call(call) = lex::classify(file, &line)? {
             if !matches!(
                 call.word.as_str(),
-                "port" | "subscribe" | "uses_framework" | "uses_embryonaut_bluebook" | "translates" | "end"
+                "port" | "subscribe" | "uses_framework" | "uses_embryonaut_bluebook" | "translates" | "bounded" | "end"
             ) {
                 *pos += 1;
                 if matches!(call.opener, Opener::DoBlock { .. }) {
@@ -216,6 +216,10 @@ pub fn apply(
                     )?);
                 }
                 "subscribe" => {}
+                // `bounded` — consumer-owned bounded-context mark. Gated
+                // for real, then dropped from ir.json the same way
+                // `subscribe` is: a wiring fact, not a shape fact.
+                "bounded" => {}
                 _ => {
                     return Err(super::not_built_yet(
                         "Hecksagon",

@@ -61,6 +61,7 @@ RSpec.describe "environment overlays and vendored bluebooks" do
             Overlaid::Thing.persisted_by("Memory")
           end
         HECKSAGON
+        write(dir, "context_map.hecksagon", InMemoryDomain::GOVERNANCE_MEMORY_HECKSAGON)
         write(dir, "environments/production.hecksagon", <<~HECKSAGON)
           Hecks.hecksagon "Overlaid" do
             subscribe "SomeOutsideEvent"
@@ -92,6 +93,7 @@ RSpec.describe "environment overlays and vendored bluebooks" do
             uses_framework "Governance"
           end
         HECKSAGON
+        write(dir, "context_map.hecksagon", InMemoryDomain::GOVERNANCE_MEMORY_HECKSAGON)
 
         expect { Hecks.boot(dir, environment: "production") }.not_to raise_error
       end
@@ -113,6 +115,9 @@ RSpec.describe "environment overlays and vendored bluebooks" do
   end
 
   describe "environment: overlay (World)" do
+    # World overlay + sibling ACL in one boot; splitting would re-pay the
+    # tmpdir write without proving more than this one merge already does.
+    # rubocop:disable-next RSpec/ExampleLength
     it "merges an environments/<name>.world overlay's settings into the base rather than replacing them" do
       Dir.mktmpdir do |dir|
         write(dir, "overlaid.bluebook", bluebook_source(role: "Someone"))
@@ -122,6 +127,7 @@ RSpec.describe "environment overlays and vendored bluebooks" do
             Overlaid::Thing.persisted_by("Memory")
           end
         HECKSAGON
+        write(dir, "context_map.hecksagon", InMemoryDomain::GOVERNANCE_MEMORY_HECKSAGON)
         write(dir, "overlaid.world", <<~WORLD)
           Hecks.world "Overlaid" do
             realm "Overlaid"
@@ -190,6 +196,7 @@ RSpec.describe "environment overlays and vendored bluebooks" do
             Widgets::Widget.persisted_by("Memory")
           end
         HECKSAGON
+        write(root, "bluebook/context_map.hecksagon", InMemoryDomain::GOVERNANCE_MEMORY_HECKSAGON)
 
         dispatcher = Hecks.boot(domain_dir, install_facade: false)
 

@@ -16,6 +16,12 @@ module Hecks
       # the aggregate (HECKS_MEMBERSHIP_AGGREGATE). Same declared-
       # not-named shape AUTHORIZATION already is for Governance.
       MEMBERSHIP = "membership".freeze
+      # A stable organizational identity, independent of how it was
+      # authenticated — recognised by declaration, not the literal name
+      # "Identity". Same declared-not-named shape AUTHORIZATION already
+      # is. rust/host does not build this chapter's payloads; any field
+      # mapping lives on the consuming hecksagon's `translates` ACL.
+      IDENTITY = "identity".freeze
 
       CONTRACTS = {
         AUTHORIZATION => {
@@ -33,6 +39,14 @@ module Hecks
           grant:  :command,
           # every admitted person, for the admin listing
           people: :query
+        }.freeze,
+        IDENTITY      => {
+          # mint a stable identity, independent of how it authenticated
+          register: :command,
+          # associate an (issuer, subject) pair with that identity
+          link:     :command,
+          # look up the identity an authenticated pair resolves to
+          resolve:  :query
         }.freeze
       }.freeze
     end

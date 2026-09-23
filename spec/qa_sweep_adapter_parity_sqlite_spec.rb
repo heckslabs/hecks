@@ -132,12 +132,15 @@ RSpec.describe "bin/qa_sweep adapter_parity_sqlite", :io do
     FileUtils.ln_s(File.join(InMemoryDomain::ROOT, "qa/bluebook/quality_control.bluebook"),
                    File.join(@fixture_dir, "quality_control.bluebook"))
     File.write(File.join(@fixture_dir, "quality_control.hecksagon"), LEDGER_HECKSAGON_FOR_ADAPTER_PARITY_SQLITE_SPEC)
+    File.write(File.join(@fixture_dir, "context_map.hecksagon"), InMemoryDomain::GOVERNANCE_POSTGRES_ERA_HECKSAGON)
+    url = QaLedgerRole.url(QA_SWEEP_ADAPTER_PARITY_SQLITE_DATABASE)
     File.write(File.join(@fixture_dir, "quality_control.world"), <<~RUBY)
       Hecks.world "QualityControl" do
         realm "QA"
-        persisted_by("PostgresEra") { database "#{QaLedgerRole.url(QA_SWEEP_ADAPTER_PARITY_SQLITE_DATABASE)}" }
+        persisted_by("PostgresEra") { database "#{url}" }
       end
     RUBY
+    File.write(File.join(@fixture_dir, "governance.world"), InMemoryDomain.governance_postgres_era_world(url))
 
     # Living inside the real repo `ROOT`, exactly `spec/qa_sweep_all_spec
     # .rb`'s own reasoning — `bin/qa_sweep` resolves a `Target`'s own

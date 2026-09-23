@@ -5,6 +5,34 @@ Dates are when a change landed on `main`, not when this file was written.
 Entries below are grouped by theme, not itemized commit-by-commit; see
 `git log` for the full history.
 
+## [2.0.0] - 2026-09-22
+
+**Breaking: `uses_framework` / `uses_embryonaut_bluebook` load bounded
+contexts.** Framework and embryonaut_bluebooks chapters never write
+`bounded` in their own files — the consuming `uses_*` word marks them.
+A bounded chapter wraps in its own module (`Domain::Aggregate`); Object
+shortcuts (`Person.Admit`) are not installed, so two BCs can both declare
+`Person` without colliding. Folder-spread `.bluebook` files of the SAME
+chapter still merge as one chapter; they are not BCs.
+
+**Breaking: a consumer can mark their own chapter `bounded`.** That mark
+always requires a `translates` ACL or boot refuses. Any field can be
+mapped; the BC does not list which. rust/host does not build Identity
+(or any other BC) payloads — mapping lives on the hecksagon.
+
+**Breaking: attaching a BC without its sibling hecksagon refuses boot.**
+`uses_framework "Governance"` needs `Hecks.hecksagon "Governance"`;
+`uses_embryonaut_bluebook "membership"` needs `Hecks.hecksagon "Membership"`.
+That sibling — and every `translates` ACL — lives in `context_map.hecksagon`.
+Same-name `Hecks.hecksagon` blocks from every `*.hecksagon` file merge into
+one hecksagon per domain (order-independent). Any field can be mapped; the
+BC does not list which. rust/host does not build BC payloads.
+
+**Identity is recognised by `provides "identity"`, not the literal name.**
+Same declared-not-named shape authorization/membership already are.
+`ExternalIdentifier.Link` takes `identity`, never `identity_id` and never
+`to:`.
+
 ## [1.5.1] - 2026-09-19
 
 **Fixed: `Compliance` framework member missing from the packaged gem.**

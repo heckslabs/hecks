@@ -138,10 +138,20 @@ module Hecks
         current_entries.reject { |entry| entry.fqn.aggregate.nil? }
                        .group_by { |entry| [entry.fqn.aggregate, entry.fqn.verb] }
                        .each do |(aggregate, verb), candidates|
+          # Bounded chapters wrap in their own module (`Domain::Aggregate`)
+          # so two BCs can both declare `Person` without colliding on
+          # Object::Person. Folder-spread files of the SAME chapter still
+          # get the shortcut — they are not BCs.
+          next if bounded_chapter?(candidates)
+
           shortcut_target(aggregate).define_singleton_method(verb) do |**args|
             installer.send(:dispatch_short, candidates, **args)
           end
         end
+      end
+
+      def bounded_chapter?(candidates)
+        candidates.any? { |entry| entry.dispatcher.registry.bounded?(entry.fqn.domain) }
       end
 
       def dispatch_short(candidates, **args)

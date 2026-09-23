@@ -9,6 +9,17 @@ Hecks.bluebook "Identity" do
   # identity provider is.
   generic
 
+  # WHAT THIS CHAPTER ANSWERS FOR EVERY DOMAIN THAT ATTACHES IT. Same
+  # declared-not-named shape Governance's own `provides "authorization"`
+  # already is. rust/host does not build this chapter's payloads — any
+  # field mapping lives on the consuming hecksagon's `translates` ACL
+  # (any field; this chapter does not list which). Link's reference is
+  # `identity`, not `identity_id` and not `to:`.
+  provides "identity",
+           register: "Identity.Register",
+           link:     "ExternalIdentifier.Link",
+           resolve:  "ExternalIdentifier.ResolvedBy"
+
   aggregate "Identity" do
     description "A stable organizational identity, independent of how it was authenticated."
 

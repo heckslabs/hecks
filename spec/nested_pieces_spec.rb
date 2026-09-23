@@ -27,6 +27,7 @@ RSpec.describe "NestedPieces" do
 
         NestedPieces::Workspace.persisted_by("Memory")
       end
+      sibling_governance!
     end
 
     registry.verify!

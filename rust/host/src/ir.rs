@@ -160,6 +160,34 @@ pub fn membership_provider(domain_ir: &Value) -> Option<MembershipProvider> {
     })
 }
 
+/// The chapter that answers "who is this authenticated pair" —
+/// `Exporter.identity` (exporter.rb), a binding fact like `authorization`
+/// above, read off `ir.json`'s own top-level `identity` key. `None` when
+/// the domain attaches nothing that declares `provides "identity"`.
+/// Breaking in 2.0: Link's reference field is `identity`, never
+/// `identity_id` and never `to:`.
+#[derive(Debug, Clone, PartialEq)]
+pub struct IdentityProvider {
+    /// Chapter name, e.g. `Identity`.
+    pub provider: String,
+    /// Qualified register command, e.g. `Identity::Identity.Register`.
+    pub register: String,
+    /// Qualified link command, e.g. `Identity::ExternalIdentifier.Link`.
+    pub link: String,
+    /// Qualified resolve query, e.g. `Identity::ExternalIdentifier.ResolvedBy`.
+    pub resolve: String,
+}
+
+pub fn identity_provider(domain_ir: &Value) -> Option<IdentityProvider> {
+    let fact = domain_ir.get("identity")?;
+    Some(IdentityProvider {
+        provider: fact.get("provider")?.as_str()?.to_string(),
+        register: fact.get("register")?.as_str()?.to_string(),
+        link: fact.get("link")?.as_str()?.to_string(),
+        resolve: fact.get("resolve")?.as_str()?.to_string(),
+    })
+}
+
 pub fn refuse_unsupported_persistence_adapters(domain_ir: &Value) -> Result<(), String> {
     let unsupported: Vec<String> = persistence_adapters(domain_ir)
         .into_iter()
@@ -258,6 +286,25 @@ mod tests {
         assert_eq!(provider.provider, "Membership");
         assert_eq!(provider.aggregate, "Membership::Person");
         assert!(membership_provider(&serde_json::json!({ "name": "Pizzas" })).is_none());
+    }
+
+    #[test]
+    fn identity_provider_reads_the_declared_capability() {
+        let ir = serde_json::json!({
+            "name": "Lifeadelics",
+            "identity": {
+                "provider": "Identity",
+                "register": "Identity::Identity.Register",
+                "link": "Identity::ExternalIdentifier.Link",
+                "resolve": "Identity::ExternalIdentifier.ResolvedBy"
+            }
+        });
+        let provider = identity_provider(&ir).expect("should find identity");
+        assert_eq!(provider.provider, "Identity");
+        assert_eq!(provider.register, "Identity::Identity.Register");
+        assert_eq!(provider.link, "Identity::ExternalIdentifier.Link");
+        assert_eq!(provider.resolve, "Identity::ExternalIdentifier.ResolvedBy");
+        assert!(identity_provider(&serde_json::json!({ "name": "Pizzas" })).is_none());
     }
 
     #[test]

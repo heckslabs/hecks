@@ -405,6 +405,13 @@ pub async fn provision(
     };
     let identity_id = uuid::Uuid::new_v4().to_string();
 
+    // The identity verbs this domain's declared identity provider names
+    // (`ir::identity_provider`), never a hard-coded chapter. Breaking in
+    // 2.0: Link's reference field is `identity`, never `identity_id`.
+    let Some(identity) = crate::ir::identity_provider(domain_ir) else {
+        anyhow::bail!("this domain attaches no chapter that provides \"identity\" — cannot register or link an identity");
+    };
+
     // `None` on all three dispatches below -- this whole function is
     // system-initiated provisioning (minting Identity/Governance facts
     // for a Member the operator already granted access to via
@@ -412,22 +419,22 @@ pub async fn provision(
     // there is no caller role to assert here -- matches what every call
     // site in this function has always done.
     let register = dispatch::handle(
-        client, wasm_path, "Identity::Identity.Register",
+        client, wasm_path, &identity.register,
         json!({"identity_id": {"value": identity_id}}), None, config, invoker,
     ).await?;
     if !register.accepted {
-        anyhow::bail!("Identity::Identity.Register refused: {}", register.result);
+        anyhow::bail!("{} refused: {}", identity.register, register.result);
     }
 
     let link_external = dispatch::handle(
-        client, wasm_path, "Identity::ExternalIdentifier.Link",
+        client, wasm_path, &identity.link,
         json!({
-            "identity_id": identity_id, "key": {"value": format!("{issuer}:{subject}")},
+            "identity": identity_id, "key": {"value": format!("{issuer}:{subject}")},
             "issuer": {"value": issuer}, "subject": {"value": subject},
         }), None, config, invoker,
     ).await?;
     if !link_external.accepted {
-        anyhow::bail!("Identity::ExternalIdentifier.Link refused: {}", link_external.result);
+        anyhow::bail!("{} refused: {}", identity.link, link_external.result);
     }
 
     // The grant verb this domain's declared authorization provider names

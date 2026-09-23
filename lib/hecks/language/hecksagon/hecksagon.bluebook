@@ -110,6 +110,12 @@ Hecks.bluebook "Hecksagon" do
       # the same shape `subscribe`/`uses_framework` already are, reached
       # by Ruby's own method lookup before `word_gate` ever runs.
       member word: "translates",      context: "Hecksagon",     body: "keywords", inner: "Policy",        opens: "Policy",        fills: ""
+      # A CONSUMER-OWNED bounded context — framework/vendored packages
+      # get this mark automatically from uses_framework /
+      # uses_embryonaut_bluebook and never write it in their own files.
+      # No `calls:` — `HecksagonBuilder#bounded` is an ordinary method,
+      # same shape `subscribe` already is.
+      member word: "bounded",         context: "Hecksagon", body: "none", inner: "", opens: "", fills: ""
 
     end
 

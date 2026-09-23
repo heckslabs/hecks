@@ -1863,6 +1863,32 @@
                 "fills",
                 ""
               ]
+            ],
+            [
+              [
+                "word",
+                "bounded"
+              ],
+              [
+                "context",
+                "Hecksagon"
+              ],
+              [
+                "body",
+                "none"
+              ],
+              [
+                "inner",
+                ""
+              ],
+              [
+                "opens",
+                ""
+              ],
+              [
+                "fills",
+                ""
+              ]
             ]
           ],
           "name": "KeywordSeed"

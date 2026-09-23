@@ -215,6 +215,12 @@ RSpec.describe "every live DSL word, used somewhere real" do
                                            "the new name. Written up in docs/implemented/reference/bluebook.md's " \
                                            "own section, naming " \
                                            "the consumer, per principle 4's own wording.",
+    "bounded (Hecksagon)"               =>
+                                           "a consumer-owned mark; framework and vendored packages get it automatically " \
+                                           "from uses_framework / uses_embryonaut_bluebook and never write the word. No " \
+                                           "corpus member currently owns a chapter that is itself a BC with a translates " \
+                                           "ACL — every real BC in this repo is a framework member (Governance, Identity). " \
+                                           "The running example lives on docs/implemented/reference/hecksagon.md.",
     # **No longer refused**. `AggregateBuilder#has_many`/`#has_one` genuinely
     # build now (S17/ADR 0026's relationship-cardinality slice un-
     # deprecated all three words — `belongs_to` is real corpus use today,

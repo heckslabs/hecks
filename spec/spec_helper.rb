@@ -51,6 +51,45 @@ module InMemoryDomain
   end
   module_function :load_bluebook_files
 
+  # Sibling ACL hecksagon `uses_framework "Governance"` needs as of 2.0 —
+  # attaching a BC without `Hecks.hecksagon "Governance"` refuses boot.
+  # Same Memory binds every in-process spec already used.
+  GOVERNANCE_MEMORY_HECKSAGON = <<~HECKSAGON.freeze
+    Hecks.hecksagon "Governance" do
+      Governance::RoleAssignment.persisted_by("Memory")
+      Governance::RoleTransition.persisted_by("Memory")
+    end
+  HECKSAGON
+
+  GOVERNANCE_POSTGRES_ERA_HECKSAGON = <<~HECKSAGON.freeze
+    Hecks.hecksagon "Governance" do
+      Governance::RoleAssignment.persisted_by("PostgresEra")
+      Governance::RoleTransition.persisted_by("PostgresEra")
+    end
+  HECKSAGON
+
+  # Sibling world PostgresEra needs once the hecksagon above binds it —
+  # EraCheck looks up registry.world("Governance"), not QualityControl's.
+  # @param database_url [String] the same URL the consuming domain's world uses
+  # @return [String] a `Hecks.world "Governance"` file body
+  def self.governance_postgres_era_world(database_url)
+    <<~RUBY
+      Hecks.world "Governance" do
+        persisted_by("PostgresEra") { database "#{database_url}" }
+      end
+    RUBY
+  end
+
+  # @param adapter [String] persistence adapter name (default Memory)
+  # @return [void]
+  def sibling_governance!(adapter: "Memory")
+    Hecks.hecksagon("Governance") do
+      ::Governance::RoleAssignment.persisted_by(adapter)
+      ::Governance::RoleTransition.persisted_by(adapter)
+    end
+  end
+  module_function :sibling_governance!
+
   # Boots a fresh, real registry with the Pizzas and Governance chapters wired
   # to the Memory adapter — a minimal real domain, not a stub.
   #
@@ -73,10 +112,7 @@ module InMemoryDomain
         uses_framework "Governance"
         ::Pizzas::Order.persisted_by("Memory")
       end
-      Hecks.hecksagon("Governance") do
-        ::Governance::RoleAssignment.persisted_by("Memory")
-        ::Governance::RoleTransition.persisted_by("Memory")
-      end
+      sibling_governance!
     end
 
     registry.verify!

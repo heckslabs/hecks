@@ -73,6 +73,7 @@ RSpec.describe "multitenancy: one boot per tenant, one shared route table" do
         Tenanted::Widget.persisted_by("#{adapter}")
       end
     HECKSAGON
+    write(dir, "context_map.hecksagon", InMemoryDomain::GOVERNANCE_MEMORY_HECKSAGON)
     write(dir, "tenanted.world", <<~WORLD)
       Hecks.world "Tenanted" do
         realm "TenantedDefault"

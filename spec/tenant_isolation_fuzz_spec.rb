@@ -71,6 +71,7 @@ RSpec.describe "multitenancy: interleaved random writes stay isolated" do
         Fuzzed::Widget.persisted_by("#{adapter}")
       end
     HECKSAGON
+    write(dir, "context_map.hecksagon", InMemoryDomain::GOVERNANCE_MEMORY_HECKSAGON)
     write(dir, "fuzzed.world", <<~WORLD)
       Hecks.world "Fuzzed" do
         realm "FuzzedDefault"

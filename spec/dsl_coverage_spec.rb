@@ -112,7 +112,7 @@ RSpec.describe "the DSL surface is fully covered" do
       # `word_gate_dispatch`'s `calls:` machinery, Ruby's own method
       # lookup finds it directly), tested in spec/hecksagon_translates_spec.rb.
       %i[binds subscribe subscriptions port_impl uses_framework framework_members
-         uses_embryonaut_bluebook vendored_bluebooks translates method_missing]
+         uses_embryonaut_bluebook vendored_bluebooks translates bounded method_missing]
     ],
     "TranslationBuilder"          => [
       Hecks::Bluebook::DSL::TranslationBuilder,

@@ -108,14 +108,18 @@ RSpec.describe "bin/qa_postgres_migrate", :io do
     FileUtils.cp(BLUEBOOK_SOURCE, @pg_dir)
     FileUtils.cp(HECKSAGON_SOURCE, @pg_dir)
     File.write(File.join(heki_bluebook_dir, "quality_control.hecksagon"), HEKI_HECKSAGON)
+    File.write(File.join(heki_bluebook_dir, "context_map.hecksagon"), InMemoryDomain::GOVERNANCE_MEMORY_HECKSAGON)
+    File.write(File.join(@pg_dir, "context_map.hecksagon"), InMemoryDomain::GOVERNANCE_POSTGRES_ERA_HECKSAGON)
+    url = QaLedgerRole.url(SCRATCH_DB)
     File.write(File.join(@pg_dir, "quality_control.world"), <<~WORLD)
       Hecks.world "QualityControl" do
         realm "QA"
         persisted_by("PostgresEra") do
-          database "#{QaLedgerRole.url(SCRATCH_DB)}"
+          database "#{url}"
         end
       end
     WORLD
+    File.write(File.join(@pg_dir, "governance.world"), InMemoryDomain.governance_postgres_era_world(url))
 
     admin = PG.connect(dbname: "postgres")
     admin.exec("DROP DATABASE IF EXISTS #{SCRATCH_DB} WITH (FORCE)")

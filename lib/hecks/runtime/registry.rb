@@ -28,6 +28,7 @@ module Hecks
         @bluebooks    = {}
         @bluebook_sources = {}
         @hecksagons = {}
+        @bounded_chapters = {}
         @ports = {}
         @adapters     = {}
         @worlds       = {}
@@ -187,7 +188,28 @@ module Hecks
       def add_hecksagon(item)
         existing = @hecksagons[item.domain]
         @hecksagons[item.domain] = existing ? merge_hecksagons(existing, item) : item
+        mark_bounded(item.domain) if item.bounded?
       end
+
+      # Marks `name` as a bounded context — called automatically by
+      # `uses_framework` / `uses_embryonaut_bluebook`, and by
+      # `add_hecksagon` when the block itself declared `bounded`.
+      # A bounded chapter wraps in its own module (no Object shortcut)
+      # and must have a `translates` ACL or boot refuses.
+      #
+      # @param name [String, Symbol] the chapter name to mark bounded
+      # @return [void]
+      def mark_bounded(name)
+        @bounded_chapters[name.to_s] = true
+      end
+
+      # Says whether `name` is a bounded context — attached via
+      # `uses_framework` / `uses_embryonaut_bluebook`, or a consumer
+      # chapter that declared `bounded` on its own hecksagon.
+      #
+      # @param name [String, Symbol] the chapter name to check
+      # @return [Boolean] whether that chapter is bounded
+      def bounded?(name) = @bounded_chapters[name.to_s] ? true : false
 
       # Registers a loaded port, keyed by its own declared name.
       #
@@ -307,6 +329,30 @@ module Hecks
       #   authorization
       def authorization_providers
         @bluebooks.values.select { |chapter| chapter.provides?(Bluebook::Capabilities::AUTHORIZATION) }
+      end
+
+      # The chapter that answers "who is this authenticated pair" for
+      # `domain` — the domain's own chapter, or any framework member its
+      # hecksagon attaches, that declares `provides "identity"`. Nil when
+      # none does. Replaces every check for the literal name "Identity":
+      # Identity is recognised by what it declares (Register/Link/ResolvedBy),
+      # and a chapter that declares the same thing is recognised the same way.
+      #
+      # @param domain [String, Symbol] the domain whose identity chapter is being resolved
+      # @return [Bluebook::Chapter, nil] the chapter that answers `domain`'s identity
+      #   questions, or nil if none does
+      def identity_provider_for(domain)
+        names = [domain.to_s, *Array(hecksagon(domain)&.framework_members)]
+        attached = names.filter_map { |name| bluebook(name) }
+                        .find { |chapter| chapter.provides?(Bluebook::Capabilities::IDENTITY) }
+        return attached if attached
+
+        # Sibling hecksagons — a consuming domain often wires Identity as
+        # `Hecks.hecksagon "Identity"` (so Register can attach Governance
+        # on that named hexagon), not only via uses_framework on the
+        # consuming domain. The chapter is loaded; it just isn't listed
+        # on the consumer's own hexagon.
+        @bluebooks.values.find { |chapter| chapter.provides?(Bluebook::Capabilities::IDENTITY) }
       end
 
       # The chapter that answers "who may sign in" for `domain` — the
@@ -474,12 +520,20 @@ module Hecks
       # @return [Bluebook::Hecksagon] a new wiring with every list-shaped fact
       #   concatenated, `base` then `overlay`
       def merge_hecksagons(base, overlay)
+        # Same-name blocks concatenate regardless of which file they came
+        # from (`lifeadelics.hecksagon`, `context_map.hecksagon`, an
+        # environment overlay). Order-independent: list facts uniq, so
+        # loading context_map before or after the domain file is the same
+        # merged hecksagon. Binds stay concatenated (BindingPolicy still
+        # refuses a genuine double-bind).
         Bluebook::Hecksagon.new(
           domain:             base.domain,
           binds:              base.binds + overlay.binds,
-          subscriptions:      base.subscriptions + overlay.subscriptions,
-          framework_members:  base.framework_members + overlay.framework_members,
-          vendored_bluebooks: base.vendored_bluebooks + overlay.vendored_bluebooks
+          subscriptions:      (base.subscriptions + overlay.subscriptions).uniq,
+          framework_members:  (base.framework_members + overlay.framework_members).uniq,
+          vendored_bluebooks: (base.vendored_bluebooks + overlay.vendored_bluebooks).uniq,
+          bounded:            base.bounded? || overlay.bounded?,
+          translates:         (base.translates + overlay.translates).uniq
         )
       end
 

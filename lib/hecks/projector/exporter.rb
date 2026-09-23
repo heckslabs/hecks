@@ -151,6 +151,29 @@ module Hecks
         }
       end
 
+      # Same seam as `authorization` — which chapter answers "who is this
+      # authenticated pair" (`Registry#identity_provider_for`), with its
+      # declared verbs qualified. rust/host reads this instead of naming
+      # Identity::Identity.Register / ExternalIdentifier.Link. `{}` when
+      # nothing this domain attaches provides identity. Breaking in 2.0:
+      # Link's reference field is `identity`, never `identity_id`.
+      # @param registry [Runtime::Registry] the booted registry `domain_name` is loaded in
+      # @param domain_name [String] the domain to export the identity binding for
+      # @return [Hash{Symbol => String, nil}] `:provider` (name), `:register`, `:link`,
+      #   `:resolve` (qualified verbs); `{}` if nothing this domain attaches provides identity
+      def identity(registry, domain_name)
+        provider = registry.identity_provider_for(domain_name)
+        return {} unless provider
+
+        capability = Bluebook::Capabilities::IDENTITY
+        {
+          provider: provider.name,
+          register: provider.provided_verb(capability, :register),
+          link:     provider.provided_verb(capability, :link),
+          resolve:  provider.provided_verb(capability, :resolve)
+        }
+      end
+
       # Translation IR, always as an array, with each aggregate's
       # precompiled SQL attached (`compiled_translation_aggregate`) —
       # this is the export a consumer embeds (`ir.json`'s `translations`

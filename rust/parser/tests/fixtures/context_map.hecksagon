@@ -1,0 +1,5 @@
+# ANTI-CORRUPTION LAYER — sibling bounded-context hecksagons.
+# Same-name blocks merge with hecksagon.hecksagon, order-independent.
+
+Hecks.hecksagon "Governance" do
+end

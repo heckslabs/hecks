@@ -27,6 +27,20 @@ module Hecks
           @subscriptions      = []
           @framework_members  = []
           @vendored_bluebooks = []
+          @bounded            = false
+          @translates         = []
+        end
+
+        # Marks THIS chapter as a bounded context — a consumer-owned chapter
+        # that `uses_framework` / `uses_embryonaut_bluebook` will not load.
+        # Framework and vendored packages get the mark automatically from
+        # those words; they never write `bounded` in their own bluebooks.
+        # A bounded chapter wraps in its own module (no Object shortcut)
+        # and must declare at least one `translates` ACL or boot refuses.
+        #
+        # @return [Boolean] true
+        def bounded
+          @bounded = true
         end
 
         # Subscribes this hecksagon to an event it takes from outside the domain's own bluebook.
@@ -54,6 +68,11 @@ module Hecks
         def uses_framework(name)
           @framework_members << name.to_s
           Hecks::Framework.load!(name)
+          # Automatic bounded mark — the framework member is a bounded
+          # context; the consumer's sibling `Hecks.hecksagon "Name"` is
+          # the anti-corruption layer. Not written in the framework
+          # bluebook itself.
+          Hecks.current_registry&.mark_bounded(name.to_s)
         end
 
         # Attaches a vendored embryonaut bluebook to this domain and loads its files into the
@@ -83,6 +102,10 @@ module Hecks
         def uses_embryonaut_bluebook(name)
           @vendored_bluebooks << name.to_s
           Hecks::EmbryonautBluebook.load!(name)
+          # Automatic bounded mark — same as `uses_framework`. The
+          # package's directory name Pascal-cases to the chapter
+          # (`"membership"` → `Membership`).
+          Hecks.current_registry&.mark_bounded(Hecks::Naming.pascal(name.to_s))
         end
 
         # Declares a port at the hecksagon's root and attaches it to the registered bluebook.
@@ -173,6 +196,7 @@ module Hecks
           resolver = ->(const) { ConstShim::ScopedConstant.for(const) }
           built = ConstShim.with(resolver) { PolicyBuilder.build(name, &block) }
 
+          @translates << name.to_s
           bluebook_ir.add_policy(built)
         end
 
@@ -197,7 +221,8 @@ module Hecks
         #   with any other block declared for the same domain
         def build
           Hecksagon.new(domain: @domain, binds: @binds, subscriptions: @subscriptions,
-                        framework_members: @framework_members, vendored_bluebooks: @vendored_bluebooks)
+                        framework_members: @framework_members, vendored_bluebooks: @vendored_bluebooks,
+                        bounded: @bounded, translates: @translates)
         end
 
         # Records any verb the grammar does not own as a domain-wide bind to the named adapter.

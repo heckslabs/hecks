@@ -90,6 +90,41 @@ RSpec.describe Hecks::Projector::Exporter do
     end
   end
 
+  describe ".identity" do
+    it "answers empty for a domain that attaches no identity provider" do
+      expect(described_class.identity(pizzas_registry(with_hecksagon: true), "Pizzas")).to eq({})
+    end
+
+    it "names the attached chapter that provides identity, with its declared verbs qualified" do
+      registry = Hecks::Runtime::Registry.new
+      Hecks.with_registry(registry) do
+        Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
+        Kernel.load(InMemoryDomain::EXTRACTION_PORT)
+        Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
+        Kernel.load(InMemoryDomain::PRISM_ADAPTER)
+        Kernel.load(File.join(InMemoryDomain::ROOT, "lib/hecks/framework/bluebook/identity.bluebook"))
+        Kernel.load(File.join(InMemoryDomain::ROOT, "lib/hecks/framework/bluebook/governance.bluebook"))
+        Hecks.hecksagon("Probe") do
+          uses_framework "Identity"
+          uses_framework "Governance"
+        end
+        Hecks.hecksagon("Identity") do
+          uses_framework "Governance"
+          Identity::Identity.persisted_by("Memory")
+          Identity::ExternalIdentifier.persisted_by("Memory")
+        end
+        sibling_governance!
+      end
+
+      expect(described_class.identity(registry, "Probe")).to eq(
+        provider: "Identity",
+        register: "Identity::Identity.Register",
+        link:     "Identity::ExternalIdentifier.Link",
+        resolve:  "Identity::ExternalIdentifier.ResolvedBy"
+      )
+    end
+  end
+
   describe ".lineage" do
     # A real PostgresEra binding, not `boot_in_memory`'s own override to
     # Memory — `Exporter.lineage`'s whole job is answering "which

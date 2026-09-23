@@ -96,6 +96,7 @@ RSpec.describe "QualityControl" do
           end
         end
       end
+      sibling_governance!
     end
 
     registry.verify!
