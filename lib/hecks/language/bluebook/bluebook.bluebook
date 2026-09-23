@@ -181,7 +181,11 @@ Hecks.bluebook "Bluebook", version: "1" do
 
     # ONE ROW OF ONE CAPABILITY — `provides "authorization", assignments:
     # ..., grant: ..., transitions: ...` offers three, one per key, in the
-    # order they were written.
+    # order they were written. Membership (`admit`/`grant`/`people`) and
+    # identity (`register`/`link`/`resolve`) use the same word with their
+    # own named keys; the argument table admits every key any capability
+    # declares, and `Capabilities::CONTRACTS` holds which keys a given
+    # capability must name.
     command "Provide" do
       role "Language"
       goal "Declare one verb this chapter answers a capability with"
@@ -287,6 +291,11 @@ Hecks.bluebook "Bluebook", version: "1" do
       member keyword: "provides",        context: "Bluebook", at: "",  named: "assignments", kind: "text", required: "false", fills: "provides"
       member keyword: "provides",        context: "Bluebook", at: "",  named: "grant",       kind: "text", required: "false", fills: "provides"
       member keyword: "provides",        context: "Bluebook", at: "",  named: "transitions", kind: "text", required: "false", fills: "provides"
+      member keyword: "provides",        context: "Bluebook", at: "",  named: "admit",       kind: "text", required: "false", fills: "provides"
+      member keyword: "provides",        context: "Bluebook", at: "",  named: "people",      kind: "text", required: "false", fills: "provides"
+      member keyword: "provides",        context: "Bluebook", at: "",  named: "register",    kind: "text", required: "false", fills: "provides"
+      member keyword: "provides",        context: "Bluebook", at: "",  named: "link",        kind: "text", required: "false", fills: "provides"
+      member keyword: "provides",        context: "Bluebook", at: "",  named: "resolve",     kind: "text", required: "false", fills: "provides"
       member keyword: "aggregate",       context: "Bluebook", at: "1", named: "",        kind: "text",     required: "true",  fills: "name"
       member keyword: "read_model", context: "Bluebook", at: "1", named: "", kind: "text", required: "true", fills: "name"
       member keyword: "policy",          context: "Bluebook", at: "1", named: "",        kind: "text",     required: "true",  fills: "name"

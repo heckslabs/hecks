@@ -99,6 +99,7 @@ RSpec.describe "GitHub CI webhook, end to end" do
           end
         end
       end
+      sibling_governance!
     end
 
     registry.verify!

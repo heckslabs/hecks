@@ -310,6 +310,7 @@ const COVERED_PAIRS: &[(&str, &str)] = &[
     ("dispatch", "Handler"),             // Stage 4
     ("port", "Hecksagon"),
     ("translates", "Hecksagon"),
+    ("bounded", "Hecksagon"),
     ("operation", "DomainPort"),
     ("reference_to", "PortOperation"),
     ("attribute", "PortOperation"),

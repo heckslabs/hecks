@@ -58,11 +58,13 @@ RSpec.describe "bin/project_tenant", :io do
         Scratch::Widget.persisted_by("PostgresEra")
       end
     HECKSAGON
+    File.write(File.join(dir, "context_map.hecksagon"), InMemoryDomain::GOVERNANCE_POSTGRES_ERA_HECKSAGON)
     File.write(File.join(dir, "scratch.world"), <<~WORLD)
       Hecks.world "Scratch" do
         realm "ScratchDefault"
       end
     WORLD
+    File.write(File.join(dir, "governance.world"), InMemoryDomain.governance_postgres_era_world(DB_URL))
   end
 
   def run_project_tenant(dir, slug, **opts)

@@ -268,12 +268,18 @@ RSpec.describe Hecks::Fuzzing::ConcurrentDispatch do
       end
     RUBY
 
+    # 2.0: attaching Governance without this sibling refuses boot. Memory,
+    # not PostgresEra — RoleAssignment still is not shared across racers,
+    # which is the BUG#142 shape this example pins.
+    CONCURRENT_DISPATCH_UNBOUND_CONTEXT_MAP = InMemoryDomain::GOVERNANCE_MEMORY_HECKSAGON
+
     before(:all) do
       skip "no reachable Postgres — start one to run this spec" unless PostgresProbe.available?
 
       @unbound_fixture_root = Dir.mktmpdir("concurrent_dispatch_unbound_spec")
       File.write(File.join(@unbound_fixture_root, "fixture.bluebook"), CONCURRENT_DISPATCH_UNBOUND_FIXTURE_BLUEBOOK)
       File.write(File.join(@unbound_fixture_root, "fixture.hecksagon"), CONCURRENT_DISPATCH_UNBOUND_FIXTURE_HECKSAGON)
+      File.write(File.join(@unbound_fixture_root, "context_map.hecksagon"), CONCURRENT_DISPATCH_UNBOUND_CONTEXT_MAP)
 
       admin = PG.connect(dbname: "postgres")
       admin.exec("DROP DATABASE IF EXISTS #{CONCURRENT_DISPATCH_UNBOUND_SPEC_DATABASE} WITH (FORCE)")

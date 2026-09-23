@@ -142,6 +142,11 @@ RSpec.describe "PostgresEra era-1 minting for a second bluebook in a multi-blueb
 
         persisted_by "PostgresEra"
       end
+
+      Hecks.hecksagon "Governance" do
+        Governance::RoleAssignment.persisted_by("PostgresEra")
+        Governance::RoleTransition.persisted_by("PostgresEra")
+      end
     HECKSAGON
     write(File.join(dir, "bluebook", "target.world"), <<~WORLD)
       Hecks.world "Target" do
@@ -151,6 +156,12 @@ RSpec.describe "PostgresEra era-1 minting for a second bluebook in a multi-blueb
       end
 
       Hecks.world "Notes" do
+        persisted_by("PostgresEra") do
+          database "#{owner_url}"
+        end
+      end
+
+      Hecks.world "Governance" do
         persisted_by("PostgresEra") do
           database "#{owner_url}"
         end

@@ -435,11 +435,18 @@ module Hecks
       # @param schema [String] the PostgresEra schema name to write into the `.world` file
       # @return [void]
       def write_postgres_era_world!(copy, database:, schema:)
+        # Same merge IsolatedBoot.rebind_to_postgres_era! now does — one
+        # world file per directory, every hecksagon name in that directory.
+        worlds_by_dir = Hash.new { |h, k| h[k] = [] }
         Dir.glob(File.join(copy, "**", "*.hecksagon")).each do |hecksagon_path|
-          names = File.read(hecksagon_path).scan(/Hecks\.hecksagon\s+"([^"]+)"/).flatten.uniq
+          names = File.read(hecksagon_path).scan(/Hecks\.hecksagon\s+"([^"]+)"/).flatten
+          worlds_by_dir[File.dirname(hecksagon_path)].concat(names)
+        end
+        worlds_by_dir.each do |dir, names|
+          names = names.uniq
           next if names.empty?
 
-          world_path = File.join(File.dirname(hecksagon_path), "hecks_fuzz_postgres_era.world")
+          world_path = File.join(dir, "hecks_fuzz_postgres_era.world")
           File.write(world_path, names.map do |name|
             <<~WORLD
               Hecks.world "#{name}" do

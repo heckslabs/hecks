@@ -404,11 +404,21 @@ module Hecks
         # database it is about to throw away; the one-line warning
         # PostgresEra prints per boot under the opt-in is the honest
         # price. Inert on a machine whose ambient user is ordinary.
+        # One world file per directory, every hecksagon name in that
+        # directory — not one write per *.hecksagon file. context_map.hecksagon
+        # sits beside the domain file; a second File.write to the same
+        # hecks_fuzz_postgres_era.world would drop the first file's names
+        # (found live: ConcurrentDispatchUnboundFixture + Governance).
+        worlds_by_dir = Hash.new { |h, k| h[k] = [] }
         Dir.glob(File.join(copy, "**", "*.hecksagon")).each do |hecksagon_path|
-          names = File.read(hecksagon_path).scan(/Hecks\.hecksagon\s+"([^"]+)"/).flatten.uniq
+          names = File.read(hecksagon_path).scan(/Hecks\.hecksagon\s+"([^"]+)"/).flatten
+          worlds_by_dir[File.dirname(hecksagon_path)].concat(names)
+        end
+        worlds_by_dir.each do |dir, names|
+          names = names.uniq
           next if names.empty?
 
-          world_path = File.join(File.dirname(hecksagon_path), "hecks_fuzz_postgres_era.world")
+          world_path = File.join(dir, "hecks_fuzz_postgres_era.world")
           File.write(world_path, names.map do |name|
             <<~WORLD
               Hecks.world "#{name}" do

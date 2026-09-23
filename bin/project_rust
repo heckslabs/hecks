@@ -276,6 +276,12 @@ else
   membership = Hecks::Projector::Exporter.membership(target_registry, target_domain_name)
   target_ir[:membership] = json_shaped(membership) unless membership.empty?
 
+  # Same seam as authorization/membership — rust/host reads this instead
+  # of naming Identity:: verbs. Omitted entirely when nothing attached
+  # provides "identity".
+  identity = Hecks::Projector::Exporter.identity(target_registry, target_domain_name)
+  target_ir[:identity] = json_shaped(identity) unless identity.empty?
+
   # **Same seam, same reasoning** — `Exporter.translations` walks the whole
   # registry (a shared registry can hold another domain's edges too, the
   # same way it can hold another domain's bluebook via uses_framework),

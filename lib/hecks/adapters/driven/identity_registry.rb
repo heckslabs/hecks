@@ -24,8 +24,14 @@ module Hecks
       # @param subject [String] the OIDC subject the issuer vouches for, compared as a String
       # @return [String, nil] the linked identity's id, or nil if nothing has linked this pair
       def resolve(registry, issuer:, subject:)
+        # The resolve verb this registry's declared identity provider names
+        # (`provides "identity", resolve:`), never a hard-coded chapter —
+        # same declared-not-named shape GovernanceAuthorization already holds.
+        provider = registry.bluebooks.values.find { |chapter| chapter.provides?(::Hecks::Bluebook::Capabilities::IDENTITY) }
+        verb = provider&.provided_verb(::Hecks::Bluebook::Capabilities::IDENTITY, :resolve) ||
+               "Identity::ExternalIdentifier.ResolvedBy"
         rows = Runtime::Dispatcher.new(registry).query(
-          "Identity::ExternalIdentifier.ResolvedBy",
+          verb,
           issuer: { value: issuer.to_s }, subject: { value: subject.to_s }
         )
 
