@@ -184,6 +184,11 @@ RSpec.describe "PostgresEra domain-qualifies head_view/head_snapshot/matview (do
 
           persisted_by "PostgresEra"
         end
+
+        Hecks.hecksagon "Governance" do
+          Governance::RoleAssignment.persisted_by("PostgresEra")
+          Governance::RoleTransition.persisted_by("PostgresEra")
+        end
       HECKSAGON
       write(File.join(dir, "bluebook", "target.world"), <<~WORLD)
         Hecks.world "Target" do
@@ -193,6 +198,12 @@ RSpec.describe "PostgresEra domain-qualifies head_view/head_snapshot/matview (do
         end
 
         Hecks.world "Notes" do
+          persisted_by("PostgresEra") do
+            database "#{owner_url}"
+          end
+        end
+
+        Hecks.world "Governance" do
           persisted_by("PostgresEra") do
             database "#{owner_url}"
           end
@@ -550,6 +561,11 @@ RSpec.describe "PostgresEra domain-qualifies head_view/head_snapshot/matview (do
 
             persisted_by "PostgresEra"
           end
+
+          Hecks.hecksagon "Governance" do
+            Governance::RoleAssignment.persisted_by("PostgresEra")
+            Governance::RoleTransition.persisted_by("PostgresEra")
+          end
         HECKSAGON
         write(File.join(dir, "bluebook", "target.world"), <<~WORLD)
           Hecks.world "Target" do
@@ -559,6 +575,12 @@ RSpec.describe "PostgresEra domain-qualifies head_view/head_snapshot/matview (do
           end
 
           Hecks.world "Notes" do
+            persisted_by("PostgresEra") do
+              database "#{owner_url}"
+            end
+          end
+
+          Hecks.world "Governance" do
             persisted_by("PostgresEra") do
               database "#{owner_url}"
             end
