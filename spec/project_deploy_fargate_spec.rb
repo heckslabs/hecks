@@ -147,6 +147,42 @@ RSpec.describe "bin/project_deploy — deployed_to(\"AwsFargate\")", :io do
 
     expect(env["HECKS_SERVE_MODE"]).to eq("1")
     expect(env["PORT"]).to eq("8080")
+    expect(env["SESSION_SECRET_ARN"]).not_to be_nil
+    expect(env["HECKS_CHECKOUT_DOMAIN"]).to eq("Scratch")
+    expect(env["HECKS_WASM_PATH"]).to include(".wasm")
+    expect(env["HECKS_IR_PATH"]).to include(".ir.json")
+  end
+
+  it "mints a SessionSecret and pins the image to ImageTag, not hardcoded latest" do
+    files = generate(valid_fargate_world)
+    doc = YAML.safe_load(files["template.yaml"], permitted_classes: [], aliases: true)
+    types = doc["Resources"].values.map { |resource| resource["Type"] }
+    task_definition = doc["Resources"].values.find { |resource| resource["Type"] == "AWS::ECS::TaskDefinition" }
+    image = task_definition["Properties"]["ContainerDefinitions"].first["Image"]
+
+    expect(types).to include("AWS::SecretsManager::Secret")
+    expect(doc["Parameters"]).to have_key("ImageTag")
+    expect(image).to include("${ImageTag}")
+    expect(image).not_to include(":latest")
+  end
+
+  it "looks up public subnets for a Shared-mode ALB and uses the GNU cross-linker" do
+    files = generate(<<~WORLD)
+      Hecks.world "Scratch" do
+        deployed_to("AwsFargate") do
+          region "us-east-1"
+          database "Shared"
+          owner "Embryonaut"
+        end
+      end
+    WORLD
+
+    expect(files["template.yaml"]).to include("OwningPublicSubnetAId")
+    expect(files["Makefile"]).to include("PublicSubnetId")
+    expect(files["Makefile"]).to include("BastionSubnetId")
+    expect(files["Makefile"]).to include("OwningPublicSubnetAId=$$OWNER_PUBLIC_SUBNET_A_ID")
+    expect(files["Makefile"]).to include("CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc")
+    expect(files["Makefile"]).to include("--bin bootstrap")
   end
 
   it "generates a Dockerfile exposing the domain's own port and running its own binary" do

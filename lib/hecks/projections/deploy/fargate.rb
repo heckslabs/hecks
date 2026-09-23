@@ -52,23 +52,15 @@ module Hecks
       # `Arc<Mutex<...>>`-shared, and already anticipated exactly this,
       # per `dispatch.rs`'s own comment on `handle`'s locking).
       #
-      # **Still assumed, not built here**: the generated `Dockerfile`'s
-      # own `COPY` and the generated Makefile's own `build:` target ship
-      # nothing but the compiled `#{domain_name}-host` binary — no
-      # `.wasm`/`.ir.json` sidecar, and no `HECKS_WASM_PATH`/
-      # `HECKS_IR_PATH` `Environment` entry pointing at one. `main.rs`
-      # requires both unconditionally at boot (`ir::ir().ok_or(...)?`,
-      # no fallback), so a container built exactly as this module
-      # generates it today fails at that line before ever reaching
-      # `HECKS_SERVE_MODE`'s own branch — the identical, already-known
-      # `HECKS_IR_PATH` gap `checkout.rs`'s own header documents for
-      # `Lambda`'s `web "None"` case (confirmed live: `deploy/banking/
-      # template.yaml` carries `HECKS_WASM_PATH` but no `HECKS_IR_PATH`
-      # either), not a new one this module introduces. Packaging the
-      # compiled dispatch artifact alongside the binary is a real,
-      # separate task (a Dockerfile/Makefile change, not a `rust/host`
-      # one) — flagged plainly here rather than silently discovered and
-      # dropped, not fixed in this pass.
+      # Sidecars and ARM64 are generated, not assumed: the Dockerfile
+      # COPYs `#{domain_name}.wasm`/`.ir.json` next to the host binary,
+      # the task sets `HECKS_WASM_PATH`/`HECKS_IR_PATH`, RuntimePlatform
+      # is ARM64, and the Makefile cross-compiles with
+      # aarch64-unknown-linux-gnu (plus the GNU cross-linker on macOS).
+      # A Shared-mode ALB sits in OwningPublicSubnetAId/BId — the private
+      # pair is unreachable from the internet (found live,
+      # lifeadelics-platform). SessionSecret is always minted: HECKS_SERVE_MODE
+      # always runs web.rs, which panics on an empty SESSION_SECRET.
       module Fargate
         extend Projector::Target
 
@@ -142,6 +134,15 @@ module Hecks
           port     = target.state[:port].value
           aurora   = database == "Aurora"
           shared   = database == "Shared"
+          rust_web = target.state[:web].value == "Rust"
+          # Same file-presence convention Lambda uses: `.env.local` is the
+          # domain's own gitignored secrets file; `make sync-google-oauth`
+          # (Lambda) owns the secret's lifecycle. Fargate only needs to
+          # *declare* GOOGLE_OAUTH_SECRET_ID + a redirect URI parameter —
+          # the secret itself is never a stack resource.
+          google_oauth_present = rust_web &&
+                                 File.exist?(File.join(domain, ".env.local")) &&
+                                 File.read(File.join(domain, ".env.local")).match?(/^GOOGLE_CLIENT_ID=\S/)
 
           # Every policy in every loaded chapter — see `Lambda.call`'s own
           # comment on why this reads the whole registry, not only this
@@ -220,6 +221,7 @@ module Hecks
           alb_sg_id          = "#{logical_id}AlbSecurityGroup"
           listener_id        = "#{logical_id}Listener"
           distribution_id    = "#{logical_id}Distribution"
+          session_secret_id  = "#{logical_id}SessionSecret"
 
           stack_outputs = Shared.stack_outputs(
             shared: shared, db_id: db_id, db_ref_id: db_ref_id, secret_intrinsic: secret_intrinsic,
@@ -228,6 +230,40 @@ module Hecks
           bastion_parameters = Shared.bastion_parameters(shared: shared, google_oauth_present: network_needs_internet)
           Shared.check_bastion_parameters!(bastion_parameters, stack_outputs)
 
+          always_params_yaml = <<~ALWAYSPARAMS.rstrip
+            ImageTag:
+              Type: String
+              Default: latest
+              Description: ECR image tag this task pulls — never hardcode latest in the TaskDefinition; a first deploy and a later rollout share this one parameter.
+          ALWAYSPARAMS
+          oauth_params_yaml = google_oauth_present ? <<~OAUTHPARAMS.rstrip : ""
+            # Same chicken-egg as Lambda's WebRedirectBaseUrl — CloudFront's
+            # hostname does not exist until this stack does. Empty on a true
+            # first deploy; `make deploy` looks up Outputs.CloudFrontDomain
+            # after and self-heals.
+            WebRedirectBaseUrl:
+              Type: String
+              Default: ""
+          OAUTHPARAMS
+          # Built outside the template heredoc so Layout/HeredocIndentation
+          # cannot re-indent YAML that must match SessionSecretRead / env.
+          # First interpolated line sits at the `\#{...}` column; later lines
+          # get that same left pad (lambda.rb's own OAUTHPOLICY pattern).
+          oauth_task_policy_yaml = google_oauth_present ? <<~OAUTHPOLICY.rstrip : ""
+            - PolicyName: GoogleOauthSecretRead
+              PolicyDocument:
+                Version: '2012-10-17'
+                Statement:
+                  - Effect: Allow
+                    Action: secretsmanager:GetSecretValue
+                    Resource: !Sub "arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:#{stack_name}-web-google-oauth-*"
+          OAUTHPOLICY
+          oauth_task_env_yaml = google_oauth_present ? <<~OAUTHENV.rstrip : ""
+            - Name: GOOGLE_OAUTH_SECRET_ID
+              Value: #{stack_name}-web-google-oauth
+            - Name: GOOGLE_REDIRECT_URI
+              Value: !Sub "${WebRedirectBaseUrl}/auth/google/callback"
+          OAUTHENV
           owning_params_yaml = shared ? <<~SHAREDPARAMS.rstrip : ""
             # The storehouse — #{owner_domain_name}'s own live stack Outputs,
             # looked up at deploy time (the generated Makefile's own `deploy:`
@@ -263,6 +299,7 @@ module Hecks
             OwningDatabaseSecretArn:
               Type: String
           SHAREDPARAMS
+          parameters_yaml = [always_params_yaml, oauth_params_yaml, owning_params_yaml].reject(&:empty?).join("\n")
 
           template_yaml = <<~YAML
             # GENERATED by bin/project_deploy #{domain} — re-run it to refresh
@@ -279,7 +316,7 @@ module Hecks
               #{infra_name} — dispatched through hecks's rust/host, running as a
               long-lived container on AWS Fargate, backed by its own private RDS
               Postgres instance.
-            #{owning_params_yaml.empty? ? "" : "Parameters:\n" + owning_params_yaml.each_line.map { |l| "  #{l}" }.join}
+            #{parameters_yaml.empty? ? "" : "Parameters:\n" + parameters_yaml.each_line.map { |l| "  #{l}" }.join}
             Resources:
               #{shared ? "" : Shared.vpc_and_database_yaml(
                 db_id: db_id, db_name: db_name, infra_name: infra_name, aurora: aurora,
@@ -338,6 +375,19 @@ module Hecks
                   LogGroupName: /ecs/#{stack_name}
                   RetentionInDays: 30
 
+              # Always minted — HECKS_SERVE_MODE always runs web.rs, which
+              # panics on an empty SESSION_SECRET (found live: hecksagain-pizzas
+              # 502 after the Aurora cutover). rust/host fetches this at cold
+              # start (secrets.rs), never a plain env var.
+              #{session_secret_id}:
+                Type: AWS::SecretsManager::Secret
+                Properties:
+                  GenerateSecretString:
+                    SecretStringTemplate: '{}'
+                    GenerateStringKey: session_secret
+                    PasswordLength: 64
+                    ExcludePunctuation: true
+
               # Pulls the image and writes CloudWatch Logs — AWS's own managed
               # AmazonECSTaskExecutionRolePolicy already covers both (ECR auth
               # + GetDownloadUrlForLayer, and logs:CreateLogStream/PutLogEvents);
@@ -387,6 +437,14 @@ module Hecks
                           - Effect: Allow
                             Action: secretsmanager:GetSecretValue
                             Resource: !Sub "${#{db_secret_ref}}"
+                    - PolicyName: SessionSecretRead
+                      PolicyDocument:
+                        Version: '2012-10-17'
+                        Statement:
+                          - Effect: Allow
+                            Action: secretsmanager:GetSecretValue
+                            Resource: !Ref #{session_secret_id}
+                    #{oauth_task_policy_yaml.each_line.with_index.map { |l, i| i.zero? ? l : "                    " + l }.join}
                     # TMPL:cross_domain_fargate_policies
 
               #{task_definition_id}:
@@ -410,7 +468,7 @@ module Hecks
                   TaskRoleArn: !GetAtt #{task_role_id}.Arn
                   ContainerDefinitions:
                     - Name: #{infra_name}
-                      Image: !Sub "${#{ecr_repository_id}.RepositoryUri}:latest"
+                      Image: !Sub "${#{ecr_repository_id}.RepositoryUri}:${ImageTag}"
                       PortMappings:
                         - ContainerPort: #{port}
                       LogConfiguration:
@@ -461,6 +519,11 @@ module Hecks
                           Value: /usr/local/bin/#{domain_name}.wasm
                         - Name: HECKS_IR_PATH
                           Value: /usr/local/bin/#{domain_name}.ir.json
+                        - Name: SESSION_SECRET_ARN
+                          Value: !Ref #{session_secret_id}
+                        - Name: HECKS_CHECKOUT_DOMAIN
+                          Value: #{declared_domain_name}
+                        #{oauth_task_env_yaml.each_line.with_index.map { |l, i| i.zero? ? l : "                        " + l }.join}
                         # TMPL:db_env
 
               #{target_group_id}:
@@ -663,6 +726,11 @@ module Hecks
             # path already depends on, rather than standing up a second,
             # x86_64-only one.
             \t@rustup target list --installed 2>/dev/null | grep -qx aarch64-unknown-linux-gnu || rustup target add aarch64-unknown-linux-gnu
+            # GNU cross-linker, not Apple clang — rustc's aarch64-unknown-linux-gnu
+            # target emits `-Wl,--fix-cortex-a53-843419`, which macOS ld rejects
+            # (found live building lifeadelics-platform's domain image). Same
+            # toolchain Lambda's generated Makefile already documents.
+            \t@command -v aarch64-linux-gnu-gcc >/dev/null 2>&1 || { echo "aarch64-linux-gnu-gcc isn't on PATH. Install once with: brew tap messense/macos-cross-toolchains && brew install aarch64-unknown-linux-gnu"; exit 1; }
             # The .wasm/.ir.json sidecars main.rs requires at boot,
             # unconditionally — see template.yaml's own HECKS_WASM_PATH/
             # HECKS_IR_PATH comment for why. bin/project_wasm is the same
@@ -670,7 +738,7 @@ module Hecks
             # rust/dist/#{domain_name}.wasm/.ir.json from this domain's own
             # .bluebook.
             \tcd $(ROOT) && bin/project_wasm $(DOMAIN)
-            \tcd $(ROOT)/rust/host && rustup run stable cargo build --release --target aarch64-unknown-linux-gnu
+            \tcd $(ROOT)/rust/host && CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc rustup run stable cargo build --release --target aarch64-unknown-linux-gnu --bin bootstrap
             \tcp $(ROOT)/rust/host/target/aarch64-unknown-linux-gnu/release/bootstrap #{domain_name}-host
             \tcp $(ROOT)/rust/dist/#{domain_name}.wasm #{domain_name}.wasm
             \tcp $(ROOT)/rust/dist/#{domain_name}.ir.json #{domain_name}.ir.json
@@ -694,7 +762,7 @@ module Hecks
 
             .PHONY: deploy
             deploy: docker-build docker-push
-            #{shared ? "\t@echo \"Looking up #{owner_stack_name}'s shared VpcId/PrivateSubnetAId/PrivateSubnetBId/FunctionSecurityGroupId/DatabaseEndpoint/DatabaseSecretArn outputs to pass as $(STACK)'s Owning* parameters...\"\n\tOWNER_VPC_ID=$$(aws cloudformation describe-stacks --stack-name #{owner_stack_name} --query \"Stacks[0].Outputs[?OutputKey=='VpcId'].OutputValue\" --output text); \\\n\t\tOWNER_SUBNET_A_ID=$$(aws cloudformation describe-stacks --stack-name #{owner_stack_name} --query \"Stacks[0].Outputs[?OutputKey=='PrivateSubnetAId'].OutputValue\" --output text); \\\n\t\tOWNER_SUBNET_B_ID=$$(aws cloudformation describe-stacks --stack-name #{owner_stack_name} --query \"Stacks[0].Outputs[?OutputKey=='PrivateSubnetBId'].OutputValue\" --output text); \\\n\t\tOWNER_SG_ID=$$(aws cloudformation describe-stacks --stack-name #{owner_stack_name} --query \"Stacks[0].Outputs[?OutputKey=='FunctionSecurityGroupId'].OutputValue\" --output text); \\\n\t\tOWNER_DB_HOST=$$(aws cloudformation describe-stacks --stack-name #{owner_stack_name} --query \"Stacks[0].Outputs[?OutputKey=='DatabaseEndpoint'].OutputValue\" --output text); \\\n\t\tOWNER_DB_SECRET_ARN=$$(aws cloudformation describe-stacks --stack-name #{owner_stack_name} --query \"Stacks[0].Outputs[?OutputKey=='DatabaseSecretArn'].OutputValue\" --output text); \\\n\t\taws cloudformation deploy --template-file template.yaml --stack-name $(STACK) --region $(REGION) --capabilities CAPABILITY_IAM \\\n\t\t\t--parameter-overrides OwningVpcId=$$OWNER_VPC_ID OwningSubnetAId=$$OWNER_SUBNET_A_ID OwningSubnetBId=$$OWNER_SUBNET_B_ID OwningSecurityGroupId=$$OWNER_SG_ID OwningDatabaseEndpoint=$$OWNER_DB_HOST OwningDatabaseSecretArn=$$OWNER_DB_SECRET_ARN" : "\taws cloudformation deploy --template-file template.yaml --stack-name $(STACK) --region $(REGION) --capabilities CAPABILITY_IAM"}
+            #{shared ? "\t@echo \"Looking up #{owner_stack_name}'s shared VpcId/PrivateSubnetAId/PrivateSubnetBId/PublicSubnetId/BastionSubnetId/FunctionSecurityGroupId/DatabaseEndpoint/DatabaseSecretArn outputs to pass as $(STACK)'s Owning* parameters...\"\n\tOWNER_VPC_ID=$$(aws cloudformation describe-stacks --stack-name #{owner_stack_name} --query \"Stacks[0].Outputs[?OutputKey=='VpcId'].OutputValue\" --output text); \\\n\t\tOWNER_SUBNET_A_ID=$$(aws cloudformation describe-stacks --stack-name #{owner_stack_name} --query \"Stacks[0].Outputs[?OutputKey=='PrivateSubnetAId'].OutputValue\" --output text); \\\n\t\tOWNER_SUBNET_B_ID=$$(aws cloudformation describe-stacks --stack-name #{owner_stack_name} --query \"Stacks[0].Outputs[?OutputKey=='PrivateSubnetBId'].OutputValue\" --output text); \\\n\t\tOWNER_PUBLIC_SUBNET_A_ID=$$(aws cloudformation describe-stacks --stack-name #{owner_stack_name} --query \"Stacks[0].Outputs[?OutputKey=='PublicSubnetId'].OutputValue\" --output text); \\\n\t\tOWNER_PUBLIC_SUBNET_B_ID=$$(aws cloudformation describe-stacks --stack-name #{owner_stack_name} --query \"Stacks[0].Outputs[?OutputKey=='BastionSubnetId'].OutputValue\" --output text); \\\n\t\tOWNER_SG_ID=$$(aws cloudformation describe-stacks --stack-name #{owner_stack_name} --query \"Stacks[0].Outputs[?OutputKey=='FunctionSecurityGroupId'].OutputValue\" --output text); \\\n\t\tOWNER_DB_HOST=$$(aws cloudformation describe-stacks --stack-name #{owner_stack_name} --query \"Stacks[0].Outputs[?OutputKey=='DatabaseEndpoint'].OutputValue\" --output text); \\\n\t\tOWNER_DB_SECRET_ARN=$$(aws cloudformation describe-stacks --stack-name #{owner_stack_name} --query \"Stacks[0].Outputs[?OutputKey=='DatabaseSecretArn'].OutputValue\" --output text); \\\n\t\taws cloudformation deploy --template-file template.yaml --stack-name $(STACK) --region $(REGION) --capabilities CAPABILITY_IAM \\\n\t\t\t--parameter-overrides ImageTag=$(IMAGE_TAG) OwningVpcId=$$OWNER_VPC_ID OwningSubnetAId=$$OWNER_SUBNET_A_ID OwningSubnetBId=$$OWNER_SUBNET_B_ID OwningPublicSubnetAId=$$OWNER_PUBLIC_SUBNET_A_ID OwningPublicSubnetBId=$$OWNER_PUBLIC_SUBNET_B_ID OwningSecurityGroupId=$$OWNER_SG_ID OwningDatabaseEndpoint=$$OWNER_DB_HOST OwningDatabaseSecretArn=$$OWNER_DB_SECRET_ARN" : "\taws cloudformation deploy --template-file template.yaml --stack-name $(STACK) --region $(REGION) --capabilities CAPABILITY_IAM --parameter-overrides ImageTag=$(IMAGE_TAG)"}
             \t$(MAKE) mint-era
 
             #{shared ? <<~SHAREDMINT.rstrip : <<~OWNMINT.rstrip
