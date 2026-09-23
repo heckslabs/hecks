@@ -429,7 +429,21 @@
 
   ],
   "provides": [
-
+    {
+      "capability": "identity",
+      "key": "register",
+      "verb": "Identity.Register"
+    },
+    {
+      "capability": "identity",
+      "key": "link",
+      "verb": "ExternalIdentifier.Link"
+    },
+    {
+      "capability": "identity",
+      "key": "resolve",
+      "verb": "ExternalIdentifier.ResolvedBy"
+    }
   ],
   "canonical_form": [
     {

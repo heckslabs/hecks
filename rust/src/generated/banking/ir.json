@@ -10070,6 +10070,12 @@
     "assignments": "Governance::RoleAssignment.AssignmentsForActor",
     "assignment_aggregate": "Governance::RoleAssignment"
   },
+  "identity": {
+    "provider": "Identity",
+    "register": "Identity::Identity.Register",
+    "link": "Identity::ExternalIdentifier.Link",
+    "resolve": "Identity::ExternalIdentifier.ResolvedBy"
+  },
   "translations": [
 
   ],

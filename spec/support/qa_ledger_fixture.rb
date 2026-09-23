@@ -86,6 +86,7 @@ module QaLedgerFixture
       FileUtils.ln_s(File.join(InMemoryDomain::ROOT, "qa/bluebook/quality_control.bluebook"),
                      File.join(@dir, "quality_control.bluebook"))
       File.write(File.join(@dir, "quality_control.hecksagon"), HECKSAGON)
+      File.write(File.join(@dir, "context_map.hecksagon"), InMemoryDomain::GOVERNANCE_POSTGRES_ERA_HECKSAGON)
       # The same URL shape the real ledger binds, as `hecks_qa`, an
       # ordinary owner role — PostgresEra refuses to boot as the ambient
       # superuser (BUG#24); `bin/qa_postgres_role`, run for real below

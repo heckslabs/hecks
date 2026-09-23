@@ -61,6 +61,13 @@ module InMemoryDomain
     end
   HECKSAGON
 
+  GOVERNANCE_POSTGRES_ERA_HECKSAGON = <<~HECKSAGON.freeze
+    Hecks.hecksagon "Governance" do
+      Governance::RoleAssignment.persisted_by("PostgresEra")
+      Governance::RoleTransition.persisted_by("PostgresEra")
+    end
+  HECKSAGON
+
   # @param adapter [String] persistence adapter name (default Memory)
   # @return [void]
   def sibling_governance!(adapter: "Memory")
