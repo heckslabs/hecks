@@ -52,6 +52,16 @@ pub async fn render(
         raw_body.to_string()
     };
 
+    // Parsed here, once, rather than only below `checkout_enabled` — the
+    // newsletter confirm/unsubscribe routes (reached from an email link,
+    // never a JSON body) need `?email=...` before `route()`'s own later
+    // `auth_gate` check would ever run for them. Query strings are RFC
+    // 3986, not application/x-www-form-urlencoded: `+` is a literal
+    // plus. Google's OAuth `code` routinely contains `+`; treating it as
+    // space (HTML-form rules) breaks the token exchange and surfaces as
+    // `/login?error=google_failed`. Form bodies still use parse_form.
+    let query = parse_query(body.get("rawQueryString").and_then(|v| v.as_str()).unwrap_or(""));
+
     // **Checkout glue, opt-in by configuration** — `HECKS_CHECKOUT_DOMAIN`
     // names the domain whose Event/Registration aggregates (plus the
     // Payments::Payment chapter beside them) the checkout routes
@@ -76,7 +86,7 @@ pub async fn render(
         // needs no Payments::Payment/Event context checkout_route's own
         // routes carry, and public signup should never depend on
         // checkout being reachable.
-        if let Some(response) = newsletter_route(method, path, &raw_body, client, wasm_path, config, invoker).await {
+        if let Some(response) = newsletter_route(method, path, &query, &raw_body, client, wasm_path, config, invoker).await {
             return Some(response);
         }
         let stripe_signature = body.get("headers").and_then(|h| h.get("stripe-signature")).and_then(|v| v.as_str()).unwrap_or("");
@@ -89,11 +99,6 @@ pub async fn render(
         return Some(respond(500, "text/plain", "HECKS_IR_PATH not set or unreadable — this domain has no web layer configured"));
     };
 
-    // Query strings are RFC 3986, not application/x-www-form-urlencoded:
-    // `+` is a literal plus. Google's OAuth `code` routinely contains `+`;
-    // treating it as space (HTML-form rules) breaks the token exchange and
-    // surfaces as `/login?error=google_failed`. Form bodies still use parse_form.
-    let query = parse_query(body.get("rawQueryString").and_then(|v| v.as_str()).unwrap_or(""));
     let cookies = extract_cookies(body);
 
     Some(route(domain_ir, method, path, &query, &raw_body, &cookies, client, wasm_path, config, invoker).await)
@@ -1772,19 +1777,28 @@ async fn registration_complete_route(
     respond(200, "application/json", &json!({"registration_id": registration_id, "payment_status": status}).to_string())
 }
 
-// ---- newsletter: guest-facing subscribe, admin-facing listing ---------
-// Ported from http_server.rb's own POST /newsletter/subscribers and GET
-// /newsletter/subscribers — the two routes the public site and the
-// admin Users page actually call. NOT a full port of every newsletter
-// route that file declares (issues/send/confirm/unsubscribe stay
-// Ruby-only for now, reached through LIFEADELICS_DOMAIN_SERVICE_URL
-// pointing at the Ruby process in whichever environment still runs it)
-// — only the two guest/admin reads this deploy's own site and dashboard
-// depend on, gated the same HECKS_CHECKOUT_DOMAIN way checkout is,
-// since both are vendored chapters loaded into the same hecksagon.
+// ---- newsletter: guest-facing subscribe/confirm/unsubscribe, admin
+// listing ----------------------------------------------------------
+// Ported from http_server.rb's own POST /newsletter/subscribers, GET
+// /newsletter/subscribers, GET /newsletter/subscribers/confirm, and GET
+// /newsletter/subscribers/unsubscribe. Confirm/unsubscribe were NOT
+// ported when this module was first written ("stay Ruby-only for now,
+// reached through LIFEADELICS_DOMAIN_SERVICE_URL pointing at the Ruby
+// process in whichever environment still runs it") — a real gap, since
+// production runs THIS host exclusively, with no Ruby fallback at all:
+// confirmed live, every real unsubscribe link 401'd ("sign in first",
+// auth_gate's own refusal — these two paths fell through to it since
+// nothing here recognized them, and neither is in UNGATED_PATHS), never
+// so much as reaching a "no such subscriber" 404. Same match-arm
+// ordering concern http_server.rb's own comment on this exact pair
+// flags for Sinatra (declared before a generic /:email route so
+// "confirm"/"unsubscribe" can't be treated as an email) doesn't apply
+// here — Rust match on an exact (method, path) tuple has no such
+// prefix/wildcard ambiguity to order around.
 async fn newsletter_route(
     method: &str,
     path: &str,
+    query: &HashMap<String, String>,
     raw_body: &str,
     client: &Mutex<Client>,
     wasm_path: &Path,
@@ -1794,6 +1808,8 @@ async fn newsletter_route(
     match (method, path) {
         ("POST", "/newsletter/subscribers") => Some(newsletter_subscribe_route(raw_body, client, wasm_path, config, invoker).await),
         ("GET", "/newsletter/subscribers") => Some(newsletter_subscribers_list_route(client, wasm_path).await),
+        ("GET", "/newsletter/subscribers/confirm") => Some(newsletter_confirm_route(query, client, wasm_path, config, invoker).await),
+        ("GET", "/newsletter/subscribers/unsubscribe") => Some(newsletter_unsubscribe_route(query, client, wasm_path, config, invoker).await),
         _ => None,
     }
 }
@@ -1907,6 +1923,82 @@ async fn newsletter_subscribers_list_route(client: &Mutex<Client>, wasm_path: &P
         .collect();
     subscribers.sort_by(|a, b| a["email"].as_str().unwrap_or("").cmp(b["email"].as_str().unwrap_or("")));
     respond(200, "application/json", &json!(subscribers).to_string())
+}
+
+/// GET /newsletter/subscribers/confirm?email=... — ported field-for-field
+/// from http_server.rb's own route. NO SIGNED TOKEN, matching that
+/// route's own known, flagged gap (subscriber.bluebook's own header):
+/// anyone who knows an email can confirm it. Idempotent the same way —
+/// Confirm only dispatches when the subscriber is actually `pending`
+/// (its own `given` refuses a second attempt outright), so a guest
+/// double-clicking, or a mail client prefetching the link, still lands
+/// on the same success response instead of a 422.
+async fn newsletter_confirm_route(query: &HashMap<String, String>, client: &Mutex<Client>, wasm_path: &Path, config: &LineageConfig, invoker: &dyn LambdaInvoker) -> Value {
+    let Some(email) = query.get("email") else {
+        return respond(400, "application/json", &json!({"error": "email"}).to_string());
+    };
+
+    let read = match dispatch::read(client, wasm_path).await {
+        Ok(r) => r,
+        Err(e) => return respond(500, "text/plain", &format!("{e:#}")),
+    };
+    let subscribers = instances_for(&read, "Newsletter::Subscriber#");
+    let Some((_, subscriber)) = subscribers.iter().find(|(id, _)| id == email) else {
+        return respond(404, "application/json", &json!({"error": "no such subscriber"}).to_string());
+    };
+
+    if subscriber.get("status").and_then(|v| v.as_str()) == Some("pending") {
+        if let Err(e) = dispatch::handle_routed(client, wasm_path, "Newsletter::Subscriber.Confirm", json!(email), json!({}), None, config, invoker).await {
+            return respond(500, "text/plain", &format!("{e:#}"));
+        }
+    }
+
+    let read = match dispatch::read(client, wasm_path).await {
+        Ok(r) => r,
+        Err(e) => return respond(500, "text/plain", &format!("{e:#}")),
+    };
+    let subscribers = instances_for(&read, "Newsletter::Subscriber#");
+    let status = subscribers.iter().find(|(id, _)| id == email).and_then(|(_, s)| s.get("status")).and_then(|v| v.as_str()).unwrap_or("pending");
+    respond(200, "application/json", &json!({"email": email, "status": status}).to_string())
+}
+
+/// GET /newsletter/subscribers/unsubscribe?email=... — same shape as
+/// newsletter_confirm_route above, ported from http_server.rb's own
+/// route (same "no signed token" gap, same idempotency reasoning:
+/// Unsubscribe's own `given` only accepts a pending or confirmed
+/// subscriber, so a repeat click on an already-unsubscribed row would
+/// otherwise 422 instead of showing the same success page). This is the
+/// one newsletter-unsubscribed.astro's own server-side fetch calls —
+/// unreachable before this route existed (confirmed live: fell through
+/// to auth_gate's 401, never a 404, since neither this path nor
+/// /confirm was in UNGATED_PATHS and nothing recognized either one).
+async fn newsletter_unsubscribe_route(query: &HashMap<String, String>, client: &Mutex<Client>, wasm_path: &Path, config: &LineageConfig, invoker: &dyn LambdaInvoker) -> Value {
+    let Some(email) = query.get("email") else {
+        return respond(400, "application/json", &json!({"error": "email"}).to_string());
+    };
+
+    let read = match dispatch::read(client, wasm_path).await {
+        Ok(r) => r,
+        Err(e) => return respond(500, "text/plain", &format!("{e:#}")),
+    };
+    let subscribers = instances_for(&read, "Newsletter::Subscriber#");
+    let Some((_, subscriber)) = subscribers.iter().find(|(id, _)| id == email) else {
+        return respond(404, "application/json", &json!({"error": "no such subscriber"}).to_string());
+    };
+
+    if subscriber.get("status").and_then(|v| v.as_str()) != Some("unsubscribed") {
+        if let Err(e) = dispatch::handle_routed(client, wasm_path, "Newsletter::Subscriber.Unsubscribe", json!(email), json!({}), None, config, invoker).await {
+            return respond(500, "text/plain", &format!("{e:#}"));
+        }
+    }
+
+    let read = match dispatch::read(client, wasm_path).await {
+        Ok(r) => r,
+        Err(e) => return respond(500, "text/plain", &format!("{e:#}")),
+    };
+    let subscribers = instances_for(&read, "Newsletter::Subscriber#");
+    let status = subscribers.iter().find(|(id, _)| id == email).and_then(|(_, s)| s.get("status")).and_then(|v| v.as_str()).unwrap_or("pending");
+    respond(200, "application/json", &json!({"email": email, "status": status}).to_string())
 }
 
 // Whatever shape a consuming domain's own `Attendee` value object
