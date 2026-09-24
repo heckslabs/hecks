@@ -992,6 +992,26 @@
           "pattern": null,
           "admits": null,
           "relationship": null
+        },
+        {
+          "name": "first_name",
+          "type": "SubscriberName",
+          "list": false,
+          "default": null,
+          "optional": true,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
+          "name": "last_name",
+          "type": "SubscriberName",
+          "list": false,
+          "default": null,
+          "optional": true,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
         }
       ],
       "value_objects": [
@@ -1032,6 +1052,44 @@
           ],
           "closed_set": false,
           "members": []
+        },
+        {
+          "name": "SubscriberName",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "a name, once given, is not blank",
+              "canonical": "!value.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "value"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          ],
+          "closed_set": false,
+          "members": []
         }
       ],
       "commands": [
@@ -1050,6 +1108,26 @@
               "pattern": null,
               "admits": null,
               "relationship": null
+            },
+            {
+              "name": "first_name",
+              "type": "SubscriberName",
+              "list": false,
+              "default": null,
+              "optional": true,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "last_name",
+              "type": "SubscriberName",
+              "list": false,
+              "default": null,
+              "optional": true,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
             }
           ],
           "givens": [],
@@ -1063,10 +1141,83 @@
                 "kind": "argument",
                 "name": "email"
               }
+            },
+            {
+              "target": "first_name",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "first_name"
+              }
+            },
+            {
+              "target": "last_name",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "last_name"
+              }
             }
           ],
           "emits": [
             "SubscriberSubscribed"
+          ],
+          "from": null,
+          "provenance": null
+        },
+        {
+          "name": "AddName",
+          "role": null,
+          "goal": "Record a subscriber's first and last name, given after email during signup",
+          "references": "Subscriber",
+          "attributes": [
+            {
+              "name": "first_name",
+              "type": "SubscriberName",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "last_name",
+              "type": "SubscriberName",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [],
+          "ensures": [],
+          "mutations": [
+            {
+              "target": "first_name",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "first_name"
+              }
+            },
+            {
+              "target": "last_name",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "last_name"
+              }
+            }
+          ],
+          "emits": [
+            "SubscriberNameAdded"
           ],
           "from": null,
           "provenance": null

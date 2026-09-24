@@ -17,12 +17,13 @@ module Hecks
         # @raise [Runtime::WiringError] if a bind names an undeclared aggregate, an
         #   adapter cannot satisfy its port's verb or declared `answers`, a world
         #   setting names a field its adapter does not declare, the default adapter
-        #   is unusable, or a command declares a role with no authorization provider
-        #   attached
+        #   is unusable, a command declares a role with no authorization provider
+        #   attached, or a membership chapter is loaded with no identity chapter
         def verify!
           verify_default_adapter!
           verify_singleton_port_answers!
           refuse_cross_package_bluebook_merge!
+          refuse_membership_without_identity!
 
           @hecksagons.each_value do |hexagon|
             refuse_ungoverned_roles!(hexagon)
@@ -310,6 +311,25 @@ module Hecks
         # mark the ATTACHED chapter bounded (module wrap, no Object shortcut)
         # and require the sibling hecksagon above; they do not require a
         # `translates` on that sibling unless the consumer also wrote `bounded`.
+        # rust/host Google sign-in reads `ir.json`'s `membership` and
+        # `identity` keys (Exporter.membership / Exporter.identity) —
+        # never a deploy-time env var. Membership without Identity is
+        # the exact gap that produced a live `google_unlinked` after a
+        # successful Google handshake: provision cannot Register/Link.
+        # Refuse at Ruby boot (and project_rust, which exports the same
+        # pair) so a missing sibling cannot ship.
+        def refuse_membership_without_identity!
+          return unless @bluebooks.values.any? { |chapter| chapter.provides?(Bluebook::Capabilities::MEMBERSHIP) }
+          return if @bluebooks.values.any? { |chapter| chapter.provides?(Bluebook::Capabilities::IDENTITY) }
+
+          raise WiringError,
+                "a chapter that provides \"membership\" is loaded, but none provides " \
+                "\"identity\" — rust/host Google sign-in cannot register or link an " \
+                "identity from the hecksagon/world. Attach Identity (`uses_framework " \
+                "\"Identity\"` plus a sibling Hecks.hecksagon \"Identity\") so the " \
+                "identity verbs are exported onto ir.json, not guessed at deploy."
+        end
+
         def refuse_bounded_without_acl!(hexagon)
           return unless hexagon.bounded?
           return if hexagon.translates.any?

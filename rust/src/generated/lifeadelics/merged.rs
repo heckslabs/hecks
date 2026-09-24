@@ -17,6 +17,8 @@ pub struct Store {
     pub registration: crate::kernel::InMemoryRepository<crate::generated::lifeadelics::registration::Registration>,
     pub roleassignment: crate::kernel::InMemoryRepository<crate::generated::governance::roleassignment::RoleAssignment>,
     pub roletransition: crate::kernel::InMemoryRepository<crate::generated::governance::roletransition::RoleTransition>,
+    pub identity: crate::kernel::InMemoryRepository<crate::generated::identity::identity::Identity>,
+    pub externalidentifier: crate::kernel::InMemoryRepository<crate::generated::identity::externalidentifier::ExternalIdentifier>,
     pub marking: crate::kernel::InMemoryRepository<crate::generated::privacy::marking::Marking>,
     pub subjectkey: crate::kernel::InMemoryRepository<crate::generated::privacy::subjectkey::SubjectKey>,
     pub payment: crate::kernel::InMemoryRepository<crate::generated::payments::payment::Payment>,
@@ -24,6 +26,7 @@ pub struct Store {
     pub issue: crate::kernel::InMemoryRepository<crate::generated::newsletter::issue::Issue>,
     pub subscriber: crate::kernel::InMemoryRepository<crate::generated::newsletter::subscriber::Subscriber>,
     pub account: crate::kernel::InMemoryRepository<crate::generated::accounts::account::Account>,
+    pub person: crate::kernel::InMemoryRepository<crate::generated::membership::person::Person>,
     pub accountfreezereview: crate::kernel::InMemoryRepository<crate::generated::compliance::accountfreezereview::AccountFreezeReview>,
     pub boxsurrenderreview: crate::kernel::InMemoryRepository<crate::generated::compliance::boxsurrenderreview::BoxSurrenderReview>,
     pub privacyreview: crate::kernel::InMemoryRepository<crate::generated::compliance::privacyreview::PrivacyReview>,
@@ -36,6 +39,8 @@ impl Store {
             registration: crate::kernel::InMemoryRepository::new(),
             roleassignment: crate::kernel::InMemoryRepository::new(),
             roletransition: crate::kernel::InMemoryRepository::new(),
+            identity: crate::kernel::InMemoryRepository::new(),
+            externalidentifier: crate::kernel::InMemoryRepository::new(),
             marking: crate::kernel::InMemoryRepository::new(),
             subjectkey: crate::kernel::InMemoryRepository::new(),
             payment: crate::kernel::InMemoryRepository::new(),
@@ -43,6 +48,7 @@ impl Store {
             issue: crate::kernel::InMemoryRepository::new(),
             subscriber: crate::kernel::InMemoryRepository::new(),
             account: crate::kernel::InMemoryRepository::new(),
+            person: crate::kernel::InMemoryRepository::new(),
             accountfreezereview: crate::kernel::InMemoryRepository::new(),
             boxsurrenderreview: crate::kernel::InMemoryRepository::new(),
             privacyreview: crate::kernel::InMemoryRepository::new(),
@@ -68,6 +74,12 @@ for (id, record) in self.roleassignment.entries() {
 for (id, record) in self.roletransition.entries() {
     instances.push((format!("{}{}", "Governance::RoleTransition#", id), record.to_json()));
 }
+for (id, record) in self.identity.entries() {
+    instances.push((format!("{}{}", "Identity::Identity#", id), record.to_json()));
+}
+for (id, record) in self.externalidentifier.entries() {
+    instances.push((format!("{}{}", "Identity::ExternalIdentifier#", id), record.to_json()));
+}
 for (id, record) in self.marking.entries() {
     instances.push((format!("{}{}", "Privacy::Marking#", id), record.to_json()));
 }
@@ -88,6 +100,9 @@ for (id, record) in self.subscriber.entries() {
 }
 for (id, record) in self.account.entries() {
     instances.push((format!("{}{}", "Accounts::Account#", id), record.to_json()));
+}
+for (id, record) in self.person.entries() {
+    instances.push((format!("{}{}", "Membership::Person#", id), record.to_json()));
 }
 for (id, record) in self.accountfreezereview.entries() {
     instances.push((format!("{}{}", "Compliance::AccountFreezeReview#", id), record.to_json()));
@@ -127,6 +142,14 @@ if let Some(id) = key.strip_prefix("Governance::RoleTransition#") {
     store.roletransition.save(id, crate::generated::governance::roletransition::RoleTransition::from_json(value)?);
     continue;
 }
+if let Some(id) = key.strip_prefix("Identity::Identity#") {
+    store.identity.save(id, crate::generated::identity::identity::Identity::from_json(value)?);
+    continue;
+}
+if let Some(id) = key.strip_prefix("Identity::ExternalIdentifier#") {
+    store.externalidentifier.save(id, crate::generated::identity::externalidentifier::ExternalIdentifier::from_json(value)?);
+    continue;
+}
 if let Some(id) = key.strip_prefix("Privacy::Marking#") {
     store.marking.save(id, crate::generated::privacy::marking::Marking::from_json(value)?);
     continue;
@@ -153,6 +176,10 @@ if let Some(id) = key.strip_prefix("Newsletter::Subscriber#") {
 }
 if let Some(id) = key.strip_prefix("Accounts::Account#") {
     store.account.save(id, crate::generated::accounts::account::Account::from_json(value)?);
+    continue;
+}
+if let Some(id) = key.strip_prefix("Membership::Person#") {
+    store.person.save(id, crate::generated::membership::person::Person::from_json(value)?);
     continue;
 }
 if let Some(id) = key.strip_prefix("Compliance::AccountFreezeReview#") {
@@ -195,6 +222,12 @@ if aggregate == "Governance::RoleAssignment" {
 if aggregate == "Governance::RoleTransition" {
     return Some(self.roletransition.entries().map(|(id, record)| (id.clone(), record.to_json())).collect());
 }
+if aggregate == "Identity::Identity" {
+    return Some(self.identity.entries().map(|(id, record)| (id.clone(), record.to_json())).collect());
+}
+if aggregate == "Identity::ExternalIdentifier" {
+    return Some(self.externalidentifier.entries().map(|(id, record)| (id.clone(), record.to_json())).collect());
+}
 if aggregate == "Privacy::Marking" {
     return Some(self.marking.entries().map(|(id, record)| (id.clone(), record.to_json())).collect());
 }
@@ -215,6 +248,9 @@ if aggregate == "Newsletter::Subscriber" {
 }
 if aggregate == "Accounts::Account" {
     return Some(self.account.entries().map(|(id, record)| (id.clone(), record.to_json())).collect());
+}
+if aggregate == "Membership::Person" {
+    return Some(self.person.entries().map(|(id, record)| (id.clone(), record.to_json())).collect());
 }
 if aggregate == "Compliance::AccountFreezeReview" {
     return Some(self.accountfreezereview.entries().map(|(id, record)| (id.clone(), record.to_json())).collect());
@@ -317,6 +353,28 @@ pub fn dispatch_by_name(
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
               crate::generated::governance::roletransition::dispatch_revoke(&mut store.roletransition, &id, args, mutations, owner_deref, command_deref, tenant_boundary_check).map(|(_, events)| stamp_payload(events, &payload))
+          }
+          "Identity::Identity.Register" => {
+              let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
+              let route = invocation.route();
+              let facts_json = invocation.facts();
+              let args = if invocation.explicit_with() { let args = crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::identity::identity::RegisterArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::identity::identity::RegisterArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::identity::identity::RegisterArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::identity::identity::RegisterArgs::from_json(v)?; args.identity_id.check_invariants()?; Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Identity registrar"), "Register", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|_args: &crate::generated::identity::identity::RegisterArgs| Ok(()) })?; if let Some(route) = route { route.require_depth(0)?; } args } else { if let Some(route) = route { route.require_depth(0)?; } crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::identity::identity::RegisterArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::identity::identity::RegisterArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::identity::identity::RegisterArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::identity::identity::RegisterArgs::from_json(v)?; args.identity_id.check_invariants()?; Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Identity registrar"), "Register", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|_args: &crate::generated::identity::identity::RegisterArgs| Ok(()) })? };
+              let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
+              let owner_deref = Vec::new();
+              let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
+              let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
+              crate::generated::identity::identity::dispatch_register(&mut store.identity, route, args, mutations, owner_deref, command_deref, tenant_boundary_check).map(|(_, events)| stamp_payload(events, &payload))
+          }
+          "Identity::ExternalIdentifier.Link" => {
+              let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
+              let route = invocation.route();
+              let facts_json = invocation.facts();
+              let args = if invocation.explicit_with() { let args = crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::identity::externalidentifier::LinkArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::identity::externalidentifier::LinkArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::identity::externalidentifier::LinkArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::identity::externalidentifier::LinkArgs::from_json(v)?; args.key.check_invariants()?; args.issuer.check_invariants()?; args.subject.check_invariants()?; Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Identity registrar"), "Link", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|args: &crate::generated::identity::externalidentifier::LinkArgs| { crate::kernel::check_reference(&store.identity, &args.identity, "Identity", "identity_id")?; Ok(()) } })?; if let Some(route) = route { route.require_depth(0)?; } args } else { if let Some(route) = route { route.require_depth(0)?; } crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::identity::externalidentifier::LinkArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::identity::externalidentifier::LinkArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::identity::externalidentifier::LinkArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::identity::externalidentifier::LinkArgs::from_json(v)?; args.key.check_invariants()?; args.issuer.check_invariants()?; args.subject.check_invariants()?; Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Identity registrar"), "Link", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|args: &crate::generated::identity::externalidentifier::LinkArgs| { crate::kernel::check_reference(&store.identity, &args.identity, "Identity", "identity_id")?; Ok(()) } })? };
+              let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
+              let owner_deref = Vec::new();
+              let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[crate::kernel::ReferenceSpec { field: "identity", as_name: "identity", target: "Identity::Identity" }], &args);
+              let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
+              crate::generated::identity::externalidentifier::dispatch_link(&mut store.externalidentifier, route, args, mutations, owner_deref, command_deref, tenant_boundary_check).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Privacy::Marking.Mark" => {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
@@ -557,12 +615,24 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              let args = if invocation.explicit_with() { let args = crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::newsletter::subscriber::SubscribeArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::newsletter::subscriber::SubscribeArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::newsletter::subscriber::SubscribeArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::newsletter::subscriber::SubscribeArgs::from_json(v)?; args.email.check_invariants()?; Ok(args) }, refuse_role_mismatch: &|| Ok(()), resolve_references: &|_args: &crate::generated::newsletter::subscriber::SubscribeArgs| Ok(()) })?; if let Some(route) = route { route.require_depth(0)?; } args } else { if let Some(route) = route { route.require_depth(0)?; } crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::newsletter::subscriber::SubscribeArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::newsletter::subscriber::SubscribeArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::newsletter::subscriber::SubscribeArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::newsletter::subscriber::SubscribeArgs::from_json(v)?; args.email.check_invariants()?; Ok(args) }, refuse_role_mismatch: &|| Ok(()), resolve_references: &|_args: &crate::generated::newsletter::subscriber::SubscribeArgs| Ok(()) })? };
+              let args = if invocation.explicit_with() { let args = crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::newsletter::subscriber::SubscribeArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::newsletter::subscriber::SubscribeArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::newsletter::subscriber::SubscribeArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::newsletter::subscriber::SubscribeArgs::from_json(v)?; args.email.check_invariants()?; if let Some(v) = &args.first_name { v.check_invariants()?; } if let Some(v) = &args.last_name { v.check_invariants()?; } Ok(args) }, refuse_role_mismatch: &|| Ok(()), resolve_references: &|_args: &crate::generated::newsletter::subscriber::SubscribeArgs| Ok(()) })?; if let Some(route) = route { route.require_depth(0)?; } args } else { if let Some(route) = route { route.require_depth(0)?; } crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::newsletter::subscriber::SubscribeArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::newsletter::subscriber::SubscribeArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::newsletter::subscriber::SubscribeArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::newsletter::subscriber::SubscribeArgs::from_json(v)?; args.email.check_invariants()?; if let Some(v) = &args.first_name { v.check_invariants()?; } if let Some(v) = &args.last_name { v.check_invariants()?; } Ok(args) }, refuse_role_mismatch: &|| Ok(()), resolve_references: &|_args: &crate::generated::newsletter::subscriber::SubscribeArgs| Ok(()) })? };
               let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = Vec::new();
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
               crate::generated::newsletter::subscriber::dispatch_subscribe(&mut store.subscriber, route, args, mutations, owner_deref, command_deref, tenant_boundary_check).map(|(_, events)| stamp_payload(events, &payload))
+          }
+          "Newsletter::Subscriber.AddName" => {
+              let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
+              let route = invocation.route();
+              let facts_json = invocation.facts();
+              let args = if invocation.explicit_with() { let args = crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::newsletter::subscriber::AddNameArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::newsletter::subscriber::AddNameArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::newsletter::subscriber::AddNameArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::newsletter::subscriber::AddNameArgs::from_json(v)?; args.first_name.check_invariants()?; args.last_name.check_invariants()?; Ok(args) }, refuse_role_mismatch: &|| Ok(()), resolve_references: &|_args: &crate::generated::newsletter::subscriber::AddNameArgs| Ok(()) })?; if let Some(route) = route { route.require_depth(0)?; } args } else { if let Some(route) = route { route.require_depth(0)?; } crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::newsletter::subscriber::AddNameArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::newsletter::subscriber::AddNameArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::newsletter::subscriber::AddNameArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::newsletter::subscriber::AddNameArgs::from_json(v)?; args.first_name.check_invariants()?; args.last_name.check_invariants()?; Ok(args) }, refuse_role_mismatch: &|| Ok(()), resolve_references: &|_args: &crate::generated::newsletter::subscriber::AddNameArgs| Ok(()) })? };
+              let id = match route { Some(route) => route.aggregate().to_string(), None => crate::generated::newsletter::subscriber::Subscriber::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "AddName", aggregate: "Subscriber", identity: "email.value" }.render_args()))?, };
+              let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
+              let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Newsletter::Subscriber", &id);
+              let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
+              let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
+              crate::generated::newsletter::subscriber::dispatch_add_name(&mut store.subscriber, &id, args, mutations, owner_deref, command_deref, tenant_boundary_check).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Newsletter::Subscriber.Confirm" => {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
@@ -598,6 +668,41 @@ pub fn dispatch_by_name(
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
               crate::generated::accounts::account::dispatch_register(&mut store.account, route, args, mutations, owner_deref, command_deref, tenant_boundary_check).map(|(_, events)| stamp_payload(events, &payload))
+          }
+          "Membership::Person.Admit" => {
+              let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
+              let route = invocation.route();
+              let facts_json = invocation.facts();
+              let args = if invocation.explicit_with() { let args = crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::membership::person::AdmitArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::membership::person::AdmitArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::membership::person::AdmitArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::membership::person::AdmitArgs::from_json(v)?; args.email.check_invariants()?; args.name.check_invariants()?; Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Admin"), "Admit", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|_args: &crate::generated::membership::person::AdmitArgs| Ok(()) })?; if let Some(route) = route { route.require_depth(0)?; } args } else { if let Some(route) = route { route.require_depth(0)?; } crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::membership::person::AdmitArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::membership::person::AdmitArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::membership::person::AdmitArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::membership::person::AdmitArgs::from_json(v)?; args.email.check_invariants()?; args.name.check_invariants()?; Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Admin"), "Admit", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|_args: &crate::generated::membership::person::AdmitArgs| Ok(()) })? };
+              let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
+              let owner_deref = Vec::new();
+              let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
+              let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
+              crate::generated::membership::person::dispatch_admit(&mut store.person, route, args, mutations, owner_deref, command_deref, tenant_boundary_check).map(|(_, events)| stamp_payload(events, &payload))
+          }
+          "Membership::Person.GrantAccess" => {
+              let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
+              let route = invocation.route();
+              let facts_json = invocation.facts();
+              let args = if invocation.explicit_with() { let args = crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::membership::person::GrantAccessArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::membership::person::GrantAccessArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::membership::person::GrantAccessArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::membership::person::GrantAccessArgs::from_json(v)?; args.role.check_invariants()?; Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Admin"), "GrantAccess", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|_args: &crate::generated::membership::person::GrantAccessArgs| Ok(()) })?; if let Some(route) = route { route.require_depth(0)?; } args } else { if let Some(route) = route { route.require_depth(0)?; } crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::membership::person::GrantAccessArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::membership::person::GrantAccessArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::membership::person::GrantAccessArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::membership::person::GrantAccessArgs::from_json(v)?; args.role.check_invariants()?; Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Admin"), "GrantAccess", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|_args: &crate::generated::membership::person::GrantAccessArgs| Ok(()) })? };
+              let id = match route { Some(route) => route.aggregate().to_string(), None => crate::generated::membership::person::Person::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "GrantAccess", aggregate: "Person", identity: "email.value" }.render_args()))?, };
+              let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
+              let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Membership::Person", &id);
+              let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
+              let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
+              crate::generated::membership::person::dispatch_grant_access(&mut store.person, &id, args, mutations, owner_deref, command_deref, tenant_boundary_check).map(|(_, events)| stamp_payload(events, &payload))
+          }
+          "Membership::Person.LinkIdentity" => {
+              let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
+              let route = invocation.route();
+              let facts_json = invocation.facts();
+              let args = if invocation.explicit_with() { let args = crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::membership::person::LinkIdentityArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::membership::person::LinkIdentityArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::membership::person::LinkIdentityArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::membership::person::LinkIdentityArgs::from_json(v)?; args.identity_id.check_invariants()?; Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("System"), "LinkIdentity", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|_args: &crate::generated::membership::person::LinkIdentityArgs| Ok(()) })?; if let Some(route) = route { route.require_depth(0)?; } args } else { if let Some(route) = route { route.require_depth(0)?; } crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::membership::person::LinkIdentityArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::membership::person::LinkIdentityArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::membership::person::LinkIdentityArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::membership::person::LinkIdentityArgs::from_json(v)?; args.identity_id.check_invariants()?; Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("System"), "LinkIdentity", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|_args: &crate::generated::membership::person::LinkIdentityArgs| Ok(()) })? };
+              let id = match route { Some(route) => route.aggregate().to_string(), None => crate::generated::membership::person::Person::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "LinkIdentity", aggregate: "Person", identity: "email.value" }.render_args()))?, };
+              let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
+              let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Membership::Person", &id);
+              let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
+              let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
+              crate::generated::membership::person::dispatch_link_identity(&mut store.person, &id, args, mutations, owner_deref, command_deref, tenant_boundary_check).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Compliance::AccountFreezeReview.Open" => {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
@@ -813,6 +918,8 @@ pub static REFERENCE_TABLE: crate::kernel::ReferenceTable = &[
     ("Lifeadelics::Registration", &[crate::kernel::ReferenceSpec { field: "event_slug", as_name: "event_slug", target: "Lifeadelics::Event" }]),
     ("Governance::RoleAssignment", &[]),
     ("Governance::RoleTransition", &[]),
+    ("Identity::Identity", &[]),
+    ("Identity::ExternalIdentifier", &[crate::kernel::ReferenceSpec { field: "identity", as_name: "identity", target: "Identity::Identity" }]),
     ("Privacy::Marking", &[]),
     ("Privacy::SubjectKey", &[]),
     ("Payments::Payment", &[]),
@@ -820,6 +927,7 @@ pub static REFERENCE_TABLE: crate::kernel::ReferenceTable = &[
     ("Newsletter::Issue", &[]),
     ("Newsletter::Subscriber", &[]),
     ("Accounts::Account", &[]),
+    ("Membership::Person", &[]),
     ("Compliance::AccountFreezeReview", &[]),
     ("Compliance::BoxSurrenderReview", &[]),
     ("Compliance::PrivacyReview", &[]),
@@ -838,6 +946,12 @@ if target == "Governance::RoleAssignment" {
 }
 if target == "Governance::RoleTransition" {
     return self.roletransition.find(id).map(|r| Box::new(r) as Box<dyn crate::kernel::Fielded>);
+}
+if target == "Identity::Identity" {
+    return self.identity.find(id).map(|r| Box::new(r) as Box<dyn crate::kernel::Fielded>);
+}
+if target == "Identity::ExternalIdentifier" {
+    return self.externalidentifier.find(id).map(|r| Box::new(r) as Box<dyn crate::kernel::Fielded>);
 }
 if target == "Privacy::Marking" {
     return self.marking.find(id).map(|r| Box::new(r) as Box<dyn crate::kernel::Fielded>);
@@ -859,6 +973,9 @@ if target == "Newsletter::Subscriber" {
 }
 if target == "Accounts::Account" {
     return self.account.find(id).map(|r| Box::new(r) as Box<dyn crate::kernel::Fielded>);
+}
+if target == "Membership::Person" {
+    return self.person.find(id).map(|r| Box::new(r) as Box<dyn crate::kernel::Fielded>);
 }
 if target == "Compliance::AccountFreezeReview" {
     return self.accountfreezereview.find(id).map(|r| Box::new(r) as Box<dyn crate::kernel::Fielded>);
@@ -903,6 +1020,8 @@ pub fn reference_key_for_aggregate(qualified_name: &str) -> Option<&'static str>
         "Lifeadelics::Registration" => Some("registration"),
         "Governance::RoleAssignment" => Some("role_assignment"),
         "Governance::RoleTransition" => Some("role_transition"),
+        "Identity::Identity" => Some("identity"),
+        "Identity::ExternalIdentifier" => Some("external_identifier"),
         "Privacy::Marking" => Some("marking"),
         "Privacy::SubjectKey" => Some("subject_key"),
         "Payments::Payment" => Some("payment"),
@@ -910,6 +1029,7 @@ pub fn reference_key_for_aggregate(qualified_name: &str) -> Option<&'static str>
         "Newsletter::Issue" => Some("issue"),
         "Newsletter::Subscriber" => Some("subscriber"),
         "Accounts::Account" => Some("account"),
+        "Membership::Person" => Some("person"),
         "Compliance::AccountFreezeReview" => Some("account_freeze_review"),
         "Compliance::BoxSurrenderReview" => Some("box_surrender_review"),
         "Compliance::PrivacyReview" => Some("privacy_review"),
@@ -926,6 +1046,8 @@ pub fn command_creates(verb: &str) -> bool {
         "Governance::RoleAssignment.Revoke" => false,
         "Governance::RoleTransition.Grant" => true,
         "Governance::RoleTransition.Revoke" => false,
+        "Identity::Identity.Register" => true,
+        "Identity::ExternalIdentifier.Link" => true,
         "Privacy::Marking.Mark" => true,
         "Privacy::Marking.Unmark" => false,
         "Privacy::SubjectKey.Issue" => true,
@@ -947,9 +1069,13 @@ pub fn command_creates(verb: &str) -> bool {
         "Newsletter::Issue.Edit" => false,
         "Newsletter::Issue.Send" => false,
         "Newsletter::Subscriber.Subscribe" => true,
+        "Newsletter::Subscriber.AddName" => false,
         "Newsletter::Subscriber.Confirm" => false,
         "Newsletter::Subscriber.Unsubscribe" => false,
         "Accounts::Account.Register" => true,
+        "Membership::Person.Admit" => true,
+        "Membership::Person.GrantAccess" => false,
+        "Membership::Person.LinkIdentity" => false,
         "Compliance::AccountFreezeReview.Open" => true,
         "Compliance::AccountFreezeReview.Clear" => false,
         "Compliance::AccountFreezeReview.Escalate" => false,
@@ -967,11 +1093,14 @@ pub fn identity_head_for_aggregate(qualified_name: &str) -> Option<&'static str>
     match qualified_name {
         "Lifeadelics::Event" => Some("slug"),
         "Lifeadelics::Registration" => Some("registration_id"),
+        "Identity::Identity" => Some("identity_id"),
+        "Identity::ExternalIdentifier" => Some("key"),
         "Payments::Payment" => Some("reference"),
         "Newsletter::Delivery" => Some("delivery_id"),
         "Newsletter::Issue" => Some("slug"),
         "Newsletter::Subscriber" => Some("email"),
         "Accounts::Account" => Some("email"),
+        "Membership::Person" => Some("email"),
         "Compliance::AccountFreezeReview" => Some("number"),
         _ => None,
     }
@@ -993,6 +1122,8 @@ pub fn command_attributes_for_verb(verb: &str) -> &'static [&'static str] {
         "Governance::RoleAssignment.Revoke" => &["ends_at"],
         "Governance::RoleTransition.Grant" => &["from_role", "to_role", "starts_at"],
         "Governance::RoleTransition.Revoke" => &["ends_at"],
+        "Identity::Identity.Register" => &["identity_id"],
+        "Identity::ExternalIdentifier.Link" => &["identity", "key", "issuer", "subject"],
         "Privacy::Marking.Mark" => &["domain", "attribute_path", "category", "readable_by"],
         "Privacy::Marking.Unmark" => &[],
         "Privacy::SubjectKey.Issue" => &["domain", "subject_id", "key_reference"],
@@ -1013,10 +1144,14 @@ pub fn command_attributes_for_verb(verb: &str) -> &'static [&'static str] {
         "Newsletter::Issue.Draft" => &["slug", "subject", "body"],
         "Newsletter::Issue.Edit" => &["subject", "body"],
         "Newsletter::Issue.Send" => &["sent_at"],
-        "Newsletter::Subscriber.Subscribe" => &["email"],
+        "Newsletter::Subscriber.Subscribe" => &["email", "first_name", "last_name"],
+        "Newsletter::Subscriber.AddName" => &["first_name", "last_name"],
         "Newsletter::Subscriber.Confirm" => &[],
         "Newsletter::Subscriber.Unsubscribe" => &[],
         "Accounts::Account.Register" => &["email", "password_hash"],
+        "Membership::Person.Admit" => &["email", "name"],
+        "Membership::Person.GrantAccess" => &["role"],
+        "Membership::Person.LinkIdentity" => &["identity_id"],
         "Compliance::AccountFreezeReview.Open" => &["number"],
         "Compliance::AccountFreezeReview.Clear" => &[],
         "Compliance::AccountFreezeReview.Escalate" => &[],
@@ -1051,6 +1186,21 @@ crate::kernel::QueryDef {
     conditions: &[
         crate::kernel::QueryCondition { field: "from_role", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Arg("from_role") },
         crate::kernel::QueryCondition { field: "to_role", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Arg("to_role") },
+    ],
+    reference_hop_conditions: &[
+
+    ],
+    order_by: None,
+    offset: None,
+    limit: None,
+    authorization: None,
+},
+crate::kernel::QueryDef {
+    verb: "Identity::ExternalIdentifier.ResolvedBy",
+    aggregate: "Identity::ExternalIdentifier",
+    conditions: &[
+        crate::kernel::QueryCondition { field: "issuer", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Arg("issuer") },
+        crate::kernel::QueryCondition { field: "subject", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Arg("subject") },
     ],
     reference_hop_conditions: &[
 
@@ -1215,6 +1365,20 @@ crate::kernel::QueryDef {
     limit: None,
     authorization: None,
 },
+crate::kernel::QueryDef {
+    verb: "Membership::Person.ByIdentityId",
+    aggregate: "Membership::Person",
+    conditions: &[
+        crate::kernel::QueryCondition { field: "identity_id", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Arg("identity_id") },
+    ],
+    reference_hop_conditions: &[
+
+    ],
+    order_by: None,
+    offset: None,
+    limit: None,
+    authorization: None,
+},
 ];
 /// `provides "authorization", assignments:` — the query `kernel::check_role_via` reads; `None` when no chapter here declares one.
 pub const AUTHORIZATION_ASSIGNMENTS: Option<&str> = Some("Governance::RoleAssignment.AssignmentsForActor");
@@ -1235,6 +1399,11 @@ pub fn check_query_args(verb: &str, args: &crate::kernel::Json) -> Result<(), cr
             if let Some(x) = args.get("to_role") { crate::generated::governance::roletransition::RoleName::from_json(&x.coerce_single_field("value"))?.check_invariants()?; }
             Ok(())
         }
+        "Identity::ExternalIdentifier.ResolvedBy" => {
+            if let Some(x) = args.get("issuer") { crate::generated::identity::externalidentifier::Issuer::from_json(&x.coerce_single_field("value"))?.check_invariants()?; }
+            if let Some(x) = args.get("subject") { crate::generated::identity::externalidentifier::Subject::from_json(&x.coerce_single_field("value"))?.check_invariants()?; }
+            Ok(())
+        }
         "Privacy::Marking.ForDomain" => {
             if let Some(x) = args.get("domain") { crate::generated::privacy::marking::MarkingDomain::from_json(&x.coerce_single_field("value"))?.check_invariants()?; }
             Ok(())
@@ -1246,6 +1415,10 @@ pub fn check_query_args(verb: &str, args: &crate::kernel::Json) -> Result<(), cr
         }
         "Payments::Payment.Status" => {
             if let Some(x) = args.get("reference") { crate::generated::payments::payment::PaymentReference::from_json(&x.coerce_single_field("value"))?.check_invariants()?; }
+            Ok(())
+        }
+        "Membership::Person.ByIdentityId" => {
+            if let Some(x) = args.get("identity_id") { crate::generated::membership::person::IdentityId::from_json(&x.coerce_single_field("value"))?.check_invariants()?; }
             Ok(())
         }
         _ => Ok(()),

@@ -174,18 +174,26 @@ fn constant_time_eq(a: &[u8], b: &[u8]) -> bool {
     a.iter().zip(b.iter()).fold(0u8, |acc, (x, y)| acc | (x ^ y)) == 0
 }
 
-// **The mock outbound side** — MockStripeAdapter's own `create_session`
-// (vendor/hecks/lib/hecks/adapters/driven/mock_stripe_adapter.rb,
-// the hecks gem's own generic stand-in), ported byte-for-byte:
-// never reads price/product name (a real adapter needs them to build a
-// session a payer actually sees; this only needs to look enough like
-// one to swap in), and the URL it returns carries the same
-// `registration_id` a real webhook's metadata would, so a caller
-// signing its own synthetic webhook against it (confirm_payment_
-// manually, a smoke test) has something real to key off of.
-pub fn mock_checkout_session(registration_id: &str, success_url: &str) -> String {
-    let separator = if success_url.contains('?') { "&" } else { "?" };
-    format!("{success_url}{separator}mock_checkout=1&mock_registration_id={registration_id}")
+// **The mock outbound side** — Lifeadelics' OWN `LocalCheckout` adapter
+// (adapters/local_checkout/local_checkout.rb), not hecks' generic
+// MockStripeAdapter (mock_stripe_adapter.rb's `create_session`, which
+// instant-skips straight to `success_url` with nothing for a guest to
+// see). LocalCheckout hands back a URL to THIS SITE'S OWN
+// `/pay/<registration_id>.html` page (src/pages/pay/[registrationId].astro)
+// — a real page showing what's owed, with a "Pay"/"Cancel" a guest
+// actually clicks, before the browser ever reaches success_url/
+// cancel_url. Still entirely fake underneath: that page's "Pay" button
+// calls this same host's own POST /registrations/:id/complete
+// (registration_complete_route, above), which settles the Payment
+// through the same PaymentGateway port /webhooks/stripe uses.
+// success_url/cancel_url ride along as query params on the /pay URL
+// (encoded, not interpolated raw) exactly like the Ruby adapter's own
+// `URI.encode_www_form(success_url:, cancel_url:)`.
+pub fn mock_checkout_session(registration_id: &str, success_url: &str, cancel_url: &str, site_url: &str) -> String {
+    let mut url = reqwest::Url::parse(&format!("{site_url}/pay/{registration_id}.html"))
+        .unwrap_or_else(|_| reqwest::Url::parse("http://invalid.invalid/").unwrap());
+    url.query_pairs_mut().append_pair("success_url", success_url).append_pair("cancel_url", cancel_url);
+    url.to_string()
 }
 
 // **The outbound side** — adapters/stripe/stripe.rb's own `create_session`,
@@ -251,18 +259,26 @@ mod tests {
     }
 
     #[test]
-    fn mock_checkout_session_matches_mock_stripe_adapters_own_exact_shape() {
-        // mock_stripe_adapter.rb's own real output, reproduced byte for
-        // byte: `"#{success_url}#{separator}mock_checkout=1&mock_
-        // registration_id=#{registration_id}"`.
-        let url = mock_checkout_session("REG-1", "https://example.com/yoga.html?registered=1");
-        assert_eq!(url, "https://example.com/yoga.html?registered=1&mock_checkout=1&mock_registration_id=REG-1");
+    fn mock_checkout_session_matches_local_checkouts_own_pay_page_shape() {
+        // local_checkout.rb's own real output, same three parts: this
+        // site's own /pay/<registration_id>.html page, with success_url
+        // and cancel_url riding along as encoded query params.
+        let url = mock_checkout_session(
+            "REG-1",
+            "https://example.com/yoga.html?registered=1",
+            "https://example.com/yoga.html?registered=0",
+            "https://example.com",
+        );
+        assert_eq!(
+            url,
+            "https://example.com/pay/REG-1.html?success_url=https%3A%2F%2Fexample.com%2Fyoga.html%3Fregistered%3D1&cancel_url=https%3A%2F%2Fexample.com%2Fyoga.html%3Fregistered%3D0"
+        );
     }
 
     #[test]
-    fn mock_checkout_session_uses_a_bare_question_mark_when_the_success_url_carries_no_query_string_yet() {
-        let url = mock_checkout_session("REG-2", "https://example.com/yoga.html");
-        assert_eq!(url, "https://example.com/yoga.html?mock_checkout=1&mock_registration_id=REG-2");
+    fn mock_checkout_session_carries_the_registration_id_in_its_own_path_not_a_query_param() {
+        let url = mock_checkout_session("REG-2", "https://example.com/yoga.html", "https://example.com/yoga.html", "https://example.com");
+        assert!(url.starts_with("https://example.com/pay/REG-2.html?"));
     }
 
     #[test]

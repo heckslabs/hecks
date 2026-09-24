@@ -70,6 +70,12 @@
   },
   {
     "kind": "command",
+    "id": "Newsletter::Subscriber.AddName",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
     "id": "Newsletter::Subscriber.Confirm",
     "generated": true,
     "routed": true

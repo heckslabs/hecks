@@ -1,0 +1,38 @@
+[
+  {
+    "kind": "aggregate",
+    "id": "Membership::Person",
+    "generated": true
+  },
+  {
+    "kind": "command",
+    "id": "Membership::Person.Admit",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Membership::Person.GrantAccess",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Membership::Person.LinkIdentity",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "query",
+    "id": "Membership::Person.All",
+    "generated": false,
+    "gap_class": "per_instance",
+    "construct": "no_wheres",
+    "reason": "declares no where clauses at all — nothing for filter_entries to bake in"
+  },
+  {
+    "kind": "query",
+    "id": "Membership::Person.ByIdentityId",
+    "generated": true
+  }
+]

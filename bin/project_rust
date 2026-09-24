@@ -227,13 +227,19 @@ else
     # none merged in either, and `BindingPolicy.resolve` raised "no
     # persisted_by bind" for every such aggregate — confirmed live
     # building lifeadelics (the first domain to combine this split with
-    # a real Rust/Lambda deploy) for its Aurora cutover. Opt-in via
-    # `HECKS_PROJECT_ENVIRONMENT` — default nil, a silent no-op leaving
-    # every other domain's generated output byte-identical — rather
-    # than always assuming "production": a future caller building for a
-    # different target names it explicitly, the same way real boot's
-    # own `environment:` keyword is never implicitly inferred either.
-    if (target_environment = ENV.fetch("HECKS_PROJECT_ENVIRONMENT", nil))
+    # a real Rust/Lambda deploy) for its Aurora cutover.
+    #
+    # Default is mechanical, not a deploy-time guess: if the domain
+    # ships `environments/production.hecksagon`, rust/host is the
+    # production runtime and must see that overlay (PostgresEra binds,
+    # Identity/Membership persistence). Override with
+    # `HECKS_PROJECT_ENVIRONMENT` when generating for a different
+    # target. Domains with no `environments/` stay byte-identical.
+    target_environment = ENV.fetch("HECKS_PROJECT_ENVIRONMENT") do
+      prod = File.join(bluebook_directory, "environments", "production.hecksagon")
+      File.exist?(prod) ? "production" : nil
+    end
+    if target_environment && !target_environment.empty?
       folder = Hecks::Adapters::Folder.new
       folder.load_each(bluebook_directory, [File.join("environments", "#{target_environment}.hecksagon")])
       folder.load_each(bluebook_directory, [File.join("environments", "#{target_environment}.world")])
@@ -281,6 +287,14 @@ else
   # provides "identity".
   identity = Hecks::Projector::Exporter.identity(target_registry, target_domain_name)
   target_ir[:identity] = json_shaped(identity) unless identity.empty?
+
+  if !membership.empty? && identity.empty?
+    abort "#{target_domain_name} provides membership but not identity — rust/host " \
+          "Google sign-in cannot register or link an identity from ir.json. " \
+          "Attach Identity (`uses_framework \"Identity\"` plus a sibling " \
+          "Hecks.hecksagon \"Identity\") so the hecksagon, not a deploy-time " \
+          "guess, names the identity verbs."
+  end
 
   # **Same seam, same reasoning** — `Exporter.translations` walks the whole
   # registry (a shared registry can hold another domain's edges too, the

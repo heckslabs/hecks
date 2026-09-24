@@ -314,7 +314,8 @@ module Hecks
     RUST_EXTERNAL_VENDORED_CHAPTERS = {
       "accounts"   => "lifeadelics",
       "newsletter" => "lifeadelics",
-      "payments"   => "lifeadelics"
+      "payments"   => "lifeadelics",
+      "membership" => "lifeadelics"
     }.freeze
 
     # Every external vendored chapter's own stem.
@@ -364,12 +365,14 @@ module Hecks
     # still fail, so an entry that starts passing breaks the build until
     # it is deleted here.
     RUST_COVERAGE_PENDING = {
-      "accounts"   => "query Listing declares no where clause at all (\"every account, alphabetically by " \
-                      "email\") — rust/project/queries.rb's own no_wheres skip refuses to generate an " \
-                      "unfiltered per_instance Listing (\"nothing for filter_entries to bake in\"); a " \
-                      "structural Rust codegen limitation, not a bug in this vendored package",
-      "newsletter" => "same no_wheres gap as accounts, on all 3 of its own Listing queries " \
-                      "(Delivery/Issue/Subscriber) — see accounts' entry above"
+      "accounts"    => "query Listing declares no where clause at all (\"every account, alphabetically by " \
+                       "email\") — rust/project/queries.rb's own no_wheres skip refuses to generate an " \
+                       "unfiltered per_instance Listing (\"nothing for filter_entries to bake in\"); a " \
+                       "structural Rust codegen limitation, not a bug in this vendored package",
+      "newsletter"  => "same no_wheres gap as accounts, on all 3 of its own Listing queries " \
+                       "(Delivery/Issue/Subscriber) — see accounts' entry above",
+      "lifeadelics" => "same no_wheres gap as accounts, on Registration.Listing — see accounts' entry above",
+      "membership"  => "same no_wheres gap as accounts, on Person.All — see accounts' entry above"
     }.freeze
 
     # The Cargo `[features]` table's raw text.
@@ -488,7 +491,26 @@ module Hecks
     def rust_side_chapters(kind, root: ROOT)
       modules = generated_modules(root: root)
       members(kind, root: root).map(&:stem)
-                               .select { |stem| modules.include?(stem) && !generated?(stem, root: root) }
+                               .select do |stem|
+                                 module_name = Naming.pascal(stem).downcase
+                                 modules.include?(module_name) && !generated?(module_name, root: root)
+                               end
+    end
+
+    # The generated module name a `:framework`/`:vendored` stem writes
+    # under — `Naming.pascal(stem).downcase` (`bin/project_rust`'s own
+    # convention, see `rust_side_chapters`'s header); a chapter whose
+    # stem holds an underscore ("console_settings") writes to a
+    # different, underscore-free module name ("consolesettings"), so a
+    # bucket-membership check against `generated_modules` (a directory
+    # name) needs this mapping rather than the raw stem
+    # `rust_framework_chapters`/`rust_vendored_chapters` still return
+    # (every other caller wants the stem, to build a bluebook file path).
+    #
+    # @param stem [String] a `:framework`/`:vendored` corpus member's stem
+    # @return [String] the generated module's own directory name
+    def rust_side_module_name(stem)
+      Naming.pascal(stem).downcase
     end
 
     def rust_framework_chapters(root: ROOT)
