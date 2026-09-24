@@ -91,7 +91,9 @@
             }
           ],
           "closed_set": false,
-          "members": []
+          "members": [
+
+          ]
         },
         {
           "name": "Money",
@@ -132,7 +134,9 @@
             }
           ],
           "closed_set": false,
-          "members": []
+          "members": [
+
+          ]
         },
         {
           "name": "EventName",
@@ -170,7 +174,9 @@
             }
           ],
           "closed_set": false,
-          "members": []
+          "members": [
+
+          ]
         },
         {
           "name": "Capacity",
@@ -207,7 +213,9 @@
             }
           ],
           "closed_set": false,
-          "members": []
+          "members": [
+
+          ]
         }
       ],
       "commands": [
@@ -258,9 +266,15 @@
               "relationship": null
             }
           ],
-          "givens": [],
-          "ensures": [],
-          "mutations": [],
+          "givens": [
+
+          ],
+          "ensures": [
+
+          ],
+          "mutations": [
+
+          ],
           "emits": [
             "EventScheduled"
           ],
@@ -272,7 +286,9 @@
           "role": "Organizer",
           "goal": "Stop taking new registrations for this session",
           "references": "Event",
-          "attributes": [],
+          "attributes": [
+
+          ],
           "givens": [
             {
               "description": "an open session can be closed",
@@ -297,8 +313,12 @@
               }
             }
           ],
-          "ensures": [],
-          "mutations": [],
+          "ensures": [
+
+          ],
+          "mutations": [
+
+          ],
           "emits": [
             "EventClosed"
           ],
@@ -306,9 +326,15 @@
           "provenance": null
         }
       ],
-      "invariants": [],
-      "preconditions": [],
-      "projected_fields": [],
+      "invariants": [
+
+      ],
+      "preconditions": [
+
+      ],
+      "projected_fields": [
+
+      ],
       "lifecycle": {
         "field": "status",
         "default": "open",
@@ -320,9 +346,15 @@
           }
         ]
       },
-      "entities": [],
-      "queries": [],
-      "ports": [],
+      "entities": [
+
+      ],
+      "queries": [
+
+      ],
+      "ports": [
+
+      ],
       "provenance": null
     },
     {
@@ -400,7 +432,9 @@
             }
           ],
           "closed_set": false,
-          "members": []
+          "members": [
+
+          ]
         },
         {
           "name": "Attendee",
@@ -467,7 +501,9 @@
             }
           ],
           "closed_set": false,
-          "members": []
+          "members": [
+
+          ]
         }
       ],
       "commands": [
@@ -508,9 +544,15 @@
               "relationship": null
             }
           ],
-          "givens": [],
-          "ensures": [],
-          "mutations": [],
+          "givens": [
+
+          ],
+          "ensures": [
+
+          ],
+          "mutations": [
+
+          ],
           "emits": [
             "RegistrationRequested"
           ],
@@ -518,21 +560,43 @@
           "provenance": null
         }
       ],
-      "invariants": [],
-      "preconditions": [],
-      "projected_fields": [],
+      "invariants": [
+
+      ],
+      "preconditions": [
+
+      ],
+      "projected_fields": [
+
+      ],
       "lifecycle": null,
-      "entities": [],
-      "queries": [],
-      "ports": [],
+      "entities": [
+
+      ],
+      "queries": [
+
+      ],
+      "ports": [
+
+      ],
       "provenance": null
     }
   ],
-  "read_models": [],
-  "policies": [],
-  "process_managers": [],
-  "attaches_to": [],
-  "provides": [],
+  "read_models": [
+
+  ],
+  "policies": [
+
+  ],
+  "process_managers": [
+
+  ],
+  "attaches_to": [
+
+  ],
+  "provides": [
+
+  ],
   "canonical_form": [
     {
       "strategy": "collapse_whitespace",
@@ -581,6 +645,8 @@
     "assignments": "Governance::RoleAssignment.AssignmentsForActor",
     "assignment_aggregate": "Governance::RoleAssignment"
   },
-  "translations": [],
+  "translations": [
+
+  ],
   "source_text": "# rust/host's checkout-route fixture (web.rs `checkout_route`,\n# `registrations_route`, `webhook_route` and their tests). Copies the\n# shape of the removed Lifeadelics domain those routes were written\n# against, trimmed to exactly what they dispatch: Event.Schedule/Close,\n# Registration.Request here, and Payments::Payment (payments.bluebook)\n# beside it. Built into rust/dist/checkout_fixture.wasm by\n# `bin/project_wasm spec/fixtures/rust_host/checkout_fixture`.\nHecks.bluebook \"CheckoutFixture\" do\n  vision \"Scheduled sessions people register for, paid through a Payments chapter sharing one reference.\"\n  core\n\n  aggregate \"Event\" do\n    description \"One scheduled session with a price and a seat count.\"\n\n    identified_by :slug\n\n    value_object \"Slug\" do\n      attribute :value, String\n      invariant(\"an event has a slug\") { !value.to_s.empty? }\n    end\n\n    value_object \"Money\" do\n      attribute :cents, Integer\n      invariant(\"a price is never negative\") { cents >= 0 }\n    end\n\n    value_object \"EventName\" do\n      attribute :value, String\n      invariant(\"an event has a name\") { !value.to_s.empty? }\n    end\n\n    value_object \"Capacity\" do\n      attribute :value, Integer\n      invariant(\"a session needs at least one seat\") { value.positive? }\n    end\n\n    attribute :slug,     Slug\n    attribute :name,     EventName\n    attribute :price,    Money\n    attribute :capacity, Capacity\n\n    lifecycle :status, default: \"open\" do\n      transition \"Close\" => \"closed\", from: \"open\"\n    end\n\n    command \"Schedule\" do\n      role \"Organizer\"\n      goal \"Put a new session on the calendar\"\n\n      attribute :slug,     Slug\n      attribute :name,     EventName\n      attribute :price,    Money\n      attribute :capacity, Capacity\n\n      emits \"EventScheduled\"\n    end\n\n    command \"Close\" do\n      role \"Organizer\"\n      goal \"Stop taking new registrations for this session\"\n\n      reference_to Event\n\n      given(\"an open session can be closed\") { status == \"open\" }\n\n      emits \"EventClosed\"\n    end\n  end\n\n  # WHO is coming, not whether they paid — Payments::Payment, sharing\n  # this registration's id as its own reference, owns that.\n  aggregate \"Registration\" do\n    description \"One person's intent to attend an Event.\"\n\n    identified_by :registration_id\n\n    value_object \"RegistrationId\" do\n      attribute :value, String\n      invariant(\"a registration is identified\") { !value.to_s.empty? }\n    end\n\n    value_object \"Attendee\" do\n      attribute :name,  String\n      attribute :email, String\n\n      invariant(\"an attendee is named\") { !name.to_s.empty? }\n      invariant(\"an attendee has an email\") { !email.to_s.empty? }\n    end\n\n    reference_to Event, as: :event_slug\n\n    attribute :registration_id, RegistrationId\n    attribute :attendee,        Attendee\n\n    command \"Request\" do\n      role \"Guest\"\n      goal \"Register intent to attend an Event\"\n\n      reference_to Event, as: :event_slug\n      attribute :registration_id, RegistrationId\n      attribute :attendee,        Attendee\n\n      emits \"RegistrationRequested\"\n    end\n  end\nend\n"
 }

@@ -99,7 +99,9 @@
               "relationship": null
             }
           ],
-          "invariants": [],
+          "invariants": [
+
+          ],
           "closed_set": true,
           "members": [
             [
@@ -130,7 +132,9 @@
               "relationship": null
             }
           ],
-          "invariants": [],
+          "invariants": [
+
+          ],
           "closed_set": true,
           "members": [
             [
@@ -177,7 +181,9 @@
             }
           ],
           "closed_set": false,
-          "members": []
+          "members": [
+
+          ]
         },
         {
           "name": "PositiveMoney",
@@ -252,7 +258,9 @@
             }
           ],
           "closed_set": false,
-          "members": []
+          "members": [
+
+          ]
         },
         {
           "name": "Client",
@@ -319,7 +327,9 @@
             }
           ],
           "closed_set": false,
-          "members": []
+          "members": [
+
+          ]
         },
         {
           "name": "ProcessorTransactionId",
@@ -335,9 +345,13 @@
               "relationship": null
             }
           ],
-          "invariants": [],
+          "invariants": [
+
+          ],
           "closed_set": false,
-          "members": []
+          "members": [
+
+          ]
         },
         {
           "name": "FailureReason",
@@ -353,9 +367,13 @@
               "relationship": null
             }
           ],
-          "invariants": [],
+          "invariants": [
+
+          ],
           "closed_set": false,
-          "members": []
+          "members": [
+
+          ]
         }
       ],
       "commands": [
@@ -416,9 +434,15 @@
               "relationship": null
             }
           ],
-          "givens": [],
-          "ensures": [],
-          "mutations": [],
+          "givens": [
+
+          ],
+          "ensures": [
+
+          ],
+          "mutations": [
+
+          ],
           "emits": [
             "PaymentInitiated"
           ],
@@ -502,7 +526,9 @@
               }
             }
           ],
-          "ensures": [],
+          "ensures": [
+
+          ],
           "mutations": [
             {
               "target": "transaction_id",
@@ -597,7 +623,9 @@
               }
             }
           ],
-          "ensures": [],
+          "ensures": [
+
+          ],
           "mutations": [
             {
               "target": "failure_reason",
@@ -616,9 +644,15 @@
           "provenance": null
         }
       ],
-      "invariants": [],
-      "preconditions": [],
-      "projected_fields": [],
+      "invariants": [
+
+      ],
+      "preconditions": [
+
+      ],
+      "projected_fields": [
+
+      ],
       "lifecycle": {
         "field": "status",
         "default": "pending",
@@ -635,8 +669,12 @@
           }
         ]
       },
-      "entities": [],
-      "queries": [],
+      "entities": [
+
+      ],
+      "queries": [
+
+      ],
       "ports": [
         {
           "name": "PaymentGateway",
@@ -703,7 +741,9 @@
       "provenance": null
     }
   ],
-  "read_models": [],
+  "read_models": [
+
+  ],
   "policies": [
     {
       "name": "OnPaymentConfirmedByProcessor",
@@ -713,7 +753,9 @@
       "expect_undelivered": false,
       "where": null,
       "for_each": null,
-      "with_spec": [],
+      "with_spec": [
+
+      ],
       "where_ast": null
     },
     {
@@ -724,13 +766,21 @@
       "expect_undelivered": false,
       "where": null,
       "for_each": null,
-      "with_spec": [],
+      "with_spec": [
+
+      ],
       "where_ast": null
     }
   ],
-  "process_managers": [],
-  "attaches_to": [],
-  "provides": [],
+  "process_managers": [
+
+  ],
+  "attaches_to": [
+
+  ],
+  "provides": [
+
+  ],
   "canonical_form": [
     {
       "strategy": "collapse_whitespace",
