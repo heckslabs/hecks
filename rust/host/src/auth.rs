@@ -552,6 +552,39 @@ pub async fn grant_access(
     Ok(true)
 }
 
+/// Records a new person with just a name and email, the state the
+/// membership aggregate's `Admit` command sets. Written with the same
+/// journalled append `grant_access` uses, since the membership aggregate
+/// lives in the lineage head rather than the replayed flat journal.
+/// Returns `false` without writing when a person with that email
+/// (compared case-insensitively) already exists.
+pub async fn admit_person(
+    client: &Mutex<Client>,
+    config: &LineageConfig,
+    domain_ir: &Value,
+    email: &str,
+    name: &str,
+) -> anyhow::Result<bool> {
+    let email = email.to_lowercase();
+    let exists = member_rows(client, domain_ir).await?.into_iter().any(|(id, _)| id.to_lowercase() == email);
+    if exists {
+        return Ok(false);
+    }
+    let state = json!({"name": {"value": name}, "email": {"value": email}});
+    append_member_state(client, config, domain_ir, &email, &state).await?;
+    Ok(true)
+}
+
+/// Whether the person with `email` (compared case-insensitively) has been
+/// granted the "Admin" role.
+pub async fn caller_is_admin(client: &Mutex<Client>, domain_ir: &Value, email: &str) -> anyhow::Result<bool> {
+    let email = email.to_lowercase();
+    Ok(all_people(client, domain_ir).await?.iter().any(|person| {
+        person.get("email").and_then(|v| v.as_str()).is_some_and(|e| e.to_lowercase() == email)
+            && person.get("role").and_then(|v| v.as_str()) == Some("Admin")
+    }))
+}
+
 pub async fn all_people(client: &Mutex<Client>, domain_ir: &Value) -> anyhow::Result<Vec<Value>> {
     Ok(member_rows(client, domain_ir)
         .await?

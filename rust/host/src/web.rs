@@ -365,6 +365,8 @@ async fn auth_route(
 
         ("GET", "/members") => Some(members_route(domain_ir, cookies, secret, client).await),
 
+        ("POST", "/members") => Some(add_member_route(domain_ir, raw_body, cookies, secret, client, wasm_path, config).await),
+
         // GET /accounts/sso-token, ported from http_server.rb's own
         // route (found missing live, not in #786's own port: every
         // "Site Content" click 401'd here, silently bounced through
@@ -534,6 +536,59 @@ async fn members_route(domain_ir: &Value, cookies: &HashMap<String, String>, sec
     match auth::all_people(client, domain_ir).await {
         Ok(people) => respond(200, "application/json", &Value::Array(sorted_by_name(people)).to_string()),
         Err(e) => respond(500, "application/json", &json!({"error": format!("members lookup failed: {e}")}).to_string()),
+    }
+}
+
+// POST /members -- admits a new person and grants them the Admin role, for
+// a server-side caller holding the `lifeadelics_session` cookie. Takes
+// `{"email", "name"}` as JSON. Answers a JSON 401 without a valid session
+// and a 403 unless the caller is already a granted Admin; then 400 for a
+// blank or malformed field, 409 for an email that is already admitted,
+// and 201 with the new person's row. If the role grant fails after the
+// person was admitted, that is a 500 saying so, never a silent partial
+// state.
+async fn add_member_route(
+    domain_ir: &Value,
+    raw_body: &str,
+    cookies: &HashMap<String, String>,
+    secret: &str,
+    client: &Mutex<Client>,
+    wasm_path: &Path,
+    config: &LineageConfig,
+) -> Value {
+    let json_error = |status: u16, message: &str| respond(status, "application/json", &json!({"error": message}).to_string());
+
+    let Some(caller) = cookies.get("lifeadelics_session").and_then(|token| auth::verify_account_token(secret, token)) else {
+        return json_error(401, "not logged in");
+    };
+    match auth::caller_is_admin(client, domain_ir, &caller).await {
+        Ok(true) => {}
+        Ok(false) => return json_error(403, "admins only"),
+        Err(e) => return json_error(500, &format!("members lookup failed: {e}")),
+    }
+
+    let body: Value = serde_json::from_str(raw_body).unwrap_or(Value::Null);
+    let field = |key: &str| body.get(key).and_then(|v| v.as_str()).map(|s| s.trim().to_string()).unwrap_or_default();
+    let (email, name) = (field("email"), field("name"));
+    let looks_like_email = email.split_once('@').is_some_and(|(local, domain)| !local.is_empty() && domain.contains('.') && !email.contains(char::is_whitespace));
+    if name.is_empty() || !looks_like_email {
+        return json_error(400, "a name and a valid email are required");
+    }
+
+    match auth::admit_person(client, config, domain_ir, &email, &name).await {
+        Ok(true) => {}
+        Ok(false) => return json_error(409, "that email is already admitted"),
+        Err(e) => return json_error(500, &format!("admit failed: {e}")),
+    }
+    let email = email.to_lowercase();
+    match auth::grant_access(client, wasm_path, config, domain_ir, &email, "Admin").await {
+        Ok(true) => respond(
+            201,
+            "application/json",
+            &json!({"name": name, "email": email, "role": "Admin", "linked": false, "granted": true}).to_string(),
+        ),
+        Ok(false) => json_error(500, "the person was admitted but the Admin role was not granted"),
+        Err(e) => json_error(500, &format!("the person was admitted but the Admin role was not granted: {e}")),
     }
 }
 
@@ -3729,7 +3784,11 @@ mod tests {
             guard
                 .batch_execute(
                     "CREATE TABLE embryonaut_member_head_snapshot_1 (id text PRIMARY KEY, ordinal bigint NOT NULL, state jsonb NOT NULL);
-                     CREATE VIEW embryonaut_member_head AS SELECT id, state FROM embryonaut_member_head_snapshot_1;",
+                     CREATE VIEW embryonaut_member_head AS SELECT id, state FROM embryonaut_member_head_snapshot_1;
+                     CREATE TABLE hecks_journal_embryonaut (
+                         ordinal bigserial PRIMARY KEY, era int NOT NULL, aggregate text NOT NULL,
+                         aggregate_id text NOT NULL, operation text NOT NULL, state jsonb, mirrors jsonb
+                     );",
                 )
                 .await
                 .unwrap();
@@ -3800,6 +3859,124 @@ mod tests {
                 assert!(!body.contains(leaked), "{leaked:?} leaked to an unauthenticated caller: {body}");
             }
         }
+    }
+
+    fn session_cookies(secret: &str, email: &str) -> HashMap<String, String> {
+        let mut cookies = HashMap::new();
+        cookies.insert("lifeadelics_session".to_string(), auth::account_token(secret, email, 60));
+        cookies
+    }
+
+    fn members_config() -> LineageConfig {
+        LineageConfig { domain: "Embryonaut".to_string(), era: Some(1), mirrored: None }
+    }
+
+    #[tokio::test]
+    async fn add_member_route_refuses_a_missing_or_invalid_session_with_a_json_401_and_writes_nothing() {
+        let secret = "s3cret";
+        let (client, domain_ir) = scratch_members_db("hecks_host_web_test_add_member_401").await;
+        let body = r#"{"email": "new@example.com", "name": "New Person"}"#;
+
+        let mut tampered = HashMap::new();
+        tampered.insert("lifeadelics_session".to_string(), "garbage.notasignature".to_string());
+        let mut wrong_secret = HashMap::new();
+        wrong_secret.insert("lifeadelics_session".to_string(), auth::account_token("another", "zed@example.com", 60));
+
+        for cookies in [HashMap::new(), tampered, wrong_secret] {
+            let response = add_member_route(&domain_ir, body, &cookies, secret, &client, Path::new("unused"), &members_config()).await;
+            assert_eq!(response["statusCode"], 401, "{response:?}");
+            assert!(response.get("headers").and_then(|h| h.get("location")).is_none(), "never a redirect: {response:?}");
+            let text = response["body"].as_str().unwrap();
+            for leaked in ["zed@example.com", "amy@example.com", "Zed", "Admin"] {
+                assert!(!text.contains(leaked), "{leaked:?} leaked to an unauthenticated caller: {text}");
+            }
+        }
+        assert_eq!(auth::all_people(&client, &domain_ir).await.unwrap().len(), 2, "nothing was written");
+    }
+
+    #[tokio::test]
+    async fn add_member_route_refuses_a_caller_who_is_not_a_granted_admin_with_a_403() {
+        let secret = "s3cret";
+        let (client, domain_ir) = scratch_members_db("hecks_host_web_test_add_member_403").await;
+        let body = r#"{"email": "new@example.com", "name": "New Person"}"#;
+
+        // amy is admitted but has no role; a stranger is not admitted at all.
+        for caller in ["amy@example.com", "stranger@example.com"] {
+            let cookies = session_cookies(secret, caller);
+            let response = add_member_route(&domain_ir, body, &cookies, secret, &client, Path::new("unused"), &members_config()).await;
+            assert_eq!(response["statusCode"], 403, "{caller}: {response:?}");
+        }
+        assert_eq!(auth::all_people(&client, &domain_ir).await.unwrap().len(), 2, "nothing was written");
+    }
+
+    #[tokio::test]
+    async fn add_member_route_rejects_a_blank_or_malformed_email_or_name_with_a_400() {
+        let secret = "s3cret";
+        let (client, domain_ir) = scratch_members_db("hecks_host_web_test_add_member_400").await;
+        let cookies = session_cookies(secret, "zed@example.com");
+
+        for body in [
+            "",
+            "not json",
+            "{}",
+            r#"{"email": "new@example.com"}"#,
+            r#"{"name": "New Person"}"#,
+            r#"{"email": "   ", "name": "New Person"}"#,
+            r#"{"email": "new@example.com", "name": "   "}"#,
+            r#"{"email": "no-at-sign", "name": "New Person"}"#,
+            r#"{"email": "@example.com", "name": "New Person"}"#,
+            r#"{"email": "new@nodot", "name": "New Person"}"#,
+            r#"{"email": "two words@example.com", "name": "New Person"}"#,
+            r#"{"email": 42, "name": "New Person"}"#,
+        ] {
+            let response = add_member_route(&domain_ir, body, &cookies, secret, &client, Path::new("unused"), &members_config()).await;
+            assert_eq!(response["statusCode"], 400, "{body:?}: {response:?}");
+        }
+        assert_eq!(auth::all_people(&client, &domain_ir).await.unwrap().len(), 2, "nothing was written");
+    }
+
+    #[tokio::test]
+    async fn add_member_route_answers_409_for_an_email_that_is_already_admitted_in_any_case() {
+        let secret = "s3cret";
+        let (client, domain_ir) = scratch_members_db("hecks_host_web_test_add_member_409").await;
+        let cookies = session_cookies(secret, "zed@example.com");
+
+        for email in ["amy@example.com", "AMY@Example.com"] {
+            let body = json!({"email": email, "name": "Another Amy"}).to_string();
+            let response = add_member_route(&domain_ir, &body, &cookies, secret, &client, Path::new("unused"), &members_config()).await;
+            assert_eq!(response["statusCode"], 409, "{email}: {response:?}");
+        }
+        assert_eq!(auth::all_people(&client, &domain_ir).await.unwrap().len(), 2, "nothing was written");
+    }
+
+    #[tokio::test]
+    async fn add_member_route_admits_and_grants_admin_then_lists_the_person_as_granted() {
+        let secret = "s3cret";
+        let (client, domain_ir) = scratch_members_db("hecks_host_web_test_add_member_201").await;
+        let cookies = session_cookies(secret, "Zed@Example.com");
+
+        let body = r#"{"email": "  New@Example.com ", "name": " New Person "}"#;
+        let response = add_member_route(&domain_ir, body, &cookies, secret, &client, Path::new("unused"), &members_config()).await;
+        assert_eq!(response["statusCode"], 201, "{response:?}");
+        let created: Value = serde_json::from_str(response["body"].as_str().unwrap()).unwrap();
+        assert_eq!(
+            created,
+            json!({"name": "New Person", "email": "new@example.com", "role": "Admin", "linked": false, "granted": true})
+        );
+
+        let listing = members_route(&domain_ir, &cookies, secret, &client).await;
+        let people: Vec<Value> = serde_json::from_str(listing["body"].as_str().unwrap()).unwrap();
+        assert_eq!(people.len(), 3);
+        let added = people.iter().find(|p| p["email"] == "new@example.com").expect("the new person is listed");
+        assert_eq!(*added, created);
+
+        let guard = client.lock().await;
+        let journalled: i64 = guard
+            .query_one("SELECT count(*) FROM hecks_journal_embryonaut WHERE aggregate_id = 'new@example.com'", &[])
+            .await
+            .unwrap()
+            .get(0);
+        assert_eq!(journalled, 2, "one journal row for Admit and one for GrantAccess");
     }
 
     #[test]
