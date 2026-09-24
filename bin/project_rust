@@ -288,6 +288,12 @@ else
   identity = Hecks::Projector::Exporter.identity(target_registry, target_domain_name)
   target_ir[:identity] = json_shaped(identity) unless identity.empty?
 
+  # Same seam again — rust/host's newsletter routes read this instead of
+  # naming Newsletter::Subscriber verbs. Omitted entirely when nothing
+  # attached provides "newsletter".
+  newsletter = Hecks::Projector::Exporter.newsletter(target_registry, target_domain_name)
+  target_ir[:newsletter] = json_shaped(newsletter) unless newsletter.empty?
+
   if !membership.empty? && identity.empty?
     abort "#{target_domain_name} provides membership but not identity — rust/host " \
           "Google sign-in cannot register or link an identity from ir.json. " \

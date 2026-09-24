@@ -188,6 +188,48 @@ pub fn identity_provider(domain_ir: &Value) -> Option<IdentityProvider> {
     })
 }
 
+/// The chapter that answers the guest newsletter signup —
+/// `Exporter.newsletter` (exporter.rb), a binding fact like `membership`
+/// above, read off `ir.json`'s own top-level `newsletter` key. `None` when
+/// the domain attaches nothing that declares `provides "newsletter"` (the
+/// key is omitted entirely), so a domain without it serves no newsletter
+/// routes.
+#[derive(Debug, Clone, PartialEq)]
+pub struct NewsletterProvider {
+    /// Chapter name, e.g. `Newsletter`.
+    pub provider: String,
+    /// Qualified subscribe command, e.g. `Newsletter::Subscriber.Subscribe`.
+    pub subscribe: String,
+    /// Qualified add-name command, e.g. `Newsletter::Subscriber.AddName`.
+    pub add_name: String,
+    /// Qualified confirm command, e.g. `Newsletter::Subscriber.Confirm`.
+    pub confirm: String,
+    /// Qualified unsubscribe command, e.g. `Newsletter::Subscriber.Unsubscribe`.
+    pub unsubscribe: String,
+    /// Qualified subscribing aggregate, e.g. `Newsletter::Subscriber`.
+    pub aggregate: String,
+}
+
+impl NewsletterProvider {
+    /// The prefix every subscriber's key in a `dispatch::read` `instances`
+    /// map starts with, e.g. `Newsletter::Subscriber#`.
+    pub fn instance_prefix(&self) -> String {
+        format!("{}#", self.aggregate)
+    }
+}
+
+pub fn newsletter_provider(domain_ir: &Value) -> Option<NewsletterProvider> {
+    let fact = domain_ir.get("newsletter")?;
+    Some(NewsletterProvider {
+        provider: fact.get("provider")?.as_str()?.to_string(),
+        subscribe: fact.get("subscribe")?.as_str()?.to_string(),
+        add_name: fact.get("add_name")?.as_str()?.to_string(),
+        confirm: fact.get("confirm")?.as_str()?.to_string(),
+        unsubscribe: fact.get("unsubscribe")?.as_str()?.to_string(),
+        aggregate: fact.get("aggregate")?.as_str()?.to_string(),
+    })
+}
+
 pub fn refuse_unsupported_persistence_adapters(domain_ir: &Value) -> Result<(), String> {
     let unsupported: Vec<String> = persistence_adapters(domain_ir)
         .into_iter()
@@ -305,6 +347,29 @@ mod tests {
         assert_eq!(provider.link, "Identity::ExternalIdentifier.Link");
         assert_eq!(provider.resolve, "Identity::ExternalIdentifier.ResolvedBy");
         assert!(identity_provider(&serde_json::json!({ "name": "Pizzas" })).is_none());
+    }
+
+    #[test]
+    fn newsletter_provider_reads_the_declared_capability() {
+        let ir = serde_json::json!({
+            "name": "Lifeadelics",
+            "newsletter": {
+                "provider": "Newsletter",
+                "subscribe": "Newsletter::Subscriber.Subscribe",
+                "add_name": "Newsletter::Subscriber.AddName",
+                "confirm": "Newsletter::Subscriber.Confirm",
+                "unsubscribe": "Newsletter::Subscriber.Unsubscribe",
+                "aggregate": "Newsletter::Subscriber"
+            }
+        });
+        let provider = newsletter_provider(&ir).expect("should find newsletter");
+        assert_eq!(provider.provider, "Newsletter");
+        assert_eq!(provider.subscribe, "Newsletter::Subscriber.Subscribe");
+        assert_eq!(provider.add_name, "Newsletter::Subscriber.AddName");
+        assert_eq!(provider.confirm, "Newsletter::Subscriber.Confirm");
+        assert_eq!(provider.unsubscribe, "Newsletter::Subscriber.Unsubscribe");
+        assert_eq!(provider.instance_prefix(), "Newsletter::Subscriber#");
+        assert!(newsletter_provider(&serde_json::json!({ "name": "Pizzas" })).is_none());
     }
 
     #[test]
