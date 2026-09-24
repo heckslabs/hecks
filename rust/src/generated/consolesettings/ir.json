@@ -102,9 +102,7 @@
             }
           ],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "Flag",
@@ -120,13 +118,9 @@
               "relationship": null
             }
           ],
-          "invariants": [
-
-          ],
+          "invariants": [],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "StateStyleExtra",
@@ -142,13 +136,9 @@
               "relationship": null
             }
           ],
-          "invariants": [
-
-          ],
+          "invariants": [],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "Tone",
@@ -164,9 +154,7 @@
               "relationship": null
             }
           ],
-          "invariants": [
-
-          ],
+          "invariants": [],
           "closed_set": true,
           "members": [
             [
@@ -272,12 +260,8 @@
               }
             }
           ],
-          "ensures": [
-
-          ],
-          "mutations": [
-
-          ],
+          "ensures": [],
+          "mutations": [],
           "emits": [
             "StateStyleDeclared"
           ],
@@ -301,12 +285,8 @@
               "relationship": null
             }
           ],
-          "givens": [
-
-          ],
-          "ensures": [
-
-          ],
+          "givens": [],
+          "ensures": [],
           "mutations": [
             {
               "target": "tone",
@@ -341,12 +321,8 @@
               "relationship": null
             }
           ],
-          "givens": [
-
-          ],
-          "ensures": [
-
-          ],
+          "givens": [],
+          "ensures": [],
           "mutations": [
             {
               "target": "attention",
@@ -381,12 +357,8 @@
               "relationship": null
             }
           ],
-          "givens": [
-
-          ],
-          "ensures": [
-
-          ],
+          "givens": [],
+          "ensures": [],
           "mutations": [
             {
               "target": "extra_json",
@@ -405,25 +377,13 @@
           "provenance": null
         }
       ],
-      "invariants": [
-
-      ],
-      "preconditions": [
-
-      ],
-      "projected_fields": [
-
-      ],
+      "invariants": [],
+      "preconditions": [],
+      "projected_fields": [],
       "lifecycle": null,
-      "entities": [
-
-      ],
-      "queries": [
-
-      ],
-      "ports": [
-
-      ],
+      "entities": [],
+      "queries": [],
+      "ports": [],
       "provenance": null
     },
     {
@@ -641,9 +601,7 @@
             }
           ],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "SettingsNumber",
@@ -659,13 +617,9 @@
               "relationship": null
             }
           ],
-          "invariants": [
-
-          ],
+          "invariants": [],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "CollectionExtra",
@@ -681,13 +635,9 @@
               "relationship": null
             }
           ],
-          "invariants": [
-
-          ],
+          "invariants": [],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "Column",
@@ -733,13 +683,9 @@
               "relationship": null
             }
           ],
-          "invariants": [
-
-          ],
+          "invariants": [],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "DetailField",
@@ -785,13 +731,9 @@
               "relationship": null
             }
           ],
-          "invariants": [
-
-          ],
+          "invariants": [],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "DetailFieldColumn",
@@ -817,13 +759,9 @@
               "relationship": null
             }
           ],
-          "invariants": [
-
-          ],
+          "invariants": [],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "Precondition",
@@ -859,13 +797,9 @@
               "relationship": null
             }
           ],
-          "invariants": [
-
-          ],
+          "invariants": [],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "FieldFormat",
@@ -891,13 +825,9 @@
               "relationship": null
             }
           ],
-          "invariants": [
-
-          ],
+          "invariants": [],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "IdentityStrategy",
@@ -913,9 +843,7 @@
               "relationship": null
             }
           ],
-          "invariants": [
-
-          ],
+          "invariants": [],
           "closed_set": true,
           "members": [
             [
@@ -979,12 +907,8 @@
               }
             }
           ],
-          "ensures": [
-
-          ],
-          "mutations": [
-
-          ],
+          "ensures": [],
+          "mutations": [],
           "emits": [
             "CollectionDeclared"
           ],
@@ -1008,12 +932,8 @@
               "relationship": null
             }
           ],
-          "givens": [
-
-          ],
-          "ensures": [
-
-          ],
+          "givens": [],
+          "ensures": [],
           "mutations": [
             {
               "target": "label",
@@ -1048,12 +968,8 @@
               "relationship": null
             }
           ],
-          "givens": [
-
-          ],
-          "ensures": [
-
-          ],
+          "givens": [],
+          "ensures": [],
           "mutations": [
             {
               "target": "key",
@@ -1088,12 +1004,8 @@
               "relationship": null
             }
           ],
-          "givens": [
-
-          ],
-          "ensures": [
-
-          ],
+          "givens": [],
+          "ensures": [],
           "mutations": [
             {
               "target": "nav_order",
@@ -1128,12 +1040,8 @@
               "relationship": null
             }
           ],
-          "givens": [
-
-          ],
-          "ensures": [
-
-          ],
+          "givens": [],
+          "ensures": [],
           "mutations": [
             {
               "target": "primary_field",
@@ -1168,12 +1076,8 @@
               "relationship": null
             }
           ],
-          "givens": [
-
-          ],
-          "ensures": [
-
-          ],
+          "givens": [],
+          "ensures": [],
           "mutations": [
             {
               "target": "list_query",
@@ -1248,12 +1152,8 @@
               "relationship": null
             }
           ],
-          "givens": [
-
-          ],
-          "ensures": [
-
-          ],
+          "givens": [],
+          "ensures": [],
           "mutations": [
             {
               "target": "identity_field",
@@ -1324,12 +1224,8 @@
               "relationship": null
             }
           ],
-          "givens": [
-
-          ],
-          "ensures": [
-
-          ],
+          "givens": [],
+          "ensures": [],
           "mutations": [
             {
               "target": "extra_json",
@@ -1364,12 +1260,8 @@
               "relationship": null
             }
           ],
-          "givens": [
-
-          ],
-          "ensures": [
-
-          ],
+          "givens": [],
+          "ensures": [],
           "mutations": [
             {
               "target": "columns",
@@ -1404,12 +1296,8 @@
               "relationship": null
             }
           ],
-          "givens": [
-
-          ],
-          "ensures": [
-
-          ],
+          "givens": [],
+          "ensures": [],
           "mutations": [
             {
               "target": "detail_fields",
@@ -1444,12 +1332,8 @@
               "relationship": null
             }
           ],
-          "givens": [
-
-          ],
-          "ensures": [
-
-          ],
+          "givens": [],
+          "ensures": [],
           "mutations": [
             {
               "target": "detail_field_columns",
@@ -1484,12 +1368,8 @@
               "relationship": null
             }
           ],
-          "givens": [
-
-          ],
-          "ensures": [
-
-          ],
+          "givens": [],
+          "ensures": [],
           "mutations": [
             {
               "target": "preconditions",
@@ -1524,12 +1404,8 @@
               "relationship": null
             }
           ],
-          "givens": [
-
-          ],
-          "ensures": [
-
-          ],
+          "givens": [],
+          "ensures": [],
           "mutations": [
             {
               "target": "field_formats",
@@ -1548,25 +1424,13 @@
           "provenance": null
         }
       ],
-      "invariants": [
-
-      ],
-      "preconditions": [
-
-      ],
-      "projected_fields": [
-
-      ],
+      "invariants": [],
+      "preconditions": [],
+      "projected_fields": [],
       "lifecycle": null,
-      "entities": [
-
-      ],
-      "queries": [
-
-      ],
-      "ports": [
-
-      ],
+      "entities": [],
+      "queries": [],
+      "ports": [],
       "provenance": null
     },
     {
@@ -1637,9 +1501,7 @@
             }
           ],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "Stat",
@@ -1695,13 +1557,9 @@
               "relationship": null
             }
           ],
-          "invariants": [
-
-          ],
+          "invariants": [],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         }
       ],
       "commands": [
@@ -1747,12 +1605,8 @@
               }
             }
           ],
-          "ensures": [
-
-          ],
-          "mutations": [
-
-          ],
+          "ensures": [],
+          "mutations": [],
           "emits": [
             "OverviewDeclared"
           ],
@@ -1776,12 +1630,8 @@
               "relationship": null
             }
           ],
-          "givens": [
-
-          ],
-          "ensures": [
-
-          ],
+          "givens": [],
+          "ensures": [],
           "mutations": [
             {
               "target": "stats",
@@ -1800,25 +1650,13 @@
           "provenance": null
         }
       ],
-      "invariants": [
-
-      ],
-      "preconditions": [
-
-      ],
-      "projected_fields": [
-
-      ],
+      "invariants": [],
+      "preconditions": [],
+      "projected_fields": [],
       "lifecycle": null,
-      "entities": [
-
-      ],
-      "queries": [
-
-      ],
-      "ports": [
-
-      ],
+      "entities": [],
+      "queries": [],
+      "ports": [],
       "provenance": null
     }
   ],
@@ -1829,9 +1667,7 @@
       "reference_name": null,
       "reference_target": null,
       "query_name": "styles",
-      "wheres": [
-
-      ],
+      "wheres": [],
       "order_by": null,
       "limit": null,
       "aggregate_heads": [
@@ -1856,9 +1692,7 @@
       "reference_name": null,
       "reference_target": null,
       "query_name": "curated",
-      "wheres": [
-
-      ],
+      "wheres": [],
       "order_by": null,
       "limit": null,
       "aggregate_heads": [
@@ -1875,18 +1709,10 @@
       ]
     }
   ],
-  "policies": [
-
-  ],
-  "process_managers": [
-
-  ],
-  "attaches_to": [
-
-  ],
-  "provides": [
-
-  ],
+  "policies": [],
+  "process_managers": [],
+  "attaches_to": [],
+  "provides": [],
   "canonical_form": [
     {
       "strategy": "collapse_whitespace",

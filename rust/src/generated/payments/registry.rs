@@ -86,7 +86,7 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              let args = if invocation.explicit_with() { let args = crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::payments::payment::InitiateArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::payments::payment::InitiateArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::payments::payment::InitiateArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::payments::payment::InitiateArgs::from_json(v)?; args.reference.check_invariants()?; args.amount.check_invariants()?; args.client.check_invariants()?; if let Some(v) = &args.customer_id { v.check_invariants()?; } Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Merchant"), "Initiate", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|_args: &crate::generated::payments::payment::InitiateArgs| Ok(()) })?; if let Some(route) = route { route.require_depth(0)?; } args } else { if let Some(route) = route { route.require_depth(0)?; } crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::payments::payment::InitiateArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::payments::payment::InitiateArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::payments::payment::InitiateArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::payments::payment::InitiateArgs::from_json(v)?; args.reference.check_invariants()?; args.amount.check_invariants()?; args.client.check_invariants()?; if let Some(v) = &args.customer_id { v.check_invariants()?; } Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Merchant"), "Initiate", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|_args: &crate::generated::payments::payment::InitiateArgs| Ok(()) })? };
+              let args = if invocation.explicit_with() { let args = crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::payments::payment::InitiateArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::payments::payment::InitiateArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::payments::payment::InitiateArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::payments::payment::InitiateArgs::from_json(v)?; args.reference.check_invariants()?; args.amount.check_invariants()?; args.client.check_invariants()?; Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Merchant"), "Initiate", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|_args: &crate::generated::payments::payment::InitiateArgs| Ok(()) })?; if let Some(route) = route { route.require_depth(0)?; } args } else { if let Some(route) = route { route.require_depth(0)?; } crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::payments::payment::InitiateArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::payments::payment::InitiateArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::payments::payment::InitiateArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::payments::payment::InitiateArgs::from_json(v)?; args.reference.check_invariants()?; args.amount.check_invariants()?; args.client.check_invariants()?; Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Merchant"), "Initiate", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|_args: &crate::generated::payments::payment::InitiateArgs| Ok(()) })? };
               let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = Vec::new();
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -117,93 +117,9 @@ pub fn dispatch_by_name(
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
               crate::generated::payments::payment::dispatch_fail(&mut store.payment, &id, args, mutations, owner_deref, command_deref, tenant_boundary_check).map(|(_, events)| stamp_payload(events, &payload))
           }
-          "Payments::Payment.Refund" => {
-              let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
-              let route = invocation.route();
-              let facts_json = invocation.facts();
-              let args = if invocation.explicit_with() { let args = crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::payments::payment::RefundArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::payments::payment::RefundArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::payments::payment::RefundArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::payments::payment::RefundArgs::from_json(v)?; args.refund_amount.check_invariants()?; Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Support"), "Refund", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|_args: &crate::generated::payments::payment::RefundArgs| Ok(()) })?; if let Some(route) = route { route.require_depth(0)?; } args } else { if let Some(route) = route { route.require_depth(0)?; } crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::payments::payment::RefundArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::payments::payment::RefundArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::payments::payment::RefundArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::payments::payment::RefundArgs::from_json(v)?; args.refund_amount.check_invariants()?; Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Support"), "Refund", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|_args: &crate::generated::payments::payment::RefundArgs| Ok(()) })? };
-              let id = match route { Some(route) => route.aggregate().to_string(), None => crate::generated::payments::payment::Payment::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "Refund", aggregate: "Payment", identity: "reference.value" }.render_args()))?, };
-              let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
-              let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Payments::Payment", &id);
-              let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
-              let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
-              crate::generated::payments::payment::dispatch_refund(&mut store.payment, &id, args, mutations, owner_deref, command_deref, tenant_boundary_check).map(|(_, events)| stamp_payload(events, &payload))
-          }
-          "Payments::Payment.CompleteRefund" => {
-              let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
-              let route = invocation.route();
-              let facts_json = invocation.facts();
-              let args = if invocation.explicit_with() { let args = crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::payments::payment::CompleteRefundArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::payments::payment::CompleteRefundArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::payments::payment::CompleteRefundArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::payments::payment::CompleteRefundArgs::from_json(v)?; args.confirmed_amount.check_invariants()?; args.refund_transaction_id.check_invariants()?; Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("System"), "CompleteRefund", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|_args: &crate::generated::payments::payment::CompleteRefundArgs| Ok(()) })?; if let Some(route) = route { route.require_depth(0)?; } args } else { if let Some(route) = route { route.require_depth(0)?; } crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::payments::payment::CompleteRefundArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::payments::payment::CompleteRefundArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::payments::payment::CompleteRefundArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::payments::payment::CompleteRefundArgs::from_json(v)?; args.confirmed_amount.check_invariants()?; args.refund_transaction_id.check_invariants()?; Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("System"), "CompleteRefund", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|_args: &crate::generated::payments::payment::CompleteRefundArgs| Ok(()) })? };
-              let id = match route { Some(route) => route.aggregate().to_string(), None => crate::generated::payments::payment::Payment::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "CompleteRefund", aggregate: "Payment", identity: "reference.value" }.render_args()))?, };
-              let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
-              let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Payments::Payment", &id);
-              let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
-              let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
-              crate::generated::payments::payment::dispatch_complete_refund(&mut store.payment, &id, args, mutations, owner_deref, command_deref, tenant_boundary_check).map(|(_, events)| stamp_payload(events, &payload))
-          }
-          "Payments::Payment.RecordPartialRefund" => {
-              let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
-              let route = invocation.route();
-              let facts_json = invocation.facts();
-              let args = if invocation.explicit_with() { let args = crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::payments::payment::RecordPartialRefundArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::payments::payment::RecordPartialRefundArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::payments::payment::RecordPartialRefundArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::payments::payment::RecordPartialRefundArgs::from_json(v)?; args.confirmed_amount.check_invariants()?; args.refund_transaction_id.check_invariants()?; Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("System"), "RecordPartialRefund", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|_args: &crate::generated::payments::payment::RecordPartialRefundArgs| Ok(()) })?; if let Some(route) = route { route.require_depth(0)?; } args } else { if let Some(route) = route { route.require_depth(0)?; } crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::payments::payment::RecordPartialRefundArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::payments::payment::RecordPartialRefundArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::payments::payment::RecordPartialRefundArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::payments::payment::RecordPartialRefundArgs::from_json(v)?; args.confirmed_amount.check_invariants()?; args.refund_transaction_id.check_invariants()?; Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("System"), "RecordPartialRefund", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|_args: &crate::generated::payments::payment::RecordPartialRefundArgs| Ok(()) })? };
-              let id = match route { Some(route) => route.aggregate().to_string(), None => crate::generated::payments::payment::Payment::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "RecordPartialRefund", aggregate: "Payment", identity: "reference.value" }.render_args()))?, };
-              let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
-              let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Payments::Payment", &id);
-              let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
-              let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
-              crate::generated::payments::payment::dispatch_record_partial_refund(&mut store.payment, &id, args, mutations, owner_deref, command_deref, tenant_boundary_check).map(|(_, events)| stamp_payload(events, &payload))
-          }
-          "Payments::Payment.DeclineRefund" => {
-              let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
-              let route = invocation.route();
-              let facts_json = invocation.facts();
-              let args = if invocation.explicit_with() { let args = crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::payments::payment::DeclineRefundArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::payments::payment::DeclineRefundArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::payments::payment::DeclineRefundArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::payments::payment::DeclineRefundArgs::from_json(v)?; args.reason.check_invariants()?; Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("System"), "DeclineRefund", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|_args: &crate::generated::payments::payment::DeclineRefundArgs| Ok(()) })?; if let Some(route) = route { route.require_depth(0)?; } args } else { if let Some(route) = route { route.require_depth(0)?; } crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::payments::payment::DeclineRefundArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::payments::payment::DeclineRefundArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::payments::payment::DeclineRefundArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::payments::payment::DeclineRefundArgs::from_json(v)?; args.reason.check_invariants()?; Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("System"), "DeclineRefund", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|_args: &crate::generated::payments::payment::DeclineRefundArgs| Ok(()) })? };
-              let id = match route { Some(route) => route.aggregate().to_string(), None => crate::generated::payments::payment::Payment::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "DeclineRefund", aggregate: "Payment", identity: "reference.value" }.render_args()))?, };
-              let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
-              let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Payments::Payment", &id);
-              let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
-              let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
-              crate::generated::payments::payment::dispatch_decline_refund(&mut store.payment, &id, args, mutations, owner_deref, command_deref, tenant_boundary_check).map(|(_, events)| stamp_payload(events, &payload))
-          }
-          "Payments::Payment.OpenDispute" => {
-              let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
-              let route = invocation.route();
-              let facts_json = invocation.facts();
-              let args = if invocation.explicit_with() { let args = crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::payments::payment::OpenDisputeArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::payments::payment::OpenDisputeArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::payments::payment::OpenDisputeArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::payments::payment::OpenDisputeArgs::from_json(v)?; args.dispute_id.check_invariants()?; args.reason.check_invariants()?; Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("System"), "OpenDispute", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|_args: &crate::generated::payments::payment::OpenDisputeArgs| Ok(()) })?; if let Some(route) = route { route.require_depth(0)?; } args } else { if let Some(route) = route { route.require_depth(0)?; } crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::payments::payment::OpenDisputeArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::payments::payment::OpenDisputeArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::payments::payment::OpenDisputeArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::payments::payment::OpenDisputeArgs::from_json(v)?; args.dispute_id.check_invariants()?; args.reason.check_invariants()?; Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("System"), "OpenDispute", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|_args: &crate::generated::payments::payment::OpenDisputeArgs| Ok(()) })? };
-              let id = match route { Some(route) => route.aggregate().to_string(), None => crate::generated::payments::payment::Payment::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "OpenDispute", aggregate: "Payment", identity: "reference.value" }.render_args()))?, };
-              let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
-              let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Payments::Payment", &id);
-              let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
-              let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
-              crate::generated::payments::payment::dispatch_open_dispute(&mut store.payment, &id, args, mutations, owner_deref, command_deref, tenant_boundary_check).map(|(_, events)| stamp_payload(events, &payload))
-          }
-          "Payments::Payment.WinDispute" => {
-              let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
-              let route = invocation.route();
-              let facts_json = invocation.facts();
-              let args = if invocation.explicit_with() { let args = crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::payments::payment::WinDisputeArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::payments::payment::WinDisputeArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::payments::payment::WinDisputeArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::payments::payment::WinDisputeArgs::from_json(v)?; Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("System"), "WinDispute", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|_args: &crate::generated::payments::payment::WinDisputeArgs| Ok(()) })?; if let Some(route) = route { route.require_depth(0)?; } args } else { if let Some(route) = route { route.require_depth(0)?; } crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::payments::payment::WinDisputeArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::payments::payment::WinDisputeArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::payments::payment::WinDisputeArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::payments::payment::WinDisputeArgs::from_json(v)?; Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("System"), "WinDispute", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|_args: &crate::generated::payments::payment::WinDisputeArgs| Ok(()) })? };
-              let id = match route { Some(route) => route.aggregate().to_string(), None => crate::generated::payments::payment::Payment::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "WinDispute", aggregate: "Payment", identity: "reference.value" }.render_args()))?, };
-              let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
-              let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Payments::Payment", &id);
-              let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
-              let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
-              crate::generated::payments::payment::dispatch_win_dispute(&mut store.payment, &id, args, mutations, owner_deref, command_deref, tenant_boundary_check).map(|(_, events)| stamp_payload(events, &payload))
-          }
-          "Payments::Payment.Chargeback" => {
-              let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
-              let route = invocation.route();
-              let facts_json = invocation.facts();
-              let args = if invocation.explicit_with() { let args = crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::payments::payment::ChargebackArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::payments::payment::ChargebackArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::payments::payment::ChargebackArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::payments::payment::ChargebackArgs::from_json(v)?; Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("System"), "Chargeback", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|_args: &crate::generated::payments::payment::ChargebackArgs| Ok(()) })?; if let Some(route) = route { route.require_depth(0)?; } args } else { if let Some(route) = route { route.require_depth(0)?; } crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::payments::payment::ChargebackArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::payments::payment::ChargebackArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::payments::payment::ChargebackArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::payments::payment::ChargebackArgs::from_json(v)?; Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("System"), "Chargeback", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|_args: &crate::generated::payments::payment::ChargebackArgs| Ok(()) })? };
-              let id = match route { Some(route) => route.aggregate().to_string(), None => crate::generated::payments::payment::Payment::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "Chargeback", aggregate: "Payment", identity: "reference.value" }.render_args()))?, };
-              let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
-              let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Payments::Payment", &id);
-              let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
-              let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
-              crate::generated::payments::payment::dispatch_chargeback(&mut store.payment, &id, args, mutations, owner_deref, command_deref, tenant_boundary_check).map(|(_, events)| stamp_payload(events, &payload))
-          }
           "Payments::Payment.PaymentGateway.Succeeded" => {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
-              let (id, port_facts) = invocation.split_aggregate_receiver(None, Some("reference"))?;
+              let (id, port_facts) = invocation.split_aggregate_receiver(None, None)?;
               let facts_json = &port_facts;
               let _instance = store.payment.find(&id).ok_or_else(|| crate::kernel::Refusal::NotFound(format!("Payment {:?} does not exist", id)))?;
               let args = crate::generated::payments::payment::PaymentGatewaySucceededArgs::from_json(facts_json)?;
@@ -212,57 +128,12 @@ pub fn dispatch_by_name(
           }
           "Payments::Payment.PaymentGateway.Failed" => {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
-              let (id, port_facts) = invocation.split_aggregate_receiver(None, Some("reference"))?;
+              let (id, port_facts) = invocation.split_aggregate_receiver(None, None)?;
               let facts_json = &port_facts;
               let _instance = store.payment.find(&id).ok_or_else(|| crate::kernel::Refusal::NotFound(format!("Payment {:?} does not exist", id)))?;
               let args = crate::generated::payments::payment::PaymentGatewayFailedArgs::from_json(facts_json)?;
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
               crate::generated::payments::payment::dispatch_operation_paymentgateway_failed(&id, args).map(|events| stamp_payload(events, &payload))
-          }
-          "Payments::Payment.PaymentGateway.Refunded" => {
-              let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
-              let (id, port_facts) = invocation.split_aggregate_receiver(None, Some("reference"))?;
-              let facts_json = &port_facts;
-              let _instance = store.payment.find(&id).ok_or_else(|| crate::kernel::Refusal::NotFound(format!("Payment {:?} does not exist", id)))?;
-              let args = crate::generated::payments::payment::PaymentGatewayRefundedArgs::from_json(facts_json)?;
-              let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
-              crate::generated::payments::payment::dispatch_operation_paymentgateway_refunded(&id, args).map(|events| stamp_payload(events, &payload))
-          }
-          "Payments::Payment.PaymentGateway.RefundDeclined" => {
-              let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
-              let (id, port_facts) = invocation.split_aggregate_receiver(None, Some("reference"))?;
-              let facts_json = &port_facts;
-              let _instance = store.payment.find(&id).ok_or_else(|| crate::kernel::Refusal::NotFound(format!("Payment {:?} does not exist", id)))?;
-              let args = crate::generated::payments::payment::PaymentGatewayRefundDeclinedArgs::from_json(facts_json)?;
-              let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
-              crate::generated::payments::payment::dispatch_operation_paymentgateway_refund_declined(&id, args).map(|events| stamp_payload(events, &payload))
-          }
-          "Payments::Payment.PaymentGateway.DisputeOpened" => {
-              let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
-              let (id, port_facts) = invocation.split_aggregate_receiver(None, Some("reference"))?;
-              let facts_json = &port_facts;
-              let _instance = store.payment.find(&id).ok_or_else(|| crate::kernel::Refusal::NotFound(format!("Payment {:?} does not exist", id)))?;
-              let args = crate::generated::payments::payment::PaymentGatewayDisputeOpenedArgs::from_json(facts_json)?;
-              let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
-              crate::generated::payments::payment::dispatch_operation_paymentgateway_dispute_opened(&id, args).map(|events| stamp_payload(events, &payload))
-          }
-          "Payments::Payment.PaymentGateway.DisputeWon" => {
-              let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
-              let (id, port_facts) = invocation.split_aggregate_receiver(None, Some("reference"))?;
-              let facts_json = &port_facts;
-              let _instance = store.payment.find(&id).ok_or_else(|| crate::kernel::Refusal::NotFound(format!("Payment {:?} does not exist", id)))?;
-              let args = crate::generated::payments::payment::PaymentGatewayDisputeWonArgs::from_json(facts_json)?;
-              let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
-              crate::generated::payments::payment::dispatch_operation_paymentgateway_dispute_won(&id, args).map(|events| stamp_payload(events, &payload))
-          }
-          "Payments::Payment.PaymentGateway.DisputeLost" => {
-              let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
-              let (id, port_facts) = invocation.split_aggregate_receiver(None, Some("reference"))?;
-              let facts_json = &port_facts;
-              let _instance = store.payment.find(&id).ok_or_else(|| crate::kernel::Refusal::NotFound(format!("Payment {:?} does not exist", id)))?;
-              let args = crate::generated::payments::payment::PaymentGatewayDisputeLostArgs::from_json(facts_json)?;
-              let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
-              crate::generated::payments::payment::dispatch_operation_paymentgateway_dispute_lost(&id, args).map(|events| stamp_payload(events, &payload))
           }
         other => Err(crate::kernel::Refusal::TypeMismatch(format!("unknown command {other:?}"))),
     }
@@ -303,12 +174,6 @@ if target == "Payments::Payment" {
 pub const POLICIES: &[crate::kernel::PolicyRule] = &[
     crate::kernel::PolicyRule { policy_name: "OnPaymentConfirmedByProcessor", event_name: "PaymentConfirmedByProcessor", event_qualifier: None, target_verb: "Payments::Payment.Succeed", for_each: None, for_each_key: None, with_spec: &[], where_expr: None },
     crate::kernel::PolicyRule { policy_name: "OnPaymentDeclinedByProcessor", event_name: "PaymentDeclinedByProcessor", event_qualifier: None, target_verb: "Payments::Payment.Fail", for_each: None, for_each_key: None, with_spec: &[], where_expr: None },
-    crate::kernel::PolicyRule { policy_name: "OnPaymentRefundConfirmedByProcessor", event_name: "PaymentRefundConfirmedByProcessor", event_qualifier: None, target_verb: "Payments::Payment.CompleteRefund", for_each: None, for_each_key: None, with_spec: &[], where_expr: None },
-    crate::kernel::PolicyRule { policy_name: "OnPaymentRefundPartiallyConfirmedByProcessor", event_name: "PaymentRefundConfirmedByProcessor", event_qualifier: None, target_verb: "Payments::Payment.RecordPartialRefund", for_each: None, for_each_key: None, with_spec: &[], where_expr: None },
-    crate::kernel::PolicyRule { policy_name: "OnPaymentRefundDeclinedByProcessor", event_name: "PaymentRefundDeclinedByProcessor", event_qualifier: None, target_verb: "Payments::Payment.DeclineRefund", for_each: None, for_each_key: None, with_spec: &[], where_expr: None },
-    crate::kernel::PolicyRule { policy_name: "OnPaymentDisputeOpenedByProcessor", event_name: "PaymentDisputeOpenedByProcessor", event_qualifier: None, target_verb: "Payments::Payment.OpenDispute", for_each: None, for_each_key: None, with_spec: &[], where_expr: None },
-    crate::kernel::PolicyRule { policy_name: "OnPaymentDisputeWonByProcessor", event_name: "PaymentDisputeWonByProcessor", event_qualifier: None, target_verb: "Payments::Payment.WinDispute", for_each: None, for_each_key: None, with_spec: &[], where_expr: None },
-    crate::kernel::PolicyRule { policy_name: "OnPaymentDisputeLostByProcessor", event_name: "PaymentDisputeLostByProcessor", event_qualifier: None, target_verb: "Payments::Payment.Chargeback", for_each: None, for_each_key: None, with_spec: &[], where_expr: None },
 ];
 
 pub const CROSS_DOMAIN_POLICIES: &[crate::kernel::CrossDomainPolicyRule] = &[
@@ -333,13 +198,6 @@ pub fn command_creates(verb: &str) -> bool {
         "Payments::Payment.Initiate" => true,
         "Payments::Payment.Succeed" => false,
         "Payments::Payment.Fail" => false,
-        "Payments::Payment.Refund" => false,
-        "Payments::Payment.CompleteRefund" => false,
-        "Payments::Payment.RecordPartialRefund" => false,
-        "Payments::Payment.DeclineRefund" => false,
-        "Payments::Payment.OpenDispute" => false,
-        "Payments::Payment.WinDispute" => false,
-        "Payments::Payment.Chargeback" => false,
         _ => false,
     }
 }
@@ -360,77 +218,15 @@ pub fn entity_identity_head_for_path(qualified_path: &str) -> Option<&'static st
 
 pub fn command_attributes_for_verb(verb: &str) -> &'static [&'static str] {
     match verb {
-        "Payments::Payment.Initiate" => &["reference", "processor", "payment_type", "amount", "client", "customer_id"],
+        "Payments::Payment.Initiate" => &["reference", "processor", "payment_type", "amount", "client"],
         "Payments::Payment.Succeed" => &["transaction_id", "reported_processor"],
         "Payments::Payment.Fail" => &["reason", "reported_processor"],
-        "Payments::Payment.Refund" => &["refund_amount"],
-        "Payments::Payment.CompleteRefund" => &["confirmed_amount", "refund_transaction_id", "reported_processor"],
-        "Payments::Payment.RecordPartialRefund" => &["confirmed_amount", "refund_transaction_id", "reported_processor"],
-        "Payments::Payment.DeclineRefund" => &["reason", "reported_processor"],
-        "Payments::Payment.OpenDispute" => &["dispute_id", "reason", "reported_processor"],
-        "Payments::Payment.WinDispute" => &["reported_processor"],
-        "Payments::Payment.Chargeback" => &["reported_processor"],
         _ => &[],
     }
 }
 
 pub const QUERIES: &[crate::kernel::QueryDef] = &[
-crate::kernel::QueryDef {
-    verb: "Payments::Payment.Status",
-    aggregate: "Payments::Payment",
-    conditions: &[
-        crate::kernel::QueryCondition { field: "reference", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Arg("reference") },
-    ],
-    reference_hop_conditions: &[
 
-    ],
-    order_by: None,
-    offset: None,
-    limit: None,
-    authorization: None,
-},
-crate::kernel::QueryDef {
-    verb: "Payments::Payment.Pending",
-    aggregate: "Payments::Payment",
-    conditions: &[
-        crate::kernel::QueryCondition { field: "status", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Literal("pending") },
-    ],
-    reference_hop_conditions: &[
-
-    ],
-    order_by: Some(crate::kernel::query_ordering::OrderBy { field: "reference", descending: false, nulls: crate::kernel::query_ordering::NullsMode::Native }),
-    offset: None,
-    limit: None,
-    authorization: None,
-},
-crate::kernel::QueryDef {
-    verb: "Payments::Payment.Succeeded",
-    aggregate: "Payments::Payment",
-    conditions: &[
-        crate::kernel::QueryCondition { field: "status", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Literal("succeeded") },
-    ],
-    reference_hop_conditions: &[
-
-    ],
-    order_by: Some(crate::kernel::query_ordering::OrderBy { field: "reference", descending: false, nulls: crate::kernel::query_ordering::NullsMode::Native }),
-    offset: None,
-    limit: None,
-    authorization: None,
-},
-crate::kernel::QueryDef {
-    verb: "Payments::Payment.Failed",
-    aggregate: "Payments::Payment",
-    conditions: &[
-        crate::kernel::QueryCondition { field: "status", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Literal("failed") },
-    ],
-    reference_hop_conditions: &[
-
-    ],
-    order_by: Some(crate::kernel::query_ordering::OrderBy { field: "reference", descending: false, nulls: crate::kernel::query_ordering::NullsMode::Native }),
-    offset: None,
-    limit: None,
-    authorization: None,
-},
 ];
 /// `provides "authorization", assignments:` — the query `kernel::check_role_via` reads; `None` when no chapter here declares one.
 pub const AUTHORIZATION_ASSIGNMENTS: Option<&str> = None;
@@ -442,10 +238,7 @@ pub const ENTITY_QUERIES: &[crate::kernel::named_query::EntityQueryDef] = &[
 /// (rust/project/queries.rb) has the full story.
 pub fn check_query_args(verb: &str, args: &crate::kernel::Json) -> Result<(), crate::kernel::Refusal> {
     match verb {
-        "Payments::Payment.Status" => {
-            if let Some(x) = args.get("reference") { crate::generated::payments::payment::PaymentReference::from_json(&x.coerce_single_field("value"))?.check_invariants()?; }
-            Ok(())
-        }
+
         _ => Ok(()),
     }
 }

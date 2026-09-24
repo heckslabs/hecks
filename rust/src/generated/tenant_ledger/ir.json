@@ -93,9 +93,7 @@
             }
           ],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "LedgerRegion",
@@ -133,9 +131,7 @@
             }
           ],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "LedgerAmountCents",
@@ -176,9 +172,7 @@
             }
           ],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "EntrySequence",
@@ -216,9 +210,7 @@
             }
           ],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "EntryNote",
@@ -234,13 +226,9 @@
               "relationship": null
             }
           ],
-          "invariants": [
-
-          ],
+          "invariants": [],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "LedgerCreditReference",
@@ -278,9 +266,7 @@
             }
           ],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         }
       ],
       "commands": [
@@ -311,12 +297,8 @@
               "relationship": null
             }
           ],
-          "givens": [
-
-          ],
-          "ensures": [
-
-          ],
+          "givens": [],
+          "ensures": [],
           "mutations": [
             {
               "target": "code",
@@ -380,12 +362,8 @@
               "relationship": null
             }
           ],
-          "givens": [
-
-          ],
-          "ensures": [
-
-          ],
+          "givens": [],
+          "ensures": [],
           "mutations": [
             {
               "target": "balance_cents",
@@ -413,15 +391,9 @@
           "provenance": null
         }
       ],
-      "invariants": [
-
-      ],
-      "preconditions": [
-
-      ],
-      "projected_fields": [
-
-      ],
+      "invariants": [],
+      "preconditions": [],
+      "projected_fields": [],
       "lifecycle": null,
       "entities": [
         {
@@ -480,12 +452,8 @@
                   "relationship": null
                 }
               ],
-              "givens": [
-
-              ],
-              "ensures": [
-
-              ],
+              "givens": [],
+              "ensures": [],
               "mutations": [
                 {
                   "target": "note",
@@ -504,18 +472,10 @@
               "provenance": null
             }
           ],
-          "queries": [
-
-          ],
-          "entities": [
-
-          ],
-          "preconditions": [
-
-          ],
-          "invariants": [
-
-          ],
+          "queries": [],
+          "entities": [],
+          "preconditions": [],
+          "invariants": [],
           "lifecycle": null
         }
       ],
@@ -523,12 +483,8 @@
         {
           "name": "ByRegion",
           "description": "Ledgers open in one region, for a caller standing in that region.",
-          "attributes": [
-
-          ],
-          "wheres": [
-
-          ],
+          "attributes": [],
+          "wheres": [],
           "order_by": {
             "field": "code",
             "direction": "asc"
@@ -540,9 +496,7 @@
           }
         }
       ],
-      "ports": [
-
-      ],
+      "ports": [],
       "provenance": null
     },
     {
@@ -630,9 +584,7 @@
             }
           ],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "TransferRegion",
@@ -670,9 +622,7 @@
             }
           ],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "TransferAmountCents",
@@ -713,9 +663,7 @@
             }
           ],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         }
       ],
       "commands": [
@@ -766,12 +714,8 @@
               "relationship": null
             }
           ],
-          "givens": [
-
-          ],
-          "ensures": [
-
-          ],
+          "givens": [],
+          "ensures": [],
           "mutations": [
             {
               "target": "reference",
@@ -817,29 +761,17 @@
           "provenance": null
         }
       ],
-      "invariants": [
-
-      ],
-      "preconditions": [
-
-      ],
-      "projected_fields": [
-
-      ],
+      "invariants": [],
+      "preconditions": [],
+      "projected_fields": [],
       "lifecycle": null,
-      "entities": [
-
-      ],
+      "entities": [],
       "queries": [
         {
           "name": "ByRegion",
           "description": "Transfers requested from one region, for a caller standing in that region.",
-          "attributes": [
-
-          ],
-          "wheres": [
-
-          ],
+          "attributes": [],
+          "wheres": [],
           "order_by": {
             "field": "reference",
             "direction": "asc"
@@ -851,18 +783,12 @@
           }
         }
       ],
-      "ports": [
-
-      ],
+      "ports": [],
       "provenance": null
     }
   ],
-  "read_models": [
-
-  ],
-  "policies": [
-
-  ],
+  "read_models": [],
+  "policies": [],
   "process_managers": [
     {
       "name": "SettleAcrossRegions",
@@ -905,12 +831,8 @@
       ]
     }
   ],
-  "attaches_to": [
-
-  ],
-  "provides": [
-
-  ],
+  "attaches_to": [],
+  "provides": [],
   "canonical_form": [
     {
       "strategy": "collapse_whitespace",
@@ -928,9 +850,7 @@
     }
   ],
   "lineage": {
-    "capable_aggregates": [
-
-    ]
+    "capable_aggregates": []
   },
   "persistence": {
     "aggregates": [
@@ -952,8 +872,6 @@
     "assignments": "Governance::RoleAssignment.AssignmentsForActor",
     "assignment_aggregate": "Governance::RoleAssignment"
   },
-  "translations": [
-
-  ],
+  "translations": [],
   "source_text": "# A STRESS DOMAIN, NOT AN EXAMPLE — lives under qa/stress_domains/, not\n# examples/, same reasoning waybill/ledger_ordering/nested_pieces already\n# give in their own headers. Targeted at ANGLE-8: `authorize_scopes_or_\n# refuses` (lib/hecks/fuzzing/properties/guards.rb:57-93) enforces\n# `TenantScope.apply`'s tenant boundary, and that boundary exists ONLY\n# for queries/read models — `authorize policy, tenant: field` is a word\n# `QuerySpecification::Common::DSL` grants to `QueryBuilder`/`ReadModel\n# Builder`, never to `CommandBuilder` (confirmed by reading the grammar\n# directly: no `authorize` word exists on the command side at all).\n# `examples/banking/bluebook/safe_deposit_boxes.bluebook:261`\n# (`authorize :vault_access, tenant: :branch_code`) is the ONLY\n# `tenant:` declaration anywhere in the corpus before this domain — a\n# single data point, on the READ side only.\n#\n# THE WRITE-SIDE GAP THIS DOMAIN EXISTS TO EXPOSE IS NOW CLOSED, at\n# dispatch time — `CommandRules::References#enforce_tenant_boundary`\n# (lib/hecks/runtime/command_rules/references.rb), hooked in beside the\n# existing `reference_to` existence check both `CommandInterpreter#\n# step_save` and `EntityInterpreter#step_save` already run against the\n# settled, post-mutation state. A command whose `reference_to` resolves\n# to a record in a different tenant than the record being written now\n# refuses (`Unauthorized`/`cross_tenant_reference`), the same as a\n# query missing its `tenant:` arg always has. `commands_respect_tenant_\n# scope` (below) stays in the standard battery as a permanent\n# regression guard — a refused write is never stored, so the property\n# should never find a violation again through real dispatch, and\n# `spec/fuzzing/tenant_ledger_property_spec.rb` pins the property's own\n# detection logic directly (against a synthetic `history[:instances]`)\n# so that guard stays meaningful even though real dispatch can no\n# longer feed it a genuine finding.\n#\n# See this domain's own NOTES.md for what the first differential run\n# found. `lib/hecks/fuzzing/properties/guards.rb`'s new `commands_\n# respect_tenant_scope` (beside `authorize_scopes_or_refuses`) is the\n# property this domain exists to feed.\nHecks.bluebook \"TenantLedger\" do\n  vision \"Two tenant-scoped aggregates, a cross-tenant reference_to between them, an entity, and a saga that crosses tenants — enough surface to prove the write side has no TenantScope equivalent at all.\"\n\n  core\n\n  # TENANT-SCOPED AGGREGATE ONE. `region` is this aggregate's OWN\n  # declared tenant field — named the same way `authorize_scopes_or_\n  # refuses` already reads a QUERY's tenant field (`declared.\n  # authorization&.tenant`), just read here off `ByRegion` instead and\n  # reused by `commands_respect_tenant_scope` as \"the field that answers\n  # which tenant this record belongs to,\" for ANY aggregate that\n  # declares one, not only this one.\n  aggregate \"Ledger\" do\n    description \"One region's ledger — the record a cross-tenant Transfer.Request can name without ever proving it belongs to the same region.\"\n\n    identified_by :code\n\n    attribute :code,          LedgerCode\n    attribute :region,        LedgerRegion\n    attribute :balance_cents, LedgerAmountCents, default: { value: 0 }\n    attribute :entries,       list_of(Entry)\n\n    value_object \"LedgerCode\" do\n      attribute :value, String, pattern: '[^ \\t\\n\\r]'\n      invariant(\"a ledger is coded\") { !value.to_s.empty? }\n    end\n\n    value_object \"LedgerRegion\" do\n      attribute :value, String, pattern: '[^ \\t\\n\\r]'\n      invariant(\"a ledger names its region\") { !value.to_s.empty? }\n    end\n\n    value_object \"LedgerAmountCents\" do\n      attribute :value, Integer\n      invariant(\"an amount is never negative\") { value >= 0 }\n    end\n\n    value_object \"EntrySequence\" do\n      attribute :value, String, pattern: '[^ \\t\\n\\r]'\n      invariant(\"an entry is sequenced\") { !value.to_s.empty? }\n    end\n\n    value_object \"EntryNote\" do\n      attribute :text, String\n    end\n\n    # THE PASS-THROUGH CORRELATION FIELD — carries `Transfer.Request`'s\n    # own `reference` across the saga leg below so `SettleAcrossRegions`\n    # can correlate `Transfer::TransferRequested` and `Ledger::\n    # LedgerCredited` on the SAME scalar (`correlates_by :\"reference.\n    # value\"`). NEVER stored on `Ledger` itself (no `sets` targets it) —\n    # `CommandRules::Emission#emit` writes `payload: args` unconditionally\n    # (every declared argument, not only `sets` targets), so a plain\n    # declared attribute already reaches the emitted event without\n    # needing a field to hold it. Its own type is a LOCAL value object,\n    # not `Transfer`'s `TransferReference` — a value object is always\n    # declared inside the aggregate that owns it (grammar-wide, checked:\n    # no corpus site names one across an aggregate boundary), so this is\n    # the same \"same shape, redeclared, deliberately\" move `SlipReference\n    # `/`FolderReference` already make in ledger_ordering.\n    value_object \"LedgerCreditReference\" do\n      attribute :value, String, pattern: '[^ \\t\\n\\r]'\n      invariant(\"a credit still names the transfer that asked for it\") { !value.to_s.empty? }\n    end\n\n    # A PIECE ON ONE OF THE TWO AGGREGATES — the \"an entity on one\" half\n    # of this domain's own construct list, same role `Visit` plays on\n    # `SafeDepositBox`: nested state one level in, exercised by an\n    # ordinary append (`Credit`, below) and its own command (`Annotate`).\n    entity \"Entry\" do\n      description \"One posting into the ledger, in the order it landed.\"\n\n      identified_by :sequence\n\n      attribute :sequence, EntrySequence\n      attribute :amount_cents, LedgerAmountCents\n      attribute :note, EntryNote, optional: true\n\n      command \"Annotate\" do\n        role \"Auditor\"\n        goal \"Note something about a posting after the fact\"\n\n        attribute :note, EntryNote\n        sets :note\n\n        emits \"EntryAnnotated\"\n      end\n    end\n\n    command \"Open\" do\n      role \"Clerk\"\n      goal \"Start a ledger for one region\"\n\n      attribute :code,   LedgerCode\n      attribute :region, LedgerRegion\n\n      sets :code\n      sets :region\n\n      emits \"LedgerOpened\"\n    end\n\n    # THE SAGA'S OWN TARGET — dispatched by `SettleAcrossRegions` against\n    # WHICHEVER ledger `Transfer.Request` named, cross-tenant or not.\n    # Nothing here checks `region` against anything: no `given` reads the\n    # dispatching Transfer's own region (a command cannot see the record\n    # that triggered a saga leg — the saga's own memory is all a `dispatch\n    # ..., with:` can pass in), and no runtime mechanism stops a saga from\n    # crossing a tenant boundary a query would have refused outright. This\n    # command is not a bug by itself — role \"System\" (an automated actor,\n    # never a query's own caller) already reads as \"not tenant-checked\" the\n    # same way every other cross-aggregate `dispatch` target in this corpus\n    # (`Account::Debit`, `Account::Credit`) reads as \"not customer-scoped.\"\n    # The finding is that NOTHING ELSE in the whole dispatch closes the gap\n    # this leaves open, and `commands_respect_tenant_scope` is what proves\n    # that by checking the record this leaves behind.\n    command \"Credit\" do\n      role \"System\"\n      goal \"Credit funds into a ledger, settling a transfer that may or may not share this ledger's own region\"\n\n      reference_to Ledger\n      attribute :amount_cents, LedgerAmountCents\n      attribute :sequence,     EntrySequence\n      attribute :reference,    LedgerCreditReference\n\n      sets :balance_cents, increment: :amount_cents\n      sets :entries, append: { sequence: :sequence, amount_cents: :amount_cents }\n\n      emits \"LedgerCredited\"\n    end\n\n    query \"ByRegion\" do\n      description \"Ledgers open in one region, for a caller standing in that region.\"\n      order_by :code\n      authorize :ledger_access, tenant: :region\n    end\n  end\n\n  # TENANT-SCOPED AGGREGATE TWO. Its OWN `region` is a plain, caller-\n  # supplied argument at `Request` time — never derived from, or checked\n  # against, the `ledger` it names below. That gap is the whole domain.\n  aggregate \"Transfer\" do\n    description \"A request to move funds into some ledger — the ledger a caller names is never proven to share this transfer's own declared region.\"\n\n    identified_by :reference\n\n    attribute :reference,     TransferReference\n    attribute :region,        TransferRegion\n    # THE CROSS-TENANT reference_to — `Ledger` is a DIFFERENT tenant-\n    # scoped aggregate than `Transfer` itself. Corpus precedent for a\n    # PLAIN aggregate-level `reference_to` crossing between two\n    # independently tenant-scoped heads: none before this domain — every\n    # existing `reference_to`/`belongs_to` in the corpus (`SafeDepositBox\n    # belongs_to Customer`, `Account reference_to Customer`) points at an\n    # aggregate that declares no tenant boundary of its own at all.\n    reference_to Ledger\n    attribute :amount_cents,  TransferAmountCents\n\n    value_object \"TransferReference\" do\n      attribute :value, String, pattern: '[^ \\t\\n\\r]'\n      invariant(\"a transfer is referenced\") { !value.to_s.empty? }\n    end\n\n    value_object \"TransferRegion\" do\n      attribute :value, String, pattern: '[^ \\t\\n\\r]'\n      invariant(\"a transfer names its own region\") { !value.to_s.empty? }\n    end\n\n    value_object \"TransferAmountCents\" do\n      attribute :value, Integer\n      invariant(\"an amount is never negative\") { value >= 0 }\n    end\n\n    # THE WRITE-SIDE GAP, MADE CONCRETE — AND NOW CLOSED. `sets :region`\n    # and `sets :ledger` are both the BARE self-referential shorthand\n    # (`CommandBuilder#resolve_bare_set!`) — importing `Transfer`'s own\n    # already-declared `region`/`ledger` attributes verbatim, so a caller\n    # passes BOTH directly: `region: \"east\"` and `ledger: \"<any Ledger's\n    # own code>\"`, completely independently. No `given` here requires\n    # that the named ledger's own `region` agree with the one declared\n    # right beside it — but `CommandRules::References#enforce_tenant_\n    # boundary` (runtime/command_rules/references.rb) now does, at\n    # dispatch time, the same way `TenantScope.apply` (runtime/\n    # tenant_scope.rb) already refuses a QUERY missing its `tenant:` arg.\n    # ANGLE-8's own premise was this silence; it no longer holds.\n    command \"Request\" do\n      role \"Clerk\"\n      goal \"Ask that funds move into a ledger, in a region the caller declares independently of which ledger they name\"\n\n      attribute :reference, TransferReference\n\n      sets :reference\n      sets :region\n      sets :ledger\n      sets :amount_cents\n\n      emits \"TransferRequested\"\n    end\n\n    query \"ByRegion\" do\n      description \"Transfers requested from one region, for a caller standing in that region.\"\n      order_by :reference\n      authorize :transfer_access, tenant: :region\n    end\n  end\n\n  # A PROCESS MANAGER WHOSE SAGA WOULD HAVE CROSSED TENANTS — moot now\n  # that `Transfer.Request` itself refuses a cross-tenant `ledger:`\n  # (see that command's own comment): `starts_on Transfer::\n  # TransferRequested` means this saga can never even begin from a\n  # cross-tenant `Request`, since a refused command never emits.\n  # `SagaInterpreter#deliver_saga_dispatch` (lib/hecks/runtime/\n  # saga_interpreter.rb) still carries no tenant concept of its own —\n  # same as `PolicyInterpreter#deliver` — so a saga leg that dispatches\n  # a cross-tenant write WITHOUT going through an aggregate's own\n  # `reference_to` (nothing in this corpus does that today) would still\n  # not be caught here. Left in place as a still-real, still-useful\n  # demonstration that the saga mechanism itself adds no tenant check\n  # of its own — the write-side fix closes this domain's own concrete\n  # repro by closing what feeds it, not by teaching sagas about tenants.\n  process_manager \"SettleAcrossRegions\" do\n    correlates_by :\"reference.value\"\n    starts_on Transfer::TransferRequested\n    ends_on   Ledger::LedgerCredited\n\n    transition Transfer::TransferRequested => \"settling\", from: \"settling\" do\n      dispatch Ledger::Credit, with: { code: :ledger, amount_cents: :amount_cents,\n                                       sequence: :reference, reference: :reference }\n    end\n  end\nend\n"
 }
