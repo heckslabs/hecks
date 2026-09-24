@@ -361,11 +361,17 @@ async fn auth_route(
             &format!("lifeadelics_session=; Max-Age=0{}", cookie_flags()),
         )),
 
-        ("GET", "/accounts/me") => Some(accounts_me_route(cookies, secret)),
+        ("GET", "/accounts/me") => Some(accounts_me_route(domain_ir, cookies, secret, client).await),
 
         ("GET", "/members") => Some(members_route(domain_ir, cookies, secret, client).await),
 
         ("POST", "/members") => Some(add_member_route(domain_ir, raw_body, cookies, secret, client, wasm_path, config).await),
+
+        ("GET", "/registrations") => Some(registrations_list_route(domain_ir, cookies, secret, client, wasm_path, config).await),
+
+        ("POST", "/members/disable") => Some(set_member_disabled_route(domain_ir, raw_body, cookies, secret, client, config, true).await),
+
+        ("POST", "/members/enable") => Some(set_member_disabled_route(domain_ir, raw_body, cookies, secret, client, config, false).await),
 
         // GET /accounts/sso-token, ported from http_server.rb's own
         // route (found missing live, not in #786's own port: every
@@ -378,7 +384,7 @@ async fn auth_route(
         // itself — deploy-aws/platform/template.yaml's own SessionSecret
         // is shared with the cms container as AUTH_SECRET specifically
         // so the two sides verify the same token.
-        ("GET", "/accounts/sso-token") => Some(accounts_sso_token_route(cookies, secret)),
+        ("GET", "/accounts/sso-token") => Some(accounts_sso_token_route(domain_ir, cookies, secret, client).await),
 
         ("GET", "/auth/google") => match auth::authorization_url(&redirect_uri(), secret) {
             Ok(url) => Some(redirect(&url)),
@@ -507,31 +513,45 @@ async fn accounts_login_route(raw_body: &str, secret: &str, client: &Mutex<Clien
     respond_with_cookie(200, "application/json", &json!({"email": email}).to_string(), &cookie)
 }
 
-fn accounts_me_route(cookies: &HashMap<String, String>, secret: &str) -> Value {
+// The email behind a `lifeadelics_session` cookie, only while that person
+// still has access. The token signature alone isn't enough: a cookie lives
+// up to 14 days, so a later disable must take effect on the next request.
+// `Err` carries the JSON response to return: a 401 for a missing, invalid
+// or no-longer-valid session, a 500 when the membership lookup itself fails.
+async fn active_session_email(
+    domain_ir: &Value,
+    cookies: &HashMap<String, String>,
+    secret: &str,
+    client: &Mutex<Client>,
+) -> Result<String, Value> {
     let not_logged_in = || respond(401, "application/json", &json!({"error": "not logged in"}).to_string());
-    let Some(token) = cookies.get("lifeadelics_session") else {
-        return not_logged_in();
+    let Some(email) = cookies.get("lifeadelics_session").and_then(|token| auth::verify_account_token(secret, token)) else {
+        return Err(not_logged_in());
     };
-    match auth::verify_account_token(secret, token) {
-        Some(email) => respond(200, "application/json", &json!({"email": email}).to_string()),
-        None => not_logged_in(),
+    match auth::has_access(client, domain_ir, &email).await {
+        Ok(true) => Ok(email),
+        Ok(false) => Err(not_logged_in()),
+        Err(e) => Err(respond(500, "application/json", &json!({"error": format!("members lookup failed: {e}")}).to_string())),
+    }
+}
+
+async fn accounts_me_route(domain_ir: &Value, cookies: &HashMap<String, String>, secret: &str, client: &Mutex<Client>) -> Value {
+    match active_session_email(domain_ir, cookies, secret, client).await {
+        Ok(email) => respond(200, "application/json", &json!({"email": email}).to_string()),
+        Err(response) => response,
     }
 }
 
 // GET /members -- the admitted people as JSON, for a server-side caller
 // (the Astro admin's Users page) that holds the `lifeadelics_session`
 // cookie but not the Governance `session` cookie /admin/members needs.
-// Any valid account token is enough: /auth/google/callback only mints one
-// for an already-admitted person. Unauthenticated callers get a JSON 401
-// rather than the /login redirect, so a fetch() never follows it into an
-// HTML page. A lookup failure is a 500, not an empty list.
+// Any session whose person still has access is enough; a disabled person's
+// old cookie gets the same JSON 401 as no cookie at all, rather than the
+// /login redirect, so a fetch() never follows it into an HTML page. A
+// lookup failure is a 500, not an empty list.
 async fn members_route(domain_ir: &Value, cookies: &HashMap<String, String>, secret: &str, client: &Mutex<Client>) -> Value {
-    let authenticated = cookies
-        .get("lifeadelics_session")
-        .and_then(|token| auth::verify_account_token(secret, token))
-        .is_some();
-    if !authenticated {
-        return respond(401, "application/json", &json!({"error": "not logged in"}).to_string());
+    if let Err(response) = active_session_email(domain_ir, cookies, secret, client).await {
+        return response;
     }
     match auth::all_people(client, domain_ir).await {
         Ok(people) => respond(200, "application/json", &Value::Array(sorted_by_name(people)).to_string()),
@@ -585,11 +605,125 @@ async fn add_member_route(
         Ok(true) => respond(
             201,
             "application/json",
-            &json!({"name": name, "email": email, "role": "Admin", "linked": false, "granted": true}).to_string(),
+            &json!({"name": name, "email": email, "role": "Admin", "linked": false, "granted": true, "disabled": false}).to_string(),
         ),
         Ok(false) => json_error(500, "the person was admitted but the Admin role was not granted"),
         Err(e) => json_error(500, &format!("the person was admitted but the Admin role was not granted: {e}")),
     }
+}
+
+// POST /members/disable and POST /members/enable -- switch a person's
+// access off or back on without deleting them, for a server-side caller
+// holding the `lifeadelics_session` cookie. Takes `{"email"}` as JSON.
+// Disabling keeps the person, role and identity link, so enabling restores
+// exactly the prior access. Answers a JSON 401 without a valid session, a
+// 403 unless the caller is an active Admin, a 403 when an admin disables
+// themselves, a 404 for an unknown email, a 409 when disabling would leave
+// no active Admin, and 200 otherwise, including when the person is already
+// in the requested state. Every rule is re-checked under the membership
+// write lock in `auth::set_person_disabled`.
+async fn set_member_disabled_route(
+    domain_ir: &Value,
+    raw_body: &str,
+    cookies: &HashMap<String, String>,
+    secret: &str,
+    client: &Mutex<Client>,
+    config: &LineageConfig,
+    disable: bool,
+) -> Value {
+    let json_error = |status: u16, message: &str| respond(status, "application/json", &json!({"error": message}).to_string());
+
+    let Some(caller) = cookies.get("lifeadelics_session").and_then(|token| auth::verify_account_token(secret, token)) else {
+        return json_error(401, "not logged in");
+    };
+
+    let body: Value = serde_json::from_str(raw_body).unwrap_or(Value::Null);
+    let email = body.get("email").and_then(|v| v.as_str()).map(|s| s.trim().to_string()).unwrap_or_default();
+    if email.is_empty() {
+        return json_error(400, "an email is required");
+    }
+
+    match auth::set_person_disabled(client, config, domain_ir, &caller, &email, disable).await {
+        Ok(auth::DisableOutcome::Done) => {
+            let key = if disable { "disabled" } else { "enabled" };
+            respond(200, "application/json", &json!({key: email.to_lowercase()}).to_string())
+        }
+        Ok(auth::DisableOutcome::CallerNotAdmin) => json_error(403, "admins only"),
+        Ok(auth::DisableOutcome::SelfDisable) => json_error(403, "you can't disable your own admin access"),
+        Ok(auth::DisableOutcome::UnknownPerson) => json_error(404, "no member with that email"),
+        Ok(auth::DisableOutcome::LastAdmin) => json_error(409, "there must always be at least one admin"),
+        Err(e) => json_error(500, &format!("members update failed: {e}")),
+    }
+}
+
+// GET /registrations -- every event registration as JSON, for the admin
+// Events page. Server-side callers only: a valid `lifeadelics_session`
+// cookie is required (JSON 401 otherwise, never a redirect), and the person
+// behind it must currently be an active Admin, re-checked against the
+// membership head on every request (403 otherwise, including a disabled
+// admin). Reads the replayed registration instances, the same source
+// `registration_show_route` uses, and never returns health or payment
+// fields. The public `POST /registrations` is a different route and is
+// untouched.
+async fn registrations_list_route(
+    domain_ir: &Value,
+    cookies: &HashMap<String, String>,
+    secret: &str,
+    client: &Mutex<Client>,
+    wasm_path: &Path,
+    config: &LineageConfig,
+) -> Value {
+    let json_error = |status: u16, message: &str| respond(status, "application/json", &json!({"error": message}).to_string());
+
+    let Some(caller) = cookies.get("lifeadelics_session").and_then(|token| auth::verify_account_token(secret, token)) else {
+        return json_error(401, "not logged in");
+    };
+    match auth::caller_is_admin(client, domain_ir, &caller).await {
+        Ok(true) => {}
+        Ok(false) => return json_error(403, "admins only"),
+        Err(e) => return json_error(500, &format!("members lookup failed: {e}")),
+    }
+
+    let read = match dispatch::read(client, wasm_path).await {
+        Ok(read) => read,
+        Err(e) => return json_error(500, &format!("registrations lookup failed: {e:#}")),
+    };
+    respond(200, "application/json", &Value::Array(registration_list_rows(&read, &config.domain)).to_string())
+}
+
+// The registration rows the admin list shows. Built field by field from an
+// allowlist, so intake answers such as medications and health concerns, and
+// anything from the payment, can never appear. Newest first when the
+// registrations carry a timestamp, otherwise in the order they were read.
+fn registration_list_rows(read: &Value, domain: &str) -> Vec<Value> {
+    const TIMESTAMP_KEYS: [&str; 4] = ["created_at", "registered_at", "requested_at", "occurred_at"];
+    let plain = |value: Option<&Value>| -> Option<Value> {
+        let value = value?;
+        Some(value.get("value").cloned().unwrap_or_else(|| value.clone()))
+    };
+    let text = |value: Option<&Value>| plain(value).and_then(|v| v.as_str().map(|s| s.trim().to_string()));
+
+    let mut rows: Vec<(Option<String>, Value)> = instances_for(read, &format!("{domain}::Registration#"))
+        .into_iter()
+        .map(|(id, registration)| {
+            let attendee = registration.get("attendee").cloned().unwrap_or_else(|| json!({}));
+            let joined = [text(attendee.get("first_name")), text(attendee.get("last_name"))].into_iter().flatten().collect::<Vec<_>>().join(" ");
+            let name = if joined.is_empty() { text(attendee.get("name")).unwrap_or_default() } else { joined };
+            let stamp = TIMESTAMP_KEYS.iter().find_map(|key| text(registration.get(*key)));
+            let row = json!({
+                "registration_id": id,
+                "email": text(attendee.get("email")),
+                "name": name.trim(),
+                "event_slug": text(registration.get("event_slug")),
+                "news_signup": plain(attendee.get("news_signup")).and_then(|v| v.as_bool()).unwrap_or(false),
+            });
+            (stamp, row)
+        })
+        .collect();
+    if rows.iter().any(|(stamp, _)| stamp.is_some()) {
+        rows.sort_by(|a, b| b.0.cmp(&a.0));
+    }
+    rows.into_iter().map(|(_, row)| row).collect()
 }
 
 fn sorted_by_name(mut people: Vec<Value>) -> Vec<Value> {
@@ -604,15 +738,13 @@ fn sorted_by_name(mut people: Vec<Value>) -> Vec<Value> {
 // cms/src/endpoints/sso.ts. Re-verifies the requester's own
 // lifeadelics_session cookie first — same account_token scheme, just a
 // much shorter TTL and returned as JSON instead of a cookie, since this
-// token is a one-shot redirect target, never stored.
-fn accounts_sso_token_route(cookies: &HashMap<String, String>, secret: &str) -> Value {
+// token is a one-shot redirect target, never stored. A disabled person's
+// old cookie is refused here too, so no new handoff token is minted for them.
+async fn accounts_sso_token_route(domain_ir: &Value, cookies: &HashMap<String, String>, secret: &str, client: &Mutex<Client>) -> Value {
     const SSO_TOKEN_TTL_SECS: u64 = 60;
-    let not_logged_in = || respond(401, "application/json", &json!({"error": "not logged in"}).to_string());
-    let Some(token) = cookies.get("lifeadelics_session") else {
-        return not_logged_in();
-    };
-    let Some(email) = auth::verify_account_token(secret, token) else {
-        return not_logged_in();
+    let email = match active_session_email(domain_ir, cookies, secret, client).await {
+        Ok(email) => email,
+        Err(response) => return response,
     };
     let sso_token = auth::account_token(secret, &email, SSO_TOKEN_TTL_SECS);
     respond(200, "application/json", &json!({"token": sso_token}).to_string())
@@ -3727,34 +3859,40 @@ mod tests {
         assert_eq!(response["statusCode"], 401);
     }
 
-    #[test]
-    fn accounts_me_route_reads_a_real_cookie_and_refuses_a_missing_or_invalid_one() {
+    #[tokio::test]
+    async fn accounts_me_route_reads_a_real_cookie_and_refuses_a_missing_or_invalid_one() {
         let secret = "s3cret";
-        let token = auth::account_token(secret, "ada@example.com", 60);
+        let (client, domain_ir) = scratch_members_db("hecks_host_web_test_accounts_me").await;
 
-        let mut cookies = HashMap::new();
-        cookies.insert("lifeadelics_session".to_string(), token);
-        let response = accounts_me_route(&cookies, secret);
+        let cookies = session_cookies(secret, "zed@example.com");
+        let response = accounts_me_route(&domain_ir, &cookies, secret, &client).await;
         assert_eq!(response["statusCode"], 200, "{response:?}");
         let body: Value = serde_json::from_str(response["body"].as_str().unwrap()).unwrap();
-        assert_eq!(body["email"], "ada@example.com");
+        assert_eq!(body["email"], "zed@example.com");
 
         let empty = HashMap::new();
-        assert_eq!(accounts_me_route(&empty, secret)["statusCode"], 401);
+        assert_eq!(accounts_me_route(&domain_ir, &empty, secret, &client).await["statusCode"], 401);
 
         let mut tampered = HashMap::new();
         tampered.insert("lifeadelics_session".to_string(), "garbage.notasignature".to_string());
-        assert_eq!(accounts_me_route(&tampered, secret)["statusCode"], 401);
+        assert_eq!(accounts_me_route(&domain_ir, &tampered, secret, &client).await["statusCode"], 401);
+
+        // A validly signed token for someone with no granted role, or nobody
+        // admitted at all, is no session.
+        for email in ["amy@example.com", "stranger@example.com"] {
+            let response = accounts_me_route(&domain_ir, &session_cookies(secret, email), secret, &client).await;
+            assert_eq!(response["statusCode"], 401, "{email}: {response:?}");
+        }
     }
 
-    #[test]
-    fn accounts_sso_token_route_mints_a_short_lived_token_verifiable_by_the_same_secret() {
+    #[tokio::test]
+    async fn accounts_sso_token_route_mints_a_short_lived_token_verifiable_by_the_same_secret() {
         let secret = "s3cret";
-        let session_token = auth::account_token(secret, "ada@example.com", 60 * 60 * 24 * 14);
+        let (client, domain_ir) = scratch_members_db("hecks_host_web_test_accounts_sso_token").await;
 
         let mut cookies = HashMap::new();
-        cookies.insert("lifeadelics_session".to_string(), session_token);
-        let response = accounts_sso_token_route(&cookies, secret);
+        cookies.insert("lifeadelics_session".to_string(), auth::account_token(secret, "zed@example.com", 60 * 60 * 24 * 14));
+        let response = accounts_sso_token_route(&domain_ir, &cookies, secret, &client).await;
         assert_eq!(response["statusCode"], 200, "{response:?}");
         let body: Value = serde_json::from_str(response["body"].as_str().unwrap()).unwrap();
         let sso_token = body["token"].as_str().expect("a sso token string");
@@ -3763,15 +3901,18 @@ mod tests {
         // token with the same wire format (verify_account_token is the
         // Rust side of that same scheme) — a real, decodable token, not
         // an opaque string this route just happens to return 200 with.
-        assert_eq!(auth::verify_account_token(secret, sso_token).as_deref(), Some("ada@example.com"));
+        assert_eq!(auth::verify_account_token(secret, sso_token).as_deref(), Some("zed@example.com"));
 
         // Missing or invalid session cookie -- refused, no token minted.
         let empty = HashMap::new();
-        assert_eq!(accounts_sso_token_route(&empty, secret)["statusCode"], 401);
+        assert_eq!(accounts_sso_token_route(&domain_ir, &empty, secret, &client).await["statusCode"], 401);
 
         let mut tampered = HashMap::new();
         tampered.insert("lifeadelics_session".to_string(), "garbage.notasignature".to_string());
-        assert_eq!(accounts_sso_token_route(&tampered, secret)["statusCode"], 401);
+        assert_eq!(accounts_sso_token_route(&domain_ir, &tampered, secret, &client).await["statusCode"], 401);
+
+        let no_role = accounts_sso_token_route(&domain_ir, &session_cookies(secret, "amy@example.com"), secret, &client).await;
+        assert_eq!(no_role["statusCode"], 401, "{no_role:?}");
     }
 
     // Same head-view shape auth.rs's own tests build for the Membership
@@ -3794,7 +3935,7 @@ mod tests {
                 .unwrap();
             guard
                 .execute(
-                    "INSERT INTO embryonaut_member_head_snapshot_1 (id, ordinal, state) VALUES ($1, 1, $2::jsonb), ($3, 1, $4::jsonb)",
+                    "INSERT INTO embryonaut_member_head_snapshot_1 (id, ordinal, state) VALUES ($1, 0, $2::jsonb), ($3, 0, $4::jsonb)",
                     &[
                         &"zed@example.com",
                         &json!({"name": {"value": "Zed"}, "email": {"value": "zed@example.com"},
@@ -3830,11 +3971,11 @@ mod tests {
         assert_eq!(names, ["amy", "Zed"], "sorted case-insensitively by name");
         assert_eq!(
             people[1],
-            json!({"name": "Zed", "email": "zed@example.com", "role": "Admin", "linked": true, "granted": true})
+            json!({"name": "Zed", "email": "zed@example.com", "role": "Admin", "linked": true, "granted": true, "disabled": false})
         );
         assert_eq!(
             people[0],
-            json!({"name": "amy", "email": "amy@example.com", "role": null, "linked": false, "granted": false})
+            json!({"name": "amy", "email": "amy@example.com", "role": null, "linked": false, "granted": false, "disabled": false})
         );
     }
 
@@ -3961,7 +4102,7 @@ mod tests {
         let created: Value = serde_json::from_str(response["body"].as_str().unwrap()).unwrap();
         assert_eq!(
             created,
-            json!({"name": "New Person", "email": "new@example.com", "role": "Admin", "linked": false, "granted": true})
+            json!({"name": "New Person", "email": "new@example.com", "role": "Admin", "linked": false, "granted": true, "disabled": false})
         );
 
         let listing = members_route(&domain_ir, &cookies, secret, &client).await;
@@ -3977,6 +4118,252 @@ mod tests {
             .unwrap()
             .get(0);
         assert_eq!(journalled, 2, "one journal row for Admit and one for GrantAccess");
+    }
+
+    // The scratch members database with amy also granted Admin, so two
+    // active admins exist and one can act on the other.
+    async fn scratch_two_admins(name: &str) -> (Mutex<Client>, Value) {
+        let (client, domain_ir) = scratch_members_db(name).await;
+        let granted = auth::grant_access(&client, Path::new("unused"), &members_config(), &domain_ir, "amy@example.com", "Admin").await.unwrap();
+        assert!(granted);
+        (client, domain_ir)
+    }
+
+    async fn switch_access(client: &Mutex<Client>, domain_ir: &Value, caller: &str, email: &str, disable: bool) -> Value {
+        let secret = "s3cret";
+        let body = json!({"email": email}).to_string();
+        set_member_disabled_route(domain_ir, &body, &session_cookies(secret, caller), secret, client, &members_config(), disable).await
+    }
+
+    fn error_of(response: &Value) -> String {
+        let body: Value = serde_json::from_str(response["body"].as_str().unwrap()).unwrap();
+        body["error"].as_str().unwrap_or_default().to_string()
+    }
+
+    async fn person(client: &Mutex<Client>, domain_ir: &Value, email: &str) -> Value {
+        let people = auth::all_people(client, domain_ir).await.unwrap();
+        people.into_iter().find(|p| p["email"] == email).unwrap_or_else(|| panic!("{email} is not listed"))
+    }
+
+    async fn journal_rows(client: &Mutex<Client>, id: &str) -> i64 {
+        let guard = client.lock().await;
+        guard
+            .query_one("SELECT count(*) FROM hecks_journal_embryonaut WHERE aggregate_id = $1", &[&id])
+            .await
+            .unwrap()
+            .get(0)
+    }
+
+    #[tokio::test]
+    async fn disable_and_enable_routes_refuse_a_missing_or_invalid_session_and_a_blank_email() {
+        let secret = "s3cret";
+        let (client, domain_ir) = scratch_two_admins("hecks_host_web_test_disable_401").await;
+
+        let mut tampered = HashMap::new();
+        tampered.insert("lifeadelics_session".to_string(), "garbage.notasignature".to_string());
+        let body = json!({"email": "amy@example.com"}).to_string();
+        for disable in [true, false] {
+            for cookies in [HashMap::new(), tampered.clone()] {
+                let response = set_member_disabled_route(&domain_ir, &body, &cookies, secret, &client, &members_config(), disable).await;
+                assert_eq!(response["statusCode"], 401, "{response:?}");
+                assert!(response.get("headers").and_then(|h| h.get("location")).is_none(), "never a redirect: {response:?}");
+            }
+            for blank in ["", "   "] {
+                let response = switch_access(&client, &domain_ir, "zed@example.com", blank, disable).await;
+                assert_eq!(response["statusCode"], 400, "{blank:?}: {response:?}");
+            }
+        }
+        assert_eq!(person(&client, &domain_ir, "amy@example.com").await["disabled"], false, "nothing was written");
+    }
+
+    #[tokio::test]
+    async fn disable_and_enable_routes_refuse_a_caller_who_is_not_an_active_admin_with_a_403() {
+        let (client, domain_ir) = scratch_members_db("hecks_host_web_test_disable_403").await;
+
+        // amy is admitted with no role; the stranger was never admitted.
+        for caller in ["amy@example.com", "stranger@example.com"] {
+            for disable in [true, false] {
+                let response = switch_access(&client, &domain_ir, caller, "zed@example.com", disable).await;
+                assert_eq!(response["statusCode"], 403, "{caller}: {response:?}");
+                assert_eq!(error_of(&response), "admins only");
+            }
+        }
+        assert_eq!(person(&client, &domain_ir, "zed@example.com").await["granted"], true, "nothing was written");
+    }
+
+    #[tokio::test]
+    async fn disable_route_refuses_an_admin_disabling_themselves_in_any_case_and_writes_nothing() {
+        let (client, domain_ir) = scratch_two_admins("hecks_host_web_test_disable_self").await;
+        let before = journal_rows(&client, "zed@example.com").await;
+
+        for typed in ["zed@example.com", "  ZED@Example.com "] {
+            let response = switch_access(&client, &domain_ir, "zed@example.com", typed, true).await;
+            assert_eq!(response["statusCode"], 403, "{typed:?}: {response:?}");
+            assert_eq!(error_of(&response), "you can't disable your own admin access");
+        }
+        assert_eq!(person(&client, &domain_ir, "zed@example.com").await["granted"], true);
+        assert_eq!(journal_rows(&client, "zed@example.com").await, before);
+    }
+
+    #[tokio::test]
+    async fn disable_and_enable_routes_answer_404_for_an_unknown_email() {
+        let (client, domain_ir) = scratch_two_admins("hecks_host_web_test_disable_404").await;
+        for disable in [true, false] {
+            let response = switch_access(&client, &domain_ir, "zed@example.com", "nobody@example.com", disable).await;
+            assert_eq!(response["statusCode"], 404, "{response:?}");
+        }
+    }
+
+    #[tokio::test]
+    async fn disabling_keeps_the_role_ends_the_old_session_at_once_and_enabling_restores_it() {
+        let secret = "s3cret";
+        let (client, domain_ir) = scratch_two_admins("hecks_host_web_test_disable_enable").await;
+        let amy_cookies = session_cookies(secret, "amy@example.com");
+        let status = |response: &Value| response["statusCode"].as_i64().unwrap();
+        assert_eq!(status(&accounts_me_route(&domain_ir, &amy_cookies, secret, &client).await), 200);
+
+        let response = switch_access(&client, &domain_ir, "Zed@Example.com", " Amy@Example.com ", true).await;
+        assert_eq!(response["statusCode"], 200, "{response:?}");
+        let body: Value = serde_json::from_str(response["body"].as_str().unwrap()).unwrap();
+        assert_eq!(body, json!({"disabled": "amy@example.com"}));
+
+        // The person, role and identity fields stay; only the explicit flag flips.
+        let amy = person(&client, &domain_ir, "amy@example.com").await;
+        assert_eq!(amy["role"], "Admin", "the retained role still shows");
+        assert_eq!(amy["granted"], false);
+        assert_eq!(amy["disabled"], true);
+
+        // amy's cookie is still validly signed and unexpired, yet stops working now.
+        assert_eq!(status(&accounts_me_route(&domain_ir, &amy_cookies, secret, &client).await), 401);
+        assert_eq!(status(&accounts_sso_token_route(&domain_ir, &amy_cookies, secret, &client).await), 401);
+        assert_eq!(status(&members_route(&domain_ir, &amy_cookies, secret, &client).await), 401);
+        let add = add_member_route(&domain_ir, r#"{"email":"x@example.com","name":"X"}"#, &amy_cookies, secret, &client, Path::new("unused"), &members_config()).await;
+        assert_eq!(status(&add), 403);
+        assert_eq!(status(&switch_access(&client, &domain_ir, "amy@example.com", "zed@example.com", true).await), 403);
+        assert_eq!(person(&client, &domain_ir, "zed@example.com").await["granted"], true, "a disabled caller changed nothing");
+
+        // Disabling again is a 200 and writes nothing.
+        let rows = journal_rows(&client, "amy@example.com").await;
+        assert_eq!(status(&switch_access(&client, &domain_ir, "zed@example.com", "amy@example.com", true).await), 200);
+        assert_eq!(journal_rows(&client, "amy@example.com").await, rows);
+
+        // Enabling restores exactly the earlier access, and is idempotent too.
+        let response = switch_access(&client, &domain_ir, "zed@example.com", "amy@example.com", false).await;
+        assert_eq!(response["statusCode"], 200, "{response:?}");
+        let body: Value = serde_json::from_str(response["body"].as_str().unwrap()).unwrap();
+        assert_eq!(body, json!({"enabled": "amy@example.com"}));
+        let amy = person(&client, &domain_ir, "amy@example.com").await;
+        assert_eq!((amy["role"].as_str(), amy["granted"].clone(), amy["disabled"].clone()), (Some("Admin"), json!(true), json!(false)));
+        assert_eq!(status(&accounts_me_route(&domain_ir, &amy_cookies, secret, &client).await), 200);
+
+        let rows = journal_rows(&client, "amy@example.com").await;
+        assert_eq!(status(&switch_access(&client, &domain_ir, "zed@example.com", "amy@example.com", false).await), 200);
+        assert_eq!(journal_rows(&client, "amy@example.com").await, rows);
+    }
+
+    #[tokio::test]
+    async fn a_disabled_person_cannot_sign_in_again_and_an_enabled_one_can() {
+        let (client, domain_ir) = scratch_two_admins("hecks_host_web_test_disable_signin").await;
+
+        // zed holds identity id-1 in the seed; a fresh Google sign-in resolves through it.
+        assert!(auth::session_for_member_by_identity(&client, &domain_ir, "id-1").await.unwrap().is_some());
+        let disabled = switch_access(&client, &domain_ir, "amy@example.com", "zed@example.com", true).await;
+        assert_eq!(disabled["statusCode"], 200, "{disabled:?} amy={:?}", person(&client, &domain_ir, "amy@example.com").await);
+        assert!(auth::session_for_member_by_identity(&client, &domain_ir, "id-1").await.unwrap().is_none());
+        assert_eq!(switch_access(&client, &domain_ir, "amy@example.com", "zed@example.com", false).await["statusCode"], 200);
+        assert!(auth::session_for_member_by_identity(&client, &domain_ir, "id-1").await.unwrap().is_some());
+    }
+
+    #[tokio::test]
+    async fn two_admins_disabling_each_other_at_once_leave_exactly_one_active_admin() {
+        let (client, domain_ir) = scratch_two_admins("hecks_host_web_test_disable_race").await;
+        let config = members_config();
+
+        let (a, b) = tokio::join!(
+            auth::set_person_disabled(&client, &config, &domain_ir, "zed@example.com", "amy@example.com", true),
+            auth::set_person_disabled(&client, &config, &domain_ir, "amy@example.com", "zed@example.com", true),
+        );
+        let mut outcomes = [a.unwrap(), b.unwrap()];
+        outcomes.sort_by_key(|o| format!("{o:?}"));
+        assert_eq!(outcomes, [auth::DisableOutcome::CallerNotAdmin, auth::DisableOutcome::Done]);
+
+        let active = auth::all_people(&client, &domain_ir).await.unwrap().iter().filter(|p| p["role"] == "Admin" && p["granted"] == true).count();
+        assert_eq!(active, 1, "there must always be one active admin");
+    }
+
+    #[tokio::test]
+    async fn registrations_list_route_refuses_anyone_but_an_active_admin_before_reading_any_registration() {
+        let secret = "s3cret";
+        let (client, domain_ir) = scratch_two_admins("hecks_host_web_test_registrations_list_auth").await;
+        let config = LineageConfig { domain: "Lifeadelics".to_string(), era: Some(1), mirrored: None };
+        // The wasm path doesn't exist: every refusal below must come before any registration read.
+        let wasm_path = Path::new("does-not-exist.wasm");
+
+        let mut tampered = HashMap::new();
+        tampered.insert("lifeadelics_session".to_string(), "garbage.notasignature".to_string());
+        for cookies in [HashMap::new(), tampered] {
+            let response = registrations_list_route(&domain_ir, &cookies, secret, &client, wasm_path, &config).await;
+            assert_eq!(response["statusCode"], 401, "{response:?}");
+            assert!(response.get("headers").and_then(|h| h.get("location")).is_none(), "never a redirect: {response:?}");
+        }
+
+        // amy is a disabled admin now; the stranger was never admitted at all.
+        assert_eq!(switch_access(&client, &domain_ir, "zed@example.com", "amy@example.com", true).await["statusCode"], 200);
+        for caller in ["amy@example.com", "stranger@example.com"] {
+            let response = registrations_list_route(&domain_ir, &session_cookies(secret, caller), secret, &client, wasm_path, &config).await;
+            assert_eq!(response["statusCode"], 403, "{caller}: {response:?}");
+            assert_eq!(error_of(&response), "admins only");
+        }
+    }
+
+    #[test]
+    fn registration_list_rows_have_exactly_the_admin_list_shape_and_never_carry_health_or_payment_fields() {
+        let read = json!({"instances": {
+            "Lifeadelics::Registration#reg-old": {
+                "event_slug": "yoga-aug",
+                "created_at": "2026-09-01T10:00:00Z",
+                "attendee": {"first_name": " Ada ", "last_name": "Lovelace", "email": "ada@example.com", "news_signup": true,
+                             "phone": "555-0100", "medications": "SECRET-MEDICATION", "health_concerns": "SECRET-CONCERN"},
+            },
+            "Lifeadelics::Registration#reg-new": {
+                "event_slug": "yoga-sep",
+                "created_at": "2026-09-20T10:00:00Z",
+                "attendee": {"first_name": {"value": "Grace"}, "last_name": {"value": "Hopper"}, "email": {"value": "grace@example.com"}},
+                "amount": {"cents": 9900},
+            },
+            "Lifeadelics::Event#yoga-aug": {"name": {"value": "Yoga"}},
+            "Payments::Payment#reg-old": {"amount": {"cents": 12345}, "status": "succeeded"},
+        }});
+
+        let rows = registration_list_rows(&read, "Lifeadelics");
+        assert_eq!(
+            rows,
+            vec![
+                json!({"registration_id": "reg-new", "email": "grace@example.com", "name": "Grace Hopper", "event_slug": "yoga-sep", "news_signup": false}),
+                json!({"registration_id": "reg-old", "email": "ada@example.com", "name": "Ada Lovelace", "event_slug": "yoga-aug", "news_signup": true}),
+            ],
+            "newest first, plain values, news_signup defaulting to false"
+        );
+
+        let body = Value::Array(rows).to_string();
+        for leaked in ["SECRET-MEDICATION", "SECRET-CONCERN", "medications", "health_concerns", "555-0100", "12345", "9900", "succeeded", "amount"] {
+            assert!(!body.contains(leaked), "{leaked:?} leaked into the registration list: {body}");
+        }
+    }
+
+    #[test]
+    fn registration_list_rows_keep_read_order_without_timestamps_and_are_empty_with_no_registrations() {
+        let read = json!({"instances": {
+            "Lifeadelics::Registration#a": {"event_slug": "e", "attendee": {"name": "Flat Name", "email": "flat@example.com"}},
+        }});
+        let rows = registration_list_rows(&read, "Lifeadelics");
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0]["name"], "Flat Name", "falls back to a flat name when there is no first and last name");
+
+        assert_eq!(registration_list_rows(&json!({"instances": {}}), "Lifeadelics"), Vec::<Value>::new());
+        assert_eq!(registration_list_rows(&json!({}), "Lifeadelics"), Vec::<Value>::new());
+        let other_domain = json!({"instances": {"Elsewhere::Registration#x": {"attendee": {"email": "x@example.com"}}}});
+        assert!(registration_list_rows(&other_domain, "Lifeadelics").is_empty(), "another domain's registrations are not listed");
     }
 
     #[test]
