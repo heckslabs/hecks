@@ -23,48 +23,6 @@
     "routed": true
   },
   {
-    "kind": "command",
-    "id": "Payments::Payment.Refund",
-    "generated": true,
-    "routed": true
-  },
-  {
-    "kind": "command",
-    "id": "Payments::Payment.CompleteRefund",
-    "generated": true,
-    "routed": true
-  },
-  {
-    "kind": "command",
-    "id": "Payments::Payment.RecordPartialRefund",
-    "generated": true,
-    "routed": true
-  },
-  {
-    "kind": "command",
-    "id": "Payments::Payment.DeclineRefund",
-    "generated": true,
-    "routed": true
-  },
-  {
-    "kind": "command",
-    "id": "Payments::Payment.OpenDispute",
-    "generated": true,
-    "routed": true
-  },
-  {
-    "kind": "command",
-    "id": "Payments::Payment.WinDispute",
-    "generated": true,
-    "routed": true
-  },
-  {
-    "kind": "command",
-    "id": "Payments::Payment.Chargeback",
-    "generated": true,
-    "routed": true
-  },
-  {
     "kind": "port_operation",
     "id": "Payments::Payment.PaymentGateway.Succeeded",
     "generated": true,
@@ -77,56 +35,6 @@
     "routed": true
   },
   {
-    "kind": "port_operation",
-    "id": "Payments::Payment.PaymentGateway.Refunded",
-    "generated": true,
-    "routed": true
-  },
-  {
-    "kind": "port_operation",
-    "id": "Payments::Payment.PaymentGateway.RefundDeclined",
-    "generated": true,
-    "routed": true
-  },
-  {
-    "kind": "port_operation",
-    "id": "Payments::Payment.PaymentGateway.DisputeOpened",
-    "generated": true,
-    "routed": true
-  },
-  {
-    "kind": "port_operation",
-    "id": "Payments::Payment.PaymentGateway.DisputeWon",
-    "generated": true,
-    "routed": true
-  },
-  {
-    "kind": "port_operation",
-    "id": "Payments::Payment.PaymentGateway.DisputeLost",
-    "generated": true,
-    "routed": true
-  },
-  {
-    "kind": "query",
-    "id": "Payments::Payment.Status",
-    "generated": true
-  },
-  {
-    "kind": "query",
-    "id": "Payments::Payment.Pending",
-    "generated": true
-  },
-  {
-    "kind": "query",
-    "id": "Payments::Payment.Succeeded",
-    "generated": true
-  },
-  {
-    "kind": "query",
-    "id": "Payments::Payment.Failed",
-    "generated": true
-  },
-  {
     "kind": "policy",
     "id": "Payments::OnPaymentConfirmedByProcessor",
     "generated": true,
@@ -135,42 +43,6 @@
   {
     "kind": "policy",
     "id": "Payments::OnPaymentDeclinedByProcessor",
-    "generated": true,
-    "routed": true
-  },
-  {
-    "kind": "policy",
-    "id": "Payments::OnPaymentRefundConfirmedByProcessor",
-    "generated": true,
-    "routed": true
-  },
-  {
-    "kind": "policy",
-    "id": "Payments::OnPaymentRefundPartiallyConfirmedByProcessor",
-    "generated": true,
-    "routed": true
-  },
-  {
-    "kind": "policy",
-    "id": "Payments::OnPaymentRefundDeclinedByProcessor",
-    "generated": true,
-    "routed": true
-  },
-  {
-    "kind": "policy",
-    "id": "Payments::OnPaymentDisputeOpenedByProcessor",
-    "generated": true,
-    "routed": true
-  },
-  {
-    "kind": "policy",
-    "id": "Payments::OnPaymentDisputeWonByProcessor",
-    "generated": true,
-    "routed": true
-  },
-  {
-    "kind": "policy",
-    "id": "Payments::OnPaymentDisputeLostByProcessor",
     "generated": true,
     "routed": true
   }

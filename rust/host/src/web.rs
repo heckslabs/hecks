@@ -52,6 +52,16 @@ pub async fn render(
         raw_body.to_string()
     };
 
+    // Parsed here, once, rather than only below `checkout_enabled` — the
+    // newsletter confirm/unsubscribe routes (reached from an email link,
+    // never a JSON body) need `?email=...` before `route()`'s own later
+    // `auth_gate` check would ever run for them. Query strings are RFC
+    // 3986, not application/x-www-form-urlencoded: `+` is a literal
+    // plus. Google's OAuth `code` routinely contains `+`; treating it as
+    // space (HTML-form rules) breaks the token exchange and surfaces as
+    // `/login?error=google_failed`. Form bodies still use parse_form.
+    let query = parse_query(body.get("rawQueryString").and_then(|v| v.as_str()).unwrap_or(""));
+
     // **Checkout glue, opt-in by configuration** — `HECKS_CHECKOUT_DOMAIN`
     // names the domain whose Event/Registration aggregates (plus the
     // Payments::Payment chapter beside them) the checkout routes
@@ -67,6 +77,18 @@ pub async fn render(
     // FieldShape UI never sets HECKS_IR_PATH, and neither route needs a
     // domain_ir at all.
     if checkout_enabled(std::env::var("HECKS_CHECKOUT_DOMAIN").ok().as_deref(), &config.domain) {
+        // Guest-facing newsletter subscribe -- same gate as checkout
+        // (HECKS_CHECKOUT_DOMAIN), not a second env var: both are
+        // vendored embryonaut_bluebooks chapters loaded into the SAME
+        // Lifeadelics hecksagon (uses_embryonaut_bluebook "newsletter"),
+        // so "this is the real Lifeadelics deployment with guest routes
+        // on" is one fact, not two. Checked first, deliberately: it
+        // needs no Payments::Payment/Event context checkout_route's own
+        // routes carry, and public signup should never depend on
+        // checkout being reachable.
+        if let Some(response) = newsletter_route(method, path, &query, &raw_body, client, wasm_path, config, invoker).await {
+            return Some(response);
+        }
         let stripe_signature = body.get("headers").and_then(|h| h.get("stripe-signature")).and_then(|v| v.as_str()).unwrap_or("");
         if let Some(response) = checkout_route(method, path, &raw_body, stripe_signature, client, wasm_path, config, invoker).await {
             return Some(response);
@@ -77,11 +99,6 @@ pub async fn render(
         return Some(respond(500, "text/plain", "HECKS_IR_PATH not set or unreadable — this domain has no web layer configured"));
     };
 
-    // Query strings are RFC 3986, not application/x-www-form-urlencoded:
-    // `+` is a literal plus. Google's OAuth `code` routinely contains `+`;
-    // treating it as space (HTML-form rules) breaks the token exchange and
-    // surfaces as `/login?error=google_failed`. Form bodies still use parse_form.
-    let query = parse_query(body.get("rawQueryString").and_then(|v| v.as_str()).unwrap_or(""));
     let cookies = extract_cookies(body);
 
     Some(route(domain_ir, method, path, &query, &raw_body, &cookies, client, wasm_path, config, invoker).await)
@@ -319,26 +336,29 @@ async fn auth_route(
     match (method, path) {
         ("GET", "/login") => Some(html(200, &login_page(query.get("error").map(|s| s.as_str())))),
 
-        ("POST", "/logout") => Some(redirect_with_cookie("/login", "session=; Max-Age=0; Path=/; HttpOnly; Secure; SameSite=Lax")),
+        ("POST", "/logout") => Some(redirect_with_cookie("/login", &format!("session=; Max-Age=0{}", cookie_flags()))),
 
-        // Accounts::Account's own email+password admin login
-        // (lifeadelics/adapters/http_server.rb's POST /accounts/register,
-        // /accounts/login, /accounts/logout, GET /accounts/me -- ported
-        // behavior-for-behavior: same bcrypt hashing, same flat signed
-        // token via auth::account_token, same lifeadelics_session cookie
-        // name src/lib/adminAuth.ts already expects). Deliberately its
-        // own cookie, never Session/session_cookie above -- Accounts has
-        // no identity_id/role concept at all (accounts.bluebook's own
-        // vision), so there is no Governance session to reuse.
-        ("POST", "/accounts/register") => Some(accounts_register_route(raw_body, client, wasm_path, config, invoker).await),
-
-        ("POST", "/accounts/login") => Some(accounts_login_route(raw_body, secret, client, wasm_path).await),
-
+        // Accounts::Account's own email+password admin login used to be
+        // reachable here (POST /accounts/register, /accounts/login) --
+        // ported behavior-for-behavior from lifeadelics/adapters/
+        // http_server.rb, same bcrypt hashing, same flat signed token.
+        // DELIBERATELY REMOVED FROM ROUTING (Chris, 2026-09-23: "only
+        // admin access and the signup stuff on the site" -- no public
+        // account creation at all): the only real sign-in path is Google
+        // OAuth for an already-admitted Membership::Person (/auth/google
+        // below), and the only PUBLIC "signups" are the three guest
+        // actions the site forms already drive (newsletter subscribe,
+        // event registration, contact) -- none of which mints an
+        // Account. `accounts_register_route`/`accounts_login_route`
+        // stay defined (and unit-tested) below since Accounts::Account
+        // itself is unchanged -- only the HTTP door into it is closed;
+        // nothing in this codebase calls either route any more
+        // (confirmed: no caller in src/pages/**, grepped clean).
         ("POST", "/accounts/logout") => Some(respond_with_cookie(
             200,
             "application/json",
             r#"{"ok":true}"#,
-            "lifeadelics_session=; Max-Age=0; Path=/; HttpOnly; Secure; SameSite=Lax",
+            &format!("lifeadelics_session=; Max-Age=0{}", cookie_flags()),
         )),
 
         ("GET", "/accounts/me") => Some(accounts_me_route(cookies, secret)),
@@ -479,7 +499,7 @@ async fn accounts_login_route(raw_body: &str, secret: &str, client: &Mutex<Clien
     }
 
     let token = auth::account_token(secret, email, SESSION_TTL_SECS);
-    let cookie = format!("lifeadelics_session={token}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age={SESSION_TTL_SECS}");
+    let cookie = format!("lifeadelics_session={token}{}; Max-Age={SESSION_TTL_SECS}", cookie_flags());
     respond_with_cookie(200, "application/json", &json!({"email": email}).to_string(), &cookie)
 }
 
@@ -554,8 +574,25 @@ async fn google_callback(
     };
     let instances = read.get("instances").cloned().unwrap_or(json!({}));
 
-    let session = match auth::resolve_identity(&instances, &claims.issuer, &claims.subject) {
-        Some(identity_id) => auth::session_for_member_by_identity(client, domain_ir, &identity_id).await.unwrap_or(None),
+    // PostgresEra head first — Identity is not in the WASM journal.
+    // Journal `instances` is only a fallback for Lambda-era rows.
+    let identity_id = match auth::resolve_identity_from_head(client, domain_ir, &claims.issuer, &claims.subject).await {
+        Ok(found) => found,
+        Err(e) => {
+            eprintln!("google_callback: identity head: {e:#}");
+            None
+        }
+    };
+    let identity_id = identity_id.or_else(|| auth::resolve_identity(&instances, &claims.issuer, &claims.subject));
+
+    let session = match identity_id {
+        Some(ref identity_id) => match auth::session_for_member_by_identity(client, domain_ir, identity_id).await {
+            Ok(s) => s,
+            Err(e) => {
+                eprintln!("google_callback: member by identity: {e:#}");
+                None
+            }
+        },
         None => None,
     };
     let session = match session {
@@ -564,15 +601,44 @@ async fn google_callback(
             let email = claims.email.clone().unwrap_or_default();
             match auth::provision(client, wasm_path, config, domain_ir, &email, &claims.issuer, &claims.subject, invoker).await {
                 Ok(s) => s,
-                Err(_) => None,
+                Err(e) => {
+                    eprintln!("google_callback: provision: {e:#}");
+                    None
+                }
             }
         }
         None => None,
     };
 
     let Some(session) = session else { return redirect("/login?error=google_unlinked") };
-    let cookie = format!("session={}; Path=/; HttpOnly; Secure; SameSite=Lax", auth::session_cookie(secret, &session));
-    redirect_with_cookie("/", &cookie)
+
+    // The Lifeadelics admin (Astro) authenticates on `lifeadelics_session`,
+    // not rust/host's own Governance `session` cookie. Mint the same
+    // account_token /accounts/login already sets. Same origin (production):
+    // set the cookie here and send the browser to /admin.html. Different
+    // origin (local rust/host :4567 vs Astro :4321): a cookie on this
+    // response would never be sent to the site, so hand the token across
+    // on SITE_URL's own /api/google-handoff (60s, one redirect).
+    const SESSION_TTL_SECS: u64 = 60 * 60 * 24 * 14;
+    let site = std::env::var("SITE_URL").unwrap_or_else(|_| "http://localhost:4321".to_string());
+    let site = site.trim_end_matches('/');
+    let token = auth::account_token(secret, &session.email, SESSION_TTL_SECS);
+    if same_origin(site, &redirect_uri()) {
+        let cookie = format!("lifeadelics_session={token}{}; Max-Age={SESSION_TTL_SECS}", cookie_flags());
+        redirect_with_cookie("/admin.html", &cookie)
+    } else {
+        // One-redirect URL onto the Astro origin (local rust/host :4567 vs site :4321).
+        redirect(&format!("{}/api/google-handoff?token={}", site, auth::urlencode(&token)))
+    }
+}
+
+fn same_origin(a: &str, b: &str) -> bool {
+    origin_of(a) == origin_of(b)
+}
+
+fn origin_of(url: &str) -> String {
+    let rest = url.split_once("://").map(|(_, r)| r).unwrap_or(url);
+    rest.split('/').next().unwrap_or(rest).to_string()
 }
 
 const ERROR_MESSAGES: &[(&str, &str)] = &[
@@ -1483,12 +1549,456 @@ async fn checkout_route(
         ("POST", "/registrations") => {
             Some(registrations_route(raw_body, &stripe_api_key(), checkout_processor(), &site_url(), client, wasm_path, config, invoker).await)
         }
+        // GET /registrations/:id — read-only, re-derives the truth
+        // (http_server.rb's own GET /registrations/:id comment: "never
+        // trust a client-held value") for registration-confirmed.astro
+        // and src/pages/pay/[registrationId].astro, both of which fetch
+        // this server-to-server rather than trusting their own query
+        // string/URL. PHI fields (medications/health_concerns) stay off
+        // this response the same way http_server.rb's own route omits
+        // them — no read-gate/redaction exists here yet to let an
+        // authorized caller see them unmasked, so they're simply never
+        // serialized.
+        ("GET", path) if path.starts_with("/registrations/") && !path.ends_with("/complete") => {
+            let registration_id = path.trim_start_matches("/registrations/");
+            Some(registration_show_route(registration_id, client, wasm_path, config).await)
+        }
+        // POST /registrations/:id/complete — LocalCheckout's own
+        // "Pay"/"Cancel" button (src/pages/pay/[registrationId].astro),
+        // reached only when checkout is genuinely bound to the mock
+        // adapter (an empty stripe_api_key — this module's own
+        // `checkout_processor` derives both facts from the same source,
+        // never a second independently-settable flag). Settles the
+        // Payment through the SAME PaymentGateway port POST
+        // /webhooks/stripe uses — never a parallel, untested way to
+        // reach the same two states.
+        ("POST", path) if path.starts_with("/registrations/") && path.ends_with("/complete") => {
+            let registration_id = path.trim_start_matches("/registrations/").trim_end_matches("/complete").trim_end_matches('/');
+            Some(registration_complete_route(registration_id, raw_body, checkout_processor(), client, wasm_path, config, invoker).await)
+        }
         ("POST", "/webhooks/stripe") => {
             let processor = checkout_processor();
             Some(webhook_route(raw_body, stripe_signature, &stripe_webhook_secret(processor), processor, client, wasm_path, config, invoker).await)
         }
+        // POST /events — mock_payments/ (a separate service, its own
+        // bluebook) DRIVING IN: puts a new session on the calendar
+        // whenever a CMS editor picks a date on an Experience with Stripe
+        // Checkout on (cms/src/collections/hooks/provisionSession.ts).
+        // Ported field-for-field from http_server.rb's own POST /events —
+        // never had a rust/host counterpart at all until now (found live:
+        // mock_payments successfully reaches this host over the shared
+        // ECS task network, but every real POST /events 302'd/404'd
+        // against it, because no route recognized the path). Idempotent
+        // on purpose, same reasoning as the Ruby route's own comment:
+        // mock_payments already guards against calling this twice for the
+        // same slug (its own Session ledger), but a driving endpoint
+        // shouldn't rely on every caller getting that right — Event.find
+        // first means a repeat call is a no-op, not a duplicate-id error.
+        ("POST", "/events") => Some(events_route(raw_body, client, wasm_path, config, invoker).await),
         _ => None,
     }
+}
+
+/// POST /events — see checkout_route's own match arm for the full
+/// reasoning. `config.domain`-qualified ("Lifeadelics::Event.Schedule"),
+/// same as registrations_route's own `Registration.Request` — Event is
+/// this deploy's own top-level aggregate, never a vendored chapter like
+/// Payments/Newsletter.
+async fn events_route(raw_body: &str, client: &Mutex<Client>, wasm_path: &Path, config: &LineageConfig, invoker: &dyn LambdaInvoker) -> Value {
+    let body: Value = match serde_json::from_str(raw_body) {
+        Ok(v) => v,
+        Err(e) => return respond(400, "application/json", &json!({"error": format!("invalid JSON: {e}")}).to_string()),
+    };
+    let Some(slug) = body.get("slug").and_then(|v| v.as_str()) else {
+        return respond(400, "application/json", &json!({"error": "missing slug"}).to_string());
+    };
+
+    let read = match dispatch::read(client, wasm_path).await {
+        Ok(r) => r,
+        Err(e) => return respond(500, "text/plain", &format!("{e:#}")),
+    };
+    let events = instances_for(&read, &format!("{}::Event#", config.domain));
+    if let Some((_, existing)) = events.iter().find(|(id, _)| id == slug) {
+        return respond(200, "application/json", &serde_json::to_string_pretty(&with_id(slug, existing)).unwrap_or_default());
+    }
+
+    let Some(name) = body.get("name").and_then(|v| v.as_str()) else {
+        return respond(400, "application/json", &json!({"error": "missing name"}).to_string());
+    };
+    let Some(price_cents) = body.get("price_cents").and_then(|v| v.as_i64()) else {
+        return respond(400, "application/json", &json!({"error": "missing price_cents"}).to_string());
+    };
+    let Some(capacity) = body.get("capacity").and_then(|v| v.as_i64()) else {
+        return respond(400, "application/json", &json!({"error": "missing capacity"}).to_string());
+    };
+
+    let args = json!({
+        "slug": {"value": slug},
+        "name": {"value": name},
+        "price": {"cents": price_cents},
+        "capacity": {"value": capacity},
+    });
+    let verb = format!("{}::Event.Schedule", config.domain);
+    let outcome = match dispatch::handle(client, wasm_path, &verb, args, None, config, invoker).await {
+        Ok(o) => o,
+        Err(e) => return respond(500, "text/plain", &format!("{e:#}")),
+    };
+    if !outcome.accepted {
+        return respond(422, "application/json", &last_refusal(&outcome.result).to_string());
+    }
+
+    let read = match dispatch::read(client, wasm_path).await {
+        Ok(r) => r,
+        Err(e) => return respond(500, "text/plain", &format!("{e:#}")),
+    };
+    let events = instances_for(&read, &format!("{}::Event#", config.domain));
+    let Some((_, event)) = events.iter().find(|(id, _)| id == slug) else {
+        return respond(500, "text/plain", "event vanished immediately after being scheduled");
+    };
+    respond(201, "application/json", &serde_json::to_string_pretty(&with_id(slug, event)).unwrap_or_default())
+}
+
+/// GET /registrations/:id's own shape, ported field-for-field from
+/// http_server.rb's own route: event slug/name, attendee's own public
+/// fields, amount_cents and payment_status from the SAME-reference
+/// Payment (registrations_route's own header: registration_id IS the
+/// Payment's own reference, minted once).
+async fn registration_show_route(registration_id: &str, client: &Mutex<Client>, wasm_path: &Path, config: &LineageConfig) -> Value {
+    let read = match dispatch::read(client, wasm_path).await {
+        Ok(r) => r,
+        Err(e) => return respond(500, "text/plain", &format!("{e:#}")),
+    };
+    let registrations = instances_for(&read, &format!("{}::Registration#", config.domain));
+    let Some((_, registration)) = registrations.iter().find(|(id, _)| id == registration_id) else {
+        return respond(404, "application/json", &json!({"error": "no such registration"}).to_string());
+    };
+    let event_slug = registration.get("event_slug").and_then(|v| v.as_str());
+    let events = instances_for(&read, &format!("{}::Event#", config.domain));
+    let event = event_slug.and_then(|slug| events.iter().find(|(id, _)| id == slug)).map(|(_, e)| e);
+
+    let payments = instances_for(&read, "Payments::Payment#");
+    let payment = payments.iter().find(|(id, _)| id == registration_id).map(|(_, p)| p);
+
+    let attendee = registration.get("attendee").cloned().unwrap_or_else(|| json!({}));
+    respond(200, "application/json", &json!({
+        "registration_id": registration_id,
+        "event": {
+            "slug": event_slug,
+            "name": event.and_then(|e| e.get("name")).and_then(|n| n.get("value")).and_then(|v| v.as_str()),
+        },
+        "attendee": {
+            "first_name": attendee.get("first_name"),
+            "last_name": attendee.get("last_name"),
+            "email": attendee.get("email"),
+            "phone": attendee.get("phone"),
+        },
+        "amount_cents": payment.and_then(|p| p.get("amount")).and_then(|a| a.get("cents")),
+        "payment_status": payment.and_then(|p| p.get("status")),
+    }).to_string())
+}
+
+/// POST /registrations/:id/complete — refused outright unless LocalCheckout
+/// (mock_stripe) is actually bound, same guard http_server.rb's own route
+/// carries. Settles the shared-reference Payment through the same
+/// PaymentGateway.Succeeded/Failed port webhook_route already dispatches
+/// through — a repeat call on an already-settled Payment is the same
+/// benign no-op webhook_route's own header already documents.
+async fn registration_complete_route(
+    registration_id: &str,
+    raw_body: &str,
+    processor: &str,
+    client: &Mutex<Client>,
+    wasm_path: &Path,
+    config: &LineageConfig,
+    invoker: &dyn LambdaInvoker,
+) -> Value {
+    if processor != "mock_stripe" {
+        return respond(403, "application/json", &json!({"error": "not available with a real payment processor bound"}).to_string());
+    }
+    let body: Value = match serde_json::from_str(raw_body) {
+        Ok(v) => v,
+        Err(e) => return respond(400, "application/json", &json!({"error": format!("invalid JSON: {e}")}).to_string()),
+    };
+    let Some(outcome) = body.get("outcome").and_then(|v| v.as_str()) else {
+        return respond(400, "application/json", &json!({"error": "missing outcome"}).to_string());
+    };
+    if outcome != "succeeded" && outcome != "failed" {
+        return respond(400, "application/json", &json!({"error": "outcome must be \"succeeded\" or \"failed\""}).to_string());
+    }
+
+    let read = match dispatch::read(client, wasm_path).await {
+        Ok(r) => r,
+        Err(e) => return respond(500, "text/plain", &format!("{e:#}")),
+    };
+    let registrations = instances_for(&read, &format!("{}::Registration#", config.domain));
+    if !registrations.iter().any(|(id, _)| id == registration_id) {
+        return respond(404, "application/json", &json!({"error": "no such registration"}).to_string());
+    }
+
+    let reported_processor = json!({"value": processor});
+    // `reference_to Payment, as: :reference` keeps the receiver field inside
+    // `with:` (routing.rs's own "Field Retention" comment) so the command's
+    // argument parser can still see it — `to:` alone isn't enough, the kernel
+    // still expects `reference` present in facts or it TypeMismatches.
+    let reference_fact = json!({"value": registration_id});
+    let (verb, facts) = if outcome == "succeeded" {
+        (
+            "Payments::Payment.PaymentGateway.Succeeded",
+            json!({"reference": reference_fact, "transaction_id": {"value": format!("local_{}", uuid::Uuid::new_v4().simple())}, "reported_processor": reported_processor}),
+        )
+    } else {
+        (
+            "Payments::Payment.PaymentGateway.Failed",
+            json!({"reference": reference_fact, "reason": {"value": "declined_at_local_checkout"}, "reported_processor": reported_processor}),
+        )
+    };
+    let outcome_result = match dispatch::handle_routed(client, wasm_path, verb, json!(registration_id), facts, None, config, invoker).await {
+        Ok(o) => o,
+        Err(e) => return respond(500, "text/plain", &format!("{e:#}")),
+    };
+    // A repeat Succeeded/Failed through the same PaymentGateway port on
+    // an already-settled Payment is a silent no-op on Payment's own
+    // `given` (webhook_route's own header on this exact case) — not
+    // surfaced as a 422 here either, same reasoning.
+    if !outcome_result.accepted {
+        let refusal = last_refusal(&outcome_result.result);
+        let already_settled = refusal.get("error").and_then(|v| v.as_str()).map(|s| s.contains("pending")).unwrap_or(false);
+        if !already_settled {
+            return respond(422, "application/json", &refusal.to_string());
+        }
+    }
+
+    let read = match dispatch::read(client, wasm_path).await {
+        Ok(r) => r,
+        Err(e) => return respond(500, "text/plain", &format!("{e:#}")),
+    };
+    let payments = instances_for(&read, "Payments::Payment#");
+    let status = payments.iter().find(|(id, _)| id == registration_id).and_then(|(_, p)| p.get("status")).and_then(|v| v.as_str()).unwrap_or("");
+    respond(200, "application/json", &json!({"registration_id": registration_id, "payment_status": status}).to_string())
+}
+
+// ---- newsletter: guest-facing subscribe/confirm/unsubscribe, admin
+// listing ----------------------------------------------------------
+// Ported from http_server.rb's own POST /newsletter/subscribers, GET
+// /newsletter/subscribers, GET /newsletter/subscribers/confirm, and GET
+// /newsletter/subscribers/unsubscribe. Confirm/unsubscribe were NOT
+// ported when this module was first written ("stay Ruby-only for now,
+// reached through LIFEADELICS_DOMAIN_SERVICE_URL pointing at the Ruby
+// process in whichever environment still runs it") — a real gap, since
+// production runs THIS host exclusively, with no Ruby fallback at all:
+// confirmed live, every real unsubscribe link 401'd ("sign in first",
+// auth_gate's own refusal — these two paths fell through to it since
+// nothing here recognized them, and neither is in UNGATED_PATHS), never
+// so much as reaching a "no such subscriber" 404. Same match-arm
+// ordering concern http_server.rb's own comment on this exact pair
+// flags for Sinatra (declared before a generic /:email route so
+// "confirm"/"unsubscribe" can't be treated as an email) doesn't apply
+// here — Rust match on an exact (method, path) tuple has no such
+// prefix/wildcard ambiguity to order around.
+async fn newsletter_route(
+    method: &str,
+    path: &str,
+    query: &HashMap<String, String>,
+    raw_body: &str,
+    client: &Mutex<Client>,
+    wasm_path: &Path,
+    config: &LineageConfig,
+    invoker: &dyn LambdaInvoker,
+) -> Option<Value> {
+    match (method, path) {
+        ("POST", "/newsletter/subscribers") => Some(newsletter_subscribe_route(raw_body, client, wasm_path, config, invoker).await),
+        ("GET", "/newsletter/subscribers") => Some(newsletter_subscribers_list_route(client, wasm_path).await),
+        ("GET", "/newsletter/subscribers/confirm") => Some(newsletter_confirm_route(query, client, wasm_path, config, invoker).await),
+        ("GET", "/newsletter/subscribers/unsubscribe") => Some(newsletter_unsubscribe_route(query, client, wasm_path, config, invoker).await),
+        _ => None,
+    }
+}
+
+/// POST /newsletter/subscribers — Subscribe on a new email, AddName on a
+/// returning one (the two-step public signup form's own step
+/// 1/step 2 — NewsletterSubscribeForm.astro's own header has the full
+/// reasoning), Confirm dispatched right after either path since a
+/// freshly-subscribed record always starts `pending` and this project's
+/// own newsletter has no real double opt-in yet (subscriber.bluebook's
+/// own "no signed token" gap, carried over unchanged from Ruby's route).
+async fn newsletter_subscribe_route(
+    raw_body: &str,
+    client: &Mutex<Client>,
+    wasm_path: &Path,
+    config: &LineageConfig,
+    invoker: &dyn LambdaInvoker,
+) -> Value {
+    let body: Value = match serde_json::from_str(raw_body) {
+        Ok(v) => v,
+        Err(e) => return respond(400, "application/json", &json!({"error": format!("invalid JSON: {e}")}).to_string()),
+    };
+    let Some(email) = body.get("email").and_then(|v| v.as_str()) else {
+        return respond(400, "application/json", &json!({"error": "email"}).to_string());
+    };
+    let first_name = body.get("first_name").and_then(|v| v.as_str()).filter(|s| !s.is_empty());
+    let last_name = body.get("last_name").and_then(|v| v.as_str()).filter(|s| !s.is_empty());
+
+    let read = match dispatch::read(client, wasm_path).await {
+        Ok(r) => r,
+        Err(e) => return respond(500, "text/plain", &format!("{e:#}")),
+    };
+    let existing = instances_for(&read, "Newsletter::Subscriber#").iter().any(|(id, _)| id == email);
+
+    if existing {
+        if let (Some(first), Some(last)) = (first_name, last_name) {
+            let facts = json!({"first_name": {"value": first}, "last_name": {"value": last}});
+            if let Err(e) = dispatch::handle_routed(client, wasm_path, "Newsletter::Subscriber.AddName", json!(email), facts, None, config, invoker).await {
+                return respond(500, "text/plain", &format!("{e:#}"));
+            }
+        }
+    } else {
+        let mut facts = json!({"email": {"value": email}});
+        if let Some(first) = first_name {
+            facts["first_name"] = json!({"value": first});
+        }
+        if let Some(last) = last_name {
+            facts["last_name"] = json!({"value": last});
+        }
+        let outcome = match dispatch::handle_facts(client, wasm_path, "Newsletter::Subscriber.Subscribe", facts, None, config, invoker).await {
+            Ok(o) => o,
+            Err(e) => return respond(500, "text/plain", &format!("{e:#}")),
+        };
+        if !outcome.accepted {
+            return respond(422, "application/json", &last_refusal(&outcome.result).to_string());
+        }
+    }
+
+    // Confirm right after — a pending subscriber always exists at this
+    // point on the fresh-Subscribe path; on the AddName path it may
+    // already be confirmed (a returning subscriber filling in their
+    // name), so Confirm only dispatches when it's actually pending,
+    // same idempotency reasoning http_server.rb's own route already
+    // follows (Confirm's own `given` refuses a second attempt outright).
+    let read = match dispatch::read(client, wasm_path).await {
+        Ok(r) => r,
+        Err(e) => return respond(500, "text/plain", &format!("{e:#}")),
+    };
+    let subscribers = instances_for(&read, "Newsletter::Subscriber#");
+    let Some((_, subscriber)) = subscribers.iter().find(|(id, _)| id == email) else {
+        return respond(500, "text/plain", "subscriber vanished immediately after being written");
+    };
+    if subscriber.get("status").and_then(|v| v.as_str()) == Some("pending") {
+        if let Err(e) = dispatch::handle_routed(client, wasm_path, "Newsletter::Subscriber.Confirm", json!(email), json!({}), None, config, invoker).await {
+            return respond(500, "text/plain", &format!("{e:#}"));
+        }
+    }
+
+    let read = match dispatch::read(client, wasm_path).await {
+        Ok(r) => r,
+        Err(e) => return respond(500, "text/plain", &format!("{e:#}")),
+    };
+    let subscribers = instances_for(&read, "Newsletter::Subscriber#");
+    let status = subscribers.iter().find(|(id, _)| id == email).and_then(|(_, s)| s.get("status")).and_then(|v| v.as_str()).unwrap_or("pending");
+    respond(200, "application/json", &json!({"email": email, "status": status}).to_string())
+}
+
+/// GET /newsletter/subscribers — every subscriber, alphabetically by
+/// email (Newsletter::Subscriber.Listing's own declared order) — the
+/// admin overview/Users pages' own read. Read directly off `instances`
+/// rather than `dispatch::query` (which would need the qualified
+/// question name resolved against `config.domain`, but Subscriber lives
+/// under "Newsletter", not `config.domain` -- same cross-chapter
+/// reasoning `instances_for(&read, "Payments::Payment#")` above already
+/// follows for reading Payment).
+async fn newsletter_subscribers_list_route(client: &Mutex<Client>, wasm_path: &Path) -> Value {
+    let read = match dispatch::read(client, wasm_path).await {
+        Ok(r) => r,
+        Err(e) => return respond(500, "text/plain", &format!("{e:#}")),
+    };
+    let mut subscribers: Vec<Value> = instances_for(&read, "Newsletter::Subscriber#")
+        .into_iter()
+        .map(|(email, s)| {
+            json!({
+                "email": email,
+                "status": s.get("status"),
+                "first_name": s.get("first_name").and_then(|v| v.get("value")),
+                "last_name": s.get("last_name").and_then(|v| v.get("value")),
+            })
+        })
+        .collect();
+    subscribers.sort_by(|a, b| a["email"].as_str().unwrap_or("").cmp(b["email"].as_str().unwrap_or("")));
+    respond(200, "application/json", &json!(subscribers).to_string())
+}
+
+/// GET /newsletter/subscribers/confirm?email=... — ported field-for-field
+/// from http_server.rb's own route. NO SIGNED TOKEN, matching that
+/// route's own known, flagged gap (subscriber.bluebook's own header):
+/// anyone who knows an email can confirm it. Idempotent the same way —
+/// Confirm only dispatches when the subscriber is actually `pending`
+/// (its own `given` refuses a second attempt outright), so a guest
+/// double-clicking, or a mail client prefetching the link, still lands
+/// on the same success response instead of a 422.
+async fn newsletter_confirm_route(query: &HashMap<String, String>, client: &Mutex<Client>, wasm_path: &Path, config: &LineageConfig, invoker: &dyn LambdaInvoker) -> Value {
+    let Some(email) = query.get("email") else {
+        return respond(400, "application/json", &json!({"error": "email"}).to_string());
+    };
+
+    let read = match dispatch::read(client, wasm_path).await {
+        Ok(r) => r,
+        Err(e) => return respond(500, "text/plain", &format!("{e:#}")),
+    };
+    let subscribers = instances_for(&read, "Newsletter::Subscriber#");
+    let Some((_, subscriber)) = subscribers.iter().find(|(id, _)| id == email) else {
+        return respond(404, "application/json", &json!({"error": "no such subscriber"}).to_string());
+    };
+
+    if subscriber.get("status").and_then(|v| v.as_str()) == Some("pending") {
+        if let Err(e) = dispatch::handle_routed(client, wasm_path, "Newsletter::Subscriber.Confirm", json!(email), json!({}), None, config, invoker).await {
+            return respond(500, "text/plain", &format!("{e:#}"));
+        }
+    }
+
+    let read = match dispatch::read(client, wasm_path).await {
+        Ok(r) => r,
+        Err(e) => return respond(500, "text/plain", &format!("{e:#}")),
+    };
+    let subscribers = instances_for(&read, "Newsletter::Subscriber#");
+    let status = subscribers.iter().find(|(id, _)| id == email).and_then(|(_, s)| s.get("status")).and_then(|v| v.as_str()).unwrap_or("pending");
+    respond(200, "application/json", &json!({"email": email, "status": status}).to_string())
+}
+
+/// GET /newsletter/subscribers/unsubscribe?email=... — same shape as
+/// newsletter_confirm_route above, ported from http_server.rb's own
+/// route (same "no signed token" gap, same idempotency reasoning:
+/// Unsubscribe's own `given` only accepts a pending or confirmed
+/// subscriber, so a repeat click on an already-unsubscribed row would
+/// otherwise 422 instead of showing the same success page). This is the
+/// one newsletter-unsubscribed.astro's own server-side fetch calls —
+/// unreachable before this route existed (confirmed live: fell through
+/// to auth_gate's 401, never a 404, since neither this path nor
+/// /confirm was in UNGATED_PATHS and nothing recognized either one).
+async fn newsletter_unsubscribe_route(query: &HashMap<String, String>, client: &Mutex<Client>, wasm_path: &Path, config: &LineageConfig, invoker: &dyn LambdaInvoker) -> Value {
+    let Some(email) = query.get("email") else {
+        return respond(400, "application/json", &json!({"error": "email"}).to_string());
+    };
+
+    let read = match dispatch::read(client, wasm_path).await {
+        Ok(r) => r,
+        Err(e) => return respond(500, "text/plain", &format!("{e:#}")),
+    };
+    let subscribers = instances_for(&read, "Newsletter::Subscriber#");
+    let Some((_, subscriber)) = subscribers.iter().find(|(id, _)| id == email) else {
+        return respond(404, "application/json", &json!({"error": "no such subscriber"}).to_string());
+    };
+
+    if subscriber.get("status").and_then(|v| v.as_str()) != Some("unsubscribed") {
+        if let Err(e) = dispatch::handle_routed(client, wasm_path, "Newsletter::Subscriber.Unsubscribe", json!(email), json!({}), None, config, invoker).await {
+            return respond(500, "text/plain", &format!("{e:#}"));
+        }
+    }
+
+    let read = match dispatch::read(client, wasm_path).await {
+        Ok(r) => r,
+        Err(e) => return respond(500, "text/plain", &format!("{e:#}")),
+    };
+    let subscribers = instances_for(&read, "Newsletter::Subscriber#");
+    let status = subscribers.iter().find(|(id, _)| id == email).and_then(|(_, s)| s.get("status")).and_then(|v| v.as_str()).unwrap_or("pending");
+    respond(200, "application/json", &json!({"email": email, "status": status}).to_string())
 }
 
 // Whatever shape a consuming domain's own `Attendee` value object
@@ -1624,21 +2134,32 @@ async fn registrations_route(
     }
 
     // A GUEST-SUPPLIED PATH, NEVER TRUSTED RAW -- `return_to` rides
-    // straight into the redirect a browser follows after checkout. A
-    // value like "https://evil.example" or "//evil.example" (protocol-
+    // through as a query param on registration-confirmed.html's own URL
+    // (http_server.rb's own POST /registrations comment: `/#{event.id}.
+    // html?registered=...` was dead code, since the frontend never read
+    // `registered` and event.id is the Event's own slug, not the
+    // Experience's CMS slug [slug].astro looks up -- 404ing on landing).
+    // A value like "https://evil.example" or "//evil.example" (protocol-
     // relative -- no scheme, but still an absolute redirect in a
     // browser) would turn this into an open redirect if interpolated
-    // as-is. Restricting it to "starts with exactly one leading slash"
-    // keeps it a same-site path no matter what a caller sends; anything
-    // else -- including no return_to at all, for a caller that never
-    // sends one -- falls back to the event's own page, this route's
-    // original behavior before return_to existed.
+    // as-is; `safe_return_to`'s own "starts with exactly one leading
+    // slash" check keeps it a same-site path no matter what a caller
+    // sends, falling back to "/" -- never the event's own page --
+    // exactly like `safe_return_to`'s own Ruby original.
     let return_to = match body.get("return_to").and_then(|v| v.as_str()) {
         Some(path) if path.starts_with('/') && !path.starts_with("//") => path.to_string(),
-        _ => format!("/{event_slug}.html"),
+        _ => "/".to_string(),
     };
-    let success_url = format!("{site_url}{return_to}?registered=1");
-    let cancel_url = format!("{site_url}{return_to}?registered=0");
+    let confirm_query = |outcome: &str| -> String {
+        let mut url = reqwest::Url::parse("http://placeholder.invalid/").unwrap();
+        url.query_pairs_mut()
+            .append_pair("registration_id", &reference)
+            .append_pair("outcome", outcome)
+            .append_pair("return_to", &return_to);
+        url.query().unwrap_or("").to_string()
+    };
+    let success_url = format!("{site_url}/registration-confirmed.html?{}", confirm_query("succeeded"));
+    let cancel_url = format!("{site_url}/registration-confirmed.html?{}", confirm_query("cancelled"));
 
     // **Mock, not an error** — an empty `api_key` means checkout is
     // genuinely bound to the mock adapter (this route's own header,
@@ -1647,7 +2168,7 @@ async fn registrations_route(
     // environment except a real deploy — never a misconfiguration to
     // refuse.
     if api_key.is_empty() {
-        let checkout_url = checkout::mock_checkout_session(&reference, &success_url);
+        let checkout_url = checkout::mock_checkout_session(&reference, &success_url, &cancel_url, site_url);
         return respond(200, "application/json", &json!({"checkout_url": checkout_url, "registration_id": reference}).to_string());
     }
 
@@ -1697,6 +2218,11 @@ async fn webhook_route(
         // turned that into a silent 200 with the payment left pending.
         // Found wiring these tests to spec/fixtures/rust_host/
         // checkout_fixture. `to` is the bare reference string.
+        // `reference` is ALSO kept inside `with:` (routing.rs's own "Field
+        // Retention" comment for port operations) — `to:` alone doesn't
+        // satisfy the `reference_to Payment, as: :reference` declaration,
+        // which the argument parser still expects to find in facts.
+        let reference_fact = json!({"value": reference.clone()});
         let verb_and_facts = match event_type {
             "checkout.session.completed" => {
                 // Checkout's own PaymentIntent id when one exists (every
@@ -1710,11 +2236,13 @@ async fn webhook_route(
                     .unwrap_or("")
                     .to_string();
                 Some(("Payments::Payment.PaymentGateway.Succeeded", json!({
+                    "reference": reference_fact,
                     "transaction_id": {"value": transaction_id},
                     "reported_processor": reported_processor,
                 })))
             }
             "checkout.session.expired" => Some(("Payments::Payment.PaymentGateway.Failed", json!({
+                "reference": reference_fact,
                 "reason": {"value": "checkout_expired"},
                 "reported_processor": reported_processor,
             }))),
@@ -1995,6 +2523,19 @@ fn html(status: u16, body: &str) -> Value {
 
 fn redirect(location: &str) -> Value {
     json!({"statusCode": 302, "headers": {"location": location}, "body": "", "isBase64Encoded": false})
+}
+
+// HttpOnly + SameSite always. Secure only when the registered OAuth
+// redirect is https — a localhost http:// callback cannot set a Secure
+// cookie, and the URI is already the source of truth for that (same env
+// rust/host uses for the handshake). Not a deploy-time flag.
+fn cookie_flags() -> &'static str {
+    let uri = std::env::var("GOOGLE_REDIRECT_URI").unwrap_or_default();
+    if uri.starts_with("http://") {
+        "; Path=/; HttpOnly; SameSite=Lax"
+    } else {
+        "; Path=/; HttpOnly; Secure; SameSite=Lax"
+    }
 }
 
 fn redirect_with_cookie(location: &str, cookie: &str) -> Value {
@@ -2756,6 +3297,94 @@ mod tests {
         assert_eq!(response["statusCode"], 400);
     }
 
+    // ---- events_route: POST /events, mock_payments/'s own driving call --
+    // http_server.rb's own POST /events, ported field-for-field (this
+    // route's own header has the full "found live" story: mock_payments
+    // could already reach this host over the shared ECS task network,
+    // but every real call 404'd/302'd since no route recognized the path
+    // at all until now).
+
+    #[tokio::test]
+    async fn events_route_refuses_invalid_json_outright() {
+        let client = scratch_db("hecks_host_web_test_events_bad_json").await;
+        provision_lineage(&*client.lock().await, "CheckoutFixture", 1, &["Event", "Registration", "Payment"]).await;
+
+        let response = events_route("not json", &client, &checkout_wasm_path(), &checkout_config(1), &lambda_client::NeverInvoker).await;
+        assert_eq!(response["statusCode"], 400);
+    }
+
+    #[tokio::test]
+    async fn events_route_refuses_a_body_missing_any_required_field() {
+        let client = scratch_db("hecks_host_web_test_events_missing_fields").await;
+        provision_lineage(&*client.lock().await, "CheckoutFixture", 1, &["Event", "Registration", "Payment"]).await;
+
+        let response = events_route(r#"{"slug":"new-event"}"#, &client, &checkout_wasm_path(), &checkout_config(1), &lambda_client::NeverInvoker).await;
+        assert_eq!(response["statusCode"], 400);
+        assert!(response["body"].as_str().unwrap().contains("missing name"));
+    }
+
+    #[tokio::test]
+    async fn events_route_schedules_a_new_event_and_returns_201() {
+        let client = scratch_db("hecks_host_web_test_events_new").await;
+        provision_lineage(&*client.lock().await, "CheckoutFixture", 1, &["Event", "Registration", "Payment"]).await;
+        let config = checkout_config(1);
+        let wasm_path = checkout_wasm_path();
+
+        let body = json!({"slug": "mock-payments-event", "name": "Mock Payments Event", "price_cents": 4200, "capacity": 20}).to_string();
+        let response = events_route(&body, &client, &wasm_path, &config, &lambda_client::NeverInvoker).await;
+        assert_eq!(response["statusCode"], 201, "{response:?}");
+        let response_body: Value = serde_json::from_str(response["body"].as_str().unwrap()).unwrap();
+        assert_eq!(response_body["slug"]["value"], "mock-payments-event");
+        assert_eq!(response_body["name"]["value"], "Mock Payments Event");
+        assert_eq!(response_body["price"]["cents"], 4200);
+        assert_eq!(response_body["capacity"]["value"], 20);
+        assert_eq!(response_body["status"], "open");
+
+        let read = dispatch::read(&client, &wasm_path).await.unwrap();
+        let instances = read["instances"].as_object().unwrap();
+        assert!(
+            instances.keys().any(|k| k == "CheckoutFixture::Event#mock-payments-event"),
+            "Event.Schedule should have committed for real: {instances:?}"
+        );
+    }
+
+    // Idempotent by construction (this route's own header) — a repeat
+    // call for the same slug is a 200 no-op returning the EXISTING
+    // event's own state, never a second Event.Schedule dispatch (which
+    // would refuse outright on the duplicate identity anyway, but this
+    // route never even reaches that dispatch on the repeat).
+    #[tokio::test]
+    async fn events_route_is_idempotent_on_a_repeat_slug() {
+        let client = scratch_db("hecks_host_web_test_events_idempotent").await;
+        provision_lineage(&*client.lock().await, "CheckoutFixture", 1, &["Event", "Registration", "Payment"]).await;
+        let config = checkout_config(1);
+        let wasm_path = checkout_wasm_path();
+
+        let body = json!({"slug": "repeat-event", "name": "Repeat Event", "price_cents": 1000, "capacity": 5}).to_string();
+        let first = events_route(&body, &client, &wasm_path, &config, &lambda_client::NeverInvoker).await;
+        assert_eq!(first["statusCode"], 201, "{first:?}");
+
+        // A second call, even with different name/price/capacity (mock_
+        // payments never sends a different shape for the same slug in
+        // practice, but this route's own idempotency check keys ONLY on
+        // slug, matching Event.find-before-schedule's own semantics) —
+        // returns the ORIGINAL event's state, 200, not a second 201.
+        let second_body = json!({"slug": "repeat-event", "name": "Different Name", "price_cents": 9999, "capacity": 1}).to_string();
+        let second = events_route(&second_body, &client, &wasm_path, &config, &lambda_client::NeverInvoker).await;
+        assert_eq!(second["statusCode"], 200, "{second:?}");
+        let second_body: Value = serde_json::from_str(second["body"].as_str().unwrap()).unwrap();
+        assert_eq!(second_body["name"]["value"], "Repeat Event", "must return the ORIGINAL event, not re-schedule with the new fields");
+        assert_eq!(second_body["price"]["cents"], 1000);
+
+        let read = dispatch::read(&client, &wasm_path).await.unwrap();
+        let instances = read["instances"].as_object().unwrap();
+        assert_eq!(
+            instances.keys().filter(|k| k.starts_with("CheckoutFixture::Event#repeat-event")).count(),
+            1,
+            "exactly one Event, never a second dispatch: {instances:?}"
+        );
+    }
+
     #[tokio::test]
     async fn registrations_route_404s_an_unknown_event_slug() {
         let client = scratch_db("hecks_host_web_test_registrations_no_event").await;
@@ -2831,12 +3460,17 @@ mod tests {
         assert_eq!(response["statusCode"], 200, "{response:?}");
         let body: Value = serde_json::from_str(response["body"].as_str().unwrap()).unwrap();
         let reference = body["registration_id"].as_str().unwrap().to_string();
-        // MockStripeAdapter's own exact shape (checkout.rs's own header):
-        // the success_url, `?` since it carries no query string yet,
-        // then mock_checkout=1&mock_registration_id=<reference>.
+        // LocalCheckout's own exact shape (checkout.rs's own header):
+        // this site's own /pay/<reference>.html page, with success_url
+        // and cancel_url riding along as encoded query params, each
+        // pointing at registration-confirmed.html (this route's own
+        // header on why that replaced the old, dead-code event-page
+        // redirect) -- no return_to sent, so it falls back to "/".
         assert_eq!(
             body["checkout_url"],
-            format!("http://localhost:4321/happy-event.html?registered=1&mock_checkout=1&mock_registration_id={reference}")
+            format!(
+                "http://localhost:4321/pay/{reference}.html?success_url=http%3A%2F%2Flocalhost%3A4321%2Fregistration-confirmed.html%3Fregistration_id%3D{reference}%26outcome%3Dsucceeded%26return_to%3D%252F&cancel_url=http%3A%2F%2Flocalhost%3A4321%2Fregistration-confirmed.html%3Fregistration_id%3D{reference}%26outcome%3Dcancelled%26return_to%3D%252F"
+            )
         );
 
         let read = dispatch::read(&client, &wasm_path).await.unwrap();
@@ -2893,14 +3527,19 @@ mod tests {
         let reference = body["registration_id"].as_str().unwrap().to_string();
         assert_eq!(
             body["checkout_url"],
-            format!("http://localhost:4321/yogadelics.html?registered=1&mock_checkout=1&mock_registration_id={reference}")
+            format!(
+                "http://localhost:4321/pay/{reference}.html?success_url=http%3A%2F%2Flocalhost%3A4321%2Fregistration-confirmed.html%3Fregistration_id%3D{reference}%26outcome%3Dsucceeded%26return_to%3D%252Fyogadelics.html&cancel_url=http%3A%2F%2Flocalhost%3A4321%2Fregistration-confirmed.html%3Fregistration_id%3D{reference}%26outcome%3Dcancelled%26return_to%3D%252Fyogadelics.html"
+            )
         );
     }
 
-    // safe_return_to's own guest-supplied-path reasoning (this route's own
-    // comment on it) -- an absolute or protocol-relative return_to must
-    // never become an open redirect; falls back to the event's own page
-    // exactly as if no return_to had been sent at all.
+    // safe_return_to's own guest-supplied-path reasoning (http_server.rb's
+    // own comment on it, ported byte for byte) -- an absolute or
+    // protocol-relative return_to must never become an open redirect;
+    // falls back to "/", exactly as if no return_to had been sent at all
+    // (never the event's own page -- that redirect target was retired
+    // alongside the old, dead-code `?registered=` shape, this route's
+    // own header above).
     #[tokio::test]
     async fn registrations_route_refuses_an_absolute_or_protocol_relative_return_to() {
         let client = scratch_db("hecks_host_web_test_registrations_return_to_unsafe").await;
@@ -2921,9 +3560,16 @@ mod tests {
             let response = registrations_route(&body, "", "mock_stripe", "http://localhost:4321", &client, &wasm_path, &config, &lambda_client::NeverInvoker).await;
             assert_eq!(response["statusCode"], 200, "{response:?}");
             let body: Value = serde_json::from_str(response["body"].as_str().unwrap()).unwrap();
+            // checkout_url is now the /pay/<id>.html walkthrough page (LocalCheckout's
+            // own shape); registration-confirmed.html's own return_to shows up
+            // encoded (twice: once for the /pay page's success_url, once more for
+            // registration-confirmed.html's own return_to inside that) as "%252F".
+            let checkout_url = body["checkout_url"].as_str().unwrap();
+            let parsed = reqwest::Url::parse(checkout_url).unwrap();
+            let success_url = parsed.query_pairs().find(|(k, _)| k == "success_url").map(|(_, v)| v.into_owned()).unwrap_or_default();
             assert!(
-                body["checkout_url"].as_str().unwrap().starts_with("http://localhost:4321/happy-event.html?"),
-                "an unsafe return_to ({unsafe_return_to:?}) must fall back to the event's own page: {body:?}"
+                success_url.ends_with("return_to=%2F"),
+                "an unsafe return_to ({unsafe_return_to:?}) must fall back to \"/\": {body:?}"
             );
         }
     }

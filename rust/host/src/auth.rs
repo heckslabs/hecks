@@ -227,11 +227,68 @@ pub fn parse_session_cookie(secret: &str, cookie: &str) -> Option<Session> {
 // "Domain::Aggregate#id" convention, Ruby side).
 pub fn resolve_identity(instances: &Value, issuer: &str, subject: &str) -> Option<String> {
     let key = format!("Identity::ExternalIdentifier#{issuer}:{subject}");
-    instances
-        .get(key)?
-        .get("identity_id")?
-        .as_str()
-        .map(|s| s.to_string())
+    identity_id_from_state(instances.get(&key)?)
+}
+
+fn identity_id_from_state(state: &Value) -> Option<String> {
+    state
+        .get("identity")
+        .and_then(|v| v.as_str().map(str::to_string))
+        .or_else(|| {
+            state
+                .get("identity")
+                .and_then(|v| v.get("value"))
+                .and_then(|v| v.as_str())
+                .map(str::to_string)
+        })
+        .or_else(|| state.get("identity_id").and_then(|v| v.as_str().map(str::to_string)))
+        .or_else(|| {
+            state
+                .get("identity_id")
+                .and_then(|v| v.get("value"))
+                .and_then(|v| v.as_str())
+                .map(str::to_string)
+        })
+}
+
+/// Identity is PostgresEra-backed, same split as Membership — not in
+/// `dispatch::read`'s journal `instances`. Query the ExternalIdentifier
+/// head by (issuer, subject). Relation names try the consuming domain
+/// (0059), the Identity chapter, then the pre-0059 bare storage name
+/// (`external_identifier_head` as actually deployed).
+pub async fn resolve_identity_from_head(
+    client: &Mutex<Client>,
+    domain_ir: &Value,
+    issuer: &str,
+    subject: &str,
+) -> anyhow::Result<Option<String>> {
+    let Some(_) = crate::ir::identity_provider(domain_ir) else {
+        return Ok(None);
+    };
+    let domain = domain_ir.get("name").and_then(|v| v.as_str()).unwrap_or("");
+    let mut names = vec![
+        journal::head_view(domain, "external_identifier"),
+        journal::head_view("Identity", "external_identifier"),
+        "external_identifier_head".to_string(),
+    ];
+    names.dedup();
+    let guard = client.lock().await;
+    for name in names {
+        let sql = format!(
+            "SELECT state FROM {} WHERE state->'issuer'->>'value' = $1 AND state->'subject'->>'value' = $2",
+            journal::quote_ident(&name)
+        );
+        match guard.query_opt(&sql, &[&issuer, &subject]).await {
+            Ok(Some(row)) => {
+                let state: Value = row.get(0);
+                return Ok(identity_id_from_state(&state));
+            }
+            Ok(None) => return Ok(None),
+            Err(e) if e.code() == Some(&tokio_postgres::error::SqlState::UNDEFINED_TABLE) => continue,
+            Err(e) => return Err(e.into()),
+        }
+    }
+    Ok(None)
 }
 
 // `Embryonaut::Member` is not in `dispatch::read`'s own `instances` --
@@ -724,6 +781,21 @@ mod tests {
         let identity_id = resolve_identity(&instances, "google", "sub-1");
         assert_eq!(identity_id.as_deref(), Some("id-1"));
         assert!(resolve_identity(&instances, "google", "nope").is_none());
+    }
+
+    #[test]
+    fn resolve_identity_reads_the_2_0_identity_field() {
+        let instances = json!({
+            "Identity::ExternalIdentifier#https://accounts.google.com:sub-1": {
+                "identity": "id-2",
+                "issuer": {"value": "https://accounts.google.com"},
+                "subject": {"value": "sub-1"},
+            },
+        });
+        assert_eq!(
+            resolve_identity(&instances, "https://accounts.google.com", "sub-1").as_deref(),
+            Some("id-2")
+        );
     }
 
     #[test]

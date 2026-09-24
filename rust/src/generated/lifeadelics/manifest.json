@@ -28,6 +28,14 @@
     "routed": true
   },
   {
+    "kind": "query",
+    "id": "Lifeadelics::Registration.Listing",
+    "generated": false,
+    "gap_class": "per_instance",
+    "construct": "no_wheres",
+    "reason": "declares no where clauses at all — nothing for filter_entries to bake in"
+  },
+  {
     "kind": "lineage_aggregate",
     "id": "Lifeadelics::Event",
     "generated": true,

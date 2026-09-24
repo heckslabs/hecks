@@ -21,8 +21,9 @@ RSpec.describe "Hecks::Corpus, Rust-facing" do
   end
 
   it "sends every generated module to exactly one bucket" do
-    buckets = features + corpus.rust_framework_chapters + corpus.rust_vendored_chapters +
-              corpus.rust_external_vendored_chapters + corpus::RUST_ELSEWHERE.keys
+    side_chapter_modules = (corpus.rust_framework_chapters + corpus.rust_vendored_chapters)
+                           .map { |stem| corpus.rust_side_module_name(stem) }
+    buckets = features + side_chapter_modules + corpus.rust_external_vendored_chapters + corpus::RUST_ELSEWHERE.keys
     expect(buckets.tally.select { |_, count| count > 1 }.keys).to be_empty
     expect(corpus.generated_modules.sort).to eq(buckets.sort)
   end

@@ -1,0 +1,141 @@
+[
+  {
+    "kind": "aggregate",
+    "id": "ConsoleSettings::StateStyle",
+    "generated": true
+  },
+  {
+    "kind": "command",
+    "id": "ConsoleSettings::StateStyle.Declare",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "ConsoleSettings::StateStyle.SetTone",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "ConsoleSettings::StateStyle.SetAttention",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "ConsoleSettings::StateStyle.SetExtra",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "aggregate",
+    "id": "ConsoleSettings::Collection",
+    "generated": true
+  },
+  {
+    "kind": "command",
+    "id": "ConsoleSettings::Collection.Declare",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "ConsoleSettings::Collection.SetLabel",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "ConsoleSettings::Collection.SetKey",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "ConsoleSettings::Collection.SetNavOrder",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "ConsoleSettings::Collection.SetPrimaryField",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "ConsoleSettings::Collection.SetListQuery",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "ConsoleSettings::Collection.SetIdentity",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "ConsoleSettings::Collection.SetExtra",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "ConsoleSettings::Collection.ReplaceColumns",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "ConsoleSettings::Collection.ReplaceDetailFields",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "ConsoleSettings::Collection.ReplaceDetailFieldColumns",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "ConsoleSettings::Collection.ReplacePreconditions",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "ConsoleSettings::Collection.ReplaceFieldFormats",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "aggregate",
+    "id": "ConsoleSettings::Overview",
+    "generated": true
+  },
+  {
+    "kind": "command",
+    "id": "ConsoleSettings::Overview.Declare",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "ConsoleSettings::Overview.ReplaceStats",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "read_model",
+    "id": "ConsoleSettings::Styles",
+    "generated": true
+  },
+  {
+    "kind": "read_model",
+    "id": "ConsoleSettings::Curated",
+    "generated": true
+  }
+]
