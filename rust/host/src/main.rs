@@ -176,38 +176,40 @@ async fn main() -> Result<(), Error> {
     // guarantees no literal `@` in the password) and hands the
     // remaining bytes to `Config::password` completely literally.
     let mut config = parse_database_url(&database_url)?;
-    // Explicit, not Config::new()'s own default -- confirmed live that
-    // leaving this implicit produced an opaque, undiagnosable "db
-    // error" with no further detail even from {:?} (Debug), while a
-    // manual psql/openssl s_client reproduction against the same
-    // credentials/host over an SSM tunnel succeeded fine on both
-    // `sslmode=require` and `sslmode=disable` -- ruling out the
-    // credentials, the TLS cert chain (rds-ca-bundle.pem verifies
-    // clean), and the security groups (Aurora accepted the tunneled
-    // connection). Require, not Prefer, matches this crate's own
-    // stated intent ("RDS Postgres refuses a plain NoTls connection by
-    // default") explicitly rather than leaving tokio_postgres to infer
-    // it.
-    config.ssl_mode(tokio_postgres::config::SslMode::Require);
-    // Named, operator-facing context on failure -- mirrors postgres.rb's
-    // own WiringError wrapping (`cannot bind Postgres at ... for ...`).
-    // DATABASE_URL itself is never interpolated into either message
-    // (it carries credentials); the underlying error text is the only
-    // detail that travels. `{e:?}` (Debug, not Display) -- confirmed
-    // live that even `{e:#}` (alternate Display) collapsed to the bare
-    // label "db error" with nothing further for this specific failure,
-    // unlike the anyhow-wrapped errors elsewhere in this crate that
-    // `{:#}` genuinely does expand; Debug is the fallback that's
-    // guaranteed to show whatever tokio_postgres::Error actually holds.
-    let (client, connection) = config
-        .connect(tls)
-        .await
-        .map_err(|e| format!("connecting to Postgres via DATABASE_URL: {e:?}"))?;
-    tokio::spawn(async move {
-        if let Err(e) = connection.await {
-            eprintln!("postgres connection error: {e:#}");
-        }
-    });
+    // RDS requires TLS (this crate's rds-ca-bundle.pem). Local Postgres
+    // is reached over loopback — rustls with the RDS CA cannot verify a
+    // Homebrew/Postgres.app cert, so localhost is NoTls. Mechanical from
+    // the host in DATABASE_URL, not a deploy-time env flag.
+    let local_postgres = database_url_is_local(&config);
+    if !local_postgres {
+        config.ssl_mode(tokio_postgres::config::SslMode::Require);
+    }
+    // Two connect paths, spawned separately: NoTlsStream and
+    // RustlsStream cannot unify in one `if`. Local is loopback (Homebrew
+    // Postgres.app); everything else is RDS and needs the bundle above.
+    let client = if local_postgres {
+        let (client, connection) = config
+            .connect(tokio_postgres::NoTls)
+            .await
+            .map_err(|e| format!("connecting to Postgres via DATABASE_URL: {e:?}"))?;
+        tokio::spawn(async move {
+            if let Err(e) = connection.await {
+                eprintln!("postgres connection error: {e:#}");
+            }
+        });
+        client
+    } else {
+        let (client, connection) = config
+            .connect(tls)
+            .await
+            .map_err(|e| format!("connecting to Postgres via DATABASE_URL: {e:?}"))?;
+        tokio::spawn(async move {
+            if let Err(e) = connection.await {
+                eprintln!("postgres connection error: {e:#}");
+            }
+        });
+        client
+    };
 
     // **Shared-instance isolation** — same reasoning as postgres_era.rb's own
     // `connect_for`: every unqualified table/view reference this binary
@@ -488,31 +490,46 @@ fn parse_database_url(url: &str) -> Result<tokio_postgres::Config, String> {
         .or_else(|| url.strip_prefix("postgresql://"))
         .ok_or_else(|| format!("DATABASE_URL doesn't start with postgres:// or postgresql://"))?;
 
-    let (credentials, host_part) = rest
-        .rsplit_once('@')
-        .ok_or_else(|| "DATABASE_URL has no '@' separating credentials from host".to_string())?;
-    let (user, password) = credentials
-        .split_once(':')
-        .ok_or_else(|| "DATABASE_URL's credentials have no ':' separating user from password".to_string())?;
-
-    let (host_and_port, dbname) = host_part
+    let (authority, db_and_query) = rest
         .split_once('/')
         .ok_or_else(|| "DATABASE_URL has no '/' separating host from database name".to_string())?;
-    let (host, port) = host_and_port
-        .rsplit_once(':')
-        .ok_or_else(|| "DATABASE_URL's host has no ':' separating host from port".to_string())?;
-    let port: u16 = port
-        .parse()
-        .map_err(|e| format!("DATABASE_URL's port {port:?} isn't a valid number: {e}"))?;
+    let dbname = db_and_query.split(['?', '#']).next().unwrap_or(db_and_query);
+
+    let (credentials, host_and_port) = match authority.rsplit_once('@') {
+        Some((credentials, host_and_port)) => (Some(credentials), host_and_port),
+        None => (None, authority),
+    };
+    let (host, port) = match host_and_port.rsplit_once(':') {
+        Some((host, port)) => {
+            let port: u16 = port
+                .parse()
+                .map_err(|e| format!("DATABASE_URL's port {port:?} isn't a valid number: {e}"))?;
+            (host, port)
+        }
+        None => (host_and_port, 5432),
+    };
 
     let mut config = tokio_postgres::Config::new();
-    config
-        .host(host)
-        .port(port)
-        .user(user)
-        .password(password)
-        .dbname(dbname);
+    config.host(host).port(port).dbname(dbname);
+    if let Some(credentials) = credentials {
+        match credentials.split_once(':') {
+            Some((user, password)) => {
+                config.user(user).password(password);
+            }
+            None => {
+                config.user(credentials);
+            }
+        }
+    }
     Ok(config)
+}
+
+fn database_url_is_local(config: &tokio_postgres::Config) -> bool {
+    use tokio_postgres::config::Host;
+    config.get_hosts().iter().any(|host| match host {
+        Host::Tcp(name) => name == "localhost" || name == "127.0.0.1" || name == "::1",
+        _ => false,
+    })
 }
 
 #[cfg(test)]
@@ -537,5 +554,14 @@ mod tests {
             .expect("should parse a password with no special characters");
         assert_eq!(config.get_user(), Some("postgres"));
         assert_eq!(config.get_dbname(), Some("pizzas"));
+    }
+
+    #[test]
+    fn parses_a_local_url_with_no_user_or_port() {
+        let config = parse_database_url("postgres://localhost/lifeadelics_development")
+            .expect("should parse a peer-auth local URL");
+        assert_eq!(config.get_dbname(), Some("lifeadelics_development"));
+        assert_eq!(config.get_ports(), &[5432]);
+        assert!(database_url_is_local(&config));
     }
 }
