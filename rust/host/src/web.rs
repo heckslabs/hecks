@@ -363,6 +363,8 @@ async fn auth_route(
 
         ("GET", "/accounts/me") => Some(accounts_me_route(cookies, secret)),
 
+        ("GET", "/members") => Some(members_route(domain_ir, cookies, secret, client).await),
+
         // GET /accounts/sso-token, ported from http_server.rb's own
         // route (found missing live, not in #786's own port: every
         // "Site Content" click 401'd here, silently bounced through
@@ -512,6 +514,33 @@ fn accounts_me_route(cookies: &HashMap<String, String>, secret: &str) -> Value {
         Some(email) => respond(200, "application/json", &json!({"email": email}).to_string()),
         None => not_logged_in(),
     }
+}
+
+// GET /members -- the admitted people as JSON, for a server-side caller
+// (the Astro admin's Users page) that holds the `lifeadelics_session`
+// cookie but not the Governance `session` cookie /admin/members needs.
+// Any valid account token is enough: /auth/google/callback only mints one
+// for an already-admitted person. Unauthenticated callers get a JSON 401
+// rather than the /login redirect, so a fetch() never follows it into an
+// HTML page. A lookup failure is a 500, not an empty list.
+async fn members_route(domain_ir: &Value, cookies: &HashMap<String, String>, secret: &str, client: &Mutex<Client>) -> Value {
+    let authenticated = cookies
+        .get("lifeadelics_session")
+        .and_then(|token| auth::verify_account_token(secret, token))
+        .is_some();
+    if !authenticated {
+        return respond(401, "application/json", &json!({"error": "not logged in"}).to_string());
+    }
+    match auth::all_people(client, domain_ir).await {
+        Ok(people) => respond(200, "application/json", &Value::Array(sorted_by_name(people)).to_string()),
+        Err(e) => respond(500, "application/json", &json!({"error": format!("members lookup failed: {e}")}).to_string()),
+    }
+}
+
+fn sorted_by_name(mut people: Vec<Value>) -> Vec<Value> {
+    let name_of = |p: &Value| p.get("name").and_then(|v| v.as_str()).unwrap_or("").to_lowercase();
+    people.sort_by_key(name_of);
+    people
 }
 
 // GET /accounts/sso-token — mints the short-lived (60s, Ruby's own
@@ -3688,6 +3717,96 @@ mod tests {
         let mut tampered = HashMap::new();
         tampered.insert("lifeadelics_session".to_string(), "garbage.notasignature".to_string());
         assert_eq!(accounts_sso_token_route(&tampered, secret)["statusCode"], 401);
+    }
+
+    // Same head-view shape auth.rs's own tests build for the Membership
+    // aggregate, seeded with one granted, linked admin and one admitted
+    // person with no access yet.
+    async fn scratch_members_db(name: &str) -> (Mutex<Client>, Value) {
+        let client = scratch_db(name).await;
+        {
+            let guard = client.lock().await;
+            guard
+                .batch_execute(
+                    "CREATE TABLE embryonaut_member_head_snapshot_1 (id text PRIMARY KEY, ordinal bigint NOT NULL, state jsonb NOT NULL);
+                     CREATE VIEW embryonaut_member_head AS SELECT id, state FROM embryonaut_member_head_snapshot_1;",
+                )
+                .await
+                .unwrap();
+            guard
+                .execute(
+                    "INSERT INTO embryonaut_member_head_snapshot_1 (id, ordinal, state) VALUES ($1, 1, $2::jsonb), ($3, 1, $4::jsonb)",
+                    &[
+                        &"zed@example.com",
+                        &json!({"name": {"value": "Zed"}, "email": {"value": "zed@example.com"},
+                                "role": {"value": "Admin"}, "identity_id": {"value": "id-1"}}),
+                        &"amy@example.com",
+                        &json!({"name": {"value": "amy"}, "email": {"value": "amy@example.com"},
+                                "role": null, "identity_id": null}),
+                    ],
+                )
+                .await
+                .unwrap();
+        }
+        let domain_ir = json!({
+            "name": "Embryonaut",
+            "lineage": {"capable_aggregates": [{"name": "Member", "storage_name": "member"}]},
+            "membership": {"provider": "Embryonaut", "aggregate": "Embryonaut::Member"},
+        });
+        (client, domain_ir)
+    }
+
+    #[tokio::test]
+    async fn members_route_lists_admitted_people_as_json_sorted_by_name_for_a_valid_session() {
+        let secret = "s3cret";
+        let (client, domain_ir) = scratch_members_db("hecks_host_web_test_members_route").await;
+
+        let mut cookies = HashMap::new();
+        cookies.insert("lifeadelics_session".to_string(), auth::account_token(secret, "zed@example.com", 60));
+        let response = members_route(&domain_ir, &cookies, secret, &client).await;
+        assert_eq!(response["statusCode"], 200, "{response:?}");
+
+        let people: Vec<Value> = serde_json::from_str(response["body"].as_str().unwrap()).unwrap();
+        let names: Vec<&str> = people.iter().map(|p| p["name"].as_str().unwrap()).collect();
+        assert_eq!(names, ["amy", "Zed"], "sorted case-insensitively by name");
+        assert_eq!(
+            people[1],
+            json!({"name": "Zed", "email": "zed@example.com", "role": "Admin", "linked": true, "granted": true})
+        );
+        assert_eq!(
+            people[0],
+            json!({"name": "amy", "email": "amy@example.com", "role": null, "linked": false, "granted": false})
+        );
+    }
+
+    #[tokio::test]
+    async fn members_route_refuses_a_missing_or_invalid_session_with_a_json_401_and_no_people() {
+        let secret = "s3cret";
+        let (client, domain_ir) = scratch_members_db("hecks_host_web_test_members_route_401").await;
+
+        let mut tampered = HashMap::new();
+        tampered.insert("lifeadelics_session".to_string(), "garbage.notasignature".to_string());
+        let mut wrong_secret = HashMap::new();
+        wrong_secret.insert("lifeadelics_session".to_string(), auth::account_token("another", "zed@example.com", 60));
+        let mut governance_only = HashMap::new();
+        governance_only.insert("session".to_string(), "anything".to_string());
+
+        for cookies in [HashMap::new(), tampered, wrong_secret, governance_only] {
+            let response = members_route(&domain_ir, &cookies, secret, &client).await;
+            assert_eq!(response["statusCode"], 401, "{response:?}");
+            assert!(response.get("headers").and_then(|h| h.get("location")).is_none(), "never a redirect: {response:?}");
+            let body = response["body"].as_str().unwrap();
+            for leaked in ["zed@example.com", "amy@example.com", "Zed", "Admin"] {
+                assert!(!body.contains(leaked), "{leaked:?} leaked to an unauthenticated caller: {body}");
+            }
+        }
+    }
+
+    #[test]
+    fn sorted_by_name_orders_case_insensitively_and_puts_a_missing_name_first() {
+        let people = vec![json!({"name": "bob"}), json!({"name": "Ada"}), json!({"name": null}), json!({"name": "Cy"})];
+        let names: Vec<Value> = sorted_by_name(people).into_iter().map(|p| p["name"].clone()).collect();
+        assert_eq!(names, [json!(null), json!("Ada"), json!("bob"), json!("Cy")]);
     }
 
     #[tokio::test]
