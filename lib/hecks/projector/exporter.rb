@@ -174,6 +174,34 @@ module Hecks
         }
       end
 
+      # Same seam as `membership` — which chapter answers the guest
+      # newsletter signup (`Registry#newsletter_provider_for`), with its
+      # declared verbs qualified and the subscribing aggregate named off
+      # `subscribe`. rust/host reads this instead of naming
+      # Newsletter::Subscriber.Subscribe and friends. `{}` when nothing
+      # this domain attaches provides newsletter.
+      # @param registry [Runtime::Registry] the booted registry `domain_name` is loaded in
+      # @param domain_name [String] the domain to export the newsletter binding for
+      # @return [Hash{Symbol => String, nil}] `:provider` (name), `:subscribe`, `:add_name`,
+      #   `:confirm`, `:unsubscribe` (qualified verbs), and `:aggregate` (`:subscribe`'s own
+      #   leading qualified aggregate name); `{}` if nothing this domain attaches provides
+      #   newsletter
+      def newsletter(registry, domain_name)
+        provider = registry.newsletter_provider_for(domain_name)
+        return {} unless provider
+
+        capability = Bluebook::Capabilities::NEWSLETTER
+        subscribe = provider.provided_verb(capability, :subscribe)
+        {
+          provider:    provider.name,
+          subscribe:   subscribe,
+          add_name:    provider.provided_verb(capability, :add_name),
+          confirm:     provider.provided_verb(capability, :confirm),
+          unsubscribe: provider.provided_verb(capability, :unsubscribe),
+          aggregate:   subscribe&.split(".")&.first
+        }
+      end
+
       # Translation IR, always as an array, with each aggregate's
       # precompiled SQL attached (`compiled_translation_aggregate`) —
       # this is the export a consumer embeds (`ir.json`'s `translations`

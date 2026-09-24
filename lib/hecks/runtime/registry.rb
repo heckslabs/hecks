@@ -375,20 +375,45 @@ module Hecks
       # @return [Bluebook::Chapter, nil] the chapter that answers `domain`'s membership
       #   questions, or nil if none does
       def membership_provider_for(domain)
+        vendored_provider_for(domain, Bluebook::Capabilities::MEMBERSHIP)
+      end
+
+      # The chapter that answers the guest newsletter signup for `domain` —
+      # the domain's own chapter, a framework member, or a vendored
+      # embryonaut bluebook it attaches, that declares `provides
+      # "newsletter"`. Nil when none does. Newsletter is recognised by
+      # what it declares (Subscribe/AddName/Confirm/Unsubscribe), so a
+      # chapter that declares the same thing is recognised the same way.
+      #
+      # @param domain [String, Symbol] the domain whose newsletter chapter is being resolved
+      # @return [Bluebook::Chapter, nil] the chapter that answers `domain`'s newsletter
+      #   signup, or nil if none does
+      def newsletter_provider_for(domain)
+        vendored_provider_for(domain, Bluebook::Capabilities::NEWSLETTER)
+      end
+
+      # The chapter that provides `capability` for `domain`: the domain's
+      # own chapter, any framework member its hecksagon attaches, or any
+      # vendored embryonaut bluebook it attaches, that declares it. Falls
+      # back to any loaded chapter that does, because a consuming domain
+      # often wires a vendored chapter as its own `Hecks.hecksagon "Name"`
+      # (so that chapter can attach Governance on that named hexagon)
+      # rather than via `uses_embryonaut_bluebook` on itself — the chapter
+      # is loaded, it just isn't listed on the consumer's own hexagon.
+      #
+      # @param domain [String, Symbol] the domain the provider is resolved for
+      # @param capability [String] the capability's name, such as
+      #   `Bluebook::Capabilities::MEMBERSHIP`
+      # @return [Bluebook::Chapter, nil] the providing chapter, or nil if none loaded does
+      def vendored_provider_for(domain, capability)
         hexagon = hecksagon(domain)
         vendored = Array(hexagon&.vendored_bluebooks).map { |name| Naming.pascal(name) }
         names = [domain.to_s, *Array(hexagon&.framework_members), *vendored]
         attached = names.filter_map { |name| bluebook(name) }
-                        .find { |chapter| chapter.provides?(Bluebook::Capabilities::MEMBERSHIP) }
+                        .find { |chapter| chapter.provides?(capability) }
         return attached if attached
 
-        # Sibling hecksagons — Lifeadelics vendors Membership as
-        # `Hecks.hecksagon "Membership"` (so Person::Admit can attach
-        # Governance on that named hexagon), not via uses_embryonaut_bluebook
-        # on the consuming domain. The chapter is loaded; it just isn't
-        # listed on Lifeadelics' own hexagon. Any loaded chapter that
-        # provides membership is the bounded-context answer.
-        @bluebooks.values.find { |chapter| chapter.provides?(Bluebook::Capabilities::MEMBERSHIP) }
+        @bluebooks.values.find { |chapter| chapter.provides?(capability) }
       end
 
       # Resolves and memoizes `aggregate`'s authoritative repository.
