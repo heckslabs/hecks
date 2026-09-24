@@ -365,12 +365,14 @@ module Hecks
     # still fail, so an entry that starts passing breaks the build until
     # it is deleted here.
     RUST_COVERAGE_PENDING = {
-      "accounts"   => "query Listing declares no where clause at all (\"every account, alphabetically by " \
-                      "email\") — rust/project/queries.rb's own no_wheres skip refuses to generate an " \
-                      "unfiltered per_instance Listing (\"nothing for filter_entries to bake in\"); a " \
-                      "structural Rust codegen limitation, not a bug in this vendored package",
-      "newsletter" => "same no_wheres gap as accounts, on all 3 of its own Listing queries " \
-                      "(Delivery/Issue/Subscriber) — see accounts' entry above"
+      "accounts"    => "query Listing declares no where clause at all (\"every account, alphabetically by " \
+                       "email\") — rust/project/queries.rb's own no_wheres skip refuses to generate an " \
+                       "unfiltered per_instance Listing (\"nothing for filter_entries to bake in\"); a " \
+                       "structural Rust codegen limitation, not a bug in this vendored package",
+      "newsletter"  => "same no_wheres gap as accounts, on all 3 of its own Listing queries " \
+                       "(Delivery/Issue/Subscriber) — see accounts' entry above",
+      "lifeadelics" => "same no_wheres gap as accounts, on Registration.Listing — see accounts' entry above",
+      "membership"  => "same no_wheres gap as accounts, on Person.All — see accounts' entry above"
     }.freeze
 
     # The Cargo `[features]` table's raw text.
