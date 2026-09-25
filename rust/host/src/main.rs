@@ -417,8 +417,7 @@ async fn main() -> Result<(), Error> {
     // everything to plain `Postgres` mirrors nothing, and its writes go
     // to this crate's own journal alone, which is what `dispatch::read`
     // replays anyway.
-    let mirrored: std::collections::BTreeSet<String> =
-        ir::lineage_capable_aggregates(ir).into_iter().map(|(qualified, _)| qualified).collect();
+    let mirrored = ir::mirrored_aggregates(ir);
     let lineage_config = Arc::new(journal::LineageConfig { domain, era, mirrored: Some(mirrored) });
 
     // Mutex, not a bare Arc<Client> -- dispatch::handle needs
