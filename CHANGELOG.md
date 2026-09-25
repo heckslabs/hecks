@@ -5,6 +5,27 @@ Dates are when a change landed on `main`, not when this file was written.
 Entries below are grouped by theme, not itemized commit-by-commit; see
 `git log` for the full history.
 
+## [Unreleased]
+
+**Sending a newsletter issue is a declared capability.** A chapter can declare
+`provides "newsletter_issues", send_issue:, record_delivery:` (the command that
+marks an issue sent and the one that records each delivery), beside
+`provides "newsletter"`. It is a separate capability so a chapter that only
+takes signups declares nothing more. The Exporter qualifies the verbs and
+`bin/project_rust` writes them to `ir.json`'s `newsletter_issues` key; a domain
+without that key serves no send route.
+
+**rust/host sends the newsletter.** `POST /newsletter/issues/:slug/send` marks
+the issue sent and mails every confirmed subscriber; `.../send-test` mails one
+address without touching the issue. Both need a signed-in Admin or Owner
+(`lifeadelics_session` cookie). Email goes through Resend (`resend.rs`) with
+`RESEND_API_KEY` and `RESEND_FROM`; `RESEND_MOCK=1` logs instead of sending.
+A deploy can name the key's Secrets Manager secret instead (`RESEND_SECRET_ID`,
+`{"api_key": "..."}`), fetched at cold start; if it cannot be read the host
+still boots and the routes answer 503.
+With neither set the routes answer 503 before anything is marked sent, unlike
+checkout, which mocks by default: marking an issue sent cannot be undone.
+
 ## [2.2.0] - 2026-09-25
 
 **Payments is a declared capability.** A chapter can declare
