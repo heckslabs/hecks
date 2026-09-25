@@ -359,6 +359,8 @@ async fn auth_route(
 
         ("POST", "/members") => Some(add_member_route(domain_ir, raw_body, cookies, secret, client, wasm_path, config).await),
 
+        ("POST", "/signups") => Some(signup_route(raw_body, secret, client, wasm_path, config, invoker).await),
+
         ("GET", "/registrations") => Some(registrations_list_route(domain_ir, cookies, secret, client, wasm_path, config).await),
 
         ("POST", "/members/disable") => Some(set_member_disabled_route(domain_ir, raw_body, cookies, secret, client, config, true).await),
@@ -527,6 +529,50 @@ async fn add_member_route(
         Ok(false) => json_error(500, "the person was admitted but the Admin role was not granted"),
         Err(e) => json_error(500, &format!("the person was admitted but the Admin role was not granted: {e}")),
     }
+}
+
+// The `purpose_token` purpose a `POST /signups` call must carry.
+const SIGNUP_PURPOSE: &str = "signup";
+
+// POST /signups -- records a platform signup by dispatching
+// `Signups::Signup.SignUp` through the engine as System, so whatever the
+// attached chapters translate `SignedUp` into (an instance's first Admin,
+// through Membership's `translates`) runs in this host, in this
+// deployment's own lineage. Takes `{"token", "email", "name"}` as JSON.
+// `token` is `auth::purpose_token(secret, "signup", ..)`, minted by whoever
+// holds the instance's session secret (the platform, or the operator
+// deploying a preview): bound to that purpose, so a session cookie or any
+// other token can never sign anyone up. No cookie is read, since nobody is
+// signed in yet. Answers a JSON 401 without a valid token, 400 for a blank
+// or malformed field, 422 with the engine's refusal (an email that has
+// already signed up, or a domain that attaches no signups chapter), and 201
+// with the signup otherwise.
+async fn signup_route(raw_body: &str, secret: &str, client: &Mutex<Client>, wasm_path: &Path, config: &LineageConfig, invoker: &dyn LambdaInvoker) -> Value {
+    let json_error = |status: u16, message: &str| respond(status, "application/json", &json!({"error": message}).to_string());
+
+    let body: Value = serde_json::from_str(raw_body).unwrap_or(Value::Null);
+    let field = |key: &str| body.get(key).and_then(|v| v.as_str()).map(|s| s.trim().to_string()).unwrap_or_default();
+
+    if auth::verify_purpose_token(secret, SIGNUP_PURPOSE, &field("token")).is_none() {
+        return json_error(401, "not authorized");
+    }
+
+    let (email, name) = (field("email").to_lowercase(), field("name"));
+    let looks_like_email = email.split_once('@').is_some_and(|(local, domain)| !local.is_empty() && domain.contains('.') && !email.contains(char::is_whitespace));
+    if name.is_empty() || !looks_like_email {
+        return json_error(400, "a name and a valid email are required");
+    }
+
+    let args = json!({"email": {"value": email}, "name": {"value": name}});
+    let outcome = match dispatch::handle(client, wasm_path, "Signups::Signup.SignUp", args, Some("System"), config, invoker).await {
+        Ok(o) => o,
+        Err(e) => return json_error(500, &format!("{e:#}")),
+    };
+    if !outcome.accepted {
+        return respond(422, "application/json", &last_refusal(&outcome.result).to_string());
+    }
+
+    respond(201, "application/json", &json!({"email": email, "name": name}).to_string())
 }
 
 // POST /members/disable and POST /members/enable -- switch a person's
@@ -3827,6 +3873,41 @@ mod tests {
 
     fn members_config() -> LineageConfig {
         LineageConfig { domain: "Embryonaut".to_string(), era: Some(1), mirrored: None }
+    }
+
+    #[tokio::test]
+    async fn signup_route_refuses_anything_but_a_valid_signup_token_with_a_json_401_and_writes_nothing() {
+        let secret = "s3cret";
+        let (client, domain_ir) = scratch_members_db("hecks_host_web_test_signup_401").await;
+        let body = |token: &str| json!({"token": token, "email": "new@example.com", "name": "New Person"}).to_string();
+
+        // A session token and a token minted for another purpose both verify
+        // as tokens under some key, but never as a signup token.
+        let session_token = auth::account_token(secret, "zed@example.com", 60);
+        let other_purpose = auth::purpose_token(secret, "payment_connect", json!({}), 60);
+        let wrong_secret = auth::purpose_token("another", SIGNUP_PURPOSE, json!({}), 60);
+
+        for token in ["", "garbage.notasignature", session_token.as_str(), other_purpose.as_str(), wrong_secret.as_str()] {
+            let response = signup_route(&body(token), secret, &client, Path::new("unused"), &members_config(), &crate::lambda_client::NeverInvoker).await;
+            assert_eq!(response["statusCode"], 401, "{response:?}");
+            assert!(response.get("headers").and_then(|h| h.get("location")).is_none(), "never a redirect: {response:?}");
+        }
+        let unparseable = signup_route("not json", secret, &client, Path::new("unused"), &members_config(), &crate::lambda_client::NeverInvoker).await;
+        assert_eq!(unparseable["statusCode"], 401, "{unparseable:?}");
+        assert_eq!(auth::all_people(&client, &domain_ir).await.unwrap().len(), 2, "nothing was written");
+    }
+
+    #[tokio::test]
+    async fn signup_route_rejects_a_blank_or_malformed_name_or_email_with_a_400() {
+        let secret = "s3cret";
+        let (client, _) = scratch_members_db("hecks_host_web_test_signup_400").await;
+        let token = auth::purpose_token(secret, SIGNUP_PURPOSE, json!({}), 60);
+
+        for (email, name) in [("", "Ada"), ("no-at-sign", "Ada"), ("a@nodot", "Ada"), ("has space@x.io", "Ada"), ("ada@x.io", ""), ("ada@x.io", "   ")] {
+            let body = json!({"token": token, "email": email, "name": name}).to_string();
+            let response = signup_route(&body, secret, &client, Path::new("unused"), &members_config(), &crate::lambda_client::NeverInvoker).await;
+            assert_eq!(response["statusCode"], 400, "{email:?} / {name:?}: {response:?}");
+        }
     }
 
     #[tokio::test]
