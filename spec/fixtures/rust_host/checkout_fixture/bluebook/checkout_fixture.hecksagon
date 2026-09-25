@@ -15,6 +15,7 @@ Hecks.hecksagon "CheckoutFixture" do
 
   CheckoutFixture::Event.persisted_by("PostgresEra")
   CheckoutFixture::Registration.persisted_by("PostgresEra")
+  CheckoutFixture::PaymentConnection.persisted_by("PostgresEra")
 end
 
 Hecks.hecksagon "Payments" do
