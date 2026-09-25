@@ -5,6 +5,37 @@ Dates are when a change landed on `main`, not when this file was written.
 Entries below are grouped by theme, not itemized commit-by-commit; see
 `git log` for the full history.
 
+## [2.2.0] - 2026-09-25
+
+**Payments is a declared capability.** A chapter can declare
+`provides "payments", initiate:, succeeded:, failed:`: `initiate` a command
+on the paying aggregate, the two processor verdicts hecksagon port operations
+(spelled `Aggregate.Port.Operation`; the first shipped use of the
+`:port_operation` kind from 2.1.0). `Registry#payments_provider_for` resolves
+the provider, `Exporter.payments` qualifies the verbs and names the aggregate,
+and `bin/project_rust` writes them to `ir.json`'s `payments` key. rust/host's
+checkout, registration-payment and webhook routes read that key instead of the
+`Payments::Payment.*` literals.
+
+**Behavior change for hosts.** A domain whose IR has no `payments` key now
+serves no checkout, registration-payment or webhook routes. Before deploying a
+host built from this release, the vendored payments bluebook must declare
+`provides "payments"` (embryonaut_bluebooks #10). On the Ruby side this
+release is required to load such a chapter at all: 2.1.0 refuses
+`provides "payments"` as an unknown capability. Declare it in the same
+`.bluebook` file as the `Payment` aggregate; each file is validated on its own.
+
+**Fixed: the Rust parser refused the newsletter and payments capability keys.**
+The language grammar listed only the authorization, membership and identity
+`provides` keys, so `hecks-parse` rejected `provides "payments"` (and would
+have rejected `provides "newsletter"`) even though Ruby accepted them. The
+grammar now declares `subscribe`, `add_name`, `confirm`, `unsubscribe`,
+`initiate`, `succeeded` and `failed`, and a new spec holds the grammar and
+`Capabilities::CONTRACTS` together.
+
+**rust/host.** Added `POST /members/role`, which changes the role of an
+already-admitted person (#810).
+
 ## [2.1.0] - 2026-09-25
 
 **Newsletter is a declared capability.** A chapter can declare
