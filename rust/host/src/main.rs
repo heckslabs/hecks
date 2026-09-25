@@ -26,6 +26,7 @@ mod ir;
 mod journal;
 mod lambda_client;
 mod mint;
+mod payments;
 mod presentation;
 mod presentation_write;
 mod reference_transform;

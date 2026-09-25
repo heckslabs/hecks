@@ -25,6 +25,7 @@ use crate::field_hints::{EMAIL_HINT, TEL_HINT, TEXTAREA_HINT, URL_HINT};
 use crate::ir::ir;
 use crate::journal::LineageConfig;
 use crate::lambda_client::LambdaInvoker;
+use crate::payments;
 use serde_json::{json, Value};
 use std::collections::HashMap;
 use std::path::Path;
@@ -352,7 +353,27 @@ async fn auth_route(
             &format!("lifeadelics_session=; Max-Age=0{}", cookie_flags()),
         )),
 
-        ("GET", "/accounts/me") => Some(accounts_me_route(cookies, secret)),
+        ("GET", "/accounts/me") => Some(accounts_me_route(domain_ir, cookies, secret, client).await),
+
+        ("GET", "/members") => Some(members_route(domain_ir, cookies, secret, client).await),
+
+        ("POST", "/members") => Some(add_member_route(domain_ir, raw_body, cookies, secret, client, wasm_path, config).await),
+
+        ("GET", "/registrations") => Some(registrations_list_route(domain_ir, cookies, secret, client, wasm_path, config).await),
+
+        ("POST", "/members/disable") => Some(set_member_disabled_route(domain_ir, raw_body, cookies, secret, client, config, true).await),
+
+        ("POST", "/members/enable") => Some(set_member_disabled_route(domain_ir, raw_body, cookies, secret, client, config, false).await),
+
+        // The tenant's payment connection (payments.rs's own header). Same
+        // gate as the checkout routes: only the domain named by
+        // HECKS_CHECKOUT_DOMAIN carries a PaymentConnection, so any other
+        // domain served by this binary falls through as an unknown path.
+        (method, path)
+            if payments::owns(method, path) && checkout_enabled(std::env::var("HECKS_CHECKOUT_DOMAIN").ok().as_deref(), &config.domain) =>
+        {
+            payments::route(method, path, raw_body, cookies, secret, domain_ir, &payments::PlatformConfig::from_env(), client, wasm_path, config, invoker).await
+        }
 
         // GET /accounts/sso-token, ported from http_server.rb's own
         // route (found missing live, not in #786's own port: every
@@ -365,7 +386,7 @@ async fn auth_route(
         // itself — deploy-aws/platform/template.yaml's own SessionSecret
         // is shared with the cms container as AUTH_SECRET specifically
         // so the two sides verify the same token.
-        ("GET", "/accounts/sso-token") => Some(accounts_sso_token_route(cookies, secret)),
+        ("GET", "/accounts/sso-token") => Some(accounts_sso_token_route(domain_ir, cookies, secret, client).await),
 
         ("GET", "/auth/google") => match auth::authorization_url(&redirect_uri(), secret) {
             Ok(url) => Some(redirect(&url)),
@@ -409,15 +430,223 @@ async fn is_admin(client: &Mutex<Client>, wasm_path: &Path, domain_ir: &Value, i
     }
 }
 
-fn accounts_me_route(cookies: &HashMap<String, String>, secret: &str) -> Value {
+// The email behind a `lifeadelics_session` cookie, only while that person
+// still has access. The token signature alone isn't enough: a cookie lives
+// up to 14 days, so a later disable must take effect on the next request.
+// `Err` carries the JSON response to return: a 401 for a missing, invalid
+// or no-longer-valid session, a 500 when the membership lookup itself fails.
+async fn active_session_email(
+    domain_ir: &Value,
+    cookies: &HashMap<String, String>,
+    secret: &str,
+    client: &Mutex<Client>,
+) -> Result<String, Value> {
     let not_logged_in = || respond(401, "application/json", &json!({"error": "not logged in"}).to_string());
-    let Some(token) = cookies.get("lifeadelics_session") else {
-        return not_logged_in();
+    let Some(email) = cookies.get("lifeadelics_session").and_then(|token| auth::verify_account_token(secret, token)) else {
+        return Err(not_logged_in());
     };
-    match auth::verify_account_token(secret, token) {
-        Some(email) => respond(200, "application/json", &json!({"email": email}).to_string()),
-        None => not_logged_in(),
+    match auth::has_access(client, domain_ir, &email).await {
+        Ok(true) => Ok(email),
+        Ok(false) => Err(not_logged_in()),
+        Err(e) => Err(respond(500, "application/json", &json!({"error": format!("members lookup failed: {e}")}).to_string())),
     }
+}
+
+async fn accounts_me_route(domain_ir: &Value, cookies: &HashMap<String, String>, secret: &str, client: &Mutex<Client>) -> Value {
+    match active_session_email(domain_ir, cookies, secret, client).await {
+        Ok(email) => respond(200, "application/json", &json!({"email": email}).to_string()),
+        Err(response) => response,
+    }
+}
+
+// GET /members -- the admitted people as JSON, for a server-side caller
+// (the Astro admin's Users page) that holds the `lifeadelics_session`
+// cookie but not the Governance `session` cookie /admin/members needs.
+// Any session whose person still has access is enough; a disabled person's
+// old cookie gets the same JSON 401 as no cookie at all, rather than the
+// /login redirect, so a fetch() never follows it into an HTML page. A
+// lookup failure is a 500, not an empty list.
+async fn members_route(domain_ir: &Value, cookies: &HashMap<String, String>, secret: &str, client: &Mutex<Client>) -> Value {
+    if let Err(response) = active_session_email(domain_ir, cookies, secret, client).await {
+        return response;
+    }
+    match auth::all_people(client, domain_ir).await {
+        Ok(people) => respond(200, "application/json", &Value::Array(sorted_by_name(people)).to_string()),
+        Err(e) => respond(500, "application/json", &json!({"error": format!("members lookup failed: {e}")}).to_string()),
+    }
+}
+
+// POST /members -- admits a new person and grants them the Admin role, for
+// a server-side caller holding the `lifeadelics_session` cookie. Takes
+// `{"email", "name"}` as JSON. Answers a JSON 401 without a valid session
+// and a 403 unless the caller is already a granted Admin; then 400 for a
+// blank or malformed field, 409 for an email that is already admitted,
+// and 201 with the new person's row. If the role grant fails after the
+// person was admitted, that is a 500 saying so, never a silent partial
+// state.
+async fn add_member_route(
+    domain_ir: &Value,
+    raw_body: &str,
+    cookies: &HashMap<String, String>,
+    secret: &str,
+    client: &Mutex<Client>,
+    wasm_path: &Path,
+    config: &LineageConfig,
+) -> Value {
+    let json_error = |status: u16, message: &str| respond(status, "application/json", &json!({"error": message}).to_string());
+
+    let Some(caller) = cookies.get("lifeadelics_session").and_then(|token| auth::verify_account_token(secret, token)) else {
+        return json_error(401, "not logged in");
+    };
+    match auth::caller_is_admin(client, domain_ir, &caller).await {
+        Ok(true) => {}
+        Ok(false) => return json_error(403, "admins only"),
+        Err(e) => return json_error(500, &format!("members lookup failed: {e}")),
+    }
+
+    let body: Value = serde_json::from_str(raw_body).unwrap_or(Value::Null);
+    let field = |key: &str| body.get(key).and_then(|v| v.as_str()).map(|s| s.trim().to_string()).unwrap_or_default();
+    let (email, name) = (field("email"), field("name"));
+    let looks_like_email = email.split_once('@').is_some_and(|(local, domain)| !local.is_empty() && domain.contains('.') && !email.contains(char::is_whitespace));
+    if name.is_empty() || !looks_like_email {
+        return json_error(400, "a name and a valid email are required");
+    }
+
+    match auth::admit_person(client, config, domain_ir, &email, &name).await {
+        Ok(true) => {}
+        Ok(false) => return json_error(409, "that email is already admitted"),
+        Err(e) => return json_error(500, &format!("admit failed: {e}")),
+    }
+    let email = email.to_lowercase();
+    match auth::grant_access(client, wasm_path, config, domain_ir, &email, "Admin").await {
+        Ok(true) => respond(
+            201,
+            "application/json",
+            &json!({"name": name, "email": email, "role": "Admin", "linked": false, "granted": true, "disabled": false}).to_string(),
+        ),
+        Ok(false) => json_error(500, "the person was admitted but the Admin role was not granted"),
+        Err(e) => json_error(500, &format!("the person was admitted but the Admin role was not granted: {e}")),
+    }
+}
+
+// POST /members/disable and POST /members/enable -- switch a person's
+// access off or back on without deleting them, for a server-side caller
+// holding the `lifeadelics_session` cookie. Takes `{"email"}` as JSON.
+// Disabling keeps the person, role and identity link, so enabling restores
+// exactly the prior access. Answers a JSON 401 without a valid session, a
+// 403 unless the caller is an active Admin, a 403 when an admin disables
+// themselves, a 404 for an unknown email, a 409 when disabling would leave
+// no active Admin, and 200 otherwise, including when the person is already
+// in the requested state. Every rule is re-checked under the membership
+// write lock in `auth::set_person_disabled`.
+async fn set_member_disabled_route(
+    domain_ir: &Value,
+    raw_body: &str,
+    cookies: &HashMap<String, String>,
+    secret: &str,
+    client: &Mutex<Client>,
+    config: &LineageConfig,
+    disable: bool,
+) -> Value {
+    let json_error = |status: u16, message: &str| respond(status, "application/json", &json!({"error": message}).to_string());
+
+    let Some(caller) = cookies.get("lifeadelics_session").and_then(|token| auth::verify_account_token(secret, token)) else {
+        return json_error(401, "not logged in");
+    };
+
+    let body: Value = serde_json::from_str(raw_body).unwrap_or(Value::Null);
+    let email = body.get("email").and_then(|v| v.as_str()).map(|s| s.trim().to_string()).unwrap_or_default();
+    if email.is_empty() {
+        return json_error(400, "an email is required");
+    }
+
+    match auth::set_person_disabled(client, config, domain_ir, &caller, &email, disable).await {
+        Ok(auth::DisableOutcome::Done) => {
+            let key = if disable { "disabled" } else { "enabled" };
+            respond(200, "application/json", &json!({key: email.to_lowercase()}).to_string())
+        }
+        Ok(auth::DisableOutcome::CallerNotAdmin) => json_error(403, "admins only"),
+        Ok(auth::DisableOutcome::SelfDisable) => json_error(403, "you can't disable your own admin access"),
+        Ok(auth::DisableOutcome::UnknownPerson) => json_error(404, "no member with that email"),
+        Ok(auth::DisableOutcome::LastAdmin) => json_error(409, "there must always be at least one admin"),
+        Err(e) => json_error(500, &format!("members update failed: {e}")),
+    }
+}
+
+// GET /registrations -- every event registration as JSON, for the admin
+// Events page. Server-side callers only: a valid `lifeadelics_session`
+// cookie is required (JSON 401 otherwise, never a redirect), and the person
+// behind it must currently be an active Admin, re-checked against the
+// membership head on every request (403 otherwise, including a disabled
+// admin). Reads the replayed registration instances, the same source
+// `registration_show_route` uses, and never returns health or payment
+// fields. The public `POST /registrations` is a different route and is
+// untouched.
+async fn registrations_list_route(
+    domain_ir: &Value,
+    cookies: &HashMap<String, String>,
+    secret: &str,
+    client: &Mutex<Client>,
+    wasm_path: &Path,
+    config: &LineageConfig,
+) -> Value {
+    let json_error = |status: u16, message: &str| respond(status, "application/json", &json!({"error": message}).to_string());
+
+    let Some(caller) = cookies.get("lifeadelics_session").and_then(|token| auth::verify_account_token(secret, token)) else {
+        return json_error(401, "not logged in");
+    };
+    match auth::caller_is_admin(client, domain_ir, &caller).await {
+        Ok(true) => {}
+        Ok(false) => return json_error(403, "admins only"),
+        Err(e) => return json_error(500, &format!("members lookup failed: {e}")),
+    }
+
+    let read = match dispatch::read(client, wasm_path).await {
+        Ok(read) => read,
+        Err(e) => return json_error(500, &format!("registrations lookup failed: {e:#}")),
+    };
+    respond(200, "application/json", &Value::Array(registration_list_rows(&read, &config.domain)).to_string())
+}
+
+// The registration rows the admin list shows. Built field by field from an
+// allowlist, so intake answers such as medications and health concerns, and
+// anything from the payment, can never appear. Newest first when the
+// registrations carry a timestamp, otherwise in the order they were read.
+fn registration_list_rows(read: &Value, domain: &str) -> Vec<Value> {
+    const TIMESTAMP_KEYS: [&str; 4] = ["created_at", "registered_at", "requested_at", "occurred_at"];
+    let plain = |value: Option<&Value>| -> Option<Value> {
+        let value = value?;
+        Some(value.get("value").cloned().unwrap_or_else(|| value.clone()))
+    };
+    let text = |value: Option<&Value>| plain(value).and_then(|v| v.as_str().map(|s| s.trim().to_string()));
+
+    let mut rows: Vec<(Option<String>, Value)> = instances_for(read, &format!("{domain}::Registration#"))
+        .into_iter()
+        .map(|(id, registration)| {
+            let attendee = registration.get("attendee").cloned().unwrap_or_else(|| json!({}));
+            let joined = [text(attendee.get("first_name")), text(attendee.get("last_name"))].into_iter().flatten().collect::<Vec<_>>().join(" ");
+            let name = if joined.is_empty() { text(attendee.get("name")).unwrap_or_default() } else { joined };
+            let stamp = TIMESTAMP_KEYS.iter().find_map(|key| text(registration.get(*key)));
+            let row = json!({
+                "registration_id": id,
+                "email": text(attendee.get("email")),
+                "name": name.trim(),
+                "event_slug": text(registration.get("event_slug")),
+                "news_signup": plain(attendee.get("news_signup")).and_then(|v| v.as_bool()).unwrap_or(false),
+            });
+            (stamp, row)
+        })
+        .collect();
+    if rows.iter().any(|(stamp, _)| stamp.is_some()) {
+        rows.sort_by(|a, b| b.0.cmp(&a.0));
+    }
+    rows.into_iter().map(|(_, row)| row).collect()
+}
+
+fn sorted_by_name(mut people: Vec<Value>) -> Vec<Value> {
+    let name_of = |p: &Value| p.get("name").and_then(|v| v.as_str()).unwrap_or("").to_lowercase();
+    people.sort_by_key(name_of);
+    people
 }
 
 // GET /accounts/sso-token — mints the short-lived (60s, Ruby's own
@@ -426,15 +655,13 @@ fn accounts_me_route(cookies: &HashMap<String, String>, secret: &str) -> Value {
 // cms/src/endpoints/sso.ts. Re-verifies the requester's own
 // lifeadelics_session cookie first — same account_token scheme, just a
 // much shorter TTL and returned as JSON instead of a cookie, since this
-// token is a one-shot redirect target, never stored.
-fn accounts_sso_token_route(cookies: &HashMap<String, String>, secret: &str) -> Value {
+// token is a one-shot redirect target, never stored. A disabled person's
+// old cookie is refused here too, so no new handoff token is minted for them.
+async fn accounts_sso_token_route(domain_ir: &Value, cookies: &HashMap<String, String>, secret: &str, client: &Mutex<Client>) -> Value {
     const SSO_TOKEN_TTL_SECS: u64 = 60;
-    let not_logged_in = || respond(401, "application/json", &json!({"error": "not logged in"}).to_string());
-    let Some(token) = cookies.get("lifeadelics_session") else {
-        return not_logged_in();
-    };
-    let Some(email) = auth::verify_account_token(secret, token) else {
-        return not_logged_in();
+    let email = match active_session_email(domain_ir, cookies, secret, client).await {
+        Ok(email) => email,
+        Err(response) => return response,
     };
     let sso_token = auth::account_token(secret, &email, SSO_TOKEN_TTL_SECS);
     respond(200, "application/json", &json!({"token": sso_token}).to_string())
@@ -1342,7 +1569,7 @@ fn own_command_target_id(result: &Value) -> Option<&str> {
 // step before this call's own already succeeded once (dispatch.rs's own
 // header on why); shared by `submit` above and `registrations_route`
 // below rather than each keeping its own copy.
-fn last_refusal(result: &Value) -> Value {
+pub(crate) fn last_refusal(result: &Value) -> Value {
     result
         .get("refusals")
         .and_then(|r| r.as_array())
@@ -1366,78 +1593,22 @@ fn checkout_enabled(configured: Option<&str>, domain: &str) -> bool {
     configured.is_some_and(|c| !c.is_empty() && c == domain)
 }
 
-// The fixed, publicly-known, non-secret mock webhook secret — see
-// `stripe_webhook_secret` below for when it's allowed.
-const MOCK_STRIPE_WEBHOOK_SECRET: &str = "whsec_mock_checkout_fixed";
+// The fixed, publicly-known, non-secret mock webhook secret. It verifies a
+// webhook only while STRIPE_WEBHOOK_SECRET is unset, so a mock deploy needs no
+// webhook secret configured to be exercisable end to end; `webhook_route`
+// refuses anything that could only come from a real processor when a
+// webhook was verified against it.
+pub(crate) const MOCK_STRIPE_WEBHOOK_SECRET: &str = "whsec_mock_checkout_fixed";
 
-// Env vars read once here, at the routing layer, passed down as plain
-// parameters — the same shape `route`'s own `session_secret()` already
-// reads once and hands `auth_route` rather than each auth_route arm
-// reading it independently. Keeps `registrations_route`/`webhook_route`
-// themselves free of hidden global state, the same reason `checkout::
-// verify_signature` takes `now` as a parameter instead of reading the
-// clock internally — a test can pass an explicit secret/key instead of
-// mutating a process-wide env var, which `cargo test`'s default
-// parallelism would otherwise race between tests.
-// Blank, not a bare .unwrap() — lifeadelics.world's own comment on why
-// this same default is blank there too: real in a deploy that actually
-// sets it, deferred (never a boot-time panic) everywhere else, the same
-// reasoning `stripe_api_key`'s own blank default already holds to.
-fn stripe_api_key() -> String {
-    std::env::var("STRIPE_API_KEY").unwrap_or_default()
-}
-
-// `MOCK_STRIPE_WEBHOOK_SECRET`, a fixed, publicly-known, non-secret
-// default, so a mock deploy (empty `stripe_api_key`) needs no webhook
-// secret configured to be exercisable end to end. A consumer whose own
-// manual-confirmation tooling signs against a different fixed string
-// sets STRIPE_WEBHOOK_SECRET to it. Only allowed as a fallback in
-// mock mode though (`processor == "mock_stripe"`) — same
-// panic-at-the-moment-it's-needed split `session_secret`/
-// `validate_session_secret` above already use: a real-Stripe deploy
-// (`STRIPE_API_KEY` set) that forgets `STRIPE_WEBHOOK_SECRET` would
-// otherwise silently verify incoming webhooks against a public,
-// well-known string while charging real cards.
-fn stripe_webhook_secret(processor: &str) -> String {
-    let secret = std::env::var("STRIPE_WEBHOOK_SECRET").unwrap_or_default();
-    if let Err(e) = validate_stripe_webhook_secret(processor, &secret) {
-        panic!("{e}");
-    }
-    if secret.is_empty() { MOCK_STRIPE_WEBHOOK_SECRET.to_string() } else { secret }
-}
-
-// Pure and separately unit-tested from the panic above — same split
-// `validate_session_secret` already uses.
-fn validate_stripe_webhook_secret(processor: &str, secret: &str) -> Result<(), String> {
-    if processor == "stripe" && secret.is_empty() {
-        Err(format!(
-            "STRIPE_WEBHOOK_SECRET is required when checkout_processor() reports \"stripe\" \
-             (a real STRIPE_API_KEY is set) -- refusing to fall back to the publicly-known mock \
-             webhook secret {MOCK_STRIPE_WEBHOOK_SECRET} for a real-money deploy"
-        ))
-    } else {
-        Ok(())
-    }
-}
-
-fn site_url() -> String {
-    std::env::var("SITE_URL").unwrap_or_else(|_| "http://localhost:4321".to_string())
-}
-
-// http_server.rb's own processor constant, derived from the same fact
-// `stripe_api_key` already answers rather than a second, independently-
-// settable flag — a blank key means checkout is genuinely bound to the
-// mock adapter, so reporting anything other than "mock_stripe" would be
-// exactly the drift that constant's own comment warns against ("a lie
-// in production data"). Read once here and threaded through both
-// routes as a parameter — `registrations_route`'s own Payment.Initiate
-// and `webhook_route`'s own reported_processor must agree, or
-// Payment::Succeed's own "the processor matches the one this payment
-// was initiated with" given refuses every mock confirmation (the exact
-// bug class this session already found live once, for the real-Stripe
-// path — see naming.rb's own fielded_capable_nested? header).
-fn checkout_processor() -> &'static str {
-    if stripe_api_key().is_empty() { "mock_stripe" } else { "stripe" }
+// The processor a Payment reports, as Payments::Payment.Initiate recorded it
+// ("mock_stripe" for the walkthrough, "stripe" for a real charge). Read off the
+// Payment itself rather than guessed from whatever is connected now: the
+// connection can change between a guest registering and the webhook arriving.
+fn payment_processor(read: &Value, reference: &str) -> Option<String> {
+    instances_for(read, "Payments::Payment#")
+        .into_iter()
+        .find(|(id, _)| id == reference)
+        .and_then(|(_, payment)| payment.get("processor").and_then(|p| p.get("value")).and_then(|v| v.as_str()).map(String::from))
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -1453,7 +1624,7 @@ async fn checkout_route(
 ) -> Option<Value> {
     match (method, path) {
         ("POST", "/registrations") => {
-            Some(registrations_route(raw_body, &stripe_api_key(), checkout_processor(), &site_url(), client, wasm_path, config, invoker).await)
+            Some(registrations_route(raw_body, &payments::PlatformConfig::from_env(), client, wasm_path, config, invoker).await)
         }
         // GET /registrations/:id — read-only, re-derives the truth
         // (http_server.rb's own GET /registrations/:id comment: "never
@@ -1471,20 +1642,18 @@ async fn checkout_route(
         }
         // POST /registrations/:id/complete — LocalCheckout's own
         // "Pay"/"Cancel" button (src/pages/pay/[registrationId].astro),
-        // reached only when checkout is genuinely bound to the mock
-        // adapter (an empty stripe_api_key — this module's own
-        // `checkout_processor` derives both facts from the same source,
-        // never a second independently-settable flag). Settles the
-        // Payment through the SAME PaymentGateway port POST
+        // refused for any Payment a real processor collected: the
+        // processor is read off the Payment itself, so this can only
+        // settle a payment that was started on the mock walkthrough.
+        // Settles the Payment through the SAME PaymentGateway port POST
         // /webhooks/stripe uses — never a parallel, untested way to
         // reach the same two states.
         ("POST", path) if path.starts_with("/registrations/") && path.ends_with("/complete") => {
             let registration_id = path.trim_start_matches("/registrations/").trim_end_matches("/complete").trim_end_matches('/');
-            Some(registration_complete_route(registration_id, raw_body, checkout_processor(), client, wasm_path, config, invoker).await)
+            Some(registration_complete_route(registration_id, raw_body, client, wasm_path, config, invoker).await)
         }
         ("POST", "/webhooks/stripe") => {
-            let processor = checkout_processor();
-            Some(webhook_route(raw_body, stripe_signature, &stripe_webhook_secret(processor), processor, client, wasm_path, config, invoker).await)
+            Some(webhook_route(raw_body, stripe_signature, &payments::PlatformConfig::from_env(), client, wasm_path, config, invoker).await)
         }
         // POST /events — mock_payments/ (a separate service, its own
         // bluebook) DRIVING IN: puts a new session on the calendar
@@ -1603,24 +1772,21 @@ async fn registration_show_route(registration_id: &str, client: &Mutex<Client>, 
     }).to_string())
 }
 
-/// POST /registrations/:id/complete — refused outright unless LocalCheckout
-/// (mock_stripe) is actually bound, same guard http_server.rb's own route
-/// carries. Settles the shared-reference Payment through the same
-/// PaymentGateway.Succeeded/Failed port webhook_route already dispatches
-/// through — a repeat call on an already-settled Payment is the same
-/// benign no-op webhook_route's own header already documents.
-async fn registration_complete_route(
+/// POST /registrations/:id/complete — refused outright for any Payment that
+/// was not itself initiated on the mock processor ("mock_stripe"), same
+/// per-payment guard http_server.rb's own route carries. Settles the
+/// shared-reference Payment through the same PaymentGateway.Succeeded/Failed
+/// port webhook_route already dispatches through — a repeat call on an
+/// already-settled Payment is the same benign no-op webhook_route's own header
+/// already documents.
+pub(crate) async fn registration_complete_route(
     registration_id: &str,
     raw_body: &str,
-    processor: &str,
     client: &Mutex<Client>,
     wasm_path: &Path,
     config: &LineageConfig,
     invoker: &dyn LambdaInvoker,
 ) -> Value {
-    if processor != "mock_stripe" {
-        return respond(403, "application/json", &json!({"error": "not available with a real payment processor bound"}).to_string());
-    }
     let body: Value = match serde_json::from_str(raw_body) {
         Ok(v) => v,
         Err(e) => return respond(400, "application/json", &json!({"error": format!("invalid JSON: {e}")}).to_string()),
@@ -1641,6 +1807,10 @@ async fn registration_complete_route(
         return respond(404, "application/json", &json!({"error": "no such registration"}).to_string());
     }
 
+    let processor = match payment_processor(&read, registration_id) {
+        Some(processor) if processor == "mock_stripe" => processor,
+        _ => return respond(403, "application/json", &json!({"error": "not available with a real payment processor"}).to_string()),
+    };
     let reported_processor = json!({"value": processor});
     // `reference_to Payment, as: :reference` keeps the receiver field inside
     // `with:` (routing.rs's own "Field Retention" comment) so the command's
@@ -1963,11 +2133,9 @@ fn display_name_from(body: &Value) -> Option<String> {
 // `submit` does (that function's own comment); the Astro site calls in
 // server-to-server, not as a signed-in user.
 #[allow(clippy::too_many_arguments)]
-async fn registrations_route(
+pub(crate) async fn registrations_route(
     raw_body: &str,
-    api_key: &str,
-    processor: &str,
-    site_url: &str,
+    platform: &payments::PlatformConfig,
     client: &Mutex<Client>,
     wasm_path: &Path,
     config: &LineageConfig,
@@ -2007,6 +2175,20 @@ async fn registrations_route(
     }
     let price_cents = event.get("price").and_then(|p| p.get("cents")).and_then(|v| v.as_i64()).unwrap_or(0);
     let event_name = event.get("name").and_then(|n| n.get("value")).and_then(|v| v.as_str()).unwrap_or("");
+
+    // What checkout does is decided per request from this tenant's own
+    // PaymentConnection, before anything is written: a paused connection
+    // must not leave an orphaned Payment behind, and must never fall back
+    // to the mock walkthrough (payments.rs's own header).
+    let plan = payments::checkout_plan(payments::connection(&read, &config.domain).as_ref(), platform);
+    let processor = match plan {
+        payments::CheckoutPlan::Mock => "mock_stripe",
+        payments::CheckoutPlan::Stripe { .. } => "stripe",
+        payments::CheckoutPlan::Paused => {
+            return respond(503, "application/json", &json!({"error": "payments are temporarily unavailable"}).to_string());
+        }
+    };
+    let site_url = platform.site_url.as_str();
 
     let reference = uuid::Uuid::new_v4().to_string();
 
@@ -2067,18 +2249,18 @@ async fn registrations_route(
     let success_url = format!("{site_url}/registration-confirmed.html?{}", confirm_query("succeeded"));
     let cancel_url = format!("{site_url}/registration-confirmed.html?{}", confirm_query("cancelled"));
 
-    // **Mock, not an error** — an empty `api_key` means checkout is
-    // genuinely bound to the mock adapter (this route's own header,
-    // checkout.rs's own header) exactly the way lifeadelics.hecksagon's
-    // own `opened_by("MockStripeAdapter")` is the default in every Ruby
-    // environment except a real deploy — never a misconfiguration to
-    // refuse.
-    if api_key.is_empty() {
+    // **Mock, not an error** — a tenant with no connection, or one that is
+    // not enabled, is on the mock walkthrough (this route's own header,
+    // checkout.rs's own header) — never a misconfiguration to refuse.
+    let payments::CheckoutPlan::Stripe { api_key, account } = plan else {
         let checkout_url = checkout::mock_checkout_session(&reference, &success_url, &cancel_url, site_url);
         return respond(200, "application/json", &json!({"checkout_url": checkout_url, "registration_id": reference}).to_string());
-    }
+    };
 
-    match checkout::create_checkout_session(api_key, price_cents, event_name, &reference, &success_url, &cancel_url).await {
+    // A direct charge on the tenant's own connected account: the platform's
+    // key, and the `Stripe-Account` header naming whose money it is.
+    let auth = checkout::StripeAuth { api_key: &api_key, account: Some(&account), base_url: &platform.api_base };
+    match checkout::create_checkout_session(&auth, price_cents, event_name, &reference, &success_url, &cancel_url).await {
         Ok(checkout_url) => respond(200, "application/json", &json!({"checkout_url": checkout_url, "registration_id": reference}).to_string()),
         Err(e) => respond(500, "text/plain", &format!("{e:#}")),
     }
@@ -2091,18 +2273,26 @@ async fn registrations_route(
 // trusted without a verified signature first. Dispatches through
 // Payment's own vendored PaymentGateway port, never Registration's
 // (removed — see lifeadelics.bluebook's own Registration comment).
-#[allow(clippy::too_many_arguments)]
-async fn webhook_route(
+//
+// One platform endpoint receives every tenant's Connect events, signed with
+// the platform's `STRIPE_WEBHOOK_SECRET`. An event naming some other connected
+// account is acknowledged and ignored; `account.application.deauthorized`
+// pauses or unlinks this tenant's connection (payments.rs). While that secret
+// is unset the public mock secret verifies the signature instead, and
+// anything only a real processor could send (an account event, or an event
+// for a Payment a real processor collected) is refused rather than trusted on
+// a publicly-known key.
+pub(crate) async fn webhook_route(
     raw_body: &str,
     signature_header: &str,
-    secret: &str,
-    processor: &str,
+    platform: &payments::PlatformConfig,
     client: &Mutex<Client>,
     wasm_path: &Path,
     config: &LineageConfig,
     invoker: &dyn LambdaInvoker,
 ) -> Value {
     let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_secs() as i64;
+    let secret = platform.webhook_secret.as_deref().unwrap_or(MOCK_STRIPE_WEBHOOK_SECRET);
     if let Err(e) = checkout::verify_signature(raw_body, signature_header, secret, now) {
         return respond(400, "text/plain", &e.to_string());
     }
@@ -2111,11 +2301,50 @@ async fn webhook_route(
         Err(_) => return respond(400, "text/plain", "invalid JSON"),
     };
 
+    let read = match dispatch::read(client, wasm_path).await {
+        Ok(r) => r,
+        Err(e) => return respond(500, "text/plain", &format!("{e:#}")),
+    };
+    let connection = payments::connection(&read, &config.domain);
+    let fallback_secret = platform.webhook_secret.is_none();
+    let refuse_fallback = || {
+        respond(
+            500,
+            "application/json",
+            &json!({"error": "STRIPE_WEBHOOK_SECRET is required to accept events from a real payment processor -- \
+                              refusing to trust the publicly-known mock webhook secret"})
+            .to_string(),
+        )
+    };
+
+    match payments::event_scope(&event, connection.as_ref()) {
+        payments::EventScope::Ignore => return respond(200, "text/plain", ""),
+        payments::EventScope::Deauthorized => {
+            if fallback_secret {
+                return refuse_fallback();
+            }
+            return match payments::apply_deauthorization(connection.as_ref(), client, wasm_path, config, invoker).await {
+                Ok(()) => respond(200, "text/plain", ""),
+                Err(e) => respond(500, "text/plain", &format!("{e:#}")),
+            };
+        }
+        payments::EventScope::Proceed => {}
+    }
+    if fallback_secret && event.get("account").is_some_and(|account| !account.is_null()) {
+        return refuse_fallback();
+    }
+
     let event_type = event.get("type").and_then(|v| v.as_str()).unwrap_or("");
     let object = event.get("data").and_then(|d| d.get("object")).cloned().unwrap_or_else(|| json!({}));
     let reference = object.get("metadata").and_then(|m| m.get("registration_id")).and_then(|v| v.as_str()).map(String::from);
 
     if let Some(reference) = reference {
+        // The processor Payment.Initiate recorded — "stripe" when there is
+        // no such Payment, as http_server.rb's own route defaults it.
+        let processor = payment_processor(&read, &reference).unwrap_or_else(|| "stripe".to_string());
+        if fallback_secret && processor != "mock_stripe" {
+            return refuse_fallback();
+        }
         let reported_processor = json!({"value": processor});
         // **Routed, not mixed args** — the kernel refuses a flat
         // `{"reference": ..., ...}` for an aggregate-scoped port
@@ -2272,7 +2501,7 @@ fn render_field(field: &Field, values: &HashMap<String, String>) -> String {
 
 // ---- plumbing -----------------------------------------------------------
 
-fn instances_for(result: &Value, prefix: &str) -> Vec<(String, Value)> {
+pub(crate) fn instances_for(result: &Value, prefix: &str) -> Vec<(String, Value)> {
     result
         .get("instances")
         .and_then(|v| v.as_object())
@@ -2477,18 +2706,6 @@ mod tests {
     fn validate_session_secret_refuses_empty_or_unset() {
         assert!(validate_session_secret("").is_err());
         assert!(validate_session_secret("s3cret").is_ok());
-    }
-
-    // Same class of bug as H11 above, one function over: an unset or
-    // empty STRIPE_WEBHOOK_SECRET would otherwise fall back
-    // unconditionally to the fixed, publicly-known mock string -- fine in mock mode
-    // (checkout_processor() == "mock_stripe"), a silent real-money hole
-    // in real-Stripe mode (checkout_processor() == "stripe").
-    #[test]
-    fn validate_stripe_webhook_secret_refuses_empty_only_in_real_stripe_mode() {
-        assert!(validate_stripe_webhook_secret("stripe", "").is_err());
-        assert!(validate_stripe_webhook_secret("stripe", "whsec_real").is_ok());
-        assert!(validate_stripe_webhook_secret("mock_stripe", "").is_ok());
     }
 
     // ---- the auth gate ---------------------------------------------
@@ -3009,29 +3226,22 @@ mod tests {
         assert_eq!(display_name_from(&json!({"last_name": "Lovelace"})), None, "first_name alone is missing");
     }
 
-    #[test]
-    fn a_real_stripe_deploy_refuses_the_mock_webhook_secret_fallback() {
-        assert!(validate_stripe_webhook_secret("stripe", "").is_err());
-        assert!(validate_stripe_webhook_secret("mock_stripe", "").is_ok());
-        assert!(validate_stripe_webhook_secret("stripe", "whsec_real").is_ok());
-    }
-
     // ---- checkout_route: real Postgres, spec/fixtures/rust_host/
     // checkout_fixture's wasm (rust/dist/checkout_fixture.wasm), no
     // network ----------------------------------------------------------
     // `registrations_route`'s own final hop (checkout::create_checkout_
-    // session, a genuine third-party HTTPS call to api.stripe.com) is
-    // deliberately not trait-injected/mocked here — auth.rs's own
-    // Google OAuth calls (verify/verify_id_token) hold to the exact
-    // same precedent: real third-party network code stays real-network,
-    // verified live rather than locally unit-tested. What is tested
-    // below is everything genuinely this route's own logic: event
-    // lookup, the closed/missing-field/refusal branches, and the
-    // dispatch chain all the way through Registration.Request — a
-    // missing STRIPE_API_KEY is what stops each successful case one
-    // step short of the real network call, which doubles as proof the
-    // whole chain up to there ran for real (a wrong dispatch anywhere
-    // earlier would fail on its own assertion first).
+    // session, a third-party HTTPS call to Stripe) is aimed at a
+    // recording server on 127.0.0.1 by payments.rs's own tests, never at
+    // api.stripe.com; auth.rs's own Google OAuth calls
+    // (verify/verify_id_token) still stay real-network, verified live
+    // rather than locally unit-tested. What is tested below is
+    // everything genuinely this route's own logic: event lookup, the
+    // closed/missing-field/refusal branches, and the dispatch chain all
+    // the way through Registration.Request — a platform with no
+    // connection is what stops each successful case at the mock
+    // checkout URL, which doubles as proof the whole chain up to there
+    // ran for real (a wrong dispatch anywhere earlier would fail on its
+    // own assertion first).
     use crate::lambda_client;
     use tokio_postgres::NoTls;
 
@@ -3123,7 +3333,7 @@ mod tests {
         let client = scratch_db("hecks_host_web_test_registrations_missing_fields").await;
         provision_lineage(&*client.lock().await, "CheckoutFixture", 1, &["Event", "Registration", "Payment"]).await;
 
-        let response = registrations_route(r#"{"event_slug":"yoga-aug"}"#, "", "mock_stripe", "http://localhost:4321", &client, &checkout_wasm_path(), &checkout_config(1), &lambda_client::NeverInvoker).await;
+        let response = registrations_route(r#"{"event_slug":"yoga-aug"}"#, &payments::test_platform(), &client, &checkout_wasm_path(), &checkout_config(1), &lambda_client::NeverInvoker).await;
         assert_eq!(response["statusCode"], 400);
         assert!(response["body"].as_str().unwrap().contains("missing name"));
     }
@@ -3156,7 +3366,7 @@ mod tests {
             "email": "ada@example.com",
         })
         .to_string();
-        let response = registrations_route(&body, "", "mock_stripe", "http://localhost:4321", &client, &wasm_path, &config, &lambda_client::NeverInvoker).await;
+        let response = registrations_route(&body, &payments::test_platform(), &client, &wasm_path, &config, &lambda_client::NeverInvoker).await;
 
         // Registration.Request refuses (CheckoutFixture's Attendee has
         // no first_name/last_name) — but that's AFTER Payment.Initiate
@@ -3185,7 +3395,7 @@ mod tests {
         let client = scratch_db("hecks_host_web_test_registrations_bad_json").await;
         provision_lineage(&*client.lock().await, "CheckoutFixture", 1, &["Event", "Registration", "Payment"]).await;
 
-        let response = registrations_route("not json", "", "mock_stripe", "http://localhost:4321", &client, &checkout_wasm_path(), &checkout_config(1), &lambda_client::NeverInvoker).await;
+        let response = registrations_route("not json", &payments::test_platform(), &client, &checkout_wasm_path(), &checkout_config(1), &lambda_client::NeverInvoker).await;
         assert_eq!(response["statusCode"], 400);
     }
 
@@ -3283,7 +3493,7 @@ mod tests {
         provision_lineage(&*client.lock().await, "CheckoutFixture", 1, &["Event", "Registration", "Payment"]).await;
 
         let body = json!({"event_slug": "nope", "name": "Ada", "email": "ada@example.com"}).to_string();
-        let response = registrations_route(&body, "", "mock_stripe", "http://localhost:4321", &client, &checkout_wasm_path(), &checkout_config(1), &lambda_client::NeverInvoker).await;
+        let response = registrations_route(&body, &payments::test_platform(), &client, &checkout_wasm_path(), &checkout_config(1), &lambda_client::NeverInvoker).await;
         assert_eq!(response["statusCode"], 404);
     }
 
@@ -3301,7 +3511,7 @@ mod tests {
         assert!(close.accepted, "closing the fixture event should succeed: {:?}", close.result);
 
         let body = json!({"event_slug": "closed-event", "name": "Ada", "email": "ada@example.com"}).to_string();
-        let response = registrations_route(&body, "", "mock_stripe", "http://localhost:4321", &client, &wasm_path, &config, &lambda_client::NeverInvoker).await;
+        let response = registrations_route(&body, &payments::test_platform(), &client, &wasm_path, &config, &lambda_client::NeverInvoker).await;
         assert_eq!(response["statusCode"], 422);
         assert!(response["body"].as_str().unwrap().contains("closed"));
     }
@@ -3320,7 +3530,7 @@ mod tests {
         schedule_event(&client, &wasm_path, &config, "free-event", 0).await;
 
         let body = json!({"event_slug": "free-event", "name": "Ada", "email": "ada@example.com"}).to_string();
-        let response = registrations_route(&body, "", "mock_stripe", "http://localhost:4321", &client, &wasm_path, &config, &lambda_client::NeverInvoker).await;
+        let response = registrations_route(&body, &payments::test_platform(), &client, &wasm_path, &config, &lambda_client::NeverInvoker).await;
         assert_eq!(response["statusCode"], 422);
         assert!(
             response["body"].as_str().unwrap().contains("positive"),
@@ -3343,12 +3553,12 @@ mod tests {
 
         schedule_event(&client, &wasm_path, &config, "happy-event", 4200).await;
 
-        // Empty api_key -- checkout genuinely bound to the mock adapter
+        // No connection -- checkout genuinely on the mock walkthrough
         // (this route's own header), not a misconfiguration: the whole
         // chain runs for real and returns a real, working mock checkout
         // URL, never a 500.
         let body = json!({"event_slug": "happy-event", "name": "Ada Lovelace", "email": "ada@example.com"}).to_string();
-        let response = registrations_route(&body, "", "mock_stripe", "http://localhost:4321", &client, &wasm_path, &config, &lambda_client::NeverInvoker).await;
+        let response = registrations_route(&body, &payments::test_platform(), &client, &wasm_path, &config, &lambda_client::NeverInvoker).await;
         assert_eq!(response["statusCode"], 200, "{response:?}");
         let body: Value = serde_json::from_str(response["body"].as_str().unwrap()).unwrap();
         let reference = body["registration_id"].as_str().unwrap().to_string();
@@ -3382,11 +3592,11 @@ mod tests {
         assert_eq!(registration["registration_id"]["value"], reference);
         assert_eq!(payment["reference"]["value"], reference);
         assert_eq!(payment["amount"]["cents"], 4200);
-        // Mock, not "stripe" -- the exact processor this route's own
-        // `checkout_processor` derives from the same blank api_key,
-        // never a second, independently-settable flag (this function's
-        // own header on why that drift matters: Payment::Succeed's own
-        // "the processor matches" given).
+        // Mock, not "stripe" -- the processor `checkout_plan` picks for a
+        // tenant with no connection, which the webhook then reads back
+        // off the Payment itself (this function's own header on why that
+        // drift matters: Payment::Succeed's own "the processor matches"
+        // given).
         assert_eq!(payment["processor"]["value"], "mock_stripe");
     }
 
@@ -3413,7 +3623,7 @@ mod tests {
             "return_to": "/yogadelics.html",
         })
         .to_string();
-        let response = registrations_route(&body, "", "mock_stripe", "http://localhost:4321", &client, &wasm_path, &config, &lambda_client::NeverInvoker).await;
+        let response = registrations_route(&body, &payments::test_platform(), &client, &wasm_path, &config, &lambda_client::NeverInvoker).await;
         assert_eq!(response["statusCode"], 200, "{response:?}");
         let body: Value = serde_json::from_str(response["body"].as_str().unwrap()).unwrap();
         let reference = body["registration_id"].as_str().unwrap().to_string();
@@ -3449,7 +3659,7 @@ mod tests {
                 "return_to": unsafe_return_to,
             })
             .to_string();
-            let response = registrations_route(&body, "", "mock_stripe", "http://localhost:4321", &client, &wasm_path, &config, &lambda_client::NeverInvoker).await;
+            let response = registrations_route(&body, &payments::test_platform(), &client, &wasm_path, &config, &lambda_client::NeverInvoker).await;
             assert_eq!(response["statusCode"], 200, "{response:?}");
             let body: Value = serde_json::from_str(response["body"].as_str().unwrap()).unwrap();
             // checkout_url is now the /pay/<id>.html walkthrough page (LocalCheckout's
@@ -3466,34 +3676,40 @@ mod tests {
         }
     }
 
-    #[test]
-    fn accounts_me_route_reads_a_real_cookie_and_refuses_a_missing_or_invalid_one() {
+    #[tokio::test]
+    async fn accounts_me_route_reads_a_real_cookie_and_refuses_a_missing_or_invalid_one() {
         let secret = "s3cret";
-        let token = auth::account_token(secret, "ada@example.com", 60);
+        let (client, domain_ir) = scratch_members_db("hecks_host_web_test_accounts_me").await;
 
-        let mut cookies = HashMap::new();
-        cookies.insert("lifeadelics_session".to_string(), token);
-        let response = accounts_me_route(&cookies, secret);
+        let cookies = session_cookies(secret, "zed@example.com");
+        let response = accounts_me_route(&domain_ir, &cookies, secret, &client).await;
         assert_eq!(response["statusCode"], 200, "{response:?}");
         let body: Value = serde_json::from_str(response["body"].as_str().unwrap()).unwrap();
-        assert_eq!(body["email"], "ada@example.com");
+        assert_eq!(body["email"], "zed@example.com");
 
         let empty = HashMap::new();
-        assert_eq!(accounts_me_route(&empty, secret)["statusCode"], 401);
+        assert_eq!(accounts_me_route(&domain_ir, &empty, secret, &client).await["statusCode"], 401);
 
         let mut tampered = HashMap::new();
         tampered.insert("lifeadelics_session".to_string(), "garbage.notasignature".to_string());
-        assert_eq!(accounts_me_route(&tampered, secret)["statusCode"], 401);
+        assert_eq!(accounts_me_route(&domain_ir, &tampered, secret, &client).await["statusCode"], 401);
+
+        // A validly signed token for someone with no granted role, or nobody
+        // admitted at all, is no session.
+        for email in ["amy@example.com", "stranger@example.com"] {
+            let response = accounts_me_route(&domain_ir, &session_cookies(secret, email), secret, &client).await;
+            assert_eq!(response["statusCode"], 401, "{email}: {response:?}");
+        }
     }
 
-    #[test]
-    fn accounts_sso_token_route_mints_a_short_lived_token_verifiable_by_the_same_secret() {
+    #[tokio::test]
+    async fn accounts_sso_token_route_mints_a_short_lived_token_verifiable_by_the_same_secret() {
         let secret = "s3cret";
-        let session_token = auth::account_token(secret, "ada@example.com", 60 * 60 * 24 * 14);
+        let (client, domain_ir) = scratch_members_db("hecks_host_web_test_accounts_sso_token").await;
 
         let mut cookies = HashMap::new();
-        cookies.insert("lifeadelics_session".to_string(), session_token);
-        let response = accounts_sso_token_route(&cookies, secret);
+        cookies.insert("lifeadelics_session".to_string(), auth::account_token(secret, "zed@example.com", 60 * 60 * 24 * 14));
+        let response = accounts_sso_token_route(&domain_ir, &cookies, secret, &client).await;
         assert_eq!(response["statusCode"], 200, "{response:?}");
         let body: Value = serde_json::from_str(response["body"].as_str().unwrap()).unwrap();
         let sso_token = body["token"].as_str().expect("a sso token string");
@@ -3502,15 +3718,476 @@ mod tests {
         // token with the same wire format (verify_account_token is the
         // Rust side of that same scheme) — a real, decodable token, not
         // an opaque string this route just happens to return 200 with.
-        assert_eq!(auth::verify_account_token(secret, sso_token).as_deref(), Some("ada@example.com"));
+        assert_eq!(auth::verify_account_token(secret, sso_token).as_deref(), Some("zed@example.com"));
 
         // Missing or invalid session cookie -- refused, no token minted.
         let empty = HashMap::new();
-        assert_eq!(accounts_sso_token_route(&empty, secret)["statusCode"], 401);
+        assert_eq!(accounts_sso_token_route(&domain_ir, &empty, secret, &client).await["statusCode"], 401);
 
         let mut tampered = HashMap::new();
         tampered.insert("lifeadelics_session".to_string(), "garbage.notasignature".to_string());
-        assert_eq!(accounts_sso_token_route(&tampered, secret)["statusCode"], 401);
+        assert_eq!(accounts_sso_token_route(&domain_ir, &tampered, secret, &client).await["statusCode"], 401);
+
+        let no_role = accounts_sso_token_route(&domain_ir, &session_cookies(secret, "amy@example.com"), secret, &client).await;
+        assert_eq!(no_role["statusCode"], 401, "{no_role:?}");
+    }
+
+    // Same head-view shape auth.rs's own tests build for the Membership
+    // aggregate, seeded with one granted, linked admin and one admitted
+    // person with no access yet.
+    async fn scratch_members_db(name: &str) -> (Mutex<Client>, Value) {
+        let client = scratch_db(name).await;
+        {
+            let guard = client.lock().await;
+            guard
+                .batch_execute(
+                    "CREATE TABLE embryonaut_member_head_snapshot_1 (id text PRIMARY KEY, ordinal bigint NOT NULL, state jsonb NOT NULL);
+                     CREATE VIEW embryonaut_member_head AS SELECT id, state FROM embryonaut_member_head_snapshot_1;
+                     CREATE TABLE hecks_journal_embryonaut (
+                         ordinal bigserial PRIMARY KEY, era int NOT NULL, aggregate text NOT NULL,
+                         aggregate_id text NOT NULL, operation text NOT NULL, state jsonb, mirrors jsonb
+                     );",
+                )
+                .await
+                .unwrap();
+            guard
+                .execute(
+                    "INSERT INTO embryonaut_member_head_snapshot_1 (id, ordinal, state) VALUES ($1, 0, $2::jsonb), ($3, 0, $4::jsonb)",
+                    &[
+                        &"zed@example.com",
+                        &json!({"name": {"value": "Zed"}, "email": {"value": "zed@example.com"},
+                                "role": {"value": "Admin"}, "identity_id": {"value": "id-1"}}),
+                        &"amy@example.com",
+                        &json!({"name": {"value": "amy"}, "email": {"value": "amy@example.com"},
+                                "role": null, "identity_id": null}),
+                    ],
+                )
+                .await
+                .unwrap();
+        }
+        let domain_ir = json!({
+            "name": "Embryonaut",
+            "lineage": {"capable_aggregates": [{"name": "Member", "storage_name": "member"}]},
+            "membership": {"provider": "Embryonaut", "aggregate": "Embryonaut::Member"},
+        });
+        (client, domain_ir)
+    }
+
+    #[tokio::test]
+    async fn members_route_lists_admitted_people_as_json_sorted_by_name_for_a_valid_session() {
+        let secret = "s3cret";
+        let (client, domain_ir) = scratch_members_db("hecks_host_web_test_members_route").await;
+
+        let mut cookies = HashMap::new();
+        cookies.insert("lifeadelics_session".to_string(), auth::account_token(secret, "zed@example.com", 60));
+        let response = members_route(&domain_ir, &cookies, secret, &client).await;
+        assert_eq!(response["statusCode"], 200, "{response:?}");
+
+        let people: Vec<Value> = serde_json::from_str(response["body"].as_str().unwrap()).unwrap();
+        let names: Vec<&str> = people.iter().map(|p| p["name"].as_str().unwrap()).collect();
+        assert_eq!(names, ["amy", "Zed"], "sorted case-insensitively by name");
+        assert_eq!(
+            people[1],
+            json!({"name": "Zed", "email": "zed@example.com", "role": "Admin", "linked": true, "granted": true, "disabled": false})
+        );
+        assert_eq!(
+            people[0],
+            json!({"name": "amy", "email": "amy@example.com", "role": null, "linked": false, "granted": false, "disabled": false})
+        );
+    }
+
+    #[tokio::test]
+    async fn members_route_refuses_a_missing_or_invalid_session_with_a_json_401_and_no_people() {
+        let secret = "s3cret";
+        let (client, domain_ir) = scratch_members_db("hecks_host_web_test_members_route_401").await;
+
+        let mut tampered = HashMap::new();
+        tampered.insert("lifeadelics_session".to_string(), "garbage.notasignature".to_string());
+        let mut wrong_secret = HashMap::new();
+        wrong_secret.insert("lifeadelics_session".to_string(), auth::account_token("another", "zed@example.com", 60));
+        let mut governance_only = HashMap::new();
+        governance_only.insert("session".to_string(), "anything".to_string());
+
+        for cookies in [HashMap::new(), tampered, wrong_secret, governance_only] {
+            let response = members_route(&domain_ir, &cookies, secret, &client).await;
+            assert_eq!(response["statusCode"], 401, "{response:?}");
+            assert!(response.get("headers").and_then(|h| h.get("location")).is_none(), "never a redirect: {response:?}");
+            let body = response["body"].as_str().unwrap();
+            for leaked in ["zed@example.com", "amy@example.com", "Zed", "Admin"] {
+                assert!(!body.contains(leaked), "{leaked:?} leaked to an unauthenticated caller: {body}");
+            }
+        }
+    }
+
+    fn session_cookies(secret: &str, email: &str) -> HashMap<String, String> {
+        let mut cookies = HashMap::new();
+        cookies.insert("lifeadelics_session".to_string(), auth::account_token(secret, email, 60));
+        cookies
+    }
+
+    fn members_config() -> LineageConfig {
+        LineageConfig { domain: "Embryonaut".to_string(), era: Some(1), mirrored: None }
+    }
+
+    #[tokio::test]
+    async fn add_member_route_refuses_a_missing_or_invalid_session_with_a_json_401_and_writes_nothing() {
+        let secret = "s3cret";
+        let (client, domain_ir) = scratch_members_db("hecks_host_web_test_add_member_401").await;
+        let body = r#"{"email": "new@example.com", "name": "New Person"}"#;
+
+        let mut tampered = HashMap::new();
+        tampered.insert("lifeadelics_session".to_string(), "garbage.notasignature".to_string());
+        let mut wrong_secret = HashMap::new();
+        wrong_secret.insert("lifeadelics_session".to_string(), auth::account_token("another", "zed@example.com", 60));
+
+        for cookies in [HashMap::new(), tampered, wrong_secret] {
+            let response = add_member_route(&domain_ir, body, &cookies, secret, &client, Path::new("unused"), &members_config()).await;
+            assert_eq!(response["statusCode"], 401, "{response:?}");
+            assert!(response.get("headers").and_then(|h| h.get("location")).is_none(), "never a redirect: {response:?}");
+            let text = response["body"].as_str().unwrap();
+            for leaked in ["zed@example.com", "amy@example.com", "Zed", "Admin"] {
+                assert!(!text.contains(leaked), "{leaked:?} leaked to an unauthenticated caller: {text}");
+            }
+        }
+        assert_eq!(auth::all_people(&client, &domain_ir).await.unwrap().len(), 2, "nothing was written");
+    }
+
+    #[tokio::test]
+    async fn add_member_route_refuses_a_caller_who_is_not_a_granted_admin_with_a_403() {
+        let secret = "s3cret";
+        let (client, domain_ir) = scratch_members_db("hecks_host_web_test_add_member_403").await;
+        let body = r#"{"email": "new@example.com", "name": "New Person"}"#;
+
+        // amy is admitted but has no role; a stranger is not admitted at all.
+        for caller in ["amy@example.com", "stranger@example.com"] {
+            let cookies = session_cookies(secret, caller);
+            let response = add_member_route(&domain_ir, body, &cookies, secret, &client, Path::new("unused"), &members_config()).await;
+            assert_eq!(response["statusCode"], 403, "{caller}: {response:?}");
+        }
+        assert_eq!(auth::all_people(&client, &domain_ir).await.unwrap().len(), 2, "nothing was written");
+    }
+
+    #[tokio::test]
+    async fn add_member_route_rejects_a_blank_or_malformed_email_or_name_with_a_400() {
+        let secret = "s3cret";
+        let (client, domain_ir) = scratch_members_db("hecks_host_web_test_add_member_400").await;
+        let cookies = session_cookies(secret, "zed@example.com");
+
+        for body in [
+            "",
+            "not json",
+            "{}",
+            r#"{"email": "new@example.com"}"#,
+            r#"{"name": "New Person"}"#,
+            r#"{"email": "   ", "name": "New Person"}"#,
+            r#"{"email": "new@example.com", "name": "   "}"#,
+            r#"{"email": "no-at-sign", "name": "New Person"}"#,
+            r#"{"email": "@example.com", "name": "New Person"}"#,
+            r#"{"email": "new@nodot", "name": "New Person"}"#,
+            r#"{"email": "two words@example.com", "name": "New Person"}"#,
+            r#"{"email": 42, "name": "New Person"}"#,
+        ] {
+            let response = add_member_route(&domain_ir, body, &cookies, secret, &client, Path::new("unused"), &members_config()).await;
+            assert_eq!(response["statusCode"], 400, "{body:?}: {response:?}");
+        }
+        assert_eq!(auth::all_people(&client, &domain_ir).await.unwrap().len(), 2, "nothing was written");
+    }
+
+    #[tokio::test]
+    async fn add_member_route_answers_409_for_an_email_that_is_already_admitted_in_any_case() {
+        let secret = "s3cret";
+        let (client, domain_ir) = scratch_members_db("hecks_host_web_test_add_member_409").await;
+        let cookies = session_cookies(secret, "zed@example.com");
+
+        for email in ["amy@example.com", "AMY@Example.com"] {
+            let body = json!({"email": email, "name": "Another Amy"}).to_string();
+            let response = add_member_route(&domain_ir, &body, &cookies, secret, &client, Path::new("unused"), &members_config()).await;
+            assert_eq!(response["statusCode"], 409, "{email}: {response:?}");
+        }
+        assert_eq!(auth::all_people(&client, &domain_ir).await.unwrap().len(), 2, "nothing was written");
+    }
+
+    #[tokio::test]
+    async fn add_member_route_admits_and_grants_admin_then_lists_the_person_as_granted() {
+        let secret = "s3cret";
+        let (client, domain_ir) = scratch_members_db("hecks_host_web_test_add_member_201").await;
+        let cookies = session_cookies(secret, "Zed@Example.com");
+
+        let body = r#"{"email": "  New@Example.com ", "name": " New Person "}"#;
+        let response = add_member_route(&domain_ir, body, &cookies, secret, &client, Path::new("unused"), &members_config()).await;
+        assert_eq!(response["statusCode"], 201, "{response:?}");
+        let created: Value = serde_json::from_str(response["body"].as_str().unwrap()).unwrap();
+        assert_eq!(
+            created,
+            json!({"name": "New Person", "email": "new@example.com", "role": "Admin", "linked": false, "granted": true, "disabled": false})
+        );
+
+        let listing = members_route(&domain_ir, &cookies, secret, &client).await;
+        let people: Vec<Value> = serde_json::from_str(listing["body"].as_str().unwrap()).unwrap();
+        assert_eq!(people.len(), 3);
+        let added = people.iter().find(|p| p["email"] == "new@example.com").expect("the new person is listed");
+        assert_eq!(*added, created);
+
+        let guard = client.lock().await;
+        let journalled: i64 = guard
+            .query_one("SELECT count(*) FROM hecks_journal_embryonaut WHERE aggregate_id = 'new@example.com'", &[])
+            .await
+            .unwrap()
+            .get(0);
+        assert_eq!(journalled, 2, "one journal row for Admit and one for GrantAccess");
+    }
+
+    // The scratch members database with amy also granted Admin, so two
+    // active admins exist and one can act on the other.
+    async fn scratch_two_admins(name: &str) -> (Mutex<Client>, Value) {
+        let (client, domain_ir) = scratch_members_db(name).await;
+        let granted = auth::grant_access(&client, Path::new("unused"), &members_config(), &domain_ir, "amy@example.com", "Admin").await.unwrap();
+        assert!(granted);
+        (client, domain_ir)
+    }
+
+    async fn switch_access(client: &Mutex<Client>, domain_ir: &Value, caller: &str, email: &str, disable: bool) -> Value {
+        let secret = "s3cret";
+        let body = json!({"email": email}).to_string();
+        set_member_disabled_route(domain_ir, &body, &session_cookies(secret, caller), secret, client, &members_config(), disable).await
+    }
+
+    fn error_of(response: &Value) -> String {
+        let body: Value = serde_json::from_str(response["body"].as_str().unwrap()).unwrap();
+        body["error"].as_str().unwrap_or_default().to_string()
+    }
+
+    async fn person(client: &Mutex<Client>, domain_ir: &Value, email: &str) -> Value {
+        let people = auth::all_people(client, domain_ir).await.unwrap();
+        people.into_iter().find(|p| p["email"] == email).unwrap_or_else(|| panic!("{email} is not listed"))
+    }
+
+    async fn journal_rows(client: &Mutex<Client>, id: &str) -> i64 {
+        let guard = client.lock().await;
+        guard
+            .query_one("SELECT count(*) FROM hecks_journal_embryonaut WHERE aggregate_id = $1", &[&id])
+            .await
+            .unwrap()
+            .get(0)
+    }
+
+    #[tokio::test]
+    async fn disable_and_enable_routes_refuse_a_missing_or_invalid_session_and_a_blank_email() {
+        let secret = "s3cret";
+        let (client, domain_ir) = scratch_two_admins("hecks_host_web_test_disable_401").await;
+
+        let mut tampered = HashMap::new();
+        tampered.insert("lifeadelics_session".to_string(), "garbage.notasignature".to_string());
+        let body = json!({"email": "amy@example.com"}).to_string();
+        for disable in [true, false] {
+            for cookies in [HashMap::new(), tampered.clone()] {
+                let response = set_member_disabled_route(&domain_ir, &body, &cookies, secret, &client, &members_config(), disable).await;
+                assert_eq!(response["statusCode"], 401, "{response:?}");
+                assert!(response.get("headers").and_then(|h| h.get("location")).is_none(), "never a redirect: {response:?}");
+            }
+            for blank in ["", "   "] {
+                let response = switch_access(&client, &domain_ir, "zed@example.com", blank, disable).await;
+                assert_eq!(response["statusCode"], 400, "{blank:?}: {response:?}");
+            }
+        }
+        assert_eq!(person(&client, &domain_ir, "amy@example.com").await["disabled"], false, "nothing was written");
+    }
+
+    #[tokio::test]
+    async fn disable_and_enable_routes_refuse_a_caller_who_is_not_an_active_admin_with_a_403() {
+        let (client, domain_ir) = scratch_members_db("hecks_host_web_test_disable_403").await;
+
+        // amy is admitted with no role; the stranger was never admitted.
+        for caller in ["amy@example.com", "stranger@example.com"] {
+            for disable in [true, false] {
+                let response = switch_access(&client, &domain_ir, caller, "zed@example.com", disable).await;
+                assert_eq!(response["statusCode"], 403, "{caller}: {response:?}");
+                assert_eq!(error_of(&response), "admins only");
+            }
+        }
+        assert_eq!(person(&client, &domain_ir, "zed@example.com").await["granted"], true, "nothing was written");
+    }
+
+    #[tokio::test]
+    async fn disable_route_refuses_an_admin_disabling_themselves_in_any_case_and_writes_nothing() {
+        let (client, domain_ir) = scratch_two_admins("hecks_host_web_test_disable_self").await;
+        let before = journal_rows(&client, "zed@example.com").await;
+
+        for typed in ["zed@example.com", "  ZED@Example.com "] {
+            let response = switch_access(&client, &domain_ir, "zed@example.com", typed, true).await;
+            assert_eq!(response["statusCode"], 403, "{typed:?}: {response:?}");
+            assert_eq!(error_of(&response), "you can't disable your own admin access");
+        }
+        assert_eq!(person(&client, &domain_ir, "zed@example.com").await["granted"], true);
+        assert_eq!(journal_rows(&client, "zed@example.com").await, before);
+    }
+
+    #[tokio::test]
+    async fn disable_and_enable_routes_answer_404_for_an_unknown_email() {
+        let (client, domain_ir) = scratch_two_admins("hecks_host_web_test_disable_404").await;
+        for disable in [true, false] {
+            let response = switch_access(&client, &domain_ir, "zed@example.com", "nobody@example.com", disable).await;
+            assert_eq!(response["statusCode"], 404, "{response:?}");
+        }
+    }
+
+    #[tokio::test]
+    async fn disabling_keeps_the_role_ends_the_old_session_at_once_and_enabling_restores_it() {
+        let secret = "s3cret";
+        let (client, domain_ir) = scratch_two_admins("hecks_host_web_test_disable_enable").await;
+        let amy_cookies = session_cookies(secret, "amy@example.com");
+        let status = |response: &Value| response["statusCode"].as_i64().unwrap();
+        assert_eq!(status(&accounts_me_route(&domain_ir, &amy_cookies, secret, &client).await), 200);
+
+        let response = switch_access(&client, &domain_ir, "Zed@Example.com", " Amy@Example.com ", true).await;
+        assert_eq!(response["statusCode"], 200, "{response:?}");
+        let body: Value = serde_json::from_str(response["body"].as_str().unwrap()).unwrap();
+        assert_eq!(body, json!({"disabled": "amy@example.com"}));
+
+        // The person, role and identity fields stay; only the explicit flag flips.
+        let amy = person(&client, &domain_ir, "amy@example.com").await;
+        assert_eq!(amy["role"], "Admin", "the retained role still shows");
+        assert_eq!(amy["granted"], false);
+        assert_eq!(amy["disabled"], true);
+
+        // amy's cookie is still validly signed and unexpired, yet stops working now.
+        assert_eq!(status(&accounts_me_route(&domain_ir, &amy_cookies, secret, &client).await), 401);
+        assert_eq!(status(&accounts_sso_token_route(&domain_ir, &amy_cookies, secret, &client).await), 401);
+        assert_eq!(status(&members_route(&domain_ir, &amy_cookies, secret, &client).await), 401);
+        let add = add_member_route(&domain_ir, r#"{"email":"x@example.com","name":"X"}"#, &amy_cookies, secret, &client, Path::new("unused"), &members_config()).await;
+        assert_eq!(status(&add), 403);
+        assert_eq!(status(&switch_access(&client, &domain_ir, "amy@example.com", "zed@example.com", true).await), 403);
+        assert_eq!(person(&client, &domain_ir, "zed@example.com").await["granted"], true, "a disabled caller changed nothing");
+
+        // Disabling again is a 200 and writes nothing.
+        let rows = journal_rows(&client, "amy@example.com").await;
+        assert_eq!(status(&switch_access(&client, &domain_ir, "zed@example.com", "amy@example.com", true).await), 200);
+        assert_eq!(journal_rows(&client, "amy@example.com").await, rows);
+
+        // Enabling restores exactly the earlier access, and is idempotent too.
+        let response = switch_access(&client, &domain_ir, "zed@example.com", "amy@example.com", false).await;
+        assert_eq!(response["statusCode"], 200, "{response:?}");
+        let body: Value = serde_json::from_str(response["body"].as_str().unwrap()).unwrap();
+        assert_eq!(body, json!({"enabled": "amy@example.com"}));
+        let amy = person(&client, &domain_ir, "amy@example.com").await;
+        assert_eq!((amy["role"].as_str(), amy["granted"].clone(), amy["disabled"].clone()), (Some("Admin"), json!(true), json!(false)));
+        assert_eq!(status(&accounts_me_route(&domain_ir, &amy_cookies, secret, &client).await), 200);
+
+        let rows = journal_rows(&client, "amy@example.com").await;
+        assert_eq!(status(&switch_access(&client, &domain_ir, "zed@example.com", "amy@example.com", false).await), 200);
+        assert_eq!(journal_rows(&client, "amy@example.com").await, rows);
+    }
+
+    #[tokio::test]
+    async fn a_disabled_person_cannot_sign_in_again_and_an_enabled_one_can() {
+        let (client, domain_ir) = scratch_two_admins("hecks_host_web_test_disable_signin").await;
+
+        // zed holds identity id-1 in the seed; a fresh Google sign-in resolves through it.
+        assert!(auth::session_for_member_by_identity(&client, &domain_ir, "id-1").await.unwrap().is_some());
+        let disabled = switch_access(&client, &domain_ir, "amy@example.com", "zed@example.com", true).await;
+        assert_eq!(disabled["statusCode"], 200, "{disabled:?} amy={:?}", person(&client, &domain_ir, "amy@example.com").await);
+        assert!(auth::session_for_member_by_identity(&client, &domain_ir, "id-1").await.unwrap().is_none());
+        assert_eq!(switch_access(&client, &domain_ir, "amy@example.com", "zed@example.com", false).await["statusCode"], 200);
+        assert!(auth::session_for_member_by_identity(&client, &domain_ir, "id-1").await.unwrap().is_some());
+    }
+
+    #[tokio::test]
+    async fn two_admins_disabling_each_other_at_once_leave_exactly_one_active_admin() {
+        let (client, domain_ir) = scratch_two_admins("hecks_host_web_test_disable_race").await;
+        let config = members_config();
+
+        let (a, b) = tokio::join!(
+            auth::set_person_disabled(&client, &config, &domain_ir, "zed@example.com", "amy@example.com", true),
+            auth::set_person_disabled(&client, &config, &domain_ir, "amy@example.com", "zed@example.com", true),
+        );
+        let mut outcomes = [a.unwrap(), b.unwrap()];
+        outcomes.sort_by_key(|o| format!("{o:?}"));
+        assert_eq!(outcomes, [auth::DisableOutcome::CallerNotAdmin, auth::DisableOutcome::Done]);
+
+        let active = auth::all_people(&client, &domain_ir).await.unwrap().iter().filter(|p| p["role"] == "Admin" && p["granted"] == true).count();
+        assert_eq!(active, 1, "there must always be one active admin");
+    }
+
+    #[tokio::test]
+    async fn registrations_list_route_refuses_anyone_but_an_active_admin_before_reading_any_registration() {
+        let secret = "s3cret";
+        let (client, domain_ir) = scratch_two_admins("hecks_host_web_test_registrations_list_auth").await;
+        let config = LineageConfig { domain: "Lifeadelics".to_string(), era: Some(1), mirrored: None };
+        // The wasm path doesn't exist: every refusal below must come before any registration read.
+        let wasm_path = Path::new("does-not-exist.wasm");
+
+        let mut tampered = HashMap::new();
+        tampered.insert("lifeadelics_session".to_string(), "garbage.notasignature".to_string());
+        for cookies in [HashMap::new(), tampered] {
+            let response = registrations_list_route(&domain_ir, &cookies, secret, &client, wasm_path, &config).await;
+            assert_eq!(response["statusCode"], 401, "{response:?}");
+            assert!(response.get("headers").and_then(|h| h.get("location")).is_none(), "never a redirect: {response:?}");
+        }
+
+        // amy is a disabled admin now; the stranger was never admitted at all.
+        assert_eq!(switch_access(&client, &domain_ir, "zed@example.com", "amy@example.com", true).await["statusCode"], 200);
+        for caller in ["amy@example.com", "stranger@example.com"] {
+            let response = registrations_list_route(&domain_ir, &session_cookies(secret, caller), secret, &client, wasm_path, &config).await;
+            assert_eq!(response["statusCode"], 403, "{caller}: {response:?}");
+            assert_eq!(error_of(&response), "admins only");
+        }
+    }
+
+    #[test]
+    fn registration_list_rows_have_exactly_the_admin_list_shape_and_never_carry_health_or_payment_fields() {
+        let read = json!({"instances": {
+            "Lifeadelics::Registration#reg-old": {
+                "event_slug": "yoga-aug",
+                "created_at": "2026-09-01T10:00:00Z",
+                "attendee": {"first_name": " Ada ", "last_name": "Lovelace", "email": "ada@example.com", "news_signup": true,
+                             "phone": "555-0100", "medications": "SECRET-MEDICATION", "health_concerns": "SECRET-CONCERN"},
+            },
+            "Lifeadelics::Registration#reg-new": {
+                "event_slug": "yoga-sep",
+                "created_at": "2026-09-20T10:00:00Z",
+                "attendee": {"first_name": {"value": "Grace"}, "last_name": {"value": "Hopper"}, "email": {"value": "grace@example.com"}},
+                "amount": {"cents": 9900},
+            },
+            "Lifeadelics::Event#yoga-aug": {"name": {"value": "Yoga"}},
+            "Payments::Payment#reg-old": {"amount": {"cents": 12345}, "status": "succeeded"},
+        }});
+
+        let rows = registration_list_rows(&read, "Lifeadelics");
+        assert_eq!(
+            rows,
+            vec![
+                json!({"registration_id": "reg-new", "email": "grace@example.com", "name": "Grace Hopper", "event_slug": "yoga-sep", "news_signup": false}),
+                json!({"registration_id": "reg-old", "email": "ada@example.com", "name": "Ada Lovelace", "event_slug": "yoga-aug", "news_signup": true}),
+            ],
+            "newest first, plain values, news_signup defaulting to false"
+        );
+
+        let body = Value::Array(rows).to_string();
+        for leaked in ["SECRET-MEDICATION", "SECRET-CONCERN", "medications", "health_concerns", "555-0100", "12345", "9900", "succeeded", "amount"] {
+            assert!(!body.contains(leaked), "{leaked:?} leaked into the registration list: {body}");
+        }
+    }
+
+    #[test]
+    fn registration_list_rows_keep_read_order_without_timestamps_and_are_empty_with_no_registrations() {
+        let read = json!({"instances": {
+            "Lifeadelics::Registration#a": {"event_slug": "e", "attendee": {"name": "Flat Name", "email": "flat@example.com"}},
+        }});
+        let rows = registration_list_rows(&read, "Lifeadelics");
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0]["name"], "Flat Name", "falls back to a flat name when there is no first and last name");
+
+        assert_eq!(registration_list_rows(&json!({"instances": {}}), "Lifeadelics"), Vec::<Value>::new());
+        assert_eq!(registration_list_rows(&json!({}), "Lifeadelics"), Vec::<Value>::new());
+        let other_domain = json!({"instances": {"Elsewhere::Registration#x": {"attendee": {"email": "x@example.com"}}}});
+        assert!(registration_list_rows(&other_domain, "Lifeadelics").is_empty(), "another domain's registrations are not listed");
+    }
+
+    #[test]
+    fn sorted_by_name_orders_case_insensitively_and_puts_a_missing_name_first() {
+        let people = vec![json!({"name": "bob"}), json!({"name": "Ada"}), json!({"name": null}), json!({"name": "Cy"})];
+        let names: Vec<Value> = sorted_by_name(people).into_iter().map(|p| p["name"].clone()).collect();
+        assert_eq!(names, [json!(null), json!("Ada"), json!("bob"), json!("Cy")]);
     }
 
     #[tokio::test]
@@ -3518,12 +4195,11 @@ mod tests {
         // The full loop, mock adapter both ends — registrations_route's
         // own mock checkout_url, then a webhook shaped exactly like
         // domain/bin/confirm_payment_manually's own (Ruby, lifeadelics
-        // repo) sends, signed against the same fixed default `stripe_
-        // webhook_secret` falls back to. Proves the "processor matches"
-        // given (Payment::Succeed's own) actually admits a mock-
-        // initiated payment's own mock-reported confirmation — the
-        // exact drift `checkout_processor`'s own header warns a second,
-        // independently-settable flag would risk.
+        // repo) sends, signed against the same fixed default
+        // `webhook_route` falls back to while STRIPE_WEBHOOK_SECRET is
+        // unset. Proves the "processor matches" given (Payment::Succeed's
+        // own) actually admits a mock-initiated payment's own
+        // mock-reported confirmation.
         let client = scratch_db("hecks_host_web_test_mock_full_loop").await;
         provision_lineage(&*client.lock().await, "CheckoutFixture", 1, &["Event", "Registration", "Payment"]).await;
         let config = checkout_config(1);
@@ -3532,7 +4208,7 @@ mod tests {
         schedule_event(&client, &wasm_path, &config, "mock-loop-event", 4200).await;
 
         let body = json!({"event_slug": "mock-loop-event", "name": "Ada Lovelace", "email": "ada@example.com"}).to_string();
-        let response = registrations_route(&body, "", "mock_stripe", "http://localhost:4321", &client, &wasm_path, &config, &lambda_client::NeverInvoker).await;
+        let response = registrations_route(&body, &payments::test_platform(), &client, &wasm_path, &config, &lambda_client::NeverInvoker).await;
         assert_eq!(response["statusCode"], 200, "{response:?}");
         let response_body: Value = serde_json::from_str(response["body"].as_str().unwrap()).unwrap();
         let reference = response_body["registration_id"].as_str().unwrap().to_string();
@@ -3545,7 +4221,7 @@ mod tests {
         let now = now_secs();
         let header = sign_stripe_header(secret, now, &payload);
 
-        let response = webhook_route(&payload, &header, secret, "mock_stripe", &client, &wasm_path, &config, &lambda_client::NeverInvoker).await;
+        let response = webhook_route(&payload, &header, &payments::test_platform(), &client, &wasm_path, &config, &lambda_client::NeverInvoker).await;
         assert_eq!(response["statusCode"], 200, "{response:?}");
 
         let read = dispatch::read(&client, &wasm_path).await.unwrap();
@@ -3564,7 +4240,7 @@ mod tests {
         let payload = json!({"type": "checkout.session.completed", "data": {"object": {}}}).to_string();
         let bad_header = "t=1700000000,v1=deadbeef";
 
-        let response = webhook_route(&payload, bad_header, "whsec_test_bad_sig", "stripe", &client, &checkout_wasm_path(), &checkout_config(1), &lambda_client::NeverInvoker).await;
+        let response = webhook_route(&payload, bad_header, &payments::test_platform_with_secret("whsec_test_bad_sig"), &client, &checkout_wasm_path(), &checkout_config(1), &lambda_client::NeverInvoker).await;
         assert_eq!(response["statusCode"], 400);
     }
 
@@ -3595,7 +4271,7 @@ mod tests {
         let now = now_secs();
         let header = sign_stripe_header(secret, now, &payload);
 
-        let response = webhook_route(&payload, &header, secret, "stripe", &client, &wasm_path, &config, &lambda_client::NeverInvoker).await;
+        let response = webhook_route(&payload, &header, &payments::test_platform_with_secret(secret), &client, &wasm_path, &config, &lambda_client::NeverInvoker).await;
         assert_eq!(response["statusCode"], 200, "{response:?}");
 
         let read = dispatch::read(&client, &wasm_path).await.unwrap();
@@ -3609,7 +4285,7 @@ mod tests {
         // not surfaced as an error (this route's own header explains
         // why, and why that's a deliberate improvement over
         // http_server.rb's own unguarded equivalent).
-        let redelivered = webhook_route(&payload, &header, secret, "stripe", &client, &wasm_path, &config, &lambda_client::NeverInvoker).await;
+        let redelivered = webhook_route(&payload, &header, &payments::test_platform_with_secret(secret), &client, &wasm_path, &config, &lambda_client::NeverInvoker).await;
         assert_eq!(redelivered["statusCode"], 200, "a redelivered webhook must not surface the resulting refusal as an error: {redelivered:?}");
     }
 
@@ -3639,7 +4315,7 @@ mod tests {
         let now = now_secs();
         let header = sign_stripe_header(secret, now, &payload);
 
-        let response = webhook_route(&payload, &header, secret, "stripe", &client, &wasm_path, &config, &lambda_client::NeverInvoker).await;
+        let response = webhook_route(&payload, &header, &payments::test_platform_with_secret(secret), &client, &wasm_path, &config, &lambda_client::NeverInvoker).await;
         assert_eq!(response["statusCode"], 200, "{response:?}");
 
         let read = dispatch::read(&client, &wasm_path).await.unwrap();
@@ -3658,7 +4334,7 @@ mod tests {
         let now = now_secs();
         let header = sign_stripe_header(secret, now, &payload);
 
-        let response = webhook_route(&payload, &header, secret, "stripe", &client, &checkout_wasm_path(), &checkout_config(1), &lambda_client::NeverInvoker).await;
+        let response = webhook_route(&payload, &header, &payments::test_platform_with_secret(secret), &client, &checkout_wasm_path(), &checkout_config(1), &lambda_client::NeverInvoker).await;
         assert_eq!(response["statusCode"], 200);
     }
 }
