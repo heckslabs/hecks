@@ -67,24 +67,17 @@ jobs:
           name: host
           crate-root: rust/host
 
-      # rust/host's own `cargo test` dispatches against three compiled
-      # domains: rust/dist/banking.wasm (dispatch.rs),
+      # rust/host's own `cargo test` dispatches against two compiled
+      # domains: rust/dist/banking.wasm (dispatch.rs) and
       # rust/dist/checkout_fixture.wasm (web.rs's checkout routes, from
-      # spec/fixtures/rust_host/checkout_fixture), and
-      # rust/dist/accounts_fixture.wasm (web.rs's accounts_register_route/
-      # accounts_login_route/accounts_me_route, from spec/fixtures/
-      # rust_host/accounts_fixture -- its own dedicated fixture, not
-      # folded into checkout_fixture: that fixture's own header explains
-      # why a second top-level chapter there breaks bin/project_wasm's
-      # own primary-domain selection). rust/dist is gitignored, so build
-      # all three here.
+      # spec/fixtures/rust_host/checkout_fixture). rust/dist is
+      # gitignored, so build both here.
       - uses: ./.github/actions/wasm-toolchain
 
-      - name: Build banking + checkout_fixture + accounts_fixture wasm
+      - name: Build banking + checkout_fixture wasm
         run: |
           bundle exec bin/project_wasm examples/banking
           bundle exec bin/project_wasm spec/fixtures/rust_host/checkout_fixture
-          bundle exec bin/project_wasm spec/fixtures/rust_host/accounts_fixture
           # bin/project_wasm regenerates tracked rust/src/generated +
           # rust/Cargo.toml as a side effect; put them back.
           git checkout -- rust/src/generated rust/Cargo.toml

@@ -1,7 +1,0 @@
-Hecks.world "Accounts" do
-  realm "Fixtures"
-  persisted_by("PostgresEra") do
-    database "postgres://localhost/hecks_accounts_fixture"
-    allow_superuser true
-  end
-end
