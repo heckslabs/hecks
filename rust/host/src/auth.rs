@@ -193,6 +193,36 @@ pub fn verify_account_token(secret: &str, token: &str) -> Option<String> {
     value.get("email")?.as_str().map(|s| s.to_string())
 }
 
+// ---------- Purpose-bound token ----------
+
+/// A short-lived signed token that only verifies for the `purpose` it was
+/// minted for. The signing key is derived from the purpose, so a token minted
+/// for one flow can never be replayed as a session cookie (whose key is the
+/// bare secret) or as a token for a different flow. `claims` must be a JSON
+/// object; `purpose` and `exp` are added to it.
+pub fn purpose_token(secret: &str, purpose: &str, claims: Value, ttl_secs: u64) -> String {
+    let mut payload = claims;
+    payload["purpose"] = json!(purpose);
+    payload["exp"] = json!(now_secs() + ttl_secs);
+    let encoded = base64_encode(payload.to_string().as_bytes());
+    format!("{encoded}.{}", sign(&purpose_key(secret, purpose), &encoded))
+}
+
+/// The claims of a token minted by `purpose_token` for the same `purpose`,
+/// or `None` when the signature, the purpose or the expiry does not hold.
+pub fn verify_purpose_token(secret: &str, purpose: &str, token: &str) -> Option<Value> {
+    let payload = verify_sig(&purpose_key(secret, purpose), token)?;
+    let claims: Value = serde_json::from_slice(&base64_decode(&payload)).ok()?;
+    if claims.get("purpose")?.as_str()? != purpose || now_secs() > claims.get("exp")?.as_u64()? {
+        return None;
+    }
+    Some(claims)
+}
+
+fn purpose_key(secret: &str, purpose: &str) -> String {
+    format!("{purpose}:{secret}")
+}
+
 // ---------- Session cookie ----------
 
 pub fn session_cookie(secret: &str, session: &Session) -> String {
@@ -620,6 +650,19 @@ pub async fn has_access(client: &Mutex<Client>, domain_ir: &Value, email: &str) 
         .await?
         .iter()
         .any(|(id, state)| id.to_lowercase() == email && role_of(state).is_some() && !is_disabled(state)))
+}
+
+/// The role the person with `email` (compared case-insensitively) holds right
+/// now, or `None` when they are unknown, have no role, or are disabled. This
+/// is the "Owner"/"Admin" check the payments routes make against the current
+/// membership head rather than trusting anything in the session cookie.
+pub async fn active_role(client: &Mutex<Client>, domain_ir: &Value, email: &str) -> anyhow::Result<Option<String>> {
+    let email = email.to_lowercase();
+    Ok(member_rows(client, domain_ir)
+        .await?
+        .iter()
+        .find(|(id, state)| id.to_lowercase() == email && !is_disabled(state))
+        .and_then(|(_, state)| role_of(state).map(String::from)))
 }
 
 /// Every admitted person as a JSON row: name, email, the retained role,

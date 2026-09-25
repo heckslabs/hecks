@@ -1545,9 +1545,13 @@ mod tests {
     /// Every real state styled — `missing_state_entries` refuses a save
     /// that leaves one out, in both engines. `Registration` declares no
     /// lifecycle at all and so has nothing to style, which is exactly
-    /// the case that check must not fire on.
+    /// the case that check must not fire on. `PaymentConnection` carries a
+    /// lifecycle too, so its four states need entries beside `Event`'s.
     fn every_state_styled() -> Value {
-        json!({"states": {"Event": {"open": {"tone": "good"}, "closed": {"tone": "muted"}}}})
+        json!({"states": {
+            "Event": {"open": {"tone": "good"}, "closed": {"tone": "muted"}},
+            "PaymentConnection": {"connected": {}, "enabled": {}, "disconnected": {}, "paused": {}}
+        }})
     }
 
     #[tokio::test]
