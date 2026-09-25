@@ -31,8 +31,6 @@ use std::path::Path;
 use tokio::sync::Mutex;
 use tokio_postgres::Client;
 
-mod accounts;
-
 const UNGATED_PATHS: &[&str] = &["/login", "/logout", "/auth/google", "/auth/google/callback"];
 
 #[allow(clippy::too_many_arguments)]
@@ -340,22 +338,13 @@ async fn auth_route(
 
         ("POST", "/logout") => Some(redirect_with_cookie("/login", &format!("session=; Max-Age=0{}", cookie_flags()))),
 
-        // Accounts::Account's own email+password admin login used to be
-        // reachable here (POST /accounts/register, /accounts/login) --
-        // ported behavior-for-behavior from lifeadelics/adapters/
-        // http_server.rb, same bcrypt hashing, same flat signed token.
-        // DELIBERATELY REMOVED FROM ROUTING (Chris, 2026-09-23: "only
-        // admin access and the signup stuff on the site" -- no public
-        // account creation at all): the only real sign-in path is Google
-        // OAuth for an already-admitted Membership::Person (/auth/google
-        // below), and the only PUBLIC "signups" are the three guest
-        // actions the site forms already drive (newsletter subscribe,
-        // event registration, contact) -- none of which mints an
-        // Account. `accounts_register_route`/`accounts_login_route`
-        // stay defined (and unit-tested) in web/accounts.rs since Accounts::Account
-        // itself is unchanged -- only the HTTP door into it is closed;
-        // nothing in this codebase calls either route any more
-        // (confirmed: no caller in src/pages/**, grepped clean).
+        // The only sign-in path is Google OAuth for an already-admitted
+        // Membership::Person (/auth/google below); there is no password
+        // login. The /accounts/* routes here are just the session-cookie
+        // family that follows a Google sign-in (logout, me, sso-token).
+        // The only PUBLIC "signups" are the three guest actions the site
+        // forms already drive (newsletter subscribe, event registration,
+        // contact) -- none of which mints an account.
         ("POST", "/accounts/logout") => Some(respond_with_cookie(
             200,
             "application/json",
@@ -531,7 +520,7 @@ async fn google_callback(
 
     // The Lifeadelics admin (Astro) authenticates on `lifeadelics_session`,
     // not rust/host's own Governance `session` cookie. Mint the same
-    // account_token /accounts/login already sets. Same origin (production):
+    // account_token that /accounts/me and /accounts/sso-token verify. Same origin (production):
     // set the cookie here and send the browser to /admin.html. Different
     // origin (local rust/host :4567 vs Astro :4321): a cookie on this
     // response would never be sent to the site, so hand the token across
