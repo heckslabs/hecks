@@ -234,7 +234,7 @@ impl Tenant {
     // POST /registrations for `slug`; the checkout URL and registration id on success.
     async fn register(&self, slug: &str) -> (u64, Value) {
         let body = json!({"event_slug": slug, "name": "Ada Lovelace", "email": "ada@example.com"}).to_string();
-        let response = web::registrations_route(&body, &self.platform, &self.client, &self.wasm, &self.config, &NeverInvoker).await;
+        let response = web::registrations_route(&body, &self.platform, &self.client, &self.wasm, &self.config, &NeverInvoker, &crate::ir::fixture_payments()).await;
         (response["statusCode"].as_u64().unwrap(), serde_json::from_str(response["body"].as_str().unwrap()).unwrap_or(Value::Null))
     }
 
@@ -242,14 +242,14 @@ impl Tenant {
         let payload = event.to_string();
         let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs() as i64;
         let header = sign(WEBHOOK_SECRET, now, &payload);
-        let response = web::webhook_route(&payload, &header, &self.platform, &self.client, &self.wasm, &self.config, &NeverInvoker).await;
+        let response = web::webhook_route(&payload, &header, &self.platform, &self.client, &self.wasm, &self.config, &NeverInvoker, &crate::ir::fixture_payments()).await;
         response["statusCode"].as_u64().unwrap()
     }
 
     // POST /registrations/:id/complete with a successful outcome (the mock
     // walkthrough's "Pay" button).
     async fn settle(&self, reference: &str) -> u64 {
-        let response = web::registration_complete_route(reference, r#"{"outcome":"succeeded"}"#, &self.client, &self.wasm, &self.config, &NeverInvoker).await;
+        let response = web::registration_complete_route(reference, r#"{"outcome":"succeeded"}"#, &self.client, &self.wasm, &self.config, &NeverInvoker, &crate::ir::fixture_payments()).await;
         response["statusCode"].as_u64().unwrap()
     }
 
@@ -720,7 +720,7 @@ async fn an_account_event_verified_only_by_the_public_mock_secret_is_refused() {
         completed(&reference, None),
     ] {
         let (payload, header) = sign_with_mock(&event);
-        let response = web::webhook_route(&payload, &header, &t.platform, &t.client, &t.wasm, &t.config, &NeverInvoker).await;
+        let response = web::webhook_route(&payload, &header, &t.platform, &t.client, &t.wasm, &t.config, &NeverInvoker, &crate::ir::fixture_payments()).await;
         assert_eq!(response["statusCode"], 500, "{event}");
     }
     assert_eq!(t.status().await, "enabled", "a forged deauthorization must not pause payments");

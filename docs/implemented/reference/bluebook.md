@@ -171,7 +171,7 @@ merged table and cannot tell a core row from an attached one.
 ## provides
 
 <!-- generated:begin word=provides -->
-`provides provides, assignments:, grant:, transitions:, admit:, people:, register:, link:, resolve:` — fills `provides`
+`provides provides, assignments:, grant:, transitions:, admit:, people:, register:, link:, resolve:, subscribe:, add_name:, confirm:, unsubscribe:, initiate:, succeeded:, failed:` — fills `provides`
 
 | argument | kind | required | fills |
 |---|---|---|---|
@@ -184,6 +184,13 @@ merged table and cannot tell a core row from an attached one.
 | `register:` | text | false | provides |
 | `link:` | text | false | provides |
 | `resolve:` | text | false | provides |
+| `subscribe:` | text | false | provides |
+| `add_name:` | text | false | provides |
+| `confirm:` | text | false | provides |
+| `unsubscribe:` | text | false | provides |
+| `initiate:` | text | false | provides |
+| `succeeded:` | text | false | provides |
+| `failed:` | text | false | provides |
 <!-- generated:end -->
 
 Declares a capability this chapter answers for every domain that attaches

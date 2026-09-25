@@ -1491,6 +1491,13 @@
     "assignments": "Governance::RoleAssignment.AssignmentsForActor",
     "assignment_aggregate": "Governance::RoleAssignment"
   },
+  "payments": {
+    "provider": "Payments",
+    "initiate": "Payments::Payment.Initiate",
+    "succeeded": "Payments::Payment.PaymentGateway.Succeeded",
+    "failed": "Payments::Payment.PaymentGateway.Failed",
+    "aggregate": "Payments::Payment"
+  },
   "translations": [
 
   ],

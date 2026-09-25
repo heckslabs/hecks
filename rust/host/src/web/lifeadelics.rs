@@ -1,6 +1,7 @@
 use super::{instances_for, last_refusal, respond, with_id};
 use crate::checkout;
 use crate::dispatch;
+use crate::ir::PaymentsProvider;
 use crate::journal::LineageConfig;
 use crate::lambda_client::LambdaInvoker;
 use crate::payments;
@@ -35,8 +36,8 @@ pub(crate) const MOCK_STRIPE_WEBHOOK_SECRET: &str = "whsec_mock_checkout_fixed";
 // ("mock_stripe" for the walkthrough, "stripe" for a real charge). Read off the
 // Payment itself rather than guessed from whatever is connected now: the
 // connection can change between a guest registering and the webhook arriving.
-fn payment_processor(read: &Value, reference: &str) -> Option<String> {
-    instances_for(read, "Payments::Payment#")
+fn payment_processor(read: &Value, payments: &PaymentsProvider, reference: &str) -> Option<String> {
+    instances_for(read, &payments.instance_prefix())
         .into_iter()
         .find(|(id, _)| id == reference)
         .and_then(|(_, payment)| payment.get("processor").and_then(|p| p.get("value")).and_then(|v| v.as_str()).map(String::from))
@@ -52,10 +53,11 @@ pub(super) async fn checkout_route(
     wasm_path: &Path,
     config: &LineageConfig,
     invoker: &dyn LambdaInvoker,
+    payments: &PaymentsProvider,
 ) -> Option<Value> {
     match (method, path) {
         ("POST", "/registrations") => {
-            Some(registrations_route(raw_body, &payments::PlatformConfig::from_env(), client, wasm_path, config, invoker).await)
+            Some(registrations_route(raw_body, &payments::PlatformConfig::from_env(), client, wasm_path, config, invoker, payments).await)
         }
         // GET /registrations/:id — read-only, re-derives the truth
         // (http_server.rb's own GET /registrations/:id comment: "never
@@ -69,7 +71,7 @@ pub(super) async fn checkout_route(
         // serialized.
         ("GET", path) if path.starts_with("/registrations/") && !path.ends_with("/complete") => {
             let registration_id = path.trim_start_matches("/registrations/");
-            Some(registration_show_route(registration_id, client, wasm_path, config).await)
+            Some(registration_show_route(registration_id, client, wasm_path, config, payments).await)
         }
         // POST /registrations/:id/complete — LocalCheckout's own
         // "Pay"/"Cancel" button (src/pages/pay/[registrationId].astro),
@@ -81,10 +83,10 @@ pub(super) async fn checkout_route(
         // reach the same two states.
         ("POST", path) if path.starts_with("/registrations/") && path.ends_with("/complete") => {
             let registration_id = path.trim_start_matches("/registrations/").trim_end_matches("/complete").trim_end_matches('/');
-            Some(registration_complete_route(registration_id, raw_body, client, wasm_path, config, invoker).await)
+            Some(registration_complete_route(registration_id, raw_body, client, wasm_path, config, invoker, payments).await)
         }
         ("POST", "/webhooks/stripe") => {
-            Some(webhook_route(raw_body, stripe_signature, &payments::PlatformConfig::from_env(), client, wasm_path, config, invoker).await)
+            Some(webhook_route(raw_body, stripe_signature, &payments::PlatformConfig::from_env(), client, wasm_path, config, invoker, payments).await)
         }
         // POST /events — mock_payments/ (a separate service, its own
         // bluebook) DRIVING IN: puts a new session on the calendar
@@ -169,7 +171,7 @@ async fn events_route(raw_body: &str, client: &Mutex<Client>, wasm_path: &Path, 
 /// fields, amount_cents and payment_status from the SAME-reference
 /// Payment (registrations_route's own header: registration_id IS the
 /// Payment's own reference, minted once).
-async fn registration_show_route(registration_id: &str, client: &Mutex<Client>, wasm_path: &Path, config: &LineageConfig) -> Value {
+async fn registration_show_route(registration_id: &str, client: &Mutex<Client>, wasm_path: &Path, config: &LineageConfig, payments: &PaymentsProvider) -> Value {
     let read = match dispatch::read(client, wasm_path).await {
         Ok(r) => r,
         Err(e) => return respond(500, "text/plain", &format!("{e:#}")),
@@ -182,8 +184,8 @@ async fn registration_show_route(registration_id: &str, client: &Mutex<Client>, 
     let events = instances_for(&read, &format!("{}::Event#", config.domain));
     let event = event_slug.and_then(|slug| events.iter().find(|(id, _)| id == slug)).map(|(_, e)| e);
 
-    let payments = instances_for(&read, "Payments::Payment#");
-    let payment = payments.iter().find(|(id, _)| id == registration_id).map(|(_, p)| p);
+    let payment_instances = instances_for(&read, &payments.instance_prefix());
+    let payment = payment_instances.iter().find(|(id, _)| id == registration_id).map(|(_, p)| p);
 
     let attendee = registration.get("attendee").cloned().unwrap_or_else(|| json!({}));
     respond(200, "application/json", &json!({
@@ -217,6 +219,7 @@ pub(crate) async fn registration_complete_route(
     wasm_path: &Path,
     config: &LineageConfig,
     invoker: &dyn LambdaInvoker,
+    payments: &PaymentsProvider,
 ) -> Value {
     let body: Value = match serde_json::from_str(raw_body) {
         Ok(v) => v,
@@ -238,7 +241,7 @@ pub(crate) async fn registration_complete_route(
         return respond(404, "application/json", &json!({"error": "no such registration"}).to_string());
     }
 
-    let processor = match payment_processor(&read, registration_id) {
+    let processor = match payment_processor(&read, payments, registration_id) {
         Some(processor) if processor == "mock_stripe" => processor,
         _ => return respond(403, "application/json", &json!({"error": "not available with a real payment processor"}).to_string()),
     };
@@ -250,12 +253,12 @@ pub(crate) async fn registration_complete_route(
     let reference_fact = json!({"value": registration_id});
     let (verb, facts) = if outcome == "succeeded" {
         (
-            "Payments::Payment.PaymentGateway.Succeeded",
+            payments.succeeded.as_str(),
             json!({"reference": reference_fact, "transaction_id": {"value": format!("local_{}", uuid::Uuid::new_v4().simple())}, "reported_processor": reported_processor}),
         )
     } else {
         (
-            "Payments::Payment.PaymentGateway.Failed",
+            payments.failed.as_str(),
             json!({"reference": reference_fact, "reason": {"value": "declined_at_local_checkout"}, "reported_processor": reported_processor}),
         )
     };
@@ -279,8 +282,8 @@ pub(crate) async fn registration_complete_route(
         Ok(r) => r,
         Err(e) => return respond(500, "text/plain", &format!("{e:#}")),
     };
-    let payments = instances_for(&read, "Payments::Payment#");
-    let status = payments.iter().find(|(id, _)| id == registration_id).and_then(|(_, p)| p.get("status")).and_then(|v| v.as_str()).unwrap_or("");
+    let payment_instances = instances_for(&read, &payments.instance_prefix());
+    let status = payment_instances.iter().find(|(id, _)| id == registration_id).and_then(|(_, p)| p.get("status")).and_then(|v| v.as_str()).unwrap_or("");
     respond(200, "application/json", &json!({"registration_id": registration_id, "payment_status": status}).to_string())
 }
 
@@ -347,6 +350,7 @@ pub(crate) async fn registrations_route(
     wasm_path: &Path,
     config: &LineageConfig,
     invoker: &dyn LambdaInvoker,
+    payments: &PaymentsProvider,
 ) -> Value {
     let body: Value = match serde_json::from_str(raw_body) {
         Ok(v) => v,
@@ -406,7 +410,7 @@ pub(crate) async fn registrations_route(
         "amount": {"cents": price_cents},
         "client": {"name": name, "email": email},
     });
-    let outcome = match dispatch::handle(client, wasm_path, "Payments::Payment.Initiate", initiate_args, None, config, invoker).await {
+    let outcome = match dispatch::handle(client, wasm_path, &payments.initiate, initiate_args, None, config, invoker).await {
         Ok(o) => o,
         Err(e) => return respond(500, "text/plain", &format!("{e:#}")),
     };
@@ -497,6 +501,7 @@ pub(crate) async fn webhook_route(
     wasm_path: &Path,
     config: &LineageConfig,
     invoker: &dyn LambdaInvoker,
+    payments: &PaymentsProvider,
 ) -> Value {
     let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_secs() as i64;
     let secret = platform.webhook_secret.as_deref().unwrap_or(MOCK_STRIPE_WEBHOOK_SECRET);
@@ -548,7 +553,7 @@ pub(crate) async fn webhook_route(
     if let Some(reference) = reference {
         // The processor Payment.Initiate recorded — "stripe" when there is
         // no such Payment, as http_server.rb's own route defaults it.
-        let processor = payment_processor(&read, &reference).unwrap_or_else(|| "stripe".to_string());
+        let processor = payment_processor(&read, payments, &reference).unwrap_or_else(|| "stripe".to_string());
         if fallback_secret && processor != "mock_stripe" {
             return refuse_fallback();
         }
@@ -577,13 +582,13 @@ pub(crate) async fn webhook_route(
                     .or_else(|| object.get("id").and_then(|v| v.as_str()))
                     .unwrap_or("")
                     .to_string();
-                Some(("Payments::Payment.PaymentGateway.Succeeded", json!({
+                Some((payments.succeeded.as_str(), json!({
                     "reference": reference_fact,
                     "transaction_id": {"value": transaction_id},
                     "reported_processor": reported_processor,
                 })))
             }
-            "checkout.session.expired" => Some(("Payments::Payment.PaymentGateway.Failed", json!({
+            "checkout.session.expired" => Some((payments.failed.as_str(), json!({
                 "reference": reference_fact,
                 "reason": {"value": "checkout_expired"},
                 "reported_processor": reported_processor,
@@ -722,7 +727,7 @@ mod tests {
         let client = scratch_db("hecks_host_web_test_registrations_missing_fields").await;
         provision_lineage(&*client.lock().await, "CheckoutFixture", 1, &["Event", "Registration", "Payment"]).await;
 
-        let response = registrations_route(r#"{"event_slug":"yoga-aug"}"#, &payments::test_platform(), &client, &checkout_wasm_path(), &checkout_config(1), &lambda_client::NeverInvoker).await;
+        let response = registrations_route(r#"{"event_slug":"yoga-aug"}"#, &payments::test_platform(), &client, &checkout_wasm_path(), &checkout_config(1), &lambda_client::NeverInvoker, &crate::ir::fixture_payments()).await;
         assert_eq!(response["statusCode"], 400);
         assert!(response["body"].as_str().unwrap().contains("missing name"));
     }
@@ -755,7 +760,7 @@ mod tests {
             "email": "ada@example.com",
         })
         .to_string();
-        let response = registrations_route(&body, &payments::test_platform(), &client, &wasm_path, &config, &lambda_client::NeverInvoker).await;
+        let response = registrations_route(&body, &payments::test_platform(), &client, &wasm_path, &config, &lambda_client::NeverInvoker, &crate::ir::fixture_payments()).await;
 
         // Registration.Request refuses (CheckoutFixture's Attendee has
         // no first_name/last_name) — but that's AFTER Payment.Initiate
@@ -784,7 +789,7 @@ mod tests {
         let client = scratch_db("hecks_host_web_test_registrations_bad_json").await;
         provision_lineage(&*client.lock().await, "CheckoutFixture", 1, &["Event", "Registration", "Payment"]).await;
 
-        let response = registrations_route("not json", &payments::test_platform(), &client, &checkout_wasm_path(), &checkout_config(1), &lambda_client::NeverInvoker).await;
+        let response = registrations_route("not json", &payments::test_platform(), &client, &checkout_wasm_path(), &checkout_config(1), &lambda_client::NeverInvoker, &crate::ir::fixture_payments()).await;
         assert_eq!(response["statusCode"], 400);
     }
 
@@ -875,7 +880,7 @@ mod tests {
         provision_lineage(&*client.lock().await, "CheckoutFixture", 1, &["Event", "Registration", "Payment"]).await;
 
         let body = json!({"event_slug": "nope", "name": "Ada", "email": "ada@example.com"}).to_string();
-        let response = registrations_route(&body, &payments::test_platform(), &client, &checkout_wasm_path(), &checkout_config(1), &lambda_client::NeverInvoker).await;
+        let response = registrations_route(&body, &payments::test_platform(), &client, &checkout_wasm_path(), &checkout_config(1), &lambda_client::NeverInvoker, &crate::ir::fixture_payments()).await;
         assert_eq!(response["statusCode"], 404);
     }
 
@@ -893,7 +898,7 @@ mod tests {
         assert!(close.accepted, "closing the fixture event should succeed: {:?}", close.result);
 
         let body = json!({"event_slug": "closed-event", "name": "Ada", "email": "ada@example.com"}).to_string();
-        let response = registrations_route(&body, &payments::test_platform(), &client, &wasm_path, &config, &lambda_client::NeverInvoker).await;
+        let response = registrations_route(&body, &payments::test_platform(), &client, &wasm_path, &config, &lambda_client::NeverInvoker, &crate::ir::fixture_payments()).await;
         assert_eq!(response["statusCode"], 422);
         assert!(response["body"].as_str().unwrap().contains("closed"));
     }
@@ -912,7 +917,7 @@ mod tests {
         schedule_event(&client, &wasm_path, &config, "free-event", 0).await;
 
         let body = json!({"event_slug": "free-event", "name": "Ada", "email": "ada@example.com"}).to_string();
-        let response = registrations_route(&body, &payments::test_platform(), &client, &wasm_path, &config, &lambda_client::NeverInvoker).await;
+        let response = registrations_route(&body, &payments::test_platform(), &client, &wasm_path, &config, &lambda_client::NeverInvoker, &crate::ir::fixture_payments()).await;
         assert_eq!(response["statusCode"], 422);
         assert!(
             response["body"].as_str().unwrap().contains("positive"),
@@ -940,7 +945,7 @@ mod tests {
         // chain runs for real and returns a real, working mock checkout
         // URL, never a 500.
         let body = json!({"event_slug": "happy-event", "name": "Ada Lovelace", "email": "ada@example.com"}).to_string();
-        let response = registrations_route(&body, &payments::test_platform(), &client, &wasm_path, &config, &lambda_client::NeverInvoker).await;
+        let response = registrations_route(&body, &payments::test_platform(), &client, &wasm_path, &config, &lambda_client::NeverInvoker, &crate::ir::fixture_payments()).await;
         assert_eq!(response["statusCode"], 200, "{response:?}");
         let body: Value = serde_json::from_str(response["body"].as_str().unwrap()).unwrap();
         let reference = body["registration_id"].as_str().unwrap().to_string();
@@ -1005,7 +1010,7 @@ mod tests {
             "return_to": "/yogadelics.html",
         })
         .to_string();
-        let response = registrations_route(&body, &payments::test_platform(), &client, &wasm_path, &config, &lambda_client::NeverInvoker).await;
+        let response = registrations_route(&body, &payments::test_platform(), &client, &wasm_path, &config, &lambda_client::NeverInvoker, &crate::ir::fixture_payments()).await;
         assert_eq!(response["statusCode"], 200, "{response:?}");
         let body: Value = serde_json::from_str(response["body"].as_str().unwrap()).unwrap();
         let reference = body["registration_id"].as_str().unwrap().to_string();
@@ -1041,7 +1046,7 @@ mod tests {
                 "return_to": unsafe_return_to,
             })
             .to_string();
-            let response = registrations_route(&body, &payments::test_platform(), &client, &wasm_path, &config, &lambda_client::NeverInvoker).await;
+            let response = registrations_route(&body, &payments::test_platform(), &client, &wasm_path, &config, &lambda_client::NeverInvoker, &crate::ir::fixture_payments()).await;
             assert_eq!(response["statusCode"], 200, "{response:?}");
             let body: Value = serde_json::from_str(response["body"].as_str().unwrap()).unwrap();
             // checkout_url is now the /pay/<id>.html walkthrough page (LocalCheckout's
@@ -1076,7 +1081,7 @@ mod tests {
         schedule_event(&client, &wasm_path, &config, "mock-loop-event", 4200).await;
 
         let body = json!({"event_slug": "mock-loop-event", "name": "Ada Lovelace", "email": "ada@example.com"}).to_string();
-        let response = registrations_route(&body, &payments::test_platform(), &client, &wasm_path, &config, &lambda_client::NeverInvoker).await;
+        let response = registrations_route(&body, &payments::test_platform(), &client, &wasm_path, &config, &lambda_client::NeverInvoker, &crate::ir::fixture_payments()).await;
         assert_eq!(response["statusCode"], 200, "{response:?}");
         let response_body: Value = serde_json::from_str(response["body"].as_str().unwrap()).unwrap();
         let reference = response_body["registration_id"].as_str().unwrap().to_string();
@@ -1089,7 +1094,7 @@ mod tests {
         let now = now_secs();
         let header = sign_stripe_header(secret, now, &payload);
 
-        let response = webhook_route(&payload, &header, &payments::test_platform(), &client, &wasm_path, &config, &lambda_client::NeverInvoker).await;
+        let response = webhook_route(&payload, &header, &payments::test_platform(), &client, &wasm_path, &config, &lambda_client::NeverInvoker, &crate::ir::fixture_payments()).await;
         assert_eq!(response["statusCode"], 200, "{response:?}");
 
         let read = dispatch::read(&client, &wasm_path).await.unwrap();
@@ -1106,7 +1111,7 @@ mod tests {
         let payload = json!({"type": "checkout.session.completed", "data": {"object": {}}}).to_string();
         let bad_header = "t=1700000000,v1=deadbeef";
 
-        let response = webhook_route(&payload, bad_header, &payments::test_platform_with_secret("whsec_test_bad_sig"), &client, &checkout_wasm_path(), &checkout_config(1), &lambda_client::NeverInvoker).await;
+        let response = webhook_route(&payload, bad_header, &payments::test_platform_with_secret("whsec_test_bad_sig"), &client, &checkout_wasm_path(), &checkout_config(1), &lambda_client::NeverInvoker, &crate::ir::fixture_payments()).await;
         assert_eq!(response["statusCode"], 400);
     }
 
@@ -1137,7 +1142,7 @@ mod tests {
         let now = now_secs();
         let header = sign_stripe_header(secret, now, &payload);
 
-        let response = webhook_route(&payload, &header, &payments::test_platform_with_secret(secret), &client, &wasm_path, &config, &lambda_client::NeverInvoker).await;
+        let response = webhook_route(&payload, &header, &payments::test_platform_with_secret(secret), &client, &wasm_path, &config, &lambda_client::NeverInvoker, &crate::ir::fixture_payments()).await;
         assert_eq!(response["statusCode"], 200, "{response:?}");
 
         let read = dispatch::read(&client, &wasm_path).await.unwrap();
@@ -1151,7 +1156,7 @@ mod tests {
         // not surfaced as an error (this route's own header explains
         // why, and why that's a deliberate improvement over
         // http_server.rb's own unguarded equivalent).
-        let redelivered = webhook_route(&payload, &header, &payments::test_platform_with_secret(secret), &client, &wasm_path, &config, &lambda_client::NeverInvoker).await;
+        let redelivered = webhook_route(&payload, &header, &payments::test_platform_with_secret(secret), &client, &wasm_path, &config, &lambda_client::NeverInvoker, &crate::ir::fixture_payments()).await;
         assert_eq!(redelivered["statusCode"], 200, "a redelivered webhook must not surface the resulting refusal as an error: {redelivered:?}");
     }
 
@@ -1181,7 +1186,7 @@ mod tests {
         let now = now_secs();
         let header = sign_stripe_header(secret, now, &payload);
 
-        let response = webhook_route(&payload, &header, &payments::test_platform_with_secret(secret), &client, &wasm_path, &config, &lambda_client::NeverInvoker).await;
+        let response = webhook_route(&payload, &header, &payments::test_platform_with_secret(secret), &client, &wasm_path, &config, &lambda_client::NeverInvoker, &crate::ir::fixture_payments()).await;
         assert_eq!(response["statusCode"], 200, "{response:?}");
 
         let read = dispatch::read(&client, &wasm_path).await.unwrap();
@@ -1200,7 +1205,7 @@ mod tests {
         let now = now_secs();
         let header = sign_stripe_header(secret, now, &payload);
 
-        let response = webhook_route(&payload, &header, &payments::test_platform_with_secret(secret), &client, &checkout_wasm_path(), &checkout_config(1), &lambda_client::NeverInvoker).await;
+        let response = webhook_route(&payload, &header, &payments::test_platform_with_secret(secret), &client, &checkout_wasm_path(), &checkout_config(1), &lambda_client::NeverInvoker, &crate::ir::fixture_payments()).await;
         assert_eq!(response["statusCode"], 200);
     }
 }

@@ -7,6 +7,16 @@ Hecks.bluebook "Payments" do
   vision "Collect a payment through a processor and record what the processor said happened."
   core
 
+  # What this chapter answers for every domain that attaches it: start a
+  # payment, and hear the processor's verdict. The verdicts are the two
+  # PaymentGateway port operations declared on the sibling hecksagon.
+  # Declared in this file, beside Payment, because each `.bluebook` file is
+  # validated on its own.
+  provides "payments",
+           initiate:  "Payment.Initiate",
+           succeeded: "Payment.PaymentGateway.Succeeded",
+           failed:    "Payment.PaymentGateway.Failed"
+
   aggregate "Payment" do
     description "One attempt to collect money from a client through a specific payment processor."
 
