@@ -230,6 +230,32 @@ module Hecks
         }
       end
 
+      # Same seam as `newsletter` — which chapter takes payments
+      # (`Registry#payments_provider_for`), with its declared verbs
+      # qualified and the paying aggregate named off `initiate`. rust/host
+      # reads this instead of naming Payments::Payment.Initiate and the
+      # PaymentGateway operations. `{}` when nothing this domain attaches
+      # provides payments.
+      # @param registry [Runtime::Registry] the booted registry `domain_name` is loaded in
+      # @param domain_name [String] the domain to export the payments binding for
+      # @return [Hash{Symbol => String, nil}] `:provider` (name), `:initiate`, `:succeeded`,
+      #   `:failed` (qualified verbs), and `:aggregate` (`:initiate`'s own leading qualified
+      #   aggregate name); `{}` if nothing this domain attaches provides payments
+      def payments(registry, domain_name)
+        provider = registry.payments_provider_for(domain_name)
+        return {} unless provider
+
+        capability = Bluebook::Capabilities::PAYMENTS
+        initiate = provider.provided_verb(capability, :initiate)
+        {
+          provider:  provider.name,
+          initiate:  initiate,
+          succeeded: provider.provided_verb(capability, :succeeded),
+          failed:    provider.provided_verb(capability, :failed),
+          aggregate: initiate&.split(".")&.first
+        }
+      end
+
       # Translation IR, always as an array, with each aggregate's
       # precompiled SQL attached (`compiled_translation_aggregate`) —
       # this is the export a consumer embeds (`ir.json`'s `translations`

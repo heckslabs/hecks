@@ -779,7 +779,21 @@
 
   ],
   "provides": [
-
+    {
+      "capability": "payments",
+      "key": "initiate",
+      "verb": "Payment.Initiate"
+    },
+    {
+      "capability": "payments",
+      "key": "succeeded",
+      "verb": "Payment.PaymentGateway.Succeeded"
+    },
+    {
+      "capability": "payments",
+      "key": "failed",
+      "verb": "Payment.PaymentGateway.Failed"
+    }
   ],
   "canonical_form": [
     {

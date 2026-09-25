@@ -403,6 +403,20 @@ module Hecks
         vendored_provider_for(domain, Bluebook::Capabilities::NEWSLETTER_ISSUES)
       end
 
+      # The chapter that takes payments for `domain` — the domain's own
+      # chapter, a framework member, or a vendored embryonaut bluebook it
+      # attaches, that declares `provides "payments"`. Nil when none does.
+      # Payments is recognised by what it declares (Initiate and the
+      # processor's two verdicts), so a chapter that declares the same
+      # thing is recognised the same way.
+      #
+      # @param domain [String, Symbol] the domain whose payments chapter is being resolved
+      # @return [Bluebook::Chapter, nil] the chapter that takes `domain`'s payments, or nil
+      #   if none does
+      def payments_provider_for(domain)
+        vendored_provider_for(domain, Bluebook::Capabilities::PAYMENTS)
+      end
+
       # The chapter that provides `capability` for `domain`: the domain's
       # own chapter, any framework member its hecksagon attaches, or any
       # vendored embryonaut bluebook it attaches, that declares it. Falls

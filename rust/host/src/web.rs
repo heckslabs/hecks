@@ -21,7 +21,7 @@ use crate::auth;
 use crate::auth::Session;
 use crate::dispatch;
 use crate::field_hints::{EMAIL_HINT, TEL_HINT, TEXTAREA_HINT, URL_HINT};
-use crate::ir::ir;
+use crate::ir::{ir, payments_provider};
 use crate::journal::LineageConfig;
 use crate::lambda_client::LambdaInvoker;
 use crate::payments;
@@ -77,13 +77,12 @@ pub async fn render(
     // routes don't exist. An env var rather than an IR-driven "outbound
     // port"/"webhook signature scheme" capability — considered for
     // real (equivalence-gap plan 3.3) and declined; checkout.rs's own
-    // header has the reasoning. Membership, unlike checkout, *did* move
-    // onto a declared capability (`provides "membership"`). The verb shapes these routes hardcode
-    // are pinned by spec/fixtures/rust_host/checkout_fixture, which this
-    // module's tests run against. Checked before the ir()/HECKS_IR_PATH
-    // gate below, deliberately: a Shared-mode deploy with no generic
-    // FieldShape UI never sets HECKS_IR_PATH, and neither route needs a
-    // domain_ir at all.
+    // header has the reasoning. Membership, newsletter and payments, unlike
+    // this gate, *did* move onto declared capabilities (`provides
+    // "membership"`, `"newsletter"`, `"payments"`): the routes read their
+    // verbs from ir.json, so a domain that declares none serves none. The
+    // capability shapes are pinned by spec/fixtures/rust_host/checkout_fixture,
+    // which this module's tests run against.
     if checkout_enabled(std::env::var("HECKS_CHECKOUT_DOMAIN").ok().as_deref(), &config.domain) {
         // Guest-facing newsletter subscribe -- same gate as checkout
         // (HECKS_CHECKOUT_DOMAIN), not a second env var: both are
@@ -97,9 +96,14 @@ pub async fn render(
         if let Some(response) = newsletter::newsletter_route(method, path, &query, &raw_body, client, wasm_path, config, invoker).await {
             return Some(response);
         }
-        let stripe_signature = body.get("headers").and_then(|h| h.get("stripe-signature")).and_then(|v| v.as_str()).unwrap_or("");
-        if let Some(response) = checkout_route(method, path, &raw_body, stripe_signature, client, wasm_path, config, invoker).await {
-            return Some(response);
+        // The chapter that declares `provides "payments"` names the verbs
+        // and the paying aggregate; a domain that attaches none serves none
+        // of the checkout, registration-payment or webhook routes.
+        if let Some(payments) = ir().and_then(payments_provider) {
+            let stripe_signature = body.get("headers").and_then(|h| h.get("stripe-signature")).and_then(|v| v.as_str()).unwrap_or("");
+            if let Some(response) = checkout_route(method, path, &raw_body, stripe_signature, client, wasm_path, config, invoker, &payments).await {
+                return Some(response);
+            }
         }
     }
 
@@ -381,6 +385,8 @@ async fn auth_route(
 
         ("POST", "/members/enable") => Some(set_member_disabled_route(domain_ir, raw_body, cookies, secret, client, config, false).await),
 
+        ("POST", "/members/role") => Some(set_member_role_route(domain_ir, raw_body, cookies, secret, client, config).await),
+
         // The tenant's payment connection (payments.rs's own header). Same
         // gate as the checkout routes: only the domain named by
         // HECKS_CHECKOUT_DOMAIN carries a PaymentConnection, so any other
@@ -642,6 +648,53 @@ async fn set_member_disabled_route(
         Ok(auth::DisableOutcome::SelfDisable) => json_error(403, "you can't disable your own admin access"),
         Ok(auth::DisableOutcome::UnknownPerson) => json_error(404, "no member with that email"),
         Ok(auth::DisableOutcome::LastAdmin) => json_error(409, "there must always be at least one admin"),
+        Err(e) => json_error(500, &format!("members update failed: {e}")),
+    }
+}
+
+// POST /members/role -- changes the role of a person who is already admitted,
+// for a server-side caller holding the `lifeadelics_session` cookie. Takes
+// `{"email", "role"}` as JSON, where `role` is Admin, Owner or Member.
+// `POST /members` only admits new people and answers 409 for a known email,
+// and `POST /admin/members` needs a Governance session, so this is the JSON
+// way to grant Owner to someone who is already a member. Any active admin
+// (Admin or Owner) may grant any role, Owner included, because the first
+// Owner has to be granted by an Admin. Answers a JSON 401 without a valid
+// session, 400 for a blank email or an unknown role (nothing is written), a
+// 403 unless the caller is an active admin, a 404 for an unknown email, a 409
+// when the change would leave no active admin, and 200 with the person's
+// email and role otherwise, including when they already hold that role. The
+// person's name, identity link and disabled flag are kept. Every rule is
+// re-checked under the membership write lock in `auth::set_person_role`.
+async fn set_member_role_route(
+    domain_ir: &Value,
+    raw_body: &str,
+    cookies: &HashMap<String, String>,
+    secret: &str,
+    client: &Mutex<Client>,
+    config: &LineageConfig,
+) -> Value {
+    let json_error = |status: u16, message: &str| respond(status, "application/json", &json!({"error": message}).to_string());
+
+    let Some(caller) = cookies.get("lifeadelics_session").and_then(|token| auth::verify_account_token(secret, token)) else {
+        return json_error(401, "not logged in");
+    };
+
+    let body: Value = serde_json::from_str(raw_body).unwrap_or(Value::Null);
+    let field = |key: &str| body.get(key).and_then(|v| v.as_str()).map(|s| s.trim().to_string()).unwrap_or_default();
+    let (email, role) = (field("email"), field("role"));
+    if email.is_empty() {
+        return json_error(400, "an email is required");
+    }
+    if !auth::GRANTABLE_ROLES.contains(&role.as_str()) {
+        return json_error(400, &format!("role must be one of {}", auth::GRANTABLE_ROLES.join(", ")));
+    }
+
+    match auth::set_person_role(client, config, domain_ir, &caller, &email, &role).await {
+        Ok(auth::RoleOutcome::Done) => respond(200, "application/json", &json!({"email": email.to_lowercase(), "role": role}).to_string()),
+        Ok(auth::RoleOutcome::CallerNotAdmin) => json_error(403, "admins only"),
+        Ok(auth::RoleOutcome::UnknownPerson) => json_error(404, "no member with that email"),
+        Ok(auth::RoleOutcome::LastAdmin) => json_error(409, "there must always be at least one admin"),
         Err(e) => json_error(500, &format!("members update failed: {e}")),
     }
 }
@@ -2870,6 +2923,130 @@ mod tests {
             let response = switch_access(&client, &domain_ir, "zed@example.com", "nobody@example.com", disable).await;
             assert_eq!(response["statusCode"], 404, "{response:?}");
         }
+    }
+
+    async fn set_role(client: &Mutex<Client>, domain_ir: &Value, caller: &str, email: &str, role: &str) -> Value {
+        let secret = "s3cret";
+        let body = json!({"email": email, "role": role}).to_string();
+        set_member_role_route(domain_ir, &body, &session_cookies(secret, caller), secret, client, &members_config()).await
+    }
+
+    #[tokio::test]
+    async fn role_route_refuses_a_missing_session_a_blank_email_and_an_unknown_role_and_writes_nothing() {
+        let secret = "s3cret";
+        let (client, domain_ir) = scratch_members_db("hecks_host_web_test_role_400").await;
+        let before = journal_rows(&client, "amy@example.com").await;
+
+        let mut tampered = HashMap::new();
+        tampered.insert("lifeadelics_session".to_string(), "garbage.notasignature".to_string());
+        let body = json!({"email": "amy@example.com", "role": "Owner"}).to_string();
+        for cookies in [HashMap::new(), tampered] {
+            let response = set_member_role_route(&domain_ir, &body, &cookies, secret, &client, &members_config()).await;
+            assert_eq!(response["statusCode"], 401, "{response:?}");
+            assert!(response.get("headers").and_then(|h| h.get("location")).is_none(), "never a redirect: {response:?}");
+        }
+        for blank in ["", "   "] {
+            let response = set_role(&client, &domain_ir, "zed@example.com", blank, "Owner").await;
+            assert_eq!(response["statusCode"], 400, "{blank:?}: {response:?}");
+        }
+        for role in ["", "Root", "owner", "Owner Admin"] {
+            let response = set_role(&client, &domain_ir, "zed@example.com", "amy@example.com", role).await;
+            assert_eq!(response["statusCode"], 400, "{role:?}: {response:?}");
+            assert_eq!(error_of(&response), "role must be one of Admin, Owner, Member");
+        }
+        assert_eq!(person(&client, &domain_ir, "amy@example.com").await["role"], Value::Null, "nothing was written");
+        assert_eq!(journal_rows(&client, "amy@example.com").await, before);
+    }
+
+    #[tokio::test]
+    async fn role_route_refuses_a_caller_who_is_not_an_active_admin_with_a_403_and_answers_404_for_an_unknown_email() {
+        let (client, domain_ir) = scratch_members_db("hecks_host_web_test_role_403").await;
+
+        // amy is admitted with no role; the stranger was never admitted.
+        for caller in ["amy@example.com", "stranger@example.com"] {
+            let response = set_role(&client, &domain_ir, caller, "amy@example.com", "Owner").await;
+            assert_eq!(response["statusCode"], 403, "{caller}: {response:?}");
+            assert_eq!(error_of(&response), "admins only");
+        }
+
+        // A plain Member cannot promote themselves either.
+        assert!(auth::grant_access(&client, Path::new("unused"), &members_config(), &domain_ir, "amy@example.com", "Member").await.unwrap());
+        let response = set_role(&client, &domain_ir, "amy@example.com", "amy@example.com", "Owner").await;
+        assert_eq!(response["statusCode"], 403, "{response:?}");
+        assert_eq!(person(&client, &domain_ir, "amy@example.com").await["role"], "Member", "nothing was written");
+
+        let response = set_role(&client, &domain_ir, "zed@example.com", "nobody@example.com", "Owner").await;
+        assert_eq!(response["statusCode"], 404, "{response:?}");
+    }
+
+    #[tokio::test]
+    async fn role_route_lets_an_admin_grant_owner_to_an_already_admitted_person_and_repeating_it_writes_nothing() {
+        let (client, domain_ir) = scratch_members_db("hecks_host_web_test_role_grant").await;
+        let status = |response: &Value| response["statusCode"].as_i64().unwrap();
+
+        // amy is admitted but holds no role, so she is not an admin yet.
+        assert!(!auth::caller_is_admin(&client, &domain_ir, "amy@example.com").await.unwrap());
+
+        // Case and surrounding spaces in the email do not matter.
+        let response = set_role(&client, &domain_ir, "Zed@Example.com", " Amy@Example.com ", "Owner").await;
+        assert_eq!(response["statusCode"], 200, "{response:?}");
+        let body: Value = serde_json::from_str(response["body"].as_str().unwrap()).unwrap();
+        assert_eq!(body, json!({"email": "amy@example.com", "role": "Owner"}));
+
+        // She now passes the admin gate and the Owner check payments makes.
+        assert!(auth::caller_is_admin(&client, &domain_ir, "amy@example.com").await.unwrap());
+        assert_eq!(auth::active_role(&client, &domain_ir, "amy@example.com").await.unwrap().as_deref(), Some("Owner"));
+        let amy = person(&client, &domain_ir, "amy@example.com").await;
+        assert_eq!((amy["role"].as_str(), amy["granted"].clone()), (Some("Owner"), json!(true)));
+
+        // The new Owner can act as an admin, including granting Owner in turn.
+        let response = set_role(&client, &domain_ir, "amy@example.com", "zed@example.com", "Owner").await;
+        assert_eq!(status(&response), 200, "{response:?}");
+        assert_eq!(auth::active_role(&client, &domain_ir, "zed@example.com").await.unwrap().as_deref(), Some("Owner"));
+
+        // Asking for the role someone already holds is a 200 and writes nothing.
+        let rows = journal_rows(&client, "amy@example.com").await;
+        assert_eq!(status(&set_role(&client, &domain_ir, "zed@example.com", "amy@example.com", "Owner").await), 200);
+        assert_eq!(journal_rows(&client, "amy@example.com").await, rows);
+    }
+
+    #[tokio::test]
+    async fn role_route_keeps_the_identity_link_and_the_disabled_flag_when_it_changes_a_role() {
+        let (client, domain_ir) = scratch_two_admins("hecks_host_web_test_role_keeps").await;
+
+        // zed is linked (id-1 in the seed); amy is disabled while holding Admin.
+        assert_eq!(switch_access(&client, &domain_ir, "zed@example.com", "amy@example.com", true).await["statusCode"], 200);
+        assert_eq!(set_role(&client, &domain_ir, "zed@example.com", "amy@example.com", "Owner").await["statusCode"], 200);
+        assert_eq!(set_role(&client, &domain_ir, "zed@example.com", "zed@example.com", "Owner").await["statusCode"], 200);
+
+        let amy = person(&client, &domain_ir, "amy@example.com").await;
+        assert_eq!((amy["role"].as_str(), amy["disabled"].clone(), amy["granted"].clone()), (Some("Owner"), json!(true), json!(false)));
+        let zed = person(&client, &domain_ir, "zed@example.com").await;
+        assert_eq!((zed["role"].as_str(), zed["linked"].clone(), zed["name"].as_str()), (Some("Owner"), json!(true), Some("Zed")));
+        assert!(auth::session_for_member_by_identity(&client, &domain_ir, "id-1").await.unwrap().is_some(), "zed can still sign in");
+
+        // Enabling amy restores her, now as an Owner.
+        assert_eq!(switch_access(&client, &domain_ir, "zed@example.com", "amy@example.com", false).await["statusCode"], 200);
+        assert_eq!(auth::active_role(&client, &domain_ir, "amy@example.com").await.unwrap().as_deref(), Some("Owner"));
+    }
+
+    #[tokio::test]
+    async fn role_route_never_demotes_the_last_active_admin_but_may_demote_one_of_two() {
+        let (client, domain_ir) = scratch_members_db("hecks_host_web_test_role_last_admin").await;
+
+        // zed is the only active admin: demoting themselves would lock everyone out.
+        let response = set_role(&client, &domain_ir, "zed@example.com", "zed@example.com", "Member").await;
+        assert_eq!(response["statusCode"], 409, "{response:?}");
+        assert_eq!(error_of(&response), "there must always be at least one admin");
+        assert_eq!(person(&client, &domain_ir, "zed@example.com").await["role"], "Admin", "nothing was written");
+        // Moving between admin roles never strands anyone.
+        assert_eq!(set_role(&client, &domain_ir, "zed@example.com", "zed@example.com", "Owner").await["statusCode"], 200);
+
+        // With a second admin, one may demote the other, and then the last one is protected again.
+        assert_eq!(set_role(&client, &domain_ir, "zed@example.com", "amy@example.com", "Admin").await["statusCode"], 200);
+        assert_eq!(set_role(&client, &domain_ir, "zed@example.com", "amy@example.com", "Member").await["statusCode"], 200);
+        assert_eq!(set_role(&client, &domain_ir, "zed@example.com", "zed@example.com", "Member").await["statusCode"], 409);
+        assert_eq!(person(&client, &domain_ir, "zed@example.com").await["role"], "Owner");
     }
 
     #[tokio::test]

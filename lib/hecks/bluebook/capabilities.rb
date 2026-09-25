@@ -39,6 +39,15 @@ module Hecks
       # chapter declares this one as well.
       NEWSLETTER_ISSUES = "newsletter_issues".freeze
 
+      # Taking a payment through an external processor: start one, then
+      # hear the processor's verdict — recognised by declaration, not the
+      # literal chapter name "Payments". rust/host's checkout and webhook
+      # routes dispatch these verbs and read the paying aggregate's
+      # instances off `initiate`. The two verdicts are hecksagon port
+      # operations (the processor's webhook, translated into this chapter's
+      # vocabulary), not commands.
+      PAYMENTS = "payments".freeze
+
       CONTRACTS = {
         AUTHORIZATION     => {
           # every assignment an actor holds, current or historical
@@ -80,6 +89,14 @@ module Hecks
           # record one email handed to the mail provider; the delivery
           # aggregate is the one it names
           record_delivery: :command
+        }.freeze,
+        PAYMENTS          => {
+          # start a payment; the aggregate it names is the payment
+          initiate:  :command,
+          # the processor reports the money arrived
+          succeeded: :port_operation,
+          # the processor reports the payment failed or expired
+          failed:    :port_operation
         }.freeze
       }.freeze
     end
