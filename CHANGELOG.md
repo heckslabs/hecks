@@ -5,7 +5,7 @@ Dates are when a change landed on `main`, not when this file was written.
 Entries below are grouped by theme, not itemized commit-by-commit; see
 `git log` for the full history.
 
-## [Unreleased]
+## [2.3.0] - 2026-09-25
 
 **Sending a newsletter issue is a declared capability.** A chapter can declare
 `provides "newsletter_issues", send_issue:, record_delivery:` (the command that
