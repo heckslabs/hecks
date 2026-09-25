@@ -218,6 +218,11 @@ pub fn mock_checkout_session(registration_id: &str, success_url: &str, cancel_ur
 // learns of completion from Stripe.js and the payment itself is settled by the
 // webhook.
 
+/// The Stripe API version every session request is pinned to. `embedded_page`
+/// exists from this line of versions on, so the request must not depend on
+/// whatever default the platform account happens to have.
+pub const STRIPE_API_VERSION: &str = "2026-04-22.dahlia";
+
 /// How one Stripe call is authenticated and addressed: the platform's own
 /// secret key, the connected account the call acts on behalf of, and the API
 /// base URL (`https://api.stripe.com` outside of tests).
@@ -258,6 +263,7 @@ pub async fn create_checkout_session(
     let mut request = reqwest::Client::new()
         .post(format!("{}/v1/checkout/sessions", auth.base_url))
         .bearer_auth(auth.api_key)
+        .header("Stripe-Version", STRIPE_API_VERSION)
         .form(&params);
     if let Some(account) = auth.account {
         request = request.header("Stripe-Account", account);
