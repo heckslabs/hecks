@@ -24,6 +24,7 @@ module Hecks
           verify_singleton_port_answers!
           refuse_cross_package_bluebook_merge!
           refuse_membership_without_identity!
+          refuse_unresolved_port_operations!
 
           @hecksagons.each_value do |hexagon|
             refuse_ungoverned_roles!(hexagon)
@@ -328,6 +329,37 @@ module Hecks
                 "identity from the hecksagon/world. Attach Identity (`uses_framework " \
                 "\"Identity\"` plus a sibling Hecks.hecksagon \"Identity\") so the " \
                 "identity verbs are exported onto ir.json, not guessed at deploy."
+        end
+
+        # A `provides` row whose contract kind is `:port_operation` names an
+        # operation the chapter's hecksagon declares, and the hecksagon
+        # attaches after the chapter is built, so this is the first point the
+        # operation can be checked. Without it, a host reading the declared
+        # verb would dispatch to an operation nothing declares.
+        def refuse_unresolved_port_operations!
+          @bluebooks.each_value do |chapter|
+            chapter.provides.each do |row|
+              next unless Bluebook::Capabilities::CONTRACTS.dig(row.capability, row.key.to_sym) == :port_operation
+              next if port_operation_declared?(chapter, row.verb)
+
+              raise WiringError,
+                    "#{chapter.name} provides #{row.capability.inspect} #{row.key}: #{row.verb.inspect}, " \
+                    "but its hecksagon declares no such port operation — declare it with " \
+                    "`#{chapter.name}::Aggregate.port \"Port\" do operation \"Operation\" ... end`."
+            end
+          end
+        end
+
+        # Says whether a chapter declares the port operation an
+        # `"Aggregate.Port.Operation"` verb names.
+        #
+        # @param chapter [Bluebook::Chapter] the chapter whose aggregates' ports are searched
+        # @param verb [String] the verb, spelled `"Aggregate.Port.Operation"`
+        # @return [Boolean] whether that aggregate has that port with that operation
+        def port_operation_declared?(chapter, verb)
+          aggregate_name, port_name, operation_name = verb.split(".", 3)
+          ports = chapter.aggregate(aggregate_name)&.ports || []
+          ports.any? { |port| port.name == port_name && port.operations.any? { |op| op.hecks_name == operation_name } }
         end
 
         def refuse_bounded_without_acl!(hexagon)

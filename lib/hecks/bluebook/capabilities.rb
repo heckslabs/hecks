@@ -8,7 +8,12 @@ module Hecks
     # complete and point at real verbs. `BluebookBuilder::Validation
     # #validate_provisions!` holds every `provides` to this table.
     #
-    #   key => :command | :query   the kind of verb that key must name
+    #   key => :command | :query | :port_operation   the kind of verb that key must name
+    #
+    # A `:port_operation` verb is spelled `"Aggregate.Port.Operation"` and names
+    # an operation the chapter's hecksagon declares on one of its aggregates.
+    # The hecksagon attaches after the chapter is built, so the chapter itself
+    # only checks the spelling; `Registry#verify!` checks the operation exists.
     module Capabilities
       AUTHORIZATION = "authorization".freeze
       # Who may sign in, and with what role — rust/host's Google-OAuth
