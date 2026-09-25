@@ -165,17 +165,16 @@ async fn verify_id_token(id_token: &str, client_id: &str) -> Result<Claims, Stri
     })
 }
 
-// ---------- Account token (Accounts::Account's own email+password login) ----------
+// ---------- Account token (the lifeadelics_session cookie and CMS handoff) ----------
 
 // A flat, HMAC-signed claim -- ported behavior-for-behavior from
 // lifeadelics/adapters/http_server.rb's own sign_token/verify_token
 // (that file's own comment: "not a JWT library, since there's exactly
-// one shape to sign"). Deliberately separate from Session/
-// session_cookie above: those carry identity_id/role for the Governance/
-// Member-shaped admin console (auth.rs's own header), which
-// Accounts::Account has none of by design (accounts.bluebook's own
-// vision: "presupposes nothing about roles, permissions") -- an email
-// and an expiry is the whole claim.
+// one shape to sign"). Minted after a Google sign-in and verified by
+// /accounts/me and /accounts/sso-token. Deliberately separate from
+// Session/session_cookie above: those carry identity_id/role for the
+// Governance/Member-shaped admin console (auth.rs's own header) -- an
+// email and an expiry is the whole claim here.
 pub fn account_token(secret: &str, email: &str, ttl_secs: u64) -> String {
     let payload = json!({"email": email, "exp": now_secs() + ttl_secs});
     let encoded = base64_encode(payload.to_string().as_bytes());
