@@ -40,7 +40,7 @@ module Hecks
       NEWSLETTER_ISSUES = "newsletter_issues".freeze
 
       CONTRACTS = {
-        AUTHORIZATION => {
+        AUTHORIZATION     => {
           # every assignment an actor holds, current or historical
           assignments: :query,
           # the command that grants an actor a role
@@ -48,7 +48,7 @@ module Hecks
           # every grant of one role acting as another
           transitions: :query
         }.freeze,
-        MEMBERSHIP    => {
+        MEMBERSHIP        => {
           # recognize a person who may eventually sign in
           admit:  :command,
           # grant an admitted person a role (the access-grant half)
@@ -56,7 +56,7 @@ module Hecks
           # every admitted person, for the admin listing
           people: :query
         }.freeze,
-        IDENTITY      => {
+        IDENTITY          => {
           # mint a stable identity, independent of how it authenticated
           register: :command,
           # associate an (issuer, subject) pair with that identity
@@ -64,7 +64,7 @@ module Hecks
           # look up the identity an authenticated pair resolves to
           resolve:  :query
         }.freeze,
-        NEWSLETTER    => {
+        NEWSLETTER        => {
           # a guest signs up; the aggregate it names is the subscriber
           subscribe:   :command,
           # attach a display name to an existing subscriber
