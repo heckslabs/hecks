@@ -113,18 +113,40 @@ module Hecks
           # @param capability [String] the capability the row belongs to, such as
           #   `"authorization"`
           # @param row [Bluebook::Chapter::Provision] the one declared row to check
-          # @param kind [Symbol] `:command` or `:query`, the kind of verb this row's key
-          #   must name (from `Capabilities::CONTRACTS`)
+          # @param kind [Symbol] `:command`, `:query` or `:port_operation`, the kind of
+          #   verb this row's key must name (from `Capabilities::CONTRACTS`)
           # @return [void]
           # @raise [Bluebook::DSL::Malformed] if `row.verb` does not split into a real
           #   aggregate and a member of the right kind that aggregate declares
           def validate_provided_verb!(bluebook, capability, row, kind)
+            return validate_provided_port_operation!(bluebook, capability, row) if kind == :port_operation
+
             aggregate_name, member = row.verb.split(".", 2)
             aggregate = bluebook.aggregate(aggregate_name)
             return if aggregate && member && provided_member_names(aggregate, kind).include?(member)
 
             raise Malformed, "#{bluebook.name} provides #{capability.inspect} #{row.key}: #{row.verb.inspect}, " \
                              "which names no #{kind} this chapter declares (spelled \"Aggregate.#{kind.capitalize}\")"
+          end
+
+          # Checks the spelling of a `provides` verb that names a hecksagon port
+          # operation. The port itself is declared in the hecksagon, which attaches
+          # after this chapter is built, so all that can be checked here is that the
+          # verb has the `"Aggregate.Port.Operation"` shape and its aggregate is
+          # this chapter's; `Registry#verify!` checks the operation exists.
+          #
+          # @param bluebook [Bluebook::Chapter] the chapter the row was declared on
+          # @param capability [String] the capability the row belongs to
+          # @param row [Bluebook::Chapter::Provision] the one declared row to check
+          # @return [void]
+          # @raise [Bluebook::DSL::Malformed] if the verb is not `"Aggregate.Port.Operation"`
+          #   or names an aggregate this chapter does not declare
+          def validate_provided_port_operation!(bluebook, capability, row)
+            aggregate_name, port, operation = row.verb.split(".", 3)
+            return if bluebook.aggregate(aggregate_name) && port && operation && !operation.include?(".")
+
+            raise Malformed, "#{bluebook.name} provides #{capability.inspect} #{row.key}: #{row.verb.inspect}, " \
+                             "which is not spelled \"Aggregate.Port.Operation\" over an aggregate this chapter declares"
           end
 
           # Names of the members a `provides` verb of the given kind may address.
