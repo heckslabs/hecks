@@ -392,6 +392,17 @@ module Hecks
         vendored_provider_for(domain, Bluebook::Capabilities::NEWSLETTER)
       end
 
+      # The chapter that answers sending a newsletter issue for `domain` —
+      # resolved the same way as `newsletter_provider_for`, by what it
+      # declares (`provides "newsletter_issues"`). Nil when none does.
+      #
+      # @param domain [String, Symbol] the domain whose issue-sending chapter is being resolved
+      # @return [Bluebook::Chapter, nil] the chapter that answers `domain`'s issue sending,
+      #   or nil if none does
+      def newsletter_issues_provider_for(domain)
+        vendored_provider_for(domain, Bluebook::Capabilities::NEWSLETTER_ISSUES)
+      end
+
       # The chapter that provides `capability` for `domain`: the domain's
       # own chapter, any framework member its hecksagon attaches, or any
       # vendored embryonaut bluebook it attaches, that declares it. Falls

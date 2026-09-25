@@ -247,6 +247,38 @@ pub fn newsletter_provider(domain_ir: &Value) -> Option<NewsletterProvider> {
     })
 }
 
+/// The chapter that declares `provides "newsletter_issues"`, read from the
+/// IR's `newsletter_issues` key (which `bin/project_rust` omits entirely when
+/// nothing declares it), so a domain without it serves no send route.
+#[derive(Debug, Clone, PartialEq)]
+pub struct NewsletterIssuesProvider {
+    /// Qualified send command, e.g. `Newsletter::Issue.Send`.
+    pub send_issue: String,
+    /// Qualified delivery-record command, e.g. `Newsletter::Delivery.Record`.
+    pub record_delivery: String,
+    /// Qualified issue aggregate, e.g. `Newsletter::Issue`.
+    pub issue_aggregate: String,
+}
+
+impl NewsletterIssuesProvider {
+    /// The prefix every issue's key in a `dispatch::read` `instances` map
+    /// starts with, e.g. `Newsletter::Issue#`.
+    pub fn issue_prefix(&self) -> String {
+        format!("{}#", self.issue_aggregate)
+    }
+}
+
+/// The declared issue-sending verbs, or `None` when the IR has no
+/// `newsletter_issues` key.
+pub fn newsletter_issues_provider(domain_ir: &Value) -> Option<NewsletterIssuesProvider> {
+    let fact = domain_ir.get("newsletter_issues")?;
+    Some(NewsletterIssuesProvider {
+        send_issue: fact.get("send_issue")?.as_str()?.to_string(),
+        record_delivery: fact.get("record_delivery")?.as_str()?.to_string(),
+        issue_aggregate: fact.get("issue_aggregate")?.as_str()?.to_string(),
+    })
+}
+
 pub fn refuse_unsupported_persistence_adapters(domain_ir: &Value) -> Result<(), String> {
     let unsupported: Vec<String> = persistence_adapters(domain_ir)
         .into_iter()
@@ -410,6 +442,25 @@ mod tests {
         assert_eq!(provider.unsubscribe, "Newsletter::Subscriber.Unsubscribe");
         assert_eq!(provider.instance_prefix(), "Newsletter::Subscriber#");
         assert!(newsletter_provider(&serde_json::json!({ "name": "Pizzas" })).is_none());
+    }
+
+    #[test]
+    fn newsletter_issues_provider_reads_the_declared_capability() {
+        let ir = serde_json::json!({
+            "name": "Lifeadelics",
+            "newsletter_issues": {
+                "provider": "Newsletter",
+                "send_issue": "Newsletter::Issue.Send",
+                "record_delivery": "Newsletter::Delivery.Record",
+                "issue_aggregate": "Newsletter::Issue",
+                "delivery_aggregate": "Newsletter::Delivery"
+            }
+        });
+        let provider = newsletter_issues_provider(&ir).expect("should find newsletter_issues");
+        assert_eq!(provider.send_issue, "Newsletter::Issue.Send");
+        assert_eq!(provider.record_delivery, "Newsletter::Delivery.Record");
+        assert_eq!(provider.issue_prefix(), "Newsletter::Issue#");
+        assert!(newsletter_issues_provider(&serde_json::json!({ "name": "Pizzas" })).is_none());
     }
 
     #[test]

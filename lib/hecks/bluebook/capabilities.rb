@@ -32,6 +32,12 @@ module Hecks
       # "Newsletter". rust/host's newsletter routes dispatch these verbs
       # and read the subscribing aggregate's instances off `subscribe`.
       NEWSLETTER = "newsletter".freeze
+      # Sending an issue to the confirmed subscribers: the decision to send
+      # and the record of each email handed to the mail provider. A separate
+      # capability from `NEWSLETTER` so a chapter that only takes signups
+      # declares nothing more; rust/host serves the send route only when a
+      # chapter declares this one as well.
+      NEWSLETTER_ISSUES = "newsletter_issues".freeze
 
       CONTRACTS = {
         AUTHORIZATION => {
@@ -67,6 +73,13 @@ module Hecks
           confirm:     :command,
           # a subscriber leaves from the emailed link
           unsubscribe: :command
+        }.freeze,
+        NEWSLETTER_ISSUES => {
+          # mark an issue sent; the issue aggregate is the one it names
+          send_issue:      :command,
+          # record one email handed to the mail provider; the delivery
+          # aggregate is the one it names
+          record_delivery: :command
         }.freeze
       }.freeze
     end

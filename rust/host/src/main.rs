@@ -31,6 +31,7 @@ mod presentation;
 mod presentation_write;
 mod reference_transform;
 mod reference_validate;
+mod resend;
 mod secrets;
 mod server;
 mod storage_shape;
