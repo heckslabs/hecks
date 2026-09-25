@@ -47,6 +47,7 @@ struct FakeState {
     requests: StdMutex<Vec<Recorded>>,
     livemode: AtomicBool,
     refuse_deauthorize: AtomicBool,
+    refuse_sessions: AtomicBool,
 }
 
 struct FakeStripe {
@@ -56,7 +57,7 @@ struct FakeStripe {
 
 impl FakeStripe {
     async fn start() -> Self {
-        let state = Arc::new(FakeState { requests: StdMutex::new(Vec::new()), livemode: AtomicBool::new(false), refuse_deauthorize: AtomicBool::new(false) });
+        let state = Arc::new(FakeState { requests: StdMutex::new(Vec::new()), livemode: AtomicBool::new(false), refuse_deauthorize: AtomicBool::new(false), refuse_sessions: AtomicBool::new(false) });
         let app = axum::Router::new().fallback(answer).with_state(state.clone());
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.expect("bind a local port");
         let base = format!("http://{}", listener.local_addr().unwrap());
@@ -99,6 +100,9 @@ async fn answer(State(state): State<Arc<FakeState>>, request: axum::extract::Req
         }
         ("POST", "/oauth/deauthorize") => (StatusCode::OK, json!({"stripe_user_id": TENANT_ACCOUNT})),
         ("GET", p) if p.starts_with("/v1/accounts/") => (StatusCode::OK, json!({"id": TENANT_ACCOUNT, "business_profile": {"name": "Yoga Collective"}})),
+        ("POST", "/v1/checkout/sessions") if state.refuse_sessions.load(Ordering::SeqCst) => {
+            (StatusCode::BAD_REQUEST, json!({"error": {"message": "no such price"}}))
+        }
         // An embedded session: Stripe answers with a client secret for the
         // browser and no hosted `url`.
         ("POST", "/v1/checkout/sessions") => (StatusCode::OK, json!({"id": "cs_test_1", "ui_mode": "embedded_page", "client_secret": "cs_test_1_secret_CLIENT"})),
@@ -610,6 +614,7 @@ async fn an_enabled_connection_charges_on_the_tenants_own_account() {
     assert_eq!(sent.len(), 1);
     assert_eq!(sent[0].header("stripe-account"), Some(TENANT_ACCOUNT), "a direct charge names the tenant's account");
     assert_eq!(sent[0].header("authorization"), Some(format!("Bearer {PLATFORM_KEY}").as_str()), "authenticated with the platform's key");
+    assert_eq!(sent[0].header("stripe-version"), Some("2026-04-22.dahlia"), "pinned, not the platform account's default");
     assert!(sent[0].body.contains(&format!("metadata%5Bregistration_id%5D={reference}")), "{}", sent[0].body);
     assert!(sent[0].body.contains("unit_amount%5D=4200"), "{}", sent[0].body);
     assert!(sent[0].body.contains("ui_mode=embedded_page"), "an embedded session, not a hosted one: {}", sent[0].body);
@@ -618,6 +623,35 @@ async fn an_enabled_connection_charges_on_the_tenants_own_account() {
 
     let read = dispatch::read(&t.client, &t.wasm).await.unwrap();
     assert_eq!(read["instances"][format!("Payments::Payment#{reference}")]["processor"]["value"], "stripe");
+}
+
+#[tokio::test]
+async fn a_stripe_refusal_answers_502_and_leaves_no_payment_or_registration_behind() {
+    let t = tenant("hecks_pay_test_checkout_stripe_refuses").await;
+    t.schedule_event("refused-event").await;
+    t.connect().await;
+    t.enable().await;
+    t.fake.state.refuse_sessions.store(true, Ordering::SeqCst);
+
+    let (status, body) = t.register("refused-event").await;
+    assert_eq!((status, body["error"].as_str()), (502, Some("payments are temporarily unavailable")));
+    assert_eq!(body.get("checkout_url"), None);
+    assert_eq!(body.get("embedded_checkout"), None);
+    assert!(!body.to_string().contains("no such price"), "Stripe's own wording stays in the log: {body}");
+    assert_eq!(t.fake.requests_to("/v1/checkout/sessions").len(), 1, "the session was attempted");
+
+    // The session is opened first, so nothing was recorded for the failed try.
+    let read = dispatch::read(&t.client, &t.wasm).await.unwrap();
+    assert!(instances_for(&read, "Payments::Payment#").is_empty(), "no orphaned Payment");
+    assert!(instances_for(&read, "CheckoutFixture::Registration#").is_empty(), "no pending Registration");
+
+    // Once Stripe recovers a retry registers normally.
+    t.fake.state.refuse_sessions.store(false, Ordering::SeqCst);
+    let (status, body) = t.register("refused-event").await;
+    assert_eq!(status, 200, "{body}");
+    let read = dispatch::read(&t.client, &t.wasm).await.unwrap();
+    assert_eq!(instances_for(&read, "Payments::Payment#").len(), 1);
+    assert_eq!(instances_for(&read, "CheckoutFixture::Registration#").len(), 1);
 }
 
 #[tokio::test]

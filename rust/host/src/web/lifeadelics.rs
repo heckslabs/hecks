@@ -424,6 +424,32 @@ pub(crate) async fn registrations_route(
 
     let reference = uuid::Uuid::new_v4().to_string();
 
+    // A Stripe plan opens its embedded session before anything is written, so
+    // a Stripe failure leaves no Payment or Registration behind and a guest
+    // retrying does not pile up pending registrations. The session is a direct
+    // charge on the tenant's own connected account: the platform's key, and
+    // the `Stripe-Account` header naming whose money it is. If a domain
+    // refusal follows, the unused session simply expires.
+    let embedded_checkout = if let payments::CheckoutPlan::Stripe { api_key, publishable_key, account } = &plan {
+        let auth = checkout::StripeAuth { api_key, account: Some(account), base_url: &platform.api_base };
+        match checkout::create_checkout_session(&auth, price_cents, event_name, &reference).await {
+            // Stripe.js is opened with the publishable key and `stripeAccount`;
+            // the answer carries no `checkout_url`.
+            Ok(session) => Some(json!({
+                "client_secret": session.client_secret,
+                "publishable_key": publishable_key,
+                "stripe_account": account,
+                "session_id": session.session_id,
+            })),
+            Err(e) => {
+                eprintln!("registrations: opening the Stripe session failed, nothing was recorded: {e:#}");
+                return respond(502, "application/json", &json!({"error": "payments are temporarily unavailable"}).to_string());
+            }
+        }
+    } else {
+        None
+    };
+
     let initiate_args = json!({
         "reference": {"value": reference},
         "processor": {"value": processor},
@@ -451,6 +477,10 @@ pub(crate) async fn registrations_route(
     };
     if !outcome.accepted {
         return respond(422, "application/json", &last_refusal(&outcome.result).to_string());
+    }
+
+    if let Some(embedded) = embedded_checkout {
+        return respond(200, "application/json", &json!({"registration_id": reference, "embedded_checkout": embedded}).to_string());
     }
 
     // A GUEST-SUPPLIED PATH, NEVER TRUSTED RAW -- `return_to` rides
@@ -483,36 +513,11 @@ pub(crate) async fn registrations_route(
 
     // **Mock, not an error** — a tenant with no connection, or one that is
     // not enabled, is on the mock walkthrough (this route's own header,
-    // checkout.rs's own header) — never a misconfiguration to refuse.
-    let payments::CheckoutPlan::Stripe { api_key, publishable_key, account } = plan else {
-        let checkout_url = checkout::mock_checkout_session(&reference, &success_url, &cancel_url, site_url);
-        return respond(200, "application/json", &json!({"checkout_url": checkout_url, "registration_id": reference}).to_string());
-    };
-
-    // A direct charge on the tenant's own connected account: the platform's
-    // key, and the `Stripe-Account` header naming whose money it is. The
-    // guest pays in a form embedded in the site, so the answer carries what
-    // the browser needs to mount it (Stripe.js is opened with the publishable
-    // key and `stripeAccount`) and no `checkout_url`; the success and cancel
-    // URLs above belong to the mock walkthrough only.
-    let auth = checkout::StripeAuth { api_key: &api_key, account: Some(&account), base_url: &platform.api_base };
-    match checkout::create_checkout_session(&auth, price_cents, event_name, &reference).await {
-        Ok(session) => respond(
-            200,
-            "application/json",
-            &json!({
-                "registration_id": reference,
-                "embedded_checkout": {
-                    "client_secret": session.client_secret,
-                    "publishable_key": publishable_key,
-                    "stripe_account": account,
-                    "session_id": session.session_id,
-                },
-            })
-            .to_string(),
-        ),
-        Err(e) => respond(500, "text/plain", &format!("{e:#}")),
-    }
+    // checkout.rs's own header) — never a misconfiguration to refuse. The
+    // success and cancel URLs belong to this walkthrough only; an embedded
+    // session has nothing to redirect to.
+    let checkout_url = checkout::mock_checkout_session(&reference, &success_url, &cancel_url, site_url);
+    respond(200, "application/json", &json!({"checkout_url": checkout_url, "registration_id": reference}).to_string())
 }
 
 // **Stripe driving in** — http_server.rb's own `POST /webhooks/stripe`.
