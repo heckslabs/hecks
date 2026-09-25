@@ -247,6 +247,55 @@ pub fn newsletter_provider(domain_ir: &Value) -> Option<NewsletterProvider> {
     })
 }
 
+/// The chapter that takes payments — `Exporter.payments` (exporter.rb), a
+/// binding fact like `newsletter` above, read off `ir.json`'s own top-level
+/// `payments` key. `None` when the domain attaches nothing that declares
+/// `provides "payments"` (the key is omitted entirely), so a domain without
+/// it serves no checkout, registration-payment or webhook routes.
+#[derive(Debug, Clone, PartialEq)]
+pub struct PaymentsProvider {
+    /// Chapter name, e.g. `Payments`.
+    pub provider: String,
+    /// Qualified initiate command, e.g. `Payments::Payment.Initiate`.
+    pub initiate: String,
+    /// Qualified port operation the processor's success report dispatches,
+    /// e.g. `Payments::Payment.PaymentGateway.Succeeded`.
+    pub succeeded: String,
+    /// Qualified port operation the processor's failure report dispatches,
+    /// e.g. `Payments::Payment.PaymentGateway.Failed`.
+    pub failed: String,
+    /// Qualified paying aggregate, e.g. `Payments::Payment`.
+    pub aggregate: String,
+}
+
+impl PaymentsProvider {
+    /// The prefix every payment's key in a `dispatch::read` `instances` map
+    /// starts with, e.g. `Payments::Payment#`.
+    pub fn instance_prefix(&self) -> String {
+        format!("{}#", self.aggregate)
+    }
+}
+
+pub fn payments_provider(domain_ir: &Value) -> Option<PaymentsProvider> {
+    let fact = domain_ir.get("payments")?;
+    Some(PaymentsProvider {
+        provider: fact.get("provider")?.as_str()?.to_string(),
+        initiate: fact.get("initiate")?.as_str()?.to_string(),
+        succeeded: fact.get("succeeded")?.as_str()?.to_string(),
+        failed: fact.get("failed")?.as_str()?.to_string(),
+        aggregate: fact.get("aggregate")?.as_str()?.to_string(),
+    })
+}
+
+/// The checkout fixture's own payments binding, read from its committed
+/// `ir.json` — what the checkout routes' tests dispatch against.
+#[cfg(test)]
+pub fn fixture_payments() -> PaymentsProvider {
+    let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../src/generated/checkout_fixture/ir.json");
+    let ir: Value = serde_json::from_str(&std::fs::read_to_string(path).expect("checkout_fixture ir.json")).expect("valid json");
+    payments_provider(&ir).expect("the checkout fixture provides payments")
+}
+
 pub fn refuse_unsupported_persistence_adapters(domain_ir: &Value) -> Result<(), String> {
     let unsupported: Vec<String> = persistence_adapters(domain_ir)
         .into_iter()
@@ -410,6 +459,27 @@ mod tests {
         assert_eq!(provider.unsubscribe, "Newsletter::Subscriber.Unsubscribe");
         assert_eq!(provider.instance_prefix(), "Newsletter::Subscriber#");
         assert!(newsletter_provider(&serde_json::json!({ "name": "Pizzas" })).is_none());
+    }
+
+    #[test]
+    fn payments_provider_reads_the_declared_capability() {
+        let ir = serde_json::json!({
+            "name": "Lifeadelics",
+            "payments": {
+                "provider": "Payments",
+                "initiate": "Payments::Payment.Initiate",
+                "succeeded": "Payments::Payment.PaymentGateway.Succeeded",
+                "failed": "Payments::Payment.PaymentGateway.Failed",
+                "aggregate": "Payments::Payment"
+            }
+        });
+        let provider = payments_provider(&ir).expect("should find payments");
+        assert_eq!(provider.provider, "Payments");
+        assert_eq!(provider.initiate, "Payments::Payment.Initiate");
+        assert_eq!(provider.succeeded, "Payments::Payment.PaymentGateway.Succeeded");
+        assert_eq!(provider.failed, "Payments::Payment.PaymentGateway.Failed");
+        assert_eq!(provider.instance_prefix(), "Payments::Payment#");
+        assert!(payments_provider(&serde_json::json!({ "name": "Pizzas" })).is_none());
     }
 
     #[test]
