@@ -1,7 +1,7 @@
 use super::{instances_for, last_refusal, respond, with_id};
 use crate::checkout;
 use crate::dispatch;
-use crate::ir::PaymentsProvider;
+use crate::ir::{payments_provider, PaymentsProvider};
 use crate::journal::LineageConfig;
 use crate::lambda_client::LambdaInvoker;
 use crate::payments;
@@ -44,6 +44,27 @@ fn payment_processor(read: &Value, payments: &PaymentsProvider, reference: &str)
 }
 
 #[allow(clippy::too_many_arguments)]
+// The checkout, registration-payment and webhook routes, served only when
+// the domain's IR declares `provides "payments"`: that declaration names the
+// verbs and the paying aggregate, so a domain (or a missing IR) that carries
+// none serves none of them. The IR is a parameter, not `ir()`, so the gate
+// can be tested with an IR that lacks the key.
+#[allow(clippy::too_many_arguments)]
+pub(super) async fn payments_routes(
+    domain_ir: Option<&Value>,
+    method: &str,
+    path: &str,
+    raw_body: &str,
+    stripe_signature: &str,
+    client: &Mutex<Client>,
+    wasm_path: &Path,
+    config: &LineageConfig,
+    invoker: &dyn LambdaInvoker,
+) -> Option<Value> {
+    let payments = domain_ir.and_then(payments_provider)?;
+    checkout_route(method, path, raw_body, stripe_signature, client, wasm_path, config, invoker, &payments).await
+}
+
 pub(super) async fn checkout_route(
     method: &str,
     path: &str,
@@ -782,6 +803,34 @@ mod tests {
             instances.keys().all(|k| !k.starts_with("CheckoutFixture::Registration#")),
             "Registration.Request must never have committed: {instances:?}"
         );
+    }
+
+    // A domain whose IR declares no payments capability serves none of the
+    // checkout, registration-payment or webhook routes; the positive control
+    // (the fixture's own IR) shows the same call is answered when it does.
+    #[tokio::test]
+    async fn payments_routes_serve_nothing_without_a_payments_capability() {
+        let client = scratch_db("hecks_host_web_test_payments_gate").await;
+        let wasm_path = checkout_wasm_path();
+        let config = checkout_config(1);
+        let no_payments = json!({"name": "Lifeadelics"});
+
+        for (method, path) in [
+            ("POST", "/registrations"),
+            ("GET", "/registrations/REG-1"),
+            ("POST", "/registrations/REG-1/complete"),
+            ("POST", "/webhooks/stripe"),
+            ("POST", "/events"),
+        ] {
+            for ir in [Some(&no_payments), None] {
+                let response = payments_routes(ir, method, path, "not json", "", &client, &wasm_path, &config, &lambda_client::NeverInvoker).await;
+                assert!(response.is_none(), "{method} {path} answered although the IR declares no payments: {response:?}");
+            }
+        }
+
+        let fixture_ir = crate::ir::fixture_ir();
+        let response = payments_routes(Some(&fixture_ir), "POST", "/registrations", "not json", "", &client, &wasm_path, &config, &lambda_client::NeverInvoker).await;
+        assert_eq!(response.expect("the fixture IR declares payments, so the route answers")["statusCode"], 400);
     }
 
     #[tokio::test]
