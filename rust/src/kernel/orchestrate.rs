@@ -775,10 +775,10 @@ fn split_routed_args(projected: Json, target_verb: &str, tables: &Tables) -> Jso
     let candidates = [(tables.identity_head_fn)(aggregate_name), (tables.reference_key_fn)(aggregate_name)];
     for key in candidates.into_iter().flatten() {
         if let Some((_, raw_id)) = pairs.iter().find(|(k, _)| k == key) {
-            let Ok(id) = raw_id.to_id_component() else { continue };
-            if id.is_empty() {
-                continue;
-            }
+            // A VO-typed identity arrives as `{"value": ...}`, the shape an
+            // ordinary event-payload lookup hands back — `resolved_id_component`
+            // unwraps it once, and still takes a bare scalar as-is.
+            let Some(id) = resolved_id_component(raw_id) else { continue };
             return Json::obj(vec![("to", Json::str(id)), ("with", Json::Object(facts))]);
         }
     }
@@ -2056,6 +2056,79 @@ mod tests {
         // own fixed `SagaInterpreter#qualified`.
         assert_eq!(qualify_saga_command_name("Waybill", "Manifest.Open"), "Waybill::Manifest.Open");
         assert_eq!(qualify_saga_command_name("Waybill", "Manifest.AddSlot"), "Waybill::Manifest.AddSlot");
+    }
+
+    // Fixture for the `split_routed_args` identity tests below: a
+    // non-creating `Widgets::Ledger.Grant` whose identity head is `email` and
+    // whose one declared attribute is `role` — the shape of a reaction that
+    // acts on an existing record named by a foreign event's payload.
+    fn routed_identity_head(aggregate: &str) -> Option<&'static str> {
+        (aggregate == "Widgets::Ledger").then_some("email")
+    }
+    fn routed_declared_attributes(verb: &str) -> &'static [&'static str] {
+        if verb == "Widgets::Ledger.Grant" {
+            &["role"]
+        } else {
+            &[]
+        }
+    }
+    fn routed_reference_key_never_found(_aggregate: &str) -> Option<&'static str> {
+        None
+    }
+    fn routed_entity_identity_head_never_found(_qualified_path: &str) -> Option<&'static str> {
+        None
+    }
+    fn routed_never_creates(_verb: &str) -> bool {
+        false
+    }
+    fn routed_fixture_tables() -> Tables<'static> {
+        Tables {
+            policies: &[],
+            cross_domain_policies: &[],
+            process_managers: &[],
+            reference_key_fn: routed_reference_key_never_found,
+            queries: &[],
+            command_creates_fn: routed_never_creates,
+            identity_head_fn: routed_identity_head,
+            command_attributes_fn: routed_declared_attributes,
+            entity_identity_head_fn: routed_entity_identity_head_never_found,
+        }
+    }
+
+    fn routed_to_a_receiver(id: &str) -> Json {
+        Json::obj(vec![("to", Json::str(id)), ("with", Json::obj(vec![("role", Json::str("Admin"))]))])
+    }
+
+    #[test]
+    fn split_routed_args_routes_a_value_object_identity_as_the_receiver() {
+        // A VO-typed identity is `{"value": ...}` in an event payload, and a
+        // `with: { email: :email }` projection forwards it as that object.
+        let projected = Json::obj(vec![("email", Json::obj(vec![("value", Json::str("a@b.co"))])), ("role", Json::str("Admin"))]);
+
+        let routed = split_routed_args(projected, "Widgets::Ledger.Grant", &routed_fixture_tables());
+
+        assert_eq!(routed, routed_to_a_receiver("a@b.co"), "a VO identity should route as `to` — got {routed:?}");
+    }
+
+    #[test]
+    fn split_routed_args_still_routes_a_bare_scalar_identity() {
+        let projected = Json::obj(vec![("email", Json::str("a@b.co")), ("role", Json::str("Admin"))]);
+
+        let routed = split_routed_args(projected, "Widgets::Ledger.Grant", &routed_fixture_tables());
+
+        assert_eq!(routed, routed_to_a_receiver("a@b.co"), "a scalar identity should route as `to` — got {routed:?}");
+    }
+
+    #[test]
+    fn split_routed_args_leaves_the_args_flat_when_the_identity_is_empty_or_not_a_value() {
+        let flat = Json::obj(vec![("role", Json::str("Admin"))]);
+        let empty = Json::obj(vec![("email", Json::obj(vec![("value", Json::str(""))])), ("role", Json::str("Admin"))]);
+        let unrelated = Json::obj(vec![("email", Json::obj(vec![("other", Json::str("a@b.co"))])), ("role", Json::str("Admin"))]);
+
+        for projected in [empty, unrelated] {
+            let routed = split_routed_args(projected, "Widgets::Ledger.Grant", &routed_fixture_tables());
+            assert_eq!(routed, flat, "an unusable identity should leave only the declared facts — got {routed:?}");
+        }
     }
 
     #[test]
