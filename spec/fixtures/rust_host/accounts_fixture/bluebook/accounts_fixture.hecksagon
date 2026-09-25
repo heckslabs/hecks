@@ -1,3 +1,0 @@
-Hecks.hecksagon "Accounts" do
-  Accounts::Account.persisted_by("PostgresEra")
-end
