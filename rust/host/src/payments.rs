@@ -57,6 +57,11 @@ pub struct PlatformConfig {
     pub connect_base: String,
     pub test_key: String,
     pub live_key: String,
+    /// The platform's publishable keys, one per mode. Public values the
+    /// browser needs to mount the embedded payment form; unlike the secret
+    /// keys they may appear in a response.
+    pub test_publishable_key: String,
+    pub live_publishable_key: String,
     pub test_client_id: String,
     pub live_client_id: String,
     /// The Connect webhook endpoint's signing secret; `None` when unset.
@@ -74,6 +79,8 @@ impl PlatformConfig {
             connect_base: STRIPE_CONNECT_BASE.to_string(),
             test_key: var("STRIPE_PLATFORM_TEST_KEY"),
             live_key: var("STRIPE_PLATFORM_LIVE_KEY"),
+            test_publishable_key: var("STRIPE_PLATFORM_TEST_PUBLISHABLE_KEY"),
+            live_publishable_key: var("STRIPE_PLATFORM_LIVE_PUBLISHABLE_KEY"),
             test_client_id: var("STRIPE_CONNECT_TEST_CLIENT_ID"),
             live_client_id: var("STRIPE_CONNECT_LIVE_CLIENT_ID"),
             webhook_secret: Some(var("STRIPE_WEBHOOK_SECRET")).filter(|s| !s.is_empty()),
@@ -87,6 +94,10 @@ impl PlatformConfig {
 
     fn key(&self, mode: &str) -> &str {
         if mode == "live" { &self.live_key } else { &self.test_key }
+    }
+
+    fn publishable_key(&self, mode: &str) -> &str {
+        if mode == "live" { &self.live_publishable_key } else { &self.test_publishable_key }
     }
 
     fn client_id(&self, mode: &str) -> &str {
@@ -132,8 +143,10 @@ pub enum CheckoutPlan {
     /// No connection, or one that is not enabled: the mock walkthrough.
     Mock,
     /// Payments are enabled: a direct charge on the tenant's own account,
-    /// authenticated with the platform's key for the connection's mode.
-    Stripe { api_key: String, account: String },
+    /// authenticated with the platform's key for the connection's mode. The
+    /// guest pays in a form embedded in the site, which the browser mounts with
+    /// the platform's publishable key for that mode.
+    Stripe { api_key: String, publishable_key: String, account: String },
     /// Payments were enabled and cannot be taken now. Registrations answer
     /// 503; never a fallback to the mock.
     Paused,
@@ -141,17 +154,26 @@ pub enum CheckoutPlan {
 
 /// Decides checkout for this request from the tenant's own connection, never
 /// from a process-wide setting. An enabled connection whose processor is not
-/// one this host can charge, or whose platform key is not configured, is
-/// paused too: real guests must never be shown a fake payment page.
+/// one this host can charge, or whose platform key or publishable key is not
+/// configured, is paused too: real guests must never be shown a fake payment
+/// page, and the embedded form cannot be mounted without the publishable key.
 pub fn checkout_plan(connection: Option<&Connection>, platform: &PlatformConfig) -> CheckoutPlan {
     let Some(connection) = connection else { return CheckoutPlan::Mock };
     match connection.status.as_str() {
         "enabled" => {
             let key = platform.key(&connection.mode);
-            if connection.processor == "stripe" && !key.is_empty() {
-                CheckoutPlan::Stripe { api_key: key.to_string(), account: connection.account_ref.clone() }
-            } else {
+            let publishable_key = platform.publishable_key(&connection.mode);
+            if connection.processor != "stripe" || key.is_empty() {
                 CheckoutPlan::Paused
+            } else if publishable_key.is_empty() {
+                eprintln!(
+                    "payments are paused: the {} mode has a Stripe platform key but no publishable key (set STRIPE_PLATFORM_{}_PUBLISHABLE_KEY)",
+                    connection.mode,
+                    connection.mode.to_uppercase()
+                );
+                CheckoutPlan::Paused
+            } else {
+                CheckoutPlan::Stripe { api_key: key.to_string(), publishable_key: publishable_key.to_string(), account: connection.account_ref.clone() }
             }
         }
         "paused" => CheckoutPlan::Paused,
@@ -598,6 +620,8 @@ pub(crate) fn test_platform() -> PlatformConfig {
         connect_base: "http://127.0.0.1:9".to_string(),
         test_key: String::new(),
         live_key: String::new(),
+        test_publishable_key: String::new(),
+        live_publishable_key: String::new(),
         test_client_id: String::new(),
         live_client_id: String::new(),
         webhook_secret: None,

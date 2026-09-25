@@ -17,6 +17,7 @@ use std::sync::{Arc, Mutex as StdMutex};
 
 const SESSION_SECRET: &str = "s3cret";
 const PLATFORM_KEY: &str = "sk_test_PLATFORM_KEY_DO_NOT_LEAK";
+const PUBLISHABLE_KEY: &str = "pk_test_PLATFORM_PUBLISHABLE";
 const TENANT_ACCESS_TOKEN: &str = "sk_test_TENANT_ACCESS_TOKEN_DO_NOT_STORE";
 const TENANT_ACCOUNT: &str = "acct_tenant_1";
 const WEBHOOK_SECRET: &str = "whsec_platform_connect";
@@ -98,7 +99,9 @@ async fn answer(State(state): State<Arc<FakeState>>, request: axum::extract::Req
         }
         ("POST", "/oauth/deauthorize") => (StatusCode::OK, json!({"stripe_user_id": TENANT_ACCOUNT})),
         ("GET", p) if p.starts_with("/v1/accounts/") => (StatusCode::OK, json!({"id": TENANT_ACCOUNT, "business_profile": {"name": "Yoga Collective"}})),
-        ("POST", "/v1/checkout/sessions") => (StatusCode::OK, json!({"id": "cs_test_1", "url": "https://checkout.stripe.test/c/pay/cs_test_1"})),
+        // An embedded session: Stripe answers with a client secret for the
+        // browser and no hosted `url`.
+        ("POST", "/v1/checkout/sessions") => (StatusCode::OK, json!({"id": "cs_test_1", "ui_mode": "embedded_page", "client_secret": "cs_test_1_secret_CLIENT"})),
         _ => (StatusCode::NOT_FOUND, json!({"error": {"message": "no such fake route"}})),
     };
     (status, axum::Json(reply)).into_response()
@@ -162,6 +165,8 @@ async fn tenant(name: &str) -> Tenant {
         connect_base: fake.base.clone(),
         test_key: PLATFORM_KEY.to_string(),
         live_key: String::new(),
+        test_publishable_key: PUBLISHABLE_KEY.to_string(),
+        live_publishable_key: String::new(),
         test_client_id: "ca_test_CLIENT".to_string(),
         live_client_id: String::new(),
         webhook_secret: Some(WEBHOOK_SECRET.to_string()),
@@ -587,7 +592,18 @@ async fn an_enabled_connection_charges_on_the_tenants_own_account() {
 
     let (status, body) = t.register("real-event").await;
     assert_eq!(status, 200, "{body}");
-    assert_eq!(body["checkout_url"], "https://checkout.stripe.test/c/pay/cs_test_1");
+    // The guest pays in a form embedded in the site: what the browser needs to
+    // mount it, and no hosted page to send them to.
+    assert_eq!(body.get("checkout_url"), None, "nothing leaves the site: {body}");
+    assert_eq!(
+        body["embedded_checkout"],
+        json!({
+            "client_secret": "cs_test_1_secret_CLIENT",
+            "publishable_key": PUBLISHABLE_KEY,
+            "stripe_account": TENANT_ACCOUNT,
+            "session_id": "cs_test_1",
+        })
+    );
     let reference = body["registration_id"].as_str().unwrap();
 
     let sent = t.fake.requests_to("/v1/checkout/sessions");
@@ -596,9 +612,33 @@ async fn an_enabled_connection_charges_on_the_tenants_own_account() {
     assert_eq!(sent[0].header("authorization"), Some(format!("Bearer {PLATFORM_KEY}").as_str()), "authenticated with the platform's key");
     assert!(sent[0].body.contains(&format!("metadata%5Bregistration_id%5D={reference}")), "{}", sent[0].body);
     assert!(sent[0].body.contains("unit_amount%5D=4200"), "{}", sent[0].body);
+    assert!(sent[0].body.contains("ui_mode=embedded_page"), "an embedded session, not a hosted one: {}", sent[0].body);
+    assert!(sent[0].body.contains("redirect_on_completion=never"), "{}", sent[0].body);
+    assert!(!sent[0].body.contains("success_url") && !sent[0].body.contains("cancel_url"), "no return pages exist: {}", sent[0].body);
 
     let read = dispatch::read(&t.client, &t.wasm).await.unwrap();
     assert_eq!(read["instances"][format!("Payments::Payment#{reference}")]["processor"]["value"], "stripe");
+}
+
+#[tokio::test]
+async fn an_enabled_connection_without_a_publishable_key_is_paused_before_anything_is_written() {
+    let mut t = tenant("hecks_pay_test_checkout_no_publishable").await;
+    t.schedule_event("nopk-event").await;
+    t.connect().await;
+    t.enable().await;
+
+    // The secret key alone cannot mount the form in the browser, and the
+    // answer must be neither the mock nor a hosted page.
+    t.platform.test_publishable_key = String::new();
+    let (status, body) = t.register("nopk-event").await;
+    assert_eq!((status, body["error"].as_str()), (503, Some("payments are temporarily unavailable")));
+    assert_eq!(body.get("checkout_url"), None);
+    assert_eq!(body.get("embedded_checkout"), None);
+
+    let read = dispatch::read(&t.client, &t.wasm).await.unwrap();
+    assert!(instances_for(&read, "Payments::Payment#").is_empty(), "no orphaned Payment");
+    assert!(instances_for(&read, "CheckoutFixture::Registration#").is_empty());
+    assert!(t.fake.requests_to("/v1/checkout/sessions").is_empty(), "Stripe is never called");
 }
 
 #[tokio::test]
@@ -731,7 +771,7 @@ async fn an_account_event_verified_only_by_the_public_mock_secret_is_refused() {
 
 #[test]
 fn checkout_plan_is_decided_from_the_connection_lifecycle() {
-    let platform = PlatformConfig { test_key: "sk_test_x".to_string(), ..test_platform() };
+    let platform = PlatformConfig { test_key: "sk_test_x".to_string(), test_publishable_key: "pk_test_x".to_string(), ..test_platform() };
     let with = |status: &str, processor: &str, mode: &str| Connection {
         status: status.to_string(),
         processor: processor.to_string(),
@@ -746,9 +786,14 @@ fn checkout_plan_is_decided_from_the_connection_lifecycle() {
     assert!(matches!(checkout_plan(Some(&with("paused", "stripe", "test")), &platform), CheckoutPlan::Paused));
     assert!(matches!(
         checkout_plan(Some(&with("enabled", "stripe", "test")), &platform),
-        CheckoutPlan::Stripe { ref api_key, ref account } if api_key == "sk_test_x" && account == "acct_1"
+        CheckoutPlan::Stripe { ref api_key, ref publishable_key, ref account } if api_key == "sk_test_x" && publishable_key == "pk_test_x" && account == "acct_1"
     ));
     assert!(matches!(checkout_plan(Some(&with("enabled", "stripe", "live")), &platform), CheckoutPlan::Paused), "no live key configured");
+    let secret_only = PlatformConfig { live_key: "sk_live_x".to_string(), ..test_platform() };
+    assert!(
+        matches!(checkout_plan(Some(&with("enabled", "stripe", "live")), &secret_only), CheckoutPlan::Paused),
+        "a secret key without its publishable key cannot mount the embedded form"
+    );
     assert!(matches!(checkout_plan(Some(&with("enabled", "paypal", "test")), &platform), CheckoutPlan::Paused), "a processor this host cannot charge");
 }
 

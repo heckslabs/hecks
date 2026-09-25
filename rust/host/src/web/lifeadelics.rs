@@ -484,16 +484,33 @@ pub(crate) async fn registrations_route(
     // **Mock, not an error** — a tenant with no connection, or one that is
     // not enabled, is on the mock walkthrough (this route's own header,
     // checkout.rs's own header) — never a misconfiguration to refuse.
-    let payments::CheckoutPlan::Stripe { api_key, account } = plan else {
+    let payments::CheckoutPlan::Stripe { api_key, publishable_key, account } = plan else {
         let checkout_url = checkout::mock_checkout_session(&reference, &success_url, &cancel_url, site_url);
         return respond(200, "application/json", &json!({"checkout_url": checkout_url, "registration_id": reference}).to_string());
     };
 
     // A direct charge on the tenant's own connected account: the platform's
-    // key, and the `Stripe-Account` header naming whose money it is.
+    // key, and the `Stripe-Account` header naming whose money it is. The
+    // guest pays in a form embedded in the site, so the answer carries what
+    // the browser needs to mount it (Stripe.js is opened with the publishable
+    // key and `stripeAccount`) and no `checkout_url`; the success and cancel
+    // URLs above belong to the mock walkthrough only.
     let auth = checkout::StripeAuth { api_key: &api_key, account: Some(&account), base_url: &platform.api_base };
-    match checkout::create_checkout_session(&auth, price_cents, event_name, &reference, &success_url, &cancel_url).await {
-        Ok(checkout_url) => respond(200, "application/json", &json!({"checkout_url": checkout_url, "registration_id": reference}).to_string()),
+    match checkout::create_checkout_session(&auth, price_cents, event_name, &reference).await {
+        Ok(session) => respond(
+            200,
+            "application/json",
+            &json!({
+                "registration_id": reference,
+                "embedded_checkout": {
+                    "client_secret": session.client_secret,
+                    "publishable_key": publishable_key,
+                    "stripe_account": account,
+                    "session_id": session.session_id,
+                },
+            })
+            .to_string(),
+        ),
         Err(e) => respond(500, "text/plain", &format!("{e:#}")),
     }
 }
