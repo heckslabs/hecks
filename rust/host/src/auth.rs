@@ -773,6 +773,70 @@ pub async fn set_person_disabled(
     Ok(DisableOutcome::Done)
 }
 
+/// What `set_person_role` decided.
+#[derive(Debug, PartialEq, Eq)]
+pub enum RoleOutcome {
+    /// The person now holds the requested role, whether or not a write was needed.
+    Done,
+    /// The caller is not an active Admin or Owner.
+    CallerNotAdmin,
+    /// No person with that email exists.
+    UnknownPerson,
+    /// The change would leave no active Admin or Owner.
+    LastAdmin,
+}
+
+/// Sets the role of the already-admitted person with email `target` on behalf
+/// of `caller`. Any active admin may grant any role in `GRANTABLE_ROLES`, Owner
+/// included, so the first Owner can be granted by an Admin. The person's name,
+/// identity link and disabled flag are kept, so a disabled person stays
+/// disabled and holds the new role once enabled. Asking for the role the person
+/// already holds writes nothing. The caller check and the last-admin check run
+/// under the same advisory lock and transaction `set_person_disabled` uses,
+/// reading the head after the lock is held, so two admins demoting each other
+/// at once cannot both succeed.
+pub async fn set_person_role(
+    client: &Mutex<Client>,
+    config: &LineageConfig,
+    domain_ir: &Value,
+    caller: &str,
+    target: &str,
+    role: &str,
+) -> anyhow::Result<RoleOutcome> {
+    let (aggregate_name, storage_name) = membership_aggregate(domain_ir)?;
+    let domain = domain_ir.get("name").and_then(|v| v.as_str()).unwrap_or("");
+    let (caller, target) = (caller.trim().to_lowercase(), target.trim().to_lowercase());
+
+    let mut guard = client.lock().await;
+    let txn = guard.transaction().await?;
+    txn.execute("SELECT pg_advisory_xact_lock(hashtext('hecks_ordinal:' || $1))", &[&config.domain]).await?;
+    let rows = journal::read_lineage_head_all(&txn, domain, &storage_name).await?;
+
+    if !rows.iter().any(|(id, state)| id.to_lowercase() == caller && is_active_admin(state)) {
+        return Ok(RoleOutcome::CallerNotAdmin);
+    }
+    let Some((id, state)) = rows.iter().find(|(id, _)| id.to_lowercase() == target) else {
+        return Ok(RoleOutcome::UnknownPerson);
+    };
+    if role_of(state) == Some(role) {
+        return Ok(RoleOutcome::Done);
+    }
+    if !is_admin_role(role) && is_last_active_admin(&rows, state) {
+        return Ok(RoleOutcome::LastAdmin);
+    }
+
+    let mut new_state = state.clone();
+    new_state["role"] = json!({"value": role});
+    journal::append_lineage_mutation(
+        &txn,
+        config,
+        &journal::Mutation { aggregate: &aggregate_name, id, operation: "save", state: &new_state },
+    )
+    .await?;
+    txn.commit().await?;
+    Ok(RoleOutcome::Done)
+}
+
 /// Whether `identity_id` holds a live "Admin" or "Owner" assignment in the chapter
 /// this domain declares as its authorization provider (`ir::
 /// authorization_provider`). `None` — nothing attached provides
