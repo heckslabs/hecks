@@ -165,17 +165,16 @@ async fn verify_id_token(id_token: &str, client_id: &str) -> Result<Claims, Stri
     })
 }
 
-// ---------- Account token (Accounts::Account's own email+password login) ----------
+// ---------- Account token (the lifeadelics_session cookie and CMS handoff) ----------
 
 // A flat, HMAC-signed claim -- ported behavior-for-behavior from
 // lifeadelics/adapters/http_server.rb's own sign_token/verify_token
 // (that file's own comment: "not a JWT library, since there's exactly
-// one shape to sign"). Deliberately separate from Session/
-// session_cookie above: those carry identity_id/role for the Governance/
-// Member-shaped admin console (auth.rs's own header), which
-// Accounts::Account has none of by design (accounts.bluebook's own
-// vision: "presupposes nothing about roles, permissions") -- an email
-// and an expiry is the whole claim.
+// one shape to sign"). Minted after a Google sign-in and verified by
+// /accounts/me and /accounts/sso-token. Deliberately separate from
+// Session/session_cookie above: those carry identity_id/role for the
+// Governance/Member-shaped admin console (auth.rs's own header) -- an
+// email and an expiry is the whole claim here.
 pub fn account_token(secret: &str, email: &str, ttl_secs: u64) -> String {
     let payload = json!({"email": email, "exp": now_secs() + ttl_secs});
     let encoded = base64_encode(payload.to_string().as_bytes());
@@ -191,6 +190,36 @@ pub fn verify_account_token(secret: &str, token: &str) -> Option<String> {
         return None;
     }
     value.get("email")?.as_str().map(|s| s.to_string())
+}
+
+// ---------- Purpose-bound token ----------
+
+/// A short-lived signed token that only verifies for the `purpose` it was
+/// minted for. The signing key is derived from the purpose, so a token minted
+/// for one flow can never be replayed as a session cookie (whose key is the
+/// bare secret) or as a token for a different flow. `claims` must be a JSON
+/// object; `purpose` and `exp` are added to it.
+pub fn purpose_token(secret: &str, purpose: &str, claims: Value, ttl_secs: u64) -> String {
+    let mut payload = claims;
+    payload["purpose"] = json!(purpose);
+    payload["exp"] = json!(now_secs() + ttl_secs);
+    let encoded = base64_encode(payload.to_string().as_bytes());
+    format!("{encoded}.{}", sign(&purpose_key(secret, purpose), &encoded))
+}
+
+/// The claims of a token minted by `purpose_token` for the same `purpose`,
+/// or `None` when the signature, the purpose or the expiry does not hold.
+pub fn verify_purpose_token(secret: &str, purpose: &str, token: &str) -> Option<Value> {
+    let payload = verify_sig(&purpose_key(secret, purpose), token)?;
+    let claims: Value = serde_json::from_slice(&base64_decode(&payload)).ok()?;
+    if claims.get("purpose")?.as_str()? != purpose || now_secs() > claims.get("exp")?.as_u64()? {
+        return None;
+    }
+    Some(claims)
+}
+
+fn purpose_key(secret: &str, purpose: &str) -> String {
+    format!("{purpose}:{secret}")
 }
 
 // ---------- Session cookie ----------
@@ -427,6 +456,9 @@ pub async fn session_for_member_by_identity(client: &Mutex<Client>, domain_ir: &
     drop(guard);
     Ok(row.and_then(|r| {
         let state: Value = r.get(0);
+        if is_disabled(&state) {
+            return None;
+        }
         Some(Session {
             identity_id: identity_id.to_string(),
             email: state.get("email")?.get("value")?.as_str()?.to_string(),
@@ -455,6 +487,9 @@ pub async fn provision(
         Some(m) => m,
         None => return Ok(None),
     };
+    if is_disabled(&member) {
+        return Ok(None);
+    }
     let role = member.get("role").and_then(|v| v.get("value")).and_then(|v| v.as_str());
     let already_linked = member.get("identity_id").and_then(|v| v.get("value")).is_some();
     let (Some(role), false) = (role, already_linked) else {
@@ -552,22 +587,176 @@ pub async fn grant_access(
     Ok(true)
 }
 
+/// Records a new person with just a name and email, the state the
+/// membership aggregate's `Admit` command sets. Written with the same
+/// journalled append `grant_access` uses, since the membership aggregate
+/// lives in the lineage head rather than the replayed flat journal.
+/// Returns `false` without writing when a person with that email
+/// (compared case-insensitively) already exists.
+pub async fn admit_person(
+    client: &Mutex<Client>,
+    config: &LineageConfig,
+    domain_ir: &Value,
+    email: &str,
+    name: &str,
+) -> anyhow::Result<bool> {
+    let email = email.to_lowercase();
+    let exists = member_rows(client, domain_ir).await?.into_iter().any(|(id, _)| id.to_lowercase() == email);
+    if exists {
+        return Ok(false);
+    }
+    let state = json!({"name": {"value": name}, "email": {"value": email}});
+    append_member_state(client, config, domain_ir, &email, &state).await?;
+    Ok(true)
+}
+
+/// Whether a membership row carries the explicit disabled flag. The flag is
+/// stored beside the role rather than replacing it, so enabling a person
+/// again restores exactly the role they held.
+fn is_disabled(state: &Value) -> bool {
+    state.get("disabled").and_then(|v| v.as_bool()).unwrap_or(false)
+}
+
+/// The role name a membership row holds, if any.
+fn role_of(state: &Value) -> Option<&str> {
+    state.get("role").and_then(|v| v.get("value")).and_then(|v| v.as_str())
+}
+
+/// Whether the row holds the "Admin" role and is not disabled.
+fn is_active_admin(state: &Value) -> bool {
+    role_of(state) == Some("Admin") && !is_disabled(state)
+}
+
+/// Whether `state` is the only active Admin among `rows`.
+fn is_last_active_admin(rows: &[(String, Value)], state: &Value) -> bool {
+    is_active_admin(state) && rows.iter().filter(|(_, s)| is_active_admin(s)).count() <= 1
+}
+
+/// Whether the person with `email` (compared case-insensitively) is an
+/// active Admin: granted the "Admin" role and not disabled.
+pub async fn caller_is_admin(client: &Mutex<Client>, domain_ir: &Value, email: &str) -> anyhow::Result<bool> {
+    let email = email.to_lowercase();
+    Ok(member_rows(client, domain_ir).await?.iter().any(|(id, state)| id.to_lowercase() == email && is_active_admin(state)))
+}
+
+/// Whether the person with `email` (compared case-insensitively) may hold a
+/// session right now: admitted, granted a role, and not disabled. A
+/// signature check alone can't tell, since a session cookie outlives a
+/// later disable.
+pub async fn has_access(client: &Mutex<Client>, domain_ir: &Value, email: &str) -> anyhow::Result<bool> {
+    let email = email.to_lowercase();
+    Ok(member_rows(client, domain_ir)
+        .await?
+        .iter()
+        .any(|(id, state)| id.to_lowercase() == email && role_of(state).is_some() && !is_disabled(state)))
+}
+
+/// The role the person with `email` (compared case-insensitively) holds right
+/// now, or `None` when they are unknown, have no role, or are disabled. This
+/// is the "Owner"/"Admin" check the payments routes make against the current
+/// membership head rather than trusting anything in the session cookie.
+pub async fn active_role(client: &Mutex<Client>, domain_ir: &Value, email: &str) -> anyhow::Result<Option<String>> {
+    let email = email.to_lowercase();
+    Ok(member_rows(client, domain_ir)
+        .await?
+        .iter()
+        .find(|(id, state)| id.to_lowercase() == email && !is_disabled(state))
+        .and_then(|(_, state)| role_of(state).map(String::from)))
+}
+
+/// Every admitted person as a JSON row: name, email, the retained role,
+/// whether they have signed in (`linked`), whether they currently have
+/// access (`granted`, false while disabled) and whether they are `disabled`.
 pub async fn all_people(client: &Mutex<Client>, domain_ir: &Value) -> anyhow::Result<Vec<Value>> {
     Ok(member_rows(client, domain_ir)
         .await?
         .into_iter()
         .map(|(_, state)| {
-            let role = state.get("role").and_then(|v| v.get("value")).and_then(|v| v.as_str());
+            let role = role_of(&state);
             let linked = state.get("identity_id").and_then(|v| v.get("value")).is_some();
+            let disabled = is_disabled(&state);
             json!({
                 "name": state.get("name").and_then(|v| v.get("value")),
                 "email": state.get("email").and_then(|v| v.get("value")),
                 "role": role,
                 "linked": linked,
-                "granted": role.is_some(),
+                "granted": role.is_some() && !disabled,
+                "disabled": disabled,
             })
         })
         .collect())
+}
+
+/// What `set_person_disabled` decided.
+#[derive(Debug, PartialEq, Eq)]
+pub enum DisableOutcome {
+    /// The person is now in the requested state, whether or not a write was needed.
+    Done,
+    /// The caller is not an active Admin.
+    CallerNotAdmin,
+    /// An admin tried to disable themselves.
+    SelfDisable,
+    /// No person with that email exists.
+    UnknownPerson,
+    /// Disabling would leave no active Admin.
+    LastAdmin,
+}
+
+/// Disables or enables the person with email `target` on behalf of `caller`.
+/// Disabling keeps the person, their role and their identity link, and only
+/// sets the explicit flag, so enabling restores exactly the prior access.
+/// Every rule is checked under the same advisory lock and transaction the
+/// other membership writes use, reading the head after the lock is held, so
+/// two admins disabling each other at once cannot both succeed: the second
+/// sees the first's committed write, finds its caller already disabled, and
+/// is refused. The last-admin check is a second, independent guard.
+pub async fn set_person_disabled(
+    client: &Mutex<Client>,
+    config: &LineageConfig,
+    domain_ir: &Value,
+    caller: &str,
+    target: &str,
+    disable: bool,
+) -> anyhow::Result<DisableOutcome> {
+    let (aggregate_name, storage_name) = membership_aggregate(domain_ir)?;
+    let domain = domain_ir.get("name").and_then(|v| v.as_str()).unwrap_or("");
+    let (caller, target) = (caller.trim().to_lowercase(), target.trim().to_lowercase());
+
+    let mut guard = client.lock().await;
+    let txn = guard.transaction().await?;
+    txn.execute("SELECT pg_advisory_xact_lock(hashtext('hecks_ordinal:' || $1))", &[&config.domain]).await?;
+    let rows = journal::read_lineage_head_all(&txn, domain, &storage_name).await?;
+
+    if !rows.iter().any(|(id, state)| id.to_lowercase() == caller && is_active_admin(state)) {
+        return Ok(DisableOutcome::CallerNotAdmin);
+    }
+    if disable && caller == target {
+        return Ok(DisableOutcome::SelfDisable);
+    }
+    let Some((id, state)) = rows.iter().find(|(id, _)| id.to_lowercase() == target) else {
+        return Ok(DisableOutcome::UnknownPerson);
+    };
+    if is_disabled(state) == disable {
+        return Ok(DisableOutcome::Done);
+    }
+    if disable && is_last_active_admin(&rows, state) {
+        return Ok(DisableOutcome::LastAdmin);
+    }
+
+    let mut new_state = state.clone();
+    if disable {
+        new_state["disabled"] = json!(true);
+    } else if let Some(fields) = new_state.as_object_mut() {
+        fields.remove("disabled");
+    }
+    journal::append_lineage_mutation(
+        &txn,
+        config,
+        &journal::Mutation { aggregate: &aggregate_name, id, operation: "save", state: &new_state },
+    )
+    .await?;
+    txn.commit().await?;
+    Ok(DisableOutcome::Done)
 }
 
 /// Whether `identity_id` holds a live "Admin" assignment in the chapter
@@ -814,6 +1003,19 @@ mod tests {
         assert!(!holds_admin(&instances, "id-2", Some(&provider)));
         // No declared provider: no assignment can exist, so never admin.
         assert!(!holds_admin(&instances, "id-1", None));
+    }
+
+    #[test]
+    fn is_last_active_admin_counts_only_admins_that_are_not_disabled() {
+        let admin = json!({"role": {"value": "Admin"}});
+        let disabled_admin = json!({"role": {"value": "Admin"}, "disabled": true});
+        let member = json!({"role": {"value": "Member"}});
+        let rows = |states: &[&Value]| -> Vec<(String, Value)> { states.iter().enumerate().map(|(i, s)| (i.to_string(), (*s).clone())).collect() };
+
+        assert!(is_last_active_admin(&rows(&[&admin, &member, &disabled_admin]), &admin), "the only active admin");
+        assert!(!is_last_active_admin(&rows(&[&admin, &admin]), &admin), "another active admin remains");
+        assert!(!is_last_active_admin(&rows(&[&admin, &disabled_admin]), &disabled_admin), "a disabled admin is not an active one");
+        assert!(!is_last_active_admin(&rows(&[&admin, &member]), &member), "a non-admin never counts");
     }
 
     #[test]
