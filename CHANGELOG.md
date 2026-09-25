@@ -5,6 +5,35 @@ Dates are when a change landed on `main`, not when this file was written.
 Entries below are grouped by theme, not itemized commit-by-commit; see
 `git log` for the full history.
 
+## [2.1.0] - 2026-09-25
+
+**Newsletter is a declared capability.** A chapter can declare
+`provides "newsletter", subscribe:, add_name:, confirm:, unsubscribe:`
+(each a command on one subscribing aggregate), the same declared-not-named
+shape `membership` and `identity` already are. The Exporter qualifies the
+verbs and `bin/project_rust` writes them to `ir.json`'s `newsletter` key.
+rust/host's `web/newsletter.rs` reads that key instead of the
+`Newsletter::Subscriber.*` literals.
+
+**Behavior change for hosts.** A domain whose IR has no `newsletter` key now
+serves no `/newsletter/*` routes. Before deploying a host built from this
+release, the vendored newsletter bluebook must declare
+`provides "newsletter"` (embryonaut_bluebooks #6). On the Ruby side this
+release is required to load such a chapter at all: 2.0.0 refuses
+`provides "newsletter"` as an unknown capability.
+
+**`provides` verbs may name a hecksagon port operation.** A capability
+contract can declare a key of kind `:port_operation`, spelled
+`"Aggregate.Port.Operation"`. The chapter checks the spelling and that the
+aggregate is its own; `Registry#verify!` checks the operation exists on the
+hecksagon that declares the port and refuses boot with a `WiringError`
+otherwise. No shipped capability uses the kind yet.
+
+**rust/host.** Added `GET /members` (JSON) and the Stripe Connect payment
+connection routes. The accounts, newsletter and checkout/registration glue
+moved out of `web.rs` into `web/accounts.rs`, `web/newsletter.rs` and
+`web/lifeadelics.rs`, with no behavior change.
+
 ## [2.0.0] - 2026-09-22
 
 **Breaking: `uses_framework` / `uses_embryonaut_bluebook` load bounded
