@@ -203,32 +203,32 @@ pub fn mock_checkout_session(registration_id: &str, success_url: &str, cancel_ur
 // line item, quantity 1, and the same metadata key ("registration_id")
 // web.rs's own webhook route reads back to recover which Payment/
 // Registration this session belongs to.
+//
+// `stripe_account` is the tenant's connected account id (`acct_...`) when
+// the platform's own key creates the session on the tenant's behalf: it
+// rides as the `Stripe-Account` header, so the charge lands in the
+// tenant's account and never the platform's. `None` keeps a plain
+// single-account deploy on its own key.
 pub async fn create_checkout_session(
     api_key: &str,
+    stripe_account: Option<&str>,
     price_cents: i64,
     product_name: &str,
     registration_id: &str,
     success_url: &str,
     cancel_url: &str,
 ) -> anyhow::Result<String> {
-    let unit_amount = price_cents.to_string();
-    let params = [
-        ("mode", "payment"),
-        ("line_items[0][price_data][currency]", "usd"),
-        ("line_items[0][price_data][unit_amount]", unit_amount.as_str()),
-        ("line_items[0][price_data][product_data][name]", product_name),
-        ("line_items[0][quantity]", "1"),
-        ("metadata[registration_id]", registration_id),
-        ("success_url", success_url),
-        ("cancel_url", cancel_url),
-    ];
-
-    let response = reqwest::Client::new()
-        .post("https://api.stripe.com/v1/checkout/sessions")
-        .bearer_auth(api_key)
-        .form(&params)
-        .send()
-        .await?;
+    let request = checkout_session_request(
+        &reqwest::Client::new(),
+        api_key,
+        stripe_account,
+        price_cents,
+        product_name,
+        registration_id,
+        success_url,
+        cancel_url,
+    );
+    let response = request.send().await?;
 
     let status = response.status();
     let body: Value = response.json().await?;
@@ -247,9 +247,80 @@ pub async fn create_checkout_session(
         .ok_or_else(|| anyhow::anyhow!("Stripe's response carried no \"url\": {body}"))
 }
 
+// Builds the Checkout Session request without sending it, so a test can
+// read the headers and form body a real call would carry.
+#[allow(clippy::too_many_arguments)]
+fn checkout_session_request(
+    http: &reqwest::Client,
+    api_key: &str,
+    stripe_account: Option<&str>,
+    price_cents: i64,
+    product_name: &str,
+    registration_id: &str,
+    success_url: &str,
+    cancel_url: &str,
+) -> reqwest::RequestBuilder {
+    let unit_amount = price_cents.to_string();
+    let params = [
+        ("mode", "payment"),
+        ("line_items[0][price_data][currency]", "usd"),
+        ("line_items[0][price_data][unit_amount]", unit_amount.as_str()),
+        ("line_items[0][price_data][product_data][name]", product_name),
+        ("line_items[0][quantity]", "1"),
+        ("metadata[registration_id]", registration_id),
+        ("success_url", success_url),
+        ("cancel_url", cancel_url),
+    ];
+
+    let request = http
+        .post("https://api.stripe.com/v1/checkout/sessions")
+        .bearer_auth(api_key)
+        .form(&params);
+    match stripe_account {
+        Some(account) => request.header("Stripe-Account", account),
+        None => request,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn session_request(stripe_account: Option<&str>) -> reqwest::Request {
+        checkout_session_request(
+            &reqwest::Client::new(),
+            "sk_test_platform",
+            stripe_account,
+            12500,
+            "Artadelics",
+            "ref-1",
+            "https://site.test/ok",
+            "https://site.test/no",
+        )
+        .build()
+        .unwrap()
+    }
+
+    #[test]
+    fn checkout_session_request_carries_the_connected_account_header() {
+        let request = session_request(Some("acct_tenant1"));
+        assert_eq!(request.headers().get("Stripe-Account").unwrap(), "acct_tenant1");
+        assert_eq!(request.headers().get("authorization").unwrap(), "Bearer sk_test_platform");
+    }
+
+    #[test]
+    fn checkout_session_request_omits_the_header_without_a_connected_account() {
+        let request = session_request(None);
+        assert!(request.headers().get("Stripe-Account").is_none());
+    }
+
+    #[test]
+    fn checkout_session_request_form_carries_the_registration_and_price() {
+        let request = session_request(Some("acct_tenant1"));
+        let body = String::from_utf8(request.body().unwrap().as_bytes().unwrap().to_vec()).unwrap();
+        assert!(body.contains("metadata%5Bregistration_id%5D=ref-1"));
+        assert!(body.contains("unit_amount%5D=12500"));
+    }
 
     fn sign(secret: &str, timestamp: i64, payload: &str) -> String {
         let signed_payload = format!("{timestamp}.{payload}");

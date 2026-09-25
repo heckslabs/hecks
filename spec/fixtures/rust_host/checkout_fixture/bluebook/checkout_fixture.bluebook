@@ -103,4 +103,150 @@ Hecks.bluebook "CheckoutFixture" do
       emits "RegistrationRequested"
     end
   end
+
+  # A tenant's link to its own payment-processor account — public facts only,
+  # never a secret. A copy of the aggregate the first consuming domain
+  # declares, trimmed to what web/payments.rs dispatches and reads.
+  aggregate "PaymentConnection" do
+    description "This site's link to its owner's payment-processor account."
+
+    identified_by :slug
+
+    value_object "ConnectionSlug" do
+      attribute :value, String
+      invariant("a payment connection has a slug") { !value.to_s.empty? }
+    end
+
+    value_object "Processor" do
+      attribute :value, String
+      invariant("a payment connection names its processor") { !value.to_s.empty? }
+    end
+
+    value_object "AccountRef" do
+      attribute :value, String
+      invariant("a payment connection names the connected account") { !value.to_s.empty? }
+    end
+
+    value_object "ConnectionMode" do
+      attribute :value, String, one_of: ["test", "live"]
+      invariant("a connection is test or live") { ["test", "live"].include?(value) }
+    end
+
+    value_object "DisplayName" do
+      attribute :value, String
+      invariant("a connected account has a display name") { !value.to_s.empty? }
+    end
+
+    attribute :slug,         ConnectionSlug
+    attribute :processor,    Processor
+    attribute :account_ref,  AccountRef
+    attribute :mode,         ConnectionMode
+    attribute :display_name, DisplayName
+
+    lifecycle :status, default: "connected" do
+      transition "EnablePayments"  => "enabled",      from: "connected"
+      transition "DisablePayments" => "connected",    from: "enabled"
+      transition "Disconnect"      => "disconnected", from: "connected"
+      transition "Reconnect"       => "connected",    from: "disconnected"
+      transition "Suspend"         => "paused",       from: "enabled"
+      transition "Resume"          => "enabled",      from: "paused"
+    end
+
+    command "Connect" do
+      role "Owner"
+      goal "Link this site to its owner's payment-processor account"
+
+      attribute :slug,         ConnectionSlug
+      attribute :processor,    Processor
+      attribute :account_ref,  AccountRef
+      attribute :mode,         ConnectionMode
+      attribute :display_name, DisplayName
+
+      emits "PaymentAccountConnected"
+    end
+
+    command "Reconnect" do
+      role "Owner"
+      goal "Link a previously disconnected site to a payment-processor account again"
+
+      reference_to PaymentConnection
+      attribute :processor,    Processor
+      attribute :account_ref,  AccountRef
+      attribute :mode,         ConnectionMode
+      attribute :display_name, DisplayName
+
+      given("only a disconnected link can be reconnected") { status == "disconnected" }
+
+      sets :processor
+      sets :account_ref
+      sets :mode
+      sets :display_name
+
+      emits "PaymentAccountReconnected"
+    end
+
+    command "Disconnect" do
+      role "Owner"
+      goal "Unlink this site from its payment-processor account while no real payments are being taken"
+
+      reference_to PaymentConnection
+
+      given("only a connected, not-yet-enabled link can be disconnected") { status == "connected" }
+
+      emits "PaymentAccountDisconnected"
+    end
+
+    command "Suspend" do
+      role "Owner"
+      goal "Pause registrations because the payment account behind enabled payments is gone"
+
+      reference_to PaymentConnection
+
+      given("only enabled payments can be suspended") { status == "enabled" }
+
+      emits "PaymentsSuspended"
+    end
+
+    command "Resume" do
+      role "Owner"
+      goal "Bring paused payments back by connecting a payment-processor account again"
+
+      reference_to PaymentConnection
+      attribute :processor,    Processor
+      attribute :account_ref,  AccountRef
+      attribute :mode,         ConnectionMode
+      attribute :display_name, DisplayName
+
+      given("only paused payments can be resumed") { status == "paused" }
+
+      sets :processor
+      sets :account_ref
+      sets :mode
+      sets :display_name
+
+      emits "PaymentsResumed"
+    end
+
+    command "EnablePayments" do
+      role "Operator"
+      goal "Let checkout take real payments through the connected account"
+
+      reference_to PaymentConnection
+
+      given("payments can only be enabled on a connected account") { status == "connected" }
+
+      emits "PaymentsEnabled"
+    end
+
+    command "DisablePayments" do
+      role "Operator"
+      goal "Stop taking real payments; checkout goes back to the mock adapter"
+
+      reference_to PaymentConnection
+
+      given("only enabled payments can be disabled") { status == "enabled" }
+
+      emits "PaymentsDisabled"
+    end
+  end
 end

@@ -193,6 +193,29 @@ pub fn verify_account_token(secret: &str, token: &str) -> Option<String> {
     value.get("email")?.as_str().map(|s| s.to_string())
 }
 
+/// Signs `claims` (a JSON object) with `secret`, stamping an `exp` that
+/// lies `ttl_secs` from now, in the same wire format as `account_token`.
+///
+/// Used for short-lived, single-purpose claims such as a processor
+/// connection's `state` parameter.
+pub fn signed_claims(secret: &str, claims: Value, ttl_secs: u64) -> String {
+    let mut claims = claims;
+    claims["exp"] = json!(now_secs() + ttl_secs);
+    let encoded = base64_encode(claims.to_string().as_bytes());
+    format!("{encoded}.{}", sign(secret, &encoded))
+}
+
+/// Returns the claims `signed_claims` produced when the signature holds
+/// and the claim has not expired; `None` otherwise.
+pub fn verify_signed_claims(secret: &str, token: &str) -> Option<Value> {
+    let payload = verify_sig(secret, token)?;
+    let value: Value = serde_json::from_slice(&base64_decode(&payload)).ok()?;
+    if now_secs() > value.get("exp")?.as_u64()? {
+        return None;
+    }
+    Some(value)
+}
+
 // ---------- Session cookie ----------
 
 pub fn session_cookie(secret: &str, session: &Session) -> String {
@@ -723,6 +746,24 @@ mod tests {
 
     fn sign_test_token(secret: &str, payload: &str) -> String {
         format!("{payload}.{}", sign(secret, payload))
+    }
+
+    #[test]
+    fn signed_claims_round_trip_and_reject_tampering_or_the_wrong_secret() {
+        let token = signed_claims("s3cret", json!({"purpose": "connect", "email": "a@b.co"}), 60);
+        let claims = verify_signed_claims("s3cret", &token).unwrap();
+        assert_eq!(claims["purpose"], "connect");
+        assert_eq!(claims["email"], "a@b.co");
+        assert!(verify_signed_claims("wrong-secret", &token).is_none());
+        assert!(verify_signed_claims("s3cret", &format!("x{token}")).is_none());
+        assert!(verify_signed_claims("s3cret", "garbage").is_none());
+    }
+
+    #[test]
+    fn signed_claims_expire() {
+        let token = signed_claims("s3cret", json!({"purpose": "connect"}), 0);
+        std::thread::sleep(std::time::Duration::from_millis(1100));
+        assert!(verify_signed_claims("s3cret", &token).is_none());
     }
 
     #[test]

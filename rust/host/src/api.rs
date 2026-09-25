@@ -1547,7 +1547,15 @@ mod tests {
     /// lifecycle at all and so has nothing to style, which is exactly
     /// the case that check must not fire on.
     fn every_state_styled() -> Value {
-        json!({"states": {"Event": {"open": {"tone": "good"}, "closed": {"tone": "muted"}}}})
+        json!({"states": {
+            "Event": {"open": {"tone": "good"}, "closed": {"tone": "muted"}},
+            "PaymentConnection": {
+                "connected": {"tone": "accent"},
+                "enabled": {"tone": "good"},
+                "disconnected": {"tone": "muted"},
+                "paused": {"tone": "warn"}
+            }
+        }})
     }
 
     #[tokio::test]

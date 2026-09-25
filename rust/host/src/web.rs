@@ -33,6 +33,7 @@ use tokio_postgres::Client;
 mod accounts;
 mod lifeadelics;
 mod newsletter;
+mod payments;
 
 use lifeadelics::{checkout_enabled, checkout_route};
 
@@ -338,6 +339,12 @@ async fn auth_route(
     config: &LineageConfig,
     invoker: &dyn LambdaInvoker,
 ) -> Option<Value> {
+    // /payments/connection/* answers JSON to the admin site and does its
+    // own session check (an account token, like /accounts/me), so it sits
+    // ahead of the Google-session gate.
+    if path.starts_with("/payments/connection") {
+        return payments::payments_route(domain_ir, method, path, raw_body, cookies, secret, client, wasm_path, config, invoker).await;
+    }
     match (method, path) {
         ("GET", "/login") => Some(html(200, &login_page(query.get("error").map(|s| s.as_str())))),
 

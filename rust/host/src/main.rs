@@ -19,6 +19,7 @@ mod api;
 mod approval;
 mod auth;
 mod checkout;
+mod connect;
 mod dispatch;
 mod expr_json;
 mod field_hints;
