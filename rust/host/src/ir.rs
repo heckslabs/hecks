@@ -152,6 +152,23 @@ pub struct MembershipProvider {
     pub aggregate: String,
 }
 
+/// The aggregates whose dispatched mutations mirror into their era head:
+/// the lineage-capable ones, plus the membership aggregate. Boot mints the
+/// membership aggregate's head so sign-in can read it, but a vendored
+/// chapter's aggregate is not in `lineage.capable_aggregates`, so without
+/// it here a command dispatched on it (a Membership `translates`, such as
+/// a signup's Admit and GrantAccess) would never reach that head. The
+/// membership name is the chapter's qualified name, which is what a kernel
+/// mutation record carries.
+pub fn mirrored_aggregates(domain_ir: &Value) -> std::collections::BTreeSet<String> {
+    let mut mirrored: std::collections::BTreeSet<String> =
+        lineage_capable_aggregates(domain_ir).into_iter().map(|(qualified, _)| qualified).collect();
+    if let Some(membership) = membership_provider(domain_ir) {
+        mirrored.insert(membership.aggregate);
+    }
+    mirrored
+}
+
 pub fn membership_provider(domain_ir: &Value) -> Option<MembershipProvider> {
     let fact = domain_ir.get("membership")?;
     Some(MembershipProvider {
@@ -220,6 +237,29 @@ mod tests {
             lineage_capable_aggregates(&ir),
             vec![("Pizzas::Order".to_string(), "order".to_string())]
         );
+    }
+
+    #[test]
+    fn mirrored_aggregates_adds_a_vendored_membership_aggregate_to_the_capable_ones() {
+        let ir = serde_json::json!({
+            "name": "Shop",
+            "lineage": { "capable_aggregates": [{ "name": "Order", "storage_name": "order" }] },
+            "membership": { "provider": "Membership", "aggregate": "Membership::Person" }
+        });
+        let expected: std::collections::BTreeSet<String> =
+            ["Shop::Order", "Membership::Person"].into_iter().map(String::from).collect();
+        assert_eq!(mirrored_aggregates(&ir), expected);
+    }
+
+    #[test]
+    fn mirrored_aggregates_is_just_the_capable_ones_when_no_chapter_provides_membership() {
+        let ir = serde_json::json!({
+            "name": "Shop",
+            "lineage": { "capable_aggregates": [{ "name": "Order", "storage_name": "order" }] }
+        });
+        let expected: std::collections::BTreeSet<String> = ["Shop::Order"].into_iter().map(String::from).collect();
+        assert_eq!(mirrored_aggregates(&ir), expected);
+        assert!(mirrored_aggregates(&serde_json::json!({ "name": "Banking" })).is_empty());
     }
 
     #[test]
