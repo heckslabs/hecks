@@ -323,10 +323,15 @@ pub fn payments_provider(domain_ir: &Value) -> Option<PaymentsProvider> {
 /// The checkout fixture's own payments binding, read from its committed
 /// `ir.json` — what the checkout routes' tests dispatch against.
 #[cfg(test)]
-pub fn fixture_payments() -> PaymentsProvider {
+pub fn fixture_ir() -> Value {
     let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../src/generated/checkout_fixture/ir.json");
-    let ir: Value = serde_json::from_str(&std::fs::read_to_string(path).expect("checkout_fixture ir.json")).expect("valid json");
-    payments_provider(&ir).expect("the checkout fixture provides payments")
+    serde_json::from_str(&std::fs::read_to_string(path).expect("checkout_fixture ir.json")).expect("valid json")
+}
+
+/// The checkout fixture's own payments binding.
+#[cfg(test)]
+pub fn fixture_payments() -> PaymentsProvider {
+    payments_provider(&fixture_ir()).expect("the checkout fixture provides payments")
 }
 
 pub fn refuse_unsupported_persistence_adapters(domain_ir: &Value) -> Result<(), String> {

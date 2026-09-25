@@ -21,7 +21,7 @@ use crate::auth;
 use crate::auth::Session;
 use crate::dispatch;
 use crate::field_hints::{EMAIL_HINT, TEL_HINT, TEXTAREA_HINT, URL_HINT};
-use crate::ir::{ir, payments_provider};
+use crate::ir::ir;
 use crate::journal::LineageConfig;
 use crate::lambda_client::LambdaInvoker;
 use crate::payments;
@@ -35,7 +35,7 @@ mod lifeadelics;
 mod newsletter;
 mod newsletter_send;
 
-use lifeadelics::{checkout_enabled, checkout_route};
+use lifeadelics::{checkout_enabled, payments_routes};
 // payments.rs and its tests reach these through `web::`, not `web::lifeadelics::`.
 pub(crate) use lifeadelics::{registration_complete_route, registrations_route, webhook_route, MOCK_STRIPE_WEBHOOK_SECRET};
 
@@ -96,14 +96,9 @@ pub async fn render(
         if let Some(response) = newsletter::newsletter_route(method, path, &query, &raw_body, client, wasm_path, config, invoker).await {
             return Some(response);
         }
-        // The chapter that declares `provides "payments"` names the verbs
-        // and the paying aggregate; a domain that attaches none serves none
-        // of the checkout, registration-payment or webhook routes.
-        if let Some(payments) = ir().and_then(payments_provider) {
-            let stripe_signature = body.get("headers").and_then(|h| h.get("stripe-signature")).and_then(|v| v.as_str()).unwrap_or("");
-            if let Some(response) = checkout_route(method, path, &raw_body, stripe_signature, client, wasm_path, config, invoker, &payments).await {
-                return Some(response);
-            }
+        let stripe_signature = body.get("headers").and_then(|h| h.get("stripe-signature")).and_then(|v| v.as_str()).unwrap_or("");
+        if let Some(response) = payments_routes(ir(), method, path, &raw_body, stripe_signature, client, wasm_path, config, invoker).await {
+            return Some(response);
         }
     }
 
