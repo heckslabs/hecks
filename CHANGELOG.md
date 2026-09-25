@@ -20,6 +20,9 @@ the issue sent and mails every confirmed subscriber; `.../send-test` mails one
 address without touching the issue. Both need a signed-in Admin or Owner
 (`lifeadelics_session` cookie). Email goes through Resend (`resend.rs`) with
 `RESEND_API_KEY` and `RESEND_FROM`; `RESEND_MOCK=1` logs instead of sending.
+A deploy can name the key's Secrets Manager secret instead (`RESEND_SECRET_ID`,
+`{"api_key": "..."}`), fetched at cold start; if it cannot be read the host
+still boots and the routes answer 503.
 With neither set the routes answer 503 before anything is marked sent, unlike
 checkout, which mocks by default: marking an issue sent cannot be undone.
 

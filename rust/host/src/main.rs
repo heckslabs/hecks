@@ -133,6 +133,19 @@ async fn main() -> Result<(), Error> {
             std::env::set_var("SESSION_SECRET", session_secret);
         }
     }
+    // RESEND_SECRET_ID (`{"api_key":"re_..."}`) — fetched and set as
+    // RESEND_API_KEY the same way, but a failed fetch only logs: sending
+    // mail is one optional route, and a missing or unreadable secret must
+    // not stop the host serving everything else. Without the key the send
+    // routes answer 503 (resend.rs). Same safety argument as above: nothing
+    // else touches the environment yet.
+    if let Ok(resend_secret_id) = std::env::var("RESEND_SECRET_ID") {
+        let fetched = secret_fetcher.fetch_secret_string(&resend_secret_id).await.map_err(|e| format!("{e:#}"));
+        match fetched.and_then(|json| secrets::extract_field(&json, "api_key")) {
+            Ok(api_key) => unsafe { std::env::set_var("RESEND_API_KEY", api_key) },
+            Err(e) => eprintln!("RESEND_SECRET_ID could not be read, so email sending stays off: {e}"),
+        }
+    }
     let wasm_path = PathBuf::from(
         std::env::var("HECKS_WASM_PATH").unwrap_or_else(|_| "banking.wasm".to_string()),
     );
