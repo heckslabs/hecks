@@ -12,6 +12,9 @@
 #   # => examples/banking/glossary/glossary.md
 #   #    examples/banking/glossary/html/index.html
 #
+# A field the deployment marks sensitive (`has_phi(readable_by:)` in the
+# domain's `.hecksagon`) is tagged in the glossary with its category.
+#
 # spec/glossary_spec.rb re-projects every one and refuses a diff, so the
 # committed glossary can never lag the bluebook it describes.
 
@@ -26,8 +29,12 @@ domain  = File.expand_path(domain_path, Dir.pwd)
 runtime = Hecks.boot(domain)
 chapter = runtime.registry.bluebook(chapter_name)
 
+markings = runtime.registry.pending_privacy_markings.select do |marking|
+  marking[:domain].to_s.start_with?("#{chapter_name}::")
+end
+
 written = Hecks::Projector.write(
-  Hecks::Projector.call(:glossary, bluebook: chapter),
+  Hecks::Projector.call(:glossary, bluebook: chapter, options: { markings: markings }),
   File.join(domain, "glossary"), as: :files
 )
 
