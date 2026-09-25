@@ -419,6 +419,9 @@ async fn auth_route(
             let form = parse_form(raw_body);
             let email = form.get("email").cloned().unwrap_or_default();
             let role = form.get("role").cloned().unwrap_or_default();
+            if !auth::GRANTABLE_ROLES.contains(&role.as_str()) {
+                return Some(html(400, &format!("<p>Role must be one of {}.</p>", auth::GRANTABLE_ROLES.join(", "))));
+            }
             match auth::grant_access(client, wasm_path, config, domain_ir, &email, &role).await {
                 Ok(true) => Some(redirect("/admin/members")),
                 Ok(false) => Some(html(404, "<p>No member with that email.</p>")),
@@ -484,15 +487,18 @@ async fn members_route(domain_ir: &Value, cookies: &HashMap<String, String>, sec
     }
 }
 
-// POST /members -- admits a new person and grants them the Admin role, for
-// a server-side caller holding the `lifeadelics_session` cookie. Takes
-// `{"email", "name"}` as JSON. Answers a JSON 401 without a valid session
-// and a 403 unless the caller is already a granted Admin; then 400 for a
-// blank or malformed field, 409 for an email that is already admitted,
+// POST /members -- admits a new person and grants them a role, for a
+// server-side caller holding the `lifeadelics_session` cookie. Takes
+// `{"email", "name"}` and an optional `"role"` (Admin, Owner or Member;
+// Admin when omitted) as JSON. Answers a JSON 401 without a valid session
+// and a 403 unless the caller is already an active admin (Admin or Owner).
+// Any admin may grant Owner, deliberately: the first Owner has to be
+// granted by an Admin. Then 400 for a blank or malformed field or an
+// unknown role, 409 for an email that is already admitted,
 // and 201 with the new person's row. If the role grant fails after the
 // person was admitted, that is a 500 saying so, never a silent partial
 // state.
-async fn add_member_route(
+pub(crate) async fn add_member_route(
     domain_ir: &Value,
     raw_body: &str,
     cookies: &HashMap<String, String>,
@@ -519,6 +525,13 @@ async fn add_member_route(
     if name.is_empty() || !looks_like_email {
         return json_error(400, "a name and a valid email are required");
     }
+    let role = match body.get("role") {
+        None | Some(Value::Null) => "Admin".to_string(),
+        Some(value) => value.as_str().map(|s| s.trim().to_string()).unwrap_or_default(),
+    };
+    if !auth::GRANTABLE_ROLES.contains(&role.as_str()) {
+        return json_error(400, &format!("role must be one of {}", auth::GRANTABLE_ROLES.join(", ")));
+    }
 
     match auth::admit_person(client, config, domain_ir, &email, &name).await {
         Ok(true) => {}
@@ -526,14 +539,14 @@ async fn add_member_route(
         Err(e) => return json_error(500, &format!("admit failed: {e}")),
     }
     let email = email.to_lowercase();
-    match auth::grant_access(client, wasm_path, config, domain_ir, &email, "Admin").await {
+    match auth::grant_access(client, wasm_path, config, domain_ir, &email, &role).await {
         Ok(true) => respond(
             201,
             "application/json",
-            &json!({"name": name, "email": email, "role": "Admin", "linked": false, "granted": true, "disabled": false}).to_string(),
+            &json!({"name": name, "email": email, "role": role, "linked": false, "granted": true, "disabled": false}).to_string(),
         ),
-        Ok(false) => json_error(500, "the person was admitted but the Admin role was not granted"),
-        Err(e) => json_error(500, &format!("the person was admitted but the Admin role was not granted: {e}")),
+        Ok(false) => json_error(500, &format!("the person was admitted but the {role} role was not granted")),
+        Err(e) => json_error(500, &format!("the person was admitted but the {role} role was not granted: {e}")),
     }
 }
 
@@ -876,7 +889,7 @@ async fn admin_members_page(client: &Mutex<Client>, domain_ir: &Value) -> String
         <table class="w-full text-sm mb-6"><thead><tr class="text-left text-slate-500 text-xs uppercase"><th class="py-2 pr-4">Name</th><th class="py-2 pr-4">Email</th><th class="py-2 pr-4">Role</th><th class="py-2">Access</th></tr></thead><tbody>{rows}</tbody></table>
         <form method="post" action="/admin/members" class="flex gap-2 items-center">
         <input type="email" name="email" placeholder="email of an existing Member" required class="flex-1 border border-slate-300 rounded-md px-3 py-2 text-sm" />
-        <select name="role" class="border border-slate-300 rounded-md px-3 py-2 text-sm"><option value="Admin">Admin</option><option value="Member">Member</option></select>
+        <select name="role" class="border border-slate-300 rounded-md px-3 py-2 text-sm"><option value="Admin">Admin</option><option value="Owner">Owner</option><option value="Member">Member</option></select>
         <button type="submit" class="px-4 py-2 bg-slate-900 text-white rounded-md text-sm">Grant access</button>
         </form></main></body></html>"#
     )
@@ -2951,6 +2964,104 @@ mod tests {
             assert_eq!(response["statusCode"], 403, "{caller}: {response:?}");
             assert_eq!(error_of(&response), "admins only");
         }
+    }
+
+    // ---- Owner is a superset of Admin ----------------------------------
+
+    async fn status_of(response: Value) -> u64 {
+        response["statusCode"].as_u64().unwrap()
+    }
+
+    #[tokio::test]
+    async fn every_admin_gate_accepts_an_owner_as_well_as_an_admin_and_refuses_a_member_and_anonymous() {
+        let secret = "s3cret";
+        let (client, domain_ir) = scratch_two_admins("hecks_host_web_test_owner_gates").await;
+        let config = members_config();
+        // amy becomes Owner (replacing her Admin role), bob is a plain Member.
+        assert!(auth::grant_access(&client, Path::new("unused"), &config, &domain_ir, "amy@example.com", "Owner").await.unwrap());
+        assert!(auth::admit_person(&client, &config, &domain_ir, "bob@example.com", "Bob").await.unwrap());
+        assert!(auth::grant_access(&client, Path::new("unused"), &config, &domain_ir, "bob@example.com", "Member").await.unwrap());
+        let lifeadelics = LineageConfig { domain: "Lifeadelics".to_string(), era: Some(1), mirrored: None };
+        // No wasm at all: a request that clears the admin gate fails later with a 500, never a 401/403.
+        let missing_wasm = Path::new("does-not-exist.wasm");
+
+        // Every gate, as one closure per route: list, add, disable, enable, registrations.
+        for (caller, admits) in [("amy@example.com", true), ("zed@example.com", true), ("bob@example.com", false), ("stranger@example.com", false)] {
+            let cookies = session_cookies(secret, caller);
+            let add = add_member_route(&domain_ir, &json!({"email": "not an email", "name": "N"}).to_string(), &cookies, secret, &client, Path::new("unused"), &config).await;
+            let add = status_of(add).await;
+            let registrations = status_of(registrations_list_route(&domain_ir, &cookies, secret, &client, missing_wasm, &lifeadelics).await).await;
+            let disable = status_of(switch_access(&client, &domain_ir, caller, "bob@example.com", true).await).await;
+            let enable = status_of(switch_access(&client, &domain_ir, caller, "bob@example.com", false).await).await;
+            if admits {
+                // The email is deliberately malformed, so the gate passed and validation refused it.
+                assert_eq!(add, 400, "{caller} passes the add gate");
+                assert_eq!(registrations, 500, "{caller} passes the registrations gate");
+                assert_eq!((disable, enable), (200, 200), "{caller} passes disable and enable");
+            } else {
+                assert_eq!((add, registrations, disable, enable), (403, 403, 403, 403), "{caller} is refused everywhere");
+            }
+            // Listing needs access, not admin: a Member may list, a stranger may not.
+            let listing = status_of(members_route(&domain_ir, &cookies, secret, &client).await).await;
+            assert_eq!(listing, if caller == "stranger@example.com" { 401 } else { 200 }, "{caller} listing");
+        }
+
+        // Anonymous: 401 on every route, before any role is looked at.
+        let none = HashMap::new();
+        assert_eq!(status_of(add_member_route(&domain_ir, "{}", &none, secret, &client, Path::new("unused"), &config).await).await, 401);
+        assert_eq!(status_of(members_route(&domain_ir, &none, secret, &client).await).await, 401);
+        assert_eq!(status_of(registrations_list_route(&domain_ir, &none, secret, &client, missing_wasm, &lifeadelics).await).await, 401);
+        assert_eq!(status_of(set_member_disabled_route(&domain_ir, r#"{"email":"bob@example.com"}"#, &none, secret, &client, &config, true).await).await, 401);
+    }
+
+    #[tokio::test]
+    async fn an_admin_can_grant_owner_and_the_new_owner_keeps_admin_and_members_access() {
+        let secret = "s3cret";
+        let (client, domain_ir) = scratch_members_db("hecks_host_web_test_grant_owner").await;
+        let config = members_config();
+
+        let body = r#"{"email": "boss@example.com", "name": "Boss", "role": "Owner"}"#;
+        let response = add_member_route(&domain_ir, body, &session_cookies(secret, "zed@example.com"), secret, &client, Path::new("unused"), &config).await;
+        assert_eq!(response["statusCode"], 201, "{response:?}");
+        let created: Value = serde_json::from_str(response["body"].as_str().unwrap()).unwrap();
+        assert_eq!(created["role"], "Owner");
+        assert_eq!(person(&client, &domain_ir, "boss@example.com").await["role"], "Owner");
+
+        // The Owner is not locked out: lists, admits (another Owner and a Member), disables and enables.
+        let boss = session_cookies(secret, "boss@example.com");
+        assert_eq!(status_of(members_route(&domain_ir, &boss, secret, &client).await).await, 200);
+        for (email, role) in [("second@example.com", "Owner"), ("plain@example.com", "Member")] {
+            let body = json!({"email": email, "name": "X", "role": role}).to_string();
+            let response = add_member_route(&domain_ir, &body, &boss, secret, &client, Path::new("unused"), &config).await;
+            assert_eq!(response["statusCode"], 201, "{response:?}");
+            assert_eq!(person(&client, &domain_ir, email).await["role"], role);
+        }
+        assert_eq!(switch_access(&client, &domain_ir, "boss@example.com", "zed@example.com", true).await["statusCode"], 200);
+        assert_eq!(switch_access(&client, &domain_ir, "boss@example.com", "zed@example.com", false).await["statusCode"], 200);
+
+        // A person granted only Member cannot grant anything, Owner included.
+        let response = add_member_route(&domain_ir, r#"{"email": "x@example.com", "name": "X", "role": "Owner"}"#, &session_cookies(secret, "plain@example.com"), secret, &client, Path::new("unused"), &config).await;
+        assert_eq!(response["statusCode"], 403, "{response:?}");
+    }
+
+    #[tokio::test]
+    async fn the_add_route_refuses_an_unknown_role_and_writes_nothing() {
+        let secret = "s3cret";
+        let (client, domain_ir) = scratch_members_db("hecks_host_web_test_grant_unknown_role").await;
+        for role in [json!("Root"), json!("admin"), json!(""), json!(7)] {
+            let body = json!({"email": "new@example.com", "name": "New", "role": role}).to_string();
+            let response = add_member_route(&domain_ir, &body, &session_cookies(secret, "zed@example.com"), secret, &client, Path::new("unused"), &members_config()).await;
+            assert_eq!(response["statusCode"], 400, "{role}: {response:?}");
+            assert_eq!(error_of(&response), "role must be one of Admin, Owner, Member");
+        }
+        assert_eq!(journal_rows(&client, "new@example.com").await, 0);
+    }
+
+    #[test]
+    fn the_admin_gate_role_set_is_exactly_admin_and_owner() {
+        assert!(auth::is_admin_role("Admin") && auth::is_admin_role("Owner"));
+        assert!(!auth::is_admin_role("Member") && !auth::is_admin_role("owner") && !auth::is_admin_role(""));
+        assert_eq!(auth::GRANTABLE_ROLES, ["Admin", "Owner", "Member"]);
     }
 
     #[test]

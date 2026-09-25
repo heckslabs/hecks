@@ -622,18 +622,32 @@ fn role_of(state: &Value) -> Option<&str> {
     state.get("role").and_then(|v| v.get("value")).and_then(|v| v.as_str())
 }
 
-/// Whether the row holds the "Admin" role and is not disabled.
-fn is_active_admin(state: &Value) -> bool {
-    role_of(state) == Some("Admin") && !is_disabled(state)
+/// The roles that pass the admin gate. "Owner" is a superset of "Admin": a
+/// person holds a single role, so an Owner would otherwise lose admin access
+/// the moment they were made Owner.
+pub const ADMIN_ROLES: [&str; 2] = ["Admin", "Owner"];
+
+/// The roles the grant routes will assign. Granting "Owner" is deliberately
+/// open to any admin, because the first Owner has to be granted by an Admin.
+pub const GRANTABLE_ROLES: [&str; 3] = ["Admin", "Owner", "Member"];
+
+/// Whether `role` passes the admin gate.
+pub fn is_admin_role(role: &str) -> bool {
+    ADMIN_ROLES.contains(&role)
 }
 
-/// Whether `state` is the only active Admin among `rows`.
+/// Whether the row holds an admin role ("Admin" or "Owner") and is not disabled.
+fn is_active_admin(state: &Value) -> bool {
+    role_of(state).is_some_and(is_admin_role) && !is_disabled(state)
+}
+
+/// Whether `state` is the only active admin (Admin or Owner) among `rows`.
 fn is_last_active_admin(rows: &[(String, Value)], state: &Value) -> bool {
     is_active_admin(state) && rows.iter().filter(|(_, s)| is_active_admin(s)).count() <= 1
 }
 
 /// Whether the person with `email` (compared case-insensitively) is an
-/// active Admin: granted the "Admin" role and not disabled.
+/// active admin: granted the "Admin" or "Owner" role and not disabled.
 pub async fn caller_is_admin(client: &Mutex<Client>, domain_ir: &Value, email: &str) -> anyhow::Result<bool> {
     let email = email.to_lowercase();
     Ok(member_rows(client, domain_ir).await?.iter().any(|(id, state)| id.to_lowercase() == email && is_active_admin(state)))
@@ -759,7 +773,7 @@ pub async fn set_person_disabled(
     Ok(DisableOutcome::Done)
 }
 
-/// Whether `identity_id` holds a live "Admin" assignment in the chapter
+/// Whether `identity_id` holds a live "Admin" or "Owner" assignment in the chapter
 /// this domain declares as its authorization provider (`ir::
 /// authorization_provider`). `None` — nothing attached provides
 /// authorization — means no assignment can exist, so never admin.
@@ -770,7 +784,7 @@ pub fn holds_admin(instances: &Value, identity_id: &str, provider: Option<&crate
         obj.iter().any(|(key, state)| {
             key.starts_with(&prefix)
                 && state.get("actor_id").and_then(|v| v.get("value")).and_then(|v| v.as_str()) == Some(identity_id)
-                && state.get("role_name").and_then(|v| v.get("value")).and_then(|v| v.as_str()) == Some("Admin")
+                && state.get("role_name").and_then(|v| v.get("value")).and_then(|v| v.as_str()).is_some_and(is_admin_role)
                 && state.get("ends_at").map(|v| v.is_null()).unwrap_or(true)
         })
     })
@@ -1016,6 +1030,21 @@ mod tests {
         assert!(!is_last_active_admin(&rows(&[&admin, &admin]), &admin), "another active admin remains");
         assert!(!is_last_active_admin(&rows(&[&admin, &disabled_admin]), &disabled_admin), "a disabled admin is not an active one");
         assert!(!is_last_active_admin(&rows(&[&admin, &member]), &member), "a non-admin never counts");
+
+        // An Owner is an admin too: it counts toward, and is protected by, the guard.
+        let owner = json!({"role": {"value": "Owner"}});
+        assert!(is_last_active_admin(&rows(&[&owner, &member]), &owner), "the only active admin may be an Owner");
+        assert!(!is_last_active_admin(&rows(&[&owner, &admin]), &admin), "an Owner keeps another admin from being the last");
+    }
+
+    #[test]
+    fn holds_admin_accepts_an_owner_assignment_and_refuses_other_roles() {
+        let provider = crate::ir::AuthorizationProvider { grant: "G".to_string(), assignment_aggregate: "Governance::RoleAssignment".to_string() };
+        let assignment = |role: &str| json!({"Governance::RoleAssignment#a": {"actor_id": {"value": "id-1"}, "role_name": {"value": role}, "ends_at": null}});
+        assert!(holds_admin(&assignment("Admin"), "id-1", Some(&provider)));
+        assert!(holds_admin(&assignment("Owner"), "id-1", Some(&provider)));
+        assert!(!holds_admin(&assignment("Member"), "id-1", Some(&provider)));
+        assert!(!holds_admin(&assignment("owner"), "id-1", Some(&provider)));
     }
 
     #[test]
