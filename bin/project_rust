@@ -294,6 +294,12 @@ else
   newsletter = Hecks::Projector::Exporter.newsletter(target_registry, target_domain_name)
   target_ir[:newsletter] = json_shaped(newsletter) unless newsletter.empty?
 
+  # And again for sending an issue — rust/host's send route reads this
+  # instead of naming Newsletter::Issue.Send. Omitted entirely when
+  # nothing attached provides "newsletter_issues".
+  newsletter_issues = Hecks::Projector::Exporter.newsletter_issues(target_registry, target_domain_name)
+  target_ir[:newsletter_issues] = json_shaped(newsletter_issues) unless newsletter_issues.empty?
+
   # And again for payments — rust/host's checkout and webhook routes read
   # this instead of naming Payments::Payment verbs. Omitted entirely when
   # nothing attached provides "payments".

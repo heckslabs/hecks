@@ -33,6 +33,7 @@ use tokio_postgres::Client;
 
 mod lifeadelics;
 mod newsletter;
+mod newsletter_send;
 
 use lifeadelics::{checkout_enabled, checkout_route};
 // payments.rs and its tests reach these through `web::`, not `web::lifeadelics::`.
@@ -368,6 +369,13 @@ async fn auth_route(
         ("GET", "/members") => Some(members_route(domain_ir, cookies, secret, client).await),
 
         ("POST", "/members") => Some(add_member_route(domain_ir, raw_body, cookies, secret, client, wasm_path, config).await),
+
+        // Sending a newsletter issue (web/newsletter_send.rs's own header):
+        // an Admin's or Owner's `lifeadelics_session` cookie, unlike the
+        // guest newsletter routes served ahead of this gate.
+        (method, path) if newsletter_send::issue_action(method, path).is_some() => {
+            newsletter_send::issue_route(method, path, domain_ir, raw_body, cookies, secret, client, wasm_path, config, invoker).await
+        }
 
         ("POST", "/signups") => Some(signup_route(raw_body, secret, client, wasm_path, config, invoker).await),
 

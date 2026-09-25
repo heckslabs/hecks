@@ -202,6 +202,34 @@ module Hecks
         }
       end
 
+      # Which chapter answers sending a newsletter issue
+      # (`Registry#newsletter_issues_provider_for`), with its declared verbs
+      # qualified and the issue and delivery aggregates named off them.
+      # rust/host's send route reads this instead of naming
+      # Newsletter::Issue.Send and Newsletter::Delivery.Record. `{}` when
+      # nothing this domain attaches provides newsletter_issues.
+      # @param registry [Runtime::Registry] the booted registry `domain_name` is loaded in
+      # @param domain_name [String] the domain to export the issue-sending binding for
+      # @return [Hash{Symbol => String, nil}] `:provider` (name), `:send_issue`,
+      #   `:record_delivery` (qualified verbs), `:issue_aggregate` and `:delivery_aggregate`
+      #   (each verb's own leading qualified aggregate name); `{}` if nothing this domain
+      #   attaches provides newsletter_issues
+      def newsletter_issues(registry, domain_name)
+        provider = registry.newsletter_issues_provider_for(domain_name)
+        return {} unless provider
+
+        capability = Bluebook::Capabilities::NEWSLETTER_ISSUES
+        send_issue = provider.provided_verb(capability, :send_issue)
+        record_delivery = provider.provided_verb(capability, :record_delivery)
+        {
+          provider:           provider.name,
+          send_issue:         send_issue,
+          record_delivery:    record_delivery,
+          issue_aggregate:    send_issue&.split(".")&.first,
+          delivery_aggregate: record_delivery&.split(".")&.first
+        }
+      end
+
       # Same seam as `newsletter` — which chapter takes payments
       # (`Registry#payments_provider_for`), with its declared verbs
       # qualified and the paying aggregate named off `initiate`. rust/host

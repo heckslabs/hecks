@@ -32,6 +32,13 @@ module Hecks
       # "Newsletter". rust/host's newsletter routes dispatch these verbs
       # and read the subscribing aggregate's instances off `subscribe`.
       NEWSLETTER = "newsletter".freeze
+      # Sending an issue to the confirmed subscribers: the decision to send
+      # and the record of each email handed to the mail provider. A separate
+      # capability from `NEWSLETTER` so a chapter that only takes signups
+      # declares nothing more; rust/host serves the send route only when a
+      # chapter declares this one as well.
+      NEWSLETTER_ISSUES = "newsletter_issues".freeze
+
       # Taking a payment through an external processor: start one, then
       # hear the processor's verdict — recognised by declaration, not the
       # literal chapter name "Payments". rust/host's checkout and webhook
@@ -42,7 +49,7 @@ module Hecks
       PAYMENTS = "payments".freeze
 
       CONTRACTS = {
-        AUTHORIZATION => {
+        AUTHORIZATION     => {
           # every assignment an actor holds, current or historical
           assignments: :query,
           # the command that grants an actor a role
@@ -50,7 +57,7 @@ module Hecks
           # every grant of one role acting as another
           transitions: :query
         }.freeze,
-        MEMBERSHIP    => {
+        MEMBERSHIP        => {
           # recognize a person who may eventually sign in
           admit:  :command,
           # grant an admitted person a role (the access-grant half)
@@ -58,7 +65,7 @@ module Hecks
           # every admitted person, for the admin listing
           people: :query
         }.freeze,
-        IDENTITY      => {
+        IDENTITY          => {
           # mint a stable identity, independent of how it authenticated
           register: :command,
           # associate an (issuer, subject) pair with that identity
@@ -66,7 +73,7 @@ module Hecks
           # look up the identity an authenticated pair resolves to
           resolve:  :query
         }.freeze,
-        NEWSLETTER    => {
+        NEWSLETTER        => {
           # a guest signs up; the aggregate it names is the subscriber
           subscribe:   :command,
           # attach a display name to an existing subscriber
@@ -76,7 +83,14 @@ module Hecks
           # a subscriber leaves from the emailed link
           unsubscribe: :command
         }.freeze,
-        PAYMENTS      => {
+        NEWSLETTER_ISSUES => {
+          # mark an issue sent; the issue aggregate is the one it names
+          send_issue:      :command,
+          # record one email handed to the mail provider; the delivery
+          # aggregate is the one it names
+          record_delivery: :command
+        }.freeze,
+        PAYMENTS          => {
           # start a payment; the aggregate it names is the payment
           initiate:  :command,
           # the processor reports the money arrived
