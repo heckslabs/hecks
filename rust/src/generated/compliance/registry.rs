@@ -256,7 +256,7 @@ if target == "Compliance::PrivacyReview" {
 }
 
 pub const POLICIES: &[crate::kernel::PolicyRule] = &[
-
+    crate::kernel::PolicyRule { policy_name: "OpenPrivacyReviewOnMarking", event_name: "Marked", event_qualifier: Some("Marking"), target_verb: "Compliance::PrivacyReview.Open", for_each: None, for_each_key: None, with_spec: &[("domain", ":domain"), ("attribute_path", ":attribute_path")], where_expr: None },
 ];
 
 pub const CROSS_DOMAIN_POLICIES: &[crate::kernel::CrossDomainPolicyRule] = &[

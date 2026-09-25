@@ -2,7 +2,7 @@
   "ir_version": 1,
   "name": "Payments",
   "version": null,
-  "vision": "Collect a payment through a processor and record what the processor said happened.",
+  "vision": "Collect a payment from a client through whichever processor is handling it, and hold a clean record of what was attempted and what the processor said happened.",
   "classification": "core",
   "formerly_known_as": null,
   "aggregates": [
@@ -64,6 +64,16 @@
           "relationship": null
         },
         {
+          "name": "customer_id",
+          "type": "CustomerId",
+          "list": false,
+          "default": null,
+          "optional": true,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
           "name": "transaction_id",
           "type": "ProcessorTransactionId",
           "list": false,
@@ -76,6 +86,68 @@
         {
           "name": "failure_reason",
           "type": "FailureReason",
+          "list": false,
+          "default": null,
+          "optional": true,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
+          "name": "refund_transaction_id",
+          "type": "ProcessorTransactionId",
+          "list": false,
+          "default": null,
+          "optional": true,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
+          "name": "refund_reason",
+          "type": "FailureReason",
+          "list": false,
+          "default": null,
+          "optional": true,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
+          "name": "refunded_amount",
+          "type": "RefundedCents",
+          "list": false,
+          "default": {
+            "cents": 0
+          },
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
+          "name": "refunding_amount",
+          "type": "PositiveMoney",
+          "list": false,
+          "default": null,
+          "optional": true,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
+          "name": "dispute_id",
+          "type": "ProcessorTransactionId",
+          "list": false,
+          "default": null,
+          "optional": true,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
+          "name": "dispute_reason",
+          "type": "DisputeReason",
           "list": false,
           "default": null,
           "optional": true,
@@ -113,7 +185,19 @@
             [
               [
                 "value",
+                "mock_paypal"
+              ]
+            ],
+            [
+              [
+                "value",
                 "stripe"
+              ]
+            ],
+            [
+              [
+                "value",
+                "paypal"
               ]
             ]
           ]
@@ -141,6 +225,36 @@
               [
                 "value",
                 "card"
+              ]
+            ],
+            [
+              [
+                "value",
+                "paypal"
+              ]
+            ],
+            [
+              [
+                "value",
+                "venmo"
+              ]
+            ],
+            [
+              [
+                "value",
+                "google_pay"
+              ]
+            ],
+            [
+              [
+                "value",
+                "apple_pay"
+              ]
+            ],
+            [
+              [
+                "value",
+                "ach"
               ]
             ]
           ]
@@ -263,6 +377,49 @@
           ]
         },
         {
+          "name": "RefundedCents",
+          "attributes": [
+            {
+              "name": "cents",
+              "type": "Integer",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "an amount is never negative",
+              "canonical": "cents >= 0",
+              "ast": {
+                "op": "compare",
+                "cmp": {
+                  "less_than": true,
+                  "equal": false,
+                  "negated": true
+                },
+                "left": {
+                  "op": "lookup",
+                  "path": [
+                    "cents"
+                  ]
+                },
+                "right": {
+                  "op": "int",
+                  "value": 0
+                }
+              }
+            }
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        },
+        {
           "name": "Client",
           "attributes": [
             {
@@ -354,7 +511,69 @@
           ]
         },
         {
+          "name": "CustomerId",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "a customer id is present",
+              "canonical": "!value.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "value"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        },
+        {
           "name": "FailureReason",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        },
+        {
+          "name": "DisputeReason",
           "attributes": [
             {
               "name": "value",
@@ -429,6 +648,16 @@
               "list": false,
               "default": null,
               "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "customer_id",
+              "type": "CustomerId",
+              "list": false,
+              "default": null,
+              "optional": true,
               "pattern": null,
               "admits": null,
               "relationship": null
@@ -642,6 +871,852 @@
           ],
           "from": null,
           "provenance": null
+        },
+        {
+          "name": "Refund",
+          "role": "Support",
+          "goal": "Ask the processor to give the customer some or all of their money back",
+          "references": "Payment",
+          "attributes": [
+            {
+              "name": "refund_amount",
+              "type": "PositiveMoney",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [
+            {
+              "description": "only a succeeded payment can be refunded",
+              "canonical": "status == \"succeeded\"",
+              "ast": {
+                "op": "compare",
+                "cmp": {
+                  "less_than": false,
+                  "equal": true,
+                  "negated": false
+                },
+                "left": {
+                  "op": "lookup",
+                  "path": [
+                    "status"
+                  ]
+                },
+                "right": {
+                  "op": "str",
+                  "value": "succeeded"
+                }
+              }
+            },
+            {
+              "description": "a refund cannot exceed what is left to refund",
+              "canonical": "refund_amount.cents + refunded_amount.cents <= amount.cents",
+              "ast": {
+                "op": "compare",
+                "cmp": {
+                  "less_than": true,
+                  "equal": true,
+                  "negated": false
+                },
+                "left": {
+                  "op": "add",
+                  "left": {
+                    "op": "lookup",
+                    "path": [
+                      "refund_amount",
+                      "cents"
+                    ]
+                  },
+                  "right": {
+                    "op": "lookup",
+                    "path": [
+                      "refunded_amount",
+                      "cents"
+                    ]
+                  }
+                },
+                "right": {
+                  "op": "lookup",
+                  "path": [
+                    "amount",
+                    "cents"
+                  ]
+                }
+              }
+            },
+            {
+              "description": "the refund currency matches the payment's own",
+              "canonical": "refund_amount.currency == amount.currency",
+              "ast": {
+                "op": "compare",
+                "cmp": {
+                  "less_than": false,
+                  "equal": true,
+                  "negated": false
+                },
+                "left": {
+                  "op": "lookup",
+                  "path": [
+                    "refund_amount",
+                    "currency"
+                  ]
+                },
+                "right": {
+                  "op": "lookup",
+                  "path": [
+                    "amount",
+                    "currency"
+                  ]
+                }
+              }
+            }
+          ],
+          "ensures": [
+
+          ],
+          "mutations": [
+            {
+              "target": "refunding_amount",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "refund_amount"
+              }
+            }
+          ],
+          "emits": [
+            "RefundRequested"
+          ],
+          "from": null,
+          "provenance": null
+        },
+        {
+          "name": "CompleteRefund",
+          "role": "System",
+          "goal": "Record that the processor gave back the last of what was owed",
+          "references": "Payment",
+          "attributes": [
+            {
+              "name": "confirmed_amount",
+              "type": "PositiveMoney",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "refund_transaction_id",
+              "type": "ProcessorTransactionId",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "reported_processor",
+              "type": "Processor",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [
+            {
+              "description": "only a refund in progress can complete",
+              "canonical": "status == \"refunding\"",
+              "ast": {
+                "op": "compare",
+                "cmp": {
+                  "less_than": false,
+                  "equal": true,
+                  "negated": false
+                },
+                "left": {
+                  "op": "lookup",
+                  "path": [
+                    "status"
+                  ]
+                },
+                "right": {
+                  "op": "str",
+                  "value": "refunding"
+                }
+              }
+            },
+            {
+              "description": "the processor matches the one this payment was initiated with",
+              "canonical": "processor.value == reported_processor.value",
+              "ast": {
+                "op": "compare",
+                "cmp": {
+                  "less_than": false,
+                  "equal": true,
+                  "negated": false
+                },
+                "left": {
+                  "op": "lookup",
+                  "path": [
+                    "processor",
+                    "value"
+                  ]
+                },
+                "right": {
+                  "op": "lookup",
+                  "path": [
+                    "reported_processor",
+                    "value"
+                  ]
+                }
+              }
+            },
+            {
+              "description": "the confirmed amount matches what was actually requested",
+              "canonical": "confirmed_amount == refunding_amount",
+              "ast": {
+                "op": "compare",
+                "cmp": {
+                  "less_than": false,
+                  "equal": true,
+                  "negated": false
+                },
+                "left": {
+                  "op": "lookup",
+                  "path": [
+                    "confirmed_amount"
+                  ]
+                },
+                "right": {
+                  "op": "lookup",
+                  "path": [
+                    "refunding_amount"
+                  ]
+                }
+              }
+            },
+            {
+              "description": "this refund finishes the payoff",
+              "canonical": "refunded_amount.cents + confirmed_amount.cents == amount.cents",
+              "ast": {
+                "op": "compare",
+                "cmp": {
+                  "less_than": false,
+                  "equal": true,
+                  "negated": false
+                },
+                "left": {
+                  "op": "add",
+                  "left": {
+                    "op": "lookup",
+                    "path": [
+                      "refunded_amount",
+                      "cents"
+                    ]
+                  },
+                  "right": {
+                    "op": "lookup",
+                    "path": [
+                      "confirmed_amount",
+                      "cents"
+                    ]
+                  }
+                },
+                "right": {
+                  "op": "lookup",
+                  "path": [
+                    "amount",
+                    "cents"
+                  ]
+                }
+              }
+            }
+          ],
+          "ensures": [
+
+          ],
+          "mutations": [
+            {
+              "target": "refund_transaction_id",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "refund_transaction_id"
+              }
+            },
+            {
+              "target": "refunded_amount",
+              "op": "increment",
+              "sign": "1",
+              "source": {
+                "kind": "argument",
+                "name": "confirmed_amount"
+              }
+            }
+          ],
+          "emits": [
+            "PaymentRefunded"
+          ],
+          "from": null,
+          "provenance": null
+        },
+        {
+          "name": "RecordPartialRefund",
+          "role": "System",
+          "goal": "Record that the processor gave back part of what was owed, more still to come",
+          "references": "Payment",
+          "attributes": [
+            {
+              "name": "confirmed_amount",
+              "type": "PositiveMoney",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "refund_transaction_id",
+              "type": "ProcessorTransactionId",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "reported_processor",
+              "type": "Processor",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [
+            {
+              "description": "only a refund in progress can be recorded",
+              "canonical": "status == \"refunding\"",
+              "ast": {
+                "op": "compare",
+                "cmp": {
+                  "less_than": false,
+                  "equal": true,
+                  "negated": false
+                },
+                "left": {
+                  "op": "lookup",
+                  "path": [
+                    "status"
+                  ]
+                },
+                "right": {
+                  "op": "str",
+                  "value": "refunding"
+                }
+              }
+            },
+            {
+              "description": "the processor matches the one this payment was initiated with",
+              "canonical": "processor.value == reported_processor.value",
+              "ast": {
+                "op": "compare",
+                "cmp": {
+                  "less_than": false,
+                  "equal": true,
+                  "negated": false
+                },
+                "left": {
+                  "op": "lookup",
+                  "path": [
+                    "processor",
+                    "value"
+                  ]
+                },
+                "right": {
+                  "op": "lookup",
+                  "path": [
+                    "reported_processor",
+                    "value"
+                  ]
+                }
+              }
+            },
+            {
+              "description": "the confirmed amount matches what was actually requested",
+              "canonical": "confirmed_amount == refunding_amount",
+              "ast": {
+                "op": "compare",
+                "cmp": {
+                  "less_than": false,
+                  "equal": true,
+                  "negated": false
+                },
+                "left": {
+                  "op": "lookup",
+                  "path": [
+                    "confirmed_amount"
+                  ]
+                },
+                "right": {
+                  "op": "lookup",
+                  "path": [
+                    "refunding_amount"
+                  ]
+                }
+              }
+            },
+            {
+              "description": "this refund does not yet finish the payoff",
+              "canonical": "refunded_amount.cents + confirmed_amount.cents < amount.cents",
+              "ast": {
+                "op": "compare",
+                "cmp": {
+                  "less_than": true,
+                  "equal": false,
+                  "negated": false
+                },
+                "left": {
+                  "op": "add",
+                  "left": {
+                    "op": "lookup",
+                    "path": [
+                      "refunded_amount",
+                      "cents"
+                    ]
+                  },
+                  "right": {
+                    "op": "lookup",
+                    "path": [
+                      "confirmed_amount",
+                      "cents"
+                    ]
+                  }
+                },
+                "right": {
+                  "op": "lookup",
+                  "path": [
+                    "amount",
+                    "cents"
+                  ]
+                }
+              }
+            }
+          ],
+          "ensures": [
+
+          ],
+          "mutations": [
+            {
+              "target": "refund_transaction_id",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "refund_transaction_id"
+              }
+            },
+            {
+              "target": "refunded_amount",
+              "op": "increment",
+              "sign": "1",
+              "source": {
+                "kind": "argument",
+                "name": "confirmed_amount"
+              }
+            }
+          ],
+          "emits": [
+            "PaymentPartiallyRefunded"
+          ],
+          "from": null,
+          "provenance": null
+        },
+        {
+          "name": "DeclineRefund",
+          "role": "System",
+          "goal": "Record that the processor could not give the money back",
+          "references": "Payment",
+          "attributes": [
+            {
+              "name": "reason",
+              "type": "FailureReason",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "reported_processor",
+              "type": "Processor",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [
+            {
+              "description": "only a refund in progress can be declined",
+              "canonical": "status == \"refunding\"",
+              "ast": {
+                "op": "compare",
+                "cmp": {
+                  "less_than": false,
+                  "equal": true,
+                  "negated": false
+                },
+                "left": {
+                  "op": "lookup",
+                  "path": [
+                    "status"
+                  ]
+                },
+                "right": {
+                  "op": "str",
+                  "value": "refunding"
+                }
+              }
+            },
+            {
+              "description": "the processor matches the one this payment was initiated with",
+              "canonical": "processor.value == reported_processor.value",
+              "ast": {
+                "op": "compare",
+                "cmp": {
+                  "less_than": false,
+                  "equal": true,
+                  "negated": false
+                },
+                "left": {
+                  "op": "lookup",
+                  "path": [
+                    "processor",
+                    "value"
+                  ]
+                },
+                "right": {
+                  "op": "lookup",
+                  "path": [
+                    "reported_processor",
+                    "value"
+                  ]
+                }
+              }
+            }
+          ],
+          "ensures": [
+
+          ],
+          "mutations": [
+            {
+              "target": "refund_reason",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "reason"
+              }
+            }
+          ],
+          "emits": [
+            "RefundFailed"
+          ],
+          "from": null,
+          "provenance": null
+        },
+        {
+          "name": "OpenDispute",
+          "role": "System",
+          "goal": "Record that a customer disputed this payment with their bank",
+          "references": "Payment",
+          "attributes": [
+            {
+              "name": "dispute_id",
+              "type": "ProcessorTransactionId",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "reason",
+              "type": "DisputeReason",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "reported_processor",
+              "type": "Processor",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [
+            {
+              "description": "only a succeeded payment can be disputed",
+              "canonical": "status == \"succeeded\"",
+              "ast": {
+                "op": "compare",
+                "cmp": {
+                  "less_than": false,
+                  "equal": true,
+                  "negated": false
+                },
+                "left": {
+                  "op": "lookup",
+                  "path": [
+                    "status"
+                  ]
+                },
+                "right": {
+                  "op": "str",
+                  "value": "succeeded"
+                }
+              }
+            },
+            {
+              "description": "the processor matches the one this payment was initiated with",
+              "canonical": "processor.value == reported_processor.value",
+              "ast": {
+                "op": "compare",
+                "cmp": {
+                  "less_than": false,
+                  "equal": true,
+                  "negated": false
+                },
+                "left": {
+                  "op": "lookup",
+                  "path": [
+                    "processor",
+                    "value"
+                  ]
+                },
+                "right": {
+                  "op": "lookup",
+                  "path": [
+                    "reported_processor",
+                    "value"
+                  ]
+                }
+              }
+            }
+          ],
+          "ensures": [
+
+          ],
+          "mutations": [
+            {
+              "target": "dispute_id",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "dispute_id"
+              }
+            },
+            {
+              "target": "dispute_reason",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "reason"
+              }
+            }
+          ],
+          "emits": [
+            "PaymentDisputed"
+          ],
+          "from": null,
+          "provenance": null
+        },
+        {
+          "name": "WinDispute",
+          "role": "System",
+          "goal": "Record that the dispute was resolved in the merchant's favor",
+          "references": "Payment",
+          "attributes": [
+            {
+              "name": "reported_processor",
+              "type": "Processor",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [
+            {
+              "description": "only a disputed payment can be resolved",
+              "canonical": "status == \"disputed\"",
+              "ast": {
+                "op": "compare",
+                "cmp": {
+                  "less_than": false,
+                  "equal": true,
+                  "negated": false
+                },
+                "left": {
+                  "op": "lookup",
+                  "path": [
+                    "status"
+                  ]
+                },
+                "right": {
+                  "op": "str",
+                  "value": "disputed"
+                }
+              }
+            },
+            {
+              "description": "the processor matches the one this payment was initiated with",
+              "canonical": "processor.value == reported_processor.value",
+              "ast": {
+                "op": "compare",
+                "cmp": {
+                  "less_than": false,
+                  "equal": true,
+                  "negated": false
+                },
+                "left": {
+                  "op": "lookup",
+                  "path": [
+                    "processor",
+                    "value"
+                  ]
+                },
+                "right": {
+                  "op": "lookup",
+                  "path": [
+                    "reported_processor",
+                    "value"
+                  ]
+                }
+              }
+            }
+          ],
+          "ensures": [
+
+          ],
+          "mutations": [
+
+          ],
+          "emits": [
+            "DisputeWon"
+          ],
+          "from": null,
+          "provenance": null
+        },
+        {
+          "name": "Chargeback",
+          "role": "System",
+          "goal": "Record that the disputed funds were forcibly taken back",
+          "references": "Payment",
+          "attributes": [
+            {
+              "name": "reported_processor",
+              "type": "Processor",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [
+            {
+              "description": "only a disputed payment can be charged back",
+              "canonical": "status == \"disputed\"",
+              "ast": {
+                "op": "compare",
+                "cmp": {
+                  "less_than": false,
+                  "equal": true,
+                  "negated": false
+                },
+                "left": {
+                  "op": "lookup",
+                  "path": [
+                    "status"
+                  ]
+                },
+                "right": {
+                  "op": "str",
+                  "value": "disputed"
+                }
+              }
+            },
+            {
+              "description": "the processor matches the one this payment was initiated with",
+              "canonical": "processor.value == reported_processor.value",
+              "ast": {
+                "op": "compare",
+                "cmp": {
+                  "less_than": false,
+                  "equal": true,
+                  "negated": false
+                },
+                "left": {
+                  "op": "lookup",
+                  "path": [
+                    "processor",
+                    "value"
+                  ]
+                },
+                "right": {
+                  "op": "lookup",
+                  "path": [
+                    "reported_processor",
+                    "value"
+                  ]
+                }
+              }
+            }
+          ],
+          "ensures": [
+
+          ],
+          "mutations": [
+
+          ],
+          "emits": [
+            "PaymentChargedBack"
+          ],
+          "from": null,
+          "provenance": null
         }
       ],
       "invariants": [
@@ -666,6 +1741,41 @@
             "command": "Fail",
             "to_state": "failed",
             "from_state": "pending"
+          },
+          {
+            "command": "Refund",
+            "to_state": "refunding",
+            "from_state": "succeeded"
+          },
+          {
+            "command": "CompleteRefund",
+            "to_state": "refunded",
+            "from_state": "refunding"
+          },
+          {
+            "command": "RecordPartialRefund",
+            "to_state": "succeeded",
+            "from_state": "refunding"
+          },
+          {
+            "command": "DeclineRefund",
+            "to_state": "succeeded",
+            "from_state": "refunding"
+          },
+          {
+            "command": "OpenDispute",
+            "to_state": "disputed",
+            "from_state": "succeeded"
+          },
+          {
+            "command": "WinDispute",
+            "to_state": "succeeded",
+            "from_state": "disputed"
+          },
+          {
+            "command": "Chargeback",
+            "to_state": "charged_back",
+            "from_state": "disputed"
           }
         ]
       },
@@ -673,7 +1783,88 @@
 
       ],
       "queries": [
+        {
+          "name": "Status",
+          "description": "What happened to a specific payment, by its own reference.",
+          "attributes": [
+            {
+              "name": "reference",
+              "type": "PaymentReference",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "wheres": [
+            {
+              "field": "reference",
+              "op": "eq",
+              "value": ":reference"
+            }
+          ],
+          "order_by": null,
+          "limit": null
+        },
+        {
+          "name": "Pending",
+          "description": "Every payment still waiting on a processor to report in.",
+          "attributes": [
 
+          ],
+          "wheres": [
+            {
+              "field": "status",
+              "op": "eq",
+              "value": "\"pending\""
+            }
+          ],
+          "order_by": {
+            "field": "reference",
+            "direction": "asc"
+          },
+          "limit": null
+        },
+        {
+          "name": "Succeeded",
+          "description": "Every payment a processor has confirmed.",
+          "attributes": [
+
+          ],
+          "wheres": [
+            {
+              "field": "status",
+              "op": "eq",
+              "value": "\"succeeded\""
+            }
+          ],
+          "order_by": {
+            "field": "reference",
+            "direction": "asc"
+          },
+          "limit": null
+        },
+        {
+          "name": "Failed",
+          "description": "Every payment a processor has declined.",
+          "attributes": [
+
+          ],
+          "wheres": [
+            {
+              "field": "status",
+              "op": "eq",
+              "value": "\"failed\""
+            }
+          ],
+          "order_by": {
+            "field": "reference",
+            "direction": "asc"
+          },
+          "limit": null
+        }
       ],
       "ports": [
         {
@@ -682,6 +1873,16 @@
             {
               "name": "Succeeded",
               "attributes": [
+                {
+                  "name": "reference",
+                  "type": "PaymentReference",
+                  "list": false,
+                  "default": null,
+                  "optional": false,
+                  "pattern": null,
+                  "admits": null,
+                  "relationship": null
+                },
                 {
                   "name": "transaction_id",
                   "type": "ProcessorTransactionId",
@@ -705,11 +1906,22 @@
               ],
               "emits": [
                 "PaymentConfirmedByProcessor"
-              ]
+              ],
+              "to": "Payment"
             },
             {
               "name": "Failed",
               "attributes": [
+                {
+                  "name": "reference",
+                  "type": "PaymentReference",
+                  "list": false,
+                  "default": null,
+                  "optional": false,
+                  "pattern": null,
+                  "admits": null,
+                  "relationship": null
+                },
                 {
                   "name": "reason",
                   "type": "FailureReason",
@@ -733,7 +1945,203 @@
               ],
               "emits": [
                 "PaymentDeclinedByProcessor"
-              ]
+              ],
+              "to": "Payment"
+            },
+            {
+              "name": "Refunded",
+              "attributes": [
+                {
+                  "name": "reference",
+                  "type": "PaymentReference",
+                  "list": false,
+                  "default": null,
+                  "optional": false,
+                  "pattern": null,
+                  "admits": null,
+                  "relationship": null
+                },
+                {
+                  "name": "confirmed_amount",
+                  "type": "PositiveMoney",
+                  "list": false,
+                  "default": null,
+                  "optional": false,
+                  "pattern": null,
+                  "admits": null,
+                  "relationship": null
+                },
+                {
+                  "name": "refund_transaction_id",
+                  "type": "ProcessorTransactionId",
+                  "list": false,
+                  "default": null,
+                  "optional": false,
+                  "pattern": null,
+                  "admits": null,
+                  "relationship": null
+                },
+                {
+                  "name": "reported_processor",
+                  "type": "Processor",
+                  "list": false,
+                  "default": null,
+                  "optional": false,
+                  "pattern": null,
+                  "admits": null,
+                  "relationship": null
+                }
+              ],
+              "emits": [
+                "PaymentRefundConfirmedByProcessor"
+              ],
+              "to": "Payment"
+            },
+            {
+              "name": "RefundDeclined",
+              "attributes": [
+                {
+                  "name": "reference",
+                  "type": "PaymentReference",
+                  "list": false,
+                  "default": null,
+                  "optional": false,
+                  "pattern": null,
+                  "admits": null,
+                  "relationship": null
+                },
+                {
+                  "name": "reason",
+                  "type": "FailureReason",
+                  "list": false,
+                  "default": null,
+                  "optional": false,
+                  "pattern": null,
+                  "admits": null,
+                  "relationship": null
+                },
+                {
+                  "name": "reported_processor",
+                  "type": "Processor",
+                  "list": false,
+                  "default": null,
+                  "optional": false,
+                  "pattern": null,
+                  "admits": null,
+                  "relationship": null
+                }
+              ],
+              "emits": [
+                "PaymentRefundDeclinedByProcessor"
+              ],
+              "to": "Payment"
+            },
+            {
+              "name": "DisputeOpened",
+              "attributes": [
+                {
+                  "name": "reference",
+                  "type": "PaymentReference",
+                  "list": false,
+                  "default": null,
+                  "optional": false,
+                  "pattern": null,
+                  "admits": null,
+                  "relationship": null
+                },
+                {
+                  "name": "dispute_id",
+                  "type": "ProcessorTransactionId",
+                  "list": false,
+                  "default": null,
+                  "optional": false,
+                  "pattern": null,
+                  "admits": null,
+                  "relationship": null
+                },
+                {
+                  "name": "reason",
+                  "type": "DisputeReason",
+                  "list": false,
+                  "default": null,
+                  "optional": false,
+                  "pattern": null,
+                  "admits": null,
+                  "relationship": null
+                },
+                {
+                  "name": "reported_processor",
+                  "type": "Processor",
+                  "list": false,
+                  "default": null,
+                  "optional": false,
+                  "pattern": null,
+                  "admits": null,
+                  "relationship": null
+                }
+              ],
+              "emits": [
+                "PaymentDisputeOpenedByProcessor"
+              ],
+              "to": "Payment"
+            },
+            {
+              "name": "DisputeWon",
+              "attributes": [
+                {
+                  "name": "reference",
+                  "type": "PaymentReference",
+                  "list": false,
+                  "default": null,
+                  "optional": false,
+                  "pattern": null,
+                  "admits": null,
+                  "relationship": null
+                },
+                {
+                  "name": "reported_processor",
+                  "type": "Processor",
+                  "list": false,
+                  "default": null,
+                  "optional": false,
+                  "pattern": null,
+                  "admits": null,
+                  "relationship": null
+                }
+              ],
+              "emits": [
+                "PaymentDisputeWonByProcessor"
+              ],
+              "to": "Payment"
+            },
+            {
+              "name": "DisputeLost",
+              "attributes": [
+                {
+                  "name": "reference",
+                  "type": "PaymentReference",
+                  "list": false,
+                  "default": null,
+                  "optional": false,
+                  "pattern": null,
+                  "admits": null,
+                  "relationship": null
+                },
+                {
+                  "name": "reported_processor",
+                  "type": "Processor",
+                  "list": false,
+                  "default": null,
+                  "optional": false,
+                  "pattern": null,
+                  "admits": null,
+                  "relationship": null
+                }
+              ],
+              "emits": [
+                "PaymentDisputeLostByProcessor"
+              ],
+              "to": "Payment"
             }
           ]
         }
@@ -762,6 +2170,84 @@
       "name": "OnPaymentDeclinedByProcessor",
       "on_event": "PaymentDeclinedByProcessor",
       "trigger_command": "Payment.Fail",
+      "target_domain": null,
+      "expect_undelivered": false,
+      "where": null,
+      "for_each": null,
+      "with_spec": [
+
+      ],
+      "where_ast": null
+    },
+    {
+      "name": "OnPaymentRefundConfirmedByProcessor",
+      "on_event": "PaymentRefundConfirmedByProcessor",
+      "trigger_command": "Payment.CompleteRefund",
+      "target_domain": null,
+      "expect_undelivered": false,
+      "where": null,
+      "for_each": null,
+      "with_spec": [
+
+      ],
+      "where_ast": null
+    },
+    {
+      "name": "OnPaymentRefundPartiallyConfirmedByProcessor",
+      "on_event": "PaymentRefundConfirmedByProcessor",
+      "trigger_command": "Payment.RecordPartialRefund",
+      "target_domain": null,
+      "expect_undelivered": false,
+      "where": null,
+      "for_each": null,
+      "with_spec": [
+
+      ],
+      "where_ast": null
+    },
+    {
+      "name": "OnPaymentRefundDeclinedByProcessor",
+      "on_event": "PaymentRefundDeclinedByProcessor",
+      "trigger_command": "Payment.DeclineRefund",
+      "target_domain": null,
+      "expect_undelivered": false,
+      "where": null,
+      "for_each": null,
+      "with_spec": [
+
+      ],
+      "where_ast": null
+    },
+    {
+      "name": "OnPaymentDisputeOpenedByProcessor",
+      "on_event": "PaymentDisputeOpenedByProcessor",
+      "trigger_command": "Payment.OpenDispute",
+      "target_domain": null,
+      "expect_undelivered": false,
+      "where": null,
+      "for_each": null,
+      "with_spec": [
+
+      ],
+      "where_ast": null
+    },
+    {
+      "name": "OnPaymentDisputeWonByProcessor",
+      "on_event": "PaymentDisputeWonByProcessor",
+      "trigger_command": "Payment.WinDispute",
+      "target_domain": null,
+      "expect_undelivered": false,
+      "where": null,
+      "for_each": null,
+      "with_spec": [
+
+      ],
+      "where_ast": null
+    },
+    {
+      "name": "OnPaymentDisputeLostByProcessor",
+      "on_event": "PaymentDisputeLostByProcessor",
+      "trigger_command": "Payment.Chargeback",
       "target_domain": null,
       "expect_undelivered": false,
       "where": null,

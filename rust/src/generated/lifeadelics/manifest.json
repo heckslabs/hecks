@@ -28,6 +28,53 @@
     "routed": true
   },
   {
+    "kind": "aggregate",
+    "id": "Lifeadelics::PaymentConnection",
+    "generated": true
+  },
+  {
+    "kind": "command",
+    "id": "Lifeadelics::PaymentConnection.Connect",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Lifeadelics::PaymentConnection.Reconnect",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Lifeadelics::PaymentConnection.Disconnect",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Lifeadelics::PaymentConnection.Suspend",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Lifeadelics::PaymentConnection.Resume",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Lifeadelics::PaymentConnection.EnablePayments",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Lifeadelics::PaymentConnection.DisablePayments",
+    "generated": true,
+    "routed": true
+  },
+  {
     "kind": "query",
     "id": "Lifeadelics::Registration.Listing",
     "generated": false,
@@ -48,5 +95,12 @@
     "generated": true,
     "routed": true,
     "reason": "read via rust/host's journal::read_lineage_head_all/_by_id, written via journal::append_lineage_mutation — both generic over storage_name (\"registration\"), dispatched OUTSIDE the WASM kernel/InMemoryRepository path entirely, matching Ruby's own CommandInterpreter routing for a Postgres-bound aggregate (rust/project.rb's own header)"
+  },
+  {
+    "kind": "lineage_aggregate",
+    "id": "Lifeadelics::PaymentConnection",
+    "generated": true,
+    "routed": true,
+    "reason": "read via rust/host's journal::read_lineage_head_all/_by_id, written via journal::append_lineage_mutation — both generic over storage_name (\"payment_connection\"), dispatched OUTSIDE the WASM kernel/InMemoryRepository path entirely, matching Ruby's own CommandInterpreter routing for a Postgres-bound aggregate (rust/project.rb's own header)"
   }
 ]

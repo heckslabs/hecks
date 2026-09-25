@@ -10,7 +10,6 @@
 # `--no-default-features --features <name>`.
 [features]
 default = ["has_many_fixture"]
-compliance = []
 checkout_fixture = []
 lifeadelics = []
 embryonaut_vendoring_demo = []

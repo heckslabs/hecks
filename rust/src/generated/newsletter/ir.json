@@ -111,7 +111,9 @@
             }
           ],
           "closed_set": false,
-          "members": []
+          "members": [
+
+          ]
         },
         {
           "name": "IssueSlugRef",
@@ -149,7 +151,9 @@
             }
           ],
           "closed_set": false,
-          "members": []
+          "members": [
+
+          ]
         },
         {
           "name": "SubscriberEmailRef",
@@ -187,7 +191,9 @@
             }
           ],
           "closed_set": false,
-          "members": []
+          "members": [
+
+          ]
         },
         {
           "name": "ResendMessageId",
@@ -203,9 +209,13 @@
               "relationship": null
             }
           ],
-          "invariants": [],
+          "invariants": [
+
+          ],
           "closed_set": false,
-          "members": []
+          "members": [
+
+          ]
         },
         {
           "name": "Timestamp",
@@ -221,9 +231,13 @@
               "relationship": null
             }
           ],
-          "invariants": [],
+          "invariants": [
+
+          ],
           "closed_set": false,
-          "members": []
+          "members": [
+
+          ]
         }
       ],
       "commands": [
@@ -274,8 +288,12 @@
               "relationship": null
             }
           ],
-          "givens": [],
-          "ensures": [],
+          "givens": [
+
+          ],
+          "ensures": [
+
+          ],
           "mutations": [
             {
               "target": "delivery_id",
@@ -353,7 +371,9 @@
               }
             }
           ],
-          "ensures": [],
+          "ensures": [
+
+          ],
           "mutations": [
             {
               "target": "opened_at",
@@ -404,7 +424,9 @@
               }
             }
           ],
-          "ensures": [],
+          "ensures": [
+
+          ],
           "mutations": [
             {
               "target": "clicked_at",
@@ -423,17 +445,29 @@
           "provenance": null
         }
       ],
-      "invariants": [],
-      "preconditions": [],
-      "projected_fields": [],
+      "invariants": [
+
+      ],
+      "preconditions": [
+
+      ],
+      "projected_fields": [
+
+      ],
       "lifecycle": null,
-      "entities": [],
+      "entities": [
+
+      ],
       "queries": [
         {
           "name": "Listing",
           "description": "Every delivery, by id.",
-          "attributes": [],
-          "wheres": [],
+          "attributes": [
+
+          ],
+          "wheres": [
+
+          ],
           "order_by": {
             "field": "delivery_id.value",
             "direction": "asc"
@@ -601,7 +635,9 @@
             }
           ],
           "closed_set": false,
-          "members": []
+          "members": [
+
+          ]
         },
         {
           "name": "IssueSubject",
@@ -639,7 +675,9 @@
             }
           ],
           "closed_set": false,
-          "members": []
+          "members": [
+
+          ]
         },
         {
           "name": "IssueBody",
@@ -677,7 +715,9 @@
             }
           ],
           "closed_set": false,
-          "members": []
+          "members": [
+
+          ]
         },
         {
           "name": "Timestamp",
@@ -693,9 +733,13 @@
               "relationship": null
             }
           ],
-          "invariants": [],
+          "invariants": [
+
+          ],
           "closed_set": false,
-          "members": []
+          "members": [
+
+          ]
         }
       ],
       "commands": [
@@ -736,8 +780,12 @@
               "relationship": null
             }
           ],
-          "givens": [],
-          "ensures": [],
+          "givens": [
+
+          ],
+          "ensures": [
+
+          ],
           "mutations": [
             {
               "target": "slug",
@@ -824,7 +872,9 @@
               }
             }
           ],
-          "ensures": [],
+          "ensures": [
+
+          ],
           "mutations": [
             {
               "target": "subject",
@@ -892,7 +942,9 @@
               }
             }
           ],
-          "ensures": [],
+          "ensures": [
+
+          ],
           "mutations": [
             {
               "target": "sent_at",
@@ -911,9 +963,15 @@
           "provenance": null
         }
       ],
-      "invariants": [],
-      "preconditions": [],
-      "projected_fields": [],
+      "invariants": [
+
+      ],
+      "preconditions": [
+
+      ],
+      "projected_fields": [
+
+      ],
       "lifecycle": {
         "field": "status",
         "default": "draft",
@@ -925,13 +983,19 @@
           }
         ]
       },
-      "entities": [],
+      "entities": [
+
+      ],
       "queries": [
         {
           "name": "Listing",
           "description": "Every issue, most recently drafted first.",
-          "attributes": [],
-          "wheres": [],
+          "attributes": [
+
+          ],
+          "wheres": [
+
+          ],
           "order_by": {
             "field": "slug.value",
             "direction": "asc"
@@ -941,7 +1005,9 @@
         {
           "name": "Sent",
           "description": "Every issue that has gone out.",
-          "attributes": [],
+          "attributes": [
+
+          ],
           "wheres": [
             {
               "field": "status",
@@ -958,7 +1024,9 @@
         {
           "name": "Drafts",
           "description": "Every issue still being written.",
-          "attributes": [],
+          "attributes": [
+
+          ],
           "wheres": [
             {
               "field": "status",
@@ -973,7 +1041,9 @@
           "limit": null
         }
       ],
-      "ports": [],
+      "ports": [
+
+      ],
       "provenance": null
     },
     {
@@ -1051,7 +1121,9 @@
             }
           ],
           "closed_set": false,
-          "members": []
+          "members": [
+
+          ]
         },
         {
           "name": "SubscriberName",
@@ -1089,7 +1161,9 @@
             }
           ],
           "closed_set": false,
-          "members": []
+          "members": [
+
+          ]
         }
       ],
       "commands": [
@@ -1130,8 +1204,12 @@
               "relationship": null
             }
           ],
-          "givens": [],
-          "ensures": [],
+          "givens": [
+
+          ],
+          "ensures": [
+
+          ],
           "mutations": [
             {
               "target": "email",
@@ -1194,8 +1272,12 @@
               "relationship": null
             }
           ],
-          "givens": [],
-          "ensures": [],
+          "givens": [
+
+          ],
+          "ensures": [
+
+          ],
           "mutations": [
             {
               "target": "first_name",
@@ -1227,7 +1309,9 @@
           "role": null,
           "goal": "Confirm a pending subscription — the double opt-in step",
           "references": "Subscriber",
-          "attributes": [],
+          "attributes": [
+
+          ],
           "givens": [
             {
               "description": "only a pending subscriber can be confirmed",
@@ -1252,8 +1336,12 @@
               }
             }
           ],
-          "ensures": [],
-          "mutations": [],
+          "ensures": [
+
+          ],
+          "mutations": [
+
+          ],
           "emits": [
             "SubscriberConfirmed"
           ],
@@ -1265,7 +1353,9 @@
           "role": null,
           "goal": "Opt out — no further mail, regardless of whether this subscriber ever confirmed",
           "references": "Subscriber",
-          "attributes": [],
+          "attributes": [
+
+          ],
           "givens": [
             {
               "description": "only a pending or confirmed subscriber can unsubscribe",
@@ -1311,8 +1401,12 @@
               }
             }
           ],
-          "ensures": [],
-          "mutations": [],
+          "ensures": [
+
+          ],
+          "mutations": [
+
+          ],
           "emits": [
             "SubscriberUnsubscribed"
           ],
@@ -1320,9 +1414,15 @@
           "provenance": null
         }
       ],
-      "invariants": [],
-      "preconditions": [],
-      "projected_fields": [],
+      "invariants": [
+
+      ],
+      "preconditions": [
+
+      ],
+      "projected_fields": [
+
+      ],
       "lifecycle": {
         "field": "status",
         "default": "pending",
@@ -1344,13 +1444,19 @@
           }
         ]
       },
-      "entities": [],
+      "entities": [
+
+      ],
       "queries": [
         {
           "name": "Listing",
           "description": "Every subscriber, alphabetically by email.",
-          "attributes": [],
-          "wheres": [],
+          "attributes": [
+
+          ],
+          "wheres": [
+
+          ],
           "order_by": {
             "field": "email.value",
             "direction": "asc"
@@ -1360,7 +1466,9 @@
         {
           "name": "Confirmed",
           "description": "Every subscriber currently eligible to receive an issue.",
-          "attributes": [],
+          "attributes": [
+
+          ],
           "wheres": [
             {
               "field": "status",
@@ -1377,7 +1485,9 @@
         {
           "name": "Pending",
           "description": "Every subscriber who has asked in but not yet confirmed.",
-          "attributes": [],
+          "attributes": [
+
+          ],
           "wheres": [
             {
               "field": "status",
@@ -1392,11 +1502,15 @@
           "limit": null
         }
       ],
-      "ports": [],
+      "ports": [
+
+      ],
       "provenance": null
     }
   ],
-  "read_models": [],
+  "read_models": [
+
+  ],
   "policies": [
     {
       "name": "OnEmailOpened",
@@ -1406,7 +1520,9 @@
       "expect_undelivered": false,
       "where": null,
       "for_each": null,
-      "with_spec": [],
+      "with_spec": [
+
+      ],
       "where_ast": null
     },
     {
@@ -1417,13 +1533,21 @@
       "expect_undelivered": false,
       "where": null,
       "for_each": null,
-      "with_spec": [],
+      "with_spec": [
+
+      ],
       "where_ast": null
     }
   ],
-  "process_managers": [],
-  "attaches_to": [],
-  "provides": [],
+  "process_managers": [
+
+  ],
+  "attaches_to": [
+
+  ],
+  "provides": [
+
+  ],
   "canonical_form": [
     {
       "strategy": "collapse_whitespace",

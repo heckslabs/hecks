@@ -3,4 +3,5 @@ pub mod metadata;
 pub mod registry;
 pub mod event;
 pub mod registration;
+pub mod paymentconnection;
 pub mod merged;

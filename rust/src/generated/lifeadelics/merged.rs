@@ -15,6 +15,7 @@ use crate::kernel::Repository;
 pub struct Store {
     pub event: crate::kernel::InMemoryRepository<crate::generated::lifeadelics::event::Event>,
     pub registration: crate::kernel::InMemoryRepository<crate::generated::lifeadelics::registration::Registration>,
+    pub paymentconnection: crate::kernel::InMemoryRepository<crate::generated::lifeadelics::paymentconnection::PaymentConnection>,
     pub roleassignment: crate::kernel::InMemoryRepository<crate::generated::governance::roleassignment::RoleAssignment>,
     pub roletransition: crate::kernel::InMemoryRepository<crate::generated::governance::roletransition::RoleTransition>,
     pub identity: crate::kernel::InMemoryRepository<crate::generated::identity::identity::Identity>,
@@ -36,6 +37,7 @@ impl Store {
         Self {
             event: crate::kernel::InMemoryRepository::new(),
             registration: crate::kernel::InMemoryRepository::new(),
+            paymentconnection: crate::kernel::InMemoryRepository::new(),
             roleassignment: crate::kernel::InMemoryRepository::new(),
             roletransition: crate::kernel::InMemoryRepository::new(),
             identity: crate::kernel::InMemoryRepository::new(),
@@ -65,6 +67,9 @@ for (id, record) in self.event.entries() {
 }
 for (id, record) in self.registration.entries() {
     instances.push((format!("{}{}", "Lifeadelics::Registration#", id), record.to_json()));
+}
+for (id, record) in self.paymentconnection.entries() {
+    instances.push((format!("{}{}", "Lifeadelics::PaymentConnection#", id), record.to_json()));
 }
 for (id, record) in self.roleassignment.entries() {
     instances.push((format!("{}{}", "Governance::RoleAssignment#", id), record.to_json()));
@@ -127,6 +132,10 @@ if let Some(id) = key.strip_prefix("Lifeadelics::Event#") {
 }
 if let Some(id) = key.strip_prefix("Lifeadelics::Registration#") {
     store.registration.save(id, crate::generated::lifeadelics::registration::Registration::from_json(value)?);
+    continue;
+}
+if let Some(id) = key.strip_prefix("Lifeadelics::PaymentConnection#") {
+    store.paymentconnection.save(id, crate::generated::lifeadelics::paymentconnection::PaymentConnection::from_json(value)?);
     continue;
 }
 if let Some(id) = key.strip_prefix("Governance::RoleAssignment#") {
@@ -206,6 +215,9 @@ if aggregate == "Lifeadelics::Event" {
 }
 if aggregate == "Lifeadelics::Registration" {
     return Some(self.registration.entries().map(|(id, record)| (id.clone(), record.to_json())).collect());
+}
+if aggregate == "Lifeadelics::PaymentConnection" {
+    return Some(self.paymentconnection.entries().map(|(id, record)| (id.clone(), record.to_json())).collect());
 }
 if aggregate == "Governance::RoleAssignment" {
     return Some(self.roleassignment.entries().map(|(id, record)| (id.clone(), record.to_json())).collect());
@@ -295,6 +307,89 @@ pub fn dispatch_by_name(
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[crate::kernel::ReferenceSpec { field: "event_slug", as_name: "event_slug", target: "Lifeadelics::Event" }], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
               crate::generated::lifeadelics::registration::dispatch_request(&mut store.registration, route, args, mutations, owner_deref, command_deref, tenant_boundary_check).map(|(_, events)| stamp_payload(events, &payload))
+          }
+          "Lifeadelics::PaymentConnection.Connect" => {
+              let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
+              let route = invocation.route();
+              let facts_json = invocation.facts();
+              let args = if invocation.explicit_with() { let args = crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::lifeadelics::paymentconnection::ConnectArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::lifeadelics::paymentconnection::ConnectArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::lifeadelics::paymentconnection::ConnectArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::lifeadelics::paymentconnection::ConnectArgs::from_json(v)?; args.slug.check_invariants()?; args.processor.check_invariants()?; args.account_ref.check_invariants()?; args.display_name.check_invariants()?; Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Owner"), "Connect", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|_args: &crate::generated::lifeadelics::paymentconnection::ConnectArgs| Ok(()) })?; if let Some(route) = route { route.require_depth(0)?; } args } else { if let Some(route) = route { route.require_depth(0)?; } crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::lifeadelics::paymentconnection::ConnectArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::lifeadelics::paymentconnection::ConnectArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::lifeadelics::paymentconnection::ConnectArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::lifeadelics::paymentconnection::ConnectArgs::from_json(v)?; args.slug.check_invariants()?; args.processor.check_invariants()?; args.account_ref.check_invariants()?; args.display_name.check_invariants()?; Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Owner"), "Connect", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|_args: &crate::generated::lifeadelics::paymentconnection::ConnectArgs| Ok(()) })? };
+              let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
+              let owner_deref = Vec::new();
+              let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
+              let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
+              crate::generated::lifeadelics::paymentconnection::dispatch_connect(&mut store.paymentconnection, route, args, mutations, owner_deref, command_deref, tenant_boundary_check).map(|(_, events)| stamp_payload(events, &payload))
+          }
+          "Lifeadelics::PaymentConnection.Reconnect" => {
+              let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
+              let route = invocation.route();
+              let facts_json = invocation.facts();
+              let args = if invocation.explicit_with() { let args = crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::lifeadelics::paymentconnection::ReconnectArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::lifeadelics::paymentconnection::ReconnectArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::lifeadelics::paymentconnection::ReconnectArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::lifeadelics::paymentconnection::ReconnectArgs::from_json(v)?; args.processor.check_invariants()?; args.account_ref.check_invariants()?; args.display_name.check_invariants()?; Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Owner"), "Reconnect", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|_args: &crate::generated::lifeadelics::paymentconnection::ReconnectArgs| Ok(()) })?; if let Some(route) = route { route.require_depth(0)?; } args } else { if let Some(route) = route { route.require_depth(0)?; } crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::lifeadelics::paymentconnection::ReconnectArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::lifeadelics::paymentconnection::ReconnectArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::lifeadelics::paymentconnection::ReconnectArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::lifeadelics::paymentconnection::ReconnectArgs::from_json(v)?; args.processor.check_invariants()?; args.account_ref.check_invariants()?; args.display_name.check_invariants()?; Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Owner"), "Reconnect", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|_args: &crate::generated::lifeadelics::paymentconnection::ReconnectArgs| Ok(()) })? };
+              let id = match route { Some(route) => route.aggregate().to_string(), None => crate::generated::lifeadelics::paymentconnection::PaymentConnection::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "Reconnect", aggregate: "PaymentConnection", identity: "slug.value" }.render_args()))?, };
+              let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
+              let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Lifeadelics::PaymentConnection", &id);
+              let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
+              let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
+              crate::generated::lifeadelics::paymentconnection::dispatch_reconnect(&mut store.paymentconnection, &id, args, mutations, owner_deref, command_deref, tenant_boundary_check).map(|(_, events)| stamp_payload(events, &payload))
+          }
+          "Lifeadelics::PaymentConnection.Disconnect" => {
+              let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
+              let route = invocation.route();
+              let facts_json = invocation.facts();
+              let args = if invocation.explicit_with() { let args = crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::lifeadelics::paymentconnection::DisconnectArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::lifeadelics::paymentconnection::DisconnectArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::lifeadelics::paymentconnection::DisconnectArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::lifeadelics::paymentconnection::DisconnectArgs::from_json(v)?; Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Owner"), "Disconnect", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|_args: &crate::generated::lifeadelics::paymentconnection::DisconnectArgs| Ok(()) })?; if let Some(route) = route { route.require_depth(0)?; } args } else { if let Some(route) = route { route.require_depth(0)?; } crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::lifeadelics::paymentconnection::DisconnectArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::lifeadelics::paymentconnection::DisconnectArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::lifeadelics::paymentconnection::DisconnectArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::lifeadelics::paymentconnection::DisconnectArgs::from_json(v)?; Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Owner"), "Disconnect", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|_args: &crate::generated::lifeadelics::paymentconnection::DisconnectArgs| Ok(()) })? };
+              let id = match route { Some(route) => route.aggregate().to_string(), None => crate::generated::lifeadelics::paymentconnection::PaymentConnection::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "Disconnect", aggregate: "PaymentConnection", identity: "slug.value" }.render_args()))?, };
+              let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
+              let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Lifeadelics::PaymentConnection", &id);
+              let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
+              let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
+              crate::generated::lifeadelics::paymentconnection::dispatch_disconnect(&mut store.paymentconnection, &id, args, mutations, owner_deref, command_deref, tenant_boundary_check).map(|(_, events)| stamp_payload(events, &payload))
+          }
+          "Lifeadelics::PaymentConnection.Suspend" => {
+              let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
+              let route = invocation.route();
+              let facts_json = invocation.facts();
+              let args = if invocation.explicit_with() { let args = crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::lifeadelics::paymentconnection::SuspendArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::lifeadelics::paymentconnection::SuspendArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::lifeadelics::paymentconnection::SuspendArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::lifeadelics::paymentconnection::SuspendArgs::from_json(v)?; Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Owner"), "Suspend", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|_args: &crate::generated::lifeadelics::paymentconnection::SuspendArgs| Ok(()) })?; if let Some(route) = route { route.require_depth(0)?; } args } else { if let Some(route) = route { route.require_depth(0)?; } crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::lifeadelics::paymentconnection::SuspendArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::lifeadelics::paymentconnection::SuspendArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::lifeadelics::paymentconnection::SuspendArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::lifeadelics::paymentconnection::SuspendArgs::from_json(v)?; Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Owner"), "Suspend", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|_args: &crate::generated::lifeadelics::paymentconnection::SuspendArgs| Ok(()) })? };
+              let id = match route { Some(route) => route.aggregate().to_string(), None => crate::generated::lifeadelics::paymentconnection::PaymentConnection::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "Suspend", aggregate: "PaymentConnection", identity: "slug.value" }.render_args()))?, };
+              let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
+              let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Lifeadelics::PaymentConnection", &id);
+              let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
+              let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
+              crate::generated::lifeadelics::paymentconnection::dispatch_suspend(&mut store.paymentconnection, &id, args, mutations, owner_deref, command_deref, tenant_boundary_check).map(|(_, events)| stamp_payload(events, &payload))
+          }
+          "Lifeadelics::PaymentConnection.Resume" => {
+              let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
+              let route = invocation.route();
+              let facts_json = invocation.facts();
+              let args = if invocation.explicit_with() { let args = crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::lifeadelics::paymentconnection::ResumeArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::lifeadelics::paymentconnection::ResumeArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::lifeadelics::paymentconnection::ResumeArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::lifeadelics::paymentconnection::ResumeArgs::from_json(v)?; args.processor.check_invariants()?; args.account_ref.check_invariants()?; args.display_name.check_invariants()?; Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Owner"), "Resume", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|_args: &crate::generated::lifeadelics::paymentconnection::ResumeArgs| Ok(()) })?; if let Some(route) = route { route.require_depth(0)?; } args } else { if let Some(route) = route { route.require_depth(0)?; } crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::lifeadelics::paymentconnection::ResumeArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::lifeadelics::paymentconnection::ResumeArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::lifeadelics::paymentconnection::ResumeArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::lifeadelics::paymentconnection::ResumeArgs::from_json(v)?; args.processor.check_invariants()?; args.account_ref.check_invariants()?; args.display_name.check_invariants()?; Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Owner"), "Resume", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|_args: &crate::generated::lifeadelics::paymentconnection::ResumeArgs| Ok(()) })? };
+              let id = match route { Some(route) => route.aggregate().to_string(), None => crate::generated::lifeadelics::paymentconnection::PaymentConnection::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "Resume", aggregate: "PaymentConnection", identity: "slug.value" }.render_args()))?, };
+              let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
+              let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Lifeadelics::PaymentConnection", &id);
+              let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
+              let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
+              crate::generated::lifeadelics::paymentconnection::dispatch_resume(&mut store.paymentconnection, &id, args, mutations, owner_deref, command_deref, tenant_boundary_check).map(|(_, events)| stamp_payload(events, &payload))
+          }
+          "Lifeadelics::PaymentConnection.EnablePayments" => {
+              let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
+              let route = invocation.route();
+              let facts_json = invocation.facts();
+              let args = if invocation.explicit_with() { let args = crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::lifeadelics::paymentconnection::EnablePaymentsArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::lifeadelics::paymentconnection::EnablePaymentsArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::lifeadelics::paymentconnection::EnablePaymentsArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::lifeadelics::paymentconnection::EnablePaymentsArgs::from_json(v)?; Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Operator"), "EnablePayments", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|_args: &crate::generated::lifeadelics::paymentconnection::EnablePaymentsArgs| Ok(()) })?; if let Some(route) = route { route.require_depth(0)?; } args } else { if let Some(route) = route { route.require_depth(0)?; } crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::lifeadelics::paymentconnection::EnablePaymentsArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::lifeadelics::paymentconnection::EnablePaymentsArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::lifeadelics::paymentconnection::EnablePaymentsArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::lifeadelics::paymentconnection::EnablePaymentsArgs::from_json(v)?; Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Operator"), "EnablePayments", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|_args: &crate::generated::lifeadelics::paymentconnection::EnablePaymentsArgs| Ok(()) })? };
+              let id = match route { Some(route) => route.aggregate().to_string(), None => crate::generated::lifeadelics::paymentconnection::PaymentConnection::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "EnablePayments", aggregate: "PaymentConnection", identity: "slug.value" }.render_args()))?, };
+              let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
+              let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Lifeadelics::PaymentConnection", &id);
+              let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
+              let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
+              crate::generated::lifeadelics::paymentconnection::dispatch_enable_payments(&mut store.paymentconnection, &id, args, mutations, owner_deref, command_deref, tenant_boundary_check).map(|(_, events)| stamp_payload(events, &payload))
+          }
+          "Lifeadelics::PaymentConnection.DisablePayments" => {
+              let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
+              let route = invocation.route();
+              let facts_json = invocation.facts();
+              let args = if invocation.explicit_with() { let args = crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::lifeadelics::paymentconnection::DisablePaymentsArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::lifeadelics::paymentconnection::DisablePaymentsArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::lifeadelics::paymentconnection::DisablePaymentsArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::lifeadelics::paymentconnection::DisablePaymentsArgs::from_json(v)?; Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Operator"), "DisablePayments", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|_args: &crate::generated::lifeadelics::paymentconnection::DisablePaymentsArgs| Ok(()) })?; if let Some(route) = route { route.require_depth(0)?; } args } else { if let Some(route) = route { route.require_depth(0)?; } crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::lifeadelics::paymentconnection::DisablePaymentsArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::lifeadelics::paymentconnection::DisablePaymentsArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::lifeadelics::paymentconnection::DisablePaymentsArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::lifeadelics::paymentconnection::DisablePaymentsArgs::from_json(v)?; Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Operator"), "DisablePayments", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|_args: &crate::generated::lifeadelics::paymentconnection::DisablePaymentsArgs| Ok(()) })? };
+              let id = match route { Some(route) => route.aggregate().to_string(), None => crate::generated::lifeadelics::paymentconnection::PaymentConnection::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "DisablePayments", aggregate: "PaymentConnection", identity: "slug.value" }.render_args()))?, };
+              let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
+              let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Lifeadelics::PaymentConnection", &id);
+              let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
+              let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
+              crate::generated::lifeadelics::paymentconnection::dispatch_disable_payments(&mut store.paymentconnection, &id, args, mutations, owner_deref, command_deref, tenant_boundary_check).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Governance::RoleAssignment.Assign" => {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
@@ -893,6 +988,7 @@ fn stamp_payload(events: Vec<crate::kernel::Event>, args_json: &crate::kernel::J
 pub static REFERENCE_TABLE: crate::kernel::ReferenceTable = &[
     ("Lifeadelics::Event", &[]),
     ("Lifeadelics::Registration", &[crate::kernel::ReferenceSpec { field: "event_slug", as_name: "event_slug", target: "Lifeadelics::Event" }]),
+    ("Lifeadelics::PaymentConnection", &[]),
     ("Governance::RoleAssignment", &[]),
     ("Governance::RoleTransition", &[]),
     ("Identity::Identity", &[]),
@@ -916,6 +1012,9 @@ if target == "Lifeadelics::Event" {
 }
 if target == "Lifeadelics::Registration" {
     return self.registration.find(id).map(|r| Box::new(r) as Box<dyn crate::kernel::Fielded>);
+}
+if target == "Lifeadelics::PaymentConnection" {
+    return self.paymentconnection.find(id).map(|r| Box::new(r) as Box<dyn crate::kernel::Fielded>);
 }
 if target == "Governance::RoleAssignment" {
     return self.roleassignment.find(id).map(|r| Box::new(r) as Box<dyn crate::kernel::Fielded>);
@@ -991,6 +1090,7 @@ pub fn reference_key_for_aggregate(qualified_name: &str) -> Option<&'static str>
     match qualified_name {
         "Lifeadelics::Event" => Some("event"),
         "Lifeadelics::Registration" => Some("registration"),
+        "Lifeadelics::PaymentConnection" => Some("payment_connection"),
         "Governance::RoleAssignment" => Some("role_assignment"),
         "Governance::RoleTransition" => Some("role_transition"),
         "Identity::Identity" => Some("identity"),
@@ -1014,6 +1114,13 @@ pub fn command_creates(verb: &str) -> bool {
         "Lifeadelics::Event.Schedule" => true,
         "Lifeadelics::Event.Close" => false,
         "Lifeadelics::Registration.Request" => true,
+        "Lifeadelics::PaymentConnection.Connect" => true,
+        "Lifeadelics::PaymentConnection.Reconnect" => false,
+        "Lifeadelics::PaymentConnection.Disconnect" => false,
+        "Lifeadelics::PaymentConnection.Suspend" => false,
+        "Lifeadelics::PaymentConnection.Resume" => false,
+        "Lifeadelics::PaymentConnection.EnablePayments" => false,
+        "Lifeadelics::PaymentConnection.DisablePayments" => false,
         "Governance::RoleAssignment.Assign" => true,
         "Governance::RoleAssignment.Revoke" => false,
         "Governance::RoleTransition.Grant" => true,
@@ -1064,6 +1171,7 @@ pub fn identity_head_for_aggregate(qualified_name: &str) -> Option<&'static str>
     match qualified_name {
         "Lifeadelics::Event" => Some("slug"),
         "Lifeadelics::Registration" => Some("registration_id"),
+        "Lifeadelics::PaymentConnection" => Some("slug"),
         "Identity::Identity" => Some("identity_id"),
         "Identity::ExternalIdentifier" => Some("key"),
         "Payments::Payment" => Some("reference"),
@@ -1088,6 +1196,13 @@ pub fn command_attributes_for_verb(verb: &str) -> &'static [&'static str] {
         "Lifeadelics::Event.Schedule" => &["slug", "name", "price", "capacity"],
         "Lifeadelics::Event.Close" => &[],
         "Lifeadelics::Registration.Request" => &["event_slug", "registration_id", "attendee"],
+        "Lifeadelics::PaymentConnection.Connect" => &["slug", "processor", "account_ref", "mode", "display_name"],
+        "Lifeadelics::PaymentConnection.Reconnect" => &["processor", "account_ref", "mode", "display_name"],
+        "Lifeadelics::PaymentConnection.Disconnect" => &[],
+        "Lifeadelics::PaymentConnection.Suspend" => &[],
+        "Lifeadelics::PaymentConnection.Resume" => &["processor", "account_ref", "mode", "display_name"],
+        "Lifeadelics::PaymentConnection.EnablePayments" => &[],
+        "Lifeadelics::PaymentConnection.DisablePayments" => &[],
         "Governance::RoleAssignment.Assign" => &["actor_id", "role_name", "scope", "starts_at"],
         "Governance::RoleAssignment.Revoke" => &["ends_at"],
         "Governance::RoleTransition.Grant" => &["from_role", "to_role", "starts_at"],
