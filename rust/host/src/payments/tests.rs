@@ -343,6 +343,33 @@ async fn only_an_owner_may_connect_or_disconnect_and_only_the_operator_may_enabl
     assert_eq!(t.status().await, "enabled");
 }
 
+#[tokio::test]
+async fn an_admin_granted_owner_passes_the_payments_gate_and_keeps_the_admin_gate() {
+    let t = tenant("hecks_pay_test_owner_bootstrap").await;
+    let members = LineageConfig { domain: "Embryonaut".to_string(), era: Some(1), mirrored: None };
+    let cookies = |email: &str| HashMap::from([("lifeadelics_session".to_string(), auth::account_token(SESSION_SECRET, email, 60))]);
+
+    // An Admin is not an Owner: the payments routes refuse them.
+    let (status, _) = t.call("GET", "/payments/connection", json!({}), Some(ADMIN)).await;
+    assert_eq!(status, 403);
+
+    // An Admin grants Owner to a new person; that person passes the Payments
+    // Owner gate and is still admitted by the members admin gate.
+    let body = json!({"email": "boss@example.com", "name": "Boss", "role": "Owner"}).to_string();
+    let response = web::add_member_route(&t.domain_ir, &body, &cookies(ADMIN), SESSION_SECRET, &t.client, &t.wasm, &members).await;
+    assert_eq!(response["statusCode"], 201, "{response:?}");
+    let (status, body) = t.call("GET", "/payments/connection", json!({}), Some("boss@example.com")).await;
+    assert_eq!((status, body["can_manage"].clone()), (200, json!(true)), "{body}");
+    let response = web::add_member_route(&t.domain_ir, r#"{"email": "next@example.com", "name": "Next"}"#, &cookies("boss@example.com"), SESSION_SECRET, &t.client, &t.wasm, &members).await;
+    assert_eq!(response["statusCode"], 201, "{response:?}");
+
+    // Granting Owner to an existing Admin turns them into an Owner too.
+    assert!(auth::grant_access(&t.client, &t.wasm, &members, &t.domain_ir, ADMIN, "Owner").await.unwrap());
+    let (status, body) = t.call("GET", "/payments/connection", json!({}), Some(ADMIN)).await;
+    assert_eq!((status, body["can_manage"].clone()), (200, json!(true)), "{body}");
+    assert!(auth::caller_is_admin(&t.client, &t.domain_ir, ADMIN).await.unwrap());
+}
+
 // ---- connecting -------------------------------------------------------------
 
 #[tokio::test]
