@@ -197,7 +197,7 @@ pub fn mock_checkout_session(registration_id: &str, success_url: &str, cancel_ur
 }
 
 // **The outbound side** — adapters/stripe_connect/stripe_connect.rb's own
-// `create_session`, same four fields the Ruby version builds: currency
+// `create_session`, same line item the Ruby version builds: currency
 // hardcoded "usd" (same as Ruby — lifeadelics' own Event::Money value object
 // carries no currency at all, see lifeadelics.bluebook's own comment on it),
 // one line item, quantity 1, and the same metadata key ("registration_id")
@@ -208,6 +208,15 @@ pub fn mock_checkout_session(registration_id: &str, success_url: &str, cancel_ur
 // authenticates the call and the `Stripe-Account` header names the account
 // the session (and the money) belongs to, exactly `stripe_account:` in the
 // Ruby adapter's request options.
+//
+// The session is embedded: the guest pays in a form the site mounts inline,
+// never on a Stripe-hosted page, so Stripe returns a `client_secret` for the
+// browser instead of a `url`. `ui_mode` is `embedded_page`; Stripe rejects the
+// older `embedded` value on every API version. `redirect_on_completion=never`
+// keeps the guest on the site when the payment completes, and there is no
+// success_url or cancel_url because nothing leaves the site: the browser
+// learns of completion from Stripe.js and the payment itself is settled by the
+// webhook.
 
 /// How one Stripe call is authenticated and addressed: the platform's own
 /// secret key, the connected account the call acts on behalf of, and the API
@@ -218,24 +227,32 @@ pub struct StripeAuth<'a> {
     pub base_url: &'a str,
 }
 
+/// What the browser needs to mount an embedded Checkout Session: the session's
+/// own id and the `client_secret` Stripe.js takes to render the payment form.
+pub struct EmbeddedSession {
+    pub session_id: String,
+    pub client_secret: String,
+}
+
+/// Opens an embedded Checkout Session for one registration on the tenant's
+/// account and returns what the browser needs to mount the payment form.
+/// Errors carry Stripe's message when it refuses, never a secret.
 pub async fn create_checkout_session(
     auth: &StripeAuth<'_>,
     price_cents: i64,
     product_name: &str,
     registration_id: &str,
-    success_url: &str,
-    cancel_url: &str,
-) -> anyhow::Result<String> {
+) -> anyhow::Result<EmbeddedSession> {
     let unit_amount = price_cents.to_string();
     let params = [
         ("mode", "payment"),
+        ("ui_mode", "embedded_page"),
+        ("redirect_on_completion", "never"),
         ("line_items[0][price_data][currency]", "usd"),
         ("line_items[0][price_data][unit_amount]", unit_amount.as_str()),
         ("line_items[0][price_data][product_data][name]", product_name),
         ("line_items[0][quantity]", "1"),
         ("metadata[registration_id]", registration_id),
-        ("success_url", success_url),
-        ("cancel_url", cancel_url),
     ];
 
     let mut request = reqwest::Client::new()
@@ -258,10 +275,12 @@ pub async fn create_checkout_session(
         anyhow::bail!("Stripe checkout session creation failed ({status}): {message}");
     }
 
-    body.get("url")
-        .and_then(|v| v.as_str())
-        .map(String::from)
-        .ok_or_else(|| anyhow::anyhow!("Stripe's response carried no \"url\": {body}"))
+    let text = |field: &str| body.get(field).and_then(|v| v.as_str()).map(String::from);
+    match (text("id"), text("client_secret")) {
+        (Some(session_id), Some(client_secret)) => Ok(EmbeddedSession { session_id, client_secret }),
+        // The body is left out of the message: it may carry the client secret.
+        _ => anyhow::bail!("Stripe's response carried no \"id\" and \"client_secret\" for the embedded session"),
+    }
 }
 
 #[cfg(test)]
