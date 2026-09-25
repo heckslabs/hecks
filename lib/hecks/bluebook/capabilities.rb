@@ -22,6 +22,11 @@ module Hecks
       # is. rust/host does not build this chapter's payloads; any field
       # mapping lives on the consuming hecksagon's `translates` ACL.
       IDENTITY = "identity".freeze
+      # Guest-facing newsletter signup: who subscribed, confirmed, or left —
+      # recognised by declaration, not the literal chapter name
+      # "Newsletter". rust/host's newsletter routes dispatch these verbs
+      # and read the subscribing aggregate's instances off `subscribe`.
+      NEWSLETTER = "newsletter".freeze
 
       CONTRACTS = {
         AUTHORIZATION => {
@@ -47,6 +52,16 @@ module Hecks
           link:     :command,
           # look up the identity an authenticated pair resolves to
           resolve:  :query
+        }.freeze,
+        NEWSLETTER    => {
+          # a guest signs up; the aggregate it names is the subscriber
+          subscribe:   :command,
+          # attach a display name to an existing subscriber
+          add_name:    :command,
+          # a subscriber confirms their address from the emailed link
+          confirm:     :command,
+          # a subscriber leaves from the emailed link
+          unsubscribe: :command
         }.freeze
       }.freeze
     end
