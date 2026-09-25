@@ -78,14 +78,14 @@
 // choice exactly (MockStripeAdapter unconditionally in every
 // environment except a real deploy — bin/smoke_test's own header: "the
 // same as every environment except a real deploy"), not a scaled-down
-// version of it. `web.rs`'s own `stripe_api_key()`/`stripe_webhook_
-// secret()` decide which side of the line a given deploy is on: an
-// empty `STRIPE_API_KEY` (the World's own blank default, lifeadelics.
-// world's own comment on why) means `mock_checkout_session` below,
-// never a real network call; `STRIPE_WEBHOOK_SECRET` falls back to
-// web.rs's fixed, publicly-known, non-secret `MOCK_STRIPE_WEBHOOK_SECRET`
-// — so a mock deploy needs no webhook secret configured to be
-// exercisable, registration through confirmation. (The Ruby app and its
+// version of it. payments.rs's own `checkout_plan` decides which side of
+// the line a request is on, from the tenant's own `PaymentConnection`:
+// anything short of an enabled Stripe connection means
+// `mock_checkout_session` below, never a real network call;
+// `STRIPE_WEBHOOK_SECRET` falls back to web.rs's fixed, publicly-known,
+// non-secret `MOCK_STRIPE_WEBHOOK_SECRET` — so a mock deploy needs no
+// webhook secret configured to be exercisable, registration through
+// confirmation. (The Ruby app and its
 // confirm_payment_manually script sign against their own fixed string,
 // "whsec_mock_lifeadelics_fixed"; a deploy driven by that tooling sets
 // STRIPE_WEBHOOK_SECRET to it.) Which domain these routes serve at all
@@ -196,15 +196,30 @@ pub fn mock_checkout_session(registration_id: &str, success_url: &str, cancel_ur
     url.to_string()
 }
 
-// **The outbound side** — adapters/stripe/stripe.rb's own `create_session`,
-// same four fields the Ruby version builds: currency hardcoded "usd"
-// (same as Ruby — lifeadelics' own Event::Money value object carries no
-// currency at all, see lifeadelics.bluebook's own comment on it), one
-// line item, quantity 1, and the same metadata key ("registration_id")
+// **The outbound side** — adapters/stripe_connect/stripe_connect.rb's own
+// `create_session`, same four fields the Ruby version builds: currency
+// hardcoded "usd" (same as Ruby — lifeadelics' own Event::Money value object
+// carries no currency at all, see lifeadelics.bluebook's own comment on it),
+// one line item, quantity 1, and the same metadata key ("registration_id")
 // web.rs's own webhook route reads back to recover which Payment/
 // Registration this session belongs to.
+//
+// A direct charge on the tenant's own connected account: the platform's key
+// authenticates the call and the `Stripe-Account` header names the account
+// the session (and the money) belongs to, exactly `stripe_account:` in the
+// Ruby adapter's request options.
+
+/// How one Stripe call is authenticated and addressed: the platform's own
+/// secret key, the connected account the call acts on behalf of, and the API
+/// base URL (`https://api.stripe.com` outside of tests).
+pub struct StripeAuth<'a> {
+    pub api_key: &'a str,
+    pub account: Option<&'a str>,
+    pub base_url: &'a str,
+}
+
 pub async fn create_checkout_session(
-    api_key: &str,
+    auth: &StripeAuth<'_>,
     price_cents: i64,
     product_name: &str,
     registration_id: &str,
@@ -223,12 +238,14 @@ pub async fn create_checkout_session(
         ("cancel_url", cancel_url),
     ];
 
-    let response = reqwest::Client::new()
-        .post("https://api.stripe.com/v1/checkout/sessions")
-        .bearer_auth(api_key)
-        .form(&params)
-        .send()
-        .await?;
+    let mut request = reqwest::Client::new()
+        .post(format!("{}/v1/checkout/sessions", auth.base_url))
+        .bearer_auth(auth.api_key)
+        .form(&params);
+    if let Some(account) = auth.account {
+        request = request.header("Stripe-Account", account);
+    }
+    let response = request.send().await?;
 
     let status = response.status();
     let body: Value = response.json().await?;

@@ -580,6 +580,843 @@
 
       ],
       "provenance": null
+    },
+    {
+      "name": "PaymentConnection",
+      "description": "This site's link to its owner's payment-processor account, public facts only.",
+      "identified_by": [
+        "slug.value"
+      ],
+      "attributes": [
+        {
+          "name": "slug",
+          "type": "ConnectionSlug",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
+          "name": "processor",
+          "type": "Processor",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
+          "name": "account_ref",
+          "type": "AccountRef",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
+          "name": "mode",
+          "type": "ConnectionMode",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
+          "name": "display_name",
+          "type": "DisplayName",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        }
+      ],
+      "value_objects": [
+        {
+          "name": "ConnectionSlug",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "a payment connection has a slug",
+              "canonical": "!value.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "value"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        },
+        {
+          "name": "Processor",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "a payment connection names its processor",
+              "canonical": "!value.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "value"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        },
+        {
+          "name": "AccountRef",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "a payment connection names the connected account",
+              "canonical": "!value.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "value"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        },
+        {
+          "name": "ConnectionMode",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "a connection is test or live",
+              "canonical": "[\"test\", \"live\"].include?(value)",
+              "ast": {
+                "op": "or",
+                "left": {
+                  "op": "compare",
+                  "cmp": {
+                    "less_than": false,
+                    "equal": true,
+                    "negated": false
+                  },
+                  "left": {
+                    "op": "lookup",
+                    "path": [
+                      "value"
+                    ]
+                  },
+                  "right": {
+                    "op": "str",
+                    "value": "test"
+                  }
+                },
+                "right": {
+                  "op": "compare",
+                  "cmp": {
+                    "less_than": false,
+                    "equal": true,
+                    "negated": false
+                  },
+                  "left": {
+                    "op": "lookup",
+                    "path": [
+                      "value"
+                    ]
+                  },
+                  "right": {
+                    "op": "str",
+                    "value": "live"
+                  }
+                }
+              }
+            }
+          ],
+          "closed_set": true,
+          "members": [
+            [
+              [
+                "value",
+                "test"
+              ]
+            ],
+            [
+              [
+                "value",
+                "live"
+              ]
+            ]
+          ]
+        },
+        {
+          "name": "DisplayName",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "a connected account has a display name",
+              "canonical": "!value.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "value"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        }
+      ],
+      "commands": [
+        {
+          "name": "Connect",
+          "role": "Owner",
+          "goal": "Link this site to its owner's payment-processor account",
+          "references": null,
+          "attributes": [
+            {
+              "name": "slug",
+              "type": "ConnectionSlug",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "processor",
+              "type": "Processor",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "account_ref",
+              "type": "AccountRef",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "mode",
+              "type": "ConnectionMode",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "display_name",
+              "type": "DisplayName",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [
+
+          ],
+          "ensures": [
+
+          ],
+          "mutations": [
+
+          ],
+          "emits": [
+            "PaymentAccountConnected"
+          ],
+          "from": null,
+          "provenance": null
+        },
+        {
+          "name": "Reconnect",
+          "role": "Owner",
+          "goal": "Link a previously disconnected site to a payment-processor account again",
+          "references": "PaymentConnection",
+          "attributes": [
+            {
+              "name": "processor",
+              "type": "Processor",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "account_ref",
+              "type": "AccountRef",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "mode",
+              "type": "ConnectionMode",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "display_name",
+              "type": "DisplayName",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [
+            {
+              "description": "only a disconnected link can be reconnected",
+              "canonical": "status == \"disconnected\"",
+              "ast": {
+                "op": "compare",
+                "cmp": {
+                  "less_than": false,
+                  "equal": true,
+                  "negated": false
+                },
+                "left": {
+                  "op": "lookup",
+                  "path": [
+                    "status"
+                  ]
+                },
+                "right": {
+                  "op": "str",
+                  "value": "disconnected"
+                }
+              }
+            }
+          ],
+          "ensures": [
+
+          ],
+          "mutations": [
+            {
+              "target": "processor",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "processor"
+              }
+            },
+            {
+              "target": "account_ref",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "account_ref"
+              }
+            },
+            {
+              "target": "mode",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "mode"
+              }
+            },
+            {
+              "target": "display_name",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "display_name"
+              }
+            }
+          ],
+          "emits": [
+            "PaymentAccountReconnected"
+          ],
+          "from": null,
+          "provenance": null
+        },
+        {
+          "name": "Disconnect",
+          "role": "Owner",
+          "goal": "Unlink this site from its payment-processor account while no real payments are being taken",
+          "references": "PaymentConnection",
+          "attributes": [
+
+          ],
+          "givens": [
+            {
+              "description": "only a connected, not-yet-enabled link can be disconnected",
+              "canonical": "status == \"connected\"",
+              "ast": {
+                "op": "compare",
+                "cmp": {
+                  "less_than": false,
+                  "equal": true,
+                  "negated": false
+                },
+                "left": {
+                  "op": "lookup",
+                  "path": [
+                    "status"
+                  ]
+                },
+                "right": {
+                  "op": "str",
+                  "value": "connected"
+                }
+              }
+            }
+          ],
+          "ensures": [
+
+          ],
+          "mutations": [
+
+          ],
+          "emits": [
+            "PaymentAccountDisconnected"
+          ],
+          "from": null,
+          "provenance": null
+        },
+        {
+          "name": "Suspend",
+          "role": "Owner",
+          "goal": "Pause registrations because the payment account behind enabled payments is gone",
+          "references": "PaymentConnection",
+          "attributes": [
+
+          ],
+          "givens": [
+            {
+              "description": "only enabled payments can be suspended",
+              "canonical": "status == \"enabled\"",
+              "ast": {
+                "op": "compare",
+                "cmp": {
+                  "less_than": false,
+                  "equal": true,
+                  "negated": false
+                },
+                "left": {
+                  "op": "lookup",
+                  "path": [
+                    "status"
+                  ]
+                },
+                "right": {
+                  "op": "str",
+                  "value": "enabled"
+                }
+              }
+            }
+          ],
+          "ensures": [
+
+          ],
+          "mutations": [
+
+          ],
+          "emits": [
+            "PaymentsSuspended"
+          ],
+          "from": null,
+          "provenance": null
+        },
+        {
+          "name": "Resume",
+          "role": "Owner",
+          "goal": "Bring paused payments back by connecting a payment-processor account again",
+          "references": "PaymentConnection",
+          "attributes": [
+            {
+              "name": "processor",
+              "type": "Processor",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "account_ref",
+              "type": "AccountRef",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "mode",
+              "type": "ConnectionMode",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "display_name",
+              "type": "DisplayName",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [
+            {
+              "description": "only paused payments can be resumed",
+              "canonical": "status == \"paused\"",
+              "ast": {
+                "op": "compare",
+                "cmp": {
+                  "less_than": false,
+                  "equal": true,
+                  "negated": false
+                },
+                "left": {
+                  "op": "lookup",
+                  "path": [
+                    "status"
+                  ]
+                },
+                "right": {
+                  "op": "str",
+                  "value": "paused"
+                }
+              }
+            }
+          ],
+          "ensures": [
+
+          ],
+          "mutations": [
+            {
+              "target": "processor",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "processor"
+              }
+            },
+            {
+              "target": "account_ref",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "account_ref"
+              }
+            },
+            {
+              "target": "mode",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "mode"
+              }
+            },
+            {
+              "target": "display_name",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "display_name"
+              }
+            }
+          ],
+          "emits": [
+            "PaymentsResumed"
+          ],
+          "from": null,
+          "provenance": null
+        },
+        {
+          "name": "EnablePayments",
+          "role": "Operator",
+          "goal": "Let checkout take real payments through the connected account",
+          "references": "PaymentConnection",
+          "attributes": [
+
+          ],
+          "givens": [
+            {
+              "description": "payments can only be enabled on a connected account",
+              "canonical": "status == \"connected\"",
+              "ast": {
+                "op": "compare",
+                "cmp": {
+                  "less_than": false,
+                  "equal": true,
+                  "negated": false
+                },
+                "left": {
+                  "op": "lookup",
+                  "path": [
+                    "status"
+                  ]
+                },
+                "right": {
+                  "op": "str",
+                  "value": "connected"
+                }
+              }
+            }
+          ],
+          "ensures": [
+
+          ],
+          "mutations": [
+
+          ],
+          "emits": [
+            "PaymentsEnabled"
+          ],
+          "from": null,
+          "provenance": null
+        },
+        {
+          "name": "DisablePayments",
+          "role": "Operator",
+          "goal": "Stop taking real payments; checkout goes back to the mock adapter",
+          "references": "PaymentConnection",
+          "attributes": [
+
+          ],
+          "givens": [
+            {
+              "description": "only enabled payments can be disabled",
+              "canonical": "status == \"enabled\"",
+              "ast": {
+                "op": "compare",
+                "cmp": {
+                  "less_than": false,
+                  "equal": true,
+                  "negated": false
+                },
+                "left": {
+                  "op": "lookup",
+                  "path": [
+                    "status"
+                  ]
+                },
+                "right": {
+                  "op": "str",
+                  "value": "enabled"
+                }
+              }
+            }
+          ],
+          "ensures": [
+
+          ],
+          "mutations": [
+
+          ],
+          "emits": [
+            "PaymentsDisabled"
+          ],
+          "from": null,
+          "provenance": null
+        }
+      ],
+      "invariants": [
+
+      ],
+      "preconditions": [
+
+      ],
+      "projected_fields": [
+
+      ],
+      "lifecycle": {
+        "field": "status",
+        "default": "connected",
+        "transitions": [
+          {
+            "command": "EnablePayments",
+            "to_state": "enabled",
+            "from_state": "connected"
+          },
+          {
+            "command": "DisablePayments",
+            "to_state": "connected",
+            "from_state": "enabled"
+          },
+          {
+            "command": "Disconnect",
+            "to_state": "disconnected",
+            "from_state": "connected"
+          },
+          {
+            "command": "Reconnect",
+            "to_state": "connected",
+            "from_state": "disconnected"
+          },
+          {
+            "command": "Suspend",
+            "to_state": "paused",
+            "from_state": "enabled"
+          },
+          {
+            "command": "Resume",
+            "to_state": "enabled",
+            "from_state": "paused"
+          }
+        ]
+      },
+      "entities": [
+
+      ],
+      "queries": [
+
+      ],
+      "ports": [
+
+      ],
+      "provenance": null
     }
   ],
   "read_models": [
@@ -622,6 +1459,10 @@
       {
         "name": "Registration",
         "storage_name": "registration"
+      },
+      {
+        "name": "PaymentConnection",
+        "storage_name": "payment_connection"
       }
     ]
   },
@@ -636,6 +1477,11 @@
         "name": "Registration",
         "storage_name": "registration",
         "adapter": "PostgresEra"
+      },
+      {
+        "name": "PaymentConnection",
+        "storage_name": "payment_connection",
+        "adapter": "PostgresEra"
       }
     ]
   },
@@ -648,5 +1494,5 @@
   "translations": [
 
   ],
-  "source_text": "# rust/host's checkout-route fixture (web.rs `checkout_route`,\n# `registrations_route`, `webhook_route` and their tests). Copies the\n# shape of the removed Lifeadelics domain those routes were written\n# against, trimmed to exactly what they dispatch: Event.Schedule/Close,\n# Registration.Request here, and Payments::Payment (payments.bluebook)\n# beside it. Built into rust/dist/checkout_fixture.wasm by\n# `bin/project_wasm spec/fixtures/rust_host/checkout_fixture`.\nHecks.bluebook \"CheckoutFixture\" do\n  vision \"Scheduled sessions people register for, paid through a Payments chapter sharing one reference.\"\n  core\n\n  aggregate \"Event\" do\n    description \"One scheduled session with a price and a seat count.\"\n\n    identified_by :slug\n\n    value_object \"Slug\" do\n      attribute :value, String\n      invariant(\"an event has a slug\") { !value.to_s.empty? }\n    end\n\n    value_object \"Money\" do\n      attribute :cents, Integer\n      invariant(\"a price is never negative\") { cents >= 0 }\n    end\n\n    value_object \"EventName\" do\n      attribute :value, String\n      invariant(\"an event has a name\") { !value.to_s.empty? }\n    end\n\n    value_object \"Capacity\" do\n      attribute :value, Integer\n      invariant(\"a session needs at least one seat\") { value.positive? }\n    end\n\n    attribute :slug,     Slug\n    attribute :name,     EventName\n    attribute :price,    Money\n    attribute :capacity, Capacity\n\n    lifecycle :status, default: \"open\" do\n      transition \"Close\" => \"closed\", from: \"open\"\n    end\n\n    command \"Schedule\" do\n      role \"Organizer\"\n      goal \"Put a new session on the calendar\"\n\n      attribute :slug,     Slug\n      attribute :name,     EventName\n      attribute :price,    Money\n      attribute :capacity, Capacity\n\n      emits \"EventScheduled\"\n    end\n\n    command \"Close\" do\n      role \"Organizer\"\n      goal \"Stop taking new registrations for this session\"\n\n      reference_to Event\n\n      given(\"an open session can be closed\") { status == \"open\" }\n\n      emits \"EventClosed\"\n    end\n  end\n\n  # WHO is coming, not whether they paid — Payments::Payment, sharing\n  # this registration's id as its own reference, owns that.\n  aggregate \"Registration\" do\n    description \"One person's intent to attend an Event.\"\n\n    identified_by :registration_id\n\n    value_object \"RegistrationId\" do\n      attribute :value, String\n      invariant(\"a registration is identified\") { !value.to_s.empty? }\n    end\n\n    value_object \"Attendee\" do\n      attribute :name,  String\n      attribute :email, String\n\n      invariant(\"an attendee is named\") { !name.to_s.empty? }\n      invariant(\"an attendee has an email\") { !email.to_s.empty? }\n    end\n\n    reference_to Event, as: :event_slug\n\n    attribute :registration_id, RegistrationId\n    attribute :attendee,        Attendee\n\n    command \"Request\" do\n      role \"Guest\"\n      goal \"Register intent to attend an Event\"\n\n      reference_to Event, as: :event_slug\n      attribute :registration_id, RegistrationId\n      attribute :attendee,        Attendee\n\n      emits \"RegistrationRequested\"\n    end\n  end\nend\n"
+  "source_text": "# rust/host's checkout-route fixture (web.rs `checkout_route`,\n# `registrations_route`, `webhook_route` and their tests). Copies the\n# shape of the removed Lifeadelics domain those routes were written\n# against, trimmed to exactly what they dispatch: Event.Schedule/Close,\n# Registration.Request and PaymentConnection here, and Payments::Payment (payments.bluebook)\n# beside it. Built into rust/dist/checkout_fixture.wasm by\n# `bin/project_wasm spec/fixtures/rust_host/checkout_fixture`.\nHecks.bluebook \"CheckoutFixture\" do\n  vision \"Scheduled sessions people register for, paid through a Payments chapter sharing one reference.\"\n  core\n\n  aggregate \"Event\" do\n    description \"One scheduled session with a price and a seat count.\"\n\n    identified_by :slug\n\n    value_object \"Slug\" do\n      attribute :value, String\n      invariant(\"an event has a slug\") { !value.to_s.empty? }\n    end\n\n    value_object \"Money\" do\n      attribute :cents, Integer\n      invariant(\"a price is never negative\") { cents >= 0 }\n    end\n\n    value_object \"EventName\" do\n      attribute :value, String\n      invariant(\"an event has a name\") { !value.to_s.empty? }\n    end\n\n    value_object \"Capacity\" do\n      attribute :value, Integer\n      invariant(\"a session needs at least one seat\") { value.positive? }\n    end\n\n    attribute :slug,     Slug\n    attribute :name,     EventName\n    attribute :price,    Money\n    attribute :capacity, Capacity\n\n    lifecycle :status, default: \"open\" do\n      transition \"Close\" => \"closed\", from: \"open\"\n    end\n\n    command \"Schedule\" do\n      role \"Organizer\"\n      goal \"Put a new session on the calendar\"\n\n      attribute :slug,     Slug\n      attribute :name,     EventName\n      attribute :price,    Money\n      attribute :capacity, Capacity\n\n      emits \"EventScheduled\"\n    end\n\n    command \"Close\" do\n      role \"Organizer\"\n      goal \"Stop taking new registrations for this session\"\n\n      reference_to Event\n\n      given(\"an open session can be closed\") { status == \"open\" }\n\n      emits \"EventClosed\"\n    end\n  end\n\n  # WHO is coming, not whether they paid — Payments::Payment, sharing\n  # this registration's id as its own reference, owns that.\n  aggregate \"Registration\" do\n    description \"One person's intent to attend an Event.\"\n\n    identified_by :registration_id\n\n    value_object \"RegistrationId\" do\n      attribute :value, String\n      invariant(\"a registration is identified\") { !value.to_s.empty? }\n    end\n\n    value_object \"Attendee\" do\n      attribute :name,  String\n      attribute :email, String\n\n      invariant(\"an attendee is named\") { !name.to_s.empty? }\n      invariant(\"an attendee has an email\") { !email.to_s.empty? }\n    end\n\n    reference_to Event, as: :event_slug\n\n    attribute :registration_id, RegistrationId\n    attribute :attendee,        Attendee\n\n    command \"Request\" do\n      role \"Guest\"\n      goal \"Register intent to attend an Event\"\n\n      reference_to Event, as: :event_slug\n      attribute :registration_id, RegistrationId\n      attribute :attendee,        Attendee\n\n      emits \"RegistrationRequested\"\n    end\n  end\n\n  # This site's link to its owner's payment-processor account (web.rs's\n  # `/payments/connection/*` routes and its checkout plan). A trimmed copy of\n  # the PaymentConnection aggregate in the Lifeadelics bluebook: public facts\n  # only, never a secret, and `enabled` is a lifecycle state rather than a\n  # flag, so a disconnect while payments are on can pause registrations.\n  aggregate \"PaymentConnection\" do\n    description \"This site's link to its owner's payment-processor account, public facts only.\"\n\n    identified_by :slug\n\n    value_object \"ConnectionSlug\" do\n      attribute :value, String\n      invariant(\"a payment connection has a slug\") { !value.to_s.empty? }\n    end\n\n    value_object \"Processor\" do\n      attribute :value, String\n      invariant(\"a payment connection names its processor\") { !value.to_s.empty? }\n    end\n\n    value_object \"AccountRef\" do\n      attribute :value, String\n      invariant(\"a payment connection names the connected account\") { !value.to_s.empty? }\n    end\n\n    value_object \"ConnectionMode\" do\n      attribute :value, String, one_of: [\"test\", \"live\"]\n      invariant(\"a connection is test or live\") { [\"test\", \"live\"].include?(value) }\n    end\n\n    value_object \"DisplayName\" do\n      attribute :value, String\n      invariant(\"a connected account has a display name\") { !value.to_s.empty? }\n    end\n\n    attribute :slug,         ConnectionSlug\n    attribute :processor,    Processor\n    attribute :account_ref,  AccountRef\n    attribute :mode,         ConnectionMode\n    attribute :display_name, DisplayName\n\n    lifecycle :status, default: \"connected\" do\n      transition \"EnablePayments\"  => \"enabled\",      from: \"connected\"\n      transition \"DisablePayments\" => \"connected\",    from: \"enabled\"\n      transition \"Disconnect\"      => \"disconnected\", from: \"connected\"\n      transition \"Reconnect\"       => \"connected\",    from: \"disconnected\"\n      transition \"Suspend\"         => \"paused\",       from: \"enabled\"\n      transition \"Resume\"          => \"enabled\",      from: \"paused\"\n    end\n\n    command \"Connect\" do\n      role \"Owner\"\n      goal \"Link this site to its owner's payment-processor account\"\n\n      attribute :slug,         ConnectionSlug\n      attribute :processor,    Processor\n      attribute :account_ref,  AccountRef\n      attribute :mode,         ConnectionMode\n      attribute :display_name, DisplayName\n\n      emits \"PaymentAccountConnected\"\n    end\n\n    command \"Reconnect\" do\n      role \"Owner\"\n      goal \"Link a previously disconnected site to a payment-processor account again\"\n\n      reference_to PaymentConnection\n      attribute :processor,    Processor\n      attribute :account_ref,  AccountRef\n      attribute :mode,         ConnectionMode\n      attribute :display_name, DisplayName\n\n      given(\"only a disconnected link can be reconnected\") { status == \"disconnected\" }\n\n      sets :processor\n      sets :account_ref\n      sets :mode\n      sets :display_name\n\n      emits \"PaymentAccountReconnected\"\n    end\n\n    command \"Disconnect\" do\n      role \"Owner\"\n      goal \"Unlink this site from its payment-processor account while no real payments are being taken\"\n\n      reference_to PaymentConnection\n\n      given(\"only a connected, not-yet-enabled link can be disconnected\") { status == \"connected\" }\n\n      emits \"PaymentAccountDisconnected\"\n    end\n\n    command \"Suspend\" do\n      role \"Owner\"\n      goal \"Pause registrations because the payment account behind enabled payments is gone\"\n\n      reference_to PaymentConnection\n\n      given(\"only enabled payments can be suspended\") { status == \"enabled\" }\n\n      emits \"PaymentsSuspended\"\n    end\n\n    command \"Resume\" do\n      role \"Owner\"\n      goal \"Bring paused payments back by connecting a payment-processor account again\"\n\n      reference_to PaymentConnection\n      attribute :processor,    Processor\n      attribute :account_ref,  AccountRef\n      attribute :mode,         ConnectionMode\n      attribute :display_name, DisplayName\n\n      given(\"only paused payments can be resumed\") { status == \"paused\" }\n\n      sets :processor\n      sets :account_ref\n      sets :mode\n      sets :display_name\n\n      emits \"PaymentsResumed\"\n    end\n\n    command \"EnablePayments\" do\n      role \"Operator\"\n      goal \"Let checkout take real payments through the connected account\"\n\n      reference_to PaymentConnection\n\n      given(\"payments can only be enabled on a connected account\") { status == \"connected\" }\n\n      emits \"PaymentsEnabled\"\n    end\n\n    command \"DisablePayments\" do\n      role \"Operator\"\n      goal \"Stop taking real payments; checkout goes back to the mock adapter\"\n\n      reference_to PaymentConnection\n\n      given(\"only enabled payments can be disabled\") { status == \"enabled\" }\n\n      emits \"PaymentsDisabled\"\n    end\n  end\nend\n"
 }

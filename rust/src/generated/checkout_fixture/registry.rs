@@ -15,6 +15,7 @@ use crate::kernel::Repository;
 pub struct Store {
     pub event: crate::kernel::InMemoryRepository<crate::generated::checkout_fixture::event::Event>,
     pub registration: crate::kernel::InMemoryRepository<crate::generated::checkout_fixture::registration::Registration>,
+    pub paymentconnection: crate::kernel::InMemoryRepository<crate::generated::checkout_fixture::paymentconnection::PaymentConnection>,
 }
 
 impl Store {
@@ -22,6 +23,7 @@ impl Store {
         Self {
             event: crate::kernel::InMemoryRepository::new(),
             registration: crate::kernel::InMemoryRepository::new(),
+            paymentconnection: crate::kernel::InMemoryRepository::new(),
         }
     }
 
@@ -37,6 +39,9 @@ for (id, record) in self.event.entries() {
 }
 for (id, record) in self.registration.entries() {
     instances.push((format!("{}{}", "CheckoutFixture::Registration#", id), record.to_json()));
+}
+for (id, record) in self.paymentconnection.entries() {
+    instances.push((format!("{}{}", "CheckoutFixture::PaymentConnection#", id), record.to_json()));
 }
         instances
     }
@@ -57,6 +62,10 @@ if let Some(id) = key.strip_prefix("CheckoutFixture::Event#") {
 }
 if let Some(id) = key.strip_prefix("CheckoutFixture::Registration#") {
     store.registration.save(id, crate::generated::checkout_fixture::registration::Registration::from_json(value)?);
+    continue;
+}
+if let Some(id) = key.strip_prefix("CheckoutFixture::PaymentConnection#") {
+    store.paymentconnection.save(id, crate::generated::checkout_fixture::paymentconnection::PaymentConnection::from_json(value)?);
     continue;
 }
             }
@@ -80,6 +89,9 @@ if aggregate == "CheckoutFixture::Event" {
 }
 if aggregate == "CheckoutFixture::Registration" {
     return Some(self.registration.entries().map(|(id, record)| (id.clone(), record.to_json())).collect());
+}
+if aggregate == "CheckoutFixture::PaymentConnection" {
+    return Some(self.paymentconnection.entries().map(|(id, record)| (id.clone(), record.to_json())).collect());
 }
         None
     }
@@ -128,6 +140,89 @@ pub fn dispatch_by_name(
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
               crate::generated::checkout_fixture::registration::dispatch_request(&mut store.registration, route, args, mutations, owner_deref, command_deref, tenant_boundary_check).map(|(_, events)| stamp_payload(events, &payload))
           }
+          "CheckoutFixture::PaymentConnection.Connect" => {
+              let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
+              let route = invocation.route();
+              let facts_json = invocation.facts();
+              let args = if invocation.explicit_with() { let args = crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::checkout_fixture::paymentconnection::ConnectArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::checkout_fixture::paymentconnection::ConnectArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::checkout_fixture::paymentconnection::ConnectArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::checkout_fixture::paymentconnection::ConnectArgs::from_json(v)?; args.slug.check_invariants()?; args.processor.check_invariants()?; args.account_ref.check_invariants()?; args.display_name.check_invariants()?; Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Owner"), "Connect", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|_args: &crate::generated::checkout_fixture::paymentconnection::ConnectArgs| Ok(()) })?; if let Some(route) = route { route.require_depth(0)?; } args } else { if let Some(route) = route { route.require_depth(0)?; } crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::checkout_fixture::paymentconnection::ConnectArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::checkout_fixture::paymentconnection::ConnectArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::checkout_fixture::paymentconnection::ConnectArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::checkout_fixture::paymentconnection::ConnectArgs::from_json(v)?; args.slug.check_invariants()?; args.processor.check_invariants()?; args.account_ref.check_invariants()?; args.display_name.check_invariants()?; Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Owner"), "Connect", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|_args: &crate::generated::checkout_fixture::paymentconnection::ConnectArgs| Ok(()) })? };
+              let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
+              let owner_deref = Vec::new();
+              let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
+              let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
+              crate::generated::checkout_fixture::paymentconnection::dispatch_connect(&mut store.paymentconnection, route, args, mutations, owner_deref, command_deref, tenant_boundary_check).map(|(_, events)| stamp_payload(events, &payload))
+          }
+          "CheckoutFixture::PaymentConnection.Reconnect" => {
+              let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
+              let route = invocation.route();
+              let facts_json = invocation.facts();
+              let args = if invocation.explicit_with() { let args = crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::checkout_fixture::paymentconnection::ReconnectArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::checkout_fixture::paymentconnection::ReconnectArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::checkout_fixture::paymentconnection::ReconnectArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::checkout_fixture::paymentconnection::ReconnectArgs::from_json(v)?; args.processor.check_invariants()?; args.account_ref.check_invariants()?; args.display_name.check_invariants()?; Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Owner"), "Reconnect", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|_args: &crate::generated::checkout_fixture::paymentconnection::ReconnectArgs| Ok(()) })?; if let Some(route) = route { route.require_depth(0)?; } args } else { if let Some(route) = route { route.require_depth(0)?; } crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::checkout_fixture::paymentconnection::ReconnectArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::checkout_fixture::paymentconnection::ReconnectArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::checkout_fixture::paymentconnection::ReconnectArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::checkout_fixture::paymentconnection::ReconnectArgs::from_json(v)?; args.processor.check_invariants()?; args.account_ref.check_invariants()?; args.display_name.check_invariants()?; Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Owner"), "Reconnect", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|_args: &crate::generated::checkout_fixture::paymentconnection::ReconnectArgs| Ok(()) })? };
+              let id = match route { Some(route) => route.aggregate().to_string(), None => crate::generated::checkout_fixture::paymentconnection::PaymentConnection::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "Reconnect", aggregate: "PaymentConnection", identity: "slug.value" }.render_args()))?, };
+              let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
+              let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "CheckoutFixture::PaymentConnection", &id);
+              let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
+              let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
+              crate::generated::checkout_fixture::paymentconnection::dispatch_reconnect(&mut store.paymentconnection, &id, args, mutations, owner_deref, command_deref, tenant_boundary_check).map(|(_, events)| stamp_payload(events, &payload))
+          }
+          "CheckoutFixture::PaymentConnection.Disconnect" => {
+              let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
+              let route = invocation.route();
+              let facts_json = invocation.facts();
+              let args = if invocation.explicit_with() { let args = crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::checkout_fixture::paymentconnection::DisconnectArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::checkout_fixture::paymentconnection::DisconnectArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::checkout_fixture::paymentconnection::DisconnectArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::checkout_fixture::paymentconnection::DisconnectArgs::from_json(v)?; Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Owner"), "Disconnect", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|_args: &crate::generated::checkout_fixture::paymentconnection::DisconnectArgs| Ok(()) })?; if let Some(route) = route { route.require_depth(0)?; } args } else { if let Some(route) = route { route.require_depth(0)?; } crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::checkout_fixture::paymentconnection::DisconnectArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::checkout_fixture::paymentconnection::DisconnectArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::checkout_fixture::paymentconnection::DisconnectArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::checkout_fixture::paymentconnection::DisconnectArgs::from_json(v)?; Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Owner"), "Disconnect", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|_args: &crate::generated::checkout_fixture::paymentconnection::DisconnectArgs| Ok(()) })? };
+              let id = match route { Some(route) => route.aggregate().to_string(), None => crate::generated::checkout_fixture::paymentconnection::PaymentConnection::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "Disconnect", aggregate: "PaymentConnection", identity: "slug.value" }.render_args()))?, };
+              let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
+              let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "CheckoutFixture::PaymentConnection", &id);
+              let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
+              let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
+              crate::generated::checkout_fixture::paymentconnection::dispatch_disconnect(&mut store.paymentconnection, &id, args, mutations, owner_deref, command_deref, tenant_boundary_check).map(|(_, events)| stamp_payload(events, &payload))
+          }
+          "CheckoutFixture::PaymentConnection.Suspend" => {
+              let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
+              let route = invocation.route();
+              let facts_json = invocation.facts();
+              let args = if invocation.explicit_with() { let args = crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::checkout_fixture::paymentconnection::SuspendArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::checkout_fixture::paymentconnection::SuspendArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::checkout_fixture::paymentconnection::SuspendArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::checkout_fixture::paymentconnection::SuspendArgs::from_json(v)?; Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Owner"), "Suspend", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|_args: &crate::generated::checkout_fixture::paymentconnection::SuspendArgs| Ok(()) })?; if let Some(route) = route { route.require_depth(0)?; } args } else { if let Some(route) = route { route.require_depth(0)?; } crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::checkout_fixture::paymentconnection::SuspendArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::checkout_fixture::paymentconnection::SuspendArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::checkout_fixture::paymentconnection::SuspendArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::checkout_fixture::paymentconnection::SuspendArgs::from_json(v)?; Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Owner"), "Suspend", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|_args: &crate::generated::checkout_fixture::paymentconnection::SuspendArgs| Ok(()) })? };
+              let id = match route { Some(route) => route.aggregate().to_string(), None => crate::generated::checkout_fixture::paymentconnection::PaymentConnection::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "Suspend", aggregate: "PaymentConnection", identity: "slug.value" }.render_args()))?, };
+              let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
+              let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "CheckoutFixture::PaymentConnection", &id);
+              let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
+              let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
+              crate::generated::checkout_fixture::paymentconnection::dispatch_suspend(&mut store.paymentconnection, &id, args, mutations, owner_deref, command_deref, tenant_boundary_check).map(|(_, events)| stamp_payload(events, &payload))
+          }
+          "CheckoutFixture::PaymentConnection.Resume" => {
+              let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
+              let route = invocation.route();
+              let facts_json = invocation.facts();
+              let args = if invocation.explicit_with() { let args = crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::checkout_fixture::paymentconnection::ResumeArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::checkout_fixture::paymentconnection::ResumeArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::checkout_fixture::paymentconnection::ResumeArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::checkout_fixture::paymentconnection::ResumeArgs::from_json(v)?; args.processor.check_invariants()?; args.account_ref.check_invariants()?; args.display_name.check_invariants()?; Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Owner"), "Resume", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|_args: &crate::generated::checkout_fixture::paymentconnection::ResumeArgs| Ok(()) })?; if let Some(route) = route { route.require_depth(0)?; } args } else { if let Some(route) = route { route.require_depth(0)?; } crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::checkout_fixture::paymentconnection::ResumeArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::checkout_fixture::paymentconnection::ResumeArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::checkout_fixture::paymentconnection::ResumeArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::checkout_fixture::paymentconnection::ResumeArgs::from_json(v)?; args.processor.check_invariants()?; args.account_ref.check_invariants()?; args.display_name.check_invariants()?; Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Owner"), "Resume", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|_args: &crate::generated::checkout_fixture::paymentconnection::ResumeArgs| Ok(()) })? };
+              let id = match route { Some(route) => route.aggregate().to_string(), None => crate::generated::checkout_fixture::paymentconnection::PaymentConnection::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "Resume", aggregate: "PaymentConnection", identity: "slug.value" }.render_args()))?, };
+              let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
+              let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "CheckoutFixture::PaymentConnection", &id);
+              let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
+              let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
+              crate::generated::checkout_fixture::paymentconnection::dispatch_resume(&mut store.paymentconnection, &id, args, mutations, owner_deref, command_deref, tenant_boundary_check).map(|(_, events)| stamp_payload(events, &payload))
+          }
+          "CheckoutFixture::PaymentConnection.EnablePayments" => {
+              let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
+              let route = invocation.route();
+              let facts_json = invocation.facts();
+              let args = if invocation.explicit_with() { let args = crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::checkout_fixture::paymentconnection::EnablePaymentsArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::checkout_fixture::paymentconnection::EnablePaymentsArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::checkout_fixture::paymentconnection::EnablePaymentsArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::checkout_fixture::paymentconnection::EnablePaymentsArgs::from_json(v)?; Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Operator"), "EnablePayments", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|_args: &crate::generated::checkout_fixture::paymentconnection::EnablePaymentsArgs| Ok(()) })?; if let Some(route) = route { route.require_depth(0)?; } args } else { if let Some(route) = route { route.require_depth(0)?; } crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::checkout_fixture::paymentconnection::EnablePaymentsArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::checkout_fixture::paymentconnection::EnablePaymentsArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::checkout_fixture::paymentconnection::EnablePaymentsArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::checkout_fixture::paymentconnection::EnablePaymentsArgs::from_json(v)?; Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Operator"), "EnablePayments", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|_args: &crate::generated::checkout_fixture::paymentconnection::EnablePaymentsArgs| Ok(()) })? };
+              let id = match route { Some(route) => route.aggregate().to_string(), None => crate::generated::checkout_fixture::paymentconnection::PaymentConnection::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "EnablePayments", aggregate: "PaymentConnection", identity: "slug.value" }.render_args()))?, };
+              let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
+              let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "CheckoutFixture::PaymentConnection", &id);
+              let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
+              let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
+              crate::generated::checkout_fixture::paymentconnection::dispatch_enable_payments(&mut store.paymentconnection, &id, args, mutations, owner_deref, command_deref, tenant_boundary_check).map(|(_, events)| stamp_payload(events, &payload))
+          }
+          "CheckoutFixture::PaymentConnection.DisablePayments" => {
+              let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
+              let route = invocation.route();
+              let facts_json = invocation.facts();
+              let args = if invocation.explicit_with() { let args = crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::checkout_fixture::paymentconnection::DisablePaymentsArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::checkout_fixture::paymentconnection::DisablePaymentsArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::checkout_fixture::paymentconnection::DisablePaymentsArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::checkout_fixture::paymentconnection::DisablePaymentsArgs::from_json(v)?; Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Operator"), "DisablePayments", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|_args: &crate::generated::checkout_fixture::paymentconnection::DisablePaymentsArgs| Ok(()) })?; if let Some(route) = route { route.require_depth(0)?; } args } else { if let Some(route) = route { route.require_depth(0)?; } crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::checkout_fixture::paymentconnection::DisablePaymentsArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::checkout_fixture::paymentconnection::DisablePaymentsArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::checkout_fixture::paymentconnection::DisablePaymentsArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::checkout_fixture::paymentconnection::DisablePaymentsArgs::from_json(v)?; Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Operator"), "DisablePayments", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|_args: &crate::generated::checkout_fixture::paymentconnection::DisablePaymentsArgs| Ok(()) })? };
+              let id = match route { Some(route) => route.aggregate().to_string(), None => crate::generated::checkout_fixture::paymentconnection::PaymentConnection::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "DisablePayments", aggregate: "PaymentConnection", identity: "slug.value" }.render_args()))?, };
+              let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
+              let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "CheckoutFixture::PaymentConnection", &id);
+              let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
+              let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
+              crate::generated::checkout_fixture::paymentconnection::dispatch_disable_payments(&mut store.paymentconnection, &id, args, mutations, owner_deref, command_deref, tenant_boundary_check).map(|(_, events)| stamp_payload(events, &payload))
+          }
         other => Err(crate::kernel::Refusal::TypeMismatch(format!("unknown command {other:?}"))),
     }
 }
@@ -154,6 +249,7 @@ fn stamp_payload(events: Vec<crate::kernel::Event>, args_json: &crate::kernel::J
 pub static REFERENCE_TABLE: crate::kernel::ReferenceTable = &[
     ("CheckoutFixture::Event", &[]),
     ("CheckoutFixture::Registration", &[crate::kernel::ReferenceSpec { field: "event_slug", as_name: "event_slug", target: "CheckoutFixture::Event" }]),
+    ("CheckoutFixture::PaymentConnection", &[]),
 ];
 
 impl crate::kernel::ReferenceLookup for Store {
@@ -163,6 +259,9 @@ if target == "CheckoutFixture::Event" {
 }
 if target == "CheckoutFixture::Registration" {
     return self.registration.find(id).map(|r| Box::new(r) as Box<dyn crate::kernel::Fielded>);
+}
+if target == "CheckoutFixture::PaymentConnection" {
+    return self.paymentconnection.find(id).map(|r| Box::new(r) as Box<dyn crate::kernel::Fielded>);
 }
         None
     }
@@ -186,6 +285,7 @@ pub fn reference_key_for_aggregate(qualified_name: &str) -> Option<&'static str>
     match qualified_name {
         "CheckoutFixture::Event" => Some("event"),
         "CheckoutFixture::Registration" => Some("registration"),
+        "CheckoutFixture::PaymentConnection" => Some("payment_connection"),
         _ => None,
     }
 }
@@ -195,6 +295,13 @@ pub fn command_creates(verb: &str) -> bool {
         "CheckoutFixture::Event.Schedule" => true,
         "CheckoutFixture::Event.Close" => false,
         "CheckoutFixture::Registration.Request" => true,
+        "CheckoutFixture::PaymentConnection.Connect" => true,
+        "CheckoutFixture::PaymentConnection.Reconnect" => false,
+        "CheckoutFixture::PaymentConnection.Disconnect" => false,
+        "CheckoutFixture::PaymentConnection.Suspend" => false,
+        "CheckoutFixture::PaymentConnection.Resume" => false,
+        "CheckoutFixture::PaymentConnection.EnablePayments" => false,
+        "CheckoutFixture::PaymentConnection.DisablePayments" => false,
         _ => false,
     }
 }
@@ -203,6 +310,7 @@ pub fn identity_head_for_aggregate(qualified_name: &str) -> Option<&'static str>
     match qualified_name {
         "CheckoutFixture::Event" => Some("slug"),
         "CheckoutFixture::Registration" => Some("registration_id"),
+        "CheckoutFixture::PaymentConnection" => Some("slug"),
         _ => None,
     }
 }
@@ -219,6 +327,13 @@ pub fn command_attributes_for_verb(verb: &str) -> &'static [&'static str] {
         "CheckoutFixture::Event.Schedule" => &["slug", "name", "price", "capacity"],
         "CheckoutFixture::Event.Close" => &[],
         "CheckoutFixture::Registration.Request" => &["event_slug", "registration_id", "attendee"],
+        "CheckoutFixture::PaymentConnection.Connect" => &["slug", "processor", "account_ref", "mode", "display_name"],
+        "CheckoutFixture::PaymentConnection.Reconnect" => &["processor", "account_ref", "mode", "display_name"],
+        "CheckoutFixture::PaymentConnection.Disconnect" => &[],
+        "CheckoutFixture::PaymentConnection.Suspend" => &[],
+        "CheckoutFixture::PaymentConnection.Resume" => &["processor", "account_ref", "mode", "display_name"],
+        "CheckoutFixture::PaymentConnection.EnablePayments" => &[],
+        "CheckoutFixture::PaymentConnection.DisablePayments" => &[],
         _ => &[],
     }
 }
