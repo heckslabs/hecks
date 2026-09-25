@@ -3,6 +3,7 @@ use crate::checkout;
 use crate::dispatch;
 use crate::journal::LineageConfig;
 use crate::lambda_client::LambdaInvoker;
+use crate::payments;
 use serde_json::{json, Value};
 use std::path::Path;
 use tokio::sync::Mutex;
@@ -23,78 +24,22 @@ pub(super) fn checkout_enabled(configured: Option<&str>, domain: &str) -> bool {
     configured.is_some_and(|c| !c.is_empty() && c == domain)
 }
 
-// The fixed, publicly-known, non-secret mock webhook secret — see
-// `stripe_webhook_secret` below for when it's allowed.
-const MOCK_STRIPE_WEBHOOK_SECRET: &str = "whsec_mock_checkout_fixed";
+// The fixed, publicly-known, non-secret mock webhook secret. It verifies a
+// webhook only while STRIPE_WEBHOOK_SECRET is unset, so a mock deploy needs no
+// webhook secret configured to be exercisable end to end; `webhook_route`
+// refuses anything that could only come from a real processor when a
+// webhook was verified against it.
+pub(crate) const MOCK_STRIPE_WEBHOOK_SECRET: &str = "whsec_mock_checkout_fixed";
 
-// Env vars read once here, at the routing layer, passed down as plain
-// parameters — the same shape `route`'s own `session_secret()` already
-// reads once and hands `auth_route` rather than each auth_route arm
-// reading it independently. Keeps `registrations_route`/`webhook_route`
-// themselves free of hidden global state, the same reason `checkout::
-// verify_signature` takes `now` as a parameter instead of reading the
-// clock internally — a test can pass an explicit secret/key instead of
-// mutating a process-wide env var, which `cargo test`'s default
-// parallelism would otherwise race between tests.
-// Blank, not a bare .unwrap() — lifeadelics.world's own comment on why
-// this same default is blank there too: real in a deploy that actually
-// sets it, deferred (never a boot-time panic) everywhere else, the same
-// reasoning `stripe_api_key`'s own blank default already holds to.
-fn stripe_api_key() -> String {
-    std::env::var("STRIPE_API_KEY").unwrap_or_default()
-}
-
-// `MOCK_STRIPE_WEBHOOK_SECRET`, a fixed, publicly-known, non-secret
-// default, so a mock deploy (empty `stripe_api_key`) needs no webhook
-// secret configured to be exercisable end to end. A consumer whose own
-// manual-confirmation tooling signs against a different fixed string
-// sets STRIPE_WEBHOOK_SECRET to it. Only allowed as a fallback in
-// mock mode though (`processor == "mock_stripe"`) — same
-// panic-at-the-moment-it's-needed split `session_secret`/
-// `validate_session_secret` above already use: a real-Stripe deploy
-// (`STRIPE_API_KEY` set) that forgets `STRIPE_WEBHOOK_SECRET` would
-// otherwise silently verify incoming webhooks against a public,
-// well-known string while charging real cards.
-fn stripe_webhook_secret(processor: &str) -> String {
-    let secret = std::env::var("STRIPE_WEBHOOK_SECRET").unwrap_or_default();
-    if let Err(e) = validate_stripe_webhook_secret(processor, &secret) {
-        panic!("{e}");
-    }
-    if secret.is_empty() { MOCK_STRIPE_WEBHOOK_SECRET.to_string() } else { secret }
-}
-
-// Pure and separately unit-tested from the panic above — same split
-// `validate_session_secret` already uses.
-fn validate_stripe_webhook_secret(processor: &str, secret: &str) -> Result<(), String> {
-    if processor == "stripe" && secret.is_empty() {
-        Err(format!(
-            "STRIPE_WEBHOOK_SECRET is required when checkout_processor() reports \"stripe\" \
-             (a real STRIPE_API_KEY is set) -- refusing to fall back to the publicly-known mock \
-             webhook secret {MOCK_STRIPE_WEBHOOK_SECRET} for a real-money deploy"
-        ))
-    } else {
-        Ok(())
-    }
-}
-
-fn site_url() -> String {
-    std::env::var("SITE_URL").unwrap_or_else(|_| "http://localhost:4321".to_string())
-}
-
-// http_server.rb's own processor constant, derived from the same fact
-// `stripe_api_key` already answers rather than a second, independently-
-// settable flag — a blank key means checkout is genuinely bound to the
-// mock adapter, so reporting anything other than "mock_stripe" would be
-// exactly the drift that constant's own comment warns against ("a lie
-// in production data"). Read once here and threaded through both
-// routes as a parameter — `registrations_route`'s own Payment.Initiate
-// and `webhook_route`'s own reported_processor must agree, or
-// Payment::Succeed's own "the processor matches the one this payment
-// was initiated with" given refuses every mock confirmation (the exact
-// bug class this session already found live once, for the real-Stripe
-// path — see naming.rb's own fielded_capable_nested? header).
-fn checkout_processor() -> &'static str {
-    if stripe_api_key().is_empty() { "mock_stripe" } else { "stripe" }
+// The processor a Payment reports, as Payments::Payment.Initiate recorded it
+// ("mock_stripe" for the walkthrough, "stripe" for a real charge). Read off the
+// Payment itself rather than guessed from whatever is connected now: the
+// connection can change between a guest registering and the webhook arriving.
+fn payment_processor(read: &Value, reference: &str) -> Option<String> {
+    instances_for(read, "Payments::Payment#")
+        .into_iter()
+        .find(|(id, _)| id == reference)
+        .and_then(|(_, payment)| payment.get("processor").and_then(|p| p.get("value")).and_then(|v| v.as_str()).map(String::from))
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -110,7 +55,7 @@ pub(super) async fn checkout_route(
 ) -> Option<Value> {
     match (method, path) {
         ("POST", "/registrations") => {
-            Some(registrations_route(raw_body, &stripe_api_key(), checkout_processor(), &site_url(), client, wasm_path, config, invoker).await)
+            Some(registrations_route(raw_body, &payments::PlatformConfig::from_env(), client, wasm_path, config, invoker).await)
         }
         // GET /registrations/:id — read-only, re-derives the truth
         // (http_server.rb's own GET /registrations/:id comment: "never
@@ -128,20 +73,18 @@ pub(super) async fn checkout_route(
         }
         // POST /registrations/:id/complete — LocalCheckout's own
         // "Pay"/"Cancel" button (src/pages/pay/[registrationId].astro),
-        // reached only when checkout is genuinely bound to the mock
-        // adapter (an empty stripe_api_key — this module's own
-        // `checkout_processor` derives both facts from the same source,
-        // never a second independently-settable flag). Settles the
-        // Payment through the SAME PaymentGateway port POST
+        // refused for any Payment a real processor collected: the
+        // processor is read off the Payment itself, so this can only
+        // settle a payment that was started on the mock walkthrough.
+        // Settles the Payment through the SAME PaymentGateway port POST
         // /webhooks/stripe uses — never a parallel, untested way to
         // reach the same two states.
         ("POST", path) if path.starts_with("/registrations/") && path.ends_with("/complete") => {
             let registration_id = path.trim_start_matches("/registrations/").trim_end_matches("/complete").trim_end_matches('/');
-            Some(registration_complete_route(registration_id, raw_body, checkout_processor(), client, wasm_path, config, invoker).await)
+            Some(registration_complete_route(registration_id, raw_body, client, wasm_path, config, invoker).await)
         }
         ("POST", "/webhooks/stripe") => {
-            let processor = checkout_processor();
-            Some(webhook_route(raw_body, stripe_signature, &stripe_webhook_secret(processor), processor, client, wasm_path, config, invoker).await)
+            Some(webhook_route(raw_body, stripe_signature, &payments::PlatformConfig::from_env(), client, wasm_path, config, invoker).await)
         }
         // POST /events — mock_payments/ (a separate service, its own
         // bluebook) DRIVING IN: puts a new session on the calendar
@@ -260,24 +203,21 @@ async fn registration_show_route(registration_id: &str, client: &Mutex<Client>, 
     }).to_string())
 }
 
-/// POST /registrations/:id/complete — refused outright unless LocalCheckout
-/// (mock_stripe) is actually bound, same guard http_server.rb's own route
-/// carries. Settles the shared-reference Payment through the same
-/// PaymentGateway.Succeeded/Failed port webhook_route already dispatches
-/// through — a repeat call on an already-settled Payment is the same
-/// benign no-op webhook_route's own header already documents.
-async fn registration_complete_route(
+/// POST /registrations/:id/complete — refused outright for any Payment that
+/// was not itself initiated on the mock processor ("mock_stripe"), same
+/// per-payment guard http_server.rb's own route carries. Settles the
+/// shared-reference Payment through the same PaymentGateway.Succeeded/Failed
+/// port webhook_route already dispatches through — a repeat call on an
+/// already-settled Payment is the same benign no-op webhook_route's own header
+/// already documents.
+pub(crate) async fn registration_complete_route(
     registration_id: &str,
     raw_body: &str,
-    processor: &str,
     client: &Mutex<Client>,
     wasm_path: &Path,
     config: &LineageConfig,
     invoker: &dyn LambdaInvoker,
 ) -> Value {
-    if processor != "mock_stripe" {
-        return respond(403, "application/json", &json!({"error": "not available with a real payment processor bound"}).to_string());
-    }
     let body: Value = match serde_json::from_str(raw_body) {
         Ok(v) => v,
         Err(e) => return respond(400, "application/json", &json!({"error": format!("invalid JSON: {e}")}).to_string()),
@@ -298,6 +238,10 @@ async fn registration_complete_route(
         return respond(404, "application/json", &json!({"error": "no such registration"}).to_string());
     }
 
+    let processor = match payment_processor(&read, registration_id) {
+        Some(processor) if processor == "mock_stripe" => processor,
+        _ => return respond(403, "application/json", &json!({"error": "not available with a real payment processor"}).to_string()),
+    };
     let reported_processor = json!({"value": processor});
     // `reference_to Payment, as: :reference` keeps the receiver field inside
     // `with:` (routing.rs's own "Field Retention" comment) so the command's
@@ -396,11 +340,9 @@ fn display_name_from(body: &Value) -> Option<String> {
 // `submit` does (that function's own comment); the Astro site calls in
 // server-to-server, not as a signed-in user.
 #[allow(clippy::too_many_arguments)]
-async fn registrations_route(
+pub(crate) async fn registrations_route(
     raw_body: &str,
-    api_key: &str,
-    processor: &str,
-    site_url: &str,
+    platform: &payments::PlatformConfig,
     client: &Mutex<Client>,
     wasm_path: &Path,
     config: &LineageConfig,
@@ -440,6 +382,20 @@ async fn registrations_route(
     }
     let price_cents = event.get("price").and_then(|p| p.get("cents")).and_then(|v| v.as_i64()).unwrap_or(0);
     let event_name = event.get("name").and_then(|n| n.get("value")).and_then(|v| v.as_str()).unwrap_or("");
+
+    // What checkout does is decided per request from this tenant's own
+    // PaymentConnection, before anything is written: a paused connection
+    // must not leave an orphaned Payment behind, and must never fall back
+    // to the mock walkthrough (payments.rs's own header).
+    let plan = payments::checkout_plan(payments::connection(&read, &config.domain).as_ref(), platform);
+    let processor = match plan {
+        payments::CheckoutPlan::Mock => "mock_stripe",
+        payments::CheckoutPlan::Stripe { .. } => "stripe",
+        payments::CheckoutPlan::Paused => {
+            return respond(503, "application/json", &json!({"error": "payments are temporarily unavailable"}).to_string());
+        }
+    };
+    let site_url = platform.site_url.as_str();
 
     let reference = uuid::Uuid::new_v4().to_string();
 
@@ -500,18 +456,18 @@ async fn registrations_route(
     let success_url = format!("{site_url}/registration-confirmed.html?{}", confirm_query("succeeded"));
     let cancel_url = format!("{site_url}/registration-confirmed.html?{}", confirm_query("cancelled"));
 
-    // **Mock, not an error** — an empty `api_key` means checkout is
-    // genuinely bound to the mock adapter (this route's own header,
-    // checkout.rs's own header) exactly the way lifeadelics.hecksagon's
-    // own `opened_by("MockStripeAdapter")` is the default in every Ruby
-    // environment except a real deploy — never a misconfiguration to
-    // refuse.
-    if api_key.is_empty() {
+    // **Mock, not an error** — a tenant with no connection, or one that is
+    // not enabled, is on the mock walkthrough (this route's own header,
+    // checkout.rs's own header) — never a misconfiguration to refuse.
+    let payments::CheckoutPlan::Stripe { api_key, account } = plan else {
         let checkout_url = checkout::mock_checkout_session(&reference, &success_url, &cancel_url, site_url);
         return respond(200, "application/json", &json!({"checkout_url": checkout_url, "registration_id": reference}).to_string());
-    }
+    };
 
-    match checkout::create_checkout_session(api_key, price_cents, event_name, &reference, &success_url, &cancel_url).await {
+    // A direct charge on the tenant's own connected account: the platform's
+    // key, and the `Stripe-Account` header naming whose money it is.
+    let auth = checkout::StripeAuth { api_key: &api_key, account: Some(&account), base_url: &platform.api_base };
+    match checkout::create_checkout_session(&auth, price_cents, event_name, &reference, &success_url, &cancel_url).await {
         Ok(checkout_url) => respond(200, "application/json", &json!({"checkout_url": checkout_url, "registration_id": reference}).to_string()),
         Err(e) => respond(500, "text/plain", &format!("{e:#}")),
     }
@@ -524,18 +480,26 @@ async fn registrations_route(
 // trusted without a verified signature first. Dispatches through
 // Payment's own vendored PaymentGateway port, never Registration's
 // (removed — see lifeadelics.bluebook's own Registration comment).
-#[allow(clippy::too_many_arguments)]
-async fn webhook_route(
+//
+// One platform endpoint receives every tenant's Connect events, signed with
+// the platform's `STRIPE_WEBHOOK_SECRET`. An event naming some other connected
+// account is acknowledged and ignored; `account.application.deauthorized`
+// pauses or unlinks this tenant's connection (payments.rs). While that secret
+// is unset the public mock secret verifies the signature instead, and
+// anything only a real processor could send (an account event, or an event
+// for a Payment a real processor collected) is refused rather than trusted on
+// a publicly-known key.
+pub(crate) async fn webhook_route(
     raw_body: &str,
     signature_header: &str,
-    secret: &str,
-    processor: &str,
+    platform: &payments::PlatformConfig,
     client: &Mutex<Client>,
     wasm_path: &Path,
     config: &LineageConfig,
     invoker: &dyn LambdaInvoker,
 ) -> Value {
     let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_secs() as i64;
+    let secret = platform.webhook_secret.as_deref().unwrap_or(MOCK_STRIPE_WEBHOOK_SECRET);
     if let Err(e) = checkout::verify_signature(raw_body, signature_header, secret, now) {
         return respond(400, "text/plain", &e.to_string());
     }
@@ -544,11 +508,50 @@ async fn webhook_route(
         Err(_) => return respond(400, "text/plain", "invalid JSON"),
     };
 
+    let read = match dispatch::read(client, wasm_path).await {
+        Ok(r) => r,
+        Err(e) => return respond(500, "text/plain", &format!("{e:#}")),
+    };
+    let connection = payments::connection(&read, &config.domain);
+    let fallback_secret = platform.webhook_secret.is_none();
+    let refuse_fallback = || {
+        respond(
+            500,
+            "application/json",
+            &json!({"error": "STRIPE_WEBHOOK_SECRET is required to accept events from a real payment processor -- \
+                              refusing to trust the publicly-known mock webhook secret"})
+            .to_string(),
+        )
+    };
+
+    match payments::event_scope(&event, connection.as_ref()) {
+        payments::EventScope::Ignore => return respond(200, "text/plain", ""),
+        payments::EventScope::Deauthorized => {
+            if fallback_secret {
+                return refuse_fallback();
+            }
+            return match payments::apply_deauthorization(connection.as_ref(), client, wasm_path, config, invoker).await {
+                Ok(()) => respond(200, "text/plain", ""),
+                Err(e) => respond(500, "text/plain", &format!("{e:#}")),
+            };
+        }
+        payments::EventScope::Proceed => {}
+    }
+    if fallback_secret && event.get("account").is_some_and(|account| !account.is_null()) {
+        return refuse_fallback();
+    }
+
     let event_type = event.get("type").and_then(|v| v.as_str()).unwrap_or("");
     let object = event.get("data").and_then(|d| d.get("object")).cloned().unwrap_or_else(|| json!({}));
     let reference = object.get("metadata").and_then(|m| m.get("registration_id")).and_then(|v| v.as_str()).map(String::from);
 
     if let Some(reference) = reference {
+        // The processor Payment.Initiate recorded — "stripe" when there is
+        // no such Payment, as http_server.rb's own route defaults it.
+        let processor = payment_processor(&read, &reference).unwrap_or_else(|| "stripe".to_string());
+        if fallback_secret && processor != "mock_stripe" {
+            return refuse_fallback();
+        }
         let reported_processor = json!({"value": processor});
         // **Routed, not mixed args** — the kernel refuses a flat
         // `{"reference": ..., ...}` for an aggregate-scoped port
@@ -648,18 +651,6 @@ mod tests {
         std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs() as i64
     }
 
-    // Same class of bug as H11 above, one function over: an unset or
-    // empty STRIPE_WEBHOOK_SECRET would otherwise fall back
-    // unconditionally to the fixed, publicly-known mock string -- fine in mock mode
-    // (checkout_processor() == "mock_stripe"), a silent real-money hole
-    // in real-Stripe mode (checkout_processor() == "stripe").
-    #[test]
-    fn validate_stripe_webhook_secret_refuses_empty_only_in_real_stripe_mode() {
-        assert!(validate_stripe_webhook_secret("stripe", "").is_err());
-        assert!(validate_stripe_webhook_secret("stripe", "whsec_real").is_ok());
-        assert!(validate_stripe_webhook_secret("mock_stripe", "").is_ok());
-    }
-
     #[test]
     fn checkout_is_enabled_only_for_the_exactly_configured_domain() {
         assert!(checkout_enabled(Some("CheckoutFixture"), "CheckoutFixture"));
@@ -726,19 +717,12 @@ mod tests {
         assert_eq!(display_name_from(&json!({"last_name": "Lovelace"})), None, "first_name alone is missing");
     }
 
-    #[test]
-    fn a_real_stripe_deploy_refuses_the_mock_webhook_secret_fallback() {
-        assert!(validate_stripe_webhook_secret("stripe", "").is_err());
-        assert!(validate_stripe_webhook_secret("mock_stripe", "").is_ok());
-        assert!(validate_stripe_webhook_secret("stripe", "whsec_real").is_ok());
-    }
-
     #[tokio::test]
     async fn registrations_route_refuses_a_body_missing_any_required_field() {
         let client = scratch_db("hecks_host_web_test_registrations_missing_fields").await;
         provision_lineage(&*client.lock().await, "CheckoutFixture", 1, &["Event", "Registration", "Payment"]).await;
 
-        let response = registrations_route(r#"{"event_slug":"yoga-aug"}"#, "", "mock_stripe", "http://localhost:4321", &client, &checkout_wasm_path(), &checkout_config(1), &lambda_client::NeverInvoker).await;
+        let response = registrations_route(r#"{"event_slug":"yoga-aug"}"#, &payments::test_platform(), &client, &checkout_wasm_path(), &checkout_config(1), &lambda_client::NeverInvoker).await;
         assert_eq!(response["statusCode"], 400);
         assert!(response["body"].as_str().unwrap().contains("missing name"));
     }
@@ -771,7 +755,7 @@ mod tests {
             "email": "ada@example.com",
         })
         .to_string();
-        let response = registrations_route(&body, "", "mock_stripe", "http://localhost:4321", &client, &wasm_path, &config, &lambda_client::NeverInvoker).await;
+        let response = registrations_route(&body, &payments::test_platform(), &client, &wasm_path, &config, &lambda_client::NeverInvoker).await;
 
         // Registration.Request refuses (CheckoutFixture's Attendee has
         // no first_name/last_name) — but that's AFTER Payment.Initiate
@@ -800,7 +784,7 @@ mod tests {
         let client = scratch_db("hecks_host_web_test_registrations_bad_json").await;
         provision_lineage(&*client.lock().await, "CheckoutFixture", 1, &["Event", "Registration", "Payment"]).await;
 
-        let response = registrations_route("not json", "", "mock_stripe", "http://localhost:4321", &client, &checkout_wasm_path(), &checkout_config(1), &lambda_client::NeverInvoker).await;
+        let response = registrations_route("not json", &payments::test_platform(), &client, &checkout_wasm_path(), &checkout_config(1), &lambda_client::NeverInvoker).await;
         assert_eq!(response["statusCode"], 400);
     }
 
@@ -891,7 +875,7 @@ mod tests {
         provision_lineage(&*client.lock().await, "CheckoutFixture", 1, &["Event", "Registration", "Payment"]).await;
 
         let body = json!({"event_slug": "nope", "name": "Ada", "email": "ada@example.com"}).to_string();
-        let response = registrations_route(&body, "", "mock_stripe", "http://localhost:4321", &client, &checkout_wasm_path(), &checkout_config(1), &lambda_client::NeverInvoker).await;
+        let response = registrations_route(&body, &payments::test_platform(), &client, &checkout_wasm_path(), &checkout_config(1), &lambda_client::NeverInvoker).await;
         assert_eq!(response["statusCode"], 404);
     }
 
@@ -909,7 +893,7 @@ mod tests {
         assert!(close.accepted, "closing the fixture event should succeed: {:?}", close.result);
 
         let body = json!({"event_slug": "closed-event", "name": "Ada", "email": "ada@example.com"}).to_string();
-        let response = registrations_route(&body, "", "mock_stripe", "http://localhost:4321", &client, &wasm_path, &config, &lambda_client::NeverInvoker).await;
+        let response = registrations_route(&body, &payments::test_platform(), &client, &wasm_path, &config, &lambda_client::NeverInvoker).await;
         assert_eq!(response["statusCode"], 422);
         assert!(response["body"].as_str().unwrap().contains("closed"));
     }
@@ -928,7 +912,7 @@ mod tests {
         schedule_event(&client, &wasm_path, &config, "free-event", 0).await;
 
         let body = json!({"event_slug": "free-event", "name": "Ada", "email": "ada@example.com"}).to_string();
-        let response = registrations_route(&body, "", "mock_stripe", "http://localhost:4321", &client, &wasm_path, &config, &lambda_client::NeverInvoker).await;
+        let response = registrations_route(&body, &payments::test_platform(), &client, &wasm_path, &config, &lambda_client::NeverInvoker).await;
         assert_eq!(response["statusCode"], 422);
         assert!(
             response["body"].as_str().unwrap().contains("positive"),
@@ -951,12 +935,12 @@ mod tests {
 
         schedule_event(&client, &wasm_path, &config, "happy-event", 4200).await;
 
-        // Empty api_key -- checkout genuinely bound to the mock adapter
+        // No connection -- checkout genuinely on the mock walkthrough
         // (this route's own header), not a misconfiguration: the whole
         // chain runs for real and returns a real, working mock checkout
         // URL, never a 500.
         let body = json!({"event_slug": "happy-event", "name": "Ada Lovelace", "email": "ada@example.com"}).to_string();
-        let response = registrations_route(&body, "", "mock_stripe", "http://localhost:4321", &client, &wasm_path, &config, &lambda_client::NeverInvoker).await;
+        let response = registrations_route(&body, &payments::test_platform(), &client, &wasm_path, &config, &lambda_client::NeverInvoker).await;
         assert_eq!(response["statusCode"], 200, "{response:?}");
         let body: Value = serde_json::from_str(response["body"].as_str().unwrap()).unwrap();
         let reference = body["registration_id"].as_str().unwrap().to_string();
@@ -990,11 +974,11 @@ mod tests {
         assert_eq!(registration["registration_id"]["value"], reference);
         assert_eq!(payment["reference"]["value"], reference);
         assert_eq!(payment["amount"]["cents"], 4200);
-        // Mock, not "stripe" -- the exact processor this route's own
-        // `checkout_processor` derives from the same blank api_key,
-        // never a second, independently-settable flag (this function's
-        // own header on why that drift matters: Payment::Succeed's own
-        // "the processor matches" given).
+        // Mock, not "stripe" -- the processor `checkout_plan` picks for a
+        // tenant with no connection, which the webhook then reads back
+        // off the Payment itself (this function's own header on why that
+        // drift matters: Payment::Succeed's own "the processor matches"
+        // given).
         assert_eq!(payment["processor"]["value"], "mock_stripe");
     }
 
@@ -1021,7 +1005,7 @@ mod tests {
             "return_to": "/yogadelics.html",
         })
         .to_string();
-        let response = registrations_route(&body, "", "mock_stripe", "http://localhost:4321", &client, &wasm_path, &config, &lambda_client::NeverInvoker).await;
+        let response = registrations_route(&body, &payments::test_platform(), &client, &wasm_path, &config, &lambda_client::NeverInvoker).await;
         assert_eq!(response["statusCode"], 200, "{response:?}");
         let body: Value = serde_json::from_str(response["body"].as_str().unwrap()).unwrap();
         let reference = body["registration_id"].as_str().unwrap().to_string();
@@ -1057,7 +1041,7 @@ mod tests {
                 "return_to": unsafe_return_to,
             })
             .to_string();
-            let response = registrations_route(&body, "", "mock_stripe", "http://localhost:4321", &client, &wasm_path, &config, &lambda_client::NeverInvoker).await;
+            let response = registrations_route(&body, &payments::test_platform(), &client, &wasm_path, &config, &lambda_client::NeverInvoker).await;
             assert_eq!(response["statusCode"], 200, "{response:?}");
             let body: Value = serde_json::from_str(response["body"].as_str().unwrap()).unwrap();
             // checkout_url is now the /pay/<id>.html walkthrough page (LocalCheckout's
@@ -1079,12 +1063,11 @@ mod tests {
         // The full loop, mock adapter both ends — registrations_route's
         // own mock checkout_url, then a webhook shaped exactly like
         // domain/bin/confirm_payment_manually's own (Ruby, lifeadelics
-        // repo) sends, signed against the same fixed default `stripe_
-        // webhook_secret` falls back to. Proves the "processor matches"
-        // given (Payment::Succeed's own) actually admits a mock-
-        // initiated payment's own mock-reported confirmation — the
-        // exact drift `checkout_processor`'s own header warns a second,
-        // independently-settable flag would risk.
+        // repo) sends, signed against the same fixed default
+        // `webhook_route` falls back to while STRIPE_WEBHOOK_SECRET is
+        // unset. Proves the "processor matches" given (Payment::Succeed's
+        // own) actually admits a mock-initiated payment's own
+        // mock-reported confirmation.
         let client = scratch_db("hecks_host_web_test_mock_full_loop").await;
         provision_lineage(&*client.lock().await, "CheckoutFixture", 1, &["Event", "Registration", "Payment"]).await;
         let config = checkout_config(1);
@@ -1093,7 +1076,7 @@ mod tests {
         schedule_event(&client, &wasm_path, &config, "mock-loop-event", 4200).await;
 
         let body = json!({"event_slug": "mock-loop-event", "name": "Ada Lovelace", "email": "ada@example.com"}).to_string();
-        let response = registrations_route(&body, "", "mock_stripe", "http://localhost:4321", &client, &wasm_path, &config, &lambda_client::NeverInvoker).await;
+        let response = registrations_route(&body, &payments::test_platform(), &client, &wasm_path, &config, &lambda_client::NeverInvoker).await;
         assert_eq!(response["statusCode"], 200, "{response:?}");
         let response_body: Value = serde_json::from_str(response["body"].as_str().unwrap()).unwrap();
         let reference = response_body["registration_id"].as_str().unwrap().to_string();
@@ -1106,7 +1089,7 @@ mod tests {
         let now = now_secs();
         let header = sign_stripe_header(secret, now, &payload);
 
-        let response = webhook_route(&payload, &header, secret, "mock_stripe", &client, &wasm_path, &config, &lambda_client::NeverInvoker).await;
+        let response = webhook_route(&payload, &header, &payments::test_platform(), &client, &wasm_path, &config, &lambda_client::NeverInvoker).await;
         assert_eq!(response["statusCode"], 200, "{response:?}");
 
         let read = dispatch::read(&client, &wasm_path).await.unwrap();
@@ -1123,7 +1106,7 @@ mod tests {
         let payload = json!({"type": "checkout.session.completed", "data": {"object": {}}}).to_string();
         let bad_header = "t=1700000000,v1=deadbeef";
 
-        let response = webhook_route(&payload, bad_header, "whsec_test_bad_sig", "stripe", &client, &checkout_wasm_path(), &checkout_config(1), &lambda_client::NeverInvoker).await;
+        let response = webhook_route(&payload, bad_header, &payments::test_platform_with_secret("whsec_test_bad_sig"), &client, &checkout_wasm_path(), &checkout_config(1), &lambda_client::NeverInvoker).await;
         assert_eq!(response["statusCode"], 400);
     }
 
@@ -1154,7 +1137,7 @@ mod tests {
         let now = now_secs();
         let header = sign_stripe_header(secret, now, &payload);
 
-        let response = webhook_route(&payload, &header, secret, "stripe", &client, &wasm_path, &config, &lambda_client::NeverInvoker).await;
+        let response = webhook_route(&payload, &header, &payments::test_platform_with_secret(secret), &client, &wasm_path, &config, &lambda_client::NeverInvoker).await;
         assert_eq!(response["statusCode"], 200, "{response:?}");
 
         let read = dispatch::read(&client, &wasm_path).await.unwrap();
@@ -1168,7 +1151,7 @@ mod tests {
         // not surfaced as an error (this route's own header explains
         // why, and why that's a deliberate improvement over
         // http_server.rb's own unguarded equivalent).
-        let redelivered = webhook_route(&payload, &header, secret, "stripe", &client, &wasm_path, &config, &lambda_client::NeverInvoker).await;
+        let redelivered = webhook_route(&payload, &header, &payments::test_platform_with_secret(secret), &client, &wasm_path, &config, &lambda_client::NeverInvoker).await;
         assert_eq!(redelivered["statusCode"], 200, "a redelivered webhook must not surface the resulting refusal as an error: {redelivered:?}");
     }
 
@@ -1198,7 +1181,7 @@ mod tests {
         let now = now_secs();
         let header = sign_stripe_header(secret, now, &payload);
 
-        let response = webhook_route(&payload, &header, secret, "stripe", &client, &wasm_path, &config, &lambda_client::NeverInvoker).await;
+        let response = webhook_route(&payload, &header, &payments::test_platform_with_secret(secret), &client, &wasm_path, &config, &lambda_client::NeverInvoker).await;
         assert_eq!(response["statusCode"], 200, "{response:?}");
 
         let read = dispatch::read(&client, &wasm_path).await.unwrap();
@@ -1217,7 +1200,7 @@ mod tests {
         let now = now_secs();
         let header = sign_stripe_header(secret, now, &payload);
 
-        let response = webhook_route(&payload, &header, secret, "stripe", &client, &checkout_wasm_path(), &checkout_config(1), &lambda_client::NeverInvoker).await;
+        let response = webhook_route(&payload, &header, &payments::test_platform_with_secret(secret), &client, &checkout_wasm_path(), &checkout_config(1), &lambda_client::NeverInvoker).await;
         assert_eq!(response["statusCode"], 200);
     }
 }

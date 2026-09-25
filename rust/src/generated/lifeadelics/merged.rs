@@ -25,7 +25,6 @@ pub struct Store {
     pub delivery: crate::kernel::InMemoryRepository<crate::generated::newsletter::delivery::Delivery>,
     pub issue: crate::kernel::InMemoryRepository<crate::generated::newsletter::issue::Issue>,
     pub subscriber: crate::kernel::InMemoryRepository<crate::generated::newsletter::subscriber::Subscriber>,
-    pub account: crate::kernel::InMemoryRepository<crate::generated::accounts::account::Account>,
     pub person: crate::kernel::InMemoryRepository<crate::generated::membership::person::Person>,
     pub accountfreezereview: crate::kernel::InMemoryRepository<crate::generated::compliance::accountfreezereview::AccountFreezeReview>,
     pub boxsurrenderreview: crate::kernel::InMemoryRepository<crate::generated::compliance::boxsurrenderreview::BoxSurrenderReview>,
@@ -47,7 +46,6 @@ impl Store {
             delivery: crate::kernel::InMemoryRepository::new(),
             issue: crate::kernel::InMemoryRepository::new(),
             subscriber: crate::kernel::InMemoryRepository::new(),
-            account: crate::kernel::InMemoryRepository::new(),
             person: crate::kernel::InMemoryRepository::new(),
             accountfreezereview: crate::kernel::InMemoryRepository::new(),
             boxsurrenderreview: crate::kernel::InMemoryRepository::new(),
@@ -97,9 +95,6 @@ for (id, record) in self.issue.entries() {
 }
 for (id, record) in self.subscriber.entries() {
     instances.push((format!("{}{}", "Newsletter::Subscriber#", id), record.to_json()));
-}
-for (id, record) in self.account.entries() {
-    instances.push((format!("{}{}", "Accounts::Account#", id), record.to_json()));
 }
 for (id, record) in self.person.entries() {
     instances.push((format!("{}{}", "Membership::Person#", id), record.to_json()));
@@ -174,10 +169,6 @@ if let Some(id) = key.strip_prefix("Newsletter::Subscriber#") {
     store.subscriber.save(id, crate::generated::newsletter::subscriber::Subscriber::from_json(value)?);
     continue;
 }
-if let Some(id) = key.strip_prefix("Accounts::Account#") {
-    store.account.save(id, crate::generated::accounts::account::Account::from_json(value)?);
-    continue;
-}
 if let Some(id) = key.strip_prefix("Membership::Person#") {
     store.person.save(id, crate::generated::membership::person::Person::from_json(value)?);
     continue;
@@ -245,9 +236,6 @@ if aggregate == "Newsletter::Issue" {
 }
 if aggregate == "Newsletter::Subscriber" {
     return Some(self.subscriber.entries().map(|(id, record)| (id.clone(), record.to_json())).collect());
-}
-if aggregate == "Accounts::Account" {
-    return Some(self.account.entries().map(|(id, record)| (id.clone(), record.to_json())).collect());
 }
 if aggregate == "Membership::Person" {
     return Some(self.person.entries().map(|(id, record)| (id.clone(), record.to_json())).collect());
@@ -658,17 +646,6 @@ pub fn dispatch_by_name(
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
               crate::generated::newsletter::subscriber::dispatch_unsubscribe(&mut store.subscriber, &id, args, mutations, owner_deref, command_deref, tenant_boundary_check).map(|(_, events)| stamp_payload(events, &payload))
           }
-          "Accounts::Account.Register" => {
-              let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
-              let route = invocation.route();
-              let facts_json = invocation.facts();
-              let args = if invocation.explicit_with() { let args = crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::accounts::account::RegisterArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::accounts::account::RegisterArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::accounts::account::RegisterArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::accounts::account::RegisterArgs::from_json(v)?; args.email.check_invariants()?; args.password_hash.check_invariants()?; Ok(args) }, refuse_role_mismatch: &|| Ok(()), resolve_references: &|_args: &crate::generated::accounts::account::RegisterArgs| Ok(()) })?; if let Some(route) = route { route.require_depth(0)?; } args } else { if let Some(route) = route { route.require_depth(0)?; } crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::accounts::account::RegisterArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::accounts::account::RegisterArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::accounts::account::RegisterArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::accounts::account::RegisterArgs::from_json(v)?; args.email.check_invariants()?; args.password_hash.check_invariants()?; Ok(args) }, refuse_role_mismatch: &|| Ok(()), resolve_references: &|_args: &crate::generated::accounts::account::RegisterArgs| Ok(()) })? };
-              let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
-              let owner_deref = Vec::new();
-              let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
-              let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
-              crate::generated::accounts::account::dispatch_register(&mut store.account, route, args, mutations, owner_deref, command_deref, tenant_boundary_check).map(|(_, events)| stamp_payload(events, &payload))
-          }
           "Membership::Person.Admit" => {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
@@ -926,7 +903,6 @@ pub static REFERENCE_TABLE: crate::kernel::ReferenceTable = &[
     ("Newsletter::Delivery", &[]),
     ("Newsletter::Issue", &[]),
     ("Newsletter::Subscriber", &[]),
-    ("Accounts::Account", &[]),
     ("Membership::Person", &[]),
     ("Compliance::AccountFreezeReview", &[]),
     ("Compliance::BoxSurrenderReview", &[]),
@@ -970,9 +946,6 @@ if target == "Newsletter::Issue" {
 }
 if target == "Newsletter::Subscriber" {
     return self.subscriber.find(id).map(|r| Box::new(r) as Box<dyn crate::kernel::Fielded>);
-}
-if target == "Accounts::Account" {
-    return self.account.find(id).map(|r| Box::new(r) as Box<dyn crate::kernel::Fielded>);
 }
 if target == "Membership::Person" {
     return self.person.find(id).map(|r| Box::new(r) as Box<dyn crate::kernel::Fielded>);
@@ -1028,7 +1001,6 @@ pub fn reference_key_for_aggregate(qualified_name: &str) -> Option<&'static str>
         "Newsletter::Delivery" => Some("delivery"),
         "Newsletter::Issue" => Some("issue"),
         "Newsletter::Subscriber" => Some("subscriber"),
-        "Accounts::Account" => Some("account"),
         "Membership::Person" => Some("person"),
         "Compliance::AccountFreezeReview" => Some("account_freeze_review"),
         "Compliance::BoxSurrenderReview" => Some("box_surrender_review"),
@@ -1072,7 +1044,6 @@ pub fn command_creates(verb: &str) -> bool {
         "Newsletter::Subscriber.AddName" => false,
         "Newsletter::Subscriber.Confirm" => false,
         "Newsletter::Subscriber.Unsubscribe" => false,
-        "Accounts::Account.Register" => true,
         "Membership::Person.Admit" => true,
         "Membership::Person.GrantAccess" => false,
         "Membership::Person.LinkIdentity" => false,
@@ -1099,7 +1070,6 @@ pub fn identity_head_for_aggregate(qualified_name: &str) -> Option<&'static str>
         "Newsletter::Delivery" => Some("delivery_id"),
         "Newsletter::Issue" => Some("slug"),
         "Newsletter::Subscriber" => Some("email"),
-        "Accounts::Account" => Some("email"),
         "Membership::Person" => Some("email"),
         "Compliance::AccountFreezeReview" => Some("number"),
         _ => None,
@@ -1148,7 +1118,6 @@ pub fn command_attributes_for_verb(verb: &str) -> &'static [&'static str] {
         "Newsletter::Subscriber.AddName" => &["first_name", "last_name"],
         "Newsletter::Subscriber.Confirm" => &[],
         "Newsletter::Subscriber.Unsubscribe" => &[],
-        "Accounts::Account.Register" => &["email", "password_hash"],
         "Membership::Person.Admit" => &["email", "name"],
         "Membership::Person.GrantAccess" => &["role"],
         "Membership::Person.LinkIdentity" => &["identity_id"],
