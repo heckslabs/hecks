@@ -1,5 +1,6 @@
 use super::{instances_for, last_refusal, respond};
 use crate::dispatch;
+use crate::ir::{ir, newsletter_provider, NewsletterProvider};
 use crate::journal::LineageConfig;
 use crate::lambda_client::LambdaInvoker;
 use serde_json::{json, Value};
@@ -36,11 +37,15 @@ pub(super) async fn newsletter_route(
     config: &LineageConfig,
     invoker: &dyn LambdaInvoker,
 ) -> Option<Value> {
+    // The chapter that declares `provides "newsletter"` names the verbs
+    // and the subscribing aggregate; a domain that attaches none serves
+    // none of these routes.
+    let provider = ir().and_then(newsletter_provider)?;
     match (method, path) {
-        ("POST", "/newsletter/subscribers") => Some(newsletter_subscribe_route(raw_body, client, wasm_path, config, invoker).await),
-        ("GET", "/newsletter/subscribers") => Some(newsletter_subscribers_list_route(client, wasm_path).await),
-        ("GET", "/newsletter/subscribers/confirm") => Some(newsletter_confirm_route(query, client, wasm_path, config, invoker).await),
-        ("GET", "/newsletter/subscribers/unsubscribe") => Some(newsletter_unsubscribe_route(query, client, wasm_path, config, invoker).await),
+        ("POST", "/newsletter/subscribers") => Some(newsletter_subscribe_route(&provider, raw_body, client, wasm_path, config, invoker).await),
+        ("GET", "/newsletter/subscribers") => Some(newsletter_subscribers_list_route(&provider, client, wasm_path).await),
+        ("GET", "/newsletter/subscribers/confirm") => Some(newsletter_confirm_route(&provider, query, client, wasm_path, config, invoker).await),
+        ("GET", "/newsletter/subscribers/unsubscribe") => Some(newsletter_unsubscribe_route(&provider, query, client, wasm_path, config, invoker).await),
         _ => None,
     }
 }
@@ -53,6 +58,7 @@ pub(super) async fn newsletter_route(
 /// own newsletter has no real double opt-in yet (subscriber.bluebook's
 /// own "no signed token" gap, carried over unchanged from Ruby's route).
 async fn newsletter_subscribe_route(
+    provider: &NewsletterProvider,
     raw_body: &str,
     client: &Mutex<Client>,
     wasm_path: &Path,
@@ -73,12 +79,12 @@ async fn newsletter_subscribe_route(
         Ok(r) => r,
         Err(e) => return respond(500, "text/plain", &format!("{e:#}")),
     };
-    let existing = instances_for(&read, "Newsletter::Subscriber#").iter().any(|(id, _)| id == email);
+    let existing = instances_for(&read, &provider.instance_prefix()).iter().any(|(id, _)| id == email);
 
     if existing {
         if let (Some(first), Some(last)) = (first_name, last_name) {
             let facts = json!({"first_name": {"value": first}, "last_name": {"value": last}});
-            if let Err(e) = dispatch::handle_routed(client, wasm_path, "Newsletter::Subscriber.AddName", json!(email), facts, None, config, invoker).await {
+            if let Err(e) = dispatch::handle_routed(client, wasm_path, &provider.add_name, json!(email), facts, None, config, invoker).await {
                 return respond(500, "text/plain", &format!("{e:#}"));
             }
         }
@@ -90,7 +96,7 @@ async fn newsletter_subscribe_route(
         if let Some(last) = last_name {
             facts["last_name"] = json!({"value": last});
         }
-        let outcome = match dispatch::handle_facts(client, wasm_path, "Newsletter::Subscriber.Subscribe", facts, None, config, invoker).await {
+        let outcome = match dispatch::handle_facts(client, wasm_path, &provider.subscribe, facts, None, config, invoker).await {
             Ok(o) => o,
             Err(e) => return respond(500, "text/plain", &format!("{e:#}")),
         };
@@ -109,12 +115,12 @@ async fn newsletter_subscribe_route(
         Ok(r) => r,
         Err(e) => return respond(500, "text/plain", &format!("{e:#}")),
     };
-    let subscribers = instances_for(&read, "Newsletter::Subscriber#");
+    let subscribers = instances_for(&read, &provider.instance_prefix());
     let Some((_, subscriber)) = subscribers.iter().find(|(id, _)| id == email) else {
         return respond(500, "text/plain", "subscriber vanished immediately after being written");
     };
     if subscriber.get("status").and_then(|v| v.as_str()) == Some("pending") {
-        if let Err(e) = dispatch::handle_routed(client, wasm_path, "Newsletter::Subscriber.Confirm", json!(email), json!({}), None, config, invoker).await {
+        if let Err(e) = dispatch::handle_routed(client, wasm_path, &provider.confirm, json!(email), json!({}), None, config, invoker).await {
             return respond(500, "text/plain", &format!("{e:#}"));
         }
     }
@@ -123,7 +129,7 @@ async fn newsletter_subscribe_route(
         Ok(r) => r,
         Err(e) => return respond(500, "text/plain", &format!("{e:#}")),
     };
-    let subscribers = instances_for(&read, "Newsletter::Subscriber#");
+    let subscribers = instances_for(&read, &provider.instance_prefix());
     let status = subscribers.iter().find(|(id, _)| id == email).and_then(|(_, s)| s.get("status")).and_then(|v| v.as_str()).unwrap_or("pending");
     respond(200, "application/json", &json!({"email": email, "status": status}).to_string())
 }
@@ -136,12 +142,12 @@ async fn newsletter_subscribe_route(
 /// under "Newsletter", not `config.domain` -- same cross-chapter
 /// reasoning `instances_for(&read, "Payments::Payment#")` above already
 /// follows for reading Payment).
-async fn newsletter_subscribers_list_route(client: &Mutex<Client>, wasm_path: &Path) -> Value {
+async fn newsletter_subscribers_list_route(provider: &NewsletterProvider, client: &Mutex<Client>, wasm_path: &Path) -> Value {
     let read = match dispatch::read(client, wasm_path).await {
         Ok(r) => r,
         Err(e) => return respond(500, "text/plain", &format!("{e:#}")),
     };
-    let mut subscribers: Vec<Value> = instances_for(&read, "Newsletter::Subscriber#")
+    let mut subscribers: Vec<Value> = instances_for(&read, &provider.instance_prefix())
         .into_iter()
         .map(|(email, s)| {
             json!({
@@ -164,7 +170,7 @@ async fn newsletter_subscribers_list_route(client: &Mutex<Client>, wasm_path: &P
 /// (its own `given` refuses a second attempt outright), so a guest
 /// double-clicking, or a mail client prefetching the link, still lands
 /// on the same success response instead of a 422.
-async fn newsletter_confirm_route(query: &HashMap<String, String>, client: &Mutex<Client>, wasm_path: &Path, config: &LineageConfig, invoker: &dyn LambdaInvoker) -> Value {
+async fn newsletter_confirm_route(provider: &NewsletterProvider, query: &HashMap<String, String>, client: &Mutex<Client>, wasm_path: &Path, config: &LineageConfig, invoker: &dyn LambdaInvoker) -> Value {
     let Some(email) = query.get("email") else {
         return respond(400, "application/json", &json!({"error": "email"}).to_string());
     };
@@ -173,13 +179,13 @@ async fn newsletter_confirm_route(query: &HashMap<String, String>, client: &Mute
         Ok(r) => r,
         Err(e) => return respond(500, "text/plain", &format!("{e:#}")),
     };
-    let subscribers = instances_for(&read, "Newsletter::Subscriber#");
+    let subscribers = instances_for(&read, &provider.instance_prefix());
     let Some((_, subscriber)) = subscribers.iter().find(|(id, _)| id == email) else {
         return respond(404, "application/json", &json!({"error": "no such subscriber"}).to_string());
     };
 
     if subscriber.get("status").and_then(|v| v.as_str()) == Some("pending") {
-        if let Err(e) = dispatch::handle_routed(client, wasm_path, "Newsletter::Subscriber.Confirm", json!(email), json!({}), None, config, invoker).await {
+        if let Err(e) = dispatch::handle_routed(client, wasm_path, &provider.confirm, json!(email), json!({}), None, config, invoker).await {
             return respond(500, "text/plain", &format!("{e:#}"));
         }
     }
@@ -188,7 +194,7 @@ async fn newsletter_confirm_route(query: &HashMap<String, String>, client: &Mute
         Ok(r) => r,
         Err(e) => return respond(500, "text/plain", &format!("{e:#}")),
     };
-    let subscribers = instances_for(&read, "Newsletter::Subscriber#");
+    let subscribers = instances_for(&read, &provider.instance_prefix());
     let status = subscribers.iter().find(|(id, _)| id == email).and_then(|(_, s)| s.get("status")).and_then(|v| v.as_str()).unwrap_or("pending");
     respond(200, "application/json", &json!({"email": email, "status": status}).to_string())
 }
@@ -203,7 +209,7 @@ async fn newsletter_confirm_route(query: &HashMap<String, String>, client: &Mute
 /// unreachable before this route existed (confirmed live: fell through
 /// to auth_gate's 401, never a 404, since neither this path nor
 /// /confirm was in UNGATED_PATHS and nothing recognized either one).
-async fn newsletter_unsubscribe_route(query: &HashMap<String, String>, client: &Mutex<Client>, wasm_path: &Path, config: &LineageConfig, invoker: &dyn LambdaInvoker) -> Value {
+async fn newsletter_unsubscribe_route(provider: &NewsletterProvider, query: &HashMap<String, String>, client: &Mutex<Client>, wasm_path: &Path, config: &LineageConfig, invoker: &dyn LambdaInvoker) -> Value {
     let Some(email) = query.get("email") else {
         return respond(400, "application/json", &json!({"error": "email"}).to_string());
     };
@@ -212,13 +218,13 @@ async fn newsletter_unsubscribe_route(query: &HashMap<String, String>, client: &
         Ok(r) => r,
         Err(e) => return respond(500, "text/plain", &format!("{e:#}")),
     };
-    let subscribers = instances_for(&read, "Newsletter::Subscriber#");
+    let subscribers = instances_for(&read, &provider.instance_prefix());
     let Some((_, subscriber)) = subscribers.iter().find(|(id, _)| id == email) else {
         return respond(404, "application/json", &json!({"error": "no such subscriber"}).to_string());
     };
 
     if subscriber.get("status").and_then(|v| v.as_str()) != Some("unsubscribed") {
-        if let Err(e) = dispatch::handle_routed(client, wasm_path, "Newsletter::Subscriber.Unsubscribe", json!(email), json!({}), None, config, invoker).await {
+        if let Err(e) = dispatch::handle_routed(client, wasm_path, &provider.unsubscribe, json!(email), json!({}), None, config, invoker).await {
             return respond(500, "text/plain", &format!("{e:#}"));
         }
     }
@@ -227,7 +233,7 @@ async fn newsletter_unsubscribe_route(query: &HashMap<String, String>, client: &
         Ok(r) => r,
         Err(e) => return respond(500, "text/plain", &format!("{e:#}")),
     };
-    let subscribers = instances_for(&read, "Newsletter::Subscriber#");
+    let subscribers = instances_for(&read, &provider.instance_prefix());
     let status = subscribers.iter().find(|(id, _)| id == email).and_then(|(_, s)| s.get("status")).and_then(|v| v.as_str()).unwrap_or("pending");
     respond(200, "application/json", &json!({"email": email, "status": status}).to_string())
 }
