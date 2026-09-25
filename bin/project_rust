@@ -294,6 +294,12 @@ else
   newsletter = Hecks::Projector::Exporter.newsletter(target_registry, target_domain_name)
   target_ir[:newsletter] = json_shaped(newsletter) unless newsletter.empty?
 
+  # And again for payments — rust/host's checkout and webhook routes read
+  # this instead of naming Payments::Payment verbs. Omitted entirely when
+  # nothing attached provides "payments".
+  payments = Hecks::Projector::Exporter.payments(target_registry, target_domain_name)
+  target_ir[:payments] = json_shaped(payments) unless payments.empty?
+
   if !membership.empty? && identity.empty?
     abort "#{target_domain_name} provides membership but not identity — rust/host " \
           "Google sign-in cannot register or link an identity from ir.json. " \

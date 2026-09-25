@@ -21,7 +21,7 @@ use crate::auth;
 use crate::auth::Session;
 use crate::dispatch;
 use crate::field_hints::{EMAIL_HINT, TEL_HINT, TEXTAREA_HINT, URL_HINT};
-use crate::ir::ir;
+use crate::ir::{ir, payments_provider};
 use crate::journal::LineageConfig;
 use crate::lambda_client::LambdaInvoker;
 use crate::payments;
@@ -76,13 +76,12 @@ pub async fn render(
     // routes don't exist. An env var rather than an IR-driven "outbound
     // port"/"webhook signature scheme" capability — considered for
     // real (equivalence-gap plan 3.3) and declined; checkout.rs's own
-    // header has the reasoning. Membership, unlike checkout, *did* move
-    // onto a declared capability (`provides "membership"`). The verb shapes these routes hardcode
-    // are pinned by spec/fixtures/rust_host/checkout_fixture, which this
-    // module's tests run against. Checked before the ir()/HECKS_IR_PATH
-    // gate below, deliberately: a Shared-mode deploy with no generic
-    // FieldShape UI never sets HECKS_IR_PATH, and neither route needs a
-    // domain_ir at all.
+    // header has the reasoning. Membership, newsletter and payments, unlike
+    // this gate, *did* move onto declared capabilities (`provides
+    // "membership"`, `"newsletter"`, `"payments"`): the routes read their
+    // verbs from ir.json, so a domain that declares none serves none. The
+    // capability shapes are pinned by spec/fixtures/rust_host/checkout_fixture,
+    // which this module's tests run against.
     if checkout_enabled(std::env::var("HECKS_CHECKOUT_DOMAIN").ok().as_deref(), &config.domain) {
         // Guest-facing newsletter subscribe -- same gate as checkout
         // (HECKS_CHECKOUT_DOMAIN), not a second env var: both are
@@ -96,9 +95,14 @@ pub async fn render(
         if let Some(response) = newsletter::newsletter_route(method, path, &query, &raw_body, client, wasm_path, config, invoker).await {
             return Some(response);
         }
-        let stripe_signature = body.get("headers").and_then(|h| h.get("stripe-signature")).and_then(|v| v.as_str()).unwrap_or("");
-        if let Some(response) = checkout_route(method, path, &raw_body, stripe_signature, client, wasm_path, config, invoker).await {
-            return Some(response);
+        // The chapter that declares `provides "payments"` names the verbs
+        // and the paying aggregate; a domain that attaches none serves none
+        // of the checkout, registration-payment or webhook routes.
+        if let Some(payments) = ir().and_then(payments_provider) {
+            let stripe_signature = body.get("headers").and_then(|h| h.get("stripe-signature")).and_then(|v| v.as_str()).unwrap_or("");
+            if let Some(response) = checkout_route(method, path, &raw_body, stripe_signature, client, wasm_path, config, invoker, &payments).await {
+                return Some(response);
+            }
         }
     }
 

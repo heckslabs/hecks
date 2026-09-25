@@ -32,6 +32,14 @@ module Hecks
       # "Newsletter". rust/host's newsletter routes dispatch these verbs
       # and read the subscribing aggregate's instances off `subscribe`.
       NEWSLETTER = "newsletter".freeze
+      # Taking a payment through an external processor: start one, then
+      # hear the processor's verdict — recognised by declaration, not the
+      # literal chapter name "Payments". rust/host's checkout and webhook
+      # routes dispatch these verbs and read the paying aggregate's
+      # instances off `initiate`. The two verdicts are hecksagon port
+      # operations (the processor's webhook, translated into this chapter's
+      # vocabulary), not commands.
+      PAYMENTS = "payments".freeze
 
       CONTRACTS = {
         AUTHORIZATION => {
@@ -67,6 +75,14 @@ module Hecks
           confirm:     :command,
           # a subscriber leaves from the emailed link
           unsubscribe: :command
+        }.freeze,
+        PAYMENTS      => {
+          # start a payment; the aggregate it names is the payment
+          initiate:  :command,
+          # the processor reports the money arrived
+          succeeded: :port_operation,
+          # the processor reports the payment failed or expired
+          failed:    :port_operation
         }.freeze
       }.freeze
     end
