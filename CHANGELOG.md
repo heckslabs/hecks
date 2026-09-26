@@ -21,6 +21,24 @@ message. `read` and `query` fail the same way instead of returning an empty
 world. A refusal (an entry in `refusals`) and a normal accept behave exactly as
 before.
 
+**An archived registration frees its seat.** A registration whose `status` is
+`archived` no longer counts against its event's capacity, whatever its Payment
+says, so `seats_left` and the 409 `this event is full` answer follow. A
+registration holds a seat when its Payment is pending, succeeded, refunding or
+disputed and it is not archived; one with no `status` at all counts as active,
+so a domain whose Registration has no lifecycle behaves exactly as before.
+`GET /registrations` rows carry a `status` key when the registration has one
+and are unchanged when it does not.
+
+**Minting an era fills lifecycle defaults into the stored snapshot.** rust/host
+keeps a snapshot of every instance and seeds each dispatch from it. When an
+aggregate gains a lifecycle, the snapshot's existing instances lack the new
+field, and the generated code refuses them (`invalid seed: Registration.status:
+missing from JSON args`). The era mint now gives every seeded instance that
+lacks its aggregate's lifecycle field that lifecycle's default, inside the mint
+transaction, under the same advisory lock a dispatch holds. Instances that
+already carry the field, and aggregates with no lifecycle, are left alone.
+
 ## [2.4.0] - 2026-09-26
 
 **A value object declared in a sibling aggregate is read as a value object.**

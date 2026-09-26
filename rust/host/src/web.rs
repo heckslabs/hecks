@@ -38,6 +38,8 @@ mod registrations;
 use registrations::{checkout_enabled, payments_routes};
 // payments.rs and its tests reach these through `web::`, not `web::registrations::`.
 pub(crate) use registrations::{registration_complete_route, registrations_route, webhook_route, MOCK_STRIPE_WEBHOOK_SECRET};
+#[cfg(test)]
+pub(crate) use registrations::{seats_left, seats_taken};
 
 const UNGATED_PATHS: &[&str] = &["/login", "/logout", "/auth/google", "/auth/google/callback"];
 
@@ -728,7 +730,9 @@ async fn registrations_list_route(
 // The registration rows the admin list shows. Built field by field from an
 // allowlist, so intake answers such as medications and health concerns, and
 // anything from the payment, can never appear. Newest first when the
-// registrations carry a timestamp, otherwise in the order they were read.
+// registrations carry a timestamp, otherwise in the order they were read. A
+// row carries `status` only when the registration has a lifecycle state, so a
+// domain whose Registration has none keeps the exact shape it always had.
 fn registration_list_rows(read: &Value, domain: &str) -> Vec<Value> {
     const TIMESTAMP_KEYS: [&str; 4] = ["created_at", "registered_at", "requested_at", "occurred_at"];
     let plain = |value: Option<&Value>| -> Option<Value> {
@@ -744,13 +748,16 @@ fn registration_list_rows(read: &Value, domain: &str) -> Vec<Value> {
             let joined = [text(attendee.get("first_name")), text(attendee.get("last_name"))].into_iter().flatten().collect::<Vec<_>>().join(" ");
             let name = if joined.is_empty() { text(attendee.get("name")).unwrap_or_default() } else { joined };
             let stamp = TIMESTAMP_KEYS.iter().find_map(|key| text(registration.get(*key)));
-            let row = json!({
+            let mut row = json!({
                 "registration_id": id,
                 "email": text(attendee.get("email")),
                 "name": name.trim(),
                 "event_slug": text(registration.get("event_slug")),
                 "news_signup": plain(attendee.get("news_signup")).and_then(|v| v.as_bool()).unwrap_or(false),
             });
+            if let Some(status) = text(registration.get("status")) {
+                row["status"] = json!(status);
+            }
             (stamp, row)
         })
         .collect();
@@ -3273,6 +3280,22 @@ mod tests {
         for leaked in ["SECRET-MEDICATION", "SECRET-CONCERN", "medications", "health_concerns", "555-0100", "12345", "9900", "succeeded", "amount"] {
             assert!(!body.contains(leaked), "{leaked:?} leaked into the registration list: {body}");
         }
+    }
+
+    #[test]
+    fn registration_list_rows_carry_status_only_when_the_registration_has_one() {
+        let read = json!({"instances": {
+            "Studio::Registration#with": {"event_slug": "e", "status": "archived", "attendee": {"name": "Has Status", "email": "with@example.com"}},
+            "Studio::Registration#without": {"event_slug": "e", "attendee": {"name": "No Status", "email": "without@example.com"}},
+        }});
+        let rows = registration_list_rows(&read, "Studio");
+        let by_id = |id: &str| rows.iter().find(|row| row["registration_id"] == id).unwrap().clone();
+        assert_eq!(by_id("with")["status"], "archived");
+        assert!(by_id("without").get("status").is_none(), "no status key at all when the registration carries none: {:?}", by_id("without"));
+        assert_eq!(
+            by_id("without"),
+            json!({"registration_id": "without", "email": "without@example.com", "name": "No Status", "event_slug": "e", "news_signup": false})
+        );
     }
 
     #[test]
