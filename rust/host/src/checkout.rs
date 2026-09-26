@@ -134,10 +134,9 @@ pub fn mock_checkout_session(registration_id: &str, success_url: &str, cancel_ur
 // web.rs's own webhook route reads back to recover which Payment/
 // Registration this session belongs to.
 //
-// A direct charge on the tenant's own connected account: the platform's key
-// authenticates the call and the `Stripe-Account` header names the account
-// the session (and the money) belongs to, exactly `stripe_account:` in the
-// Ruby adapter's request options.
+// A charge on the business's own Stripe account: that account's own key
+// authenticates the call, so the session (and the money) belongs to it and no
+// other account is named.
 //
 // The session is embedded: the guest pays in a form the site mounts inline,
 // never on a Stripe-hosted page, so Stripe returns a `client_secret` for the
@@ -150,15 +149,13 @@ pub fn mock_checkout_session(registration_id: &str, success_url: &str, cancel_ur
 
 /// The Stripe API version every session request is pinned to. `embedded_page`
 /// exists from this line of versions on, so the request must not depend on
-/// whatever default the platform account happens to have.
+/// whatever default the account happens to have.
 pub const STRIPE_API_VERSION: &str = "2026-04-22.dahlia";
 
-/// How one Stripe call is authenticated and addressed: the platform's own
-/// secret key, the connected account the call acts on behalf of, and the API
-/// base URL (`https://api.stripe.com` outside of tests).
+/// How one Stripe call is authenticated and addressed: the business's own
+/// secret key and the API base URL (`https://api.stripe.com` outside of tests).
 pub struct StripeAuth<'a> {
     pub api_key: &'a str,
-    pub account: Option<&'a str>,
     pub base_url: &'a str,
 }
 
@@ -181,7 +178,7 @@ pub fn session_expires_at(now: i64) -> i64 {
     now + SESSION_HOLD_SECONDS
 }
 
-/// Opens an embedded Checkout Session for one registration on the tenant's
+/// Opens an embedded Checkout Session for one registration on the business's
 /// account and returns what the browser needs to mount the payment form. The
 /// session expires at `expires_at` (Unix seconds), which releases the seat an
 /// abandoned checkout was holding. Errors carry Stripe's message when it
@@ -207,15 +204,13 @@ pub async fn create_checkout_session(
         ("metadata[registration_id]", registration_id),
     ];
 
-    let mut request = reqwest::Client::new()
+    let response = reqwest::Client::new()
         .post(format!("{}/v1/checkout/sessions", auth.base_url))
         .bearer_auth(auth.api_key)
         .header("Stripe-Version", STRIPE_API_VERSION)
-        .form(&params);
-    if let Some(account) = auth.account {
-        request = request.header("Stripe-Account", account);
-    }
-    let response = request.send().await?;
+        .form(&params)
+        .send()
+        .await?;
 
     let status = response.status();
     let body: Value = response.json().await?;

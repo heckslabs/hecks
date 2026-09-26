@@ -469,21 +469,17 @@ pub(crate) async fn registrations_route(
 
     // A Stripe plan opens its embedded session before anything is written, so
     // a Stripe failure leaves no Payment or Registration behind and a guest
-    // retrying does not pile up pending registrations. The session is a direct
-    // charge on the tenant's own account: for a connected account, the
-    // platform's key and the `Stripe-Account` header naming whose money it is;
-    // for the business's own account, that account's key and no header. If a
+    // retrying does not pile up pending registrations. The session is a charge
+    // on the business's own account, authenticated with that account's key. If a
     // domain refusal follows, the unused session simply expires.
-    let embedded_checkout = if let payments::CheckoutPlan::Stripe { api_key, publishable_key, account } = &plan {
-        let auth = checkout::StripeAuth { api_key, account: account.as_deref(), base_url: &platform.api_base };
+    let embedded_checkout = if let payments::CheckoutPlan::Stripe { api_key, publishable_key } = &plan {
+        let auth = checkout::StripeAuth { api_key, base_url: &platform.api_base };
         match checkout::create_checkout_session(&auth, price_cents, event_name, &reference, checkout::session_expires_at(unix_now())).await {
-            // Stripe.js is opened with the publishable key and, for a connected
-            // account, `stripeAccount` (null for the business's own account);
-            // the answer carries no `checkout_url`.
+            // Stripe.js is opened with the publishable key; the answer carries
+            // no `checkout_url`.
             Ok(session) => Some(json!({
                 "client_secret": session.client_secret,
                 "publishable_key": publishable_key,
-                "stripe_account": account,
                 "session_id": session.session_id,
             })),
             Err(e) => {
@@ -607,16 +603,12 @@ fn mock_secret_refused() -> Value {
 // Payment's own vendored PaymentGateway port, never Registration's
 // (removed — see lifeadelics.bluebook's own Registration comment).
 //
-// One platform endpoint receives every tenant's Connect events, signed with
-// the platform's `STRIPE_WEBHOOK_SECRET`. An event naming some other connected
-// account is acknowledged and ignored; `account.application.deauthorized`
-// pauses or unlinks this tenant's connection (payments.rs). While that secret
-// is unset the public mock secret verifies the signature instead, and
-// anything only a real processor could send (an account event, or an event
-// for a Payment a real processor collected) is refused rather than trusted on
-// a publicly-known key. A business using its own account can also have a
-// signing secret saved with its keys (payments.rs, keystore.rs): that is
-// accepted too, and whenever any real credential is configured or saved the
+// Events are signed with `STRIPE_WEBHOOK_SECRET`, or with the signing secret
+// saved along with the business's own keys (payments.rs, keystore.rs); either is
+// accepted. While neither is set the public mock secret verifies the signature
+// instead, and anything only a real processor could send (an event for a Payment
+// a real processor collected) is refused rather than trusted on a
+// publicly-known key. Whenever any real credential is configured or saved the
 // mock secret is refused outright.
 pub(crate) async fn webhook_route(
     raw_body: &str,
@@ -657,26 +649,13 @@ pub(crate) async fn webhook_route(
         Ok(r) => r,
         Err(e) => return respond(500, "text/plain", &format!("{e:#}")),
     };
-    let connection = payments::connection(&read, &config.domain);
+    // The business's own endpoint delivers events with no `account`; one that
+    // names an account is some other account's, acknowledged and ignored.
+    if event.get("account").and_then(|v| v.as_str()).is_some() {
+        return respond(200, "text/plain", "");
+    }
     let fallback_secret = platform.webhook_secrets().is_empty();
     let refuse_fallback = mock_secret_refused;
-
-    match payments::event_scope(&event, connection.as_ref()) {
-        payments::EventScope::Ignore => return respond(200, "text/plain", ""),
-        payments::EventScope::Deauthorized => {
-            if fallback_secret {
-                return refuse_fallback();
-            }
-            return match payments::apply_deauthorization(connection.as_ref(), client, wasm_path, config, invoker).await {
-                Ok(()) => respond(200, "text/plain", ""),
-                Err(e) => respond(500, "text/plain", &format!("{e:#}")),
-            };
-        }
-        payments::EventScope::Proceed => {}
-    }
-    if fallback_secret && event.get("account").is_some_and(|account| !account.is_null()) {
-        return refuse_fallback();
-    }
 
     let event_type = event.get("type").and_then(|v| v.as_str()).unwrap_or("");
     let object = event.get("data").and_then(|d| d.get("object")).cloned().unwrap_or_else(|| json!({}));
