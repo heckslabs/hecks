@@ -7,6 +7,22 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+**CI now fuzzes the whole corpus on SQLite and Postgres, and `bin/fuzz --adapter
+postgres` boots every domain.** `bin/fuzz` in CI ran on the Memory adapter only.
+Two new jobs beside `checks_fuzz` run the same sweep through a real SQLite
+database (`checks_fuzz_sqlite`, 6 seeds per domain) and a real Postgres
+(`checks_fuzz_postgres`, 3 seeds of 20 steps per domain, one process against one
+server). The Postgres run found a real defect the first time it covered every
+domain: when a directory held two `.hecksagon` files (the `qa` domain's
+`context_map.hecksagon` beside `quality_control.hecksagon`), each one rewrote the
+same `hecks_fuzz_postgres.world`, so the last file's names replaced the first's
+and Governance booted bound to Postgres with no database. The worlds are now
+written once per directory, naming every hecksagon block in it, the way the
+PostgresEra mode already did. `spec/adapters/query_hop_agreement_spec.rb` now
+also covers PostgresEra: a reference-hop query (`owner/field`) answers the same on
+Sqlite, Postgres and PostgresEra as on Memory, and `docs/future-features.md` no
+longer lists that as an open question.
+
 ## [2.5.1] - 2026-09-26
 
 **Projecting a framework chapter no longer leaves a dangling `pub mod merged;`,
