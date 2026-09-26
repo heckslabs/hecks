@@ -110,40 +110,22 @@ RSpec.describe "the per-deploy Ruby/Rust parity gate (Phase 8)", :io do
       File.join(repo_root, "rust", "dist", "#{domain_name}.wasm")
     end
 
-    # `bin/project_wasm` regenerates `rust/src/generated/` (that domain's
-    # own tree, plus any shared framework chapter it depends on) and
-    # rewrites `rust/Cargo.toml`'s own `default` feature as a side
-    # effect of building the .wasm this spec actually needs — the same
-    # behavior `bin/project_rust`'s own regen has throughout this whole
-    # plan's own commit history. Restoring exactly the files this run
-    # newly dirtied (`after` minus `before`, never the whole post-run
-    # diff — a session with its own already-uncommitted work in progress
-    # would otherwise have that work silently reverted the moment this
-    # spec's own `after(:context)` fires, exactly the mistake this
-    # comment exists to name so it never gets repeated) is what keeps
-    # this spec from leaving the working tree — and every other spec
-    # that reads `rust/src/generated/`'s current committed content —
-    # dirty after a single run, without ever touching a file this run
-    # didn't itself modify.
-    def self.tracked_diff
-      `git -C #{repo_root} diff --name-only`.split("\n")
-    end
-
-    def self.restore_tracked_diff(paths)
-      return if paths.empty?
-
-      system("git", "-C", repo_root, "checkout", "--", *paths)
+    # `bin/project_wasm` projects and builds in a scratch copy of the crate
+    # (`tmp/project_wasm/rust`), so it never modifies `rust/Cargo.toml` or
+    # `rust/src/generated/`. `crate_status` snapshots those paths (tracked
+    # changes and untracked files alike) so the spec below can prove it.
+    def self.crate_status
+      `git -C #{repo_root} status --porcelain -- rust/Cargo.toml rust/src`.split("\n")
     end
 
     before(:context) do
-      @dirty_before_this_spec = self.class.tracked_diff
+      @crate_status_before = self.class.crate_status
       @roster_wasm = self.class.wasm_for("examples/roster")
       @pizzas_wasm = self.class.wasm_for("examples/pizzas")
     end
 
-    after(:context) do
-      newly_dirtied = self.class.tracked_diff - @dirty_before_this_spec
-      self.class.restore_tracked_diff(newly_dirtied)
+    it "leaves rust/Cargo.toml and rust/src/generated untouched" do
+      expect(self.class.crate_status).to eq(@crate_status_before)
     end
 
     def rust_conformance(domain, script, artifact)
