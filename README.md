@@ -429,8 +429,8 @@ holds Rust's generated output byte-identical to Ruby's, and
 `spec/rust_conformance_spec.rb` replays every pinned fixture script in
 `spec/corpus/rust_conformance/` through the compiled binary, diffing instances, events, refusals,
 reactions, sagas, and query rows against Ruby's byte-for-byte, in CI,
-on every push. That parity is proven on the pinned fixtures, not the
-whole corpus — see below for what's still open there. Measured
+on every push. That parity is proven on the pinned fixtures and on the
+whole-script corpus members promoted below. Measured
 directly in this repository, generating and building the `pizzas`
 domain from a clean `rust/src/generated/`:
 
@@ -445,22 +445,19 @@ $ wasmtime run rust/dist/pizzas.wasm < spec/corpus/pizzas.json
 # real dispatch output — instances, events, refusals — matching Ruby's
 ```
 
-The gap past those pinned fixtures is real: replaying `spec/corpus/banking.json`
-in full (258 steps, far more varied than any pinned script) against the
-compiled binary turns up genuine divergence — a policy-triggered
-reaction's `AccountDebited`/`AccountCredited` event carries an extra
-`reference` field in Rust that Ruby's own record omits, and the two
-sides disagree on refusal count (180 from Ruby, 190 from Rust, on the
-same script), wording, and order, since they don't always check the
-same thing first for the same bad input. Only 4 of the 10 domains
-under `spec/corpus/` have a Rust build to compare against at all today
-(`banking`, `compliance`, `pizzas`, `roster`); `chess` (the newest
-example domain) has never been run through `bin/project_rust`, and the
-framework/grammar chapters (`governance`, `identity`,
-`console_settings`, `expression`, `translation` — `lib/hecks/framework`
-and `lib/hecks/grammar`) have no Cargo feature of their own to build,
-only folded in as dependencies of banking's build. Closing the
-full-corpus gap is ongoing work, tracked alongside
+The whole `spec/corpus/banking.json` script is held to the same bar: the
+conformance spec replays it in full against the compiled binary and
+requires instances, events, refusals, queries, sagas, and reactions to
+match Ruby byte-for-byte. Replaying it found two refusals Rust worded
+differently from Ruby (a value object offered as a bare scalar, and a
+read model asked for a record that does not exist), both fixed in Rust.
+Corpus scripts are promoted to that whole-script bar one at a time; the
+rest are covered by the smaller pinned fixtures, or have no Rust build of
+their own to compare against: the framework/grammar chapters
+(`governance`, `identity`, `console_settings`, `expression`,
+`translation` — `lib/hecks/framework` and `lib/hecks/grammar`) have no
+Cargo feature and are only folded into the build of a domain that
+attaches them. The history of the Ruby/Rust divergence findings is in
 [`docs/audits/2026-08-11-bug-triage.md`](docs/audits/2026-08-11-bug-triage.md)'s
 R1–R4.
 

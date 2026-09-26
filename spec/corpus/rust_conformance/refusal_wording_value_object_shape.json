@@ -1,0 +1,9 @@
+{
+  "domain": "examples/banking",
+  "note": "TypeMismatch/value_object_shape — a multi-field value object (PersonName{given, family}) offered as a bare scalar. Ruby's `Value.fields_for` refuses `name is a PersonName — pass its fields as an object, not \"Ada\"`, quoting the caller's attribute name and the value object's type; Rust's generated `from_json` used to refuse with its own generic `PersonName expects an object, got \"Ada\"`, found only by replaying the whole spec/corpus/banking.json (step 27). The second and third steps offer a bare array and a bare number, to pin the `offered` rendering.",
+  "steps": [
+    {"verb": "Banking::Customer.Register", "args": {"reference": {"value": "cust-1"}, "name": "Ada", "email": {"address": "ada@example.com"}}},
+    {"verb": "Banking::Customer.Register", "args": {"reference": {"value": "cust-2"}, "name": ["Ada", "Lovelace"], "email": {"address": "ada@example.com"}}},
+    {"verb": "Banking::Customer.Register", "args": {"reference": {"value": "cust-3"}, "name": 7, "email": {"address": "ada@example.com"}}}
+  ]
+}

@@ -311,6 +311,39 @@ impl Json {
         }
     }
 
+    /// `Rendering.describe` (lib/hecks/rendering.rb) for a raw JSON value: how
+    /// a refusal quotes an offered value. An Array or Object is compact JSON
+    /// (`["a","b"]`, no space after the comma); anything else reads as
+    /// `inspect` does.
+    pub fn describe(&self) -> String {
+        match self {
+            Json::Array(_) | Json::Object(_) => self.to_json_string(),
+            other => other.inspect(),
+        }
+    }
+
+    /// The shape gate `Value.fields_for` (lib/hecks/runtime/value/coercion.rb)
+    /// applies to a multi-field value object offered as anything but a
+    /// Hash: refuses `TypeMismatch` with the `value_object_shape` wording,
+    /// naming the caller's attribute (`name`) and the value object's type,
+    /// the way Ruby names them. An object passes through unchanged.
+    ///
+    /// Only the caller knows the attribute name, so this runs at the call
+    /// site of the value object's own `from_json`, ahead of it.
+    pub fn expect_value_object_shape(&self, name: &str, type_name: &str) -> Result<&Json, Refusal> {
+        match self {
+            Json::Object(_) => Ok(self),
+            other => Err(Refusal::TypeMismatch(
+                super::refusal_wording::TypeMismatchValueObjectShapeArgs {
+                    name,
+                    r#type: type_name,
+                    offered: &other.describe(),
+                }
+                .render_args(),
+            )),
+        }
+    }
+
     /// A required-field lookup that raises the same `Refusal::TypeMismatch`
     /// every generated `from_json` raises for a missing/wrong-shaped field —
     /// shared here so the message wording is one place, not re-typed at
@@ -672,6 +705,42 @@ mod integral_i64_tests {
         // differs from `to_id_component`.
         let list = Json::Array(vec![]);
         assert!(list.to_id_component_lenient().is_err(), "a non-scalar must still refuse, same as to_id_component");
+    }
+}
+
+#[cfg(test)]
+mod value_object_shape_tests {
+    use super::*;
+
+    fn refusal_text(json: &Json) -> String {
+        match json.expect_value_object_shape("name", "PersonName") {
+            Err(Refusal::TypeMismatch(text)) => text,
+            other => panic!("expected a TypeMismatch refusal, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn an_object_passes_through_untouched() {
+        let object = Json::obj(vec![("given", Json::Str("Ada".into()))]);
+        assert!(object.expect_value_object_shape("name", "PersonName").is_ok());
+    }
+
+    #[test]
+    fn a_scalar_is_refused_in_rubys_wording() {
+        assert_eq!(
+            refusal_text(&Json::Str("Ada".into())),
+            "name is a PersonName — pass its fields as an object, not \"Ada\""
+        );
+        assert_eq!(refusal_text(&Json::Num(7.0)), "name is a PersonName — pass its fields as an object, not 7");
+    }
+
+    #[test]
+    fn an_array_is_described_as_compact_json() {
+        let list = Json::Array(vec![Json::Str("Ada".into()), Json::Str("Lovelace".into())]);
+        assert_eq!(
+            refusal_text(&list),
+            "name is a PersonName — pass its fields as an object, not [\"Ada\",\"Lovelace\"]"
+        );
     }
 }
 
