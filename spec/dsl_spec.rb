@@ -562,6 +562,66 @@ RSpec.describe "the DSL surface" do
       end.to raise_error(Malformed, /Echo's where matches against "\(\?=x\)", which uses a lookahead/)
     end
 
+    # A method call the expression language has no node for parses as a lookup of an attribute that
+    # can never exist. It is refused where the rule is built, not on the first dispatch.
+    describe "a call the expression language does not support" do
+      it "is refused in a value object invariant, naming the expression and the alternative" do
+        expect do
+          build_aggregate("Statuses") do
+            value_object("StatusCode") do
+              attribute :value, Integer
+              invariant("an http status code is a real one") { value.between?(100, 599) }
+            end
+          end
+        end.to raise_error(Malformed) { |error|
+          expect(error.message).to include(
+            %(StatusCode's invariant "an http status code is a real one" uses "value.between?(100, 599)"),
+            "value >= 100 && value <= 599"
+          )
+        }
+      end
+
+      it "is refused in a given" do
+        expect do
+          build_command("Ranged") do
+            given("the size is small") { balance.between?(1, 9) }
+          end
+        end.to raise_error(Malformed, /Do's given "the size is small" uses "balance\.between\?\(1, 9\)"/)
+      end
+
+      it "is refused in a policy where" do
+        expect do
+          build_bluebook("Watched") do
+            policy "Echo" do
+              on      "Started"
+              where { count.between?(1, 9) }
+              trigger "Thing.Next"
+            end
+          end
+        end.to raise_error(Malformed, /Echo's where uses "count\.between\?\(1, 9\)"/)
+      end
+
+      it "does not refuse a bare .nil?, which real bluebooks already declare and which loads" do
+        expect do
+          build_command("Nilable") do
+            given("the tag is assigned") { !status.nil? }
+          end
+        end.not_to raise_error
+      end
+
+      it "leaves the supported spellings alone" do
+        expect do
+          build_command("Supported") do
+            given("the balance is positive") { balance.positive? }
+            # rubocop:disable-next Style/ComparableBetween
+            given("the balance is a real one") { balance >= 100 && balance <= 599 }
+            given("the tag is named") { !status.to_s.empty? }
+            given("the tag is one of these") { ["a", "b"].include?(status) }
+          end
+        end.not_to raise_error
+      end
+    end
+
     it "refuses writing one field twice in a command — effects are one update set, not a sequence" do
       expect do
         build_command("Twice") do
