@@ -7,6 +7,20 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+**An internal kernel error is now a failed command, not an accepted one.**
+When the kernel cannot run a step at all (for example `invalid seed:
+Registration.status: missing from JSON args`, from a stored snapshot that no
+longer matches an aggregate's shape) it answers with a top-level `error` and no
+`refusals`. rust/host read the missing `refusals` as an accepted command: it
+journaled the failed command and saved the empty result as the new snapshot, so
+the next successful write left a snapshot holding only its own instances. Now
+`dispatch::handle` (and so `handle_routed`, `handle_facts` and the `/dispatch`
+route) returns an error and rolls back: nothing is journaled, the snapshot,
+sagas and era mirrors are untouched, and the route answers 500 with the
+message. `read` and `query` fail the same way instead of returning an empty
+world. A refusal (an entry in `refusals`) and a normal accept behave exactly as
+before.
+
 **An archived registration frees its seat.** A registration whose `status` is
 `archived` no longer counts against its event's capacity, whatever its Payment
 says, so `seats_left` and the 409 `this event is full` answer follow. A
@@ -127,6 +141,20 @@ sweeps read a PostgresEra binding passed through a local variable (#825),
 carry the vendored bluebooks a target names into the isolated copy (#831), and
 ask generated queries about values the sequence stored, so a where-query on a
 written row is exercised rather than matching nothing on every adapter (#835).
+
+**Two new capabilities: `registrations` and `payment_connection`.** A chapter
+can now declare `provides "registrations", schedule: "Event.Schedule", request:
+"Registration.Request"` and `provides "payment_connection", connect: ...,
+reconnect: ..., disconnect: ..., suspend: ..., resume: ..., enable: ...,
+disable: ...` (each naming a real command of that chapter). `bin/project_rust`
+exports them to `ir.json` as `registrations` (with `event_aggregate` and
+`registration_aggregate`) and `payment_connection` (with `aggregate`), the same
+way `payments` is exported, and omits each key when nothing attached provides
+it. This is groundwork: rust/host does not read them yet, so nothing about a
+running host changes. Declaring either capability does not change a domain's
+storage shape, so it does not mint an era. A hecks gem older than this change
+refuses either `provides` line ("no capability the language knows"), so a
+consumer must upgrade the gem before declaring them.
 
 **Two new capabilities: `registrations` and `payment_connection`.** A chapter
 can now declare `provides "registrations", schedule: "Event.Schedule", request:
