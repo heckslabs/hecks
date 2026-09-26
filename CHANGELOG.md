@@ -7,6 +7,19 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+## [2.5.1] - 2026-09-26
+
+**Projecting a framework chapter no longer leaves a dangling `pub mod merged;`,
+and `bin/project_wasm` no longer dirties the tracked tree.** A framework chapter
+attached to a target domain shares a directory name with the checked-in
+standalone domain of the same name. The chapter never gets a `merged.rs`, but its
+`mod.rs` kept a `pub mod merged;` trailer while the standalone domain's
+`merged.rs` was still on disk, so the crate failed to build (E0583) until a
+second run. `bin/project_rust` now tells the generator whether it writes a
+`merged.rs`. `bin/project_wasm` projects and builds in `tmp/project_wasm/rust`
+(`HECKS_RUST_DIR`) instead of the real `rust/` crate, so the checkout is left
+clean.
+
 **An era mint no longer stalls on a long chain.** rust/host reads the era chain
 (the audit before a mint, and each head it builds) as one `WITH` statement with a
 CTE per translation edge. Postgres inlined those CTEs and copied every previous
