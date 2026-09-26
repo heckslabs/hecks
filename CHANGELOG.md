@@ -5,6 +5,22 @@ Dates are when a change landed on `main`, not when this file was written.
 Entries below are grouped by theme, not itemized commit-by-commit; see
 `git log` for the full history.
 
+## [Unreleased]
+
+**An internal kernel error is now a failed command, not an accepted one.**
+When the kernel cannot run a step at all (for example `invalid seed:
+Registration.status: missing from JSON args`, from a stored snapshot that no
+longer matches an aggregate's shape) it answers with a top-level `error` and no
+`refusals`. rust/host read the missing `refusals` as an accepted command: it
+journaled the failed command and saved the empty result as the new snapshot, so
+the next successful write left a snapshot holding only its own instances. Now
+`dispatch::handle` (and so `handle_routed`, `handle_facts` and the `/dispatch`
+route) returns an error and rolls back: nothing is journaled, the snapshot,
+sagas and era mirrors are untouched, and the route answers 500 with the
+message. `read` and `query` fail the same way instead of returning an empty
+world. A refusal (an entry in `refusals`) and a normal accept behave exactly as
+before.
+
 ## [2.4.0] - 2026-09-26
 
 **A value object declared in a sibling aggregate is read as a value object.**
