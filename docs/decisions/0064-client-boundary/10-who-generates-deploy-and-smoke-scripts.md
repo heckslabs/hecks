@@ -1,6 +1,6 @@
 # 10: Who generates deploy and smoke scripts
 
-**Status:** Open (wayfinder ticket) · **Type:** grilling (HITL) · **Blocked by:** 04 · **Claimed by:** unclaimed
+**Status:** Open (wayfinder ticket) · **Type:** grilling (HITL) · **Blocked by:** none (ticket 04 resolved) · **Claimed by:** unclaimed
 **Map:** [0064 client boundary](../0064-client-boundary-map.md)
 
 ## Question
@@ -12,12 +12,15 @@ Decide where that tooling comes from, using the findings of ticket 04:
 - **A. Hecks generates it** from the project's world file, alongside the template it already emits. The platform only records deployments (the deployment, CI run and health-check aggregates); the generated scripts call it.
 - **B. The platform owns hand-written, parameterized scripts;** Hecks emits only the template.
 - **C. Each client keeps its own,** with Hecks providing nothing beyond the template.
+- **D. Hecks generates for new clients only.** The existing client keeps its hand-written stack until convergence is cheap.
+
+**What ticket 04 found:** the generator emits one container and a fixed shape; the client's stack is multi-container with fixed logical ids, path routing, a retained CDN distribution, alarms and preview stacks. An empty change set is not reachable by tuning; it needs a generator that can pin every logical id, name and property. So option A means a large generator extension for the existing client, while a new client can adopt the generated shape from the start. That makes D a real option.
 
 Also decide: the gate for switching a live stack to generated output (an empty CloudFormation change set is proposed), and whether the smoke harness's generic half (checks, signed cookies, safe-mode addresses, the era check) ships as a Hecks template.
 
 ## Working recommendation (not a decision)
 
-A, as a spike first, gated on an empty change set against the live stack and regenerated beside the current files so the two can be diffed before switching.
+D now, A later. Generate the scripts and a multi-container template for new clients so future clients start from the generated shape, and converge the existing client only when a spike shows an empty change set is reachable. Never execute a change set against the live stack without the owner's approval.
 
 ## Decision
 

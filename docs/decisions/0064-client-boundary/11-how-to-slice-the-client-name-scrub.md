@@ -1,6 +1,6 @@
 # 11: How to slice the client-name scrub
 
-**Status:** Open (wayfinder ticket) · **Type:** grilling (HITL) · **Blocked by:** 01, 03 · **Claimed by:** unclaimed
+**Status:** Open (wayfinder ticket) · **Type:** grilling (HITL) · **Blocked by:** 01 (ticket 03 resolved) · **Claimed by:** unclaimed
 **Map:** [0064 client boundary](../0064-client-boundary-map.md)
 
 ## Question

@@ -23,7 +23,8 @@ Hecks holds no client names and no client product code. Generic capability that 
 
 <!-- one line per Accepted ticket: [title](link) - gist of the answer -->
 
-None yet.
+- [03 Client-name inventory](0064-client-boundary/03-client-name-inventory.md) - 100 files, about 78 prose-only and about 22 load-bearing (two generated modules, corpus values, two host runtime constants, inline test data); the org's own name is a separate 66-file cluster.
+- [04 What the Fargate projection emits today](0064-client-boundary/04-what-the-fargate-projection-emits-today.md) - the generator emits one container in a fixed shape; an empty change set against the client's multi-container stack is not reachable by tuning, only by a generator that can pin every logical id, name and property.
 
 ## Tickets
 
@@ -33,20 +34,18 @@ None yet.
 | --- | --- | --- |
 | [01 What counts as a client name](0064-client-boundary/01-what-counts-as-a-client-name.md) | grilling | Which names count, and does zero include shipped history? |
 | [02 Is commerce a Hecks capability](0064-client-boundary/02-is-commerce-a-hecks-capability.md) | grilling | Do payments, checkout, email, newsletter and registrations belong in the host? |
-| [03 Client-name inventory](0064-client-boundary/03-client-name-inventory.md) | research | Every external name in `origin/main`, by area and by whether it is load-bearing |
-| [04 What the Fargate projection emits today](0064-client-boundary/04-what-the-fargate-projection-emits-today.md) | research | Gap between the generated deploy output and what a client actually runs |
 | [05 A JavaScript package for Hecks clients](0064-client-boundary/05-a-javascript-package-for-hecks-clients.md) | grilling | Does Hecks ship one, with what contents, and how is it versioned |
 | [06 The npm scope](0064-client-boundary/06-the-npm-scope.md) | task | Who owns the package scope, and is it claimed |
 | [07 Rate limit defaults](0064-client-boundary/07-rate-limit-defaults.md) | grilling | Should the host rate-limit public writes by default, and how is it configured |
 | [08 Platform tooling that belongs in Hecks](0064-client-boundary/08-platform-tooling-that-belongs-in-hecks.md) | grilling | Which of the platform's generic pieces move, and which stay |
 | [09 The live banking deploy recipe](0064-client-boundary/09-the-live-banking-deploy-recipe.md) | grilling | Where the recipe for the live example stack lives once it leaves Hecks |
+| [10 Who generates deploy and smoke scripts](0064-client-boundary/10-who-generates-deploy-and-smoke-scripts.md) | grilling | Hecks for all clients, for new clients only, the platform, or each client |
 
 **Blocked:**
 
 | Ticket | Type | Blocked by |
 | --- | --- | --- |
-| [10 Who generates deploy and smoke scripts](0064-client-boundary/10-who-generates-deploy-and-smoke-scripts.md) | grilling | 04 |
-| [11 How to slice the client-name scrub](0064-client-boundary/11-how-to-slice-the-client-name-scrub.md) | grilling | 01, 03 |
+| [11 How to slice the client-name scrub](0064-client-boundary/11-how-to-slice-the-client-name-scrub.md) | grilling | 01 |
 
 ## Not yet specified
 
@@ -54,7 +53,8 @@ In scope, but not sharp enough to ticket. Each graduates when the frontier reach
 
 - **Settings the commerce code needs de-hardcoded**, and the rollout order for the one change that alters production on the next deploy. Hangs on ticket 02.
 - **The seat rule and other rules duplicated between the host and the client's JavaScript.** How the host exposes them. Hangs on ticket 02.
-- **What the multi-container Fargate projection should emit**, plus the era-expectation check and the generic smoke harness. Hangs on tickets 04 and 10.
+- **What the multi-container Fargate projection should emit**, plus the era-expectation check and the generic smoke harness. Hangs on ticket 10. Ticket 04 found this means a generator that can pin every logical id, name and property, not a tuning of the current one.
+- **Drift between a client's live stack and its committed template.** Ticket 04 saw that one listener rule cited in a preview template is absent from the live template; whether it is unmanaged, and whether to run drift detection, is unspecified. Hangs on ticket 10.
 - **A default-database and a default-adapter world setting** to replace repeated per-chapter blocks. Hangs on ticket 10.
 - **Where the deployment-recording aggregates live** (the platform repo or the shared-bluebooks repo). Hangs on ticket 10.
 - **Newsletter subscriber import:** a Hecks command, a bluebook adapter, or client-only. Hangs on ticket 02.
