@@ -112,6 +112,16 @@ that does not exist now refuses `no Account with reference "acct-1"` where Rust
 said `no Banking::Account with id "acct-1"`. Events, instances, sagas,
 reactions and refusal counts already agreed.
 
+**The whole chess corpus is held to Ruby/Rust conformance, with a refusal
+fixture beside it.** `chess` already had a Cargo feature, generated Rust and a
+pinned fixture; `spec/rust_conformance_spec.rb` now also replays
+`spec/corpus/chess.json` in full through the compiled binary and compares it
+with Ruby byte-for-byte. A new `chess_refusals.json` fixture covers the paths
+that single clean game never reaches (entity `given`s, value-object invariants,
+closed-set admission, a missing record, lifecycle refusals). Ruby and Rust
+already agreed on all of it. ADR 0063 (a draft) weighs whether the
+framework/grammar chapters should get Cargo features of their own.
+
 ## [2.5.1] - 2026-09-26
 
 **Projecting a framework chapter no longer leaves a dangling `pub mod merged;`,
