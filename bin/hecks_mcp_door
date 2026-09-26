@@ -42,21 +42,42 @@
 # against two different domains back to back with no shared, staling
 # state between them.
 #
-# STDIO only — this door has no authentication and must not be exposed
-# over a network. `role:`/`actor_id:` are a caller-asserted identity, not
-# a credential this process verifies; the only thing standing between a
-# caller and this bus today is that reaching stdin/stdout means already
-# being able to run this process as a subprocess. `domain:` is confined
-# to `Hecks::Storehouse::BOOT_ROOT` (`confine!`), but a domain within
-# that root still boots real Ruby (`Kernel.load`), so this is a code
-# execution surface for anyone who can write to `$stdin`. Nothing below
-# assumes a transport other than the `$stdin.each_line` loop at the
-# bottom of this file; adding one (HTTP, a socket reachable off-box)
-# needs an authentication layer in front of it first.
+# **Stdio only, enforced** — this door has no authentication and must not be
+# exposed over a network. Before it loads anything else,
+# `Hecks::McpStdioGuard.enforce_stdio!` refuses to run when it was given an
+# argument or a `HECKS_MCP_*` option asking for another transport, or when
+# stdin/stdout is an internet-protocol socket (the shape a `socat`/`inetd`
+# wrapper gives it); once loaded, `warn!` prints the warning to stderr, never
+# stdout, which carries the protocol. `role:`/`actor_id:` are a
+# caller-asserted identity, not a credential this process verifies; the only
+# thing standing between a caller and this bus is that reaching stdin/stdout
+# means already being able to run this process as a subprocess. The readers
+# (`state`, `events`, `history`, `follow`, `describe`, `catalog`) take no role,
+# and `query` accepts one but nothing gates on it (a query cannot declare a
+# role), so any caller can read what they answer.
+# `domain:` is confined to `Hecks::Storehouse::BOOT_ROOT` (`confine!`), but a
+# domain within that root still boots real Ruby (`Kernel.load`), so this is a
+# code execution surface for anyone who can write to `$stdin`. Nothing below
+# assumes a transport other than the `$stdin.each_line` loop at the bottom of
+# this file; adding one (HTTP, a socket reachable off-box) needs an
+# authentication layer in front of it first — see
+# `docs/decisions/0061-mcp-servers-need-real-authentication-before-any-network-transport.md`.
 
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
+require "hecks/mcp_stdio_guard"
+Hecks::McpStdioGuard.enforce_stdio!(server: "hecks-mcp-door")
+
 require "hecks"
 require "json"
+
+Hecks::McpStdioGuard.warn!(
+  server: "hecks-mcp-door",
+  notes:  [
+    "Identity is self-asserted: role:/actor_id: are claims made by the caller and are not verified.",
+    "state, events, history, follow, describe, catalog and query run with no role check at all.",
+    "domain: boots real Ruby under #{Hecks::Storehouse::BOOT_ROOT}; anyone who can write to stdin can run it."
+  ]
+)
 
 $stdout.sync = true
 

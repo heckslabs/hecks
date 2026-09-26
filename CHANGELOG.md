@@ -41,6 +41,31 @@ different rspec example counts, neither of which matched the suite, and
 `spec/status_docs_no_spec_counts_spec.rb` fails if a count comes back in
 `README.md`, `CONTRIBUTING.md` or `docs/1.0-readiness.md`.
 
+**The two stdio MCP servers now refuse to run over anything but stdio, and say
+what they do not protect.** `bin/hecks_mcp_door` and `bin/hecks_query_ir_mcp`
+were stdio-only by convention and by README. `Hecks::McpStdioGuard` now
+enforces it before either server loads anything: it refuses an argument other
+than `--stdio`, any `HECKS_MCP_*` variable except `HECKS_MCP_TRANSPORT=stdio`, and
+an IP socket as stdin or stdout (what a `socat` or `inetd` wrapper hands a
+process). A pipe, a terminal and a Unix-domain socket still work. At startup each
+server writes a warning to stderr (never stdout, which carries the protocol):
+identity is self-asserted, the door's readers and `query` take no role, and
+`domain:` boots real Ruby. Nothing authenticates a caller; the new ADR 0061
+(proposed) says what a network transport would need first.
+
+**`query_ir_duplicates` no longer loads Ruby from outside the project root.** Its
+`domains:` argument is confined to `Hecks::Storehouse::BOOT_ROOT` the way the
+door's `domain:` already was; before, any directory's `bluebook/*.bluebook` files
+were `Kernel.load`ed. A relative directory now resolves against that root rather
+than the server's working directory, which is the same place when the server is
+launched from a checkout's root.
+
+New specs cover what the bus does with no caller bound: a role-gated command is
+refused for `dispatch`, `dry_run`, a batch and the qualified spelling, a blank
+role is not read as no restriction, and the readers and `query` run with no role
+check at all (documented behavior, now specified). `Storehouse.confine!` gained
+its first direct specs.
+
 ## [2.5.1] - 2026-09-26
 
 **Projecting a framework chapter no longer leaves a dangling `pub mod merged;`,

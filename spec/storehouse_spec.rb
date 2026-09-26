@@ -437,6 +437,123 @@ RSpec.describe Hecks::Storehouse do
     end
   end
 
+  # `spec/mcp_servers_spec.rb` proves the same refusals reach a caller of the real
+  # `bin/hecks_mcp_door` process. What is proved here is the bus itself: identity is a
+  # string the caller supplies, the bus refuses a role-gated command when none is
+  # supplied, and it does not gate anything that declares no role. `create_pizza`
+  # declares `role "Chef"`; `order.purchase` declares `role "Customer"`; queries cannot
+  # declare a role at all.
+  describe "the identity contract — what a caller-asserted role does and does not gate" do
+    it "refuses the qualified spelling of a role-gated command with no caller, like the short one" do
+      result = described_class.dispatch(runtime: runtime, command: "order.create_pizza", summary: "spec",
+                                        args: pizza_args)
+
+      expect(result[:ok]).to be false
+      expect(result[:error]).to include('requires role: "Chef"')
+      expect(runtime.events).to be_empty
+    end
+
+    it "refuses a blank role rather than reading it as no restriction" do
+      result = described_class.dispatch(runtime: runtime, command: "create_pizza", summary: "spec",
+                                        args: pizza_args, role: "")
+
+      expect(result[:ok]).to be false
+      expect(runtime.events).to be_empty
+    end
+
+    it "refuses a dry run of a role-gated command with no caller, rather than answering would_succeed" do
+      result = described_class.dispatch(runtime: runtime, command: "create_pizza", summary: "spec",
+                                        args: pizza_args, dry_run: true)
+
+      expect(result[:ok]).to be false
+      expect(result).not_to have_key(:would_succeed)
+    end
+
+    it "refuses every step of a batch that names a role-gated command with no caller, and commits none" do
+      result = described_class.dispatch_batch(
+        runtime: runtime, summary: "spec",
+        steps: [{ command: "create_pizza", args: pizza_args },
+                { command: "order.create_pizza", args: pizza_args.merge(name: { value: "Diavola" }) }]
+      )
+
+      expect(result[:ok]).to be false
+      expect(result[:results].map { |r| r[:ok] }).to eq([false, false])
+      expect(runtime.events).to be_empty
+    end
+
+    it "logs a refused unbound dispatch with no role, so the audit trail shows who did not identify" do
+      described_class.dispatch(runtime: runtime, command: "create_pizza", summary: "no caller", args: pizza_args)
+
+      entry = described_class.follow(runtime: runtime)[:entries].first
+      expect(entry).to include(summary: "no caller", ok: false)
+      expect(entry[:role]).to be_nil
+    end
+
+    it "accepts any string as a role and checks only that it matches — the string is the whole credential" do
+      forged = described_class.dispatch(runtime: runtime, command: "create_pizza", summary: "spec",
+                                        args: pizza_args, role: "Chef")
+
+      expect(forged[:ok]).to be true
+    end
+
+    it "runs a query with no caller, and with a role no command declares — queries are not role-gated" do
+      described_class.dispatch(runtime: runtime, command: "create_pizza", summary: "spec", args: pizza_args,
+                               role: "Chef")
+
+      unbound  = described_class.query(runtime: runtime, question: "available", summary: "spec")
+      stranger = described_class.query(runtime: runtime, question: "available", summary: "spec",
+                                       role: "Nobody", actor_id: nil)
+
+      expect(unbound[:ok]).to be true
+      expect(unbound[:rows].length).to eq(1)
+      expect(stranger[:rows]).to eq(unbound[:rows])
+    end
+
+    it "answers the readers with no caller bound — they take no role and are not gated" do
+      described_class.dispatch(runtime: runtime, command: "create_pizza", summary: "spec", args: pizza_args,
+                               role: "Chef")
+
+      answers = [described_class.state(runtime: runtime, aggregate: "Order", summary: "spec"),
+                 described_class.events(runtime: runtime),
+                 described_class.history(runtime: runtime),
+                 described_class.follow(runtime: runtime),
+                 described_class.catalog(runtime: runtime),
+                 described_class.describe(runtime: runtime)]
+
+      expect(answers.map { |a| a[:ok] }).to all(be true)
+      expect(answers.first[:count]).to eq(1)
+    end
+  end
+
+  # `Hecks.boot` runs `Kernel.load` on a domain's files, so which directories the bus may
+  # boot is the only thing limiting what Ruby a caller can make this process run.
+  describe ".confine!" do
+    let(:root) { described_class::BOOT_ROOT }
+
+    it "resolves a relative path against the root and answers an absolute path under it" do
+      expect(described_class.confine!("examples/pizzas", "domain")).to eq(File.join(root, "examples/pizzas"))
+      expect(described_class.confine!(root, "domain")).to eq(root)
+    end
+
+    it "refuses a path that climbs out of the root" do
+      expect { described_class.confine!("../outside", "domain") }
+        .to raise_error(Hecks::Runtime::TypeMismatch, /domain: .* resolves outside/)
+    end
+
+    it "refuses an absolute path elsewhere, and a sibling directory that merely shares the root's prefix" do
+      expect { described_class.confine!("/tmp", "domain") }.to raise_error(Hecks::Runtime::TypeMismatch)
+      expect { described_class.confine!("#{root}-sibling", "domain") }.to raise_error(Hecks::Runtime::TypeMismatch)
+    end
+
+    it "makes .domains and .validate refuse a directory outside the root rather than reading or booting it" do
+      validated = described_class.validate(domain: "/tmp/no_such_domain")
+
+      expect { described_class.domains(under: "/tmp") }.to raise_error(Hecks::Runtime::TypeMismatch)
+      expect(validated[:valid]).to be false
+      expect(validated[:error]).to include("resolves outside")
+    end
+  end
+
   describe ".events" do
     it "answers no events for a domain nothing has dispatched against yet" do
       result = described_class.events(runtime: runtime)
