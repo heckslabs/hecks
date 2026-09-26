@@ -7,6 +7,24 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+**An era mint no longer stalls on a long chain.** rust/host reads the era chain
+(the audit before a mint, and each head it builds) as one `WITH` statement with a
+CTE per translation edge. Postgres inlined those CTEs and copied every previous
+edge's expression into each read of `state`, so the statement grew exponentially
+with the number of eras: a real six-edge chain planned to about 70,000 sub-plans
+and, over a journal of 300 rows, ran for minutes and was killed for memory (JIT
+made it far worse). Every CTE in the chain is now `MATERIALIZED`, so planning and
+running grow linearly with the number of edges; the rows are identical. A
+deployment with a chain of six or more eras that could not mint its next era can
+now.
+
+**rust/host logs each boot phase.** Around every boot step (database connect,
+schema setup, era resolution, approval check, the audit and each aggregate in it,
+the mint and each head it compiles, the snapshot fill, the commit, and the
+listener) it logs a `boot_phase` line with `event: "start"` and another with
+`event: "end"` and `elapsed_ms`, so a hang shows as a start line with no end
+after it. The lines carry identifiers only (phase, aggregate storage name, era).
+
 **rust/host now writes structured logs to stdout.** One JSON object per line:
 `boot` at startup, `request` for every HTTP request (method, path without the
 query string, status, milliseconds; `error` level for a 5xx), `command` for every

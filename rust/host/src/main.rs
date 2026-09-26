@@ -57,6 +57,7 @@ async fn main() -> Result<(), Error> {
     // anything but "1") keeps this binary running as the Lambda
     // custom-runtime process it always has, which is what every
     // existing deployed Lambda still expects.
+    let boot_started = std::time::Instant::now();
     let serve_mode = std::env::var("HECKS_SERVE_MODE").as_deref() == Ok("1");
 
     // HECKS_SESSION_COOKIE names the account cookie. A name that could not
@@ -208,6 +209,7 @@ async fn main() -> Result<(), Error> {
     // Two connect paths, spawned separately: NoTlsStream and
     // RustlsStream cannot unify in one `if`. Local is loopback (Homebrew
     // Postgres.app); everything else is RDS and needs the bundle above.
+    let connect_phase = log::phase_with("db_connect", serde_json::json!({ "tls": !local_postgres }));
     let client = if local_postgres {
         let (client, connection) = config
             .connect(tokio_postgres::NoTls)
@@ -231,6 +233,8 @@ async fn main() -> Result<(), Error> {
         });
         client
     };
+
+    connect_phase.end();
 
     // **Shared-instance isolation** — same reasoning as postgres_era.rb's own
     // `connect_for`: every unqualified table/view reference this binary
@@ -268,9 +272,11 @@ async fn main() -> Result<(), Error> {
             .map_err(|e| format!("setting search_path to {schema:?}: {e:#}"))?;
     }
 
+    let phase = log::phase("ensure_schema");
     journal::ensure_schema(&client)
         .await
         .map_err(|e| format!("provisioning hecks_lambda_journal: {e:#}"))?;
+    phase.end();
 
     let ir = ir::ir().ok_or("HECKS_IR_PATH is not set or unreadable — this binary needs its own domain's ir.json sidecar")?;
     ir::refuse_unsupported_persistence_adapters(ir)?;
@@ -321,7 +327,9 @@ async fn main() -> Result<(), Error> {
         // found live, by `mint_harness` (ADR-0030-in-progress step 8's own
         // differential harness) hitting exactly that on a scratch database
         // no prior test had ever exercised this boot path against.
+        let phase = log::phase("ensure_base");
         mint::ensure_base(&client, &domain).await.map_err(|e| format!("provisioning hecks_eras for {domain}: {e:#}"))?;
+        phase.end();
 
         // **The boot gate** — no longer a bare `HECKS_ERA` ordinal comparison.
         // This binary computes its own shape hash (`storage_shape`, over
@@ -339,13 +347,16 @@ async fn main() -> Result<(), Error> {
         // --approve` if one does but needs a human's sample review first,
         // `approval::check`). `HECKS_ERA` is gone entirely — an operator
         // no longer declares what era to run as; this binary decides.
+        let era_phase = log::phase("era_resolve");
         let held = journal::held_eras(&client, &domain).await.map_err(|e| format!("checking hecks_eras for {domain}: {e:#}"))?;
 
         // The actual decision is a pure function (`mint::decide_boot_action`,
         // directly unit-tested) — everything below is just carrying out
         // whichever of its four outcomes came back, the only part that
         // genuinely needs `client`/`ir`.
-        let ordinal: i32 = match mint::decide_boot_action(&held, &my_label) {
+        let decision = mint::decide_boot_action(&held, &my_label);
+        era_phase.end_with(serde_json::json!({ "held_eras": held.len(), "decision": decision.name() }));
+        let ordinal: i32 = match decision {
             // Adopting an era someone else minted still has to provision
             // what this binary is about to write into. Ruby does this on
             // every boot, for every repository, "regardless of era" —
@@ -357,15 +368,19 @@ async fn main() -> Result<(), Error> {
             // domain-qualified snapshot in that database stopped at era
             // 1, and no write of any kind could succeed.
             mint::BootDecision::UseExisting { ordinal } => {
+                let phase = log::phase_with("adopt_head_snapshots", serde_json::json!({ "era": ordinal }));
                 mint::adopt_head_snapshots(&client, &domain, &aggregates, ordinal)
                     .await
                     .map_err(|e| format!("adopting era {ordinal} of {domain}: {e:#}"))?;
+                phase.end();
                 ordinal
             }
             mint::BootDecision::HoldFirst => {
                 let source_text =
                     ir.get("source_text").and_then(serde_json::Value::as_str).ok_or("ir.json is missing source_text — regenerate with bin/project_rust")?;
+                let phase = log::phase_with("hold_first", serde_json::json!({ "era": 1 }));
                 mint::hold_first(&client, &domain, source_text, ir, &aggregates, None).await.map_err(|e| format!("minting era 1 of {domain}: {e:#}"))?;
+                phase.end();
                 1
             }
             mint::BootDecision::LatestUnnamed { ordinal } => {
@@ -397,6 +412,7 @@ async fn main() -> Result<(), Error> {
                 // struct), found by the same from/to pair `edge_chain` just
                 // matched.
                 let raw_edges = ir.get("translations").and_then(serde_json::Value::as_array).cloned().unwrap_or_default();
+                let approval_phase = log::phase_with("approval_check", serde_json::json!({ "edges": chain.len() }));
                 for edge in &chain {
                     let Some(raw_edge) = raw_edges.iter().find(|candidate| {
                         candidate.get("domain").and_then(serde_json::Value::as_str) == Some(domain.as_str())
@@ -407,6 +423,7 @@ async fn main() -> Result<(), Error> {
                     };
                     approval::check(&client, &domain, raw_edge, ordinal).await.map_err(|e| format!("{e:#}"))?;
                 }
+                approval_phase.end();
 
                 // Layer 2 of the live audit — CoverageCheck#audit!'s own
                 // ordering: before anything is minted, over the live
@@ -416,14 +433,18 @@ async fn main() -> Result<(), Error> {
                 // has no row yet, matching what Ruby's own audit sees at
                 // this same pre-mint moment.
                 let watermarks: std::collections::HashMap<i32, Option<i64>> = held.iter().map(|held_era| (held_era.ordinal, held_era.watermark)).collect();
+                let audit_phase = log::phase_with("audit_before_mint", serde_json::json!({ "era": ordinal, "edges": chain.len() }));
                 mint::audit_before_mint(&client, &domain, ir, &aggregates, ordinal, &chain, &raw_edges, &watermarks)
                     .await
                     .map_err(|e| format!("{e:#}"))?;
+                audit_phase.end();
 
                 let held_text = ir.get("source_text").and_then(serde_json::Value::as_str).ok_or("ir.json is missing source_text — regenerate with bin/project_rust")?;
+                let mint_phase = log::phase_with("mint_era", serde_json::json!({ "era": ordinal, "edges": chain.len() }));
                 mint::mint_era(&client, &domain, ordinal, &my_hash, &my_label, held_text, &aggregates, &chain, None, &mint::lifecycle_defaults(ir))
                     .await
                     .map_err(|e| format!("minting era {ordinal} of {domain}: {e:#}"))?;
+                mint_phase.end();
                 ordinal
             }
         };
@@ -473,7 +494,7 @@ async fn main() -> Result<(), Error> {
     // production. `server::dispatch_body` (shared with the Fargate
     // server path below) is where this is actually read now.
     if serve_mode {
-        log::info("boot", serde_json::json!({ "mode": "serve", "domain": &lineage_config.domain }));
+        log::info("boot", serde_json::json!({ "mode": "serve", "domain": &lineage_config.domain, "boot_ms": boot_started.elapsed().as_millis() as u64 }));
         let state = server::ServerState { client, wasm_path, lineage_config, invoker };
         return server::serve(state).await;
     }

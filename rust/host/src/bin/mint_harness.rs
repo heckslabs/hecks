@@ -23,6 +23,9 @@
 // resolve correctly once its sibling modules are declared here too,
 // since `crate::` means "this binary crate," not "the `bootstrap` one."
 #[allow(dead_code)]
+#[path = "../log.rs"]
+mod log;
+#[allow(dead_code)]
 #[path = "../journal.rs"]
 mod journal;
 #[allow(dead_code)]
