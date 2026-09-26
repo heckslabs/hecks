@@ -210,8 +210,10 @@ an issue first — see the templates under `.github/ISSUE_TEMPLATE/`.
 
 ## Releasing
 
-1. Bump `VERSION` in `lib/hecks/version.rb` and add a `CHANGELOG.md`
-   entry, on a branch, as its own PR.
+1. Bump `VERSION` in `lib/hecks/version.rb`, update the two
+   `Current release:` lines in `README.md` to match (`spec/readme_version_spec.rb`
+   fails until they do), and add a `CHANGELOG.md` entry, on a branch, as
+   its own PR.
 2. Once that PR merges to `main`, tag the merge commit
    (`git tag -a vX.Y.Z <sha>`) and push the tag.
 3. Run `bin/release_gem` to build and push to rubygems.org. It pulls
