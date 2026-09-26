@@ -180,12 +180,24 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              let args = if invocation.explicit_with() { let args = crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::newsletter::subscriber::SubscribeArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::newsletter::subscriber::SubscribeArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::newsletter::subscriber::SubscribeArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::newsletter::subscriber::SubscribeArgs::from_json(v)?; args.email.check_invariants()?; Ok(args) }, refuse_role_mismatch: &|| Ok(()), resolve_references: &|_args: &crate::generated::newsletter::subscriber::SubscribeArgs| Ok(()) })?; if let Some(route) = route { route.require_depth(0)?; } args } else { if let Some(route) = route { route.require_depth(0)?; } crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::newsletter::subscriber::SubscribeArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::newsletter::subscriber::SubscribeArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::newsletter::subscriber::SubscribeArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::newsletter::subscriber::SubscribeArgs::from_json(v)?; args.email.check_invariants()?; Ok(args) }, refuse_role_mismatch: &|| Ok(()), resolve_references: &|_args: &crate::generated::newsletter::subscriber::SubscribeArgs| Ok(()) })? };
+              let args = if invocation.explicit_with() { let args = crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::newsletter::subscriber::SubscribeArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::newsletter::subscriber::SubscribeArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::newsletter::subscriber::SubscribeArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::newsletter::subscriber::SubscribeArgs::from_json(v)?; args.email.check_invariants()?; if let Some(v) = &args.first_name { v.check_invariants()?; } if let Some(v) = &args.last_name { v.check_invariants()?; } Ok(args) }, refuse_role_mismatch: &|| Ok(()), resolve_references: &|_args: &crate::generated::newsletter::subscriber::SubscribeArgs| Ok(()) })?; if let Some(route) = route { route.require_depth(0)?; } args } else { if let Some(route) = route { route.require_depth(0)?; } crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::newsletter::subscriber::SubscribeArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::newsletter::subscriber::SubscribeArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::newsletter::subscriber::SubscribeArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::newsletter::subscriber::SubscribeArgs::from_json(v)?; args.email.check_invariants()?; if let Some(v) = &args.first_name { v.check_invariants()?; } if let Some(v) = &args.last_name { v.check_invariants()?; } Ok(args) }, refuse_role_mismatch: &|| Ok(()), resolve_references: &|_args: &crate::generated::newsletter::subscriber::SubscribeArgs| Ok(()) })? };
               let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = Vec::new();
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
               crate::generated::newsletter::subscriber::dispatch_subscribe(&mut store.subscriber, route, args, mutations, owner_deref, command_deref, tenant_boundary_check).map(|(_, events)| stamp_payload(events, &payload))
+          }
+          "Newsletter::Subscriber.AddName" => {
+              let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
+              let route = invocation.route();
+              let facts_json = invocation.facts();
+              let args = if invocation.explicit_with() { let args = crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::newsletter::subscriber::AddNameArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::newsletter::subscriber::AddNameArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::newsletter::subscriber::AddNameArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::newsletter::subscriber::AddNameArgs::from_json(v)?; args.first_name.check_invariants()?; args.last_name.check_invariants()?; Ok(args) }, refuse_role_mismatch: &|| Ok(()), resolve_references: &|_args: &crate::generated::newsletter::subscriber::AddNameArgs| Ok(()) })?; if let Some(route) = route { route.require_depth(0)?; } args } else { if let Some(route) = route { route.require_depth(0)?; } crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::newsletter::subscriber::AddNameArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::newsletter::subscriber::AddNameArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::newsletter::subscriber::AddNameArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::newsletter::subscriber::AddNameArgs::from_json(v)?; args.first_name.check_invariants()?; args.last_name.check_invariants()?; Ok(args) }, refuse_role_mismatch: &|| Ok(()), resolve_references: &|_args: &crate::generated::newsletter::subscriber::AddNameArgs| Ok(()) })? };
+              let id = match route { Some(route) => route.aggregate().to_string(), None => crate::generated::newsletter::subscriber::Subscriber::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "AddName", aggregate: "Subscriber", identity: "email.value" }.render_args()))?, };
+              let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
+              let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Newsletter::Subscriber", &id);
+              let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
+              let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
+              crate::generated::newsletter::subscriber::dispatch_add_name(&mut store.subscriber, &id, args, mutations, owner_deref, command_deref, tenant_boundary_check).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Newsletter::Subscriber.Confirm" => {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
@@ -306,6 +318,7 @@ pub fn command_creates(verb: &str) -> bool {
         "Newsletter::Issue.Edit" => false,
         "Newsletter::Issue.Send" => false,
         "Newsletter::Subscriber.Subscribe" => true,
+        "Newsletter::Subscriber.AddName" => false,
         "Newsletter::Subscriber.Confirm" => false,
         "Newsletter::Subscriber.Unsubscribe" => false,
         _ => false,
@@ -336,7 +349,8 @@ pub fn command_attributes_for_verb(verb: &str) -> &'static [&'static str] {
         "Newsletter::Issue.Draft" => &["slug", "subject", "body"],
         "Newsletter::Issue.Edit" => &["subject", "body"],
         "Newsletter::Issue.Send" => &["sent_at"],
-        "Newsletter::Subscriber.Subscribe" => &["email"],
+        "Newsletter::Subscriber.Subscribe" => &["email", "first_name", "last_name"],
+        "Newsletter::Subscriber.AddName" => &["first_name", "last_name"],
         "Newsletter::Subscriber.Confirm" => &[],
         "Newsletter::Subscriber.Unsubscribe" => &[],
         _ => &[],

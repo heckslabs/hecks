@@ -785,6 +785,13 @@
     "assignments": "Governance::RoleAssignment.AssignmentsForActor",
     "assignment_aggregate": "Governance::RoleAssignment"
   },
+  "membership": {
+    "provider": "Membership",
+    "admit": "Membership::Person.Admit",
+    "grant": "Membership::Person.GrantAccess",
+    "people": "Membership::Person.All",
+    "aggregate": "Membership::Person"
+  },
   "translations": [
     {
       "domain": "Lifeadelics",
