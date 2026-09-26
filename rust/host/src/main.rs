@@ -494,9 +494,13 @@ async fn main() -> Result<(), Error> {
     // production. `server::dispatch_body` (shared with the Fargate
     // server path below) is where this is actually read now.
     if serve_mode {
-        log::info("boot", serde_json::json!({ "mode": "serve", "domain": &lineage_config.domain, "boot_ms": boot_started.elapsed().as_millis() as u64 }));
+        log::info(
+            "boot",
+            serde_json::json!({ "mode": "serve", "domain": &lineage_config.domain, "era": &my_label, "boot_ms": boot_started.elapsed().as_millis() as u64 }),
+        );
+        let version = server::version_body(&my_label, &my_hash, std::env::var("HECKS_BUILD").ok().as_deref());
         let state = server::ServerState { client, wasm_path, lineage_config, invoker };
-        return server::serve(state).await;
+        return server::serve(state, version).await;
     }
 
     lambda_runtime::run(service_fn(move |event: LambdaEvent<serde_json::Value>| {
