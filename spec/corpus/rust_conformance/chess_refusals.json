@@ -1,0 +1,25 @@
+{
+  "domain": "examples/chess",
+  "note": "The refusal paths spec/corpus/chess.json (a single clean game) never reaches, replayed through the compiled chess binary: the entity command's `given`s (wrong side to move, moving another color's piece, moving to the square it stands on, landing on a friendly piece), the aggregate's `PlacePiece` `given`s (reused id, shared square), a value object invariant (an off-board square), a closed set (`one_of`) admission, a missing record, and lifecycle refusals (accepting a draw nobody offered, then resigning twice). Each refusal's kind and full wording must match Ruby's exactly.",
+  "steps": [
+    {"verb": "Chess::Game.Start", "args": {"label": {"value": "g1"}}},
+    {"verb": "Chess::Game.PlacePiece", "args": {"label": {"value": "g1"}, "id": {"value": "wk"}, "kind": {"value": "king"}, "color": {"value": "white"}, "square": {"file": 4, "rank": 0}}},
+    {"verb": "Chess::Game.PlacePiece", "args": {"label": {"value": "g1"}, "id": {"value": "wr1"}, "kind": {"value": "rook"}, "color": {"value": "white"}, "square": {"file": 0, "rank": 0}}},
+    {"verb": "Chess::Game.PlacePiece", "args": {"label": {"value": "g1"}, "id": {"value": "bk"}, "kind": {"value": "king"}, "color": {"value": "black"}, "square": {"file": 4, "rank": 7}}},
+    {"verb": "Chess::Game.PlacePiece", "args": {"label": {"value": "g1"}, "id": {"value": "wk"}, "kind": {"value": "queen"}, "color": {"value": "white"}, "square": {"file": 3, "rank": 0}}},
+    {"verb": "Chess::Game.PlacePiece", "args": {"label": {"value": "g1"}, "id": {"value": "wq"}, "kind": {"value": "queen"}, "color": {"value": "white"}, "square": {"file": 4, "rank": 0}}},
+    {"verb": "Chess::Game.PlacePiece", "args": {"label": {"value": "g1"}, "id": {"value": "wb"}, "kind": {"value": "bishop"}, "color": {"value": "white"}, "square": {"file": 9, "rank": 0}}},
+    {"verb": "Chess::Game.PlacePiece", "args": {"label": {"value": "g1"}, "id": {"value": "wp"}, "kind": {"value": "pawn"}, "color": {"value": "purple"}, "square": {"file": 1, "rank": 1}}},
+    {"verb": "Chess::Game.MovePiece", "args": {"label": {"value": "g1"}, "id": {"value": "bk"}, "destination": {"file": 4, "rank": 6}, "by": {"value": "black"}, "outcome": {"value": "ongoing"}}},
+    {"verb": "Chess::Game.MovePiece", "args": {"label": {"value": "g1"}, "id": {"value": "bk"}, "destination": {"file": 4, "rank": 6}, "by": {"value": "white"}, "outcome": {"value": "ongoing"}}},
+    {"verb": "Chess::Game.MovePiece", "args": {"label": {"value": "g1"}, "id": {"value": "wr1"}, "destination": {"file": 0, "rank": 0}, "by": {"value": "white"}, "outcome": {"value": "ongoing"}}},
+    {"verb": "Chess::Game.MovePiece", "args": {"label": {"value": "g1"}, "id": {"value": "wr1"}, "destination": {"file": 4, "rank": 0}, "by": {"value": "white"}, "outcome": {"value": "ongoing"}}},
+    {"verb": "Chess::Game.MovePiece", "args": {"label": {"value": "g1"}, "id": {"value": "wr1"}, "destination": {"file": 0, "rank": 9}, "by": {"value": "white"}, "outcome": {"value": "ongoing"}}},
+    {"verb": "Chess::Game.MovePiece", "args": {"label": {"value": "g1"}, "id": {"value": "wr1"}, "destination": {"file": 0, "rank": 3}, "by": {"value": "white"}, "outcome": {"value": "sideways"}}},
+    {"verb": "Chess::Game.MovePiece", "args": {"label": {"value": "nope"}, "id": {"value": "wr1"}, "destination": {"file": 0, "rank": 3}, "by": {"value": "white"}, "outcome": {"value": "ongoing"}}},
+    {"verb": "Chess::Game.AcceptDraw", "args": {"label": {"value": "g1"}, "by": {"value": "black"}}},
+    {"verb": "Chess::Game.Resign", "args": {"label": {"value": "g1"}, "by": {"value": "white"}}},
+    {"verb": "Chess::Game.Resign", "args": {"label": {"value": "g1"}, "by": {"value": "white"}}},
+    {"verb": "Chess::Game.PlacePiece", "args": {"label": {"value": "g1"}, "id": {"value": "late"}, "kind": {"value": "pawn"}, "color": {"value": "white"}, "square": {"file": 2, "rank": 1}}}
+  ]
+}
