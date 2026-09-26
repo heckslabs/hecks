@@ -53,6 +53,44 @@ RSpec.describe Hecks::Projector::Exporter do
     end
   end
 
+  # The same binding for a backfill: a rekey edge mints under one approval, and
+  # the backfill's default is what every old row reads for the new attribute, so
+  # editing it after approval must lapse the approval too.
+  describe ".translation_hash / backfill coverage" do
+    def edge_with_backfill(name, default)
+      aggregate = Hecks::Bluebook::TranslationAggregate.new(
+        name:      "Order",
+        backfills: [Hecks::Bluebook::TranslationBackfill.new(name, default)]
+      )
+      Hecks::Bluebook::Translation.new(domain: "Pizzas", from: "aaaa", to: "bbbb", aggregates: [aggregate])
+    end
+
+    it "changes the digest when the backfill default changes" do
+      approved = Hecks::Translation::Audit.edge_digest(edge_with_backfill(:email, "a@example.com"))
+
+      expect(Hecks::Translation::Audit.edge_digest(edge_with_backfill(:email, "b@example.com"))).not_to eq(approved)
+    end
+
+    it "changes the digest when the backfilled attribute changes" do
+      approved = Hecks::Translation::Audit.edge_digest(edge_with_backfill(:email, "a@example.com"))
+
+      expect(Hecks::Translation::Audit.edge_digest(edge_with_backfill(:contact, "a@example.com"))).not_to eq(approved)
+    end
+
+    it "keeps the digest stable when nothing about the backfill changed" do
+      edge = edge_with_backfill(:email, "a@example.com")
+      same_edge_again = edge_with_backfill(:email, "a@example.com")
+
+      expect(Hecks::Translation::Audit.edge_digest(edge)).to eq(Hecks::Translation::Audit.edge_digest(same_edge_again))
+    end
+
+    it "carries the backfill into translation_hash's aggregate shape" do
+      exported = described_class.translation_hash(edge_with_backfill(:email, "a@example.com"))
+
+      expect(exported[:aggregates].first[:backfills]).to eq([{ name: "email", default: "a@example.com" }])
+    end
+  end
+
   # Pizzas' own hecksagon attaches Governance (`uses_framework`), whose
   # bluebook declares `provides "authorization"`; the bare bluebook alone
   # attaches nothing. Shared by `.authorization` and `.membership`.
