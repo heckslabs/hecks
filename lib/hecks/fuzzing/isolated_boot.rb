@@ -531,7 +531,8 @@ module Hecks
       end
 
       # Rewrites every `persisted_by` bind — aggregate-scoped or bare at the
-      # hecksagon's own root — in the copy's `.hecksagon` files to name `adapter_name`,
+      # hecksagon's own root, naming its adapter as a literal or through a local
+      # variable — in the copy's `.hecksagon` files to name `adapter_name`,
       # and drops every `projected_by` bind outright.
       #
       # @param copy [String] the isolated copy's root directory
@@ -541,7 +542,8 @@ module Hecks
       def rewrite_bindings!(copy, adapter_name)
         Dir.glob(File.join(copy, "**", "*.hecksagon")).each do |path|
           lines = File.readlines(path).grep_v(/\bprojected_by\s*\(?\s*"/)
-          File.write(path, lines.join.gsub(/persisted_by\s*\(?\s*"[^"]+"\s*\)?/, "persisted_by(\"#{adapter_name}\")"))
+          bind = /persisted_by\s*\(?\s*(?:"[^"]+"|[a-z_]\w*)\s*\)?/
+          File.write(path, lines.join.gsub(bind, "persisted_by(\"#{adapter_name}\")"))
         end
       end
     end
