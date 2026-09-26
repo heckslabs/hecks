@@ -27,7 +27,7 @@ module Hecks
 
           {
             name:         text(field[:name])&.to_sym,
-            type:         owned_type(type, aggregate_id) || reference_type(type),
+            type:         owned_type(type, aggregate_id) || sibling_type(type) || reference_type(type),
             list:         text(field[:list]).to_s == "true",
             default:      decode_literal(text(field[:default])),
             # Read back the same way `list` is — both are booleans about the
@@ -58,6 +58,22 @@ module Hecks
           return nil unless type.start_with?(prefix)
 
           type.delete_prefix(prefix)
+        end
+
+        # A type another aggregate of the same chapter declares, read back as its name.
+        #
+        # An attribute typed with a sibling aggregate's value object or entity is offered
+        # as that declaration's id (chapter, owning aggregate, name), three segments. A
+        # `Reference<X>` is offered as the target head's id, two segments. The extra segment
+        # is what tells a type name from a reference, so a three-segment id is the bare
+        # declaration name and only a two-segment id is a reference.
+        #
+        # @param type [String] the attribute's own dispatched `type` cell
+        # @return [String, nil] the declaration's bare name when `type` is a three-segment id;
+        #   `nil` for a head's two-segment id
+        def sibling_type(type)
+          segments = type.split(Naming::IDENTITY_JOIN)
+          segments.last if segments.size == 3
         end
 
         # One part of an identity, read back as the path it went in as. The inverse

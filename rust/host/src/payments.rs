@@ -11,6 +11,13 @@
 // signing secret) belong to the platform, come from the environment, and never
 // reach a response, a log line or the tenant's schema.
 //
+// A business that is not served through a platform can instead use its own
+// Stripe account directly: its keys are set in the environment
+// (`STRIPE_ACCOUNT_*`), an Owner chooses "use this account", and the connection
+// is recorded with the reserved `account_ref` "self". Charges then use that
+// account's own key with no `Stripe-Account` header, and Connect's OAuth
+// handshake and deauthorization do not apply.
+//
 // Who may do what is decided here, not by Governance (no Caller is bound on
 // these routes): an Owner (the membership person's own `role`) connects and
 // disconnects; only an operator (`PAYMENTS_OPERATOR_EMAILS`, a platform
@@ -45,6 +52,11 @@ const STATE_TTL_SECS: u64 = 600;
 const STRIPE_API_BASE: &str = "https://api.stripe.com";
 const STRIPE_CONNECT_BASE: &str = "https://connect.stripe.com";
 const MODES: [&str; 2] = ["test", "live"];
+/// The reserved `account_ref` of a connection that uses the business's own
+/// Stripe account directly: no connected account exists, so no
+/// `Stripe-Account` header is sent and there is nothing to deauthorize.
+pub const SELF_ACCOUNT: &str = "self";
+const DIRECT_DISPLAY_FALLBACK: &str = "Your Stripe account";
 const STRIPE_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(15);
 
 /// The platform's own payment settings, read from the environment once per
@@ -64,7 +76,16 @@ pub struct PlatformConfig {
     pub live_publishable_key: String,
     pub test_client_id: String,
     pub live_client_id: String,
-    /// The Connect webhook endpoint's signing secret; `None` when unset.
+    /// The business's own Stripe keys, one pair per mode, for a deploy that
+    /// charges the business's account directly instead of connecting it through
+    /// Connect. A mode is available once both its secret and publishable key
+    /// are set.
+    pub direct_test_key: String,
+    pub direct_live_key: String,
+    pub direct_test_publishable_key: String,
+    pub direct_live_publishable_key: String,
+    /// The webhook endpoint's signing secret (the Connect endpoint's, or the
+    /// business's own endpoint's in direct mode); `None` when unset.
     pub webhook_secret: Option<String>,
     /// Lower-cased emails allowed to enable or disable real payments.
     pub operators: Vec<String>,
@@ -83,6 +104,10 @@ impl PlatformConfig {
             live_publishable_key: var("STRIPE_PLATFORM_LIVE_PUBLISHABLE_KEY"),
             test_client_id: var("STRIPE_CONNECT_TEST_CLIENT_ID"),
             live_client_id: var("STRIPE_CONNECT_LIVE_CLIENT_ID"),
+            direct_test_key: var("STRIPE_ACCOUNT_TEST_KEY"),
+            direct_live_key: var("STRIPE_ACCOUNT_LIVE_KEY"),
+            direct_test_publishable_key: var("STRIPE_ACCOUNT_TEST_PUBLISHABLE_KEY"),
+            direct_live_publishable_key: var("STRIPE_ACCOUNT_LIVE_PUBLISHABLE_KEY"),
             webhook_secret: Some(var("STRIPE_WEBHOOK_SECRET")).filter(|s| !s.is_empty()),
             operators: var("PAYMENTS_OPERATOR_EMAILS")
                 .split(',')
@@ -110,6 +135,20 @@ impl PlatformConfig {
         MODES.into_iter().filter(|mode| !self.key(mode).is_empty() && !self.client_id(mode).is_empty()).collect()
     }
 
+    fn direct_key(&self, mode: &str) -> &str {
+        if mode == "live" { &self.direct_live_key } else { &self.direct_test_key }
+    }
+
+    fn direct_publishable_key(&self, mode: &str) -> &str {
+        if mode == "live" { &self.direct_live_publishable_key } else { &self.direct_test_publishable_key }
+    }
+
+    /// The modes the business's own account can be used in: those with both
+    /// its secret key and its publishable key.
+    pub fn direct_modes(&self) -> Vec<&'static str> {
+        MODES.into_iter().filter(|mode| !self.direct_key(mode).is_empty() && !self.direct_publishable_key(mode).is_empty()).collect()
+    }
+
     fn is_operator(&self, email: &str) -> bool {
         self.operators.contains(&email.to_lowercase())
     }
@@ -122,6 +161,14 @@ pub struct Connection {
     pub account_ref: String,
     pub mode: String,
     pub display_name: String,
+}
+
+impl Connection {
+    /// Whether this connection uses the business's own Stripe account
+    /// directly (`account_ref` is `SELF_ACCOUNT`) rather than a connected one.
+    pub fn is_direct(&self) -> bool {
+        self.account_ref == SELF_ACCOUNT
+    }
 }
 
 /// This tenant's connection, read out of the replayed instances, or `None`
@@ -142,11 +189,13 @@ pub fn connection(read: &Value, domain: &str) -> Option<Connection> {
 pub enum CheckoutPlan {
     /// No connection, or one that is not enabled: the mock walkthrough.
     Mock,
-    /// Payments are enabled: a direct charge on the tenant's own account,
-    /// authenticated with the platform's key for the connection's mode. The
-    /// guest pays in a form embedded in the site, which the browser mounts with
-    /// the platform's publishable key for that mode.
-    Stripe { api_key: String, publishable_key: String, account: String },
+    /// Payments are enabled: a direct charge on the tenant's own account. For a
+    /// connected account the call is authenticated with the platform's key for
+    /// the connection's mode and names the account; for the business's own
+    /// account (`account` is `None`) it is authenticated with that account's
+    /// own key and names no other account. The guest pays in a form embedded in
+    /// the site, which the browser mounts with the matching publishable key.
+    Stripe { api_key: String, publishable_key: String, account: Option<String> },
     /// Payments were enabled and cannot be taken now. Registrations answer
     /// 503; never a fallback to the mock.
     Paused,
@@ -161,19 +210,24 @@ pub fn checkout_plan(connection: Option<&Connection>, platform: &PlatformConfig)
     let Some(connection) = connection else { return CheckoutPlan::Mock };
     match connection.status.as_str() {
         "enabled" => {
-            let key = platform.key(&connection.mode);
-            let publishable_key = platform.publishable_key(&connection.mode);
+            let direct = connection.is_direct();
+            let (key, publishable_key, prefix) = if direct {
+                (platform.direct_key(&connection.mode), platform.direct_publishable_key(&connection.mode), "ACCOUNT")
+            } else {
+                (platform.key(&connection.mode), platform.publishable_key(&connection.mode), "PLATFORM")
+            };
             if connection.processor != "stripe" || key.is_empty() {
                 CheckoutPlan::Paused
             } else if publishable_key.is_empty() {
                 eprintln!(
-                    "payments are paused: the {} mode has a Stripe platform key but no publishable key (set STRIPE_PLATFORM_{}_PUBLISHABLE_KEY)",
+                    "payments are paused: the {} mode has a Stripe key but no publishable key (set STRIPE_{prefix}_{}_PUBLISHABLE_KEY)",
                     connection.mode,
                     connection.mode.to_uppercase()
                 );
                 CheckoutPlan::Paused
             } else {
-                CheckoutPlan::Stripe { api_key: key.to_string(), publishable_key: publishable_key.to_string(), account: connection.account_ref.clone() }
+                let account = if direct { None } else { Some(connection.account_ref.clone()) };
+                CheckoutPlan::Stripe { api_key: key.to_string(), publishable_key: publishable_key.to_string(), account }
             }
         }
         "paused" => CheckoutPlan::Paused,
@@ -194,7 +248,9 @@ pub enum EventScope {
 
 /// One platform endpoint receives every tenant's events, so an event that
 /// names some other connected account is not this tenant's to act on. Events
-/// with no `account` (direct or synthetic) proceed unchanged.
+/// with no `account` (direct or synthetic) proceed unchanged. A business using
+/// its own account (`account_ref` "self") receives only account-less events, so
+/// any event that does name an account is someone else's and is ignored.
 pub fn event_scope(event: &Value, connection: Option<&Connection>) -> EventScope {
     let account = event.get("account").and_then(|v| v.as_str());
     let ours = connection.map(|c| c.account_ref.as_str());
@@ -247,6 +303,7 @@ pub fn owns(method: &str, path: &str) -> bool {
         ("GET", "/payments/connection")
             | ("POST", "/payments/connection/authorize-url")
             | ("POST", "/payments/connection/callback")
+            | ("POST", "/payments/connection/direct")
             | ("POST", "/payments/connection/disconnect")
             | ("POST", "/payments/connection/enable")
             | ("POST", "/payments/connection/disable")
@@ -305,6 +362,8 @@ fn connection_json(connection: Option<&Connection>, platform: &PlatformConfig, c
         "mode": present(connection.map(|c| c.mode.as_str())),
         "display_name": present(connection.map(|c| c.display_name.as_str())),
         "adapters": adapters,
+        "direct_modes": platform.direct_modes(),
+        "direct": connection.is_some_and(Connection::is_direct),
         "can_manage": caller.owner,
         "can_enable": caller.operator,
     })
@@ -359,6 +418,7 @@ pub async fn route(
         "/payments/connection" => show(&caller, platform, client, wasm_path, config).await,
         "/payments/connection/authorize-url" => authorize_url_route(&caller, raw_body, secret, platform),
         "/payments/connection/callback" => callback_route(&caller, raw_body, secret, platform, client, wasm_path, config, invoker).await,
+        "/payments/connection/direct" => direct_route(&caller, raw_body, platform, client, wasm_path, config, invoker).await,
         "/payments/connection/disconnect" => disconnect_route(&caller, platform, client, wasm_path, config, invoker).await,
         "/payments/connection/enable" => switch_route(&caller, "EnablePayments", platform, client, wasm_path, config, invoker).await,
         _ => switch_route(&caller, "DisablePayments", platform, client, wasm_path, config, invoker).await,
@@ -455,7 +515,21 @@ async fn callback_route(
         "mode": {"value": account.mode},
         "display_name": {"value": account.display_name},
     });
+    record_connection(caller, platform, facts, client, wasm_path, config, invoker).await
+}
 
+// Records the connection an Owner just made, whichever way they made it: a
+// first connection creates the singleton, a disconnected one reconnects, a
+// paused one resumes, and anything else already has an account linked.
+async fn record_connection(
+    caller: &Caller,
+    platform: &PlatformConfig,
+    facts: Value,
+    client: &Mutex<Client>,
+    wasm_path: &Path,
+    config: &LineageConfig,
+    invoker: &dyn LambdaInvoker,
+) -> Value {
     let existing = match current_connection(client, wasm_path, config).await {
         Ok(existing) => existing,
         Err(response) => return response,
@@ -477,11 +551,43 @@ async fn callback_route(
     }
 }
 
+// The business's own account, used directly (no Connect). An Owner picks a
+// mode; the answer is the same connection JSON the OAuth callback gives. Only
+// the public facts are stored: the reserved account ref, the mode and a display
+// name read with the account's own key. That key is never stored or logged.
+#[allow(clippy::too_many_arguments)]
+async fn direct_route(caller: &Caller, raw_body: &str, platform: &PlatformConfig, client: &Mutex<Client>, wasm_path: &Path, config: &LineageConfig, invoker: &dyn LambdaInvoker) -> Value {
+    if let Err(response) = require_owner(caller) {
+        return response;
+    }
+    let body = match parse_body(raw_body) {
+        Ok(body) => body,
+        Err(response) => return response,
+    };
+    let mode = match body_field(&body, "mode") {
+        Ok(mode) => mode,
+        Err(response) => return response,
+    };
+    if !platform.direct_modes().contains(&mode.as_str()) {
+        return json_error(422, &format!("this site's own Stripe account is not set up for {mode} mode"));
+    }
+    let display_name = own_account_display_name(platform, platform.direct_key(&mode)).await;
+    let facts = json!({
+        "processor": {"value": "stripe"},
+        "account_ref": {"value": SELF_ACCOUNT},
+        "mode": {"value": mode},
+        "display_name": {"value": display_name},
+    });
+    record_connection(caller, platform, facts, client, wasm_path, config, invoker).await
+}
+
 // Disconnect. Not enabled: a plain disconnect. Enabled: registrations pause
 // instead, because real guests have paid through this account. Either way
 // Stripe is told to revoke access first, best effort: a processor that is
 // down must not leave the tenant stuck unable to disconnect, so the outcome is
-// reported in `remote_disconnected` rather than raised.
+// reported in `remote_disconnected` rather than raised. The business's own
+// account has nothing to revoke, so it makes no Stripe call and reports no
+// `remote_disconnected`.
 async fn disconnect_route(caller: &Caller, platform: &PlatformConfig, client: &Mutex<Client>, wasm_path: &Path, config: &LineageConfig, invoker: &dyn LambdaInvoker) -> Value {
     if let Err(response) = require_owner(caller) {
         return response;
@@ -494,10 +600,10 @@ async fn disconnect_route(caller: &Caller, platform: &PlatformConfig, client: &M
         return json_error(409, "nothing to disconnect");
     };
 
-    let remote = existing.processor == "stripe" && revoke_access(platform, &existing.mode, &existing.account_ref).await;
+    let remote = if existing.is_direct() { None } else { Some(existing.processor == "stripe" && revoke_access(platform, &existing.mode, &existing.account_ref).await) };
     let command = if existing.status == "enabled" { "Suspend" } else { "Disconnect" };
     match dispatch_on_connection(command, json!({}), client, wasm_path, config, invoker).await {
-        Ok(outcome) if outcome.accepted => connection_response(caller, platform, client, wasm_path, config, Some(remote)).await,
+        Ok(outcome) if outcome.accepted => connection_response(caller, platform, client, wasm_path, config, remote).await,
         Ok(outcome) => json_error(422, &refusal_message(&last_refusal(&outcome.result))),
         Err(e) => json_error(500, &format!("{e:#}")),
     }
@@ -593,6 +699,27 @@ async fn account_display_name(platform: &PlatformConfig, key: &str, account_ref:
     name
 }
 
+// The name of the business's own account, read with that account's own key
+// (`GET /v1/account`). Falls back to a generic label when Stripe cannot be
+// asked or has nothing better; the key is only ever sent as the bearer.
+async fn own_account_display_name(platform: &PlatformConfig, key: &str) -> String {
+    let fetch = async {
+        let response = stripe_http()?.get(format!("{}/v1/account", platform.api_base)).bearer_auth(key).send().await.map_err(|e| e.to_string())?;
+        if !response.status().is_success() {
+            return Err("account lookup refused".to_string());
+        }
+        response.json::<Value>().await.map_err(|e| e.to_string())
+    };
+    let Ok(account) = fetch.await else { return DIRECT_DISPLAY_FALLBACK.to_string() };
+    let candidates = [
+        account.get("business_profile").and_then(|p| p.get("name")),
+        account.get("settings").and_then(|s| s.get("dashboard")).and_then(|d| d.get("display_name")),
+        account.get("email"),
+    ];
+    let name = candidates.into_iter().flatten().find_map(|v| v.as_str().filter(|s| !s.is_empty())).unwrap_or(DIRECT_DISPLAY_FALLBACK).to_string();
+    name
+}
+
 // Asks Stripe to revoke the platform's access to the account. True when Stripe
 // confirmed it; false for any failure, including missing platform settings.
 async fn revoke_access(platform: &PlatformConfig, mode: &str, account_ref: &str) -> bool {
@@ -624,6 +751,10 @@ pub(crate) fn test_platform() -> PlatformConfig {
         live_publishable_key: String::new(),
         test_client_id: String::new(),
         live_client_id: String::new(),
+        direct_test_key: String::new(),
+        direct_live_key: String::new(),
+        direct_test_publishable_key: String::new(),
+        direct_live_publishable_key: String::new(),
         webhook_secret: None,
         operators: Vec::new(),
     }

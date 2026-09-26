@@ -21,6 +21,8 @@ const PUBLISHABLE_KEY: &str = "pk_test_PLATFORM_PUBLISHABLE";
 const TENANT_ACCESS_TOKEN: &str = "sk_test_TENANT_ACCESS_TOKEN_DO_NOT_STORE";
 const TENANT_ACCOUNT: &str = "acct_tenant_1";
 const WEBHOOK_SECRET: &str = "whsec_platform_connect";
+const DIRECT_KEY: &str = "sk_test_OWN_ACCOUNT_KEY_DO_NOT_LEAK";
+const DIRECT_PUBLISHABLE_KEY: &str = "pk_test_OWN_ACCOUNT_PUBLISHABLE";
 
 const OWNER: &str = "owner@example.com";
 const ADMIN: &str = "admin@example.com";
@@ -48,6 +50,7 @@ struct FakeState {
     livemode: AtomicBool,
     refuse_deauthorize: AtomicBool,
     refuse_sessions: AtomicBool,
+    refuse_account: AtomicBool,
 }
 
 struct FakeStripe {
@@ -57,7 +60,7 @@ struct FakeStripe {
 
 impl FakeStripe {
     async fn start() -> Self {
-        let state = Arc::new(FakeState { requests: StdMutex::new(Vec::new()), livemode: AtomicBool::new(false), refuse_deauthorize: AtomicBool::new(false), refuse_sessions: AtomicBool::new(false) });
+        let state = Arc::new(FakeState { requests: StdMutex::new(Vec::new()), livemode: AtomicBool::new(false), refuse_deauthorize: AtomicBool::new(false), refuse_sessions: AtomicBool::new(false), refuse_account: AtomicBool::new(false) });
         let app = axum::Router::new().fallback(answer).with_state(state.clone());
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.expect("bind a local port");
         let base = format!("http://{}", listener.local_addr().unwrap());
@@ -100,6 +103,9 @@ async fn answer(State(state): State<Arc<FakeState>>, request: axum::extract::Req
         }
         ("POST", "/oauth/deauthorize") => (StatusCode::OK, json!({"stripe_user_id": TENANT_ACCOUNT})),
         ("GET", p) if p.starts_with("/v1/accounts/") => (StatusCode::OK, json!({"id": TENANT_ACCOUNT, "business_profile": {"name": "Yoga Collective"}})),
+        // The business's own account, read with its own key.
+        ("GET", "/v1/account") if state.refuse_account.load(Ordering::SeqCst) => (StatusCode::FORBIDDEN, json!({"error": {"message": "key lacks permission"}})),
+        ("GET", "/v1/account") => (StatusCode::OK, json!({"id": "acct_own_1", "business_profile": {"name": "Own Studio"}})),
         ("POST", "/v1/checkout/sessions") if state.refuse_sessions.load(Ordering::SeqCst) => {
             (StatusCode::BAD_REQUEST, json!({"error": {"message": "no such price"}}))
         }
@@ -173,6 +179,10 @@ async fn tenant(name: &str) -> Tenant {
         live_publishable_key: String::new(),
         test_client_id: "ca_test_CLIENT".to_string(),
         live_client_id: String::new(),
+        direct_test_key: String::new(),
+        direct_live_key: String::new(),
+        direct_test_publishable_key: String::new(),
+        direct_live_publishable_key: String::new(),
         webhook_secret: Some(WEBHOOK_SECRET.to_string()),
         operators: vec![OPERATOR.to_string()],
     };
@@ -211,6 +221,24 @@ impl Tenant {
         let url = reqwest::Url::parse(body["url"].as_str().unwrap()).unwrap();
         let state = url.query_pairs().find(|(k, _)| k == "state").unwrap().1.to_string();
         let (status, body) = self.call("POST", "/payments/connection/callback", json!({"code": "ac_code", "state": state}), Some(OWNER)).await;
+        assert_eq!(status, 200, "{body}");
+    }
+
+    // A tenant whose business uses its own Stripe account directly: only the
+    // business's own test keys are configured, no Connect platform at all.
+    async fn direct(name: &str) -> Tenant {
+        let mut t = tenant(name).await;
+        t.platform.test_key = String::new();
+        t.platform.test_publishable_key = String::new();
+        t.platform.test_client_id = String::new();
+        t.platform.direct_test_key = DIRECT_KEY.to_string();
+        t.platform.direct_test_publishable_key = DIRECT_PUBLISHABLE_KEY.to_string();
+        t
+    }
+
+    // Owner records the business's own test-mode account as the connection.
+    async fn connect_direct(&self) {
+        let (status, body) = self.call("POST", "/payments/connection/direct", json!({"mode": "test"}), Some(OWNER)).await;
         assert_eq!(status, 200, "{body}");
     }
 
@@ -301,6 +329,7 @@ async fn every_route_refuses_a_missing_session_with_a_json_401_and_touches_nothi
         ("GET", "/payments/connection"),
         ("POST", "/payments/connection/authorize-url"),
         ("POST", "/payments/connection/callback"),
+        ("POST", "/payments/connection/direct"),
         ("POST", "/payments/connection/disconnect"),
         ("POST", "/payments/connection/enable"),
         ("POST", "/payments/connection/disable"),
@@ -937,7 +966,7 @@ fn checkout_plan_is_decided_from_the_connection_lifecycle() {
     assert!(matches!(checkout_plan(Some(&with("paused", "stripe", "test")), &platform), CheckoutPlan::Paused));
     assert!(matches!(
         checkout_plan(Some(&with("enabled", "stripe", "test")), &platform),
-        CheckoutPlan::Stripe { ref api_key, ref publishable_key, ref account } if api_key == "sk_test_x" && publishable_key == "pk_test_x" && account == "acct_1"
+        CheckoutPlan::Stripe { ref api_key, ref publishable_key, ref account } if api_key == "sk_test_x" && publishable_key == "pk_test_x" && account.as_deref() == Some("acct_1")
     ));
     assert!(matches!(checkout_plan(Some(&with("enabled", "stripe", "live")), &platform), CheckoutPlan::Paused), "no live key configured");
     let secret_only = PlatformConfig { live_key: "sk_live_x".to_string(), ..test_platform() };
@@ -946,6 +975,202 @@ fn checkout_plan_is_decided_from_the_connection_lifecycle() {
         "a secret key without its publishable key cannot mount the embedded form"
     );
     assert!(matches!(checkout_plan(Some(&with("enabled", "paypal", "test")), &platform), CheckoutPlan::Paused), "a processor this host cannot charge");
+}
+
+#[test]
+fn a_direct_connection_charges_with_the_businesss_own_key_and_names_no_account() {
+    let own = |status: &str, mode: &str| Connection {
+        status: status.to_string(),
+        processor: "stripe".to_string(),
+        account_ref: SELF_ACCOUNT.to_string(),
+        mode: mode.to_string(),
+        display_name: "Own Studio".to_string(),
+    };
+    // The platform's keys are set too: a direct connection must never use them.
+    let platform = PlatformConfig {
+        test_key: "sk_test_platform".to_string(),
+        test_publishable_key: "pk_test_platform".to_string(),
+        direct_test_key: "sk_test_own".to_string(),
+        direct_test_publishable_key: "pk_test_own".to_string(),
+        ..test_platform()
+    };
+    assert!(matches!(
+        checkout_plan(Some(&own("enabled", "test")), &platform),
+        CheckoutPlan::Stripe { ref api_key, ref publishable_key, ref account } if api_key == "sk_test_own" && publishable_key == "pk_test_own" && account.is_none()
+    ));
+    assert!(matches!(checkout_plan(Some(&own("connected", "test")), &platform), CheckoutPlan::Mock));
+    assert!(matches!(checkout_plan(Some(&own("paused", "test")), &platform), CheckoutPlan::Paused));
+    assert!(matches!(checkout_plan(Some(&own("enabled", "live")), &platform), CheckoutPlan::Paused), "no direct live key configured");
+
+    let secret_only = PlatformConfig { direct_test_key: "sk_test_own".to_string(), ..test_platform() };
+    assert!(matches!(checkout_plan(Some(&own("enabled", "test")), &secret_only), CheckoutPlan::Paused), "a direct key without its publishable key cannot mount the form");
+    assert_eq!(platform.direct_modes(), vec!["test"]);
+    assert!(secret_only.direct_modes().is_empty());
+}
+
+// ---- the business's own Stripe account (no Connect) --------------------------------
+
+#[tokio::test]
+async fn using_the_own_account_needs_an_owner_a_mode_and_configured_keys() {
+    // Nothing configured for direct use: refused with a clear message.
+    let t = tenant("hecks_pay_test_direct_refused").await;
+    let (status, body) = t.call("POST", "/payments/connection/direct", json!({"mode": "test"}), Some(OWNER)).await;
+    assert_eq!(status, 422, "{body}");
+    assert!(body["error"].as_str().unwrap().contains("not set up for test mode"), "{body}");
+    assert_eq!(t.status().await, "none");
+    assert!(t.fake.requests().is_empty(), "no Stripe call without configured keys");
+
+    let t = Tenant::direct("hecks_pay_test_direct_access").await;
+    let (status, _) = t.call("POST", "/payments/connection/direct", json!({"mode": "test"}), Some(ADMIN)).await;
+    assert_eq!(status, 403, "only an Owner may choose the account");
+    let (status, body) = t.call("POST", "/payments/connection/direct", json!({}), Some(OWNER)).await;
+    assert_eq!((status, body["error"].as_str()), (400, Some("missing mode")));
+    let (status, _) = t.call("POST", "/payments/connection/direct", json!({"mode": "live"}), Some(OWNER)).await;
+    assert_eq!(status, 422, "live keys are not configured");
+    assert_eq!(t.status().await, "none");
+}
+
+#[tokio::test]
+async fn using_the_own_account_records_the_reserved_ref_and_only_public_facts() {
+    let t = Tenant::direct("hecks_pay_test_direct_connect").await;
+    let (_, body) = t.call("GET", "/payments/connection", json!({}), Some(OWNER)).await;
+    assert_eq!((body["direct_modes"].clone(), body["direct"].clone(), body["adapters"].clone()), (json!(["test"]), json!(false), json!([])));
+
+    let (status, body) = t.call("POST", "/payments/connection/direct", json!({"mode": "test"}), Some(OWNER)).await;
+    assert_eq!(status, 200, "{body}");
+    assert_eq!(
+        (body["status"].as_str(), body["processor"].as_str(), body["account_ref"].as_str(), body["mode"].as_str(), body["display_name"].as_str(), body["direct"].clone()),
+        (Some("connected"), Some("stripe"), Some("self"), Some("test"), Some("Own Studio"), json!(true))
+    );
+    assert_eq!(body.get("remote_disconnected"), None);
+
+    let lookups = t.fake.requests_to("/v1/account");
+    assert_eq!(lookups.len(), 1);
+    assert_eq!(lookups[0].header("authorization"), Some(format!("Bearer {DIRECT_KEY}").as_str()), "read with the account's own key");
+    assert!(t.fake.requests_to("/oauth/token").is_empty(), "there is no OAuth handshake");
+
+    let dump = t.dump_database().await;
+    assert!(!dump.contains(DIRECT_KEY) && !dump.contains(DIRECT_PUBLISHABLE_KEY), "no key is ever stored");
+    assert!(!body.to_string().contains(DIRECT_KEY), "no key is ever shown");
+
+    let (status, body) = t.call("POST", "/payments/connection/direct", json!({"mode": "test"}), Some(OWNER)).await;
+    assert_eq!((status, body["error"].as_str()), (409, Some("an account is already connected — disconnect it first")));
+}
+
+#[tokio::test]
+async fn the_own_account_falls_back_to_a_generic_name_when_stripe_will_not_say() {
+    let t = Tenant::direct("hecks_pay_test_direct_name").await;
+    t.fake.state.refuse_account.store(true, Ordering::SeqCst);
+    let (status, body) = t.call("POST", "/payments/connection/direct", json!({"mode": "test"}), Some(OWNER)).await;
+    assert_eq!(status, 200, "{body}");
+    assert_eq!(body["display_name"], "Your Stripe account");
+}
+
+#[tokio::test]
+async fn the_own_account_charges_with_its_own_key_and_names_no_connected_account() {
+    let t = Tenant::direct("hecks_pay_test_direct_checkout").await;
+    t.schedule_event("own-event").await;
+    t.connect_direct().await;
+
+    // Connected but not enabled: still the mock, no Stripe call.
+    let (status, body) = t.register("own-event").await;
+    assert_eq!(status, 200, "{body}");
+    assert!(body["checkout_url"].as_str().unwrap().starts_with("https://site.example/pay/"), "{body}");
+    assert!(t.fake.requests_to("/v1/checkout/sessions").is_empty());
+
+    t.enable().await;
+    let (status, body) = t.register("own-event").await;
+    assert_eq!(status, 200, "{body}");
+    assert_eq!(body.get("checkout_url"), None, "{body}");
+    assert_eq!(
+        body["embedded_checkout"],
+        json!({"client_secret": "cs_test_1_secret_CLIENT", "publishable_key": DIRECT_PUBLISHABLE_KEY, "stripe_account": Value::Null, "session_id": "cs_test_1"})
+    );
+    assert!(body["embedded_checkout"].as_object().unwrap().contains_key("stripe_account"), "the key is present, and null");
+
+    let sent = t.fake.requests_to("/v1/checkout/sessions");
+    assert_eq!(sent.len(), 1);
+    assert_eq!(sent[0].header("stripe-account"), None, "the business's own account is the default account");
+    assert_eq!(sent[0].header("authorization"), Some(format!("Bearer {DIRECT_KEY}").as_str()));
+    assert_eq!(sent[0].header("stripe-version"), Some("2026-04-22.dahlia"));
+    assert!(sent[0].body.contains("ui_mode=embedded_page"), "{}", sent[0].body);
+
+    let reference = body["registration_id"].as_str().unwrap();
+    let read = dispatch::read(&t.client, &t.wasm).await.unwrap();
+    assert_eq!(read["instances"][format!("Payments::Payment#{reference}")]["processor"]["value"], "stripe");
+}
+
+#[tokio::test]
+async fn the_own_account_follows_enable_disable_pause_and_resume_without_touching_stripe_oauth() {
+    let t = Tenant::direct("hecks_pay_test_direct_lifecycle").await;
+    let (status, body) = t.call("POST", "/payments/connection/enable", json!({}), Some(OPERATOR)).await;
+    assert_eq!((status, body["error"].as_str()), (409, Some("connect an account first")));
+
+    t.connect_direct().await;
+    t.enable().await;
+    let (status, body) = t.call("POST", "/payments/connection/disable", json!({}), Some(OPERATOR)).await;
+    assert_eq!((status, body["status"].as_str()), (200, Some("connected")));
+    t.enable().await;
+
+    // Disconnecting while enabled pauses registrations, with nothing to revoke.
+    let (status, body) = t.call("POST", "/payments/connection/disconnect", json!({}), Some(OWNER)).await;
+    assert_eq!(status, 200, "{body}");
+    assert_eq!(body["status"], "paused");
+    assert_eq!(body.get("remote_disconnected"), None, "nothing was asked of Stripe");
+    assert!(t.fake.requests_to("/oauth/deauthorize").is_empty(), "no deauthorization for the business's own account");
+    t.schedule_event("paused-event").await;
+    let (status, body) = t.register("paused-event").await;
+    assert_eq!((status, body["error"].as_str()), (503, Some("payments are temporarily unavailable")));
+
+    // Choosing the account again resumes the paused connection.
+    t.connect_direct().await;
+    assert_eq!(t.status().await, "enabled");
+
+    // A connection that was never enabled unlinks and can be chosen again.
+    let fresh = Tenant::direct("hecks_pay_test_direct_unlink").await;
+    fresh.connect_direct().await;
+    let (status, body) = fresh.call("POST", "/payments/connection/disconnect", json!({}), Some(OWNER)).await;
+    assert_eq!((status, body["status"].as_str(), body.get("remote_disconnected")), (200, Some("disconnected"), None));
+    assert!(fresh.fake.requests_to("/oauth/deauthorize").is_empty());
+    fresh.connect_direct().await;
+    assert_eq!(fresh.status().await, "connected");
+}
+
+#[tokio::test]
+async fn an_own_account_connection_without_its_publishable_key_is_paused_before_anything_is_written() {
+    let mut t = Tenant::direct("hecks_pay_test_direct_no_publishable").await;
+    t.schedule_event("own-nopk-event").await;
+    t.connect_direct().await;
+    t.enable().await;
+    t.platform.direct_test_publishable_key = String::new();
+
+    let dump_before = t.dump_database().await;
+    let (status, body) = t.register("own-nopk-event").await;
+    assert_eq!((status, body["error"].as_str()), (503, Some("payments are temporarily unavailable")));
+    assert!(t.fake.requests_to("/v1/checkout/sessions").is_empty(), "no Stripe call");
+    assert_eq!(t.dump_database().await, dump_before, "nothing was written");
+}
+
+#[tokio::test]
+async fn the_own_account_settles_from_account_less_events_and_ignores_events_naming_an_account() {
+    let t = Tenant::direct("hecks_pay_test_direct_webhook").await;
+    t.schedule_event("own-hook-event").await;
+    t.connect_direct().await;
+    t.enable().await;
+    let (_, body) = t.register("own-hook-event").await;
+    let reference = body["registration_id"].as_str().unwrap().to_string();
+
+    // An event that names an account is someone else's (or a platform's).
+    assert_eq!(t.webhook(completed(&reference, Some("acct_someone_else"))).await, 200);
+    assert_eq!(t.payment_status(&reference).await, "pending");
+    // A deauthorization has no meaning for the business's own account.
+    let deauthorized = json!({"type": "account.application.deauthorized", "account": "acct_someone_else", "data": {"object": {"id": "ca_x"}}});
+    assert_eq!(t.webhook(deauthorized).await, 200);
+    assert_eq!(t.status().await, "enabled");
+
+    // The business's own endpoint delivers events with no account: this settles.
+    assert_eq!(t.webhook(completed(&reference, None)).await, 200);
+    assert_eq!(t.payment_status(&reference).await, "succeeded");
 }
 
 #[test]
