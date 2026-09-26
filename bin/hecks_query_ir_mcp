@@ -13,11 +13,31 @@
 # Hecks::QueryIR (lib/hecks/query_ir.rb) — this file is
 # JSON-RPC plumbing only, so the CLI and the MCP tool can never answer
 # the same question two different ways.
+#
+# **Stdio only, unauthenticated** — this server asks for no identity at all
+# (there is no `role:`/`actor_id:` here) and answers whoever can write to its
+# stdin. `Hecks::McpStdioGuard.enforce_stdio!` refuses to run over anything but
+# stdio and `warn!` prints that warning to stderr, never stdout, which carries
+# the protocol. `query_ir_duplicates` loads `.bluebook` files as Ruby, so its `domains:` are
+# confined to `Hecks::Storehouse::BOOT_ROOT` the same way the storehouse door
+# confines `domain:`. See
+# `docs/decisions/0062-mcp-servers-need-real-authentication-before-any-network-transport.md`.
 
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
+require "hecks/mcp_stdio_guard"
+Hecks::McpStdioGuard.enforce_stdio!(server: "hecks-query-ir")
+
 require "hecks"
 require "hecks/query_ir"
 require "json"
+
+Hecks::McpStdioGuard.warn!(
+  server: "hecks-query-ir",
+  notes:  [
+    "No identity is asked for or checked; every tool answers every caller.",
+    "query_ir_duplicates loads .bluebook files under #{Hecks::Storehouse::BOOT_ROOT} as Ruby."
+  ]
+)
 
 $stdout.sync = true
 
@@ -99,20 +119,36 @@ def tool_result(text, error: false)
   { content: [{ type: "text", text: text }], isError: error }
 end
 
+# Confines caller-supplied domain directories to `Hecks::Storehouse::BOOT_ROOT`.
+#
+# `Hecks::QueryIR.duplicates` runs `Kernel.load` on every `.bluebook` file under
+# each directory, so an unconfined path would run Ruby from anywhere on disk.
+#
+# @param requested [Array<String>, nil] the `domains` argument as the caller sent it
+# @return [Array<String>, nil] absolute directories under `BOOT_ROOT`; nil for none
+#   requested, which `duplicates` reads as "every real example domain"
+# @raise [Hecks::Runtime::TypeMismatch] if any directory resolves outside `BOOT_ROOT`
+def confined_domains(requested)
+  return nil if requested.nil? || requested.empty?
+
+  Array(requested).map { |dir| Hecks::Storehouse.confine!(dir, "domains") }
+end
+
 # Runs one of the three registered tools and formats its result.
 #
 # @param name [String] the tool name, one of `TOOLS`'s own `:name` values
 # @param arguments [Hash{String => Object}] the tool's JSON arguments, shaped
 #   per that tool's `inputSchema`
 # @return [Hash{Symbol => Object}] a `tool_result`; `isError: true` for an
-#   unknown tool name or an `ArgumentError` from the underlying query
+#   unknown tool name, an `ArgumentError` from the underlying query, or a `domains`
+#   directory outside `BOOT_ROOT`
 def call_tool(name, arguments)
   case name
   when "query_ir_constructs"
     names = Array(arguments["names"])
     tool_result(Hecks::QueryIR.format_constructs(Hecks::QueryIR.constructs(names)))
   when "query_ir_duplicates"
-    domains = arguments["domains"] && !arguments["domains"].empty? ? arguments["domains"] : nil
+    domains = confined_domains(arguments["domains"])
     include_meta = arguments.fetch("include_meta", true)
     tool_result(Hecks::QueryIR.format_duplicates(Hecks::QueryIR.duplicates(domains: domains, include_meta: include_meta)))
   when "query_ir_impact"
@@ -120,7 +156,7 @@ def call_tool(name, arguments)
   else
     tool_result("no such tool: #{name.inspect} — known: #{TOOLS.map { |t| t[:name] }.join(', ')}", error: true)
   end
-rescue ArgumentError => e
+rescue ArgumentError, Hecks::Runtime::TypeMismatch => e
   tool_result(e.message, error: true)
 end
 
