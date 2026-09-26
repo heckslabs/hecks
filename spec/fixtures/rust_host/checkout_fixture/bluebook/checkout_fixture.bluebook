@@ -9,6 +9,20 @@ Hecks.bluebook "CheckoutFixture" do
   vision "Scheduled sessions people register for, paid through a Payments chapter sharing one reference."
   core
 
+  # What rust/host's registration and payments-connection routes read from
+  # ir.json instead of naming these verbs.
+  provides "registrations",
+           schedule: "Event.Schedule",
+           request:  "Registration.Request"
+  provides "payment_connection",
+           connect:    "PaymentConnection.Connect",
+           reconnect:  "PaymentConnection.Reconnect",
+           disconnect: "PaymentConnection.Disconnect",
+           suspend:    "PaymentConnection.Suspend",
+           resume:     "PaymentConnection.Resume",
+           enable:     "PaymentConnection.EnablePayments",
+           disable:    "PaymentConnection.DisablePayments"
+
   aggregate "Event" do
     description "One scheduled session with a price and a seat count."
 
