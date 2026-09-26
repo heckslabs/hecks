@@ -59,9 +59,9 @@ RSpec.describe "Rust conformance, over generated sequences (native binary)", :io
 
   # Every in-repo domain with a cargo feature of its own, derived —
   # `Hecks::Corpus.rust_domains`, the same list the codegen drift check
-  # regenerates, rather than a hand list (rust/Cargo.toml has 20
+  # regenerates, rather than a hand list (rust/Cargo.toml has 19
   # features). The two features with no in-repo domain directory
-  # (`meta`, `embryonaut`) go to the checks `Corpus::RUST_ELSEWHERE`
+  # (`meta`, `lifeadelics`) go to the checks `Corpus::RUST_ELSEWHERE`
   # names, and spec/corpus_rust_spec.rb proves every feature lands in one
   # bucket or the other. A domain with no Cargo feature (e.g.
   # `generated_keyword_aggregate`, whose `Crate` aggregate is a Rust

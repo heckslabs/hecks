@@ -233,26 +233,14 @@ pub fn row_json(id: String, record: super::Json) -> super::Json {
 /// rather than hand-rolling a second one. `named_query::find` returning
 /// `None` means this compiled domain never merged Governance's own
 /// aggregates in at all (no `uses_framework "Governance"`) — `false`,
-/// same as "no matching row", is the right answer either way; `check_role`
+/// same as "no matching row", is the right answer either way; `check_role_via`
 /// below is the one that decides whether that should fall back to the
 /// plain string comparison rather than read as an outright refusal.
-pub fn holds_role(store: &impl AggregateScan, queries: &[super::QueryDef], actor_id: &str, role: &str) -> bool {
-    holds_role_via(store, queries, Some(EXTERNAL_SNAPSHOT_ASSIGNMENTS), actor_id, role)
-}
-
-/// The one name that survives, and why: the external embryonaut snapshot
-/// (rust/src/generated/embryonaut — its regeneration is owed by its own
-/// repo, `Hecks::Corpus::RUST_ELSEWHERE`) was generated before `provides
-/// "authorization"` existed and still calls `check_role`/`holds_role`.
-/// Every in-repo generated module calls the `_via` forms with
-/// `AUTHORIZATION_ASSIGNMENTS`, the query its own chapters declare. Delete
-/// this and the two wrappers once that snapshot regenerates.
-const EXTERNAL_SNAPSHOT_ASSIGNMENTS: &str = "Governance::RoleAssignment.AssignmentsForActor";
-
-/// `holds_role`, reading the assignments query a chapter declared
-/// (`provides "authorization", assignments: ...`, emitted beside `QUERIES`
-/// as `AUTHORIZATION_ASSIGNMENTS`) instead of assuming Governance's.
-/// `None` — nothing this domain attaches provides authorization — holds no role.
+///
+/// The assignments query is the one a chapter declared (`provides
+/// "authorization", assignments: ...`, emitted beside `QUERIES` as
+/// `AUTHORIZATION_ASSIGNMENTS`), not an assumed Governance name. `None` —
+/// nothing this domain attaches provides authorization — holds no role.
 pub fn holds_role_via(
     store: &impl AggregateScan,
     queries: &[super::QueryDef],
@@ -342,26 +330,16 @@ pub fn holds_role_via(
 /// correct" can honestly mean — is what this function ports. See this
 /// change's own commit message / task report for the full empirical
 /// trace. Nothing here special-cases a command's own domain at all —
-/// `holds_role` is reached whenever `caller_actor_id` is bound and this
+/// `holds_role_via` is reached whenever `caller_actor_id` is bound and this
 /// compiled Store happens to carry the AssignmentsForActor query,
 /// which is already true, unconditionally, for a domain's own merged-in
 /// Governance chapter.
-pub fn check_role(
-    command_role: Option<&str>,
-    command_name: &str,
-    caller_role: Option<&str>,
-    caller_actor_id: Option<&str>,
-    store: &impl AggregateScan,
-    queries: &[super::QueryDef],
-) -> Result<(), super::Refusal> {
-    check_role_via(command_role, command_name, caller_role, caller_actor_id, store, queries, Some(EXTERNAL_SNAPSHOT_ASSIGNMENTS))
-}
-
-/// `check_role`, with "is authorization attached" answered by the
-/// assignments query a chapter declared (`AUTHORIZATION_ASSIGNMENTS`,
-/// generated from `provides "authorization"`) rather than by looking for
-/// Governance's own query name — Ruby's `Registry#authorization_provider_for`,
-/// compiled. What every in-repo generated role check calls.
+///
+/// "Is authorization attached" is answered by the assignments query a
+/// chapter declared (`AUTHORIZATION_ASSIGNMENTS`, generated from
+/// `provides "authorization"`) rather than by looking for Governance's
+/// own query name — Ruby's `Registry#authorization_provider_for`,
+/// compiled. What every generated role check calls.
 pub fn check_role_via(
     command_role: Option<&str>,
     command_name: &str,
@@ -483,9 +461,23 @@ mod filter_entries_none_in_state_tests {
 /// doc comment for that trace.
 #[cfg(test)]
 mod check_role_actor_id_tests {
-    use super::{check_role, check_role_via, AggregateScan};
+    use super::{check_role_via, AggregateScan};
     use crate::kernel::query_comparators::QueryComparator;
-    use crate::kernel::{Json, QueryCondition, QueryConditionValue, QueryDef};
+    use crate::kernel::{Json, QueryCondition, QueryConditionValue, QueryDef, Refusal};
+
+    /// The assignments query a real Governance attachment declares.
+    const GOVERNANCE_ASSIGNMENTS: &str = "Governance::RoleAssignment.AssignmentsForActor";
+
+    fn check_role(
+        command_role: Option<&str>,
+        command_name: &str,
+        caller_role: Option<&str>,
+        caller_actor_id: Option<&str>,
+        store: &impl AggregateScan,
+        queries: &[QueryDef],
+    ) -> Result<(), Refusal> {
+        check_role_via(command_role, command_name, caller_role, caller_actor_id, store, queries, Some(GOVERNANCE_ASSIGNMENTS))
+    }
 
     /// The same compiled shape `bin/project_rust` actually emits once a
     /// domain declares `uses_framework "Governance"`

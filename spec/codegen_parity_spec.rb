@@ -124,7 +124,7 @@ RSpec.describe "Rust codegen parity (hecks-codegen)", :io do
   #     `uses_framework` domain (`Corpus.rust_framework_chapters`)
   #   - the self-hosted language, `bluebook_language` (the `meta` module)
   # spec/corpus_rust_spec.rb proves every generated module is one of these
-  # or `embryonaut` (external, below).
+  # or an external `RUST_ELSEWHERE` domain (below).
   def self.corpus_member(name, source)
     [name, -> { domain_ir(source, Hecks::Corpus.chapter_name_of(Hecks::Corpus.bluebook_files(source) || source)) }]
   end
@@ -162,12 +162,12 @@ RSpec.describe "Rust codegen parity (hecks-codegen)", :io do
     expect(CODEGEN_PENDING_MEMBERS.keys - CODEGEN_CORPUS_MEMBERS.map(&:first)).to be_empty
   end
 
-  # Embryonaut is external, not pending: its bluebook lives in its own
+  # Lifeadelics is external, not pending: its bluebook lives in its own
   # repository, which owes its codegen parity. This fails the day an
   # in-repo source for it appears, so it joins the derived members.
-  it "embryonaut: has no in-repo source, so its own repository owns its codegen parity" do
-    expect(Hecks::Corpus::RUST_ELSEWHERE.fetch("embryonaut").check).to eq(:external)
-    expect(CODEGEN_CORPUS_MEMBERS.map(&:first)).not_to include("embryonaut")
+  it "lifeadelics: has no in-repo source, so its own repository owns its codegen parity" do
+    expect(Hecks::Corpus::RUST_ELSEWHERE.fetch("lifeadelics").check).to eq(:external)
+    expect(CODEGEN_CORPUS_MEMBERS.map(&:first)).not_to include("lifeadelics")
   end
 
   CODEGEN_CORPUS_MEMBERS.each do |name, ir_loader|

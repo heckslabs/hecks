@@ -10,7 +10,7 @@
 // checks on the raw args (still called before `dispatch` even starts,
 // mirroring `normalize_args` running before `hydrate`).
 //
-// Not generic here, but not missing either: role checking (`check_role`,
+// Not generic here, but not missing either: role checking (`check_role_via`,
 // repository.rs, ADR 0019) and reference resolution (`check_reference`,
 // repository.rs) are generated per command — the router is the one place
 // with access to every other aggregate's repo, not just this command's
@@ -1282,7 +1282,7 @@ pub const fn aggregate_step_site(step: AggregateStep) -> StepSite {
         A::RefuseUnknownArguments | A::RefuseAbsentArguments => StepSite::ArgumentGate,
         // `<Args>::from_json`'s coercion + the router's invariant checks.
         A::NormalizeArgs => StepSite::ArgumentGate,
-        // `kernel::check_role`.
+        // `kernel::check_role_via`.
         A::RefuseRoleMismatch => StepSite::ArgumentGate,
         // `kernel::check_reference`; the router computes the tenant boundary
         // after it, but the kernel's `Save` arm applies it.

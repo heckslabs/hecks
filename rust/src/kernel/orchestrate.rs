@@ -473,7 +473,7 @@ pub fn orchestrate<S: AggregateScan>(
     args: &Json,
     caller_role: Option<&str>,
     // `Caller#actor_id` — the same sibling opt-in `caller_role` always
-    // was (`repository.rs`'s own `check_role` doc comment has the full
+    // was (`repository.rs`'s own `check_role_via` doc comment has the full
     // story). Threaded through this outermost dispatch only, exactly
     // like `caller_role` itself: every recursive `orchestrate` call this
     // function makes below (a policy reaction, a saga leg) passes `None`
