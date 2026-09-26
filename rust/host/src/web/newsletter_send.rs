@@ -109,13 +109,13 @@ async fn authorize(domain_ir: &Value, cookies: &HashMap<String, String>, secret:
     }
 }
 
-fn site_url() -> String {
+pub(super) fn site_url() -> String {
     std::env::var("SITE_URL").unwrap_or_else(|_| DEFAULT_SITE_URL.to_string())
 }
 
 /// The page a recipient lands on to leave the list, with their address as a
 /// query parameter (encoded, so a `+` in the local part survives).
-fn unsubscribe_url(site_url: &str, email: &str) -> String {
+pub(super) fn unsubscribe_url(site_url: &str, email: &str) -> String {
     let mut url = reqwest::Url::parse(&format!("{site_url}/newsletter-unsubscribed.html")).unwrap_or_else(|_| reqwest::Url::parse("http://invalid.invalid/").unwrap());
     url.query_pairs_mut().append_pair("email", email);
     url.to_string()

@@ -508,11 +508,27 @@ pub(crate) async fn registrations_route(
         return respond(422, "application/json", &last_refusal(&outcome.result).to_string());
     }
 
-    let request_args = json!({
+    let mut request_args = json!({
         "event_slug": event_slug,
         "registration_id": {"value": reference},
         "attendee": attendee_from(&body),
     });
+    // A reaction reads only the fields its event carries, never one nested
+    // inside `attendee`, so a domain that subscribes registrants who tick the
+    // newsletter box declares the same fields flat on Registration.Request. A
+    // command refuses an argument it does not declare, so they go only to a
+    // domain that does.
+    let news_signup = body.get("news_signup").and_then(|v| v.as_bool()).unwrap_or(false);
+    let forwards_newsletter = crate::ir::ir().is_some_and(|ir| crate::ir::command_declares(ir, "Registration", "Request", "news_signup"));
+    if forwards_newsletter {
+        request_args["news_signup"] = json!(news_signup);
+        request_args["email"] = json!(email);
+        for field in ["first_name", "last_name"] {
+            if let Some(value) = body.get(field) {
+                request_args[field] = value.clone();
+            }
+        }
+    }
     let request_verb = format!("{}::Registration.Request", config.domain);
     let outcome = match dispatch::handle(client, wasm_path, &request_verb, request_args, None, config, invoker).await {
         Ok(o) => o,
@@ -520,6 +536,13 @@ pub(crate) async fn registrations_route(
     };
     if !outcome.accepted {
         return respond(422, "application/json", &last_refusal(&outcome.result).to_string());
+    }
+
+    // The domain's reaction has already subscribed the address by now; a
+    // registrant who ticked the box gets the same signed confirm link as the
+    // footer form. Best effort: the registration stands whatever mail does.
+    if forwards_newsletter && news_signup {
+        super::newsletter::send_confirmation_if_pending(email, client, wasm_path).await;
     }
 
     if let Some(embedded) = embedded_checkout {

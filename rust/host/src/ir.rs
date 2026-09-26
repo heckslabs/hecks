@@ -235,6 +235,26 @@ impl NewsletterProvider {
     }
 }
 
+/// Whether the domain's own `aggregate`'s `command` declares an argument
+/// named `field`. Lets a route send an optional extra argument only to a
+/// domain whose command actually takes it: a command refuses an argument it
+/// does not declare.
+pub fn command_declares(domain_ir: &Value, aggregate: &str, command: &str, field: &str) -> bool {
+    let named = |value: &Value, name: &str| value.get("name").and_then(|n| n.as_str()) == Some(name);
+    let Some(aggregates) = domain_ir.get("aggregates").and_then(|a| a.as_array()) else {
+        return false;
+    };
+    aggregates
+        .iter()
+        .filter(|a| named(a, aggregate))
+        .filter_map(|a| a.get("commands").and_then(|c| c.as_array()))
+        .flatten()
+        .filter(|c| named(c, command))
+        .filter_map(|c| c.get("attributes").and_then(|a| a.as_array()))
+        .flatten()
+        .any(|attribute| named(attribute, field))
+}
+
 pub fn newsletter_provider(domain_ir: &Value) -> Option<NewsletterProvider> {
     let fact = domain_ir.get("newsletter")?;
     Some(NewsletterProvider {
@@ -537,6 +557,24 @@ mod tests {
         assert_eq!(provider.failed, "Payments::Payment.PaymentGateway.Failed");
         assert_eq!(provider.instance_prefix(), "Payments::Payment#");
         assert!(payments_provider(&serde_json::json!({ "name": "Pizzas" })).is_none());
+    }
+
+    #[test]
+    fn command_declares_finds_an_argument_on_the_named_command_only() {
+        let ir = serde_json::json!({
+            "aggregates": [
+                {"name": "Registration", "commands": [
+                    {"name": "Request", "attributes": [{"name": "email"}, {"name": "news_signup"}]},
+                    {"name": "Cancel", "attributes": [{"name": "reason"}]}
+                ]},
+                {"name": "Event", "commands": [{"name": "Request", "attributes": [{"name": "slug"}]}]}
+            ]
+        });
+        assert!(command_declares(&ir, "Registration", "Request", "news_signup"));
+        assert!(!command_declares(&ir, "Registration", "Cancel", "news_signup"));
+        assert!(!command_declares(&ir, "Event", "Request", "news_signup"));
+        assert!(!command_declares(&ir, "Registration", "Request", "phone"));
+        assert!(!command_declares(&serde_json::json!({"name": "Pizzas"}), "Registration", "Request", "news_signup"));
     }
 
     #[test]
