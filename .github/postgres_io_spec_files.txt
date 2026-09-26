@@ -20,6 +20,7 @@ spec/lint_deploy_recipes_spec.rb
 spec/load_hygiene_spec.rb
 spec/ports/persistence_contract_spec.rb
 spec/ports/persistence_legacy_decode_spec.rb
+spec/ports/postgres_dump_spec.rb
 spec/project_deploy_bug_fixes_spec.rb
 spec/project_deploy_contract_spec.rb
 spec/project_deploy_environment_spec.rb
