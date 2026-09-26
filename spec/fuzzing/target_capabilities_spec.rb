@@ -76,6 +76,85 @@ RSpec.describe Hecks::Fuzzing::TargetCapabilities do
     end
   end
 
+  describe ".infer, reading how a hecksagon names PostgresEra" do
+    def postgres_era_for(hecksagon_text)
+      Dir.mktmpdir do |tmp|
+        File.write(File.join(tmp, "sample.hecksagon"), hecksagon_text)
+        described_class.infer(tmp, rust_dir: File.join(tmp, "nowhere")).include?("postgres_era")
+      end
+    end
+
+    it "still reads every literal spelling" do
+      expect(postgres_era_for(%(Hecks.hecksagon "A" do\n  A::Thing.persisted_by("PostgresEra")\nend\n))).to be(true)
+      expect(postgres_era_for(%(Hecks.hecksagon "A" do\n  A::Thing.persisted_by "PostgresEra"\nend\n))).to be(true)
+      expect(postgres_era_for(%(Hecks.hecksagon "A" do\n  persisted_by "PostgresEra"\nend\n))).to be(true)
+      expect(postgres_era_for(%(Hecks.hecksagon "A" do\n  A::Thing.persisted_by("Memory")\nend\n))).to be(false)
+    end
+
+    it "reads a variable assigned PostgresEra and passed to persisted_by" do
+      text = %(adapter = "PostgresEra"\nHecks.hecksagon "A" do\n  A::Thing.persisted_by(adapter)\nend\n)
+      expect(postgres_era_for(text)).to be(true)
+      expect(postgres_era_for(text.sub("persisted_by(adapter)", "persisted_by adapter"))).to be(true)
+    end
+
+    it "does not read a variable assigned another adapter" do
+      expect(postgres_era_for(%(adapter = "Postgres"\nHecks.hecksagon "A" do\n  A::Thing.persisted_by(adapter)\nend\n)))
+        .to be(false)
+      ternary = %(adapter = ENV["LAMBDA"] == "true" ? "Lambda" : "Postgres"\n) +
+                %(Hecks.hecksagon "A" do\n  A::Thing.persisted_by(adapter)\nend\n)
+      expect(postgres_era_for(ternary)).to be(false)
+    end
+
+    it "does not read a variable that is never passed to persisted_by" do
+      expect(postgres_era_for(%(adapter = "PostgresEra"\nHecks.hecksagon "A" do\n  A::Thing.persisted_by("Memory")\nend\n)))
+        .to be(false)
+      expect(postgres_era_for(%(adapter = "PostgresEra"\nother = "Memory"\nHecks.hecksagon "A" do\n  A::Thing.persisted_by(other)\nend\n)))
+        .to be(false)
+    end
+
+    it "reads the shape embryonaut_platform's hecksagon has" do
+      text = <<~RUBY
+        adapter = "PostgresEra"
+
+        Hecks.hecksagon "EmbryonautPlatform" do
+          uses_framework "Governance"
+          EmbryonautPlatform::Client.persisted_by(adapter)
+          EmbryonautPlatform::ManagedSite.persisted_by(adapter)
+        end
+
+        Hecks.hecksagon "Governance" do
+          Governance::RoleAssignment.persisted_by(adapter)
+        end
+      RUBY
+      expect(postgres_era_for(text)).to be(true)
+    end
+  end
+
+  describe "IsolatedBoot.rewrite_bindings!, on the same hecksagon shapes" do
+    def rewritten(hecksagon_text, adapter)
+      Dir.mktmpdir do |tmp|
+        path = File.join(tmp, "sample.hecksagon")
+        File.write(path, hecksagon_text)
+        Hecks::Fuzzing::IsolatedBoot.rewrite_bindings!(tmp, adapter)
+        File.read(path)
+      end
+    end
+
+    it "rewrites a variable-named bind, so a Memory boot no longer inherits PostgresEra" do
+      text = %(adapter = "PostgresEra"\nHecks.hecksagon "A" do\n  A::Thing.persisted_by(adapter)\nend\n)
+      out = rewritten(text, "Memory")
+
+      expect(out).to include(%(A::Thing.persisted_by("Memory")))
+      expect(out).not_to include("persisted_by(adapter)")
+    end
+
+    it "still rewrites literal binds" do
+      out = rewritten(%(Hecks.hecksagon "A" do\n  A::Thing.persisted_by "PostgresEra"\nend\n), "Memory")
+
+      expect(out).to include(%(A::Thing.persisted_by("Memory")))
+    end
+  end
+
   describe ".resolve — the one rule" do
     let(:all_enabled) { described_class::MODE_REQUIREMENTS.keys }
 
