@@ -108,12 +108,19 @@ pub fn sole_field_of(type_name: &str, value_objects_by_name: &HashMap<String, &J
 /// `NestedType::from_json(expr)?` call, wrapped in
 /// `Json::coerce_single_field` (kernel/json.rs) first when `attr`'s own
 /// type is single-field. Shared by both composite branches in
-/// `emit_from_json_flat`/`emit_from_json_state` below.
+/// `emit_from_json_flat`/`emit_from_json_state` below. A multi-field
+/// type's value is shape-checked ahead of its own `from_json`
+/// (`Json::expect_value_object_shape`), because only this call site knows
+/// the attribute name Ruby's `value_object_shape` refusal quotes.
 pub fn composite_from_json_expr(attr: &Json, value_objects_by_name: &HashMap<String, &Json>, value_expr: &str) -> String {
     let nested_type = naming::rust_ident(crate::attr::type_name(attr));
     match sole_field_of(crate::attr::type_name(attr), value_objects_by_name) {
         Some(sole) => format!("{nested_type}::from_json(&{value_expr}.coerce_single_field({}))?", naming::ruby_inspect_string(&sole)),
-        None => format!("{nested_type}::from_json({value_expr})?"),
+        None => format!(
+            "{nested_type}::from_json({value_expr}.expect_value_object_shape({}, {})?)?",
+            naming::ruby_inspect_string(crate::attr::name(attr)),
+            naming::ruby_inspect_string(crate::attr::type_name(attr))
+        ),
     }
 }
 
@@ -213,11 +220,14 @@ pub fn required_composite_argument_expr(struct_name: &str, key: &str, attr: &Jso
     let fetch = required_field_expr(struct_name, key, crate::attr::type_name(attr));
     let nested_type = naming::rust_ident(crate::attr::type_name(attr));
     let guarded = format!("match {fetch} {{ crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }}");
-    let source = match sole_field_of(crate::attr::type_name(attr), value_objects_by_name) {
-        Some(sole) => format!("({guarded}).coerce_single_field({})", naming::ruby_inspect_string(&sole)),
-        None => guarded,
-    };
-    format!("{nested_type}::from_json(&{source})?")
+    match sole_field_of(crate::attr::type_name(attr), value_objects_by_name) {
+        Some(sole) => format!("{nested_type}::from_json(&({guarded}).coerce_single_field({}))?", naming::ruby_inspect_string(&sole)),
+        None => format!(
+            "{nested_type}::from_json(({guarded}).expect_value_object_shape({}, {})?)?",
+            naming::ruby_inspect_string(crate::attr::name(attr)),
+            naming::ruby_inspect_string(crate::attr::type_name(attr))
+        ),
+    }
 }
 
 /// `CommandInterpreter::ArgumentGate#refuse_unknown_arguments`'s own
