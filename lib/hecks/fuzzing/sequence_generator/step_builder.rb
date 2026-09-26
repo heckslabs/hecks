@@ -16,6 +16,7 @@ module Hecks
 
         def build_query_step(runtime, entry)
           args = args_for(entry[:query].attributes, entry[:aggregate])
+          bind_to_written_row!(args, entry)
           safe_call { runtime.query(entry[:verb], **symbolize(args)) }
           { "query" => entry[:verb], "args" => args }
         end
@@ -80,6 +81,7 @@ module Hecks
               outcome = safe_call { as_caller(caller) { runtime.dispatch_flat(entry[:verb], symbolize(args)) } }
               if outcome
                 record_outcome(catalog, entry, args)
+                harvest_written_rows(runtime, catalog)
                 @event_count += outcome.events.length
               end
               { "verb" => entry[:verb], "args" => args }
