@@ -49,6 +49,11 @@ module Hecks
       # domain-level default (`persisted_by "PostgresEra"`).
       POSTGRES_ERA_BINDING = /persisted_by\s*\(?\s*"PostgresEra"/
 
+      # A local variable assigned the bare literal `"PostgresEra"` on a line of
+      # its own (`adapter = "PostgresEra"`). Only the whole-line literal counts:
+      # a ternary or any other right-hand side is not a PostgresEra binding.
+      POSTGRES_ERA_VARIABLE = /^\s*([a-z_]\w*)\s*=\s*"PostgresEra"\s*(?:#.*)?$/
+
       # `HecksagonBuilder#uses_framework "X"` — captures which member a
       # hecksagon attaches, whatever its name. Whether that member answers
       # a role check is then read off its own declaration (`provides
@@ -141,7 +146,7 @@ module Hecks
       def infer(domain_path, rust_dir: File.expand_path("../../../rust", __dir__))
         capabilities = %w[sqlite]
         capabilities << "rust" if rust_feature?(domain_path, rust_dir)
-        capabilities << "postgres_era" if any_file?(domain_path, "*.hecksagon", POSTGRES_ERA_BINDING)
+        capabilities << "postgres_era" if postgres_era_bound?(domain_path)
         capabilities << "translations" if Dir.glob(File.join(domain_path, "**", "translations", "*.bluebook")).any?
         capabilities << "governance" if authorization_attached?(domain_path)
         capabilities << "role_gated" if any_file?(domain_path, "*.bluebook", ROLE_GATED)
@@ -192,6 +197,29 @@ module Hecks
         feature  = File.basename(domain_path).downcase
         features = File.read(cargo_toml)[FEATURES_TABLE] || ""
         features.match?(/^#{Regexp.escape(feature)}\s*=\s*\[\]/)
+      end
+
+      # Answers whether any `.hecksagon` under `domain_path` binds PostgresEra,
+      # either with the literal name or through a local variable that the same
+      # file assigned `"PostgresEra"` and then passed to `persisted_by`.
+      #
+      # @param domain_path [String] filesystem path to the target domain's directory
+      # @return [Boolean] whether a PostgresEra `persisted_by` binding is found
+      def postgres_era_bound?(domain_path)
+        Dir.glob(File.join(domain_path, "**", "*.hecksagon")).any? do |path|
+          text = File.read(path)
+          text.match?(POSTGRES_ERA_BINDING) || postgres_era_variable_bound?(text)
+        end
+      end
+
+      # Answers whether `text` passes a variable assigned `"PostgresEra"` to `persisted_by`.
+      #
+      # @param text [String] the contents of one `.hecksagon` file
+      # @return [Boolean] whether some `persisted_by` call names such a variable
+      def postgres_era_variable_bound?(text)
+        text.scan(POSTGRES_ERA_VARIABLE).flatten.any? do |name|
+          text.match?(/persisted_by\s*\(?\s*#{Regexp.escape(name)}(?!\w)/)
+        end
       end
 
       # Answers whether any `.hecksagon` under `domain_path` attaches a member
