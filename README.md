@@ -626,16 +626,6 @@ across the full suite, alongside `bin/model_check` and `bin/fuzz`):
 - A standalone outbox relay process / shared adapter-host protocol
   (the transactional outbox itself shipped — see "Experimental or partial").
 - Mutation testing and coverage-guided fuzzing.
-- **[ADR 0025](docs/decisions/0025-the-dsl-names-one-idea-one-way-and-a-word-earns-its-place-by-being-used.md)**
-  — Accepted, not yet implemented, and not cosmetic: a real breaking
-  redesign of core DSL surface (`has_many`/`has_one`/`belongs_to`
-  removed, `identified_by`'s allowed forms narrowed, reference-hop
-  traversal moves to its own `/` operator, the quoted-type and
-  default-type attribute forms removed, the closed-set wrapper block
-  removed). Read this before writing a bluebook you intend to keep —
-  what's frozen for a future 1.0 is deliberately blocked on this
-  landing first, precisely so a stability promise isn't made over
-  syntax already scheduled to change.
 
 [`docs/future-features.md`](docs/future-features.md) is the project's
 own running list of gaps, ranked by how much depends on them — read it
