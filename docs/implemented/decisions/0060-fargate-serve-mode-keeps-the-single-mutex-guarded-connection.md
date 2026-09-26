@@ -16,7 +16,7 @@ Verified against real concurrent load, not assumed: 10 concurrent HTTP requests 
 
 ## Consequences
 
-- Write throughput for a single `rust/host` process is bounded to one transaction at a time, regardless of how many concurrent HTTP requests arrive. Acceptable for lifeadelics' current traffic; would become a real bottleneck under sustained concurrent writers.
+- Write throughput for a single `rust/host` process is bounded to one transaction at a time, regardless of how many concurrent HTTP requests arrive. Acceptable for a client site's current traffic; would become a real bottleneck under sustained concurrent writers.
 - No change needed anywhere else in the crate — `auth.rs`, `api.rs`, `web.rs`, `checkout.rs`, `journal.rs`, `mint.rs`, `approval.rs` all already take `&Mutex<Client>` and needed no rework to be correct under the new server.
 - The next real capacity question (a connection pool) is now a documented, deliberate follow-up rather than an unexamined gap.
 

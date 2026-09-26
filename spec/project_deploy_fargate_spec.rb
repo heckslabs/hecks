@@ -106,7 +106,7 @@ RSpec.describe "bin/project_deploy — deployed_to(\"AwsFargate\")", :io do
     # Managed-CachingDisabled/Managed-AllViewer — the safe default this
     # generator has no way to reason its way past; fargate.rb's own
     # CloudFront resource comment has the full reasoning (a hand-authored
-    # stack that loosened this, lifeadelics, 2026-09-21, served one
+    # stack that loosened this, a client project's, 2026-09-21, served one
     # signed-in session's own response to a different request).
     expect(behavior["CachePolicyId"]).to eq("4135ea2d-6df8-44a3-9df3-4b5a84be39ad")
     expect(behavior["OriginRequestPolicyId"]).to eq("216adef6-5c7f-47e4-b989-5492eafa07d3")

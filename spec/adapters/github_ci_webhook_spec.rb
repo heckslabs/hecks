@@ -163,8 +163,8 @@ RSpec.describe "GitHub CI webhook, end to end" do
         "head_commit"             => {
           "id" => sha, "tree_id" => "f" * 40, "message" => "qa: example commit",
           "timestamp" => "2026-09-10T00:00:00Z",
-          "author" => { "name" => "Miette", "email" => "miette@embryonaut.ai" },
-          "committer" => { "name" => "Miette", "email" => "miette@embryonaut.ai" }
+          "author" => { "name" => "Example Author", "email" => "author@example.com" },
+          "committer" => { "name" => "Example Author", "email" => "author@example.com" }
         }
       },
       "repository"  => { "id" => 1_296_269, "name" => "hecks", "full_name" => "octocat/hecks" },

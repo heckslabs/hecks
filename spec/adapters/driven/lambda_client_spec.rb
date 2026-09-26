@@ -18,10 +18,10 @@ RSpec.describe Hecks::Adapters::Lambda::Client do
   end
 
   it "uses the named function verbatim — a real stack whose name that computation can never produce" do
-    client = described_class.new(domain: "EmbryonautFoundersApp", region: "us-east-1",
-                                 function: "hecksagain-embryonaut")
+    client = described_class.new(domain: "OrderService", region: "us-east-1",
+                                 function: "legacy-order-service")
 
-    expect(client.function_name).to eq("hecksagain-embryonaut")
+    expect(client.function_name).to eq("legacy-order-service")
   end
 
   it "treats an empty name as no name at all, rather than invoking an empty string" do
