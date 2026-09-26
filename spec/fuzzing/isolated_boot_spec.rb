@@ -2,6 +2,7 @@ require "spec_helper"
 require "tmpdir"
 require "fileutils"
 require "hecks/fuzzing"
+require_relative "../support/postgres_probe"
 
 # `IsolatedBoot` copies a target's domain directory into a tmpdir and boots the
 # copy. A hecksagon's `uses_embryonaut_bluebook "<name>"` loads from
@@ -129,6 +130,74 @@ RSpec.describe Hecks::Fuzzing::IsolatedBoot do
 
         expect { described_class.call(File.join(root, "bluebook")) { |copy| copy } }.not_to raise_error
       end
+    end
+  end
+
+  # `Folder#load_domain` globs `*.world` in one directory, so a directory holding two
+  # `.hecksagon` files (a domain plus its `context_map.hecksagon`) needs one world file
+  # naming every block in both — the second file's write must not replace the first's.
+  describe ".write_worlds!" do
+    def world_text(name) = %(Hecks.world "#{name}" do\nend\n)
+
+    it "writes one world naming every hecksagon block in a directory, across files" do
+      Dir.mktmpdir do |copy|
+        write(copy, "bluebook/main.hecksagon", %(Hecks.hecksagon "Main" do\nend\n))
+        write(copy, "bluebook/context_map.hecksagon", %(Hecks.hecksagon "Governance" do\nend\n))
+
+        described_class.write_worlds!(copy, "fuzz.world") { |name| world_text(name) }
+
+        text = File.read(File.join(copy, "bluebook/fuzz.world"))
+        expect(text.scan(/Hecks\.world "([^"]+)"/).flatten).to contain_exactly("Main", "Governance")
+      end
+    end
+
+    it "names a block declared in two files of the directory once" do
+      Dir.mktmpdir do |copy|
+        write(copy, "bluebook/a.hecksagon", %(Hecks.hecksagon "Shared" do\nend\n))
+        write(copy, "bluebook/b.hecksagon", %(Hecks.hecksagon "Shared" do\nend\n))
+
+        described_class.write_worlds!(copy, "fuzz.world") { |name| world_text(name) }
+
+        expect(File.read(File.join(copy, "bluebook/fuzz.world")).scan("Hecks.world").size).to eq(1)
+      end
+    end
+
+    it "keeps each directory's world to that directory's own blocks" do
+      Dir.mktmpdir do |copy|
+        write(copy, "bluebook/main.hecksagon", %(Hecks.hecksagon "Main" do\nend\n))
+        write(copy, "nested/bluebook/inner.hecksagon", %(Hecks.hecksagon "Inner" do\nend\n))
+
+        described_class.write_worlds!(copy, "fuzz.world") { |name| world_text(name) }
+
+        expect(File.read(File.join(copy, "bluebook/fuzz.world"))).not_to include("Inner")
+        expect(File.read(File.join(copy, "nested/bluebook/fuzz.world"))).to include("Inner")
+      end
+    end
+
+    it "deletes every world the copy shipped with" do
+      Dir.mktmpdir do |copy|
+        write(copy, "bluebook/main.hecksagon", %(Hecks.hecksagon "Main" do\nend\n))
+        write(copy, "bluebook/deployed.world", world_text("Main"))
+
+        described_class.write_worlds!(copy, "fuzz.world") { |name| world_text(name) }
+
+        expect(Dir.children(File.join(copy, "bluebook")).sort).to eq(%w[fuzz.world main.hecksagon])
+      end
+    end
+  end
+
+  # The `qa` domain keeps Governance in `context_map.hecksagon` and QualityControl in
+  # `quality_control.hecksagon`, side by side; every Postgres-bound boot of it needs a
+  # `database` for both. Real Postgres, because the refusal this guards is raised when the
+  # adapter is built.
+  describe ".call with adapter: :postgres, for a directory holding two hecksagons", :io do
+    it "boots the qa domain with a database for every block" do
+      skip "no reachable Postgres — start one to run this spec" unless PostgresProbe.available?
+
+      qa = File.join(InMemoryDomain::ROOT, "qa")
+      expect do
+        described_class.call(qa, adapter: :postgres) { |copy| Hecks.boot(copy, install_facade: false) }
+      end.not_to raise_error
     end
   end
 end
