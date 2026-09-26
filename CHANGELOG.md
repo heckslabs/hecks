@@ -5,6 +5,31 @@ Dates are when a change landed on `main`, not when this file was written.
 Entries below are grouped by theme, not itemized commit-by-commit; see
 `git log` for the full history.
 
+## [Unreleased]
+
+**rust/host no longer confirms a subscriber itself.** `POST
+/newsletter/subscribers` used to dispatch the `confirm` verb right after a
+Subscribe or AddName whenever the subscriber was still `pending`. It now
+dispatches only Subscribe or AddName and reports the resulting status.
+**Behavior change for hosts:** a new subscriber now stays `pending` until they
+follow the confirm link, and only confirmed subscribers receive an issue.
+
+**The confirm link is emailed, and signed.** A new footer subscriber is sent a
+link carrying a signed, expiring token minted for exactly that address (the
+existing purpose-token helper, keyed by `SESSION_SECRET`), through Resend
+(`RESEND_API_KEY` + `RESEND_FROM`, or `RESEND_MOCK=1`). `GET
+/newsletter/subscribers/confirm` now requires that token and answers 403 for a
+missing, wrong or expired one, so an address alone no longer confirms anyone.
+Sending is best effort: an unconfigured or failing mailer is logged and the
+subscriber stays `pending`; the signup never fails.
+
+**Registrants who tick the newsletter box.** When `Registration.Request` declares
+a `news_signup` argument, `POST /registrations` also sends flat `news_signup`,
+`email`, `first_name` and `last_name` to it (a reaction reads only top-level event
+fields, never one nested in `attendee`), and after a successful registration
+emails the same confirm link if the address is now a pending subscriber. The
+subscribing itself is a reaction the domain declares.
+
 ## [2.3.0] - 2026-09-25
 
 **Sending a newsletter issue is a declared capability.** A chapter can declare

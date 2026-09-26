@@ -1,13 +1,19 @@
+use super::newsletter_send::{site_url, unsubscribe_url};
 use super::{instances_for, last_refusal, respond};
+use crate::auth;
 use crate::dispatch;
 use crate::ir::{ir, newsletter_provider, NewsletterProvider};
 use crate::journal::LineageConfig;
 use crate::lambda_client::LambdaInvoker;
+use crate::resend::{Email, Mailer};
 use serde_json::{json, Value};
 use std::collections::HashMap;
 use std::path::Path;
 use tokio::sync::Mutex;
 use tokio_postgres::Client;
+
+#[cfg(test)]
+mod tests;
 
 // ---- newsletter: guest-facing subscribe/confirm/unsubscribe, admin
 // listing ----------------------------------------------------------
@@ -53,10 +59,8 @@ pub(super) async fn newsletter_route(
 /// POST /newsletter/subscribers — Subscribe on a new email, AddName on a
 /// returning one (the two-step public signup form's own step
 /// 1/step 2 — NewsletterSubscribeForm.astro's own header has the full
-/// reasoning), Confirm dispatched right after either path since a
-/// freshly-subscribed record always starts `pending` and this project's
-/// own newsletter has no real double opt-in yet (subscriber.bluebook's
-/// own "no signed token" gap, carried over unchanged from Ruby's route).
+/// reasoning). The response carries the subscriber's resulting status,
+/// `pending` for a new subscriber.
 async fn newsletter_subscribe_route(
     provider: &NewsletterProvider,
     raw_body: &str,
@@ -103,14 +107,12 @@ async fn newsletter_subscribe_route(
         if !outcome.accepted {
             return respond(422, "application/json", &last_refusal(&outcome.result).to_string());
         }
+        send_confirmation(email).await;
     }
 
-    // Confirm right after — a pending subscriber always exists at this
-    // point on the fresh-Subscribe path; on the AddName path it may
-    // already be confirmed (a returning subscriber filling in their
-    // name), so Confirm only dispatches when it's actually pending,
-    // same idempotency reasoning http_server.rb's own route already
-    // follows (Confirm's own `given` refuses a second attempt outright).
+    // Confirm is not dispatched here: a new subscriber stays `pending`
+    // until they follow the confirm link (the route below). This route only
+    // reports where the subscriber ended up.
     let read = match dispatch::read(client, wasm_path).await {
         Ok(r) => r,
         Err(e) => return respond(500, "text/plain", &format!("{e:#}")),
@@ -119,18 +121,7 @@ async fn newsletter_subscribe_route(
     let Some((_, subscriber)) = subscribers.iter().find(|(id, _)| id == email) else {
         return respond(500, "text/plain", "subscriber vanished immediately after being written");
     };
-    if subscriber.get("status").and_then(|v| v.as_str()) == Some("pending") {
-        if let Err(e) = dispatch::handle_routed(client, wasm_path, &provider.confirm, json!(email), json!({}), None, config, invoker).await {
-            return respond(500, "text/plain", &format!("{e:#}"));
-        }
-    }
-
-    let read = match dispatch::read(client, wasm_path).await {
-        Ok(r) => r,
-        Err(e) => return respond(500, "text/plain", &format!("{e:#}")),
-    };
-    let subscribers = instances_for(&read, &provider.instance_prefix());
-    let status = subscribers.iter().find(|(id, _)| id == email).and_then(|(_, s)| s.get("status")).and_then(|v| v.as_str()).unwrap_or("pending");
+    let status = subscriber.get("status").and_then(|v| v.as_str()).unwrap_or("pending");
     respond(200, "application/json", &json!({"email": email, "status": status}).to_string())
 }
 
@@ -162,18 +153,112 @@ async fn newsletter_subscribers_list_route(provider: &NewsletterProvider, client
     respond(200, "application/json", &json!(subscribers).to_string())
 }
 
-/// GET /newsletter/subscribers/confirm?email=... — ported field-for-field
-/// from http_server.rb's own route. NO SIGNED TOKEN, matching that
-/// route's own known, flagged gap (subscriber.bluebook's own header):
-/// anyone who knows an email can confirm it. Idempotent the same way —
-/// Confirm only dispatches when the subscriber is actually `pending`
-/// (its own `given` refuses a second attempt outright), so a guest
-/// double-clicking, or a mail client prefetching the link, still lands
-/// on the same success response instead of a 422.
+const CONFIRM_PURPOSE: &str = "newsletter-confirm";
+const CONFIRM_TTL_SECS: u64 = 14 * 24 * 60 * 60;
+
+/// The secret the confirm links are signed with: the session secret, the same
+/// one every other signed token here uses. `None` while it is unset, in which
+/// case no link can be signed and none is sent.
+fn confirm_secret() -> Option<String> {
+    std::env::var("SESSION_SECRET").ok().filter(|s| !s.is_empty())
+}
+
+fn confirm_token(secret: &str, email: &str) -> String {
+    auth::purpose_token(secret, CONFIRM_PURPOSE, json!({ "email": email }), CONFIRM_TTL_SECS)
+}
+
+/// Whether `token` was minted for exactly this `email`, for this purpose, and
+/// has not expired.
+fn confirm_token_matches(secret: &str, token: &str, email: &str) -> bool {
+    auth::verify_purpose_token(secret, CONFIRM_PURPOSE, token)
+        .and_then(|claims| claims.get("email").and_then(|v| v.as_str()).map(|signed| signed == email))
+        .unwrap_or(false)
+}
+
+/// The link in the confirmation email: the site's own confirm page, carrying
+/// the address and the signed token (encoded, so a `+` in the local part
+/// survives). That page calls back to the confirm route below.
+fn confirm_url(site_url: &str, email: &str, token: &str) -> String {
+    let mut url = reqwest::Url::parse(&format!("{site_url}/newsletter-confirmed.html")).unwrap_or_else(|_| reqwest::Url::parse("http://invalid.invalid/").unwrap());
+    url.query_pairs_mut().append_pair("email", email).append_pair("token", token);
+    url.to_string()
+}
+
+fn confirmation_body(confirm_url: &str) -> String {
+    format!(
+        "Please confirm your newsletter subscription by opening this link:\n\n{confirm_url}\n\nIf you didn't ask for this, you can ignore this email and nothing will be sent to you.\n"
+    )
+}
+
+/// Emails the signed confirm link to `email`. Best effort: a subscriber who
+/// signs up must never see an error because mail is down or unconfigured, so
+/// every failure is logged (without the address) and swallowed, and the
+/// subscriber simply stays `pending`.
+pub(super) async fn send_confirmation(email: &str) {
+    let Some(secret) = confirm_secret() else {
+        eprintln!("newsletter: SESSION_SECRET is not set, so no confirmation link can be signed; the subscriber stays pending");
+        return;
+    };
+    let mailer = match Mailer::from_env() {
+        Ok(Some(mailer)) => mailer,
+        Ok(None) => {
+            eprintln!("newsletter: email delivery is not configured (RESEND_API_KEY and RESEND_FROM), so the confirmation was not sent");
+            return;
+        }
+        Err(e) => {
+            eprintln!("newsletter: {e}");
+            return;
+        }
+    };
+    let site = site_url();
+    let link = confirm_url(&site, email, &confirm_token(&secret, email));
+    let unsubscribe = unsubscribe_url(&site, email);
+    let delivery = mailer
+        .deliver(&Email { to: email, subject: "Confirm your newsletter subscription", body: &confirmation_body(&link), unsubscribe_url: Some(&unsubscribe) })
+        .await;
+    if !delivery.ok {
+        eprintln!("newsletter: the confirmation email was not delivered: {}", delivery.reason.unwrap_or_default());
+    }
+}
+
+/// For a subscriber the domain just created as a side effect of something
+/// else (a registration that ticked the newsletter box): email the confirm
+/// link only when the address is now a pending subscriber. A registrant
+/// already confirmed, or unsubscribed, is left alone.
+pub(super) async fn send_confirmation_if_pending(email: &str, client: &Mutex<Client>, wasm_path: &Path) {
+    let Some(provider) = ir().and_then(newsletter_provider) else {
+        return;
+    };
+    let Ok(read) = dispatch::read(client, wasm_path).await else {
+        return;
+    };
+    let pending = instances_for(&read, &provider.instance_prefix())
+        .iter()
+        .any(|(id, subscriber)| id == email && subscriber.get("status").and_then(|v| v.as_str()) == Some("pending"));
+    if pending {
+        send_confirmation(email).await;
+    }
+}
+
+/// GET /newsletter/subscribers/confirm?email=...&token=... — the token is the
+/// signed one the confirmation email carries (`confirm_token`), and must have
+/// been minted for this exact address. Without it, or with a wrong or expired
+/// one, the route refuses: an address alone no longer confirms anyone.
+/// Idempotent — Confirm only dispatches when the subscriber is actually
+/// `pending` (its own `given` refuses a second attempt outright), so a guest
+/// double-clicking, or a mail client prefetching the link, still lands on the
+/// same success response instead of a 422.
 async fn newsletter_confirm_route(provider: &NewsletterProvider, query: &HashMap<String, String>, client: &Mutex<Client>, wasm_path: &Path, config: &LineageConfig, invoker: &dyn LambdaInvoker) -> Value {
     let Some(email) = query.get("email") else {
         return respond(400, "application/json", &json!({"error": "email"}).to_string());
     };
+    let signed = match (confirm_secret(), query.get("token")) {
+        (Some(secret), Some(token)) => confirm_token_matches(&secret, token, email),
+        _ => false,
+    };
+    if !signed {
+        return respond(403, "application/json", &json!({"error": "this confirmation link is invalid or has expired"}).to_string());
+    }
 
     let read = match dispatch::read(client, wasm_path).await {
         Ok(r) => r,
