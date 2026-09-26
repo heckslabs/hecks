@@ -1,14 +1,13 @@
 # The DSL names one idea one way, and a word earns its place by being used
 
-**Status:** Accepted — partially implemented. Sequenced work plan at the
-end of this document, but **read
-[`docs/dsl-work-slices.md`](../dsl-work-slices.md) first** — it re-cuts
-this plan into parallelizable slices (S0a-S13) and tracks real, current,
-per-slice status against the code, which has moved since this ADR's text
-was written (two corrections inline below: `has_many`/`has_one`/
-`belongs_to` were kept, not deleted; `then_set`→`sets` already landed).
-Trust that doc's status table over this one's prose before starting any
-slice — this document records the *decision*, not a live status feed.
+**Status:** Accepted — implemented. Every slice of the work plan (S0a-S13)
+is DONE as of 2026-08-28; [`docs/dsl-work-slices.md`](../dsl-work-slices.md)
+re-cuts the plan into those slices and holds the per-slice record, checked
+against the code, and [`docs/1.0-readiness.md`](../1.0-readiness.md) records
+the gate this decision blocked. Two corrections to this text stand
+(inline below): `has_many`/`has_one`/`belongs_to` were kept, not deleted, and
+`then_set`→`sets` landed. Trust the slice table over this document's prose —
+this document records the *decision*, not a live status feed.
 
 ## Context
 

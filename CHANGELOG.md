@@ -14,6 +14,14 @@ Status line and Project status section said `1.0.0` while releases had reached
 so a version bump can't ship with a stale README. `CONTRIBUTING.md`'s release
 steps name the README update.
 
+**ADR 0025 no longer reads as both landed and unbuilt.** The README's "Planned
+or research only" list still carried it as "Accepted, not yet implemented" while
+"Project status" (and `docs/dsl-work-slices.md`, every slice DONE) said it had
+landed. The stale entry is gone and the ADR's own Status line now reads
+"Accepted — implemented".
+`spec/readme_planned_adrs_spec.rb` fails if an ADR linked from that README list
+is marked implemented in its own header.
+
 ## [2.5.1] - 2026-09-26
 
 **Projecting a framework chapter no longer leaves a dangling `pub mod merged;`,
