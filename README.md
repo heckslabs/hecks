@@ -572,8 +572,8 @@ gap, Rails integration, Drivers, the outbox's standalone relay — see that doc'
 the breaking DSL redesign this release was blocked on, is fully landed —
 see [Quickstart](#quickstart) for the current syntax.
 
-**Working today**, exercised in CI on every push (2,212 rspec examples
-across the full suite, alongside `bin/model_check` and `bin/fuzz`):
+**Working today**, exercised in CI on every push (the full rspec suite,
+alongside `bin/model_check` and `bin/fuzz`):
 
 - The DSL → IR → dispatch pipeline; the Ruby reference runtime.
 - Persistence adapters: Memory, Sqlite, Postgres, PostgresEra, Heki,
@@ -670,7 +670,7 @@ bin/run examples/banking spec/corpus/banking.json
 To verify the whole claim, not just the demo:
 
 ```sh
-bundle exec rspec       # the whole suite — 1,937 examples
+bundle exec rspec       # the whole suite
 bin/model_check         # static analysis over a domain's IR
 bin/fuzz                # generated sequences, checked against declared properties
 ```
