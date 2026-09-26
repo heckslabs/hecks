@@ -124,7 +124,7 @@ RSpec.describe "Rust codegen parity (hecks-codegen)", :io do
   #     `uses_framework` domain (`Corpus.rust_framework_chapters`)
   #   - the self-hosted language, `bluebook_language` (the `meta` module)
   # spec/corpus_rust_spec.rb proves every generated module is one of these
-  # or an external `RUST_ELSEWHERE` domain (below).
+  # or a sibling chapter beside an in-repo domain's own bluebook.
   def self.corpus_member(name, source)
     [name, -> { domain_ir(source, Hecks::Corpus.chapter_name_of(Hecks::Corpus.bluebook_files(source) || source)) }]
   end
@@ -160,14 +160,6 @@ RSpec.describe "Rust codegen parity (hecks-codegen)", :io do
 
   it "pends only members it actually derives" do
     expect(CODEGEN_PENDING_MEMBERS.keys - CODEGEN_CORPUS_MEMBERS.map(&:first)).to be_empty
-  end
-
-  # Lifeadelics is external, not pending: its bluebook lives in its own
-  # repository, which owes its codegen parity. This fails the day an
-  # in-repo source for it appears, so it joins the derived members.
-  it "lifeadelics: has no in-repo source, so its own repository owns its codegen parity" do
-    expect(Hecks::Corpus::RUST_ELSEWHERE.fetch("lifeadelics").check).to eq(:external)
-    expect(CODEGEN_CORPUS_MEMBERS.map(&:first)).not_to include("lifeadelics")
   end
 
   CODEGEN_CORPUS_MEMBERS.each do |name, ir_loader|
