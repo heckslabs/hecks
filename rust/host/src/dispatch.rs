@@ -17,6 +17,47 @@ pub struct Outcome {
     pub accepted: bool,
 }
 
+/// How the kernel answered one run, told from its output alone.
+#[derive(Debug, PartialEq)]
+enum KernelAnswer {
+    /// The run finished and no step was refused.
+    Accepted,
+    /// The run finished and the module refused a step (a `refusals` entry).
+    Refused,
+    /// The kernel could not run at all and said so with a top-level `error`
+    /// (an unreadable seed, malformed input, a step with no verb).
+    Failed(String),
+}
+
+/// Tells a domain refusal from a kernel failure.
+///
+/// A finished run always carries `instances` and a `refusals` array; a refusal
+/// is one entry in that array, each with its own nested `error`. A run that
+/// could not start answers only `{"error": "..."}` and never has `refusals`,
+/// which is why reading "no refusals" as "accepted" mistook it for success.
+fn classify(result: &serde_json::Value) -> KernelAnswer {
+    if let Some(error) = result.get("error") {
+        return KernelAnswer::Failed(error.as_str().map(str::to_string).unwrap_or_else(|| error.to_string()));
+    }
+    let refused = result.get("refusals").and_then(|r| r.as_array()).is_some_and(|r| !r.is_empty());
+    if refused {
+        KernelAnswer::Refused
+    } else {
+        KernelAnswer::Accepted
+    }
+}
+
+/// Parses the kernel's stdout, refusing a run that failed outright. A failure is
+/// an `Err`, never a result to read from: its output has no instances, so
+/// treating it as one would read as an empty world.
+fn parse_kernel_output(output: &str) -> anyhow::Result<serde_json::Value> {
+    let result: serde_json::Value = serde_json::from_str(output)?;
+    match classify(&result) {
+        KernelAnswer::Failed(message) => anyhow::bail!("the kernel failed before it could run the command: {message}"),
+        KernelAnswer::Accepted | KernelAnswer::Refused => Ok(result),
+    }
+}
+
 /// The host's durable representation of the routing boundary. It is kept
 /// under the journal's historical `args` column as one opaque object; the
 /// WASM kernel unwraps `to` and `with`, so receiver identity never becomes a
@@ -229,18 +270,15 @@ pub async fn handle(
     let owned_wasm_path = wasm_path.to_path_buf();
     let output =
         tokio::task::spawn_blocking(move || wasm_runner::run(&owned_wasm_path, &input)).await??;
-    let mut result: serde_json::Value = serde_json::from_str(&output)?;
+    // A kernel failure returns here, before anything is written: dropping `txn`
+    // rolls it back, so no journal row, snapshot, saga or mutation is saved.
+    let mut result = parse_kernel_output(&output)?;
 
     // See journal.rs's own header: every prior step in this replay
     // already succeeded once, deterministically, so the only step that
     // can legitimately show up in `refusals` is the new one just
     // appended last.
-    let refusals = result
-        .get("refusals")
-        .and_then(|r| r.as_array())
-        .cloned()
-        .unwrap_or_default();
-    let accepted = refusals.is_empty();
+    let accepted = classify(&result) == KernelAnswer::Accepted;
 
     if accepted {
         let ordinal = journal::append(&txn, verb, &args).await?;
@@ -516,7 +554,7 @@ pub async fn read(client: &Mutex<Client>, wasm_path: &Path) -> anyhow::Result<se
         let owned_wasm_path = wasm_path.to_path_buf();
         let output =
             tokio::task::spawn_blocking(move || wasm_runner::run(&owned_wasm_path, &input)).await??;
-        return Ok(serde_json::from_str(&output)?);
+        return parse_kernel_output(&output);
     }
 
     // No snapshot at all — a brand-new domain (empty history, correctly
@@ -530,7 +568,7 @@ pub async fn read(client: &Mutex<Client>, wasm_path: &Path) -> anyhow::Result<se
     let owned_wasm_path = wasm_path.to_path_buf();
     let output =
         tokio::task::spawn_blocking(move || wasm_runner::run(&owned_wasm_path, &input)).await??;
-    Ok(serde_json::from_str(&output)?)
+    parse_kernel_output(&output)
 }
 
 /// **A declared query, answered** — the kernel's own `{"query"}` step
@@ -560,7 +598,7 @@ pub async fn query(
     let input = serde_json::json!({ "seed": seed, "steps": [{ "query": question, "args": args }] }).to_string();
     let owned_wasm_path = wasm_path.to_path_buf();
     let output = tokio::task::spawn_blocking(move || wasm_runner::run(&owned_wasm_path, &input)).await??;
-    Ok(serde_json::from_str(&output)?)
+    parse_kernel_output(&output)
 }
 
 #[cfg(test)]
@@ -992,6 +1030,105 @@ pub(crate) mod tests {
         let final_snapshot = journal::load_snapshot(&*client.lock().await).await.unwrap().unwrap();
         let final_seed = final_snapshot.seed.as_object().unwrap();
         assert_eq!(final_seed.len(), 3, "the snapshot should accumulate all three registrations, not just the latest: {final_seed:?}");
+    }
+
+    // ---- kernel failure vs. refusal --------------------------------------
+
+    #[test]
+    fn a_top_level_error_is_a_kernel_failure_and_nothing_else_is() {
+        let failed = serde_json::json!({"error": "invalid seed: Registration.status: missing from JSON args"});
+        assert_eq!(classify(&failed), KernelAnswer::Failed("invalid seed: Registration.status: missing from JSON args".to_string()));
+        assert_eq!(classify(&serde_json::json!({"error": {"code": 7}})), KernelAnswer::Failed("{\"code\":7}".to_string()), "a non-text error is still a failure");
+
+        let accepted = serde_json::json!({"instances": {}, "events": [], "refusals": []});
+        assert_eq!(classify(&accepted), KernelAnswer::Accepted);
+
+        // A refusal carries its own nested `error`; that is the module deciding,
+        // not the kernel failing.
+        let refused = serde_json::json!({
+            "instances": {}, "events": [],
+            "refusals": [{"verb": "Banking::Customer.Register", "error": "already exists", "kind": "AlreadyExists"}]
+        });
+        assert_eq!(classify(&refused), KernelAnswer::Refused);
+
+        // A run whose query step failed reports it inside `queries`, still a finished run.
+        let query_error = serde_json::json!({"instances": {}, "refusals": [], "queries": [{"query": "X", "rows": null, "error": "no such query"}]});
+        assert_eq!(classify(&query_error), KernelAnswer::Accepted);
+    }
+
+    #[test]
+    fn parse_kernel_output_turns_a_failure_into_an_error_and_keeps_refusals_as_results() {
+        let error = parse_kernel_output(r#"{"error":"invalid seed: Customer.status: missing from JSON args"}"#).unwrap_err();
+        assert!(format!("{error:#}").contains("invalid seed: Customer.status: missing from JSON args"), "{error:#}");
+        let refused = parse_kernel_output(r#"{"instances":{},"refusals":[{"verb":"v","error":"no","kind":"K"}]}"#).unwrap();
+        assert_eq!(classify(&refused), KernelAnswer::Refused);
+        assert!(parse_kernel_output("not json").is_err());
+    }
+
+    #[tokio::test]
+    async fn a_kernel_failure_is_an_error_and_writes_nothing() {
+        // The stored snapshot holds a Customer without a field its shape now
+        // requires (what a shape change leaves behind when the snapshot is not
+        // migrated). The kernel refuses to load it and answers `{"error": ...}`.
+        // That must fail the call, journal nothing, and leave the snapshot as it
+        // was; it used to journal the command and replace the snapshot with an
+        // empty world.
+        let client = scratch_db("rust_host_dispatch_kernel_failure").await;
+        provision_lineage(&*client.lock().await, "Banking", 1, &["Customer"]).await;
+        let config = test_config("Banking", 1);
+        let noinvoke = lambda_client::NeverInvoker;
+
+        let first = handle(&client, &wasm_path(), "Banking::Customer.Register", register("CUST-0001"), None, &config, &noinvoke).await.unwrap();
+        assert!(first.accepted, "{:?}", first.result);
+
+        let whole_world = journal::load_snapshot(&*client.lock().await).await.unwrap().unwrap().seed;
+        let mut damaged = whole_world.clone();
+        let customer = damaged.as_object_mut().unwrap().values_mut().next().unwrap().as_object_mut().unwrap();
+        assert!(customer.remove("status").is_some(), "the fixture Customer carries a status");
+        client.lock().await.execute("UPDATE hecks_lambda_snapshot SET seed = $1", &[&damaged]).await.unwrap();
+
+        let before = snapshot_and_journal(&client).await;
+        let failure = handle(&client, &wasm_path(), "Banking::Customer.Register", register("CUST-0002"), None, &config, &noinvoke).await;
+        let message = format!("{:#}", failure.err().expect("a kernel failure must be an error, not an accepted outcome"));
+        assert!(message.contains("invalid seed") && message.contains("status"), "{message}");
+
+        assert_eq!(snapshot_and_journal(&client).await, before, "the failed command left the journal and the snapshot byte-identical");
+        assert_eq!(before.2, 1, "and only the first command was ever journaled");
+        let lineage_rows: i64 = client.lock().await.query_one("SELECT count(*) FROM hecks_journal_banking", &[]).await.unwrap().get(0);
+        assert_eq!(lineage_rows, 1, "nothing was mirrored into the era journal either");
+
+        // A read that has to run the kernel over the damaged snapshot (a journal
+        // row past it forces that) fails the same way instead of answering an
+        // empty world.
+        client
+            .lock()
+            .await
+            .execute("INSERT INTO hecks_lambda_journal (verb, args) VALUES ($1, $2)", &[&"Banking::Customer.Register", &register("CUST-0009")])
+            .await
+            .unwrap();
+        let read_failure = read(&client, &wasm_path()).await.err().expect("a kernel failure is not an empty read");
+        assert!(format!("{read_failure:#}").contains("invalid seed"), "{read_failure:#}");
+        let query_failure = query(&client, &wasm_path(), "Banking::Customer.Suspended", serde_json::json!({})).await.err();
+        assert!(query_failure.is_some_and(|e| format!("{e:#}").contains("invalid seed")));
+        client.lock().await.execute("DELETE FROM hecks_lambda_journal WHERE verb = 'Banking::Customer.Register' AND ordinal > 1", &[]).await.unwrap();
+
+        // Once the snapshot is whole again the next command works, and the
+        // snapshot afterwards holds the whole world, not just its own instance.
+        client.lock().await.execute("UPDATE hecks_lambda_snapshot SET seed = $1", &[&whole_world]).await.unwrap();
+        let second = handle(&client, &wasm_path(), "Banking::Customer.Register", register("CUST-0002"), None, &config, &noinvoke).await.unwrap();
+        assert!(second.accepted, "{:?}", second.result);
+        let after = journal::load_snapshot(&*client.lock().await).await.unwrap().unwrap().seed;
+        let keys: Vec<&String> = after.as_object().unwrap().keys().collect();
+        assert_eq!(keys.len(), 2, "the snapshot holds both customers: {keys:?}");
+        assert!(keys.iter().any(|k| k.contains("CUST-0001")) && keys.iter().any(|k| k.contains("CUST-0002")), "{keys:?}");
+    }
+
+    // The snapshot's ordinal and exact seed text, and how many commands are journaled.
+    async fn snapshot_and_journal(client: &Mutex<Client>) -> (i64, String, i64) {
+        let guard = client.lock().await;
+        let snapshot = guard.query_one("SELECT ordinal, seed::text FROM hecks_lambda_snapshot", &[]).await.unwrap();
+        let journaled: i64 = guard.query_one("SELECT count(*) FROM hecks_lambda_journal", &[]).await.unwrap().get(0);
+        (snapshot.get(0), snapshot.get(1), journaled)
     }
 
     #[tokio::test]
