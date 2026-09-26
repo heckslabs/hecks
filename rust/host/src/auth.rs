@@ -1035,6 +1035,24 @@ mod tests {
         assert_eq!(verify_account_token("s3cret", &token), None);
     }
 
+    // The known-answer vector packages/hecks-client's account token tests
+    // check too (test/accountToken.test.mjs): a fixed payload, so both sides
+    // agree on the exact bytes a token carries, not only that each round-trips.
+    #[test]
+    fn account_token_matches_the_known_answer_vector() {
+        let payload = r#"{"email":"chris@example.com","exp":4102444800}"#;
+        let encoded = base64_encode(payload.as_bytes());
+        assert_eq!(encoded, "eyJlbWFpbCI6ImNocmlzQGV4YW1wbGUuY29tIiwiZXhwIjo0MTAyNDQ0ODAwfQ");
+        assert_eq!(sign("s3cret", &encoded), "143ebe224b067f9744b509937358bb39a87ed30df06aaec594934b85a288cade");
+        let token = sign_test_token("s3cret", &encoded);
+        assert_eq!(verify_account_token("s3cret", &token).as_deref(), Some("chris@example.com"));
+        // account_token writes the same payload shape: keys in sorted order, no spaces.
+        let minted = account_token("s3cret", "chris@example.com", 60);
+        let (minted_payload, _) = minted.rsplit_once('.').unwrap();
+        let claims: Value = serde_json::from_slice(&base64_decode(minted_payload)).unwrap();
+        assert_eq!(String::from_utf8(base64_decode(minted_payload)).unwrap(), format!(r#"{{"email":"chris@example.com","exp":{}}}"#, claims["exp"]));
+    }
+
     #[test]
     fn the_account_cookie_defaults_when_unset_or_empty() {
         assert_eq!(resolve_account_cookie(None).unwrap(), DEFAULT_ACCOUNT_COOKIE);
