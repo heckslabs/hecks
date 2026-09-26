@@ -21,7 +21,7 @@
 # the protocol. `query_ir_duplicates` loads `.bluebook` files as Ruby, so its `domains:` are
 # confined to `Hecks::Storehouse::BOOT_ROOT` the same way the storehouse door
 # confines `domain:`. See
-# `docs/decisions/0061-mcp-servers-need-real-authentication-before-any-network-transport.md`.
+# `docs/decisions/0062-mcp-servers-need-real-authentication-before-any-network-transport.md`.
 
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
 require "hecks/mcp_stdio_guard"

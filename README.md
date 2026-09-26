@@ -553,7 +553,7 @@ unauthenticated beyond the caller-asserted `role`/`actor_id` above, and
 its readers (`state`, `events`, `history`, `follow`, `describe`,
 `catalog`) take no identity; the query-IR server asks for none. Neither
 should be exposed over a network — [ADR
-0061](docs/decisions/0061-mcp-servers-need-real-authentication-before-any-network-transport.md)
+0062](docs/decisions/0062-mcp-servers-need-real-authentication-before-any-network-transport.md)
 proposes what a network transport would need first. Both are
 registered in `.mcp.json` in this repository.
 

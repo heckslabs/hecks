@@ -34,7 +34,7 @@ module Hecks
   # It does not authenticate anyone and it cannot see a proxy that copies
   # bytes from a network socket into an ordinary pipe. It closes the
   # configurations that announce themselves; the ADR on MCP authentication
-  # (`docs/decisions/0061-mcp-servers-need-real-authentication-before-any-network-transport.md`)
+  # (`docs/decisions/0062-mcp-servers-need-real-authentication-before-any-network-transport.md`)
   # covers what a network transport would need.
   module McpStdioGuard
     ACCEPTED_ARGS = %w[--stdio].freeze

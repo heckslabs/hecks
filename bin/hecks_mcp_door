@@ -61,7 +61,7 @@
 # assumes a transport other than the `$stdin.each_line` loop at the bottom of
 # this file; adding one (HTTP, a socket reachable off-box) needs an
 # authentication layer in front of it first — see
-# `docs/decisions/0061-mcp-servers-need-real-authentication-before-any-network-transport.md`.
+# `docs/decisions/0062-mcp-servers-need-real-authentication-before-any-network-transport.md`.
 
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
 require "hecks/mcp_stdio_guard"

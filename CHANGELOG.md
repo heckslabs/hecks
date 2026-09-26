@@ -50,7 +50,7 @@ an IP socket as stdin or stdout (what a `socat` or `inetd` wrapper hands a
 process). A pipe, a terminal and a Unix-domain socket still work. At startup each
 server writes a warning to stderr (never stdout, which carries the protocol):
 identity is self-asserted, the door's readers and `query` take no role, and
-`domain:` boots real Ruby. Nothing authenticates a caller; the new ADR 0061
+`domain:` boots real Ruby. Nothing authenticates a caller; the new ADR 0062
 (proposed) says what a network transport would need first.
 
 **`query_ir_duplicates` no longer loads Ruby from outside the project root.** Its
