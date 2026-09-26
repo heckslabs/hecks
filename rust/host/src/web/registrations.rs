@@ -115,7 +115,7 @@ pub(super) async fn checkout_route(
 ) -> Option<Value> {
     match (method, path) {
         ("POST", "/registrations") => {
-            Some(registrations_route(raw_body, &payments::PlatformConfig::from_env(), client, wasm_path, config, invoker, payments).await)
+            Some(registrations_route(raw_body, &payments::PlatformConfig::load().await, client, wasm_path, config, invoker, payments).await)
         }
         // GET /registrations/:id — read-only, re-derives the truth
         // (http_server.rb's own GET /registrations/:id comment: "never
@@ -144,7 +144,7 @@ pub(super) async fn checkout_route(
             Some(registration_complete_route(registration_id, raw_body, client, wasm_path, config, invoker, payments).await)
         }
         ("POST", "/webhooks/stripe") => {
-            Some(webhook_route(raw_body, stripe_signature, &payments::PlatformConfig::from_env(), client, wasm_path, config, invoker, payments).await)
+            Some(webhook_route(raw_body, stripe_signature, &payments::PlatformConfig::load().await, client, wasm_path, config, invoker, payments).await)
         }
         // POST /events — mock_payments/ (a separate service, its own
         // bluebook) DRIVING IN: puts a new session on the calendar
@@ -588,6 +588,17 @@ pub(crate) async fn registrations_route(
     respond(200, "application/json", &json!({"checkout_url": checkout_url, "registration_id": reference}).to_string())
 }
 
+// The answer for an event that only the public mock secret could vouch for.
+fn mock_secret_refused() -> Value {
+    respond(
+        500,
+        "application/json",
+        &json!({"error": "STRIPE_WEBHOOK_SECRET is required to accept events from a real payment processor -- \
+                          refusing to trust the publicly-known mock webhook secret"})
+        .to_string(),
+    )
+}
+
 // **Stripe driving in** — http_server.rb's own `POST /webhooks/stripe`.
 // `reference` round-trips through Checkout's own metadata (set above,
 // keyed "registration_id" — the same string is both the Registration's
@@ -603,7 +614,10 @@ pub(crate) async fn registrations_route(
 // is unset the public mock secret verifies the signature instead, and
 // anything only a real processor could send (an account event, or an event
 // for a Payment a real processor collected) is refused rather than trusted on
-// a publicly-known key.
+// a publicly-known key. A business using its own account can also have a
+// signing secret saved with its keys (payments.rs, keystore.rs): that is
+// accepted too, and whenever any real credential is configured or saved the
+// mock secret is refused outright.
 pub(crate) async fn webhook_route(
     raw_body: &str,
     signature_header: &str,
@@ -615,8 +629,23 @@ pub(crate) async fn webhook_route(
     payments: &PaymentsProvider,
 ) -> Value {
     let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_secs() as i64;
-    let secret = platform.webhook_secret.as_deref().unwrap_or(MOCK_STRIPE_WEBHOOK_SECRET);
-    if let Err(e) = checkout::verify_signature(raw_body, signature_header, secret, now) {
+    // The environment's signing secret and any saved with the business's own
+    // keys are all accepted; with none configured only the mock secret is.
+    let configured = platform.webhook_secrets();
+    if configured.is_empty() && platform.has_real_credentials() {
+        // A real key with no signing secret to check events against: the public
+        // mock secret must not stand in for it.
+        return mock_secret_refused();
+    }
+    let candidates = if configured.is_empty() { vec![MOCK_STRIPE_WEBHOOK_SECRET] } else { configured };
+    let mut verification = Ok(());
+    for secret in &candidates {
+        verification = checkout::verify_signature(raw_body, signature_header, secret, now);
+        if verification.is_ok() {
+            break;
+        }
+    }
+    if let Err(e) = verification {
         return respond(400, "text/plain", &e.to_string());
     }
     let event: Value = match serde_json::from_str(raw_body) {
@@ -629,16 +658,8 @@ pub(crate) async fn webhook_route(
         Err(e) => return respond(500, "text/plain", &format!("{e:#}")),
     };
     let connection = payments::connection(&read, &config.domain);
-    let fallback_secret = platform.webhook_secret.is_none();
-    let refuse_fallback = || {
-        respond(
-            500,
-            "application/json",
-            &json!({"error": "STRIPE_WEBHOOK_SECRET is required to accept events from a real payment processor -- \
-                              refusing to trust the publicly-known mock webhook secret"})
-            .to_string(),
-        )
-    };
+    let fallback_secret = platform.webhook_secrets().is_empty();
+    let refuse_fallback = mock_secret_refused;
 
     match payments::event_scope(&event, connection.as_ref()) {
         payments::EventScope::Ignore => return respond(200, "text/plain", ""),
