@@ -256,7 +256,7 @@ impl Connection {
 /// This tenant's connection, read out of the replayed instances, or `None`
 /// until an Owner has connected an account.
 pub fn connection(read: &Value, domain: &str) -> Option<Connection> {
-    let (_, state) = instances_for(read, &format!("{domain}::PaymentConnection#")).into_iter().find(|(id, _)| id == CONNECTION_SLUG)?;
+    let (_, state) = instances_for(read, &crate::ir::payment_connection_binding(domain).instance_prefix()).into_iter().find(|(id, _)| id == CONNECTION_SLUG)?;
     let text = |field: &str| state.get(field).and_then(|v| v.get("value")).and_then(|v| v.as_str()).unwrap_or_default().to_string();
     Some(Connection {
         status: state.get("status").and_then(|v| v.as_str()).unwrap_or_default().to_string(),
@@ -356,8 +356,8 @@ pub async fn apply_deauthorization(
     invoker: &dyn LambdaInvoker,
 ) -> anyhow::Result<()> {
     let command = match connection.map(|c| c.status.as_str()) {
-        Some("enabled") => "Suspend",
-        Some("connected") => "Disconnect",
+        Some("enabled") => crate::ir::ConnectionVerb::Suspend,
+        Some("connected") => crate::ir::ConnectionVerb::Disconnect,
         _ => return Ok(()),
     };
     dispatch_on_connection(command, json!({}), client, wasm_path, config, invoker).await?;
@@ -365,14 +365,14 @@ pub async fn apply_deauthorization(
 }
 
 async fn dispatch_on_connection(
-    command: &str,
+    which: crate::ir::ConnectionVerb,
     facts: Value,
     client: &Mutex<Client>,
     wasm_path: &Path,
     config: &LineageConfig,
     invoker: &dyn LambdaInvoker,
 ) -> anyhow::Result<dispatch::Outcome> {
-    let verb = format!("{}::PaymentConnection.{command}", config.domain);
+    let verb = crate::ir::payment_connection_binding(&config.domain).verb(which).to_string();
     dispatch::handle_routed(client, wasm_path, &verb, json!(CONNECTION_SLUG), facts, None, config, invoker).await
 }
 
@@ -503,8 +503,8 @@ pub async fn route(
         "/payments/connection/callback" => callback_route(&caller, raw_body, secret, platform, client, wasm_path, config, invoker).await,
         "/payments/connection/direct" => direct_route(&caller, raw_body, platform, client, wasm_path, config, invoker).await,
         "/payments/connection/disconnect" => disconnect_route(&caller, platform, client, wasm_path, config, invoker).await,
-        "/payments/connection/enable" => switch_route(&caller, "EnablePayments", platform, client, wasm_path, config, invoker).await,
-        _ => switch_route(&caller, "DisablePayments", platform, client, wasm_path, config, invoker).await,
+        "/payments/connection/enable" => switch_route(&caller, crate::ir::ConnectionVerb::Enable, platform, client, wasm_path, config, invoker).await,
+        _ => switch_route(&caller, crate::ir::ConnectionVerb::Disable, platform, client, wasm_path, config, invoker).await,
     })
 }
 
@@ -621,10 +621,10 @@ async fn record_connection(
         None => {
             let mut creation = facts;
             creation["slug"] = json!({"value": CONNECTION_SLUG});
-            dispatch::handle_facts(client, wasm_path, &format!("{}::PaymentConnection.Connect", config.domain), creation, None, config, invoker).await
+            dispatch::handle_facts(client, wasm_path, &crate::ir::payment_connection_binding(&config.domain).connect, creation, None, config, invoker).await
         }
-        Some("disconnected") => dispatch_on_connection("Reconnect", facts, client, wasm_path, config, invoker).await,
-        Some("paused") => dispatch_on_connection("Resume", facts, client, wasm_path, config, invoker).await,
+        Some("disconnected") => dispatch_on_connection(crate::ir::ConnectionVerb::Reconnect, facts, client, wasm_path, config, invoker).await,
+        Some("paused") => dispatch_on_connection(crate::ir::ConnectionVerb::Resume, facts, client, wasm_path, config, invoker).await,
         Some(_) => return json_error(409, "an account is already connected — disconnect it first"),
     };
     match outcome {
@@ -689,8 +689,8 @@ async fn disconnect_route(caller: &Caller, platform: &PlatformConfig, client: &M
     };
 
     let remote = if existing.is_direct() { None } else { Some(existing.processor == "stripe" && revoke_access(platform, &existing.mode, &existing.account_ref).await) };
-    let command = if existing.status == "enabled" { "Suspend" } else { "Disconnect" };
-    match dispatch_on_connection(command, json!({}), client, wasm_path, config, invoker).await {
+    let which = if existing.status == "enabled" { crate::ir::ConnectionVerb::Suspend } else { crate::ir::ConnectionVerb::Disconnect };
+    match dispatch_on_connection(which, json!({}), client, wasm_path, config, invoker).await {
         Ok(outcome) if outcome.accepted => {
             // The business's own account: take the webhook out of its Stripe
             // account and delete what was saved, so nothing keeps working after
@@ -707,7 +707,7 @@ async fn disconnect_route(caller: &Caller, platform: &PlatformConfig, client: &M
 }
 
 // Enable or disable real payments: operator only.
-async fn switch_route(caller: &Caller, command: &str, platform: &PlatformConfig, client: &Mutex<Client>, wasm_path: &Path, config: &LineageConfig, invoker: &dyn LambdaInvoker) -> Value {
+async fn switch_route(caller: &Caller, which: crate::ir::ConnectionVerb, platform: &PlatformConfig, client: &Mutex<Client>, wasm_path: &Path, config: &LineageConfig, invoker: &dyn LambdaInvoker) -> Value {
     if let Err(response) = require_operator(caller) {
         return response;
     }
@@ -716,7 +716,7 @@ async fn switch_route(caller: &Caller, command: &str, platform: &PlatformConfig,
         Ok(None) => return json_error(409, "connect an account first"),
         Err(response) => return response,
     }
-    match dispatch_on_connection(command, json!({}), client, wasm_path, config, invoker).await {
+    match dispatch_on_connection(which, json!({}), client, wasm_path, config, invoker).await {
         Ok(outcome) if outcome.accepted => connection_response(caller, platform, client, wasm_path, config, None).await,
         Ok(outcome) => json_error(422, &refusal_message(&last_refusal(&outcome.result))),
         Err(e) => json_error(500, &format!("{e:#}")),
