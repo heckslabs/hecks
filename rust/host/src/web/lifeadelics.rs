@@ -470,13 +470,15 @@ pub(crate) async fn registrations_route(
     // A Stripe plan opens its embedded session before anything is written, so
     // a Stripe failure leaves no Payment or Registration behind and a guest
     // retrying does not pile up pending registrations. The session is a direct
-    // charge on the tenant's own connected account: the platform's key, and
-    // the `Stripe-Account` header naming whose money it is. If a domain
-    // refusal follows, the unused session simply expires.
+    // charge on the tenant's own account: for a connected account, the
+    // platform's key and the `Stripe-Account` header naming whose money it is;
+    // for the business's own account, that account's key and no header. If a
+    // domain refusal follows, the unused session simply expires.
     let embedded_checkout = if let payments::CheckoutPlan::Stripe { api_key, publishable_key, account } = &plan {
-        let auth = checkout::StripeAuth { api_key, account: Some(account), base_url: &platform.api_base };
+        let auth = checkout::StripeAuth { api_key, account: account.as_deref(), base_url: &platform.api_base };
         match checkout::create_checkout_session(&auth, price_cents, event_name, &reference, checkout::session_expires_at(unix_now())).await {
-            // Stripe.js is opened with the publishable key and `stripeAccount`;
+            // Stripe.js is opened with the publishable key and, for a connected
+            // account, `stripeAccount` (null for the business's own account);
             // the answer carries no `checkout_url`.
             Ok(session) => Some(json!({
                 "client_secret": session.client_secret,
