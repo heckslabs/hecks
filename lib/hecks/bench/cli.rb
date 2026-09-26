@@ -1,4 +1,6 @@
 require "optparse"
+require_relative "suite"
+require_relative "report"
 
 module Hecks
   module Bench
