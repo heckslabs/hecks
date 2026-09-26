@@ -556,7 +556,8 @@ else
     chapter_result = nil
     RustProjection::WriteIfChanged.track_directory(File.join(out_root, chapter_mod_name)) do
       chapter_result = RustProjection::DomainGenerator.call(chapter_ir, "#{domain} (#{attachment_label})",
-                                                            File.join(out_root, chapter_mod_name), chapter_mod_name)
+                                                            File.join(out_root, chapter_mod_name), chapter_mod_name,
+                                                            merged_module: false)
     end
     framework_aggregates.concat(chapter_result[:aggregates])
     framework_queries.concat(chapter_result[:queries])
