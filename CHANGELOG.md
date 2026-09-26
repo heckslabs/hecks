@@ -5,6 +5,17 @@ Dates are when a change landed on `main`, not when this file was written.
 Entries below are grouped by theme, not itemized commit-by-commit; see
 `git log` for the full history.
 
+## [Unreleased]
+
+**rust/host now writes structured logs to stdout.** One JSON object per line:
+`boot` at startup, `request` for every HTTP request (method, path without the
+query string, status, milliseconds; `error` level for a 5xx), `command` for every
+dispatched command (verb, role, events emitted, refusals; never the facts), plus
+`dispatch_failed` and `cross_domain_delivery_failed` on failures. On Fargate the
+task's `awslogs` driver ships stdout to CloudWatch, so the domain container's log
+stream is no longer empty and Logs Insights can filter on the fields, for example
+`filter msg = "command" and accepted = 0`.
+
 ## [2.5.0] - 2026-09-26
 
 **Two new capabilities, `registrations` and `payment_connection`, and rust/host

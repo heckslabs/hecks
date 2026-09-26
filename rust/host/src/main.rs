@@ -25,6 +25,7 @@ mod field_hints;
 mod ir;
 mod journal;
 mod lambda_client;
+mod log;
 mod mint;
 mod payments;
 mod presentation;
@@ -472,6 +473,7 @@ async fn main() -> Result<(), Error> {
     // production. `server::dispatch_body` (shared with the Fargate
     // server path below) is where this is actually read now.
     if serve_mode {
+        log::info("boot", serde_json::json!({ "mode": "serve", "domain": &lineage_config.domain }));
         let state = server::ServerState { client, wasm_path, lineage_config, invoker };
         return server::serve(state).await;
     }

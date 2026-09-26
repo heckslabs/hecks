@@ -490,6 +490,10 @@ pub async fn handle(
             }
             Err(failure) => {
                 let error_text = format!("{:#}", failure.error);
+                crate::log::error("cross_domain_delivery_failed", serde_json::json!({
+                    "policy": failure.policy, "target_domain": failure.target_domain,
+                    "target_verb": failure.target_verb, "attempts": failure.attempts, "error": error_text,
+                }));
                 journal::record_dead_letter(
                     &*guard,
                     &failure.policy,
@@ -513,7 +517,32 @@ pub async fn handle(
         response.insert("cross_domain_deliveries".to_string(), serde_json::Value::Array(cross_domain_deliveries));
     }
 
+    log_command(verb, role, accepted, &result);
     Ok(Outcome { result, accepted })
+}
+
+/// One line per dispatched command: what was asked (verb and role, never
+/// the facts), and what the domain answered — the events it emitted and
+/// any refusals.
+fn log_command(verb: &str, role: Option<&str>, accepted: bool, result: &serde_json::Value) {
+    let fields = command_fields(verb, role, accepted, result);
+    if accepted {
+        crate::log::info("command", fields);
+    } else {
+        crate::log::error("command", fields);
+    }
+}
+
+fn command_fields(verb: &str, role: Option<&str>, accepted: bool, result: &serde_json::Value) -> serde_json::Value {
+    let events: Vec<serde_json::Value> = result
+        .get("events")
+        .and_then(|v| v.as_array())
+        .map(|items| items.iter().filter_map(|item| item.get("name").cloned()).collect())
+        .unwrap_or_default();
+    serde_json::json!({
+        "verb": verb, "role": role, "accepted": accepted, "events": events,
+        "refusals": result.get("refusals").cloned().unwrap_or_else(|| serde_json::json!([])),
+    })
 }
 
 // **Read-only**: the same seed-not-replay path `handle` uses (journal.rs's
@@ -603,6 +632,21 @@ pub async fn query(
 
 #[cfg(test)]
 pub(crate) mod tests {
+
+    #[test]
+    fn a_command_log_line_names_the_verb_events_and_refusals_but_never_the_facts() {
+        let result = serde_json::json!({
+            "events": [{"name": "Registered", "data": {"email": "a@b.c"}}],
+            "refusals": [{"verb": "X.Y", "error": "already exists", "kind": "AlreadyExists"}],
+        });
+        let fields = command_fields("Register", Some("admin"), false, &result);
+        assert_eq!(fields["verb"], "Register");
+        assert_eq!(fields["role"], "admin");
+        assert_eq!(fields["accepted"], false);
+        assert_eq!(fields["events"], serde_json::json!(["Registered"]));
+        assert_eq!(fields["refusals"][0]["kind"], "AlreadyExists");
+        assert!(!fields.to_string().contains("a@b.c"));
+    }
     use super::*;
     use tokio_postgres::NoTls;
 
