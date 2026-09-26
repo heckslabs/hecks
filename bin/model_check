@@ -51,6 +51,13 @@ def boot(source)
       folder.load_bluebooks(File.dirname(source), [File.basename(source)])
     end
 
+    # **Translations, only under a profile** — a real boot loads
+    # `translations/*.bluebook` right after the chapters (`Vocabulary`'s
+    # LoadOrder), but nothing here read them, because no check needed them.
+    # The client profile's compute rule does, so they are loaded for it and
+    # for nothing else: an unprofiled run boots exactly what it always did.
+    Dir[File.join(source, "translations", "*.bluebook")].each { |file| Kernel.load(file) } if PROFILE && File.directory?(source)
+
     # **The sibling hecksagon, if one exists** — a port attaches to its
     # aggregate/chapter from there, not the bluebook (see
     # hecksagon_builder.rb), so a deaf-policy check that never loads it
@@ -80,6 +87,11 @@ end
 # a `rust_reserved_name` finding is an error for it, not a warning.
 # `STRICT` (`--strict`) makes it an error for every target.
 #
+# `PROFILE` (`--profile client`) adds `Bluebook::ModelCheck::ClientProfile`'s
+# error findings: constructs known to answer wrongly without refusing. The
+# domain's own data translations are read off the registry and handed in,
+# since the chapter itself does not carry them.
+#
 # Runs `Bluebook::ModelCheck` over one booted domain's chapters, prints
 # its findings against the allowlist, and reports whether it passes.
 #
@@ -99,7 +111,8 @@ def examine(name, registry, known_domains: nil, global_emitted_events: nil)
   findings = chapters.flat_map do |chapter|
     Hecks::Bluebook::ModelCheck.call(chapter, hecksagon: registry.hecksagon(chapter.name), known_domains: known_domains,
                                               global_emitted_events: global_emitted_events,
-                                              rust_target: rust_target, strict: STRICT)
+                                              rust_target: rust_target, strict: STRICT, profile: PROFILE,
+                                              translations: registry.translations.select { |t| t.domain == chapter.name })
   end
 
   allowed = Hecks::Bluebook::ModelCheck::ALLOWED_FINDINGS.fetch(name, [])
@@ -139,7 +152,7 @@ def examine_language
     next unless chapter
 
     puts "── #{name} (the language itself)"
-    findings = Hecks::Bluebook::ModelCheck.call(chapter, strict: STRICT)
+    findings = Hecks::Bluebook::ModelCheck.call(chapter, strict: STRICT, profile: PROFILE)
     if findings.empty?
       puts "   clean — no dead states, no unreachable protocol steps"
     else
@@ -157,6 +170,28 @@ require "hecks/fuzzing/target_capabilities"
 # `--strict` — a `rust_reserved_name` finding is an error for every target,
 # not only for those with a Rust (Cargo feature) target.
 STRICT = !ARGV.delete("--strict").nil?
+
+# Reads `--profile client` or `--profile=client` and removes it from ARGV, so
+# what remains is only domain paths.
+#
+# @return [Symbol, nil] the requested profile, or nil when none was asked for
+def take_profile
+  inline = ARGV.find { |arg| arg.start_with?("--profile=") }
+  index = ARGV.index("--profile")
+  return unless inline || index
+
+  name = inline ? inline.delete_prefix("--profile=") : ARGV[index + 1].to_s
+  ARGV.delete(inline) if inline
+  ARGV.slice!(index, 2) if index
+  name.to_sym
+end
+
+PROFILE = take_profile
+unless PROFILE.nil? || Hecks::Bluebook::ModelCheck::PROFILES.include?(PROFILE)
+  warn "unknown profile #{PROFILE.inspect} (known: #{Hecks::Bluebook::ModelCheck::PROFILES.join(', ')})"
+  exit 2
+end
+
 domain_args = ARGV.dup
 ARGV.clear
 

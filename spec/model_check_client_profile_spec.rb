@@ -1,0 +1,263 @@
+require "spec_helper"
+require "hecks/bluebook/model_check"
+require "hecks/ports/persistence/plugins/era/translation/rule_compiler"
+require "open3"
+require "tmpdir"
+
+# The opt-in `client` profile of the model checker: it refuses three
+# constructs that answer wrongly without refusing, and changes nothing when
+# the profile is not asked for.
+#
+# Each rule is tied to the bug it guards by a probe in "rules that retire with
+# their bug": the probe runs the buggy code and asserts it still misbehaves,
+# so the moment the bug is fixed that example fails and names the rule to
+# delete. Delete the rule, its examples here, and its probe together.
+RSpec.describe "the model checker's client profile" do
+  SHOP = <<~BLUEBOOK.freeze
+    Hecks.bluebook "ClientProfileShop" do
+      vision "One owner, one widget aggregate, one read model per shape the client profile judges."
+      core
+
+      aggregate "Owner" do
+        identified_by :number
+        attribute :number, Number
+        value_object "Number" do
+          attribute :value, String
+        end
+        command "Enrol" do
+          attribute :number, Number
+        end
+      end
+
+      aggregate "Widget" do
+        identified_by :number
+        reference_to Owner
+        attribute :number, Number
+        attribute :group, Group
+        value_object "Number" do
+          attribute :value, String
+        end
+        value_object "Group" do
+          attribute :name, String
+        end
+        command "Make" do
+          attribute :number, Number
+          attribute :group, Group
+        end
+      end
+
+      read_model "WidgetsByGroup" do
+        include Widget
+        group_by :group
+      end
+
+      read_model "WidgetsByNumber" do
+        include Widget
+        group_by :number
+      end
+
+      read_model "WidgetsByGroupAndNumber" do
+        include Widget
+        group_by :group, :number
+      end
+
+      read_model "OwnerWidgets" do
+        reference_to Owner
+        include Owner
+        include Widget
+      end
+
+      read_model "OwnerWidgetCount" do
+        reference_to Owner
+        include Owner
+        include Widget
+        count
+      end
+    end
+  BLUEBOOK
+
+  def build(projection: nil, translation: nil)
+    registry = Hecks::Runtime::Registry.new
+    Hecks.with_registry(registry) do
+      Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
+      Kernel.load(InMemoryDomain::EXTRACTION_PORT)
+      Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
+      Kernel.load(InMemoryDomain::PRISM_ADAPTER)
+      eval(SHOP, TOPLEVEL_BINDING, "client_profile_shop.bluebook")
+      Hecks.hecksagon("ClientProfileShop") do
+        ClientProfileShop::Owner.persisted_by("Memory")
+        ClientProfileShop::Widget.persisted_by("Memory")
+        projected_by(projection) if projection
+      end
+      eval(translation, TOPLEVEL_BINDING, "client_profile_shop.translation") if translation
+    end
+    registry
+  end
+
+  def profiled(registry, profile: :client)
+    chapter = registry.bluebooks.values.first
+    Hecks::Bluebook::ModelCheck.call(chapter, hecksagon: registry.hecksagon(chapter.name), profile: profile,
+                                              translations: registry.translations)
+  end
+
+  def subjects_for(findings, kind) = findings.select { |finding| finding.kind == kind }.map(&:subject)
+
+  def translation_source(source_field)
+    <<~RUBY
+      Hecks.data_translation("ClientProfileShop", from: "aaaaaa", to: "bbbbbb") do
+        aggregate("Widget") do
+          compute #{source_field.inspect}, to: "price.cents", sql: "1"
+        end
+      end
+    RUBY
+  end
+
+  describe "without the profile" do
+    it "adds no finding and leaves the others as they were" do
+      registry = build(projection: "SqliteProjection", translation: translation_source("price.cents"))
+
+      chapter = registry.bluebooks.values.first
+      plain = profiled(registry, profile: nil)
+      bare = Hecks::Bluebook::ModelCheck.call(chapter, hecksagon: registry.hecksagon(chapter.name))
+
+      expect(plain.map(&:kind).grep(/\Aclient_/)).to be_empty
+      expect(plain.map(&:to_s)).to eq(bare.map(&:to_s))
+    end
+
+    it "refuses a profile it does not know" do
+      expect { profiled(build, profile: :strict_client) }.to raise_error(ArgumentError, /unknown profile/)
+    end
+  end
+
+  describe "group_by row drop (docs/decisions/0061)" do
+    let(:findings) { profiled(build) }
+
+    it "refuses a group_by that does not cover the aggregate's identity" do
+      expect(subjects_for(findings, :client_group_by_row_drop)).to eq(["WidgetsByGroup"])
+    end
+
+    it "is silent when the group_by is the identity, alone or with another field" do
+      expect(subjects_for(findings, :client_group_by_row_drop)).not_to include("WidgetsByNumber", "WidgetsByGroupAndNumber")
+    end
+
+    it "does not depend on the adapter the aggregate is bound to" do
+      registry = build(projection: "SqliteProjection")
+
+      expect(subjects_for(profiled(registry), :client_group_by_row_drop)).to eq(["WidgetsByGroup"])
+    end
+
+    it "names the construct and the ADR that tracks it, as an error" do
+      finding = findings.find { |f| f.kind == :client_group_by_row_drop }
+
+      expect(finding.severity).to eq(:error)
+      expect(finding.message).to include("group_by :group", "docs/decisions/0061")
+    end
+  end
+
+  describe "native read model pushdown (docs/1.0-readiness.md, known gap 2)" do
+    it "refuses a rooted read model over an aggregate projected_by an adapter that answers natively" do
+      findings = profiled(build(projection: "SqliteProjection"))
+
+      expect(subjects_for(findings, :client_native_read_model)).to eq(["OwnerWidgets"])
+      expect(findings.find { |f| f.kind == :client_native_read_model }.message).to include("docs/1.0-readiness.md")
+    end
+
+    it "is silent when the aggregate has no projection bind" do
+      expect(subjects_for(profiled(build), :client_native_read_model)).to be_empty
+    end
+
+    it "is silent for a projection adapter that has no native path" do
+      expect(subjects_for(profiled(build(projection: "SomethingElse")), :client_native_read_model)).to be_empty
+    end
+
+    it "is silent for a model the interpreter never pushes down" do
+      findings = profiled(build(projection: "SqliteProjection"))
+
+      expect(subjects_for(findings, :client_native_read_model)).not_to include("OwnerWidgetCount", "WidgetsByGroup")
+    end
+
+    it "lists exactly the adapters whose Ruby class implements query_read_model" do
+      defining = Dir[File.join(InMemoryDomain::ROOT, "lib/hecks/adapters/**/*.rb")].select do |path|
+        File.read(path).match?(/^\s*def query_read_model\b/)
+      end
+      implementers = defining.flat_map { |path| File.read(path).scan(/^\s*class (\w+)/).flatten }
+
+      expect(Hecks::Bluebook::ModelCheck::ClientProfile::NATIVE_READ_MODEL_ADAPTERS).to match_array(implementers)
+    end
+  end
+
+  describe "dotted compute source (Translation::RuleCompiler.compile_compute)" do
+    it "refuses a compute whose source is a dotted member" do
+      findings = profiled(build(translation: translation_source("price.cents")))
+
+      expect(subjects_for(findings, :client_dotted_compute_source)).to eq(["ClientProfileShop::Widget"])
+      expect(findings.find { |f| f.kind == :client_dotted_compute_source }.message)
+        .to include('"price.cents"', "migration_data_safety_spec.rb")
+    end
+
+    it "is silent when the source is a top-level field" do
+      findings = profiled(build(translation: translation_source("price_cents")))
+
+      expect(subjects_for(findings, :client_dotted_compute_source)).to be_empty
+    end
+
+    # `Folder#load_bluebooks` reads only `*.bluebook`, so before the profile
+    # `bin/model_check` never saw a domain's `translations/` directory.
+    it "is reached from bin/model_check, which loads a domain's translations directory" do
+      Dir.mktmpdir do |root|
+        chapters = File.join(root, "shop", "bluebook")
+        FileUtils.mkdir_p(File.join(chapters, "translations"))
+        File.write(File.join(chapters, "shop.bluebook"), SHOP)
+        File.write(File.join(chapters, "shop.hecksagon"), <<~RUBY)
+          Hecks.hecksagon "ClientProfileShop" do
+            ClientProfileShop::Owner.persisted_by("Memory")
+            ClientProfileShop::Widget.persisted_by("Memory")
+          end
+        RUBY
+        File.write(File.join(chapters, "translations", "2-bbbbbb.bluebook"), translation_source("price.cents"))
+
+        plain, = Open3.capture2e("bundle", "exec", "ruby", "bin/model_check", File.join(root, "shop"), chdir: InMemoryDomain::ROOT)
+        profiled_output, status = Open3.capture2e("bundle", "exec", "ruby", "bin/model_check", "--profile", "client",
+                                                  File.join(root, "shop"), chdir: InMemoryDomain::ROOT)
+
+        expect(plain).not_to include("client_")
+        expect(profiled_output).to include("client_dotted_compute_source", "ClientProfileShop::Widget")
+        expect(status.exitstatus).to eq(1)
+      end
+    end
+  end
+
+  # Each example here runs the buggy code the rule guards and expects it to
+  # still misbehave. When one fails, the bug is fixed: delete the rule named in
+  # the message, its examples above, this probe, and the tracker it cites.
+  describe "rules that retire with their bug" do
+    it "client_group_by_row_drop: nest still keeps only the first row per key path" do
+      rows = [{ group: "g1", id: "w1" }, { group: "g1", id: "w2" }]
+
+      nested = Hecks::Runtime::ReadModelInterpreter.new(nil).send(:nest, rows, [:group])
+
+      expect(nested.fetch("g1")).to be_a(Hash), "nest keeps every row now: docs/decisions/0061's row drop is " \
+                                                "fixed. Delete ClientProfile#group_by_findings, its examples, and this probe."
+    end
+
+    it "client_native_read_model: the readiness doc still lists the missing agreement gate" do
+      readiness = File.read(File.join(InMemoryDomain::ROOT, "docs/1.0-readiness.md"))
+
+      expect(readiness).to match(/^2\. \*\*Read models have no cross-engine agreement gate\./),
+                           "docs/1.0-readiness.md no longer lists known gap 2 as open. If native and in-process " \
+                           "read models are now checked for agreement, delete ClientProfile#native_read_model_findings, " \
+                           "its examples, and this probe."
+    end
+
+    it "client_dotted_compute_source: compile_compute still tests a dotted source as a top-level key" do
+      compute = Hecks::Bluebook::TranslationCompute.new("price.cents", "price.cents", "1")
+
+      sql = Hecks::Translation::RuleCompiler.compile_compute("state", compute)
+
+      expect(sql).to include("__s ? 'price.cents'"),
+                     "compile_compute no longer guards a dotted source with a top-level key test. Delete " \
+                     "ClientProfile#dotted_compute_findings, its examples, this probe, and the pending example " \
+                     "in spec/adapters/driven/postgres_era/migration_data_safety_spec.rb."
+    end
+  end
+end
