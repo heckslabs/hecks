@@ -51,21 +51,6 @@
 # output — is auto-discovered on the next run, with zero edits to
 # ci-checks.yml or this script itself.
 #
-# `embryonaut` never appears as a candidate in the first place: its
-# Bluebook source lives in a separate client repo, not in this checkout
-# (docs/decisions/0033-... and the commit message that moved it out —
-# "embryonaut -> ~/Projects/embryonautfoundersapp/deploy"), so there is
-# no `examples/embryonaut`, `qa/stress_domains/embryonaut`, or `spec/fixtures/
-# rust_project/embryonaut` directory here for the walk to ever find, even
-# though `rust/src/generated/embryonaut/` is committed. EXCLUDED_DOMAINS
-# below still names it explicitly, as a defensive belt-and-suspenders
-# guard against a future SEARCH_ROOTS addition accidentally reaching a
-# directory that happens to contain one — not because it is reachable
-# today. It stays coverage-checked against its own committed snapshot
-# only, same as `bin/rust_coverage embryonaut` (ci-checks.yml's "rust
-# coverage: embryonaut" step) already treats it — see that tool's own
-# "Fallback mode" header for exactly what that can and can't prove.
-#
 # Order is not arbitrary, and this script does not get to pick a
 # convenient one — every domain below that declares `uses_framework
 # "Governance"` (today: banking, compliance, pizzas, nested_pieces, and
@@ -132,9 +117,9 @@ def project_rust_in_fork(project_rust, domain)
   puts
 end
 
-# embryonaut is never in the list: Hecks::Corpus::RUST_ELSEWHERE routes
-# it (and `meta`) to the check that owns it instead, and
-# spec/corpus_rust_spec.rb proves no in-repo directory carries its name.
+# `meta` and any external domain are never in the list:
+# Hecks::Corpus::RUST_ELSEWHERE routes them to the check that owns them
+# instead.
 repo_root = File.expand_path("..", __dir__)
 Dir.chdir(repo_root) do
   domains = Hecks::Corpus.rust_regen_order.map { |domain| domain.dir.delete_prefix("#{repo_root}/") }

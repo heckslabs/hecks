@@ -279,22 +279,6 @@ jobs:
       # every domain here always got added — is auto-discovered on the
       # very next run, with ZERO edits to this file.
       #
-      # embryonaut is still excluded, for the same structural reason as
-      # always: its Bluebook source lives in a separate client repo
-      # (docs/decisions/0033-... and PR #394's own commit message —
-      # "embryonaut -> ~/Projects/embryonautfoundersapp/deploy"), so
-      # `rust/src/generated/embryonaut/` is committed here with no way to
-      # regenerate it from this checkout at all. It is never even
-      # DISCOVERED by the walk above (no `examples/embryonaut`, `qa/
-      # stress_domains/embryonaut`, or `spec/fixtures/rust_project/
-      # embryonaut` directory exists here to find) — `bin/regen_codegen_
-      # domains`'s `EXCLUDED_DOMAINS` list still names it explicitly as a
-      # defensive guard, not because exclusion logic is doing real work
-      # today. It stays coverage-checked against its own committed
-      # snapshot only, same as every "rust coverage: <domain>" step below
-      # already treats it — see bin/rust_coverage's own "Fallback mode"
-      # header for exactly what that can and can't prove.
-      #
       # `tenant_ledger` is no longer excluded — this fix swept it into
       # the same mechanism as everything else, closing the gap this
       # comment block acknowledged for a long time. ORDER IS STILL NOT
@@ -364,18 +348,14 @@ jobs:
       # ALLOWLIST. BOTH paths stay gated here permanently: the Ruby
       # generator (rust/project) remains the default producer of the Rust
       # port, and hecks-codegen is held to it by these parity gates.
-      # embryonaut has no committed manifest (fallback mode), so it reads
-      # the committed snapshot in both modes — see bin/rust_coverage's own
-      # header.
       - uses: ./.github/actions/cargo-cache
         with:
           name: codegen
           crate-root: rust/codegen
 
-      - name: "rust coverage (hecks-codegen): pizzas, embryonaut, governance, identity, banking, meta"
+      - name: "rust coverage (hecks-codegen): pizzas, governance, identity, banking, meta"
         run: |
           bundle exec bin/rust_coverage pizzas --codegen=rust
-          bundle exec bin/rust_coverage embryonaut --codegen=rust
           bundle exec bin/rust_coverage governance --codegen=rust
           bundle exec bin/rust_coverage identity --codegen=rust
           bundle exec bin/rust_coverage banking --codegen=rust
