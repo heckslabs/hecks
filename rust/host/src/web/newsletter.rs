@@ -1,4 +1,4 @@
-use super::newsletter_send::{site_url, unsubscribe_url};
+use super::newsletter_send::{site_url, unsubscribe_token, unsubscribe_token_matches, unsubscribe_url};
 use super::{instances_for, last_refusal, respond};
 use crate::auth;
 use crate::dispatch;
@@ -9,9 +9,11 @@ use crate::resend::{Email, Mailer};
 use serde_json::{json, Value};
 use std::collections::HashMap;
 use std::path::Path;
+use std::sync::OnceLock;
 use tokio::sync::Mutex;
 use tokio_postgres::Client;
 
+mod cooldown;
 #[cfg(test)]
 mod tests;
 
@@ -184,6 +186,13 @@ fn confirm_url(site_url: &str, email: &str, token: &str) -> String {
     url.to_string()
 }
 
+/// The one cooldown every confirmation email goes through. Per process: see
+/// `ConfirmationCooldown`.
+fn confirmation_cooldown() -> &'static cooldown::ConfirmationCooldown {
+    static COOLDOWN: OnceLock<cooldown::ConfirmationCooldown> = OnceLock::new();
+    COOLDOWN.get_or_init(|| cooldown::ConfirmationCooldown::new(cooldown::WINDOW, cooldown::CAPACITY))
+}
+
 fn confirmation_body(confirm_url: &str) -> String {
     format!(
         "Please confirm your newsletter subscription by opening this link:\n\n{confirm_url}\n\nIf you didn't ask for this, you can ignore this email and nothing will be sent to you.\n"
@@ -193,7 +202,9 @@ fn confirmation_body(confirm_url: &str) -> String {
 /// Emails the signed confirm link to `email`. Best effort: a subscriber who
 /// signs up must never see an error because mail is down or unconfigured, so
 /// every failure is logged (without the address) and swallowed, and the
-/// subscriber simply stays `pending`.
+/// subscriber simply stays `pending`. An address that was already mailed a
+/// confirmation inside the cooldown window is not mailed again, so the form
+/// cannot be used to flood someone else's inbox.
 pub(super) async fn send_confirmation(email: &str) {
     let Some(secret) = confirm_secret() else {
         eprintln!("newsletter: SESSION_SECRET is not set, so no confirmation link can be signed; the subscriber stays pending");
@@ -210,9 +221,13 @@ pub(super) async fn send_confirmation(email: &str) {
             return;
         }
     };
+    if !confirmation_cooldown().try_acquire(email) {
+        eprintln!("newsletter: a confirmation was already emailed to this address in the last 10 minutes, so none was sent; the subscriber stays pending");
+        return;
+    }
     let site = site_url();
     let link = confirm_url(&site, email, &confirm_token(&secret, email));
-    let unsubscribe = unsubscribe_url(&site, email);
+    let unsubscribe = unsubscribe_url(&site, email, &unsubscribe_token(&secret, email));
     let delivery = mailer
         .deliver(&Email { to: email, subject: "Confirm your newsletter subscription", body: &confirmation_body(&link), unsubscribe_url: Some(&unsubscribe) })
         .await;
@@ -284,9 +299,31 @@ async fn newsletter_confirm_route(provider: &NewsletterProvider, query: &HashMap
     respond(200, "application/json", &json!({"email": email, "status": status}).to_string())
 }
 
-/// GET /newsletter/subscribers/unsubscribe?email=... — same shape as
-/// newsletter_confirm_route above, ported from http_server.rb's own
-/// route (same "no signed token" gap, same idempotency reasoning:
+/// The refusal for an unsubscribe request that does not carry a valid signed
+/// token for its own address: 400 with no address, 403 with a missing, wrong,
+/// other-address or expired token, or when there is no secret to check against.
+/// On success, the address.
+fn unsubscribe_authorized<'a>(secret: Option<&str>, query: &'a HashMap<String, String>) -> Result<&'a str, Value> {
+    let Some(email) = query.get("email") else {
+        return Err(respond(400, "application/json", &json!({"error": "email"}).to_string()));
+    };
+    let signed = match (secret, query.get("token")) {
+        (Some(secret), Some(token)) => unsubscribe_token_matches(secret, token, email),
+        _ => false,
+    };
+    if signed {
+        Ok(email)
+    } else {
+        Err(respond(403, "application/json", &json!({"error": "this unsubscribe link is invalid or has expired"}).to_string()))
+    }
+}
+
+/// GET /newsletter/subscribers/unsubscribe?email=...&token=... — same shape as
+/// newsletter_confirm_route above, and like it the token must be the signed
+/// one the emails carry (`unsubscribe_token`), minted for this exact address;
+/// anything else is a 403 before any subscriber is looked up. Ported from
+/// http_server.rb's own route (that one had no token), ported from http_server.rb's own
+/// with the same idempotency reasoning:
 /// Unsubscribe's own `given` only accepts a pending or confirmed
 /// subscriber, so a repeat click on an already-unsubscribed row would
 /// otherwise 422 instead of showing the same success page). This is the
@@ -295,8 +332,9 @@ async fn newsletter_confirm_route(provider: &NewsletterProvider, query: &HashMap
 /// to auth_gate's 401, never a 404, since neither this path nor
 /// /confirm was in UNGATED_PATHS and nothing recognized either one).
 async fn newsletter_unsubscribe_route(provider: &NewsletterProvider, query: &HashMap<String, String>, client: &Mutex<Client>, wasm_path: &Path, config: &LineageConfig, invoker: &dyn LambdaInvoker) -> Value {
-    let Some(email) = query.get("email") else {
-        return respond(400, "application/json", &json!({"error": "email"}).to_string());
+    let email = match unsubscribe_authorized(confirm_secret().as_deref(), query) {
+        Ok(email) => email,
+        Err(refusal) => return refusal,
     };
 
     let read = match dispatch::read(client, wasm_path).await {

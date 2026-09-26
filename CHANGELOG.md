@@ -7,6 +7,29 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+**The unsubscribe link is signed.** Every email that carries an unsubscribe
+URL (each recipient of an issue send, `send-test`, and the `List-Unsubscribe`
+header on the confirmation email) now links to
+`{SITE_URL}/newsletter-unsubscribed.html?email=<encoded>&token=<token>`. The token
+is a purpose token (`newsletter-unsubscribe`, claims `{email}`, 730-day
+lifetime, keyed by `SESSION_SECRET`); the purpose keeps it apart from a confirm
+token, so neither verifies as the other. `GET /newsletter/subscribers/unsubscribe`
+now requires a token minted for that exact address and answers 403 (`this
+unsubscribe link is invalid or has expired`) for a missing, wrong,
+other-address or expired one; an already-unsubscribed address still answers 200.
+An issue send or `send-test` with no `SESSION_SECRET` is refused with a 503
+before the issue is marked sent. **Behavior change for hosts:** an unsubscribe
+link from an email sent before this change (bare `?email=`) now gets a 403.
+
+**Confirmation emails are rate limited per address.** `send_confirmation` mails
+one address at most once per 10 minutes (case-insensitive). Inside the window a
+subscribe or registration still succeeds and the subscriber stays `pending`, but
+no email is sent and one line is logged without the address. The limiter is
+in-memory, so it is per process; it holds at most 10,000 addresses and, when
+full, sends nothing to a new address rather than forgetting a live one. With
+`RESEND_MOCK=1` the same limit applies, so repeat signups of one address in a
+local run send one mock email per 10 minutes.
+
 **rust/host no longer confirms a subscriber itself.** `POST
 /newsletter/subscribers` used to dispatch the `confirm` verb right after a
 Subscribe or AddName whenever the subscriber was still `pending`. It now
