@@ -53,10 +53,9 @@ pub(super) async fn newsletter_route(
 /// POST /newsletter/subscribers — Subscribe on a new email, AddName on a
 /// returning one (the two-step public signup form's own step
 /// 1/step 2 — NewsletterSubscribeForm.astro's own header has the full
-/// reasoning), Confirm dispatched right after either path since a
-/// freshly-subscribed record always starts `pending` and this project's
-/// own newsletter has no real double opt-in yet (subscriber.bluebook's
-/// own "no signed token" gap, carried over unchanged from Ruby's route).
+/// reasoning). The response carries the subscriber's resulting status:
+/// `pending` unless the domain reacts to the subscribe event by
+/// confirming it.
 async fn newsletter_subscribe_route(
     provider: &NewsletterProvider,
     raw_body: &str,
@@ -105,12 +104,11 @@ async fn newsletter_subscribe_route(
         }
     }
 
-    // Confirm right after — a pending subscriber always exists at this
-    // point on the fresh-Subscribe path; on the AddName path it may
-    // already be confirmed (a returning subscriber filling in their
-    // name), so Confirm only dispatches when it's actually pending,
-    // same idempotency reasoning http_server.rb's own route already
-    // follows (Confirm's own `given` refuses a second attempt outright).
+    // Confirm is not dispatched here. A domain that wants signups
+    // confirmed on the spot wires that as a reaction to the subscribe
+    // event (lifeadelics.hecksagon's `translates "ConfirmOnSubscribe"`),
+    // which has already run by the time `handle_facts` returns. This route
+    // only reports where the subscriber ended up.
     let read = match dispatch::read(client, wasm_path).await {
         Ok(r) => r,
         Err(e) => return respond(500, "text/plain", &format!("{e:#}")),
@@ -119,18 +117,7 @@ async fn newsletter_subscribe_route(
     let Some((_, subscriber)) = subscribers.iter().find(|(id, _)| id == email) else {
         return respond(500, "text/plain", "subscriber vanished immediately after being written");
     };
-    if subscriber.get("status").and_then(|v| v.as_str()) == Some("pending") {
-        if let Err(e) = dispatch::handle_routed(client, wasm_path, &provider.confirm, json!(email), json!({}), None, config, invoker).await {
-            return respond(500, "text/plain", &format!("{e:#}"));
-        }
-    }
-
-    let read = match dispatch::read(client, wasm_path).await {
-        Ok(r) => r,
-        Err(e) => return respond(500, "text/plain", &format!("{e:#}")),
-    };
-    let subscribers = instances_for(&read, &provider.instance_prefix());
-    let status = subscribers.iter().find(|(id, _)| id == email).and_then(|(_, s)| s.get("status")).and_then(|v| v.as_str()).unwrap_or("pending");
+    let status = subscriber.get("status").and_then(|v| v.as_str()).unwrap_or("pending");
     respond(200, "application/json", &json!({"email": email, "status": status}).to_string())
 }
 
