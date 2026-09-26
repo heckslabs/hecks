@@ -47,6 +47,9 @@ module Hecks
           { creating: creating, instance: instance, entity_commands: entity_commands,
             queries: queries, entity_queries: entity_queries, read_models: read_models,
             populators: populators(runtime),
+            # The aggregates a query filters on, and the fields it compares
+            # (query_binding.rb).
+            query_bindings: build_query_bindings(runtime),
             # Every `role "..."` any command in the boot declares — the
             # "wrong hat" pool the caller draw's `mismatched` shape picks
             # from (adversary.rb `other_role`).

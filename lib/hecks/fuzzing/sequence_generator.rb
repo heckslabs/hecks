@@ -7,6 +7,7 @@ require_relative "sequence_generator/catalog"
 require_relative "sequence_generator/picker"
 require_relative "sequence_generator/step_builder"
 require_relative "sequence_generator/outcome_tracker"
+require_relative "sequence_generator/query_binding"
 require_relative "sequence_generator/adversary"
 
 module Hecks
@@ -30,14 +31,16 @@ module Hecks
     # One concern per file beside this one: what the domain offers
     # (sequence_generator/catalog.rb), which step to try next (picker.rb),
     # how a step is built and dispatched (step_builder.rb), what a
-    # success taught us (outcome_tracker.rb), and — opt-in, `adversarial:`
-    # — the argument shapes real Ruby/Rust divergences were found through
+    # success taught us (outcome_tracker.rb), which stored values a query is
+    # asked about (query_binding.rb), and — opt-in, `adversarial:` — the
+    # argument shapes real Ruby/Rust divergences were found through
     # (adversary.rb).
     class SequenceGenerator
       include Catalog
       include Picker
       include StepBuilder
       include OutcomeTracker
+      include QueryBinding
       include Adversary
 
       # Creating commands are always eligible ; weighting them heavier (not
@@ -187,10 +190,13 @@ module Hecks
         @adversarial         = adversarial.to_f
         @role_draw           = role_draw.to_f
         @dry_run             = dry_run.to_f
-        @random              = Random.new(seed)
+        restart_random(seed)
         @known_ids           = Hash.new { |h, k| h[k] = [] }
         @entity_known_ids    = Hash.new { |h, k| h[k] = [] }
         @appended_identities = Hash.new { |h, k| h[k] = [] }
+        # "Domain::Aggregate" => the rows this sequence has stored that a
+        # query filters on (query_binding.rb).
+        @written_rows        = Hash.new { |h, k| h[k] = [] }
         # Role => [actor ids] this sequence's own successful
         # `Governance::RoleAssignment.Assign` steps granted — what the
         # `actor_known` caller shape draws from (adversary.rb).
@@ -228,8 +234,8 @@ module Hecks
           steps = []
           if @prefix
             realize_prefix(runtime, catalog, @prefix, prefix_limit(@prefix), steps)
-            @random = Random.new(@seed)
-            @favor  = @own_favor
+            restart_random(@seed)
+            @favor = @own_favor
           end
           @step_count.times { steps << attempt_step(runtime, catalog) }
           steps.compact
@@ -257,10 +263,17 @@ module Hecks
 
         inner = spec["prefix"]
         used  = inner ? realize_prefix(runtime, catalog, inner, [prefix_limit(inner), limit].min, steps) : 0
-        @random = Random.new(Integer(spec.fetch("seed")))
-        @favor  = Array(spec["favor"])
+        restart_random(Integer(spec.fetch("seed")))
+        @favor = Array(spec["favor"])
         (limit - used).times { steps << attempt_step(runtime, catalog) }
         limit
+      end
+
+      # Both random streams start over together, so a prefix replay draws the
+      # same query bindings the prefix seed's own generation did.
+      def restart_random(seed)
+        @random         = Random.new(seed)
+        @binding_random = Random.new(seed + QueryBinding::BINDING_SEED_OFFSET)
       end
 
       def prefix_limit(spec) = Integer(spec.fetch("steps")).clamp(0, @step_count)
