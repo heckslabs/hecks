@@ -7,7 +7,14 @@
 # `Hecks::Projections::Deploy::Fargate` for `"AwsFargate"`) through
 # `Hecks::Projector.call`, then writes what comes back.
 #
-#   bin/project_deploy <domain> [--tenant=<slug>] [--schema=<name>] [--out=<dir>]
+#   bin/project_deploy <domain> [--tenant=<slug>] [--schema=<name>] [--out=<dir>] [--environment=<name>]
+#
+# `--environment=<name>` loads `<domain>/bluebook/environments/<name>.world`
+# over the base `.world` (the same overlay `Hecks.boot(environment:)`
+# loads), so a domain's base file stays generic and the names of a real
+# live stack — `owner_stack`, `stack_prefix`, `owner` — live in the
+# overlay that targets it. A missing overlay is an error, never a silent
+# no-op: without the pins the generator would name a brand-new stack.
 #
 # Produces `deploy/<domain>/{template.yaml,Makefile,...}` — see each
 # target's own header for exactly which files. A client's domain lives
@@ -54,17 +61,19 @@ require "optparse"
 # regenerate the same acme stack, not two different ones.
 tenant_options = {}
 out_option = nil
+environment_option = nil
 OptionParser.new do |parser|
   parser.on("--tenant=SLUG") { |v| tenant_options[:tenant] = v }
   parser.on("--schema=NAME") { |v| tenant_options[:schema] = v }
   parser.on("--out=DIR") { |v| out_option = v }
+  parser.on("--environment=NAME") { |v| environment_option = v }
 end.parse!(ARGV)
 
 if tenant_options[:schema] && !tenant_options[:tenant]
   abort "--schema needs --tenant=<slug> — a schema override with no tenant to scope it to is meaningless"
 end
 
-domain = ARGV.shift or abort "usage: bin/project_deploy <domain> [--tenant=<slug>] [--schema=<name>] [--out=<dir>]"
+domain = ARGV.shift or abort "usage: bin/project_deploy <domain> [--tenant=<slug>] [--schema=<name>] [--out=<dir>] [--environment=<name>]"
 root = File.expand_path("..", __dir__)
 domain_name = File.basename(domain)
 world_file = File.join(domain, "bluebook", "#{domain_name}.world")
@@ -101,7 +110,14 @@ File.exist?(world_file) or abort "#{world_file} does not exist — a domain need
 bluebook_basename = File.basename(world_file, ".world")
 
 registry = Hecks::Runtime::Registry.new
-Hecks.with_registry(registry) { Kernel.load(world_file) }
+Hecks.with_registry(registry) do
+  Kernel.load(world_file)
+  if environment_option
+    overlay_file = File.join(domain, "bluebook", "environments", "#{environment_option}.world")
+    File.exist?(overlay_file) or abort "#{overlay_file} does not exist — --environment=#{environment_option} needs that overlay"
+    Kernel.load(overlay_file)
+  end
+end
 
 # The declared world's own name, not the directory's — same distinction
 # bin/project_rust draws between a domain path and its bluebook's own

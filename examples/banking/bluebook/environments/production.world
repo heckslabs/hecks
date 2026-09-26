@@ -1,0 +1,23 @@
+Hecks.world "Banking" do
+  # The live deployment's stack naming, layered over banking.world by
+  # `bin/project_deploy examples/banking --environment=production`.
+  # Without it a regeneration names a brand-new "hecks-banking" stack
+  # instead of updating the live one, and looks its Shared database up
+  # from a "hecks-platform" stack that does not exist.
+  #
+  # An overlay's `deployed_to` replaces the base's block whole, it does
+  # not merge into it, so region/memory/timeout/database repeat here.
+  deployed_to("AwsLambda") do
+    region "us-east-1"
+    memory 512
+    timeout 10
+    database "Shared"
+    # Borrows Embryonaut's already-live instance.
+    owner "Embryonaut"
+    owner_stack "hecksagain-embryonaut"
+    # The live stack predates stack_prefix, under the "hecksagain-"
+    # prefix (matching the owner stack's own convention), not
+    # bin/project_deploy's "hecks-" default.
+    stack_prefix "hecksagain"
+  end
+end

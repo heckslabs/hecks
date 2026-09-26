@@ -20,22 +20,16 @@ Hecks.world "Banking" do
     region "us-east-1"
     memory 512
     timeout 10
-    # THE STOREHOUSE — no RDS/VPC of Banking's own anymore. Borrows
-    # Embryonaut's already-live instance instead, isolated by its own
+    # THE STOREHOUSE — no RDS/VPC of Banking's own. Borrows another
+    # domain's already-live instance instead, isolated by its own
     # native Postgres schema (banking.*, created directly by this
-    # domain's own provisioning on next deploy — Banking isn't
-    # production, so there's no existing data to migrate).
+    # domain's own provisioning on deploy). `owner` is that other
+    # domain; a real deployment names its owner stack and its own
+    # stack prefix in an environment overlay
+    # (environments/production.world, generated with
+    # `bin/project_deploy examples/banking --environment=production`),
+    # so this file stays generic.
     database "Shared"
-    owner "Embryonaut"
-    owner_stack "hecksagain-embryonaut"
-    # This domain's real, live stack was created before stack_prefix
-    # existed, under the "hecksagain-" prefix (matching the owner
-    # stack's own convention), not bin/project_deploy's "hecks-"
-    # default — pinned here for the same reason lifeadelics.world and
-    # embryonautfoundersapp.world already pin their own stack naming
-    # (confirmed live: without this, a fresh regeneration targets a
-    # brand-new "hecks-banking" stack instead of updating the real
-    # "hecksagain-banking" one).
-    stack_prefix "hecksagain"
+    owner "Platform"
   end
 end
