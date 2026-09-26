@@ -12,7 +12,6 @@
 default = ["has_many_fixture"]
 compliance = []
 checkout_fixture = []
-lifeadelics = []
 embryonaut_vendoring_demo = []
 generated_route_append = []
 generated_entity_no_identity = []

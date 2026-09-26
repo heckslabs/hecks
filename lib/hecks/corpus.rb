@@ -260,8 +260,6 @@ module Hecks
     RustDomain = Struct.new(:feature, :dir, :kind)
 
     # `check: :named_in` — `destination` must name `names`.
-    # `check: :external` — no in-repo domain directory may carry the name;
-    #                      the day one does, it belongs in rust_domains.
     Elsewhere = Struct.new(:check, :destination, :names, :why)
 
     RUST_ELSEWHERE = {
@@ -269,105 +267,24 @@ module Hecks
                                      "the self-hosted grammar (lib/hecks/language), not a domain directory — every " \
                                      "bin/project_rust run rewrites it (so the drift check diffs it), codegen parity " \
                                      "checks it as bluebook_language, and there is no directory to fuzz"),
-      # Lifeadelics — an external product's domain,
-      # first generated 2026-09-19 fixing a live era-shape-drift outage.
-      # Its directory used to be named "domain" (a generic, collision-
-      # prone Cargo feature/module name — the chapter name is, and
-      # always was, "Lifeadelics"), so the generated module and Cargo
-      # feature were "domain" too, read off `metadata.rs`'s own stamp
-      # the same way `generated_source` reads any other module's. Fixed
-      # 2026-09-20 by renaming the directory itself
-      # (~/Projects/lifeadelics/domain -> ~/Projects/lifeadelics/
-      # lifeadelics) — the generated module and Cargo feature are
-      # "lifeadelics" now, matching every other domain's own convention.
-      #
-      # Lifeadelics also attaches `newsletter`/`payments`/`membership`
-      # (its own vendored embryonaut_bluebooks packages, see
-      # RUST_EXTERNAL_VENDORED_CHAPTERS below) and `Privacy` (an in-repo
-      # framework chapter, lib/hecks/framework/bluebook/privacy.bluebook,
-      # generated into Rust for the first time by any domain here).
-      # `rust_side_chapters` only ever looks for the attaching domain
-      # among `rust_domains` — an in-repo directory — so it can attribute
-      # neither module to lifeadelics on its own; `rust_attachment_
-      # hecksagon_text`, below, reads every `:external` domain's own
-      # hecksagon files too, the same way it reads an in-repo domain's,
-      # so `Privacy`'s own bucket membership (already correct — it is a
-      # real in-repo framework member with no merged.rs) can still be
-      # proven attached.
-      "lifeadelics" => Elsewhere.new(:external, "~/Projects/lifeadelics", "lifeadelics",
-                                     "an external product's domain — its bluebook, regeneration and parity are owed " \
-                                     "by its own repo; here bin/rust_coverage checks only the committed snapshot")
     }.freeze
-
-    # Vendored embryonaut_bluebooks packages attached only by an external
-    # RUST_ELSEWHERE domain — `members(:vendored)` can't find them
-    # itself; that glob only reaches `examples/*/vendor/
-    # embryonaut_bluebooks/*`, never an external checkout. Declared once,
-    # by hand, as a manual-commit contract: stem => the RUST_ELSEWHERE
-    # feature that attaches
-    # it. spec/corpus_rust_spec.rb checks each is really attached, the
-    # same as an in-repo vendored chapter (see
-    # `rust_external_vendored_domain_dir`, below).
-    RUST_EXTERNAL_VENDORED_CHAPTERS = {
-      "newsletter" => "lifeadelics",
-      "payments"   => "lifeadelics",
-      "membership" => "lifeadelics"
-    }.freeze
-
-    # Every external vendored chapter's own stem.
-    #
-    # @return [Array<String>] stems declared in RUST_EXTERNAL_VENDORED_CHAPTERS
-    def rust_external_vendored_chapters
-      RUST_EXTERNAL_VENDORED_CHAPTERS.keys
-    end
-
-    # Where an external vendored chapter's own bluebook lives — somewhere
-    # under `<destination>/**/vendor/embryonaut_bluebooks/<stem>`, the
-    # same layout `EmbryonautBluebook.load!` resolves for an in-repo
-    # vendored member, one level further out. Globbed rather than joined
-    # directly: `RUST_ELSEWHERE`'s own `destination` names the external
-    # product's checkout root, not necessarily the exact directory its
-    # own bluebook lives under (confirmed live against lifeadelics's own
-    # checkout: `~/Projects/lifeadelics/lifeadelics/vendor/
-    # embryonaut_bluebooks/accounts/bluebook`, one level below
-    # `~/Projects/lifeadelics` itself).
-    #
-    # @param stem [String] an external vendored chapter's stem
-    # @return [String, nil] the vendored member's own directory, or nil when none is found
-    def rust_external_vendored_domain_dir(stem)
-      feature = RUST_EXTERNAL_VENDORED_CHAPTERS.fetch(stem)
-      destination = File.expand_path(RUST_ELSEWHERE.fetch(feature).destination)
-      Dir.glob(File.join(destination, "**", "vendor", "embryonaut_bluebooks", stem)).first
-    end
 
     # Every place a Rust-facing domain's own `uses_framework`/
     # `uses_embryonaut_bluebook` attachment could be declared — every
-    # in-repo Rust domain's own hecksagon files, plus each `:external`
-    # RUST_ELSEWHERE domain's own (its `destination`, expanded, is a
-    # real checkout on this machine, read the same way an in-repo
-    # domain's own hecksagon files already are).
+    # in-repo Rust domain's own hecksagon files.
     #
     # @param root [String] repository root to search under
     # @return [String] every reachable hecksagon file's own text, joined by newlines
     def rust_attachment_hecksagon_text(root: ROOT)
-      in_repo = rust_domains(root: root).flat_map { |domain| Dir.glob(File.join(domain.dir, "**", "*.hecksagon")) }
-      external = RUST_ELSEWHERE.values.select { |route| route.check == :external }
-                               .flat_map { |route| Dir.glob(File.join(File.expand_path(route.destination), "**", "*.hecksagon")) }
-      (in_repo + external).map { |path| File.read(path) }.join("\n")
+      rust_domains(root: root).flat_map { |domain| Dir.glob(File.join(domain.dir, "**", "*.hecksagon")) }
+                              .map { |path| File.read(path) }.join("\n")
     end
 
     # **Shrink-only**. A generated module `bin/rust_coverage` still reports a
     # gap for. `bin/corpus --rust-coverage` requires each of these to
     # still fail, so an entry that starts passing breaks the build until
     # it is deleted here.
-    RUST_COVERAGE_PENDING = {
-      "newsletter"  => "query Listing declares no where clause at all, on all 3 of its own Listing queries " \
-                       "(Delivery/Issue/Subscriber) — rust/project/queries.rb's own no_wheres skip refuses " \
-                       "to generate an unfiltered per_instance Listing (\"nothing for filter_entries to " \
-                       "bake in\"); a structural Rust codegen limitation, not a bug in this vendored package",
-      "lifeadelics" => "same no_wheres gap as newsletter, on Registration.Listing — see newsletter's entry above",
-      "membership"  => "same no_wheres gap as newsletter, on Person.All — see newsletter's entry above"
-    }.freeze
+    RUST_COVERAGE_PENDING = {}.freeze
 
     # The Cargo `[features]` table's raw text.
     #
@@ -513,6 +430,22 @@ module Hecks
 
     def rust_vendored_chapters(root: ROOT)
       rust_side_chapters(:vendored, root: root)
+    end
+
+    # Chapters an in-repo Rust domain carries beside its own bluebook (a
+    # sibling `.bluebook` in the domain's directory) that `bin/project_rust`
+    # writes a module for as a side effect — a module, no merged.rs of its
+    # own. Today: `payments`, beside spec/fixtures/rust_host/checkout_fixture.
+    #
+    # @param root [String] repository root to search under
+    # @return [Array<String>] generated module names with no merged.rs of their own
+    def rust_sibling_chapters(root: ROOT)
+      modules = generated_modules(root: root)
+      rust_domains(root: root)
+        .flat_map { |domain| Dir.glob(File.join(domain.dir, "bluebook", "*.bluebook")) }
+        .map { |path| Naming.pascal(File.basename(path, ".bluebook")).downcase }
+        .uniq
+        .select { |name| modules.include?(name) && !generated?(name, root: root) }
     end
 
     # THE REGENERATION ORDER the drift check runs. Sorted by path, so

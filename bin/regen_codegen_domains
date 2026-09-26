@@ -117,9 +117,8 @@ def project_rust_in_fork(project_rust, domain)
   puts
 end
 
-# `meta` and any external domain are never in the list:
-# Hecks::Corpus::RUST_ELSEWHERE routes them to the check that owns them
-# instead.
+# `meta` is never in the list: Hecks::Corpus::RUST_ELSEWHERE routes it to
+# the check that owns it instead.
 repo_root = File.expand_path("..", __dir__)
 Dir.chdir(repo_root) do
   domains = Hecks::Corpus.rust_regen_order.map { |domain| domain.dir.delete_prefix("#{repo_root}/") }
