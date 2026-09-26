@@ -371,7 +371,7 @@ section.searching .terms { border-top: 0; margin-top: 0.8rem; }
     open --&gt; closed: Close account
     frozen --&gt; closed: Close account</pre>
 </figure>
-<p class="caption"></p>
+<p class="caption">Always true</p>
 <ul class="rules"><li>An Account references a Customer.</li><li>An Account has many ledger.</li><li>The balance never goes negative.</li><li>An account number is present.</li><li>A daily limit is non-negative.</li><li>A ledger sequence is positive.</li><li>A currency is a three-letter code.</li><li>An amount is positive.</li><li>A movement explains itself.</li></ul>
 <div class="terms">
 <article class="term" id="account-closed">
@@ -580,7 +580,7 @@ section.searching .terms { border-top: 0; margin-top: 0.8rem; }
     issued --&gt; retired: Retire
     active --&gt; retired: Retire</pre>
 </figure>
-<p class="caption"></p>
+<p class="caption">Always true</p>
 <ul class="rules"><li>An ATM card references an Account.</li><li>An ATM card has many withdrawals.</li><li>A card serial is present.</li><li>A daily fee is non-negative.</li><li>A withdrawal sequence is positive.</li><li>A withdrawal amount is positive.</li><li>A withdrawal explains itself.</li></ul>
 <div class="terms">
 <article class="term" id="activate">
@@ -706,7 +706,7 @@ section.searching .terms { border-top: 0; margin-top: 0.8rem; }
     disputed --&gt; charged_back: Chargeback
     disputed --&gt; captured: Reject dispute</pre>
 </figure>
-<p class="caption"></p>
+<p class="caption">Always true</p>
 <ul class="rules"><li>A Card payment references an Account.</li><li>A Card payment references a Customer.</li><li>A Card payment has many tags.</li><li>A payment amount is positive.</li><li>A merchant name is present.</li><li>A tag is not the empty string.</li></ul>
 <div class="terms">
 <article class="term" id="authorisation-code">
@@ -832,7 +832,7 @@ section.searching .terms { border-top: 0; margin-top: 0.8rem; }
     active --&gt; closed: Close
     suspended --&gt; closed: Close</pre>
 </figure>
-<p class="caption"></p>
+<p class="caption">Always true</p>
 <ul class="rules"><li>A customer reference is present.</li><li>A standing is named.</li><li>A given name is present.</li><li>A family name is present.</li></ul>
 <div class="terms">
 <article class="term" id="close">
@@ -923,7 +923,7 @@ section.searching .terms { border-top: 0; margin-top: 0.8rem; }
     sent --&gt; recalled: Recall
     sent --&gt; returned: Return</pre>
 </figure>
-<p class="caption"></p>
+<p class="caption">Always true</p>
 <ul class="rules"><li>An External transfer references an Account.</li><li>An external transfer amount is positive.</li><li>A beneficiary name is present.</li></ul>
 <div class="terms">
 <article class="term" id="beneficiary-name">
@@ -1004,7 +1004,7 @@ section.searching .terms { border-top: 0; margin-top: 0.8rem; }
     screening --&gt; cleared: Clear
     screening --&gt; declined: Decline</pre>
 </figure>
-<p class="caption"></p>
+<p class="caption">Always true</p>
 <ul class="rules"><li>An Onboarding case references a Customer.</li><li>An onboarding case is referenced.</li><li>An account number is present.</li></ul>
 <div class="terms">
 <article class="term" id="account-number-1">
@@ -1073,7 +1073,7 @@ section.searching .terms { border-top: 0; margin-top: 0.8rem; }
     vacant --&gt; rented: Rent
     rented --&gt; vacant: Surrender</pre>
 </figure>
-<p class="caption"></p>
+<p class="caption">Always true</p>
 <ul class="rules"><li>A Safe deposit box belongs to a Customer.</li><li>A Safe deposit box has many visits.</li><li>A Safe deposit box has many keys.</li><li>A branch is coded.</li><li>A box is numbered from one.</li><li>A visit sequence is positive.</li><li>A visit names its date.</li><li>A key is serialed.</li><li>A written note is not blank.</li></ul>
 <div class="terms">
 <article class="term" id="annotate">
@@ -1210,7 +1210,7 @@ section.searching .terms { border-top: 0; margin-top: 0.8rem; }
     failed --&gt; failed: Retry
     failed --&gt; abandoned: Abandon</pre>
 </figure>
-<p class="caption"></p>
+<p class="caption">Always true</p>
 <ul class="rules"><li>A Scheduled payment references an Account.</li><li>A scheduled payment amount is positive.</li><li>A payment recipient is present.</li><li>A payment due date is present.</li><li>A retry count is non-negative.</li><li>A retry limit is positive.</li></ul>
 <div class="terms">
 <article class="term" id="abandon">
@@ -1306,7 +1306,7 @@ section.searching .terms { border-top: 0; margin-top: 0.8rem; }
     n_statement --&gt;|&quot;account&quot;| n_account
     classDef focus stroke-width:3px</pre>
 </figure>
-<p class="caption"></p>
+<p class="caption">Always true</p>
 <ul class="rules"><li>A Statement references an Account.</li><li>A statement names its period.</li><li>A statement is dated.</li></ul>
 <div class="terms">
 <article class="term" id="generate">
@@ -1359,7 +1359,7 @@ section.searching .terms { border-top: 0; margin-top: 0.8rem; }
     debited --&gt; reversed: Reverse
     requested --&gt; rejected: Reject</pre>
 </figure>
-<p class="caption"></p>
+<p class="caption">Always true</p>
 <ul class="rules"><li>A Transfer references an Account.</li><li>A transfer is referenced.</li><li>A transfer amount is positive.</li><li>A transfer explains itself.</li></ul>
 <div class="terms">
 <article class="term" id="credited">

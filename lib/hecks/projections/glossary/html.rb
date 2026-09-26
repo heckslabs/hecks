@@ -269,7 +269,8 @@ module Hecks
           when :mermaid
             parts << figure(block, state.delete(:caption))
           when :list
-            parts << "<p class=\"caption\">#{escape(state[:caption])}</p>" if state.delete(:caption)
+            caption = state.delete(:caption)
+            parts << "<p class=\"caption\">#{escape(caption)}</p>" if caption
             parts << "<ul class=\"rules\">#{block.items.map { |item| "<li>#{inline(item)}</li>" }.join}</ul>"
           when :quote
             parts << "<p class=\"about\">#{inline(block.text)}</p>"

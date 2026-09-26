@@ -2,6 +2,7 @@ require_relative "../projector"
 require_relative "../naming"
 require_relative "statements"
 require_relative "glossary/sections"
+require_relative "glossary/sensitivity"
 require_relative "glossary/sentences"
 require_relative "glossary/mermaid"
 require_relative "glossary/markdown"
@@ -59,7 +60,7 @@ module Hecks
       # the lede and diagrams) or one of the three trailing groups.
       Section = Struct.new(:name, :title, :aggregate, :terms, :slug, keyword_init: true)
 
-      Document = Struct.new(:bluebook, :sections, :index, keyword_init: true)
+      Document = Struct.new(:bluebook, :sections, :index, :markings, keyword_init: true)
 
       module_function
 
@@ -68,11 +69,15 @@ module Hecks
       #
       # @param bluebook [Bluebook::Behaviour::Chapter] the chapter to render a
       #   glossary for
-      # @param options [Hash] unused; accepted to satisfy the registry's call shape
+      # @param options [Hash] the registry's call shape
+      # @option options [Array<Hash{Symbol => String}>] :markings the sensitive fields a
+      #   deployment declares (`registry.pending_privacy_markings`' own shape); each
+      #   marked field is tagged with its category, and every marking is listed under
+      #   its aggregate. Absent, the glossary says nothing about sensitivity.
       # @return [Hash{String => String}] `"glossary.md"` and `"html/index.html"`,
       #   each mapped to its rendered content
       def call(bluebook:, options: {})
-        markdown = Markdown.render(document(bluebook))
+        markdown = Markdown.render(document(bluebook, Array(options[:markings])))
         { "glossary.md" => markdown, "html/index.html" => Html.render(markdown) }
       end
 
@@ -82,11 +87,13 @@ module Hecks
       # slugs, and builds the index links resolve through.
       #
       # @param bluebook [Bluebook::Behaviour::Chapter] the chapter to render
+      # @param markings [Array<Hash{Symbol => String}>] the sensitive fields declared for
+      #   the chapter's aggregates; empty when none are
       # @return [Document] the fully assembled document, ready for `Markdown.render`
-      def document(bluebook)
-        sections = sections(bluebook, entries(bluebook))
+      def document(bluebook, markings = [])
+        sections = sections(bluebook, entries(bluebook, markings))
         Slugs.assign!(bluebook, sections)
-        Document.new(bluebook: bluebook, sections: sections, index: Index.new(sections))
+        Document.new(bluebook: bluebook, sections: sections, index: Index.new(sections), markings: markings)
       end
 
       # Aggregates first, a to Z by their spoken name ("Account" before
@@ -197,16 +204,18 @@ module Hecks
       # Gathers every term the glossary carries, ungrouped and unordered.
       #
       # @param bluebook [Bluebook::Behaviour::Chapter] the chapter to gather terms from
+      # @param markings [Array<Hash{Symbol => String}>] the sensitive fields declared for
+      #   the chapter's aggregates
       # @return [Array<Entry>] one entry per entity, value object, command, query,
       #   event, policy, saga, role, and read model
-      def entries(bluebook)
+      def entries(bluebook, markings = [])
         homes   = holder_aggregate(bluebook)
         raisers = event_raisers(bluebook)
         home_of = ->(event) { raisers.key?(event) ? homes[raisers[event].first.first.hecks_name] : nil }
 
         entries = []
         entries += entity_entries(bluebook)
-        entries += value_object_entries(bluebook)
+        entries += value_object_entries(bluebook, markings)
         entries += verb_entries(bluebook, homes)
         entries += event_entries(bluebook, raisers, home_of)
         entries += policy_entries(bluebook, home_of)
@@ -234,13 +243,18 @@ module Hecks
       #
       # @param bluebook [Bluebook::Behaviour::Chapter] the chapter to gather value
       #   objects from
+      # @param markings [Array<Hash{Symbol => String}>] the sensitive fields declared for
+      #   the chapter's aggregates, each carried onto the value object it reaches into
       # @return [Array<Entry>] one `:value_object`-kind entry per aggregate-declared
       #   value object
-      def value_object_entries(bluebook)
+      def value_object_entries(bluebook, markings = [])
         bluebook.aggregates.flat_map do |aggregate|
+          marked = Sensitivity.for_aggregate(markings, bluebook.name, aggregate)
           aggregate.value_objects.map do |value_object|
+            sensitive = Sensitivity.for_value_object(marked, aggregate, value_object)
             Entry.new(name: value_object.hecks_name, kind: :value_object, within: aggregate.hecks_name,
-                      section: aggregate.hecks_name, facts: { value_object: value_object })
+                      section: aggregate.hecks_name,
+                      facts: { value_object: value_object, sensitive: sensitive })
           end
         end
       end

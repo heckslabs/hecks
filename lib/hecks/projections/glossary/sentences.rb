@@ -1,5 +1,6 @@
 require_relative "../../naming"
 require_relative "../statements"
+require_relative "sensitivity"
 
 module Hecks
   module Projections
@@ -39,7 +40,7 @@ module Hecks
           facts = entry.facts
           case entry.kind
           when :entity       then holder_paragraphs(facts[:entity])
-          when :value_object then value_object_paragraphs(facts[:value_object], index, entry.within)
+          when :value_object then value_object_paragraphs(facts[:value_object], index, entry.within, facts.fetch(:sensitive, {}))
           when :command      then [command_sentence(facts[:command])]
           when :query        then [facts[:query].description]
           when :event        then [event_sentence(facts, index)]
@@ -82,11 +83,13 @@ module Hecks
         # @param index [Glossary::Index] the document's link index
         # @param within [String, nil] the value object's own holder's name, for
         #   resolving a nested value object's own type link
+        # @param sensitive [Hash{String => Hash{Symbol => String}}] each marked field's
+        #   name, mapped to its marking (as `Sensitivity.for_value_object` builds)
         # @return [Array<String>] the value object's definition sentence, then its
         #   "Always true: …" rules line; the rules line is absent when it has none
-        def value_object_paragraphs(value_object, index, within)
+        def value_object_paragraphs(value_object, index, within, sensitive = {})
           rules = value_object.invariants.map { |invariant| Statements.invariant_statement(invariant) }
-          [value_object_sentence(value_object, index, within), rules_line(rules)].compact
+          [value_object_sentence(value_object, index, within, sensitive), rules_line(rules)].compact
         end
 
         # A one-field object whose field is just "value" is its type —
@@ -95,8 +98,10 @@ module Hecks
         # @param value_object [Bluebook::ValueObject] the value object to describe
         # @param index [Glossary::Index] the document's link index
         # @param within [String, nil] the value object's own holder's name
+        # @param sensitive [Hash{String => Hash{Symbol => String}}] each marked field's
+        #   name, mapped to its marking
         # @return [String] the value object's definition sentence
-        def value_object_sentence(value_object, index, within)
+        def value_object_sentence(value_object, index, within, sensitive = {})
           return closed_set_sentence(value_object.members) if value_object.closed_set?
           return "A marker with no details of its own." if value_object.attributes.empty?
 
@@ -105,19 +110,23 @@ module Hecks
             return "#{upper_first(type_words(only, index, within))}."
           end
 
-          fields = value_object.attributes.map { |field| field_phrase(field, index, within) }
+          fields = value_object.attributes.map { |field| field_phrase(field, index, within, sensitive[field.name.to_s]) }
           "Made up of #{Naming.to_sentence_list(fields)}."
         end
 
         # "amount (a whole number)" — the field as the author named it,
-        # then what kind of thing goes in it.
+        # then what kind of thing goes in it, then the tag of any marking
+        # that flags it sensitive: "medications (text, PHI)".
         #
         # @param field [Bluebook::Attribute] the field to describe
         # @param index [Glossary::Index] the document's link index
         # @param within [String, nil] the field's own holder's name
-        # @return [String] the field's name, spoken, with its type in parentheses
-        def field_phrase(field, index, within)
-          "#{Naming.words(field.name).downcase} (#{type_words(field, index, within)})"
+        # @param marking [Hash{Symbol => String}, nil] the marking that flags `field`
+        #   sensitive, if any
+        # @return [String] the field's name, spoken, with its type (and tag) in parentheses
+        def field_phrase(field, index, within, marking = nil)
+          detail = [type_words(field, index, within), (Sensitivity.tag(marking) if marking)].compact.join(", ")
+          "#{Naming.words(field.name).downcase} (#{detail})"
         end
 
         # Describes one field's type in plain words.
