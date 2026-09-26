@@ -230,6 +230,52 @@ module Hecks
         }
       end
 
+      # Same seam as `newsletter` — which chapter answers scheduling sessions
+      # and taking registrations (`Registry#registrations_provider_for`), with
+      # its declared verbs qualified and the event and registration aggregates
+      # named off them. `{}` when nothing this domain attaches provides
+      # registrations.
+      # @param registry [Runtime::Registry] the booted registry `domain_name` is loaded in
+      # @param domain_name [String] the domain to export the registrations binding for
+      # @return [Hash{Symbol => String, nil}] `:provider` (name), `:schedule`, `:request`
+      #   (qualified verbs), `:event_aggregate` and `:registration_aggregate` (each verb's own
+      #   leading qualified aggregate name); `{}` if nothing this domain attaches provides
+      #   registrations
+      def registrations(registry, domain_name)
+        provider = registry.registrations_provider_for(domain_name)
+        return {} unless provider
+
+        capability = Bluebook::Capabilities::REGISTRATIONS
+        schedule = provider.provided_verb(capability, :schedule)
+        request = provider.provided_verb(capability, :request)
+        {
+          provider:               provider.name,
+          schedule:               schedule,
+          request:                request,
+          event_aggregate:        schedule&.split(".")&.first,
+          registration_aggregate: request&.split(".")&.first
+        }
+      end
+
+      # Which chapter owns the payment-processor connection
+      # (`Registry#payment_connection_provider_for`), with its declared verbs
+      # qualified and the connection aggregate named off `connect`. `{}` when
+      # nothing this domain attaches provides payment_connection.
+      # @param registry [Runtime::Registry] the booted registry `domain_name` is loaded in
+      # @param domain_name [String] the domain to export the payment-connection binding for
+      # @return [Hash{Symbol => String, nil}] `:provider` (name), one qualified verb per contract key
+      #   (`:connect`, `:reconnect`, `:disconnect`, `:suspend`, `:resume`, `:enable`, `:disable`) and
+      #   `:aggregate` (`:connect`'s own leading qualified aggregate name); `{}` if nothing this
+      #   domain attaches provides payment_connection
+      def payment_connection(registry, domain_name)
+        provider = registry.payment_connection_provider_for(domain_name)
+        return {} unless provider
+
+        capability = Bluebook::Capabilities::PAYMENT_CONNECTION
+        verbs = Bluebook::Capabilities::CONTRACTS.fetch(capability).keys.to_h { |key| [key, provider.provided_verb(capability, key)] }
+        { provider: provider.name, **verbs, aggregate: verbs[:connect]&.split(".")&.first }
+      end
+
       # Same seam as `newsletter` — which chapter takes payments
       # (`Registry#payments_provider_for`), with its declared verbs
       # qualified and the paying aggregate named off `initiate`. rust/host
