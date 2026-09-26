@@ -7,6 +7,13 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+**The README states the current release, and a spec keeps it honest.** Its
+Status line and Project status section said `1.0.0` while releases had reached
+2.5.1. Both now read `Current release: x.y.z`, and
+`spec/readme_version_spec.rb` fails when either differs from `Hecks::VERSION`,
+so a version bump can't ship with a stale README. `CONTRIBUTING.md`'s release
+steps name the README update.
+
 ## [2.5.1] - 2026-09-26
 
 **Projecting a framework chapter no longer leaves a dangling `pub mod merged;`,
