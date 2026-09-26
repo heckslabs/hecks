@@ -376,9 +376,9 @@ Only what this repository actually does today, checked, not aspired to:
   query answers match a reference implementation, and — the one that
   actually matters for an event-sourced system — **replaying the same
   steps against a fresh boot produces byte-identical history.** This
-  runs against the Memory adapter only today; Sqlite and Postgres are
-  not yet covered (tracked in
-  [`docs/future-features.md`](docs/future-features.md)).
+  runs against the Memory adapter by default and against real Sqlite
+  and Postgres with `bin/fuzz --adapter sqlite|postgres` (see
+  [Project status](#project-status)).
 - **A corpus that checks its own refusals.** `spec/corpus/*.json`
   scripts real command/query sequences — successes and refusals both —
   replayed by `bin/run` and pinned by `spec/corpus_spec.rb`; a runtime
@@ -426,9 +426,8 @@ generated too (`bin/project_parser_table`, from the language's own
 Ruby is the reference implementation; Rust is checked against it
 continuously, not just at release time: `spec/codegen_parity_spec.rb`
 holds Rust's generated output byte-identical to Ruby's, and
-`spec/rust_conformance_spec.rb` replays 16 pinned fixture scripts —
-against the `banking`, `pizzas`, and `roster` example domains —
-through the compiled binary, diffing instances, events, refusals,
+`spec/rust_conformance_spec.rb` replays every pinned fixture script in
+`spec/corpus/rust_conformance/` through the compiled binary, diffing instances, events, refusals,
 reactions, sagas, and query rows against Ruby's byte-for-byte, in CI,
 on every push. That parity is proven on the pinned fixtures, not the
 whole corpus — see below for what's still open there. Measured
@@ -446,7 +445,7 @@ $ wasmtime run rust/dist/pizzas.wasm < spec/corpus/pizzas.json
 # real dispatch output — instances, events, refusals — matching Ruby's
 ```
 
-The gap past those 16 fixtures is real: replaying `spec/corpus/banking.json`
+The gap past those pinned fixtures is real: replaying `spec/corpus/banking.json`
 in full (258 steps, far more varied than any pinned script) against the
 compiled binary turns up genuine divergence — a policy-triggered
 reaction's `AccountDebited`/`AccountCredited` event carries an extra
@@ -471,7 +470,7 @@ wheres-only, single-aggregate field-comparator query (plus its own
 `order_by`/`limit` on a plain field) and a bare read model declaring no
 `where`/`order_by`/`limit`/`offset`/`freshness`/`authorization`/
 `index_hints` execute for real and match Ruby byte-for-byte
-(`Banking.CustomerPortfolio`, one of the 16 pinned fixtures). A query or
+(`Banking.CustomerPortfolio`, one of the pinned fixtures). A query or
 read model outside that shape — `Banking.ComplianceDashboard`'s
 `freshness`/`index_hints`, `Banking::Account.OpenForSuspendedCustomers`,
 `Banking::ATMCard.ByFee` — refuses with an explicit "is not generated
@@ -503,8 +502,9 @@ standalone CLI via `bin/project_cli`) is downstream of that same
 projection step, not a separate hand-authored artifact.
 
 What this does *not* yet claim: no throughput or latency benchmark has
-been run against either binary, `read_model` queries have no generated
-Rust code path yet, and the WASM projector is one command away
+been run against either binary, `read_model` queries outside the proven
+subset above are refused in Rust rather than run, and the WASM projector
+is one command away
 (`bin/project_wasm`) but not part of any deployed pipeline today. See
 [Running a runtime](docs/implemented/guides/running-a-runtime.md) for
 the exact field-by-field contract a third dispatch runtime would need,
@@ -566,9 +566,10 @@ Current release: `2.5.1`. [`docs/1.0-readiness.md`](docs/1.0-readiness.md)
 states plainly what the stability promise made at `1.0.0` covers — the DSL and runtime API in
 [the DSL reference](docs/implemented/reference/index.md) won't change in
 a breaking way without a major-version bump — and what it explicitly
-doesn't cover yet (query DSL aggregation, Rust codegen's `read_model`
-gap, Rails integration, Drivers, the outbox's standalone relay — see that doc's
-"Explicitly not covered" section). [ADR 0025](docs/decisions/0025-the-dsl-names-one-idea-one-way-and-a-word-earns-its-place-by-being-used.md),
+doesn't cover yet (query DSL aggregation beyond `count`/`median`/`group_by`,
+Rust codegen for `read_model` beyond its proven subset, Rails integration,
+Drivers, the outbox's standalone relay — see that doc's "Explicitly not
+covered" section). [ADR 0025](docs/decisions/0025-the-dsl-names-one-idea-one-way-and-a-word-earns-its-place-by-being-used.md),
 the breaking DSL redesign this release was blocked on, is fully landed —
 see [Quickstart](#quickstart) for the current syntax.
 
@@ -596,9 +597,16 @@ alongside `bin/model_check` and `bin/fuzz`):
   against real Sqlite and Postgres (`bin/fuzz --adapter sqlite|postgres`
   — Postgres needs a real reachable local server and is noticeably
   slower per seed, so pass smaller `--seeds`/`--steps` than the default
-  sweep). Whether a reference-hop query field (`owner/field`) can be
-  *queried*, not just indexed, against a SQL adapter is still open.
-- The query DSL has no aggregation yet — no `count`, `sum`, `group_by`.
+  sweep). A reference-hop query field (`owner/field`) is *queried*, not
+  just indexed, on every SQL adapter: the hop folds into a local `in:`
+  clause before any adapter sees it
+  (`spec/adapters/query_hop_agreement_spec.rb`).
+- Query aggregation is partial. A `read_model` can declare `count`,
+  `median` and `group_by`, on Ruby and on the generated Rust runtime;
+  there is no `sum`, `avg`, `min` or `max`, and a plain `query` reduces
+  nothing. On the in-memory adapter, `group_by` also keeps only the first
+  row when several share a key path — a known defect, written up in
+  [ADR 0061](docs/decisions/0061-query-dsl-aggregation-count-sum-group-by.md).
 - `PostgresEra`'s schema-evolution/translation system works and is
   exercised in CI; the migration/rekey data-loss findings tracked
   against it (era-migrated deletes resurrecting, rekey SQL invisible
@@ -606,9 +614,14 @@ alongside `bin/model_check` and `bin/fuzz`):
   parent attribute from the equivalence gate) are fixed and
   live-verified against real Postgres as of 2026-08-27 — see
   `docs/future-features.md`'s "Bug audits" section for the specifics
-  and what's *not* independently re-checked yet.
-- Rust codegen has no generated path for `read_model` queries yet;
-  those still require Ruby.
+  and what's *not* independently re-checked yet. One related gap is
+  recorded and unfixed: a `compute` whose source is a dotted member
+  never fires in the compiled SQL, so the mint succeeds and the record
+  keeps its old value.
+- Rust codegen runs a proven subset of `read_model` queries (see
+  [Projections](#projections-rust-and-webassembly) above for its shape); one outside
+  that subset is refused in Rust with a "not generated for this domain"
+  error and still requires Ruby.
 - The transactional outbox ([ADR 0053](docs/decisions/0053-transactional-outbox-for-domain-events-and-effects.md),
   `Runtime::Outbox`): a command's save, its events, and one
   `pending` row per policy/process-manager consumer commit together on
@@ -709,7 +722,7 @@ Beyond the guides and the DSL reference:
 - **Resolution rules** — the exact algorithm behind every piece of DSL
   sugar that lets a bluebook omit something the runtime can derive:
   [overview](docs/resolution-rules/README.md),
-  [cross-entity given](docs/resolution-rules/cross-entity-given.md).
+  [cross-entity given](docs/implemented/resolution-rules/cross-entity-given.md).
 - **[Decision log](docs/decisions/)** and
   **[implemented decisions](docs/implemented/decisions/)** — one
   document per architectural decision, kept even after superseded.

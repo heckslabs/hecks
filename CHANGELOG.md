@@ -7,6 +7,18 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+**The status documents match the code again, and their links are checked.** The
+README said read models had no generated Rust path and that the query language
+had no aggregation, while `read_model` ships `count`, `median` and `group_by` on
+both runtimes and Rust runs a proven subset of read models. It also said the
+fuzzer was Memory-only in one place and Memory, Sqlite and Postgres in another,
+and called the reference-hop query question open after it was resolved. Those,
+the "16 pinned fixtures" count (the set is every file under
+`spec/corpus/rust_conformance/`), and `docs/1.0-readiness.md`'s pre-tag title
+are corrected. Two links that pointed at moved files are fixed, and
+`spec/status_docs_links_spec.rb` fails when a relative link or in-page anchor in
+`README.md`, `CONTRIBUTING.md` or `docs/1.0-readiness.md` stops resolving.
+
 **The README states the current release, and a spec keeps it honest.** Its
 Status line and Project status section said `1.0.0` while releases had reached
 2.5.1. Both now read `Current release: x.y.z`, and
