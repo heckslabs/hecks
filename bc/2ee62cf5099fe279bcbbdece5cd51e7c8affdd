@@ -1,0 +1,2 @@
+checks=doc_coverage,engine_agreement,model_check,rspec,rubocop
+hmac=5c1f79d888c9a182f3edc7bd71533b351788af75aee01bb8efa62200cead498a
