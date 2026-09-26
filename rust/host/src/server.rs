@@ -137,13 +137,43 @@ pub struct ServerState {
     pub invoker: Arc<AwsLambdaInvoker>,
 }
 
+/// The document `GET /version` serves: which era the host booted on, the
+/// fingerprint of the IR it runs, and which build it is. All three are
+/// fixed for the life of the process, so this is built once at boot.
+///
+/// - `era` — the storage-shape label (`storage_shape::mint_label`), the
+///   same six-character id `mint::mint_era` stores as the era's label
+///   and `mint::decide_boot_action` matches held eras against. Whichever
+///   branch the boot gate took, the era the host runs on carries this
+///   label.
+/// - `ir_hash` — the full storage-shape hash (`storage_shape::mint_hash`)
+///   the label is the prefix of.
+/// - `build` — `HECKS_BUILD` when set and non-empty, else the crate
+///   version.
+///
+/// Carries no secrets: every value is derived from the IR or the build.
+pub fn version_body(era: &str, ir_hash: &str, build_env: Option<&str>) -> Value {
+    let build = build_env.filter(|v| !v.is_empty()).unwrap_or(env!("CARGO_PKG_VERSION"));
+    serde_json::json!({ "era": era, "ir_hash": ir_hash, "build": build })
+}
+
+/// `GET /version` as its own router, merged ahead of the dispatch
+/// fallback in `serve`. A matched route never reaches `dispatch_route`, so
+/// the request goes through no `auth_gate` and no Postgres mutex, wasmtime
+/// or journal read: it answers a clone of the document built at boot.
+pub fn version_router(body: Value) -> Router {
+    let body = Arc::new(body);
+    Router::new().route("/version", get(move || std::future::ready(axum::Json(body.as_ref().clone()))))
+}
+
 /// Binds `0.0.0.0:$PORT` (`PORT`, matching `fargate.rb`'s own generated
 /// container `Environment` — falls back to 8080, the same default
 /// `deployed_to("AwsFargate")`'s own `port` setting uses, purely for
 /// convenience running this outside a real deploy) and serves forever.
 ///
-/// Two routes: `GET /` is a bare, dispatch-free `200 OK` — the ALB
-/// health check `fargate.rb` already targets at this exact path/port,
+/// Three routes: `GET /version` (see `version_router`) reports the era
+/// and build without touching dispatch. `GET /` is a bare, dispatch-free
+/// `200 OK` — the ALB health check `fargate.rb` already targets at this exact path/port,
 /// answered without touching the Postgres mutex or wasmtime at all, so
 /// a backlog of real dispatch requests never delays it. Everything else
 /// (any other path, or any other method on `/`) goes through
@@ -157,13 +187,14 @@ pub struct ServerState {
 /// send a full Function-URL-shaped body (`requestContext.http` present)
 /// still reaches the web UI through `dispatch_body`'s own first check —
 /// nothing here has to special-case that path.
-pub async fn serve(state: ServerState) -> Result<(), Error> {
+pub async fn serve(state: ServerState, version: Value) -> Result<(), Error> {
     let port: u16 = std::env::var("PORT").ok().and_then(|v| v.parse().ok()).unwrap_or(8080);
 
     let app = Router::new()
         .route("/", get(health))
         .fallback(any(dispatch_route))
-        .with_state(state);
+        .with_state(state)
+        .merge(version_router(version));
 
     let phase = log::phase_with("serve_start", serde_json::json!({ "port": port }));
     let listener = tokio::net::TcpListener::bind(("0.0.0.0", port)).await?;
@@ -390,5 +421,54 @@ mod tests {
 
         assert_eq!(envelope["rawQueryString"], "");
         assert_eq!(envelope["body"], "");
+    }
+
+    fn sample_version() -> Value {
+        version_body("199b08", &"a".repeat(64), Some("build-42"))
+    }
+
+    // Serves `version_router` on an ephemeral port, the way the host serves
+    // it, so a request travels the real HTTP stack.
+    async fn serve_version(body: Value) -> std::net::SocketAddr {
+        let listener = tokio::net::TcpListener::bind(("127.0.0.1", 0)).await.unwrap();
+        let addr = listener.local_addr().unwrap();
+        tokio::spawn(async move { axum::serve(listener, version_router(body)).await });
+        addr
+    }
+
+    #[tokio::test]
+    async fn version_answers_200_json_with_no_session() {
+        let addr = serve_version(sample_version()).await;
+        let response = reqwest::get(format!("http://{addr}/version")).await.unwrap();
+        assert_eq!(response.status(), 200);
+        let content_type = response.headers()["content-type"].to_str().unwrap().to_string();
+        assert!(content_type.starts_with("application/json"), "got {content_type}");
+        let body: Value = response.json().await.unwrap();
+        assert_eq!(body, serde_json::json!({ "era": "199b08", "ir_hash": "a".repeat(64), "build": "build-42" }));
+    }
+
+    #[tokio::test]
+    async fn version_era_is_a_non_empty_string() {
+        let addr = serve_version(sample_version()).await;
+        let body: Value = reqwest::get(format!("http://{addr}/version")).await.unwrap().json().await.unwrap();
+        assert!(body["era"].as_str().is_some_and(|era| !era.is_empty()));
+    }
+
+    #[tokio::test]
+    async fn version_is_get_only() {
+        let addr = serve_version(sample_version()).await;
+        let response = reqwest::Client::new().post(format!("http://{addr}/version")).send().await.unwrap();
+        assert_eq!(response.status(), 405);
+    }
+
+    #[test]
+    fn build_is_the_env_value_when_set() {
+        assert_eq!(version_body("e", "h", Some("cms-1"))["build"], "cms-1");
+    }
+
+    #[test]
+    fn build_falls_back_to_the_crate_version_when_unset_or_empty() {
+        assert_eq!(version_body("e", "h", None)["build"], env!("CARGO_PKG_VERSION"));
+        assert_eq!(version_body("e", "h", Some(""))["build"], env!("CARGO_PKG_VERSION"));
     }
 }
