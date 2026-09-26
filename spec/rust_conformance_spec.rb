@@ -148,17 +148,31 @@ RSpec.describe "Rust conformance (native binary)", :io do
   # binary's manifest.json declares `generated: false`
   # (`Hecks::Fuzzing::Differential.manifest_partition`), never by wording.
 
-  RUST_CONFORMANCE_FIXTURES.each do |fixture_path|
+  # **Whole corpus members, promoted** — the flagship corpus scripts
+  # (`spec/corpus/<name>.json`, the same files `bin/run` replays against
+  # Ruby) held to the same byte-for-byte bar as the small fixtures. The
+  # small fixtures each isolate one construct; only a full walk of a
+  # domain's own corpus reaches a divergence that needs a long run of
+  # accumulated state to appear at all. Keyed by the corpus file, valued
+  # by the domain directory it replays against.
+  FULL_CORPUS_MEMBERS = { "spec/corpus/chess.json" => "examples/chess" }.freeze
+
+  full_corpus_cases = FULL_CORPUS_MEMBERS.map do |corpus_path, domain|
+    [corpus_path, domain, File.join(InMemoryDomain::ROOT, corpus_path)]
+  end
+  fixture_cases = RUST_CONFORMANCE_FIXTURES.map do |fixture_path|
+    [File.basename(fixture_path), JSON.parse(File.read(fixture_path)).fetch("domain"), fixture_path]
+  end
+
+  (fixture_cases + full_corpus_cases).each do |label, domain, script_path|
     # A real cargo-built binary compared field-by-field (instances,
     # events, refusals, queries, sagas, dry_runs, reactions) against one
-    # fixture's own replay — one coherent byte-for-byte conformance
-    # proof per fixture; splitting per field would re-pay the cargo
+    # script's own replay — one coherent byte-for-byte conformance
+    # proof per script; splitting per field would re-pay the cargo
     # build and the subprocess spawn for no real gain.
     # rubocop:disable-next RSpec/ExampleLength
-    it "#{File.basename(fixture_path)}: instances, events, refusals, reactions, and sagas match Ruby exactly" do
-      fixture = JSON.parse(File.read(fixture_path))
-      domain  = fixture.fetch("domain")
-      steps   = fixture.fetch("steps")
+    it "#{label}: instances, events, refusals, reactions, and sagas match Ruby exactly" do
+      steps = JSON.parse(File.read(script_path)).fetch("steps")
 
       binary = build_rust_for(File.basename(domain).downcase)
       skip "rust/Cargo.toml has no #{File.basename(domain).downcase} feature — run bin/project_rust for it first" unless binary
