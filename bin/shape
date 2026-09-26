@@ -4,6 +4,16 @@
 # form StorageShape.mint_hash hashes to name an era, printed so a
 # bump/no-bump question can be answered by diffing two of these directly.
 #
+#   bin/shape path/to/pizzas.bluebook   # the projection, as JSON
+#   bin/shape path/to/bluebook_dir      # one "<Domain> <label>" line per domain
+#
+# Given a directory it prints, for every domain declared by the `*.bluebook`
+# files directly in it, the label PostgresEra would mint (the first
+# `StorageShape::LABEL_LENGTH` characters of the hash), sorted by domain name.
+# A changed label here is a changed era there, so running it before and after
+# a re-vendor of a bluebook directory answers "does this bump an era?" without
+# a database. Files in subdirectories are not read.
+#
 # Goes through the projector registry (`Projections::Shape`) rather than
 # calling `StorageShape.project` directly, so there is one definition of
 # what this projection is — the same one `Pizzas.project(Projections::Shape)`
@@ -26,14 +36,26 @@ require "hecks"
 require "hecks/ports/persistence/plugins/era"
 require "json"
 
-path = ARGV.shift or abort "usage: bin/shape <bluebook>"
+target = ARGV.shift or abort "usage: bin/shape <bluebook | directory of *.bluebook files>"
+
+abort "#{target} does not exist" unless File.exist?(target)
+
+directory = File.directory?(target)
+files = directory ? Dir[File.join(target, "*.bluebook")] : [target]
+abort "no *.bluebook files in #{target}" if files.empty?
 
 registry = Hecks::Runtime::Registry.new
 loading = Hecks::Ports::Loading.bootstrap
 Hecks.with_registry(registry) do
   loading.load_library
-  Kernel.eval(File.read(path), TOPLEVEL_BINDING, File.expand_path(path), 1)
+  files.each { |file| Kernel.eval(File.read(file), TOPLEVEL_BINDING, File.expand_path(file), 1) }
 end
 
-bluebook = registry.bluebooks.values.first or abort "#{path} declares no bluebook"
-puts JSON.pretty_generate(Hecks::Projector.call(:shape, bluebook: bluebook))
+if directory
+  registry.bluebooks.sort_by { |name, _| name.to_s }.each do |name, bluebook|
+    puts "#{name} #{Hecks::Runtime::StorageShape.mint_label(bluebook)}"
+  end
+else
+  bluebook = registry.bluebooks.values.first or abort "#{target} declares no bluebook"
+  puts JSON.pretty_generate(Hecks::Projector.call(:shape, bluebook: bluebook))
+end
