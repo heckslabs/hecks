@@ -1,5 +1,4 @@
-//! `hecks-codegen` — Stage 7 of
-//! `/Users/christopheryoung/.claude/plans/sequential-petting-whale.md`:
+//! `hecks-codegen` — Stage 7 of the 8-stage Rust port plan:
 //! a Rust port of (part of) `rust/project/*.rb`'s IR-to-Rust-source
 //! codegen, standing beside the existing Ruby generator for differential
 //! verification (`spec/codegen_parity_spec.rb`) — not wired into

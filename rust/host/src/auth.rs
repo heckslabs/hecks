@@ -333,9 +333,9 @@ pub async fn resolve_identity_from_head(
 // `table = aggregate.storage_name` = "member"; `qualified_name` folds
 // in the owning domain's own snake_cased name -- docs/decisions/0059)
 // -- confirmed live against the real deployed database. A
-// real, live "google_unlinked" for an already-linked chris@embryonaut.ai
-// caught this: `resolve_identity` correctly found his real identity_id,
-// but scanning `instances` for his Member record could never find it.
+// real, live "google_unlinked" for an already-linked member
+// caught this: `resolve_identity` correctly found the member's real identity_id,
+// but scanning `instances` for their Member record could never find it.
 //
 // Thin wrappers, now — `journal::read_lineage_head_by_id`/`_all` are
 // the same two queries, generalized over `storage_name` instead of
@@ -994,8 +994,8 @@ mod tests {
 
     #[test]
     fn account_token_round_trips_and_rejects_tampering_or_the_wrong_secret() {
-        let token = account_token("s3cret", "chris@embryonaut.ai", 60);
-        assert_eq!(verify_account_token("s3cret", &token).as_deref(), Some("chris@embryonaut.ai"));
+        let token = account_token("s3cret", "chris@example.com", 60);
+        assert_eq!(verify_account_token("s3cret", &token).as_deref(), Some("chris@example.com"));
         assert_eq!(verify_account_token("wrong-secret", &token), None);
         assert_eq!(verify_account_token("s3cret", "garbage.notasignature"), None);
     }
@@ -1004,7 +1004,7 @@ mod tests {
     fn account_token_rejects_once_expired() {
         // ttl_secs=0 -- now_secs() + 0 is already <= now_secs() by the
         // time verify_account_token's own now_secs() check runs.
-        let token = account_token("s3cret", "chris@embryonaut.ai", 0);
+        let token = account_token("s3cret", "chris@example.com", 0);
         std::thread::sleep(std::time::Duration::from_secs(1));
         assert_eq!(verify_account_token("s3cret", &token), None);
     }
@@ -1013,14 +1013,14 @@ mod tests {
     fn session_cookie_round_trips_and_rejects_a_forged_one() {
         let session = Session {
             identity_id: "id-1".to_string(),
-            email: "chris@embryonaut.ai".to_string(),
+            email: "chris@example.com".to_string(),
             name: "Chris Young".to_string(),
             role: Some("Admin".to_string()),
         };
         let cookie = session_cookie("s3cret", &session);
         let parsed = parse_session_cookie("s3cret", &cookie).expect("should parse with the right secret");
         assert_eq!(parsed.identity_id, "id-1");
-        assert_eq!(parsed.email, "chris@embryonaut.ai");
+        assert_eq!(parsed.email, "chris@example.com");
         assert_eq!(parsed.role.as_deref(), Some("Admin"));
 
         assert!(parse_session_cookie("wrong-secret", &cookie).is_none());
@@ -1120,7 +1120,7 @@ mod tests {
     #[test]
     fn membership_aggregate_reads_the_declared_capability_not_an_env_var() {
         let domain_ir = json!({
-            "name": "Lifeadelics",
+            "name": "Studio",
             "membership": {"provider": "Membership", "aggregate": "Membership::Person"},
         });
         let (aggregate, storage_name) = membership_aggregate(&domain_ir).unwrap();
@@ -1133,7 +1133,7 @@ mod tests {
     // A real, throwaway Postgres database per test, matching the real
     // shape `head_view` names (`qualified_name(domain, "#{storage_name}
     // _head")`, postgres/lineage.rb — docs/decisions/0059 folded the
-    // owning domain, "Embryonaut", into this name) -- member_row_by_
+    // owning domain, "Acme" in this fixture, into this name) -- member_row_by_
     // email/session_for_member_by_identity/all_people all query this
     // exact table against the real, deployed database (originally
     // confirmed live via a bastion tunnel, pre-0059, when this table was
@@ -1158,19 +1158,19 @@ mod tests {
         });
         // The real shape, originally confirmed live against the deployed
         // database via a bastion tunnel (pre-0059, when this was still
-        // bare `member_head`): `embryonaut_member_head` is a view over
+        // bare `member_head`): `acme_member_head` is a view over
         // the era-1 snapshot table (postgres/lineage/head_compiler.rb's
         // `ensure_first_head!`,
-        // `CREATE OR REPLACE VIEW "embryonaut_member_head" AS SELECT id, state FROM
-        // "embryonaut_member_head_snapshot_1"`), and every write goes through the
+        // `CREATE OR REPLACE VIEW "acme_member_head" AS SELECT id, state FROM
+        // "acme_member_head_snapshot_1"`), and every write goes through the
         // domain's own era-partitioned journal table first
-        // (`hecks_journal_embryonaut`) -- `append_member_state`'s own
+        // (`hecks_journal_acme`) -- `append_member_state`'s own
         // target, exercised by the test below.
         client
             .batch_execute(
-                "CREATE TABLE embryonaut_member_head_snapshot_1 (id text PRIMARY KEY, ordinal bigint NOT NULL, state jsonb NOT NULL);
-                 CREATE VIEW embryonaut_member_head AS SELECT id, state FROM embryonaut_member_head_snapshot_1;
-                 CREATE TABLE hecks_journal_embryonaut (
+                "CREATE TABLE acme_member_head_snapshot_1 (id text PRIMARY KEY, ordinal bigint NOT NULL, state jsonb NOT NULL);
+                 CREATE VIEW acme_member_head AS SELECT id, state FROM acme_member_head_snapshot_1;
+                 CREATE TABLE hecks_journal_acme (
                      ordinal bigserial PRIMARY KEY, era int NOT NULL, aggregate text NOT NULL,
                      aggregate_id text NOT NULL, operation text NOT NULL, state jsonb, mirrors jsonb
                  );",
@@ -1186,9 +1186,9 @@ mod tests {
     // `resolve_membership_aggregate`/`membership_aggregate` actually reads.
     fn member_domain_ir() -> Value {
         json!({
-            "name": "Embryonaut",
+            "name": "Acme",
             "lineage": {"capable_aggregates": [{"name": "Member", "storage_name": "member"}]},
-            "membership": {"provider": "Embryonaut", "aggregate": "Embryonaut::Member"},
+            "membership": {"provider": "Acme", "aggregate": "Acme::Member"},
         })
     }
 
@@ -1199,33 +1199,33 @@ mod tests {
         {
             let guard = db.lock().await;
             guard.execute(
-                "INSERT INTO embryonaut_member_head_snapshot_1 (id, ordinal, state) VALUES ($1, 1, $2::jsonb), ($3, 1, $4::jsonb)",
+                "INSERT INTO acme_member_head_snapshot_1 (id, ordinal, state) VALUES ($1, 1, $2::jsonb), ($3, 1, $4::jsonb)",
                 &[
-                    &"chris@embryonaut.ai",
-                    &json!({"name": {"value": "Chris Young"}, "email": {"value": "chris@embryonaut.ai"},
+                    &"chris@example.com",
+                    &json!({"name": {"value": "Chris Young"}, "email": {"value": "chris@example.com"},
                             "role": {"value": "Admin"}, "identity_id": {"value": "id-1"}}),
-                    &"angie@embryonaut.ai",
-                    &json!({"name": {"value": "Angie Chen"}, "email": {"value": "angie@embryonaut.ai"},
+                    &"angie@example.com",
+                    &json!({"name": {"value": "Angie Chen"}, "email": {"value": "angie@example.com"},
                             "role": null, "identity_id": null}),
                 ],
             ).await.unwrap();
         }
 
-        let chris = member_row_by_email(&db, &domain_ir, "chris@embryonaut.ai").await.unwrap().expect("should find chris");
-        assert_eq!(chris["email"]["value"], "chris@embryonaut.ai");
-        assert!(member_row_by_email(&db, &domain_ir, "nobody@embryonaut.ai").await.unwrap().is_none());
+        let chris = member_row_by_email(&db, &domain_ir, "chris@example.com").await.unwrap().expect("should find chris");
+        assert_eq!(chris["email"]["value"], "chris@example.com");
+        assert!(member_row_by_email(&db, &domain_ir, "nobody@example.com").await.unwrap().is_none());
 
         let session = session_for_member_by_identity(&db, &domain_ir, "id-1").await.unwrap().expect("should find the linked member");
-        assert_eq!(session.email, "chris@embryonaut.ai");
+        assert_eq!(session.email, "chris@example.com");
         assert_eq!(session.role.as_deref(), Some("Admin"));
         assert!(session_for_member_by_identity(&db, &domain_ir, "id-nope").await.unwrap().is_none());
 
         let people = all_people(&db, &domain_ir).await.unwrap();
         assert_eq!(people.len(), 2);
-        let chris = people.iter().find(|p| p["email"] == "chris@embryonaut.ai").unwrap();
+        let chris = people.iter().find(|p| p["email"] == "chris@example.com").unwrap();
         assert_eq!(chris["linked"], true);
         assert_eq!(chris["granted"], true);
-        let angie = people.iter().find(|p| p["email"] == "angie@embryonaut.ai").unwrap();
+        let angie = people.iter().find(|p| p["email"] == "angie@example.com").unwrap();
         assert_eq!(angie["linked"], false);
         assert_eq!(angie["granted"], false);
     }
@@ -1234,7 +1234,7 @@ mod tests {
     async fn append_member_state_writes_the_journal_and_advances_the_head_snapshot() {
         let domain_ir = member_domain_ir();
         let db = scratch_member_db("hecks_host_auth_test_append_member").await;
-        let config = LineageConfig { domain: "Embryonaut".to_string(), era: Some(1), mirrored: None };
+        let config = LineageConfig { domain: "Acme".to_string(), era: Some(1), mirrored: None };
         {
             let guard = db.lock().await;
             // ordinal 0 -- below anything the fresh journal's own
@@ -1246,27 +1246,27 @@ mod tests {
             // advance -- caught live by this very test, not a
             // hypothetical.
             guard.execute(
-                "INSERT INTO embryonaut_member_head_snapshot_1 (id, ordinal, state) VALUES ($1, 0, $2::jsonb)",
+                "INSERT INTO acme_member_head_snapshot_1 (id, ordinal, state) VALUES ($1, 0, $2::jsonb)",
                 &[
-                    &"angie@embryonaut.ai",
-                    &json!({"name": {"value": "Angie Chen"}, "email": {"value": "angie@embryonaut.ai"},
+                    &"angie@example.com",
+                    &json!({"name": {"value": "Angie Chen"}, "email": {"value": "angie@example.com"},
                             "role": null, "identity_id": null}),
                 ],
             ).await.unwrap();
         }
 
-        let granted = json!({"name": {"value": "Angie Chen"}, "email": {"value": "angie@embryonaut.ai"},
+        let granted = json!({"name": {"value": "Angie Chen"}, "email": {"value": "angie@example.com"},
                               "role": {"value": "Admin"}, "identity_id": null});
-        append_member_state(&db, &config, &domain_ir, "angie@embryonaut.ai", &granted).await.unwrap();
+        append_member_state(&db, &config, &domain_ir, "angie@example.com", &granted).await.unwrap();
 
         // The head view reflects the new state immediately.
-        let after = member_row_by_email(&db, &domain_ir, "angie@embryonaut.ai").await.unwrap().expect("still there");
+        let after = member_row_by_email(&db, &domain_ir, "angie@example.com").await.unwrap().expect("still there");
         assert_eq!(after["role"]["value"], "Admin");
 
         // A real journal row was appended -- not a raw update bypassing it.
         let guard = db.lock().await;
         let journal_rows = guard
-            .query("SELECT era, aggregate, aggregate_id, operation, state FROM hecks_journal_embryonaut", &[])
+            .query("SELECT era, aggregate, aggregate_id, operation, state FROM hecks_journal_acme", &[])
             .await
             .unwrap();
         assert_eq!(journal_rows.len(), 1);
@@ -1278,13 +1278,13 @@ mod tests {
         let state: Value = row.get(4);
         assert_eq!(era, 1);
         assert_eq!(aggregate, "member");
-        assert_eq!(aggregate_id, "angie@embryonaut.ai");
+        assert_eq!(aggregate_id, "angie@example.com");
         assert_eq!(operation, "save");
         assert_eq!(state["role"]["value"], "Admin");
 
         // The snapshot's own ordinal advanced past the seed row's.
         let ordinal: i64 = guard
-            .query_one("SELECT ordinal FROM embryonaut_member_head_snapshot_1 WHERE id = $1", &[&"angie@embryonaut.ai"])
+            .query_one("SELECT ordinal FROM acme_member_head_snapshot_1 WHERE id = $1", &[&"angie@example.com"])
             .await
             .unwrap()
             .get(0);
@@ -1300,13 +1300,13 @@ mod tests {
         // downgrade the snapshot with a smaller ordinal is a no-op.
         let guard = db.lock().await;
         guard.execute(
-            "INSERT INTO embryonaut_member_head_snapshot_1 (id, ordinal, state) VALUES ($1, 1, $2::jsonb) \
+            "INSERT INTO acme_member_head_snapshot_1 (id, ordinal, state) VALUES ($1, 1, $2::jsonb) \
              ON CONFLICT (id) DO UPDATE SET ordinal = EXCLUDED.ordinal, state = EXCLUDED.state \
-             WHERE embryonaut_member_head_snapshot_1.ordinal < EXCLUDED.ordinal",
-            &[&"angie@embryonaut.ai", &json!({"role": {"value": "SHOULD_NOT_APPLY"}})],
+             WHERE acme_member_head_snapshot_1.ordinal < EXCLUDED.ordinal",
+            &[&"angie@example.com", &json!({"role": {"value": "SHOULD_NOT_APPLY"}})],
         ).await.unwrap();
         let state: Value = guard
-            .query_one("SELECT state FROM embryonaut_member_head_snapshot_1 WHERE id = $1", &[&"angie@embryonaut.ai"])
+            .query_one("SELECT state FROM acme_member_head_snapshot_1 WHERE id = $1", &[&"angie@example.com"])
             .await
             .unwrap()
             .get(0);
