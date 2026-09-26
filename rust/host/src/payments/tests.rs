@@ -135,9 +135,9 @@ async fn tenant(name: &str) -> Tenant {
         provision_lineage(&guard, "CheckoutFixture", 1, &["Event", "Registration", "Payment", "PaymentConnection"]).await;
         guard
             .batch_execute(
-                "CREATE TABLE embryonaut_member_head_snapshot_1 (id text PRIMARY KEY, ordinal bigint NOT NULL, state jsonb NOT NULL);
-                 CREATE VIEW embryonaut_member_head AS SELECT id, state FROM embryonaut_member_head_snapshot_1;
-                 CREATE TABLE hecks_journal_embryonaut (
+                "CREATE TABLE acme_member_head_snapshot_1 (id text PRIMARY KEY, ordinal bigint NOT NULL, state jsonb NOT NULL);
+                 CREATE VIEW acme_member_head AS SELECT id, state FROM acme_member_head_snapshot_1;
+                 CREATE TABLE hecks_journal_acme (
                      ordinal bigserial PRIMARY KEY, era int NOT NULL, aggregate text NOT NULL,
                      aggregate_id text NOT NULL, operation text NOT NULL, state jsonb, mirrors jsonb
                  );",
@@ -158,15 +158,15 @@ async fn tenant(name: &str) -> Tenant {
             (DISABLED_OWNER, person(DISABLED_OWNER, Some("Owner"), true)),
         ] {
             guard
-                .execute("INSERT INTO embryonaut_member_head_snapshot_1 (id, ordinal, state) VALUES ($1, 0, $2::jsonb)", &[&email, &state])
+                .execute("INSERT INTO acme_member_head_snapshot_1 (id, ordinal, state) VALUES ($1, 0, $2::jsonb)", &[&email, &state])
                 .await
                 .unwrap();
         }
     }
     let domain_ir = json!({
-        "name": "Embryonaut",
+        "name": "Acme",
         "lineage": {"capable_aggregates": [{"name": "Member", "storage_name": "member"}]},
-        "membership": {"provider": "Embryonaut", "aggregate": "Embryonaut::Member"},
+        "membership": {"provider": "Acme", "aggregate": "Acme::Member"},
     });
     let fake = FakeStripe::start().await;
     let platform = PlatformConfig {
@@ -392,7 +392,7 @@ async fn only_an_owner_may_connect_or_disconnect_and_only_the_operator_may_enabl
 #[tokio::test]
 async fn an_admin_granted_owner_passes_the_payments_gate_and_keeps_the_admin_gate() {
     let t = tenant("hecks_pay_test_owner_bootstrap").await;
-    let members = LineageConfig { domain: "Embryonaut".to_string(), era: Some(1), mirrored: None };
+    let members = LineageConfig { domain: "Acme".to_string(), era: Some(1), mirrored: None };
     let cookies = |email: &str| HashMap::from([("lifeadelics_session".to_string(), auth::account_token(SESSION_SECRET, email, 60))]);
 
     // An Admin is not an Owner: the payments routes refuse them.

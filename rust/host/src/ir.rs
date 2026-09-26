@@ -468,7 +468,7 @@ mod tests {
     #[test]
     fn membership_provider_reads_the_declared_capability() {
         let ir = serde_json::json!({
-            "name": "Lifeadelics",
+            "name": "Studio",
             "membership": { "provider": "Membership", "aggregate": "Membership::Person" }
         });
         let provider = membership_provider(&ir).expect("should find membership");
@@ -480,7 +480,7 @@ mod tests {
     #[test]
     fn identity_provider_reads_the_declared_capability() {
         let ir = serde_json::json!({
-            "name": "Lifeadelics",
+            "name": "Studio",
             "identity": {
                 "provider": "Identity",
                 "register": "Identity::Identity.Register",
@@ -499,7 +499,7 @@ mod tests {
     #[test]
     fn newsletter_provider_reads_the_declared_capability() {
         let ir = serde_json::json!({
-            "name": "Lifeadelics",
+            "name": "Studio",
             "newsletter": {
                 "provider": "Newsletter",
                 "subscribe": "Newsletter::Subscriber.Subscribe",
@@ -522,7 +522,7 @@ mod tests {
     #[test]
     fn newsletter_issues_provider_reads_the_declared_capability() {
         let ir = serde_json::json!({
-            "name": "Lifeadelics",
+            "name": "Studio",
             "newsletter_issues": {
                 "provider": "Newsletter",
                 "send_issue": "Newsletter::Issue.Send",
@@ -541,7 +541,7 @@ mod tests {
     #[test]
     fn payments_provider_reads_the_declared_capability() {
         let ir = serde_json::json!({
-            "name": "Lifeadelics",
+            "name": "Studio",
             "payments": {
                 "provider": "Payments",
                 "initiate": "Payments::Payment.Initiate",
