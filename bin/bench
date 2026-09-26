@@ -1,0 +1,24 @@
+#!/usr/bin/env ruby
+
+# Measures command-dispatch throughput and p50/p99 latency for the Ruby runtime on each
+# persistence adapter (memory, sqlite, postgres, postgres_era) and for the native Rust
+# binary, using the pizzas and banking example domains.
+#
+#   bin/bench                                  # everything, three runs each
+#   bin/bench --targets ruby:memory,rust       # just those targets
+#   bin/bench --domain pizzas --runs 5
+#   bin/bench --format json --output tmp/bench.json
+#
+# Postgres is optional: with no server reachable those targets are skipped with a
+# sentence saying so, and the rest still run. The Rust targets build a release binary
+# with `cargo build --release` first (skipped, with a message, when `cargo` is missing).
+#
+# This is a measurement tool, not a gate. It never fails on a slow number. Read
+# docs/benchmarks.md for what the figures do and do not compare before quoting one.
+
+$LOAD_PATH.unshift File.expand_path("../lib", __dir__)
+
+require "hecks"
+require "hecks/bench"
+
+exit Hecks::Bench::CLI.run(ARGV)

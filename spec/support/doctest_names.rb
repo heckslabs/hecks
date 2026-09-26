@@ -74,6 +74,7 @@ module DoctestNames
     1.0-readiness.md
     adoption-readiness.md
     architecture-map.md
+    benchmarks.md
     command-form-and-query-form-bluebook.md
     COMMENT_STYLE_GUIDE.md
     COMMENT_STYLE_GUIDE_RUST.md
