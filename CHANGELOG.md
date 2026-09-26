@@ -5,7 +5,24 @@ Dates are when a change landed on `main`, not when this file was written.
 Entries below are grouped by theme, not itemized commit-by-commit; see
 `git log` for the full history.
 
-## [Unreleased]
+## [2.5.0] - 2026-09-26
+
+**Two new capabilities, `registrations` and `payment_connection`, and rust/host
+reads them.** A chapter can declare `provides "registrations", schedule:
+"Event.Schedule", request: "Registration.Request"` and `provides
+"payment_connection", connect: ..., reconnect: ..., disconnect: ..., suspend:
+..., resume: ..., enable: ..., disable: ...` (each naming a real command of that
+chapter). `bin/project_rust` exports them to `ir.json` as `registrations` (with
+`event_aggregate` and `registration_aggregate`) and `payment_connection` (with
+`aggregate`), the same way `payments` is exported, and omits each key when
+nothing attached provides it. rust/host now takes the event, registration and
+payment-connection names from them instead of literals, and falls back to the
+previous names (`<Domain>::Event.Schedule`, `Registration.Request`,
+`PaymentConnection.*`) when a domain declares neither, so a host whose domain
+declares nothing behaves exactly as before. Declaring either capability does
+not change a domain's storage shape, so it does not mint an era. A hecks gem
+older than this release refuses either `provides` line ("no capability the
+language knows"), so a consumer must upgrade to 2.5.0 before declaring them.
 
 **An internal kernel error is now a failed command, not an accepted one.**
 When the kernel cannot run a step at all (for example `invalid seed:
@@ -141,34 +158,6 @@ sweeps read a PostgresEra binding passed through a local variable (#825),
 carry the vendored bluebooks a target names into the isolated copy (#831), and
 ask generated queries about values the sequence stored, so a where-query on a
 written row is exercised rather than matching nothing on every adapter (#835).
-
-**Two new capabilities: `registrations` and `payment_connection`.** A chapter
-can now declare `provides "registrations", schedule: "Event.Schedule", request:
-"Registration.Request"` and `provides "payment_connection", connect: ...,
-reconnect: ..., disconnect: ..., suspend: ..., resume: ..., enable: ...,
-disable: ...` (each naming a real command of that chapter). `bin/project_rust`
-exports them to `ir.json` as `registrations` (with `event_aggregate` and
-`registration_aggregate`) and `payment_connection` (with `aggregate`), the same
-way `payments` is exported, and omits each key when nothing attached provides
-it. This is groundwork: rust/host does not read them yet, so nothing about a
-running host changes. Declaring either capability does not change a domain's
-storage shape, so it does not mint an era. A hecks gem older than this change
-refuses either `provides` line ("no capability the language knows"), so a
-consumer must upgrade the gem before declaring them.
-
-**Two new capabilities: `registrations` and `payment_connection`.** A chapter
-can now declare `provides "registrations", schedule: "Event.Schedule", request:
-"Registration.Request"` and `provides "payment_connection", connect: ...,
-reconnect: ..., disconnect: ..., suspend: ..., resume: ..., enable: ...,
-disable: ...` (each naming a real command of that chapter). `bin/project_rust`
-exports them to `ir.json` as `registrations` (with `event_aggregate` and
-`registration_aggregate`) and `payment_connection` (with `aggregate`), the same
-way `payments` is exported, and omits each key when nothing attached provides
-it. This is groundwork: rust/host does not read them yet, so nothing about a
-running host changes. Declaring either capability does not change a domain's
-storage shape, so it does not mint an era. A hecks gem older than this change
-refuses either `provides` line ("no capability the language knows"), so a
-consumer must upgrade the gem before declaring them.
 
 **The unsubscribe link is signed.** Every email that carries an unsubscribe
 URL (each recipient of an issue send, `send-test`, and the `List-Unsubscribe`
