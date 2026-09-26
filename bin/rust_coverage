@@ -86,7 +86,7 @@
 #   bin/rust_coverage <domain> [--codegen=ruby|rust]
 #
 # `<domain>` is a directory name under rust/src/generated/ — "pizzas",
-# "banking", "embryonaut", "governance", "identity", "meta" — whichever
+# "banking", "governance", "identity", "meta" — whichever
 # this checkout has actually generated (see rust/src/generated/ itself
 # for the current list; `merged.rs`'s presence marks an independently
 # selectable domain rather than a shared framework chapter, the same
@@ -129,7 +129,7 @@ codegen = codegen_flags.empty? ? "ruby" : codegen_flags.last.delete_prefix("--co
 %w[ruby rust].include?(codegen) or abort "--codegen must be `ruby` or `rust` (got #{codegen_flags.last.inspect})"
 
 target = positional.shift or abort "usage: bin/rust_coverage <generated-module-name> [--codegen=ruby|rust]  " \
-                                   "(e.g. pizzas, banking, embryonaut, governance, identity)\n       " \
+                                   "(e.g. pizzas, banking, governance, identity)\n       " \
                                    "bin/rust_coverage --check-allowlist"
 
 # Entity-scoped query ids, at any depth — `Domain::Aggregate.Entity.Query`.
@@ -504,19 +504,10 @@ end
 # the `entity_command` "entity nested two levels deep" rule (BUG#11/BUG#19
 # route those commands now), and the `read_model` "out of scope for this
 # generator: offset/cursor/..." rule (banking's read models all generate
-# now, and the reason text it matched is no longer produced).
-ALLOWLIST = [
-  {
-    kind:      "query",
-    gap_class: "whole_kind",
-    construct: "no_generated_code_path",
-    doc:       "rust/src/generated/embryonaut/registry.rs and merged.rs (own HAND-PATCHED notes, both files, right " \
-               "above their empty QUERIES const)",
-    note:      "Embryonaut runs in fallback mode only: its bluebook lives in a separate repository, so bin/project_rust " \
-               "can't give it a manifest here, and the fallback deriver records each of its queries as having no " \
-               "generated code path. Delete this rule the day that domain is regenerated with a real manifest."
-  }
-].freeze
+# now, and the reason text it matched is no longer produced), and the
+# `query` "no_generated_code_path" rule for the committed embryonaut snapshot,
+# deleted together with that snapshot.
+ALLOWLIST = [].freeze
 # Removed, not widened — a cross-domain-policy `kind: "policy"` entry
 # does not belong here (matching `reason_match: /cross-domain policy/`,
 # 0013's own Consequences: "omitted from the generated table entirely")

@@ -31,7 +31,6 @@ chess = []
 roster = []
 meta = []
 pizzas = []
-embryonaut = []
 banking = []
 
 [package]

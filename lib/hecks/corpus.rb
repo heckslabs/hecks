@@ -269,10 +269,7 @@ module Hecks
                                      "the self-hosted grammar (lib/hecks/language), not a domain directory — every " \
                                      "bin/project_rust run rewrites it (so the drift check diffs it), codegen parity " \
                                      "checks it as bluebook_language, and there is no directory to fuzz"),
-      "embryonaut"  => Elsewhere.new(:external, "~/Projects/embryonautfoundersapp", "embryonaut",
-                                     "an external product's domain — its bluebook, regeneration and parity are owed " \
-                                     "by its own repo; here bin/rust_coverage checks only the committed snapshot"),
-      # Lifeadelics — same external-product shape as "embryonaut" above,
+      # Lifeadelics — an external product's domain,
       # first generated 2026-09-19 fixing a live era-shape-drift outage.
       # Its directory used to be named "domain" (a generic, collision-
       # prone Cargo feature/module name — the chapter name is, and
@@ -306,8 +303,8 @@ module Hecks
     # RUST_ELSEWHERE domain — `members(:vendored)` can't find them
     # itself; that glob only reaches `examples/*/vendor/
     # embryonaut_bluebooks/*`, never an external checkout. Declared once,
-    # by hand, the same manual-commit contract "embryonaut" itself
-    # already carries: stem => the RUST_ELSEWHERE feature that attaches
+    # by hand, as a manual-commit contract: stem => the RUST_ELSEWHERE
+    # feature that attaches
     # it. spec/corpus_rust_spec.rb checks each is really attached, the
     # same as an in-repo vendored chapter (see
     # `rust_external_vendored_domain_dir`, below).

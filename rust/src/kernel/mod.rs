@@ -74,7 +74,7 @@ pub use reference_lookup::{
     SetProjectedField, WithReferences, DEREFERENCE_DEPTH,
 };
 pub use refusal_wording::RefusalSite;
-pub use repository::{check_reference, check_role, check_role_via, filter_entries, holds_role, holds_role_via, row_json, AggregateScan, InMemoryRepository, Repository};
+pub use repository::{check_reference, check_role_via, filter_entries, holds_role_via, row_json, AggregateScan, InMemoryRepository, Repository};
 pub use routing::{CommandInvocation, RoutingEnvelope};
 
 #[derive(Debug, Clone)]
@@ -142,7 +142,7 @@ pub struct Event {
 /// name that doesn't exist at all is a router-level concern, not
 /// something one generated dispatch function raises about itself).
 /// `Unauthorized` (role-mismatch) was in that deliberately-absent list —
-/// see `check_role` (repository.rs) and 0019 for how it's generated now.
+/// see `check_role_via` (repository.rs) and 0019 for how it's generated now.
 ///
 /// `AbsentArgument`/`UnknownArgument` are variants here, but only ever
 /// raised at the JSON boundary (`from_json`, `rust/project/json_codec.rb`'s

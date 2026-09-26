@@ -26,24 +26,11 @@ use std::collections::HashMap;
 // C3.7 for a named query's own arguments — the generated gate
 // (`queries.rb#emit_query_arg_check_table`) that builds and invariant-
 // checks every value-object argument before `named_query::run` reads
-// the raw JSON (ADR 0037 finding 4). embryonaut's generated tree is a
-// committed snapshot with no source in this repo (.github/workflows/
-// ci.yml's own note beside its exclusion from the regeneration step)
-// and predates this gate, so under that one feature its named queries
-// stay answered untyped, exactly as before — a shim, named as one.
-#[cfg(not(feature = "embryonaut"))]
+// the raw JSON (ADR 0037 finding 4).
 use crate::generated::active::check_query_args;
-#[cfg(feature = "embryonaut")]
-fn check_query_args(_verb: &str, _args: &Json) -> Result<(), Refusal> {
-    Ok(())
-}
 
-// Declared entity queries (`Aggregate.Entity.Query`) — the same snapshot
-// caveat as `check_query_args` above: embryonaut predates the table.
-#[cfg(not(feature = "embryonaut"))]
+// Declared entity queries (`Aggregate.Entity.Query`).
 use crate::generated::active::ENTITY_QUERIES;
-#[cfg(feature = "embryonaut")]
-const ENTITY_QUERIES: &[named_query::EntityQueryDef] = &[];
 
 pub fn run(input: &str) -> String {
     let parsed = match Json::parse(input) {
@@ -442,7 +429,7 @@ pub fn run(input: &str) -> String {
         // caller that states only a `role:` (no `actor_id:`) is checked
         // exactly the way it always has been, string equality against
         // the command's own declared `role`
-        // (`kernel::repository::check_role`'s own doc comment has the
+        // (`kernel::repository::check_role_via`'s own doc comment has the
         // full split) — this key is purely additive, an absent
         // `"actor_id"` behaves byte-for-byte like every step written
         // before this key existed. A caller that also names who it is

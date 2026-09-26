@@ -40,7 +40,7 @@ module CiSkipBackstop
       literal:   "an :external RUST_ELSEWHERE destination isn't checked out on this machine",
       jobs:      %w[rspec_shard],
       why:       "corpus_rust_spec.rb's two \"attaches\" checks for an :external RUST_ELSEWHERE domain " \
-                 "(embryonaut, lifeadelics) read that domain's own hecksagon files straight off this machine's " \
+                 "(lifeadelics) read that domain's own hecksagon files straight off this machine's " \
                  "filesystem (~/Projects/<name>) — no CI runner has ever had that checkout, confirmed by checking " \
                  "this exact example was already \"skipping\", not passing, on main's own last known-good " \
                  "merge_group run before this backstop entry existed. Not fixable by seeding CI the way the " \
