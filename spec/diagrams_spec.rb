@@ -22,7 +22,7 @@ RSpec.describe "the generated diagrams" do
   end
 
   # A `to:`-declaring port operation, in-memory — no domain in the real
-  # corpus uses `to:` yet (the real motivating case, lifeadelics' vendored
+  # corpus uses `to:` yet (the real motivating case, a client project's vendored
   # PaymentGateway, lives outside this repo; the corpus's one real port,
   # pizzas' own PaymentGateway.Receive, doesn't
   # happen to need a receiver reference at all). Built the same way

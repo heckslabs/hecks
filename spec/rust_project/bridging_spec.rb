@@ -10,7 +10,7 @@ require_relative "../../rust/project/bridging"
 # default in those three either names every field explicitly or has
 # none at all), so this bug was latent — real, but unexercised by
 # anything codegen_parity_spec.rb's own corpus-based proof already
-# covers. Found live generating lifeadelics' vendored
+# covers. Found live generating a client project's vendored
 # embryonaut_bluebooks/payments — the first domain in the corpus to
 # hit it. Tested directly here instead of via a new fixture domain,
 # same reasoning constraints_spec.rb's own header already gives for

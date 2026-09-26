@@ -78,7 +78,7 @@ RSpec.describe Hecks::Fuzzing::IsolatedBoot do
     it "carries only the packages a hecksagon names" do
       Dir.mktmpdir do |root|
         domain = project(root, uses: %w[widgets], vendored: %w[widgets gadgets])
-        write(root, "vendor/embryonaut_console/keep_out.txt", "not a bluebook package")
+        write(root, "vendor/other_project/keep_out.txt", "not a bluebook package")
 
         vendor = described_class.call(domain) do |copy|
           Dir.glob(File.join(File.dirname(copy), "vendor", "*", "*")).map { |path| path.split("vendor/").last }

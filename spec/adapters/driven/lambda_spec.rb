@@ -37,27 +37,27 @@ RSpec.describe Hecks::Adapters::Lambda do
   # A deployment whose function isn't `hecks-<domain>` — a `.world`'s own
   # `stack_prefix`/`stack_name` can name a stack that predates a rename,
   # and nothing downstream of that could be told about it without this
-  # pass-through. Found live: embryonautfoundersapp deploys as `hecksagain-embryonaut`,
+  # pass-through. Found live: a real project deploys as `legacy-order-service`,
   # so every Ruby-side read and dispatch for it had been invoking a
   # function that does not exist.
   it "passes a :function setting straight through to the client" do
     # rubocop:disable-next RSpec/StubbedMock -- the args passed to Client.new
     # are the assertion.
     expect(described_class::Client).to receive(:new)
-      .with(domain: anything, region: anything, function: "hecksagain-embryonaut")
+      .with(domain: anything, region: anything, function: "legacy-order-service")
       .and_return(instance_double(described_class::Client))
 
-    described_class.new(aggregate: aggregate, settings: { function: "hecksagain-embryonaut" })
+    described_class.new(aggregate: aggregate, settings: { function: "legacy-order-service" })
   end
 
   it "reads the same setting string-keyed, the way a round-tripped export spells it" do
     # rubocop:disable-next RSpec/StubbedMock -- the args passed to Client.new
     # are the assertion.
     expect(described_class::Client).to receive(:new)
-      .with(domain: anything, region: anything, function: "hecksagain-embryonaut")
+      .with(domain: anything, region: anything, function: "legacy-order-service")
       .and_return(instance_double(described_class::Client))
 
-    described_class.new(aggregate: aggregate, settings: { "function" => "hecksagain-embryonaut" })
+    described_class.new(aggregate: aggregate, settings: { "function" => "legacy-order-service" })
   end
 
   it "still falls back to the aggregate's own name in @prefix when :domain is genuinely absent" do

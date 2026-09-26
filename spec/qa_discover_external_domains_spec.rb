@@ -88,7 +88,7 @@ RSpec.describe "bin/qa_discover_external_domains" do
   end
 
   it "reports a root-shaped domain — <repo-root>/bluebook/<repo-name>.bluebook, the entity dir IS the " \
-     "sibling's own root (embryonautfoundersapp's real shape) — alongside a sibling adapters/ dir inside " \
+     "sibling's own root (a real client project's shape) — alongside a sibling adapters/ dir inside " \
      "bluebook/ that must not be mistaken for a second entity (a real translations/ dir is deliberately " \
      "NOT part of this fixture — see its own bluebook/adapters/README.md for why: that exact directory " \
      "name is itself a live corpus route this repo's own spec/translation/committed_edges_spec.rb reads, " \
@@ -103,7 +103,7 @@ RSpec.describe "bin/qa_discover_external_domains" do
     expect(out).not_to include("root_shaped_sibling/adapters")
   end
 
-  it "does not false-positive a root-shaped hecksagain project — the real embryonautfoundersapp situation: " \
+  it "does not false-positive a root-shaped hecksagain project — the real client-project situation: " \
      "a root-shaped bluebook reading `Hecks.bluebook`, backed by vendored hecksagain (`Hecks = Hecksagain`), " \
      "never a dependency on the real hecks gem" do
     out, _err, status = run_discover
