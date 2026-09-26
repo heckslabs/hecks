@@ -136,7 +136,8 @@ module Hecks
         #   `Runtime::PolicyInterpreter` against the triggering event's payload; never called here
         # @return [void]
         # @raise [Bluebook::DSL::Malformed] if the block's source could not be extracted, or if it
-        #   references a pattern `Expression::AstJson.refuse_unshared_patterns!` does not share
+        #   references a pattern `Expression::AstJson.refuse_unshared_patterns!` does not share, or
+        #   calls a method the expression language does not have
         def where(&predicate)
           canonical = Ports::Extraction.canonical(predicate)
 
@@ -147,8 +148,9 @@ module Hecks
           end
 
           # C3.6 — the same PatternSubset check every rule site gets.
-          Expression::AstJson.refuse_unshared_patterns!(Expression::AstJson.emit_predicate(canonical),
-                                                        owner: @name, word: "where")
+          ast = Expression::AstJson.emit_predicate(canonical)
+          Expression::AstJson.refuse_unshared_patterns!(ast, owner: @name, word: "where")
+          Expression::AstJson.refuse_unresolvable_lookups!(ast, owner: @name, word: "where")
           @where = canonical
         end
 

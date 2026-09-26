@@ -131,6 +131,49 @@ module Hecks
           ast
         end
 
+        # What a `lookup` path can never contain: a call's parentheses, or an argument list's
+        # commas and spaces. Attribute names carry none of these, so a path that does is a method
+        # call with arguments that the grammar has no node for.
+        #
+        # A bare `?` is deliberately not in the set. `x.nil?` also parses as a lookup, but it loads
+        # and, on a String, Boolean or `nil` value, evaluates without raising; real bluebooks
+        # declare it, so refusing it would stop them loading.
+        UNRESOLVABLE_PATH = /[(),\s]/
+        private_constant :UNRESOLVABLE_PATH
+
+        # Refuses a rule that calls a method the expression grammar does not have.
+        #
+        # An unrecognised call such as `value.between?(100, 599)` parses as a `lookup` whose path
+        # names an attribute that can never exist, so it loads and then fails on the first
+        # dispatch. Refusing it here moves the failure to build time, where the author is looking.
+        # The supported spellings (comparisons joined with `&&`/`||`, `.positive?`, `.empty?`,
+        # `.include?`, ...) are the rows of `projection.json`.
+        #
+        # @param ast [Hash] a JSON AST node, as emitted by `emit_predicate` or `emit_bool`
+        # @param owner [String] the declaring bluebook's name, for the refusal message
+        # @param word [String] the rule's own kind and description (such as
+        #   `"invariant \"a status code\""`), for the refusal message
+        # @return [Hash] `ast`, unchanged
+        # @raise [Bluebook::DSL::Malformed] if any `lookup` node's path contains a parenthesis,
+        #   comma or whitespace
+        def refuse_unresolvable_lookups!(ast, owner:, word:)
+          return ast if Hecks::Bluebook::MetaValidator.shadow_parsing? # frozen era text is history
+
+          each_node(ast) do |node|
+            next unless node["op"] == "lookup" && node["path"].is_a?(::Array)
+
+            expression = node["path"].join(".")
+            next unless expression.match?(UNRESOLVABLE_PATH)
+
+            raise DSL::Malformed,
+                  "#{owner}'s #{word} uses #{expression.inspect}, which the expression language " \
+                  "cannot evaluate — it is not an attribute, and it is not a method the language " \
+                  "supports. Spell the test with comparisons and `&&`/`||` instead, such as " \
+                  "`value >= 100 && value <= 599` in place of `value.between?(100, 599)`"
+          end
+          ast
+        end
+
         # Every name a rule resolves at its root — the first segment of
         # each `lookup` path, unique, in first-seen order.
         #
