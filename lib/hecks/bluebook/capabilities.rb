@@ -48,8 +48,22 @@ module Hecks
       # vocabulary), not commands.
       PAYMENTS = "payments".freeze
 
+      # Scheduling sessions and taking registrations for them — recognised
+      # by declaration, not the literal aggregate names "Event" and
+      # "Registration". rust/host's event and registration routes dispatch
+      # these verbs; the aggregates they name are the event and the
+      # registration.
+      REGISTRATIONS = "registrations".freeze
+
+      # A business's connection to its payment processor: connect it, drop
+      # it, pause it, and switch taking payments on or off — recognised by
+      # declaration, not the literal name "PaymentConnection". rust/host's
+      # payments routes dispatch these verbs; the connection aggregate is
+      # the one `connect` names.
+      PAYMENT_CONNECTION = "payment_connection".freeze
+
       CONTRACTS = {
-        AUTHORIZATION     => {
+        AUTHORIZATION      => {
           # every assignment an actor holds, current or historical
           assignments: :query,
           # the command that grants an actor a role
@@ -57,7 +71,7 @@ module Hecks
           # every grant of one role acting as another
           transitions: :query
         }.freeze,
-        MEMBERSHIP        => {
+        MEMBERSHIP         => {
           # recognize a person who may eventually sign in
           admit:  :command,
           # grant an admitted person a role (the access-grant half)
@@ -65,7 +79,7 @@ module Hecks
           # every admitted person, for the admin listing
           people: :query
         }.freeze,
-        IDENTITY          => {
+        IDENTITY           => {
           # mint a stable identity, independent of how it authenticated
           register: :command,
           # associate an (issuer, subject) pair with that identity
@@ -73,7 +87,7 @@ module Hecks
           # look up the identity an authenticated pair resolves to
           resolve:  :query
         }.freeze,
-        NEWSLETTER        => {
+        NEWSLETTER         => {
           # a guest signs up; the aggregate it names is the subscriber
           subscribe:   :command,
           # attach a display name to an existing subscriber
@@ -83,20 +97,42 @@ module Hecks
           # a subscriber leaves from the emailed link
           unsubscribe: :command
         }.freeze,
-        NEWSLETTER_ISSUES => {
+        NEWSLETTER_ISSUES  => {
           # mark an issue sent; the issue aggregate is the one it names
           send_issue:      :command,
           # record one email handed to the mail provider; the delivery
           # aggregate is the one it names
           record_delivery: :command
         }.freeze,
-        PAYMENTS          => {
+        PAYMENTS           => {
           # start a payment; the aggregate it names is the payment
           initiate:  :command,
           # the processor reports the money arrived
           succeeded: :port_operation,
           # the processor reports the payment failed or expired
           failed:    :port_operation
+        }.freeze,
+        REGISTRATIONS      => {
+          # schedule a session; the aggregate it names is the event
+          schedule: :command,
+          # a guest asks for a place; the aggregate it names is the registration
+          request:  :command
+        }.freeze,
+        PAYMENT_CONNECTION => {
+          # link the processor account; the aggregate it names is the connection
+          connect:    :command,
+          # link a different processor account after a disconnect
+          reconnect:  :command,
+          # drop the link
+          disconnect: :command,
+          # pause the connection without dropping it
+          suspend:    :command,
+          # lift a pause
+          resume:     :command,
+          # switch taking payments on
+          enable:     :command,
+          # switch taking payments off
+          disable:    :command
         }.freeze
       }.freeze
     end

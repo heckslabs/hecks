@@ -403,6 +403,28 @@ module Hecks
         vendored_provider_for(domain, Bluebook::Capabilities::NEWSLETTER_ISSUES)
       end
 
+      # The chapter that answers scheduling sessions and taking registrations
+      # for `domain` — resolved the same way as `payments_provider_for`, by what
+      # it declares (`provides "registrations"`). Nil when none does.
+      #
+      # @param domain [String, Symbol] the domain whose registrations chapter is being resolved
+      # @return [Bluebook::Chapter, nil] the chapter that answers `domain`'s registrations,
+      #   or nil if none does
+      def registrations_provider_for(domain)
+        vendored_provider_for(domain, Bluebook::Capabilities::REGISTRATIONS)
+      end
+
+      # The chapter that owns the business's payment-processor connection for
+      # `domain` — resolved by what it declares (`provides "payment_connection"`).
+      # Nil when none does.
+      #
+      # @param domain [String, Symbol] the domain whose payment-connection chapter is being resolved
+      # @return [Bluebook::Chapter, nil] the chapter that owns `domain`'s payment connection,
+      #   or nil if none does
+      def payment_connection_provider_for(domain)
+        vendored_provider_for(domain, Bluebook::Capabilities::PAYMENT_CONNECTION)
+      end
+
       # The chapter that takes payments for `domain` — the domain's own
       # chapter, a framework member, or a vendored embryonaut bluebook it
       # attaches, that declares `provides "payments"`. Nil when none does.

@@ -306,6 +306,16 @@ else
   payments = Hecks::Projector::Exporter.payments(target_registry, target_domain_name)
   target_ir[:payments] = json_shaped(payments) unless payments.empty?
 
+  # And again for events and registrations, and for the payment-processor
+  # connection — rust/host's registration and payments-connection routes read
+  # these instead of naming Event.Schedule, Registration.Request and
+  # PaymentConnection's commands. Each omitted entirely when nothing attached
+  # provides it.
+  registrations = Hecks::Projector::Exporter.registrations(target_registry, target_domain_name)
+  target_ir[:registrations] = json_shaped(registrations) unless registrations.empty?
+  payment_connection = Hecks::Projector::Exporter.payment_connection(target_registry, target_domain_name)
+  target_ir[:payment_connection] = json_shaped(payment_connection) unless payment_connection.empty?
+
   if !membership.empty? && identity.empty?
     abort "#{target_domain_name} provides membership but not identity — rust/host " \
           "Google sign-in cannot register or link an identity from ir.json. " \
