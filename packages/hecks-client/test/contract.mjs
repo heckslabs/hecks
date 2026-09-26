@@ -10,11 +10,16 @@
 // uniquely named session, so it can be repeated against the same database.
 // The wait for the host to start is bounded by HECKS_CONTRACT_WAIT_SECONDS
 // (default 60).
+//
+// When the host also serves the payment-connection routes (it started with
+// HECKS_CHECKOUT_DOMAIN naming its domain), set HECKS_CONTRACT_PAYMENTS=1 to
+// check that `PaymentsConnection` gets the host's 401 for a session it cannot
+// verify. The checkout fixture run leaves it off.
 
 import assert from "node:assert/strict";
 import { before, describe, it } from "node:test";
 
-import { DomainUnavailable, HostClient } from "../dist/index.js";
+import { DomainUnavailable, HostClient, PaymentsConnection } from "../dist/index.js";
 import { runEventScenario } from "./scenario.mjs";
 
 const url = process.env.HECKS_SERVICE_URL;
@@ -64,5 +69,12 @@ describe(`the live host at ${url}`, () => {
   it("reports a host that is not listening as unavailable", async () => {
     const nobody = new HostClient({ domain, url: "http://127.0.0.1:1", timeoutMs: 2000 });
     await assert.rejects(nobody.read(), DomainUnavailable);
+  });
+});
+
+describe("the live host's payment-connection routes", { skip: process.env.HECKS_CONTRACT_PAYMENTS !== "1" }, () => {
+  it("refuses a session it cannot verify with 401 and its own words", async () => {
+    const result = await new PaymentsConnection({ url }).show("not-a-real.token");
+    assert.deepEqual(result, { ok: false, status: 401, error: "not logged in" });
   });
 });
