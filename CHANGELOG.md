@@ -25,6 +25,123 @@ lacks its aggregate's lifecycle field that lifecycle's default, inside the mint
 transaction, under the same advisory lock a dispatch holds. Instances that
 already carry the field, and aggregates with no lifecycle, are left alone.
 
+## [2.4.0] - 2026-09-26
+
+**A value object declared in a sibling aggregate is read as a value object.**
+A value object declared on one aggregate and used as an attribute type on
+another aggregate of the same chapter (`attribute :site_reference,
+SiteReference`, with `SiteReference` declared on `ManagedSite`) was read by the
+IR assembly as `Reference<SiteReference>`, and the SQL query builders never
+found it: on Postgres and PostgresEra a `where(site_reference: :site_reference)`
+matched nothing in every call shape, while Memory answered correctly. The
+attribute is now read as the value object it names, and the query builders
+resolve it chapter-wide the way coercion already did, so where-queries on it
+work on every adapter. Declaring a local copy of the value object was the
+workaround; it is no longer needed. **Behavior change for deployed domains:**
+the IR of any domain that uses this pattern changes, so its era hash changes.
+A deployed PostgresEra domain gets a new era on first boot after upgrading.
+
+**An unsupported method call in a rule is refused when the bluebook loads.** A
+call the expression language has no node for, written in an `invariant`,
+`given`, `ensures` or a policy `where`, for example `value.between?(100, 599)`,
+used to load and then raise `EvaluationError: cannot read "between?(100, 599)"`
+on the first dispatch. It now raises `DSL::Malformed` at load, naming the
+expression and the supported alternative (comparisons joined with `&&` / `||`,
+e.g. `value >= 100 && value <= 599`). A path containing a parenthesis, comma or
+whitespace is what marks a call; bare `.nil?` is deliberately not refused and
+still loads. **Behavior change:** a bluebook that used such a call loaded before
+and is refused now; rewrite the rule.
+
+**rust/host takes Stripe payments in an embedded Checkout form.** For an
+enabled Stripe connection, `POST /registrations` opens the Checkout Session
+embedded rather than hosted, so the guest pays inside the site. The response is
+`{registration_id, embedded_checkout: {client_secret, publishable_key,
+stripe_account, session_id}}` with no `checkout_url`; the mock walkthrough still
+answers `{checkout_url, registration_id}`. The request pins
+`Stripe-Version: 2026-04-22.dahlia` and sets `ui_mode=embedded_page`. The
+session is opened before anything is written: a Stripe failure answers 502
+`payments are temporarily unavailable` and leaves no Payment or Registration
+behind, so a retry does not strand an orphan. **Behavior change for hosts and
+sites:** a Stripe plan no longer returns a hosted URL, and the site must mount
+the embedded form. New config `STRIPE_PLATFORM_TEST_PUBLISHABLE_KEY` and
+`STRIPE_PLATFORM_LIVE_PUBLISHABLE_KEY`; an enabled connection whose mode has a
+secret key but no publishable key is paused (503) before any write.
+
+**rust/host lets a business use its own Stripe account, without Connect.**
+`POST /payments/connection/direct` (Owner only) records the connection with the
+reserved `account_ref` `self`. It takes either `{mode}`, for keys set in the
+environment (`STRIPE_ACCOUNT_TEST_KEY`, `STRIPE_ACCOUNT_LIVE_KEY` and their
+`..._PUBLISHABLE_KEY` pairs), or `{secret_key, publishable_key}` pasted on the
+Payments page. Saving verifies the key with Stripe, creates the webhook
+endpoint in the business's own account, and stores keys, signing secret and
+webhook id in one AWS Secrets Manager secret (`PAYMENTS_ACCOUNT_SECRET_ID`;
+`PAYMENTS_WEBHOOK_BASE_URL` sets the webhook origin, defaulting to `SITE_URL`),
+never in the tenant schema, a response or a log line. Disconnect removes the
+webhook and the saved keys. `GET /payments/connection` gains `can_save_keys`.
+Environment keys win over saved ones. Connect connections behave as before.
+**Behavior change for hosts:** the public mock webhook secret is now refused
+(500) whenever any real Stripe credential is configured or saved and no
+`STRIPE_WEBHOOK_SECRET` or saved signing secret exists.
+
+**rust/host refuses registrations for a full event.** `POST /registrations`
+answers 409 `this event is full` after the 404 and 422 checks and before any
+Stripe call or write. A seat is held by a Registration whose Payment is
+`pending`, `succeeded`, `refunding` or `disputed`; `failed`, `refunded` and
+`charged_back` give it back. Embedded sessions expire 31 minutes after creation,
+so an abandoned checkout releases its seat through the existing
+`checkout.session.expired` webhook. An event with no readable capacity is not
+blocked; a mock registration has no expiry and holds its seat until settled.
+
+**The host's account cookie name is configurable, and its default changed.**
+`HECKS_SESSION_COOKIE` names the cookie (letters, digits, `_`, `-`, `.`; boot
+refuses anything else). **Behavior change for hosts:** the default is now
+`hecks_session`, not `lifeadelics_session`. A host that sets nothing logs its
+existing sessions out on upgrade; set `HECKS_SESSION_COOKIE=lifeadelics_session`
+to keep them.
+
+**The glossary tags sensitive fields.** Fields marked with
+`has_phi(readable_by:)` in a `.hecksagon` now read `medications (text, PHI)` and
+each aggregate lists them under **Handled as sensitive**, with the role that
+reads them unredacted. `Projector.call(:glossary, ..., options: {markings:
+[...]})` takes the markings and `bin/project_glossary` passes the booted
+registry's own; with none the Markdown is unchanged. Also fixed: the HTML
+renderer dropped every list caption, so "Always true" rendered as an empty
+paragraph.
+
+**Tooling: `bin/project_deploy` and committed client code.** `bin/project_deploy`
+takes `--out=<dir>` to write a recipe beside the client, and
+`--environment=<name>` to load `<domain>/bluebook/environments/<name>.world`
+over the base world (a missing overlay aborts). `examples/banking`'s base world
+is now generic; its live stack names moved to
+`environments/production.world`. Removed: `deploy/lifeadelics/`, the committed
+`rust/src/generated/{embryonaut,lifeadelics,membership,newsletter,privacy}/`
+snapshots, the `embryonaut` and `lifeadelics` Cargo features, and the corpus
+machinery that only accounted for external domains (`Corpus`'s `:external`
+check kind and vendored-chapter helpers). A client's own build regenerates its
+Rust with `bin/project_wasm`, which does not need them. `web/lifeadelics.rs` is
+now `web/registrations.rs`.
+
+**QA tooling.** The ledger's Governance chapter has a world, so
+`bin/run qa/bluebook` boots again after 2.0.0 (#824). Persistence-parity
+sweeps read a PostgresEra binding passed through a local variable (#825),
+carry the vendored bluebooks a target names into the isolated copy (#831), and
+ask generated queries about values the sequence stored, so a where-query on a
+written row is exercised rather than matching nothing on every adapter (#835).
+
+**Two new capabilities: `registrations` and `payment_connection`.** A chapter
+can now declare `provides "registrations", schedule: "Event.Schedule", request:
+"Registration.Request"` and `provides "payment_connection", connect: ...,
+reconnect: ..., disconnect: ..., suspend: ..., resume: ..., enable: ...,
+disable: ...` (each naming a real command of that chapter). `bin/project_rust`
+exports them to `ir.json` as `registrations` (with `event_aggregate` and
+`registration_aggregate`) and `payment_connection` (with `aggregate`), the same
+way `payments` is exported, and omits each key when nothing attached provides
+it. This is groundwork: rust/host does not read them yet, so nothing about a
+running host changes. Declaring either capability does not change a domain's
+storage shape, so it does not mint an era. A hecks gem older than this change
+refuses either `provides` line ("no capability the language knows"), so a
+consumer must upgrade the gem before declaring them.
+
 **The unsubscribe link is signed.** Every email that carries an unsubscribe
 URL (each recipient of an issue send, `send-test`, and the `List-Unsubscribe`
 header on the confirmation email) now links to

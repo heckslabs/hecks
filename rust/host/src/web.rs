@@ -2695,7 +2695,7 @@ mod tests {
         // A session token and a token minted for another purpose both verify
         // as tokens under some key, but never as a signup token.
         let session_token = auth::account_token(secret, "zed@example.com", 60);
-        let other_purpose = auth::purpose_token(secret, "payment_connect", json!({}), 60);
+        let other_purpose = auth::purpose_token(secret, "another_purpose", json!({}), 60);
         let wrong_secret = auth::purpose_token("another", SIGNUP_PURPOSE, json!({}), 60);
 
         for token in ["", "garbage.notasignature", session_token.as_str(), other_purpose.as_str(), wrong_secret.as_str()] {
