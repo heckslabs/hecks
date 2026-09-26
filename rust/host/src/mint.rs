@@ -29,12 +29,12 @@
 //
 // Always uses the full (non-layered) chain build — `head_compiler.rb`'s
 // own `layered_chain_sql` optimization (era N built from era N-1's
-// matview instead of the raw ancestor tail) is a performance shortcut
-// over an already-correct slower path (`compile_head!`'s own `full:`
-// parameter already supports forcing it), never a distinct code path
-// this crate's own correctness depends on. Deferred, not skipped —
-// worth adding once a real deployment's era count makes the raw-tail
-// scan expensive enough to matter.
+// matview instead of the raw ancestor tail) is not ported. It is no longer
+// what keeps a long chain affordable: the full chain's cost used to grow
+// exponentially with the number of eras (see `chain_sql`), and it is now
+// linear because every CTE in it is `MATERIALIZED`. The layered build would
+// still save re-reading the ancestor tail on each mint, which is worth adding
+// once a deployment's journal, not its era count, makes that scan expensive.
 
 use anyhow::Context;
 use crate::journal::quote_ident;
@@ -720,7 +720,32 @@ fn latest_per_id(tail: &str) -> String {
     format!("SELECT DISTINCT ON (aggregate_id) ordinal, era, aggregate, aggregate_id, operation, state FROM ({tail}) tail_entries ORDER BY aggregate_id, ordinal DESC")
 }
 
+/// The whole era chain as one `WITH` statement: the ancestor tail, then one
+/// CTE per edge that applies that edge's compiled rules to the CTE before it.
+///
+/// **Each edge CTE is `MATERIALIZED`**. Postgres otherwise inlines a CTE that is
+/// read once, and an edge's rules read `state` more than once (a backfill reads
+/// its input three times, the era guard twice), so the planner copies the whole
+/// previous edge's expression into every one of those reads. That doubles or
+/// triples the expression tree at every edge: the six-edge chain of a real
+/// deployment planned to about 70,000 sub-plans and ran for minutes (with JIT on,
+/// which the expression's estimated cost switches on, for far longer), over a
+/// journal of a few hundred rows. Materializing each edge evaluates it once per
+/// row and makes the statement grow with the number of edges, not exponentially.
+/// The rows are identical either way.
 fn chain_sql(domain: &str, current_name: &str, era: i32, edges: &[&Edge], watermarks: &std::collections::HashMap<i32, Option<i64>>) -> String {
+    chain_sql_with(domain, current_name, era, edges, watermarks, true)
+}
+
+fn chain_sql_with(
+    domain: &str,
+    current_name: &str,
+    era: i32,
+    edges: &[&Edge],
+    watermarks: &std::collections::HashMap<i32, Option<i64>>,
+    materialize_edges: bool,
+) -> String {
+    let fence = if materialize_edges { "MATERIALIZED " } else { "" };
     let (current_names, storage_names) = names_by_era(current_name, edges);
     let tail = latest_per_id(&ancestor_tail_sql(domain, era, &storage_names, watermarks));
 
@@ -740,13 +765,13 @@ fn chain_sql(domain: &str, current_name: &str, era: i32, edges: &[&Edge], waterm
             };
             let from = if index == 0 { "tail".to_string() } else { format!("edge_{index}") };
             format!(
-                "edge_{} AS (SELECT ordinal, era, {id_column}, operation, CASE WHEN {guard} THEN {expression} ELSE state END AS state FROM {from})",
+                "edge_{} AS {fence}(SELECT ordinal, era, {id_column}, operation, CASE WHEN {guard} THEN {expression} ELSE state END AS state FROM {from})",
                 index + 1
             )
         })
         .collect();
 
-    format!("WITH tail AS ({tail}),\n{}\nSELECT ordinal, aggregate_id, operation, state FROM edge_{}", chain.join(",\n"), edges.len())
+    format!("WITH tail AS {fence}({tail}),\n{}\nSELECT ordinal, aggregate_id, operation, state FROM edge_{}", chain.join(",\n"), edges.len())
 }
 
 /// `HeadCompiler#latest_of` — reduces any of the chain SQLs above (run
@@ -1773,6 +1798,158 @@ mod tests {
         journal::ensure_schema(&client).await.expect("ensure_schema");
         assert_eq!(fill_snapshot_lifecycle_defaults(&client, "Studio", &[registration_default()]).await.unwrap(), 0, "no row");
     }
+
+    // ───────────── era chain SQL ─────────────
+
+    /// The compiled expression `Translation::RuleCompiler#compile_backfill`
+    /// writes for one backfilled path, wrapped around `inner`.
+    fn backfill_expression(inner: &str, path: &[&str], default_json: &str) -> String {
+        let array = format!("ARRAY[{}]::text[]", path.iter().map(|p| format!("'{p}'")).collect::<Vec<_>>().join(", "));
+        let label = path.join(".");
+        format!(
+            "(SELECT CASE WHEN (hecks_tr_extract(__s, {array})).present THEN __s ELSE hecks_tr_insert(__s, {array}, '{default_json}'::jsonb, 'backfill {label}') END FROM (SELECT ({inner}) AS __s) __outer)"
+        )
+    }
+
+    /// Every row a chain statement yields, as sorted text.
+    async fn raw_rows(client: &tokio_postgres::Client, sql: &str) -> Vec<String> {
+        let mut rows: Vec<String> = client
+            .query(&format!("SELECT ordinal::text || '|' || aggregate_id || '|' || operation || '|' || coalesce(state::text, 'null') FROM ({sql}) c"), &[])
+            .await
+            .expect("chain query")
+            .iter()
+            .map(|r| r.get::<_, String>(0))
+            .collect();
+        rows.sort();
+        rows
+    }
+
+    fn edge_of(from: &str, to: &str, aggregate: &str, expression: &str) -> Edge {
+        Edge {
+            from: from.to_string(),
+            to: to.to_string(),
+            aggregates: vec![EdgeAggregate {
+                name: aggregate.to_string(),
+                was: None,
+                has_compute_or_rekey: false,
+                compiled_state_expression: expression.to_string(),
+                compiled_id_expression: None,
+            }],
+        }
+    }
+
+    /// The statement text carries the fence on the tail and on every edge, for any
+    /// chain length: that is what keeps the planner from copying an edge's
+    /// expression into each read of `state`.
+    #[test]
+    fn every_cte_of_the_chain_is_materialized() {
+        let watermarks = std::collections::HashMap::new();
+        let edges: Vec<Edge> = (1..=6).map(|n| edge_of(&format!("e{n}"), &format!("e{}", n + 1), "Registration", "state")).collect();
+        for n in 1..=6usize {
+            let chain: Vec<&Edge> = edges[..n].iter().collect();
+            let sql = chain_sql("Chain", "Registration", (n + 1) as i32, &chain, &watermarks);
+            assert!(sql.starts_with("WITH tail AS MATERIALIZED ("), "{sql}");
+            assert_eq!(sql.matches("AS MATERIALIZED (").count(), n + 1, "the tail and each of the {n} edges: {sql}");
+            for edge in 1..=n {
+                assert!(sql.contains(&format!("edge_{edge} AS MATERIALIZED (")), "edge {edge}: {sql}");
+            }
+        }
+    }
+
+    /// **Same rows, either way**. Materializing each edge's CTE (the fix for the
+    /// planner copying every previous edge's expression into each read of
+    /// `state`) must not change one row of any chain. Five eras of history,
+    /// with a delete, a re-saved id and shapes that only some edges touch, over
+    /// every chain length, for both aggregates, compared as the raw chain output
+    /// and as the latest-per-id result the audit and the head build read.
+    #[tokio::test]
+    async fn materializing_the_edge_ctes_returns_exactly_the_rows_the_inlined_chain_does() {
+        let client = own_scratch_db("hecks_host_mint_chain_differential").await;
+        journal::ensure_schema(&client).await.expect("ensure_schema");
+        let domain = "Chain";
+        let aggregates = vec![
+            Aggregate { name: "Registration".to_string(), storage_name: "registration".to_string() },
+            Aggregate { name: "Event".to_string(), storage_name: "event".to_string() },
+        ];
+        let ir = serde_json::json!({"name": domain, "aggregates": []});
+        hold_first(&client, domain, "era 1", &ir, &aggregates, None).await.expect("hold_first");
+
+        // Edge 1 backfills four nested paths; edges 2 and 3 carry no rule (as
+        // most of a real deployment's edges do); edge 4 backfills one more.
+        let mut nested = "hecks_tr_drop(state, ARRAY['attendee', 'name']::text[])".to_string();
+        for field in ["first_name", "last_name", "phone", "aim"] {
+            nested = backfill_expression(&nested, &["attendee", field], "\"(none)\"");
+        }
+        let edges = vec![
+            edge_of("e1", "e2", "Registration", &nested),
+            edge_of("e2", "e3", "Event", "state"),
+            edge_of("e3", "e4", "Event", "state"),
+            edge_of("e4", "e5", "Registration", &backfill_expression("state", &["status"], "\"active\"")),
+        ];
+
+        let journal_name = "hecks_journal_chain";
+        let insert = |era: i32, aggregate: &str, id: &str, operation: &str, state: Value| {
+            let client = &client;
+            let (aggregate, id, operation) = (aggregate.to_string(), id.to_string(), operation.to_string());
+            async move {
+                client
+                    .execute(
+                        &format!("INSERT INTO {journal_name} (era, aggregate, aggregate_id, operation, state) VALUES ($1, $2, $3, $4, $5)"),
+                        &[&era, &aggregate, &id, &operation, &state],
+                    )
+                    .await
+                    .expect("journal insert");
+            }
+        };
+        for era in 1..=5i32 {
+            // era 1 carries the old attendee shape, later eras the new one
+            let attendee = |n: &str| if era == 1 { serde_json::json!({"name": n, "email": "a@example.com"}) } else { serde_json::json!({"first_name": n, "email": "a@example.com"}) };
+            for i in 0..6 {
+                let id = format!("r{}", (era as usize + i) % 5);
+                insert(era, "registration", &id, "save", serde_json::json!({"attendee": attendee(&format!("n{era}{i}"))})).await;
+            }
+            insert(era, "event", &format!("e{era}"), "save", serde_json::json!({"name": {"value": format!("event {era}")}})).await;
+            insert(era, "event", "e1", "save", serde_json::json!({"name": {"value": "renamed"}})).await;
+            if era == 3 {
+                insert(era, "registration", "r0", "delete", Value::Null).await;
+            }
+            if era < 5 {
+                let chain: Vec<&Edge> = edges[..era as usize].iter().collect();
+                mint_era(&client, domain, era + 1, &"h".repeat(64), &format!("e{}", era + 1), "text", &aggregates, &chain, None, &[]).await.expect("mint_era");
+            }
+        }
+
+        let held = journal::held_eras(&client, domain).await.unwrap();
+        let watermarks: std::collections::HashMap<i32, Option<i64>> = held.iter().map(|h| (h.ordinal, h.watermark)).collect();
+        let mut compared = 0;
+        for aggregate in &aggregates {
+            for n in 1..=edges.len() {
+                let chain: Vec<&Edge> = edges[..n].iter().collect();
+                let era = (n + 1) as i32;
+                let inlined = chain_sql_with(domain, &aggregate.name, era, &chain, &watermarks, false);
+                let fenced = chain_sql_with(domain, &aggregate.name, era, &chain, &watermarks, true);
+                assert_ne!(inlined, fenced, "the two forms really differ");
+                assert!(fenced.contains("AS MATERIALIZED (") && !inlined.contains("MATERIALIZED"));
+
+                let (a, b) = (raw_rows(&client, &inlined).await, raw_rows(&client, &fenced).await);
+                assert!(!a.is_empty(), "{} chain of {n}: the fixture yields rows", aggregate.name);
+                assert_eq!(a, b, "{} chain of {n}: raw rows", aggregate.name);
+                assert_eq!(
+                    latest_of(&client, &inlined).await.unwrap(),
+                    latest_of(&client, &fenced).await.unwrap(),
+                    "{} chain of {n}: latest per id",
+                    aggregate.name
+                );
+                compared += 1;
+            }
+        }
+        assert_eq!(compared, 8);
+        // and the fixture exercised what it claims to: a backfilled status reached the head
+        let translated = translated_latest(&client, domain, "Registration", 5, &edges.iter().collect::<Vec<_>>(), &watermarks).await.unwrap();
+        assert!(translated.values().all(|state| state["status"] == "active"), "{translated:?}");
+        assert_eq!(translated.len(), 5, "five registrations were ever saved: {translated:?}");
+    }
+
 
     // Layer 2 proven live, both directions: a raw edge whose declared
     // rules genuinely agree with what the compiled SQL does passes
