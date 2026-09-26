@@ -167,10 +167,10 @@ async fn verify_id_token(id_token: &str, client_id: &str) -> Result<Claims, Stri
 
 // ---------- Account token (the account cookie and CMS handoff) ----------
 
-/// The cookie name the first consuming site already sends its account
-/// token in. It stays the default so a deploy that sets nothing keeps
-/// working; a deploy names its own with `HECKS_SESSION_COOKIE`.
-pub const DEFAULT_ACCOUNT_COOKIE: &str = "lifeadelics_session";
+/// The cookie name the account token travels in when a deploy names none.
+/// A deploy whose site already sends a different name pins it with
+/// `HECKS_SESSION_COOKIE` (lifeadelics sets `lifeadelics_session`).
+pub const DEFAULT_ACCOUNT_COOKIE: &str = "hecks_session";
 
 /// The pure half of `account_cookie_name`, unit-tested apart from the env
 /// read. Unset or empty means the default; anything else must be a valid
@@ -1039,6 +1039,11 @@ mod tests {
     fn the_account_cookie_defaults_when_unset_or_empty() {
         assert_eq!(resolve_account_cookie(None).unwrap(), DEFAULT_ACCOUNT_COOKIE);
         assert_eq!(resolve_account_cookie(Some("")).unwrap(), DEFAULT_ACCOUNT_COOKIE);
+    }
+
+    #[test]
+    fn the_default_account_cookie_is_the_neutral_hecks_name() {
+        assert_eq!(DEFAULT_ACCOUNT_COOKIE, "hecks_session");
     }
 
     #[test]
