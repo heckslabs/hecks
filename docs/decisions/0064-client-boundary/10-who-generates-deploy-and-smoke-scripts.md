@@ -1,6 +1,6 @@
 # 10: Who generates deploy and smoke scripts
 
-**Status:** Open (wayfinder ticket) · **Type:** grilling (HITL) · **Blocked by:** none (ticket 04 resolved) · **Claimed by:** unclaimed
+**Status:** Accepted 2026-09-26 · **Type:** grilling (HITL) · **Blocked by:** none (ticket 04 resolved) · **Claimed by:** unclaimed
 **Map:** [0064 client boundary](../0064-client-boundary-map.md)
 
 ## Question
@@ -24,4 +24,4 @@ D now, A later. Generate the scripts and a multi-container template for new clie
 
 ## Decision
 
-Not yet resolved.
+Accepted by the owner on 2026-09-26: **A**. Hecks generates the template and the hosting scripts from the world block, and the platform only records deployments. The gate for switching a live stack to generated output is an empty CloudFormation change set: first compared offline by template, and executed only with the owner's explicit approval. Ticket 04 showed that this needs a generalized generator. Option D (generate for new clients only) remains the fallback if converging the existing client proves too costly.

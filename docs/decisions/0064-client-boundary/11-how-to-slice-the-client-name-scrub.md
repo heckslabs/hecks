@@ -1,6 +1,6 @@
 # 11: How to slice the client-name scrub
 
-**Status:** Open (wayfinder ticket) · **Type:** grilling (HITL) · **Blocked by:** 01 (ticket 03 resolved) · **Claimed by:** unclaimed
+**Status:** Accepted 2026-09-26 · **Type:** grilling (HITL) · **Blocked by:** 01 (ticket 03 resolved) · **Claimed by:** unclaimed
 **Map:** [0064 client boundary](../0064-client-boundary-map.md)
 
 ## Question
@@ -19,4 +19,4 @@ Four PRs by area, branched from fresh `origin/main` after the other session's PR
 
 ## Decision
 
-Not yet resolved.
+Accepted by the owner on 2026-09-26. The scrub lands inside one long-running PR, done by parallel workers split by area (runtime code, scripts and deploy, docs and ADRs and the CHANGELOG, specs and fixtures). Anything renamed that feeds generated output is regenerated last, after the other changes are merged. History is reworded to neutral wording that keeps its technical meaning. A one-off local search of the final tree proves zero hits.

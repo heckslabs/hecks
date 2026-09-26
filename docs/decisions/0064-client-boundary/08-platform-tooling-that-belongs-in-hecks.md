@@ -1,6 +1,6 @@
 # 08: Platform tooling that belongs in Hecks
 
-**Status:** Open (wayfinder ticket) · **Type:** grilling (HITL) · **Blocked by:** none · **Claimed by:** unclaimed
+**Status:** Accepted 2026-09-26 · **Type:** grilling (HITL) · **Blocked by:** none · **Claimed by:** unclaimed
 **Map:** [0064 client boundary](../0064-client-boundary-map.md)
 
 ## Question
@@ -23,4 +23,4 @@ The org's platform repo holds tooling for handing a project to a client. Some of
 
 ## Decision
 
-Not yet resolved.
+Accepted by the owner on 2026-09-26. The gem-pin check, the schema dump and restore proof, and the boot fix move into Hecks. Handoff packaging stays in the platform, because it is the org's operator-only process. The sync snapshot reader is deferred until a second consumer exists.

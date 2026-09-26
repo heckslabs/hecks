@@ -1,6 +1,6 @@
 # 09: The live banking deploy recipe
 
-**Status:** Open (wayfinder ticket) · **Type:** grilling (HITL) · **Blocked by:** none · **Claimed by:** unclaimed
+**Status:** Accepted 2026-09-26 · **Type:** grilling (HITL) · **Blocked by:** none · **Claimed by:** unclaimed
 **Map:** [0064 client boundary](../0064-client-boundary-map.md)
 
 ## Question
@@ -20,4 +20,4 @@ Keep the stack. Move the recipe and the overlay to the platform repo, verify byt
 
 ## Decision
 
-Not yet resolved.
+Accepted by the owner on 2026-09-26. The stack stays. Its recipe and overlay move to the platform repo after regenerated output is proven byte-identical to the current recipe. Hecks keeps a neutral banking deploy example, and the old directory goes on the ignore list. No deploy is part of the move.

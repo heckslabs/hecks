@@ -25,27 +25,24 @@ Hecks holds no client names and no client product code. Generic capability that 
 
 - [03 Client-name inventory](0064-client-boundary/03-client-name-inventory.md) - 100 files, about 78 prose-only and about 22 load-bearing (two generated modules, corpus values, two host runtime constants, inline test data); the org's own name is a separate 66-file cluster.
 - [04 What the Fargate projection emits today](0064-client-boundary/04-what-the-fargate-projection-emits-today.md) - the generator emits one container in a fixed shape; an empty change set against the client's multi-container stack is not reachable by tuning, only by a generator that can pin every logical id, name and property.
+- [01 What counts as a client name](0064-client-boundary/01-what-counts-as-a-client-name.md) - external customer projects and the org's own example projects go to zero, including ADRs and the CHANGELOG; the org name stays only as the registry keyword and path; no committed denylist. One sub-question is open (the org's own name in stack names and the example domain).
+- [02 Is commerce a Hecks capability](0064-client-boundary/02-is-commerce-a-hecks-capability.md) - yes, generalized in place: no crate split, hardcoded names and settings fixed.
+- [05 A JavaScript package for Hecks clients](0064-client-boundary/05-a-javascript-package-for-hecks-clients.md) - built now in this repository as `packages/hecks-client`, versioned with the gem; publishing waits on ticket 06.
+- [07 Rate limit defaults](0064-client-boundary/07-rate-limit-defaults.md) - on by default for public writes, settings named for the concept; a deployment behind a proxy must set the trusted-proxy settings.
+- [08 Platform tooling that belongs in Hecks](0064-client-boundary/08-platform-tooling-that-belongs-in-hecks.md) - the gem-pin check, the schema dump proof and the boot fix move; handoff packaging stays in the platform.
+- [09 The live banking deploy recipe](0064-client-boundary/09-the-live-banking-deploy-recipe.md) - the stack stays; its recipe moves to the platform repo after a byte-identical regeneration, and Hecks keeps a neutral example.
+- [10 Who generates deploy and smoke scripts](0064-client-boundary/10-who-generates-deploy-and-smoke-scripts.md) - Hecks generates them from the world block, gated by an empty change set; generating for new clients only is the fallback.
+- [11 How to slice the client-name scrub](0064-client-boundary/11-how-to-slice-the-client-name-scrub.md) - one PR, parallel workers by area, generated output regenerated last.
 
 ## Tickets
 
-**Frontier (open, unblocked, unclaimed):**
+**Open:**
 
 | Ticket | Type | Question in one line |
 | --- | --- | --- |
-| [01 What counts as a client name](0064-client-boundary/01-what-counts-as-a-client-name.md) | grilling | Which names count, and does zero include shipped history? |
-| [02 Is commerce a Hecks capability](0064-client-boundary/02-is-commerce-a-hecks-capability.md) | grilling | Do payments, checkout, email, newsletter and registrations belong in the host? |
-| [05 A JavaScript package for Hecks clients](0064-client-boundary/05-a-javascript-package-for-hecks-clients.md) | grilling | Does Hecks ship one, with what contents, and how is it versioned |
 | [06 The npm scope](0064-client-boundary/06-the-npm-scope.md) | task | Who owns the package scope, and is it claimed |
-| [07 Rate limit defaults](0064-client-boundary/07-rate-limit-defaults.md) | grilling | Should the host rate-limit public writes by default, and how is it configured |
-| [08 Platform tooling that belongs in Hecks](0064-client-boundary/08-platform-tooling-that-belongs-in-hecks.md) | grilling | Which of the platform's generic pieces move, and which stay |
-| [09 The live banking deploy recipe](0064-client-boundary/09-the-live-banking-deploy-recipe.md) | grilling | Where the recipe for the live example stack lives once it leaves Hecks |
-| [10 Who generates deploy and smoke scripts](0064-client-boundary/10-who-generates-deploy-and-smoke-scripts.md) | grilling | Hecks for all clients, for new clients only, the platform, or each client |
 
-**Blocked:**
-
-| Ticket | Type | Blocked by |
-| --- | --- | --- |
-| [11 How to slice the client-name scrub](0064-client-boundary/11-how-to-slice-the-client-name-scrub.md) | grilling | 01 |
+Every other ticket is Accepted and indexed under "Decisions so far". Ticket 01 also carries one open sub-question about the org's own name outside the registry keyword.
 
 ## Not yet specified
 

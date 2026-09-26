@@ -1,6 +1,6 @@
 # 02: Is commerce a Hecks capability or a client feature?
 
-**Status:** Open (wayfinder ticket) · **Type:** grilling (HITL) · **Blocked by:** none · **Claimed by:** unclaimed
+**Status:** Accepted 2026-09-26 · **Type:** grilling (HITL) · **Blocked by:** none · **Claimed by:** unclaimed
 **Map:** [0064 client boundary](../0064-client-boundary-map.md)
 
 ## Question
@@ -21,4 +21,4 @@ A. The registry treats these as Hecks concepts, the host is the sole implementat
 
 ## Decision
 
-Not yet resolved.
+Accepted by the owner on 2026-09-26: **A**. Commerce stays in Hecks as a capability, generalized in place. There is no crate split and no route-extension trait. The hardcoded names and settings are fixed: the payments secret id becomes required on AWS instead of a baked-in default, the webhook description becomes a setting, and client names leave comments and test fixtures. Revisit isolation only if a second consumer or a lean-host build appears.

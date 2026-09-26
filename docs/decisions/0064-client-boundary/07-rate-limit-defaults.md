@@ -1,6 +1,6 @@
 # 07: Rate limit defaults
 
-**Status:** Open (wayfinder ticket) · **Type:** grilling (HITL) · **Blocked by:** none · **Claimed by:** unclaimed
+**Status:** Accepted 2026-09-26 · **Type:** grilling (HITL) · **Blocked by:** none · **Claimed by:** unclaimed
 **Map:** [0064 client boundary](../0064-client-boundary-map.md)
 
 ## Question
@@ -21,4 +21,6 @@ On by default for public write endpoints, so a fresh project is safe. Generic se
 
 ## Decision
 
-Not yet resolved.
+Accepted by the owner on 2026-09-26. The host rate-limits public write endpoints by default. Settings are named for the concept (a trusted-proxy list and a proxy-authentication header), not for any CDN, and are environment variables first. The smoke test lives with the host code.
+
+**Deployment consequence:** with limiting on by default, a project served behind a proxy or CDN must set its trusted-proxy settings, otherwise every caller appears to come from the proxy and shares one bucket.

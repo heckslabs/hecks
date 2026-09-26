@@ -1,6 +1,6 @@
 # 01: What counts as a client name, and does "zero" include shipped history?
 
-**Status:** Open (wayfinder ticket) · **Type:** grilling (HITL) · **Blocked by:** none · **Claimed by:** unclaimed
+**Status:** Accepted 2026-09-26, with one open sub-question · **Type:** grilling (HITL) · **Blocked by:** none · **Claimed by:** unclaimed
 **Map:** [0064 client boundary](../0064-client-boundary-map.md)
 
 ## Question
@@ -24,4 +24,11 @@ The goal is that Hecks stores no client names. That needs a definition before an
 
 ## Decision
 
-Not yet resolved.
+Accepted by the owner on 2026-09-26.
+
+- Names (a) and (b) go to zero, including ADRs, the CHANGELOG and docs, reworded to neutral wording that keeps the technical meaning.
+- (c) stays: the org's name remains only as the registry name in the `uses_embryonaut_bluebook` keyword and the `vendor/embryonaut_bluebooks/` path.
+- Published gem versions are left as they are.
+- No committed denylist. A one-off local search at the end of the scrub proves zero hits.
+
+**Open sub-question, found by ticket 03:** the org's own name also appears in about 66 files outside the registry keyword and path (stack names, deploy templates, a deploy spec, and an example domain named for the org). The scrub leaves these for now. The owner still has to say whether they count as "client names".

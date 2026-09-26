@@ -1,6 +1,6 @@
 # 05: A JavaScript package for Hecks clients
 
-**Status:** Open (wayfinder ticket) · **Type:** grilling (HITL) · **Blocked by:** none (the publishing half waits on ticket 06) · **Claimed by:** unclaimed
+**Status:** Accepted 2026-09-26 (publishing waits on ticket 06) · **Type:** grilling (HITL) · **Blocked by:** none (the publishing half waits on ticket 06) · **Claimed by:** unclaimed
 **Map:** [0064 client boundary](../0064-client-boundary-map.md)
 
 ## Question
@@ -18,4 +18,10 @@ Ship it from this repository as `packages/hecks-client/`, protocol client first,
 
 ## Decision
 
-Not yet resolved.
+Accepted by the owner on 2026-09-26.
+
+- The package is built now, in this repository as `packages/hecks-client`, because future clients need it and a per-site copy is what drifted.
+- Contents: the protocol client first, then the fetch wrapper with retry and a last-good fallback, the payment-key parser and connection client, and the token receiver with the cookie name as a parameter.
+- No CMS-adapter package until a second site exists.
+- The version is tied to the gem version, and CI runs its protocol tests against the current host.
+- Publishing depends on ticket 06. Until the scope is confirmed, installs use a vendored tarball or a git tag.
