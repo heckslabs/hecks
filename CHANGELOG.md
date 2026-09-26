@@ -12,9 +12,23 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 Subscribe or AddName whenever the subscriber was still `pending`. It now
 dispatches only Subscribe or AddName and reports the resulting status.
 **Behavior change for hosts:** a new subscriber now stays `pending` until they
-follow the confirm link, and only confirmed subscribers receive an issue. Nothing
-in the host emails that link on subscribe, so a domain that wants signups
-confirmed has to send it itself.
+follow the confirm link, and only confirmed subscribers receive an issue.
+
+**The confirm link is emailed, and signed.** A new footer subscriber is sent a
+link carrying a signed, expiring token minted for exactly that address (the
+existing purpose-token helper, keyed by `SESSION_SECRET`), through Resend
+(`RESEND_API_KEY` + `RESEND_FROM`, or `RESEND_MOCK=1`). `GET
+/newsletter/subscribers/confirm` now requires that token and answers 403 for a
+missing, wrong or expired one, so an address alone no longer confirms anyone.
+Sending is best effort: an unconfigured or failing mailer is logged and the
+subscriber stays `pending`; the signup never fails.
+
+**Registrants who tick the newsletter box.** When `Registration.Request` declares
+a `news_signup` argument, `POST /registrations` also sends flat `news_signup`,
+`email`, `first_name` and `last_name` to it (a reaction reads only top-level event
+fields, never one nested in `attendee`), and after a successful registration
+emails the same confirm link if the address is now a pending subscriber. The
+subscribing itself is a reaction the domain declares.
 
 ## [2.3.0] - 2026-09-25
 
