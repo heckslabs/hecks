@@ -58,6 +58,11 @@ async fn main() -> Result<(), Error> {
     // existing deployed Lambda still expects.
     let serve_mode = std::env::var("HECKS_SERVE_MODE").as_deref() == Ok("1");
 
+    // HECKS_SESSION_COOKIE names the account cookie. A name that could not
+    // be written into a Set-Cookie header refuses the boot here, rather
+    // than quietly falling back to the default at request time.
+    auth::resolve_account_cookie(std::env::var("HECKS_SESSION_COOKIE").ok().as_deref())?;
+
     // DB_SECRET_ARN — bin/project_deploy's own default now (template.yaml's
     // Environment.Variables comment has the full story): the password
     // itself is fetched from Secrets Manager here, at cold start, over

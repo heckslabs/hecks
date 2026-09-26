@@ -352,7 +352,7 @@ async fn auth_route(
             200,
             "application/json",
             r#"{"ok":true}"#,
-            &format!("lifeadelics_session=; Max-Age=0{}", cookie_flags()),
+            &format!("{}=; Max-Age=0{}", auth::account_cookie_name(), cookie_flags()),
         )),
 
         ("GET", "/accounts/me") => Some(accounts_me_route(domain_ir, cookies, secret, client).await),
@@ -362,7 +362,7 @@ async fn auth_route(
         ("POST", "/members") => Some(add_member_route(domain_ir, raw_body, cookies, secret, client, wasm_path, config).await),
 
         // Sending a newsletter issue (web/newsletter_send.rs's own header):
-        // an Admin's or Owner's `lifeadelics_session` cookie, unlike the
+        // an Admin's or Owner's account cookie, unlike the
         // guest newsletter routes served ahead of this gate.
         (method, path) if newsletter_send::issue_action(method, path).is_some() => {
             newsletter_send::issue_route(method, path, domain_ir, raw_body, cookies, secret, client, wasm_path, config, invoker).await
@@ -395,7 +395,7 @@ async fn auth_route(
         // dashboard reloading itself inside its own iframe). Verified by
         // cms/src/endpoints/sso.ts's own verifyHandoffToken, using the
         // exact same account_token wire format (base64url payload +
-        // hex-HMAC-SHA256 signature) as the lifeadelics_session cookie
+        // hex-HMAC-SHA256 signature) as the account cookie
         // itself — deploy-aws/platform/template.yaml's own SessionSecret
         // is shared with the cms container as AUTH_SECRET specifically
         // so the two sides verify the same token.
@@ -446,7 +446,7 @@ async fn is_admin(client: &Mutex<Client>, wasm_path: &Path, domain_ir: &Value, i
     }
 }
 
-// The email behind a `lifeadelics_session` cookie, only while that person
+// The email behind an account cookie, only while that person
 // still has access. The token signature alone isn't enough: a cookie lives
 // up to 14 days, so a later disable must take effect on the next request.
 // `Err` carries the JSON response to return: a 401 for a missing, invalid
@@ -458,7 +458,7 @@ async fn active_session_email(
     client: &Mutex<Client>,
 ) -> Result<String, Value> {
     let not_logged_in = || respond(401, "application/json", &json!({"error": "not logged in"}).to_string());
-    let Some(email) = cookies.get("lifeadelics_session").and_then(|token| auth::verify_account_token(secret, token)) else {
+    let Some(email) = cookies.get(&auth::account_cookie_name()).and_then(|token| auth::verify_account_token(secret, token)) else {
         return Err(not_logged_in());
     };
     match auth::has_access(client, domain_ir, &email).await {
@@ -476,7 +476,7 @@ async fn accounts_me_route(domain_ir: &Value, cookies: &HashMap<String, String>,
 }
 
 // GET /members -- the admitted people as JSON, for a server-side caller
-// (the Astro admin's Users page) that holds the `lifeadelics_session`
+// (the Astro admin's Users page) that holds the account cookie
 // cookie but not the Governance `session` cookie /admin/members needs.
 // Any session whose person still has access is enough; a disabled person's
 // old cookie gets the same JSON 401 as no cookie at all, rather than the
@@ -493,7 +493,7 @@ async fn members_route(domain_ir: &Value, cookies: &HashMap<String, String>, sec
 }
 
 // POST /members -- admits a new person and grants them a role, for a
-// server-side caller holding the `lifeadelics_session` cookie. Takes
+// server-side caller holding the account cookie. Takes
 // `{"email", "name"}` and an optional `"role"` (Admin, Owner or Member;
 // Admin when omitted) as JSON. Answers a JSON 401 without a valid session
 // and a 403 unless the caller is already an active admin (Admin or Owner).
@@ -514,7 +514,7 @@ pub(crate) async fn add_member_route(
 ) -> Value {
     let json_error = |status: u16, message: &str| respond(status, "application/json", &json!({"error": message}).to_string());
 
-    let Some(caller) = cookies.get("lifeadelics_session").and_then(|token| auth::verify_account_token(secret, token)) else {
+    let Some(caller) = cookies.get(&auth::account_cookie_name()).and_then(|token| auth::verify_account_token(secret, token)) else {
         return json_error(401, "not logged in");
     };
     match auth::caller_is_admin(client, domain_ir, &caller).await {
@@ -601,7 +601,7 @@ async fn signup_route(raw_body: &str, secret: &str, client: &Mutex<Client>, wasm
 
 // POST /members/disable and POST /members/enable -- switch a person's
 // access off or back on without deleting them, for a server-side caller
-// holding the `lifeadelics_session` cookie. Takes `{"email"}` as JSON.
+// holding the account cookie. Takes `{"email"}` as JSON.
 // Disabling keeps the person, role and identity link, so enabling restores
 // exactly the prior access. Answers a JSON 401 without a valid session, a
 // 403 unless the caller is an active Admin, a 403 when an admin disables
@@ -620,7 +620,7 @@ async fn set_member_disabled_route(
 ) -> Value {
     let json_error = |status: u16, message: &str| respond(status, "application/json", &json!({"error": message}).to_string());
 
-    let Some(caller) = cookies.get("lifeadelics_session").and_then(|token| auth::verify_account_token(secret, token)) else {
+    let Some(caller) = cookies.get(&auth::account_cookie_name()).and_then(|token| auth::verify_account_token(secret, token)) else {
         return json_error(401, "not logged in");
     };
 
@@ -644,7 +644,7 @@ async fn set_member_disabled_route(
 }
 
 // POST /members/role -- changes the role of a person who is already admitted,
-// for a server-side caller holding the `lifeadelics_session` cookie. Takes
+// for a server-side caller holding the account cookie. Takes
 // `{"email", "role"}` as JSON, where `role` is Admin, Owner or Member.
 // `POST /members` only admits new people and answers 409 for a known email,
 // and `POST /admin/members` needs a Governance session, so this is the JSON
@@ -667,7 +667,7 @@ async fn set_member_role_route(
 ) -> Value {
     let json_error = |status: u16, message: &str| respond(status, "application/json", &json!({"error": message}).to_string());
 
-    let Some(caller) = cookies.get("lifeadelics_session").and_then(|token| auth::verify_account_token(secret, token)) else {
+    let Some(caller) = cookies.get(&auth::account_cookie_name()).and_then(|token| auth::verify_account_token(secret, token)) else {
         return json_error(401, "not logged in");
     };
 
@@ -691,7 +691,7 @@ async fn set_member_role_route(
 }
 
 // GET /registrations -- every event registration as JSON, for the admin
-// Events page. Server-side callers only: a valid `lifeadelics_session`
+// Events page. Server-side callers only: a valid account cookie
 // cookie is required (JSON 401 otherwise, never a redirect), and the person
 // behind it must currently be an active Admin, re-checked against the
 // membership head on every request (403 otherwise, including a disabled
@@ -709,7 +709,7 @@ async fn registrations_list_route(
 ) -> Value {
     let json_error = |status: u16, message: &str| respond(status, "application/json", &json!({"error": message}).to_string());
 
-    let Some(caller) = cookies.get("lifeadelics_session").and_then(|token| auth::verify_account_token(secret, token)) else {
+    let Some(caller) = cookies.get(&auth::account_cookie_name()).and_then(|token| auth::verify_account_token(secret, token)) else {
         return json_error(401, "not logged in");
     };
     match auth::caller_is_admin(client, domain_ir, &caller).await {
@@ -770,7 +770,7 @@ fn sorted_by_name(mut people: Vec<Value>) -> Vec<Value> {
 // SSO_TOKEN_TTL: "one redirect's worth, deliberately tight") handoff
 // token src/pages/api/cms-sso.ts exchanges for a real Payload session at
 // cms/src/endpoints/sso.ts. Re-verifies the requester's own
-// lifeadelics_session cookie first — same account_token scheme, just a
+// account cookie first — same account_token scheme, just a
 // much shorter TTL and returned as JSON instead of a cookie, since this
 // token is a one-shot redirect target, never stored. A disabled person's
 // old cookie is refused here too, so no new handoff token is minted for them.
@@ -862,7 +862,7 @@ async fn google_callback(
 
     let Some(session) = session else { return redirect("/login?error=google_unlinked") };
 
-    // The Lifeadelics admin (Astro) authenticates on `lifeadelics_session`,
+    // The Lifeadelics admin (Astro) authenticates on the account cookie,
     // not rust/host's own Governance `session` cookie. Mint the same
     // account_token that /accounts/me and /accounts/sso-token verify. Same origin (production):
     // set the cookie here and send the browser to /admin.html. Different
@@ -874,7 +874,7 @@ async fn google_callback(
     let site = site.trim_end_matches('/');
     let token = auth::account_token(secret, &session.email, SESSION_TTL_SECS);
     if same_origin(site, &redirect_uri()) {
-        let cookie = format!("lifeadelics_session={token}{}; Max-Age={SESSION_TTL_SECS}", cookie_flags());
+        let cookie = format!("{}={token}{}; Max-Age={SESSION_TTL_SECS}", auth::account_cookie_name(), cookie_flags());
         redirect_with_cookie("/admin.html", &cookie)
     } else {
         // One-redirect URL onto the Astro origin (local rust/host :4567 vs site :4321).
@@ -2541,7 +2541,7 @@ mod tests {
         assert_eq!(accounts_me_route(&domain_ir, &empty, secret, &client).await["statusCode"], 401);
 
         let mut tampered = HashMap::new();
-        tampered.insert("lifeadelics_session".to_string(), "garbage.notasignature".to_string());
+        tampered.insert(auth::account_cookie_name(), "garbage.notasignature".to_string());
         assert_eq!(accounts_me_route(&domain_ir, &tampered, secret, &client).await["statusCode"], 401);
 
         // A validly signed token for someone with no granted role, or nobody
@@ -2558,7 +2558,7 @@ mod tests {
         let (client, domain_ir) = scratch_members_db("hecks_host_web_test_accounts_sso_token").await;
 
         let mut cookies = HashMap::new();
-        cookies.insert("lifeadelics_session".to_string(), auth::account_token(secret, "zed@example.com", 60 * 60 * 24 * 14));
+        cookies.insert(auth::account_cookie_name(), auth::account_token(secret, "zed@example.com", 60 * 60 * 24 * 14));
         let response = accounts_sso_token_route(&domain_ir, &cookies, secret, &client).await;
         assert_eq!(response["statusCode"], 200, "{response:?}");
         let body: Value = serde_json::from_str(response["body"].as_str().unwrap()).unwrap();
@@ -2575,7 +2575,7 @@ mod tests {
         assert_eq!(accounts_sso_token_route(&domain_ir, &empty, secret, &client).await["statusCode"], 401);
 
         let mut tampered = HashMap::new();
-        tampered.insert("lifeadelics_session".to_string(), "garbage.notasignature".to_string());
+        tampered.insert(auth::account_cookie_name(), "garbage.notasignature".to_string());
         assert_eq!(accounts_sso_token_route(&domain_ir, &tampered, secret, &client).await["statusCode"], 401);
 
         let no_role = accounts_sso_token_route(&domain_ir, &session_cookies(secret, "amy@example.com"), secret, &client).await;
@@ -2629,7 +2629,7 @@ mod tests {
         let (client, domain_ir) = scratch_members_db("hecks_host_web_test_members_route").await;
 
         let mut cookies = HashMap::new();
-        cookies.insert("lifeadelics_session".to_string(), auth::account_token(secret, "zed@example.com", 60));
+        cookies.insert(auth::account_cookie_name(), auth::account_token(secret, "zed@example.com", 60));
         let response = members_route(&domain_ir, &cookies, secret, &client).await;
         assert_eq!(response["statusCode"], 200, "{response:?}");
 
@@ -2652,9 +2652,9 @@ mod tests {
         let (client, domain_ir) = scratch_members_db("hecks_host_web_test_members_route_401").await;
 
         let mut tampered = HashMap::new();
-        tampered.insert("lifeadelics_session".to_string(), "garbage.notasignature".to_string());
+        tampered.insert(auth::account_cookie_name(), "garbage.notasignature".to_string());
         let mut wrong_secret = HashMap::new();
-        wrong_secret.insert("lifeadelics_session".to_string(), auth::account_token("another", "zed@example.com", 60));
+        wrong_secret.insert(auth::account_cookie_name(), auth::account_token("another", "zed@example.com", 60));
         let mut governance_only = HashMap::new();
         governance_only.insert("session".to_string(), "anything".to_string());
 
@@ -2671,7 +2671,7 @@ mod tests {
 
     fn session_cookies(secret: &str, email: &str) -> HashMap<String, String> {
         let mut cookies = HashMap::new();
-        cookies.insert("lifeadelics_session".to_string(), auth::account_token(secret, email, 60));
+        cookies.insert(auth::account_cookie_name(), auth::account_token(secret, email, 60));
         cookies
     }
 
@@ -2721,9 +2721,9 @@ mod tests {
         let body = r#"{"email": "new@example.com", "name": "New Person"}"#;
 
         let mut tampered = HashMap::new();
-        tampered.insert("lifeadelics_session".to_string(), "garbage.notasignature".to_string());
+        tampered.insert(auth::account_cookie_name(), "garbage.notasignature".to_string());
         let mut wrong_secret = HashMap::new();
-        wrong_secret.insert("lifeadelics_session".to_string(), auth::account_token("another", "zed@example.com", 60));
+        wrong_secret.insert(auth::account_cookie_name(), auth::account_token("another", "zed@example.com", 60));
 
         for cookies in [HashMap::new(), tampered, wrong_secret] {
             let response = add_member_route(&domain_ir, body, &cookies, secret, &client, Path::new("unused"), &members_config()).await;
@@ -2862,7 +2862,7 @@ mod tests {
         let (client, domain_ir) = scratch_two_admins("hecks_host_web_test_disable_401").await;
 
         let mut tampered = HashMap::new();
-        tampered.insert("lifeadelics_session".to_string(), "garbage.notasignature".to_string());
+        tampered.insert(auth::account_cookie_name(), "garbage.notasignature".to_string());
         let body = json!({"email": "amy@example.com"}).to_string();
         for disable in [true, false] {
             for cookies in [HashMap::new(), tampered.clone()] {
@@ -2929,7 +2929,7 @@ mod tests {
         let before = journal_rows(&client, "amy@example.com").await;
 
         let mut tampered = HashMap::new();
-        tampered.insert("lifeadelics_session".to_string(), "garbage.notasignature".to_string());
+        tampered.insert(auth::account_cookie_name(), "garbage.notasignature".to_string());
         let body = json!({"email": "amy@example.com", "role": "Owner"}).to_string();
         for cookies in [HashMap::new(), tampered] {
             let response = set_member_role_route(&domain_ir, &body, &cookies, secret, &client, &members_config()).await;
@@ -3126,7 +3126,7 @@ mod tests {
         let wasm_path = Path::new("does-not-exist.wasm");
 
         let mut tampered = HashMap::new();
-        tampered.insert("lifeadelics_session".to_string(), "garbage.notasignature".to_string());
+        tampered.insert(auth::account_cookie_name(), "garbage.notasignature".to_string());
         for cookies in [HashMap::new(), tampered] {
             let response = registrations_list_route(&domain_ir, &cookies, secret, &client, wasm_path, &config).await;
             assert_eq!(response["statusCode"], 401, "{response:?}");
