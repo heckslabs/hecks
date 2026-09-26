@@ -194,8 +194,8 @@ pub async fn deliver<L: LambdaInvoker + ?Sized>(invoker: &L, reaction: &Value) -
 /// Lambda invocation that already dispatched the local command
 /// (`dispatch::handle`'s own "delivered after commit" comment), which
 /// has its own tight execution budget (Banking's own `deployed_to
-/// ("AwsLambda")` declares a 10-second `timeout` — see deploy/banking/
-/// template.yaml) shared across everything this invocation still has
+/// ("AwsLambda")` declares a 10-second `timeout` — see
+/// examples/banking/bluebook/banking.world) shared across everything this invocation still has
 /// left to do. A long retry loop would eat directly into that budget
 /// for every other cross-domain reaction still queued behind it, not
 /// just this one.
