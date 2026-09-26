@@ -11,6 +11,7 @@ spec/adapters/driven/postgres_era_spec.rb
 spec/adapters/driven/postgres_spec.rb
 spec/adapters/query_agreement_spec.rb
 spec/adapters/query_hop_agreement_spec.rb
+spec/adapters/sibling_value_object_query_spec.rb
 spec/bin_rust_conformance_spec.rb
 spec/deploy_bluebook_spec.rb
 spec/lint_deploy_recipes_spec.rb

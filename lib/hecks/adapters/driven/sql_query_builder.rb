@@ -187,7 +187,7 @@ module Hecks
                    numeric ? numeric.first : nil
                  end
         member ||= if path.empty? && attribute && value_object?(attribute)
-                     object = @aggregate.value_object(attribute.type)
+                     object = Runtime::Value.value_object_for(@aggregate, attribute.type)
                      # A sole attribute is the fallback when no member is
                      # numeric — a single-attribute value object is its one
                      # field whatever that field is named (`Behaviour::
@@ -230,7 +230,7 @@ module Hecks
       end
 
       def value_object?(attr)
-        !attr.list? && !@aggregate.value_object(attr.type).nil?
+        !attr.list? && !Runtime::Value.value_object_for(@aggregate, attr.type).nil?
       end
 
       # `contains` on a `list_of` field means real element membership, not
@@ -250,7 +250,7 @@ module Hecks
         attribute = @aggregate.attribute(field.to_s)
         return nil unless attribute&.list?
 
-        object = @aggregate.value_object(attribute.type)
+        object = Runtime::Value.value_object_for(@aggregate, attribute.type)
         return "" unless object
         return object.sole_attribute.name.to_s if object.sole_attribute
 

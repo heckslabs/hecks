@@ -900,7 +900,7 @@ module Hecks
       def numeric_field?(field)
         name, *path = field.to_s.split(".")
         QuerySpecification::FieldPath.numeric?(@aggregate.attribute(name), path) do |type|
-          @aggregate.value_object(type)
+          Runtime::Value.value_object_for(@aggregate, type)
         end
       end
 
