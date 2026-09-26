@@ -572,9 +572,9 @@ mod tests {
 
     #[test]
     fn parses_a_local_url_with_no_user_or_port() {
-        let config = parse_database_url("postgres://localhost/lifeadelics_development")
+        let config = parse_database_url("postgres://localhost/app_development")
             .expect("should parse a peer-auth local URL");
-        assert_eq!(config.get_dbname(), Some("lifeadelics_development"));
+        assert_eq!(config.get_dbname(), Some("app_development"));
         assert_eq!(config.get_ports(), &[5432]);
         assert!(database_url_is_local(&config));
     }
