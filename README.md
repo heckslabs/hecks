@@ -546,9 +546,16 @@ bus refuses to boot one from outside its own root. `bin/hecks_query_ir_mcp`
 is a smaller, older, read-only sibling exposing structural queries over
 the language itself (`lib/hecks/query_ir.rb`) — meta-tooling for
 working on hecks, not on a business domain. Both speak MCP over stdio
-only, both are unauthenticated beyond the caller-asserted `role`/
-`actor_id` above, and neither should be exposed over a network. Both
-are registered in `.mcp.json` in this repository.
+only and refuse to start otherwise (`Hecks::McpStdioGuard`: no network
+argument or `HECKS_MCP_*` option, no IP socket as stdin or stdout), and
+both print an identity warning on stderr at startup. The door is
+unauthenticated beyond the caller-asserted `role`/`actor_id` above, and
+its readers (`state`, `events`, `history`, `follow`, `describe`,
+`catalog`) take no identity; the query-IR server asks for none. Neither
+should be exposed over a network — [ADR
+0062](docs/decisions/0062-mcp-servers-need-real-authentication-before-any-network-transport.md)
+proposes what a network transport would need first. Both are
+registered in `.mcp.json` in this repository.
 
 What this means in practice: an agent can inspect a domain's shape,
 dispatch a real command, read back events and state, and statically
