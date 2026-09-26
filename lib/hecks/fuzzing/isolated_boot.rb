@@ -278,34 +278,17 @@ module Hecks
         # recursively (`Folder#load_each`); a domain can hold several
         # `Hecks.hecksagon "<Name>" do ... end` sibling blocks in that one
         # file (banking.hecksagon declares "Banking", "Governance", and
-        # "Identity" together), so every name found in one `.hecksagon`
-        # file gets bundled into one `.world` written beside it, not
-        # scattered by name.
-        Dir.glob(File.join(copy, "**", "*.hecksagon")).each do |hecksagon_path|
-          names = File.read(hecksagon_path).scan(/Hecks\.hecksagon\s+"([^"]+)"/).flatten.uniq
-          next if names.empty?
-
-          world_path = File.join(File.dirname(hecksagon_path), "hecks_fuzz_postgres.world")
-          File.write(world_path, names.map do |name|
-            <<~WORLD
-              Hecks.world "#{name}" do
-                persisted_by("Postgres") do
-                  database "#{FUZZ_POSTGRES_DATABASE}"
-                  schema "#{FUZZ_POSTGRES_SCHEMA}"
-                end
+        # "Identity" together), so every name found in one directory
+        # is bundled into one `.world` written there, not scattered by name.
+        write_worlds!(copy, "hecks_fuzz_postgres.world") do |name|
+          <<~WORLD
+            Hecks.world "#{name}" do
+              persisted_by("Postgres") do
+                database "#{FUZZ_POSTGRES_DATABASE}"
+                schema "#{FUZZ_POSTGRES_SCHEMA}"
               end
-            WORLD
-          end.join("\n"))
-        end
-
-        # Any pre-existing `.world` this copy shipped with (a real
-        # deployment's own connection string) is now redundant with — and
-        # would conflict with, `Registry#add_world`'s own header on
-        # loading the same domain name twice — the fresh one just
-        # written above, so it goes the same way `rebind_to_memory!`
-        # already sends every `.world` in a Memory-mode boot.
-        Dir.glob(File.join(copy, "**", "*.world")).each do |path|
-          File.delete(path) unless File.basename(path) == "hecks_fuzz_postgres.world"
+            end
+          WORLD
         end
       end
 
@@ -416,9 +399,9 @@ module Hecks
         ensure_postgres_era_schema!(database: database, schema: schema)
 
         # Same one-`.world`-per-`.hecksagon`-directory shape `rebind_to_
-        # postgres!` already uses, for the identical reason (`Folder#
-        # load_domain` globs `*.world` non-recursively) — see that
-        # method's own comment on `world_path` above. `PostgresEra`
+        # postgres!` uses, for the identical reason (`Folder#
+        # load_domain` globs `*.world` non-recursively) — see
+        # `write_worlds!`. `PostgresEra`
         # additionally takes `schema:` (postgres_era.rb's own "shared-
         # instance isolation" comment): the caller-supplied throwaway
         # schema is what actually isolates this one ephemeral boot from
@@ -444,36 +427,54 @@ module Hecks
         # database it is about to throw away; the one-line warning
         # PostgresEra prints per boot under the opt-in is the honest
         # price. Inert on a machine whose ambient user is ordinary.
-        # One world file per directory, every hecksagon name in that
-        # directory — not one write per *.hecksagon file. context_map.hecksagon
-        # sits beside the domain file; a second File.write to the same
-        # hecks_fuzz_postgres_era.world would drop the first file's names
-        # (found live: ConcurrentDispatchUnboundFixture + Governance).
-        worlds_by_dir = Hash.new { |h, k| h[k] = [] }
+        write_worlds!(copy, "hecks_fuzz_postgres_era.world") do |name|
+          <<~WORLD
+            Hecks.world "#{name}" do
+              persisted_by("PostgresEra") do
+                database "#{database}"
+                schema "#{schema}"
+                allow_superuser true
+              end
+            end
+          WORLD
+        end
+      end
+
+      # Writes one `.world` file per directory that holds a `.hecksagon`, naming every
+      # `Hecks.hecksagon` block found in that directory, and deletes every other `.world`
+      # in the copy.
+      #
+      # One world file per directory, every hecksagon name in that directory — never one
+      # write per `*.hecksagon` file. A domain's `context_map.hecksagon` sits beside its
+      # main hecksagon (the `qa` domain declares Governance in one and QualityControl in
+      # the other), and a second `File.write` to the same world path would drop the first
+      # file's names, leaving that domain bound to Postgres with no `database` to open.
+      #
+      # Any `.world` the copy shipped with (a real deployment's own connection string) is
+      # redundant with, and would conflict with (`Registry#add_world`'s own header, on
+      # loading the same domain name twice), the fresh one written here, so it goes the same
+      # way `rebind_to_memory!` sends every `.world` in a Memory-mode boot.
+      #
+      # @param copy [String] the isolated copy's root directory
+      # @param world_file [String] the basename of the world file written in each directory
+      # @yield [name] builds the world text for one hecksagon name
+      # @yieldparam name [String] a domain name a `Hecks.hecksagon` block in the directory declares
+      # @yieldreturn [String] the `Hecks.world` block for that name
+      # @return [void]
+      def write_worlds!(copy, world_file, &world_for)
+        names_by_dir = Hash.new { |hash, dir| hash[dir] = [] }
         Dir.glob(File.join(copy, "**", "*.hecksagon")).each do |hecksagon_path|
           names = File.read(hecksagon_path).scan(/Hecks\.hecksagon\s+"([^"]+)"/).flatten
-          worlds_by_dir[File.dirname(hecksagon_path)].concat(names)
+          names_by_dir[File.dirname(hecksagon_path)].concat(names)
         end
-        worlds_by_dir.each do |dir, names|
-          names = names.uniq
+        names_by_dir.each do |dir, names|
           next if names.empty?
 
-          world_path = File.join(dir, "hecks_fuzz_postgres_era.world")
-          File.write(world_path, names.map do |name|
-            <<~WORLD
-              Hecks.world "#{name}" do
-                persisted_by("PostgresEra") do
-                  database "#{database}"
-                  schema "#{schema}"
-                  allow_superuser true
-                end
-              end
-            WORLD
-          end.join("\n"))
+          File.write(File.join(dir, world_file), names.uniq.map(&world_for).join("\n"))
         end
 
         Dir.glob(File.join(copy, "**", "*.world")).each do |path|
-          File.delete(path) unless File.basename(path) == "hecks_fuzz_postgres_era.world"
+          File.delete(path) unless File.basename(path) == world_file
         end
       end
 

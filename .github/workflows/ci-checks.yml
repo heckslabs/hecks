@@ -88,6 +88,66 @@ jobs:
       - name: bin/fuzz
         run: bundle exec bin/fuzz
 
+  # THE SAME SWEEP, AGAINST A REAL SQL ADAPTER — `checks_fuzz` above
+  # boots every generated sequence on the Memory adapter, whose
+  # repository is a hand-written Hash; the properties it checks say
+  # nothing about what SqlQueryBuilder's SQL compilation, a real
+  # transaction, or a real schema does with the same sequence. `bin/fuzz
+  # --adapter sqlite` runs the identical corpus sweep (every domain
+  # `Hecks::Corpus.sweepable_domains` finds) through a real on-disk
+  # SQLite database, at about 2.3x Memory's CPU cost per seed, so 6 seeds
+  # per domain instead of 20 costs under half of `checks_fuzz`'s CPU
+  # (measured locally: 108s against 261s of CPU time). Seeds
+  # are 1..N, so the run is deterministic: a red here is a finding, not a
+  # flake. Its own job so it runs beside `checks_fuzz` and `checks_static`
+  # instead of after them.
+  checks_fuzz_sqlite:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    # See `checks_fuzz`'s own `if:` above.
+    if: github.event_name != 'push'
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-ruby
+
+      - name: bin/fuzz --adapter sqlite
+        run: bundle exec bin/fuzz --adapter sqlite --seeds 6
+
+  # THE SAME SWEEP, AGAINST REAL POSTGRES — reduced to 3 seeds of 20 steps
+  # per domain because every dispatch is a real round trip. ONE PROCESS
+  # AGAINST THE ONE SERVER, on purpose: `bin/fuzz --adapter postgres`
+  # defaults to a single worker, and every ephemeral boot drops and
+  # recreates the same scratch schema in the shared `hecks_fuzz` database,
+  # so a second process on this server would race the first one's schema
+  # (two processes on one Postgres have already raced each other on
+  # CREATE ROLE — see spec/support/fenced_owner.rb). This run creates no
+  # role. Postgres is the preinstalled, tuned one every
+  # other Postgres job uses (`.github/actions/postgres`), reached over the
+  # same PG* variables `rspec_fuzzing` sets; `bin/fuzz` refuses to start
+  # (exit 1) when nothing answers, so an unreachable server fails this job
+  # rather than skipping it.
+  checks_fuzz_postgres:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    # See `checks_fuzz`'s own `if:` above.
+    if: github.event_name != 'push'
+
+    env:
+      PGHOST: localhost
+      PGUSER: postgres
+      PGPASSWORD: postgres
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-ruby
+      - uses: ./.github/actions/postgres
+
+      - name: bin/fuzz --adapter postgres
+        run: bundle exec bin/fuzz --adapter postgres --seeds 3 --steps 20
+
   checks_static:
     runs-on: ubuntu-latest
     timeout-minutes: 20

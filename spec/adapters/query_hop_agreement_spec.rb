@@ -1,5 +1,6 @@
 require "spec_helper"
 require "tmpdir"
+require "hecks/ports/persistence/plugins/era"
 require_relative "../support/postgres_probe"
 require "pg"
 
@@ -19,6 +20,14 @@ require "pg"
 # never actually sees a "owner/field"-shaped field name. The index bug and
 # this non-bug share a root cause description ("owner/field" reaching SQL
 # compilation) but are opposite findings — one was real, this one isn't.
+#
+# The three SQL adapters are all covered: Sqlite, plain Postgres, and
+# PostgresEra (whose head is a compiled view over a journal, not a table
+# — the hop fold never reaches it either, and this is the spec that
+# would say so if that ever stopped being true). Postgres and PostgresEra
+# each need a real server; under `CI` the shared probe raises instead of
+# skipping, and `.github/postgres_io_spec_files.txt` puts this file in a
+# Postgres-provisioned leg, so neither can silently leave CI.
 #
 # `order_by` on a hop field is the other half of "hop-path querying,"
 # and it needs no runtime proof at all: it's refused at DSL-seal time
@@ -64,6 +73,28 @@ RSpec.describe "cross-aggregate hop queries answer correctly on real SQL adapter
     scrub.close
   end
 
+  # The `Hecks.world` block carrying the adapter's own settings — a `persisted_by(...) do ... end`
+  # block belongs here, never inside the hecksagon.
+  def declare_hop_world(adapter, sqlite_root)
+    case adapter
+    when "Postgres"
+      Hecks.world("HopChain") { persisted_by("Postgres") { database HOP_AGREEMENT_DB } }
+    when "PostgresEra"
+      # `allow_superuser`: the ambient user is a superuser locally and in CI, and PostgresEra
+      # refuses to boot as one because its era write-fence is row-level security, which a
+      # superuser walks through. The fence is not under test here (a hop query is), the same
+      # opt-in `IsolatedBoot#rebind_to_postgres_era!` makes.
+      Hecks.world("HopChain") do
+        persisted_by("PostgresEra") do
+          database HOP_AGREEMENT_DB
+          allow_superuser true
+        end
+      end
+    when "Sqlite"
+      Hecks.world("HopChain") { persisted_by("SqlitePersistence") { database File.join(sqlite_root, "hop_chain.db") } }
+    end
+  end
+
   # `binder` bare-persists (`persisted_by("Sqlite")`/`persisted_by("Postgres")`,
   # no block) — settings live in a separate `Hecks.world` block, same split
   # `IsolatedBoot#rebind_to_postgres!` uses and for the same reason: a
@@ -77,6 +108,7 @@ RSpec.describe "cross-aggregate hop queries answer correctly on real SQL adapter
       Kernel.load(InMemoryDomain::EXTRACTION_PORT)
       Kernel.load(InMemoryDomain::MEMORY_ADAPTER) # Node stays Memory-bound either way, see below
       Kernel.load(InMemoryDomain::POSTGRES_ADAPTER) if adapter == "Postgres"
+      Kernel.load(InMemoryDomain::POSTGRES_ERA_ADAPTER) if adapter == "PostgresEra"
       Kernel.load(File.join(InMemoryDomain::ROOT, "lib/hecks/adapters/driven/sqlite.adapter")) if adapter == "Sqlite"
       Kernel.load(InMemoryDomain::PRISM_ADAPTER)
       Kernel.load(HOP_CHAIN_AGREEMENT)
@@ -95,15 +127,7 @@ RSpec.describe "cross-aggregate hop queries answer correctly on real SQL adapter
         # tripling every case below for no new coverage.
         HopChain::Node.persisted_by("Memory")
       end
-      if adapter == "Postgres"
-        Hecks.world "HopChain" do
-          persisted_by("Postgres") { database HOP_AGREEMENT_DB }
-        end
-      elsif adapter == "Sqlite"
-        Hecks.world "HopChain" do
-          persisted_by("SqlitePersistence") { database File.join(sqlite_root, "hop_chain.db") }
-        end
-      end
+      declare_hop_world(adapter, sqlite_root)
     end
 
     registry.verify!
@@ -153,12 +177,39 @@ RSpec.describe "cross-aggregate hop queries answer correctly on real SQL adapter
     end
   end
 
+  # A green agreement proves nothing if the bind silently fell back to Memory, so each
+  # SQL leg first checks the seeded rows really landed in the engine under test.
+  def relation_exists?(name)
+    db = PG.connect(dbname: HOP_AGREEMENT_DB)
+    db.exec_params("SELECT to_regclass($1) IS NOT NULL AS present", [name])[0]["present"] == "t"
+  ensure
+    db&.close
+  end
+
   describe "Postgres" do
     before { skip "no reachable local Postgres — set up a local server to run this spec" unless postgres_available? }
 
     let(:runtime) { boot_hop_chain(adapter: "Postgres") }
 
     before { seed(runtime) }
+
+    it "stores the referencing aggregate in a real table" do
+      expect(relation_exists?("public.proposal")).to be(true)
+    end
+
+    it_behaves_like "hop queries answer correctly"
+  end
+
+  describe "PostgresEra" do
+    before { skip "no reachable local Postgres — set up a local server to run this spec" unless postgres_available? }
+
+    let(:runtime) { boot_hop_chain(adapter: "PostgresEra") }
+
+    before { seed(runtime) }
+
+    it "stores the referencing aggregate in the era journal" do
+      expect(relation_exists?("public.hecks_journal_hop_chain")).to be(true)
+    end
 
     it_behaves_like "hop queries answer correctly"
   end
@@ -174,6 +225,10 @@ RSpec.describe "cross-aggregate hop queries answer correctly on real SQL adapter
     let(:runtime) { boot_hop_chain(adapter: "Sqlite", sqlite_root: @sqlite_root) }
 
     before { seed(runtime) }
+
+    it "stores the referencing aggregate in a real database file" do
+      expect(File.size(File.join(@sqlite_root, "hop_chain.db"))).to be_positive
+    end
 
     it_behaves_like "hop queries answer correctly"
   end
