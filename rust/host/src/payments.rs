@@ -324,11 +324,11 @@ struct Caller {
     operator: bool,
 }
 
-// The person behind a `lifeadelics_session` cookie, only while they still
+// The person behind an account cookie, only while they still
 // have access, with what they may do here. `Err` is the JSON response.
 async fn caller(domain_ir: &Value, cookies: &HashMap<String, String>, secret: &str, client: &Mutex<Client>, platform: &PlatformConfig) -> Result<Caller, Value> {
     let not_logged_in = || json_error(401, "not logged in");
-    let Some(email) = cookies.get("lifeadelics_session").and_then(|token| auth::verify_account_token(secret, token)) else {
+    let Some(email) = cookies.get(&auth::account_cookie_name()).and_then(|token| auth::verify_account_token(secret, token)) else {
         return Err(not_logged_in());
     };
     match auth::active_role(client, domain_ir, &email).await {
@@ -390,7 +390,7 @@ async fn connection_response(caller: &Caller, platform: &PlatformConfig, client:
 }
 
 /// The `/payments/connection` routes, for a server-side caller holding the
-/// `lifeadelics_session` cookie. Every answer is JSON, and a missing, invalid
+/// account cookie. Every answer is JSON, and a missing, invalid
 /// or no-longer-valid session is a 401, never a redirect. `None` for a path
 /// this module does not own.
 #[allow(clippy::too_many_arguments)]

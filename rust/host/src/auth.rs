@@ -165,7 +165,33 @@ async fn verify_id_token(id_token: &str, client_id: &str) -> Result<Claims, Stri
     })
 }
 
-// ---------- Account token (the lifeadelics_session cookie and CMS handoff) ----------
+// ---------- Account token (the account cookie and CMS handoff) ----------
+
+/// The cookie name the first consuming site already sends its account
+/// token in. It stays the default so a deploy that sets nothing keeps
+/// working; a deploy names its own with `HECKS_SESSION_COOKIE`.
+pub const DEFAULT_ACCOUNT_COOKIE: &str = "lifeadelics_session";
+
+/// The pure half of `account_cookie_name`, unit-tested apart from the env
+/// read. Unset or empty means the default; anything else must be a valid
+/// cookie name (letters, digits, `_`, `-`, `.`) because it is written
+/// straight into a `Set-Cookie` header.
+pub fn resolve_account_cookie(configured: Option<&str>) -> Result<String, String> {
+    match configured {
+        None | Some("") => Ok(DEFAULT_ACCOUNT_COOKIE.to_string()),
+        Some(name) if name.chars().all(|c| c.is_ascii_alphanumeric() || matches!(c, '_' | '-' | '.')) => Ok(name.to_string()),
+        Some(name) => Err(format!(
+            "HECKS_SESSION_COOKIE {name:?} is not a valid cookie name (letters, digits, '_', '-' and '.' only)"
+        )),
+    }
+}
+
+/// The name of the cookie the account token travels in, from
+/// `HECKS_SESSION_COOKIE`. An invalid value falls back to the default here;
+/// `main` refuses it at boot so a misconfiguration is loud, not silent.
+pub fn account_cookie_name() -> String {
+    resolve_account_cookie(std::env::var("HECKS_SESSION_COOKIE").ok().as_deref()).unwrap_or_else(|_| DEFAULT_ACCOUNT_COOKIE.to_string())
+}
 
 // A flat, HMAC-signed claim -- ported behavior-for-behavior from
 // lifeadelics/adapters/http_server.rb's own sign_token/verify_token
@@ -1007,6 +1033,25 @@ mod tests {
         let token = account_token("s3cret", "chris@embryonaut.ai", 0);
         std::thread::sleep(std::time::Duration::from_secs(1));
         assert_eq!(verify_account_token("s3cret", &token), None);
+    }
+
+    #[test]
+    fn the_account_cookie_defaults_when_unset_or_empty() {
+        assert_eq!(resolve_account_cookie(None).unwrap(), DEFAULT_ACCOUNT_COOKIE);
+        assert_eq!(resolve_account_cookie(Some("")).unwrap(), DEFAULT_ACCOUNT_COOKIE);
+    }
+
+    #[test]
+    fn the_account_cookie_takes_a_configured_valid_name() {
+        assert_eq!(resolve_account_cookie(Some("hecks_session")).unwrap(), "hecks_session");
+        assert_eq!(resolve_account_cookie(Some("app-session.v2")).unwrap(), "app-session.v2");
+    }
+
+    #[test]
+    fn the_account_cookie_refuses_a_name_that_could_break_the_set_cookie_header() {
+        for bad in ["a;b", "a=b", "a b", "a\r\nSet-Cookie: x", "sessão"] {
+            assert!(resolve_account_cookie(Some(bad)).is_err(), "{bad:?} should be refused");
+        }
     }
 
     #[test]
