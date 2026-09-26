@@ -130,10 +130,23 @@ module Hecks
       # rebind! rewrites files in it and must not reach back through a
       # link into the real tree.
       #
+      # The vendored bluebook packages the domain's hecksagons name with
+      # `uses_embryonaut_bluebook` are carried too — see `carry_vendored_bluebooks!`.
+      #
       # @param source [String] the real domain directory to copy
       # @param destination [String] the tmpdir path to copy it into; created if missing
       # @return [void]
       def copy_dereferencing(source, destination)
+        copy_files(source, destination)
+        carry_vendored_bluebooks!(source, destination)
+      end
+
+      # Copies every file under `source` into `destination`, following symlinks.
+      #
+      # @param source [String] the directory to copy
+      # @param destination [String] the path to copy it into; created if missing
+      # @return [void]
+      def copy_files(source, destination)
         FileUtils.mkdir_p(destination)
         Dir.glob(File.join(source, "**", "*"), File::FNM_DOTMATCH).each do |path|
           next if [".", ".."].include?(File.basename(path))
@@ -153,6 +166,33 @@ module Hecks
               # exists was never part of the state this copy needs.
             end
           end
+        end
+      end
+
+      # Copies the vendored bluebook packages the copy's hecksagons name into
+      # the place a boot of the copy looks for them.
+      #
+      # `Hecks.boot` roots a registry at the parent of the directory it boots,
+      # and `uses_embryonaut_bluebook "<name>"` loads from
+      # `<root>/vendor/embryonaut_bluebooks/<name>/bluebook` (see
+      # `EmbryonautBluebook.load!`). The copy holds only the domain directory,
+      # so without this a target that vendors a package crashed the boot with
+      # "no vendored embryonaut bluebook named ...". Only the packages a
+      # hecksagon names are copied, never the rest of `vendor/`. A package the
+      # source root does not have is skipped, so the boot's own error stands.
+      #
+      # @param source [String] the real domain directory
+      # @param destination [String] the copy's directory; its parent is the copy's root
+      # @return [void]
+      def carry_vendored_bluebooks!(source, destination)
+        names = Dir.glob(File.join(destination, "**", "*.hecksagon")).flat_map do |path|
+          File.read(path).scan(/uses_embryonaut_bluebook\s*\(?\s*"([\w-]+)"/).flatten
+        end
+        names.uniq.each do |name|
+          package = File.join(File.dirname(source), "vendor", "embryonaut_bluebooks", name)
+          next unless File.directory?(package)
+
+          copy_files(package, File.join(File.dirname(destination), "vendor", "embryonaut_bluebooks", name))
         end
       end
 
