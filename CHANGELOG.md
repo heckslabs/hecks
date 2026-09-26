@@ -99,6 +99,19 @@ succeeds and the record keeps its old value. It is a pending example that turns
 red when it is fixed. `docs/future-features.md` now lists what the audit's
 tracking still has not re-checked independently.
 
+**The whole banking corpus now replays byte-for-byte identically on Ruby and
+Rust, and CI holds it there.** `spec/rust_conformance_spec.rb` replays
+`spec/corpus/banking.json` in full against the
+Rust binary as well as the small per-construct fixtures. Doing so found two
+refusals Rust worded differently from Ruby, both fixed in Rust. A multi-field
+value object offered as a bare scalar, array or number now refuses
+`name is a PersonName — pass its fields as an object, not "Ada"`, naming the
+caller's attribute and the type, where Rust said
+`PersonName expects an object, got "Ada"`. A read model asked for a root record
+that does not exist now refuses `no Account with reference "acct-1"` where Rust
+said `no Banking::Account with id "acct-1"`. Events, instances, sagas,
+reactions and refusal counts already agreed.
+
 ## [2.5.1] - 2026-09-26
 
 **Projecting a framework chapter no longer leaves a dangling `pub mod merged;`,

@@ -109,10 +109,24 @@ module RustProjection
     # `emit_from_json_flat`/`emit_from_json_state` below (required and
     # `attr[:optional]`) so the bare-scalar decision is made once, not
     # copied four times.
+    #
+    # A multi-field type's value is shape-checked here, ahead of its own
+    # `from_json`, because only this call site knows the attribute name
+    # Ruby's `value_object_shape` refusal quotes (`Json#expect_value_object_shape`).
+    #
+    # @param attr [Hash] the composite attribute's IR entry (`:name`, `:type`)
+    # @param value_objects_by_name [Hash{String => Hash}] the aggregate's value objects
+    # @param value_expr [String] a Rust expression evaluating to a `&Json`
+    # @return [String] the Rust expression building the typed value, ending in `?`
     def composite_from_json_expr(attr, value_objects_by_name, value_expr)
       nested_type = rust_ident(attr[:type])
       sole = sole_field_of(attr[:type], value_objects_by_name)
-      source = sole ? "&#{value_expr}.coerce_single_field(#{sole.inspect})" : value_expr
+      source =
+        if sole
+          "&#{value_expr}.coerce_single_field(#{sole.inspect})"
+        else
+          "#{value_expr}.expect_value_object_shape(#{attr[:name].to_s.inspect}, #{attr[:type].to_s.inspect})?"
+        end
       "#{nested_type}::from_json(#{source})?"
     end
 
@@ -232,8 +246,10 @@ module RustProjection
       nested_type = rust_ident(attr[:type])
       sole = sole_field_of(attr[:type], value_objects_by_name)
       guarded = "match #{fetch} { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }"
-      source = sole ? "(#{guarded}).coerce_single_field(#{sole.inspect})" : guarded
-      "#{nested_type}::from_json(&#{source})?"
+      return "#{nested_type}::from_json(&(#{guarded}).coerce_single_field(#{sole.inspect}))?" if sole
+
+      "#{nested_type}::from_json((#{guarded}).expect_value_object_shape(#{attr[:name].to_s.inspect}, " \
+        "#{attr[:type].to_s.inspect})?)?"
     end
 
     # `default:` — `Value.build`'s own fallback (bridging.rb's

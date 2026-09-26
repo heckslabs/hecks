@@ -637,8 +637,8 @@ if !matches!(v, crate::kernel::Json::Object(_)) {
         reference: match v.get("reference") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(PaymentReference::from_json(&x.coerce_single_field("value"))?), },
         processor: match v.get("processor") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(Processor::from_json(&x.coerce_single_field("value"))?), },
         payment_type: match v.get("payment_type") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(PaymentType::from_json(&x.coerce_single_field("value"))?), },
-        amount: match v.get("amount") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(PositiveMoney::from_json(x)?), },
-        client: match v.get("client") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(Client::from_json(x)?), },
+        amount: match v.get("amount") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(PositiveMoney::from_json(x.expect_value_object_shape("amount", "PositiveMoney")?)?), },
+        client: match v.get("client") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(Client::from_json(x.expect_value_object_shape("client", "Client")?)?), },
         transaction_id: match v.get("transaction_id") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(ProcessorTransactionId::from_json(&x.coerce_single_field("value"))?), },
         failure_reason: match v.get("failure_reason") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(FailureReason::from_json(&x.coerce_single_field("value"))?), },
         status: v.require("status", "Payment")?.as_str().ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Payment.status: expected a string".to_string()))?.to_string(),
@@ -822,9 +822,9 @@ if !absent.is_empty() {
         reference.check_invariants()?;
         let processor = Processor::from_json(&(match v.get("processor").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("InitiateArgs.processor expects Processor, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("value"))?;
         let payment_type = PaymentType::from_json(&(match v.get("payment_type").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("InitiateArgs.payment_type expects PaymentType, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("value"))?;
-        let amount = PositiveMoney::from_json(&match v.get("amount").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("InitiateArgs.amount expects PositiveMoney, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() })?;
+        let amount = PositiveMoney::from_json((match v.get("amount").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("InitiateArgs.amount expects PositiveMoney, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).expect_value_object_shape("amount", "PositiveMoney")?)?;
         amount.check_invariants()?;
-        let client = Client::from_json(&match v.get("client").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("InitiateArgs.client expects Client, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() })?;
+        let client = Client::from_json((match v.get("client").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("InitiateArgs.client expects Client, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).expect_value_object_shape("client", "Client")?)?;
         client.check_invariants()?;
         Ok(Self {
         reference,

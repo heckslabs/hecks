@@ -321,7 +321,7 @@ if !matches!(v, crate::kernel::Json::Object(_)) {
         opening_balance: match v.get("opening_balance") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(StatementAmount::from_json(&x.coerce_single_field("cents"))?), },
         closing_balance: match v.get("closing_balance") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(StatementAmount::from_json(&x.coerce_single_field("cents"))?), },
         generated_on: match v.get("generated_on") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(StatementDate::from_json(&x.coerce_single_field("value"))?), },
-        frequency: match v.get("frequency") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(StatementFrequency::from_json(x)?), },
+        frequency: match v.get("frequency") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(StatementFrequency::from_json(x.expect_value_object_shape("frequency", "StatementFrequency")?)?), },
         })
     }
 }
@@ -529,7 +529,7 @@ if !absent.is_empty() {
         closing_balance.check_invariants()?;
         let generated_on = StatementDate::from_json(&(match v.get("generated_on").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("GenerateArgs.generated_on expects StatementDate, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("value"))?;
         generated_on.check_invariants()?;
-        let frequency = StatementFrequency::from_json(&match v.get("frequency").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("GenerateArgs.frequency expects StatementFrequency, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() })?;
+        let frequency = StatementFrequency::from_json((match v.get("frequency").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("GenerateArgs.frequency expects StatementFrequency, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).expect_value_object_shape("frequency", "StatementFrequency")?)?;
         let account = { let x = v.get("account").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("GenerateArgs.account expects String, got nil".to_string()))?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_) | crate::kernel::Json::Null) { crate::kernel::Refusal::TypeMismatch(format!("GenerateArgs.account expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("GenerateArgs.account: expected String".to_string()) })? };
         Ok(Self {
         period,

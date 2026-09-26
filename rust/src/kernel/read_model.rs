@@ -34,7 +34,7 @@
 // `QuerySpecification::Common::NullPolicy` (lib/hecks/ports/query/,
 // lib/hecks/query_specification/common/null_policy.rb) for exactly
 // what `apply_filtered_head_options` below ports — all read directly.
-use super::refusal_wording::UnauthorizedTenantRequiredArgs;
+use super::refusal_wording::{NotFoundReadModelReferenceMissingArgs, UnauthorizedTenantRequiredArgs};
 use super::{named_query, query_comparators, query_ordering, repository, AggregateScan, Json, QueryCondition, QueryConditionValue, Refusal};
 
 /// One `where` clause that hops through a reference (`account/status`,
@@ -944,7 +944,15 @@ fn fetch_root(store: &impl AggregateScan, head: &ReadModelHead, reference_id: &s
     entries
         .into_iter()
         .find(|(id, _)| id == reference_id)
-        .ok_or_else(|| Refusal::NotFound(format!("no {} with id {reference_id:?}", head.aggregate)))
+        .ok_or_else(|| {
+            // `ReadModelInterpreter#fetch` names the aggregate by its bare
+            // bluebook name; `head.aggregate` is the domain-qualified one.
+            let bare = head.aggregate.rsplit("::").next().unwrap_or(head.aggregate);
+            Refusal::NotFound(
+                NotFoundReadModelReferenceMissingArgs { aggregate: bare, offered: &format!("{reference_id:?}") }
+                    .render_args(),
+            )
+        })
 }
 
 /// A non-root head's own rows — `ReadModelInterpreter#matching`, ported
