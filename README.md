@@ -375,8 +375,8 @@ Only what this repository actually does today, checked, not aspired to:
   query answers match a reference implementation, and — the one that
   actually matters for an event-sourced system — **replaying the same
   steps against a fresh boot produces byte-identical history.** This
-  runs against the Memory adapter only today; Sqlite and Postgres are
-  not yet covered (tracked in
+  runs against the Memory adapter by default and against Sqlite and
+  Postgres with `--adapter` (see
   [`docs/future-features.md`](docs/future-features.md)).
 - **A corpus that checks its own refusals.** `spec/corpus/*.json`
   scripts real command/query sequences — successes and refusals both —
@@ -595,8 +595,9 @@ across the full suite, alongside `bin/model_check` and `bin/fuzz`):
   against real Sqlite and Postgres (`bin/fuzz --adapter sqlite|postgres`
   — Postgres needs a real reachable local server and is noticeably
   slower per seed, so pass smaller `--seeds`/`--steps` than the default
-  sweep). Whether a reference-hop query field (`owner/field`) can be
-  *queried*, not just indexed, against a SQL adapter is still open.
+  sweep). A reference-hop query field (`owner/field`) answers the same on
+  Sqlite, Postgres and PostgresEra as on Memory, pinned by
+  `spec/adapters/query_hop_agreement_spec.rb`.
 - The query DSL has no aggregation yet — no `count`, `sum`, `group_by`.
 - `PostgresEra`'s schema-evolution/translation system works and is
   exercised in CI; the migration/rekey data-loss findings tracked
