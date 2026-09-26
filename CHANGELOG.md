@@ -9,7 +9,7 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 **The whole banking corpus now replays byte-for-byte identically on Ruby and
 Rust, and CI holds it there.** `spec/rust_conformance_spec.rb` replays
-`spec/corpus/banking.json` (258 steps, 181 refusals, 41 queries) against the
+`spec/corpus/banking.json` in full against the
 Rust binary as well as the small per-construct fixtures. Doing so found two
 refusals Rust worded differently from Ruby, both fixed in Rust. A multi-field
 value object offered as a bare scalar, array or number now refuses
