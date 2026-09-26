@@ -1,0 +1,131 @@
+name: "@hecks/client"
+
+# Tests for packages/hecks-client, the JavaScript client for the dispatch
+# protocol a Hecks host answers. Two jobs:
+#
+#   - `hecks_client_unit` builds the package and runs its hermetic tests
+#     against an in-process fake of the protocol. Node only.
+#   - `hecks_client_contract` boots the real rust/host (HECKS_SERVE_MODE=1)
+#     on the checkout fixture domain and runs the same protocol scenario
+#     against it (packages/hecks-client/test/contract.mjs), so a change to the
+#     host's wire shape or to the client fails here.
+#
+# This workflow is deliberately not one of the required checks in ci.yml, and
+# it is filtered by path: it starts only for a pull request that touches the
+# package, the host's request path, or the fixture the scenario runs against.
+# `merge_group` runs cannot be path-filtered, so it is not a trigger.
+
+on:
+  pull_request:
+    paths:
+      - "packages/hecks-client/**"
+      - "rust/host/src/server.rs"
+      - "rust/host/src/dispatch.rs"
+      - "rust/host/src/wasm_runner.rs"
+      - "rust/host/src/main.rs"
+      - "rust/host/Cargo.lock"
+      - "spec/fixtures/rust_host/checkout_fixture/**"
+      - ".github/workflows/client-contract.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  hecks_client_unit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: packages/hecks-client/package-lock.json
+
+      - name: Install
+        run: npm ci
+        working-directory: packages/hecks-client
+
+      - name: Build and test
+        run: npm test
+        working-directory: packages/hecks-client
+
+      # What would be published: dist and the README, nothing else.
+      - name: Check the packed file list
+        working-directory: packages/hecks-client
+        run: |
+          npm pack --dry-run --json | node --input-type=commonjs -e '
+            const [pack] = JSON.parse(require("fs").readFileSync(0, "utf8"));
+            const bad = pack.files.map((f) => f.path).filter((p) => !(p === "package.json" || p === "README.md" || p.startsWith("dist/")));
+            if (bad.length) { console.error("unexpected files in the package:", bad); process.exit(1); }
+          '
+
+  hecks_client_contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    env:
+      PGHOST: localhost
+      PGUSER: postgres
+      PGPASSWORD: postgres
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-ruby
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: packages/hecks-client/package-lock.json
+
+      - uses: ./.github/actions/postgres
+
+      # Same cache the rust/host cargo job uses, so a warm cache serves both.
+      - uses: ./.github/actions/cargo-cache
+        with:
+          name: host
+          crate-root: rust/host
+
+      - uses: ./.github/actions/wasm-toolchain
+
+      # bin/project_wasm projects and builds in a scratch copy of rust/, so it
+      # leaves no tracked file modified.
+      - name: Build the checkout fixture wasm
+        run: bundle exec bin/project_wasm spec/fixtures/rust_host/checkout_fixture
+
+      - name: Build the host
+        run: cargo build --manifest-path rust/host/Cargo.toml --bin bootstrap
+
+      - name: Install the client
+        run: npm ci
+        working-directory: packages/hecks-client
+
+      # HECKS_SERVE_MODE=1 makes the binary answer plain HTTP (server.rs)
+      # instead of the Lambda runtime. The host provisions its own schema and
+      # first era on boot; the database only has to exist. The contract
+      # script polls the protocol's read until the domain has booted.
+      - name: Start the host
+        run: |
+          psql -d postgres -c "CREATE DATABASE hecks_client_contract"
+          HECKS_SERVE_MODE=1 \
+          PORT=8080 \
+          HECKS_DOMAIN=CheckoutFixture \
+          HECKS_WASM_PATH="$PWD/rust/dist/checkout_fixture.wasm" \
+          HECKS_IR_PATH="$PWD/rust/dist/checkout_fixture.ir.json" \
+          DATABASE_URL="postgres://postgres:postgres@localhost:5432/hecks_client_contract" \
+          SESSION_SECRET=contract-test \
+            nohup rust/host/target/debug/bootstrap > "$RUNNER_TEMP/host.log" 2>&1 &
+
+      - name: Run the contract test
+        run: npm run test:contract
+        working-directory: packages/hecks-client
+        env:
+          HECKS_SERVICE_URL: http://127.0.0.1:8080
+          HECKS_DOMAIN: CheckoutFixture
+
+      - name: Host log
+        if: failure()
+        run: cat "$RUNNER_TEMP/host.log"
