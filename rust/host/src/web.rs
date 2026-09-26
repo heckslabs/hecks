@@ -493,17 +493,25 @@ fn accounts_me_route(cookies: &HashMap<String, String>, secret: &str) -> Value {
 // GET /accounts/sso-token — mints the short-lived (60s, Ruby's own
 // SSO_TOKEN_TTL: "one redirect's worth, deliberately tight") handoff
 // token src/pages/api/cms-sso.ts exchanges for a real Payload session at
-// cms/src/endpoints/sso.ts. Re-verifies the requester's own
-// lifeadelics_session cookie first — same account_token scheme, just a
-// much shorter TTL and returned as JSON instead of a cookie, since this
-// token is a one-shot redirect target, never stored.
+// cms/src/endpoints/sso.ts. Re-verifies the requester's own session
+// first — either the legacy Accounts::Account-backed
+// `lifeadelics_session` cookie (account_token/verify_account_token,
+// while that login path still exists) OR the native Google-OAuth
+// `session` cookie (session_cookie/parse_session_cookie, `auth.rs`) —
+// either way the OUTPUT is the identical account_token-shaped
+// handoff token, so cms/src/endpoints/sso.ts's own verifyHandoffToken
+// needs no change at all: it only ever reads `{email, exp}`, never which
+// login path produced the session that resolved it. Not an either/or
+// migration flag — both cookies can be checked unconditionally, since a
+// browser only ever carries the one its own last successful login set.
 fn accounts_sso_token_route(cookies: &HashMap<String, String>, secret: &str) -> Value {
     const SSO_TOKEN_TTL_SECS: u64 = 60;
     let not_logged_in = || respond(401, "application/json", &json!({"error": "not logged in"}).to_string());
-    let Some(token) = cookies.get("lifeadelics_session") else {
-        return not_logged_in();
-    };
-    let Some(email) = auth::verify_account_token(secret, token) else {
+
+    let email = cookies.get("lifeadelics_session").and_then(|token| auth::verify_account_token(secret, token))
+        .or_else(|| cookies.get("session").and_then(|token| auth::parse_session_cookie(secret, token)).map(|session| session.email));
+
+    let Some(email) = email else {
         return not_logged_in();
     };
     let sso_token = auth::account_token(secret, &email, SSO_TOKEN_TTL_SECS);
