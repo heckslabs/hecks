@@ -54,7 +54,7 @@ pub mod waybill;
 // no matter which domain that resolves to.
 //
 // DOMAIN FEATURES ARE MUTUALLY EXCLUSIVE (R5) — Cargo has no native
-// concept of that, and `default = ["waybill"]` in
+// concept of that, and `default = ["pizzas"]` in
 // Cargo.toml stays enabled unless a build passes
 // `--no-default-features`, so a plain `cargo build --features banking`
 // used to enable BOTH the default domain's feature and banking's,
@@ -94,7 +94,7 @@ pub use ledger_ordering::merged as active;
 pub use meta::merged as active;
 #[cfg(feature = "nested_pieces")]
 pub use nested_pieces::merged as active;
-#[cfg(feature = "pizzas")]
+#[cfg(all(feature = "pizzas", not(any(feature = "banking", feature = "bug28_existence_fixture", feature = "chess", feature = "compliance", feature = "corrections", feature = "embryonaut", feature = "has_many_fixture", feature = "lease_clock", feature = "ledger_ordering", feature = "meta", feature = "nested_pieces", feature = "referral_chain", feature = "roster", feature = "tenant_ledger", feature = "waybill"))))]
 pub use pizzas::merged as active;
 #[cfg(feature = "referral_chain")]
 pub use referral_chain::merged as active;
@@ -102,7 +102,7 @@ pub use referral_chain::merged as active;
 pub use roster::merged as active;
 #[cfg(feature = "tenant_ledger")]
 pub use tenant_ledger::merged as active;
-#[cfg(all(feature = "waybill", not(any(feature = "banking", feature = "bug28_existence_fixture", feature = "chess", feature = "compliance", feature = "corrections", feature = "embryonaut", feature = "has_many_fixture", feature = "lease_clock", feature = "ledger_ordering", feature = "meta", feature = "nested_pieces", feature = "pizzas", feature = "referral_chain", feature = "roster", feature = "tenant_ledger"))))]
+#[cfg(feature = "waybill")]
 pub use waybill::merged as active;
 
 // Explicit conflict guard — see point 2 above. Only fires when TWO
@@ -129,14 +129,14 @@ compile_error!("domain features are mutually exclusive — enable only one of: b
 compile_error!("domain features are mutually exclusive — enable only one of: banking, bug28_existence_fixture, chess, compliance, corrections, embryonaut, has_many_fixture, lease_clock, ledger_ordering, meta, nested_pieces, pizzas, referral_chain, roster, tenant_ledger, waybill (both banking and meta are enabled)");
 #[cfg(all(feature = "banking", feature = "nested_pieces"))]
 compile_error!("domain features are mutually exclusive — enable only one of: banking, bug28_existence_fixture, chess, compliance, corrections, embryonaut, has_many_fixture, lease_clock, ledger_ordering, meta, nested_pieces, pizzas, referral_chain, roster, tenant_ledger, waybill (both banking and nested_pieces are enabled)");
-#[cfg(all(feature = "banking", feature = "pizzas"))]
-compile_error!("domain features are mutually exclusive — enable only one of: banking, bug28_existence_fixture, chess, compliance, corrections, embryonaut, has_many_fixture, lease_clock, ledger_ordering, meta, nested_pieces, pizzas, referral_chain, roster, tenant_ledger, waybill (both banking and pizzas are enabled)");
 #[cfg(all(feature = "banking", feature = "referral_chain"))]
 compile_error!("domain features are mutually exclusive — enable only one of: banking, bug28_existence_fixture, chess, compliance, corrections, embryonaut, has_many_fixture, lease_clock, ledger_ordering, meta, nested_pieces, pizzas, referral_chain, roster, tenant_ledger, waybill (both banking and referral_chain are enabled)");
 #[cfg(all(feature = "banking", feature = "roster"))]
 compile_error!("domain features are mutually exclusive — enable only one of: banking, bug28_existence_fixture, chess, compliance, corrections, embryonaut, has_many_fixture, lease_clock, ledger_ordering, meta, nested_pieces, pizzas, referral_chain, roster, tenant_ledger, waybill (both banking and roster are enabled)");
 #[cfg(all(feature = "banking", feature = "tenant_ledger"))]
 compile_error!("domain features are mutually exclusive — enable only one of: banking, bug28_existence_fixture, chess, compliance, corrections, embryonaut, has_many_fixture, lease_clock, ledger_ordering, meta, nested_pieces, pizzas, referral_chain, roster, tenant_ledger, waybill (both banking and tenant_ledger are enabled)");
+#[cfg(all(feature = "banking", feature = "waybill"))]
+compile_error!("domain features are mutually exclusive — enable only one of: banking, bug28_existence_fixture, chess, compliance, corrections, embryonaut, has_many_fixture, lease_clock, ledger_ordering, meta, nested_pieces, pizzas, referral_chain, roster, tenant_ledger, waybill (both banking and waybill are enabled)");
 #[cfg(all(feature = "bug28_existence_fixture", feature = "chess"))]
 compile_error!("domain features are mutually exclusive — enable only one of: banking, bug28_existence_fixture, chess, compliance, corrections, embryonaut, has_many_fixture, lease_clock, ledger_ordering, meta, nested_pieces, pizzas, referral_chain, roster, tenant_ledger, waybill (both bug28_existence_fixture and chess are enabled)");
 #[cfg(all(feature = "bug28_existence_fixture", feature = "compliance"))]
@@ -155,14 +155,14 @@ compile_error!("domain features are mutually exclusive — enable only one of: b
 compile_error!("domain features are mutually exclusive — enable only one of: banking, bug28_existence_fixture, chess, compliance, corrections, embryonaut, has_many_fixture, lease_clock, ledger_ordering, meta, nested_pieces, pizzas, referral_chain, roster, tenant_ledger, waybill (both bug28_existence_fixture and meta are enabled)");
 #[cfg(all(feature = "bug28_existence_fixture", feature = "nested_pieces"))]
 compile_error!("domain features are mutually exclusive — enable only one of: banking, bug28_existence_fixture, chess, compliance, corrections, embryonaut, has_many_fixture, lease_clock, ledger_ordering, meta, nested_pieces, pizzas, referral_chain, roster, tenant_ledger, waybill (both bug28_existence_fixture and nested_pieces are enabled)");
-#[cfg(all(feature = "bug28_existence_fixture", feature = "pizzas"))]
-compile_error!("domain features are mutually exclusive — enable only one of: banking, bug28_existence_fixture, chess, compliance, corrections, embryonaut, has_many_fixture, lease_clock, ledger_ordering, meta, nested_pieces, pizzas, referral_chain, roster, tenant_ledger, waybill (both bug28_existence_fixture and pizzas are enabled)");
 #[cfg(all(feature = "bug28_existence_fixture", feature = "referral_chain"))]
 compile_error!("domain features are mutually exclusive — enable only one of: banking, bug28_existence_fixture, chess, compliance, corrections, embryonaut, has_many_fixture, lease_clock, ledger_ordering, meta, nested_pieces, pizzas, referral_chain, roster, tenant_ledger, waybill (both bug28_existence_fixture and referral_chain are enabled)");
 #[cfg(all(feature = "bug28_existence_fixture", feature = "roster"))]
 compile_error!("domain features are mutually exclusive — enable only one of: banking, bug28_existence_fixture, chess, compliance, corrections, embryonaut, has_many_fixture, lease_clock, ledger_ordering, meta, nested_pieces, pizzas, referral_chain, roster, tenant_ledger, waybill (both bug28_existence_fixture and roster are enabled)");
 #[cfg(all(feature = "bug28_existence_fixture", feature = "tenant_ledger"))]
 compile_error!("domain features are mutually exclusive — enable only one of: banking, bug28_existence_fixture, chess, compliance, corrections, embryonaut, has_many_fixture, lease_clock, ledger_ordering, meta, nested_pieces, pizzas, referral_chain, roster, tenant_ledger, waybill (both bug28_existence_fixture and tenant_ledger are enabled)");
+#[cfg(all(feature = "bug28_existence_fixture", feature = "waybill"))]
+compile_error!("domain features are mutually exclusive — enable only one of: banking, bug28_existence_fixture, chess, compliance, corrections, embryonaut, has_many_fixture, lease_clock, ledger_ordering, meta, nested_pieces, pizzas, referral_chain, roster, tenant_ledger, waybill (both bug28_existence_fixture and waybill are enabled)");
 #[cfg(all(feature = "chess", feature = "compliance"))]
 compile_error!("domain features are mutually exclusive — enable only one of: banking, bug28_existence_fixture, chess, compliance, corrections, embryonaut, has_many_fixture, lease_clock, ledger_ordering, meta, nested_pieces, pizzas, referral_chain, roster, tenant_ledger, waybill (both chess and compliance are enabled)");
 #[cfg(all(feature = "chess", feature = "corrections"))]
@@ -179,14 +179,14 @@ compile_error!("domain features are mutually exclusive — enable only one of: b
 compile_error!("domain features are mutually exclusive — enable only one of: banking, bug28_existence_fixture, chess, compliance, corrections, embryonaut, has_many_fixture, lease_clock, ledger_ordering, meta, nested_pieces, pizzas, referral_chain, roster, tenant_ledger, waybill (both chess and meta are enabled)");
 #[cfg(all(feature = "chess", feature = "nested_pieces"))]
 compile_error!("domain features are mutually exclusive — enable only one of: banking, bug28_existence_fixture, chess, compliance, corrections, embryonaut, has_many_fixture, lease_clock, ledger_ordering, meta, nested_pieces, pizzas, referral_chain, roster, tenant_ledger, waybill (both chess and nested_pieces are enabled)");
-#[cfg(all(feature = "chess", feature = "pizzas"))]
-compile_error!("domain features are mutually exclusive — enable only one of: banking, bug28_existence_fixture, chess, compliance, corrections, embryonaut, has_many_fixture, lease_clock, ledger_ordering, meta, nested_pieces, pizzas, referral_chain, roster, tenant_ledger, waybill (both chess and pizzas are enabled)");
 #[cfg(all(feature = "chess", feature = "referral_chain"))]
 compile_error!("domain features are mutually exclusive — enable only one of: banking, bug28_existence_fixture, chess, compliance, corrections, embryonaut, has_many_fixture, lease_clock, ledger_ordering, meta, nested_pieces, pizzas, referral_chain, roster, tenant_ledger, waybill (both chess and referral_chain are enabled)");
 #[cfg(all(feature = "chess", feature = "roster"))]
 compile_error!("domain features are mutually exclusive — enable only one of: banking, bug28_existence_fixture, chess, compliance, corrections, embryonaut, has_many_fixture, lease_clock, ledger_ordering, meta, nested_pieces, pizzas, referral_chain, roster, tenant_ledger, waybill (both chess and roster are enabled)");
 #[cfg(all(feature = "chess", feature = "tenant_ledger"))]
 compile_error!("domain features are mutually exclusive — enable only one of: banking, bug28_existence_fixture, chess, compliance, corrections, embryonaut, has_many_fixture, lease_clock, ledger_ordering, meta, nested_pieces, pizzas, referral_chain, roster, tenant_ledger, waybill (both chess and tenant_ledger are enabled)");
+#[cfg(all(feature = "chess", feature = "waybill"))]
+compile_error!("domain features are mutually exclusive — enable only one of: banking, bug28_existence_fixture, chess, compliance, corrections, embryonaut, has_many_fixture, lease_clock, ledger_ordering, meta, nested_pieces, pizzas, referral_chain, roster, tenant_ledger, waybill (both chess and waybill are enabled)");
 #[cfg(all(feature = "compliance", feature = "corrections"))]
 compile_error!("domain features are mutually exclusive — enable only one of: banking, bug28_existence_fixture, chess, compliance, corrections, embryonaut, has_many_fixture, lease_clock, ledger_ordering, meta, nested_pieces, pizzas, referral_chain, roster, tenant_ledger, waybill (both compliance and corrections are enabled)");
 #[cfg(all(feature = "compliance", feature = "embryonaut"))]
@@ -201,14 +201,14 @@ compile_error!("domain features are mutually exclusive — enable only one of: b
 compile_error!("domain features are mutually exclusive — enable only one of: banking, bug28_existence_fixture, chess, compliance, corrections, embryonaut, has_many_fixture, lease_clock, ledger_ordering, meta, nested_pieces, pizzas, referral_chain, roster, tenant_ledger, waybill (both compliance and meta are enabled)");
 #[cfg(all(feature = "compliance", feature = "nested_pieces"))]
 compile_error!("domain features are mutually exclusive — enable only one of: banking, bug28_existence_fixture, chess, compliance, corrections, embryonaut, has_many_fixture, lease_clock, ledger_ordering, meta, nested_pieces, pizzas, referral_chain, roster, tenant_ledger, waybill (both compliance and nested_pieces are enabled)");
-#[cfg(all(feature = "compliance", feature = "pizzas"))]
-compile_error!("domain features are mutually exclusive — enable only one of: banking, bug28_existence_fixture, chess, compliance, corrections, embryonaut, has_many_fixture, lease_clock, ledger_ordering, meta, nested_pieces, pizzas, referral_chain, roster, tenant_ledger, waybill (both compliance and pizzas are enabled)");
 #[cfg(all(feature = "compliance", feature = "referral_chain"))]
 compile_error!("domain features are mutually exclusive — enable only one of: banking, bug28_existence_fixture, chess, compliance, corrections, embryonaut, has_many_fixture, lease_clock, ledger_ordering, meta, nested_pieces, pizzas, referral_chain, roster, tenant_ledger, waybill (both compliance and referral_chain are enabled)");
 #[cfg(all(feature = "compliance", feature = "roster"))]
 compile_error!("domain features are mutually exclusive — enable only one of: banking, bug28_existence_fixture, chess, compliance, corrections, embryonaut, has_many_fixture, lease_clock, ledger_ordering, meta, nested_pieces, pizzas, referral_chain, roster, tenant_ledger, waybill (both compliance and roster are enabled)");
 #[cfg(all(feature = "compliance", feature = "tenant_ledger"))]
 compile_error!("domain features are mutually exclusive — enable only one of: banking, bug28_existence_fixture, chess, compliance, corrections, embryonaut, has_many_fixture, lease_clock, ledger_ordering, meta, nested_pieces, pizzas, referral_chain, roster, tenant_ledger, waybill (both compliance and tenant_ledger are enabled)");
+#[cfg(all(feature = "compliance", feature = "waybill"))]
+compile_error!("domain features are mutually exclusive — enable only one of: banking, bug28_existence_fixture, chess, compliance, corrections, embryonaut, has_many_fixture, lease_clock, ledger_ordering, meta, nested_pieces, pizzas, referral_chain, roster, tenant_ledger, waybill (both compliance and waybill are enabled)");
 #[cfg(all(feature = "corrections", feature = "embryonaut"))]
 compile_error!("domain features are mutually exclusive — enable only one of: banking, bug28_existence_fixture, chess, compliance, corrections, embryonaut, has_many_fixture, lease_clock, ledger_ordering, meta, nested_pieces, pizzas, referral_chain, roster, tenant_ledger, waybill (both corrections and embryonaut are enabled)");
 #[cfg(all(feature = "corrections", feature = "has_many_fixture"))]
@@ -221,14 +221,14 @@ compile_error!("domain features are mutually exclusive — enable only one of: b
 compile_error!("domain features are mutually exclusive — enable only one of: banking, bug28_existence_fixture, chess, compliance, corrections, embryonaut, has_many_fixture, lease_clock, ledger_ordering, meta, nested_pieces, pizzas, referral_chain, roster, tenant_ledger, waybill (both corrections and meta are enabled)");
 #[cfg(all(feature = "corrections", feature = "nested_pieces"))]
 compile_error!("domain features are mutually exclusive — enable only one of: banking, bug28_existence_fixture, chess, compliance, corrections, embryonaut, has_many_fixture, lease_clock, ledger_ordering, meta, nested_pieces, pizzas, referral_chain, roster, tenant_ledger, waybill (both corrections and nested_pieces are enabled)");
-#[cfg(all(feature = "corrections", feature = "pizzas"))]
-compile_error!("domain features are mutually exclusive — enable only one of: banking, bug28_existence_fixture, chess, compliance, corrections, embryonaut, has_many_fixture, lease_clock, ledger_ordering, meta, nested_pieces, pizzas, referral_chain, roster, tenant_ledger, waybill (both corrections and pizzas are enabled)");
 #[cfg(all(feature = "corrections", feature = "referral_chain"))]
 compile_error!("domain features are mutually exclusive — enable only one of: banking, bug28_existence_fixture, chess, compliance, corrections, embryonaut, has_many_fixture, lease_clock, ledger_ordering, meta, nested_pieces, pizzas, referral_chain, roster, tenant_ledger, waybill (both corrections and referral_chain are enabled)");
 #[cfg(all(feature = "corrections", feature = "roster"))]
 compile_error!("domain features are mutually exclusive — enable only one of: banking, bug28_existence_fixture, chess, compliance, corrections, embryonaut, has_many_fixture, lease_clock, ledger_ordering, meta, nested_pieces, pizzas, referral_chain, roster, tenant_ledger, waybill (both corrections and roster are enabled)");
 #[cfg(all(feature = "corrections", feature = "tenant_ledger"))]
 compile_error!("domain features are mutually exclusive — enable only one of: banking, bug28_existence_fixture, chess, compliance, corrections, embryonaut, has_many_fixture, lease_clock, ledger_ordering, meta, nested_pieces, pizzas, referral_chain, roster, tenant_ledger, waybill (both corrections and tenant_ledger are enabled)");
+#[cfg(all(feature = "corrections", feature = "waybill"))]
+compile_error!("domain features are mutually exclusive — enable only one of: banking, bug28_existence_fixture, chess, compliance, corrections, embryonaut, has_many_fixture, lease_clock, ledger_ordering, meta, nested_pieces, pizzas, referral_chain, roster, tenant_ledger, waybill (both corrections and waybill are enabled)");
 #[cfg(all(feature = "embryonaut", feature = "has_many_fixture"))]
 compile_error!("domain features are mutually exclusive — enable only one of: banking, bug28_existence_fixture, chess, compliance, corrections, embryonaut, has_many_fixture, lease_clock, ledger_ordering, meta, nested_pieces, pizzas, referral_chain, roster, tenant_ledger, waybill (both embryonaut and has_many_fixture are enabled)");
 #[cfg(all(feature = "embryonaut", feature = "lease_clock"))]
@@ -239,14 +239,14 @@ compile_error!("domain features are mutually exclusive — enable only one of: b
 compile_error!("domain features are mutually exclusive — enable only one of: banking, bug28_existence_fixture, chess, compliance, corrections, embryonaut, has_many_fixture, lease_clock, ledger_ordering, meta, nested_pieces, pizzas, referral_chain, roster, tenant_ledger, waybill (both embryonaut and meta are enabled)");
 #[cfg(all(feature = "embryonaut", feature = "nested_pieces"))]
 compile_error!("domain features are mutually exclusive — enable only one of: banking, bug28_existence_fixture, chess, compliance, corrections, embryonaut, has_many_fixture, lease_clock, ledger_ordering, meta, nested_pieces, pizzas, referral_chain, roster, tenant_ledger, waybill (both embryonaut and nested_pieces are enabled)");
-#[cfg(all(feature = "embryonaut", feature = "pizzas"))]
-compile_error!("domain features are mutually exclusive — enable only one of: banking, bug28_existence_fixture, chess, compliance, corrections, embryonaut, has_many_fixture, lease_clock, ledger_ordering, meta, nested_pieces, pizzas, referral_chain, roster, tenant_ledger, waybill (both embryonaut and pizzas are enabled)");
 #[cfg(all(feature = "embryonaut", feature = "referral_chain"))]
 compile_error!("domain features are mutually exclusive — enable only one of: banking, bug28_existence_fixture, chess, compliance, corrections, embryonaut, has_many_fixture, lease_clock, ledger_ordering, meta, nested_pieces, pizzas, referral_chain, roster, tenant_ledger, waybill (both embryonaut and referral_chain are enabled)");
 #[cfg(all(feature = "embryonaut", feature = "roster"))]
 compile_error!("domain features are mutually exclusive — enable only one of: banking, bug28_existence_fixture, chess, compliance, corrections, embryonaut, has_many_fixture, lease_clock, ledger_ordering, meta, nested_pieces, pizzas, referral_chain, roster, tenant_ledger, waybill (both embryonaut and roster are enabled)");
 #[cfg(all(feature = "embryonaut", feature = "tenant_ledger"))]
 compile_error!("domain features are mutually exclusive — enable only one of: banking, bug28_existence_fixture, chess, compliance, corrections, embryonaut, has_many_fixture, lease_clock, ledger_ordering, meta, nested_pieces, pizzas, referral_chain, roster, tenant_ledger, waybill (both embryonaut and tenant_ledger are enabled)");
+#[cfg(all(feature = "embryonaut", feature = "waybill"))]
+compile_error!("domain features are mutually exclusive — enable only one of: banking, bug28_existence_fixture, chess, compliance, corrections, embryonaut, has_many_fixture, lease_clock, ledger_ordering, meta, nested_pieces, pizzas, referral_chain, roster, tenant_ledger, waybill (both embryonaut and waybill are enabled)");
 #[cfg(all(feature = "has_many_fixture", feature = "lease_clock"))]
 compile_error!("domain features are mutually exclusive — enable only one of: banking, bug28_existence_fixture, chess, compliance, corrections, embryonaut, has_many_fixture, lease_clock, ledger_ordering, meta, nested_pieces, pizzas, referral_chain, roster, tenant_ledger, waybill (both has_many_fixture and lease_clock are enabled)");
 #[cfg(all(feature = "has_many_fixture", feature = "ledger_ordering"))]
@@ -255,67 +255,67 @@ compile_error!("domain features are mutually exclusive — enable only one of: b
 compile_error!("domain features are mutually exclusive — enable only one of: banking, bug28_existence_fixture, chess, compliance, corrections, embryonaut, has_many_fixture, lease_clock, ledger_ordering, meta, nested_pieces, pizzas, referral_chain, roster, tenant_ledger, waybill (both has_many_fixture and meta are enabled)");
 #[cfg(all(feature = "has_many_fixture", feature = "nested_pieces"))]
 compile_error!("domain features are mutually exclusive — enable only one of: banking, bug28_existence_fixture, chess, compliance, corrections, embryonaut, has_many_fixture, lease_clock, ledger_ordering, meta, nested_pieces, pizzas, referral_chain, roster, tenant_ledger, waybill (both has_many_fixture and nested_pieces are enabled)");
-#[cfg(all(feature = "has_many_fixture", feature = "pizzas"))]
-compile_error!("domain features are mutually exclusive — enable only one of: banking, bug28_existence_fixture, chess, compliance, corrections, embryonaut, has_many_fixture, lease_clock, ledger_ordering, meta, nested_pieces, pizzas, referral_chain, roster, tenant_ledger, waybill (both has_many_fixture and pizzas are enabled)");
 #[cfg(all(feature = "has_many_fixture", feature = "referral_chain"))]
 compile_error!("domain features are mutually exclusive — enable only one of: banking, bug28_existence_fixture, chess, compliance, corrections, embryonaut, has_many_fixture, lease_clock, ledger_ordering, meta, nested_pieces, pizzas, referral_chain, roster, tenant_ledger, waybill (both has_many_fixture and referral_chain are enabled)");
 #[cfg(all(feature = "has_many_fixture", feature = "roster"))]
 compile_error!("domain features are mutually exclusive — enable only one of: banking, bug28_existence_fixture, chess, compliance, corrections, embryonaut, has_many_fixture, lease_clock, ledger_ordering, meta, nested_pieces, pizzas, referral_chain, roster, tenant_ledger, waybill (both has_many_fixture and roster are enabled)");
 #[cfg(all(feature = "has_many_fixture", feature = "tenant_ledger"))]
 compile_error!("domain features are mutually exclusive — enable only one of: banking, bug28_existence_fixture, chess, compliance, corrections, embryonaut, has_many_fixture, lease_clock, ledger_ordering, meta, nested_pieces, pizzas, referral_chain, roster, tenant_ledger, waybill (both has_many_fixture and tenant_ledger are enabled)");
+#[cfg(all(feature = "has_many_fixture", feature = "waybill"))]
+compile_error!("domain features are mutually exclusive — enable only one of: banking, bug28_existence_fixture, chess, compliance, corrections, embryonaut, has_many_fixture, lease_clock, ledger_ordering, meta, nested_pieces, pizzas, referral_chain, roster, tenant_ledger, waybill (both has_many_fixture and waybill are enabled)");
 #[cfg(all(feature = "lease_clock", feature = "ledger_ordering"))]
 compile_error!("domain features are mutually exclusive — enable only one of: banking, bug28_existence_fixture, chess, compliance, corrections, embryonaut, has_many_fixture, lease_clock, ledger_ordering, meta, nested_pieces, pizzas, referral_chain, roster, tenant_ledger, waybill (both lease_clock and ledger_ordering are enabled)");
 #[cfg(all(feature = "lease_clock", feature = "meta"))]
 compile_error!("domain features are mutually exclusive — enable only one of: banking, bug28_existence_fixture, chess, compliance, corrections, embryonaut, has_many_fixture, lease_clock, ledger_ordering, meta, nested_pieces, pizzas, referral_chain, roster, tenant_ledger, waybill (both lease_clock and meta are enabled)");
 #[cfg(all(feature = "lease_clock", feature = "nested_pieces"))]
 compile_error!("domain features are mutually exclusive — enable only one of: banking, bug28_existence_fixture, chess, compliance, corrections, embryonaut, has_many_fixture, lease_clock, ledger_ordering, meta, nested_pieces, pizzas, referral_chain, roster, tenant_ledger, waybill (both lease_clock and nested_pieces are enabled)");
-#[cfg(all(feature = "lease_clock", feature = "pizzas"))]
-compile_error!("domain features are mutually exclusive — enable only one of: banking, bug28_existence_fixture, chess, compliance, corrections, embryonaut, has_many_fixture, lease_clock, ledger_ordering, meta, nested_pieces, pizzas, referral_chain, roster, tenant_ledger, waybill (both lease_clock and pizzas are enabled)");
 #[cfg(all(feature = "lease_clock", feature = "referral_chain"))]
 compile_error!("domain features are mutually exclusive — enable only one of: banking, bug28_existence_fixture, chess, compliance, corrections, embryonaut, has_many_fixture, lease_clock, ledger_ordering, meta, nested_pieces, pizzas, referral_chain, roster, tenant_ledger, waybill (both lease_clock and referral_chain are enabled)");
 #[cfg(all(feature = "lease_clock", feature = "roster"))]
 compile_error!("domain features are mutually exclusive — enable only one of: banking, bug28_existence_fixture, chess, compliance, corrections, embryonaut, has_many_fixture, lease_clock, ledger_ordering, meta, nested_pieces, pizzas, referral_chain, roster, tenant_ledger, waybill (both lease_clock and roster are enabled)");
 #[cfg(all(feature = "lease_clock", feature = "tenant_ledger"))]
 compile_error!("domain features are mutually exclusive — enable only one of: banking, bug28_existence_fixture, chess, compliance, corrections, embryonaut, has_many_fixture, lease_clock, ledger_ordering, meta, nested_pieces, pizzas, referral_chain, roster, tenant_ledger, waybill (both lease_clock and tenant_ledger are enabled)");
+#[cfg(all(feature = "lease_clock", feature = "waybill"))]
+compile_error!("domain features are mutually exclusive — enable only one of: banking, bug28_existence_fixture, chess, compliance, corrections, embryonaut, has_many_fixture, lease_clock, ledger_ordering, meta, nested_pieces, pizzas, referral_chain, roster, tenant_ledger, waybill (both lease_clock and waybill are enabled)");
 #[cfg(all(feature = "ledger_ordering", feature = "meta"))]
 compile_error!("domain features are mutually exclusive — enable only one of: banking, bug28_existence_fixture, chess, compliance, corrections, embryonaut, has_many_fixture, lease_clock, ledger_ordering, meta, nested_pieces, pizzas, referral_chain, roster, tenant_ledger, waybill (both ledger_ordering and meta are enabled)");
 #[cfg(all(feature = "ledger_ordering", feature = "nested_pieces"))]
 compile_error!("domain features are mutually exclusive — enable only one of: banking, bug28_existence_fixture, chess, compliance, corrections, embryonaut, has_many_fixture, lease_clock, ledger_ordering, meta, nested_pieces, pizzas, referral_chain, roster, tenant_ledger, waybill (both ledger_ordering and nested_pieces are enabled)");
-#[cfg(all(feature = "ledger_ordering", feature = "pizzas"))]
-compile_error!("domain features are mutually exclusive — enable only one of: banking, bug28_existence_fixture, chess, compliance, corrections, embryonaut, has_many_fixture, lease_clock, ledger_ordering, meta, nested_pieces, pizzas, referral_chain, roster, tenant_ledger, waybill (both ledger_ordering and pizzas are enabled)");
 #[cfg(all(feature = "ledger_ordering", feature = "referral_chain"))]
 compile_error!("domain features are mutually exclusive — enable only one of: banking, bug28_existence_fixture, chess, compliance, corrections, embryonaut, has_many_fixture, lease_clock, ledger_ordering, meta, nested_pieces, pizzas, referral_chain, roster, tenant_ledger, waybill (both ledger_ordering and referral_chain are enabled)");
 #[cfg(all(feature = "ledger_ordering", feature = "roster"))]
 compile_error!("domain features are mutually exclusive — enable only one of: banking, bug28_existence_fixture, chess, compliance, corrections, embryonaut, has_many_fixture, lease_clock, ledger_ordering, meta, nested_pieces, pizzas, referral_chain, roster, tenant_ledger, waybill (both ledger_ordering and roster are enabled)");
 #[cfg(all(feature = "ledger_ordering", feature = "tenant_ledger"))]
 compile_error!("domain features are mutually exclusive — enable only one of: banking, bug28_existence_fixture, chess, compliance, corrections, embryonaut, has_many_fixture, lease_clock, ledger_ordering, meta, nested_pieces, pizzas, referral_chain, roster, tenant_ledger, waybill (both ledger_ordering and tenant_ledger are enabled)");
+#[cfg(all(feature = "ledger_ordering", feature = "waybill"))]
+compile_error!("domain features are mutually exclusive — enable only one of: banking, bug28_existence_fixture, chess, compliance, corrections, embryonaut, has_many_fixture, lease_clock, ledger_ordering, meta, nested_pieces, pizzas, referral_chain, roster, tenant_ledger, waybill (both ledger_ordering and waybill are enabled)");
 #[cfg(all(feature = "meta", feature = "nested_pieces"))]
 compile_error!("domain features are mutually exclusive — enable only one of: banking, bug28_existence_fixture, chess, compliance, corrections, embryonaut, has_many_fixture, lease_clock, ledger_ordering, meta, nested_pieces, pizzas, referral_chain, roster, tenant_ledger, waybill (both meta and nested_pieces are enabled)");
-#[cfg(all(feature = "meta", feature = "pizzas"))]
-compile_error!("domain features are mutually exclusive — enable only one of: banking, bug28_existence_fixture, chess, compliance, corrections, embryonaut, has_many_fixture, lease_clock, ledger_ordering, meta, nested_pieces, pizzas, referral_chain, roster, tenant_ledger, waybill (both meta and pizzas are enabled)");
 #[cfg(all(feature = "meta", feature = "referral_chain"))]
 compile_error!("domain features are mutually exclusive — enable only one of: banking, bug28_existence_fixture, chess, compliance, corrections, embryonaut, has_many_fixture, lease_clock, ledger_ordering, meta, nested_pieces, pizzas, referral_chain, roster, tenant_ledger, waybill (both meta and referral_chain are enabled)");
 #[cfg(all(feature = "meta", feature = "roster"))]
 compile_error!("domain features are mutually exclusive — enable only one of: banking, bug28_existence_fixture, chess, compliance, corrections, embryonaut, has_many_fixture, lease_clock, ledger_ordering, meta, nested_pieces, pizzas, referral_chain, roster, tenant_ledger, waybill (both meta and roster are enabled)");
 #[cfg(all(feature = "meta", feature = "tenant_ledger"))]
 compile_error!("domain features are mutually exclusive — enable only one of: banking, bug28_existence_fixture, chess, compliance, corrections, embryonaut, has_many_fixture, lease_clock, ledger_ordering, meta, nested_pieces, pizzas, referral_chain, roster, tenant_ledger, waybill (both meta and tenant_ledger are enabled)");
-#[cfg(all(feature = "nested_pieces", feature = "pizzas"))]
-compile_error!("domain features are mutually exclusive — enable only one of: banking, bug28_existence_fixture, chess, compliance, corrections, embryonaut, has_many_fixture, lease_clock, ledger_ordering, meta, nested_pieces, pizzas, referral_chain, roster, tenant_ledger, waybill (both nested_pieces and pizzas are enabled)");
+#[cfg(all(feature = "meta", feature = "waybill"))]
+compile_error!("domain features are mutually exclusive — enable only one of: banking, bug28_existence_fixture, chess, compliance, corrections, embryonaut, has_many_fixture, lease_clock, ledger_ordering, meta, nested_pieces, pizzas, referral_chain, roster, tenant_ledger, waybill (both meta and waybill are enabled)");
 #[cfg(all(feature = "nested_pieces", feature = "referral_chain"))]
 compile_error!("domain features are mutually exclusive — enable only one of: banking, bug28_existence_fixture, chess, compliance, corrections, embryonaut, has_many_fixture, lease_clock, ledger_ordering, meta, nested_pieces, pizzas, referral_chain, roster, tenant_ledger, waybill (both nested_pieces and referral_chain are enabled)");
 #[cfg(all(feature = "nested_pieces", feature = "roster"))]
 compile_error!("domain features are mutually exclusive — enable only one of: banking, bug28_existence_fixture, chess, compliance, corrections, embryonaut, has_many_fixture, lease_clock, ledger_ordering, meta, nested_pieces, pizzas, referral_chain, roster, tenant_ledger, waybill (both nested_pieces and roster are enabled)");
 #[cfg(all(feature = "nested_pieces", feature = "tenant_ledger"))]
 compile_error!("domain features are mutually exclusive — enable only one of: banking, bug28_existence_fixture, chess, compliance, corrections, embryonaut, has_many_fixture, lease_clock, ledger_ordering, meta, nested_pieces, pizzas, referral_chain, roster, tenant_ledger, waybill (both nested_pieces and tenant_ledger are enabled)");
-#[cfg(all(feature = "pizzas", feature = "referral_chain"))]
-compile_error!("domain features are mutually exclusive — enable only one of: banking, bug28_existence_fixture, chess, compliance, corrections, embryonaut, has_many_fixture, lease_clock, ledger_ordering, meta, nested_pieces, pizzas, referral_chain, roster, tenant_ledger, waybill (both pizzas and referral_chain are enabled)");
-#[cfg(all(feature = "pizzas", feature = "roster"))]
-compile_error!("domain features are mutually exclusive — enable only one of: banking, bug28_existence_fixture, chess, compliance, corrections, embryonaut, has_many_fixture, lease_clock, ledger_ordering, meta, nested_pieces, pizzas, referral_chain, roster, tenant_ledger, waybill (both pizzas and roster are enabled)");
-#[cfg(all(feature = "pizzas", feature = "tenant_ledger"))]
-compile_error!("domain features are mutually exclusive — enable only one of: banking, bug28_existence_fixture, chess, compliance, corrections, embryonaut, has_many_fixture, lease_clock, ledger_ordering, meta, nested_pieces, pizzas, referral_chain, roster, tenant_ledger, waybill (both pizzas and tenant_ledger are enabled)");
+#[cfg(all(feature = "nested_pieces", feature = "waybill"))]
+compile_error!("domain features are mutually exclusive — enable only one of: banking, bug28_existence_fixture, chess, compliance, corrections, embryonaut, has_many_fixture, lease_clock, ledger_ordering, meta, nested_pieces, pizzas, referral_chain, roster, tenant_ledger, waybill (both nested_pieces and waybill are enabled)");
 #[cfg(all(feature = "referral_chain", feature = "roster"))]
 compile_error!("domain features are mutually exclusive — enable only one of: banking, bug28_existence_fixture, chess, compliance, corrections, embryonaut, has_many_fixture, lease_clock, ledger_ordering, meta, nested_pieces, pizzas, referral_chain, roster, tenant_ledger, waybill (both referral_chain and roster are enabled)");
 #[cfg(all(feature = "referral_chain", feature = "tenant_ledger"))]
 compile_error!("domain features are mutually exclusive — enable only one of: banking, bug28_existence_fixture, chess, compliance, corrections, embryonaut, has_many_fixture, lease_clock, ledger_ordering, meta, nested_pieces, pizzas, referral_chain, roster, tenant_ledger, waybill (both referral_chain and tenant_ledger are enabled)");
+#[cfg(all(feature = "referral_chain", feature = "waybill"))]
+compile_error!("domain features are mutually exclusive — enable only one of: banking, bug28_existence_fixture, chess, compliance, corrections, embryonaut, has_many_fixture, lease_clock, ledger_ordering, meta, nested_pieces, pizzas, referral_chain, roster, tenant_ledger, waybill (both referral_chain and waybill are enabled)");
 #[cfg(all(feature = "roster", feature = "tenant_ledger"))]
 compile_error!("domain features are mutually exclusive — enable only one of: banking, bug28_existence_fixture, chess, compliance, corrections, embryonaut, has_many_fixture, lease_clock, ledger_ordering, meta, nested_pieces, pizzas, referral_chain, roster, tenant_ledger, waybill (both roster and tenant_ledger are enabled)");
+#[cfg(all(feature = "roster", feature = "waybill"))]
+compile_error!("domain features are mutually exclusive — enable only one of: banking, bug28_existence_fixture, chess, compliance, corrections, embryonaut, has_many_fixture, lease_clock, ledger_ordering, meta, nested_pieces, pizzas, referral_chain, roster, tenant_ledger, waybill (both roster and waybill are enabled)");
+#[cfg(all(feature = "tenant_ledger", feature = "waybill"))]
+compile_error!("domain features are mutually exclusive — enable only one of: banking, bug28_existence_fixture, chess, compliance, corrections, embryonaut, has_many_fixture, lease_clock, ledger_ordering, meta, nested_pieces, pizzas, referral_chain, roster, tenant_ledger, waybill (both tenant_ledger and waybill are enabled)");

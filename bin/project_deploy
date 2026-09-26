@@ -450,7 +450,7 @@ out_dir = File.join(root, "deploy", infra_name)
 FileUtils.mkdir_p(out_dir)
 
 logical_id = "#{infra_name.split(/[_-]/).map(&:capitalize).join}Function"
-stack_name = "hecks-#{infra_name}"
+stack_name = "#{deploy_settings[:stack_prefix] || 'hecks'}-#{infra_name}"
 
 db_id = "#{logical_id.sub(/Function\z/, '')}Db"
 # The Aurora shape splits the database in two (a DBCluster carrying
