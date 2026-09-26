@@ -25,6 +25,65 @@ pub fn error(msg: &str, fields: Value) {
     emit("error", msg, fields);
 }
 
+/// A boot phase in flight. Logs `boot_phase` with `event: "start"` when it
+/// begins and `event: "end"` with `elapsed_ms` when it finishes, so a hang shows
+/// as a start line with no end line after it. A phase that fails simply never
+/// logs its end (the error itself is what the process reports).
+///
+/// `fields` are identifiers only (an aggregate's storage name, an era number),
+/// never data, and are repeated on both lines.
+pub struct Phase {
+    name: &'static str,
+    fields: Value,
+    started: std::time::Instant,
+}
+
+/// Starts a boot phase with no extra fields.
+pub fn phase(name: &'static str) -> Phase {
+    phase_with(name, json!({}))
+}
+
+/// Starts a boot phase and logs its `start` line.
+pub fn phase_with(name: &'static str, fields: Value) -> Phase {
+    emit("info", "boot_phase", phase_fields(name, "start", &fields, None));
+    Phase { name, fields, started: std::time::Instant::now() }
+}
+
+impl Phase {
+    /// Logs the `end` line and returns the elapsed milliseconds.
+    pub fn end(self) -> u64 {
+        self.end_with(json!({}))
+    }
+
+    /// Logs the `end` line with extra fields describing the outcome.
+    pub fn end_with(self, outcome: Value) -> u64 {
+        let elapsed_ms = self.started.elapsed().as_millis() as u64;
+        let mut fields = self.fields.clone();
+        if let (Value::Object(base), Value::Object(extra)) = (&mut fields, outcome) {
+            base.extend(extra);
+        }
+        emit("info", "boot_phase", phase_fields(self.name, "end", &fields, Some(elapsed_ms)));
+        elapsed_ms
+    }
+}
+
+/// The fields of one phase line: `phase`, `event`, `elapsed_ms` on an end line,
+/// then the phase's own identifiers.
+fn phase_fields(name: &str, event: &str, fields: &Value, elapsed_ms: Option<u64>) -> Value {
+    let mut object = Map::new();
+    object.insert("phase".to_string(), json!(name));
+    object.insert("event".to_string(), json!(event));
+    if let Some(ms) = elapsed_ms {
+        object.insert("elapsed_ms".to_string(), json!(ms));
+    }
+    if let Value::Object(fields) = fields {
+        for (key, value) in fields {
+            object.entry(key.clone()).or_insert(value.clone());
+        }
+    }
+    Value::Object(object)
+}
+
 fn emit(level: &str, msg: &str, fields: Value) {
     let line = render(level, msg, fields);
     // A closed stdout must never take a request down with it.
@@ -66,6 +125,34 @@ mod tests {
         let parsed: Value = serde_json::from_str(&line).unwrap();
         assert_eq!(parsed["level"], "error");
         assert_eq!(parsed["msg"], "boom");
+    }
+
+    #[test]
+    fn a_phase_line_names_the_phase_and_an_end_line_carries_elapsed_ms() {
+        let start = render("info", "boot_phase", phase_fields("audit_aggregate", "start", &json!({"aggregate": "registration"}), None));
+        let parsed: Value = serde_json::from_str(&start).unwrap();
+        assert_eq!(parsed["msg"], "boot_phase");
+        assert_eq!((parsed["phase"].as_str(), parsed["event"].as_str()), (Some("audit_aggregate"), Some("start")));
+        assert_eq!(parsed["aggregate"], "registration");
+        assert!(parsed.get("elapsed_ms").is_none(), "a start line has no duration yet");
+
+        let end = render("info", "boot_phase", phase_fields("audit_aggregate", "end", &json!({"aggregate": "registration"}), Some(42)));
+        let parsed: Value = serde_json::from_str(&end).unwrap();
+        assert_eq!((parsed["event"].as_str(), parsed["elapsed_ms"].as_u64()), (Some("end"), Some(42)));
+    }
+
+    #[test]
+    fn a_phase_field_cannot_overwrite_the_phase_or_event() {
+        let fields = phase_fields("connect", "start", &json!({"phase": "other", "event": "end", "era": 7}), None);
+        assert_eq!((fields["phase"].as_str(), fields["event"].as_str(), fields["era"].as_u64()), (Some("connect"), Some("start"), Some(7)));
+    }
+
+    #[test]
+    fn ending_a_phase_reports_elapsed_time_and_merges_the_outcome() {
+        let phase = phase_with("mint_era", json!({"era": 7}));
+        std::thread::sleep(std::time::Duration::from_millis(15));
+        let elapsed = phase.end_with(json!({"aggregates": 5}));
+        assert!(elapsed >= 15, "{elapsed}");
     }
 
     #[test]

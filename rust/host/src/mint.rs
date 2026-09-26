@@ -223,6 +223,18 @@ pub enum BootDecision {
     LatestUnnamed { ordinal: i32 },
 }
 
+impl BootDecision {
+    /// The outcome's name, as the boot log reports it.
+    pub fn name(&self) -> &'static str {
+        match self {
+            BootDecision::UseExisting { .. } => "use_existing",
+            BootDecision::HoldFirst => "hold_first",
+            BootDecision::Mint { .. } => "mint",
+            BootDecision::LatestUnnamed { .. } => "latest_unnamed",
+        }
+    }
+}
+
 /// The pure decision itself — the four branches `main.rs`'s boot gate
 /// calls into, rather than inlining directly. `held` must already be in
 /// ordinal order (as `journal::held_eras` returns it).
@@ -981,6 +993,7 @@ pub async fn audit_before_mint<C: GenericClient>(
 
     let mut violations = Vec::new();
     for aggregate in aggregates {
+        let phase = crate::log::phase_with("audit_aggregate", serde_json::json!({ "aggregate": &aggregate.storage_name }));
         let after = translated_latest(client, domain, &aggregate.name, ordinal, edges, watermarks).await?;
 
         // Layer 1 — structural (types/patterns/admits/lifecycle) — over
@@ -995,6 +1008,7 @@ pub async fn audit_before_mint<C: GenericClient>(
         // Layer 2 — per-rule value preservation against the reference
         // transform, id-set/count conservation.
         audit_layer_two(client, domain, aggregate, ordinal, edges, raw_edges, watermarks, &after, &mut violations).await?;
+        phase.end_with(serde_json::json!({ "records": after.len() }));
     }
     if violations.is_empty() {
         return Ok(());
@@ -1192,7 +1206,11 @@ pub async fn mint_era<C: GenericClient>(
     client.batch_execute("BEGIN").await?;
     let result = mint_era_body(client, domain, ordinal, hash, label, held_text, aggregates, edges, role, lifecycle_defaults).await;
     match &result {
-        Ok(_) => client.batch_execute("COMMIT").await?,
+        Ok(_) => {
+            let phase = crate::log::phase_with("mint_commit", serde_json::json!({ "era": ordinal }));
+            client.batch_execute("COMMIT").await?;
+            phase.end();
+        }
         Err(_) => {
             let _ = client.batch_execute("ROLLBACK").await;
         }
@@ -1243,12 +1261,16 @@ async fn mint_era_body<C: GenericClient>(
     let watermarks: std::collections::HashMap<i32, Option<i64>> = held.iter().map(|era| (era.ordinal, era.watermark)).collect();
 
     for aggregate in aggregates {
+        let phase = crate::log::phase_with("compile_head", serde_json::json!({ "aggregate": &aggregate.storage_name, "era": ordinal }));
         compile_head(client, domain, aggregate, ordinal, label, edges, &watermarks).await?;
+        phase.end();
     }
 
     // Same transaction as the era row and the fence flip: a boot that sees
     // the new era also sees a snapshot the new shape can read.
-    fill_snapshot_lifecycle_defaults(client, domain, lifecycle_defaults).await?;
+    let phase = crate::log::phase_with("snapshot_fill", serde_json::json!({ "era": ordinal }));
+    let filled = fill_snapshot_lifecycle_defaults(client, domain, lifecycle_defaults).await?;
+    phase.end_with(serde_json::json!({ "instances_filled": filled }));
 
     if let Some(role) = role {
         grant_role(client, domain, role, aggregates, Some(ordinal)).await?;
@@ -1854,6 +1876,46 @@ mod tests {
                 assert!(sql.contains(&format!("edge_{edge} AS MATERIALIZED (")), "edge {edge}: {sql}");
             }
         }
+    }
+
+    /// **The plan stays linear in the chain length**. The statement text is short
+    /// either way; what exploded was the planner's copy of each previous edge's
+    /// expression into every read of `state`. Counting the plan's lines is the
+    /// deterministic way to see it (a timing assertion would flake): a 12-edge
+    /// chain of the shape a real deployment has (one rule-heavy edge, identity
+    /// edges after it) stays small when fenced, and an unfenced 5-edge chain is
+    /// already many times the size of the fenced one.
+    #[tokio::test]
+    async fn the_chain_plan_grows_with_the_edges_not_exponentially() {
+        let client = own_scratch_db("hecks_host_mint_chain_plan_size").await;
+        journal::ensure_schema(&client).await.expect("ensure_schema");
+        let aggregates = vec![Aggregate { name: "Registration".to_string(), storage_name: "registration".to_string() }];
+        hold_first(&client, "Plan", "era 1", &serde_json::json!({"name": "Plan", "aggregates": []}), &aggregates, None).await.expect("hold_first");
+
+        let mut heavy = "hecks_tr_drop(state, ARRAY['attendee', 'name']::text[])".to_string();
+        for field in ["first_name", "last_name", "phone", "how_heard", "aim"] {
+            heavy = backfill_expression(&heavy, &["attendee", field], "\"(none)\"");
+        }
+        let mut edges = vec![edge_of("e1", "e2", "Registration", &heavy)];
+        for n in 2..=11 {
+            edges.push(edge_of(&format!("e{n}"), &format!("e{}", n + 1), "Registration", "state"));
+        }
+        edges.push(edge_of("e12", "e13", "Registration", &backfill_expression("state", &["status"], "\"active\"")));
+
+        let watermarks = std::collections::HashMap::new();
+        let plan_lines = |chain: &[&Edge], materialize: bool| {
+            let sql = chain_sql_with("Plan", "Registration", (chain.len() + 1) as i32, chain, &watermarks, materialize);
+            let client = &client;
+            async move { client.query(&format!("EXPLAIN (COSTS OFF) {sql}"), &[]).await.expect("explain").len() }
+        };
+
+        let all: Vec<&Edge> = edges.iter().collect();
+        let fenced_12 = plan_lines(&all, true).await;
+        let fenced_6 = plan_lines(&all[..6], true).await;
+        assert!(fenced_12 < 2 * fenced_6.max(500), "12 fenced edges plan to {fenced_12} lines, 6 to {fenced_6}");
+        let inlined_5 = plan_lines(&all[..5], false).await;
+        let fenced_5 = plan_lines(&all[..5], true).await;
+        assert!(inlined_5 > 10 * fenced_5, "unfenced 5 edges: {inlined_5} plan lines; fenced: {fenced_5}");
     }
 
     /// **Same rows, either way**. Materializing each edge's CTE (the fix for the
