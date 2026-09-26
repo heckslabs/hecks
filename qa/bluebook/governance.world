@@ -1,0 +1,9 @@
+# The Governance framework chapter's own connection. Since 2.0.0 the ledger's
+# context_map.hecksagon binds Governance's aggregates to PostgresEra, and boot
+# reads a world named Governance (not the consuming domain's) for the database.
+# It is the same database quality_control.world names, so one ledger holds both.
+Hecks.world "Governance" do
+  persisted_by("PostgresEra") do
+    database "postgres://hecks_qa@localhost/hecks_quality_control"
+  end
+end
