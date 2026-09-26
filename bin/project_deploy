@@ -7,10 +7,13 @@
 # `Hecks::Projections::Deploy::Fargate` for `"AwsFargate"`) through
 # `Hecks::Projector.call`, then writes what comes back.
 #
-#   bin/project_deploy <domain> [--tenant=<slug>] [--schema=<name>]
+#   bin/project_deploy <domain> [--tenant=<slug>] [--schema=<name>] [--out=<dir>]
 #
 # Produces `deploy/<domain>/{template.yaml,Makefile,...}` — see each
-# target's own header for exactly which files. No hand-authored
+# target's own header for exactly which files. A client's domain lives
+# in the client's own repo, so its recipe belongs there too: pass
+# `--out=<dir>` (e.g. `--out=../lifeadelics/deploy-aws/domain`) to write
+# beside the client instead of into this repo's `deploy/`. No hand-authored
 # deployment config for any given domain, only a generator run against
 # whatever its own `.world` file declares:
 #
@@ -50,16 +53,18 @@ require "optparse"
 # per-tenant too: `bin/project_deploy foo --tenant=acme` run twice must
 # regenerate the same acme stack, not two different ones.
 tenant_options = {}
+out_option = nil
 OptionParser.new do |parser|
   parser.on("--tenant=SLUG") { |v| tenant_options[:tenant] = v }
   parser.on("--schema=NAME") { |v| tenant_options[:schema] = v }
+  parser.on("--out=DIR") { |v| out_option = v }
 end.parse!(ARGV)
 
 if tenant_options[:schema] && !tenant_options[:tenant]
   abort "--schema needs --tenant=<slug> — a schema override with no tenant to scope it to is meaningless"
 end
 
-domain = ARGV.shift or abort "usage: bin/project_deploy <domain> [--tenant=<slug>] [--schema=<name>]"
+domain = ARGV.shift or abort "usage: bin/project_deploy <domain> [--tenant=<slug>] [--schema=<name>] [--out=<dir>]"
 root = File.expand_path("..", __dir__)
 domain_name = File.basename(domain)
 world_file = File.join(domain, "bluebook", "#{domain_name}.world")
@@ -165,7 +170,7 @@ end
 domain_chapter = cross_domain_registry.bluebook(declared_domain_name) or
   abort "#{world_file} declares no #{declared_domain_name} chapter — #{bluebook_basename}.bluebook's own Hecks.bluebook name has to match world.domain."
 
-out_dir = File.join(root, "deploy", infra_name)
+out_dir = out_option ? File.expand_path(out_option) : File.join(root, "deploy", infra_name)
 
 # One target per `deployed_to(...)` adapter — each is a real, registered
 # `Projector` export (`needs_world: true`), never a hand-rolled case
