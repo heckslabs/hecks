@@ -1,4 +1,5 @@
 require_relative "sections"
+require_relative "sensitivity"
 require_relative "sentences"
 require_relative "mermaid"
 require_relative "../statements"
@@ -77,7 +78,12 @@ module Hecks
         # @return [String] the section's Markdown source
         def section_text(section, document)
           parts = ["## #{section.title}"]
-          parts += section.aggregate ? opening(section.aggregate, document.bluebook) : ["> #{STANDING[section.name]}"]
+          parts += if section.aggregate
+                     marked = Sensitivity.for_aggregate(document.markings, document.bluebook.name, section.aggregate)
+                     opening(section.aggregate, document.bluebook, marked)
+                   else
+                     ["> #{STANDING[section.name]}"]
+                   end
           parts += section.terms.map { |entry| term_text(entry, document.index) }
           parts.join("\n\n")
         end
@@ -88,9 +94,11 @@ module Hecks
         # @param aggregate [Bluebook::Aggregate] the aggregate to render an opening for
         # @param bluebook [Bluebook::Behaviour::Chapter] the chapter `aggregate` belongs
         #   to, for drawing its context diagram
+        # @param marked [Array<Hash{Symbol => String}>] the markings that flag
+        #   `aggregate`'s own fields sensitive, listed after its rules
         # @return [Array<String>] the opening's Markdown blocks, one per paragraph or
         #   diagram, not yet joined
-        def opening(aggregate, bluebook)
+        def opening(aggregate, bluebook, marked = [])
           parts = []
           parts << "> #{aggregate.description}" if aggregate.description
           parts << Sentences.lifecycle_sentence(aggregate.lifecycle) if aggregate.lifecycle
@@ -98,6 +106,10 @@ module Hecks
           parts << "**How it moves**" << fence(Mermaid.lifecycle(aggregate)) if aggregate.lifecycle
           statements = always_true(aggregate, bluebook)
           parts << "**Always true**" << statements.map { |statement| "- #{statement}" }.join("\n") unless statements.empty?
+          unless marked.empty?
+            lines = marked.map { |marking| "- #{Sensitivity.sentence(marking)}" }
+            parts << "**Handled as sensitive**" << lines.join("\n")
+          end
           parts
         end
 
