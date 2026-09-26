@@ -93,13 +93,17 @@ module Hecks
       #   `adapter: :postgres_era`; ignored by every other adapter
       # @param schema [String, nil] the schema name, required only for
       #   `adapter: :postgres_era`; ignored by every other adapter
+      # @param scratch [Hash{Symbol => String}] `:database` and/or `:schema` for
+      #   `adapter: :postgres` to use instead of the shared fuzz scratch schema, so a caller
+      #   such as `bin/bench` never drops the schema a concurrent `bin/fuzz` is using;
+      #   ignored by every other adapter
       # @yield [String] the freshly rebound copy's root directory, ready to boot
       # @yieldreturn [Object] anything; becomes this method's own return value
       # @return [Object] whatever the given block returns
       # @raise [ArgumentError] if `adapter` is not `:memory`, `:sqlite`, `:postgres`, or
       #   `:postgres_era`, or if `adapter: :postgres_era` is given without both
       #   `database:` and `schema:`
-      def call(domain_path, adapter: :memory, database: nil, schema: nil)
+      def call(domain_path, adapter: :memory, database: nil, schema: nil, scratch: {})
         Dir.mktmpdir("hecks-fuzz") do |tmp|
           copy = File.join(tmp, File.basename(domain_path))
           copy_dereferencing(domain_path, copy)
@@ -107,7 +111,7 @@ module Hecks
           case adapter
           when :memory       then rebind_to_memory!(copy)
           when :sqlite       then rebind_to_sqlite!(copy)
-          when :postgres     then rebind_to_postgres!(copy)
+          when :postgres     then rebind_to_postgres!(copy, **scratch)
           when :postgres_era then rebind_to_postgres_era!(copy, database: database, schema: schema)
           else raise ArgumentError,
                      "unknown fuzz adapter #{adapter.inspect} — :memory, :sqlite, :postgres, or :postgres_era"
@@ -262,15 +266,20 @@ module Hecks
       FUZZ_POSTGRES_SCHEMA   = "hecks_fuzz".freeze
 
       # Rewrites every `.hecksagon` in the copy to bind through Postgres, against the
-      # shared `FUZZ_POSTGRES_DATABASE`/`FUZZ_POSTGRES_SCHEMA` scratch schema.
+      # shared `FUZZ_POSTGRES_DATABASE`/`FUZZ_POSTGRES_SCHEMA` scratch schema unless the
+      # caller names its own, which lets `bin/bench` run without touching the fuzzer's.
       #
       # @param copy [String] the isolated copy's root directory
+      # @param database [String, nil] the scratch database, `FUZZ_POSTGRES_DATABASE` when nil
+      # @param schema [String, nil] the scratch schema, `FUZZ_POSTGRES_SCHEMA` when nil
       # @return [void]
-      def rebind_to_postgres!(copy)
+      def rebind_to_postgres!(copy, database: nil, schema: nil)
         require "pg"
+        database ||= FUZZ_POSTGRES_DATABASE
+        schema   ||= FUZZ_POSTGRES_SCHEMA
         rewrite_bindings!(copy, "Postgres")
         strip_translations!(copy)
-        ensure_fuzz_schema!
+        ensure_fuzz_schema!(database, schema)
 
         # One `.world` per directory a `.hecksagon` actually lives in, not
         # one at `copy`'s own root — `Folder#load_domain` resolves a
@@ -290,8 +299,8 @@ module Hecks
             <<~WORLD
               Hecks.world "#{name}" do
                 persisted_by("Postgres") do
-                  database "#{FUZZ_POSTGRES_DATABASE}"
-                  schema "#{FUZZ_POSTGRES_SCHEMA}"
+                  database "#{database}"
+                  schema "#{schema}"
                 end
               end
             WORLD
@@ -318,8 +327,10 @@ module Hecks
       # recreated on every call, which is what actually isolates one
       # ephemeral boot's data from the next.
       #
+      # @param database [String] the scratch database to create if missing
+      # @param schema [String] the schema to drop and recreate inside it
       # @return [void]
-      def ensure_fuzz_schema!
+      def ensure_fuzz_schema!(database = FUZZ_POSTGRES_DATABASE, schema = FUZZ_POSTGRES_SCHEMA)
         # `Adapters::Postgres#initialize` opens one real `PG::Connection`
         # per aggregate and never explicitly closes it — fine for a
         # process that boots once and runs, exactly what every other
@@ -342,17 +353,18 @@ module Hecks
         # something to route around by connecting less carefully.
         GC.start
 
-        unless @fuzz_database_ready
+        @fuzz_databases_ready ||= {}
+        unless @fuzz_databases_ready[database]
           admin = PG.connect(dbname: "postgres")
           exists = admin.exec_params(
-            "SELECT 1 FROM pg_database WHERE datname = $1", [FUZZ_POSTGRES_DATABASE]
+            "SELECT 1 FROM pg_database WHERE datname = $1", [database]
           ).ntuples.positive?
-          admin.exec(%(CREATE DATABASE "#{FUZZ_POSTGRES_DATABASE}")) unless exists
+          admin.exec(%(CREATE DATABASE "#{database}")) unless exists
           admin.close
-          @fuzz_database_ready = true
+          @fuzz_databases_ready[database] = true
         end
 
-        db = PG.connect(dbname: FUZZ_POSTGRES_DATABASE)
+        db = PG.connect(dbname: database)
         # **Quiet on purpose** — same as `Adapters::Postgres.connect_for`'s
         # own `SET client_min_messages`: a `DROP SCHEMA ... CASCADE` that
         # actually has something to drop (every boot after the first)
@@ -361,7 +373,7 @@ module Hecks
         # output under a wall of "drop cascades to table ..." on every
         # single ephemeral boot.
         db.exec("SET client_min_messages = warning")
-        quoted = db.quote_ident(FUZZ_POSTGRES_SCHEMA)
+        quoted = db.quote_ident(schema)
         db.exec("DROP SCHEMA IF EXISTS #{quoted} CASCADE")
         db.exec("CREATE SCHEMA #{quoted}")
         db.close

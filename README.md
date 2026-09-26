@@ -501,8 +501,10 @@ no runtime dependencies at all. Deployment (SAM/Lambda templates via
 standalone CLI via `bin/project_cli`) is downstream of that same
 projection step, not a separate hand-authored artifact.
 
-What this does *not* yet claim: no throughput or latency benchmark has
-been run against either binary, `read_model` queries have no generated
+What this does *not* yet claim: throughput and latency are measured only
+by a single-machine harness (`bin/bench`; the [baseline and its
+caveats](docs/benchmarks.md)), not under a production-like load,
+`read_model` queries have no generated
 Rust code path yet, and the WASM projector is one command away
 (`bin/project_wasm`) but not part of any deployed pipeline today. See
 [Running a runtime](docs/implemented/guides/running-a-runtime.md) for
