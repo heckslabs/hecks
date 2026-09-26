@@ -7,6 +7,20 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+**`bin/model_check --profile client` refuses three constructs that answer wrongly
+without refusing.** A `group_by` that does not cover its aggregate's whole
+identity (rows sharing a key path are silently reduced to the first, on every
+adapter, ADR 0061), a rooted read model over an aggregate `projected_by`
+`SqliteProjection` (SQL when the projection is current, the in-process loop when
+it is not, with no check that they agree, `docs/1.0-readiness.md` known gap 2),
+and an era translation `compute` with a dotted source (never fires, so the mint
+succeeds and the record keeps its old value). Each is an error finding, opt-in
+through `ModelCheck.call(profile: :client, translations:)`, and a run without the
+flag is unchanged. Nothing is fixed: the profile stops a client domain reaching
+the bug unnoticed, and a probe per rule in `spec/model_check_client_profile_spec.rb`
+fails when its bug is fixed, naming the rule to delete. Under the profile the
+tool also loads a domain's `translations/` directory, which it never read before.
+
 **The status documents match the code again, and their links are checked.** The
 README said read models had no generated Rust path and that the query language
 had no aggregation, while `read_model` ships `count`, `median` and `group_by` on
