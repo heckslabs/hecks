@@ -8,6 +8,7 @@ print a usage line on a missing argument).
 | tool | |
 |---|---|
 | `bin/backfill_era_projections` | Proactively backfills `hecks_eras.held_projection` for every row of one domain that predates that column — an explicit, operator-run vers... |
+| `bin/bench` | Measures command-dispatch throughput and p50/p99 latency for the Ruby runtime on each persistence adapter and for the native Rust binary, using the pizzas and banking examples. A measurement, never a gate. See [benchmarks](benchmarks.md). |
 | `bin/behaviors` | Runs `.behaviors` files — hand-curated examples of how to use a domain, in domain vocabulary — and reports pass/fail/error per test. bin/... |
 | `bin/canonicalise` | Sorts a JSON document's object keys, recursively — key order is not semantics, so a diff a human reads should not have to notice it moved. |
 | `bin/check_engine_agreement` | THE SHAPE OF BUG THIS GUARDS AGAINST: `Ports::Query::InMemory` (the path a Memory- or Heki-backed aggregate query actually runs) and `RunT... |

@@ -122,6 +122,18 @@ closed-set admission, a missing record, lifecycle refusals). Ruby and Rust
 already agreed on all of it. ADR 0063 (a draft) weighs whether the
 framework/grammar chapters should get Cargo features of their own.
 
+**`bin/bench` measures throughput and latency.** It dispatches a fixed, valid
+command workload (the pizzas and banking examples) against the Ruby runtime on
+the Memory, Sqlite, Postgres and PostgresEra adapters and against the native
+Rust binary (through `rust --serve`), and reports commands per second with p50
+and p99 latency, the median of several fresh boots. Postgres is optional: with
+no server reachable those targets are skipped with a message and the rest run.
+[`docs/benchmarks.md`](docs/benchmarks.md) says how to run it, publishes a
+baseline with the hardware it was taken on, and lists what the numbers do not
+show. It is a measurement, not a gate, and nothing in CI runs it.
+`Fuzzing::IsolatedBoot.call` takes a `scratch:` option so the Postgres adapter
+can run in a schema of the caller's choosing instead of the fuzzer's shared one.
+
 ## [2.5.1] - 2026-09-26
 
 **Projecting a framework chapter no longer leaves a dangling `pub mod merged;`,
