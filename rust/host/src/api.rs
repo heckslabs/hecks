@@ -1543,13 +1543,13 @@ mod tests {
     }
 
     /// Every real state styled — `missing_state_entries` refuses a save
-    /// that leaves one out, in both engines. `Registration` declares no
-    /// lifecycle at all and so has nothing to style, which is exactly
-    /// the case that check must not fire on. `PaymentConnection` carries a
-    /// lifecycle too, so its four states need entries beside `Event`'s.
+    /// that leaves one out, in both engines. `Event`, `Registration` and
+    /// `PaymentConnection` each carry a lifecycle, so each of their states
+    /// needs an entry.
     fn every_state_styled() -> Value {
         json!({"states": {
             "Event": {"open": {"tone": "good"}, "closed": {"tone": "muted"}},
+            "Registration": {"active": {}, "archived": {"tone": "muted"}},
             "PaymentConnection": {"connected": {}, "enabled": {}, "disconnected": {}, "paused": {}}
         }})
     }
@@ -1601,7 +1601,7 @@ mod tests {
         // round-trips, through `extra_json`.
         assert_eq!(stored["states"]["Event"]["open"]["label"], "Open for signups");
         assert_eq!(stored["states"]["Event"]["closed"]["tone"], "muted");
-        assert!(stored["states"].get("Registration").is_none(), "a lifecycle-less aggregate is styled by nothing");
+        assert_eq!(stored["states"]["Registration"]["archived"]["tone"], "muted");
         assert_eq!(stored["collections"]["Event"]["label"], "Sessions");
         assert_eq!(stored["collections"]["Event"]["nav_order"], json!(1));
         assert_eq!(stored["collections"]["Event"]["noun_sing"], "session");

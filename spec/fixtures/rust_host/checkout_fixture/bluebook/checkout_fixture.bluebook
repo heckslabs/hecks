@@ -92,6 +92,14 @@ Hecks.bluebook "CheckoutFixture" do
     attribute :registration_id, RegistrationId
     attribute :attendee,        Attendee
 
+    # Archiving takes a registration off the guest list and gives its seat back;
+    # restoring puts it back. The Payment sharing this reference is never
+    # archived, so the seat rule reads this status beside the Payment's.
+    lifecycle :status, default: "active" do
+      transition "Archive" => "archived", from: "active"
+      transition "Restore" => "active",   from: "archived"
+    end
+
     command "Request" do
       role "Guest"
       goal "Register intent to attend an Event"
@@ -101,6 +109,28 @@ Hecks.bluebook "CheckoutFixture" do
       attribute :attendee,        Attendee
 
       emits "RegistrationRequested"
+    end
+
+    command "Archive" do
+      role "Organizer"
+      goal "Take a registration off the guest list and give its seat back"
+
+      reference_to Registration
+
+      given("only an active registration can be archived") { status == "active" }
+
+      emits "RegistrationArchived"
+    end
+
+    command "Restore" do
+      role "Organizer"
+      goal "Put an archived registration back on the guest list"
+
+      reference_to Registration
+
+      given("only an archived registration can be restored") { status == "archived" }
+
+      emits "RegistrationRestored"
     end
   end
 

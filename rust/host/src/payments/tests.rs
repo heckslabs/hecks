@@ -866,6 +866,69 @@ async fn a_declined_payment_frees_the_seat_and_a_paid_one_keeps_it() {
     assert_eq!(status, 409, "a paid registration keeps its seat");
 }
 
+// Archives or restores one Registration through the kernel, the way the site's
+// internal dispatch does; the outcome is the kernel's own accept/refuse.
+async fn registration_command(t: &Tenant, verb: &str, reference: &str) -> dispatch::Outcome {
+    let verb = format!("CheckoutFixture::Registration.{verb}");
+    dispatch::handle(&t.client, &t.wasm, &verb, json!({"id": reference}), None, &t.config, &NeverInvoker).await.unwrap()
+}
+
+async fn registration_status(t: &Tenant, reference: &str) -> String {
+    let read = dispatch::read(&t.client, &t.wasm).await.unwrap();
+    read["instances"][format!("CheckoutFixture::Registration#{reference}")]["status"].as_str().unwrap_or("none").to_string()
+}
+
+#[tokio::test]
+async fn archiving_a_paid_registration_frees_its_seat_and_restoring_it_takes_the_seat_back() {
+    let t = tenant("hecks_pay_test_capacity_archive").await;
+    t.schedule_event_with_capacity("archive-me", 1).await;
+
+    let (_, body) = t.register("archive-me").await;
+    let reference = body["registration_id"].as_str().unwrap().to_string();
+    assert_eq!(t.settle(&reference).await, 200);
+    assert_eq!(registration_status(&t, &reference).await, "active", "a new Registration starts active");
+    let (status, _) = t.register("archive-me").await;
+    assert_eq!(status, 409, "the paid registration holds the only seat");
+
+    let archived = registration_command(&t, "Archive", &reference).await;
+    assert!(archived.accepted, "{:?}", archived.result);
+    assert_eq!(registration_status(&t, &reference).await, "archived");
+    assert_eq!(t.payment_status(&reference).await, "succeeded", "archiving never touches the Payment");
+    let read = dispatch::read(&t.client, &t.wasm).await.unwrap();
+    assert_eq!(web::seats_left(&read, "CheckoutFixture", &crate::ir::fixture_payments(), "archive-me"), Some(1));
+
+    let (status, body) = t.register("archive-me").await;
+    assert_eq!(status, 200, "the archived registration's seat is free again: {body}");
+    let second = body["registration_id"].as_str().unwrap().to_string();
+    assert_eq!(t.settle(&second).await, 200);
+    let (status, _) = t.register("archive-me").await;
+    assert_eq!(status, 409, "the seat is taken again by the new guest");
+
+    let restored = registration_command(&t, "Restore", &reference).await;
+    assert!(restored.accepted, "{:?}", restored.result);
+    assert_eq!(registration_status(&t, &reference).await, "active");
+    let read = dispatch::read(&t.client, &t.wasm).await.unwrap();
+    assert_eq!(
+        web::seats_taken(&read, "CheckoutFixture", &crate::ir::fixture_payments(), "archive-me"),
+        2,
+        "a restored registration counts again, even past capacity: the site refuses a restore with no seat"
+    );
+    assert_eq!(web::seats_left(&read, "CheckoutFixture", &crate::ir::fixture_payments(), "archive-me"), Some(0));
+}
+
+#[tokio::test]
+async fn only_an_active_registration_can_be_archived_and_only_an_archived_one_restored() {
+    let t = tenant("hecks_pay_test_archive_guards").await;
+    t.schedule_event("guards").await;
+    let (_, body) = t.register("guards").await;
+    let reference = body["registration_id"].as_str().unwrap().to_string();
+
+    assert!(!registration_command(&t, "Restore", &reference).await.accepted, "an active registration cannot be restored");
+    assert!(registration_command(&t, "Archive", &reference).await.accepted);
+    assert!(!registration_command(&t, "Archive", &reference).await.accepted, "an archived registration cannot be archived again");
+    assert_eq!(registration_status(&t, &reference).await, "archived");
+}
+
 #[tokio::test]
 async fn a_stripe_session_expires_about_thirty_one_minutes_after_it_is_created() {
     let t = tenant("hecks_pay_test_capacity_expiry").await;
