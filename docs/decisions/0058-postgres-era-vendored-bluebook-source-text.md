@@ -4,11 +4,11 @@
 
 ## The bug, found live
 
-A real, private project (children-of-the-light — its own `.bluebook`/`.hecksagon`/`.world`, a real PostgresEra-backed Postgres database, already at era 12 of its own schema history) added `uses_embryonaut_bluebook "notes"` to its `.hecksagon`, attaching a second, small, vendored bluebook chapter named `Notes` (`vendor/embryonaut_bluebooks/notes/bluebook/`), with a matching `Hecks.hecksagon "Notes" do persisted_by "PostgresEra" end` and `Hecks.world "Notes" do ... end` binding it to the same database — mirroring exactly how `examples/banking` wires `Governance`/`Identity` via `uses_framework`.
+A real, private project (a client project — its own `.bluebook`/`.hecksagon`/`.world`, a real PostgresEra-backed Postgres database, already at era 12 of its own schema history) added `uses_embryonaut_bluebook "notes"` to its `.hecksagon`, attaching a second, small, vendored bluebook chapter named `Notes` (`vendor/embryonaut_bluebooks/notes/bluebook/`), with a matching `Hecks.hecksagon "Notes" do persisted_by "PostgresEra" end` and `Hecks.world "Notes" do ... end` binding it to the same database — mirroring exactly how `examples/banking` wires `Governance`/`Identity` via `uses_framework`.
 
 The first `Hecks.boot` printed "BOOT OK" — PostgresEra silently self-minted a fresh era 1 for the never-before-seen `Notes` domain, the ordinary, expected outcome for any brand-new domain with zero prior eras. A second, separate `Hecks.boot` call (a fresh Ruby process, nothing changed on disk in between) against the SAME database then refused: `cannot boot Notes: the shape changed (era 2) and no translation edge covers it`.
 
-`Notes`' own real shape, computed directly and independently of boot (`StorageShape.mint_hash` after an ordinary `Loading.bootstrap`/`load_bluebooks` sequence), was identical and deterministic across two separate Ruby processes. The shape computation itself was never in question. Querying `hecks_eras` directly told the real story: `Notes`' own single era-1 row held `held_text` starting with the literal string `Hecks.bluebook "ChildrenOfTheLight" do` — the TARGET domain's own bluebook source, stamped under `Notes`' own name. Deleting that row and retrying reproduced the identical bug again — deterministic, not a race.
+`Notes`' own real shape, computed directly and independently of boot (`StorageShape.mint_hash` after an ordinary `Loading.bootstrap`/`load_bluebooks` sequence), was identical and deterministic across two separate Ruby processes. The shape computation itself was never in question. Querying `hecks_eras` directly told the real story: `Notes`' own single era-1 row held `held_text` starting with the literal string `Hecks.bluebook "ClientDomain" do` — the TARGET domain's own bluebook source, stamped under `Notes`' own name. Deleting that row and retrying reproduced the identical bug again — deterministic, not a race.
 
 ## Root cause
 
@@ -32,7 +32,7 @@ Checked directly before writing the regression spec, not assumed: `Governance` I
 
 ## A discrepancy from the original field report, checked and left named rather than silently smoothed over
 
-The original live report also described the wrongly-minted row's `label` column as populated (and matching, likely non-coincidentally, `ChildrenOfTheLight`'s own real era 12 label). Reproducing the bug against this repo's own current schema shows `Lineage::EraStore#hold_first!` (era 1's own mint path) never sets `label` at all — only `held_text`/`held_digest`/`held_projection`; `label` is populated only by a later `mint!` (era > 1, a real translated edge). The `held_text` corruption reproduces byte-for-byte and is the actual, confirmed root cause; the `label` detail may reflect a different code path or gem version in the private project, and is left unresolved here rather than asserted as reproduced.
+The original live report also described the wrongly-minted row's `label` column as populated (and matching, likely non-coincidentally, `ClientDomain`'s own real era 12 label). Reproducing the bug against this repo's own current schema shows `Lineage::EraStore#hold_first!` (era 1's own mint path) never sets `label` at all — only `held_text`/`held_digest`/`held_projection`; `label` is populated only by a later `mint!` (era > 1, a real translated edge). The `held_text` corruption reproduces byte-for-byte and is the actual, confirmed root cause; the `label` detail may reflect a different code path or gem version in the private project, and is left unresolved here rather than asserted as reproduced.
 
 ## Verification
 

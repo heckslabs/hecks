@@ -309,9 +309,9 @@ blocked; a mock registration has no expiry and holds its seat until settled.
 **The host's account cookie name is configurable, and its default changed.**
 `HECKS_SESSION_COOKIE` names the cookie (letters, digits, `_`, `-`, `.`; boot
 refuses anything else). **Behavior change for hosts:** the default is now
-`hecks_session`, not `lifeadelics_session`. A host that sets nothing logs its
-existing sessions out on upgrade; set `HECKS_SESSION_COOKIE=lifeadelics_session`
-to keep them.
+`hecks_session`, not a client-named cookie. A host that sets nothing logs its
+existing sessions out on upgrade; set `HECKS_SESSION_COOKIE` to the old cookie
+name to keep them.
 
 **The glossary tags sensitive fields.** Fields marked with
 `has_phi(readable_by:)` in a `.hecksagon` now read `medications (text, PHI)` and
@@ -327,12 +327,12 @@ takes `--out=<dir>` to write a recipe beside the client, and
 `--environment=<name>` to load `<domain>/bluebook/environments/<name>.world`
 over the base world (a missing overlay aborts). `examples/banking`'s base world
 is now generic; its live stack names moved to
-`environments/production.world`. Removed: `deploy/lifeadelics/`, the committed
-`rust/src/generated/{embryonaut,lifeadelics,membership,newsletter,privacy}/`
-snapshots, the `embryonaut` and `lifeadelics` Cargo features, and the corpus
+`environments/production.world`. Removed: a client's committed deploy directory, the committed
+`rust/src/generated/` snapshots of the client and vendored-chapter domains, the
+per-client Cargo features, and the corpus
 machinery that only accounted for external domains (`Corpus`'s `:external`
 check kind and vendored-chapter helpers). A client's own build regenerates its
-Rust with `bin/project_wasm`, which does not need them. `web/lifeadelics.rs` is
+Rust with `bin/project_wasm`, which does not need them. The client-named web module is
 now `web/registrations.rs`.
 
 **QA tooling.** The ledger's Governance chapter has a world, so
@@ -401,7 +401,7 @@ without that key serves no send route.
 **rust/host sends the newsletter.** `POST /newsletter/issues/:slug/send` marks
 the issue sent and mails every confirmed subscriber; `.../send-test` mails one
 address without touching the issue. Both need a signed-in Admin or Owner
-(`lifeadelics_session` cookie). Email goes through Resend (`resend.rs`) with
+(the host's session cookie). Email goes through Resend (`resend.rs`) with
 `RESEND_API_KEY` and `RESEND_FROM`; `RESEND_MOCK=1` logs instead of sending.
 A deploy can name the key's Secrets Manager secret instead (`RESEND_SECRET_ID`,
 `{"api_key": "..."}`), fetched at cold start; if it cannot be read the host
@@ -467,7 +467,7 @@ otherwise. No shipped capability uses the kind yet.
 **rust/host.** Added `GET /members` (JSON) and the Stripe Connect payment
 connection routes. The accounts, newsletter and checkout/registration glue
 moved out of `web.rs` into `web/accounts.rs`, `web/newsletter.rs` and
-`web/lifeadelics.rs`, with no behavior change.
+a client-named web module, with no behavior change.
 
 ## [2.0.0] - 2026-09-22
 
@@ -668,9 +668,9 @@ into) with Postgres's own null placement.
 `UiSchema.build` ported to Rust, rule for rule: one live domain IR plus
 the presentation config in, the same nav / columns / detail fields /
 field shapes / lifecycle transitions / create forms document
-embryonaut_console has always served out. Verified differentially, not
+the client's console has always served out. Verified differentially, not
 just by unit test — the Rust document is BYTE-IDENTICAL to the Ruby
-engine's for the real Embryonaut domain, both with its real 8KB
+engine's for a real client domain, both with its real 8KB
 presentation config and with none at all. That diff found the one real
 disagreement in the port (Ruby's `String#split` drops trailing empty
 segments and Rust's does not, which showed up as `"  State  "` where
@@ -686,7 +686,7 @@ engine does; an authenticated one fell through to this host's own
 `/<Domain>/<aggregate>` router and came back `404 no domain "api"
 loaded`. The refusal contract matched and the success contract didn't.
 `/api/me` now answers the same signed-in member hash
-(`email`/`name`/`identity_id`/`role`) embryonaut_console's own
+(`email`/`name`/`identity_id`/`role`) the console's own
 `session[:member]` carries, and `/api/presentation` the same nested
 config `PresentationConfig.load` returns — read from the `ConsoleSettings`
 chapter's own Postgres head views (`state_style_head`,
@@ -1188,8 +1188,7 @@ forward as this release's own history.
 
 - README rewritten for adoption; the Quickstart-blocking bug it exposed,
   and a license gap, both fixed.
-- Removed client-specific deploy artifacts (`embryonaut`,
-  `lifeadelics*`) that had been tracked alongside the public example
+- Removed client-specific deploy artifacts that had been tracked alongside the public example
   domains.
 
 ### Docs
