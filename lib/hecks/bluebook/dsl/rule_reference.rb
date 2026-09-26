@@ -71,7 +71,8 @@ module Hecks
         # @return [Bluebook::Given, Bluebook::Invariant] the built rule struct, an instance of
         #   `struct_class`
         # @raise [Bluebook::DSL::Malformed] if `predicate`'s source could not be extracted, or
-        #   it matches against a pattern construct `Expression::AstJson::PatternSubset` refuses
+        #   it matches against a pattern construct `Expression::AstJson::PatternSubset` refuses, or
+        #   it calls a method the expression language does not have
         def build_rule(struct_class, description, predicate, owner_name:, word:, extraction_failure:)
           canonical = Ports::Extraction.canonical(predicate)
 
@@ -81,8 +82,10 @@ module Hecks
                   "extraction — #{extraction_failure}"
           end
 
-          ast = Expression::AstJson.refuse_unshared_patterns!(Expression::AstJson.emit_predicate(canonical),
-                                                              owner: owner_name, word: "#{word} #{description.inspect}")
+          rule_word = "#{word} #{description.inspect}"
+          ast = Expression::AstJson.emit_predicate(canonical)
+          Expression::AstJson.refuse_unshared_patterns!(ast, owner: owner_name, word: rule_word)
+          Expression::AstJson.refuse_unresolvable_lookups!(ast, owner: owner_name, word: rule_word)
           struct_class.new(description: description, canonical: canonical, predicate: predicate, ast: ast)
         end
 
