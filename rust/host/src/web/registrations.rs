@@ -10,11 +10,11 @@ use std::path::Path;
 use tokio::sync::Mutex;
 use tokio_postgres::Client;
 
-// ---- checkout: /registrations, /webhooks/stripe ------------------------
-// See `render`'s own "checkout glue" header and checkout.rs's own header
-// for why this is hardcoded rather than IR-driven. Ported from the first
-// consuming domain's adapters/http_server.rb (the Ruby app, lifeadelics
-// repo) — same two routes, same status codes, same dispatch order, Rust.
+// ---- registrations, events and checkout: /events, /registrations, /webhooks/stripe ----
+// The Event and Registration names are fixed here rather than read from the
+// IR (see `render`'s gate comment and checkout.rs's header). The routes were
+// ported from the first consuming domain's Ruby http_server, with the same
+// paths, status codes and dispatch order.
 
 // Pure and separately unit-tested from the env read in `render` — same
 // split `membership_aggregate`/`resolve_membership_aggregate` use in
@@ -166,7 +166,7 @@ pub(super) async fn checkout_route(
 }
 
 /// POST /events — see checkout_route's own match arm for the full
-/// reasoning. `config.domain`-qualified ("Lifeadelics::Event.Schedule"),
+/// reasoning. `config.domain`-qualified ("<domain>::Event.Schedule"),
 /// same as registrations_route's own `Registration.Request` — Event is
 /// this deploy's own top-level aggregate, never a vendored chapter like
 /// Payments/Newsletter.
@@ -979,7 +979,7 @@ mod tests {
         let client = scratch_db("hecks_host_web_test_payments_gate").await;
         let wasm_path = checkout_wasm_path();
         let config = checkout_config(1);
-        let no_payments = json!({"name": "Lifeadelics"});
+        let no_payments = json!({"name": "Studio"});
 
         for (method, path) in [
             ("POST", "/registrations"),
