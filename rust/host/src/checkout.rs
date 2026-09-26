@@ -1,95 +1,25 @@
-// LifeAdelics' checkout/webhook boundary — the two mechanics
-// adapters/http_server.rb (Ruby, lifeadelics repo) hand-rolls against
-// the `stripe` gem: opening a real Stripe Checkout Session (the outbound
-// half of lifeadelics.hecksagon's own "checkout" port,
-// Registration.opened_by) and verifying a Stripe webhook's own
-// HMAC-SHA256 signature scheme (the inbound half, driving Payment's
-// PaymentGateway port). Both hand-written here, not IR-driven —
-// `rust/project/ports.rb`'s own `emit_port_operation` covers only
-// inbound port operations (PaymentGateway.Succeeded/Failed, dispatched
-// from web.rs's own checkout_route through the already-proven
-// port-operation + policy-reaction codegen path); no domain in this
-// corpus has an outbound driving port or a webhook-shaped signature
-// scheme to generalize this against yet, so it stays a real, scoped
-// specialization (web.rs's own "LIFEADELICS-specific glue" header has
-// the fuller reasoning) rather than a new IR capability invented
-// speculatively for a population of one.
+// Stripe checkout and webhook mechanics for the registration routes:
+// verifying a webhook's HMAC-SHA256 signature, opening an embedded Checkout
+// Session, and the mock session used when no Stripe account is connected.
 //
-// Equivalence-gap plan 3.3 — considered, declined, checked directly
-// against this checkout rather than assumed: population here is
-// actually zero reachable examples, not one. There is no Lifeadelics
-// `.bluebook`/`.hecksagon` source anywhere in this checkout to design a
-// second `signature_scheme`/`opens_external_call` DSL word against —
-// deploy/lifeadelics{,-demo} were deleted outright (`eb3bd853`, commit
-// message: "generated from ephemeral /tmp paths during tool testing,
-// not the real client config... which already lives in
-// ~/Projects/lifeadelics/deploy-aws"), and `rust/dist/` carries no
-// `lifeadelics.{wasm,ir.json}` either — every artifact this task would
-// need to validate against, gone, not merely out of reach in a private
-// repo. A synthetic-only fixture would be the only thing exercising new
-// IR/DSL surface this checkout could ever build, the same "invented
-// generality with no real backing" reasoning process_manager.rb's own
-// Saga/undoes comment already declines building compensation-ordering
-// for — except that item at least had one real corpus example (Banking's
-// Settlement saga) to check a design against; this has none.
+// These are hand-written rather than IR-driven. `rust/project/ports.rb`'s
+// `emit_port_operation` covers inbound port operations only
+// (PaymentGateway.Succeeded/Failed, dispatched from the registration routes
+// through the port-operation and policy-reaction codegen path), and no domain
+// has an outbound driving port or a webhook signature scheme to generalize
+// against yet.
 //
-// A separate, real blocker surfaced investigating this anyway, worth
-// recording even though the feature above stays declined: the plan's
-// own proposed gate ("does `domain_ir` declare an `external_gateways`
-// entry") cannot work as designed for Lifeadelics regardless, because
-// `web.rs`'s own header (below) states `ir()` never resolves for a
-// Shared-mode domain at all — `HECKS_IR_PATH` is only emitted by
-// `bin/project_deploy` when `rust_web` is true (that script's own
-// `rust_web ? %(\n HECKS_IR_PATH: ...) : ""` conditional), yet
-// `rust/host/src/main.rs`'s own boot sequence reads `ir::ir().ok_or(...)?`
-// unconditionally, for every domain regardless of web mode — confirmed
-// live against Banking's own committed `deploy/banking/template.yaml`
-// (Shared/`AuthType: AWS_IAM`, confirming `rust_web == false` there),
-// which genuinely carries no `HECKS_IR_PATH` key at all. That is a real,
-// separate, currently-live contradiction between `main.rs` and
-// `bin/project_deploy` — unrelated to Lifeadelics specifically, not
-// fixed here (a different subsystem, a different task), but flagged
-// plainly rather than silently discovered and dropped.
+// Mock by default, real Stripe opt-in. payments.rs's `checkout_plan` decides
+// which side of the line a request is on, from the tenant's own
+// `PaymentConnection`: anything short of an enabled Stripe connection means
+// `mock_checkout_session` below, never a network call. `STRIPE_WEBHOOK_SECRET`
+// then falls back to the fixed, publicly known, non-secret
+// `MOCK_STRIPE_WEBHOOK_SECRET` (web/registrations.rs), so a mock deploy needs
+// no webhook secret configured to walk a registration through to
+// confirmation. Tooling that signs webhooks with its own fixed string must
+// set `STRIPE_WEBHOOK_SECRET` to that string.
 //
-// Equivalence-gap plan 3.4 (orphaned `Payments::Payment` sweep) —
-// also considered, also declined, checked against this same absence
-// rather than assumed compatible with it. The detection half is
-// genuinely buildable correctly: `registrations_route`'s own
-// `Payment.Initiate`/`Registration.Request` calls (below) already
-// prove `reference` and `registration_id` are the same string, so "a
-// Payment whose reference has no matching Registration" is a real,
-// answerable query via `instances_for` against both prefixes, no
-// guessing required. The action half is not: the plan's own text
-// already names the reason ("confirm the exact command name once
-// domain source is available, or coordinate with whoever owns the
-// private Lifeadelics repo") — this checkout has no way to know
-// whether `Payments::Payment` even declares a command for
-// flagging/expiring a record, let alone its name or payload shape,
-// since (as above) no `.bluebook` source for it exists here at all.
-// The routes that do exist are now verified here against
-// spec/fixtures/rust_host/checkout_fixture (a trimmed copy of the
-// Event/Registration/Payment shape, built to
-// rust/dist/checkout_fixture.wasm), but that fixture only pins what
-// these routes already dispatch; it can't answer what the real
-// Payments package names a flag/expire command. The admin-route
-// stopgap stays follow-up work for the repo holding that source.
-//
-// **Mock by default, real stripe opt-in** — mirrors the Ruby app's own
-// choice exactly (MockStripeAdapter unconditionally in every
-// environment except a real deploy — bin/smoke_test's own header: "the
-// same as every environment except a real deploy"), not a scaled-down
-// version of it. payments.rs's own `checkout_plan` decides which side of
-// the line a request is on, from the tenant's own `PaymentConnection`:
-// anything short of an enabled Stripe connection means
-// `mock_checkout_session` below, never a real network call;
-// `STRIPE_WEBHOOK_SECRET` falls back to web.rs's fixed, publicly-known,
-// non-secret `MOCK_STRIPE_WEBHOOK_SECRET` — so a mock deploy needs no
-// webhook secret configured to be exercisable, registration through
-// confirmation. (The Ruby app and its
-// confirm_payment_manually script sign against their own fixed string,
-// "whsec_mock_lifeadelics_fixed"; a deploy driven by that tooling sets
-// STRIPE_WEBHOOK_SECRET to it.) Which domain these routes serve at all
-// is `HECKS_CHECKOUT_DOMAIN` (web.rs `render`).
+// `HECKS_CHECKOUT_DOMAIN` (web.rs `render`) picks the domain these routes serve.
 
 use hmac::{Hmac, Mac};
 use serde_json::Value;

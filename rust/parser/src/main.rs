@@ -1,6 +1,5 @@
 //! `hecks-parse` — the fresh, purpose-built Rust parser for hecks's
-//! own `.bluebook` DSL (see `/Users/christopheryoung/.claude/plans/sequential-petting-whale.md`
-//! for the full 8-stage plan this crate is Stage 1 of).
+//! own `.bluebook` DSL (Stage 1 of the 8-stage Rust port plan).
 //!
 //! Stage 1: crate skeleton, lexer, generated keyword table, and all four
 //! parsing gates wired — with every per-construct handler

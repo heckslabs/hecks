@@ -31,13 +31,13 @@ use std::path::Path;
 use tokio::sync::Mutex;
 use tokio_postgres::Client;
 
-mod lifeadelics;
 mod newsletter;
 mod newsletter_send;
+mod registrations;
 
-use lifeadelics::{checkout_enabled, payments_routes};
-// payments.rs and its tests reach these through `web::`, not `web::lifeadelics::`.
-pub(crate) use lifeadelics::{registration_complete_route, registrations_route, webhook_route, MOCK_STRIPE_WEBHOOK_SECRET};
+use registrations::{checkout_enabled, payments_routes};
+// payments.rs and its tests reach these through `web::`, not `web::registrations::`.
+pub(crate) use registrations::{registration_complete_route, registrations_route, webhook_route, MOCK_STRIPE_WEBHOOK_SECRET};
 
 const UNGATED_PATHS: &[&str] = &["/login", "/logout", "/auth/google", "/auth/google/callback"];
 
@@ -70,29 +70,25 @@ pub async fn render(
     // `/login?error=google_failed`. Form bodies still use parse_form.
     let query = parse_query(body.get("rawQueryString").and_then(|v| v.as_str()).unwrap_or(""));
 
-    // **Checkout glue, opt-in by configuration** — `HECKS_CHECKOUT_DOMAIN`
-    // names the domain whose Event/Registration aggregates (plus the
-    // Payments::Payment chapter beside them) the checkout routes
-    // dispatch against; unset, or naming a different domain, these
-    // routes don't exist. An env var rather than an IR-driven "outbound
-    // port"/"webhook signature scheme" capability — considered for
-    // real (equivalence-gap plan 3.3) and declined; checkout.rs's own
-    // header has the reasoning. Membership, newsletter and payments, unlike
-    // this gate, *did* move onto declared capabilities (`provides
-    // "membership"`, `"newsletter"`, `"payments"`): the routes read their
-    // verbs from ir.json, so a domain that declares none serves none. The
-    // capability shapes are pinned by spec/fixtures/rust_host/checkout_fixture,
-    // which this module's tests run against.
+    // The registration, checkout and guest-newsletter routes are opt-in by
+    // configuration: `HECKS_CHECKOUT_DOMAIN` names the domain whose
+    // Event/Registration aggregates (plus the Payments::Payment chapter
+    // beside them) those routes dispatch against. Unset, or naming a
+    // different domain, they don't exist. Membership, newsletter and
+    // payments read their verbs from ir.json through declared capabilities
+    // (`provides "membership"`, `"newsletter"`, `"payments"`), so a domain
+    // that declares none serves none; the Event and Registration names
+    // themselves are still fixed in `registrations`. The capability shapes
+    // are pinned by spec/fixtures/rust_host/checkout_fixture, which this
+    // module's tests run against.
     if checkout_enabled(std::env::var("HECKS_CHECKOUT_DOMAIN").ok().as_deref(), &config.domain) {
-        // Guest-facing newsletter subscribe -- same gate as checkout
-        // (HECKS_CHECKOUT_DOMAIN), not a second env var: both are
-        // vendored embryonaut_bluebooks chapters loaded into the SAME
-        // Lifeadelics hecksagon (uses_embryonaut_bluebook "newsletter"),
-        // so "this is the real Lifeadelics deployment with guest routes
-        // on" is one fact, not two. Checked first, deliberately: it
-        // needs no Payments::Payment/Event context checkout_route's own
-        // routes carry, and public signup should never depend on
-        // checkout being reachable.
+        // Guest-facing newsletter subscribe shares this gate rather than
+        // adding a second env var: the newsletter chapter is vendored into
+        // the same hecksagon as the registration aggregates, so "this
+        // deployment has guest routes on" is one fact, not two. It is
+        // checked first because it needs none of the Payments::Payment or
+        // Event context the registration routes carry, and public signup
+        // should never depend on checkout being reachable.
         if let Some(response) = newsletter::newsletter_route(method, path, &query, &raw_body, client, wasm_path, config, invoker).await {
             return Some(response);
         }
@@ -2595,9 +2591,9 @@ mod tests {
             let guard = client.lock().await;
             guard
                 .batch_execute(
-                    "CREATE TABLE embryonaut_member_head_snapshot_1 (id text PRIMARY KEY, ordinal bigint NOT NULL, state jsonb NOT NULL);
-                     CREATE VIEW embryonaut_member_head AS SELECT id, state FROM embryonaut_member_head_snapshot_1;
-                     CREATE TABLE hecks_journal_embryonaut (
+                    "CREATE TABLE acme_member_head_snapshot_1 (id text PRIMARY KEY, ordinal bigint NOT NULL, state jsonb NOT NULL);
+                     CREATE VIEW acme_member_head AS SELECT id, state FROM acme_member_head_snapshot_1;
+                     CREATE TABLE hecks_journal_acme (
                          ordinal bigserial PRIMARY KEY, era int NOT NULL, aggregate text NOT NULL,
                          aggregate_id text NOT NULL, operation text NOT NULL, state jsonb, mirrors jsonb
                      );",
@@ -2606,7 +2602,7 @@ mod tests {
                 .unwrap();
             guard
                 .execute(
-                    "INSERT INTO embryonaut_member_head_snapshot_1 (id, ordinal, state) VALUES ($1, 0, $2::jsonb), ($3, 0, $4::jsonb)",
+                    "INSERT INTO acme_member_head_snapshot_1 (id, ordinal, state) VALUES ($1, 0, $2::jsonb), ($3, 0, $4::jsonb)",
                     &[
                         &"zed@example.com",
                         &json!({"name": {"value": "Zed"}, "email": {"value": "zed@example.com"},
@@ -2620,9 +2616,9 @@ mod tests {
                 .unwrap();
         }
         let domain_ir = json!({
-            "name": "Embryonaut",
+            "name": "Acme",
             "lineage": {"capable_aggregates": [{"name": "Member", "storage_name": "member"}]},
-            "membership": {"provider": "Embryonaut", "aggregate": "Embryonaut::Member"},
+            "membership": {"provider": "Acme", "aggregate": "Acme::Member"},
         });
         (client, domain_ir)
     }
@@ -2680,7 +2676,7 @@ mod tests {
     }
 
     fn members_config() -> LineageConfig {
-        LineageConfig { domain: "Embryonaut".to_string(), era: Some(1), mirrored: None }
+        LineageConfig { domain: "Acme".to_string(), era: Some(1), mirrored: None }
     }
 
     #[tokio::test]
@@ -2819,7 +2815,7 @@ mod tests {
 
         let guard = client.lock().await;
         let journalled: i64 = guard
-            .query_one("SELECT count(*) FROM hecks_journal_embryonaut WHERE aggregate_id = 'new@example.com'", &[])
+            .query_one("SELECT count(*) FROM hecks_journal_acme WHERE aggregate_id = 'new@example.com'", &[])
             .await
             .unwrap()
             .get(0);
@@ -2854,7 +2850,7 @@ mod tests {
     async fn journal_rows(client: &Mutex<Client>, id: &str) -> i64 {
         let guard = client.lock().await;
         guard
-            .query_one("SELECT count(*) FROM hecks_journal_embryonaut WHERE aggregate_id = $1", &[&id])
+            .query_one("SELECT count(*) FROM hecks_journal_acme WHERE aggregate_id = $1", &[&id])
             .await
             .unwrap()
             .get(0)
@@ -3125,7 +3121,7 @@ mod tests {
     async fn registrations_list_route_refuses_anyone_but_an_active_admin_before_reading_any_registration() {
         let secret = "s3cret";
         let (client, domain_ir) = scratch_two_admins("hecks_host_web_test_registrations_list_auth").await;
-        let config = LineageConfig { domain: "Lifeadelics".to_string(), era: Some(1), mirrored: None };
+        let config = LineageConfig { domain: "Studio".to_string(), era: Some(1), mirrored: None };
         // The wasm path doesn't exist: every refusal below must come before any registration read.
         let wasm_path = Path::new("does-not-exist.wasm");
 
@@ -3161,7 +3157,7 @@ mod tests {
         assert!(auth::grant_access(&client, Path::new("unused"), &config, &domain_ir, "amy@example.com", "Owner").await.unwrap());
         assert!(auth::admit_person(&client, &config, &domain_ir, "bob@example.com", "Bob").await.unwrap());
         assert!(auth::grant_access(&client, Path::new("unused"), &config, &domain_ir, "bob@example.com", "Member").await.unwrap());
-        let lifeadelics = LineageConfig { domain: "Lifeadelics".to_string(), era: Some(1), mirrored: None };
+        let studio = LineageConfig { domain: "Studio".to_string(), era: Some(1), mirrored: None };
         // No wasm at all: a request that clears the admin gate fails later with a 500, never a 401/403.
         let missing_wasm = Path::new("does-not-exist.wasm");
 
@@ -3170,7 +3166,7 @@ mod tests {
             let cookies = session_cookies(secret, caller);
             let add = add_member_route(&domain_ir, &json!({"email": "not an email", "name": "N"}).to_string(), &cookies, secret, &client, Path::new("unused"), &config).await;
             let add = status_of(add).await;
-            let registrations = status_of(registrations_list_route(&domain_ir, &cookies, secret, &client, missing_wasm, &lifeadelics).await).await;
+            let registrations = status_of(registrations_list_route(&domain_ir, &cookies, secret, &client, missing_wasm, &studio).await).await;
             let disable = status_of(switch_access(&client, &domain_ir, caller, "bob@example.com", true).await).await;
             let enable = status_of(switch_access(&client, &domain_ir, caller, "bob@example.com", false).await).await;
             if admits {
@@ -3190,7 +3186,7 @@ mod tests {
         let none = HashMap::new();
         assert_eq!(status_of(add_member_route(&domain_ir, "{}", &none, secret, &client, Path::new("unused"), &config).await).await, 401);
         assert_eq!(status_of(members_route(&domain_ir, &none, secret, &client).await).await, 401);
-        assert_eq!(status_of(registrations_list_route(&domain_ir, &none, secret, &client, missing_wasm, &lifeadelics).await).await, 401);
+        assert_eq!(status_of(registrations_list_route(&domain_ir, &none, secret, &client, missing_wasm, &studio).await).await, 401);
         assert_eq!(status_of(set_member_disabled_route(&domain_ir, r#"{"email":"bob@example.com"}"#, &none, secret, &client, &config, true).await).await, 401);
     }
 
@@ -3247,23 +3243,23 @@ mod tests {
     #[test]
     fn registration_list_rows_have_exactly_the_admin_list_shape_and_never_carry_health_or_payment_fields() {
         let read = json!({"instances": {
-            "Lifeadelics::Registration#reg-old": {
+            "Studio::Registration#reg-old": {
                 "event_slug": "yoga-aug",
                 "created_at": "2026-09-01T10:00:00Z",
                 "attendee": {"first_name": " Ada ", "last_name": "Lovelace", "email": "ada@example.com", "news_signup": true,
                              "phone": "555-0100", "medications": "SECRET-MEDICATION", "health_concerns": "SECRET-CONCERN"},
             },
-            "Lifeadelics::Registration#reg-new": {
+            "Studio::Registration#reg-new": {
                 "event_slug": "yoga-sep",
                 "created_at": "2026-09-20T10:00:00Z",
                 "attendee": {"first_name": {"value": "Grace"}, "last_name": {"value": "Hopper"}, "email": {"value": "grace@example.com"}},
                 "amount": {"cents": 9900},
             },
-            "Lifeadelics::Event#yoga-aug": {"name": {"value": "Yoga"}},
+            "Studio::Event#yoga-aug": {"name": {"value": "Yoga"}},
             "Payments::Payment#reg-old": {"amount": {"cents": 12345}, "status": "succeeded"},
         }});
 
-        let rows = registration_list_rows(&read, "Lifeadelics");
+        let rows = registration_list_rows(&read, "Studio");
         assert_eq!(
             rows,
             vec![
@@ -3282,16 +3278,16 @@ mod tests {
     #[test]
     fn registration_list_rows_keep_read_order_without_timestamps_and_are_empty_with_no_registrations() {
         let read = json!({"instances": {
-            "Lifeadelics::Registration#a": {"event_slug": "e", "attendee": {"name": "Flat Name", "email": "flat@example.com"}},
+            "Studio::Registration#a": {"event_slug": "e", "attendee": {"name": "Flat Name", "email": "flat@example.com"}},
         }});
-        let rows = registration_list_rows(&read, "Lifeadelics");
+        let rows = registration_list_rows(&read, "Studio");
         assert_eq!(rows.len(), 1);
         assert_eq!(rows[0]["name"], "Flat Name", "falls back to a flat name when there is no first and last name");
 
-        assert_eq!(registration_list_rows(&json!({"instances": {}}), "Lifeadelics"), Vec::<Value>::new());
-        assert_eq!(registration_list_rows(&json!({}), "Lifeadelics"), Vec::<Value>::new());
+        assert_eq!(registration_list_rows(&json!({"instances": {}}), "Studio"), Vec::<Value>::new());
+        assert_eq!(registration_list_rows(&json!({}), "Studio"), Vec::<Value>::new());
         let other_domain = json!({"instances": {"Elsewhere::Registration#x": {"attendee": {"email": "x@example.com"}}}});
-        assert!(registration_list_rows(&other_domain, "Lifeadelics").is_empty(), "another domain's registrations are not listed");
+        assert!(registration_list_rows(&other_domain, "Studio").is_empty(), "another domain's registrations are not listed");
     }
 
     #[test]
