@@ -239,20 +239,37 @@ pub struct EmbeddedSession {
     pub client_secret: String,
 }
 
+/// How long an unpaid checkout keeps its seat, in seconds. Stripe accepts an
+/// expiry from 30 minutes to 24 hours after the session is created, so the
+/// hold is 31 minutes to stay clear of the minimum; when the session expires,
+/// Stripe's `checkout.session.expired` event fails the Payment and the seat is
+/// free again.
+pub const SESSION_HOLD_SECONDS: i64 = 31 * 60;
+
+/// The Unix time an embedded session created at `now` expires at.
+pub fn session_expires_at(now: i64) -> i64 {
+    now + SESSION_HOLD_SECONDS
+}
+
 /// Opens an embedded Checkout Session for one registration on the tenant's
-/// account and returns what the browser needs to mount the payment form.
-/// Errors carry Stripe's message when it refuses, never a secret.
+/// account and returns what the browser needs to mount the payment form. The
+/// session expires at `expires_at` (Unix seconds), which releases the seat an
+/// abandoned checkout was holding. Errors carry Stripe's message when it
+/// refuses, never a secret.
 pub async fn create_checkout_session(
     auth: &StripeAuth<'_>,
     price_cents: i64,
     product_name: &str,
     registration_id: &str,
+    expires_at: i64,
 ) -> anyhow::Result<EmbeddedSession> {
     let unit_amount = price_cents.to_string();
+    let expires_at = expires_at.to_string();
     let params = [
         ("mode", "payment"),
         ("ui_mode", "embedded_page"),
         ("redirect_on_completion", "never"),
+        ("expires_at", expires_at.as_str()),
         ("line_items[0][price_data][currency]", "usd"),
         ("line_items[0][price_data][unit_amount]", unit_amount.as_str()),
         ("line_items[0][price_data][product_data][name]", product_name),

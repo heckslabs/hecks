@@ -235,7 +235,11 @@ impl Tenant {
     }
 
     async fn schedule_event(&self, slug: &str) {
-        let args = json!({"slug": {"value": slug}, "name": {"value": "Yogadelics"}, "price": {"cents": 4200}, "capacity": {"value": 20}});
+        self.schedule_event_with_capacity(slug, 20).await;
+    }
+
+    async fn schedule_event_with_capacity(&self, slug: &str, capacity: i64) {
+        let args = json!({"slug": {"value": slug}, "name": {"value": "Yogadelics"}, "price": {"cents": 4200}, "capacity": {"value": capacity}});
         let outcome = dispatch::handle(&self.client, &self.wasm, "CheckoutFixture::Event.Schedule", args, None, &self.config, &NeverInvoker).await.unwrap();
         assert!(outcome.accepted, "{:?}", outcome.result);
     }
@@ -282,6 +286,10 @@ fn completed(reference: &str, account: Option<&str>) -> Value {
         event["account"] = json!(account);
     }
     event
+}
+
+fn expired(reference: &str, account: &str) -> Value {
+    json!({"type": "checkout.session.expired", "account": account, "data": {"object": {"id": "cs_test_1", "metadata": {"registration_id": reference}}}})
 }
 
 // ---- access: who may see and do what ----------------------------------------
@@ -652,6 +660,115 @@ async fn a_stripe_refusal_answers_502_and_leaves_no_payment_or_registration_behi
     let read = dispatch::read(&t.client, &t.wasm).await.unwrap();
     assert_eq!(instances_for(&read, "Payments::Payment#").len(), 1);
     assert_eq!(instances_for(&read, "CheckoutFixture::Registration#").len(), 1);
+}
+
+// ---- capacity: a full event refuses, an unpaid checkout holds a seat -------------
+
+fn unix_secs() -> i64 {
+    std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs() as i64
+}
+
+#[tokio::test]
+async fn a_full_event_answers_409_and_writes_nothing_and_calls_no_stripe() {
+    let t = tenant("hecks_pay_test_capacity_full").await;
+    t.schedule_event_with_capacity("one-seat", 1).await;
+    t.connect().await;
+    t.enable().await;
+
+    let (status, body) = t.register("one-seat").await;
+    assert_eq!(status, 200, "{body}");
+    let sessions = t.fake.requests_to("/v1/checkout/sessions").len();
+
+    let (status, body) = t.register("one-seat").await;
+    assert_eq!((status, body["error"].as_str()), (409, Some("this event is full")));
+    assert_eq!(body.get("embedded_checkout"), None);
+    assert_eq!(t.fake.requests_to("/v1/checkout/sessions").len(), sessions, "no session is opened for a full event");
+    let read = dispatch::read(&t.client, &t.wasm).await.unwrap();
+    assert_eq!(instances_for(&read, "Payments::Payment#").len(), 1, "no second Payment");
+    assert_eq!(instances_for(&read, "CheckoutFixture::Registration#").len(), 1, "no second Registration");
+}
+
+#[tokio::test]
+async fn the_last_seat_goes_through_the_mock_walkthrough_and_the_next_attempt_is_409() {
+    let t = tenant("hecks_pay_test_capacity_mock").await;
+    t.schedule_event_with_capacity("two-seats", 2).await;
+
+    let mut references = Vec::new();
+    for _ in 0..2 {
+        let (status, body) = t.register("two-seats").await;
+        assert_eq!(status, 200, "{body}");
+        assert!(body["checkout_url"].is_string(), "the mock plan still answers a checkout_url: {body}");
+        references.push(body["registration_id"].as_str().unwrap().to_string());
+    }
+    for reference in &references {
+        assert_eq!(t.settle(reference).await, 200);
+        assert_eq!(t.payment_status(reference).await, "succeeded");
+    }
+
+    let (status, body) = t.register("two-seats").await;
+    assert_eq!((status, body["error"].as_str()), (409, Some("this event is full")));
+    assert!(t.fake.requests().is_empty(), "the mock walkthrough never calls Stripe");
+}
+
+#[tokio::test]
+async fn an_unpaid_checkout_holds_the_seat_until_its_session_expires() {
+    let t = tenant("hecks_pay_test_capacity_hold").await;
+    t.schedule_event_with_capacity("held", 1).await;
+    t.connect().await;
+    t.enable().await;
+
+    let (status, body) = t.register("held").await;
+    assert_eq!(status, 200, "{body}");
+    let reference = body["registration_id"].as_str().unwrap().to_string();
+    assert_eq!(t.payment_status(&reference).await, "pending");
+
+    let (status, _) = t.register("held").await;
+    assert_eq!(status, 409, "a pending checkout holds the seat");
+
+    assert_eq!(t.webhook(expired(&reference, TENANT_ACCOUNT)).await, 200);
+    assert_eq!(t.payment_status(&reference).await, "failed");
+    let (status, body) = t.register("held").await;
+    assert_eq!(status, 200, "an expired checkout gives the seat back: {body}");
+}
+
+#[tokio::test]
+async fn a_declined_payment_frees_the_seat_and_a_paid_one_keeps_it() {
+    let t = tenant("hecks_pay_test_capacity_declined").await;
+    t.schedule_event_with_capacity("declined", 1).await;
+
+    let (_, body) = t.register("declined").await;
+    let first = body["registration_id"].as_str().unwrap().to_string();
+    let response = web::registration_complete_route(&first, r#"{"outcome":"failed"}"#, &t.client, &t.wasm, &t.config, &NeverInvoker, &crate::ir::fixture_payments()).await;
+    assert_eq!(response["statusCode"].as_u64(), Some(200));
+    assert_eq!(t.payment_status(&first).await, "failed");
+
+    let (status, body) = t.register("declined").await;
+    assert_eq!(status, 200, "a declined payment gives the seat back: {body}");
+    let second = body["registration_id"].as_str().unwrap().to_string();
+    assert_eq!(t.settle(&second).await, 200);
+
+    let (status, _) = t.register("declined").await;
+    assert_eq!(status, 409, "a paid registration keeps its seat");
+}
+
+#[tokio::test]
+async fn a_stripe_session_expires_about_thirty_one_minutes_after_it_is_created() {
+    let t = tenant("hecks_pay_test_capacity_expiry").await;
+    t.schedule_event("expiring").await;
+    t.connect().await;
+    t.enable().await;
+
+    let before = unix_secs();
+    let (status, body) = t.register("expiring").await;
+    let after = unix_secs();
+    assert_eq!(status, 200, "{body}");
+
+    let sent = t.fake.requests_to("/v1/checkout/sessions");
+    assert_eq!(sent.len(), 1);
+    let expires_at: i64 = sent[0].body.split('&').find_map(|pair| pair.strip_prefix("expires_at=")).expect("an expires_at form field").parse().unwrap();
+    let hold = crate::checkout::SESSION_HOLD_SECONDS;
+    assert!((before + hold..=after + hold).contains(&expires_at), "expires_at {expires_at} is not {hold}s after creation ({before}..{after})");
+    assert!((30 * 60..=35 * 60).contains(&hold), "Stripe's minimum is 30 minutes, and the hold should stay close to it");
 }
 
 #[tokio::test]
