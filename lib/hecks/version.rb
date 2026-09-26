@@ -12,5 +12,5 @@ module Hecks
   # it there, or even in the consuming Gemfile, never closed the gap,
   # because gemspec evaluation happens before anything Bundler
   # resolves is actually loadable yet.
-  VERSION = "2.3.0".freeze
+  VERSION = "2.4.0".freeze
 end
