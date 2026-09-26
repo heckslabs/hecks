@@ -165,7 +165,9 @@ pub async fn serve(state: ServerState) -> Result<(), Error> {
         .fallback(any(dispatch_route))
         .with_state(state);
 
+    let phase = log::phase_with("serve_start", serde_json::json!({ "port": port }));
     let listener = tokio::net::TcpListener::bind(("0.0.0.0", port)).await?;
+    phase.end();
     axum::serve(listener, app).await?;
     Ok(())
 }
