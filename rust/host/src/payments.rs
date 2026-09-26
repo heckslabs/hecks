@@ -18,6 +18,13 @@
 // account's own key with no `Stripe-Account` header, and Connect's OAuth
 // handshake and deauthorization do not apply.
 //
+// The business can also paste its keys into the Payments page and save them
+// (`save_keys_route`). The keys are checked with Stripe, the site creates the
+// webhook in the business's own Stripe account itself, and the keys and the
+// webhook's signing secret go into a Secrets Manager secret (keystore.rs), never
+// into the tenant's schema or a response. Environment keys, where set, win over
+// saved ones. Disconnecting removes the webhook and the saved keys.
+//
 // Who may do what is decided here, not by Governance (no Caller is bound on
 // these routes): an Owner (the membership person's own `role`) connects and
 // disconnects; only an operator (`PAYMENTS_OPERATOR_EMAILS`, a platform
@@ -36,6 +43,7 @@
 // trimmed copy of it).
 
 use crate::auth;
+use crate::checkout::STRIPE_API_VERSION;
 use crate::dispatch;
 use crate::journal::LineageConfig;
 use crate::lambda_client::LambdaInvoker;
@@ -43,8 +51,12 @@ use crate::web::{instances_for, last_refusal, respond};
 use serde_json::{json, Value};
 use std::collections::HashMap;
 use std::path::Path;
+use std::sync::Arc;
 use tokio::sync::Mutex;
 use tokio_postgres::Client;
+
+mod keystore;
+use keystore::{KeyStore, StoredDocument, StoredKeys};
 
 const CONNECTION_SLUG: &str = "payments";
 const STATE_PURPOSE: &str = "payment_connect";
@@ -63,8 +75,19 @@ const STRIPE_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(15);
 /// request and passed down as a plain value, so a test can build one directly
 /// instead of mutating process-wide env vars. Deliberately not `Debug`: it
 /// holds secret keys.
+#[derive(Clone)]
 pub struct PlatformConfig {
     pub site_url: String,
+    /// The public origin Stripe delivers webhooks to: `PAYMENTS_WEBHOOK_BASE_URL`,
+    /// else `site_url`. The webhook the site creates in a business's own Stripe
+    /// account points at `<this>/webhooks/stripe`.
+    pub webhook_base_url: String,
+    /// Where keys saved from the Payments page live, when this deploy has such a
+    /// store (keystore.rs); `None` means keys can only come from the environment.
+    pub store: Option<Arc<KeyStore>>,
+    /// A snapshot of what the store held when `apply_store` last ran. Empty
+    /// until then.
+    pub stored: Arc<StoredDocument>,
     pub api_base: String,
     pub connect_base: String,
     pub test_key: String,
@@ -94,8 +117,13 @@ pub struct PlatformConfig {
 impl PlatformConfig {
     pub fn from_env() -> Self {
         let var = |name: &str| std::env::var(name).unwrap_or_default();
+        let site_url = std::env::var("SITE_URL").unwrap_or_else(|_| "http://localhost:4321".to_string());
+        let webhook_base_url = Some(var("PAYMENTS_WEBHOOK_BASE_URL")).filter(|url| !url.trim().is_empty()).unwrap_or_else(|| site_url.clone()).trim_end_matches('/').to_string();
         Self {
-            site_url: std::env::var("SITE_URL").unwrap_or_else(|_| "http://localhost:4321".to_string()),
+            site_url,
+            webhook_base_url,
+            store: keystore::default_store(),
+            stored: Arc::new(StoredDocument::default()),
             api_base: STRIPE_API_BASE.to_string(),
             connect_base: STRIPE_CONNECT_BASE.to_string(),
             test_key: var("STRIPE_PLATFORM_TEST_KEY"),
@@ -135,16 +163,70 @@ impl PlatformConfig {
         MODES.into_iter().filter(|mode| !self.key(mode).is_empty() && !self.client_id(mode).is_empty()).collect()
     }
 
+    /// `Self::from_env()` with what the key store holds applied.
+    pub async fn load() -> Self {
+        let mut platform = Self::from_env();
+        platform.apply_store().await;
+        platform
+    }
+
+    /// Reads the key store into `stored` (from its cache when fresh). A store
+    /// that cannot be read leaves only the environment's keys in play, and the
+    /// log line says so without saying anything about the keys.
+    pub async fn apply_store(&mut self) {
+        let Some(store) = self.store.clone() else { return };
+        match store.document().await {
+            Ok(document) => self.stored = document,
+            Err(e) => eprintln!("the saved payment keys could not be read, so only environment keys are used: {e}"),
+        }
+    }
+
+    /// Whether this deploy can save keys from the Payments page.
+    pub fn can_save_keys(&self) -> bool {
+        self.store.is_some()
+    }
+
+    /// Whether any real Stripe credential exists here: a platform key, the
+    /// business's own key from the environment, or keys saved from the Payments
+    /// page. While one does, the public mock webhook secret must never verify
+    /// anything.
+    pub fn has_real_credentials(&self) -> bool {
+        let configured = [&self.test_key, &self.live_key, &self.direct_test_key, &self.direct_live_key].iter().any(|key| !key.is_empty());
+        let saved = [&self.stored.test, &self.stored.live].iter().any(|keys| keys.as_ref().is_some_and(|keys| !keys.secret_key.is_empty()));
+        configured || saved
+    }
+
+    /// Every webhook signing secret this deploy accepts: the environment's, then
+    /// any saved with the business's keys.
+    pub fn webhook_secrets(&self) -> Vec<&str> {
+        self.webhook_secret.iter().map(String::as_str).chain(self.stored.webhook_secrets()).collect()
+    }
+
+    // The business's own keys for `mode`: the environment's pair when both are
+    // set, else the pair saved from the Payments page, else whatever the
+    // environment has (which then leaves the mode unavailable).
+    fn direct_pair(&self, mode: &str) -> (&str, &str) {
+        let (key, publishable) =
+            if mode == "live" { (&self.direct_live_key, &self.direct_live_publishable_key) } else { (&self.direct_test_key, &self.direct_test_publishable_key) };
+        if !key.is_empty() && !publishable.is_empty() {
+            return (key, publishable);
+        }
+        match self.stored.mode(mode) {
+            Some(saved) if !saved.secret_key.is_empty() && !saved.publishable_key.is_empty() => (&saved.secret_key, &saved.publishable_key),
+            _ => (key, publishable),
+        }
+    }
+
     fn direct_key(&self, mode: &str) -> &str {
-        if mode == "live" { &self.direct_live_key } else { &self.direct_test_key }
+        self.direct_pair(mode).0
     }
 
     fn direct_publishable_key(&self, mode: &str) -> &str {
-        if mode == "live" { &self.direct_live_publishable_key } else { &self.direct_test_publishable_key }
+        self.direct_pair(mode).1
     }
 
     /// The modes the business's own account can be used in: those with both
-    /// its secret key and its publishable key.
+    /// its secret key and its publishable key, from the environment or saved.
     pub fn direct_modes(&self) -> Vec<&'static str> {
         MODES.into_iter().filter(|mode| !self.direct_key(mode).is_empty() && !self.direct_publishable_key(mode).is_empty()).collect()
     }
@@ -364,6 +446,7 @@ fn connection_json(connection: Option<&Connection>, platform: &PlatformConfig, c
         "adapters": adapters,
         "direct_modes": platform.direct_modes(),
         "direct": connection.is_some_and(Connection::is_direct),
+        "can_save_keys": platform.can_save_keys(),
         "can_manage": caller.owner,
         "can_enable": caller.operator,
     })
@@ -564,6 +647,11 @@ async fn direct_route(caller: &Caller, raw_body: &str, platform: &PlatformConfig
         Ok(body) => body,
         Err(response) => return response,
     };
+    // The Payments page's Save form sends the keys themselves; the older form
+    // names a mode whose keys are already in the environment.
+    if body.get("secret_key").is_some() || body.get("publishable_key").is_some() {
+        return save_keys_route(caller, &body, platform, client, wasm_path, config, invoker).await;
+    }
     let mode = match body_field(&body, "mode") {
         Ok(mode) => mode,
         Err(response) => return response,
@@ -603,7 +691,16 @@ async fn disconnect_route(caller: &Caller, platform: &PlatformConfig, client: &M
     let remote = if existing.is_direct() { None } else { Some(existing.processor == "stripe" && revoke_access(platform, &existing.mode, &existing.account_ref).await) };
     let command = if existing.status == "enabled" { "Suspend" } else { "Disconnect" };
     match dispatch_on_connection(command, json!({}), client, wasm_path, config, invoker).await {
-        Ok(outcome) if outcome.accepted => connection_response(caller, platform, client, wasm_path, config, remote).await,
+        Ok(outcome) if outcome.accepted => {
+            // The business's own account: take the webhook out of its Stripe
+            // account and delete what was saved, so nothing keeps working after
+            // an Owner disconnects.
+            if existing.is_direct() {
+                forget_saved_keys(platform, &existing.mode).await;
+            }
+            let refreshed = refreshed(platform).await;
+            connection_response(caller, &refreshed, client, wasm_path, config, remote).await
+        }
         Ok(outcome) => json_error(422, &refusal_message(&last_refusal(&outcome.result))),
         Err(e) => json_error(500, &format!("{e:#}")),
     }
@@ -720,6 +817,229 @@ async fn own_account_display_name(platform: &PlatformConfig, key: &str) -> Strin
     name
 }
 
+// ---- saving the business's own keys --------------------------------------
+
+const KEYS_NOT_ENABLED: &str = "saving keys is not set up on this site";
+const KEY_REFUSED: &str = "Stripe did not accept that key.";
+const STRIPE_UNREACHABLE: &str = "Could not reach Stripe. Please try again in a moment.";
+const WEBHOOK_PERMISSION: &str = "That key can't create the webhook. In Stripe, give it Webhook Endpoints → Write as well and try again.";
+const WEBHOOK_FAILED: &str = "Stripe could not set up the payment webhook. Please try again.";
+const STORE_FAILED: &str = "The keys could not be stored, so nothing was saved. Please try again.";
+const WEBHOOK_EVENTS: [&str; 3] = ["checkout.session.completed", "checkout.session.expired", "charge.refunded"];
+const WEBHOOK_DESCRIPTION: &str = "Lifeadelics website";
+
+// A copy of `platform` with the key store read again, for a response that must
+// show the keys just saved or removed.
+async fn refreshed(platform: &PlatformConfig) -> PlatformConfig {
+    let mut fresh = platform.clone();
+    fresh.apply_store().await;
+    fresh
+}
+
+// The mode both keys belong to. Each message says what to fix and never quotes
+// any part of a key.
+fn keys_mode(secret_key: &str, publishable_key: &str) -> Result<&'static str, &'static str> {
+    let secret_mode = ["rk_test_", "sk_test_"]
+        .iter()
+        .any(|prefix| secret_key.starts_with(prefix))
+        .then_some("test")
+        .or_else(|| ["rk_live_", "sk_live_"].iter().any(|prefix| secret_key.starts_with(prefix)).then_some("live"))
+        .ok_or("That does not look like a Stripe restricted key. It should start with rk_test_ or rk_live_.")?;
+    let publishable_mode = if publishable_key.starts_with("pk_test_") {
+        "test"
+    } else if publishable_key.starts_with("pk_live_") {
+        "live"
+    } else {
+        return Err("That does not look like a Stripe publishable key. It should start with pk_test_ or pk_live_.");
+    };
+    if secret_mode == publishable_mode {
+        Ok(secret_mode)
+    } else {
+        Err("One key is for test mode and the other is for live mode. Use two keys from the same mode.")
+    }
+}
+
+// The business name Stripe has for an account, when it has one.
+fn business_name(account: &Value) -> Option<String> {
+    let candidates = [
+        account.get("business_profile").and_then(|p| p.get("name")),
+        account.get("settings").and_then(|s| s.get("dashboard")).and_then(|d| d.get("display_name")),
+        account.get("email"),
+    ];
+    candidates.into_iter().flatten().find_map(|v| v.as_str().filter(|s| !s.is_empty())).map(String::from)
+}
+
+// Asks Stripe whether the key works and what the business is called. Only a key
+// Stripe rejects outright is refused here: a restricted key may not be allowed
+// to read the account at all, so that reads as the generic name, and creating
+// the webhook is the real test of its permissions.
+async fn verify_key(platform: &PlatformConfig, key: &str) -> Result<String, &'static str> {
+    let response = stripe_http()
+        .map_err(|_| STRIPE_UNREACHABLE)?
+        .get(format!("{}/v1/account", platform.api_base))
+        .bearer_auth(key)
+        .header("Stripe-Version", STRIPE_API_VERSION)
+        .send()
+        .await
+        .map_err(|_| STRIPE_UNREACHABLE)?;
+    let status = response.status();
+    if status.as_u16() == 401 {
+        return Err(KEY_REFUSED);
+    }
+    if !status.is_success() {
+        return Ok(DIRECT_DISPLAY_FALLBACK.to_string());
+    }
+    let account = response.json::<Value>().await.unwrap_or(Value::Null);
+    Ok(business_name(&account).unwrap_or_else(|| DIRECT_DISPLAY_FALLBACK.to_string()))
+}
+
+enum WebhookError {
+    /// The key is not allowed to create webhook endpoints.
+    Permission,
+    /// Anything else: Stripe down, refusing the request, or answering oddly.
+    Other,
+}
+
+// Creates the webhook endpoint in the business's own Stripe account and returns
+// its id and signing secret. Stripe shows the signing secret only in this
+// answer, so it is captured here and nowhere else. Only the status is logged.
+async fn create_webhook(platform: &PlatformConfig, key: &str) -> Result<(String, String), WebhookError> {
+    let url = format!("{}/webhooks/stripe", platform.webhook_base_url);
+    let mut params: Vec<(String, String)> = vec![("url".into(), url), ("description".into(), WEBHOOK_DESCRIPTION.into())];
+    params.extend(WEBHOOK_EVENTS.iter().enumerate().map(|(index, event)| (format!("enabled_events[{index}]"), event.to_string())));
+    let response = stripe_http()
+        .map_err(|_| WebhookError::Other)?
+        .post(format!("{}/v1/webhook_endpoints", platform.api_base))
+        .bearer_auth(key)
+        .header("Stripe-Version", STRIPE_API_VERSION)
+        .form(&params)
+        .send()
+        .await
+        .map_err(|_| WebhookError::Other)?;
+    let status = response.status();
+    if matches!(status.as_u16(), 401 | 403) {
+        return Err(WebhookError::Permission);
+    }
+    if !status.is_success() {
+        eprintln!("Stripe refused to create the payment webhook ({status})");
+        return Err(WebhookError::Other);
+    }
+    let body: Value = response.json().await.map_err(|_| WebhookError::Other)?;
+    let text = |field: &str| body.get(field).and_then(|v| v.as_str()).filter(|s| !s.is_empty()).map(String::from);
+    match (text("id"), text("secret")) {
+        (Some(id), Some(secret)) => Ok((id, secret)),
+        _ => Err(WebhookError::Other),
+    }
+}
+
+// Removes a webhook endpoint from the business's Stripe account, best effort:
+// the answer says whether Stripe confirmed it, and nothing else is reported.
+async fn delete_webhook(platform: &PlatformConfig, key: &str, endpoint_id: &str) -> bool {
+    let Ok(http) = stripe_http() else { return false };
+    let sent = http.delete(format!("{}/v1/webhook_endpoints/{endpoint_id}", platform.api_base)).bearer_auth(key).header("Stripe-Version", STRIPE_API_VERSION).send().await;
+    matches!(sent, Ok(response) if response.status().is_success())
+}
+
+// The Payments page's Save: check the keys, have Stripe deliver events to this
+// site, keep the keys and the webhook's signing secret in the store, and record
+// the connection as the business's own account. Saving again while the same
+// account is already connected replaces the keys and the webhook in place.
+// Nothing here answers with, logs or errors with a key.
+#[allow(clippy::too_many_arguments)]
+async fn save_keys_route(caller: &Caller, body: &Value, platform: &PlatformConfig, client: &Mutex<Client>, wasm_path: &Path, config: &LineageConfig, invoker: &dyn LambdaInvoker) -> Value {
+    let Some(store) = platform.store.clone() else { return json_error(422, KEYS_NOT_ENABLED) };
+    let (secret_key, publishable_key) = match (body_field(body, "secret_key"), body_field(body, "publishable_key")) {
+        (Ok(secret), Ok(publishable)) => (secret.trim().to_string(), publishable.trim().to_string()),
+        (Err(response), _) | (_, Err(response)) => return response,
+    };
+    let mode = match keys_mode(&secret_key, &publishable_key) {
+        Ok(mode) => mode,
+        Err(message) => return json_error(422, message),
+    };
+    let existing = match current_connection(client, wasm_path, config).await {
+        Ok(existing) => existing,
+        Err(response) => return response,
+    };
+    let in_place = match existing.as_ref() {
+        Some(c) if matches!(c.status.as_str(), "connected" | "enabled") => {
+            if !(c.is_direct() && c.mode == mode) {
+                return json_error(409, "an account is already connected — disconnect it first");
+            }
+            true
+        }
+        _ => false,
+    };
+    let display_name = match verify_key(platform, &secret_key).await {
+        Ok(name) => name,
+        Err(message) => return json_error(422, message),
+    };
+
+    // What the last save made, to be replaced once the new webhook is safely
+    // stored: a save that fails part way must never leave the business without
+    // a working webhook.
+    let previous = store.refresh().await.ok().and_then(|document| document.mode(mode).cloned()).filter(|old| !old.webhook_endpoint_id.is_empty());
+    let (endpoint_id, webhook_secret) = match create_webhook(platform, &secret_key).await {
+        Ok(created) => created,
+        Err(WebhookError::Permission) => return json_error(422, WEBHOOK_PERMISSION),
+        Err(WebhookError::Other) => return json_error(422, WEBHOOK_FAILED),
+    };
+    let saved = StoredKeys { secret_key: secret_key.clone(), publishable_key, webhook_secret, webhook_endpoint_id: endpoint_id.clone(), saved_at: keystore::now_timestamp() };
+    if let Err(e) = store.update(|document| document.set(mode, Some(saved))).await {
+        eprintln!("saving the payment keys failed: {e}");
+        delete_webhook(platform, &secret_key, &endpoint_id).await;
+        return json_error(500, STORE_FAILED);
+    }
+    // The new webhook and keys are stored, so the old webhook can go. Best
+    // effort: one that cannot be removed only stays in Stripe, unused.
+    if let Some(old) = previous {
+        if !delete_webhook(platform, &old.secret_key, &old.webhook_endpoint_id).await {
+            eprintln!("the previous Stripe webhook could not be removed");
+        }
+    }
+
+    let fresh = refreshed(platform).await;
+    if in_place {
+        return connection_response(caller, &fresh, client, wasm_path, config, None).await;
+    }
+    let facts = json!({
+        "processor": {"value": "stripe"},
+        "account_ref": {"value": SELF_ACCOUNT},
+        "mode": {"value": mode},
+        "display_name": {"value": display_name},
+    });
+    let response = record_connection(caller, &fresh, facts, client, wasm_path, config, invoker).await;
+    if response["statusCode"].as_u64() != Some(200) {
+        // The domain would not record the connection, so leave nothing behind.
+        delete_webhook(platform, &secret_key, &endpoint_id).await;
+        if store.update(|document| document.set(mode, None)).await.is_err() {
+            eprintln!("the saved payment keys could not be removed after a refused connection");
+        }
+    }
+    response
+}
+
+// After an Owner disconnects the business's own account: remove the webhook
+// from its Stripe account and delete the saved keys for that mode. Best effort,
+// logged without any secret; keys that came from the environment are not
+// touched, and neither is Stripe if no webhook was ever saved.
+async fn forget_saved_keys(platform: &PlatformConfig, mode: &str) {
+    let Some(store) = platform.store.clone() else { return };
+    let saved = match store.refresh().await {
+        Ok(document) => document.mode(mode).cloned(),
+        Err(e) => {
+            eprintln!("the saved payment keys could not be read for removal: {e}");
+            return;
+        }
+    };
+    let Some(saved) = saved else { return };
+    if !saved.webhook_endpoint_id.is_empty() && !delete_webhook(platform, &saved.secret_key, &saved.webhook_endpoint_id).await {
+        eprintln!("the Stripe webhook could not be removed from the business's account");
+    }
+    if let Err(e) = store.update(|document| document.set(mode, None)).await {
+        eprintln!("the saved payment keys could not be deleted: {e}");
+    }
+}
+
 // Asks Stripe to revoke the platform's access to the account. True when Stripe
 // confirmed it; false for any failure, including missing platform settings.
 async fn revoke_access(platform: &PlatformConfig, mode: &str, account_ref: &str) -> bool {
@@ -743,6 +1063,9 @@ async fn revoke_access(platform: &PlatformConfig, mode: &str, account_ref: &str)
 pub(crate) fn test_platform() -> PlatformConfig {
     PlatformConfig {
         site_url: "http://localhost:4321".to_string(),
+        webhook_base_url: "http://localhost:4321".to_string(),
+        store: None,
+        stored: Arc::new(StoredDocument::default()),
         api_base: "http://127.0.0.1:9".to_string(),
         connect_base: "http://127.0.0.1:9".to_string(),
         test_key: String::new(),

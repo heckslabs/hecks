@@ -5,6 +5,7 @@
 // that answers like Stripe, so the requests the host really sent (bearer key,
 // `Stripe-Account` header, form fields) can be asserted on.
 
+use super::keystore::MemoryStore;
 use super::*;
 use crate::dispatch::tests::{provision_lineage, scratch_db};
 use crate::lambda_client::NeverInvoker;
@@ -12,7 +13,7 @@ use crate::web;
 use axum::extract::State;
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex as StdMutex};
 
 const SESSION_SECRET: &str = "s3cret";
@@ -23,6 +24,12 @@ const TENANT_ACCOUNT: &str = "acct_tenant_1";
 const WEBHOOK_SECRET: &str = "whsec_platform_connect";
 const DIRECT_KEY: &str = "sk_test_OWN_ACCOUNT_KEY_DO_NOT_LEAK";
 const DIRECT_PUBLISHABLE_KEY: &str = "pk_test_OWN_ACCOUNT_PUBLISHABLE";
+// Keys pasted into the Payments page and saved (rather than set in the environment).
+const SAVED_KEY: &str = "rk_test_SAVED_KEY_DO_NOT_LEAK";
+const SAVED_KEY_TWO: &str = "rk_test_SECOND_SAVED_KEY_DO_NOT_LEAK";
+const SAVED_PUBLISHABLE_KEY: &str = "pk_test_SAVED_PUBLISHABLE";
+const LIVE_SAVED_KEY: &str = "rk_live_LIVE_SAVED_KEY_DO_NOT_LEAK";
+const LIVE_SAVED_PUBLISHABLE_KEY: &str = "pk_live_LIVE_SAVED_PUBLISHABLE";
 
 const OWNER: &str = "owner@example.com";
 const ADMIN: &str = "admin@example.com";
@@ -51,6 +58,14 @@ struct FakeState {
     refuse_deauthorize: AtomicBool,
     refuse_sessions: AtomicBool,
     refuse_account: AtomicBool,
+    // A key Stripe does not recognise at all (401 on every call).
+    invalid_key: AtomicBool,
+    // A restricted key without the Webhook Endpoints permission.
+    refuse_webhooks: AtomicBool,
+    // Numbers the webhook endpoints created, so each has its own id and secret.
+    webhooks_created: AtomicUsize,
+    // Stripe cannot delete a webhook endpoint (an outage, say).
+    fail_deletes: AtomicBool,
 }
 
 struct FakeStripe {
@@ -60,7 +75,17 @@ struct FakeStripe {
 
 impl FakeStripe {
     async fn start() -> Self {
-        let state = Arc::new(FakeState { requests: StdMutex::new(Vec::new()), livemode: AtomicBool::new(false), refuse_deauthorize: AtomicBool::new(false), refuse_sessions: AtomicBool::new(false), refuse_account: AtomicBool::new(false) });
+        let state = Arc::new(FakeState {
+            requests: StdMutex::new(Vec::new()),
+            livemode: AtomicBool::new(false),
+            refuse_deauthorize: AtomicBool::new(false),
+            refuse_sessions: AtomicBool::new(false),
+            refuse_account: AtomicBool::new(false),
+            invalid_key: AtomicBool::new(false),
+            refuse_webhooks: AtomicBool::new(false),
+            webhooks_created: AtomicUsize::new(0),
+            fail_deletes: AtomicBool::new(false),
+        });
         let app = axum::Router::new().fallback(answer).with_state(state.clone());
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.expect("bind a local port");
         let base = format!("http://{}", listener.local_addr().unwrap());
@@ -103,6 +128,20 @@ async fn answer(State(state): State<Arc<FakeState>>, request: axum::extract::Req
         }
         ("POST", "/oauth/deauthorize") => (StatusCode::OK, json!({"stripe_user_id": TENANT_ACCOUNT})),
         ("GET", p) if p.starts_with("/v1/accounts/") => (StatusCode::OK, json!({"id": TENANT_ACCOUNT, "business_profile": {"name": "Yoga Collective"}})),
+        // Stripe does not recognise the key: every call it authenticates is a 401.
+        (_, p) if state.invalid_key.load(Ordering::SeqCst) && p.starts_with("/v1/") => (StatusCode::UNAUTHORIZED, json!({"error": {"message": "Invalid API Key provided: rk_test_****"}})),
+        // The webhook endpoints of the business's own account.
+        ("POST", "/v1/webhook_endpoints") if state.refuse_webhooks.load(Ordering::SeqCst) => {
+            (StatusCode::FORBIDDEN, json!({"error": {"message": "The provided key does not have the required permissions"}}))
+        }
+        ("POST", "/v1/webhook_endpoints") => {
+            let n = state.webhooks_created.fetch_add(1, Ordering::SeqCst) + 1;
+            (StatusCode::OK, json!({"id": format!("we_{n}"), "object": "webhook_endpoint", "secret": format!("whsec_SAVED_{n}")}))
+        }
+        ("DELETE", p) if p.starts_with("/v1/webhook_endpoints/") && state.fail_deletes.load(Ordering::SeqCst) => {
+            (StatusCode::INTERNAL_SERVER_ERROR, json!({"error": {"message": "Stripe is having trouble"}}))
+        }
+        ("DELETE", p) if p.starts_with("/v1/webhook_endpoints/") => (StatusCode::OK, json!({"id": p.trim_start_matches("/v1/webhook_endpoints/"), "deleted": true})),
         // The business's own account, read with its own key.
         ("GET", "/v1/account") if state.refuse_account.load(Ordering::SeqCst) => (StatusCode::FORBIDDEN, json!({"error": {"message": "key lacks permission"}})),
         ("GET", "/v1/account") => (StatusCode::OK, json!({"id": "acct_own_1", "business_profile": {"name": "Own Studio"}})),
@@ -126,6 +165,8 @@ struct Tenant {
     wasm: std::path::PathBuf,
     fake: FakeStripe,
     platform: PlatformConfig,
+    // The in-memory stand-in for the saved-keys secret, when the tenant has one.
+    raw: Option<Arc<MemoryStore>>,
 }
 
 async fn tenant(name: &str) -> Tenant {
@@ -171,6 +212,9 @@ async fn tenant(name: &str) -> Tenant {
     let fake = FakeStripe::start().await;
     let platform = PlatformConfig {
         site_url: "https://site.example".to_string(),
+        webhook_base_url: "https://lifeadelics.example".to_string(),
+        store: None,
+        stored: Arc::new(StoredDocument::default()),
         api_base: fake.base.clone(),
         connect_base: fake.base.clone(),
         test_key: PLATFORM_KEY.to_string(),
@@ -193,17 +237,52 @@ async fn tenant(name: &str) -> Tenant {
         wasm: std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../dist/checkout_fixture.wasm"),
         fake,
         platform,
+        raw: None,
     }
 }
 
 impl Tenant {
+    // The platform settings for one request, the way `PlatformConfig::load`
+    // builds them: what the tenant was given, with the key store read in.
+    async fn platform_now(&self) -> PlatformConfig {
+        let mut platform = self.platform.clone();
+        platform.apply_store().await;
+        platform
+    }
+
+    // A tenant whose business can paste its keys into the Payments page: no
+    // Connect platform and no environment keys, only a key store (in memory).
+    async fn saving(name: &str) -> Tenant {
+        let mut t = tenant(name).await;
+        t.platform.test_key = String::new();
+        t.platform.test_publishable_key = String::new();
+        t.platform.test_client_id = String::new();
+        let raw = Arc::new(MemoryStore::default());
+        t.platform.store = Some(Arc::new(KeyStore::new(raw.clone())));
+        t.raw = Some(raw);
+        t
+    }
+
+    // The Payments page's Save, as the given person.
+    async fn save_keys(&self, secret_key: &str, publishable_key: &str, as_email: Option<&str>) -> (u64, Value) {
+        self.call("POST", "/payments/connection/direct", json!({"secret_key": secret_key, "publishable_key": publishable_key}), as_email).await
+    }
+
+    // What the saved-keys secret holds right now (`Null` before the first save).
+    fn saved_document(&self) -> Value {
+        let raw = self.raw.as_ref().expect("a tenant with a key store");
+        let text = raw.document.lock().unwrap().clone();
+        text.map(|text| serde_json::from_str(&text).unwrap()).unwrap_or(Value::Null)
+    }
+
     // One request against the payments routes; `None` means no session cookie.
     async fn call(&self, method: &str, path: &str, body: Value, as_email: Option<&str>) -> (u64, Value) {
         let mut cookies = HashMap::new();
         if let Some(email) = as_email {
             cookies.insert(auth::account_cookie_name(), auth::account_token(SESSION_SECRET, email, 60));
         }
-        let response = route(method, path, &body.to_string(), &cookies, SESSION_SECRET, &self.domain_ir, &self.platform, &self.client, &self.wasm, &self.config, &NeverInvoker)
+        let platform = self.platform_now().await;
+        let response = route(method, path, &body.to_string(), &cookies, SESSION_SECRET, &self.domain_ir, &platform, &self.client, &self.wasm, &self.config, &NeverInvoker)
             .await
             .expect("a payments path");
         (response["statusCode"].as_u64().unwrap(), serde_json::from_str(response["body"].as_str().unwrap()).unwrap_or(Value::Null))
@@ -275,15 +354,22 @@ impl Tenant {
     // POST /registrations for `slug`; the checkout URL and registration id on success.
     async fn register(&self, slug: &str) -> (u64, Value) {
         let body = json!({"event_slug": slug, "name": "Ada Lovelace", "email": "ada@example.com"}).to_string();
-        let response = web::registrations_route(&body, &self.platform, &self.client, &self.wasm, &self.config, &NeverInvoker, &crate::ir::fixture_payments()).await;
+        let platform = self.platform_now().await;
+        let response = web::registrations_route(&body, &platform, &self.client, &self.wasm, &self.config, &NeverInvoker, &crate::ir::fixture_payments()).await;
         (response["statusCode"].as_u64().unwrap(), serde_json::from_str(response["body"].as_str().unwrap()).unwrap_or(Value::Null))
     }
 
     async fn webhook(&self, event: Value) -> u64 {
+        self.webhook_signed_with(WEBHOOK_SECRET, event).await
+    }
+
+    // A webhook delivery signed with `secret`, the way Stripe would sign it.
+    async fn webhook_signed_with(&self, secret: &str, event: Value) -> u64 {
         let payload = event.to_string();
         let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs() as i64;
-        let header = sign(WEBHOOK_SECRET, now, &payload);
-        let response = web::webhook_route(&payload, &header, &self.platform, &self.client, &self.wasm, &self.config, &NeverInvoker, &crate::ir::fixture_payments()).await;
+        let header = sign(secret, now, &payload);
+        let platform = self.platform_now().await;
+        let response = web::webhook_route(&payload, &header, &platform, &self.client, &self.wasm, &self.config, &NeverInvoker, &crate::ir::fixture_payments()).await;
         response["statusCode"].as_u64().unwrap()
     }
 
@@ -1171,6 +1257,333 @@ async fn the_own_account_settles_from_account_less_events_and_ignores_events_nam
     // The business's own endpoint delivers events with no account: this settles.
     assert_eq!(t.webhook(completed(&reference, None)).await, 200);
     assert_eq!(t.payment_status(&reference).await, "succeeded");
+}
+
+// ---- keys pasted into the Payments page and saved ----------------------------------
+
+// None of the fake secrets may appear in `text`.
+fn assert_no_secret_in(text: &str) {
+    for secret in [SAVED_KEY, SAVED_KEY_TWO, LIVE_SAVED_KEY, "whsec_SAVED_"] {
+        assert!(!text.contains(secret), "a secret leaked: {secret}");
+    }
+}
+
+#[tokio::test]
+async fn saving_keys_checks_them_creates_the_webhook_and_keeps_every_secret_out_of_the_database() {
+    let t = Tenant::saving("hecks_pay_test_save_ok").await;
+    let (_, before) = t.call("GET", "/payments/connection", json!({}), Some(OWNER)).await;
+    assert_eq!((before["can_save_keys"].clone(), before["direct_modes"].clone()), (json!(true), json!([])));
+
+    let (status, body) = t.save_keys(SAVED_KEY, SAVED_PUBLISHABLE_KEY, Some(OWNER)).await;
+    assert_eq!(status, 200, "{body}");
+    assert_eq!(
+        (body["status"].as_str(), body["processor"].as_str(), body["account_ref"].as_str(), body["mode"].as_str(), body["display_name"].as_str(), body["direct"].clone()),
+        (Some("connected"), Some("stripe"), Some("self"), Some("test"), Some("Own Studio"), json!(true))
+    );
+    assert_eq!(body["direct_modes"], json!(["test"]));
+    assert_no_secret_in(&body.to_string());
+
+    // Stripe was asked to check the key, then to deliver the three events to this site.
+    let lookups = t.fake.requests_to("/v1/account");
+    assert_eq!(lookups.len(), 1);
+    assert_eq!(lookups[0].header("authorization"), Some(format!("Bearer {SAVED_KEY}").as_str()));
+    assert_eq!(lookups[0].header("stripe-version"), Some("2026-04-22.dahlia"));
+    let created = t.fake.requests_to("/v1/webhook_endpoints");
+    assert_eq!(created.len(), 1);
+    assert_eq!(created[0].method, "POST");
+    assert_eq!(created[0].header("authorization"), Some(format!("Bearer {SAVED_KEY}").as_str()));
+    assert_eq!(created[0].header("stripe-version"), Some("2026-04-22.dahlia"));
+    assert_eq!(created[0].header("stripe-account"), None);
+    for expected in [
+        "url=https%3A%2F%2Flifeadelics.example%2Fwebhooks%2Fstripe",
+        "enabled_events%5B0%5D=checkout.session.completed",
+        "enabled_events%5B1%5D=checkout.session.expired",
+        "enabled_events%5B2%5D=charge.refunded",
+    ] {
+        assert!(created[0].body.contains(expected), "{expected} missing from {}", created[0].body);
+    }
+    assert!(t.fake.requests_to("/oauth/token").is_empty(), "there is no OAuth handshake");
+
+    // Saved in the secret store in the agreed shape...
+    let saved = t.saved_document();
+    assert!(saved.get("live").is_none());
+    let entry = saved["test"].as_object().unwrap();
+    let mut names: Vec<&str> = entry.keys().map(String::as_str).collect();
+    names.sort_unstable();
+    assert_eq!(names, ["publishable_key", "saved_at", "secret_key", "webhook_endpoint_id", "webhook_secret"]);
+    assert_eq!(entry["secret_key"], SAVED_KEY);
+    assert_eq!(entry["publishable_key"], SAVED_PUBLISHABLE_KEY);
+    assert_eq!(entry["webhook_secret"], "whsec_SAVED_1");
+    assert_eq!(entry["webhook_endpoint_id"], "we_1");
+    assert!(entry["saved_at"].as_str().unwrap().ends_with('Z'));
+    // ...and nowhere in the tenant's database.
+    let dump = t.dump_database().await;
+    assert_no_secret_in(&dump);
+    assert!(!dump.contains(SAVED_PUBLISHABLE_KEY), "not even the publishable key is stored there");
+}
+
+#[tokio::test]
+async fn saving_live_keys_derives_the_live_mode_from_the_keys() {
+    let t = Tenant::saving("hecks_pay_test_save_live").await;
+    let (status, body) = t.save_keys(LIVE_SAVED_KEY, LIVE_SAVED_PUBLISHABLE_KEY, Some(OWNER)).await;
+    assert_eq!(status, 200, "{body}");
+    assert_eq!((body["mode"].as_str(), body["direct_modes"].clone()), (Some("live"), json!(["live"])));
+    let saved = t.saved_document();
+    assert_eq!(saved["live"]["secret_key"], LIVE_SAVED_KEY);
+    assert!(saved.get("test").is_none());
+}
+
+#[tokio::test]
+async fn saved_keys_charge_the_business_account_and_its_saved_webhook_secret_settles_payments() {
+    let t = Tenant::saving("hecks_pay_test_save_charge").await;
+    t.schedule_event("saved-event").await;
+    let (status, body) = t.save_keys(SAVED_KEY, SAVED_PUBLISHABLE_KEY, Some(OWNER)).await;
+    assert_eq!(status, 200, "{body}");
+    t.enable().await;
+
+    let (status, body) = t.register("saved-event").await;
+    assert_eq!(status, 200, "{body}");
+    assert_eq!(body["embedded_checkout"]["publishable_key"], SAVED_PUBLISHABLE_KEY);
+    assert_eq!(body["embedded_checkout"]["stripe_account"], Value::Null);
+    let sent = t.fake.requests_to("/v1/checkout/sessions");
+    assert_eq!(sent.len(), 1);
+    assert_eq!(sent[0].header("authorization"), Some(format!("Bearer {SAVED_KEY}").as_str()));
+    assert_eq!(sent[0].header("stripe-account"), None, "the business's own account is the default account");
+    assert_no_secret_in(&body.to_string());
+
+    let reference = body["registration_id"].as_str().unwrap().to_string();
+    // A delivery signed with anything else is refused.
+    assert_eq!(t.webhook_signed_with("whsec_someone_else", completed(&reference, None)).await, 400);
+    assert_eq!(t.payment_status(&reference).await, "pending");
+    // The signing secret Stripe returned when the webhook was created settles it.
+    assert_eq!(t.webhook_signed_with("whsec_SAVED_1", completed(&reference, None)).await, 200);
+    assert_eq!(t.payment_status(&reference).await, "succeeded");
+    // The environment's secret still works alongside it.
+    let (_, body) = t.register("saved-event").await;
+    let second = body["registration_id"].as_str().unwrap().to_string();
+    assert_eq!(t.webhook(completed(&second, None)).await, 200);
+    assert_eq!(t.payment_status(&second).await, "succeeded");
+}
+
+#[tokio::test]
+async fn saving_keys_refuses_with_plain_messages_and_saves_nothing() {
+    // No key store on this deploy.
+    let t = tenant("hecks_pay_test_save_nostore").await;
+    let (status, body) = t.save_keys(SAVED_KEY, SAVED_PUBLISHABLE_KEY, Some(OWNER)).await;
+    assert_eq!((status, body["error"].as_str()), (422, Some("saving keys is not set up on this site")));
+    let (_, shown) = t.call("GET", "/payments/connection", json!({}), Some(OWNER)).await;
+    assert_eq!(shown["can_save_keys"], json!(false));
+
+    let t = Tenant::saving("hecks_pay_test_save_refuse").await;
+    assert_eq!(t.save_keys(SAVED_KEY, SAVED_PUBLISHABLE_KEY, Some(ADMIN)).await.0, 403, "only an Owner may save keys");
+    assert_eq!(t.save_keys(SAVED_KEY, SAVED_PUBLISHABLE_KEY, None).await.0, 401);
+    let (status, body) = t.call("POST", "/payments/connection/direct", json!({"secret_key": SAVED_KEY}), Some(OWNER)).await;
+    assert_eq!((status, body["error"].as_str()), (400, Some("missing publishable_key")));
+
+    let cases = [
+        ("nonsense", SAVED_PUBLISHABLE_KEY, "restricted key"),
+        (SAVED_KEY, "nonsense", "publishable key"),
+        (SAVED_KEY, LIVE_SAVED_PUBLISHABLE_KEY, "test mode and the other is for live mode"),
+        (LIVE_SAVED_KEY, SAVED_PUBLISHABLE_KEY, "test mode and the other is for live mode"),
+    ];
+    for (secret, publishable, expected) in cases {
+        let (status, body) = t.save_keys(secret, publishable, Some(OWNER)).await;
+        assert_eq!(status, 422, "{body}");
+        assert!(body["error"].as_str().unwrap().contains(expected), "{body}");
+        assert_no_secret_in(&body.to_string());
+    }
+    assert!(t.fake.requests().is_empty(), "nothing malformed reaches Stripe");
+
+    // Stripe does not recognise the key.
+    t.fake.state.invalid_key.store(true, Ordering::SeqCst);
+    let (status, body) = t.save_keys(SAVED_KEY, SAVED_PUBLISHABLE_KEY, Some(OWNER)).await;
+    assert_eq!((status, body["error"].as_str()), (422, Some("Stripe did not accept that key.")));
+    assert!(t.fake.requests_to("/v1/webhook_endpoints").is_empty(), "no webhook for a key Stripe rejected");
+    t.fake.state.invalid_key.store(false, Ordering::SeqCst);
+
+    // A restricted key that may not create webhooks.
+    t.fake.state.refuse_webhooks.store(true, Ordering::SeqCst);
+    let (status, body) = t.save_keys(SAVED_KEY, SAVED_PUBLISHABLE_KEY, Some(OWNER)).await;
+    assert_eq!(
+        (status, body["error"].as_str()),
+        (422, Some("That key can't create the webhook. In Stripe, give it Webhook Endpoints → Write as well and try again."))
+    );
+    assert_no_secret_in(&body.to_string());
+
+    assert_eq!(t.status().await, "none");
+    assert_eq!(t.saved_document(), Value::Null, "nothing was written to the store");
+    assert_eq!(t.raw.as_ref().unwrap().writes.load(Ordering::SeqCst), 0);
+}
+
+#[tokio::test]
+async fn a_restricted_key_that_cannot_read_the_account_still_saves_with_a_generic_name() {
+    let t = Tenant::saving("hecks_pay_test_save_name").await;
+    t.fake.state.refuse_account.store(true, Ordering::SeqCst);
+    let (status, body) = t.save_keys(SAVED_KEY, SAVED_PUBLISHABLE_KEY, Some(OWNER)).await;
+    assert_eq!((status, body["display_name"].as_str()), (200, Some("Your Stripe account")), "{body}");
+}
+
+#[tokio::test]
+async fn saving_again_replaces_the_webhook_and_the_keys_without_disturbing_the_connection() {
+    let t = Tenant::saving("hecks_pay_test_save_again").await;
+    assert_eq!(t.save_keys(SAVED_KEY, SAVED_PUBLISHABLE_KEY, Some(OWNER)).await.0, 200);
+    t.enable().await;
+    let (status, body) = t.save_keys(SAVED_KEY_TWO, SAVED_PUBLISHABLE_KEY, Some(OWNER)).await;
+    assert_eq!(status, 200, "{body}");
+    assert_eq!(body["status"], "enabled", "the connection stays as it was");
+    assert_no_secret_in(&body.to_string());
+
+    // The first save's webhook was removed (with the first key), then a new one made (with the second).
+    let removed = t.fake.requests_to("/v1/webhook_endpoints/we_1");
+    assert_eq!(removed.len(), 1);
+    assert_eq!((removed[0].method.as_str(), removed[0].header("authorization")), ("DELETE", Some(format!("Bearer {SAVED_KEY}").as_str())));
+    let created = t.fake.requests_to("/v1/webhook_endpoints");
+    assert_eq!(created.len(), 2);
+    assert_eq!(created[1].header("authorization"), Some(format!("Bearer {SAVED_KEY_TWO}").as_str()));
+    // The new webhook exists before the old one goes, so a failed save never leaves none.
+    let all = t.fake.requests();
+    let second_create = all.iter().rposition(|r| r.method == "POST" && r.path == "/v1/webhook_endpoints").unwrap();
+    let delete = all.iter().position(|r| r.method == "DELETE" && r.path == "/v1/webhook_endpoints/we_1").unwrap();
+    assert!(second_create < delete, "the new webhook was made first");
+    let saved = t.saved_document();
+    assert_eq!(
+        (saved["test"]["secret_key"].as_str(), saved["test"]["webhook_secret"].as_str(), saved["test"]["webhook_endpoint_id"].as_str()),
+        (Some(SAVED_KEY_TWO), Some("whsec_SAVED_2"), Some("we_2"))
+    );
+
+    // Keys for the other mode cannot be saved over a connected account.
+    let (status, body) = t.save_keys(LIVE_SAVED_KEY, LIVE_SAVED_PUBLISHABLE_KEY, Some(OWNER)).await;
+    assert_eq!((status, body["error"].as_str()), (409, Some("an account is already connected — disconnect it first")));
+}
+
+#[tokio::test]
+async fn a_failed_re_save_leaves_the_old_webhook_and_keys_working() {
+    let t = Tenant::saving("hecks_pay_test_save_resave_fail").await;
+    assert_eq!(t.save_keys(SAVED_KEY, SAVED_PUBLISHABLE_KEY, Some(OWNER)).await.0, 200);
+    t.fake.state.refuse_webhooks.store(true, Ordering::SeqCst);
+    let (status, body) = t.save_keys(SAVED_KEY_TWO, SAVED_PUBLISHABLE_KEY, Some(OWNER)).await;
+    assert_eq!(status, 422, "{body}");
+    assert!(t.fake.requests().iter().all(|r| r.method != "DELETE"), "the old webhook was not removed");
+    let saved = t.saved_document();
+    assert_eq!((saved["test"]["secret_key"].as_str(), saved["test"]["webhook_endpoint_id"].as_str()), (Some(SAVED_KEY), Some("we_1")));
+    assert_eq!(t.status().await, "connected");
+}
+
+#[tokio::test]
+async fn disconnecting_forgets_the_keys_even_when_stripe_cannot_remove_the_webhook() {
+    let t = Tenant::saving("hecks_pay_test_save_disc_down").await;
+    assert_eq!(t.save_keys(SAVED_KEY, SAVED_PUBLISHABLE_KEY, Some(OWNER)).await.0, 200);
+    t.fake.state.fail_deletes.store(true, Ordering::SeqCst);
+    let (status, body) = t.call("POST", "/payments/connection/disconnect", json!({}), Some(OWNER)).await;
+    assert_eq!((status, body["status"].as_str()), (200, Some("disconnected")), "{body}");
+    assert_eq!(t.fake.requests_to("/v1/webhook_endpoints/we_1").len(), 1, "removal was attempted");
+    assert!(t.saved_document().get("test").is_none(), "the keys are gone anyway");
+}
+
+#[tokio::test]
+async fn the_public_mock_secret_is_refused_whenever_a_real_credential_is_configured_or_saved() {
+    let mock = web::MOCK_STRIPE_WEBHOOK_SECRET;
+    // A key in the environment and no signing secret to check events against.
+    let mut t = Tenant::direct("hecks_pay_test_mock_env").await;
+    t.platform.webhook_secret = None;
+    assert_eq!(t.webhook_signed_with(mock, completed("ref-1", None)).await, 500);
+
+    // Keys saved from the Payments page count too: only the saved signing secret verifies.
+    let mut t = Tenant::saving("hecks_pay_test_mock_saved").await;
+    t.platform.webhook_secret = None;
+    assert_eq!(t.save_keys(SAVED_KEY, SAVED_PUBLISHABLE_KEY, Some(OWNER)).await.0, 200);
+    assert_eq!(t.webhook_signed_with(mock, completed("ref-2", None)).await, 400, "the mock secret does not verify");
+    assert_eq!(t.webhook_signed_with("whsec_SAVED_1", completed("ref-2", None)).await, 200);
+
+    // Saved keys with no saved signing secret at all: refused outright, not trusted on the mock secret.
+    let raw = t.raw.as_ref().unwrap();
+    let mut document = t.saved_document();
+    document["test"]["webhook_secret"] = json!("");
+    *raw.document.lock().unwrap() = Some(document.to_string());
+    t.platform.store.as_ref().unwrap().invalidate();
+    assert_eq!(t.webhook_signed_with(mock, completed("ref-3", None)).await, 500);
+}
+
+#[tokio::test]
+async fn disconnecting_removes_the_webhook_from_stripe_and_deletes_the_saved_keys() {
+    let t = Tenant::saving("hecks_pay_test_save_disconnect").await;
+    assert_eq!(t.save_keys(SAVED_KEY, SAVED_PUBLISHABLE_KEY, Some(OWNER)).await.0, 200);
+    t.enable().await;
+    let (status, body) = t.call("POST", "/payments/connection/disconnect", json!({}), Some(OWNER)).await;
+    assert_eq!(status, 200, "{body}");
+    assert_eq!(body["status"], "paused");
+    assert_eq!(body.get("remote_disconnected"), None, "nothing was asked of Stripe's OAuth");
+    assert_eq!(body["direct_modes"], json!([]), "the keys are gone");
+    let removed = t.fake.requests_to("/v1/webhook_endpoints/we_1");
+    assert_eq!(removed.len(), 1);
+    assert_eq!(removed[0].header("authorization"), Some(format!("Bearer {SAVED_KEY}").as_str()));
+    assert!(t.fake.requests_to("/oauth/deauthorize").is_empty());
+    assert!(t.saved_document().get("test").is_none(), "{}", t.saved_document());
+
+    // Registrations pause rather than fall back to the mock...
+    t.schedule_event("gone-event").await;
+    let (status, body) = t.register("gone-event").await;
+    assert_eq!((status, body["error"].as_str()), (503, Some("payments are temporarily unavailable")));
+    // ...and saving again resumes the paused connection with fresh keys.
+    let (status, body) = t.save_keys(SAVED_KEY_TWO, SAVED_PUBLISHABLE_KEY, Some(OWNER)).await;
+    assert_eq!((status, body["status"].as_str()), (200, Some("enabled")), "{body}");
+    assert_eq!(t.saved_document()["test"]["webhook_endpoint_id"], "we_2");
+}
+
+#[tokio::test]
+async fn keys_set_in_the_environment_win_over_saved_ones() {
+    let mut t = Tenant::saving("hecks_pay_test_save_env").await;
+    t.platform.direct_test_key = DIRECT_KEY.to_string();
+    t.platform.direct_test_publishable_key = DIRECT_PUBLISHABLE_KEY.to_string();
+    t.schedule_event("env-event").await;
+    let (status, body) = t.save_keys(SAVED_KEY, SAVED_PUBLISHABLE_KEY, Some(OWNER)).await;
+    assert_eq!(status, 200, "{body}");
+    t.enable().await;
+
+    let (_, body) = t.register("env-event").await;
+    assert_eq!(body["embedded_checkout"]["publishable_key"], DIRECT_PUBLISHABLE_KEY);
+    let sent = t.fake.requests_to("/v1/checkout/sessions");
+    assert_eq!(sent[0].header("authorization"), Some(format!("Bearer {DIRECT_KEY}").as_str()));
+}
+
+#[tokio::test]
+async fn a_store_that_cannot_be_written_saves_nothing_and_takes_the_webhook_back() {
+    let t = Tenant::saving("hecks_pay_test_save_storefail").await;
+    t.raw.as_ref().unwrap().fail_writes.store(true, Ordering::SeqCst);
+    let (status, body) = t.save_keys(SAVED_KEY, SAVED_PUBLISHABLE_KEY, Some(OWNER)).await;
+    assert_eq!(status, 500, "{body}");
+    assert_eq!(body["error"], "The keys could not be stored, so nothing was saved. Please try again.");
+    assert_no_secret_in(&body.to_string());
+    assert_eq!(t.fake.requests_to("/v1/webhook_endpoints/we_1").len(), 1, "the webhook just made was removed again");
+    assert_eq!(t.status().await, "none");
+}
+
+#[tokio::test]
+async fn the_saved_keys_are_read_from_a_short_cache_and_a_save_refreshes_it() {
+    let t = Tenant::saving("hecks_pay_test_save_cache").await;
+    assert_eq!(t.save_keys(SAVED_KEY, SAVED_PUBLISHABLE_KEY, Some(OWNER)).await.0, 200);
+    let raw = t.raw.as_ref().unwrap();
+    let reads = raw.reads.load(Ordering::SeqCst);
+    for _ in 0..3 {
+        t.call("GET", "/payments/connection", json!({}), Some(OWNER)).await;
+    }
+    assert_eq!(raw.reads.load(Ordering::SeqCst), reads, "reads are served from the cache");
+
+    // Saving different keys shows up in the very next request, not a minute later.
+    assert_eq!(t.save_keys(SAVED_KEY_TWO, SAVED_PUBLISHABLE_KEY, Some(OWNER)).await.0, 200);
+    assert_eq!(t.platform_now().await.direct_key("test"), SAVED_KEY_TWO);
+}
+
+#[test]
+fn key_shapes_decide_the_mode_and_a_mismatch_is_refused_without_quoting_a_key() {
+    assert_eq!(keys_mode("rk_test_a", "pk_test_a"), Ok("test"));
+    assert_eq!(keys_mode("sk_live_a", "pk_live_a"), Ok("live"));
+    assert!(keys_mode("rk_test_a", "pk_live_a").is_err());
+    assert!(keys_mode("pk_test_a", "pk_test_a").is_err(), "a publishable key is not a secret key");
+    assert!(keys_mode("rk_test_a", "sk_test_a").is_err());
+    for message in [keys_mode("rk_test_KEYMATERIAL", "x").unwrap_err(), keys_mode("x", "pk_test_KEYMATERIAL").unwrap_err(), keys_mode("rk_test_KEYMATERIAL", "pk_live_KEYMATERIAL").unwrap_err()] {
+        assert!(!message.contains("KEYMATERIAL"), "{message}");
+    }
 }
 
 #[test]

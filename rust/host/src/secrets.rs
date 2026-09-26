@@ -79,6 +79,36 @@ impl AwsSecretFetcher {
             .map(|s| s.to_string())
             .ok_or_else(|| anyhow::anyhow!("secret {secret_id} has no SecretString"))
     }
+
+    /// Like `fetch_secret_string`, but a secret that does not exist yet is
+    /// `None`, not an error: the payment keys' secret is only created by the
+    /// first save.
+    pub async fn fetch_secret_string_if_present(&self, secret_id: &str) -> anyhow::Result<Option<String>> {
+        match self.client.get_secret_value().secret_id(secret_id).send().await {
+            Ok(response) => Ok(response.secret_string().map(|s| s.to_string())),
+            Err(e) if e.as_service_error().is_some_and(|service| service.is_resource_not_found_exception()) => Ok(None),
+            Err(_) => Err(anyhow::anyhow!("reading secret {secret_id} failed")),
+        }
+    }
+
+    /// Replaces the secret's `SecretString`, creating the secret the first time.
+    /// The errors name the secret and never carry the value.
+    pub async fn put_secret_string(&self, secret_id: &str, value: &str) -> anyhow::Result<()> {
+        match self.client.put_secret_value().secret_id(secret_id).secret_string(value).send().await {
+            Ok(_) => Ok(()),
+            Err(e) if e.as_service_error().is_some_and(|service| service.is_resource_not_found_exception()) => {
+                self.client
+                    .create_secret()
+                    .name(secret_id)
+                    .secret_string(value)
+                    .send()
+                    .await
+                    .map(|_| ())
+                    .map_err(|_| anyhow::anyhow!("creating secret {secret_id} failed"))
+            }
+            Err(_) => Err(anyhow::anyhow!("writing secret {secret_id} failed")),
+        }
+    }
 }
 
 /// One named JSON field out of a fetched secret's `SecretString` --

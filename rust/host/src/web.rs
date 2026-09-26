@@ -385,7 +385,7 @@ async fn auth_route(
         (method, path)
             if payments::owns(method, path) && checkout_enabled(std::env::var("HECKS_CHECKOUT_DOMAIN").ok().as_deref(), &config.domain) =>
         {
-            payments::route(method, path, raw_body, cookies, secret, domain_ir, &payments::PlatformConfig::from_env(), client, wasm_path, config, invoker).await
+            payments::route(method, path, raw_body, cookies, secret, domain_ir, &payments::PlatformConfig::load().await, client, wasm_path, config, invoker).await
         }
 
         // GET /accounts/sso-token, ported from http_server.rb's own
