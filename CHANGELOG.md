@@ -7,6 +7,23 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+**PostgresEra's three audited data-loss fixes now each have a real-Postgres
+regression spec.** The 2026-08-10 audit's era-migrated delete, rekey-digest and
+dotted-compute defects were fixed, but only the delete had a spec against a real
+Postgres; the other two were pinned only by database-free unit specs.
+`migration_data_safety_spec.rb` adds the missing coverage and runs in the
+Postgres CI shards: a delete survives a second mint; a rekey SQL or backfill
+default edited after approval refuses the mint and mints nothing, while the
+approved edge still mints; and Layer 2 of the audit is fed the rows a real
+compiled head produces, so a dotted compute keeps its sibling member and a
+compiled edge that loses one is refused. `spec/exporter_spec.rb` now pins the
+backfill half of the approval digest too. Writing the dotted-compute spec turned
+up a gap that is recorded, not fixed: a compute whose source is a dotted member
+(`compute "price.cents", ...`) never fires in the compiled SQL, so the mint
+succeeds and the record keeps its old value. It is a pending example that turns
+red when it is fixed. `docs/future-features.md` now lists what the audit's
+tracking still has not re-checked independently.
+
 ## [2.5.1] - 2026-09-26
 
 **Projecting a framework chapter no longer leaves a dangling `pub mod merged;`,

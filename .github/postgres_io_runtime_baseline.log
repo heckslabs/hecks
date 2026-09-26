@@ -5,6 +5,7 @@ spec/adapters/driven/postgres_era/domain_rename_spec.rb:14.74
 spec/adapters/driven/postgres_era/execution_plan_spec.rb:43.08
 spec/adapters/driven/postgres_era/field_cache_spec.rb:2.55
 spec/adapters/driven/postgres_era/lineage_spec.rb:6.81
+spec/adapters/driven/postgres_era/migration_data_safety_spec.rb:4.54
 spec/adapters/driven/postgres_era/reset_spec.rb:13.25
 spec/adapters/driven/postgres_era_concurrent_dispatch_spec.rb:0.39
 spec/adapters/driven/postgres_era_spec.rb:2.38

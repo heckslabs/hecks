@@ -198,9 +198,11 @@ Only the ADRs with genuine unbuilt content, per their own status marker — pure
 
 ### Tier 1 — data loss & migration integrity — ALL FIXED
 
-- ~~**H3**~~ — era-migrated deletes now write a real tombstone row (`operation='delete'`) instead of a bare `DELETE`; the head view reads `operation`, not a hardcoded `'save'`. Live-verified against real Postgres 2026-08-27.
-- ~~**H4**~~ — `rekeys`/`backfills` are now folded into the approval digest (`lib/hecks/projector/exporter.rb`); editing a rekey's SQL post-approval now invalidates the approval, as it must. Verified 2026-08-27.
-- ~~**H5**~~ — `strip_compute_paths` (`layer_two.rb`) now deletes only the exact dotted member a `compute` touches, not its whole parent attribute. Verified 2026-08-27.
+- ~~**H3**~~ — era-migrated deletes now write a real tombstone row (`operation='delete'`) instead of a bare `DELETE`; the head view reads `operation`, not a hardcoded `'save'`. Live-verified against real Postgres 2026-08-27. Regression specs, real Postgres: `spec/adapters/driven/postgres_era/lineage_spec.rb` (one mint) and `spec/adapters/driven/postgres_era/migration_data_safety_spec.rb` (a delete made in era 2 survives the mint of era 3, and a delete made in era 3 of a record two eras old).
+- ~~**H4**~~ — `rekeys`/`backfills` are now folded into the approval digest (`lib/hecks/projector/exporter.rb`); editing a rekey's SQL post-approval now invalidates the approval, as it must. Verified 2026-08-27. `spec/exporter_spec.rb` pins the digest for rekeys and backfills with no database; `migration_data_safety_spec.rb` pins the mint itself against real Postgres: an edited rekey SQL or backfill default refuses the mint and mints no era, and the edge that was approved still mints.
+- ~~**H5**~~ — `strip_compute_paths` (`layer_two.rb`) now deletes only the exact dotted member a `compute` touches, not its whole parent attribute. Verified 2026-08-27. Pinned in `spec/ports/persistence/plugins/era/translation/audit/layer_two_spec.rb` with hand-built rows, and in `migration_data_safety_spec.rb` with the rows a real compiled head produces: a dotted-destination compute mints with its sibling member intact, and a compiled edge that loses the sibling is refused. **Still open, found while writing that spec:** a compute whose *source* is a dotted member (`compute "price.cents", to: ...`) never fires. `compile_compute` tests `__s ? 'price.cents'`, a top-level key of that literal name, so the mint succeeds and the record is served with its old, unconverted value. It is a `pending` example in `migration_data_safety_spec.rb` and turns red the day it is fixed.
+
+These run in CI: the `rspec_postgres_io_parallel` shards provision Postgres (`.github/actions/postgres`), `PostgresProbe` raises under `CI` instead of skipping an unreachable server, and `bin/rspec_io_parallel_files --check` fails a PR that adds an `io: true` spec without listing it in `.github/postgres_io_spec_files.txt`.
 
 ### Tier 2–3 — systemic roots & security — ALL FIXED (spot-checked, not exhaustively re-run)
 
@@ -228,6 +230,17 @@ Only the ADRs with genuine unbuilt content, per their own status marker — pure
 - Test-harness blind spots (three half-unfuzzable framework aggregates; a vacuously-passing saga property; a fuzzer query oracle masking refusal-shaped divergence; `shrink_arguments` never accumulating drops; an absorbing-state contradiction in `RoleTransition`) — **not** re-verified this session; these are the M21–M25 findings a tracking doc previously (and wrongly) conflated with the fuzzer-adapter gap above, so their own status is still genuinely unknown pending a real check.
 - ~~Rust-parity divergence list (R1–R5)~~ — R1, R3, R4, and both halves of R5 fixed and re-verified 2026-08-28, four with source comments explicitly citing the original finding ID. R2 is superseded, not simply fixed: its specific mechanism (37 placeholder refusals shifting indices) is gone, but the underlying invariant it named — Ruby and Rust must refuse identically over the FULL corpus, not just 3 pinned fixtures — is still actively finding new violations via a newer, more thorough tool (PRD 04's generated-sequence fuzz bridge). See `docs/decisions/0037-generated-sequence-fuzz-bridge-found-real-gaps-two-fixed-three-catalogued.md` for the current, live successor list (Findings 3–6; Finding 5 — a real dangling-reference data-integrity gap — is the one to close first). This list ("an invariant that keeps finding new violations," as this doc already said) is now superseded by that ADR going forward — check there, not here, for the current Rust-parity status.
 - ~~24 low-severity findings (L1–L24)~~ — 23/24 fixed with matching spec/test coverage, re-verified 2026-08-28; L3 no longer applicable (buggy code path deleted under ADR 0032). See `docs/audits/2026-08-28-m1-m19-l1-l24-rust-parity-reverify.md`.
+
+
+### Still not independently re-checked
+
+Marked fixed in the audit tracking above, but by code reading or by a partial run, not by a spec that fails without the fix. Each is a claim to re-verify before relying on it:
+
+- **S1**, **S2** — code-read only; no dedicated repro was re-run.
+- **S3** — the Ruby presentation layer's escaping was spot-checked; not re-run against a hostile identity value.
+- **H11** — Rust `session_secret()` refusing an empty `SESSION_SECRET` was source-verified with its unit test, but not run under `cargo test` in that pass.
+- **L12** — not re-verified. **L20** — the reconciliation plan lists it fixed at `b00e667d`; not re-run.
+- **M21–M25** (the test-harness blind spots under Tier 5–7) — status unknown, except `shrink_arguments` accumulating drops, which `spec/bin_fuzz_spec.rb` now pins.
 
 ---
 
