@@ -22,6 +22,13 @@ landed. The stale entry is gone and the ADR's own Status line now reads
 `spec/readme_planned_adrs_spec.rb` fails if an ADR linked from that README list
 is marked implemented in its own header.
 
+**The status documents no longer claim spec counts.** The README cited two
+different rspec example counts, neither of which matched the suite, and
+`docs/1.0-readiness.md` carried pass/total figures from a past run. They now say
+"the whole suite" and leave the number to the runner.
+`spec/status_docs_no_spec_counts_spec.rb` fails if a count comes back in
+`README.md`, `CONTRIBUTING.md` or `docs/1.0-readiness.md`.
+
 ## [2.5.1] - 2026-09-26
 
 **Projecting a framework chapter no longer leaves a dangling `pub mod merged;`,
