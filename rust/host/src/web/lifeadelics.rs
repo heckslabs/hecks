@@ -43,6 +43,43 @@ fn payment_processor(read: &Value, payments: &PaymentsProvider, reference: &str)
         .and_then(|(_, payment)| payment.get("processor").and_then(|p| p.get("value")).and_then(|v| v.as_str()).map(String::from))
 }
 
+// The Payment statuses whose registration still holds a seat: an open checkout
+// (`pending`), a paid registration (`succeeded`), and the two states a paid
+// registration passes through without the money leaving for good (`refunding`,
+// which returns to `succeeded` if the refund is declined, and `disputed`).
+// `failed` (declined or expired), `refunded` and `charged_back` give the seat
+// back. A partial refund leaves the Payment `succeeded`, so that registration
+// keeps its seat until it can be cancelled itself.
+const SEAT_HOLDING_PAYMENT_STATUSES: [&str; 4] = ["pending", "succeeded", "refunding", "disputed"];
+
+/// How many seats one event has used: its Registrations whose Payment (the same
+/// reference) is in a seat-holding status. A Registration with no Payment holds
+/// nothing, since no payment could ever settle it.
+pub(crate) fn seats_taken(read: &Value, domain: &str, payments: &PaymentsProvider, event_slug: &str) -> usize {
+    let statuses: std::collections::HashMap<String, String> = instances_for(read, &payments.instance_prefix())
+        .into_iter()
+        .filter_map(|(id, payment)| payment.get("status").and_then(|s| s.as_str()).map(|s| (id, s.to_string())))
+        .collect();
+    instances_for(read, &format!("{domain}::Registration#"))
+        .into_iter()
+        .filter(|(_, registration)| registration.get("event_slug").and_then(|v| v.as_str()) == Some(event_slug))
+        .filter(|(id, _)| statuses.get(id).is_some_and(|status| SEAT_HOLDING_PAYMENT_STATUSES.contains(&status.as_str())))
+        .count()
+}
+
+/// Seats still open on one event, never below zero; `None` when there is no
+/// such event or it carries no readable capacity.
+pub(crate) fn seats_left(read: &Value, domain: &str, payments: &PaymentsProvider, event_slug: &str) -> Option<i64> {
+    let events = instances_for(read, &format!("{domain}::Event#"));
+    let (_, event) = events.iter().find(|(id, _)| id == event_slug)?;
+    let capacity = event.get("capacity").and_then(|c| c.get("value")).and_then(|v| v.as_i64())?;
+    Some((capacity - seats_taken(read, domain, payments, event_slug) as i64).max(0))
+}
+
+fn unix_now() -> i64 {
+    std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_secs() as i64
+}
+
 #[allow(clippy::too_many_arguments)]
 // The checkout, registration-payment and webhook routes, served only when
 // the domain's IR declares `provides "payments"`: that declaration names the
@@ -405,6 +442,12 @@ pub(crate) async fn registrations_route(
     if event.get("status").and_then(|v| v.as_str()) != Some("open") {
         return respond(422, "application/json", &json!({"error": "registration is closed for this event"}).to_string());
     }
+    // A full event refuses before any Stripe call or write. An event whose
+    // capacity cannot be read is not blocked: capacity is required when an
+    // event is scheduled, so its absence means nothing to enforce.
+    if seats_left(&read, &config.domain, payments, event_slug) == Some(0) {
+        return respond(409, "application/json", &json!({"error": "this event is full"}).to_string());
+    }
     let price_cents = event.get("price").and_then(|p| p.get("cents")).and_then(|v| v.as_i64()).unwrap_or(0);
     let event_name = event.get("name").and_then(|n| n.get("value")).and_then(|v| v.as_str()).unwrap_or("");
 
@@ -432,7 +475,7 @@ pub(crate) async fn registrations_route(
     // refusal follows, the unused session simply expires.
     let embedded_checkout = if let payments::CheckoutPlan::Stripe { api_key, publishable_key, account } = &plan {
         let auth = checkout::StripeAuth { api_key, account: Some(account), base_url: &platform.api_base };
-        match checkout::create_checkout_session(&auth, price_cents, event_name, &reference).await {
+        match checkout::create_checkout_session(&auth, price_cents, event_name, &reference, checkout::session_expires_at(unix_now())).await {
             // Stripe.js is opened with the publishable key and `stripeAccount`;
             // the answer carries no `checkout_url`.
             Ok(session) => Some(json!({
@@ -697,6 +740,61 @@ mod tests {
 
     fn now_secs() -> i64 {
         std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs() as i64
+    }
+
+    // A read of the domain: one `yoga` event of `capacity` seats, one `other`
+    // event, and a Registration plus same-reference Payment per row, each as
+    // (reference, event slug, payment status).
+    fn read_with(capacity: i64, rows: &[(&str, &str, &str)]) -> Value {
+        let mut instances = serde_json::Map::new();
+        instances.insert("CheckoutFixture::Event#yoga".into(), json!({"capacity": {"value": capacity}}));
+        instances.insert("CheckoutFixture::Event#other".into(), json!({"capacity": {"value": 5}}));
+        for (reference, event, status) in rows {
+            instances.insert(format!("CheckoutFixture::Registration#{reference}"), json!({"event_slug": event}));
+            instances.insert(format!("Payments::Payment#{reference}"), json!({"status": status}));
+        }
+        json!({"instances": instances})
+    }
+
+    #[test]
+    fn a_registration_holds_a_seat_while_its_payment_is_open_paid_or_being_settled() {
+        let payments = crate::ir::fixture_payments();
+        let read = read_with(
+            10,
+            &[("a", "yoga", "pending"), ("b", "yoga", "succeeded"), ("c", "yoga", "refunding"), ("d", "yoga", "disputed")],
+        );
+        assert_eq!(seats_taken(&read, "CheckoutFixture", &payments, "yoga"), 4);
+        assert_eq!(seats_left(&read, "CheckoutFixture", &payments, "yoga"), Some(6));
+    }
+
+    #[test]
+    fn a_failed_refunded_or_charged_back_payment_gives_its_seat_back() {
+        let payments = crate::ir::fixture_payments();
+        let read = read_with(
+            3,
+            &[("a", "yoga", "failed"), ("b", "yoga", "refunded"), ("c", "yoga", "charged_back"), ("d", "yoga", "succeeded")],
+        );
+        assert_eq!(seats_taken(&read, "CheckoutFixture", &payments, "yoga"), 1);
+        assert_eq!(seats_left(&read, "CheckoutFixture", &payments, "yoga"), Some(2));
+    }
+
+    #[test]
+    fn seats_are_counted_per_event_and_a_registration_without_a_payment_holds_none() {
+        let payments = crate::ir::fixture_payments();
+        let mut read = read_with(4, &[("a", "yoga", "succeeded"), ("b", "other", "succeeded")]);
+        read["instances"]["CheckoutFixture::Registration#orphan"] = json!({"event_slug": "yoga"});
+        assert_eq!(seats_taken(&read, "CheckoutFixture", &payments, "yoga"), 1, "only this event's registrations, and only those with a payment");
+        assert_eq!(seats_taken(&read, "CheckoutFixture", &payments, "other"), 1);
+    }
+
+    #[test]
+    fn seats_left_never_goes_below_zero_and_is_none_without_an_event_or_capacity() {
+        let payments = crate::ir::fixture_payments();
+        let oversold = read_with(1, &[("a", "yoga", "succeeded"), ("b", "yoga", "succeeded")]);
+        assert_eq!(seats_left(&oversold, "CheckoutFixture", &payments, "yoga"), Some(0));
+        assert_eq!(seats_left(&oversold, "CheckoutFixture", &payments, "nowhere"), None);
+        let no_capacity = json!({"instances": {"CheckoutFixture::Event#yoga": {"name": {"value": "Yoga"}}}});
+        assert_eq!(seats_left(&no_capacity, "CheckoutFixture", &payments, "yoga"), None);
     }
 
     #[test]
