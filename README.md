@@ -451,6 +451,7 @@ requires instances, events, refusals, queries, sagas, and reactions to
 match Ruby byte-for-byte. Replaying it found two refusals Rust worded
 differently from Ruby (a value object offered as a bare scalar, and a
 read model asked for a record that does not exist), both fixed in Rust.
+`spec/corpus/chess.json` is held to the same bar and agreed from the start.
 Corpus scripts are promoted to that whole-script bar one at a time; the
 rest are covered by the smaller pinned fixtures, or have no Rust build of
 their own to compare against: the framework/grammar chapters
@@ -498,10 +499,11 @@ no runtime dependencies at all. Deployment (SAM/Lambda templates via
 standalone CLI via `bin/project_cli`) is downstream of that same
 projection step, not a separate hand-authored artifact.
 
-What this does *not* yet claim: no throughput or latency benchmark has
-been run against either binary, `read_model` queries outside the proven
-subset above are refused in Rust rather than run, and the WASM projector
-is one command away
+What this does *not* yet claim: throughput and latency are measured only
+by a single-machine harness (`bin/bench`; the [baseline and its
+caveats](docs/benchmarks.md)), not under a production-like load,
+`read_model` queries outside the proven subset above are refused in Rust
+rather than run, and the WASM projector is one command away
 (`bin/project_wasm`) but not part of any deployed pipeline today. See
 [Running a runtime](docs/implemented/guides/running-a-runtime.md) for
 the exact field-by-field contract a third dispatch runtime would need,

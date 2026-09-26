@@ -156,7 +156,10 @@ RSpec.describe "Rust conformance (native binary)", :io do
   # of accumulated state (a value-object shape refusal at step 27, a
   # read-model refusal at step 169) to appear at all. Keyed by the corpus
   # file, valued by the domain directory it replays against.
-  FULL_CORPUS_MEMBERS = { "spec/corpus/banking.json" => "examples/banking" }.freeze
+  FULL_CORPUS_MEMBERS = {
+    "spec/corpus/banking.json" => "examples/banking",
+    "spec/corpus/chess.json"   => "examples/chess"
+  }.freeze
 
   full_corpus_cases = FULL_CORPUS_MEMBERS.map do |corpus_path, domain|
     [corpus_path, domain, File.join(InMemoryDomain::ROOT, corpus_path)]
