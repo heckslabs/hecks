@@ -293,7 +293,7 @@ Hecks.world "Banking" do
     memory 512
     timeout 10
     database "Shared"    # no RDS of Banking's own
-    owner "ExampleTeam"  # isolated by its own native Postgres schema
+    owner "Platform"     # isolated by its own native Postgres schema
   end
 end
 ```
@@ -302,9 +302,15 @@ end
 [Projections: Rust and
 WebAssembly](../../../README.md#projections-rust-and-webassembly) in
 the README, and [architecture-map.md](../../architecture-map.md) for
-the projector inventory) to generate a self-contained SAM template,
-build Makefile, and bastion config — its own VPC and RDS Postgres
-instance, no secret typed anywhere.
+the projector inventory) to generate a SAM template, build Makefile and
+deploy config, no secret typed anywhere. Because this example declares
+`database "Shared"`, the stack borrows the VPC and Postgres instance of
+the stack named by `owner` instead of creating its own; a domain that
+declares no shared database gets its own VPC and RDS instance, plus a
+bastion config for minting its first era. A deployment that must name a
+specific owner stack or stack prefix does so in an environment overlay
+(`bin/project_deploy <domain> --environment=<name>`) kept outside this
+repository.
 
 ## Writing your own port or adapter
 
