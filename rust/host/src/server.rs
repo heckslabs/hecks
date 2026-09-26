@@ -45,6 +45,7 @@
 use crate::dispatch;
 use crate::journal::LineageConfig;
 use crate::lambda_client::{AwsLambdaInvoker, LambdaInvoker};
+use crate::log;
 use crate::web;
 use axum::body::Bytes;
 use axum::extract::State;
@@ -175,7 +176,27 @@ async fn health() -> StatusCode {
     StatusCode::OK
 }
 
+/// Runs one request and writes its access-log line — method, path (never
+/// the query string: it can carry OAuth codes and tokens), status and
+/// duration.
 async fn dispatch_route(State(state): State<ServerState>, method: Method, uri: Uri, headers: HeaderMap, body: Bytes) -> Response {
+    let started = std::time::Instant::now();
+    let path = uri.path().to_string();
+    let verb = method.as_str().to_string();
+    let response = route_request(state, method, uri, headers, body).await;
+    let status = response.status().as_u16();
+    let fields = serde_json::json!({
+        "method": verb, "path": path, "status": status, "ms": started.elapsed().as_millis() as u64,
+    });
+    if status >= 500 {
+        log::error("request", fields);
+    } else {
+        log::info("request", fields);
+    }
+    response
+}
+
+async fn route_request(state: ServerState, method: Method, uri: Uri, headers: HeaderMap, body: Bytes) -> Response {
     let parsed: Value = if body.is_empty() {
         serde_json::json!({})
     } else {
@@ -209,6 +230,7 @@ async fn dispatch_route(State(state): State<ServerState>, method: Method, uri: U
     match dispatch_body(envelope, &state.client, &state.wasm_path, &state.lineage_config, state.invoker.as_ref()).await {
         Ok(value) => value_to_response(value),
         Err(e) => {
+            log::error("dispatch_failed", serde_json::json!({ "error": format!("{e}") }));
             (StatusCode::INTERNAL_SERVER_ERROR, axum::Json(serde_json::json!({ "error": format!("{e}") }))).into_response()
         }
     }
