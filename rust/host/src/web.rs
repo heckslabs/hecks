@@ -737,7 +737,7 @@ fn registration_list_rows(read: &Value, domain: &str) -> Vec<Value> {
     };
     let text = |value: Option<&Value>| plain(value).and_then(|v| v.as_str().map(|s| s.trim().to_string()));
 
-    let mut rows: Vec<(Option<String>, Value)> = instances_for(read, &format!("{domain}::Registration#"))
+    let mut rows: Vec<(Option<String>, Value)> = instances_for(read, &crate::ir::registrations_binding(domain).registration_prefix())
         .into_iter()
         .map(|(id, registration)| {
             let attendee = registration.get("attendee").cloned().unwrap_or_else(|| json!({}));

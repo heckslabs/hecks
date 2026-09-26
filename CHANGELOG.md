@@ -138,6 +138,20 @@ storage shape, so it does not mint an era. A hecks gem older than this change
 refuses either `provides` line ("no capability the language knows"), so a
 consumer must upgrade the gem before declaring them.
 
+**Two new capabilities: `registrations` and `payment_connection`.** A chapter
+can now declare `provides "registrations", schedule: "Event.Schedule", request:
+"Registration.Request"` and `provides "payment_connection", connect: ...,
+reconnect: ..., disconnect: ..., suspend: ..., resume: ..., enable: ...,
+disable: ...` (each naming a real command of that chapter). `bin/project_rust`
+exports them to `ir.json` as `registrations` (with `event_aggregate` and
+`registration_aggregate`) and `payment_connection` (with `aggregate`), the same
+way `payments` is exported, and omits each key when nothing attached provides
+it. This is groundwork: rust/host does not read them yet, so nothing about a
+running host changes. Declaring either capability does not change a domain's
+storage shape, so it does not mint an era. A hecks gem older than this change
+refuses either `provides` line ("no capability the language knows"), so a
+consumer must upgrade the gem before declaring them.
+
 **The unsubscribe link is signed.** Every email that carries an unsubscribe
 URL (each recipient of an issue send, `send-test`, and the `List-Unsubscribe`
 header on the confirmation email) now links to

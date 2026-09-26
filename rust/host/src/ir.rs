@@ -340,6 +340,172 @@ pub fn payments_provider(domain_ir: &Value) -> Option<PaymentsProvider> {
     })
 }
 
+/// The chapter that answers scheduling sessions and taking registrations —
+/// `Exporter.registrations` (exporter.rb), read off `ir.json`'s own top-level
+/// `registrations` key. `None` when nothing the domain attaches declares
+/// `provides "registrations"` (the key is omitted entirely).
+#[derive(Debug, Clone, PartialEq)]
+pub struct RegistrationsProvider {
+    /// Chapter name, e.g. `Lifeadelics`.
+    pub provider: String,
+    /// Qualified schedule command, e.g. `Lifeadelics::Event.Schedule`.
+    pub schedule: String,
+    /// Qualified request command, e.g. `Lifeadelics::Registration.Request`.
+    pub request: String,
+    /// Qualified event aggregate, e.g. `Lifeadelics::Event`.
+    pub event_aggregate: String,
+    /// Qualified registration aggregate, e.g. `Lifeadelics::Registration`.
+    pub registration_aggregate: String,
+}
+
+impl RegistrationsProvider {
+    /// The names a domain has when it calls its own aggregates `Event` and
+    /// `Registration` and declares no `provides "registrations"` yet — what
+    /// this host used before the capability existed, kept as the fallback so
+    /// a domain that has not declared it keeps working.
+    pub fn conventional(domain: &str) -> Self {
+        Self {
+            provider: domain.to_string(),
+            schedule: format!("{domain}::Event.Schedule"),
+            request: format!("{domain}::Registration.Request"),
+            event_aggregate: format!("{domain}::Event"),
+            registration_aggregate: format!("{domain}::Registration"),
+        }
+    }
+
+    /// The prefix every event's key in a `dispatch::read` `instances` map
+    /// starts with, e.g. `Lifeadelics::Event#`.
+    pub fn event_prefix(&self) -> String {
+        format!("{}#", self.event_aggregate)
+    }
+
+    /// The prefix every registration's key starts with, e.g.
+    /// `Lifeadelics::Registration#`.
+    pub fn registration_prefix(&self) -> String {
+        format!("{}#", self.registration_aggregate)
+    }
+
+    /// The request command's own aggregate and command name without the
+    /// chapter qualifier, e.g. `("Registration", "Request")` — the shape
+    /// `command_declares` looks a command up by in the domain's own IR.
+    pub fn request_target(&self) -> Option<(&str, &str)> {
+        self.request.rsplit("::").next()?.split_once('.')
+    }
+}
+
+pub fn registrations_provider(domain_ir: &Value) -> Option<RegistrationsProvider> {
+    let fact = domain_ir.get("registrations")?;
+    Some(RegistrationsProvider {
+        provider: fact.get("provider")?.as_str()?.to_string(),
+        schedule: fact.get("schedule")?.as_str()?.to_string(),
+        request: fact.get("request")?.as_str()?.to_string(),
+        event_aggregate: fact.get("event_aggregate")?.as_str()?.to_string(),
+        registration_aggregate: fact.get("registration_aggregate")?.as_str()?.to_string(),
+    })
+}
+
+/// The registrations binding of the IR this host loaded, or the
+/// conventional names for `domain` when the IR declares none (or none is
+/// loaded).
+pub fn registrations_binding(domain: &str) -> RegistrationsProvider {
+    ir().and_then(registrations_provider).unwrap_or_else(|| RegistrationsProvider::conventional(domain))
+}
+
+/// One command of the payment-processor connection, by the role it plays —
+/// resolved to the declaring chapter's own command name through
+/// `PaymentConnectionProvider::verb`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ConnectionVerb {
+    Connect,
+    Reconnect,
+    Disconnect,
+    Suspend,
+    Resume,
+    Enable,
+    Disable,
+}
+
+/// The chapter that owns the business's payment-processor connection —
+/// `Exporter.payment_connection` (exporter.rb), read off `ir.json`'s own
+/// top-level `payment_connection` key. `None` when nothing the domain
+/// attaches declares `provides "payment_connection"`.
+#[derive(Debug, Clone, PartialEq)]
+pub struct PaymentConnectionProvider {
+    /// Chapter name, e.g. `Lifeadelics`.
+    pub provider: String,
+    pub connect: String,
+    pub reconnect: String,
+    pub disconnect: String,
+    pub suspend: String,
+    pub resume: String,
+    pub enable: String,
+    pub disable: String,
+    /// Qualified connection aggregate, e.g. `Lifeadelics::PaymentConnection`.
+    pub aggregate: String,
+}
+
+impl PaymentConnectionProvider {
+    /// The names a domain has when it calls its connection aggregate
+    /// `PaymentConnection` with the commands this host used before the
+    /// capability existed, kept as the fallback.
+    pub fn conventional(domain: &str) -> Self {
+        let qualified = |command: &str| format!("{domain}::PaymentConnection.{command}");
+        Self {
+            provider: domain.to_string(),
+            connect: qualified("Connect"),
+            reconnect: qualified("Reconnect"),
+            disconnect: qualified("Disconnect"),
+            suspend: qualified("Suspend"),
+            resume: qualified("Resume"),
+            enable: qualified("EnablePayments"),
+            disable: qualified("DisablePayments"),
+            aggregate: format!("{domain}::PaymentConnection"),
+        }
+    }
+
+    /// The prefix every connection's key in a `dispatch::read` `instances`
+    /// map starts with, e.g. `Lifeadelics::PaymentConnection#`.
+    pub fn instance_prefix(&self) -> String {
+        format!("{}#", self.aggregate)
+    }
+
+    /// The qualified command that plays `which`.
+    pub fn verb(&self, which: ConnectionVerb) -> &str {
+        match which {
+            ConnectionVerb::Connect => &self.connect,
+            ConnectionVerb::Reconnect => &self.reconnect,
+            ConnectionVerb::Disconnect => &self.disconnect,
+            ConnectionVerb::Suspend => &self.suspend,
+            ConnectionVerb::Resume => &self.resume,
+            ConnectionVerb::Enable => &self.enable,
+            ConnectionVerb::Disable => &self.disable,
+        }
+    }
+}
+
+pub fn payment_connection_provider(domain_ir: &Value) -> Option<PaymentConnectionProvider> {
+    let fact = domain_ir.get("payment_connection")?;
+    let text = |key: &str| Some(fact.get(key)?.as_str()?.to_string());
+    Some(PaymentConnectionProvider {
+        provider: text("provider")?,
+        connect: text("connect")?,
+        reconnect: text("reconnect")?,
+        disconnect: text("disconnect")?,
+        suspend: text("suspend")?,
+        resume: text("resume")?,
+        enable: text("enable")?,
+        disable: text("disable")?,
+        aggregate: text("aggregate")?,
+    })
+}
+
+/// The payment-connection binding of the IR this host loaded, or the
+/// conventional names for `domain` when the IR declares none (or none is
+/// loaded).
+pub fn payment_connection_binding(domain: &str) -> PaymentConnectionProvider {
+    ir().and_then(payment_connection_provider).unwrap_or_else(|| PaymentConnectionProvider::conventional(domain))
+}
+
 /// The checkout fixture's own payments binding, read from its committed
 /// `ir.json` — what the checkout routes' tests dispatch against.
 #[cfg(test)]
@@ -557,6 +723,80 @@ mod tests {
         assert_eq!(provider.failed, "Payments::Payment.PaymentGateway.Failed");
         assert_eq!(provider.instance_prefix(), "Payments::Payment#");
         assert!(payments_provider(&serde_json::json!({ "name": "Pizzas" })).is_none());
+    }
+
+    #[test]
+    fn registrations_provider_reads_the_declared_capability() {
+        let provider = registrations_provider(&fixture_ir()).expect("the checkout fixture provides registrations");
+        assert_eq!(provider.schedule, "CheckoutFixture::Event.Schedule");
+        assert_eq!(provider.request, "CheckoutFixture::Registration.Request");
+        assert_eq!(provider.event_prefix(), "CheckoutFixture::Event#");
+        assert_eq!(provider.registration_prefix(), "CheckoutFixture::Registration#");
+        assert_eq!(provider.request_target(), Some(("Registration", "Request")));
+    }
+
+    #[test]
+    fn the_conventional_registrations_names_match_what_the_fixture_declares() {
+        assert_eq!(registrations_provider(&fixture_ir()), Some(RegistrationsProvider::conventional("CheckoutFixture")));
+    }
+
+    #[test]
+    fn a_declared_registrations_binding_names_whatever_the_chapter_calls_things() {
+        let ir = serde_json::json!({"registrations": {
+            "provider": "Bookings",
+            "schedule": "Bookings::Session.Plan",
+            "request": "Bookings::Seat.Claim",
+            "event_aggregate": "Bookings::Session",
+            "registration_aggregate": "Bookings::Seat"
+        }});
+        let provider = registrations_provider(&ir).expect("declared");
+        assert_eq!(provider.event_prefix(), "Bookings::Session#");
+        assert_eq!(provider.registration_prefix(), "Bookings::Seat#");
+        assert_eq!(provider.request_target(), Some(("Seat", "Claim")));
+    }
+
+    #[test]
+    fn registrations_provider_is_none_without_the_key() {
+        assert_eq!(registrations_provider(&serde_json::json!({"name": "Pizzas"})), None);
+    }
+
+    #[test]
+    fn registrations_binding_falls_back_to_the_conventional_names_when_no_ir_is_loaded() {
+        assert_eq!(registrations_binding("Shop"), RegistrationsProvider::conventional("Shop"));
+    }
+
+    #[test]
+    fn payment_connection_provider_reads_the_declared_capability() {
+        let provider = payment_connection_provider(&fixture_ir()).expect("the checkout fixture provides payment_connection");
+        assert_eq!(provider.verb(ConnectionVerb::Connect), "CheckoutFixture::PaymentConnection.Connect");
+        assert_eq!(provider.verb(ConnectionVerb::Enable), "CheckoutFixture::PaymentConnection.EnablePayments");
+        assert_eq!(provider.verb(ConnectionVerb::Disable), "CheckoutFixture::PaymentConnection.DisablePayments");
+        assert_eq!(provider.instance_prefix(), "CheckoutFixture::PaymentConnection#");
+    }
+
+    #[test]
+    fn the_conventional_payment_connection_names_match_what_the_fixture_declares() {
+        assert_eq!(payment_connection_provider(&fixture_ir()), Some(PaymentConnectionProvider::conventional("CheckoutFixture")));
+    }
+
+    #[test]
+    fn a_declared_payment_connection_binding_names_whatever_the_chapter_calls_things() {
+        let ir = serde_json::json!({"payment_connection": {
+            "provider": "Billing",
+            "connect": "Billing::Link.Open", "reconnect": "Billing::Link.Reopen",
+            "disconnect": "Billing::Link.Close", "suspend": "Billing::Link.Pause",
+            "resume": "Billing::Link.Unpause", "enable": "Billing::Link.TurnOn",
+            "disable": "Billing::Link.TurnOff", "aggregate": "Billing::Link"
+        }});
+        let provider = payment_connection_provider(&ir).expect("declared");
+        assert_eq!(provider.verb(ConnectionVerb::Suspend), "Billing::Link.Pause");
+        assert_eq!(provider.verb(ConnectionVerb::Resume), "Billing::Link.Unpause");
+        assert_eq!(provider.instance_prefix(), "Billing::Link#");
+    }
+
+    #[test]
+    fn payment_connection_binding_falls_back_to_the_conventional_names_when_no_ir_is_loaded() {
+        assert_eq!(payment_connection_binding("Shop"), PaymentConnectionProvider::conventional("Shop"));
     }
 
     #[test]

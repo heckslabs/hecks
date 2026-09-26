@@ -60,7 +60,7 @@ pub(crate) fn seats_taken(read: &Value, domain: &str, payments: &PaymentsProvide
         .into_iter()
         .filter_map(|(id, payment)| payment.get("status").and_then(|s| s.as_str()).map(|s| (id, s.to_string())))
         .collect();
-    instances_for(read, &format!("{domain}::Registration#"))
+    instances_for(read, &crate::ir::registrations_binding(domain).registration_prefix())
         .into_iter()
         .filter(|(_, registration)| registration.get("event_slug").and_then(|v| v.as_str()) == Some(event_slug))
         .filter(|(id, _)| statuses.get(id).is_some_and(|status| SEAT_HOLDING_PAYMENT_STATUSES.contains(&status.as_str())))
@@ -70,7 +70,7 @@ pub(crate) fn seats_taken(read: &Value, domain: &str, payments: &PaymentsProvide
 /// Seats still open on one event, never below zero; `None` when there is no
 /// such event or it carries no readable capacity.
 pub(crate) fn seats_left(read: &Value, domain: &str, payments: &PaymentsProvider, event_slug: &str) -> Option<i64> {
-    let events = instances_for(read, &format!("{domain}::Event#"));
+    let events = instances_for(read, &crate::ir::registrations_binding(domain).event_prefix());
     let (_, event) = events.iter().find(|(id, _)| id == event_slug)?;
     let capacity = event.get("capacity").and_then(|c| c.get("value")).and_then(|v| v.as_i64())?;
     Some((capacity - seats_taken(read, domain, payments, event_slug) as i64).max(0))
@@ -183,7 +183,7 @@ async fn events_route(raw_body: &str, client: &Mutex<Client>, wasm_path: &Path, 
         Ok(r) => r,
         Err(e) => return respond(500, "text/plain", &format!("{e:#}")),
     };
-    let events = instances_for(&read, &format!("{}::Event#", config.domain));
+    let events = instances_for(&read, &crate::ir::registrations_binding(&config.domain).event_prefix());
     if let Some((_, existing)) = events.iter().find(|(id, _)| id == slug) {
         return respond(200, "application/json", &serde_json::to_string_pretty(&with_id(slug, existing)).unwrap_or_default());
     }
@@ -204,7 +204,7 @@ async fn events_route(raw_body: &str, client: &Mutex<Client>, wasm_path: &Path, 
         "price": {"cents": price_cents},
         "capacity": {"value": capacity},
     });
-    let verb = format!("{}::Event.Schedule", config.domain);
+    let verb = crate::ir::registrations_binding(&config.domain).schedule;
     let outcome = match dispatch::handle(client, wasm_path, &verb, args, None, config, invoker).await {
         Ok(o) => o,
         Err(e) => return respond(500, "text/plain", &format!("{e:#}")),
@@ -217,7 +217,7 @@ async fn events_route(raw_body: &str, client: &Mutex<Client>, wasm_path: &Path, 
         Ok(r) => r,
         Err(e) => return respond(500, "text/plain", &format!("{e:#}")),
     };
-    let events = instances_for(&read, &format!("{}::Event#", config.domain));
+    let events = instances_for(&read, &crate::ir::registrations_binding(&config.domain).event_prefix());
     let Some((_, event)) = events.iter().find(|(id, _)| id == slug) else {
         return respond(500, "text/plain", "event vanished immediately after being scheduled");
     };
@@ -234,12 +234,12 @@ async fn registration_show_route(registration_id: &str, client: &Mutex<Client>, 
         Ok(r) => r,
         Err(e) => return respond(500, "text/plain", &format!("{e:#}")),
     };
-    let registrations = instances_for(&read, &format!("{}::Registration#", config.domain));
+    let registrations = instances_for(&read, &crate::ir::registrations_binding(&config.domain).registration_prefix());
     let Some((_, registration)) = registrations.iter().find(|(id, _)| id == registration_id) else {
         return respond(404, "application/json", &json!({"error": "no such registration"}).to_string());
     };
     let event_slug = registration.get("event_slug").and_then(|v| v.as_str());
-    let events = instances_for(&read, &format!("{}::Event#", config.domain));
+    let events = instances_for(&read, &crate::ir::registrations_binding(&config.domain).event_prefix());
     let event = event_slug.and_then(|slug| events.iter().find(|(id, _)| id == slug)).map(|(_, e)| e);
 
     let payment_instances = instances_for(&read, &payments.instance_prefix());
@@ -294,7 +294,7 @@ pub(crate) async fn registration_complete_route(
         Ok(r) => r,
         Err(e) => return respond(500, "text/plain", &format!("{e:#}")),
     };
-    let registrations = instances_for(&read, &format!("{}::Registration#", config.domain));
+    let registrations = instances_for(&read, &crate::ir::registrations_binding(&config.domain).registration_prefix());
     if !registrations.iter().any(|(id, _)| id == registration_id) {
         return respond(404, "application/json", &json!({"error": "no such registration"}).to_string());
     }
@@ -435,7 +435,7 @@ pub(crate) async fn registrations_route(
         Ok(r) => r,
         Err(e) => return respond(500, "text/plain", &format!("{e:#}")),
     };
-    let events = instances_for(&read, &format!("{}::Event#", config.domain));
+    let events = instances_for(&read, &crate::ir::registrations_binding(&config.domain).event_prefix());
     let Some((_, event)) = events.iter().find(|(id, _)| id == event_slug) else {
         return respond(404, "application/json", &json!({"error": "no such event"}).to_string());
     };
@@ -517,7 +517,10 @@ pub(crate) async fn registrations_route(
     // command refuses an argument it does not declare, so they go only to a
     // domain that does.
     let news_signup = body.get("news_signup").and_then(|v| v.as_bool()).unwrap_or(false);
-    let forwards_newsletter = crate::ir::ir().is_some_and(|ir| crate::ir::command_declares(ir, "Registration", "Request", "news_signup"));
+    let binding = crate::ir::registrations_binding(&config.domain);
+    let forwards_newsletter = crate::ir::ir().is_some_and(|ir| {
+        binding.request_target().is_some_and(|(aggregate, command)| crate::ir::command_declares(ir, aggregate, command, "news_signup"))
+    });
     if forwards_newsletter {
         request_args["news_signup"] = json!(news_signup);
         request_args["email"] = json!(email);
@@ -527,7 +530,7 @@ pub(crate) async fn registrations_route(
             }
         }
     }
-    let request_verb = format!("{}::Registration.Request", config.domain);
+    let request_verb = crate::ir::registrations_binding(&config.domain).request;
     let outcome = match dispatch::handle(client, wasm_path, &request_verb, request_args, None, config, invoker).await {
         Ok(o) => o,
         Err(e) => return respond(500, "text/plain", &format!("{e:#}")),
