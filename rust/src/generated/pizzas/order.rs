@@ -677,7 +677,7 @@ if !matches!(v, crate::kernel::Json::Object(_)) {
 }
         Ok(Self {
         name: match v.get("name") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(PizzaName::from_json(&x.coerce_single_field("value"))?), },
-        pizza: match v.get("pizza") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(Pizza::from_json(x)?), },
+        pizza: match v.get("pizza") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(Pizza::from_json(x.expect_value_object_shape("pizza", "Pizza")?)?), },
         toppings: match v.get("toppings").and_then(crate::kernel::Json::as_array) { Some(items) => items.iter().map(Topping::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), },
         customer_name: match v.get("customer_name") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(CustomerName::from_json(&x.coerce_single_field("value"))?), },
         status: v.require("status", "Order")?.as_str().ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Order.status: expected a string".to_string()))?.to_string(),
@@ -861,7 +861,7 @@ if !absent.is_empty() {
 }
         let name = PizzaName::from_json(&(match v.get("name").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("CreatePizzaArgs.name expects PizzaName, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("value"))?;
         name.check_invariants()?;
-        let pizza = Pizza::from_json(&match v.get("pizza").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("CreatePizzaArgs.pizza expects Pizza, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() })?;
+        let pizza = Pizza::from_json((match v.get("pizza").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("CreatePizzaArgs.pizza expects Pizza, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).expect_value_object_shape("pizza", "Pizza")?)?;
         pizza.check_invariants()?;
         Ok(Self {
         name,
