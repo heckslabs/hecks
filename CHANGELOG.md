@@ -10,14 +10,11 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 **rust/host no longer confirms a subscriber itself.** `POST
 /newsletter/subscribers` used to dispatch the `confirm` verb right after a
 Subscribe or AddName whenever the subscriber was still `pending`. It now
-dispatches only Subscribe or AddName and reports the resulting status, so
-confirming on the spot is a reaction the domain declares, not host code:
-`translates "ConfirmOnSubscribe" do on Subscriber::SubscriberSubscribed;
-trigger Subscriber::Confirm, with: { email: :email }; end` in the consuming
-hecksagon. **Behavior change for hosts:** a domain without that reaction now
-leaves new subscribers `pending` until they follow the confirm link. Before
-deploying a host built from this, land the reaction in the domain
-(lifeadelics.hecksagon) and rebuild its wasm.
+dispatches only Subscribe or AddName and reports the resulting status.
+**Behavior change for hosts:** a new subscriber now stays `pending` until they
+follow the confirm link, and only confirmed subscribers receive an issue. Nothing
+in the host emails that link on subscribe, so a domain that wants signups
+confirmed has to send it itself.
 
 ## [2.3.0] - 2026-09-25
 

@@ -53,9 +53,8 @@ pub(super) async fn newsletter_route(
 /// POST /newsletter/subscribers — Subscribe on a new email, AddName on a
 /// returning one (the two-step public signup form's own step
 /// 1/step 2 — NewsletterSubscribeForm.astro's own header has the full
-/// reasoning). The response carries the subscriber's resulting status:
-/// `pending` unless the domain reacts to the subscribe event by
-/// confirming it.
+/// reasoning). The response carries the subscriber's resulting status,
+/// `pending` for a new subscriber.
 async fn newsletter_subscribe_route(
     provider: &NewsletterProvider,
     raw_body: &str,
@@ -104,11 +103,9 @@ async fn newsletter_subscribe_route(
         }
     }
 
-    // Confirm is not dispatched here. A domain that wants signups
-    // confirmed on the spot wires that as a reaction to the subscribe
-    // event (lifeadelics.hecksagon's `translates "ConfirmOnSubscribe"`),
-    // which has already run by the time `handle_facts` returns. This route
-    // only reports where the subscriber ended up.
+    // Confirm is not dispatched here: a new subscriber stays `pending`
+    // until they follow the confirm link (the route below). This route only
+    // reports where the subscriber ended up.
     let read = match dispatch::read(client, wasm_path).await {
         Ok(r) => r,
         Err(e) => return respond(500, "text/plain", &format!("{e:#}")),
