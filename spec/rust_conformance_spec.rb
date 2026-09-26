@@ -158,7 +158,7 @@ RSpec.describe "Rust conformance (native binary)", :io do
   # file, valued by the domain directory it replays against.
   FULL_CORPUS_MEMBERS = {
     "spec/corpus/banking.json" => "examples/banking",
-    "spec/corpus/chess.json" => "examples/chess"
+    "spec/corpus/chess.json"   => "examples/chess"
   }.freeze
 
   full_corpus_cases = FULL_CORPUS_MEMBERS.map do |corpus_path, domain|
