@@ -140,6 +140,30 @@ pub fn dispatch_by_name(
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
               crate::generated::checkout_fixture::registration::dispatch_request(&mut store.registration, route, args, mutations, owner_deref, command_deref, tenant_boundary_check).map(|(_, events)| stamp_payload(events, &payload))
           }
+          "CheckoutFixture::Registration.Archive" => {
+              let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
+              let route = invocation.route();
+              let facts_json = invocation.facts();
+              let args = if invocation.explicit_with() { let args = crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::checkout_fixture::registration::ArchiveArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::checkout_fixture::registration::ArchiveArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::checkout_fixture::registration::ArchiveArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::checkout_fixture::registration::ArchiveArgs::from_json(v)?; Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Organizer"), "Archive", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|_args: &crate::generated::checkout_fixture::registration::ArchiveArgs| Ok(()) })?; if let Some(route) = route { route.require_depth(0)?; } args } else { if let Some(route) = route { route.require_depth(0)?; } crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::checkout_fixture::registration::ArchiveArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::checkout_fixture::registration::ArchiveArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::checkout_fixture::registration::ArchiveArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::checkout_fixture::registration::ArchiveArgs::from_json(v)?; Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Organizer"), "Archive", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|_args: &crate::generated::checkout_fixture::registration::ArchiveArgs| Ok(()) })? };
+              let id = match route { Some(route) => route.aggregate().to_string(), None => crate::generated::checkout_fixture::registration::Registration::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "Archive", aggregate: "Registration", identity: "registration_id.value" }.render_args()))?, };
+              let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
+              let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "CheckoutFixture::Registration", &id);
+              let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
+              let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
+              crate::generated::checkout_fixture::registration::dispatch_archive(&mut store.registration, &id, args, mutations, owner_deref, command_deref, tenant_boundary_check).map(|(_, events)| stamp_payload(events, &payload))
+          }
+          "CheckoutFixture::Registration.Restore" => {
+              let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
+              let route = invocation.route();
+              let facts_json = invocation.facts();
+              let args = if invocation.explicit_with() { let args = crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::checkout_fixture::registration::RestoreArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::checkout_fixture::registration::RestoreArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::checkout_fixture::registration::RestoreArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::checkout_fixture::registration::RestoreArgs::from_json(v)?; Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Organizer"), "Restore", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|_args: &crate::generated::checkout_fixture::registration::RestoreArgs| Ok(()) })?; if let Some(route) = route { route.require_depth(0)?; } args } else { if let Some(route) = route { route.require_depth(0)?; } crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::checkout_fixture::registration::RestoreArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::checkout_fixture::registration::RestoreArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::checkout_fixture::registration::RestoreArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::checkout_fixture::registration::RestoreArgs::from_json(v)?; Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Organizer"), "Restore", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|_args: &crate::generated::checkout_fixture::registration::RestoreArgs| Ok(()) })? };
+              let id = match route { Some(route) => route.aggregate().to_string(), None => crate::generated::checkout_fixture::registration::Registration::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "Restore", aggregate: "Registration", identity: "registration_id.value" }.render_args()))?, };
+              let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
+              let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "CheckoutFixture::Registration", &id);
+              let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
+              let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
+              crate::generated::checkout_fixture::registration::dispatch_restore(&mut store.registration, &id, args, mutations, owner_deref, command_deref, tenant_boundary_check).map(|(_, events)| stamp_payload(events, &payload))
+          }
           "CheckoutFixture::PaymentConnection.Connect" => {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
@@ -295,6 +319,8 @@ pub fn command_creates(verb: &str) -> bool {
         "CheckoutFixture::Event.Schedule" => true,
         "CheckoutFixture::Event.Close" => false,
         "CheckoutFixture::Registration.Request" => true,
+        "CheckoutFixture::Registration.Archive" => false,
+        "CheckoutFixture::Registration.Restore" => false,
         "CheckoutFixture::PaymentConnection.Connect" => true,
         "CheckoutFixture::PaymentConnection.Reconnect" => false,
         "CheckoutFixture::PaymentConnection.Disconnect" => false,
@@ -327,6 +353,8 @@ pub fn command_attributes_for_verb(verb: &str) -> &'static [&'static str] {
         "CheckoutFixture::Event.Schedule" => &["slug", "name", "price", "capacity"],
         "CheckoutFixture::Event.Close" => &[],
         "CheckoutFixture::Registration.Request" => &["event_slug", "registration_id", "attendee"],
+        "CheckoutFixture::Registration.Archive" => &[],
+        "CheckoutFixture::Registration.Restore" => &[],
         "CheckoutFixture::PaymentConnection.Connect" => &["slug", "processor", "account_ref", "mode", "display_name"],
         "CheckoutFixture::PaymentConnection.Reconnect" => &["processor", "account_ref", "mode", "display_name"],
         "CheckoutFixture::PaymentConnection.Disconnect" => &[],

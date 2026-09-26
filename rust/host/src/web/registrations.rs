@@ -50,11 +50,28 @@ fn payment_processor(read: &Value, payments: &PaymentsProvider, reference: &str)
 // `failed` (declined or expired), `refunded` and `charged_back` give the seat
 // back. A partial refund leaves the Payment `succeeded`, so that registration
 // keeps its seat until it can be cancelled itself.
+//
+// The rule as a whole: a registration holds a seat iff its Payment status is in
+// this list AND the registration is not archived. A registration with no
+// Payment holds nothing. Archiving is the registration's own lifecycle
+// (`status`, "archived"), independent of the money: it frees the seat whatever
+// the Payment says, and restoring it takes the seat back. A registration with
+// no `status` at all counts as active, which keeps the rule inert for a domain
+// whose Registration has no lifecycle and for data written before one existed.
 const SEAT_HOLDING_PAYMENT_STATUSES: [&str; 4] = ["pending", "succeeded", "refunding", "disputed"];
 
-/// How many seats one event has used: its Registrations whose Payment (the same
-/// reference) is in a seat-holding status. A Registration with no Payment holds
-/// nothing, since no payment could ever settle it.
+/// The Registration lifecycle state that gives its seat back.
+const ARCHIVED_REGISTRATION_STATUS: &str = "archived";
+
+/// Whether a registration's own lifecycle has archived it. A missing or
+/// non-text `status` is active.
+fn registration_archived(registration: &Value) -> bool {
+    registration.get("status").and_then(|s| s.as_str()) == Some(ARCHIVED_REGISTRATION_STATUS)
+}
+
+/// How many seats one event has used: its non-archived Registrations whose
+/// Payment (the same reference) is in a seat-holding status. A Registration
+/// with no Payment holds nothing, since no payment could ever settle it.
 pub(crate) fn seats_taken(read: &Value, domain: &str, payments: &PaymentsProvider, event_slug: &str) -> usize {
     let statuses: std::collections::HashMap<String, String> = instances_for(read, &payments.instance_prefix())
         .into_iter()
@@ -63,6 +80,7 @@ pub(crate) fn seats_taken(read: &Value, domain: &str, payments: &PaymentsProvide
     instances_for(read, &crate::ir::registrations_binding(domain).registration_prefix())
         .into_iter()
         .filter(|(_, registration)| registration.get("event_slug").and_then(|v| v.as_str()) == Some(event_slug))
+        .filter(|(_, registration)| !registration_archived(registration))
         .filter(|(id, _)| statuses.get(id).is_some_and(|status| SEAT_HOLDING_PAYMENT_STATUSES.contains(&status.as_str())))
         .count()
 }
@@ -813,6 +831,56 @@ mod tests {
         read["instances"]["CheckoutFixture::Registration#orphan"] = json!({"event_slug": "yoga"});
         assert_eq!(seats_taken(&read, "CheckoutFixture", &payments, "yoga"), 1, "only this event's registrations, and only those with a payment");
         assert_eq!(seats_taken(&read, "CheckoutFixture", &payments, "other"), 1);
+    }
+
+    #[test]
+    fn an_archived_registration_gives_its_seat_back_whatever_its_payment_says() {
+        let payments = crate::ir::fixture_payments();
+        let mut read = read_with(3, &[("a", "yoga", "succeeded"), ("b", "yoga", "pending"), ("c", "yoga", "succeeded")]);
+        assert_eq!(seats_taken(&read, "CheckoutFixture", &payments, "yoga"), 3);
+        read["instances"]["CheckoutFixture::Registration#a"]["status"] = json!("archived");
+        assert_eq!(seats_taken(&read, "CheckoutFixture", &payments, "yoga"), 2, "a paid but archived registration frees its seat");
+        assert_eq!(seats_left(&read, "CheckoutFixture", &payments, "yoga"), Some(1));
+    }
+
+    #[test]
+    fn a_registration_with_no_status_counts_as_active() {
+        let payments = crate::ir::fixture_payments();
+        let mut read = read_with(5, &[("a", "yoga", "succeeded"), ("b", "yoga", "succeeded")]);
+        // `a` carries no status at all (a domain without the lifecycle, or data
+        // from before it existed); `b` says it is active.
+        read["instances"]["CheckoutFixture::Registration#b"]["status"] = json!("active");
+        assert_eq!(seats_taken(&read, "CheckoutFixture", &payments, "yoga"), 2);
+        read["instances"]["CheckoutFixture::Registration#a"]["status"] = json!(null);
+        assert_eq!(seats_taken(&read, "CheckoutFixture", &payments, "yoga"), 2, "a null status is not archived either");
+    }
+
+    #[test]
+    fn a_restored_registration_takes_its_seat_back() {
+        let payments = crate::ir::fixture_payments();
+        let mut read = read_with(2, &[("a", "yoga", "succeeded")]);
+        read["instances"]["CheckoutFixture::Registration#a"]["status"] = json!("archived");
+        assert_eq!(seats_left(&read, "CheckoutFixture", &payments, "yoga"), Some(2));
+        read["instances"]["CheckoutFixture::Registration#a"]["status"] = json!("active");
+        assert_eq!(seats_left(&read, "CheckoutFixture", &payments, "yoga"), Some(1));
+    }
+
+    #[test]
+    fn seats_left_with_mixed_statuses_counts_only_the_active_holders() {
+        let payments = crate::ir::fixture_payments();
+        let mut read = read_with(
+            6,
+            &[("a", "yoga", "succeeded"), ("b", "yoga", "succeeded"), ("c", "yoga", "pending"), ("d", "yoga", "failed"), ("e", "other", "succeeded")],
+        );
+        read["instances"]["CheckoutFixture::Registration#a"]["status"] = json!("archived");
+        read["instances"]["CheckoutFixture::Registration#b"]["status"] = json!("active");
+        read["instances"]["CheckoutFixture::Registration#d"]["status"] = json!("active");
+        read["instances"]["CheckoutFixture::Registration#e"]["status"] = json!("archived");
+        // b (active, paid) and c (no status, pending) hold; a is archived, d's
+        // payment failed, and e is another event's.
+        assert_eq!(seats_taken(&read, "CheckoutFixture", &payments, "yoga"), 2);
+        assert_eq!(seats_left(&read, "CheckoutFixture", &payments, "yoga"), Some(4));
+        assert_eq!(seats_left(&read, "CheckoutFixture", &payments, "other"), Some(5), "the archived registration on `other` frees its seat");
     }
 
     #[test]

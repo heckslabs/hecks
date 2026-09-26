@@ -138,7 +138,7 @@ async fn main() -> anyhow::Result<()> {
             mint::audit_before_mint(&client, domain, &ir, &aggregates, ordinal, &chain, &raw_edges, &watermarks).await?;
 
             let held_text = ir.get("source_text").and_then(Value::as_str).unwrap_or("mint_harness fixture source");
-            mint::mint_era(&client, domain, ordinal, &my_hash, &my_label, held_text, &aggregates, &chain, None).await?;
+            mint::mint_era(&client, domain, ordinal, &my_hash, &my_label, held_text, &aggregates, &chain, None, &mint::lifecycle_defaults(&ir)).await?;
             ordinal
         }
     };

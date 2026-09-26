@@ -185,6 +185,7 @@ pub struct Registration {
     pub event_slug: Option<String>,
     pub registration_id: Option<RegistrationId>,
     pub attendee: Option<Attendee>,
+    pub status: String,
 }
 
 impl crate::kernel::Fielded for Registration {
@@ -194,6 +195,7 @@ impl crate::kernel::Fielded for Registration {
             "event_slug" => self.event_slug.as_ref().map(|v| Field::Value(Value::Str(v.clone()))).or(Some(Field::Value(Value::Nil))),
             "registration_id" => self.registration_id.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             "attendee" => self.attendee.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
+            "status" => Some(Field::Value(Value::Str(self.status.clone()))),
             _ => None,
         }
     }
@@ -218,6 +220,7 @@ impl Registration {
         ("event_slug".to_string(), self.event_slug.as_ref().map(|v| crate::kernel::Json::Str(v.clone())).unwrap_or(crate::kernel::Json::Null)),
         ("registration_id".to_string(), self.registration_id.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
         ("attendee".to_string(), self.attendee.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
+        ("status".to_string(), crate::kernel::Json::Str(self.status.clone())),
         ])
     }
 }
@@ -231,6 +234,7 @@ if !matches!(v, crate::kernel::Json::Object(_)) {
         event_slug: match v.get("event_slug") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_) | crate::kernel::Json::Null) { crate::kernel::Refusal::TypeMismatch(format!("Registration.event_slug expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("Registration.event_slug: expected String".to_string()) })?), },
         registration_id: match v.get("registration_id") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(RegistrationId::from_json(&x.coerce_single_field("value"))?), },
         attendee: match v.get("attendee") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(Attendee::from_json(x)?), },
+        status: v.require("status", "Registration")?.as_str().ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Registration.status: expected a string".to_string()))?.to_string(),
         })
     }
 }
@@ -331,6 +335,7 @@ pub fn dispatch_request(
             event_slug: Some(args.event_slug.clone()),
             registration_id: Some(args.registration_id.clone()),
             attendee: Some(args.attendee.clone()),
+            status: "active".to_string(),
         }),
         state_independent: false,
     } }
@@ -438,6 +443,248 @@ if !absent.is_empty() {
         declared: &["event_slug", "registration_id", "attendee"],
     }.render_args()));
 }
+        Ok(())
+    }
+}
+
+impl crate::kernel::Fielded for ArchiveArgs {
+    fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
+        
+        
+        match name {
+
+            _ => None,
+        }
+    }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
+        match name {
+
+            _ => None,
+        }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
+    }
+}
+
+
+#[derive(Debug, Clone)]
+pub struct ArchiveArgs {
+}
+
+pub fn dispatch_archive(
+    repo: &mut impl crate::kernel::Repository<Registration>, id: &str, args: ArchiveArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>, tenant_boundary_check: Result<(), crate::kernel::Refusal>,
+) -> crate::kernel::DispatchResult<Registration> {
+
+    let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
+    let seed_projections = crate::kernel::seeded_projections(&with_references, REGISTRATION_PROJECTED_FIELDS);
+
+    crate::kernel::dispatch(
+        repo,
+        crate::kernel::Hydrate::Act { id: id.to_string() },
+        "Archive",
+        "CheckoutFixture::Registration",
+        "Registration",
+        "registration_id.value",
+        &with_references,
+        &[
+            crate::kernel::GivenSpec { description: "only an active registration can be archived", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("status")), right: Box::new(Expr::Str("active".to_string())) }, corrects_event: None },
+        ],
+        Some(crate::kernel::TransitionCheck { field: "status", from_states: &["active"] }),
+        |record| {
+        record.status = "archived".to_string();
+            Ok(())
+        },
+        &[
+
+        ],
+        &registration_invariants(),
+        &["RegistrationArchived"],
+        args.to_json(),
+        mutations,
+        seed_projections,
+        tenant_boundary_check,
+    )
+}
+
+impl ArchiveArgs {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(
+            vec![]
+                .into_iter()
+                .filter(|(_, v)| !matches!(v, crate::kernel::Json::Null))
+                .collect(),
+        )
+    }
+}
+
+impl ArchiveArgs {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("ArchiveArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["id", "registration", "registration_id"]);
+if !unknown.is_empty() {
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "Archive",
+        unknown: &unknown,
+        declared: &[],
+    }.render_args()));
+}
+        Ok(Self {
+
+        })
+    }
+}
+
+impl ArchiveArgs {
+    pub fn decode_arguments(v: &crate::kernel::Json) -> Result<(), crate::kernel::Refusal> {
+if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("ArchiveArgs expects an object, got {}", v.inspect())));
+}
+        Ok(())
+    }
+
+    pub fn refuse_unknown_arguments(v: &crate::kernel::Json) -> Result<(), crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["id", "registration", "registration_id"]);
+if !unknown.is_empty() {
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "Archive",
+        unknown: &unknown,
+        declared: &[],
+    }.render_args()));
+}
+        Ok(())
+    }
+
+    pub fn refuse_absent_arguments(_v: &crate::kernel::Json) -> Result<(), crate::kernel::Refusal> {
+        Ok(())
+    }
+}
+
+impl crate::kernel::Fielded for RestoreArgs {
+    fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
+        
+        
+        match name {
+
+            _ => None,
+        }
+    }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
+        match name {
+
+            _ => None,
+        }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
+    }
+}
+
+
+#[derive(Debug, Clone)]
+pub struct RestoreArgs {
+}
+
+pub fn dispatch_restore(
+    repo: &mut impl crate::kernel::Repository<Registration>, id: &str, args: RestoreArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>, tenant_boundary_check: Result<(), crate::kernel::Refusal>,
+) -> crate::kernel::DispatchResult<Registration> {
+
+    let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
+    let seed_projections = crate::kernel::seeded_projections(&with_references, REGISTRATION_PROJECTED_FIELDS);
+
+    crate::kernel::dispatch(
+        repo,
+        crate::kernel::Hydrate::Act { id: id.to_string() },
+        "Restore",
+        "CheckoutFixture::Registration",
+        "Registration",
+        "registration_id.value",
+        &with_references,
+        &[
+            crate::kernel::GivenSpec { description: "only an archived registration can be restored", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("status")), right: Box::new(Expr::Str("archived".to_string())) }, corrects_event: None },
+        ],
+        Some(crate::kernel::TransitionCheck { field: "status", from_states: &["archived"] }),
+        |record| {
+        record.status = "active".to_string();
+            Ok(())
+        },
+        &[
+
+        ],
+        &registration_invariants(),
+        &["RegistrationRestored"],
+        args.to_json(),
+        mutations,
+        seed_projections,
+        tenant_boundary_check,
+    )
+}
+
+impl RestoreArgs {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(
+            vec![]
+                .into_iter()
+                .filter(|(_, v)| !matches!(v, crate::kernel::Json::Null))
+                .collect(),
+        )
+    }
+}
+
+impl RestoreArgs {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("RestoreArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["id", "registration", "registration_id"]);
+if !unknown.is_empty() {
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "Restore",
+        unknown: &unknown,
+        declared: &[],
+    }.render_args()));
+}
+        Ok(Self {
+
+        })
+    }
+}
+
+impl RestoreArgs {
+    pub fn decode_arguments(v: &crate::kernel::Json) -> Result<(), crate::kernel::Refusal> {
+if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("RestoreArgs expects an object, got {}", v.inspect())));
+}
+        Ok(())
+    }
+
+    pub fn refuse_unknown_arguments(v: &crate::kernel::Json) -> Result<(), crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["id", "registration", "registration_id"]);
+if !unknown.is_empty() {
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "Restore",
+        unknown: &unknown,
+        declared: &[],
+    }.render_args()));
+}
+        Ok(())
+    }
+
+    pub fn refuse_absent_arguments(_v: &crate::kernel::Json) -> Result<(), crate::kernel::Refusal> {
         Ok(())
     }
 }

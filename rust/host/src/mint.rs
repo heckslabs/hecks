@@ -1162,9 +1162,10 @@ pub async fn mint_era<C: GenericClient>(
     aggregates: &[Aggregate],
     edges: &[&Edge],
     role: Option<&str>,
+    lifecycle_defaults: &[LifecycleDefault],
 ) -> anyhow::Result<()> {
     client.batch_execute("BEGIN").await?;
-    let result = mint_era_body(client, domain, ordinal, hash, label, held_text, aggregates, edges, role).await;
+    let result = mint_era_body(client, domain, ordinal, hash, label, held_text, aggregates, edges, role, lifecycle_defaults).await;
     match &result {
         Ok(_) => client.batch_execute("COMMIT").await?,
         Err(_) => {
@@ -1185,6 +1186,7 @@ async fn mint_era_body<C: GenericClient>(
     aggregates: &[Aggregate],
     edges: &[&Edge],
     role: Option<&str>,
+    lifecycle_defaults: &[LifecycleDefault],
 ) -> anyhow::Result<()> {
     client.batch_execute("SET LOCAL lock_timeout = '10s'").await?;
     client
@@ -1219,11 +1221,107 @@ async fn mint_era_body<C: GenericClient>(
         compile_head(client, domain, aggregate, ordinal, label, edges, &watermarks).await?;
     }
 
+    // Same transaction as the era row and the fence flip: a boot that sees
+    // the new era also sees a snapshot the new shape can read.
+    fill_snapshot_lifecycle_defaults(client, domain, lifecycle_defaults).await?;
+
     if let Some(role) = role {
         grant_role(client, domain, role, aggregates, Some(ordinal)).await?;
     }
     advance_era(client, domain, ordinal).await?;
     Ok(())
+}
+
+// ───────────────────── snapshot seed fill ─────────────────────
+
+/// A lifecycle field an aggregate's instances must carry, and the state a
+/// new instance starts in. One per aggregate that declares a `lifecycle`
+/// in `ir.json`.
+///
+/// `key_prefix` is the seed's own key shape up to the id (`"Domain::Aggregate#"`),
+/// the same one the kernel's `instances()` dump writes.
+#[derive(Debug, Clone, PartialEq)]
+pub struct LifecycleDefault {
+    pub key_prefix: String,
+    pub field: String,
+    pub default: String,
+}
+
+/// Every aggregate's lifecycle field and default, read out of `ir.json`'s
+/// `aggregates[].lifecycle`. An aggregate with no lifecycle (or no string
+/// default) contributes nothing.
+pub fn lifecycle_defaults(ir: &Value) -> Vec<LifecycleDefault> {
+    let domain_name = ir.get("name").and_then(Value::as_str).unwrap_or_default();
+    ir.get("aggregates")
+        .and_then(Value::as_array)
+        .map(|aggregates| {
+            aggregates
+                .iter()
+                .filter_map(|aggregate| {
+                    let name = aggregate.get("name")?.as_str()?;
+                    let lifecycle = aggregate.get("lifecycle")?;
+                    let field = lifecycle.get("field")?.as_str()?;
+                    let default = lifecycle.get("default")?.as_str()?;
+                    Some(LifecycleDefault {
+                        key_prefix: format!("{domain_name}::{name}#"),
+                        field: field.to_string(),
+                        default: default.to_string(),
+                    })
+                })
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+/// Gives every seeded instance that lacks its aggregate's lifecycle field
+/// that field's default, in place; returns how many instances changed.
+///
+/// The kernel rebuilds each aggregate from the seed with a `from_json` that
+/// requires every lifecycle field, so a snapshot written before an aggregate
+/// gained one would refuse to load. An instance that already carries the
+/// field (even in a state other than the default) is left alone, as is any
+/// aggregate not named in `defaults`, so running this twice changes nothing
+/// the second time.
+pub fn fill_lifecycle_defaults(seed: &mut Value, defaults: &[LifecycleDefault]) -> usize {
+    let Some(instances) = seed.as_object_mut() else { return 0 };
+    let mut changed = 0;
+    for (key, instance) in instances.iter_mut() {
+        let Some(default) = defaults.iter().find(|d| key.starts_with(&d.key_prefix)) else { continue };
+        let Some(fields) = instance.as_object_mut() else { continue };
+        if fields.get(&default.field).is_none_or(Value::is_null) {
+            fields.insert(default.field.clone(), Value::String(default.default.clone()));
+            changed += 1;
+        }
+    }
+    changed
+}
+
+/// Fills the stored kernel snapshot's instances with `defaults`, inside the
+/// caller's transaction.
+///
+/// The snapshot is what every dispatch and read seeds the kernel from. The
+/// era's own translation only rewrites the head views, so without this a
+/// snapshot written under the old shape stays without the new field and the
+/// first request after the mint dies with `invalid seed`. Takes the same
+/// advisory lock a dispatch holds for its whole transaction, so an in-flight
+/// dispatch finishes (and saves its snapshot) before this reads it. A
+/// database with no snapshot table or no snapshot row has nothing to fill.
+async fn fill_snapshot_lifecycle_defaults<C: GenericClient>(client: &C, domain: &str, defaults: &[LifecycleDefault]) -> anyhow::Result<usize> {
+    if defaults.is_empty() {
+        return Ok(0);
+    }
+    let table_exists: bool = client.query_one("SELECT to_regclass('hecks_lambda_snapshot') IS NOT NULL", &[]).await?.get(0);
+    if !table_exists {
+        return Ok(0);
+    }
+    client.execute("SELECT pg_advisory_xact_lock(hashtext('hecks_lambda_journal.' || $1::text))", &[&domain]).await?;
+    let Some(row) = client.query_opt("SELECT seed FROM hecks_lambda_snapshot FOR UPDATE", &[]).await? else { return Ok(0) };
+    let mut seed: Value = row.get(0);
+    let changed = fill_lifecycle_defaults(&mut seed, defaults);
+    if changed > 0 {
+        client.execute("UPDATE hecks_lambda_snapshot SET seed = $1", &[&seed]).await.context("filling lifecycle defaults into the snapshot")?;
+    }
+    Ok(changed)
 }
 
 #[cfg(test)]
@@ -1486,7 +1584,7 @@ mod tests {
             }],
         };
 
-        mint_era(&client, domain, 2, &storage_shape::mint_hash(&v2_ir), &to_label, "v2 source text", &[aggregate], &[&edge], None)
+        mint_era(&client, domain, 2, &storage_shape::mint_hash(&v2_ir), &to_label, "v2 source text", &[aggregate], &[&edge], None, &[])
             .await
             .expect("mint_era");
 
@@ -1501,6 +1599,179 @@ mod tests {
                 ("w2".to_string(), serde_json::json!({"amount": {"cents": 200}, "kind": {"label": "w2"}})),
             ]
         );
+    }
+
+    // ───────────── snapshot seed fill ─────────────
+
+    fn registration_default() -> LifecycleDefault {
+        LifecycleDefault { key_prefix: "Studio::Registration#".to_string(), field: "status".to_string(), default: "active".to_string() }
+    }
+
+    // A seed as the kernel's `instances()` dump writes it: one entry per
+    // instance under "Domain::Aggregate#id", value objects as nested objects,
+    // a lifecycle field as a plain string.
+    fn old_seed() -> Value {
+        serde_json::json!({
+            "Studio::Event#yoga": {
+                "slug": {"value": "yoga"}, "name": {"value": "Yoga"}, "price": {"cents": 100},
+                "capacity": {"value": 10}, "status": "open"
+            },
+            "Studio::Registration#r1": {
+                "event_slug": "yoga", "registration_id": {"value": "r1"},
+                "attendee": {"name": "Ada", "email": "ada@example.com"}
+            },
+            "Studio::Registration#r2": {
+                "event_slug": "yoga", "registration_id": {"value": "r2"},
+                "attendee": {"name": "Grace", "email": "grace@example.com"}
+            },
+            "Payments::Payment#r1": {"status": "succeeded"}
+        })
+    }
+
+    #[test]
+    fn a_missing_lifecycle_field_gets_the_default() {
+        let mut seed = old_seed();
+        assert_eq!(fill_lifecycle_defaults(&mut seed, &[registration_default()]), 2);
+        assert_eq!(seed["Studio::Registration#r1"]["status"], "active");
+        assert_eq!(seed["Studio::Registration#r2"]["status"], "active");
+        assert_eq!(seed["Studio::Registration#r1"]["attendee"]["email"], "ada@example.com", "everything else on the instance is kept");
+    }
+
+    #[test]
+    fn a_null_lifecycle_field_is_filled_too() {
+        let mut seed = serde_json::json!({"Studio::Registration#r1": {"status": null}});
+        assert_eq!(fill_lifecycle_defaults(&mut seed, &[registration_default()]), 1);
+        assert_eq!(seed["Studio::Registration#r1"]["status"], "active");
+    }
+
+    #[test]
+    fn an_existing_lifecycle_value_is_left_alone() {
+        let mut seed = old_seed();
+        seed["Studio::Registration#r2"]["status"] = serde_json::json!("archived");
+        assert_eq!(fill_lifecycle_defaults(&mut seed, &[registration_default()]), 1);
+        assert_eq!(seed["Studio::Registration#r2"]["status"], "archived");
+        assert_eq!(seed["Studio::Registration#r1"]["status"], "active");
+    }
+
+    #[test]
+    fn aggregates_without_a_declared_default_are_untouched() {
+        let mut seed = old_seed();
+        let before = seed.clone();
+        assert_eq!(fill_lifecycle_defaults(&mut seed, &[]), 0);
+        assert_eq!(seed, before);
+
+        // Only Registration is named: the Event, the Payment, and an aggregate
+        // whose name merely starts with "Registration" stay as they were.
+        let mut seed = old_seed();
+        seed["Studio::RegistrationNote#n1"] = serde_json::json!({"text": "hi"});
+        let mut expected = seed.clone();
+        expected["Studio::Registration#r1"]["status"] = serde_json::json!("active");
+        expected["Studio::Registration#r2"]["status"] = serde_json::json!("active");
+        fill_lifecycle_defaults(&mut seed, &[registration_default()]);
+        assert_eq!(seed, expected);
+    }
+
+    #[test]
+    fn filling_twice_changes_nothing_the_second_time() {
+        let mut seed = old_seed();
+        fill_lifecycle_defaults(&mut seed, &[registration_default()]);
+        let once = seed.clone();
+        assert_eq!(fill_lifecycle_defaults(&mut seed, &[registration_default()]), 0);
+        assert_eq!(seed, once);
+    }
+
+    #[test]
+    fn a_seed_that_is_not_an_object_or_holds_a_non_object_instance_is_left_alone() {
+        let mut empty = serde_json::json!({});
+        assert_eq!(fill_lifecycle_defaults(&mut empty, &[registration_default()]), 0);
+        let mut not_a_seed = serde_json::json!([1, 2]);
+        assert_eq!(fill_lifecycle_defaults(&mut not_a_seed, &[registration_default()]), 0);
+        let mut odd = serde_json::json!({"Studio::Registration#r1": "scalar"});
+        assert_eq!(fill_lifecycle_defaults(&mut odd, &[registration_default()]), 0);
+        assert_eq!(odd["Studio::Registration#r1"], "scalar");
+    }
+
+    #[test]
+    fn lifecycle_defaults_are_read_from_the_irs_aggregates() {
+        let ir = serde_json::json!({
+            "name": "Studio",
+            "aggregates": [
+                {"name": "Event", "lifecycle": {"field": "status", "default": "open", "transitions": []}},
+                {"name": "Registration", "lifecycle": {"field": "status", "default": "active", "transitions": []}},
+                {"name": "Note", "lifecycle": null},
+                {"name": "Bare"}
+            ]
+        });
+        assert_eq!(
+            lifecycle_defaults(&ir),
+            vec![
+                LifecycleDefault { key_prefix: "Studio::Event#".to_string(), field: "status".to_string(), default: "open".to_string() },
+                registration_default(),
+            ]
+        );
+        assert!(lifecycle_defaults(&serde_json::json!({"name": "Studio"})).is_empty());
+    }
+
+    /// **The real boot**: the snapshot a live host wrote under the old shape
+    /// holds registrations with no `status`; minting the new era fills them
+    /// inside the mint's own transaction, and a mint that fails leaves the
+    /// snapshot as it was.
+    #[tokio::test]
+    async fn minting_an_era_fills_lifecycle_defaults_into_the_stored_snapshot() {
+        let client = own_scratch_db("hecks_host_mint_snapshot_fill").await;
+        journal::ensure_schema(&client).await.expect("ensure_schema");
+        ensure_base(&client, "Studio").await.expect("ensure_base");
+
+        fn shape(with_status: bool) -> Value {
+            let mut aggregate = serde_json::json!({
+                "name": "Registration",
+                "identified_by": ["registration_id"],
+                "attributes": [{"name": "registration_id", "type": "Id", "list": false}],
+                "value_objects": [{"name": "Id", "attributes": [{"name": "value", "type": "String", "list": false}]}],
+                "entities": []
+            });
+            if with_status {
+                aggregate["lifecycle"] = serde_json::json!({"field": "status", "default": "active", "transitions": []});
+            }
+            serde_json::json!({"name": "Studio", "aggregates": [aggregate]})
+        }
+        let (v1_ir, v2_ir) = (shape(false), shape(true));
+        let aggregate = Aggregate { name: "Registration".to_string(), storage_name: "registration".to_string() };
+        hold_first(&client, "Studio", "v1 source", &v1_ir, &[aggregate.clone()], None).await.expect("hold_first");
+        journal::save_snapshot(&client, 7, &old_seed()).await.expect("save_snapshot");
+
+        let to_label = storage_shape::mint_label(&v2_ir);
+        let edge = Edge {
+            from: storage_shape::mint_label(&v1_ir),
+            to: to_label.clone(),
+            aggregates: vec![EdgeAggregate {
+                name: "Registration".to_string(),
+                was: None,
+                has_compute_or_rekey: false,
+                compiled_state_expression: "state || jsonb_build_object('status', 'active')".to_string(),
+                compiled_id_expression: None,
+            }],
+        };
+        let defaults = lifecycle_defaults(&v2_ir);
+        assert_eq!(defaults.len(), 1);
+        // The defaults name "Studio::Registration#", matching the seed's keys.
+        mint_era(&client, "Studio", 2, &storage_shape::mint_hash(&v2_ir), &to_label, "v2 source", &[aggregate], &[&edge], None, &defaults)
+            .await
+            .expect("mint_era");
+
+        let snapshot = journal::load_snapshot(&client).await.unwrap().expect("the snapshot row is still there");
+        assert_eq!(snapshot.ordinal, 7, "the snapshot's ordinal is not touched, only its instances");
+        assert_eq!(snapshot.seed["Studio::Registration#r1"]["status"], "active");
+        assert_eq!(snapshot.seed["Studio::Registration#r2"]["status"], "active");
+        assert!(snapshot.seed["Studio::Event#yoga"]["status"] == "open" && snapshot.seed["Payments::Payment#r1"]["status"] == "succeeded");
+    }
+
+    #[tokio::test]
+    async fn filling_a_database_with_no_snapshot_table_or_row_is_a_no_op() {
+        let client = own_scratch_db("hecks_host_mint_snapshot_fill_absent").await;
+        assert_eq!(fill_snapshot_lifecycle_defaults(&client, "Studio", &[registration_default()]).await.unwrap(), 0, "no table");
+        journal::ensure_schema(&client).await.expect("ensure_schema");
+        assert_eq!(fill_snapshot_lifecycle_defaults(&client, "Studio", &[registration_default()]).await.unwrap(), 0, "no row");
     }
 
     // Layer 2 proven live, both directions: a raw edge whose declared

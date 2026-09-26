@@ -420,7 +420,7 @@ async fn main() -> Result<(), Error> {
                     .map_err(|e| format!("{e:#}"))?;
 
                 let held_text = ir.get("source_text").and_then(serde_json::Value::as_str).ok_or("ir.json is missing source_text — regenerate with bin/project_rust")?;
-                mint::mint_era(&client, &domain, ordinal, &my_hash, &my_label, held_text, &aggregates, &chain, None)
+                mint::mint_era(&client, &domain, ordinal, &my_hash, &my_label, held_text, &aggregates, &chain, None, &mint::lifecycle_defaults(ir))
                     .await
                     .map_err(|e| format!("minting era {ordinal} of {domain}: {e:#}"))?;
                 ordinal

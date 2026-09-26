@@ -28,6 +28,18 @@
     "routed": true
   },
   {
+    "kind": "command",
+    "id": "CheckoutFixture::Registration.Archive",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "CheckoutFixture::Registration.Restore",
+    "generated": true,
+    "routed": true
+  },
+  {
     "kind": "aggregate",
     "id": "CheckoutFixture::PaymentConnection",
     "generated": true
