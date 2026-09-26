@@ -233,7 +233,7 @@ if !matches!(v, crate::kernel::Json::Object(_)) {
         Ok(Self {
         event_slug: match v.get("event_slug") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_) | crate::kernel::Json::Null) { crate::kernel::Refusal::TypeMismatch(format!("Registration.event_slug expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("Registration.event_slug: expected String".to_string()) })?), },
         registration_id: match v.get("registration_id") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(RegistrationId::from_json(&x.coerce_single_field("value"))?), },
-        attendee: match v.get("attendee") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(Attendee::from_json(x)?), },
+        attendee: match v.get("attendee") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(Attendee::from_json(x.expect_value_object_shape("attendee", "Attendee")?)?), },
         status: v.require("status", "Registration")?.as_str().ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Registration.status: expected a string".to_string()))?.to_string(),
         })
     }
@@ -403,7 +403,7 @@ if !absent.is_empty() {
         let event_slug = { let x = v.get("event_slug").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("RequestArgs.event_slug expects String, got nil".to_string()))?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_) | crate::kernel::Json::Null) { crate::kernel::Refusal::TypeMismatch(format!("RequestArgs.event_slug expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("RequestArgs.event_slug: expected String".to_string()) })? };
         let registration_id = RegistrationId::from_json(&(match v.get("registration_id").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("RequestArgs.registration_id expects RegistrationId, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("value"))?;
         registration_id.check_invariants()?;
-        let attendee = Attendee::from_json(&match v.get("attendee").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("RequestArgs.attendee expects Attendee, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() })?;
+        let attendee = Attendee::from_json((match v.get("attendee").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("RequestArgs.attendee expects Attendee, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).expect_value_object_shape("attendee", "Attendee")?)?;
         attendee.check_invariants()?;
         Ok(Self {
         event_slug,

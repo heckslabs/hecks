@@ -383,7 +383,7 @@ if !matches!(v, crate::kernel::Json::Object(_)) {
 }
         Ok(Self {
         reference: match v.get("reference") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(CustomerNumber::from_json(&x.coerce_single_field("value"))?), },
-        name: match v.get("name") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(PersonName::from_json(x)?), },
+        name: match v.get("name") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(PersonName::from_json(x.expect_value_object_shape("name", "PersonName")?)?), },
         email: match v.get("email") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(EmailAddress::from_json(&x.coerce_single_field("address"))?), },
         standing: match v.get("standing") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(CustomerStanding::from_json(&x.coerce_single_field("value"))?), },
         status: v.require("status", "Customer")?.as_str().ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Customer.status: expected a string".to_string()))?.to_string(),
@@ -572,7 +572,7 @@ if !absent.is_empty() {
 }
         let reference = CustomerNumber::from_json(&(match v.get("reference").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("RegisterArgs.reference expects CustomerNumber, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("value"))?;
         reference.check_invariants()?;
-        let name = PersonName::from_json(&match v.get("name").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("RegisterArgs.name expects PersonName, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() })?;
+        let name = PersonName::from_json((match v.get("name").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("RegisterArgs.name expects PersonName, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).expect_value_object_shape("name", "PersonName")?)?;
         name.check_invariants()?;
         let email = EmailAddress::from_json(&(match v.get("email").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("RegisterArgs.email expects EmailAddress, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("address"))?;
         email.check_invariants()?;

@@ -820,7 +820,7 @@ if !matches!(v, crate::kernel::Json::Object(_)) {
         id: PieceId::from_json(&v.require("id", "Piece")?.coerce_single_field("value"))?,
         kind: PieceKind::from_json(&v.require("kind", "Piece")?.coerce_single_field("value"))?,
         color: Color::from_json(&v.require("color", "Piece")?.coerce_single_field("value"))?,
-        square: Square::from_json(v.require("square", "Piece")?)?,
+        square: Square::from_json(v.require("square", "Piece")?.expect_value_object_shape("square", "Square")?)?,
         moved: MovedFlag::from_json(&v.require("moved", "Piece")?.coerce_single_field("value"))?,
         status: v.require("status", "Piece")?.as_str().ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Piece.status: expected a string".to_string()))?.to_string(),
         })
@@ -948,7 +948,7 @@ if !absent.is_empty() {
 }
         let id = PieceId::from_json(&(match v.get("id").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("PieceMoveEntityArgs.id expects PieceId, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("value"))?;
         id.check_invariants()?;
-        let destination = Square::from_json(&match v.get("destination").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("PieceMoveEntityArgs.destination expects Square, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() })?;
+        let destination = Square::from_json((match v.get("destination").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("PieceMoveEntityArgs.destination expects Square, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).expect_value_object_shape("destination", "Square")?)?;
         destination.check_invariants()?;
         let by = Color::from_json(&(match v.get("by").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("PieceMoveEntityArgs.by expects Color, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("value"))?;
         let outcome = GameOutcome::from_json(&(match v.get("outcome").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("PieceMoveEntityArgs.outcome expects GameOutcome, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("value"))?;
@@ -1597,7 +1597,7 @@ if !absent.is_empty() {
         id.check_invariants()?;
         let kind = PieceKind::from_json(&(match v.get("kind").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("PlacePieceArgs.kind expects PieceKind, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("value"))?;
         let color = Color::from_json(&(match v.get("color").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("PlacePieceArgs.color expects Color, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("value"))?;
-        let square = Square::from_json(&match v.get("square").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("PlacePieceArgs.square expects Square, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() })?;
+        let square = Square::from_json((match v.get("square").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("PlacePieceArgs.square expects Square, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).expect_value_object_shape("square", "Square")?)?;
         square.check_invariants()?;
         Ok(Self {
         id,
@@ -1786,7 +1786,7 @@ if !absent.is_empty() {
 }
         let id = PieceId::from_json(&(match v.get("id").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("MovePieceArgs.id expects PieceId, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("value"))?;
         id.check_invariants()?;
-        let destination = Square::from_json(&match v.get("destination").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("MovePieceArgs.destination expects Square, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() })?;
+        let destination = Square::from_json((match v.get("destination").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("MovePieceArgs.destination expects Square, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).expect_value_object_shape("destination", "Square")?)?;
         destination.check_invariants()?;
         let by = Color::from_json(&(match v.get("by").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("MovePieceArgs.by expects Color, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("value"))?;
         let outcome = GameOutcome::from_json(&(match v.get("outcome").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("MovePieceArgs.outcome expects GameOutcome, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("value"))?;
