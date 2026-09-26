@@ -39,6 +39,10 @@ vendor/bundle/
 # real from a checkout that also runs `git status`, so nothing had
 # needed this entry before.
 .aws-sam/
+# lifeadelics's recipe is generated from its own repo's .world file
+# (bin/project_deploy <its domain> --out=<its repo>); a copy under this
+# repo's deploy/ goes stale and leaks a client into hecks.
+/deploy/lifeadelics/
 coverage/
 .claude/*
 # Skills are project knowledge, not session scratch — tracked so any
