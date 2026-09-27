@@ -35,9 +35,9 @@ mod newsletter;
 mod newsletter_send;
 mod registrations;
 
-use registrations::{checkout_enabled, payments_routes};
-// payments.rs and its tests reach these through `web::`, not `web::registrations::`.
-pub(crate) use registrations::{registration_complete_route, registrations_route, webhook_route, MOCK_STRIPE_WEBHOOK_SECRET};
+use registrations::payments_routes;
+// payments.rs, its tests and the boot check reach these through `web::`.
+pub(crate) use registrations::{checkout_enabled, registration_complete_route, registrations_route, webhook_route, MOCK_STRIPE_WEBHOOK_SECRET};
 #[cfg(test)]
 pub(crate) use registrations::{seats_left, seats_taken};
 
