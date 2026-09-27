@@ -739,6 +739,13 @@ default_seeds, default_steps = Hecks::Fuzzing::SweepDepth.for_streak(current_str
 seeds              = seeds_override || default_seeds
 steps_per_sequence = steps_override || default_steps
 
+# Only when depth is auto-resolved from the streak: an explicit `--seeds N` is a person's manual
+# debugging/reproduction run, and stays the predictable `1..N` it has always been. Growing this
+# with the streak is what keeps a matured target's sweep moving into seed integers it has never
+# generated before, instead of re-covering the same `default_seeds` seeds every tick once the
+# widening tiers stop growing (see Hecks::Fuzzing::SweepDepth.seed_offset).
+seed_offset = seeds_override ? 0 : Hecks::Fuzzing::SweepDepth.seed_offset(current_streak, default_seeds)
+
 # Clamps down (never up) only for `--persistence-parity`: real PostgresEra I/O per dispatch is
 # expensive even for a target on the widest tier.
 if persistence_parity_mode && seeds > QualityControlDials::PERSISTENCE_PARITY_SEED_CAP
@@ -758,6 +765,7 @@ if active_modes.include?(:concurrency) && seeds > QualityControlDials::CONCURREN
 end
 
 puts "resolved depth: seeds=#{seeds} steps=#{steps_per_sequence} (clean_streak=#{current_streak})"
+puts "seed range: #{seed_offset + 1}..#{seed_offset + seeds}" if seeded_modes.any?
 modes_line = "resolved modes: #{active_modes.join(',')} (capabilities=#{capabilities.join(',')}"
 modes_line += "; deferred=#{deferred_modes.join(',')}" unless deferred_modes.empty?
 puts "#{modes_line})"
@@ -1132,18 +1140,53 @@ def write_shrunk!(shrunk, sweep_reference, feature, seed)
   path
 end
 
+# Coverage-guided generation's corpus, one JSON file per (target, mode): `run_all_mode`'s waves can
+# run a target's primary sweep and its persistence-parity/concurrency variants as separate
+# `bin/qa_sweep` processes within the same tick, and each explores a conceptually independent axis
+# of the same domain, so each keeps its own file rather than sharing one that nothing here locks.
+# QA_SWEEP_COVERAGE_CORPUS_DIR lets an isolated spec point this at a throwaway directory.
+COVERAGE_CORPUS_DIR = ENV.fetch("QA_SWEEP_COVERAGE_CORPUS_DIR", File.join(ROOT, "tmp/qa-coverage-corpus"))
+
+def coverage_corpus_path(target_reference, mode)
+  File.join(COVERAGE_CORPUS_DIR, "#{target_reference}-#{mode}.json")
+end
+
+# Nil when nothing was ever saved for this (target, mode), or the file cannot be parsed — either
+# way the campaign starts from an empty corpus, exactly as it always has.
+def load_coverage_state(path)
+  JSON.parse(File.read(path))
+rescue Errno::ENOENT, JSON::ParserError
+  nil
+end
+
+def save_coverage_state!(path, campaign)
+  FileUtils.mkdir_p(File.dirname(path))
+  File.write(path, JSON.pretty_generate(campaign.to_h))
+end
+
 surprise = nil
 
 begin
-  # One campaign per sweep; nil when guided generation is off.
-  campaign = if GUIDED_GENERATION
-               Hecks::Fuzzing::CoverageCampaign.new(splice_probability: CORPUS_SPLICE_PROBABILITY,
-                                                    favor_count:        FAVOR_RARE_VERBS)
-             end
+  # One campaign per sweep, resumed from a prior tick's corpus for this exact (target, mode) so
+  # guided generation's knowledge compounds across ticks instead of rebuilding an identical corpus
+  # from an identical trace every time. Nil when guided generation is off, or this is a
+  # seedless-only sweep that will never record anything into it.
+  coverage_path = coverage_corpus_path(target_reference, mode) if GUIDED_GENERATION && seeded_modes.any?
+  campaign =
+    if coverage_path
+      saved = load_coverage_state(coverage_path)
+      if saved
+        Hecks::Fuzzing::CoverageCampaign.load(saved, splice_probability: CORPUS_SPLICE_PROBABILITY,
+                                                     favor_count:        FAVOR_RARE_VERBS)
+      else
+        Hecks::Fuzzing::CoverageCampaign.new(splice_probability: CORPUS_SPLICE_PROBABILITY,
+                                             favor_count:        FAVOR_RARE_VERBS)
+      end
+    end
 
   # A seedless-only sweep skips the loop so it never claims to have generated sequences.
   if seeded_modes.any?
-    (1..seeds).each do |seed|
+    ((seed_offset + 1)..(seed_offset + seeds)).each do |seed|
       plan   = campaign&.plan(seed)
       result = run_one_seed(mode, differ, domain_path, feature, binary, seed, steps_per_sequence, adversarial,
                             active_modes, role_draw: role_draw, dry_run: dry_run,
@@ -1242,6 +1285,11 @@ ensure
     end
     admin.close
   end
+
+  # Persists whatever this run's campaign learned, clean, surprised or crashed alike — the corpus
+  # a surprised run built up to that point is still real coverage a later tick should not have to
+  # rediscover from scratch.
+  save_coverage_state!(coverage_path, campaign) if campaign
 end
 
 if surprise

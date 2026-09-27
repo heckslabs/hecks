@@ -78,6 +78,47 @@ module Hecks
           "#{@seeds_with_new} seed(s) reached something new; #{@spliced} spliced from a corpus of #{@corpus.size}"
       end
 
+      # Serializes the accumulated corpus and coverage knowledge, JSON-safe, so a later process can
+      # pick this campaign up where it left off. This campaign's own dials — splice probability,
+      # favor count, corpus and prefix-depth bounds — are configuration a caller supplies fresh each
+      # time, not state, so they are not part of this.
+      #
+      # @return [Hash] with string keys "corpus", "seen", "verb_hits", "declared_verbs"
+      def to_h
+        { "corpus"         => @corpus.map { |entry| { "spec" => entry[:spec], "attempts" => entry[:attempts] } },
+          "seen"           => @seen.to_a,
+          "verb_hits"      => @verb_hits.dup,
+          "declared_verbs" => @declared_verbs.to_a }
+      end
+
+      # Replaces this campaign's accumulated corpus and coverage knowledge with what a prior
+      # campaign's `#to_h` serialized, leaving this campaign's own dials untouched.
+      #
+      # @param state [Hash] as `#to_h` produced it; string or symbol keys both accepted
+      # @return [void]
+      def restore!(state)
+        state = state.transform_keys(&:to_s)
+        @corpus = Array(state["corpus"]).map { |entry| { spec: entry["spec"], attempts: entry["attempts"] } }
+        @seen = Set.new(Array(state["seen"]))
+        @verb_hits = Hash.new(0).merge(state["verb_hits"] || {})
+        @declared_verbs = Set.new(Array(state["declared_verbs"]))
+      end
+
+      # Builds a campaign that already knows what a prior campaign's `#to_h` reached, configured
+      # with this process's own dials rather than whatever the saved state's own process ran with.
+      #
+      # @param state [Hash] as `#to_h` produced it; string or symbol keys both accepted, since a
+      #   round trip through JSON turns every key into a string
+      # @param splice_probability [Float] see `#initialize`
+      # @param favor_count [Integer] see `#initialize`
+      # @param corpus_limit [Integer] see `#initialize`
+      # @param max_prefix_depth [Integer] see `#initialize`
+      # @return [Fuzzing::CoverageCampaign]
+      def self.load(state, splice_probability:, favor_count:, corpus_limit: 64, max_prefix_depth: 6)
+        new(splice_probability: splice_probability, favor_count: favor_count,
+            corpus_limit: corpus_limit, max_prefix_depth: max_prefix_depth).tap { |campaign| campaign.restore!(state) }
+      end
+
       private
 
       def admit(seed, plan, attempts)

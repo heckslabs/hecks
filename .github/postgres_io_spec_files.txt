@@ -51,8 +51,10 @@ spec/qa_sweep_all_parity_wave_spec.rb
 spec/qa_sweep_all_pool_drain_spec.rb
 spec/qa_sweep_all_shrink_spec.rb
 spec/qa_sweep_concurrency_spec.rb
+spec/qa_sweep_coverage_corpus_persistence_spec.rb
 spec/qa_sweep_era_boundary_spec.rb
 spec/qa_sweep_persistence_parity_spec.rb
+spec/qa_sweep_seed_offset_spec.rb
 spec/qa_tick_clean_run_spec.rb
 spec/qa_tick_dirty_tree_spec.rb
 spec/qa_tick_operational_error_spec.rb

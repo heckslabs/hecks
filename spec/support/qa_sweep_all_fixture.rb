@@ -199,9 +199,12 @@ RSpec.shared_context "with a qa_sweep_all fixture" do |database_name|
   end
 
   # Runs `bin/qa_sweep` as a real subprocess against the fixture ledger and fixture Rust crate.
-  def run_qa_sweep(*args)
+  # `env` merges in on top of the fixture's own two vars — for example
+  # QA_SWEEP_COVERAGE_CORPUS_DIR, so a spec can point coverage-guided generation's corpus at its
+  # own throwaway directory instead of this repository's real tmp/qa-coverage-corpus.
+  def run_qa_sweep(*args, env: {})
     Open3.capture3(
-      { "QA_SWEEP_DOMAIN_DIR" => @fixture_dir, "QA_SWEEP_RUST_DIR" => FIXTURE_RUST_DIR },
+      { "QA_SWEEP_DOMAIN_DIR" => @fixture_dir, "QA_SWEEP_RUST_DIR" => FIXTURE_RUST_DIR }.merge(env),
       "bundle", "exec", "ruby", File.join(InMemoryDomain::ROOT, "bin/qa_sweep"), *args,
       chdir: InMemoryDomain::ROOT
     )

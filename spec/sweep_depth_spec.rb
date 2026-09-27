@@ -48,4 +48,35 @@ RSpec.describe Hecks::Fuzzing::SweepDepth do
     expect { described_class.for_streak(9, tiers: [{ upto: 4, seeds: 1, steps: 1 }]) }
       .to raise_error(ArgumentError, /Float::INFINITY/)
   end
+
+  # `seed_offset` is what keeps a target past the ceiling tier from re-sweeping the identical seed
+  # integers, and therefore the identical generated sequences, forever.
+  describe ".seed_offset" do
+    it "leaves a fresh or just-reset target sweeping the familiar 1..seeds range" do
+      expect(described_class.seed_offset(0, 50)).to eq(0)
+    end
+
+    it "grows with the streak, one full seed-count stride per clean release" do
+      expect(described_class.seed_offset(20, 50)).to eq(1000)
+      expect(described_class.seed_offset(21, 50)).to eq(1050)
+    end
+
+    it "never lets consecutive streaks' ranges overlap, at a fixed seed count" do
+      seeds = 50
+      (0..30).each do |streak|
+        this_range_end   = described_class.seed_offset(streak, seeds) + seeds
+        next_range_start = described_class.seed_offset(streak + 1, seeds) + 1
+        expect(next_range_start).to be > this_range_end
+      end
+    end
+
+    it "restarts at 0 after a streak reset, however far the streak had climbed" do
+      expect(described_class.seed_offset(5_000, 50)).to be > 0
+      expect(described_class.seed_offset(0, 50)).to eq(0)
+    end
+
+    it "refuses a negative streak" do
+      expect { described_class.seed_offset(-1, 50) }.to raise_error(ArgumentError, /negative/)
+    end
+  end
 end

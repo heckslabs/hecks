@@ -1,4 +1,5 @@
 require "spec_helper"
+require "json"
 require "hecks/fuzzing/sequence_generator"
 require "hecks/fuzzing/coverage_campaign"
 
@@ -95,5 +96,45 @@ RSpec.describe Hecks::Fuzzing::CoverageCampaign do
     campaign.record(1, campaign.plan(1), trace([tuple("D::A.Open")]))
 
     expect(campaign.summary).to start_with("coverage: 1 distinct").and include("1 seed(s) reached something new")
+  end
+
+  # Persistence is what lets `bin/qa_sweep` carry a campaign's corpus and coverage knowledge across
+  # separate process invocations (one per tick), rather than rebuilding it from scratch every time.
+  describe "#to_h / .load / #restore!" do
+    it "round-trips the corpus, seen tuples, verb hits and declared verbs through a JSON-safe hash" do
+      original = described_class.new(splice_probability: 1.0, favor_count: 0)
+      original.record(1, original.plan(1), trace([tuple("D::A.Open"), tuple("D::A.Close")]))
+      original.record(2, original.plan(2), trace([tuple("D::A.Rare")]))
+
+      # JSON.parse(JSON.generate(...)) is exactly what a real bin/qa_sweep round trip does: every
+      # key becomes a string, same as reading the saved file back on the next process's boot.
+      state = JSON.parse(JSON.generate(original.to_h))
+
+      restored = described_class.load(state, splice_probability: 1.0, favor_count: 0)
+      expect(restored.corpus).to eq(original.corpus)
+      expect(restored.tuples_seen).to eq(original.tuples_seen)
+
+      # A plan for the next seed after the restore is identical to the plan the original campaign
+      # would have built for that same seed: the restored corpus and verb hits behave the same, not
+      # just print the same.
+      expect(restored.plan(3)).to eq(original.plan(3))
+    end
+
+    it "starts a fresh campaign, corpus and all, when there is nothing to restore" do
+      campaign = described_class.new(splice_probability: 1.0, favor_count: 0)
+      campaign.restore!("corpus" => [], "seen" => [], "verb_hits" => {}, "declared_verbs" => [])
+
+      expect(campaign.corpus).to eq([])
+      expect(campaign.tuples_seen).to eq(0)
+    end
+
+    it "keeps this process's own dials on .load, not whatever the saved state's process ran with" do
+      saved = described_class.new(splice_probability: 1.0, favor_count: 3).to_h
+
+      restored = described_class.load(saved, splice_probability: 0.0, favor_count: 0)
+      # splice_probability 0.0 means `plan` never proposes a prefix, whatever the corpus holds.
+      restored.record(1, restored.plan(1), trace([tuple("D::A.Open")]))
+      expect(restored.plan(2).prefix).to be_nil
+    end
   end
 end
