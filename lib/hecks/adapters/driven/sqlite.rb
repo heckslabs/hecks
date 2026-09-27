@@ -71,6 +71,7 @@ module Hecks
         create_event_table!
         create_saga_table!
         create_outbox_table!
+        create_checkpoint_table!
       end
 
       # Runs the block inside one SQLite transaction, joining an already-open one.
@@ -142,9 +143,12 @@ module Hecks
 
       # Inserts one journal row, outside any transaction of its own.
       #
+      # Stamps the row's assigned `sequence` onto `entry` in place, so a `project` call right
+      # after (same object, same transaction) can advance the checkpoint with no extra query.
+      #
       # @param entry [Ports::Persistence::Entry] the save or delete to journal; `state` is
       #   encoded through the state codec and `mirrors` stored as JSON, or NULL when nil
-      # @return [Ports::Persistence::Entry] the same `entry`
+      # @return [Ports::Persistence::Entry] the same `entry`, `sequence` now set
       # @raise [SQLite3::Exception] if the insert fails
       def append(entry)
         @db.execute(
@@ -153,6 +157,7 @@ module Hecks
           [entry.id, entry.operation, JSON.generate(Ports::Persistence::StateCodec.encode(@aggregate, entry.state)),
            entry.mirrors && JSON.generate(entry.mirrors)]
         )
+        entry.sequence = @db.last_insert_row_id
         entry
       end
 
@@ -163,6 +168,7 @@ module Hecks
       #   for a delete, the `DELETE` statement's empty result rows
       # @raise [SQLite3::Exception] if the statement fails
       def project(entry)
+        advance_checkpoint!(entry.sequence) if entry.sequence
         return @db.execute("DELETE FROM #{quoted_table} WHERE id = ?", [entry.id]) if entry.delete?
 
         instance = Runtime::Instance.new(aggregate: @aggregate, id: entry.id, state: entry.state)
@@ -185,15 +191,36 @@ module Hecks
       # @raise [SQLite3::Exception] if the statement fails
       # @raise [JSON::ParserError] if a stored `state` or `mirrors` value is not valid JSON
       def entries
-        @db.execute("SELECT aggregate_id, operation, state, mirrors FROM #{quoted_entry_table} ORDER BY sequence").map do |row|
-          state = JSON.parse(row["state"])
-          Ports::Persistence::Entry.new(
-            operation: row["operation"] || "save",
-            id:        row["aggregate_id"],
-            state:     Ports::Persistence::StateCodec.decode(@aggregate, state),
-            mirrors:   row["mirrors"] && JSON.parse(row["mirrors"])
-          )
-        end
+        entries_matching(
+          "SELECT aggregate_id, operation, state, mirrors, sequence FROM #{quoted_entry_table} ORDER BY sequence"
+        )
+      end
+
+      # Reads only the journal rows past a given `sequence`, for `AppendOnly#recover!` to replay
+      # after a checkpoint instead of the whole journal.
+      #
+      # @param sequence [Integer] the highest `sequence` already projected; rows at or below it
+      #   are skipped
+      # @return [Array<Ports::Persistence::Entry>] the journalled entries past `sequence`, in
+      #   append order, decoded exactly as `entries` decodes them; `[]` when none are newer
+      # @raise [SQLite3::Exception] if the statement fails
+      # @raise [JSON::ParserError] if a stored `state` or `mirrors` value is not valid JSON
+      def entries_since(sequence)
+        entries_matching(
+          "SELECT aggregate_id, operation, state, mirrors, sequence FROM #{quoted_entry_table} " \
+          "WHERE sequence > ? ORDER BY sequence",
+          [sequence]
+        )
+      end
+
+      # Reads the highest journal `sequence` this table has already had projected into it.
+      #
+      # @return [Integer] `0` when the table has never been checkpointed (a fresh table, or one
+      #   from before this bookkeeping existed) — `entries_since(0)` then reads the whole journal,
+      #   matching `entries`' own full replay
+      # @raise [SQLite3::Exception] if the statement fails
+      def checkpoint
+        @db.get_first_value("SELECT last_sequence FROM hecks_checkpoints WHERE aggregate_table = ?", [table]).to_i
       end
 
       # Deletes every row of the aggregate's table and its journal; events, saga rows and
@@ -424,6 +451,32 @@ module Hecks
       end
 
       private
+
+      # Shared decode step for `entries`/`entries_since` — runs a query already selecting
+      # `aggregate_id, operation, state, mirrors, sequence` and builds one Entry per row.
+      def entries_matching(sql, binds = [])
+        @db.execute(sql, binds).map do |row|
+          state = JSON.parse(row["state"])
+          Ports::Persistence::Entry.new(
+            operation: row["operation"] || "save",
+            id:        row["aggregate_id"],
+            state:     Ports::Persistence::StateCodec.decode(@aggregate, state),
+            mirrors:   row["mirrors"] && JSON.parse(row["mirrors"]),
+            sequence:  row["sequence"].to_i
+          )
+        end
+      end
+
+      # Advances this table's checkpoint to `sequence`, never backwards — two overlapping
+      # `project` calls for out-of-order entries must not let an older sequence win.
+      def advance_checkpoint!(sequence)
+        @db.execute(
+          "INSERT INTO hecks_checkpoints (aggregate_table, last_sequence) VALUES (?, ?) " \
+          "ON CONFLICT (aggregate_table) DO UPDATE SET " \
+          "last_sequence = MAX(last_sequence, excluded.last_sequence)",
+          [table, sequence]
+        )
+      end
 
       def outbox_row(row)
         Runtime::Outbox::Row.new(
