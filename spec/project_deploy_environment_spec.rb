@@ -2,12 +2,8 @@ require "tmpdir"
 require "fileutils"
 require "open3"
 
-# `bin/project_deploy --environment=<name>` layers
-# `<domain>/bluebook/environments/<name>.world` over the base `.world`,
-# so a domain's base file stays generic and a real live stack's naming
-# lives in the overlay that targets it. Structural, like
-# project_deploy_out_spec.rb: runs the script as a subprocess against a
-# throwaway domain and reads back what it wrote.
+# `bin/project_deploy --environment=<name>` layers `bluebook/environments/<name>.world`
+# over the base `.world`. Runs the script against a throwaway domain and reads its output.
 RSpec.describe "bin/project_deploy --environment", :io do
   ENV_FIXTURE_BASENAME = "project_deploy_environment_spec_fixture".freeze
 

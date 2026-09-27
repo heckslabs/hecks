@@ -2,20 +2,8 @@ require "spec_helper"
 require "yaml"
 require "hecks/fuzzing/target_capabilities"
 
-# **Enabled must mean built** — the drift this spec exists for was live:
-# `qa/settings.yml` had `wasm_front: true` and `adapter_parity_postgres:
-# true` while `bin/qa_sweep` held no code for either. Neither is a seat,
-# neither folds into the per-seed loop, neither has a `MODE_EXPECTATIONS`
-# entry — yet both resolved, printed on the `resolved modes:` line, and
-# logged no Check at all, so the sweep's own report claimed a comparison
-# nobody had written.
-#
-# The runner itself is the oracle, not a second hand-kept list: for every
-# mode the capability table names, this greps `bin/qa_sweep`'s own code
-# (comments stripped — prose naming a mode is not an implementation of
-# it) and requires that mentioning it and listing it in `RUNNABLE_MODES`
-# agree. So adding the code and forgetting the list fails here, and so
-# does listing a mode whose code was never written or has been removed.
+# A sweep mode counts as enabled only if `bin/qa_sweep` has code for it. The runner is the oracle:
+# comments are stripped before grepping, since prose naming a mode is not an implementation.
 RSpec.describe "sweep modes that actually run" do
   let(:root) { InMemoryDomain::ROOT }
   let(:runnable) { Hecks::Fuzzing::TargetCapabilities::RUNNABLE_MODES }

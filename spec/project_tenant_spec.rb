@@ -5,22 +5,15 @@ require "hecks/ports/persistence/plugins/era"
 require_relative "support/postgres_probe"
 require_relative "support/fenced_owner"
 
-# bin/project_tenant is a script, not a library — same reasoning
-# project_deploy_contract_spec.rb's own header gives: there's nothing
-# to require, so this runs it as a real subprocess (Open3) against a
-# real tmpdir fixture and reads back what it actually produced, the
-# same way bin/project_deploy's own contract spec does.
+# bin/project_tenant is a script, not a library: run it as a subprocess against a tmpdir fixture
+# and read back what it generated.
 RSpec.describe "bin/project_tenant", :io do
-  # InMemoryDomain::ROOT, not a locally-aliased bare `ROOT` — see
-  # word_coverage_spec.rb's own comment: a bare `ROOT` once collided with
-  # another spec file's identical constant, caught by
-  # load_hygiene_spec.rb's "no two spec files disagree about a
-  # top-level constant" gate.
+  # Not aliased to a local `ROOT`: a bare `ROOT` collides with word_coverage_spec.rb's
+  # (caught by load_hygiene_spec.rb).
   SCRIPT = File.join(InMemoryDomain::ROOT, "bin/project_tenant").freeze
   DB = "hecks_project_tenant_spec".freeze
-  # What the generated overlay actually binds: the database by URL, as a
-  # non-superuser owner — the ambient dev/CI user is a superuser, which
-  # PostgresEra refuses to boot as (BUG#24; see support/fenced_owner.rb).
+  # The overlay binds the database by URL as a non-superuser owner: PostgresEra refuses to boot
+  # as a superuser (see support/fenced_owner.rb).
   DB_URL = FencedOwner.url(DB)
 
   def fixture(dir)

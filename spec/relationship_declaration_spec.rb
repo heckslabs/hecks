@@ -5,9 +5,7 @@ RSpec.describe "relationship declarations" do
     Hecks::Bluebook::DSL::BluebookBuilder.build("RelationshipFixture", &block)
   end
 
-  # Inline domain declares all four relationship kinds on one aggregate so
-  # the IR and assembly round-trip checks below prove them together;
-  # splitting would re-declare the same fixture chapter for no real gain.
+  # One aggregate declares all four relationship kinds so IR and assembly are checked together.
   # rubocop:disable-next RSpec/ExampleLength
   it "preserves relationship kind and cardinality through canonical IR and assembly" do
     chapter = build_chapter do
@@ -60,9 +58,7 @@ RSpec.describe "relationship declarations" do
     expect(Hecks::Bluebook::Assembly.call(chapter.to_h).to_h).to eq(chapter.to_h)
   end
 
-  # Inline domain nests an entity with all three relationship kinds so this
-  # proves the same declarations work on an owned entity, not just an
-  # aggregate; splitting would just re-declare the fixture chapter twice.
+  # Same declarations on an owned entity rather than an aggregate.
   # rubocop:disable-next RSpec/ExampleLength
   it "uses the same relationship declarations on an entity" do
     chapter = build_chapter do
@@ -131,13 +127,8 @@ RSpec.describe "relationship declarations" do
     end.to raise_error(Hecks::Bluebook::DSL::Malformed, /has_many takes no optional/)
   end
 
-  # `has_many`'s target resolves through `Naming.singularize`, the
-  # crude undo of `Naming.plural` (naming_spec.rb's own "undoes
-  # plural's -es rule" pins the rule itself) — a target aggregate whose
-  # own name ends in s/x/z/ch/sh must round-trip through the same
-  # "-es" suffix `plural` would mint for it, or `has_many Boxes` names
-  # a phantom "Boxe" this chapter never declares instead of the real
-  # aggregate named Box.
+  # `Naming.singularize` must undo the "-es" suffix `plural` mints, or
+  # `has_many Boxes` resolves to a phantom "Boxe" instead of Box.
   it "resolves has_many against a real aggregate whose plural adds -es" do
     chapter = build_chapter do
       vision "a plural ending in -es still resolves to its real singular"

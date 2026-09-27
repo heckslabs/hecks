@@ -1,39 +1,13 @@
-//! Mirrors `AttributeCollector#synthesise_closed_set` — an inline
-//! `attribute :status, one_of("open", "shut")` desugars to a value object
-//! named `Naming.pascal(attribute_name)`, with one `value: String`
-//! attribute and one member per listed value, `closed_set: true`. Also
-//! covers `one_of do member ... end` (the standalone, named form,
-//! `parse::value_object`'s own `parse_one_of_body`) and `member`'s own
-//! pairs-row capture (`PairsShape::verbatim` — each member's fields are
-//! an open map, never resolved against a fixed schema).
-//!
-//! Stage 3: `synthesize` below, called from `parse::mod::
-//! resolve_type_expression` — confirmed real by console_settings.
-//! bluebook's `StateStyle.tone`/`Collection.identity_strategy`
-//! (`attribute :tone, one_of("good", "warn", "danger", "muted",
-//! "accent"), optional: true`).
+//! Mirrors `AttributeCollector#synthesise_closed_set`: an inline `one_of("a", "b")` attribute
+//! becomes a closed-set value object named `Naming.pascal(attribute_name)`.
 
 use crate::build::naming;
 use crate::ir;
 
-/// `AttributeCollector#synthesise_closed_set` — `type = Naming.pascal(name)`,
-/// one `value: String` attribute, one member per listed value
-/// (`{value: value.to_s}`, `IR::ValueObject#to_h`'s own `.to_s` rendering
-/// — see `ruby_value::to_s`'s own header on why that's distinct from
-/// `Literal.render`). The caller decides whether the synthesized value
-/// object actually gets kept: only `AggregateBuilder#build`'s own
-/// `@value_objects + closed_sets` folds it into the owning aggregate —
-/// `CommandBuilder`/`QueryBuilder`/`ValueObjectBuilder`/
-/// `DomainPortBuilder` all include the same `AttributeCollector` module
-/// and so also synthesize one for their own inline `one_of(...)`
-/// attributes, but none of their own `#build` methods ever read
-/// `closed_sets` — confirmed by reading each builder directly, not
-/// assumed — so a command/query/value-object/port-operation attribute's
-/// own synthesized value object is discarded by its caller in
-/// `parse/*.rs`, keeping only the derived `type_name` string (the
-/// aggregate that already declares the same field name independently
-/// mints the real value object other constructs' attributes merely
-/// reference by name).
+/// Builds the closed-set value object for `field_name` with one member per value.
+///
+/// Only `AggregateBuilder#build` keeps the result; command, query, value-object and port
+/// builders discard it and keep the derived type name.
 pub fn synthesize(field_name: &str, values: &[String]) -> ir::ValueObject {
     let type_name = naming::pascal(field_name);
     ir::ValueObject {

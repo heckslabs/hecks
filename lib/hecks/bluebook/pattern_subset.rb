@@ -1,25 +1,7 @@
 module Hecks
   module Bluebook
-    # **Which regexes a bluebook may say**.
-    #
-    # A `pattern:` is a fact about a value, carried in a bluebook — declared
-    # data, not Ruby code, so it must not lean on what any one engine happens
-    # to accept. Regex engines disagree in two different ways :
-    #
-    #   only a backtracking engine can match it — lookahead, lookbehind,
-    #   backreferences, atomic groups, possessive quantifiers. None of these
-    #   can be matched in linear time, and linear-time engines refuse them
-    #   outright. Refused here for the same reason.
-    #
-    #   every engine parses it and they mean different things — the dangerous
-    #   half, because nothing errors. `\d` `\w` `\s` are ASCII in some engines
-    #   and Unicode in others ; `[:digit:]` and friends flip the same way in
-    #   the other direction. Both families are refused, and a domain spells
-    #   the range it means.
-    #
-    # What remains — explicit ranges, alternation, quantifiers, anchors,
-    # groups — reads identically everywhere, with `^` and `$` as line anchors
-    # (Ruby's reading). The evidence is spec/corpus/fixtures/patterns.json.
+    # Which regexes a bluebook `pattern:` may say: only what every engine reads the same way.
+    # Backtracking-only and ASCII/Unicode-dependent constructs are refused.
     module PatternSubset
       Rejection = Struct.new(:construct, :reason)
 
@@ -55,36 +37,19 @@ module Hecks
 
       module_function
 
-      # nil when the pattern is admitted, a Rejection when it is not.
+      # Returns nil when the pattern is admitted, a Rejection when it is not.
       #
-      # A character walk, deliberately plain : the subset is defined by this
-      # walk, and a cleverer spelling would hide what it admits. An escaped
-      # construct is a literal, not a violation — `\(\?=` is the three
-      # characters "(?=" and says nothing about lookahead — which is why this
-      # steps over each backslash pair rather than matching the pattern as a
-      # whole.
-      # One character walk is the subset's definition (see the method
-      # comment above): each construct-check is a branch in a single
-      # ordered pass sharing `index`/`in_class`/`class_start`. Splitting
-      # the branches into separate methods would force those three cursor
-      # variables to thread as parameters/return values between them,
-      # turning "the subset is this walk" into "the subset is these
-      # methods agreeing about a shared cursor" — exactly what the walk's
-      # own comment says a cleverer spelling would obscure.
+      # One ordered character walk defines the subset; an escaped construct is a literal,
+      # which is why each backslash pair is stepped over rather than matched as a whole.
       # rubocop:disable-next Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/PerceivedComplexity
       #
       # @param pattern [String, Symbol, #to_s] the declared `pattern:` regex source
-      # @return [Rejection, nil] the reason the pattern is refused, or `nil` if it is
-      #   entirely within the portable subset
+      # @return [Rejection, nil] the reason the pattern is refused, or `nil` if admitted
       def validate(pattern)
         chars = pattern.to_s.chars
         index = 0
-        # A character-class interior is a different alphabet : inside `[...]`,
-        # `*`, `+`, `?`, `(`, `?` are literal characters, not quantifiers or
-        # group syntax — `[*+]` means "a literal asterisk or plus". `]` is
-        # only the class's close when it isn't the first character after `[`
-        # or `[^` (where it is itself a literal, per POSIX bracket-expression
-        # rules).
+        # Inside `[...]` quantifier characters are literals, and `]` closes the class unless
+        # it is the first character after `[` or `[^`.
         in_class = false
         class_start = nil
 
@@ -136,8 +101,7 @@ module Hecks
         nil
       end
 
-      # Spelled out, not derived from the key : these strings are the refusal
-      # a caller reads.
+      # Spelled out, not derived from the key: callers read these strings in refusals.
       CONSTRUCTS = {
         backreference:       "backreference",
         named_backreference: "named backreference",
@@ -149,17 +113,8 @@ module Hecks
         possessive:          "possessive quantifier"
       }.freeze
 
-      # Builds the rejection for one refused construct.
-      #
-      # @param key [Symbol] a key of `CONSTRUCTS`/`REASONS`, such as `:lookahead`
-      # @return [Rejection] the construct's name and the reason it is refused
       def refuse(key) = Rejection.new(CONSTRUCTS.fetch(key), REASONS.fetch(key))
 
-      # Says whether a POSIX bracket class (`[:digit:]` and friends) starts at `index`.
-      #
-      # @param chars [Array<String>] the pattern, split into characters
-      # @param index [Integer] the position to check
-      # @return [Boolean] whether a POSIX bracket class starts at `index`
       def posix_class_at?(chars, index)
         return false unless chars[index] == "[" && chars[index + 1] == ":"
 
@@ -168,14 +123,7 @@ module Hecks
         chars[cursor] == ":" && chars[cursor + 1] == "]"
       end
 
-      # A possessive quantifier is `*+`, `++`, `?+`, or a bounded `{n}`/{n,m}`
-      # immediately followed by `+` — only checked outside a character class,
-      # where `*`, `+`, `?`, `{`, `}` are quantifier syntax rather than
-      # literal characters.
-      #
-      # @param chars [Array<String>] the pattern, split into characters
-      # @param index [Integer] the position to check
-      # @return [Boolean] whether a possessive quantifier starts at `index`
+      # A possessive quantifier is `*+`, `++`, `?+` or a `{n,m}` bound followed by `+`.
       def possessive_at?(chars, index)
         return true if %w[* + ?].include?(chars[index]) && chars[index + 1] == "+"
         return false unless chars[index] == "{"
@@ -184,13 +132,7 @@ module Hecks
         !len.nil? && chars[index + len] == "+"
       end
 
-      # Length of a `{n}` / `{n,}` / `{n,m}` bound starting at `index`, or nil
-      # if what's there isn't one.
-      #
-      # @param chars [Array<String>] the pattern, split into characters
-      # @param index [Integer] the position the bound is expected to start at
-      # @return [Integer, nil] the bound's length in characters, or `nil` if `index`
-      #   does not start a `{n}`/`{n,}`/`{n,m}` bound
+      # Length of a `{n}` / `{n,}` / `{n,m}` bound at `index`, or nil if there is none.
       def bounded_quantifier_length(chars, index)
         cursor = index + 1
         digit_seen = false

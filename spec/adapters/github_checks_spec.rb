@@ -1,14 +1,8 @@
 require "hecks"
 require_relative "../../qa/adapters/github_checks"
 
-# **Transport only** — never spawns the real `gh` binary (that would make this
-# suite hit live GitHub on every run: slow, rate-limited, non-deterministic,
-# and the one thing `spec/quality_control_spec.rb`'s own `GreenCi`/`RedCi`
-# stubs exist specifically to avoid needing at the port-and-policy level).
-# `Open3.capture3` is stubbed at the boundary; everything upstream of it
-# (the exact `gh api` argv, how a response is parsed into green or red) runs
-# for real — the same split `claude_code_spec.rb` already uses for its own
-# shelled-out adapter.
+# Transport only: `Open3.capture3` is stubbed so the suite never shells out to a real `gh`.
+# The exact `gh api` argv and the green/red parsing run for real.
 RSpec.describe Hecks::Adapters::GithubChecks do
   SHA = "4f2a19c8340fc53aa931933cb6587288698f51d".freeze
 
@@ -29,12 +23,8 @@ RSpec.describe Hecks::Adapters::GithubChecks do
 
   subject(:adapter) { described_class.new }
 
-  # `commit:` arrives as the value object's own materialized shape — a
-  # `{value: "…"}` hash, per `PortOperationInterpreter#ask`'s own comment
-  # ("a Value never crosses the boundary"). This is the one shape a live
-  # dispatch actually hands the adapter (see `quality_control.hecksagon`'s
-  # own port declaration), exercised end to end elsewhere; the other two
-  # shapes below are tolerated defensively, not load-bearing for the port.
+  # `commit:` arrives as a materialized `{value: "…"}` hash (a Value never crosses the boundary);
+  # the other two shapes are tolerated defensively.
   describe "commit shape" do
     it "reads a symbol-keyed materialized value object" do
       stub_gh(runs_json(check_run("rspec")))
@@ -59,8 +49,7 @@ RSpec.describe Hecks::Adapters::GithubChecks do
       expect(adapter.run(commit: { value: SHA })).to eq(summary: { value: "3 checks, all green (4f2a19c)" })
     end
 
-    # A conclusion that isn't `success` but isn't a failure either —
-    # GitHub's own words for "ran, and chose not to fail the commit."
+    # Neither success nor failure: GitHub's "ran, and chose not to fail the commit."
     it "does not count neutral or skipped runs against the commit" do
       stub_gh(runs_json(check_run("rspec"), check_run("path-filtered", conclusion: "skipped"),
                         check_run("advisory", conclusion: "neutral")))
@@ -87,11 +76,7 @@ RSpec.describe Hecks::Adapters::GithubChecks do
         .to raise_error(/no checks at all against #{SHA}/)
     end
 
-    # **Defensive, not expected** — `bin/qa_pr_check` only ever asks once its
-    # own `gh pr checks` has already shown nothing pending. This is the
-    # adapter's own guard against the rare race where a check starts
-    # running in between (see this class's own header comment on why it
-    # refuses rather than silently answering green).
+    # Defensive: refuses rather than answering green if a check starts running mid-ask.
     it "refuses rather than answer green while a check is still running" do
       stub_gh(runs_json(check_run("rspec"), check_run("fuzzing", status: "in_progress", conclusion: nil)))
 
@@ -112,14 +97,6 @@ RSpec.describe Hecks::Adapters::GithubChecks do
     end
   end
 
-  # **The port's own contract** — `answers "SuitePassed"`/`refuses "SuiteFailed"`
-  # (`quality_control.hecksagon`) reach `Clearance::Passed`/`Failed` by
-  # spreading whatever this method returns/raises straight into the
-  # triggered command's own arguments (`PortOperationInterpreter#ask`'s own
-  # comment: "spread, not nested"). `Clearance::Passed` declares `summary`;
-  # `Clearance::Failed` declares `refusal`, filled from this raise's own
-  # message. Both are exercised end to end (a real boot, a real dispatch,
-  # the real `ClearOnPass`/`RefuseOnFail` policies actually firing) in
-  # `spec/quality_control_spec.rb`'s own "clearance" and "the CI watch"
-  # examples — this file stays scoped to what this class alone decides.
+  # `answers "SuitePassed"`/`refuses "SuiteFailed"` spread this method's return or raise into
+  # `Clearance::Passed`/`Failed`; the end-to-end flow is covered in spec/quality_control_spec.rb.
 end

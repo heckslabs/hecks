@@ -1,12 +1,7 @@
 require "spec_helper"
 
-# **The primary/driving port, end to end** — an adapter outside the bluebook
-# calls PortOperationInterpreter (through Dispatcher#dispatch_port), never
-# the domain itself. What this proves: the payload gate and coercion run the
-# same as a command's, the emitted event carries the operation's own
-# attributes verbatim (Emission's own contract, just without a mutated
-# instance to source `id:` from), and a policy reacting to that event
-# triggers a real command exactly as it would for a command-emitted one.
+# A driving port end to end: an adapter calls PortOperationInterpreter through
+# Dispatcher#dispatch_port, gated like a command, and a policy reacts to the emitted event.
 RSpec.describe "a port operation, dispatched" do
   def boot
     registry = Hecks::Runtime::Registry.new
@@ -21,14 +16,8 @@ RSpec.describe "a port operation, dispatched" do
         uses_framework "Governance"
         Payments::Payment.persisted_by("Memory")
 
-        # **The primary port** — called by an adapter outside the bluebook
-        # entirely (a Stripe webhook, in the design this came out of). No
-        # given, no sets: this is the boundary translating an external
-        # fact into our own vocabulary, not a place business rules live.
-        # Those stay on ConfirmReceipt/RejectPayment, reached only through
-        # a policy. Declared here, in the hecksagon, not the bluebook — the
-        # boundary between the domain and its adapters is what a hecksagon
-        # already is for every other port.
+        # No given, no sets: the port only translates an external fact (a Stripe webhook).
+        # Business rules stay on ConfirmReceipt/RejectPayment, reached through a policy.
         Payments::Payment.port "PaymentGateway" do
           operation "Receive" do
             attribute :amount, Money
@@ -157,16 +146,8 @@ RSpec.describe "a port operation, dispatched" do
     end.to raise_error(Hecks::Runtime::UnknownVerb)
   end
 
-  # **The same operation, by verb** — the wire spelling `Dispatcher#dispatch`
-  # itself now resolves ("Domain::Aggregate.Port.Operation", the same
-  # shape an entity command already uses, ports checked first). Not a
-  # second implementation: `dispatch` delegates to the identical
-  # `@port_ops` primitive `dispatch_port` calls, so everything above
-  # already proves the behavior — this proves the door, the one a
-  # differential-parity script (`spec/corpus/*.json`'s flat `{"verb",
-  # "args"}` steps, `bin/rust_conformance`'s own oracle) can actually
-  # reach, since neither carries a domain/aggregate/port/operation
-  # 4-tuple, only ever a verb string.
+  # Same operation by verb ("Domain::Aggregate.Port.Operation"): `dispatch` delegates to the
+  # primitive `dispatch_port` uses, and parity scripts can only reach it through a verb string.
   describe "reached through Dispatcher#dispatch, by verb, rather than #dispatch_port" do
     it "emits the operation's event and triggers the policy exactly as dispatch_port does" do
       dispatcher, registry = boot

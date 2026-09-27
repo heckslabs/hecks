@@ -1,45 +1,13 @@
 module Hecks
-  # The one spelling for a captured Ruby literal on the wire.
-  #
-  # Several `to_h` fields hold a value the author wrote in a bluebook —
-  # `where(status: { eq: "open" })`, `then_set append: { direction: { value:
-  # "credit" } }`, `dispatch ... with: { number: :source }`, an attribute's
-  # `default:` — as text, because the export has to stand on its own and a
-  # String field cannot say "this one was a Symbol". Every such field is the
-  # same question and now gets the same answer.
-  #
-  # It was three answers before, and they disagreed on both axes that matter.
-  # `Mutation#appended_fields` spelled a Symbol bare and everything else
-  # `inspect`; `QuerySpecification.render_value` spelled a Symbol with a colon
-  # and everything else `to_s`. So `:amount` crossed as "amount" in a mutation
-  # and ":amount" in a saga binding — the same value, two spellings, and each
-  # reader had to know which field it was looking at. Worse, `to_s`/`inspect`
-  # on a Hash is Ruby's own rendering, which moved under us: 3.3 writes
-  # `{:value=>"credit"}` and 3.4 writes `{value: "credit"}` for the identical
-  # Hash, so the wire format was silently pinned to an interpreter version.
-  #
-  # Self-describing is the rule, stated once here rather than inherited from
-  # whatever `inspect` happens to do: a symbol wears its colon, a string wears
-  # its quotes, a hash wears `{key: value}` braces, a list wears its brackets,
-  # and a number, a boolean and nil are bare. `read` is the exact inverse, and
-  # is the only thing that should ever take one of these strings apart.
-  # A mutation source that reads the record's own state — `sets :positions,
-  # append: { knights: state(:knights) }`. A bare Symbol in a mutation
-  # source always names a command argument (and imports it as one when
-  # the target's own field carries the same name — `CommandBuilder
-  # #resolve_append_fields!`); before this there was no way to say "the
-  # value this field already holds", so a command could not snapshot its
-  # own record — chess's threefold repetition needs exactly that, a
-  # position copied off the board every ply. Spelled `state(:name)` on
-  # the wire, read back by `Literal.read`; classified `kind: "state"` in
-  # a set's own source (`Behaviour::Mutation#classified_source`).
+  # A mutation source that reads the record's own state: `append: { knights: state(:knights) }`.
+  # A bare Symbol in a mutation source names a command argument, so this is the only way to say it.
   StateRef = Struct.new(:name) do
     def to_s = "state(:#{name})"
   end
 
-  # The `render`/`read` pair the header above describes: `render` turns a
-  # Ruby value into its self-describing wire spelling, `read` is its exact
-  # inverse.
+  # The one wire spelling for a Ruby literal captured from a bluebook: a symbol wears its
+  # colon, a string its quotes, a hash `{key: value}`, a list brackets; the rest are bare.
+  # Stated here, not left to `inspect`, whose Hash rendering differs between Ruby 3.3 and 3.4.
   module Literal
     module_function
 
@@ -63,16 +31,9 @@ module Hecks
       end
     end
 
-    # Read one back. Tolerant of a bare word on purpose: the language stores a
-    # closed set's members and a few hand-written fields as plain text that was
-    # never rendered, and those must stay the strings they are.
+    # Parses a wire spelling back into a Ruby value; the exact inverse of `render`.
+    # A bare word stays a String, since some fields are stored as plain text, never rendered.
     #
-    # The exact inverse of `render`'s `case`, above — one ordered guard per
-    # spelling `render` can produce (plus the bare-word tolerance this
-    # comment already explains). Each guard is a single self-contained
-    # `return`; splitting them into named predicates would just rename
-    # each line without changing what it does, and would separate this
-    # method from the `render` it is the deliberate mirror of.
     # @param text [String, #to_s] wire spelling produced by `render`, or a bare word
     # @return [Object] nil, true, false, Integer, Float, Symbol, StateRef, String,
     #   Hash, or Array — or `text` itself, stripped, when it matches no known spelling
@@ -131,10 +92,7 @@ module Hecks
     # @return [Array<Object>] the parsed values, each read recursively via `read`
     def read_array(raw) = split_items(raw[1..-2]).map { |item| read(item) }
 
-    # Split on the commas that are actually separators — never one inside a
-    # quoted string or a nested brace/bracket. Scanned rather than
-    # `String#split(", ")`, which tore `"a, b"` in half and lost the second
-    # field of anything nested.
+    # Splits on separator commas only, never one inside a quoted string or nested brace/bracket.
     #
     # @param body [String] the text between a literal's outer braces or brackets
     # @return [Array<String>] each item's raw text, stripped, with empty items dropped

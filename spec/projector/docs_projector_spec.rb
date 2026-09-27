@@ -1,12 +1,7 @@
 require "spec_helper"
 
 # A bluebook, projected as its own usage documentation.
-#
-# Exercised against banking and pizzas rather than against the chapter this was
-# written beside. Nothing in the projector knows what any particular domain is,
-# and a spec that only ever projected the one it was developed against could
-# not tell — the `Policy` accessors were guessed wrong on the first pass and it
-# was banking, not the QA chapter, that said so.
+# Runs on banking and pizzas so the projector is not only tested on the domain it was written for.
 RSpec.describe Hecks::Projector::DocsProjector do
   def corpus
     registry = Hecks::Runtime::Registry.new
@@ -21,8 +16,7 @@ RSpec.describe Hecks::Projector::DocsProjector do
     registry
   end
 
-  # Read-only across every example in this file (never dispatched
-  # against) — built once per file, not once per example, for speed.
+  # Read-only across every example (never dispatched against), so built once per file.
   before(:context) { @registry = corpus }
 
   let(:registry) { @registry }
@@ -92,8 +86,7 @@ RSpec.describe Hecks::Projector::DocsProjector do
       expect(banking).to include("### Open *(creates)*")
     end
 
-    # The part a caller cannot GET from an argument list, and most of what a
-    # domain actually is. Three sources, one list.
+    # The part a caller cannot get from an argument list. Three sources, one list.
     describe "the refusals" do
       it "names the states a lifecycle verb may be issued from" do
         expect(banking).to include("`status` is anything other than `open`")
@@ -137,7 +130,7 @@ RSpec.describe Hecks::Projector::DocsProjector do
     end
   end
 
-  # **What happens without anybody asking** — undiscoverable from any verb list.
+  # What happens without anybody asking; no verb list shows it.
   describe "reactions" do
     it "tabulates each policy as the dispatch it causes, and where it lands" do
       expect(banking).to include("## Reactions")
@@ -153,10 +146,8 @@ RSpec.describe Hecks::Projector::DocsProjector do
     end
   end
 
-  # A misspelling should cost a sentence, not a puzzle. This returned "" and
-  # exit 0 on the first pass, which is the silent-wrong-answer shape this
-  # repository has already been bitten by twice in its query engine — a caller
-  # cannot tell an empty document from an empty domain.
+  # A misspelling should cost a sentence, not a puzzle: an empty document is indistinguishable
+  # from an empty domain.
   it "refuses an aggregate name that names nothing, and says what is there" do
     expect { described_class.call(bluebook: registry.bluebook("Banking"), options: { aggregate: "Acount" }) }
       .to raise_error(Hecks::Runtime::NotFound, /no aggregate named "Acount".*it declares .*Account/m)
@@ -179,7 +170,6 @@ RSpec.describe Hecks::Projector::DocsProjector do
     end
   end
 
-  # The half that makes it GET used.
   describe "as a method on a booted domain" do
     it "answers on the chapter, beside vision and aggregates" do
       boot_in_memory

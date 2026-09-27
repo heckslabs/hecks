@@ -1,31 +1,13 @@
-//! Mirrors `QuerySpecification::Common::DSL`'s five option words
-//! (`lib/hecks/query_specification/common/dsl.rb`) — `offset`/
-//! `cursor`/`authorize`/`nulls`/`inspect_query`. Shared verbatim by
-//! `parse::query` and `parse::read_model`, since both Ruby builders
-//! `include QuerySpecification::Common::DSL` and land on the identical
-//! `ir::QueryOptions` shape (`ir.rs`'s own header explains why that's a
-//! typed struct rather than a second alphabetically-ordered
-//! `BTreeMap`). Confirmed real by banking.bluebook: `SafeDepositBox
-//! .Rented`'s own `authorize :vault_access, tenant: :branch_code`.
-//! `offset`/`cursor`/`nulls`/`inspect_query` are not exercised by any real
-//! corpus member yet — built anyway, the same "correct even if
-//! unreachable today" basis `emit.rs`'s own entity/process-manager
-//! renderers already used before Stage 4 exercised them for real.
-//! `consistency`/`freshness`/`use_index` are gone (ADR 0025, "reads") —
-//! declared and parsed by nothing but the HTML form renderer, so they
-//! failed the corpus-use-and-doctest bar and were deleted rather than
-//! deprecated.
+//! Query option words (`offset`, `cursor`, `authorize`, `nulls`, `inspect_query`)
+//! shared by `parse::query` and `parse::read_model`.
 
 use crate::diag::ParseResult;
 use crate::ir;
 use crate::parse::{self, ArgumentGateResult};
 use crate::ruby_value;
 
-/// Applies one already-gated option call onto `options` — `word` is one
-/// of the five this module's own header names; `context` (`"Query"` or
-/// `"ReadModel"`) is passed through only for `positional_symbol`'s own
-/// diagnostic wording, since the two contexts declare identical argument
-/// shapes for every one of these words.
+/// Applies one already-gated option call (`offset`, `cursor`, `authorize`, `nulls`,
+/// `inspect_query`) onto `options`; `context` only words diagnostics.
 pub fn apply(
     file: &str,
     line: usize,
@@ -34,42 +16,24 @@ pub fn apply(
     options: &mut ir::QueryOptions,
 ) -> ParseResult<()> {
     match word {
-        // `OffsetSpec`/`CursorSpec#to_h`'s own `{value: render_value(value)}`
-        // — the same "already-rendered text" shape `ir::LimitSpec.value`
-        // uses, regardless of the argument's own declared lexical `kind`
-        // (a number for `offset`, a symbol for `cursor` per
-        // syntax.bluebook's own rows) — `ruby_value::read`/`render`
-        // round-trips either one correctly without needing to know which.
-        // `offset` has a fixed argument schema (like `order_by`/`limit`),
-        // so an undeclared `on:` is already refused upstream by the
-        // argument gate before `apply` ever runs — confirmed live
-        // ("'offset' takes no 'on:' argument"). No defensive check
-        // needed here, unlike `where`'s own open-ended `pairs` shape
-        // (`query_derive::refuse_on_target`'s own header explains why).
+        // The value keeps its rendered text whatever its lexical kind; the argument gate
+        // has already refused an undeclared `on:`.
         "offset" => options.offset = Some(rendered_positional(args, 1)),
         "cursor" => options.cursor = Some(rendered_positional(args, 1)),
-        // `AuthorizationSpec#to_h` — both fields bare `.to_s` (never
-        // Literal-rendered): `policy`/`tenant` a Symbol's plain name, no
-        // leading colon. `positional_symbol`/`named_symbol` already strip
-        // it, so no extra rendering step is needed here.
+        // Both fields are bare names, without the leading colon.
         "authorize" => {
             let policy = parse::positional_symbol(file, line, word, args, 1)?;
             let tenant = parse::named_symbol(args, "tenant");
             options.authorization = Some(ir::AuthorizationSpec { policy, tenant });
         }
-        // `NullSemantics#to_h`'s `mode.to_s` — `extra_options_to_h` drops
-        // the key entirely when it equals the default (`{mode: "native"}`),
-        // so a `nulls :native` line is legal but leaves `null_semantics`
-        // `None`, the same as never having written the line at all.
+        // `nulls :native` is the default, so it leaves `null_semantics` unset.
         "nulls" => {
             let mode = parse::positional_symbol(file, line, word, args, 1)?;
             if mode != "native" {
                 options.null_semantics = Some(mode);
             }
         }
-        // `def inspect_query(mode = :sql)` — the one option word whose
-        // positional argument is genuinely optional (`required: "false"`
-        // in syntax.bluebook), defaulting to `:sql` when omitted.
+        // `mode` is the one optional positional; it defaults to `:sql`.
         "inspect_query" => {
             let mode = match args.positional.iter().find(|(idx, _)| *idx == 1) {
                 Some((_, text)) => text.trim().trim_start_matches(':').to_string(),

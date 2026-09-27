@@ -1,21 +1,10 @@
-//! Port of `rust/project/domain_generator.rb`'s coverage manifest — the
-//! `manifest_entry` helper, the `manifest` accumulator `DomainGenerator.call`
-//! threads through every generate/skip decision, and the
-//! `JSON.pretty_generate(manifest)` bytes it writes to `manifest.json`.
-//!
-//! `bin/rust_coverage` and the differential fuzzer read each gap's
-//! `construct`; people read its `reason`. Both are built at the same
-//! decision point `domain_generator.rs` already reaches, from the same
-//! skip-reason functions, and `spec/codegen_manifest_parity_spec.rb` holds
-//! the two generators' `manifest.json` byte-identical.
+//! The coverage manifest `manifest.json` that `bin/rust_coverage` reads, built as
+//! `domain_generator.rb` builds it; the parity spec holds the bytes identical.
 
 use crate::json::Json;
 use crate::skip_reason::SkipReason;
 
-/// One `manifest_entry(kind:, id:, generated:, reason:, gap_class:, routed:,
-/// construct:)`. Key order on the wire is Ruby's own Hash insertion order:
-/// `kind`, `id`, `generated`, then `routed`/`gap_class`/`construct`/`reason`
-/// only when set.
+// Wire key order: `kind`, `id`, `generated`, then `routed`, `gap_class`, `construct`, `reason`.
 struct Entry {
     kind: &'static str,
     id: String,
@@ -26,16 +15,18 @@ struct Entry {
     reason: Option<String>,
 }
 
+/// The ordered list of generate/skip decisions made for one chapter.
 #[derive(Default)]
 pub struct Manifest {
     entries: Vec<Entry>,
 }
 
 impl Manifest {
-    /// `manifest << manifest_entry(...)` — same argument set, same order.
-    /// A gap (`generated: false` or `routed: false`) must name its
-    /// `gap_class`, and a `gap_class` must name its `construct` — Ruby's
-    /// own `ArgumentError`s, as panics.
+    /// Appends one entry.
+    ///
+    /// # Panics
+    /// If a gap (`generated: false` or `routed: false`) has no `gap_class`, or a `gap_class`
+    /// has no `construct`.
     #[allow(clippy::too_many_arguments)]
     pub fn record(
         &mut self,
@@ -84,9 +75,7 @@ impl Manifest {
         self.record(kind, id, true, Some(false), Some("per_instance"), Some(construct.to_string()), Some(reason));
     }
 
-    /// `manifest.concat(entity_query_entries(owner_id, entities))` — every
-    /// query declared on an entity nested inside another entity, at any
-    /// depth, as the whole-kind `entity_query` gap it is.
+    /// Records every query declared on a nested entity, at any depth, as an `entity_query` gap.
     pub fn entity_query_gaps(&mut self, owner_id: &str, entities: &[Json]) {
         for entity in entities {
             let entity_id = format!("{owner_id}.{}", entity.get("name").map(Json::to_s).unwrap_or_default());
@@ -108,9 +97,7 @@ impl Manifest {
         }
     }
 
-    /// `JSON.pretty_generate(manifest)` (json 2.7): two-space indent,
-    /// `"key": value`, no trailing newline — and an empty array renders
-    /// as `"[\n\n]"`, not `"[]"`.
+    /// Renders like Ruby's `JSON.pretty_generate`, which writes an empty array as `"[\n\n]"`.
     pub fn to_json_text(&self) -> String {
         if self.entries.is_empty() {
             return "[\n\n]".to_string();
@@ -142,9 +129,7 @@ fn entry_json(entry: &Entry) -> String {
     format!("  {{\n{}\n  }}", lines.join(",\n"))
 }
 
-/// Ruby `JSON.generate`'s string escaping (json 2.7, `script_safe: false`):
-/// `"`/`\` and control characters only — `/`, del, and non-ASCII (the
-/// em dashes every reason string carries) pass through raw.
+// Ruby `JSON.generate` escaping: only `"`, `\` and control characters; non-ASCII passes through.
 fn json_string(s: &str) -> String {
     let mut out = String::with_capacity(s.len() + 2);
     out.push('"');
@@ -165,8 +150,7 @@ fn json_string(s: &str) -> String {
     out
 }
 
-/// Ruby's `#inspect` on an IR value interpolated into a reason string —
-/// in practice `identified_by` (`["number"]`), or `nil` when absent.
+/// Ruby's `#inspect` of an IR value, as interpolated into reason strings; `nil` when absent.
 pub fn ruby_inspect(value: Option<&Json>) -> String {
     match value {
         None | Some(Json::Null) => "nil".to_string(),

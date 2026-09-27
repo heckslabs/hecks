@@ -22,9 +22,7 @@ Hecks.bluebook "Payments" do
     attribute :amount, Money
     attribute :decline_reason, DeclineReason, optional: true
 
-    # THE LIFECYCLE MOVES THE FIELD (C5.3, docs/semantics/bluebook-
-    # semantics.md) — each command that changes `status` names its
-    # transition here; a `sets :status` is refused at build.
+    # Each command that changes `status` names its transition here; `sets :status` is refused.
     lifecycle :status, default: "pending" do
       transition "ConfirmReceipt" => "received",  from: "pending"
       transition "Confirm"        => "confirmed", from: "received"

@@ -1,13 +1,7 @@
 module Hecks
   module Bluebook
     module MetaValidator
-      # Offers a built .adapter to the language that describes adapters.
-      #
-      # A sibling of a bluebook again, the same shape PortJudge already is
-      # one level over — its own file, its own door, judged through its
-      # own self-hosted language (adapter.bluebook) rather than left as a
-      # plain Ruby struct nothing checks. Whole-project table-unification
-      # survey, item #13's remaining builders.
+      # Offers a built .adapter to the self-hosted adapter language (adapter.bluebook).
       class AdapterJudge
         attr_reader :refusals
 

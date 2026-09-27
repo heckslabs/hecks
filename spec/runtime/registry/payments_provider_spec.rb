@@ -1,11 +1,7 @@
 require "spec_helper"
 
-# rust/host's checkout and webhook routes read ir.json's `payments` key
-# instead of naming Payments::Payment verbs. That key is only as
-# trustworthy as the `provides "payments"` row behind it, so the row is held
-# to its contract (`initiate` names a command; the two verdicts name port
-# operations the hecksagon declares) and the exporter answers nothing for a
-# domain that attaches no such chapter.
+# rust/host reads ir.json's `payments` key, so the `provides "payments"` row behind it is held
+# to its contract; a domain with no such chapter exports nothing.
 RSpec.describe "payments capability" do
   let(:full_row) do
     {

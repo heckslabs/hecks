@@ -1,39 +1,25 @@
 name: CI rust parser (reusable)
 
-# REUSABLE-WORKFLOW SPLIT OF ci.yml, group 3 (part 2 of 4) — see
-# ci-rust-io.yml's own header for the full split rationale. This file
-# holds only `rspec_rust_parser`, the required-status-check job.
+# Reusable workflow holding the required-status-check job for rust/parser.
+# Split rationale is in ci-rust-io.yml.
 
 on:
   workflow_call:
 
 jobs:
-  # rust/parser/ ("hecks-parse") — an independent Cargo project, own
-  # Cargo.toml/target dir, no interaction with rust/src/generated/ or
-  # rust/Cargo.toml at all. The parity and grammar-corpus specs build it
-  # via their own `before(:context) { self.class.build_parser! }` (the
-  # second is a no-op against the first's fresh target/), so no separate
-  # build step is needed at this job level the way rspec_rust_io needs
-  # one (that spec-internal build is exactly why this job is safe to run
-  # concurrently with rspec_rust_io in the first place — nothing here
-  # ever opens a file under the main crate's tree). grammar_corpus_spec
-  # moved here from rspec_postgres_io_parallel — see that job's own
-  # `--exclude-pattern` comment for the overlap failure that found it.
+  # rust/parser/ ("hecks-parse") is an independent Cargo project that never touches
+  # the main crate's tree, so this job can run beside rspec_rust_io. The specs
+  # build it themselves via `build_parser!`, so no separate build step is needed.
   rspec_rust_parser:
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
-    # See `rspec` job's own comment in ci.yml — cache-warming push doesn't
-    # need this job.
+    # The cache-warming push run does not need this job.
     if: github.event_name != 'push'
 
-    # PHASE 8, GHCR BINARY CACHE — `packages: write` lets this job push
-    # to GHCR (see ghcr-binary-cache-save's own header); `contents: read`
-    # keeps the default checkout permission a bare `permissions:` block
-    # would otherwise drop. Also declared on the calling
-    # `rspec_rust_parser_impl` job in ci.yml — a reusable workflow's own
-    # jobs can only use what the caller's grant allows, so both sides
-    # need it.
+    # `packages: write` lets this job push to GHCR; `contents: read` keeps checkout
+    # working. The calling job in ci.yml must grant the same, since a reusable
+    # workflow cannot exceed its caller's permissions.
     permissions:
       contents: read
       packages: write
@@ -47,13 +33,8 @@ jobs:
           name: parser
           crate-root: rust/parser
 
-      # PHASE 8, GHCR BINARY CACHE — see ghcr-binary-cache-restore's own
-      # header for the full design: this is the SAME-run half `actions/
-      # cache` above cannot provide. A hit here means some sibling job in
-      # THIS run (most likely rspec_rust_io, which also opt-in builds
-      # this crate) already built the identical content and pushed it,
-      # so the spec's own `build_parser!` call below becomes a fast
-      # cargo no-op instead of a real cold build.
+      # Same-run cache that `actions/cache` cannot give: a hit means a sibling job
+      # (likely rspec_rust_io) already pushed this build, so `build_parser!` is a no-op.
       - uses: ./.github/actions/ghcr-binary-cache-restore
         id: ghcr_cache
         with:
@@ -68,15 +49,12 @@ jobs:
             spec/parser_coverage_spec.rb \
             spec/grammar_corpus_spec.rb
 
-      # The crate's own unit + tests/gates.rs suite — never ran in CI
-      # before (only `cargo test --lib` in rust/ did). Reuses the parser
-      # target dir the spec above just built.
+      # The crate's own unit and tests/gates.rs suite; reuses the target dir built above.
       - name: "cargo test: rust/parser (hecks-parse)"
         run: cd rust/parser && cargo test
 
-      # rust/lsp ("hecks_lsp") — its own independent Cargo project, no Cargo
-      # dependency on hecks-parse (it shells out to the binary at runtime),
-      # so it needs its own target-dir cache. Also never ran in CI before.
+      # rust/lsp is an independent Cargo project (it shells out to the parser binary),
+      # so it needs its own target-dir cache.
       - uses: ./.github/actions/cargo-cache
         with:
           name: lsp
@@ -85,9 +63,7 @@ jobs:
       - name: "cargo test: rust/lsp (hecks_lsp)"
         run: cd rust/lsp && cargo test
 
-      # Only push on an actual miss — see ghcr-binary-cache-save's own
-      # header for why re-pushing an unchanged hit would just waste
-      # upload bandwidth on bytes GHCR already has.
+      # Push only on a miss; re-pushing a hit wastes upload bandwidth.
       - uses: ./.github/actions/ghcr-binary-cache-save
         if: steps.ghcr_cache.outputs.cache-hit != 'true'
         with:

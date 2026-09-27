@@ -1,12 +1,7 @@
 require "spec_helper"
 
-# Assembly::Marks has no direct coverage anywhere else — every other spec
-# exercises it indirectly, through a full domain boot. `bindings` specifically:
-# a saga's dispatch bindings ride the same self-describing spelling every other
-# to_h-bound literal field does (Hecks::Literal), and had the same gap
-# `where_clause` did until this — recovering an object literal and a kwarg
-# reference (the bug that broke banking's saga narrative once already) but not a
-# number or boolean, because nothing in the real corpus has ever bound one.
+# Marks has no other direct coverage. `bindings` reads the Hecks::Literal spelling that
+# every to_h-bound literal field shares.
 RSpec.describe Hecks::Bluebook::Assembly::Marks do
   describe ".bindings" do
     it "recovers a kwarg reference as the Symbol it names" do
@@ -28,10 +23,7 @@ RSpec.describe Hecks::Bluebook::Assembly::Marks do
         .to eq(narrative: { text: "transfer out" })
     end
 
-    # M15 — an object literal whose own field embeds a `"`. `Literal.render`
-    # is the only writer of this wire spelling, so it is the fixture here
-    # too — a hand-written string would test the reader against text nothing
-    # ever actually produces.
+    # Literal.render is the only writer of this wire spelling, so it builds the fixture.
     it "recovers an object literal whose own field embeds a quote" do
       wire = Hecks::Literal.render(text: 'a "quoted" word')
 

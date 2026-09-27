@@ -1,30 +1,11 @@
 require "spec_helper"
 require_relative "../../rust/project"
 
-# `creates_owner?` (rust/project/mutations.rb) replaced `command[:references]
-# .nil?` as the "does this command build the owner record from scratch" test
-# `rust/project/commands.rb#emit_command` and `identity_components` both
-# consult, closing the Rust compile break RESTART.md describes: 12 meta-
-# domain "attach one child to the owner" commands (`Aggregate.Attribute` et
-# al.) each declare an argument coincidentally named the same as one of
-# their owner's `identified_by` components (both have a field called
-# `name`) while never setting the owner's own field — their one mutation
-# appends that argument into a list, sourced by it, which would fool
-# a bare-name check in `identity_components` into treating it as the
-# owner's own id and misassigning it into the wrong-typed identity slot.
-#
-# Unexercised by the ordinary suite on purpose — Ruby's own runtime stopped
-# consulting `Command#creates?` for hydration this session
-# (`CommandInterpreter#step_hydrate` uses `Runtime::DependencyPlanning::
-# Analyzer` instead), so nothing in spec/*.rb exercises this exact path;
-# only a Rust `cargo build` (or this spec) would have caught a wrong edit
-# here. Fixtures below are plain projector-shaped hashes, the same input
-# shape `bin/project_rust` itself feeds these methods — not full domain
-# parses, matching `constraints_spec.rb`/`bridging_spec.rb`'s own reasoning
-# for testing a pure codegen helper directly.
+# `creates_owner?` decides whether a command builds the owner record from scratch. A command whose
+# argument merely shares a name with an owner identity component (a list append) must not count.
+# Fixtures are projector-shaped hashes, as `bin/project_rust` feeds them.
 RSpec.describe RustProjection::Projector do
-  # `Aggregate` (owner), `identified_by :bluebook, :name` — mirrors the real
-  # meta-domain shape (aggregate.bluebook) that exposed this bug.
+  # Owner shaped like the meta-domain's Aggregate, `identified_by :bluebook, :name`.
   CREATES_OWNER_SPEC_AGGREGATE = {
     name:          "Aggregate",
     identified_by: %w[bluebook name],
@@ -37,11 +18,8 @@ RSpec.describe RustProjection::Projector do
     ]
   }.freeze
 
-  # `Aggregate.Attribute` — attaches one attribute to an existing Aggregate.
-  # Declares its own `name`/`type` args, `name` coincidentally sharing the
-  # owner's own identity component name, but its only mutation appends them
-  # into `:attributes` — it never sets the owner's own `:bluebook`/`:name`
-  # fields at all.
+  # `Aggregate.Attribute` appends to `:attributes`; its `name` arg only coincides with an identity
+  # component and it never sets the owner's own fields.
   CREATES_OWNER_SPEC_ATTACH_COMMAND = {
     name:       "Attribute",
     references: nil,
@@ -55,8 +33,7 @@ RSpec.describe RustProjection::Projector do
     ]
   }.freeze
 
-  # `Aggregate.Declare` — genuinely mints a fresh Aggregate: every owner
-  # field is an explicit `:set` mutation sourced from a same-named argument.
+  # `Aggregate.Declare` mints a fresh Aggregate: every owner field is `:set` from an argument.
   CREATES_OWNER_SPEC_DECLARE_COMMAND = {
     name:       "Declare",
     references: nil,

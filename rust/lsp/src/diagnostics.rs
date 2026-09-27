@@ -1,58 +1,21 @@
-//! Bridges one open `.bluebook`/`.hecksagon` buffer to `hecks-parse` and
-//! back to an LSP `Diagnostic` array.
-//!
-//! Deliberately a subprocess, not a library call: `rust/parser` ships
-//! only a `[[bin]]` target, on purpose (its own Cargo.toml: "this crate
-//! reads bytes and writes JSON text by hand ... no dependency earns its
-//! way past std", and its own workspace-isolation comment rules out
-//! being folded into a shared lib). Restructuring it into a lib crate
-//! this one could link was avoided the same way `rust/build/src/json.rs`
-//! already avoided it for a different sibling — every one of these
-//! crates stays a stable, subprocess-only sibling of `rust/parser`
-//! rather than a thing that could accidentally start sharing (and so
-//! coupling to) its internals. The real, load-bearing side effect: this
-//! LSP's diagnostics get more accurate for free as `hecks-parse` itself
-//! grows past its current Stage — nothing here needs to change when a
-//! stub in `rust/parser/src/parse/*.rs` becomes real.
-//!
-//! **One diagnostic per run**: `hecks-parse chapter` stops at the first
-//! error (`parse::chapter`'s own doc comment: "Stops at the first
-//! diagnostic"), so this can only ever publish zero or one diagnostic
-//! per document per run — a real limitation inherited from the parser's
-//! own fail-fast design, not something this crate works around. Once
-//! `rust/parser` collects multiple diagnostics per run, this module's
-//! `run` only needs to map `Vec<Diagnostic>` instead of `Option<Diagnostic>`
-//! — everything else here already speaks in terms of a list.
-//!
-//! **No column information**: `Diagnostic` (`rust/parser/src/diag.rs`) only
-//! ever names a file and a line, never a column — so every diagnostic
-//! this crate publishes underlines the full line, not a precise span.
-//! Good enough for "something on this line is wrong, click through to
-//! read why" (the message and `expected` list carry the real content);
-//! real squiggle precision needs `rust/parser` to start tracking columns
-//! first.
+//! Maps the first error from `hecks-parse chapter` on a buffer to an LSP diagnostic.
+//! The parser reports a file and line only, so a diagnostic covers the whole line.
 
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
 pub struct FileDiagnostic {
-    pub line: usize, // 1-indexed, straight from `Diagnostic::line`
+    pub line: usize, // 1-indexed
     pub message: String,
     pub expected: Vec<String>,
-    /// Distinguishes `Diagnostic::not_yet_implemented`'s own wording
-    /// ("a real grammar admits this, the parser doesn't build it yet")
-    /// from every other diagnostic ("the grammar doesn't admit this") —
-    /// `diag.rs`'s own header draws exactly this line, and it's worth
-    /// keeping visible in the editor as a Warning vs. an Error rather
-    /// than flattening both to the same severity.
+    /// True when the grammar admits the construct but the parser does not build it yet.
     pub not_yet_implemented: bool,
 }
 
-/// Runs `hecks-parse chapter --chapter <name> <path>` against whatever
-/// is currently on disk at `path` and returns at most one diagnostic.
-/// `Ok(None)` means either the parse succeeded or no chapter name could
-/// be found in the buffer at all (nothing to report either way — see
-/// `chapter_name`'s own doc comment).
+/// Runs `hecks-parse chapter` on the file at `path` and returns at most one diagnostic.
+///
+/// `Ok(None)` means the parse succeeded or the buffer declares no chapter.
+/// Runs the parser as a subprocess because `rust/parser` ships only a binary target.
 pub fn run(hecks_parse: &Path, path: &Path, text: &str) -> Result<Option<FileDiagnostic>, String> {
     let Some(name) = chapter_name(text) else {
         return Ok(None);
@@ -67,7 +30,7 @@ pub fn run(hecks_parse: &Path, path: &Path, text: &str) -> Result<Option<FileDia
         .map_err(|e| format!("could not run {}: {e}", hecks_parse.display()))?;
 
     if output.status.success() {
-        return Ok(None); // clean parse — caller publishes an empty list
+        return Ok(None);
     }
 
     let stderr = String::from_utf8_lossy(&output.stderr);
@@ -81,18 +44,8 @@ pub fn run(hecks_parse: &Path, path: &Path, text: &str) -> Result<Option<FileDia
     Ok(parse_diagnostic_line(first_line, path))
 }
 
-/// Finds the chapter this buffer declares, if any: the first
-/// `Hecks.bluebook "Name"` or `Hecks.hecksagon "Name"` line — exactly
-/// the string `hecks-parse chapter --chapter <Name>` itself requires
-/// (`rust/parser/src/main.rs::run_chapter`), and the same header every
-/// real `.bluebook`/`.hecksagon` file in the corpus opens with. A buffer
-/// with neither (a brand-new empty file, a non-bluebook file the editor
-/// happens to hand this server) has nothing to check yet, not an error.
-///
-/// Hand-scanned rather than regex — this crate takes no dependencies
-/// (see its own Cargo.toml) and the shape is fixed and simple enough
-/// that a small dependency-free scan reads as clearly as a pattern
-/// would.
+/// Finds the name in the first `Hecks.bluebook "Name"` or `Hecks.hecksagon "Name"` line.
+// Hand-scanned because this crate takes no dependencies.
 fn chapter_name(text: &str) -> Option<String> {
     for line in text.lines() {
         for needle in ["Hecks.bluebook \"", "Hecks.hecksagon \""] {
@@ -106,12 +59,8 @@ fn chapter_name(text: &str) -> Option<String> {
     None
 }
 
-/// Parses one `Diagnostic::fmt`-formatted line (`diag.rs`):
-/// `<file>:<line>: <message>` with an optional trailing
-/// `(expected one of: a, b, c)`. `path` is the exact path this crate
-/// itself passed to `hecks-parse` on the command line, so it's stripped
-/// as a known prefix rather than re-derived — sidesteps any ambiguity
-/// from a message that happens to contain a colon of its own.
+/// Parses `<file>:<line>: <message>` with an optional `(expected one of: a, b, c)` suffix.
+// `path` is stripped as a known prefix so a colon inside the message cannot confuse the split.
 fn parse_diagnostic_line(line: &str, path: &Path) -> Option<FileDiagnostic> {
     let prefix = format!("{}:", path.display());
     let rest = line.strip_prefix(&prefix)?;
@@ -137,12 +86,7 @@ fn parse_diagnostic_line(line: &str, path: &Path) -> Option<FileDiagnostic> {
     })
 }
 
-/// Where `hecks-parse` lives, checked in order: an explicit override
-/// (for a checkout laid out differently, or CI), then `PATH` (once/if
-/// this is ever `cargo install`'d), then the two paths a `cargo build`
-/// (debug) or `cargo build --release` from `rust/parser/` actually
-/// produces — the common case while both crates are developed side by
-/// side out of this same checkout.
+/// Finds `hecks-parse`: `HECKS_PARSE_BIN`, then `PATH`, then `../parser/target/{debug,release}`.
 pub fn locate_hecks_parse() -> Option<PathBuf> {
     if let Ok(explicit) = std::env::var("HECKS_PARSE_BIN") {
         let p = PathBuf::from(explicit);
@@ -165,9 +109,7 @@ pub fn locate_hecks_parse() -> Option<PathBuf> {
     None
 }
 
-/// A tiny, dependency-free stand-in for the `which` crate: walks `PATH`
-/// looking for an executable file named `name`. Good enough for the one
-/// lookup this crate needs.
+/// Walks `PATH` for a file named `name`.
 fn which(name: &str) -> Result<PathBuf, ()> {
     let path_var = std::env::var_os("PATH").ok_or(())?;
     for dir in std::env::split_paths(&path_var) {

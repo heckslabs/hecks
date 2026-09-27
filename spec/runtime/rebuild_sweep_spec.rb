@@ -1,20 +1,7 @@
 require "spec_helper"
 
-# The out-of-band half of `projects` (S12, ADR 0025 — "Consistency
-# across aggregate boundaries") — proven end to end against a
-# dedicated fixture, not the real corpus: banking's own Account
-# declares `projects :customer_status`, which its own `given
-# ("customer is active")` now reads for real (S12's own migration,
-# `CommandInterpreter#seed_projected_fields` and this file's own
-# updated expectations).
-#
-# `seed_projected_fields` (`command_interpreter.rb`) means a
-# projected field is no longer absent-until-manually-swept the way
-# it was before this migration — every command that saves a record
-# with `projects` fields resolves them once, synchronously, the same
-# read `RebuildSweep` itself would do. `RebuildSweep` stays the
-# mechanism for the case seeding cannot cover: the target moving
-# after this record's own last write, with nothing here to notice.
+# RebuildSweep, the out-of-band half of `projects` (ADR 0025), against a dedicated fixture.
+# Seeding on save covers most cases; the sweep covers drift and bypassed writes.
 RSpec.describe "the rebuild sweep" do
   FIXTURE = File.join(InMemoryDomain::ROOT, "spec/fixtures/projected_fields.bluebook")
 
@@ -46,13 +33,8 @@ RSpec.describe "the rebuild sweep" do
       .not_to raise_error
   end
 
-  # The one case synchronous seeding cannot cover: a record that
-  # never went through `CommandInterpreter#step_save` at all — a
-  # direct repository write, the same shape a bulk import or a
-  # migration script would use. This is `ProjectionAbsent`'s real
-  # job now: not "before the first save," which no longer happens,
-  # but "before any save this runtime's own dispatch pipeline ever
-  # touched."
+  # A record written straight to the repository skips `CommandInterpreter#step_save`,
+  # so seeding never ran; this is the case `ProjectionAbsent` guards.
   it "still refuses on a projected field a direct repository write never seeded" do
     runtime = boot
     runtime.dispatch_flat("ProjectedFields::Customer.Register", ref: { value: "c1b" })
@@ -85,16 +67,8 @@ RSpec.describe "the rebuild sweep" do
 
     runtime.dispatch_flat("ProjectedFields::Customer.Suspend", ref: "c3")
 
-    # **Stale on purpose** — this is the whole point of "kept fresh by a
-    # seed-on-write plus a sweep for drift, rather than read live":
-    # Customer.Suspend only touches Customer's own record, so Account's
-    # own copy still answers "active" until something saves this
-    # Account record again. Checked directly against storage, not via
-    # another dispatch — dispatching anything against this same
-    # Account (even a pure read-shaped command like
-    # CheckCustomerActive, which still runs step_save) would itself
-    # re-seed the field before the sweep gets a chance to be the one
-    # that does.
+    # Stale on purpose: Customer.Suspend does not touch Account. Read storage directly,
+    # since any dispatch against Account (even CheckCustomerActive) re-seeds on save.
     expect(repository.find("a3")[:customer_status]).to eq("active")
 
     changed = Hecks::Runtime::RebuildSweep.call(runtime.registry, "ProjectedFields", aggregate)
@@ -111,8 +85,7 @@ RSpec.describe "the rebuild sweep" do
     runtime.dispatch_flat("ProjectedFields::Account.Open", customer: "c4", ref: { value: "a4" })
 
     aggregate = runtime.registry.bluebook("ProjectedFields").aggregate("Account")
-    # Already correct from `Open`'s own synchronous seed — a sweep
-    # immediately after creation finds nothing to change.
+    # `Open` already seeded the field, so the sweep finds nothing to change.
     expect(Hecks::Runtime::RebuildSweep.call(runtime.registry, "ProjectedFields", aggregate)).to eq(0)
     expect(Hecks::Runtime::RebuildSweep.call(runtime.registry, "ProjectedFields", aggregate)).to eq(0)
   end

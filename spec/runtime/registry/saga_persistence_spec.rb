@@ -1,12 +1,7 @@
 require "spec_helper"
 
-# `Registry#saga_persistence` — the resolution half of §2's saga-
-# persistence capability (the adapter-side `save_saga`/`delete_saga`/
-# `each_saga` implementations land per adapter in §3/§4 and get their
-# own dedicated round-trip specs there; this proves the resolution
-# logic itself: which adapter instance (or the no-op fallback) a
-# domain's saga state would persist through, entirely independent of
-# whether any real adapter answers the capability yet).
+# Registry#saga_persistence resolves which adapter (or the no-op fallback) holds a domain's
+# saga state; adapter round-trips are covered in their own specs.
 RSpec.describe "Registry#saga_persistence" do
   def fresh_registry
     registry = Hecks::Runtime::Registry.new
@@ -18,14 +13,8 @@ RSpec.describe "Registry#saga_persistence" do
     registry
   end
 
-  # `Ports::Extraction`'s Prism adapter locates a block's own source by
-  # (file, start line) alone (`Adapters::Prism#block_node_at`) — nesting
-  # `identified_by`'s block on the same line as its own enclosing
-  # `aggregate`/`bluebook` blocks makes all three BlockNodes share one
-  # start line, and the line-only lookup returns the outermost match
-  # instead, extracting far more source than intended. One block per
-  # line, matching `dsl_spec.rb`'s own `build_aggregate` helper (the
-  # same reason it's shaped that way there).
+  # One block per line: the Prism adapter finds a block by start line alone, so nested
+  # blocks sharing a line would extract the outermost one.
   def declare_thing(registry, domain)
     Hecks.with_registry(registry) do
       Hecks.bluebook(domain) do
@@ -59,16 +48,8 @@ RSpec.describe "Registry#saga_persistence" do
     expect(registry.saga_persistence("Hexed")).to be(Hecks::Ports::Persistence::NULL_SAGA_STORE)
   end
 
-  # **The rescue path** — a hecksagon exists (this domain's wiring is being
-  # decided explicitly) but its own anchor aggregate declares no bind
-  # at all, which `Ports::Persistence::BindingPolicy.resolve` refuses
-  # loudly (`missing_binding`) rather than silently defaulting. Saga
-  # persistence degrades to the same no-op default an unbound domain
-  # gets instead of raising out of what would otherwise be a
-  # successful dispatch — deliberately not calling `verify!` here,
-  # since `verify!` would itself raise on this exact gap (by design,
-  # for a domain's own real persistence) and this test is about what
-  # `saga_persistence` alone does when asked anyway.
+  # An unbound anchor aggregate makes BindingPolicy.resolve refuse; saga persistence must
+  # degrade to the no-op store instead. verify! is skipped because it raises on this gap.
   it "resolves to the no-op store, not a raised error, when the anchor aggregate has no bind at all" do
     registry = fresh_registry
     declare_thing(registry, "Unbound")
@@ -87,8 +68,7 @@ RSpec.describe "Registry#saga_persistence" do
 
     expect(registry.saga_persistence("First")).to be(Hecks::Ports::Persistence::NULL_SAGA_STORE)
     expect(registry.saga_persistence("Second")).to be(Hecks::Ports::Persistence::NULL_SAGA_STORE)
-    # Distinct calls, not accidentally sharing one memoized slot keyed
-    # wrong (e.g. by the registry rather than the domain name).
+    # Guards against one memoized slot keyed by the registry instead of the domain name.
     expect(registry.instance_variable_get(:@saga_persistence).keys).to contain_exactly("First", "Second")
   end
 end

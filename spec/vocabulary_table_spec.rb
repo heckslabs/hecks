@@ -1,16 +1,9 @@
 require "spec_helper"
 
-# The anti-drift gate for lib/hecks/vocabulary.rb — the same shape
-# spec/parser_table_spec.rb uses for the Rust parser's keyword table:
-# regenerate in memory from the language's own declaration and refuse a
-# diff, so a checked-in artifact that stopped matching its source fails
-# the ordinary suite rather than the next person to read it.
-#
-# Why the table is checked in at all, rather than built at boot: several
-# of these sets are read while a bluebook is being parsed
-# (`Attribute::PRIMITIVES` is consulted by the DSL itself). A table built
-# from the judged grammar at load time would need the framework to have
-# loaded before the framework could load.
+# Anti-drift gate for lib/hecks/vocabulary.rb, shaped like spec/parser_table_spec.rb: regenerate
+# in memory from the language's declaration and refuse a diff.
+# The table is checked in, not built at boot, because sets like `Attribute::PRIMITIVES` are read
+# while a bluebook is parsed, before the framework could load.
 RSpec.describe "the generated vocabulary table" do
   it "is exactly what bin/project_vocabulary would regenerate right now" do
     committed = File.read(File.join(InMemoryDomain::ROOT, "lib/hecks/vocabulary.rb"))
@@ -24,10 +17,8 @@ RSpec.describe "the generated vocabulary table" do
                          "lib/hecks/vocabulary.rb has drifted from vocabulary.bluebook — run bin/project_vocabulary"
   end
 
-  # The point of generating rather than gating. Together with the
-  # regeneration check above, this is what holds each Ruby constant equal
-  # to the language: there is no longer a second thing to hold equal — the
-  # constant is the table.
+  # With the regeneration check above, this holds each Ruby constant equal to the language:
+  # the constant is the table itself.
   describe "the constants read the table rather than repeating it" do
     {
       "Primitive"             => -> { Hecks::Bluebook::Attribute::PRIMITIVES },
@@ -43,15 +34,8 @@ RSpec.describe "the generated vocabulary table" do
       end
     end
 
-    # The four that looked like they could not be derived, and could.
-    #
-    # Each had a reason that did not survive being written down:
-    # DOMAIN_REFUSALS "maps to classes rather than names" (one const_get),
-    # `REFUSED` "is a single constant, not a set" (Trigger declares exactly
-    # it), and the two DISPATCH_ORDERs "name methods" — which is true, and
-    # is why a separate gate already checks every declared step resolves to
-    # a real handler. Naming them here and resolving them there are
-    # different jobs.
+    # Derivable despite appearances: DOMAIN_REFUSALS maps to classes (one const_get), REFUSED is
+    # one constant Trigger declares, and a separate gate resolves the DISPATCH_ORDER methods.
     it "DomainRefusal resolves to the exception classes the module defines" do
       expect(Hecks::Runtime::DOMAIN_REFUSALS.map { |e| e.name.split("::").last })
         .to eq(Hecks::Vocabulary.fetch("DomainRefusal"))
@@ -71,8 +55,7 @@ RSpec.describe "the generated vocabulary table" do
       end
     end
 
-    # Symbols are a mapped copy rather than the same object, so this one
-    # is held by value — the mapping is what the constant exists for.
+    # Symbols are a mapped copy, not the same object, so this one is held by value.
     it "QueryComparator is the table's list, as symbols" do
       expect(Hecks::QuerySpecification::Common::COMPARATORS)
         .to eq(Hecks::Vocabulary.fetch("QueryComparator").map(&:to_sym))
@@ -80,10 +63,8 @@ RSpec.describe "the generated vocabulary table" do
   end
 
   describe "the table itself" do
-    # Several vocabularies carry more than a term — Comparison declares
-    # the algebra each operator computes with. Rendering only the first
-    # field of each row turned RefusalTemplate into thirty-nine
-    # duplicated error names: well-formed, and meaningless.
+    # Several vocabularies carry more than a term (Comparison declares each operator's algebra),
+    # so rows must render whole; first-field-only rendering duplicated RefusalTemplate names.
     it "carries multi-field rows whole" do
       expect(Hecks::Vocabulary.rows("Comparison").first.keys)
         .to include("symbol", "compares_less_than", "compares_equal", "negated")

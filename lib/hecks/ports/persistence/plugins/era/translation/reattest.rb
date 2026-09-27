@@ -5,17 +5,8 @@ require_relative "../storage_shape"
 
 module Hecks
   module Translation
-    # The question re-attestation must answer before anything else: did
-    # the edit change the era's shape, or only its text? Cosmetic edits
-    # (comments, whitespace, behavior) re-freeze safely; a shape change
-    # would retroactively redefine what era N *meant* for data already
-    # written under it, and refuses hard — there is no --accept past
-    # this guard.
-    #
-    # This does not violate minted-once. That prohibition exists so
-    # boot-time recognition never depends on canonicalization stability;
-    # this is operator-initiated repair, where a false negative is a
-    # loud refusal, never a silent misread.
+    # Decides whether an edited era text changed the era's shape or only its text.
+    # A shape change refuses hard; no --accept flag gets past it.
     module Reattest
       module_function
 
@@ -25,14 +16,12 @@ module Hecks
       # @param domain [String] the domain's name, used in refusal messages
       # @param ordinal [Integer] the era's ordinal, used in refusal messages
       # @param text [String] the held era's bluebook source as it now stands
-      # @param stored_hash [String, nil] the era's minted shape hash (SHA-256 hex); nil for an
-      #   era that was never named
-      # @param stored_projection [Hash{String => Object}, nil] the era's stored
-      #   `Runtime::StorageShape.project` result as parsed JSON; nil for a store without one
+      # @param stored_hash [String, nil] the era's minted shape hash (SHA-256 hex); nil if unnamed
+      # @param stored_projection [Hash{String => Object}, nil] the stored
+      #   `Runtime::StorageShape.project` result as parsed JSON; nil when absent
       # @return [Symbol] `:cosmetic` when the shape is unchanged, `:unnamed` when neither a
-      #   projection nor a hash is stored so no comparison is possible
-      # @raise [Runtime::WiringError] if `text` does not load as a bluebook, or it projects to
-      #   a shape other than the stored one
+      #   projection nor a hash is stored
+      # @raise [Runtime::WiringError] if `text` does not load, or projects to another shape
       def shape_guard!(domain:, ordinal:, text:, stored_hash:, stored_projection: nil)
         bluebook = shadow(text)
         unless bluebook
@@ -41,13 +30,8 @@ module Hecks
                 "bluebook — a held era text is bootable source; restore a loadable text"
         end
 
-        # The stored projection is the preferred comparison: structural,
-        # version-free, and the same mechanism every boot trusts — so
-        # this guard never depends on canonicalization stability, and a
-        # future canonical-form version cannot make cosmetic edits to
-        # old-form eras false-refuse as shape changes. The hash path
-        # survives only as a fallback for stores that predate stored
-        # projections.
+        # The stored projection is compared first: it is version-free, so a new canonical form
+        # cannot make a cosmetic edit look like a shape change. The hash is the fallback.
         if stored_projection
           edited = JSON.parse(JSON.generate(Runtime::StorageShape.project(bluebook)))
           return :cosmetic if edited == stored_projection

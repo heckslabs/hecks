@@ -3,17 +3,12 @@ require "tmpdir"
 require "fileutils"
 require "hecks/fuzzing"
 
-# A query step is only a test of an adapter when its argument names a row the
-# sequence stored. `SequenceGenerator` draws a query's arguments independently
-# of the store, so a `where(site_ref: :site_ref)` was asked with a fresh random
-# word and matched nothing on every adapter, correct or not. These specs pin
-# that a share of query steps takes its arguments from what the sequence wrote,
-# that the rest still ask about values nothing stored, and that the choice
-# moves no other step.
+# A query step tests an adapter only when its arguments name a row the sequence stored.
+# Pins that some query steps draw arguments from stored rows, the rest still ask about
+# unstored values, and the choice moves no other step.
 RSpec.describe Hecks::Fuzzing::SequenceGenerator, ".generate" do
-  # The shape a persistence-parity sweep missed: a value object declared on
-  # one aggregate (`SiteRef` on `Site`) is the type of an attribute on another
-  # (`Deployment`), which has a composite identity and is asked about by it.
+  # A value object declared on one aggregate (`SiteRef` on `Site`) typing an attribute of a
+  # composite-identity aggregate (`Deployment`) that is queried by it.
   ROLLOUT_BLUEBOOK = <<~BLUEBOOK.freeze
     Hecks.bluebook "Rollout" do
       vision "deployments asked about by the site they belong to"

@@ -1,32 +1,10 @@
 require "spec_helper"
 require "json"
 
-# The grammar chapter's Operator domain, made load-bearing — by checking.
-#
-# lib/hecks/grammar/expression.bluebook has always declared what an
-# operator is: proposed until it reads in every target, admitted after,
-# retired when withdrawn. Nothing read it — a content-management domain
-# about operators, not the parser itself — and the evaluator's tables were
-# free to drift from it (they did once, into disjoint sets — see
-# vocabulary_conformance_spec's header for that story).
-#
-# This spec closes the gap at this project's honest claim level,
-# agreement by checking: the admission ledger
-# (lib/hecks/grammar/expression_operators.json) is replayed through
-# the chapter's real commands — so every operator the evaluator runs
-# passed a live Admit, through the "reads in every target" guard, on
-# this very suite run — and the surviving admitted set is held equal to
-# the hardcoded tables, both directions. An operator added to the
-# evaluator without a ledger admission fails here; an admitted operator
-# the evaluator does not implement fails here; a proposed or retired
-# operator anywhere in a live table fails here, and that last line is
-# the milestone's whole claim.
-#
-# By-construction (the evaluator building its table from the chapter) is
-# deliberately not attempted: the Prism adapter normalises every
-# predicate through CanonicalForm while a bluebook loads, so the
-# expression machinery cannot boot the chapter that would configure it —
-# hence the checked-in projection (bin/expression_projection).
+# Replays the operator admission ledger (lib/hecks/grammar/expression_operators.json)
+# through the expression chapter's real commands and holds the admitted set equal to the
+# evaluator's tables, both directions. The evaluator cannot build its tables from the
+# chapter itself (CanonicalForm runs while it loads), hence the checked-in projection.
 RSpec.describe "the operator domain" do
   ROOT_DIR = InMemoryDomain::ROOT unless defined?(ROOT_DIR)
   LEDGER   = JSON.parse(File.read(File.join(ROOT_DIR, "lib/hecks/grammar/expression_operators.json"))).freeze
@@ -36,10 +14,7 @@ RSpec.describe "the operator domain" do
   Resolver      = Hecks::Bluebook::Expression::Resolver
   CanonicalForm = Hecks::Bluebook::Expression::CanonicalForm
 
-  # The same boot corpus_spec proves — fresh registry, ports and adapters
-  # loaded as data, the chapter itself, then a dispatcher over it. No
-  # facade: the ledger dispatches by FQN, the same path MetaValidator
-  # judges through.
+  # Boots the chapter without a facade: the ledger dispatches by FQN, as MetaValidator does.
   def self.boot_expression
     registry = Hecks::Runtime::Registry.new
     Hecks.with_registry(registry) do
@@ -60,9 +35,8 @@ RSpec.describe "the operator domain" do
     end
   end
 
-  # Replayed once for the whole file, refusals collected rather than
-  # raised — a silently-refused Admit would shrink the admitted set and
-  # surface as a confusing direction-B failure two examples later.
+  # Refusals are collected, not raised: a swallowed Admit would otherwise surface as a
+  # confusing failure in a later example.
   DISPATCHER = boot_expression
   REFUSALS = LEDGER["steps"].filter_map do |step|
     DISPATCHER.dispatch_flat(step["verb"], **symbolize(step["args"]))
@@ -91,9 +65,8 @@ RSpec.describe "the operator domain" do
   end
 
   it "admits exactly the comparison operators the evaluator runs, in check order" do
-    # Order included on purpose: grammar.md says declared order is the
-    # grammar (the first pattern that matches wins), and Memory#all
-    # answers in insertion order, which is the ledger's Propose order.
+    # Order matters: the first matching pattern wins, and Memory#all answers in
+    # insertion (Propose) order.
     expect(symbols(admitted("comparison"))).to eq(Evaluator::COMPARISONS)
   end
 
@@ -106,11 +79,8 @@ RSpec.describe "the operator domain" do
     expect(symbols(admitted("comparison"))).to eq(declared)
   end
 
-  # The claim made checkable: "order IS the grammar." `position` is
-  # scoped per `grammar` (outer/inner each start
-  # their own count at 1) and must be dense — a gap or a duplicate would
-  # mean either a slot the parser skips or two operators claiming the same
-  # turn, neither of which the ledger can represent honestly.
+  # `position` is scoped per grammar (outer and inner each count from 1) and must be
+  # dense: a gap or duplicate would be a skipped slot or two operators sharing a turn.
   def by_grammar(grammar)
     ADMITTED.select { |op| op[:grammar].value == grammar }
             .sort_by { |op| op[:position].value }
@@ -124,22 +94,15 @@ RSpec.describe "the operator domain" do
   end
 
   it "orders the outer grammar exactly the way grammar.md documents it" do
-    # rule 1 (parenthesization) and rule 7 (bare-leaf fallback) are
-    # structural, not operators — see the exclusion comment on the
-    # aggregate itself. This is rules 2-6, in order.
+    # Rules 2-6; rule 1 (parenthesization) and rule 7 (bare-leaf fallback) are structural.
     expect(symbols(by_grammar("outer"))).to eq(
       ["||", "&&", ".include?", ">=", "<=", "<", ">", "==", "!=", "!"]
     )
   end
 
   it "orders the inner grammar exactly the way grammar.md documents it" do
-    # rule 1 (.length), 2-5 (literals), and 12 (dotted lookup) are
-    # terminal productions, not operators — same exclusion. This is rules
-    # 6-11, in order, followed by the ten vendored operators
-    # (`.match?`/`.present?`/`.blank?`/`.split`/`.start_with?`/
-    # `.end_with?`/`.first`/`.last`/`.set?`/`.unset?`) admitted after
-    # grammar.md was written — see this file's own header update for the
-    # finding that sent them through the ledger for the first time.
+    # Rules 6-11, then the operators admitted after grammar.md was written; rules 1
+    # (.length), 2-5 (literals) and 12 (dotted lookup) are terminals, not operators.
     expect(symbols(by_grammar("inner"))).to eq(
       ["+", ".positive?", ".negative?", ".zero?", ".empty?", ".to_s", ".modulo", ".size", ".any?", ".none?", ".all?", ".find",
        ".match?", ".present?", ".blank?", ".split", ".start_with?", ".end_with?", ".first", ".last", ".set?", ".unset?"]
@@ -147,9 +110,7 @@ RSpec.describe "the operator domain" do
   end
 
   it "lets no proposed or retired operator into any live table" do
-    # **The milestone's claim**. A proposed operator is not slower or gated —
-    # it does not exist to the evaluator until the ledger admits it, and
-    # a retired one stops existing the same way.
+    # A proposed or retired operator does not exist to the evaluator at all.
     unadmitted = symbols(OPERATORS.reject { |op| op[:status] == "admitted" })
     live       = Evaluator::COMPARISONS + PROBES.keys
 
@@ -159,9 +120,8 @@ RSpec.describe "the operator domain" do
                                  "ledger or take them out of the machinery"
   end
 
-  # The structural operators have no live constant — they are parse's
-  # cases — so each is held by a behavioral probe, and direction B is
-  # the probe table's keys equalling the admitted set.
+  # Structural operators have no live constant (they are parse's cases), so each is
+  # held by a behavioral probe; the probe keys must equal the admitted set.
   PROBES = {
     "||"           => -> { Evaluator.parse("a || b").is_a?(Evaluator::Or) },
     "&&"           => -> { Evaluator.parse("a && b").is_a?(Evaluator::And) },
@@ -204,34 +164,12 @@ RSpec.describe "the operator domain" do
     end
   end
 
-  # The gap this file's own header now names: everything above holds the
-  # ledger equal to the evaluator's tables (`COMPARISONS`, `PROBES`) — but
-  # eight real node types (MatchesRegex/Presence/Split/StartsWith/
-  # EndsWith/First/Last, admitted above for the first time) would reach
-  # `resolver.rb` as hand-coded Structs with a parse branch and an
-  # `interpret` arm and nothing else — no ledger entry, no `PROBES` entry,
-  # nothing any table-shaped guard could see, because they were never
-  # table entries; they were leaf-grammar code. `operator_conformance_
-  # spec` checking tables could not structurally notice code the tables
-  # never mentioned.
-  #
-  # This closes it at the struct level instead of the table level: every
-  # Class Resolver/Evaluator actually define, found by reflection
-  # (`Module#constants`, not a hand-copied roster that could go stale
-  # exactly the way the ledger itself did), must be either a documented
-  # terminal/helper exclusion or point back to an admitted symbol via
-  # `NODE_TYPE_FOR_SYMBOL`. A ninth operator vendored the same way — a
-  # new Struct in resolver.rb, no ledger entry — fails here the moment
-  # the struct exists, whether or not anyone remembers to touch this
-  # file by hand.
+  # Table checks cannot see a node type that never had a table entry. Every Class that
+  # Resolver/Evaluator define (found by reflection) must be a listed terminal or map
+  # back to an admitted symbol here, so a new Struct with no ledger entry fails.
   NODE_TYPE_FOR_SYMBOL = {
     "||" => Evaluator::Or, "&&" => Evaluator::And, "!" => Evaluator::Not, ".include?" => Evaluator::Include,
-    # All six comparison symbols (`>=`/`<=`/`</`>`/`==`/`!=`) share one
-    # node type — `Evaluator::Compare`, `operator:` naming which of the
-    # six — the identical reduction `SignTest` already applies for
-    # `.positive?`/`.negative?`/`.zero?` below. The ledger-derived roster
-    # itself (`Evaluator::COMPARISONS`, `== OPERATORS.map(&:symbol)` in
-    # evaluator.rb), not a second hand-copied list of the six symbols.
+    # All six comparison symbols share one node type, Evaluator::Compare.
     **Evaluator::COMPARISONS.to_h { |symbol| [symbol, Evaluator::Compare] },
     "+" => Resolver::Addition, ".modulo" => Resolver::Modulo,
     ".positive?" => Resolver::SignTest, ".negative?" => Resolver::SignTest, ".zero?" => Resolver::SignTest,
@@ -244,31 +182,13 @@ RSpec.describe "the operator domain" do
     ".set?" => Resolver::Assignment, ".unset?" => Resolver::Assignment
   }.freeze
 
-  # Every real Class either module defines directly (`false` — no
-  # inherited constants), found mechanically rather than remembered.
-  # `Struct.new(...)` returns a genuine anonymous `Class`, same as the
-  # bare `NilLiteral = Class.new` (see its own comment in resolver.rb for
-  # why that one isn't a Struct) — `.is_a?(Class)` catches both and
-  # nothing else (the data-table constants beside them — `SIGN_TESTS`,
-  # `BLOCK_PREDICATE_MODES`, `PROJECTION`, `OPERATORS`, ... — are
-  # Array/Hash, never Class).
+  # Classes each module defines directly; Struct.new and Class.new both yield a Class,
+  # while the data-table constants are Array/Hash.
   def node_classes(mod) = mod.constants(false).map { |name| mod.const_get(name) }.grep(Class)
 
-  # Not AST nodes `parse` ever returns, excluded with the same reasoning
-  # expression.bluebook's own "what is not here" comment on the
-  # `Operator` aggregate already gives for the outer grammar's
-  # parenthesization/bare-leaf-fallback rules and the inner grammar's
-  # literal/dotted-lookup productions: nothing here has a per-target
-  # rendering to admit.
-  #   - literals + Lookup: a spelling that doesn't differ per target.
-  #     `ArrayLiteral` joins them for the identical reason (`expr.rs`'s
-  #     own `Expr::Array` is a leaf, not routed through OperatorCategory).
-  #   - `Evaluator::Resolve`: the boolean grammar's own "fall through to
-  #     the leaf grammar" wrapper — structural, the same way the outer
-  #     grammar's bare-leaf-fallback rule is, never itself a symbol.
-  #   - `Evaluator::Operator`: a data shape (which comparison a `Compare`/
-  #     `SignTest` node carries as its `op:`/`operator:` field), not a
-  #     node `parse` ever returns on its own.
+  # Terminals and helpers with no per-target rendering to admit:
+  # literals and Lookup (spelled the same in every target), Evaluator::Resolve (the
+  # fall-through wrapper), and Evaluator::Operator (a data shape carried by Compare/SignTest).
   NON_OPERATOR_NODE_TYPES = [
     Resolver::IntegerLiteral, Resolver::FloatLiteral, Resolver::StringLiteral, Resolver::BoolLiteral,
     Resolver::NilLiteral, Resolver::ArrayLiteral, Resolver::Lookup,
@@ -289,16 +209,12 @@ RSpec.describe "the operator domain" do
                         "eight vendored operators did (see this file's own header) — admit it in the " \
                         "ledger, add its symbol to NODE_TYPE_FOR_SYMBOL and a PROBES entry, instead."
 
-    # **The other direction** — `NODE_TYPE_FOR_SYMBOL` itself drifting (a
-    # renamed or removed struct still named here) would silently defeat
-    # the check above by inflating `covered` with a class reflection no
-    # longer finds live.
+    # A stale NODE_TYPE_FOR_SYMBOL entry would inflate `covered` and defeat the check above.
     expect(covered - all_nodes).to be_empty
   end
 
   it "orders precedence the way the grammar checks" do
-    # grammar.md: || binds loosest, then &&, then membership, then the
-    # comparison tier, then !. Precedence rises with binding tightness.
+    # Precedence rises with binding tightness: ||, &&, membership, comparison, then !.
     tiers = ["||", "&&", ".include?", ">=", "!"].map do |symbol|
       ADMITTED.find { |op| op[:symbol].value == symbol }[:precedence].value
     end
@@ -336,14 +252,9 @@ RSpec.describe "the operator domain" do
   end
 
   it "admits every operator the language itself stands on" do
-    # The self-bearing set, derived rather than remembered: every guard
-    # and invariant in the language's own chapters evaluates through the
-    # operator table this ledger admits, so retiring one of those
-    # operators would leave the language unable to read its own rules —
-    # found the hard way, as a projection missing != that could not boot
-    # the chapter to fix itself. bin/expression_projection refuses to
-    # write such a projection; this is the same refusal, in-suite, ahead
-    # of any regeneration.
+    # Guards and invariants in the language's own chapters evaluate through this operator
+    # table, so retiring one would leave the language unable to read its rules.
+    # bin/expression_projection refuses the same case at regeneration.
     require "hecks/grammar"
     stranded = Hecks::Grammar.self_bearing_operators
                              .except(*symbols(ADMITTED))
@@ -387,9 +298,7 @@ RSpec.describe "the operator domain" do
     end
 
     it "gives a spelling the ledger never admitted the ordinary unknown refusal" do
-      # Not a slow operator, not a gated operator — not an operator. The
-      # refusal is the same one any unresolvable spelling gets; nothing
-      # about the lifecycle invents a third wording.
+      # An unadmitted spelling gets the same refusal as any unresolvable one.
       expect { Evaluator.call("a ** b", {}) }
         .to raise_error(Hecks::Bluebook::Expression::EvaluationError, /cannot resolve/)
     end

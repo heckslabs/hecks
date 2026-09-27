@@ -1,13 +1,7 @@
 module Hecks
   module Runtime
-    # The invocation address is not part of a command's domain payload.
-    # Aggregate commands carry one receiver identity; entity commands carry
-    # the aggregate receiver followed by one identity for every entity hop.
-    #
-    # Reading a call's shape — what `to:` and `with:` mean, the BUG#7/#17/#18
-    # rules — lives in `Runtime::Invocation.from_call` now (invocation.rb).
-    # `envelope`/`payload` are kept as thin delegators for any caller still
-    # naming them; the dispatcher itself builds an Invocation instead.
+    # The invocation address (`to:`), kept apart from a command's domain payload.
+    # Thin delegators to `Runtime::Invocation`, which reads a call's shape.
     module Routing
       Envelope = Struct.new(:aggregate, :entities, keyword_init: true) do
         # @param aggregate [String, #to_s] the receiving aggregate's identity
@@ -21,8 +15,7 @@ module Hecks
 
       module_function
 
-      # Resolves a `to:` argument into a routing envelope. A thin delegator to
-      # `Invocation.route`; the dispatcher itself builds an `Invocation` instead.
+      # Resolves a `to:` argument into a routing envelope (see `Invocation.route`).
       #
       # @param to [String, Hash, nil] a bare aggregate identity, or a Hash with
       #   `aggregate:` and `entity:`/`entities:`; nil for no receiver
@@ -32,11 +25,7 @@ module Hecks
       #   match `entity_depth`
       def envelope(to, entity_depth: 0) = Invocation.route(to, entity_depth: entity_depth)
 
-      # Resolves a command's offered facts into its flat args hash. A thin
-      # delegator to `Invocation.facts_for` for any caller still naming it.
-      #
-      # Loaded by invocation.rb (which requires this file), so `Invocation`
-      # is always defined by the time either method runs.
+      # Resolves a command's offered facts into its flat args hash (see `Invocation.facts_for`).
       #
       # @param command [Class] a `Bluebook::Command` subclass (or port-operation class)
       #   responding to `hecks_name` and `attributes`

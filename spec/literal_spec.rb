@@ -1,13 +1,7 @@
 require "spec_helper"
 
-# The wire spelling itself, held still.
-#
-# Every other spec that touches these strings reaches them through a domain
-# boot, so the only thing pinning the format was a golden file — and a golden
-# regenerates. This is the claim: these exact spellings, on any Ruby. The
-# renderings this replaced were `Hash#inspect` and `Symbol#to_s`, which meant
-# the wire format quietly said whatever the interpreter said — 3.3 spells the
-# same Hash `{:k=>"v"}` and 3.4 spells it `{k: "v"}`.
+# Pins the exact wire spellings, independent of the Ruby version (`Hash#inspect`
+# differs between 3.3 and 3.4, and a golden file regenerates).
 RSpec.describe Hecks::Literal do
   describe ".render" do
     {
@@ -36,13 +30,8 @@ RSpec.describe Hecks::Literal do
       expect { described_class.render(Object.new) }.to raise_error(ArgumentError, /no pinned literal spelling/)
     end
 
-    # The exact regression `render_value`'s old `.to_s`-for-everything
-    # collapse produced: a numeric-looking string wears its own quotes on
-    # the wire rather than being indistinguishable from the bare digits a
-    # real Integer renders as ("007" would otherwise cross the wire as the
-    # text `007`, identical to what `7` itself would have written, and come
-    # back an Integer on the other side — `where code == "007"` would then
-    # match nothing).
+    # A numeric-looking string keeps its quotes; bare `007` would read back as an
+    # Integer and `where code == "007"` would match nothing.
     it "quotes a numeric-looking string differently from the number itself" do
       expect(described_class.render("007")).to eq('"007"')
       expect(described_class.render(7)).to eq("7")
@@ -57,54 +46,37 @@ RSpec.describe Hecks::Literal do
       end
     end
 
-    # `{}` renders "{}" and reads back as nil-free but empty — asserted apart
-    # from the loop above only because an empty Hash and an empty Array are the
-    # two values whose spellings a naive splitter turns into a one-item list.
+    # Asserted apart: a naive splitter turns an empty object's spelling into a one-item list.
     it "reads an empty object back as an empty object" do
       expect(described_class.read("{}")).to eq({})
     end
 
-    # A comma inside a quoted value is not a separator. `where(status: { in:
-    # "open,frozen" })` is a real clause in banking, and splitting on ", " tore
-    # every nested field after the first one in half.
+    # A comma inside a quoted value is not a separator (`where(status: { in: "open,frozen" })`).
     it "keeps a quoted comma out of the split" do
       expect(described_class.read('{note: "a, b", other: 1}')).to eq(note: "a, b", other: 1)
     end
 
-    # M15 — an embedded quote inside an object literal's own string field.
-    # `quote`/`unquote` escape and unescape it (`ESCAPED`), and `split_items`
-    # tracks `quoting`/`escaping` state char by char rather than splitting on a
-    # bare `"`, so `{text: "a \"quoted\" word"}` neither ends the field early
-    # nor corrupts the split into a following field. Exercised through
-    # `.render` first — the exact string a real default/binding would carry
-    # on the wire — not hand-written, so this is the real encoding, not a
-    # convenient one.
+    # `split_items` tracks quoting and escaping, so an escaped embedded quote neither
+    # ends the field early nor corrupts the next one. Built via `.render`, not by hand.
     it "keeps an embedded, escaped quote inside a quoted field rather than ending it early" do
       value = { text: 'a "quoted" word' }
 
       expect(described_class.read(described_class.render(value))).to eq(value)
     end
 
-    # **The same shape one field later** — an embedded quote must not corrupt a
-    # sibling field's own read either, which a naive quote-blind scanner
-    # (ending the string at the first `"` it sees) would have done by
-    # treating the field's own closing quote as the embedded one and reading
-    # everything after it — including the next field's name — as more text.
+    # The same, with a sibling field after the embedded quote.
     it "keeps an embedded quote from corrupting the field that follows it" do
       value = { note: 'say "hi"', other: 1 }
 
       expect(described_class.read(described_class.render(value))).to eq(value)
     end
 
-    # The language stores a closed set's members and a few other fields as text
-    # nothing ever rendered, so a bare word has to stay the word it is.
+    # Closed-set members are stored as text nothing rendered, so a bare word stays as is.
     it "leaves an unrendered bare word alone" do
       expect(described_class.read("high_risk")).to eq("high_risk")
     end
 
-    # The read-side half of the same regression: a real render'd numeric
-    # string round-trips as the string it was, not the Integer its digits
-    # happen to spell.
+    # The read side of the numeric-string case above.
     it "reads a rendered numeric-looking string back as a string, not a number" do
       expect(described_class.read(described_class.render("007"))).to eq("007")
     end

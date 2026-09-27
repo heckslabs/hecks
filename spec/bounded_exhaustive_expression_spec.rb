@@ -1,25 +1,11 @@
 require "spec_helper"
 require "hecks/fuzzing/bounded_exhaustive_expressions"
 
-# Phase 7 (equivalence-gap plan) — see `Hecks::Fuzzing::
-# BoundedExhaustiveExpressions`'s own header for the full design (why
-# type-directed, what "proven" means here precisely, what it does and
-# does not claim). Deterministic and fast (a few thousand cases, well
-# under a second) — this runs in the default suite, no `io:`/`fuzzing:`
-# tag needed.
+# Every well-typed expression up to depth 3, checked against the evaluator; see
+# `Hecks::Fuzzing::BoundedExhaustiveExpressions`. Fast and deterministic, so it runs by default.
 #
-# Found four real parsing bugs live, none caught before, all fixed
-# alongside this file (see each one's own comment at its fix site):
-#   - `Resolver#match_call` (nested and chained `.modulo(...)`)
-#   - `Evaluator#match_include` (nested `.include?(...)`)
-#   - `Evaluator#top_level_index` / `Resolver#split_addition` (`[`/`]`
-#     never counted toward bracket depth, so an array literal containing
-#     its own top-level `+`/comparison mis-split the enclosing expression)
-# None had any real corpus precedent (grep, all four) — sampling-based
-# fuzzing essentially never manufactures the specific nested/chained/
-# bracketed shapes that triggered them, which is exactly why exhaustive,
-# type-directed generation exists as its own, separate technique here
-# rather than a wider `bin/fuzz` seed count.
+# Sampling-based fuzzing rarely produces the nested, chained or bracketed shapes that
+# exposed parsing bugs in `match_call`, `match_include` and `top_level_index`.
 RSpec.describe "the expression sublanguage, exhaustively, for every well-typed expression up to depth 3" do
   BEE = Hecks::Fuzzing::BoundedExhaustiveExpressions
 
@@ -40,18 +26,8 @@ RSpec.describe "the expression sublanguage, exhaustively, for every well-typed e
                                  "EvaluationError — a real crash this generator exists to catch:\n#{message}"
   end
 
-  # A narrower, stronger assertion than "no crash": every "cannot
-  # resolve X — no such attribute or argument" refusal is itself a
-  # finding for this specific generator (unlike a real fuzzer with
-  # deliberately-absent attributes) — every name this generator ever
-  # references is declared, with a value, in its own `synthetic_state`
-  # (`SYNTHETIC_ATTRS`/`ARRAY_ELEMENT_TYPE`), so a genuinely well-typed,
-  # correctly-generated expression should never fail to resolve a name.
-  # When one does, the far more likely explanation is a silent misparse
-  # that happened to fail safe into a real `EvaluationError` rather than
-  # a raw crash — exactly how all three of this file's own real findings
-  # first surfaced (a garbled `Lookup` path quoting fragment text no
-  # author ever wrote, not a genuine absent-attribute refusal).
+  # Every name the generator references is declared in its own `synthetic_state`, so a
+  # "cannot resolve" refusal means a silent misparse that failed safe, not a missing attribute.
   it "never refuses with \"cannot resolve\" — every name here is one this generator itself declared" do
     unresolved = BEE.all_predicates.filter_map do |expr|
       result = BEE.check(expr)

@@ -1,5 +1,4 @@
-//! Port of `evaluator.rb`'s `parse` step only — see `expr/mod.rs`'s own
-//! header.
+//! Parses boolean predicate expressions into an `Evaluator` tree (port of `evaluator.rb#parse`).
 
 use super::resolver::{self, Resolver};
 use super::{top_level_index, Operator, OPERATORS};
@@ -24,20 +23,8 @@ pub fn parse(expr: &str) -> Evaluator {
         return Evaluator::And(Box::new(parse(left)), Box::new(parse(right)));
     }
 
-    // Tried before `.include?`/comparisons, not after — port of
-    // `evaluator.rb`'s own fix, with its exact reasoning: `!` negates the
-    // whole boolean expression that follows it (`!names.include?(x)`
-    // means `!(names.include?(x))`, never "call .include? on the negated
-    // receiver"), so the leading marker has to be stripped and the
-    // remainder re-parsed before `match_include`'s naive `rfind` gets a
-    // chance to scan across it. Confirmed live: `match_include` has no
-    // concept of a leading `!` at all, so trying it first swallows the
-    // `!` straight into the haystack text
-    // ("!names"), which `resolver::parse` cannot resolve as membership —
-    // every spelling of negated membership fell through to `Lookup`
-    // instead of `Not(Include(..))`, exactly the historical Ruby bug
-    // this crate had silently reintroduced (spec/corpus/grammar/
-    // negated_include.json is the fixture that catches it).
+    // A leading `!` negates the whole expression; strip it before `match_include` folds it
+    // into the haystack text (spec/corpus/grammar/negated_include.json).
     if let Some(inner) = expr.strip_prefix('!') {
         if !inner.is_empty() {
             return Evaluator::Not(Box::new(parse(inner)));

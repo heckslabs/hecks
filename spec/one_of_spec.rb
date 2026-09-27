@@ -41,19 +41,8 @@ RSpec.describe "one_of" do
                        'AccountKind admits "current", "savings", "reserve" — got "gold"')
   end
 
-  # This reaches the door through DailyLimit, not EmailAddress: EmailAddress's
-  # rule was the hand-rolled invariant `address.include?("@")`, which is a
-  # declared `pattern:` now, so pattern-checking intercepts it before the
-  # invariant ever fires. CustomerNumber, the value object the example moved
-  # to next because it still had an invariant with nothing else guarding it
-  # (otherwise the test would keep its name and quietly stop testing
-  # invariants at all), later gained a `pattern:` of its own too (the
-  # whitespace-only sweep — banking's own value objects, alongside
-  # shape.bluebook's), so a blank reference is refused as a TypeMismatch
-  # now, before CustomerNumber's invariant is ever reached — the identical
-  # shift EmailAddress went through. DailyLimit is an Integer field with
-  # no pattern to shadow it (patterns only ever apply to String), so its
-  # own invariant is genuinely still what fires here.
+  # Uses DailyLimit because it is an Integer field: patterns apply only to String, so
+  # no `pattern:` check shadows its invariant (EmailAddress and CustomerNumber have one).
   it "judges an object payload's invariants at the same door" do
     runtime = boot_banking
 
@@ -78,16 +67,8 @@ RSpec.describe "one_of" do
                        'EmailAddress.address must match ^[^@ ]+@[^@ ]+\.[^@ ]+$, got "nowhere"')
   end
 
-  # L6 (docs/audits/2026-08-11-bug-triage.md, Tier 7) — checking only the
-  # closed set's discriminant column (the first declared attribute) in
-  # `Admission#admit_member` would admit a multi-column `member` row —
-  # `StatementFrequency` (examples/banking/bluebook/statements.bluebook), a
-  # real member of this very corpus, not a synthetic fixture — the instant
-  # its `cadence` matched a declared row, no matter what `retention_months`/
-  # `paper_fee_cents` said. Confirmed live: `Value.build` with
-  # `cadence: "monthly"` (a real member) alongside an invalid
-  # `retention_months`/`paper_fee_cents` would raise nothing without
-  # checking every column.
+  # Pins that every column of a multi-column member row is checked, not only the
+  # discriminant (first) column: a matching `cadence` must not admit bad other columns.
   describe "a multi-column one_of (StatementFrequency)" do
     def statement_frequency
       boot_banking.registry.bluebook("Banking").aggregate("Statement").value_object("StatementFrequency")

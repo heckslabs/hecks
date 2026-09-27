@@ -2,17 +2,13 @@ require_relative "behaviors/dsl"
 require_relative "behaviors/expectations"
 require_relative "behaviors/runner"
 
-# The `.behaviors` toolkit `bin/behaviors` and a consumer's own rspec shim
-# (`hecks/behaviors/rspec`) drive. Not required by lib/hecks.rb on
-# purpose — a booted domain never needs it, the same reason `Fuzzing` (see
+# The `.behaviors` toolkit driven by `bin/behaviors` and `hecks/behaviors/rspec`.
+# Opt-in: not required by lib/hecks.rb, like `Fuzzing`.
 # lib/hecks/fuzzing.rb, the shape this file mirrors) is opt-in too.
 module Hecks
   class << self
-    # `Hecks.behaviors "Name" do ... end` — deliberately not routed
-    # through `collect` the way `bluebook`/`hecksagon`/`world` are: a
-    # behaviors suite is a test artifact a runner reads on demand, never
-    # a thing a live domain boot needs, so it has no business landing in
-    # `Runtime.current_registry`.
+    # `Hecks.behaviors "Name" do ... end`. Not routed through `collect`: a behaviors suite is a
+    # test artifact, so it stays out of `Runtime.current_registry`.
     #
     # @param name [String] the suite's declared name
     # @yield the suite's body, evaluated against a `Behaviors::BehaviorsBuilder`

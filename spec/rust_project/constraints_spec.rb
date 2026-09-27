@@ -2,21 +2,9 @@ require "spec_helper"
 require_relative "../../rust/project/constraints"
 require_relative "../../rust/project/exemplar"
 
-# `optional:` paired with `pattern:`/`admits:` — no real domain in this
-# corpus currently declares that combination (confirmed: neither
-# banking nor pizzas pairs `optional: true` with `pattern:`/`admits:`
-# on any scalar/single-field-VO attribute), so this bug was latent —
-# real, but unexercised by anything `codegen_parity_spec.rb`'s own
-# corpus-based proof already covers. Tested directly here instead of
-# via a new fixture domain: `emit_pattern_check`/`emit_admits_check`
-# are pure Ruby string generation, so asserting the generated Rust
-# snippet's own shape is a real, proportionate test of the actual fix.
-#
-# Without `wrap_if_optional`, `scalar_field_expr` handed these two
-# checks a bare `Option<String>` field — `pattern::matches`/an
-# `.contains` call both want `&str`, which is a real Rust compile
-# error the moment a domain author writes this combination, not a
-# hypothetical.
+# `optional:` combined with `pattern:`/`admits:` must wrap the check in `if let Some(..)`;
+# a bare `Option<String>` handed to `pattern::matches` or `.contains` is a Rust compile error.
+# Tested on the generated snippet directly: no corpus domain has this combination.
 RSpec.describe RustProjection::Projector do
   REQUIRED_STRING_ATTR = { name: "description", type: "String", optional: false }.freeze
   OPTIONAL_STRING_ATTR = { name: "description", type: "String", optional: true }.freeze
@@ -29,8 +17,7 @@ RSpec.describe RustProjection::Projector do
 
       expect(generated).to start_with("if let Some(__optional_value) = &self.description { ")
       expect(generated).to end_with(" }")
-      # The wrapped check itself reads the rebound reference, never the
-      # raw Option — the raw form is the exact line that fails to compile.
+      # The check reads the rebound reference; the raw Option would not compile.
       expect(generated).to include("crate::kernel::pattern::matches(")
       expect(generated).to include("&__optional_value")
       expect(generated).not_to include("&self.description)")

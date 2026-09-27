@@ -1,9 +1,7 @@
 require "spec_helper"
 
-# The postcondition — Design by Contract's third leg, `given` being the
-# first and `invariant` the second. Checked against the settled record,
-# after mutations and the lifecycle move, before anything persists —
-# `old` names the state as the givens saw it.
+# The postcondition, checked against the settled record after mutations and before persisting;
+# `old` is the state the givens saw.
 RSpec.describe "a command's ensures" do
   def boot(chapter = "Vault", &domain)
     registry = Hecks::Runtime::Registry.new
@@ -18,15 +16,8 @@ RSpec.describe "a command's ensures" do
     Hecks::Runtime::Dispatcher.new(registry)
   end
 
-  # A scratch domain, not a corpus fixture — one command whose postcondition
-  # holds, one whose does not, so the failing path is provoked on purpose
-  # rather than hoped for out of a real domain's correct arithmetic.
-  # A declarative bluebook fixture, not procedural code — one aggregate
-  # declared start to finish so the reader sees the whole scratch domain
-  # in one place, the same way every other `.bluebook`-shaped fixture in
-  # this suite is written. Splitting it across methods would just spread
-  # one DSL block over several call sites with no branching logic to
-  # actually simplify.
+  # A scratch domain: one command whose postcondition holds and one whose does not.
+  # Declared as one bluebook block so the whole domain reads in one place.
   # rubocop:disable-next Metrics/AbcSize
   # rubocop:disable-next Metrics/MethodLength
   def vault
@@ -123,9 +114,8 @@ RSpec.describe "a command's ensures" do
     runtime = open_box(vault)
     runtime.dispatch_flat("Vault::Box.Deposit", number: { value: "b1" }, amount: { cents: 500 })
 
-    # A passing Deposit already proves old != current (0 -> 500 -> 700):
-    # if `old` had leaked the post-mutation value, 700 == 500 + 200 would
-    # be false and this dispatch would itself raise.
+    # A passing Deposit already proves it: if `old` leaked the post-mutation value,
+    # 700 == 500 + 200 would fail and this dispatch would raise.
     result = runtime.dispatch_flat("Vault::Box.Deposit", number: { value: "b1" }, amount: { cents: 200 })
     expect(result.instance[:balance][:cents]).to eq(700)
   end
@@ -134,19 +124,10 @@ RSpec.describe "a command's ensures" do
     expect(Hecks::Runtime::DOMAIN_REFUSALS).to include(Hecks::Runtime::EnsuresNotMet)
   end
 
-  # Ensures is the first refusal that ever sits after a mutation — every
-  # earlier refusal (given, the payload gate, admissible_transition) runs
-  # before apply_mutations, so nothing before this feature could ever
-  # observe a Memory-adapter record half-mutated by a dispatch that then
-  # failed. Memory's `find` hands back the same object it will eventually
-  # save, aliased — so without Instance#dup (and, one level deeper, the
-  # array/hash copy in EntityInterpreter#element_of), a refused ensures
-  # would still leave the in-memory record mutated. These two specs are
-  # that bug, pinned so it cannot come back quietly.
+  # Memory's `find` returns the object it will later save, so without Instance#dup (and the
+  # copy in EntityInterpreter#element_of) a refused ensures would leave the record mutated.
   describe "an aliasing bug ensures was the first feature to expose" do
-    # Same shape as `vault` above, for the same reason (see its own
-    # comment) — one declarative bluebook fixture, this time covering
-    # both the aggregate and entity aliasing paths in one scratch domain.
+    # Same shape as `vault`: one declarative fixture covering the aggregate and entity paths.
     # rubocop:disable-next Metrics/AbcSize
     # rubocop:disable-next Metrics/MethodLength
     def coin
@@ -211,24 +192,12 @@ RSpec.describe "a command's ensures" do
           end
 
           entity "Coin" do
-            # A separate identity field, deliberately not `label` — the
-            # argument that addresses an element and a state field of the
-            # same name collide in expression scope (args win over state,
-            # the same rule `given` already lives under), and colliding
-            # them here would make `label.value` in the ensures read the
-            # dispatch's addressing argument instead of the settled record.
+            # Not `label`: an addressing argument and a state field of the same name
+            # collide in expression scope, so `label.value` would read the argument.
             identified_by :serial
             attribute :serial, Serial
             attribute :label,  Label
-            # `Money`, not the bare `Integer` this fixture declared before —
-            # M13: an entity's attribute types are now resolved as
-            # references the same way an aggregate's own are, and `Integer`
-            # is a Ruby class, never a declared value object anywhere in
-            # this chapter (Purse's own `AddCoin` already binds this same
-            # field through `attribute :cents, Money`, and `Purse#total`
-            # carries the identical `Money` type one level up — the
-            # bare-`Integer` field type here was simply unexercised: only
-            # `label` is asserted after `Reface`'s ensures refuses).
+            # `Money`, not `Integer`: entity attribute types resolve as declared references.
             attribute :cents,  Money
 
             command "Reface" do

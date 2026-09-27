@@ -1,11 +1,7 @@
 require "spec_helper"
 
-# qa/stress_domains/ledger_ordering — see its own NOTES.md for why this
-# domain exists: an isolated, minimal re-trigger of the ordering question
-# ADR 0037's LedgerEntry.Amend finding raised (entity-addressing vs.
-# argument-invariant, which one wins). Ruby-only for now — the Rust half
-# needs `bin/project_rust qa/stress_domains/ledger_ordering` run first,
-# see NOTES.md.
+# Pins which refusal wins, entity addressing or argument invariant (ADR 0037); see
+# qa/stress_domains/ledger_ordering/NOTES.md.
 RSpec.describe "LedgerOrdering" do
   LEDGER_ORDERING_ROOT = File.join(InMemoryDomain::ROOT, "qa/stress_domains/ledger_ordering/bluebook").freeze
 
@@ -41,11 +37,8 @@ RSpec.describe "LedgerOrdering" do
     expect(folder[:slips].map { |slip| slip[:reference][:value] }).to eq(["S1"])
   end
 
-  # **The stress dispatch** — the whole reason this domain exists. `to.entity`
-  # names a Slip that was never added; `amount.value` fails its own
-  # invariant. Both are true at once — which refusal comes back first is
-  # the question, and Ruby's own construction-before-lookup order answers
-  # it before entity existence is ever asked.
+  # Both refusals apply at once: the slip was never added and `amount.value` fails
+  # its invariant. Ruby constructs arguments before looking up the entity.
   it "raises the argument's own InvariantViolation before checking whether the addressed slip exists" do
     runtime
     LedgerOrdering::Folder.open!(reference: { value: "F1" })

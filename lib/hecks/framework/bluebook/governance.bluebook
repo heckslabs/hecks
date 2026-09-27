@@ -2,10 +2,9 @@ Hecks.bluebook "Governance" do
   vision "Organizational authority is explicit, reviewable, and historically explainable."
   supporting
 
-  # WHAT THIS CHAPTER ANSWERS FOR EVERY DOMAIN THAT ATTACHES IT. The role
-  # check at dispatch, boot's refusal of an ungoverned `role`, the
-  # authorization adapter and the fuzzer's grant steering all read these
-  # three verbs from here, rather than recognising "Governance" by name.
+  # What this chapter answers for every attaching domain: the role check at dispatch, boot's
+  # refusal of an ungoverned `role`, the authorization adapter and the fuzzer's grant
+  # steering read these three verbs from here rather than recognising "Governance" by name.
   provides "authorization",
            assignments: "RoleAssignment.AssignmentsForActor",
            grant:       "RoleAssignment.Assign",
@@ -14,12 +13,9 @@ Hecks.bluebook "Governance" do
   aggregate "RoleAssignment" do
     description "One actor holding one role, over one scope, from one point in time — revoked by setting when it ended, never deleted."
 
-    # THE IDENTITY IS THE EVENT, not the (actor, role) pair — an actor can
-    # hold the same role again later, after a prior assignment ended, and
-    # that is a SECOND real assignment, not a state to overwrite. No UUID
-    # adapter exists yet in this codebase to mint a synthetic id, and none
-    # is needed: `starts_at` already makes "this actor started holding this
-    # role at this time" unique on its own.
+    # The identity is the event, not the (actor, role) pair: an actor can hold a role again
+    # after a prior assignment ended, and that is a second assignment. `starts_at` makes each
+    # one unique.
     attribute :actor_id,  IdentityId
     attribute :role_name, RoleName
     attribute :scope,     Scope
@@ -78,21 +74,10 @@ Hecks.bluebook "Governance" do
     end
   end
 
-  # WHO HOLDS A ROLE is `RoleAssignment`'s question. This is a different one:
-  # may role X ACT AS role Y — the fact `act_as` (the plan's §2) needs before
-  # a caller is allowed to dispatch under a role it does not itself hold.
-  # Same event-log shape as RoleAssignment : a natural key, `ends_at` for
-  # revocation, no delete — and, like RoleAssignment, THE IDENTITY IS THE
-  # GRANT, not the (from_role, to_role) pair. `starts_at` used to be
-  # missing from here — the one field RoleAssignment's own identity adds
-  # beyond its own (actor, role) pair specifically so a second, later
-  # assignment is a SECOND real record rather than a collision. Without
-  # it, `identified_by :from_role, :to_role` alone made a revoked pair's
-  # own identity permanently occupied: `Grant` is a creating command, the
-  # same (from_role, to_role) pair is the SAME id forever, and a repeat
-  # `Grant` after a `Revoke` was refused as `AlreadyExists` no matter how
-  # long ago the prior grant ended — an absorbing "revoked" state this
-  # very comment already claimed didn't exist.
+  # Whether role X may act as role Y, which `act_as` needs before a caller dispatches under a
+  # role it does not hold. Same event-log shape as RoleAssignment, and the identity is the
+  # grant: without `starts_at`, a revoked pair would occupy its id forever and a repeat
+  # `Grant` would be refused as `AlreadyExists`.
   aggregate "RoleTransition" do
     description "Role X is authorized to act as role Y, from one point in time — until revoked, and grantable again afterward, exactly like RoleAssignment."
 
@@ -135,15 +120,9 @@ Hecks.bluebook "Governance" do
       emits RoleTransitionRevoked
     end
 
-    # EVERY GRANT OF THIS PAIR, current or historical — same deferral
-    # `AssignmentsForActor` already makes for RoleAssignment: the where
-    # clause has no way to ask "and ends_at is absent", so the query
-    # answers with every row and the CALLER reads `ends_at` to tell a
-    # live grant from a revoked one, exactly as it already must for
-    # every assignment. Can answer MORE than one row now that `starts_at`
-    # is part of the identity — a pair granted again after a revocation is
-    # a SECOND row, not an overwrite of the first, the same way a
-    # re-assigned actor/role is for RoleAssignment.
+    # Every grant of this pair, current or historical: `where` cannot ask "ends_at is absent",
+    # so the caller reads `ends_at` to tell a live grant from a revoked one. A pair granted
+    # again after a revocation is a second row.
     query "Allowed" do
       description "Every role transition granted for this exact pair, current or historical."
       attribute :from_role, RoleName

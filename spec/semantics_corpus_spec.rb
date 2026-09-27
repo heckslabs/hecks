@@ -4,16 +4,9 @@ require "open3"
 require "hecks/fuzzing"
 require_relative "support/rust_conformance_helpers"
 
-# **The semantics corpus** — the executable half of
-# docs/semantics/bluebook-semantics.md. Every fixture carries a frozen
-# `expect` (seeded once by bin/seed_semantics_corpus, reviewed against
-# the clauses, then the definition); this spec holds both runtimes to
-# the file, never to each other. That is the difference from
-# spec/rust_conformance_spec.rb, which proves the runtimes agree — a
-# shared bug passes there and fails here the day a clause decides it.
-#
-# Refusals are compared with their kind (the refusal class, C8.2);
-# events without `occurred_at` (environmental, C7.3/C9.1).
+# The executable half of docs/semantics/bluebook-semantics.md: both runtimes are held to each
+# fixture's frozen `expect`, not to each other (unlike spec/rust_conformance_spec.rb).
+# Refusals compare by kind (C8.2); events compare without `occurred_at` (C7.3/C9.1).
 RSpec.describe "the semantics corpus" do
   SEMANTICS_FIXTURES = Dir.glob(File.join(InMemoryDomain::ROOT, "spec/corpus/semantics", "*.json")).freeze
   SEMANTICS_DOC = File.join(InMemoryDomain::ROOT, "docs/semantics/bluebook-semantics.md")
@@ -35,10 +28,7 @@ RSpec.describe "the semantics corpus" do
     end
   end
 
-  # **The reverse of the check below** — every fixture the document cites
-  # must exist. Stage 5 wrote seven citations ahead of their files, and
-  # nothing noticed until a reader went looking; a cited fixture that
-  # does not exist is a clause pinned by nothing.
+  # A cited fixture that does not exist is a clause pinned by nothing.
   it "has a file for every fixture docs/semantics/bluebook-semantics.md cites" do
     cited = File.read(SEMANTICS_DOC).scan(/fixtures?:\s*((?:`[^`]+\.json`[\s,]*)+)/).flatten
                 .flat_map { |group| group.scan(/`([^`]+\.json)`/).flatten }.uniq
@@ -57,12 +47,8 @@ RSpec.describe "the semantics corpus" do
     end
   end
 
-  # **A partition, not a filter**. Every fixture lands in exactly one bucket:
-  # held to the Rust kernel below (gating), or `ruby_only` — and a
-  # ruby_only fixture is not a silent exclusion: it carries a
-  # `ruby_only_reason`, checked here against what it claims (a missing
-  # Cargo feature must really be missing), and the non-gating report
-  # below still runs it against Rust wherever a binary exists.
+  # Every fixture is either held to the Rust kernel (gating) or `ruby_only` with a
+  # `ruby_only_reason` checked here against what it claims; the non-gating report still runs it.
   RUBY_ONLY_FEATURELESS = "rust/Cargo.toml".freeze
 
   def self.cargo_feature?(feature)
@@ -106,10 +92,8 @@ RSpec.describe "the semantics corpus" do
     end
   end
 
-  # The same fixtures, answered by the compiled Rust kernel — refusal
-  # kinds included, matching the same C8.3 discipline spec/rust_conformance
-  # holds Rust to.
-  # `io: true`: a cargo build inside rspec, by this suite's convention.
+  # The same fixtures, answered by the compiled Rust kernel, refusal kinds included (C8.3).
+  # `:io` because it runs a cargo build.
   describe "the Rust kernel answers every fixture as written", :io do
     include RustConformanceHelpers
 
@@ -128,8 +112,7 @@ RSpec.describe "the semantics corpus" do
     end
 
     SEMANTICS_FIXTURES.each do |fixture_path|
-      # ruby_only fixtures are the other half of the partition — the
-      # report below, not a skip here.
+      # ruby_only fixtures are covered by the report below.
       next if JSON.parse(File.read(fixture_path))["ruby_only"]
 
       it File.basename(fixture_path) do
@@ -149,10 +132,8 @@ RSpec.describe "the semantics corpus" do
       end
     end
 
-    # **Non-gating, by design** — it reports, it never fails. A ruby_only
-    # fixture Rust now answers exactly is a flag waiting to be removed;
-    # this is where that shows up. Build failures are reported, not
-    # raised: the gating examples above own "the crate builds".
+    # Non-gating: reports, never fails. A ruby_only fixture Rust answers exactly can drop its
+    # flag. Build failures are reported, not raised; the gating examples own "the crate builds".
     it "reports which ruby_only fixtures the Rust kernel now answers as written (non-gating)" do
       lines = SEMANTICS_FIXTURES.select { |path| load_fixture(path)["ruby_only"] }.map do |path|
         fixture = load_fixture(path)

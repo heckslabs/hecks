@@ -1,56 +1,21 @@
-//! Source-body slicing + whitespace collapse — mirrors
-//! `Hecks::Bluebook::Expression::CanonicalForm`
-//! (lib/hecks/bluebook/expression/canonical_form.rb), which itself
-//! reads its normalisation rules from
-//! lib/hecks/bluebook/expression/projection.json rather than hosting
-//! them as a second hand-written table.
-//!
-//! Used for `given`/`ensures`/`invariant`/`identified_by { }` bodies —
-//! these are captured as raw text and canonicalized, never interpreted.
-//! The existing `evaluator.rb`/`resolver.rb`/`expr_emitter.rb`/
-//! `rust/src/kernel/expr.rs` pipeline for predicate text is untouched and
-//! out of scope for this parser; this module only has to reproduce the
-//! byte-for-byte text the Ruby side would capture for the same source
-//! span, not understand what the text means.
-//!
-//! The two rules are hand-mirrored, not generated. Unlike keywords.rs
-//! (~230 rows, changes as the language grows), projection.json's own
-//! `normalisations` array is two small, stable entries — hand-mirroring
-//! is honest here (each rule cites its Ruby source), and this module notes
-//! plainly that a third rule landing in projection.json without a matching
-//! update here would silently drift; if this table ever needs to grow
-//! past "small and stable" it should become generated the same way
-//! keywords.rs is, not stay hand-maintained past the point that's safe.
+//! Source-body slicing and whitespace collapse, mirroring Ruby's `CanonicalForm`.
+//! Hand-mirrored from projection.json: a third rule there needs a matching rule here.
 
-/// Slices the raw source bytes between two byte offsets — the body of a
-/// `source`-shaped block (see keywords.rs's `Body` column) exactly as
-/// written, before any normalisation. Kept as its own step because a
-/// `source` body is captured, not lexed: the shape/word/argument gates
-/// never look inside it.
+/// Slices the raw source between two byte offsets, before any normalisation.
 pub fn slice(source: &str, start: usize, end: usize) -> &str {
     &source[start..end]
 }
 
-/// `CanonicalForm.apply` — collapse all whitespace runs to a single space,
-/// then replace `.length` with `.size` at a word boundary, then trim.
-/// Rule order matches projection.json's own `position` column (1, then 2).
-/// Both rules run outside string literals only — mirroring Ruby's
-/// `map_outside_strings` (`canonical_form.rb:71-116`, the M7 fix):
-/// quoted runs (either quote character) pass through byte-for-byte, so
-/// whitespace inside `"a  b"` survives and `".length"` inside a literal
-/// is never folded. This parser was quote-blind here until the `ast`
-/// work made the divergence load-bearing (a differently-canonicalised
-/// string parses to a different tree).
+/// Canonical text of a captured body: whitespace runs collapse to one space, `.length`
+/// becomes `.size`, then trim. Quoted runs pass through untouched, matching Ruby.
 pub fn apply(source: &str) -> String {
     let collapsed = map_outside_strings(source, collapse_whitespace);
     let replaced = map_outside_strings(&collapsed, |run| replace_word_boundary(run, ".length", ".size"));
     replaced.trim().to_string()
 }
 
-/// Splits `text` into quoted and unquoted runs, applies `transform` to
-/// the unquoted runs only, and copies quoted runs (including their
-/// quotes) through verbatim. A backslash escapes the next character
-/// inside a quoted run, exactly as Ruby's scanner treats it.
+/// Applies `transform` to the unquoted runs of `text` and copies quoted runs verbatim;
+/// a backslash escapes the next character inside a quoted run.
 fn map_outside_strings(text: &str, transform: impl Fn(&str) -> String) -> String {
     let mut out = String::with_capacity(text.len());
     let mut plain = String::new();
@@ -98,9 +63,7 @@ fn collapse_whitespace(text: &str) -> String {
     out
 }
 
-/// `rule.boundary == "word"` — `.length` becomes `.size` only when not
-/// immediately followed by another identifier character, mirroring Ruby's
-/// `gsub(/#{Regexp.escape(token)}(?![[:alnum:]_])/, replacement)`.
+/// Replaces `token` with `replacement` unless another identifier character follows it.
 fn replace_word_boundary(text: &str, token: &str, replacement: &str) -> String {
     let mut out = String::with_capacity(text.len());
     let bytes = text.as_bytes();
@@ -137,8 +100,7 @@ mod tests {
     #[test]
     fn replaces_length_at_a_word_boundary_only() {
         assert_eq!(apply("items.length"), "items.size");
-        // `lengthy` must not become `sizey` — the boundary check earns its
-        // keep exactly here.
+        // `lengthy` must not become `sizey`.
         assert_eq!(apply("lengthy"), "lengthy");
     }
 

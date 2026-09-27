@@ -1,15 +1,5 @@
-//! The lexer — comment/blank-line stripping, and the shape gate (the first
-//! of the four parsing gates: shape, word, argument, body — see the crate's
-//! module doc in main.rs).
-//!
-//! A `.bluebook` line must be one of a small fixed set of forms: a bare
-//! word call (`aggregate "Pizza" do`, `attribute :name, String`, `end`).
-//! Bare Ruby expressions, `if`/`unless`/control flow, and local variable
-//! assignment are hard errors here — never silently skipped, never
-//! interpreted as Ruby. This is deliberate and load-bearing: the DSL *is*
-//! real Ruby underneath (`instance_eval`'d against builder objects), but
-//! this parser never runs a Ruby interpreter, so it can only ever admit
-//! the shapes it explicitly recognizes.
+//! The lexer: strips comments and blank lines, then applies the shape gate.
+//! Bare Ruby expressions, control flow and assignment are refused, never interpreted.
 
 use crate::diag::Diagnostic;
 
@@ -19,10 +9,7 @@ pub struct SourceLine<'a> {
     pub text: &'a str,
 }
 
-/// Comment-stripped, blank-line-free physical lines, each carrying its
-/// original (1-based) line number for diagnostics. A `#` starts a comment
-/// unless it's inside a quoted string — `description "a # not a comment"`
-/// must keep its `#`.
+/// Comment-stripped, blank-free lines with 1-based numbers; a `#` inside a string is kept.
 pub fn lines(source: &str) -> Vec<SourceLine<'_>> {
     source
         .lines()
@@ -42,39 +29,10 @@ pub fn lines(source: &str) -> Vec<SourceLine<'_>> {
         .collect()
 }
 
-/// A call argument's own Hash/Array/paren literal may span more than one
-/// physical line — `dispatch`'s own `with:` value, real corpus syntax
-/// confirmed by banking.bluebook's `Onboarding` saga:
+/// Joins lines continued by open brackets, a trailing `\`, or a trailing `,`.
 ///
-///   dispatch "Banking::Account.Open", with: {
-///     customer_id: :customer,
-///     number:      :account_number,
-///     kind:        { name: "current" },
-///     daily_limit: { cents: 0 }
-///   }
-///
-/// No earlier corpus member (pizzas, the framework trio, the grammar
-/// chapters) ever wrote a call whose own `(){}[]` don't balance by end of
-/// physical line, so `classify`/`split_opener` never needed to look past
-/// one line's own text at all. This is a preprocessing pass over the
-/// raw file text, run once before `lines()` — not a change to `lines()`
-/// or `classify` themselves — so it has to reproduce the same line count
-/// the input had (a merged-away physical line becomes an empty output
-/// line, never removed outright), or every diagnostic after a merge
-/// would report the wrong line number.
-///
-/// Comments are stripped here, independently, per original physical
-/// line, before any joining happens — a comment on an interior line of a
-/// merge group, left in place, would otherwise swallow every line joined
-/// after it once `lines()`'s own (single, whole-merged-line) comment
-/// strip ran on the result instead.
-///
-/// Deliberately not aware of `do ... end` nesting at all — `do`/`end`
-/// are words, not brackets, so a predicate body spanning many physical
-/// lines (`given(...) do ... end`) is completely untouched by this pass
-/// (confirmed: every real corpus predicate's own brackets, if it has
-/// any, already balance on the one line it's written on); only a call's
-/// own trailing `(){}[]` can ever leave depth nonzero at end of line.
+/// Keeps the input's line count (merged-away lines become empty) so diagnostics stay accurate.
+/// Comments are stripped before joining, or one would swallow the lines merged after it.
 pub fn join_continuations(source: &str) -> String {
     let raw_lines: Vec<&str> = source.lines().collect();
     let mut out: Vec<String> = vec![String::new(); raw_lines.len()];
@@ -84,20 +42,7 @@ pub fn join_continuations(source: &str) -> String {
     for (idx, raw_line) in raw_lines.iter().enumerate() {
         let mut text = strip_comment(raw_line).trim().to_string();
 
-        // Backslash line continuation — Ruby's own trailing `\` (outside
-        // any quoted string), used here for adjacent string literal
-        // concatenation across physical lines:
-        //
-        //   template: "{name} admits {admits}, which this chapter does " \
-        //             "not declare — a closed set is named ..."
-        //
-        // real corpus syntax (vocabulary.bluebook's own `RefusalTemplate`
-        // rows — the wording is long enough several members wrap it).
-        // The `\` is stripped here so nothing downstream ever sees it;
-        // the two adjacent quoted strings that result are concatenated
-        // by `ruby_value::read` (Ruby's own adjacent-literal rule, not
-        // anything special about the backslash itself — the backslash's
-        // only job is suppressing the newline as a statement end).
+        // A trailing `\` joins adjacent string literals; `ruby_value::read` concatenates them.
         let backslash_continues = ends_with_bare_backslash(&text);
         if backslash_continues {
             text = text[..text.len() - 1].trim_end().to_string();
@@ -120,14 +65,7 @@ pub fn join_continuations(source: &str) -> String {
 
         depth += bracket_delta(&text);
 
-        // A trailing, unbracketed comma also continues the logical
-        // line — `member refusal: "X", site: "Y",` + `template: "Z"`,
-        // real corpus syntax (vocabulary.bluebook's own `RefusalTemplate`
-        // rows again): a single bare `member ...` call's own named
-        // arguments spill across two physical lines with no enclosing
-        // bracket at all for `bracket_delta` to track depth against —
-        // Ruby continues a statement across a line ending in a bare
-        // comma the same way it does one ending in an open bracket.
+        // A trailing bare comma continues the statement, as in Ruby.
         let comma_continues = depth <= 0 && ends_with_bare_comma(&text);
 
         if depth <= 0 {
@@ -141,11 +79,6 @@ pub fn join_continuations(source: &str) -> String {
     out.join("\n")
 }
 
-/// Whether `text`'s scan ends outside any quoted string — shared by
-/// `ends_with_bare_backslash`/`ends_with_bare_comma` below, the same
-/// quote/escape-aware character scan `bracket_delta` already uses for
-/// its own bracket-depth tracking, just reporting the quoting state
-/// instead of a depth delta.
 fn ends_outside_quotes(text: &str) -> bool {
     let mut quoting = false;
     let mut escaping = false;
@@ -166,29 +99,15 @@ fn ends_outside_quotes(text: &str) -> bool {
     !quoting
 }
 
-/// A lone trailing `\` outside any quoted string — Ruby's own line
-/// continuation escape. See `join_continuations`'s own header for the
-/// real corpus shape this exists for.
 fn ends_with_bare_backslash(text: &str) -> bool {
     text.ends_with('\\') && ends_outside_quotes(text)
 }
 
-/// A lone trailing `,` outside any quoted string, once the line's own
-/// bracket depth has already returned to (or stayed at) zero — see
-/// `join_continuations`'s own header for the real corpus shape this
-/// exists for.
 fn ends_with_bare_comma(text: &str) -> bool {
     text.ends_with(',') && ends_outside_quotes(text)
 }
 
-/// The net change in `(){}[]` depth a line of already-comment-stripped
-/// text contributes — quote-aware (a bracket character inside a quoted
-/// string never counts), the same scanning shape `find_top_level_
-/// assignment` already uses elsewhere in this module. Not bracket-type
-/// aware (a stray `}` matching an unrelated `[` would still balance) —
-/// the same simplification `find_top_level_assignment`'s own depth
-/// counter already makes; real bluebook source never actually mismatches
-/// bracket types, so this is a legitimate shortcut, not a guess.
+/// Not bracket-type aware: mismatched bracket types never occur in real source.
 fn bracket_delta(text: &str) -> i32 {
     let mut depth = 0i32;
     let mut quoting = false;
@@ -244,17 +163,9 @@ fn strip_comment(line: &str) -> &str {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Opener {
     None,
-    /// `word ... do` / `word ... do |params|` — a multi-line body closed by
-    /// a matching `end`, walked line-by-line by the caller (parse/mod.rs)
-    /// rather than pre-collected here, since a `keywords`-body block's
-    /// content is itself a nested sequence of gated lines, not raw text.
     DoBlock {
         params: Option<String>,
     },
-    /// `word(...) { ... }` — a `source`-shaped body: raw predicate text,
-    /// captured and canonicalized (canonical.rs), never interpreted. May
-    /// span multiple physical lines; `body` is everything between the
-    /// matching braces, exclusive.
     BraceBlock {
         body: String,
     },
@@ -263,48 +174,26 @@ pub enum Opener {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Call {
     pub word: String,
-    /// Raw argument text between the word and the opener, trimmed —
-    /// surrounding parens stripped if present and balanced. Never
-    /// interpreted here; parse/argument.rs (the argument gate) is what
-    /// tokenizes and classifies it.
+    /// Raw text between the word and the opener; the argument gate tokenizes it.
     pub args: String,
     pub opener: Opener,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum LineShape {
-    /// `end` — closes the innermost open `do` block.
     End,
     Call(Call),
 }
 
-/// Ruby control-flow / declaration keywords this DSL never admits as a
-/// bare leading word — a real hand-written `if`/`case`/`def` in a
-/// `.bluebook` file is refused here rather than silently accepted as an
-/// unrecognized "word" (which would instead hit the word gate and produce
-/// a less specific error). Named explicitly so the shape-gate diagnostic
-/// can say what's actually wrong.
+/// Ruby keywords refused up front so the diagnostic names the real problem.
 const FORBIDDEN_LEADING_WORDS: &[&str] = &[
     "if", "unless", "while", "until", "case", "begin", "def", "class", "module", "return", "next",
     "break", "redo", "retry", "yield", "lambda", "proc", "for", "loop",
 ];
 
-/// **Every real file's own top line** — confirmed by reading the actual
-/// corpus, not assumed from the plan: `Hecks.bluebook "Pizzas" do`,
-/// `Hecks.hecksagon`, `Hecks.bluebook "World"` (world.bluebook itself),
-/// never the bare `bluebook "Name" do` this crate's own doc comments
-/// first assumed. `spec/syntax_conformance_spec.rb`'s own comment says
-/// why: "`File` is the outside of every body — `Hecks.bluebook` is
-/// reached through the `Hecks` receiver rather than an enclosing
-/// builder." Every other line is `instance_eval`'d against a builder and
-/// so is never receiver-qualified — this prefix is stripped only here,
-/// not generally, or a nested `Hecks.something` (which cannot legally
-/// occur) would be silently tolerated instead of refused.
+/// Only a file's top line is receiver-qualified; a nested `Hecks.x` must stay an error.
 const FILE_RECEIVER_PREFIX: &str = "Hecks.";
 
-/// The shape gate. Classifies one already comment-stripped, trimmed,
-/// non-blank line — or refuses it outright as a diagnostic naming what
-/// shape it actually needs to be.
 pub fn classify<'a>(file: &str, line: &SourceLine<'a>) -> Result<LineShape, Diagnostic> {
     let text = line
         .text
@@ -430,10 +319,6 @@ fn find_top_level_assignment(text: &str) -> Option<usize> {
     None
 }
 
-/// Splits the tail of a call line into `(args_text, opener)` — detects a
-/// trailing `do`/`do |params|`, a top-level `{ ... }` (captured verbatim,
-/// even if it doesn't balance on this one line — `Opener::None` covers
-/// "no opener at all").
 fn split_opener(rest: &str) -> (String, Opener) {
     if let Some((before, params)) = trailing_do(rest) {
         return (before.to_string(), Opener::DoBlock { params });
@@ -444,10 +329,7 @@ fn split_opener(rest: &str) -> (String, Opener) {
         if let Some((body, _after)) = matching_brace_body(brace_and_after) {
             return (before.to_string(), Opener::BraceBlock { body });
         }
-        // Unbalanced on this physical line — a source body that wraps
-        // across lines. Callers that need to keep reading do so; Stage 1's
-        // stub handlers don't attempt multi-line brace assembly (named as
-        // a real, tracked gap below rather than guessed at).
+        // Unbalanced on this line: the body wraps across lines, so keep the whole tail.
         return (
             before.to_string(),
             Opener::BraceBlock {
@@ -465,8 +347,6 @@ fn trailing_do(rest: &str) -> Option<(&str, Option<String>)> {
         return Some((before, None));
     }
     if trimmed.ends_with('|') {
-        // `do |params|` — find the matching opening `|` and the `do`
-        // immediately before it.
         let without_trailing_pipe = &trimmed[..trimmed.len() - 1];
         if let Some(open_pipe) = without_trailing_pipe.rfind('|') {
             let params = &without_trailing_pipe[open_pipe + 1..];
@@ -482,16 +362,7 @@ fn trailing_do(rest: &str) -> Option<(&str, Option<String>)> {
     None
 }
 
-/// The first `{` that is a genuine source-body opener — not one buried
-/// inside a parenthesized argument list, e.g. `where(balance: {gte: 100})`
-/// (`where`'s own trailing `{gte: 100}` is a hash literal argument, not a
-/// `source`-shaped block; only a `{` at paren-depth zero is even a
-/// candidate) — and not a hash-literal argument written without wrapping
-/// parens either, real corpus syntax confirmed live:
-/// `sets :toppings, append: { name: :topping, amount: :amount }`
-/// (pizzas.bluebook) has no parens around its own arguments at all, so
-/// paren-depth alone can't rule its trailing `{...}` out — `is_hash_
-/// literal_brace` is the second check that does.
+/// A `{` inside parens or written as a hash literal argument is not a source-body opener.
 fn find_top_level_brace(text: &str) -> Option<usize> {
     let mut quoting = false;
     let mut escaping = false;
@@ -527,24 +398,7 @@ fn find_top_level_brace(text: &str) -> Option<usize> {
     None
 }
 
-/// A top-level `{` immediately preceded (skipping whitespace) by `:`,
-/// `,`, or `>` is a hash-literal argument's own opening brace, never a
-/// `source`-shaped block opener: a genuine block/predicate-body brace is
-/// always either the last token of the call (`given("desc") { ... }`,
-/// preceded by `)`) or the very first thing after the word itself
-/// (`identified_by { ... }`, nothing precedes it at all — `before` is
-/// empty). `>` (the second character of a hash-rocket `=>`) joins `:`/`,`
-/// for the same reason each of them is here: real, confirmed live syntax
-/// — `spec/fixtures/hop_chain.bluebook`'s own parenless `where
-/// :"engagement.client.status" => { ne: "active" }` — was refused
-/// outright without it ("'where' was written with a `{ ... }` block
-/// (expected one of: none)"), even though the identical value shape
-/// already works fine the moment it sits inside wrapping parens
-/// (`where(:"pizza.price_cents.cents" => { lt: :ceiling })`,
-/// pizzas.bluebook) — there, `find_top_level_brace`'s own paren-depth
-/// tracking already excludes the inner `{` for a different reason (depth
-/// 1, not 0) before this character check is ever consulted, so the gap
-/// only shows up in the parenless spelling.
+/// A `{` after `:`, `,` or `>` opens a hash literal; `>` covers a parenless `:k => { ... }`.
 fn is_hash_literal_brace(before: &str) -> bool {
     matches!(
         before.trim_end().chars().last(),
@@ -552,9 +406,6 @@ fn is_hash_literal_brace(before: &str) -> bool {
     )
 }
 
-/// Given text starting at a top-level `{`, returns `(body, rest_after)`
-/// with `body` being everything strictly between the matching braces —
-/// `None` if this physical line doesn't balance.
 fn matching_brace_body(text: &str) -> Option<(String, &str)> {
     let mut depth: i32 = 0;
     let mut quoting = false;
@@ -595,23 +446,8 @@ fn matching_brace_body(text: &str) -> Option<(String, &str)> {
     None
 }
 
-/// `Pizzas::Order.persisted_by("PostgresEra")` / `Pizzas::Order.port
-/// "PaymentGateway" do` — a hecksagon body line addressed to one already-
-/// declared aggregate, via Ruby's own `BindingProxy`
-/// (`lib/hecks/bluebook/dsl/binding_proxy.rb`): `<Domain>::
-/// <Aggregate>.<verb>`. Real corpus syntax, confirmed by reading
-/// `examples/pizzas/bluebook/pizzas.hecksagon` directly — not the bare
-/// `Hecks.hecksagon "Name" do` header form `FILE_RECEIVER_PREFIX` already
-/// strips (that's the outside of the file; this is legal only inside a
-/// Hecksagon body), and not merged into `classify`'s own general shape
-/// gate: this receiver-qualified form is legal only inside a Hecksagon
-/// body, so `parse::hecksagon` calls this directly rather than every
-/// context inheriting a shape it can't actually use.
-///
-/// Returns `(receiver, rest)` — `receiver` is the whole dotted head
-/// (`"Pizzas::Order"`), `rest` is everything after the `.` (never
-/// re-parsed here; the caller feeds it back through `classify` as an
-/// ordinary call).
+/// Splits `Pizzas::Order.port "X" do` into receiver and rest; legal only in a hecksagon body,
+/// so it stays out of `classify`.
 pub fn strip_aggregate_receiver(text: &str) -> Option<(&str, &str)> {
     let bytes = text.as_bytes();
     if bytes.is_empty() || !bytes[0].is_ascii_uppercase() {
@@ -641,25 +477,7 @@ pub fn strip_aggregate_receiver(text: &str) -> Option<(&str, &str)> {
     Some((&text[..i], rest))
 }
 
-/// Captures a `do ... end` block's own raw body text — the same
-/// `source`-shaped meaning `Opener::BraceBlock`'s own captured `body`
-/// already carries for a `{ ... }` spelling of the identical semantic
-/// block (`identified_by`'s two spellings both declare exactly the same
-/// `source` row in syntax.bluebook, `body_gate` above admits both openers
-/// for it — see that function's own comment). Starts at `*pos` (already
-/// past the opening `do` line, which the caller's own `next_line`/
-/// `argument_gate` already consumed and gated), reads raw physical lines
-/// — already comment-stripped and per-line-trimmed by `lines()` — up to
-/// and including the matching `end`, joining every line but that final
-/// `end` with a single space. Never gated against `KEYWORDS`, never
-/// interpreted — exactly the same "captured as raw text and
-/// canonicalized, never interpreted" discipline `given`/`invariant`/a
-/// brace-spelled `identified_by { }` already get via `canonical::apply`
-/// (the caller's own job, not this function's). Tracks nesting depth
-/// textually (a stray `do ... end` written inside the body — not real
-/// syntax anywhere in this codebase today — doesn't stop early at its own
-/// inner `end`), the same defensive discipline `find_top_level_brace`/
-/// `matching_brace_body` already apply to a brace-spelled body.
+/// Captures a `do ... end` body as raw space-joined text, tracking nested `do` blocks textually.
 pub fn capture_do_block_body<'a>(
     file: &str,
     lines: &[SourceLine<'a>],
@@ -694,12 +512,7 @@ pub fn capture_do_block_body<'a>(
     }
 }
 
-/// A purely textual "does this line open a `do` block" check — deliberately
-/// not `classify`/`split_opener` (those enforce the closed word-call shape
-/// this captured body is explicitly exempt from; raw source text inside a
-/// `source`-shaped body can be anything). Mirrors `trailing_do`'s own three
-/// shapes (`... do`, bare `do`, `... do |params|`) against a whole line
-/// rather than a call's own already-word-stripped `rest`.
+/// Textual check, not `classify`: raw source bodies are exempt from the word-call shape.
 fn opens_a_do_block(text: &str) -> bool {
     let trimmed = text.trim_end();
     trimmed == "do"
@@ -710,8 +523,7 @@ fn opens_a_do_block(text: &str) -> bool {
 fn strip_balanced_parens(text: &str) -> &str {
     if text.starts_with('(') && text.ends_with(')') && text.len() >= 2 {
         let inner = &text[1..text.len() - 1];
-        // Only strip when the parens actually wrap the whole thing —
-        // depth never touches zero before the very last character.
+        // Strip only when the parens wrap the whole text.
         let mut depth = 0i32;
         let mut quoting = false;
         let mut escaping = false;
@@ -736,7 +548,7 @@ fn strip_balanced_parens(text: &str) -> &str {
                 ')' => {
                     depth -= 1;
                     if depth < 0 {
-                        return text; // closed early — the outer parens don't actually wrap it all
+                        return text;
                     }
                 }
                 _ => {}
@@ -813,17 +625,13 @@ mod tests {
 
     #[test]
     fn captures_a_multi_line_do_block_body_as_raw_text() {
-        // governance.bluebook's own `RoleAssignment` — multi-path
-        // `identified_by do ... end`.
+        // governance.bluebook's `RoleAssignment`: multi-path `identified_by do ... end`.
         let source = "identified_by do\n  actor_id.value\n  role_name.value\n  starts_at.value\nend\nattribute :actor_id, IdentityId\n";
         let got = lines(source);
-        // got[0] is the `identified_by do` line itself — the caller
-        // consumes that via `next_line`/`argument_gate` before calling
-        // `capture_do_block_body`, so this test starts at index 1.
+        // got[0] is the `do` line the caller already consumed, so start at index 1.
         let mut pos = 1usize;
         let body = capture_do_block_body("f.bluebook", &got, &mut pos).unwrap();
         assert_eq!(body, "actor_id.value role_name.value starts_at.value");
-        // `*pos` landed past the `end` line, at the next real line.
         assert_eq!(got[pos].text, "attribute :actor_id, IdentityId");
     }
 
@@ -848,12 +656,7 @@ mod tests {
 
     #[test]
     fn a_backslash_inside_a_still_open_quoted_string_is_not_a_continuation() {
-        // The quote-aware scan must not mistake an ordinary backslash
-        // escape inside a string (`"a\\"`, an escaped backslash, string
-        // still open) for the line-continuation marker — `ends_outside_
-        // quotes` only fires when the string closed before the trailing
-        // `\`, which is not the case here (odd number of trailing
-        // backslashes inside an unterminated string).
+        // An escaped backslash inside a still-open string is not a line continuation.
         assert!(!ends_with_bare_backslash("template: \"a\\"));
     }
 }

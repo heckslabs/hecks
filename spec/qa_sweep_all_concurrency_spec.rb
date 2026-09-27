@@ -2,32 +2,14 @@ require "hecks"
 require "hecks/ports/persistence/plugins/era"
 require_relative "support/qa_sweep_all_fixture"
 
-# `bin/qa_sweep --all` — concurrency mechanics. One of seven sibling
-# files split out of the original `qa_sweep_all_spec.rb` (Phase 2 of the CI
-# speed effort — see `spec/qa_sweep_all_lifecycle_spec.rb`'s own header
-# and `spec/support/qa_sweep_all_fixture.rb` for the full context). This
-# file proves the pool itself: the pool bound holding under real load
-# (its lower bound — at least two children sampled alive at once — is
-# the real-concurrency proof), and a pool of
-# near-instantly-exiting children draining without stalling — the
-# heaviest group of the four by wall-clock (this file's own throwaway
-# database is `hecks_qa_sweep_all_concurrency_spec`, unique so it never
-# races a sibling file's own scratch resources).
+# `bin/qa_sweep --all` concurrency: the pool bound under real load.
+# Own throwaway database: `hecks_qa_sweep_all_concurrency_spec`.
 RSpec.describe "bin/qa_sweep --all", :io do
   include_context "with a qa_sweep_all fixture", "hecks_qa_sweep_all_concurrency_spec"
 
-  # **The pool bound** — `QualityControlDials::SWEEP_MAX_PARALLEL` (read here
-  # from the same symlinked bluebook the fixture ledger boots, so this
-  # spec pins the real dial, not a copy of it). Six targets, a pool of
-  # four: the children are grandchildren of this process (spawned by the
-  # real `bin/qa_sweep --all` subprocess), so liveness is read the one
-  # way a grandparent can — `ps`, sampled while `--all` runs. The upper
-  # bound is the claim; the lower bound (at least two at once) is what
-  # proves the sampling saw real concurrency rather than an idle moment.
-  # Reaped via `reap_while_polling` (see the shared fixture's own header
-  # on why a `Process.kill(0, pid)` loop cannot safely watch for exit here —
-  # confirmed live: a real run hung over an hour on a zombie before this
-  # was fixed).
+  # Pins the real `QualityControlDials::SWEEP_MAX_PARALLEL`. Children are grandchildren, so
+  # liveness is sampled with `ps`; two alive at once proves the sampling saw real concurrency.
+  # Reaped via `reap_while_polling`: a `Process.kill(0, pid)` loop hangs on zombies.
   it "keeps at most SWEEP_MAX_PARALLEL real bin/qa_sweep children alive at once" do
     Hecks.boot(@fixture_dir)
     max_parallel = QualityControlDials::SWEEP_MAX_PARALLEL
@@ -51,8 +33,4 @@ RSpec.describe "bin/qa_sweep --all", :io do
     expect(alive_counts.max).to be >= 2
     expect(alive_counts.max).to be <= max_parallel
   end
-
-  # The pool draining near-instantly-exiting children is its own file,
-  # qa_sweep_all_pool_drain_spec.rb — together the two were the slowest
-  # file in the Postgres shards, and a shard is never faster than that.
 end

@@ -1,19 +1,7 @@
 require "spec_helper"
 
-# H1 (docs/audits/2026-08-10-main-bug-audit.md) — an entity command would
-# run neither `refuse_unknown_arguments` nor `refuse_absent_arguments` at
-# all, on a comment claiming it "inherits its aggregate's own gate," if
-# nothing on the entity dispatch path ran one: a bogus argument would be
-# accepted outright, and a command that both declares an argument and
-# `sets` a field from it (`Advance`'s own `note`, below) would silently write
-# `nil` over the stored value when that argument was simply omitted —
-# persisted data loss, no refusal. `EntityInterpreter` now `include`s the
-# same `CommandInterpreter::ArgumentGate` an aggregate command's own dispatch
-# already runs (entity_interpreter.rb's own H1 comment), extended with the
-# entity chain's own identity heads as addressing (`step_refuse_unknown_
-# arguments`'s own comment) so a legitimate dispatch — which must supply the
-# entity's own identity (`sequence:`, here) alongside the root's (`label:`)
-# — is never mistaken for an unknown argument.
+# An entity command runs the same argument gate as an aggregate command, with the entity
+# chain's identity heads (`sequence:`, `label:`) counted as addressing, not unknown arguments.
 RSpec.describe "an entity command's own argument gate" do
   DISPATCH_ORDER = File.join(InMemoryDomain::ROOT, "spec/fixtures/dispatch_order.bluebook")
 
@@ -53,11 +41,8 @@ RSpec.describe "an entity command's own argument gate" do
       runtime.dispatch_flat("DispatchOrder::Widget.Part.Advance", label: { value: "w1" }, sequence: { value: 1 })
     end.to raise_error(Hecks::Runtime::AbsentArgument, /note/)
 
-    # **The regression itself** — confirm the refusal actually happened before
-    # any mutation, not just that some exception was raised. Before this
-    # fix, the dispatch above was accepted and overwrote `parts[0].note`
-    # with nil (`sets :note`'s bare self-referential form reads
-    # `args[:note]` unconditionally).
+    # Pins the refusal happening before any mutation: an omitted `note` must not overwrite
+    # `parts[0].note` with nil.
     widget = @registry.bluebook("DispatchOrder").aggregates.find { |a| a.hecks_name == "Widget" }
     repo = @registry.repository("DispatchOrder", widget)
     expect(repo.find("w1").state[:parts].first[:note].value).to eq("first")

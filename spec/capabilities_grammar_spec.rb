@@ -1,12 +1,7 @@
 require "spec_helper"
 
-# `provides` takes one named argument per capability key. The Ruby builder
-# accepts any key (`**verbs`) and holds it to `Capabilities::CONTRACTS`, but
-# the Rust parser only accepts the keys the language's own grammar declares
-# (lib/hecks/language/bluebook/bluebook.bluebook, projected to
-# rust/parser/src/keywords.rs). A capability added to CONTRACTS without its
-# keys in the grammar parses fine in Ruby and is refused by hecks-parse, which
-# only shows up once a corpus chapter declares it. This holds the two together.
+# The Ruby builder accepts any `provides` key and checks it against CONTRACTS, but the Rust
+# parser accepts only grammar-declared keys, so a key missing from the grammar parses in Ruby only.
 RSpec.describe "capability contracts and the language grammar" do
   let(:grammar) { File.read(File.expand_path("../lib/hecks/language/bluebook/bluebook.bluebook", __dir__)) }
 

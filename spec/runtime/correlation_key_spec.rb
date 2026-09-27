@@ -1,17 +1,9 @@
 require "spec_helper"
 
-# command_interpreter/argument_gate.rb names this "the weakest part of the
-# gate": a saga's correlation key legitimately arrives on commands that
-# never declare it, because `correlation_keys` widens the allow-list
-# domain-wide. `deliver_saga_dispatch` now stamps the key it already knows
-# onto the event(s) its own dispatch causes, so a leg that stops smuggling
-# the key through its with-spec still correlates — closing the gap
-# additively, without removing the smuggle path any existing saga relies on.
+# `deliver_saga_dispatch` stamps the known correlation key onto the events its dispatch causes,
+# so a leg that never passes the key in its with-spec still correlates.
 RSpec.describe "a saga leg that never declares the correlation key at all" do
-  # One declarative `Hecks.bluebook` fixture (two aggregates, a saga leg
-  # between them) — the length is the DSL's own shape. Splitting it would
-  # only break the single `bluebook`/`with_registry` block scope this
-  # fixture needs to be one coherent domain.
+  # One bluebook fixture; splitting it would break the single with_registry block scope.
   # rubocop:disable-next Metrics/MethodLength
   def boot_beacon
     registry = Hecks::Runtime::Registry.new
@@ -51,9 +43,7 @@ RSpec.describe "a saga leg that never declares the correlation key at all" do
             invariant("an alarm is labeled") { !value.to_s.empty? }
           end
 
-          # Never declares `code` — the argument this leg's dispatch binds
-          # is `label`, a different name entirely. Nothing about this
-          # command's own declaration has anything to do with a sighting.
+          # Never declares `code`; the leg's dispatch binds `label`.
           command "Open" do
             attribute :label, AlarmLabel
             emits "AlarmOpened"
@@ -66,12 +56,8 @@ RSpec.describe "a saga leg that never declares the correlation key at all" do
           ends_on   "AlarmOpened"
 
           transition "SightingRaised" => "watching", from: "watching" do
-            # A literal, wholly unconnected to the sighting's code — this leg
-            # passes nothing correlation-shaped at all. AlarmOpened's payload
-            # carries `label`, never `code`, so the payload-lookup tier finds
-            # nothing here on purpose. Nor does the own-reference-key
-            # fallback : Alarm's own reference key is "alarm", not "code".
-            # Only the stamp resolves it.
+            # Passes nothing correlation-shaped: AlarmOpened carries `label`, not `code`,
+            # and Alarm's own reference key is "alarm". Only the stamp resolves it.
             dispatch Alarm::Open, with: { label: { value: "backup" } }
           end
         end

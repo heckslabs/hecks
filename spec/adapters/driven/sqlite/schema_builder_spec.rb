@@ -1,14 +1,8 @@
 require "spec_helper"
 require "tmpdir"
 
-# Automatic indexing: derived from the aggregate's own declared queries
-# (`Pizzas::Order`'s "Available"/"CostingLessThan"/"Expensive" already cover
-# a plain scalar, a bare value-object field, and a dotted value-object
-# member) plus one fixture from Banking (`CardPayment`'s "Flagged", the only
-# `contains`-on-a-list query in the corpus) to prove the one case that must
-# not get an index. `schema_builder.rb`'s own header comment explains why
-# each of these resolves the way it does — this spec proves the SQL text,
-# not just that queries still return the right rows.
+# Automatic indexing derived from the aggregate's own declared queries, plus Banking's
+# `CardPayment` "Flagged" (`contains` on a list) as the one case that must not get an index.
 RSpec.describe "Hecks::Adapters::Sqlite automatic indexing" do
   around do |example|
     @dir = Dir.mktmpdir("hecks-sqlite-indexing-")
@@ -37,37 +31,28 @@ RSpec.describe "Hecks::Adapters::Sqlite automatic indexing" do
     built
   end
 
-  # "Available" declares `where(status: "available")` — status is the
-  # lifecycle field, resolved as a plain column the same way any other
-  # scalar attribute is (query_expression's own lifecycle special-case).
+  # `status` is the lifecycle field; it resolves as a plain column like any scalar.
   it "creates a real btree index for a plain scalar where field" do
     sql = index_sql("idx_order_status")
 
     expect(sql).to eq(%(CREATE INDEX "idx_order_status" ON "order"("status")))
 
-    # PRAGMA-based proof too, not only the sqlite_master text — belt and
-    # braces that SQLite itself considers this a real index on the table,
-    # not a string this spec merely asserted about.
+    # The PRAGMA check confirms SQLite itself sees a real index, not just the sqlite_master text.
     names = db.execute('PRAGMA index_list("order")').map { |row| row["name"] }
     expect(names).to include("idx_order_status")
     columns = db.execute('PRAGMA index_info("idx_order_status")').map { |row| row["name"] }
     expect(columns).to eq(["status"])
   end
 
-  # "Available" also `order_by :name` — name is PizzaName, a value object
-  # with a single String member and no numeric one, so query_expression's
-  # own fallback lands on the one-field convention "value".
+  # PizzaName has no numeric member, so the expression falls back to the "value" convention.
   it "creates an expression index for a bare value-object field, matching what query_expression compiles" do
     sql = index_sql("idx_order_name")
 
     expect(sql).to eq(%(CREATE INDEX "idx_order_name" ON "order"(json_extract("name", '$.value'))))
   end
 
-  # "CostingLessThan"/"Expensive" both `where(:"pizza.price_cents.cents" => ...)`
-  # — a dotted path through a nested value object. The expression text here
-  # has to be byte-for-byte what `nested_expression("pizza", ["price_cents", "cents"], nil)`
-  # itself would produce, reproduced by calling the same private method
-  # `query_expression` calls, not re-derived.
+  # A dotted path through a nested value object; the text must equal what `query_expression`
+  # gets from calling `nested_expression("pizza", ["price_cents", "cents"], nil)`.
   it "creates an expression index for a dotted value-object member, matching nested_expression exactly" do
     adapter_instance = adapter
     expected = adapter_instance.send(:nested_expression, "pizza", %w[price_cents cents], nil)
@@ -149,8 +134,7 @@ status: "available"))
                                   .execute("SELECT name FROM sqlite_master WHERE type = 'index'")
                                   .map { |row| row["name"] }
       expect(names.grep(/tag/i)).to eq([])
-      # "Pending"/"Disputed" both `where(status: ...)` — the lifecycle
-      # field still gets its own plain index, same as Order's.
+      # The lifecycle field gets its own plain index, as on Order.
       expect(names).to include("idx_card_payment_status")
     end
   end

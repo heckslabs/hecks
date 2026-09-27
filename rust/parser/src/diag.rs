@@ -1,13 +1,6 @@
-//! Diagnostics — the one shape every refusal in this crate takes.
+//! Diagnostics: the one shape every refusal takes.
 //!
-//! **No lenient mode, ever.** An unrecognized construct is always a hard
-//! error, never silently skipped — that's the single most important design
-//! invariant in the whole Rust-parser plan (see the plan's framing of why
-//! `~/Projects/hecks/rust`'s own abandoned parser was dangerous: it "failed
-//! open", returning valid for a real bluebook file while silently dropping
-//! identity). A `Diagnostic` is how every gate (shape/word/argument/body)
-//! reports that hard failure — always naming the file, the line, what was
-//! found, and what would have been legal instead.
+//! There is no lenient mode: an unrecognized construct is always a hard error, never skipped.
 
 use std::fmt;
 
@@ -16,10 +9,7 @@ pub struct Diagnostic {
     pub file: String,
     pub line: usize,
     pub message: String,
-    /// The legal alternatives at this point — a word gate names every other
-    /// word admitted in the current context, an argument gate names the
-    /// expected shape. Empty when there's nothing more specific to offer
-    /// (a shape error, say).
+    /// The legal alternatives at this point; empty when there is nothing more specific.
     pub expected: Vec<String>,
 }
 
@@ -38,17 +28,7 @@ impl Diagnostic {
         self
     }
 
-    /// The one place "not yet implemented" is spelled — every construct
-    /// handler that hasn't been built yet returns this rather than a
-    /// generic panic, so an unbuilt path fails through a real, named
-    /// diagnostic rather than an unstructured crash. Most real chapters
-    /// parse for real now (spec/parser_parity_spec.rb's REAL_PARITY_MEMBERS
-    /// — see ir.rs's own header); this is what a genuinely-still-pending
-    /// member (that spec's PENDING_MEMBERS table) or an unsupported
-    /// construct inside an otherwise-real chapter hits. Distinguishing "the
-    /// grammar doesn't admit this" (a real parse error) from "the grammar
-    /// admits this and this parser doesn't implement it yet" still matters
-    /// for how the differential harness reports failures.
+    /// Diagnostic for a construct the grammar admits but this parser does not implement yet.
     pub fn not_yet_implemented(
         file: impl Into<String>,
         line: usize,

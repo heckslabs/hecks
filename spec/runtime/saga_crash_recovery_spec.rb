@@ -1,17 +1,8 @@
 require "spec_helper"
 require "tmpdir"
 
-# The actual regression the saga-durability review asked for a test on —
-# `advance_saga`/`unwind` checkpoint a saga's new state before the leg
-# that justifies it runs (the mutex they hold is not reentrant, so it is
-# released before `deliver_saga_dispatch` can recurse back through
-# `@door.reenter`). Until now nothing killed the process in that window
-# and looked at what the store was left holding. This does, by raising a
-# non-`StandardError` (nothing in `deliver_saga_dispatch`'s own rescue
-# ladder — `DOMAIN_REFUSALS`, `StandardError` — catches it, exactly the
-# way a real SIGKILL or OOM wouldn't either) from inside the first leg's
-# own dispatch, so nothing after that point in `settle_transition` — not
-# even its own "clear the pending marker" checkpoint — ever runs.
+# Kills the process (a non-`StandardError`, which `deliver_saga_dispatch` does not rescue) inside
+# the first leg, after the checkpoint is written, and inspects what the durable store holds.
 RSpec.describe "saga durability across a process death mid-leg" do
   WIRE_BLUEBOOK  = File.join(InMemoryDomain::ROOT, "spec/fixtures/settlement.bluebook") unless defined?(WIRE_BLUEBOOK)
   SQLITE_ADAPTER = File.join(InMemoryDomain::ROOT, "lib/hecks/adapters/driven/sqlite.adapter") unless defined?(SQLITE_ADAPTER)
@@ -23,10 +14,7 @@ RSpec.describe "saga durability across a process death mid-leg" do
     FileUtils.remove_entry(@dir) if @dir
   end
 
-  # Same shape as `saga_durability_spec.rb`'s own `boot_wire` — a real
-  # SqlitePersistence-backed boot, not the Memory one most saga specs
-  # stay on, because a marker that only ever round-tripped through a
-  # Ruby Hash would prove nothing about what a real crash leaves behind.
+  # Boots against SqlitePersistence: a Memory-only marker would not show what a real crash leaves.
   def boot_wire(root: @dir)
     registry = Hecks::Runtime::Registry.new(root: root)
 
@@ -61,10 +49,7 @@ RSpec.describe "saga durability across a process death mid-leg" do
     runtime.dispatch_flat("Wire::Drawer.Open", number: { value: "right" })
     runtime.dispatch_flat("Wire::Drawer.Put",  number: { value: "left" }, amount: { cents: 10_000 })
 
-    # `WireAsked`'s own handler dispatches exactly one command
-    # (`Drawer::Take`, settlement.bluebook's first `Carry` leg) — raise
-    # on `reenter`'s first call so this is the one that "crashes",
-    # before `Take` itself does anything.
+    # `Drawer::Take` is the first `Carry` leg; crash on it before it does anything.
     allow(runtime).to receive(:reenter).and_wrap_original do |original, *args, **kwargs|
       raise SimulatedCrash, "the process died right here" if kwargs.empty? || args.first&.include?("Take")
 
@@ -76,13 +61,10 @@ RSpec.describe "saga durability across a process death mid-leg" do
                        source: "left", destination: "right")
     end.to raise_error(SimulatedCrash)
 
-    # The leg's own dispatch never happened — the source drawer was
-    # never actually debited.
+    # The leg never ran: the source drawer was not debited.
     expect(Wire::Drawer.find("left").cents.to_h).to eq(cents: 10_000)
 
-    # But the checkpoint that was supposed to be justified by that
-    # dispatch is already sitting in the real, durable store, with a
-    # marker recording the leg that never confirmed.
+    # The checkpoint is already durable, with a marker for the unconfirmed leg.
     row = runtime.registry.saga_persistence("Wire").each_saga.to_a.find { |r| r[0] == "Carry" }
     expect(row).not_to be_nil
     process_manager, correlation, state, memory = row
@@ -92,11 +74,8 @@ RSpec.describe "saga durability across a process death mid-leg" do
     )
   end
 
-  # One real crash-then-reboot scenario against the same durable store,
-  # proving three things about the same stalled saga together (it's
-  # surfaced loudly, the internal marker doesn't leak into live memory,
-  # and nothing auto-redrives) — splitting would mean re-simulating the
-  # crash for each, or losing that all three hold of one rehydration.
+  # One crash-then-reboot scenario proves three facts about the same stalled saga; splitting
+  # would re-simulate the crash for each.
   # rubocop:disable-next RSpec/ExampleLength
   it "rehydrating that same store surfaces the stall loudly and does NOT auto-redrive the leg" do
     runtime = boot_wire
@@ -124,22 +103,16 @@ RSpec.describe "saga durability across a process death mid-leg" do
       /x
     ).to_stderr
 
-    # Surfaced (state restored, and the stall is on record)...
+    # Surfaced: state restored and the stall is on record.
     expect(reopened.registry.saga_instances["Carry"]["wire-1"]).to include(state: "asked")
     expect(reopened.registry.saga_log).to include(
       hash_including(process_manager: "Carry", instance: "wire-1", rehydrated_stalled: true)
     )
-    # ...but the reserved marker never leaks into the live instance's own
-    # memory (a `given`, a `with:` mapping, or a re-check of this same
-    # saga would otherwise see an internal bookkeeping key no bluebook
-    # ever declared).
+    # The reserved marker must not leak into live memory, where a `given` or `with:` would see it.
     expect(reopened.registry.saga_instances["Carry"]["wire-1"][:memory]).not_to have_key(:__hecks_saga_pending_dispatch__)
 
-    # And, deliberately, not auto-redriven — no compensating or
-    # continuing dispatch ran just because the process rebooted. See
-    # saga_pending_dispatch.rb for why: redelivering a dispatch whose
-    # outcome is unknown is only safe with idempotent delivery, which
-    # this pipeline doesn't have.
+    # Not auto-redriven: redelivering a dispatch with an unknown outcome is unsafe without
+    # idempotent delivery (see saga_pending_dispatch.rb).
     expect(Wire::Drawer.find("left").cents.to_h).to eq(cents: 10_000)
     expect(Wire::Drawer.find("right").cents.to_h).to eq(cents: 0)
   end

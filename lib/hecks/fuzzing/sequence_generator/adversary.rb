@@ -5,52 +5,8 @@ require_relative "../../runtime/value"
 module Hecks
   module Fuzzing
     class SequenceGenerator
-      # The argument shapes the Ruby/Rust divergences were actually found
-      # through, injected on purpose, on every domain.
-      #
-      # ## Why these shapes
-      #
-      # Ten bugs in one QA session (BUG#7–#16, `QualityControl`'s own
-      # ledger) clustered in a handful of mechanisms — and several were
-      # only ever reachable because one domain happened to declare the
-      # argument that tripped them: `Roster::Roster.Mark`'s own `to:`
-      # collided with the dispatcher's routing `to:` (BUG#7), a present-
-      # but-null `to:` was misread as a routing envelope (BUG#16), a blank
-      # creating identity minted a phantom aggregate in Rust (BUG#15), a
-      # single-field closed-set argument offered as bare `null` refused
-      # with different kinds on the two engines (BUG#14). No other domain
-      # in the rotation could ever have found any of those, because
-      # nothing generated ever produced the shape. This module produces
-      # them — for a configurable fraction of command steps, chosen and
-      # parameterised from the same seeded RNG the rest of the generator
-      # already draws from, so `generate(domain, seed:, steps:,
-      # adversarial:)` stays exactly as reproducible per seed as it was.
-      #
-      # ## Opt-in, by construction
-      #
-      # `adversarial: 0.0` (the default) returns before drawing a single
-      # random number, so every pinned seed in spec/fuzzing,
-      # spec/rust_conformance_fuzz_spec.rb, bin/fuzz and bin/generate
-      # produces byte-for-byte what it produced before this module
-      # existed. `bin/qa_sweep` turns it on (reading
-      # `QualityControlDials::ADVERSARIAL_FRACTION`) — that script is the
-      # one place a mutated step's own divergence is a finding rather than
-      # a red CI gate.
-      #
-      # ## When it applies
-      #
-      # One mutation per step, applied in `StepBuilder#build_command_step`
-      # after the arguments and identity are built and before the step's
-      # own inline dispatch — so the generator's own `known_ids` tracking
-      # sees what really happened, and so the returned step's `args` are
-      # the mutated bytes both `Fuzzing::Replay` (Ruby) and the compiled
-      # conformance binary (Rust) later receive. The step carries an
-      # `"adversarial"` key naming what was done (`mutation`, the bug
-      # class it exercises, and the exact sub-shape), which `bin/qa_sweep`
-      # prints on a found something report so the agent logging the Bug
-      # can name the mechanism, not guess it. Both replay paths ignore
-      # the key: `Replay.call` reads only verb/query/dry_run/args/role,
-      # and `kernel/cli.rs` reads step keys by name.
+      # Adversarial argument mutations, the shapes Ruby/Rust divergences were found through.
+      # Off at `adversarial: 0.0`, which returns before any RNG draw.
       module Adversary
         KINDS = %i[
           routing_key
@@ -61,102 +17,52 @@ module Hecks
           refusal_precedence
         ].freeze
 
-        # BUG#7/#16/#8 — `to`/`with` are `Dispatcher#dispatch`'s own
-        # routing keywords (Ruby's kwarg binding steals them from a flat
-        # args hash; Rust's `CommandInvocation::from_json` reads the same
-        # two names off the same object), `id` is the untyped identity
-        # fallback `ArgumentGate#refuse_unknown_arguments` exempts. Three
-        # shapes each: bare null (BUG#16), a scalar (BUG#7's out-of-range
-        # Integer among them), and the routing-shaped object.
+        # `to`/`with` are the dispatcher's routing keywords and `id` the untyped identity fallback;
+        # each is offered as bare null, a scalar, or a routing-shaped object.
         ROUTING_KEYS   = %w[to with id].freeze
         ROUTING_SHAPES = %w[null scalar route].freeze
 
-        # BUG#15 — a creating command's own identity part, blank three ways.
+        # A creating command's own identity part, blank three ways.
         BLANK_SHAPES = %w[empty whitespace null].freeze
 
-        # BUG#14 — a single-field value object as bare `null` and as `{}`.
+        # A single-field value object as bare `null` and as `{}`.
         VALUE_OBJECT_SHAPES = %w[null empty_object].freeze
 
-        # BUG#7/#8/#14's class — an unknown key, a type-mismatched declared
-        # key and an absent required key in the same step, so both engines
-        # have to pick which refusal wins; and each pair, so the ordering
-        # of any two is observable on a command too small for all three.
-        #
-        # The second row reaches further down `DISPATCH_ORDER`
-        # (lib/hecks/vocabulary.rb): `nonexistent` addresses an id nothing
-        # holds (a `hydrate`-stage NotFound), `lifecycle` aims a
-        # transition-guarded command at a real record (an
-        # `admissible_transition`-stage refusal, if the record's state
-        # refuses it), `role` binds a caller whose role the command does
-        # not name (the `refuse_role_mismatch` stage no generated step
-        # had ever reached). Paired with an argument-stage fault each,
-        # so the ordering of an early stage against a late one is
-        # observable — BUG#13 (ledger_ordering's own NOTES.md) was
-        # exactly an argument-invariant-vs-entity-existence ordering
-        # split, and nothing generated had ever asked the question on
-        # purpose.
+        # An unknown key, a type-mismatched key and an absent required key in one step, so both
+        # engines must pick which refusal wins. The second row reaches later `DISPATCH_ORDER`
+        # stages (lib/hecks/vocabulary.rb): `nonexistent` addresses an id nothing holds,
+        # `lifecycle` aims a transition-guarded command at a real record, `role` binds a caller
+        # the command does not name.
         PRECEDENCE_SHAPES = %w[
           unknown+mismatch+absent unknown+absent unknown+mismatch mismatch+absent
           nonexistent+mismatch nonexistent+unknown lifecycle+mismatch role+absent role+nonexistent
         ].freeze
 
-        # Item 2 of the detection plan (angle-5) — a drawn caller on a
-        # role-gated command. `refuse_role_mismatch` is a `DISPATCH_ORDER`
-        # step both engines implement (`command_rules/authorization.rb`,
-        # `rust/src/kernel/repository.rs check_role`) and both replay doors
-        # already read (`Fuzzing::Replay` binds `Hecks.as_caller` from a
-        # step's `role:`/`actor_id:`; `kernel/cli.rs` reads the same two
-        # keys) — yet no generated step ever carried either key, so the
-        # check was dormant on every sweep ever run. Five shapes:
-        #   matching        the command's own role — the string fallback
-        #                   authorizes it on both engines
-        #   mismatched      another declared role (or none the domain
-        #                   knows) — Unauthorized on both
-        #   absent_on_gated no caller at all on a gated command — the
-        #                   unchecked default, recorded so the step reads
-        #                   as a deliberate control, not an omission
-        #   actor_known     the role plus an actor this same sequence
-        #                   already granted it to (the authorization
-        #                   provider's declared `grant:` verb succeeded
-        #                   earlier — `catalog[:grant_verbs]`) —
-        #                   the real `holds_role?` lookup, both sides
-        #   actor_unknown   the role plus an actor nothing granted —
-        #                   `holds_role?` must refuse on both
-        # a separate layer from `KINDS`, with its own probability
-        # (`role_draw:` — `QualityControlDials::ROLE_DRAW_PROBABILITY`):
-        # a caller composes with any argument mutation above rather than
-        # competing with it for the one-mutation-per-step slot, and draws
-        # nothing from the RNG when off, so every pinned seed is
-        # byte-identical to before it existed.
+        # A drawn caller on a role-gated command, separate from `KINDS` (`role_draw:`) so it
+        # composes with any argument mutation and draws nothing when off.
+        #   matching         the command's own role
+        #   mismatched       another declared role, or none the domain knows
+        #   absent_on_gated  no caller at all: the unchecked default, recorded as a control
+        #   actor_known      the role plus an actor this sequence already granted it
+        #   actor_unknown    the role plus an actor nothing granted
         CALLER_SHAPES = %w[matching mismatched absent_on_gated actor_known actor_unknown].freeze
         UNKNOWN_ROLE  = "Nobody the domain names".freeze
 
-        # BUG#11 — an entity command two or more hops deep. Not a mutation
-        # of arguments but a preference (picker.rb weights these up when
-        # adversarial) plus an addressing coin: flat one-head-per-hop args
-        # (what every other generated entity step uses) or the routed
-        # `to: { aggregate:, entities: [...] }` envelope BUG#11's own fix
-        # was scoped to. The step's metadata reports the depth reached
-        # so a depth-3 domain is visibly exercised there.
+        # An entity command two or more hops deep, addressed by flat one-head-per-hop args or the
+        # routed `to: { aggregate:, entities: [...] }` envelope. picker.rb weights these up.
         DEEP_ENTITY_DEPTH  = 2
         DEEP_ENTITY_WEIGHT = 4
 
-        # BUG#13's mutation is only ever applicable on a step whose
-        # parent already holds an element this same sequence appended —
-        # a rare moment (an append has to have succeeded first, and most
-        # mutated appends are refused), so when it is on offer it is
-        # weighted up the same way the picker weights an unexercised
-        # verb: the opportunity is what is scarce, not the kind.
+        # Needs an element this sequence already appended, a rare moment, so it is weighted up
+        # when on offer.
         DUPLICATE_IDENTITY_WEIGHT = 3
 
         private
 
         def adversarial? = @adversarial.positive?
 
-        # `[]` — and no RNG draw — when adversarial mode is off. Otherwise
-        # the deep-entity addressing note (every deep step, when
-        # adversarial), then with probability `@adversarial` exactly one
-        # mutation among those applicable to this step's own command.
+        # `[]` with no RNG draw when adversarial mode is off; otherwise the deep-entity note, then
+        # with probability `@adversarial` one mutation applicable to this step.
         def adversarial_mutations!(args, entry, catalog)
           return [] unless adversarial?
 
@@ -171,8 +77,6 @@ module Hecks
           mutations << send(:"apply_#{weighted.sample(random: @random)}!", args, entry, catalog)
         end
 
-        # ── BUG#11: depth ≥ 2 entity command, flat or routed addressing ──
-
         def deep_entity_addressing!(args, entry)
           depth  = entry[:chain].size
           routed = @random.rand(2).zero?
@@ -182,22 +86,15 @@ module Hecks
 
           heads   = [entry[:aggregate], *entry[:chain]].map { |construct| (construct.identified_by || :id).to_s }
           scalars = heads.map { |head| ValueGenerator.scalar_of(args[head]) }
-          # The heads leave the flat args — this is the clean routed
-          # caller BUG#11's own spec pins (`to: {...}, note: {...}`) —
-          # unless the command itself declares an attribute of that name
-          # (chess's `Piece.Move` declares `id` as a fact too), which
-          # stays because dropping it would be a different mutation.
+          # The heads leave the flat args unless the command declares an attribute of that name
+          # (chess's `Piece.Move` declares `id`); dropping that would be a different mutation.
           heads.each { |head| args.delete(head) unless entry[:command].attribute(head) }
           args["to"] = { "aggregate" => scalars.first, "entities" => scalars.drop(1) }
           note
         end
 
-        # ── BUG#7/#16/#8: an undeclared routing/identity key on flat args ──
-
-        # Not on a step already carrying a routed `to:` from
-        # `deep_entity_addressing!` — overwriting that envelope would
-        # leave the deep-entity note claiming an addressing the args no
-        # longer have.
+        # Not applied over a routed `to:` from `deep_entity_addressing!`; overwriting it would
+        # contradict that step's note.
         def routing_key_applicable?(args, _entry, _catalog) = !args.key?("to")
 
         def apply_routing_key!(args, entry, _catalog)
@@ -213,9 +110,7 @@ module Hecks
             "declared" => !entry[:command].attribute(key).nil? }
         end
 
-        # A real-looking id (this step's own parent, so a routed envelope
-        # can actually resolve), BUG#7's own out-of-range Integer, or a
-        # minted id nothing holds.
+        # This step's own parent id, an out-of-range Integer, or a minted id nothing holds.
         def routing_scalar(args, entry)
           case @random.rand(3)
           when 0 then parent_scalar_of(args, entry)
@@ -226,9 +121,8 @@ module Hecks
 
         def routing_object(args, entry)
           entities = (entry[:chain] || []).map { |piece| ValueGenerator.scalar_of(args[(piece.identified_by || :id).to_s]) }
-          # Half the time one identity too many — a depth the verb does
-          # not have, which `Routing.envelope`'s `entity_depth` check and
-          # Rust's own envelope parser must both refuse the same way.
+          # Half the time one identity too many, a depth the verb lacks, which both engines must
+          # refuse alike.
           entities << ValueGenerator.random_id(@random) if @random.rand(2).zero?
           { "aggregate" => parent_scalar_of(args, entry), "entities" => entities }
         end
@@ -238,15 +132,10 @@ module Hecks
           args.key?(key) ? ValueGenerator.scalar_of(args[key]) : identity_scalar_of(entry[:aggregate], args)
         end
 
-        # ── BUG#15: a blank identity part on a creating step ──────────────
-
         def blank_identity_applicable?(args, entry, catalog) = blank_identity_targets(args, entry, catalog).any?
 
-        # The identity heads this step supplies itself: a creating
-        # aggregate command's own (every part of a composite), and an
-        # append's caller-supplied entity identity arguments (an entity is
-        # "created" by its append, and BUG#15's blank-identity question
-        # applies there too).
+        # Identity heads this step supplies: a creating command's own (every composite part) and
+        # an append's entity identity arguments.
         def blank_identity_targets(args, entry, catalog)
           targets = []
           if entry[:entity].nil? && entry[:command].creates?
@@ -271,8 +160,6 @@ module Hecks
           { "mutation" => "blank_identity", "bug" => "BUG#15", "argument" => head, "shape" => shape }
         end
 
-        # ── BUG#14: a single-field value object as null / {} ─────────────
-
         def null_value_object_applicable?(args, entry, _catalog) = value_object_targets(args, entry).any?
 
         def value_object_targets(args, entry)
@@ -296,8 +183,6 @@ module Hecks
             "shape" => shape }
         end
 
-        # ── BUG#13: an entity identity this sequence already appended ────
-
         def duplicate_entity_identity_applicable?(args, entry, catalog) = duplicate_identity_pool(args, entry, catalog).any?
 
         def duplicate_identity_pool(args, entry, catalog)
@@ -315,14 +200,10 @@ module Hecks
             "composite" => populator[:identity_arguments].size > 1, "identity" => tuple }
         end
 
-        # ── BUG#12: a mapped/declared attribute left out of the payload ──
-
         def omit_mapped_argument_applicable?(args, entry, _catalog) = mapped_argument_targets(args, entry).any?
 
-        # For an append: the arguments its `append:` mapping sources (the
-        # element's own declared fields). For a plain creating command:
-        # every declared non-identity attribute. Never an identity head —
-        # that is `blank_identity`'s question, not this one.
+        # An append's mapped source arguments, or a plain creating command's non-identity
+        # attributes; never an identity head.
         def mapped_argument_targets(args, entry)
           command = entry[:command]
           heads   = identity_heads_of(entry)
@@ -344,19 +225,13 @@ module Hecks
             "optional" => attribute.optional? == true }
         end
 
-        # ── BUG#7/#8/#14: unknown + mismatched + absent, in one step ─────
-
         def refusal_precedence_applicable?(args, entry, _catalog)
           precedence_shapes_for(args, entry).any?
         end
 
-        # Every shape whose every part this step can carry. `nonexistent`
-        # and `lifecycle` need a command that acts on a record (a creating
-        # step has no addressed id to point elsewhere, and no state to be
-        # in) and flat addressing (`deep_entity_addressing!`'s routed `to:`
-        # envelope owns the ids then); `lifecycle` additionally needs a
-        # command some guard actually watches; `role` needs a declared
-        # `role` to mismatch against.
+        # Every shape whose parts this step can carry. `nonexistent` and `lifecycle` need a
+        # record-addressing command with flat addressing; `lifecycle` also a guarded command;
+        # `role` a declared role.
         def precedence_shapes_for(args, entry)
           can = {
             "mismatch"    => corruptible_attributes(args, entry).any?,
@@ -407,19 +282,14 @@ module Hecks
             applied << "unknown"
           end
           apply_late_stage_parts!(wanted, args, entry, detail, applied, catalog)
-          # Reported as what was actually done — a command with a single
-          # attribute cannot carry both a dropped and a corrupted one.
+          # Reported as what was done: a single-attribute command cannot carry both a drop and a
+          # corruption.
           detail.merge("shape" => applied.sort.join("+"))
         end
 
-        # The three parts that reach past the argument gate — see
-        # `PRECEDENCE_SHAPES`' own second row. `nonexistent` re-addresses
-        # the step's last hop (the entity element for an entity command,
-        # the aggregate itself otherwise) to an id nothing holds;
-        # `lifecycle` mutates nothing (the record's own state is what
-        # refuses, or doesn't) and is recorded so the pairing is visible;
-        # `role` parks a mismatched caller for `StepBuilder` to bind
-        # around this one dispatch.
+        # The parts past the argument gate. `nonexistent` re-addresses the last hop to an id
+        # nothing holds; `lifecycle` mutates nothing and is recorded so the pairing is visible;
+        # `role` parks a mismatched caller for StepBuilder to bind around the dispatch.
         def apply_late_stage_parts!(wanted, args, entry, detail, applied, catalog)
           if wanted.include?("nonexistent")
             piece = (entry[:chain] || []).last || entry[:aggregate]
@@ -439,18 +309,11 @@ module Hecks
           applied << "role"
         end
 
-        # ── Angle-5: a drawn caller on a role-gated command ──────────────
-
         def role_draw? = @role_draw.positive?
 
-        # `[caller, note]` — `caller` is the `{"role" => …, "actor_id" =>
-        # …}` pair (or nil for the unchecked control) `StepBuilder` binds
-        # around the step's one dispatch and writes onto the step itself;
-        # `note` rides in the step's `"adversarial"` metadata. A
-        # `refusal_precedence` mutation that already parked a caller for
-        # this step wins outright (its whole point is that pairing); an
-        # ungated command draws nothing (there is no role to match or
-        # mismatch), and with the draw off nothing is drawn at all.
+        # `[caller, note]`: the caller StepBuilder binds around the dispatch (nil for the unchecked
+        # control) and the note for the step's `"adversarial"` metadata. A caller parked by
+        # `refusal_precedence` wins; an ungated command draws nothing.
         def caller_draw!(entry, catalog)
           if @precedence_caller
             caller = @precedence_caller
@@ -478,9 +341,7 @@ module Hecks
           end
         end
 
-        # Another role the domain itself declares, when it has one — a
-        # real "wrong hat", the more interesting mismatch — else a role no
-        # bluebook names at all.
+        # Another declared role when there is one (a real wrong hat), else a role none names.
         def other_role(role, catalog)
           others = catalog[:roles] - [role]
           others.empty? ? UNKNOWN_ROLE : others.sample(random: @random)
@@ -497,14 +358,8 @@ module Hecks
           end
         end
 
-        # A grant aimed at a role some command actually declares. Left to
-        # `ValueGenerator`, `Assign`'s `role_name` is random text
-        # ("hotel"), which no command is gated on — so a granted actor
-        # could never satisfy `holds_role?` for anything, and the
-        # `actor_known` shape above would be unreachable by construction.
-        # With the draw on, every generated grant names one of the
-        # domain's own declared roles instead; with it off, nothing here
-        # runs (no RNG draw, no change to the args).
+        # Aims a grant at a role some command declares; random role text would make `actor_known`
+        # unreachable. Does nothing without the role draw.
         def steer_grant!(args, entry, catalog)
           return unless role_draw? && catalog[:grant_verbs].include?(entry[:verb]) && catalog[:roles].any?
           return unless args.key?("role_name")
@@ -512,15 +367,13 @@ module Hecks
           args["role_name"] = { "value" => catalog[:roles].sample(random: @random) }
         end
 
-        # ── shared ───────────────────────────────────────────────────────
-
         def populator_for_entry(catalog, entry)
           owner = entry.key?(:entity) ? entry[:entity] : entry[:aggregate]
           catalog[:populators].find { |p| p[:command].equal?(entry[:command]) && p[:owner].equal?(owner) }
         end
 
-        # Every identity head this step addresses by: the aggregate's own
-        # (plus the untyped `id` fallback) and one per entity hop.
+        # Every identity head this step addresses by: the aggregate's own, the untyped `id`, and
+        # one per entity hop.
         def identity_heads_of(entry)
           heads = entry[:aggregate].identity_heads.map(&:to_s) + ["id"]
           (entry[:chain] || []).each { |piece| heads.concat(piece.identity_heads.map(&:to_s)) }

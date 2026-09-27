@@ -1,53 +1,36 @@
 module Hecks
   module Bluebook
     module Behaviour
-      # **What a policy does**. Its declared half is four plain fields; these
-      # are the readings taken off them.
+      # Readings over a policy's declared fields.
       module Policy
-        # The bluebook's name for this construct, asked the same way of a class
-        # that has crossed over and of an IR object that has not. Collapses into
-        # Construct when this one crosses.
+        # The bluebook's name for this construct.
         #
-        # @return [String] this policy's declared name
+        # @return [String]
         def hecks_name = @name
 
         # The domain-and-aggregate prefix of the triggering event's name.
         #
-        # @return [String, nil] the part of `on_event` before its first `.`
-        #   (the `"Domain::Aggregate"` prefix), or `nil` when `on_event`
-        #   carries no dot
+        # @return [String, nil] the part of `on_event` before its first `.`, or `nil` if none
         def event_qualifier = Naming.qualifier(@on_event)
 
-        # The bare name of the triggering event, without its domain/aggregate
-        # prefix.
+        # The triggering event's bare name, without its prefix.
         #
-        # @return [String] the part of `on_event` after its first `.` (the
-        #   bare event name), or the whole string when it carries no dot
+        # @return [String]
         def event_name = Naming.unqualified(@on_event)
 
-        # Whether this policy fans out — `for_each` names a query, and a
-        # non-empty one turns a single reaction into one dispatch per row
-        # the query answers. Read by the interpreter that runs the fan-out
-        # and by the property that checks it dispatched once per row.
+        # Whether `for_each` names a query, turning one reaction into a dispatch per row.
         #
-        # @return [Boolean] whether `for_each` names a query
+        # @return [Boolean]
         def fans_out? = !@for_each.to_s.empty?
 
-        # Whether this policy is guarded — a non-empty `where` decides
-        # whether the policy fires at all, read against the triggering
-        # event's own payload.
+        # Whether a non-empty `where` decides if the policy fires at all.
         #
-        # @return [Boolean] whether `where` is declared and non-empty
+        # @return [Boolean]
         def guarded? = !@where.to_s.empty?
 
-        # The structured form of `where`, derived once — the same tree
-        # `AstJson.emit_predicate` spells for every rule row, memoized
-        # here because a policy is consulted once per event, not once per
-        # boot. Nil when there is no `where`, exactly as the wire carries
-        # it.
+        # The structured form of `where`, memoized because a policy is consulted once per event.
         #
-        # @return [Hash, nil] the JSON-shaped boolean AST for `where`, or
-        #   `nil` when this policy is not guarded
+        # @return [Hash, nil] `nil` when the policy is not guarded
         def where_ast
           if defined?(@where_ast)
             @where_ast
@@ -56,39 +39,27 @@ module Hecks
           end
         end
 
-        # The rule-shaped reading of the guard, for `Evaluator.call_rule`
-        # — a policy's `where` has no description (nothing refuses with
-        # it; an unmet where is a silent skip).
+        # The guard as a rule for `Evaluator.call_rule`; it has no description because an
+        # unmet `where` is a silent skip.
         #
-        # @return [Bluebook::Given] the guard as a rule, with no description
-        #   and its `ast` already resolved via `where_ast`
+        # @return [Bluebook::Given]
         def where_rule = @where_rule ||= Given.new(description: nil, canonical: @where, ast: where_ast)
 
-        # The fan-out query's route, split the way the runtime runs it:
-        # `[query_domain, aggregate_name, query_name]`. The query runs
-        # against the triggering event's own domain unless `for_each`
-        # names one ("Domain::Aggregate.query"). Deliberately independent
-        # of `across`/`target_domain`, which name where `trigger` fires,
-        # not where the fan-out's own query runs.
+        # The fan-out query's route, split the way the runtime runs it.
         #
-        # @param default_domain [String, Symbol] the triggering event's own
-        #   domain, used when `for_each` names no domain of its own
-        # @return [Array(String, String, String)] `[domain, aggregate_name,
-        #   query_name]` the fan-out query resolves against
+        # The query runs in the triggering event's domain unless `for_each` names one
+        # ("Domain::Aggregate.query"); it is independent of `across`/`target_domain`.
+        #
+        # @param default_domain [String, Symbol] the triggering event's domain
+        # @return [Array(String, String, String)] `[domain, aggregate_name, query_name]`
         def for_each_route(default_domain)
           path, query_name = @for_each.to_s.split(".", 2)
           domain, aggregate = path.to_s.include?("::") ? path.split("::", 2) : [default_domain.to_s, path]
           [domain, aggregate, query_name]
         end
 
-        # The argument name a fan-out dispatch mints each matched row's id
-        # under is not minted here — it depends on the target command's own
-        # declared shape (a target command declared on the very aggregate it
-        # self-references, such as `Account.Freeze`, is addressed by its own
-        # identity field's name, not a synthetic foreign key), not on the
-        # aggregate name alone, so it lives on
-        # `Behaviour::Command#addressing_key_for`, asked of the resolved
-        # target command by `PolicyInterpreter#addressing_key_for`.
+        # The argument name for each fan-out row's id is not minted here: it depends on the
+        # target command's declared shape, so it lives on `Behaviour::Command#addressing_key_for`.
       end
     end
   end

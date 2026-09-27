@@ -1,13 +1,8 @@
 require "spec_helper"
 require "tmpdir"
 
-# ADR 0031 — the boot-gate registry itself, plus the assertion this ADR's
-# own Consequences promised: a domain bound to a lineage-capable adapter
-# always ends up with `:era_check` registered, a domain bound to an
-# adapter supporting sagas always ends up with `:saga_rehydration`
-# registered, and neither is present at all for a domain with neither
-# capability — mirroring `spec/projector_seam_spec.rb`'s registration-
-# completeness enforcement, scaled to two hand-registered gates.
+# Boot-gate registry (ADR 0031): `:era_check` for lineage-capable adapters, `:saga_rehydration`
+# for saga-capable ones, and neither for a domain with neither capability.
 RSpec.describe Hecks::Runtime::BootGates do
   describe "the registry itself" do
     it "runs a registered gate, handing it the registry and directory" do
@@ -104,9 +99,7 @@ RSpec.describe Hecks::Runtime::BootGates do
 
     it "registers :era_check for a domain with an aggregate bound to a lineage-capable adapter (PostgresEra), " \
        "needing no live database" do
-      # `lineage_capable?`'s own `require "pg"` stays lazy — see
-      # spec/exporter_spec.rb's identical registry-construction comment —
-      # so asking the registration question never needs a live Postgres.
+      # `lineage_capable?` keeps `require "pg"` lazy, so no live Postgres is needed here.
       require InMemoryDomain::ERA_PLUGIN
       registry = boot_registry do
         Kernel.load(InMemoryDomain::PERSISTENCE_PORT)

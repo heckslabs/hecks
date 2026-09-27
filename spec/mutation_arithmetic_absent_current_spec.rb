@@ -1,25 +1,9 @@
 require "spec_helper"
 
-# CommandRules::Arithmetic's `current ||= 0` (`#arithmetic`/`#multiply`)
-# only ever produced a genuine zero when `amount` was also plain — a
-# VO-typed attribute with no declared `default:` (genuinely absent, never
-# set) hit a misleading refusal on its very first increment/decrement/
-# multiply: "increment needs an Integer, got 500" — true of nothing.
-# `amount` (500 cents) was exactly the Integer it named, just still
-# wearing the Money wrapper the command's own declared attribute type put
-# it in; the real gap was that `current` (a raw `0`, not a Value) could
-# never enter the value-object branch alongside it.
-#
-# `#clamp` already falls through to a raw scalar for the identical absent
-# case and lets the mutation applier re-wrap the result into the declared
-# VO type on write — this closes the same gap for increment/decrement/
-# multiply, by unwrapping `amount`'s own single numeric field rather than
-# refusing on it.
+# Increment/decrement/multiply on a never-set VO-typed attribute treat the absent current as
+# zero, unwrapping `amount`'s numeric field instead of refusing (as #clamp already does).
 RSpec.describe "arithmetic on a VO-typed attribute that was never set" do
-  # One inline bluebook, declared whole — a domain-definition DSL block
-  # read top to bottom as the fixture, not a sequence of independent
-  # steps; splitting it would scatter one readable declaration across
-  # several methods that only make sense read back-to-back.
+  # One inline bluebook, declared whole: splitting the DSL block would scatter the fixture.
   # rubocop:disable-next Metrics/AbcSize
   # rubocop:disable-next Metrics/MethodLength
   def boot(&binds)

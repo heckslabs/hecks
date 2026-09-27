@@ -1,41 +1,12 @@
 require "spec_helper"
 require "hecks/fuzzing"
 
-# QualityControl BUG#125 — `Value::Coercion#check_scalar_shapes` would
-# tolerate any non-composite scalar (Integer, Float, true/false) for a
-# String-typed value-object field, refusing only Array/Hash. Rust's
-# generated `from_json` requires a JSON string node for a String-typed
-# field unconditionally, refusing anything else immediately. The gap: a
-# command whose declared arguments are each independently invalid in
-# different ways diverged on refusal kind, not just wording — Ruby's
-# leniency let a bad `id` sail past its own check and fail later on an
-# unrelated field, while Rust refused on `id` first.
+# Pins that a non-string scalar (Integer, Float, Boolean) for a String-typed value-object
+# field is refused with TypeMismatch on that field first, as Rust's `from_json` does.
 #
-# `Chess::Game.Piece.Capture`'s own `id` (PieceId, String-typed) offered a
-# bignum, alongside `by` (Color, closed-set) offered a value outside its
-# `one_of` set — found live via `bin/qa_sweep chess`
-# (tmp/qa-shrunk/SW-chess-1789342745-differential.json), pinned here.
-#
-# The fix is narrowly scoped: `Value::Coercion.judge_bootstrapping?`
-# (coercion.rb) exempts only `MetaValidator::Judge#send_to` — the choke
-# point every one of the language's own self-hosted grammar dispatches
-# goes through while walking a bluebook's declarations into the
-# "Bluebook" meta-domain. `Judge#appends`' generic walk-index handling
-# for any field literally named "position" collides with
-# `NormalisationRule`/`Normalise`'s own domain field of the same name,
-# which is `RuleText` (String) rather than the `Position` (Integer) type
-# every other "position" field in the language's grammar uses — so
-# `Judge#v(index)` hands that one field a raw Integer, on every domain's
-# first boot (the language self-judges its own grammar). The record this
-# produces is provably never read back (`normalisations` is spliced
-# straight from `Expression::CanonicalForm.table`, an elsewhere/derived
-# field — assembly/contracts.rb) — a walk-index/domain-field name
-# collision inside Judge, not a genuine semantic need for `position` to
-# arrive numeric — but unexempted, this does break every domain's boot
-# today (`MetaValidator.call` raises the instant a judge's refusals are
-# non-empty). Every boot in the suite — the chess replays below included —
-# exercises that exemption, so an ordinary domain booting clean needs no
-# example of its own here.
+# `Value::Coercion.judge_bootstrapping?` exempts only `MetaValidator::Judge#send_to`, whose
+# self-judging of the grammar hands the "position" field a raw Integer on every first boot;
+# every boot in the suite exercises that exemption.
 RSpec.describe "QualityControl BUG#125 — value-object String scalar-shape tightening" do
   describe "a value object refuses a non-string scalar for a String-typed field" do
     let(:domain) { File.join(InMemoryDomain::ROOT, "examples/chess") }

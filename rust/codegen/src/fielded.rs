@@ -1,6 +1,4 @@
-//! Port of `rust/project/fielded.rb` — `emit_fielded_flat`/
-//! `emit_fielded_record`, mirrored directly. Read the Ruby file's own
-//! header for the six/seven leaf shapes this walks.
+//! Port of `rust/project/fielded.rb`: emits the `Fielded` impls for structs and records.
 
 use crate::exemplar::Exemplar;
 use crate::json::Json;
@@ -58,19 +56,11 @@ pub fn emit_fielded_flat(exemplar: &Exemplar, struct_name: &str, attributes: &[J
 
     let mut arms: Vec<String> = arms.iter().map(|a| format!("            {a}")).collect();
     arms.extend(extra_arms.iter().cloned());
-    // `arms.any? { |arm| arm.include?('Value') }` — checked against the
-    // full, already-assembled arm list (declared arms + extra_arms
-    // together), not tracked incrementally per branch while building —
-    // found live, byte-diffing against Ruby's real output: a plain
-    // scalar arm (`fielded_arm_scalar`) also emits `Value::...` text, and
-    // an incremental per-branch tracker that only flagged the list/
-    // optional branches (this function's own first draft) missed it.
+    // Scan the assembled arm list (including `extra_arms`) rather than tracking per branch:
+    // a plain scalar arm also emits `Value::...`.
     let uses_value = arms.iter().any(|a| a.contains("Value"));
-    // Mirrors `fielded.rb#emit_fielded_flat`'s same conditional-import
-    // trick, now also applied to `Field` — a struct with no
-    // fielded-capable attributes (a bare command like `Retire`) renders
-    // `match name { _ => None, }`, never constructing a bare
-    // `Field::...`, leaving `use crate::kernel::Field;` unused.
+    // A struct with no fielded-capable attributes never constructs `Field::...`, so the
+    // import would be unused.
     let uses_field = arms.iter().any(|a| a.contains("Field"));
 
     format!(
@@ -158,18 +148,9 @@ pub fn emit_fielded_record(exemplar: &Exemplar, aggregate: &Json, value_objects_
     )
 }
 
-/// Port of fielded.rb's `as_scalar_expr` — `Resolver#unwrap_scalar`: a
-/// struct with exactly one attribute reads as that attribute's value,
-/// whatever it is named (single-element value objects strictly answer
-/// `.value` — relaxed from the old name-gated `== "value"` check in
-/// lockstep with the Ruby projector and the Ruby oracle's own
-/// `unwrap_scalar`; see fielded.rb's `as_scalar_expr` for the full
-/// account). Only a genuine scalar leaf unwraps — a sole attribute
-/// that is itself a value object already answered `None` through the
-/// match's own `_` floor, so gating on `effective_scalar_type` changes
-/// no runtime answer; it emits the honest literal `None` instead of a
-/// match that could never bind (fielded.rb's own `as_scalar_expr`
-/// comment, and spec/rust_project/closed_set_fielded_spec.rb's pin).
+// A struct with exactly one scalar attribute reads as that attribute's value, whatever its
+// name. A sole value-object attribute emits a literal `None` rather than a match that
+// could never bind.
 fn as_scalar_expr(attributes: &[Json]) -> String {
     let sole = attributes.len() == 1
         && !crate::attr::list(&attributes[0])
@@ -184,9 +165,8 @@ fn as_scalar_expr(attributes: &[Json]) -> String {
     }
 }
 
-/// Port of `fielded.rb`'s `items_arms` — `Fielded::items`, one arm per
-/// list attribute whose element is a scalar or a `Fielded` value object/
-/// entity; anything else stays a length-only field with no arm.
+// One `Fielded::items` arm per list attribute whose element is a scalar, value object or
+// entity; other lists stay length-only.
 fn items_arms(exemplar: &Exemplar, attributes: &[Json], value_objects_by_name: &HashMap<String, &Json>, entity_names: &[String], optional: impl Fn(&Json) -> bool) -> Vec<String> {
     let mut arms = Vec::new();
     for attr in attributes {

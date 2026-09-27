@@ -1,6 +1,4 @@
-//! Port of `rust/project/constraints.rb` — read that file's own header in
-//! full; this mirrors `scalar_field_expr`/`admitted_set_members`/
-//! `emit_admits_check`/`emit_pattern_check` directly.
+//! Port of `rust/project/constraints.rb`: `admits:` and `pattern:` check emission.
 
 use crate::exemplar::Exemplar;
 use crate::json::Json;
@@ -20,16 +18,11 @@ pub fn scalar_field_expr(value_expr: &str, attr_type: &str, value_objects_by_nam
     Some(format!("{value_expr}.{field}"))
 }
 
-/// Mirrors `rust/project/constraints.rb`'s own `optional_scalar_expr`/
-/// `wrap_if_optional` exactly — see that file's header comment for the
-/// full reasoning (an optional attribute is `Option<T>` in the struct,
-/// not `T`, so the two callers below need this rather than handing
-/// `scalar_field_expr` the bare field directly — that compiles fine
-/// until `optional:` is paired with `admits:`/`pattern:`). Returns the
-/// scalar expression to check, and — only when the attribute is optional — the source
-/// `Option` expression the caller must `if let Some(...)` around.
+/// Name bound by the `if let Some(..)` that wraps a check on an optional attribute.
 const OPTIONAL_BINDING: &str = "__optional_value";
 
+// An optional attribute is `Option<T>` in the struct, so the check must run inside
+// `if let Some(..)`. Returns the scalar to check and, if optional, the `Option` source.
 fn optional_scalar_expr(
     value_expr: &str,
     attr: &Json,

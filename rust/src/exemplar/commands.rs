@@ -1,28 +1,9 @@
-// Exemplar shapes for rust/project/commands.rb — see mod.rs's own header.
-//
-// `dispatch_fn` is the outer skeleton `emit_command`/`emit_entity_command`
-// wrap around `crate::kernel::dispatch`/`dispatch_entity` — the biggest
-// remaining hand-interpolated shape in the generator, and the one with
-// the most nested brackets or arrays to get wrong. Several of its own
-// slots (`Hydrate::Create`/`Hydrate::Act` construction, the creation
-// record-field list, `given`/`ensures` `Expr` data literals) stay plain
-// Ruby string-building here, deliberately, matching the scoping already
-// used throughout this tree: `Expr` literals are out of scope entirely
-// (mod.rs's own header on `expr_emitter.rb`), and `Hydrate`/record-field
-// construction is the same "helper builds one already-proven `field:
-// value,` shape" pattern `field_assignment`/`to_json_field` already
-// cover — retemplating it a fourth time here buys nothing new. What
-// this shape is actually proving is the outer `pub fn .. -> DispatchResult
-// { .. dispatch(..) .. }` wrapper: the one place a stray brace or comma
-// among six different array/closure slots would otherwise be caught
-// only by `cargo build` on the whole generated tree.
+//! Exemplar shapes for rust/project/commands.rb (see mod.rs).
+//!
+//! `dispatch_fn` proves the outer `pub fn .. -> DispatchResult { .. dispatch(..) .. }` wrapper.
 #![allow(dead_code, unused_variables)]
 
-// A real, minimal entity element satisfying `dispatch_entity`'s own
-// bounds (`E: Fielded + Clone`) plus the `.identity()` method
-// `json.rs`'s own `self_identity` shape generates for every real entity
-// — `entity_dispatch_fn` (below) needs a real element type to build a
-// `matches: impl Fn(&E) -> bool` closure against.
+// Minimal element satisfying `dispatch_entity`'s bounds (`Fielded + Clone`).
 #[derive(Debug, Clone, PartialEq)]
 pub struct TmplElement {
     tmpl_field: i64,
@@ -40,10 +21,7 @@ impl TmplElement {
         let _ = v;
         Ok(String::new())
     }
-    // BUG#140 — every real entity record generates both `extract_id`
-    // (strict) and `extract_id_lenient` (json_codec.rb's own `emit_
-    // extract_id_lenient`) — this scaffolding struct needs the second
-    // one too, for `tmpl_delegate_element_host` (below) to compile.
+    // Generated entities carry both `extract_id` and `extract_id_lenient`.
     fn extract_id_lenient(v: &crate::kernel::Json) -> Result<String, crate::kernel::Refusal> {
         let _ = v;
         Ok(String::new())
@@ -54,8 +32,6 @@ impl TmplElement {
     }
 }
 
-// The entity command's own args struct, as `delegate_prelude` builds it
-// from the door's facts — see that shape's own comment below.
 #[derive(Debug, Clone, PartialEq)]
 pub struct TmplTargetArgs {
     tmpl_field: i64,
@@ -75,9 +51,7 @@ impl TmplTargetArgs {
     }
 }
 
-// A real, minimal type satisfying `kernel::dispatch`'s own bounds
-// (`T: Fielded + Clone + ToJson`) — standing in for whatever real
-// aggregate record a generated `dispatch_*` fn actually targets.
+// Stand-in for the aggregate record a generated `dispatch_*` fn targets.
 #[derive(Debug, Clone, PartialEq)]
 pub struct TmplRecord {
     tmpl_field: i64,
@@ -164,23 +138,9 @@ tmpl_ensures_spec_placeholder(),
 fn tmpl_invariant_check_placeholder() -> Result<(), crate::kernel::Refusal> {
     Ok(())
 }
-// `tmpl_prelude_placeholder` — the line between the references binding
-// and the `dispatch` call. Every ordinary command substitutes it away
-// to nothing (so the shape keeps its one blank line there, unchanged);
-// a delegating command (`delegates_to`, `commands.rb`'s own
-// `emit_delegation`) substitutes the rendered `delegate_prelude`
-// shape, below — bindings the closure and the payload both need
-// before `dispatch` is entered.
+// Empty for ordinary commands; a delegating command substitutes `delegate_prelude`.
 fn tmpl_prelude_placeholder() {}
-// `tmpl_with_references_placeholder` — the real substitution is a
-// `crate::kernel::WithReferences` literal (`commands.rb`'s own
-// `with_references_binding`), the same cross-aggregate-dereference
-// Fielded surface `given`/`ensures` evaluation reads as `EvalContext.
-// args` (`reference_lookup.rs`'s own header) — standing in here as
-// plain `TmplArgs` only so this exemplar keeps compiling on its own;
-// `WithReferences` isn't reachable from a bare `TmplArgs` value, but
-// `&tmpl_eval_fielded` only needs some `impl Fielded` to typecheck this
-// shape, and `TmplArgs` already is one.
+// Plain `TmplArgs` stands in for `kernel::WithReferences` so this exemplar compiles alone.
 fn tmpl_with_references_placeholder() -> TmplArgs {
     TmplArgs { tmpl_field: 0 }
 }
@@ -200,29 +160,9 @@ fn tmpl_emit_placeholder() -> &'static str {
     ""
 }
 
-// **A delegating command** — `delegates_to "Entity.Command", with: { … }`
-// (docs/implemented/guides/entities.md; `CommandInterpreter#step_
-// delegate_to_entity`, read directly). The door is an ordinary
-// aggregate command as far as `dispatch_fn` is concerned — its own
-// givens, its own `from:` guard, save, emit — and its entire mutation
-// is `kernel::apply_entity_command` run on the record inside the
-// closure: the target entity command's locate → givens → transition →
-// mutate → ensures, with `parent` read off the live record (see that
-// function's own header). Two shapes, rendered into two of
-// `dispatch_fn`'s own placeholders:
-//
-// `delegate_prelude` (into `tmpl_prelude_placeholder();`): the facts
-// the target sees are the door's own args plus the `with:` mapping
-// (`Json::with_aliases`); the target's args struct is read from them
-// the same way the routing layer reads an entity command's own; the
-// element is addressed by the entity's own `extract_id`/`extract_wants`
-// over the same facts — the identical NotFound wording a direct
-// dispatch renders.
-//
-// `delegate_apply` (into `tmpl_mutation_lines_placeholder(record);`):
-// the call itself. The inner `|record|` closure is the target's own
-// mutation lines over the element and deliberately shadows the door's
-// `record` — an entity command's `sets` only ever reach the element.
+// `delegates_to "Entity.Command"`: the door runs `apply_entity_command` inside its closure.
+// `delegate_prelude` fills the prelude slot; `delegate_apply` fills the mutation slot.
+// The inner `|record|` deliberately shadows the door's: entity `sets` only reach the element.
 fn tmpl_aliases_placeholder() -> (&'static str, &'static str) {
     ("", "")
 }
@@ -241,33 +181,9 @@ fn tmpl_delegate_prelude_host(
     Ok(())
 }
 
-// BUG#140 — split out of `delegate_prelude`, above: `element_id`'s own
-// extraction has to run strictly after `crate::kernel::dispatch`'s own
-// hydrate (the `Hydrate::Act`/`Create` branch it evaluates first,
-// kernel/dispatch.rs), never before it — `commands.rb`'s own `delegation_
-// of` header has the full trace against Ruby's real `DISPATCH_ORDER`
-// (hydrate at step 6, `delegate_to_entity` at step 12: a door's target-
-// entity identity is never even inspected until the door's own aggregate
-// is already found). Spliced as the first lines of what fills `tmpl_
-// mutation_lines_placeholder(record);` in `dispatch_fn` — inside `dispatch`'s
-// own `apply_mutations` closure, which by construction only ever runs
-// once hydrate/givens/transition have already succeeded — immediately
-// followed by `delegate_apply`'s own `apply_entity_command` call, which
-// needs exactly these two bindings. `delegate_facts` itself stays
-// computed in `delegate_prelude`, above, unchanged: building it can never
-// fail (`with_aliases` is infallible), and the door's own emitted-event
-// payload (`commands.rb`'s `payload = "delegate_facts.clone(),"`,
-// substituted straight into `dispatch`'s own call) needs it visible
-// before `dispatch` is ever called, not only inside this closure.
-//
-// `extract_id_lenient`, not `extract_id` — `json.rs`'s own `to_id_
-// component_lenient` header and `json_codec.rb`'s own `emit_extract_id_
-// lenient` header have the full reasoning: a door's mapped target-entity
-// identity may arrive present-but-blank, which is a valid, merely non-
-// matching value to Ruby's own `EntityElement#element_of`, never a
-// refusal on its own — `apply_entity_command` (kernel/dispatch.rs)
-// already renders the correct `entity_element_missing` wording once no
-// stored element's own `identity()` matches.
+// `element_id` extraction must run after `dispatch`'s hydrate, so it is spliced into the
+// mutation closure rather than the prelude. It uses `extract_id_lenient` because a blank mapped
+// identity is a non-match, not a refusal.
 fn tmpl_delegate_element_host(delegate_facts: crate::kernel::Json) -> Result<(), crate::kernel::Refusal> {
     // TMPL:delegate_element BEGIN
     let element_id = TmplElement::extract_id_lenient(&delegate_facts)?;
@@ -315,16 +231,8 @@ tmpl_ensures_spec_placeholder(),
     Ok(())
 }
 
-// `entity_dispatch_fn` — `dispatch_fn`'s own sibling for an entity
-// command (`emit_entity_command`), wrapping `kernel::dispatch_entity`
-// instead of `dispatch`: no `Hydrate` branch (an entity command never
-// creates), a `matches` closure addressing one element by its own
-// `identity()` instead of the parent's bare id, and two accessor
-// closures (`get_list`/`get_list_mut`) reaching the parent's list field
-// instead of one `Hydrate::Act { id }`. Never varies in shape the way
-// `dispatch_fn` does between creating/acting — an entity command is
-// always "acting" on one already-addressed element — so this needs no
-// `fn_signature`-style whole-span marker; the signature itself is fixed.
+// `entity_dispatch_fn`: `dispatch_fn`'s sibling wrapping `kernel::dispatch_entity`, which
+// addresses one element by `identity()` and never creates.
 fn tmpl_entity_mutation_lines_placeholder(record: &mut TmplElement) {}
 
 // TMPL:entity_dispatch_fn BEGIN

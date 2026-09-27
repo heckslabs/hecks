@@ -24,9 +24,8 @@ RSpec.describe Hecks::Behaviors do
     end
   end
 
-  # Each of these would build and pass vacuously without a build-time
-  # guard — a free-form `expect(**kwargs)` merge, with each runner
-  # (run_command/run_query) reading only a subset of the keys.
+  # Each of these would pass vacuously without a build-time guard: each runner
+  # (run_command/run_query) reads only a subset of the `expect` keys.
   describe "expect validation closes the silent-pass paths" do
     it "refuses a test with no expect at all" do
       result = described_class.run(fixture("no_expect.behaviors"))
@@ -92,13 +91,8 @@ RSpec.describe Hecks::Behaviors do
     end
   end
 
-  # **The `to:` collision, pinned** — the fixture's own header comment has
-  # the full story: MovePiece's destination fact is named `to`, the same
-  # word Dispatcher#dispatch's routing envelope owns, and a runner that
-  # forwarded kwargs loose enough to collide would fail ("to: does not
-  # recognize file, rank" on the exact spelling the behaviors guide
-  # promises). Every test passing here means the runner separates
-  # identities from facts the same way a policy projection does.
+  # Pins the `to:` collision: MovePiece's destination fact shares its name with
+  # Dispatcher#dispatch's routing envelope, so the runner must keep the two apart.
   describe "a domain whose own command fact is named `to`" do
     let(:result) { described_class.run(fixture("board_moves.behaviors")) }
 

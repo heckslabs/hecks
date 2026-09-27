@@ -1,48 +1,13 @@
-//! Mirrors `AttributeCollector#resolve_identity_field!`/
-//! `#resolve_identity_type!` (`lib/hecks/bluebook/dsl/attribute_collector.rb`)
-//! — the two deriving forms of `identified_by`:
-//!
-//!   `identified_by :field, :field_two` — the live form (ADR 0025,
-//!                                        "Identity"), one or more.
-//!                                        Each field's own already-
-//!                                        declared attribute decides the
-//!                                        shape: a reference resolves
-//!                                        bare (already a scalar); a
-//!                                        value object expands all of
-//!                                        its recursively scalar leaves
-//!                                        in declaration order; a bare
-//!                                        primitive resolves unchanged.
-//!   `identified_by ValueObject, as: field` — mints a structured field
-//!                                        (name is `as:` or
-//!                                        `Naming.snake(type)`) and then
-//!                                        expands the same recursive
-//!                                        scalar leaves beneath it.
-//!
-//! The inline `identified_by do attribute ... end` form is parsed into a
-//! synthesized value object by `parse::parse_identified_by`, then reaches
-//! `resolve_identity_type` through exactly the same path as a named value
-//! object. That keeps all three identity declarations on one flattening
-//! rule and one canonical IR shape.
+//! Derives the identity paths of `identified_by`, in both its field form and its
+//! `identified_by ValueObject, as: field` form (mirrors `AttributeCollector`).
 
 use crate::diag::{Diagnostic, ParseResult};
 use crate::ir;
 
-/// `AttributeCollector#resolve_identity_field!` — the bare-field form,
-/// `identified_by :field` (one or more, composite identity is their
-/// join). `field`'s own already-declared attribute decides the shape:
-/// a reference is already a scalar (resolves bare, unchanged) ; a
-/// single-field value object auto-unwraps to `field.<that field>` ; a
-/// bare primitive resolves unchanged too. A list, or a value object
-/// with more than one field, refuses.
+/// Resolves `identified_by :field` to its scalar identity paths.
 ///
-/// `:id` or an `_id`-suffixed name with no matching attribute is not a
-/// typo to refuse — it is the language's own walk-parent/fallback-
-/// identity convention (the meta-domain's own `Command`/`Entity`/
-/// `Aggregate` etc. identify by `owner_id`/`bluebook_id`/`aggregate_id`,
-/// supplied by the judge's replay rather than declared locally; bare
-/// `:id` is `Instance#materialize_identity!`'s own fallback name made
-/// explicit). Mirrors Ruby's own comment on this exact branch,
-/// `attribute_collector.rb`.
+/// An `id` or `_id`-suffixed name with no matching attribute passes through: the meta-domain
+/// identifies by parent ids the judge's replay supplies (mirrors `attribute_collector.rb`).
 pub fn resolve_identity_field(
     file: &str,
     line: usize,
@@ -64,17 +29,8 @@ pub fn resolve_identity_field(
     identity_paths_for_attribute(file, line, context_name, attr, value_objects, field, &[])
 }
 
-/// `AttributeCollector#resolve_identity_type!` — `identified_by
-/// ValueObject, as: field`. Confirmed real: pizzas.bluebook's own
-/// `identified_by PizzaName, as: :name` (line 8), resolved at the end of
-/// the aggregate's body (mirroring Ruby's own build-time deferral —
-/// `PizzaName` is declared later in the file, after `identified_by`
-/// itself), not at the point `identified_by` was written.
-///
-/// Mints the identity attribute at `insert_at` (the attribute count at
-/// the moment `identified_by` was called — 0 for pizzas.bluebook, since
-/// it is the very first line of the aggregate body) and returns the
-/// recursively derived identity paths beneath the minted field.
+// Runs at the end of the aggregate body because the value object may be declared after
+// `identified_by`. Mints the identity attribute at `insert_at`.
 #[allow(clippy::too_many_arguments)]
 pub fn resolve_identity_type(
     file: &str,

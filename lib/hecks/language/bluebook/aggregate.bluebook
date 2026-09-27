@@ -4,47 +4,27 @@ Hecks.bluebook "Bluebook" do
 
     reference_to Bluebook
 
-    # THE CHAPTER IT IS IN, AND ITS NAME. `Order` names nothing on its own — two
-    # chapters may both declare one — so the chapter is part of the identity, not
-    # context around it. This is the derivation `MetaValidator::Judge#identify`
-    # spelled by hand as "#{parent_id}::#{name}" for as long as the language could
-    # not say it.
+    # The chapter is part of the identity: two chapters may each declare an `Order`.
     identified_by :bluebook, :name
 
-    # SPELLED AS THE IR SPELLS THEM — see the note on Command's fields.
     attribute :name,          AggregateName
     attribute :description,   Description
     attribute :provenance,    LiteralText
-    # SEVERAL PATHS, because the identity is their JOIN. One is the ordinary case ;
-    # more than one is what anything named BENEATH another thing needs, and the
-    # language's own chapters are all of that kind — a command is not named by
-    # `Declare`, which every aggregate here spells, but by the aggregate it belongs
-    # to AND that name. Held as a list for the same reason attributes are : the
-    # order is a fact about the source, and the join reads in it.
+    # Several paths, because the identity is their join in declared order: a command is named
+    # by its aggregate and its own name.
     attribute :identified_by, list_of(IdentityPath)
     attribute :attributes,    list_of(Field)
     attribute :value_objects, list_of(ValueName)
     attribute :state_field,   IdentityField, optional: true
     attribute :state_start,   IdentityField, optional: true
     attribute :transitions,   list_of(Transition)
-    # THE AGGREGATE BOUNDARY (S10, ADR 0025 — "Rules") — checked after
-    # every command, before save, the SAME Rule shape Command's own
-    # givens/ensures already carry (description+canonical), declared
-    # again here rather than shared: a closed set/value object is
-    # aggregate-scoped in this self-hosting domain, the same reason
-    # CommandText and LiteralText stay two separate, identically-
-    # shaped value objects rather than one reused across chapters.
+    # Checked after every command, before save (ADR 0025). The same Rule shape as Command's
+    # givens, declared again because a closed set or value object is aggregate-scoped here.
     attribute :invariants,    list_of(Rule)
-    # A PRECONDITION SHARED ACROSS COMMANDS, DECLARED ONCE (S10, ADR
-    # 0025) — the SAME Rule shape, the aggregate's own named `given`s
-    # that a referencing command's own (already-resolved) `given`
-    # entry came from.
+    # A precondition shared across commands, declared once: the aggregate's named `given`s.
     attribute :preconditions, list_of(Rule)
-    # A FIELD READ THROUGH A REFERENCE, HELD LOCALLY (S12, ADR 0025 —
-    # "Consistency across aggregate boundaries") — the local half of
-    # `projects :name, from: :"reference.remote_field"`. Deliberately
-    # NOT folded into `attributes` — see the comment on
-    # `Aggregate#emits_ir`'s own `projected_fields:` entry for why.
+    # A field read through a reference and held locally (`projects :name, from: :"ref.field"`).
+    # Kept out of `attributes`; see `projected_fields:` in `Aggregate#emits_ir` (ADR 0025).
     attribute :projected_fields, list_of(ProjectedField)
 
     value_object "AggregateName" do
@@ -61,14 +41,8 @@ Hecks.bluebook "Bluebook" do
       attribute :value, String
     end
 
-    # ONE PART OF AN IDENTITY — a path down to the SCALAR that carries it, like
-    # "number.value". A part on its own is not an identity ; the identity is every
-    # part joined, in the order they were declared.
-    #
-    # Its field is `value`, like every other one-field value object in this
-    # language, because that is the name the judge wraps a cell under. Spelling it
-    # `path` made `path.path` read nothing, and a given that reads nothing does not
-    # fail — it refuses everything, which is a far quieter way to be wrong.
+    # One part of an identity: a path to the scalar that carries it, like "number.value".
+    # Its field is `value`, the name the judge wraps a cell under; any other name reads nothing.
     value_object "IdentityPath" do
       attribute :value, String
     end
@@ -79,22 +53,13 @@ Hecks.bluebook "Bluebook" do
       attribute :list,    String
       attribute :optional, String, optional: true
       attribute :pattern,  String, optional: true
-      # Held as a LITERAL, written so its type survives — 0.0 rather than "0.0".
-      # Without this an aggregate attribute's default was simply dropped, and the
-      # reconstruction hardcoded nil, which happened to match every corpus member
-      # and would have lied about the first one that declared a default.
-      # optional: a declaration with no default has none (C3.7 — a value object's fields arrive or it refuses)
+      # A literal written so its type survives: 0.0 rather than "0.0".
+      # optional: a declaration with no default has none.
       attribute :default, String, optional: true
-      # THE CLOSED SET THIS VALUE MUST BELONG TO, named where it was already
-      # declared — `Vocabulary::QueryComparator`. Qualified by the aggregate that
-      # holds it, because a closed set is a value object INSIDE an aggregate and
-      # the aggregate is the only thing a reference can reach ; `one_of` is the
-      # other word and it can only ever SYNTHESISE a new set, never name one
-      # twice. Absent for almost every attribute, so it is optional.
+      # The closed set this value must belong to, qualified by its aggregate
+      # (`Vocabulary::QueryComparator`); `one_of` can only synthesise a new set, never name one.
       attribute :admits, String, optional: true
-      # `reference_to`, `belongs_to`, `has_one`, or `has_many`; absent on
-      # ordinary value/entity fields. This keeps relationship language through
-      # the self-hosted round trip instead of collapsing it to a reference.
+      # `reference_to`, `belongs_to`, `has_one` or `has_many`; absent on ordinary fields.
       attribute :relationship, String, optional: true
     end
 
@@ -109,19 +74,14 @@ Hecks.bluebook "Bluebook" do
       attribute :to_state,   String
     end
 
-    # THE SAME SHAPE Command's own "Rule" value object carries — see
-    # behavior.bluebook — declared again here rather than shared, per
-    # that value object's own comment.
+    # The same shape as Command's "Rule" (behavior.bluebook), declared again rather than shared.
     value_object "Rule" do
       attribute :description, String
       attribute :canonical,   String
     end
 
-    # S12, ADR 0025 — `name` is this aggregate's own field being
-    # declared; `reference` names the local `reference_to` attribute to
-    # read through; `remote_field` names the scalar on the target. All
-    # three are plain identifiers, the same shape `Field#name`/`#type`
-    # already are.
+    # `reference` names the local `reference_to` attribute to read through; `remote_field`
+    # the scalar on its target.
     value_object "ProjectedField" do
       attribute :name,         String
       attribute :reference,    String
@@ -135,10 +95,7 @@ Hecks.bluebook "Bluebook" do
       reference_to Bluebook
       attribute :name,          AggregateName
       attribute :description,   Description, optional: true
-      # See Command.Declare's own `provenance` — identical shape, one
-      # level up. LiteralText, not a dedicated value object: the field
-      # rides the same self-describing `inspect` encoding `default:`
-      # already uses, so it needs no invariant of its own.
+      # LiteralText: rides the same `inspect` encoding as `default:`, so it needs no invariant.
       attribute :provenance,    LiteralText, optional: true
 
       attribute :position, Position, optional: true
@@ -151,60 +108,30 @@ Hecks.bluebook "Bluebook" do
       emits RootDeclared
     end
 
-    # ONE PART OF THE IDENTITY, attached the way one attribute is. It was an
-    # argument on Declare while an identity was a single field ; a list cannot be
-    # carried by one argument, and every other list in this language is filled by
-    # a verb of its own, so this is the shape that was already here.
+    # One part of the identity, attached the way one attribute is.
     command "Identify" do
       role "Language"
       goal "Attach one part of the aggregate's identity"
 
       attribute :path, IdentityPath
 
-      # AN IDENTITY PART NAMES SOMETHING. This rule used to sit on Seal reading
-      # `empty? || == "id" || includes(".")` — two escapes and a check. The escapes
-      # were the whole of it : `empty?` let an aggregate say nothing and be given a
-      # minted `id`, and `== "id"` let it name that slot outright. Both are gone,
-      # so what is left is the rule itself, and it now runs on every part rather
-      # than on whichever one a single field happened to hold.
-      #
-      # THREE WAYS TO REACH A SCALAR (ADR 0025, "Identity"), and this given no
-      # longer distinguishes them — it used to accept only a dotted path
-      # (`number.value`, a value object's own field) or an `_id`-suffixed
-      # reference, and REFUSED a bare scalar field (`sku`), which is legal
-      # too : a plain primitive attribute IS already a scalar, nothing to
-      # open. That distinction belongs to the BUILDER, which resolves each
-      # spelling before an identity part ever reaches here
-      # (`AttributeCollector#resolve_identity_field!` — the single place
-      # that decides dotted-unwrap vs. reference vs. bare-scalar, and the
-      # only place that can, since it alone holds the attribute's declared
-      # type). What is left for THIS rule to say, once the builder has
-      # already resolved a real shape, is only that a part was actually
-      # given a name at all.
+      # The builder resolves each spelling (dotted path, reference, bare scalar) before a part
+      # arrives (`AttributeCollector#resolve_identity_field!`); this rule only asks it is named.
       given("an identity part names something") { !path.value.to_s.empty? }
 
       sets :identified_by, append: { value: :path }
       emits RootIdentified
     end
 
-    # The way back, one level down: the aggregates DECLARED IN a chapter, found by
-    # the chapter that declared them. The parent reference IS the query.
-    #
-    # `bluebook_id` is an IdentityField, not an AggregateName — it holds the id of
-    # the chapter above, and calling that a name for aggregates was sloppiness that
-    # would read as a lie the first time somebody looked.
-    # WHERE IT SITS AMONG ITS SIBLINGS. Declaration order is a FACT ABOUT THE
-    # SOURCE — the IR is a contract read straight from this file,
-    # field for field AND INDEX FOR INDEX. So the language HOLDS it, instead of
-    # inheriting it from whatever order a store happens to iterate: an ask that
-    # does not say how it is ordered is answered in identity order, which is
-    # right for every other ask and fatal for the one that is the SOURCE.
+    # Declaration order is a fact about the source: the IR is read index for index, so the language
+    # holds it rather than inheriting a store's iteration order.
     value_object "Position" do
       attribute :value, Integer
     end
 
     attribute :position, Position
 
+    # The aggregates declared in a chapter; the parent reference is the query.
     query "DeclaredIn" do
       attribute :bluebook, IdentityField
       where(bluebook: :bluebook)
@@ -215,26 +142,17 @@ Hecks.bluebook "Bluebook" do
       role "Language"
       goal "Attach one attribute to the aggregate"
 
-      # The TYPE is a reference to the value object it names. An attribute
-      # naming an undeclared value object then fails REFERENCE RESOLUTION —
-      # "no Shape with id …" — with no predicate at all.
-      #
-      # This is the rule "attributes must use value-object types", which could
-      # not be a `given` : it needs, for each element of a list, a check against
-      # another list, and the sublanguage has no quantifier and cannot see
-      # inside a list element. As a reference it stops being a predicate and
-      # becomes a consequence of the model.
+      # The type is a reference to the value object it names, so an undeclared type fails reference
+      # resolution. A `given` cannot state this: the sublanguage has no quantifier over a list.
       reference_to ValueObject, as: :type
       attribute :name,    FieldName
       attribute :list,    ListFlag
       attribute :optional, ListFlag, optional: true
-      # A PATTERN IS A REGEX, not a flag — see the note on ListFlag below.
+      # A pattern is a regex, not a flag (see ListFlag).
       attribute :pattern,  LiteralText, optional: true
       attribute :default, LiteralText, optional: true
-      # FREE TEXT, not a reference. A closed set is a value object INSIDE an
-      # aggregate, and `reference_to` reaches heads only — so the qualified name
-      # is carried as text and checked where it is READ, by the reader, which
-      # already raises for the other things the language cannot say about itself.
+      # Free text, not a reference: `reference_to` reaches heads only, so the qualified name
+      # is carried as text and checked by the reader.
       attribute :admits,  LiteralText, optional: true
       attribute :relationship, LiteralText, optional: true
 
@@ -243,34 +161,19 @@ Hecks.bluebook "Bluebook" do
       emits AttributeAttached
     end
 
-    # An attribute that points at ANOTHER aggregate's head.
-    #
-    # `Attribute` types its type as `reference_to ValueObject`, which is what makes
-    # "attributes use value-object types" a consequence of the model rather than a
-    # predicate. A cross-aggregate reference cannot go through it: its type is
-    # `Reference<Customer>`, which is not a value object and never will be. So the
-    # judge SKIPPED every one of them, and the meta-domain did not hold
-    # Account#customer_id at all — the way back was lossy for exactly one
-    # construct, and the comment excusing it said "the language does not model
-    # reference-typed attributes yet".
+    # An attribute that points at another aggregate's head. Its type is `Reference<Customer>`,
+    # which is not a value object, so it cannot go through `Attribute`.
     command "Reference" do
       role "Language"
       goal "Attach an attribute that points at another aggregate's head"
 
-      # POINTS AT a declared head, and that is the whole rule.
-      #
-      # This carried `attribute :type, ReferenceType` — a STRING — with an invariant
-      # apologising for itself, because the shape that actually tells a reference
-      # from a value object (`Reference<Something>`) is unsayable in the predicate
-      # sublanguage. That was never a sublanguage gap; a string was simply the wrong
-      # model. As a reference it stops being a predicate and becomes a consequence
-      # of the model, exactly as Attribute's type does — and it is STRONGER than the
-      # prefix match, which only ever checked that the text looked right.
+      # Points at a declared head. As a reference rather than a string predicate on
+      # `Reference<...>`, it is a consequence of the model and stricter than a prefix match.
       reference_to Aggregate, as: :points_at
       attribute :name,    FieldName
       attribute :list,    ListFlag
       attribute :optional, ListFlag, optional: true
-      # A PATTERN IS A REGEX, not a flag — see the note on ListFlag below.
+      # A pattern is a regex, not a flag (see ListFlag).
       attribute :pattern,  LiteralText, optional: true
       attribute :default, LiteralText, optional: true
       attribute :admits,  LiteralText, optional: true
@@ -281,14 +184,8 @@ Hecks.bluebook "Bluebook" do
       emits ReferenceAttached
     end
 
-    # An attribute whose type names a PIECE this aggregate holds.
-    #
-    # `Account#ledger` is a list of LedgerEntry — neither a value object nor another
-    # aggregate's head — so it fitted no verb and the walk skipped it, the last
-    # construct the way back could not carry. Same trick as Reference: point at the
-    # entity's own declaration, and "an aggregate holds a piece it declared" costs
-    # no predicate at all. Entities are declared before attributes are offered, so
-    # the reference resolves.
+    # An attribute whose type is an entity this aggregate holds, e.g. `Account#ledger`.
+    # Entities are declared before attributes are offered, so the reference resolves.
     command "Holds" do
       role "Language"
       goal "Attach an attribute whose type is a piece of this aggregate"
@@ -297,7 +194,7 @@ Hecks.bluebook "Bluebook" do
       attribute :name,    FieldName
       attribute :list,    ListFlag
       attribute :optional, ListFlag, optional: true
-      # A PATTERN IS A REGEX, not a flag — see the note on ListFlag below.
+      # A pattern is a regex, not a flag (see ListFlag).
       attribute :pattern,  LiteralText, optional: true
       attribute :default, LiteralText, optional: true
       attribute :admits,  LiteralText, optional: true
@@ -308,14 +205,8 @@ Hecks.bluebook "Bluebook" do
       emits PieceHeld
     end
 
-    # THE ONLY RULE THAT CAN REFUSE AN UNNAMED ATTRIBUTE, and it lives here.
-    #
-    # Attribute, Reference and Holds each carried `given("… is named")` beside
-    # this, and not one of them could ever fire: an EMPTY name builds the value
-    # object and this invariant refuses first, while an ABSENT name builds no
-    # value object and the given did not refuse at all — probed, not reasoned.
-    # Three rules that read as rules and were decoration. A predicate cannot
-    # guard what a type already guards.
+    # The only rule that refuses an unnamed attribute. A `given` beside it could never fire:
+    # an empty name is refused here first, and an absent name builds no value object.
     value_object "FieldName" do
       attribute :value, String
       invariant("an attribute is named") { !value.to_s.empty? }
@@ -326,24 +217,13 @@ Hecks.bluebook "Bluebook" do
       invariant("a type is named") { !value.to_s.empty? }
     end
 
-    # A literal written the way it can be read back — see Readings#encode_literal.
+    # A literal written the way it can be read back (Readings#encode_literal).
     value_object "LiteralText" do
       attribute :value, String
     end
 
-    # TRUE OR FALSE, AND NOTHING ELSE. `list` and `optional` are the two fields
-    # this is about — they are the answers to a yes/no question, written as text
-    # because that is what the wire carries.
-    #
-    # `pattern` was typed with it too, which is not a loose typing but a FALSE
-    # one: a pattern holds a regex, and this invariant admits exactly two strings
-    # neither of which is one. It never fired only because no aggregate-level or
-    # entity-level attribute in the corpus declares a pattern — banking's one
-    # `pattern:` sits on a VALUE OBJECT field, which is built by
-    # `ValueObject.Field` and so went down a different command entirely. The
-    # first head that declared a pattern would have been refused by a rule about
-    # lists. It is `LiteralText` now, which is what the other four element
-    # builders already say a pattern is: free text.
+    # True or false as text, the wire form of `list` and `optional`.
+    # `pattern` is not typed with it: a pattern is a regex, so it is `LiteralText`.
     value_object "ListFlag" do
       attribute :value, String
       invariant("list is true or false") { value.to_s == "true" || value.to_s == "false" }
@@ -379,37 +259,11 @@ Hecks.bluebook "Bluebook" do
       role "Language"
       goal "Close an aggregate — the checks that need every declaration present"
 
-      # The builders validate at `build`, once everything is collected. A given
-      # fires at DISPATCH, when later declarations do not exist yet. So the
-      # whole-document rules live on a command dispatched after the aggregate
-      # is fully declared. This is the shape the tier-3 rules need ; whether
-      # the sublanguage can express their CONTENT is the open question.
-
-      # THE RULE THAT WAS HERE WAS NOT TRUE, and nothing could tell us while Seal
-      # went undispatched. `given("an aggregate declares at least one attribute")`
-      # was invented for this command — it is not one of the rules ported from the
-      # builders, so no bluebook was ever written against it. The first time it
-      # ran it refused twenty-five of them, including every aggregate whose state
-      # is a `lifecycle` rather than an `attribute` : a state machine declares no
-      # attribute and is perfectly well formed.
+      # Builders validate at `build`, but a given fires at dispatch, before later declarations
+      # exist. Whole-document rules therefore live on a command dispatched after the aggregate.
       #
-      # Seal stays. It is the right SHAPE for a whole-document rule — dispatched
-      # once every declaration is present — and it is now actually dispatched, so
-      # the next rule put here will be seen refusing instead of sitting decorative.
-      # The rule waiting for it is "a mutation names a field the aggregate has",
-      # which lives in AggregateBuilder today because saying it here needs to reach
-      # a list on another root.
-      # AN AGGREGATE SAYS WHAT IT IS KNOWN BY. Nothing falls back to `id` any more.
-      #
-      # The fallback was never a default — it was a MINT. An aggregate that said
-      # nothing got an id invented for it, so the same declaration named a
-      # different record on the next run, and nothing outside the runtime could
-      # name a record at all. The rule that stood here permitted it in as many
-      # words (`empty? || == "id"`), and the comment named exactly who was
-      # leaning on it : the language's own chapters, all fourteen of them.
-      #
-      # They derive now, like everything else does. What each PART must look like
-      # is Identify's rule ; this one only asks that there be one.
+      # An aggregate says what it is known by; nothing falls back to a minted `id`.
+      # What each part must look like is Identify's rule; this one only asks that there be one.
       given("an aggregate says what it is known by") { !identified_by.empty? }
 
       emits RootSealed
@@ -426,8 +280,7 @@ Hecks.bluebook "Bluebook" do
       emits ValueDeclared
     end
 
-    # THE AGGREGATE BOUNDARY (S10, ADR 0025 — "Rules") — the same shape
-    # Command.Rule attaches a given with, one level up.
+    # The aggregate boundary (ADR 0025): the same shape `Command.Rule` attaches a given with.
     command "Invariant" do
       role "Language"
       goal "Attach one invariant to the aggregate"
@@ -443,9 +296,7 @@ Hecks.bluebook "Bluebook" do
       emits InvariantAttached
     end
 
-    # A PRECONDITION SHARED ACROSS COMMANDS, DECLARED ONCE (S10, ADR
-    # 0025) — the aggregate's own named `given`, referenced back by a
-    # command rather than re-typed.
+    # A precondition shared across commands, declared once and referenced by name (ADR 0025).
     command "Precondition" do
       role "Language"
       goal "Declare one precondition commands can reference by name"
@@ -461,11 +312,8 @@ Hecks.bluebook "Bluebook" do
       emits PreconditionAttached
     end
 
-    # THE LOCAL HALF OF A CROSS-AGGREGATE READ (S12, ADR 0025) — the
-    # target's own existence and shape are checked elsewhere
-    # (BluebookBuilder#validate_projected_fields!, once every aggregate
-    # in the chapter is real), the same two-tier split a query's own
-    # hop already uses.
+    # The local half of a cross-aggregate read. The target is checked in
+    # `BluebookBuilder#validate_projected_fields!` once every aggregate in the chapter exists.
     command "Projects" do
       role "Language"
       goal "Declare a field read locally through a reference"
@@ -483,9 +331,7 @@ Hecks.bluebook "Bluebook" do
       emits ProjectedFieldAttached
     end
 
-    # HOW AGGREGATE IS SPELLED. These rows live with the concept
-    # they describe; SyntaxBoot discovers every aggregate-local seed table.
-    # Contexts represented here: Aggregate, Lifecycle.
+    # Grammar rows for the Aggregate and Lifecycle keywords; SyntaxBoot discovers them by table.
     value_object "KeywordSeed" do
       attribute :word,          String
       attribute :context,       String, admits: "Syntax::Context"
@@ -511,14 +357,8 @@ Hecks.bluebook "Bluebook" do
       member word: "query",           context: "Aggregate", body: "keywords", inner: "Query",         opens: "Query",          fills: "", calls: "query_impl"
       member word: "policy",          context: "Aggregate", body: "keywords", inner: "Policy",        opens: "Policy",         fills: "", calls: "policy_impl"
       member word: "value_object",    context: "Aggregate", body: "keywords", inner: "ValueObject",   opens: "ValueObject",    fills: "value_objects"
-      # THE BARE SHORTHAND — `value_object "Price", Integer`, no block:
-      # a second row for the SAME word with `body: "none"`, the exact
-      # two-row move `identified_by` (above) already makes for its own
-      # block/blockless split — the body gate picks whichever row
-      # matches how the line was actually written. Declares a value
-      # object with exactly one attribute, named `value`, of the given
-      # type; sugar for the block form's own single `attribute :value,
-      # Type` line (`AggregateBuilder#value_object`'s own comment).
+      # Bare shorthand `value_object "Price", Integer`: a second row for the same word with
+      # `body: "none"`, chosen by the body gate. Declares one attribute `value` of that type.
       member word: "value_object",    context: "Aggregate", body: "none",     inner: "",              opens: "",               fills: "value_objects"
       member word: "command",         context: "Aggregate", body: "keywords", inner: "Command",       opens: "Command",        fills: "", calls: "command_impl"
       member word: "attribute",       context: "Aggregate", body: "none",     inner: "",              opens: "",               fills: "attributes", calls: "attribute_impl"
@@ -569,13 +409,8 @@ Hecks.bluebook "Bluebook" do
       member keyword: "query",           context: "Aggregate", at: "1", named: "",         kind: "text",     required: "true",  fills: "name"
       member keyword: "policy",          context: "Aggregate", at: "1", named: "",         kind: "text",     required: "true",  fills: "name"
       member keyword: "value_object",    context: "Aggregate", at: "1", named: "",         kind: "text",     required: "true",  fills: "name"
-      # The bare shorthand's own TYPE argument — optional, because the
-      # block form gives no type at all (its attributes carry their own);
-      # `kind: "constant"` for the same reason `attribute`'s own type
-      # argument (below) is: a type is a bare constant, never quoted
-      # text. Type-AND-block is refused by the builder itself
-      # (`AggregateBuilder#value_object`), not here — an argument row
-      # cannot see the body, only the call.
+      # The bare shorthand's type argument: optional, since the block form has none.
+      # Type-and-block is refused by `AggregateBuilder#value_object`; a row cannot see the body.
       member keyword: "value_object",    context: "Aggregate", at: "2", named: "",         kind: "constant", required: "false", fills: "type"
       member keyword: "command",         context: "Aggregate", at: "1", named: "",         kind: "text",     required: "true",  fills: "name"
       member keyword: "command",         context: "Aggregate", at: "",  named: "from",     kind: "literal",  required: "false", fills: "from"

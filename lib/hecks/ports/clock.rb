@@ -2,42 +2,8 @@ require_relative "../runtime/registry"
 
 module Hecks
   module Ports
-    # What time it is — the one fact a domain cannot derive and must not invent.
-    #
-    # Resolved exactly the way `Ports::IdentityGeneration` resolves its own
-    # adapter: one adapter registry-wide implements this, not a per-aggregate
-    # binding, because two aggregates in one running app have no real reason to
-    # disagree about the time.
-    #
-    # ## Why a port and not `Time.now`
-    #
-    # A staleness rule — "another agent may take this claim after fifteen
-    # minutes" — is untestable against the real clock: a spec for it would
-    # either sleep for fifteen minutes or never run at all. Bound to a fixed
-    # adapter, the same rule is three lines. That is the whole argument, and
-    # it is the same one `SequentialIdentity` makes next door.
-    #
-    # ## Why a predicate still can't ask the time
-    #
-    # The expression sublanguage has no clock and should not: a `given` that
-    # read the time would evaluate differently on two runs over the same
-    # record, and every replay, audit and fuzz oracle in this repository
-    # assumes it does not. So `now` remains an argument the predicate merely
-    # reads, and this port is what lets a caller stop typing it — the door
-    # fills it in, the value is baked into the dispatch, and the recorded
-    # step carries the concrete number forever after.
-    #
-    # ## Why the runtime never calls this directly
-    #
-    # `IdentityGeneration`'s own note works through the replay question for
-    # a minted uuid and lands on "the value gets baked into the caller's
-    # args at the first live dispatch". A clock consulted inside the
-    # interpreter would not have that property: a recorded corpus step
-    # replayed tomorrow would silently get tomorrow's time, and the
-    # fuzzer's oracle and the adapter-agreement gate both compare runs of
-    # exactly that shape. So the filling happens at the door, where a
-    # human or an agent is typing, and never on the dispatch path a replay
-    # uses.
+    # What time it is, as one registry-wide adapter answers it.
+    # Predicates cannot read the clock (replays must be deterministic), so the door fills `now`.
     module Clock
       NAME = "clock".freeze
 
@@ -45,23 +11,17 @@ module Hecks
 
       # Reads the current time from the bound clock adapter.
       #
-      # Seconds, as an integer, because that is what the sublanguage can do
-      # arithmetic on. `claimed_at.value + window.value <= now.value` is
-      # addition and comparison — the only two things it has — and a Time
+      # Integer seconds, because the expression sublanguage can add and compare but a Time
       # object supports neither.
       #
       # @param registry [Runtime::Registry] the booted registry to resolve the adapter against
       # @return [Integer] the current time, in Unix epoch seconds
       # @raise [Runtime::WiringError] if this port does not resolve to exactly one adapter
-      #   (see `adapter`)
       def now(registry) = adapter(registry).now
 
-      # Finds the single adapter bound to this port, refusing an ambiguous wiring.
+      # Finds the single adapter bound to this port.
       #
-      # @param registry [Runtime::Registry] the booted registry to search
-      # @return [Module] the adapter module or class implementing this port
-      # @raise [Runtime::WiringError] if no adapter, or more than one, implements this port,
-      #   or the one that does has no Ruby implementation under `Hecks::Adapters`
+      # @raise [Runtime::WiringError] if none, or more than one, implements this port
       def adapter(registry)
         implementations = registry.adapters.values.select { |a| a.port == NAME }
 

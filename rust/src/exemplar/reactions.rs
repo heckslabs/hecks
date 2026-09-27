@@ -1,11 +1,9 @@
-// Exemplar shapes for rust/project/reactions.rb — see mod.rs's own
-// header. `tmpl_body_placeholder()` gives the literal-fn shape's body a
-// real, `tmpl_`-prefixed, `Json`-returning expression to substitute —
-// deliberately not a bare `crate::kernel::Json::Null` marker, since a
-// marker with no `tmpl_`/`Tmpl`/`TMPL_` token in it can't be caught by
-// `Exemplar::LEFTOVER_PLACEHOLDER` if a caller ever forgets to supply it.
+// Exemplar shapes that rust/project/reactions.rb slices into generated tables;
+// see mod.rs for how they are used.
 #![allow(dead_code, unused_variables)]
 
+// Carries a `tmpl_` token so Exemplar::LEFTOVER_PLACEHOLDER catches it if a
+// caller forgets to substitute it.
 fn tmpl_body_placeholder() -> crate::kernel::Json {
     crate::kernel::Json::Null
 }
@@ -16,39 +14,22 @@ fn tmpl_with_value_literal_fn_host() {
     // TMPL:with_value_literal_fn END
 }
 
-// `const` context can't call a non-`const` function (the function-call
-// placeholder idiom every other shape in this tree uses would refuse to
-// compile here) — real `PolicyRule`/`ProcessManagerDef` rows are struct
-// literals, which const evaluation allows directly, so the placeholder
-// is a real literal too, substituted wholesale the same way `TmplRow {
-// ... }` (json.rs's `closed_set_table_row_field`) already is.
+// Literal rows, not a call: `const` context cannot call a non-`const` function.
 // TMPL:policy_table BEGIN
 pub const POLICIES: &[crate::kernel::PolicyRule] = &[
 crate::kernel::PolicyRule { policy_name: "tmpl_policy_name", event_name: "tmpl_event_name", event_qualifier: None, target_verb: "tmpl_target_verb", for_each: None, for_each_key: None, with_spec: &[], where_expr: None },
 ];
 // TMPL:policy_table END
 
-// A policy's cross-domain twin (`CrossDomainPolicyRule`, orchestrate.rs's
-// own header on why this is a separate table rather than one more
-// PolicyRule variant: matching it is identical, but nothing here can
-// dispatch it — kernel::cli::run carries a match out as a
-// `PendingCrossDomainReaction` instead, for rust/host's
-// `lambda_client.rs` to actually deliver). Same "literal, not a function
-// call" reasoning as `policy_table` above — `const` context.
+// Separate table: nothing here can dispatch a match; rust/host delivers it.
+// Literal rows for the same `const` reason as `policy_table`.
 // TMPL:cross_domain_policy_table BEGIN
 pub const CROSS_DOMAIN_POLICIES: &[crate::kernel::CrossDomainPolicyRule] = &[
 crate::kernel::CrossDomainPolicyRule { policy_name: "tmpl_policy_name", event_name: "tmpl_event_name", event_qualifier: None, target_domain: "tmpl_target_domain", target_verb: "tmpl_target_verb", where_expr: None },
 ];
 // TMPL:cross_domain_policy_table END
 
-// `literal_fns` (the marker's own default, `fn tmpl_literal_fns_placeholder
-// () {}`) is a real module-level item, not a statement — module scope
-// only allows item declarations, so a bare function call there (what an
-// earlier draft of this shape had) doesn't compile at all. Real
-// `literal_fns` content is the same shape: zero or more `fn` item
-// definitions, joined by blank lines, which is exactly what this marker
-// gets wholesale-replaced with (possibly empty, when a process manager's
-// own `with:` bindings are all bare Symbol references).
+// Module scope allows only items, so `literal_fns` is zero or more `fn` items, never a call.
 // TMPL:process_manager_table BEGIN
 fn tmpl_literal_fns_placeholder() {}
 
@@ -66,8 +47,7 @@ pub fn reference_key_for_aggregate(qualified_name: &str) -> Option<&'static str>
 }
 // TMPL:reference_key_table END
 
-// `orchestrate.rs`'s own `split_routed_args` — reactions.rb's own header
-// on `emit_creates_table` for the full argument.
+// Read by orchestrate.rs `split_routed_args`.
 // TMPL:creates_table BEGIN
 pub fn command_creates(verb: &str) -> bool {
     match verb {
@@ -77,8 +57,7 @@ pub fn command_creates(verb: &str) -> bool {
 }
 // TMPL:creates_table END
 
-// `orchestrate.rs`'s own `split_routed_args` — reactions.rb's own header
-// on `emit_identity_head_table` for the full argument.
+// Read by orchestrate.rs `split_routed_args`.
 // TMPL:identity_head_table BEGIN
 pub fn identity_head_for_aggregate(qualified_name: &str) -> Option<&'static str> {
     match qualified_name {
@@ -88,15 +67,7 @@ pub fn identity_head_for_aggregate(qualified_name: &str) -> Option<&'static str>
 }
 // TMPL:identity_head_table END
 
-// `orchestrate.rs`'s own saga-dispatch routing (BUG#10) — reactions.rb's
-// own header on `emit_entity_identity_head_table` for the full argument:
-// the same single-component restriction `identity_head_table` already
-// carries, one level down, for an entity's own declared identity rather
-// than its owning aggregate's. Keyed by "Domain::Aggregate.Entity", the
-// exact prefix a one-level-deep entity command's own qualified verb
-// splits down to — a two-level-deep one (BUG#11's own separate, larger,
-// still-open gap) never computes that longer prefix, so it simply never
-// resolves through this table.
+// Keyed by "Domain::Aggregate.Entity"; entities nested two levels deep never resolve here.
 // TMPL:entity_identity_head_table BEGIN
 pub fn entity_identity_head_for_path(qualified_path: &str) -> Option<&'static str> {
     match qualified_path {
@@ -106,9 +77,7 @@ pub fn entity_identity_head_for_path(qualified_path: &str) -> Option<&'static st
 }
 // TMPL:entity_identity_head_table END
 
-// `orchestrate.rs`'s own `split_routed_args` — reactions.rb's own header
-// on `emit_command_attributes_table` for the full argument (R1,
-// docs/audits/2026-08-11-bug-triage.md).
+// Read by orchestrate.rs `split_routed_args`.
 // TMPL:command_attributes_table BEGIN
 pub fn command_attributes_for_verb(verb: &str) -> &'static [&'static str] {
     match verb {

@@ -1,25 +1,11 @@
 require "spec_helper"
 require "yaml"
 
-# ci.yml's required-check wrappers (`rspec`, `checks`, the Postgres and Rust
-# lineages) each mirror one reusable-workflow call's `.result`. Since PR
-# #694 a wrapper runs only to fail: a wrapper skipped by its own `if:` needs
-# no runner and reports as passing. That made a skipped `_impl` pass
-# unconditionally — so a call that skipped where it should have run (on the
-# merge queue, say) went green having run nothing.
+# ci.yml's required-check wrappers mirror one reusable-workflow call's `.result` and run only
+# to fail. Each must let `skipped` through only under a real skip condition, never a constant.
 #
-# Each wrapper's `if:` now also runs (and fails) when its `_impl` skipped
-# but its own skip condition did not hold. This pins that shape: no wrapper
-# lets `skipped` through without a condition, and the condition is an
-# expression, never a constant.
-#
-# A wrapper whose call has no event it legitimately skips on writes the
-# other legal shape instead — `always() && <impl>.result != 'success'`,
-# tolerating no skip at all — and then must not claim a skip is expected.
-# `rspec_postgres_io_parallel` is the only one: since the light PR set was
-# removed (2026-09-18) every other call skips exactly on the cache-warming
-# `push`, and that one skips nowhere. Nothing here may name a label: the
-# `full-ci` label went with the light PR set.
+# A wrapper whose call never legitimately skips uses `always() && <impl>.result != 'success'`
+# and must not claim a skip is expected.
 RSpec.describe ".github/workflows/ci.yml required-check wrappers" do
   CI_YML = File.join(InMemoryDomain::ROOT, ".github/workflows/ci.yml")
 
@@ -68,10 +54,8 @@ RSpec.describe ".github/workflows/ci.yml required-check wrappers" do
     end
   end
 
-  # The light PR set is gone: every job runs on `pull_request`
-  # again. Nothing may gate on the retired label that once put a PR back on the
-  # full set, or the gap it opened — a job that never ran on the PR failing
-  # in the merge queue and ejecting the batch — comes straight back.
+  # Every job runs on `pull_request`, so a label gate would let a job that never ran on
+  # the PR fail in the merge queue and eject the batch.
   it "gates no job on the retired full-ci label" do
     [CI_YML, File.join(InMemoryDomain::ROOT, ".github/workflows/ci-checks.yml")].each do |path|
       YAML.load_file(path).fetch("jobs").each do |name, job|
@@ -81,10 +65,8 @@ RSpec.describe ".github/workflows/ci.yml required-check wrappers" do
     end
   end
 
-  # `merge_group.base_sha` is the previous queue entry, not the target
-  # branch, and the queue merges a whole group on its last entry's run. A
-  # path gate that diffs against it lets a gate-skipped PR carry a red one
-  # in ahead of it — #729 behind #730, 2026-09-18.
+  # `merge_group.base_sha` is the previous queue entry, not the target branch, so a path
+  # gate diffing against it lets a gate-skipped PR carry a red one in ahead of it.
   it "diffs no merge group against the previous queue entry" do
     Dir[File.join(InMemoryDomain::ROOT, ".github/{workflows,actions}/**/*.yml")].each do |path|
       YAML.load_file(path).fetch("jobs", {}).each do |name, job|
@@ -98,10 +80,8 @@ RSpec.describe ".github/workflows/ci.yml required-check wrappers" do
     end
   end
 
-  # A push to main tests nothing — the merge queue already did — so all a
-  # push run may spend a runner on is the Postgres detector's checkout and
-  # diff. Eight Postgres legs ran there for a cache nobody had read since
-  # 2026-09-14. A job skips on push by saying so, or by needing one that does.
+  # The merge queue already tested a push to main, so only the Postgres detector may take
+  # a runner. A job skips on push by saying so, or by needing one that does.
   it "spends no runner on a push to main beyond the Postgres detector" do
     Dir[File.join(InMemoryDomain::ROOT, ".github/workflows/ci*.yml")].each do |path|
       jobs = YAML.load_file(path).fetch("jobs")
@@ -116,8 +96,7 @@ RSpec.describe ".github/workflows/ci.yml required-check wrappers" do
     end
   end
 
-  # A job with no timeout falls back to GitHub's 360 minutes, and a hung
-  # job holds one of the account's 20 concurrent runner slots that whole time.
+  # A job with no timeout runs up to 360 minutes, holding one of the account's 20 runner slots.
   it "gives every job that takes a runner a timeout" do
     Dir[File.join(InMemoryDomain::ROOT, ".github/workflows/*.yml")].each do |path|
       YAML.load_file(path).fetch("jobs").each do |name, job|

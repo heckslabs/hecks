@@ -1,19 +1,8 @@
 require "spec_helper"
 require "tempfile"
 
-# Real dispatch coverage for `none_in_state` -- finding #13, a
-# cross-aggregate anti-join comparator: `where field: { none_in_state:
-# "Aggregate:state" }` holds when the record `field`'s value points at
-# is not currently in that state (including when it points at no record
-# at all). Exercised on an entity query -- the equivalent aggregate-level
-# query has a separate, later-landing gap in `Ports::Query::InMemory`
-# this coverage does not exercise.
-#
-# `meta_validation: false` -- the self-hosted grammar's own
-# Vocabulary::QueryComparator doesn't admit `none_in_state` yet (a
-# separate, later-landing item in this split registers the new
-# comparator word); turned off here so what's under test is this PR's
-# own comparator/interpreter pair, not that separate gap.
+# none_in_state on an entity query, including when the reference points at no record.
+# meta_validation is off so the comparator/interpreter pair is tested, not grammar admission.
 RSpec.describe "none_in_state, a cross-aggregate anti-join" do
   def boot(source, hecksagon_name, &binds)
     file = Tempfile.new(["anti-join-growth-", ".bluebook"])
@@ -118,8 +107,6 @@ RSpec.describe "none_in_state, a cross-aggregate anti-join" do
     runtime.dispatch_flat("AntiJoinGrowth::Board.Open", id: { value: "b1" })
     runtime.dispatch_flat("AntiJoinGrowth::Board.Assign", id: "b1", claim_id: "c1")
     runtime.dispatch_flat("AntiJoinGrowth::Board.Assign", id: "b1", claim_id: "c2")
-    # A claim that was never filed at all — "no record in that state" reads
-    # the same as "a record, but not in that state".
     runtime.dispatch_flat("AntiJoinGrowth::Board.Assign", id: "b1", claim_id: "nonexistent")
 
     rows = runtime.query("AntiJoinGrowth::Board.Assignment.Unclaimed")

@@ -2,15 +2,8 @@ require "spec_helper"
 
 # A command takes the arguments it declares, and no others.
 #
-# `normalize_args` walked the command's declared attributes over a copy of the
-# payload, so anything the command did not declare simply rode along untouched
-# and was never looked at again. A misspelled argument was accepted in silence
-# and did nothing.
-#
-# Found by renaming a field in the language: spec/meta_rules_spec kept dispatching
-# the old `identity:` long after the attribute became `identified_by`, and the
-# suite stayed green. A rename that leaves every caller wrong is supposed to be
-# the easiest kind of mistake to catch.
+# Pins that `normalize_args` refuses undeclared keys instead of letting a misspelled
+# argument pass in silence.
 RSpec.describe "an argument a command does not declare" do
   TILL = File.join(InMemoryDomain::ROOT, "spec/fixtures/till.bluebook")
 
@@ -50,9 +43,8 @@ RSpec.describe "an argument a command does not declare" do
   end
 
   it "leaves the identity keys alone" do
-    # `id` is how a command addresses its aggregate, and a command that reaches
-    # through a root addresses it by that root's reference key. Neither is a
-    # declared attribute, and refusing them would refuse every dispatch there is.
+    # `id` and a root's reference key address the aggregate and are not declared
+    # attributes; refusing them would refuse every dispatch.
     runtime = boot_till
 
     expect { runtime.dispatch_flat("TillRoom::Till.OpenTill", number: { value: "till-1" }) }.not_to raise_error

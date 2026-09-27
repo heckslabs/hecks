@@ -7,18 +7,14 @@ require_relative "params"
 
 module Hecks
   module Forms
-    # Command -> the page body for its HTML form — the working half of
-    # what `command_form.bluebook` names (see docs/command-form-and-query-
-    # form-bluebook.md). Every command in every loaded, exposed bluebook
-    # renders through here — nothing here is per-command code; see that
-    # doc for the 1:1 rule this deliberately holds to for now.
+    # Renders a command as the page body of its HTML form; no per-command code
+    # (see docs/command-form-and-query-form-bluebook.md).
     module CommandFormRenderer
       # Lists every field a command's form shows: the `to` identity picker first (unless the
       # command creates its aggregate), then one field per command attribute.
       #
-      # The same field list a POST handler needs to cast raw params against
-      # (params.rb's `Params.extract`) — one derivation, so a page never
-      # renders an input the submit handler doesn't also expect.
+      # The same list `Params.extract` casts a POST against, so a page never renders
+      # an input the submit handler does not expect.
       #
       # @param aggregate [Bluebook::Aggregate] the aggregate that declares the command
       # @param command [Bluebook::Command] the command the form submits
@@ -33,25 +29,14 @@ module Hecks
       # Renders the page body for one command: header, refusal banner, the form itself, and
       # the inspect panel.
       #
-      # `registry` serves only to populate a `:reference` field's
-      # `<select>` with real records (including the identity picker itself,
-      # for a non-creating command — see `identity_field` below). `values`/
-      # `error` carry a sticky re-render after a refused submission; leave
-      # both nil for a fresh form. `prefill` carries values a caller
-      # arrived with (typically `?to=...` off a record's own detail page) —
-      # kept separate from `values` because a prefill is not an error retry
-      # and should not be treated as one by a future reader of this code.
+      # `registry` populates `:reference` selects. `values` and `error` re-render after a
+      # refusal; `prefill` carries values the caller arrived with (`?to=...`), not a retry.
       #
       # @param registry [Runtime::Registry] the booted registry, read for reference options
-      # @param domain [String] name of the domain (chapter) the aggregate belongs to
-      # @param aggregate [Bluebook::Aggregate] the aggregate that declares the command
-      # @param command [Bluebook::Command] the command the form submits
       # @param action [String] URL path the form posts to
-      # @param values [Hash{String => Object}, nil] the raw submission to re-show after a
-      #   refusal, keyed by dotted field path; nil falls back to `prefill`
+      # @param values [Hash{String => Object}, nil] raw submission to re-show; nil uses `prefill`
       # @param error [Exception, nil] the refusal to show in the banner; nil for a fresh form
-      # @param prefill [Hash{String => String}] values the caller arrived with, keyed by
-      #   dotted field path; ignored when `values` is given
+      # @param prefill [Hash{String => String}] values the caller arrived with, by dotted path
       # @return [String] the HTML page body, without the surrounding page chrome
       def self.render(registry:, domain:, aggregate:, command:, action:, values: nil, error: nil, prefill: {})
         all_fields = fields_for(aggregate, command)
@@ -130,12 +115,8 @@ module Hecks
       # Maps a refusal to per-field messages; always empty, so every refusal is shown in
       # the banner rather than beside a field.
       #
-      # No structured field attribution exists on a domain refusal today
-      # (it is a typed exception with a rendered message — see
-      # docs/command-form-and-query-form-bluebook.md's note on
-      # `RefusalWording`), so this returns empty rather than guessing which
-      # field a message meant; the banner above carries the real text
-      # instead of a misattributed hint.
+      # A domain refusal carries no field attribution, so the banner shows the message
+      # instead of guessing a field.
       #
       # @param _error [Exception, nil] the refusal raised by the submission; ignored
       # @return [Hash] always empty; keys would be dotted field paths

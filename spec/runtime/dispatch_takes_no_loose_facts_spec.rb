@@ -1,15 +1,7 @@
 require "spec_helper"
 
-# Roadmap I3, second half — `dispatch` took command facts as loose keyword
-# arguments until 1.3.x, deprecated there and removed here. One bag holding
-# both the receiver's identity and the command's payload is the shape behind
-# nine past routing bugs; the receiver goes in `to:`, the facts in `with:`,
-# and a caller holding a bag of data rather than written keywords calls
-# `dispatch_flat`, which is the wire form and stays.
-#
-# Ruby itself is the refusal now — an unknown keyword, named — so this file
-# pins the shape of that refusal rather than a message of ours, and pins that
-# the two doors that remain still work.
+# `dispatch` takes the receiver in `to:` and the facts in `with:`; a bag of data goes
+# through `dispatch_flat`. Ruby's own unknown-keyword ArgumentError is the refusal.
 RSpec.describe "dispatch takes no loose keyword facts" do
   PIZZA_FACTS = { name:  { value: "Margherita" },
                   pizza: { price_cents: { cents: 1200 }, size: { value: "large" } } }.freeze
@@ -47,8 +39,7 @@ RSpec.describe "dispatch takes no loose keyword facts" do
                                                                 amount:  { value: 3 } }).id).to eq("Margherita")
   end
 
-  # The wire form: one Hash, the receiver's identity among the keys, exactly
-  # as `spec/corpus/*.json` and `cli.rs` spell it.
+  # The wire form: one Hash with the receiver's identity among the keys.
   it "still takes a flat facts hash through dispatch_flat" do
     expect(runtime.dispatch_flat("Pizzas::Order.CreatePizza", PIZZA_FACTS).id).to eq("Margherita")
   end

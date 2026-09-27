@@ -1,49 +1,11 @@
 require "spec_helper"
 
-# S16, ADR 0026 — "the language uses everything it declares, and what it
-# does not use is a sub-language."
+# S16, ADR 0026: the core language's own description must declare at least one instance of
+# each construct kind, or name the gap with a reason. Scoped to the core chapters
+# (`LANGUAGE_CHAPTERS`), not every attached sub-language.
 #
-# Modelled directly on `spec/fuzzing/meta_domain_coverage_spec.rb`'s own
-# shape (that file's own header: "requires every declared feature to be
-# claimed, guaranteed by construction, structurally exempt, or a named
-# gap carrying a one-line reason") — aimed here at a different question:
-# not "does a property exist for this attribute," but "does the
-# language's own description of itself actually declare an instance of
-# this construct kind," counted the same way ADR 0026's own table was
-# measured — "counting real declarations rather than grammar rows."
-#
-# `entity`/`lifecycle`/`transition` are the two gaps this ADR itself
-# names as already closed by the two remodels it commissions (S17, S14)
-# — this spec is what makes "closed" a checked fact rather than a claim
-# in a commit message. The rest — `policy`/`process_manager`/`ensures`/
-# `provenance`/`group_by`/`authorize`/`generic` — are the ADR's own
-# remaining list, adopted where a real, non-decorative use exists (S16
-# added one: `ensures` on `Bluebook.Attach`) and named where it does
-# not — the ADR itself warns against the alternative ("Forcing every
-# construct into the language... is decoration... modelling to satisfy
-# a tool"). `generic` is the ADR's own Consequences section, named
-# explicitly there ("a candidate for demotion rather than adoption")
-# rather than in its main table, which is why it was missing here until
-# this session verified it against the live grammar and found the same
-# zero the ADR predicted.
-#
-# Scoped to the core, not every attached sub-language — the ADR leaves
-# this open ("Whether the self-use gate applies to each sub-language
-# against its own corpus, or only to the core") and this spec answers
-# it: only the core (`LANGUAGE_CHAPTERS` — Bluebook/World/Hecksagon).
-# `Paging` contributes grammar rows as data (`member word: "limit", ...`)
-# — it does not itself declare new policy/process_manager/entity/etc.
-# constructs that would need a self-use claim of their own, and
-# extending the gate to every future attached chapter is real, separate
-# design work the ADR names as unsettled, not something this slice
-# should decide by accident.
-#
-# **Constants prefixed `SELF_USE_` on purpose** — `describe do ... end`'s
-# block does not open a new lexical scope for constant assignment the
-# way `class`/`module` does, so a bare `LANGUAGE =`/`KNOWN_GAPS =` here
-# lands on the top-level Object namespace and silently collides with
-# any other spec file's own same-named constant (found for real:
-# `spec/orchestration_spec.rb` already declares both).
+# Constants are prefixed `SELF_USE_`: a describe block does not open a lexical scope, so bare
+# names land on `Object` and collide with other spec files.
 RSpec.describe "the language uses everything the core grammar declares" do
   SELF_USE_LANGUAGE = Hecks::Bluebook::MetaValidator.grammar_registry.bluebook("Bluebook")
 
@@ -74,12 +36,8 @@ RSpec.describe "the language uses everything the core grammar declares" do
     end
   end
 
-  # **One counter per construct** — real declarations, the same count ADR
-  # 0026's own table measured by hand. `entity`/`lifecycle` count
-  # recursively (Member nested under ValueObject, Handler under
-  # ProcessManager, Dispatch under Handler — S17 — and Keyword/Argument
-  # under Syntax — S14 — are real declarations two and three levels
-  # down, not just at the aggregate's own top level).
+  # One counter per construct, counting real declarations. `entity`/`lifecycle` count
+  # recursively, since nested entities are real declarations too.
   SELF_USE_COUNTS = {
     "entity"                 => -> { SELF_USE_LANGUAGE.aggregates.sum { |a| count_entities(a) } },
     "lifecycle / transition" => lambda {
@@ -95,25 +53,13 @@ RSpec.describe "the language uses everything the core grammar declares" do
     "provenance"             => -> { every_command.count(&:provenance) },
     "group_by"               => -> { SELF_USE_LANGUAGE.read_models.count { |r| !r.group_by.to_a.empty? } },
     "authorize"              => -> { every_query.count(&:authorization) },
-    # ADR 0026's own Consequences section, verbatim: "`generic` is a
-    # candidate for demotion rather than adoption... a subdomain
-    # classification the language itself never applies." The language
-    # declares itself `core` (`SELF_USE_LANGUAGE.classification`), the
-    # sibling word in the same closed set — never `generic` — so this
-    # counts real self-classification, not a grammar row.
+    # The language classifies itself `core`, never `generic` (a candidate for demotion,
+    # ADR 0026), so this counts real self-classification, not a grammar row.
     "generic"                => -> { SELF_USE_LANGUAGE.classification == "generic" ? 1 : 0 }
   }.freeze
 
-  # **Named, reasoned** — never a silent exclusion. Each entry is the ADR's
-  # own prediction ("will fail the day it is written") made permanent
-  # and explicit where adoption would be decorative rather than real —
-  # the ADR's own "Rejected alternatives" section names exactly this
-  # risk for `group_by` ("Paging a grammar... is decoration of exactly
-  # the kind ADR 0025 argues against... modelling to satisfy a tool"),
-  # and the same reasoning applies to the other three: none of these
-  # constructs has a natural, non-invented site in a domain that only
-  # ever describes shape, never reacts to time, never involves more
-  # than one caller.
+  # Named gaps, never silent exclusions: adopting these constructs in a domain that only
+  # describes shape would be decoration, not real use (ADR 0026).
   SELF_USE_KNOWN_GAPS = {
     "policy"          =>
                          "a policy reacts to an event with a trigger and (optionally) a with: " \

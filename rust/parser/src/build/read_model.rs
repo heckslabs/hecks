@@ -1,37 +1,14 @@
-//! Mirrors a read model's `include` head gathering — pluralization,
-//! dedup, and the `many:`/`as:` shape each `aggregate_heads` row carries
-//! (`ReadModelBuilder#add_aggregate_head`).
-//!
-//! `aggregate_heads` below, called from `parse::read_model`, handles both
-//! shapes for real: rootless (no `reference_to` — confirmed real by
-//! console_settings.bluebook's `Styles`/`Curated` reports, every
-//! `include`d head `many: true`) and rooted (`reference_to` declared —
-//! confirmed real, and under live byte-exact parity testing today, by
-//! Banking's `CustomerPortfolio`/`ComplianceDashboard`), correctly
-//! splitting `many: target != reference_target` for whichever
-//! `reference_target` is passed in. `group_by`'s own field list needs no
-//! derivation beyond "the bare symbol names given" — handled directly in
-//! `parse::read_model` instead of a function here, the same "trivial
-//! enough not to need its own module function" call
-//! `build/query_derive.rs`'s own header already makes for `sets`' four
-//! named forms living beside `where`'s.
+//! Read model `include` head gathering: pluralization, dedup, and the `many:`/`as:`
+//! shape of each aggregate head.
 
 use crate::build::naming;
 use crate::diag::{Diagnostic, ParseResult};
 use crate::ir;
 
-/// `ReadModelBuilder#add_aggregate_head` — one call per `include Type[,
-/// as: name]` line, in the order they were written (order-independent in
-/// Ruby too: "The includes are collected raw and resolved at build, when
-/// the reference is known"). `output` defaults to `Naming.plural(Naming
-/// .snake(target))` when `many` (every include when `reference_target`
-/// is `None` — rootless — or when the include names a different
-/// aggregate than a declared `reference_target` — rooted) and no `as:`
-/// was given; the root's own head (`target == reference_target`) instead
-/// snake-cases singular, matching Ruby's own "not `many`" branch.
-/// Refuses two includes minting the same `as:` name, the same guard
-/// `add_aggregate_head` itself raises (`"#{@name} already projects
-/// #{output}"`).
+/// Builds the `aggregate_heads` for a read model's `include Type[, as: name]` lines.
+///
+/// A head is `many` unless it names `reference_target`; `output` defaults to the
+/// plural (many) or singular snake name. Refuses two includes projecting the same name.
 pub fn aggregate_heads(
     file: &str,
     line: usize,

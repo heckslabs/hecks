@@ -2,14 +2,8 @@ require "spec_helper"
 require "json"
 require "hecks/fuzzing"
 
-# The adversarial layer (lib/hecks/fuzzing/sequence_generator/adversary.rb)
-# — three claims, each checked against real generated sequences rather
-# than a stub: it is exactly as deterministic per seed as the rest of the
-# generator, it is genuinely opt-in (off means byte-identical output and
-# no extra RNG draw), and every mutation kind produces the documented
-# shape in the step's own args — the same args `Fuzzing::Replay` hands
-# Ruby's runtime and `JSON.generate({steps: ...})` hands the compiled
-# Rust binary.
+# The adversarial layer: deterministic per seed, opt-in (off is byte-identical), and every
+# mutation kind shows its documented shape in the step's own args, on real generated sequences.
 RSpec.describe Hecks::Fuzzing::SequenceGenerator do
   PIZZAS            = File.join(InMemoryDomain::ROOT, "examples/pizzas")
   ADVERSARY_BANKING = File.join(InMemoryDomain::ROOT, "examples/banking")
@@ -17,10 +11,8 @@ RSpec.describe Hecks::Fuzzing::SequenceGenerator do
   NESTED_PIECES     = File.join(InMemoryDomain::ROOT, "qa/stress_domains/nested_pieces")
   LEDGER_ORDERING   = File.join(InMemoryDomain::ROOT, "qa/stress_domains/ledger_ordering")
 
-  # Every `[step, mutation]` pair across a handful of seeds, grouped by
-  # mutation kind — `adversarial: 1.0` so every command step that can be
-  # mutated is, which is what makes "each kind appears" a fact about the
-  # layer rather than about luck.
+  # Every `[step, mutation]` pair across a few seeds, grouped by kind. Fraction 1.0 mutates
+  # every step that can be, so "each kind appears" is not luck.
   def mutations_over(domain_path, seeds:, fraction: 1.0, steps: 25)
     pairs = (1..seeds).flat_map do |seed|
       generated = described_class.generate(domain_path, seed: seed, steps: steps, adversarial: fraction)
@@ -62,11 +54,8 @@ RSpec.describe Hecks::Fuzzing::SequenceGenerator do
   end
 
   describe "both replay paths receive the same bytes" do
-    # `Replay.call` reads `step["args"]`; the Rust bridge sends
-    # `JSON.generate({"steps" => steps})`. Both read the same `args` the
-    # generator's own inline dispatch already ran — so the mutation's
-    # fingerprint has to be in `args` (not in metadata only), and the
-    # step has to survive a JSON round-trip unchanged.
+    # `Replay.call` and the Rust bridge both read the same `args` the generator dispatched,
+    # so the fingerprint must be in `args`, and the step must survive a JSON round-trip.
     it "puts every mutation's fingerprint in the step's own args, and the step round-trips through JSON" do
       steps = described_class.generate(PIZZAS, seed: 5, steps: 25, adversarial: 1.0)
       mutated = steps.select { |step| step.key?("adversarial") }
@@ -175,14 +164,9 @@ RSpec.describe Hecks::Fuzzing::SequenceGenerator do
       end
     end
 
-    # **A lower fraction here, on purpose** — this mutation needs a prior
-    # append to have succeeded under the same parent (that is what fills
-    # the pool it replays from), and at `adversarial: 1.0` nearly every
-    # append is itself mutated and refused first. 0.3 is the dial
-    # `bin/qa_sweep` runs at; deterministic per seed, so "found within
-    # these seeds" is a stable fact, not a flake. Seeds are walked one
-    # at a time and the walk stops at the first sequence that carries
-    # one, so the ordinary cost is a handful of generates.
+    # Lower fraction on purpose: this needs an earlier append to have succeeded under the
+    # same parent, and at 1.0 nearly every append is mutated and refused first. 0.3 is the
+    # `bin/qa_sweep` dial; the seed walk stops at the first sequence that carries one.
     it "duplicate_entity_identity — reuses an identity the same sequence already appended under that parent (BUG#13)" do
       pairs = (1..40).lazy.map { |seed| mutations_over(LEDGER_ORDERING, seeds: seed, fraction: 0.3)["duplicate_entity_identity"] }
                      .find { |found| found&.any? }

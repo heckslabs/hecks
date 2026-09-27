@@ -18,19 +18,13 @@ Hecks.bluebook "Hecksagon" do
       invariant("a subscription names an event") { !value.to_s.empty? }
     end
 
-    # A `framework/bluebook/` member this hecksagon attaches — Governance,
-    # Identity, whatever else lands beside them. Same shape as
-    # `Subscription` beside it, one word over.
+    # A `framework/bluebook/` member this hecksagon attaches, such as Governance or Identity.
     value_object "FrameworkMember" do
       attribute :value, String
       invariant("a framework member is named") { !value.to_s.empty? }
     end
 
-    # A vendored, external bluebook this hecksagon attaches — one level
-    # further out than `FrameworkMember`: not a member shipped inside
-    # hecks's own lib/, but a separate package vendored into the
-    # consuming project's own checkout. Same shape as `FrameworkMember`
-    # beside it, one word over — see EmbryonautBluebook's own header.
+    # A separate bluebook package vendored into the consuming project, not shipped in hecks's lib/.
     value_object "VendoredBluebook" do
       attribute :value, String
       invariant("a vendored bluebook is named") { !value.to_s.empty? }
@@ -80,9 +74,7 @@ Hecks.bluebook "Hecksagon" do
       emits "VendoredBluebookAttached"
     end
 
-    # HOW HECKSAGON IS SPELLED. These rows live with the concept
-    # they describe; SyntaxBoot discovers every aggregate-local seed table.
-    # Contexts represented here: File, Hecksagon.
+    # Keyword rows for File and Hecksagon; SyntaxBoot discovers every aggregate-local seed table.
     value_object "KeywordSeed" do
       attribute :word,          String
       attribute :context,       String, admits: "Syntax::Context"
@@ -100,21 +92,10 @@ Hecks.bluebook "Hecksagon" do
       member word: "uses_framework",  context: "Hecksagon", body: "none", inner: "", opens: "", fills: "framework_members"
       member word: "uses_embryonaut_bluebook", context: "Hecksagon", body: "none", inner: "", opens: "", fills: "vendored_bluebooks"
       member word: "port",            context: "Hecksagon",     body: "keywords", inner: "DomainPort",    opens: "DomainPort",    fills: "", calls: "port_impl"
-      # A CROSS-DOMAIN REACTION, WIRED HERE INSTEAD OF THE BLUEBOOK — same
-      # underlying `Policy` shape a `policy` block already builds
-      # (`inner`/`opens: "Policy"` reuses that context's own `on`/`trigger`
-      # wholesale, zero new inner vocabulary), but declared as a wiring
-      # decision (which FOREIGN domain's event this chapter conforms to),
-      # the same kind of decision `port`/`uses_framework` already are.
-      # No `calls:` — `HecksagonBuilder#translates` is an ordinary method,
-      # the same shape `subscribe`/`uses_framework` already are, reached
-      # by Ruby's own method lookup before `word_gate` ever runs.
+      # A cross-domain reaction wired here rather than in the bluebook; reuses the Policy context.
+      # No `calls:` — HecksagonBuilder#translates is an ordinary method, found before `word_gate`.
       member word: "translates",      context: "Hecksagon",     body: "keywords", inner: "Policy",        opens: "Policy",        fills: ""
-      # A CONSUMER-OWNED bounded context — framework/vendored packages
-      # get this mark automatically from uses_framework /
-      # uses_embryonaut_bluebook and never write it in their own files.
-      # No `calls:` — `HecksagonBuilder#bounded` is an ordinary method,
-      # same shape `subscribe` already is.
+      # Marks a consumer-owned bounded context; framework and vendored packages get it implicitly.
       member word: "bounded",         context: "Hecksagon", body: "none", inner: "", opens: "", fills: ""
 
     end

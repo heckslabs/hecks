@@ -1,27 +1,4 @@
-// Implements the Ruby grammar's "positional" expression-operator
-// category (projection.json: `.first`, `.last` — two symbols, two
-// interpreter nodes sharing one category, the same `sized.rs`-style
-// pairing) — `Resolver::First`/`::Last` (resolver.rb), read directly:
-// duck-typed on "responds to first/last" in Ruby, which this kernel
-// reads as two real shapes rather than one duck type — a `Value::Array`
-// (an `ArrayLiteral` or a `.split` result, elements already known) and a
-// `Lookup` naming a real list-typed field (the corpus origin case:
-// `legs.first`, an itinerary's departure leg — resolver.rb's own
-// comment on `First`).
-//
-// A field-list's elements are read via `lookup_items` (the same second
-// reading `expression_operators::enumeration` already uses for `.any?`/
-// `.find`'s own receiver) rather than `Value::List(usize)` — that shape
-// is length only (`expr.rs`'s own header), nothing to take a first/last
-// element from. Only a scalar-element list collapses to a `Value` this
-// way; a list of composite entities (`Field::Nested`) has no `Value`
-// shape to return as — refused by name, the same "not generated yet"
-// wording `membership.rs`'s own Array-haystack gap already uses, rather
-// than silently misrepresenting an object as some scalar it isn't.
-//
-// `expr.rs`'s `category_of` guarantees `interpret` below is only ever
-// called with `First`/`Last` — see `logical.rs`'s header for why the
-// trailing arm is a router-bug guard, not a real refusal path.
+//! Interprets `.first` and `.last` over an Array value or a list-typed field lookup.
 
 use crate::kernel::expr::{eval_error, interpret as eval, lookup_items, EvalContext, Expr, Field, Value};
 use crate::kernel::Refusal;
@@ -35,6 +12,7 @@ pub fn interpret(expr: &Expr, ctx: &EvalContext) -> Result<Value, Refusal> {
 
     match receiver.as_ref() {
         Expr::Lookup(path) => {
+            // `Value::List` carries only a length, so read the elements directly.
             let items = lookup_items(path, ctx, op)?;
             field_value(if take_first { items.into_iter().next() } else { items.into_iter().last() }, op)
         }
@@ -52,11 +30,8 @@ pub fn interpret(expr: &Expr, ctx: &EvalContext) -> Result<Value, Refusal> {
     }
 }
 
-/// The one element `lookup_items` handed back (or none, for an empty
-/// list — Ruby's own `Array#first`/`#last` answer `nil` there, not a
-/// refusal). A `Field::Nested` element — a list of composite entities,
-/// not scalars — has no `Value` shape to collapse into; see this file's
-/// own header for why that is refused rather than invented.
+/// The element `lookup_items` returned; an empty list is nil, as in Ruby.
+/// A `Field::Nested` element has no `Value` shape, so it refuses.
 fn field_value(item: Option<Field<'_>>, op: &str) -> Result<Value, Refusal> {
     match item {
         None => Ok(Value::Nil),

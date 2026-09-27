@@ -1,8 +1,6 @@
 require "spec_helper"
 
-# Projections::Statements turns a domain's own declared facts into flat,
-# plain-English sentences — see its own header for the "never invent a
-# sentence" discipline this spec holds it to.
+# Projections::Statements turns declared facts into plain-English sentences, never inventing one.
 RSpec.describe "the domain's own English statements" do
   def boot_banking
     registry = Hecks::Runtime::Registry.new
@@ -31,17 +29,12 @@ RSpec.describe "the domain's own English statements" do
   end
 
   it "is reachable the same way every projection already is, with no bespoke wiring" do
-    # `pizzas_chapter`'s own `boot_in_memory` already installs the real
-    # top-level Pizzas constant (Facade::Surface.install, via
-    # Loader.bind_runtime) — referenced here for that side effect before
-    # calling through it exactly as a real caller would.
+    # `boot_in_memory` (via `pizzas_chapter`) installs the top-level Pizzas constant.
     expected = Hecks::Projector.call(:statements, bluebook: pizzas_chapter)
     expect(Pizzas.project(Hecks::Projections::Statements)).to eq(expected)
   end
 
-  # The bug the example output actually had, caught by eye against real
-  # banking output before this spec existed ("A ATMCard", "a Account") —
-  # pinned here so it can't come back silently.
+  # Regression: output read "A ATMCard" and "a Account".
   it "never gets the indefinite article wrong, anywhere in a real, richly-relational domain" do
     statements = Hecks::Projector.call(:statements, bluebook: banking_chapter)
     wrong_article = statements.grep(/\bA (Account|ATMCard|ExternalTransfer|OnboardingCase|Onboarding)\b/)

@@ -1,11 +1,4 @@
-//! The `Query` construct (`lib/hecks/bluebook/ir/query.rb`, built on
-//! `QuerySpecification::Common::Options`). `where`'s pairs comparator
-//! splitting (`build/query_derive.rs`), `order_by`. Stage 4 adds `limit`
-//! and the five open-map options (`offset`/`cursor`/`authorize`/`nulls`/
-//! `inspect_query`, all via the shared `build::query_options` — the same
-//! module `parse::read_model` uses, since both Ruby builders `include
-//! QuerySpecification::Common::DSL`) — confirmed real: `Account
-//! .Overdrawn`'s own `limit`, `SafeDepositBox.Rented`'s own `authorize`.
+//! The `Query` construct: `where`, `order_by`, `limit` and the open-map option words.
 
 use crate::build::{query_derive, query_options};
 use crate::diag::{Diagnostic, ParseResult};
@@ -56,10 +49,7 @@ pub fn parse_body(
                     .extend(query_derive::where_clauses(&gated.args.named))
             }
             "order_by" => {
-                // See read_model.rs's own identical comment: `order_by`
-                // has a fixed argument schema, so the gate already
-                // refuses an undeclared `on:` upstream — no defensive
-                // check needed here, unlike `where`.
+                // The gate already refuses an undeclared `on:`; only `where` needs a check.
                 let field = super::positional_symbol(file, line, "order_by", &gated.args, 1)?;
                 let direction = match gated.args.positional.iter().find(|(idx, _)| *idx == 2) {
                     Some((_, text)) => text.trim().trim_start_matches(':').to_string(),
@@ -67,10 +57,7 @@ pub fn parse_body(
                 };
                 query.order_by = Some(ir::OrderBy { field, direction });
             }
-            // `LimitSpec#to_h`'s own `value: render_value(value)` —
-            // `positional_constant` here is just "the raw text at
-            // position 1," not an assertion the token is a constant; the
-            // argument gate already confirmed it reads as a number.
+            // `positional_constant` only fetches raw text; the gate already checked it is numeric.
             "limit" => {
                 let raw = super::positional_constant(file, line, "limit", &gated.args, 1)?;
                 query.limit = Some(ir::LimitSpec {

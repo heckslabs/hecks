@@ -1,10 +1,5 @@
-//! Port of `rust/project/registry.rb` — the JSON command router. Read
-//! that file's own header comments in full; this mirrors its algorithm
-//! directly, function for function. The plain data shapes below
-//! (`ReferenceCheck`/`CommandEntry`/`EntityCommandEntry`/`PortEntry`/
-//! `AggregateEntry`) mirror the Hash shapes `domain_generator.rb` itself
-//! accumulates while walking the IR (that file's own header spells out
-//! the exact keys).
+//! Command router emitter, ported from `rust/project/registry.rb`.
+//! The entry structs mirror the Hashes `domain_generator.rb` accumulates while walking the IR.
 
 use crate::exemplar::Exemplar;
 use crate::naming;
@@ -14,16 +9,14 @@ use crate::reference_specs::{self, ReferenceSpec};
 pub struct ReferenceCheck {
     pub field: String,
     pub optional: bool,
-    /// `Some(element key expression)` for a list (`has_many`) check —
-    /// `rust/project/domain_generator.rb#list_reference_check_item`.
+    /// `Some(element key expression)` for a list (`has_many`) check.
     pub list_item: Option<String>,
     pub target_mod: String,
     pub target_name: String,
     pub heads: String,
 }
 
-/// One angle-8 write-side tenant boundary check —
-/// `rust/project/domain_generator.rb#tenant_boundary_checks`' Hash, typed.
+/// One write-side tenant boundary check (`domain_generator.rb#tenant_boundary_checks`), typed.
 pub struct TenantBoundaryCheck {
     pub reference_field: String,
     pub target_mod: String,
@@ -43,33 +36,14 @@ pub struct CommandEntry {
     pub creates: bool,
     pub identity_extra_params: Vec<String>,
     pub reference_checks: Vec<ReferenceCheck>,
-    /// BUG#139 — the write-side tenant boundary checks this command runs
-    /// before dispatch (`emit_tenant_boundary_check`, below).
+    /// Write-side tenant boundary checks run before dispatch.
     pub tenant_boundary_checks: Vec<TenantBoundaryCheck>,
-    /// This command's own reference-typed attributes — `command_deref`'s
-    /// own specs (`reference_specs.rb`'s own header).
+    /// Reference-typed attributes, the specs behind `command_deref`.
     pub reference_specs: Vec<ReferenceSpec>,
-    /// This command's own declared attribute names (R1) —
-    /// `reactions.rs`'s own `emit_command_attributes_table` reads this;
-    /// see its header for the full argument.
+    /// Declared attribute names; read by `reactions.rs#emit_command_attributes_table`.
     pub attributes: Vec<String>,
-    /// R3 (docs/audits/2026-08-11-bug-triage.md) — VO invariant/admits/
-    /// pattern checks, rendered as ready-to-splice lines
-    /// (`commands::invariant_checks_for`'s own doc comment has the
-    /// per-attribute logic). Precomputed at `CommandEntry` construction
-    /// time, where `value_objects_by_name` is already in scope, rather
-    /// than re-deriving it from a raw `Json` command here — the same
-    /// division of labor `attributes`, just above, already uses.
-    /// Spliced into the router match-arm's own body before `role`/
-    /// `reference_checks`, matching Ruby's own DISPATCH_ORDER (this
-    /// module's header, `emit_registry`) — found missing entirely here:
-    /// `rust/project/registry.rb` got R3's fix; this file, its Rust-
-    /// native mirror, never did. `spec/codegen_parity_spec.rb`, every
-    /// domain with a command that takes a non-closed-set VO argument.
-    /// `commands.rs::emit_command` already runs these a second time
-    /// inside the generated dispatch fn itself; redundant on the
-    /// success path, and the reason this router's own copy is safe to
-    /// run first regardless.
+    /// Value-object invariant/admits/pattern checks as ready-to-splice lines, run before the
+    /// role and reference checks. `commands.rs::emit_command` repeats them in the dispatch fn.
     pub invariant_check_lines: Vec<String>,
     pub role: Option<String>,
 }
@@ -82,32 +56,18 @@ pub struct EntityCommandEntry {
     pub args_struct: String,
     pub reference_checks: Vec<ReferenceCheck>,
     pub reference_specs: Vec<ReferenceSpec>,
-    /// This command's own declared attribute names (R1) — see
-    /// `CommandEntry`'s own identical field, above.
+    /// Declared attribute names; see `CommandEntry`.
     pub attributes: Vec<String>,
-    /// R3 — see `CommandEntry`'s own identical field, above.
+    /// See `CommandEntry::invariant_check_lines`.
     pub invariant_check_lines: Vec<String>,
     pub role: Option<String>,
-    /// `entity_name:`/`entity_identity_reading:` — carried in
-    /// `domain_generator.rb`'s own `entity_commands` hash (its own
-    /// comment: for `entity_element_missing`'s `{entity}`/`{identity}`
-    /// wording, codegen-time-static) but not actually read anywhere in
-    /// `registry.rb`'s own `emit_registry` — `commands.rb#emit_entity_
-    /// command` already computes the identical reading itself, inline,
-    /// off the `entity` node it's handed directly. Kept here for shape
-    /// parity with Ruby's own hash, not because anything in this crate's
-    /// ported scope consumes them.
+    /// Carried for shape parity with `domain_generator.rb`'s `entity_commands`; unread here.
     pub entity_name: String,
     pub entity_identity_reading: String,
 }
 
-/// BUG#11 (loop-parity) — a command owned by an entity nested two levels
-/// deep (`Aggregate.Entity.Entity.Command`). Mirrors `EntityCommandEntry`,
-/// above, plus a second (`nested_*`) name/identity-reading pair for the
-/// innermost entity — the one `nested`'s own command actually belongs to
-/// — alongside the first hop's (`entity_name`/`entity_identity_reading`,
-/// same fields `EntityCommandEntry` already carries, describing the
-/// entity `nested` lives inside).
+/// A command owned by an entity nested two levels deep (`Aggregate.Entity.Entity.Command`).
+/// Adds the innermost entity's name and identity reading to `EntityCommandEntry`'s fields.
 pub struct NestedEntityCommandEntry {
     pub verb: String,
     pub name: String,
@@ -124,13 +84,8 @@ pub struct NestedEntityCommandEntry {
     pub entity_identity_reading: String,
     pub nested_name: String,
     pub nested_identity_reading: String,
-    /// BUG#19 (loop-parity) — whether `emit_registry`'s own
-    /// `nested_entity_arms` gets a flat-args (`None => ...`) fallback
-    /// branch for this command, mirroring `entity_arms`'s own depth-1
-    /// shape one hop deeper, or stays the routed-only shape BUG#11
-    /// originally shipped. True only when both hops' own identity is
-    /// `extract_id`-supported (`domain_generator.rs`'s own header on
-    /// why it needs both, not just the innermost).
+    /// Whether the router gets a flat-args (`None`) fallback for this command; true only when both
+    /// hops' identity is `extract_id`-supported.
     pub unrouted_supported: bool,
 }
 
@@ -140,24 +95,14 @@ pub struct PortEntry {
     pub fn_name: String,
     pub args_struct: String,
     pub reference_checks: Vec<ReferenceCheck>,
-    /// Compatibility-only self-reference field from older port IR. New
-    /// operations receive their owner solely through the routing envelope.
+    /// Self-reference field from older port IR; new operations take the owner from the route.
     pub legacy_receiver_field: Option<String>,
-    /// `to:`-declared operations' own receiver field — a plain, real
-    /// attribute (never stripped from the payload the way
-    /// legacy_receiver_field is), named for the owning aggregate's own
-    /// identified_by field. See domain_generator.rs's own comment on
-    /// why this stays a separate field rather than folding into
-    /// legacy_receiver_field.
+    /// Receiver field of `to:`-declared operations; a real attribute, kept in the payload.
     pub to_receiver_field: Option<String>,
 }
 
-/// **This aggregate's own nested entity** — name + identity paths only,
-/// mirroring `domain_generator.rb`'s own `entities:` hash field
-/// (BUG#10). `reactions.rs`'s own `emit_entity_identity_head_table`
-/// reads the single-component case (the only shape it resolves), the
-/// same restraint `AggregateEntry::identified_by` already carries one
-/// level up.
+/// A nested entity's name and identity paths, from `domain_generator.rb`'s `entities:` field.
+/// `reactions.rs#emit_entity_identity_head_table` reads the single-component case.
 pub struct EntityIdentityEntry {
     pub name: String,
     pub identified_by: Vec<String>,
@@ -173,16 +118,11 @@ pub struct AggregateEntry {
     pub ports: Vec<PortEntry>,
     pub chapter_mod: String,
     pub domain_name: String,
-    /// This aggregate's own reference-typed attributes — `owner_deref`'s
-    /// own specs, and the domain-wide `REFERENCE_TABLE`'s own row for
-    /// this aggregate (`reference_specs.rb`'s own header).
+    /// Reference-typed attributes; this aggregate's row in `REFERENCE_TABLE`.
     pub reference_specs: Vec<ReferenceSpec>,
-    /// This aggregate's own declared identity paths, carried through
-    /// verbatim — `reactions.rs`'s own `emit_identity_head_table` reads
-    /// the single-component case (the only shape it resolves).
+    /// Declared identity paths; `reactions.rs#emit_identity_head_table` reads one-component ones.
     pub identified_by: Vec<String>,
-    /// **This aggregate's own nested entities** — `reactions.rs`'s own
-    /// `emit_entity_identity_head_table` sibling table (BUG#10).
+    /// Nested entities, read by `reactions.rs#emit_entity_identity_head_table`.
     pub entities: Vec<EntityIdentityEntry>,
 }
 
@@ -204,11 +144,8 @@ pub fn emit_role_check(
     ))
 }
 
-/// Port of `rust/project/registry.rb#emit_tenant_boundary_check` — see that
-/// method's own header. Hand-built rather than an exemplar shape: the
-/// target side's accessor differs for a single-attribute value object
-/// (`record.<head>.as_ref().map(|v| v.<inner>.clone())`) and a bare scalar
-/// (`record.<field>.clone()`). Byte-identical to the Ruby output.
+/// Port of `rust/project/registry.rb#emit_tenant_boundary_check`.
+/// Hand-built: the target accessor differs for a single-attribute value object and a bare scalar.
 pub fn emit_tenant_boundary_check(check: &TenantBoundaryCheck) -> String {
     let ref_ident = naming::rust_ident_field(&check.reference_field);
     let own_expr = format!("args.{}.clone()", naming::rust_ident_field(&check.own_accessor));
@@ -241,13 +178,8 @@ pub fn emit_tenant_boundary_check(check: &TenantBoundaryCheck) -> String {
     out
 }
 
-/// `kernel::ArgumentGates` for one command (roadmap D2) — port of
-/// `rust/project/registry.rb#emit_argument_gates_literal`. The struct
-/// literal `decode_aggregate_arguments`/`decode_entity_arguments` call
-/// one field of per declared argument-gate step; nothing here names that
-/// order. The last two fields are closures rather than plain function
-/// references because both need `store`, which only exists at this
-/// router level.
+/// `kernel::ArgumentGates` literal for one command (`registry.rb#emit_argument_gates_literal`).
+/// The last two fields are closures because they need `store`, which exists only at the router.
 fn emit_argument_gates_literal(args_path: &str, invariant_check_lines: &[String], role_line: Option<String>, reference_lines: &[String]) -> String {
     let mut normalize = vec![format!("let args = {args_path}::from_json(v)?;")];
     normalize.extend(invariant_check_lines.iter().map(|l| squeeze(l)));
@@ -273,9 +205,7 @@ fn emit_argument_gates_literal(args_path: &str, invariant_check_lines: &[String]
     )
 }
 
-/// An emitted check is a whole statement, sometimes several lines and
-/// indented for a line-per-statement body; inside a closure it must read
-/// as one expression among others, so this squeezes it onto one line.
+/// Joins a multi-line emitted check onto one line so it can sit inside a closure expression.
 fn squeeze(text: &str) -> String {
     text.lines().map(str::trim).filter(|l| !l.is_empty()).collect::<Vec<_>>().join(" ")
 }
@@ -415,52 +345,15 @@ pub fn emit_registry(exemplar: &Exemplar, aggregates: &[AggregateEntry]) -> Stri
                 .map(|ident| format!("&{ident}, "))
                 .collect();
 
-            // BUG#22 (QualityControl ledger) — see `rust/project/
-            // registry.rb`'s identical comment: a creating command's own
-            // generated `dispatch_*` fn now takes `route` too (right
-            // after `repo`), so it can decide create-vs-find from
-            // whether one was actually given, instead of purely from its
-            // own static `creates:` flag.
-            // BUG#139 — `tenant_boundary_check` trails `command_deref`
-            // here, the same "computed eagerly at router level, applied
-            // deferred inside `dispatch()`" split `owner_deref`/`command_
-            // deref` themselves already use. This pipeline has no `tenant_
-            // boundary_checks`-equivalent source data (see the bound
-            // local's own comment, below), so it is always `Ok(())` —
-            // zero behavior change, the parameter exists purely so this
-            // pipeline's own generated code keeps compiling against
-            // `dispatch()`'s now-wider signature.
+            // A creating command's dispatch fn takes `route` so it can tell create from find.
             let dispatch_call = format!(
                 "{mod_path}::dispatch_{}(&mut store.{}, {}args, mutations, owner_deref, command_deref, tenant_boundary_check)",
                 c.fn_name,
                 a.module_name,
                 if c.creates { format!("route, {extra_pass}") } else { "&id, ".to_string() }
             );
-            // BUG#20 (qa/bluebook/quality_control.bluebook) — `extract_id`'s
-            // own `no identity found at all` case (every one of its
-            // tried sources — the composite identity, `id`, and the
-            // command's own reference key — came back empty, including a
-            // caller-supplied `id: null`, which `to_id_component`
-            // refuses) is wrapped here rather than left to propagate as
-            // a raw `TypeMismatch`, matching `CommandInterpreter#hydrate_
-            // existing`'s own identical fallback chain (`identity_of ||
-            // identity_from(:id) || identity_from(reference_key) ||
-            // raise(...)`, command_interpreter.rb, read directly), which
-            // raises `NotFound`/`acting_no_identity` — this is `dispatch`
-            // (kernel/dispatch.rs)'s own `Hydrate::Act` not-found site's
-            // upstream twin: an acting command's id is resolved here, at
-            // the router, before `dispatch` (and its already-correct
-            // `Hydrate::Act` repo.find-miss `NotFoundRecordMissing`
-            // check) is ever called at all, so `dispatch` itself never
-            // saw this case to refuse correctly. `extract_id` has no
-            // per-command context (command name, declared identity
-            // reading) of its own to render `RefusalSite::
-            // NotFoundActingNoIdentity` — its one possible `Err` is
-            // wrapped here, where both are already in scope, into the
-            // exact same wording `RefusalWording.render_site("NotFound",
-            // "acting_no_identity", ...)` produces on the Ruby side — off
-            // the same declared template and the same argument rows,
-            // never re-typed here.
+            // `extract_id` has no command context to render `NotFoundActingNoIdentity`, so its Err
+            // is wrapped here into the wording Ruby's `acting_no_identity` refusal produces.
             let not_found_expr = |command: &str, aggregate: &str, identity: &str| {
                 format!(
                     "crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs {{ command: {}, aggregate: {}, identity: {} }}.render_args())",
@@ -469,26 +362,8 @@ pub fn emit_registry(exemplar: &Exemplar, aggregates: &[AggregateEntry]) -> Stri
                     naming::ruby_inspect_string(identity)
                 )
             };
-            // Route depth for every aggregate command, conditionally
-            // eager (BUG#141/BUG#123, qa/bluebook/quality_control.
-            // bluebook), and identity after the gates (roadmap D2) — see
-            // `rust/project/registry.rb`'s identical comments in full,
-            // including the exact D2-documented gap this closes:
-            // Ruby's `Invocation.route` validates `to:` before
-            // `DISPATCH_ORDER` opens at all, but only for the legacy/
-            // flat-facts shape — the explicit `with:` shape's own
-            // `Invocation.facts_for` validates facts before `route(to)`
-            // runs, so a wrong-depth route alongside bad `with:`-shaped
-            // facts must refuse the same kind Ruby does (UnknownArgument/
-            // AbsentArgument, not TypeMismatch). `CommandInvocation::
-            // explicit_with()` (rust/src/kernel/routing.rs) is what makes
-            // that call-shape distinction available here at all.
-            // `extract_id` is part of `hydrate`, so it still runs after
-            // every argument gate, unchanged from D2 — which is what
-            // BUG#23's standalone `structural_precheck` splice, BUG#38/
-            // #136's discarded `_args_precheck` and BUG#54's `collision_
-            // fallback` were each patching around one command shape at a
-            // time. All three stay gone.
+            // Route depth is checked eagerly. With an explicit `with:` Ruby validates facts before
+            // the route, so `args_line` picks the order at runtime. Identity follows every gate.
             let route_precheck_line =
                 "if let Some(route) = route { route.require_depth(0)?; }".to_string();
             let id_line = if c.creates {
@@ -500,14 +375,7 @@ pub fn emit_registry(exemplar: &Exemplar, aggregates: &[AggregateEntry]) -> Stri
                     a.record
                 )
             };
-            // The argument gates, handed to the kernel (roadmap D2) —
-            // one generated function per declared argument-gate step,
-            // called by `kernel::decode_aggregate_arguments` in
-            // `AggregateStep::ORDER`. This arm no longer decides which of
-            // them wins: reordering them in vocabulary.bluebook reorders
-            // the refusals with no change here. See
-            // `rust/project/registry.rb`'s `gates_expr` for the full
-            // argument.
+            // The argument gates go to the kernel, which runs them in `AggregateStep::ORDER`.
             let gates_expr = format!(
                 "crate::kernel::decode_aggregate_arguments(facts_json, &{})?",
                 emit_argument_gates_literal(
@@ -521,23 +389,13 @@ pub fn emit_registry(exemplar: &Exemplar, aggregates: &[AggregateEntry]) -> Stri
                         .collect::<Vec<_>>()
                 )
             );
-            // BUG#141/BUG#123 — see `route_precheck_line`'s own header,
-            // above, for the full reasoning. A single `if invocation.
-            // explicit_with() { ... } else { ... }` expression (its
-            // value bound to `args`) rather than two separately-ordered
-            // statements, so exactly one of the two orders ever actually
-            // runs per call.
+            // One `if` expression, so exactly one of the two orders runs per call.
             let args_line = format!(
                 "let args = if invocation.explicit_with() {{ let args = {gates_expr}; {route_precheck_line} args }} \
                  else {{ {route_precheck_line} {gates_expr} }};"
             );
 
-            // BUG#139 — the angle-8 write-side tenant boundary, ported
-            // from `rust/project/registry.rb`'s own
-            // `tenant_boundary_check_line`. The checks are derived from
-            // `ir.json` at codegen time (`domain_generator.rs#tenant_
-            // boundary_checks`); none means the unconditional `Ok(())`,
-            // otherwise every check runs inside one closure, in order.
+            // Checks come from `ir.json` at codegen time; none means `Ok(())`, else one closure.
             let tenant_boundary_check_bodies: Vec<String> = c
                 .tenant_boundary_checks
                 .iter()
@@ -553,10 +411,7 @@ pub fn emit_registry(exemplar: &Exemplar, aggregates: &[AggregateEntry]) -> Stri
                 )
             };
 
-            // `owner_deref`/`command_deref` — see `reference_lookup.rs`'s
-            // own header and `rust/project/registry.rb`'s identical
-            // comment: resolved here, before the `&mut store.<mod>`
-            // borrow below, since it needs `store` as a whole.
+            // Resolved before the `&mut store.<mod>` borrow below; it needs `store` whole.
             let owner_deref_expr = if c.creates {
                 "Vec::new()".to_string()
             } else {
@@ -580,9 +435,7 @@ pub fn emit_registry(exemplar: &Exemplar, aggregates: &[AggregateEntry]) -> Stri
                 "let facts_json = invocation.facts();".to_string(),
             ];
             body.push(args_line);
-            // **Identity after the gates** — `id_line`'s own comment, above;
-            // `extra_lines` reads a creating command's bare identity-extra
-            // heads, identity too, so it moves with it.
+            // Identity after the gates; `extra_lines` read identity-extra heads, so they follow.
             if !id_line.is_empty() {
                 body.push(id_line);
             }
@@ -612,9 +465,7 @@ pub fn emit_registry(exemplar: &Exemplar, aggregates: &[AggregateEntry]) -> Stri
     for a in aggregates {
         let mod_path = chapter_path(a);
         for c in &a.entity_commands {
-            // The argument gates (roadmap D2) — see the aggregate arm's
-            // own `gates_line`, above; `kernel::decode_entity_arguments`
-            // walks `EntityStep::ORDER`.
+            // The argument gates; `kernel::decode_entity_arguments` walks `EntityStep::ORDER`.
             let gates_line = format!(
                 "let args = crate::kernel::decode_entity_arguments(facts_json, &{})?;",
                 emit_argument_gates_literal(
@@ -633,25 +484,9 @@ pub fn emit_registry(exemplar: &Exemplar, aggregates: &[AggregateEntry]) -> Stri
                 c.fn_name, a.module_name
             );
 
-            // Argument gates before identity (roadmap D2) — see
-            // `rust/project/registry.rb`'s own longer note: no standalone
-            // structural precheck and no discarded `_args_precheck`
-            // spliced into the route-less `None` arm any more (BUG#38,
-            // BUG#136); `gates_line` above runs every declared argument
-            // gate for a routed and an unrouted call alike, and identity
-            // resolves afterwards, which is Ruby's own order. The eager
-            // `route.require_depth(1)?` that leads the body keeps the one
-            // ordering that fix had to respect: Ruby resolves an
-            // explicitly given `to:` independently of `facts`, so a
-            // wrong-depth route refuses on its own terms first.
-            // BUG#132 (qa/bluebook/quality_control.bluebook) — the same
-            // BUG#20 fix the aggregate arm's own `id_line` already
-            // applies (this file's header, above) had never been
-            // extended to this, the entity arm's route-less `None`
-            // branch — see `rust/project/registry.rb`'s own identical,
-            // longer comment for the full trace (Ruby's own
-            // `EntityInterpreter#parent`/`EntityElement#element_of`,
-            // entity_interpreter.rb/entity_element.rb).
+            // Gates run before identity for routed and unrouted calls alike; the eager
+            // `route.require_depth(1)?` makes a wrong-depth `to:` refuse first, as in Ruby.
+            // A missing identity is wrapped as NotFound, as in the aggregate arm's `id_line`.
             let entity_parent_no_identity_message = format!(
                 "{} acts on a {}'s {} — pass {}:",
                 c.name, a.record, c.entity_name, a.identified_by.join(", ")
@@ -660,11 +495,8 @@ pub fn emit_registry(exemplar: &Exemplar, aggregates: &[AggregateEntry]) -> Stri
                 "{} acts on one {} — pass {}:",
                 c.name, c.entity_name, c.entity_identity_reading
             );
-            // BUG#140 — `element_id` resolves through `extract_id_
-            // lenient`, not `extract_id` — see `rust/project/registry.rb`'s
-            // own identical comment for the full reasoning
-            // (`EntityElement#element_of`'s own absent-vs-blank
-            // distinction, entity_element.rb). `parent_id` stays strict.
+            // `element_id` uses `extract_id_lenient` (absent vs blank element identity);
+            // `parent_id` stays strict.
             let body_entity_match = format!(
                 "let (parent_id, element_id, element_wants) = match route {{ Some(route) => {{ let element_id = route.entities()[0].clone(); (route.aggregate().to_string(), element_id.clone(), element_id) }}, None => {{ let parent_id = {mod_path}::{}::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound({}.to_string()))?; let element_id = {mod_path}::{}::extract_id_lenient(facts_json).map_err(|_| crate::kernel::Refusal::NotFound({}.to_string()))?; let element_wants = {mod_path}::{}::extract_wants(facts_json); (parent_id, element_id, element_wants) }}, }};",
                 a.record,
@@ -682,28 +514,9 @@ pub fn emit_registry(exemplar: &Exemplar, aggregates: &[AggregateEntry]) -> Stri
                 gates_line,
                 body_entity_match,
             ];
-            // `owner_deref` — BUG#40 fix — see `rust/project/registry.rb`'s
-            // own identical, longer comment: carries the parent
-            // aggregate's own `reference_to`/`belongs_to` fields,
-            // dereferenced off the already-known `parent_id`, exactly the
-            // same call an aggregate-level `Act` command already makes for
-            // its own `id` (this file's own `owner_deref_expr`, above) —
-            // what `seeded_projections` needs to re-seed the parent's own
-            // `projects` fields on every entity-command save, since
-            // `dispatch_entity` unconditionally re-applies every
-            // `seed_projections` entry the same way the aggregate-level
-            // `dispatch` does. Without this, `owner_deref` would be
-            // unconditionally `Vec::new()`, so `seeded_projections` could
-            // never resolve a reference name like `"customer"` here and
-            // every entity command would wipe the field to `null`. An
-            // entity's own `reference_to` attributes
-            // (dereferenced off the addressed element itself, a different
-            // thing again) remain a real, still-open, separate gap — no
-            // entity in this corpus declares one. `command_deref` covers
-            // the entity command's own reference-typed arguments, plus —
-            // merged in exactly like Ruby's own `parent:` tier — the
-            // parent aggregate's own dereferenced state under one
-            // `"parent"` key.
+            // `owner_deref` dereferences the parent's reference fields off `parent_id`, so
+            // `seeded_projections` can re-seed them on every entity-command save. `command_deref`
+            // also carries the parent's dereferenced state under one "parent" key.
             body.push(format!(
                 "let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, {}, &parent_id);",
                 naming::ruby_inspect_string(&format!("{}::{}", a.domain_name, a.name))
@@ -733,26 +546,13 @@ pub fn emit_registry(exemplar: &Exemplar, aggregates: &[AggregateEntry]) -> Stri
         }
     }
 
-    // BUG#11 (loop-parity) — a command owned by an entity nested two
-    // levels deep. Mirrors `rust/project/registry.rb`'s own `nested_
-    // entity_arms`.
-    //
-    // BUG#19 (loop-parity) — `c.unrouted_supported` (`domain_
-    // generator.rs`'s own header on when it's true) now picks between
-    // the same `Some(route) => ... | None => ...` shape `entity_arms`
-    // above already has, extended one hop deeper (`hop1_id`/`hop1_wants`
-    // off `entity`'s own `extract_id`/`extract_wants`, `hop2_id`/`hop2_
-    // wants` off `nested`'s own — both newly emitted for this), and the
-    // routed-only shape BUG#11 originally shipped (kept, unchanged, for
-    // a domain whose identity shape at either hop isn't `extract_id`-
-    // supported yet).
+    // Commands owned by an entity nested two levels deep. `c.unrouted_supported` selects a binding
+    // that accepts a route or flat args; otherwise the command is routed-only.
     let mut nested_entity_arms: Vec<String> = Vec::new();
     for a in aggregates {
         let mod_path = chapter_path(a);
         for c in &a.nested_entity_commands {
-            // The argument gates (roadmap D2) — see the aggregate arm's
-            // own `gates_line`, above; `kernel::decode_entity_arguments`
-            // walks `EntityStep::ORDER`.
+            // The argument gates; see the entity arm's `gates_line`.
             let gates_line = format!(
                 "let args = crate::kernel::decode_entity_arguments(facts_json, &{})?;",
                 emit_argument_gates_literal(
@@ -771,21 +571,8 @@ pub fn emit_registry(exemplar: &Exemplar, aggregates: &[AggregateEntry]) -> Stri
                 c.fn_name, a.module_name
             );
 
-            // Argument gates before identity (roadmap D2) — see
-            // `entity_arms`' own note, above: no standalone precheck and
-            // no discarded `_args_precheck` any more, and the eager
-            // `route.require_depth(2)?` keeps an explicit wrong-depth
-            // route refusing ahead of them all.
-            // BUG#132 — see `entity_arms`'s own identical fix, above: the
-            // same unwrapped `extract_id(facts_json)?` gap, one nesting
-            // hop deeper. `parent_id` wraps into `entity_parent_no_
-            // identity` (Ruby's joined entity path — `ctx.entity_name`
-            // there is `entity_names.join(".")`, matching
-            // `"{entity_name}.{nested_name}"` here); `hop1_id`/`hop2_id`
-            // each wrap into their own hop's `entity_element_no_identity`
-            // (Ruby's `EntityElement#element_of` runs once per chain
-            // entry, so each hop's failure names that hop's own entity/
-            // identity, never the other's).
+            // Gates before identity, as in `entity_arms`; `route.require_depth(2)?` refuses a
+            // wrong-depth route first. A missing identity wraps into a per-hop NotFound message.
             let entity_parent_no_identity_message = format!(
                 "{} acts on a {}'s {}.{} — pass {}:",
                 c.name, a.record, c.entity_name, c.nested_name, a.identified_by.join(", ")
@@ -798,10 +585,7 @@ pub fn emit_registry(exemplar: &Exemplar, aggregates: &[AggregateEntry]) -> Stri
                 "{} acts on one {} — pass {}:",
                 c.name, c.nested_name, c.nested_identity_reading
             );
-            // BUG#140 — `hop1_id`/`hop2_id` both resolve through
-            // `extract_id_lenient` — see `rust/project/registry.rb`'s own
-            // identical comment for the full reasoning. `parent_id` stays
-            // strict.
+            // Both hops resolve through `extract_id_lenient`; `parent_id` stays strict.
             let route_binding = if c.unrouted_supported {
                 format!(
                     "let (parent_id, hop1_id, hop1_wants, hop2_id, hop2_wants) = match route {{ Some(route) => {{ let hop1_id = route.entities()[0].clone(); let hop2_id = route.entities()[1].clone(); (route.aggregate().to_string(), hop1_id.clone(), hop1_id, hop2_id.clone(), hop2_id) }}, None => {{ let parent_id = {mod_path}::{}::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound({}.to_string()))?; let hop1_id = {mod_path}::{}::extract_id_lenient(facts_json).map_err(|_| crate::kernel::Refusal::NotFound({}.to_string()))?; let hop1_wants = {mod_path}::{}::extract_wants(facts_json); let hop2_id = {mod_path}::{}::extract_id_lenient(facts_json).map_err(|_| crate::kernel::Refusal::NotFound({}.to_string()))?; let hop2_wants = {mod_path}::{}::extract_wants(facts_json); (parent_id, hop1_id, hop1_wants, hop2_id, hop2_wants) }}, }};",
@@ -833,14 +617,8 @@ pub fn emit_registry(exemplar: &Exemplar, aggregates: &[AggregateEntry]) -> Stri
             body.push("if let Some(route) = route { route.require_depth(2)?; }".to_string());
             body.push(gates_line);
             body.push(route_binding);
-            // BUG#40 fix — see `entity_arms`'s own identical comment,
-            // above: the top-level parent aggregate's own
-            // `#{AGGREGATE}_PROJECTED_FIELDS` is what `seed_projections_
-            // binding` scopes a nested entity command's re-seeding to too
-            // (`commands.rb`'s `seed_projections_binding(aggregate)` takes
-            // the outer `aggregate`, never the nested entity), so
-            // `owner_deref` here needs that same top-level `a`'s own
-            // reference fields, dereferenced off `parent_id`.
+            // `owner_deref` uses the top-level aggregate's reference fields, since projection
+            // seeding scopes to it, not to the nested entity.
             body.push(format!(
                 "let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, {}, &parent_id);",
                 naming::ruby_inspect_string(&format!("{}::{}", a.domain_name, a.name))
@@ -1069,10 +847,8 @@ mod tests {
         assert!(generated.contains("CommandInvocation::from_json(args_json)?"));
         assert!(generated.contains("let branch_code = facts_json.dig(\"branch_code\")"));
         assert!(generated.contains("let box_number = facts_json.dig(\"box_number\")"));
-        // The argument gates (roadmap D2) — `from_json` is reached through
-        // the `normalize_args` hook now (`v`, the gate loop's own binding),
-        // never as a bare line in the arm; route depth leads the body for
-        // every command, and identity resolves after every gate.
+        // `from_json` is reached through the `normalize_args` hook; route depth leads the body and
+        // identity resolves after every gate.
         assert!(generated.contains("crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates {"));
         assert!(generated.contains("decode_arguments: &crate::generated::banking::safedepositbox::RentArgs::decode_arguments"));
         assert!(generated.contains("refuse_unknown_arguments: &crate::generated::banking::safedepositbox::RentArgs::refuse_unknown_arguments"));
@@ -1094,16 +870,8 @@ mod tests {
         assert!(generated.contains("dispatch_operation_paymentgateway_receive(&id, args)"));
     }
 
-    // BUG#141/BUG#123 (qa/bluebook/quality_control.bluebook) — D2 (#751)
-    // made the route-depth check run eagerly, unconditionally, ahead of
-    // `decode_aggregate_arguments`, for every aggregate command — correct
-    // for a legacy-shaped call, but D2's own comment (superseded now)
-    // named the gap left open: an explicit `with:` call validates facts
-    // before `route(to)` on the Ruby side. This pins that the generated
-    // code now branches on `invocation.explicit_with()` at runtime
-    // instead of picking one fixed order — both orders present in the
-    // generated text (only one branch runs per call), neither hard-coded
-    // first.
+    // Pins that the generated code branches on `invocation.explicit_with()` at runtime: both the
+    // gates-first and route-depth-first orders are present, neither hard-coded.
     #[test]
     fn explicit_with_gates_precheck_ordering_for_an_acting_command() {
         let aggregate = AggregateEntry {
@@ -1141,22 +909,8 @@ mod tests {
         assert!(generated.contains("Some(route) => route.aggregate().to_string()"));
     }
 
-    // BUG#20 (qa/bluebook/quality_control.bluebook) — an acting command's
-    // `extract_id(facts_json)?` failing (its one real case: every
-    // identity source it tries — the composite identity, `id`, and the
-    // reference key — came back empty, including a caller-supplied
-    // `id: null`) is wrapped here rather than left to propagate as
-    // `extract_id`'s own generic `TypeMismatch("... no identity found
-    // ...")`, matching Ruby's `CommandInterpreter#hydrate_existing`
-    // (command_interpreter.rb, read directly), which raises
-    // `NotFound`/`acting_no_identity` for the identical case —
-    // `RefusalWording.render("NotFound",
-    // "acting_no_identity", command:, aggregate:, identity:)`, rendered
-    // here at codegen time (this router's own call site, not `extract_id`
-    // itself, is the one place with the command's short name, the
-    // aggregate's bare record name, and its declared identity reading
-    // all already in scope) with the exact same wording
-    // `RefusalSite::NotFoundActingNoIdentity`'s template gives.
+    // Pins that a failing `extract_id` in an acting command refuses NotFound
+    // (`acting_no_identity`), not TypeMismatch, with wording rendered at codegen time.
     #[test]
     fn acting_command_id_resolution_failure_refuses_not_found_not_type_mismatch() {
         let aggregate = AggregateEntry {
@@ -1189,13 +943,9 @@ mod tests {
 
         let generated = emit_registry(&Exemplar::load(), &[aggregate]);
 
-        // The raw `extract_id(facts_json)?` (no `.map_err`, still
-        // TypeMismatch on any failure) must be gone from an acting
-        // command's own id_line ...
+        // The raw `extract_id(facts_json)?` must not appear in an acting command's id_line ...
         assert!(!generated.contains("SafeDepositBox::extract_id(facts_json)?,"));
-        // ... replaced by a wrapper that converts extract_id's failure
-        // into the exact NotFound/acting_no_identity wording Ruby's own
-        // CommandInterpreter#hydrate_existing raises for this case.
+        // ... replaced by a wrapper converting its failure into NotFound/acting_no_identity.
         assert!(generated.contains(
             "SafeDepositBox::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: \"Close\", aggregate: \"SafeDepositBox\", identity: \"branch_code.value, box_number.value\" }.render_args()))?,"
         ));

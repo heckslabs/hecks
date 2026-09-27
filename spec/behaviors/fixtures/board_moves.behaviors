@@ -1,11 +1,5 @@
-# THE `to:` COLLISION, PINNED — this suite exists because the runner once
-# forwarded a test's kwargs loose into Dispatcher#dispatch, where #335's
-# routing envelope owns the `to:` keyword: every domain declaring a
-# command fact named `to` (the delegates_to fixture's MovePiece, and the
-# chess domain the behaviors guide itself is written against) failed with
-# "to: does not recognize file, rank" on the exact spelling the guide
-# promises. The runner now splits identities from facts through
-# ReactionInvocation before dispatching; these tests hold it to that.
+# Pins that a command fact named `to` reaches the command as a fact, not as the dispatch
+# envelope's `to:` address.
 Hecks.behaviors "BoardMoves" do
   vision "Examples of moving a piece through the delegates_to fixture's own door — whose destination fact is named `to`, the same word the dispatch envelope reserves."
 

@@ -3,21 +3,9 @@ require_relative "aggregate_lock"
 
 module Hecks
   module Runtime
-    # What every stepwise interpreter shares: the traced step, and the
-    # coercion of a command's declared arguments. Two copies of each lived
-    # in CommandInterpreter and EntityInterpreter, where they could only
-    # ever drift.
+    # Shared by the stepwise interpreters: the traced step and coercion of declared arguments.
     module Interpreting
-      # Ruby's module-inclusion hook. Gives `interpreter` its own `trace`
-      # accessor, since a class including this module needs its own copy
-      # rather than one shared across every interpreter.
-      #
-      # Each including interpreter gets its own `trace` — set by a spec to
-      # observe dispatch order (Vocabulary::AggregateDispatchOrder and
-      # Vocabulary::EntityDispatchOrder in language/bluebook/vocabulary.bluebook);
-      # nil in production, always — one array push and a nil check per step
-      # is the entire cost of leaving this in.
-      #
+      # Gives each including interpreter its own `trace`, set by specs to observe dispatch order.
       # @param interpreter [Class] the class (`CommandInterpreter`, `EntityInterpreter`)
       #   including this module
       # @return [void]
@@ -27,37 +15,15 @@ module Hecks
 
       private
 
-      # Logged after the step's own work, so a step that wraps sub-steps logs
-      # itself once everything inside it has already logged — trace order is
-      # completion order, which is dispatch order.
+      # Logged after the step's work, so trace order is completion order.
       def step(name)
         result = yield
         self.class.trace << name if self.class.trace
         result
       end
 
-      # Drives `DISPATCH_ORDER` (CommandInterpreter/EntityInterpreter, each
-      # read off its own generated Vocabulary::*DispatchOrder table —
-      # vocabulary.bluebook, via lib/hecks/vocabulary.rb) by `send`ing
-      # each declared step name against the including interpreter's own
-      # `step_<name>` handler, in declared order. Data drives that sequence,
-      # rather than `call` spelling it out as a literal sequence of method
-      # calls — tracing a real dispatch and comparing it to the declaration is
-      # tautological once `call` mechanically follows the declaration; a
-      # conditional step (assign_creation_attributes, advance_lifecycle) still
-      # has to guard itself at the top of its own handler and skip tracing
-      # when it does not fire, rather than the caller branching around it —
-      # see CommandInterpreter#step_assign_creation_attributes.
-      # The commit boundary. Every step up to `save` runs as before;
-      # `save`, `emit`, and the outbox enqueue that follows them run
-      # inside one `repository.transaction` — so the aggregate row, its
-      # journal entry, the recorded event, and the outbox rows naming
-      # who is owed a reaction commit together or not at all. No new
-      # step is added to the vocabulary's dispatch order (the step list
-      # is a pinned contract, `spec/vocabulary_conformance_spec.rb`);
-      # the enqueue is a consequence of `emit`, not a step of its own.
-      # A context without a repository (port operations — nothing to
-      # save) or with no `:save` in its order runs plainly.
+      # Runs `order` by sending each `step_<name>` handler; `save` onward shares one transaction.
+      # The outbox enqueue rides on `emit`; the vocabulary's step list is a pinned contract.
       def run_dispatch_order(order, ctx)
         split = order.index(:save)
         return order.each { |name| send(:"step_#{name}", ctx) } unless split && ctx.respond_to?(:repository) && ctx.repository
@@ -69,34 +35,16 @@ module Hecks
         end
       end
 
-      # Rows for the events this dispatch just emitted, written while
-      # the save's transaction is still open. `nil` (no outbox on this
-      # repository) tells the dispatcher to react directly, the
-      # pre-outbox path; a dry run emits nothing and enqueues nothing.
+      # Enqueues outbox rows for the just-emitted events inside the save's transaction.
       def enqueue_outbox(ctx)
         return if ctx.dry_run || !ctx.respond_to?(:outbox_rows=)
 
         ctx.outbox_rows = @registry.outbox.enqueue(ctx.repository, Array(ctx.result), ctx.domain)
       end
 
-      # The concurrency-control split — see docs/decisions/ (concurrency
-      # control ADR) for the full mechanism. A repository that declares
-      # `:optimistic_concurrency` (Postgres today) already closes the
-      # lost-update gap itself, via `step_save`'s CAS + `#call`'s own
-      # `StaleWrite` retry loop — an extra in-process lock here would be
-      # pointless overhead, not incorrect, so it's skipped for clarity.
-      # A repository that declares `:cross_process_lock` (PostgresEra —
-      # ADR 0036) holds a real Postgres advisory lock for the whole
-      # dispatch order instead: unlike Heki/Memory (confirmed
-      # process-local, never a second process writing the same store),
-      # PostgresEra's own tables can be dispatched against concurrently
-      # by `rust/host` from a separate OS process, and an in-process
-      # `Mutex` is invisible to that. Every other repository gets the
-      # striped `Mutex` below, held for the whole dispatch-order run, so
-      # a second thread's own hydrate can't start until the first
-      # thread's save has landed. `lock_key_id` is best-effort
-      # (`Identity.best_effort`) — `nil` still locks correctly, just
-      # coarser (by aggregate type).
+      # Picks the isolation by capability: CAS needs none, a cross-process lock uses the
+      # repository's write lock, and the rest get a striped in-process Mutex (ADR 0036).
+      # A nil `lock_key_id` still locks correctly, just by aggregate type.
       def run_dispatch_order_with_isolation(order, ctx, lock_key_id:)
         capabilities = ctx.repository.capabilities
         if capabilities.include?(:optimistic_concurrency)
@@ -108,9 +56,7 @@ module Hecks
         end
       end
 
-      # Every declared attribute present in the payload passes the reference
-      # gate, then coercion — the same walk whether the command acts on an
-      # aggregate or on one of its entity's elements.
+      # Passes each declared payload attribute through the reference gate, then coercion.
       def coerce_declared_arguments(aggregate, command, args)
         command.attributes.each_with_object(args.dup) do |attribute, normalized|
           next unless normalized.key?(attribute.name)
@@ -120,12 +66,7 @@ module Hecks
         end
       end
 
-      # Coercion only — CommandInterpreter's own refuse_unknown_arguments/
-      # refuse_absent_arguments are separate DISPATCH_ORDER steps now (the
-      # declared vocabulary lists all three as flat, sequential members, not
-      # one nesting the other two), and EntityInterpreter never had them here
-      # at all (an entity inherits its aggregate's own gate). One shared
-      # copy, rather than two identical ones that can only ever drift apart.
+      # Coercion only; the unknown/absent-argument refusals are separate dispatch steps.
       def normalize_args(aggregate, command, args)
         coerce_declared_arguments(aggregate, command, args)
       end

@@ -4,67 +4,13 @@ require_relative "resolver"
 module Hecks
   module Bluebook
     module Expression
-      # Walks the real Evaluator/Resolver AST (the same objects a live
-      # dispatch parses `given`/`ensures`/invariant text into — see
-      # docs/implemented/guides/running-a-runtime.md's "The expression
-      # grammar") and emits plain, JSON-serializable Ruby Hashes, tagged
-      # by `"op"`.
-      #
-      # ## Why this exists beside `rust/project/expr_emitter.rb`
-      #
-      # The same two-method walk `rust/project/expr_emitter.rb`'s own
-      # `emit_bool`/`emit_resolver` already do, over the same AST — that
-      # file's own methods build Rust source-code strings for `rust/
-      # project`'s codegen (`rust/src/kernel::expr::Expr` literals, baked
-      # into a generated domain's own compiled binary); this builds data
-      # instead, for a genuinely different consumer with a genuinely
-      # different constraint: `rust/host` can never link the `rust`
-      # (kernel) crate at all (a real, load-bearing build constraint —
-      # `reference_validate.rs`'s own header has the full reasoning: one
-      # path dependency would statically bake every domain's generated
-      # dispatch code into every Lambda binary), so a value object's own
-      # `invariant` predicate has to travel as something `rust/host` can
-      # deserialize and interpret itself, at runtime, from `ir.json` — the
-      # exact same relationship `rust/project`'s own `Expr` literals
-      # already have to the compiled kernel, one layer further out.
-      #
-      # ## Why it lives in core `lib/hecks`, not `rust/project/`
-      #
-      # `rust/project.rb` is a separate, downstream toolchain
-      # (`lib/hecks/projector.rb`'s own header: "a whole separate Ruby
-      # program"), never `require`d by core `lib/hecks/bluebook/*.rb`
-      # files (confirmed: no core file does). `value_object.rb`'s own
-      # `invariants:` IR emission needs this for every domain's ordinary
-      # `to_h`/`ir.json` export — golden fixtures, `hecks-parse`'s parity
-      # comparisons, and any deploy artifact, not only a `bin/project_rust`
-      # run — so it belongs beside `Evaluator`/`Resolver` themselves, not
-      # bolted onto a tool that only sometimes runs.
-      #
-      # ## Complete, not corpus-scoped
-      #
-      # Every node this grammar admits gets a real arm, the identical
-      # "raise, don't silently drop" discipline `expr_emitter.rb`'s own
-      # `emit_bool`/`emit_resolver` already hold to — even though, as of
-      # this writing, no real corpus value object invariant exercises
-      # `Include`/`Modulo`/`BlockPredicate`/`Find`/`Array`/`MatchesRegex`/
-      # `Presence`/`Assignment`/`Split`/`StartsWith`/`EndsWith`/`First`/
-      # `Last` (only `given`/`ensures` clauses do, elsewhere in the corpus
-      # — a different consumer of this same grammar). `rust/host/src/
-      # expr_json.rs`'s own header names exactly which of these its
-      # interpreter evaluates for real today versus refuses cleanly — a
-      # narrower, deliberate, documented boundary on the interpreting
-      # side, not on this emitting side: an author is free to write any
-      # real expression in a value object's own `invariant`, and this
-      # always emits it faithfully; whether `rust/host` can yet check it
-      # at mint time is that file's own question to answer, not this
-      # one's to pre-empt by refusing to even try.
+      # Walks the Evaluator/Resolver AST and emits JSON-serializable Hashes tagged by `"op"`.
+      # Lives in core because rust/host cannot link the kernel crate and interprets this from ir.json.
       module AstJson
         module_function
 
-        # **The closed op roster** — every `"op"` tag the walkers below can
-        # emit, pinned so a reader (or a spec) can refuse a tag it does
-        # not know instead of guessing. A new node kind is a new entry
-        # here, a new arm below, and a new arm in every reader.
+        # The closed roster of `"op"` tags. A new node kind needs an entry here and an arm in
+        # each walker and reader; unhandled nodes raise rather than being dropped.
         OPS = %w[
           or and not compare include
           int float str bool nil array lookup
@@ -73,48 +19,20 @@ module Hecks
           matches_regex presence assignment split starts_with ends_with
         ].freeze
 
-        # One rule row, the way every rule site emits it — description and
-        # canonical text (what every reader has always had) plus the
-        # structured form, derived from the same text. `ast` is a pure
-        # function of `canonical`: the IR carries both so a reader that
-        # only displays keeps the text, and a reader that evaluates never
-        # re-parses it.
-        #
-        # @param rule [Bluebook::Given, Bluebook::Invariant] the rule to
-        #   render; `rule.ast` is used when already computed, otherwise
-        #   `rule.canonical` is parsed and emitted fresh
-        # @return [Hash{Symbol => Object}] `:description` (`String`),
-        #   `:canonical` (`String`), and `:ast` (`Hash`, the JSON AST)
+        # One rule row: description, canonical text, and the AST derived from that text.
         def rule_row(rule)
           { description: rule.description, canonical: rule.canonical, ast: rule.ast || emit_predicate(rule.canonical) }
         end
 
         # Parses `canonical` and emits its JSON AST in one step.
-        #
-        # @param canonical [String] a canonical predicate source string
-        # @return [Hash] the JSON-shaped boolean AST, tagged by `"op"`
         def emit_predicate(canonical)
           emit_bool(Evaluator.parse(canonical))
         end
 
-        # C3.6 (docs/semantics/bluebook-semantics.md) — every `.match?`
-        # pattern a rule carries is held to `PatternSubset`, exactly as an
-        # attribute's own `pattern:` already is (`AttributeCollector#
-        # refuse_unshared_pattern`): a regex whose meaning depends on the
-        # engine reading it is a defect in the bluebook, refused at build.
-        # Walks the emitted AST, so every rule site (givens, ensures,
-        # invariants, preconditions, a policy's where) gets the one check.
+        # Holds every `.match?` pattern a rule carries to `PatternSubset`, as an attribute's
+        # `pattern:` is; walking the AST gives every rule site the one check.
         #
-        # @param ast [Hash] a JSON AST node, as emitted by `emit_predicate`
-        #   or `emit_bool`
-        # @param owner [String] the declaring bluebook's name, for the
-        #   refusal message
-        # @param word [String] the rule's own kind and description
-        #   (such as `"given \"total is positive\""`), for the refusal
-        #   message
-        # @return [Hash] `ast`, unchanged
-        # @raise [Bluebook::DSL::Malformed] if any `matches_regex` node's
-        #   pattern uses a construct `PatternSubset` does not admit
+        # @raise [Bluebook::DSL::Malformed] if a `matches_regex` pattern is outside `PatternSubset`
         def refuse_unshared_patterns!(ast, owner:, word:)
           return ast if Hecks::Bluebook::MetaValidator.shadow_parsing? # frozen era text is history
 
@@ -132,30 +50,17 @@ module Hecks
         end
 
         # What a `lookup` path can never contain: a call's parentheses, or an argument list's
-        # commas and spaces. Attribute names carry none of these, so a path that does is a method
-        # call with arguments that the grammar has no node for.
+        # commas and spaces.
         #
-        # A bare `?` is deliberately not in the set. `x.nil?` also parses as a lookup, but it loads
-        # and, on a String, Boolean or `nil` value, evaluates without raising; real bluebooks
-        # declare it, so refusing it would stop them loading.
+        # A bare `?` is deliberately not in the set: `x.nil?` also parses as a lookup, loads, and
+        # evaluates without raising, and real bluebooks declare it.
         UNRESOLVABLE_PATH = /[(),\s]/
         private_constant :UNRESOLVABLE_PATH
 
-        # Refuses a rule that calls a method the expression grammar does not have.
+        # Refuses a rule that calls a method the grammar lacks, such as `value.between?(100, 599)`.
+        # It would parse as a `lookup` of an attribute that cannot exist and fail on first dispatch.
         #
-        # An unrecognised call such as `value.between?(100, 599)` parses as a `lookup` whose path
-        # names an attribute that can never exist, so it loads and then fails on the first
-        # dispatch. Refusing it here moves the failure to build time, where the author is looking.
-        # The supported spellings (comparisons joined with `&&`/`||`, `.positive?`, `.empty?`,
-        # `.include?`, ...) are the rows of `projection.json`.
-        #
-        # @param ast [Hash] a JSON AST node, as emitted by `emit_predicate` or `emit_bool`
-        # @param owner [String] the declaring bluebook's name, for the refusal message
-        # @param word [String] the rule's own kind and description (such as
-        #   `"invariant \"a status code\""`), for the refusal message
-        # @return [Hash] `ast`, unchanged
-        # @raise [Bluebook::DSL::Malformed] if any `lookup` node's path contains a parenthesis,
-        #   comma or whitespace
+        # @raise [Bluebook::DSL::Malformed] if a `lookup` path contains a parenthesis, comma or space
         def refuse_unresolvable_lookups!(ast, owner:, word:)
           return ast if Hecks::Bluebook::MetaValidator.shadow_parsing? # frozen era text is history
 
@@ -174,13 +79,7 @@ module Hecks
           ast
         end
 
-        # Every name a rule resolves at its root — the first segment of
-        # each `lookup` path, unique, in first-seen order.
-        #
-        # @param ast [Hash] a JSON AST node, as emitted by `emit_predicate`
-        #   or `emit_bool`
-        # @return [Array<String>] each `lookup` node's root name, unique,
-        #   in first-seen order
+        # Every name a rule resolves at its root: the first segment of each `lookup` path, unique.
         def lookup_heads(ast)
           heads = []
           each_node(ast) do |node|
@@ -189,13 +88,7 @@ module Hecks
           heads.uniq
         end
 
-        # Visits `node` and every Hash node nested inside it, depth-first.
-        #
-        # @param node [Hash, Array, Object] a JSON AST node, or an Array or
-        #   scalar value found while walking one; a scalar is a silent no-op
-        # @yieldparam node [Hash] each Hash node reached, including `node`
-        #   itself
-        # @return [void]
+        # Visits `node` and every Hash nested inside it, depth-first.
         def each_node(node, &block)
           case node
           when ::Hash
@@ -207,16 +100,6 @@ module Hecks
         end
 
         # Emits the JSON form of one boolean-position Evaluator node.
-        #
-        # @param node [Bluebook::Expression::Evaluator::Or,
-        #   Bluebook::Expression::Evaluator::And,
-        #   Bluebook::Expression::Evaluator::Not,
-        #   Bluebook::Expression::Evaluator::Compare,
-        #   Bluebook::Expression::Evaluator::Include,
-        #   Bluebook::Expression::Evaluator::Resolve] the boolean-position
-        #   AST node to emit
-        # @return [Hash] the JSON AST for `node`, tagged by `"op"`
-        # @raise [RuntimeError] if `node` is not one of the handled classes
         def emit_bool(node)
           case node
           when Evaluator::Or  then { "op" => "or", "left" => emit_bool(node.left), "right" => emit_bool(node.right) }
@@ -236,36 +119,16 @@ module Hecks
         end
 
         # Emits the JSON form of one comparison operator.
-        #
-        # @param comparator [Bluebook::Expression::Evaluator::Operator] the
-        #   operator to emit
-        # @return [Hash{String => Boolean}] `"less_than"`, `"equal"`, and
-        #   `"negated"`, exactly as `comparator` carries them
         def emit_comparison(comparator)
           { "less_than" => comparator.compares_less_than, "equal" => comparator.compares_equal, "negated" => comparator.negated }
         end
 
-        # The JSON-target sibling of `expr_emitter.rb`'s own
-        # `emit_include` — see that method's own comment for the full
-        # reasoning (a literal array haystack has no `Expr::Include`-
-        # representable shape on either target, kernel or host, so both
-        # rewrite it identically into an or-of-equalities at emission
-        # time rather than carrying a shape neither interpreter could
-        # evaluate). A non-literal haystack still emits `include`
-        # unchanged.
+        # Mirrors `expr_emitter.rb`'s `emit_include`: no target can represent a literal-array
+        # haystack in `include`, so it is rewritten to an or of equalities at emission.
         EQ = Evaluator::OPERATORS.find { |op| op.symbol == "==" }
         private_constant :EQ
 
-        # Emits the JSON form of one `include` node.
-        #
-        # @param node [Bluebook::Expression::Evaluator::Include] the
-        #   `include` node to emit
-        # @return [Hash] the JSON AST: `{"op" => "include", ...}` for a
-        #   non-literal haystack, `{"op" => "bool", "value" => false}` for
-        #   an empty literal array haystack, or an `"or"`-of-`"compare"`
-        #   tree of equalities for a non-empty literal array haystack
-        # @raise [RuntimeError] if `node.haystack`, `node.needle`, or one of
-        #   the haystack's literal elements is an unhandled resolver node
+        # Emits one `include` node; an empty literal haystack is `false`.
         def emit_include(node)
           return { "op" => "include", "haystack" => emit_resolver(node.haystack), "needle" => emit_resolver(node.needle) } \
             unless node.haystack.is_a?(Resolver::ArrayLiteral)
@@ -279,38 +142,7 @@ module Hecks
           equalities.reduce { |left, right| { "op" => "or", "left" => left, "right" => right } }
         end
 
-        # One case arm per Resolver node type — the class header above is
-        # explicit that this dispatch must stay complete and in one place
-        # ("every node this grammar admits gets a real arm"); splitting it
-        # into several methods would hide whether the set is still
-        # exhaustive instead of making that visible at a glance.
-        #
-        # @param node [Bluebook::Expression::Resolver::IntegerLiteral,
-        #   Bluebook::Expression::Resolver::FloatLiteral,
-        #   Bluebook::Expression::Resolver::StringLiteral,
-        #   Bluebook::Expression::Resolver::BoolLiteral,
-        #   Bluebook::Expression::Resolver::NilLiteral,
-        #   Bluebook::Expression::Resolver::Lookup,
-        #   Bluebook::Expression::Resolver::Addition,
-        #   Bluebook::Expression::Resolver::SignTest,
-        #   Bluebook::Expression::Resolver::Empty,
-        #   Bluebook::Expression::Resolver::ToS,
-        #   Bluebook::Expression::Resolver::Modulo,
-        #   Bluebook::Expression::Resolver::Size,
-        #   Bluebook::Expression::Resolver::BlockPredicate,
-        #   Bluebook::Expression::Resolver::Find,
-        #   Bluebook::Expression::Resolver::ArrayLiteral,
-        #   Bluebook::Expression::Resolver::MatchesRegex,
-        #   Bluebook::Expression::Resolver::Presence,
-        #   Bluebook::Expression::Resolver::Assignment,
-        #   Bluebook::Expression::Resolver::Split,
-        #   Bluebook::Expression::Resolver::StartsWith,
-        #   Bluebook::Expression::Resolver::EndsWith,
-        #   Bluebook::Expression::Resolver::First,
-        #   Bluebook::Expression::Resolver::Last] the value-position AST
-        #   node to emit
-        # @return [Hash] the JSON AST for `node`, tagged by `"op"`
-        # @raise [RuntimeError] if `node` is not one of the handled classes
+        # One case arm per Resolver node type, kept in one method so exhaustiveness shows at a glance.
         # rubocop:disable-next Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/MethodLength
         def emit_resolver(node)
           case node
@@ -319,8 +151,7 @@ module Hecks
           when Resolver::StringLiteral  then { "op" => "str", "value" => node.value }
           when Resolver::BoolLiteral    then { "op" => "bool", "value" => node.value }
           when Resolver::NilLiteral     then { "op" => "nil" }
-          # `path` is the same shape `find.path` already has — segments, not
-          # a dotted string a reader would have to split by its own rule.
+          # Segments, as `find.path` has, so a reader need not split a dotted string.
           when Resolver::Lookup         then { "op" => "lookup", "path" => node.path.split(".") }
           when Resolver::Addition       then { "op" => "add", "left" => emit_resolver(node.left), "right" => emit_resolver(node.right) }
           when Resolver::SignTest

@@ -16,17 +16,9 @@ RSpec.describe "Banking's generated account machine" do
     end
   end
 
-  # dispatch_flat's own name costs 5 characters `dispatch` didn't (I3
-  # removal) — over RSpec/ExampleLength's line-count cap only because of
-  # that rename, not because this example grew any real new behavior.
   # rubocop:disable-next RSpec/ExampleLength
   it "preserves the account balance invariant across deterministic command traces" do
-    # Booted once, not once per seed — each seed only ever collides with
-    # itself (a distinct customer ref and a distinct account number), so
-    # 20 independent traces can run against one shared runtime instead of
-    # 20 fresh ~100ms boots. The invariant this checks is per-account
-    # (`stored` below is looked up by this seed's own account number),
-    # so nothing about sharing the runtime changes what's being proven.
+    # One shared boot: each seed uses its own customer ref and account number.
     runtime = boot_banking
 
     20.times do |seed|
@@ -59,13 +51,8 @@ RSpec.describe "Banking's generated account machine" do
     end
   end
 
-  # Negative control for MutationApplier#check_entity_collision — LedgerEntry
-  # is `identified_by :sequence`, but Credit/Debit's own `sets :ledger,
-  # append: { amount: ..., narrative: ... }` never names `sequence`, so it
-  # always takes the auto-mint branch (`current.size + 1`), never the
-  # collision-checked one. Two identical Credits (same amount, same
-  # narrative — everything but the auto-minted sequence collides) must both
-  # land, not be refused as duplicates.
+  # Negative control for MutationApplier#check_entity_collision: the append never names
+  # `sequence`, so it auto-mints and identical Credits must both land.
   it "never flags an auto-minted entity list as colliding, even with identical repeated writes" do
     runtime = boot_banking
     runtime.dispatch_flat("Banking::Customer.Register", reference: { value: "c1" },

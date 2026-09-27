@@ -6,22 +6,8 @@ Hecks.bluebook "Translation" do
 
     identified_by TranslationAggregateName, as: :name
 
-    # `TranslationAggregateName` — a DEDICATED type for the identity
-    # field, not the shared `TranslationName` every non-identity field
-    # below uses. Found live, not by inspection: reusing one value-
-    # object type for BOTH an aggregate's own identity field and a
-    # sibling non-identity field on the same aggregate broke the
-    # single-field-VO identity-unwrap path — the stored `id` came back
-    # as a stringified Hash (`"{:value=>\"Account\"}"`) instead of the
-    # bare scalar (`"Account"`), so a self-reference to this aggregate
-    # could never find the record `Declare` had just created. Reusing
-    # the SAME type across MULTIPLE identity fields (Translation's own
-    # `TranslationEraName`, for both `from` and `to`) is unaffected —
-    # confirmed directly, not assumed — so the real trigger is identity
-    # + non-identity sharing, not reuse itself. A genuine framework bug,
-    # out of scope to fix here; every other self-hosted construct in
-    # this language already avoids it by convention (a dedicated type
-    # per identity field), which this now matches too.
+    # A dedicated identity type: sharing `TranslationName` with a non-identity field breaks the
+    # single-field identity unwrap, storing the id as a stringified Hash instead of a scalar.
     attribute :was,  TranslationName, optional: true
 
     value_object "TranslationAggregateName" do
@@ -47,11 +33,8 @@ Hecks.bluebook "Translation" do
     attribute :rekeys,    list_of(TranslationRekey)
     attribute :backfills, list_of(TranslationBackfill)
 
-    # Field names throughout mirror lib/hecks/bluebook/translation.rb
-    # EXACTLY (`Struct.new(:from, :to)` etc.) — the real Ruby records
-    # TranslationJudge dispatches from, not the builder's own local
-    # parameter names (`move(old_path, to:)`'s `old_path` becomes the
-    # struct's own `from`).
+    # Field names mirror the Struct records in lib/hecks/bluebook/translation.rb, not the
+    # builder's parameter names (`move(old_path, to:)` stores `old_path` as `from`).
     value_object "TranslationRename" do
       attribute :from, TranslationName
       attribute :to,   TranslationName
@@ -199,9 +182,7 @@ Hecks.bluebook "Translation" do
       emits "TranslationBackfillAdded"
     end
 
-    # HOW TRANSLATIONAGGREGATE IS SPELLED. These rows live with the concept
-    # they describe; SyntaxBoot discovers every aggregate-local seed table.
-    # Contexts represented here: TranslationAggregate.
+    # Syntax seed rows for the words this aggregate spells; SyntaxBoot discovers them.
     value_object "KeywordSeed" do
       attribute :word,          String
       attribute :context,       String, admits: "Syntax::Context"

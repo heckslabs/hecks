@@ -11,33 +11,17 @@ require_relative "where_clause"
 module Hecks
   module QuerySpecification
     module Common
-      # Shared builder-instance methods for the `where`/`order_by`/
-      # `limit`/`offset`/`cursor`/`authorize`/`nulls`/`inspect_query`
-      # bluebook DSL words, mixed into both QueryBuilder and
-      # ReadModelBuilder so the two specification kinds parse the same
-      # clauses identically rather than each carrying its own copy.
+      # Builder methods for the `where`/`order_by`/`limit`/`offset`/`cursor`/`authorize`/
+      # `nulls`/`inspect_query` DSL words, shared by QueryBuilder and ReadModelBuilder.
       module DSL
-        # Records one `WhereClause` per `field => value` pair — what the
-        # `where` DSL word forwards to.
+        # Records one `WhereClause` per `field => value` pair (the `where` DSL word).
         #
-        # `where`/`order_by`/`limit`/`offset`/`authorize` (all below) carry
-        # an `_impl` name because the words themselves are dispatched by
-        # the grammar table rather than defined as methods: both the Query
-        # and the ReadModel Keyword rows name the `_impl` method in
-        # `calls:`, the same shape `attribute_impl` has, and a shared mixin
-        # means one method each. `where`/`order_by` are bootstrap-reachable
-        # (every core chapter's own `read_model` filters its roster with
-        # them), so they must resolve through
-        # `GenericDispatch::BOOTSTRAP_CALLS_FALLBACK` while the grammar
-        # table is still being built.
+        # `where`/`order_by` resolve through `GenericDispatch::BOOTSTRAP_CALLS_FALLBACK`
+        # while the grammar table is being built.
         #
-        # @param clauses [Hash{Symbol => Object}] field name (a dotted or slashed path is
-        #   one Symbol) to either a literal, a Symbol naming a query argument, or a
-        #   one-pair Hash `{ comparator => operand }` such as `{ gte: :minimum }`; a bare
-        #   value means `eq`
-        # @return [void]
-        # @raise [ArgumentError] if a Hash value does not have exactly one pair, or names a
-        #   comparator outside `COMPARATORS`
+        # @param clauses [Hash{Symbol => Object}] field name to a literal, a query argument
+        #   Symbol, or a one-pair Hash such as `{ gte: :minimum }`; a bare value means `eq`
+        # @raise [ArgumentError] if a Hash value is not one known `COMPARATORS` pair
         def where_impl(clauses)
           @wheres ||= []
           clauses.each do |field, value|

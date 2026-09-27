@@ -1,20 +1,9 @@
-// The CLI entrypoint — reads a `{"steps": [...]}` script from stdin,
-// prints `{"instances", "events", "refusals"}` to stdout. Nothing
-// domain-specific: `kernel::cli::run` routes every step through
-// `generated::active` (bin/project_rust's own alias to whichever domain
-// was last generated), so this file never needs hand-editing when a
-// different domain gets regenerated in its place. Compiles unchanged for
-// wasm32-wasip1 — WASI implements stdin/stdout the same way a native
-// process does, so this is "the WASM projector wraps the Rust binary":
-// one source, two `cargo build --target` invocations (bin/project_wasm).
-// `generated`/`kernel` live in lib.rs, not here — rust/web (the browser
-// wasm-bindgen projection, docs/decisions/0015) depends on this crate's
-// lib face the same way this bin does.
+//! CLI entrypoint: reads a `{"steps": [...]}` script from stdin, prints
+//! `{"instances", "events", "refusals"}`. Domain-agnostic; also built for wasm32-wasip1.
 use std::io::Read;
 
 fn main() {
-    // `--serve`: the streaming mode (kernel/cli.rs's own `serve` header) —
-    // one step per line in, one answer per line out, store kept alive.
+    // `--serve`: one step per line in, one answer per line out, store kept alive.
     if std::env::args().any(|a| a == "--serve") {
         let stdin = std::io::stdin();
         let stdout = std::io::stdout();

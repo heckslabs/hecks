@@ -2,29 +2,10 @@ require "tmpdir"
 require "fileutils"
 require "open3"
 
-# Phase 8 (equivalence-gap plan) — "make parity a build gate, not a test
-# claim." Without this, `bin/project_deploy` would have zero hook into
-# any Ruby/Rust conformance check at all: parity would be proven only
-# against CI's fixed test corpus, completely decoupled from what a real
-# `sam deploy` is about to ship. `bin/project_deploy`'s own generated `deploy:` target
-# now runs `bin/rust_conformance` against the specific compiled artifact
-# ($(WASM)) `build-<LogicalId>` (the same target) just built — not a
-# corpus-wide `cargo build`'s own separate binary — before `sam deploy`
-# ever runs. See the generator's own "make verify-parity-<LogicalId>"
-# comment (bin/project_deploy) for the full design.
-#
-# Two halves, matching the plan's own verification requirement ("confirm
-# the new deploy-time gate actually blocks a deliberately-broken
-# artifact... before trusting it in production") — a structural check
-# that the generated Makefile actually wires the new target into
-# `deploy:`, and a functional one, proving the underlying mechanism
-# (`bin/rust_conformance`'s own exit code) genuinely fails on a real
-# mismatch and passes on a real match, not just that the right words
-# appear in generated text.
+# The generated `deploy:` target runs bin/rust_conformance against the built $(WASM) before
+# `sam deploy`. Checks the Makefile wiring and that the conformance exit code is real.
 RSpec.describe "the per-deploy Ruby/Rust parity gate (Phase 8)", :io do
   def self.repo_root = File.expand_path("..", __dir__)
-
-  # --- Structural: the generated Makefile actually wires it in ---------
 
   describe "the generated Makefile" do
     PARITY_GATE_FIXTURE_BASENAME = "parity_gate_spec_fixture".freeze
@@ -87,20 +68,13 @@ RSpec.describe "the per-deploy Ruby/Rust parity gate (Phase 8)", :io do
     end
 
     it "warns loudly, rather than silently skipping, when this domain has no spec/corpus/<name>.json fixture yet" do
-      # This fixture domain has no spec/corpus/parity_gate_spec_fixture.json —
-      # exactly the "no fixture to compare against" case a domain with a
-      # real corpus script (banking, pizzas, roster, compliance) never
-      # hits. Structural proof the fallback path exists and is not a
-      # quiet no-op: the generated recipe names the exact reason and
-      # exactly what's missing.
+      # This fixture has no spec/corpus/parity_gate_spec_fixture.json, so the recipe
+      # must name what is missing rather than no-op.
       target_body = @makefile[/^verify-parity-\w+:\n(?:\t.*\n?)+/]
       expect(target_body).to include("SKIPPING")
       expect(target_body).to include("spec/corpus/#{PARITY_GATE_FIXTURE_BASENAME}.json")
     end
   end
-
-  # --- Functional: the underlying mechanism actually catches a real ------
-  # --- mismatch, and actually passes on a real match --------------------
 
   describe "bin/rust_conformance itself, against real compiled artifacts (the exact command the Makefile target runs)" do
     def self.wasm_for(domain_path)
@@ -110,10 +84,8 @@ RSpec.describe "the per-deploy Ruby/Rust parity gate (Phase 8)", :io do
       File.join(repo_root, "rust", "dist", "#{domain_name}.wasm")
     end
 
-    # `bin/project_wasm` projects and builds in a scratch copy of the crate
-    # (`tmp/project_wasm/rust`), so it never modifies `rust/Cargo.toml` or
-    # `rust/src/generated/`. `crate_status` snapshots those paths (tracked
-    # changes and untracked files alike) so the spec below can prove it.
+    # bin/project_wasm builds in a scratch copy of the crate; this snapshots the real
+    # crate paths (tracked and untracked) to prove they stay untouched.
     def self.crate_status
       `git -C #{repo_root} status --porcelain -- rust/Cargo.toml rust/src`.split("\n")
     end
@@ -132,14 +104,8 @@ RSpec.describe "the per-deploy Ruby/Rust parity gate (Phase 8)", :io do
       Open3.capture3("bin/rust_conformance", domain, script, artifact, chdir: self.class.repo_root)
     end
 
-    # `spec/corpus/rust_conformance/roster.json`, not the fuzzer's own
-    # broader `spec/corpus/roster.json` — the former is one of the
-    # fixtures `spec/rust_conformance_spec.rb` already proves matches
-    # byte-for-byte; the latter is known, live, and cited (ADR 0037,
-    # Finding 3) to hit the missing-argument wording gap that spec's own
-    # documented, not-yet-fixed catalogue leaves open — using it here
-    # would make this spec re-litigate an already-catalogued gap instead
-    # of proving what this phase's own mechanism does.
+    # Not the fuzzer's broader spec/corpus/roster.json, which hits a known
+    # missing-argument wording gap (ADR 0037).
     ROSTER_FIXTURE = "spec/corpus/rust_conformance/roster.json".freeze
 
     it "passes (exit 0) when the artifact and the domain genuinely agree" do
@@ -147,16 +113,8 @@ RSpec.describe "the per-deploy Ruby/Rust parity gate (Phase 8)", :io do
       expect(status).to be_success
     end
 
-    # **The plan's own explicit verification requirement**: "confirm the new
-    # deploy-time gate actually blocks a deliberately-broken artifact."
-    # The most reliable way to inject one without hand-authoring a
-    # broken .wasm: feed the harness a wildly mismatched pairing — a
-    # real domain's own corpus script against a different domain's real,
-    # correctly-built artifact. Every one of Ruby's own event/refusal
-    # names comes from roster's own vocabulary; pizzas' compiled dispatch
-    # table has never heard of any of them, so the comparison is
-    # guaranteed to diverge (never a silent, accidental match this
-    # deliberately-broken case might have real corpus overlap with).
+    # Pairs roster's corpus with pizzas' artifact, whose dispatch table knows none of
+    # roster's event names, so the comparison must diverge.
     it "fails (non-zero exit) when the artifact is a genuinely different, deliberately-mismatched compiled domain" do
       stdout, stderr, status = rust_conformance("examples/roster", ROSTER_FIXTURE, @pizzas_wasm)
       expect(status).not_to be_success

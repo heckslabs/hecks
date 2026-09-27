@@ -29,17 +29,8 @@ module Hecks
 
         # Declares a query parameter that names another aggregate's identity.
         #
-        # A query parameter naming another aggregate's own identity
-        # (Card.Active's own `Board`, filtering to one board's cards) —
-        # just a plain attribute typed as a reference,
-        # `AttributeCollector#attribute_impl` already handling a Reference
-        # exactly like any other. No "acts on itself" case to
-        # distinguish here the way a command's own reference_to has —
-        # a query has no root of its own to act on, only parameters.
-        #
-        # Answers the `reference_to` word through the table's `calls:`
-        # column — item #13's full metaprogrammed dispatch (slice 4b).
-        # Bootstrap-reachable, in `GenericDispatch::BOOTSTRAP_CALLS_FALLBACK`.
+        # A plain attribute typed as a reference; a query has no root of its own to act on.
+        # Reached through `calls: "reference_to_impl"`.
         #
         # @param type [Module, Symbol, String] the referenced aggregate, written as a bare
         #   constant
@@ -86,31 +77,17 @@ module Hecks
         def self.build(name, owner_attributes: [], &block)
           builder = new(name)
           builder.instance_eval(&block) if block
-          # `send`, not a public call — this isn't a bluebook DSL word (no
-          # author ever writes `derive_from_owner!` inside a query block),
-          # just internal wiring between this class method and the instance
-          # it just built. Kept private below so syntax_conformance_spec's
-          # own "every word QueryBuilder answers is declared" check doesn't
-          # mistake it for one.
+          # `send`: `derive_from_owner!` is internal wiring, not a DSL word, so it stays private
+          # (syntax_conformance_spec).
           builder.send(:derive_from_owner!, owner_attributes, block) if block
           builder.build
         end
 
         private
 
-        # A block parameter names one of the owner's (the aggregate or entity
-        # this query is declared on) own already-declared attributes —
-        # `query "ForDecision" do |decision| where decision: :decision end`
-        # on Submission, whose own `attribute :decision, DecisionRef` already
-        # says what `decision` is. Restating `attribute :decision, DecisionRef`
-        # a second time inside the query was pure duplication; this derives
-        # the same type from the owner instead. Only fills in a name the block
-        # body did not already declare explicitly (checked after instance_eval
-        # runs, so an existing bluebook still spelling it out both ways keeps
-        # working unchanged — this only removes the need to, never refuses
-        # the choice to). A block parameter matching nothing on the owner is
-        # left alone; MetaValidator's own unresolved-attribute check names it,
-        # the same way a typo in a hand-written `attribute` call already does.
+        # Fills in a block parameter that names an owner attribute (`query "X" do |decision|`)
+        # with the owner's type, unless the body declared it. Unmatched names are left for
+        # MetaValidator's unresolved-attribute check.
         def derive_from_owner!(owner_attributes, block)
           block.parameters.each do |kind, param_name|
             next unless %i[req opt].include?(kind)
@@ -119,22 +96,14 @@ module Hecks
             owner_attr = owner_attributes.find { |a| a.name == param_name }
             next unless owner_attr
 
-            # `Attribute.new` directly, not the public `attribute(...)` DSL
-            # entry — `owner_attr.type` is already spelled (a demodulised
-            # String, `Attribute#spell`'s own doing), not a bareword the
-            # bluebook author typed, so it must not run through
-            # `AttributeCollector#attribute`'s quoted-type refusal (ADR
-            # 0025, "Attributes") — that refusal exists for DSL source
-            # text, not for a type already resolved elsewhere and copied.
+            # `Attribute.new` directly: `owner_attr.type` is already spelled, so it must not go
+            # through the quoted-type refusal meant for DSL source text.
             attributes << Attribute.new(name: param_name, type: owner_attr.type, optional: owner_attr.optional?)
           end
         end
 
-        # `cursor` parses, round-trips through the IR, and is read by nothing —
-        # no interpreter (Memory, Sqlite, Postgres) ever applies it. Refusing
-        # it here, rather than deleting the word, keeps the declared syntax
-        # honest (the language still knows the shape) while refusing to let a
-        # bluebook author believe cursor-based pagination actually happens.
+        # `cursor` parses and round-trips but no interpreter applies it; refuse it so an author
+        # does not believe cursor pagination happens.
         def seal_cursor
           return unless @cursor
 

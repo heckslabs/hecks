@@ -1,68 +1,19 @@
 module Hecks
   module Bluebook
     module DSL
-      # `identified_by` — shared by AggregateBuilder and EntityBuilder
-      # only (S9, ADR 0025 — "EntityBuilder's duplicate identified_by and
-      # resolve_pending_identity! go"): a piece's own identity cannot
-      # spell differently from its aggregate's, and until this slice it
-      # was hand-duplicated onto both rather than shared.
-      #
-      # A separate module from AttributeCollector on purpose — every
-      # `attribute()`-taking builder (Command, Query, PortOperation,
-      # ValueObject, ...) `include`s that one too, and none of them
-      # declares an identity of its own ; folding `identified_by` in
-      # there made it answer for six builders that never earned the
-      # word (`syntax_conformance_spec.rb` catches exactly this — a
-      # builder answering a method the grammar never grants it).
-      #
-      # Requires its includer to also `include AttributeCollector`
-      # (for `attributes`/`resolve_identity_field!`/`resolve_identity_
-      # type!`, still declared there since every includer of that
-      # module needs them) and to supply `identity_pool` (private) —
-      # the value-object list a bare field's own type resolves
-      # against: AggregateBuilder's own `@value_objects + closed_sets`,
-      # or EntityBuilder's owner's, since a piece mints none of its own.
+      # `identified_by`, shared by AggregateBuilder and EntityBuilder (ADR 0025).
+      # The includer must include AttributeCollector and define a private `identity_pool`.
       module IdentityDeclaration
-        # Records which of the three live `identified_by` forms a builder declared, deferring
-        # resolution until build time.
-        #
-        # There are three live forms, deliberately distinguishable at the
-        # declaration site:
+        # Records which `identified_by` form a builder declared; resolution waits for build time.
         #
         #   identified_by AccountNumber, as: :number # one identity concept
         #   identified_by do ... end                 # a bespoke concept
         #   identified_by :branch, :number           # an existing compound key
         #
-        # One symbol is retired: it cannot say whether the author means a
-        # value concept or a field-shaped database key. Frozen source still
-        # reaches the old interpretation through `legacy_identified_by`.
-        # Both `AggregateBuilder` and `EntityBuilder` name this method in their Keyword rows'
-        # `calls:` column, so `GenericDispatch` forwards `identified_by` here unchanged, both
-        # after boot (reading the live grammar table) and during it
-        # (`GenericDispatch::BOOTSTRAP_CALLS_FALLBACK`, which carries every `calls:`-routed row
-        # unconditionally, not a hand-picked bootstrap-reachable subset — though this one is
-        # exercised during boot too, since every self-hosted aggregate/entity declares an identity).
-        # Dispatches across the three live forms documented above (value-
-        # object + block, single type target, single/compound field
-        # target), each an early return that sets exactly one pending
-        # ivar. Splitting per form would need each branch's own `return`-
-        # with-nil semantics and the shared `@name`/`identity_pool`
-        # threaded back out as parameters, for no gain beyond what the
-        # three-forms comment above already documents.
-        #
-        # @param targets [Array<Symbol, Module>] zero or more identity targets: a value-object
-        #   type (a bareword, resolved by `ConstShim` to a `Module`), one or more attribute-name
-        #   symbols for a field or compound key, or empty when `definition` is given
-        # @param as [Symbol, nil] the field name to mint for a value-object-type target; not
-        #   accepted with a field or compound-key target
-        # @yield a bespoke value-object body, `instance_eval`'d by `ValueObjectBuilder.build` to
-        #   mint the identity's own anonymous value object
-        # @return [Array<Symbol>, Array<String>, nil] `targets` when a compound key is declared,
-        #   the resolved identity paths from `legacy_identified_by` in shadow-parsing mode, or
-        #   `nil` otherwise; callers reach this through `GenericDispatch`, which discards it
-        # @raise [Bluebook::DSL::Malformed] if `identified_by` was already called, combines a
-        #   block with targets, names no identity, mixes a value-object type with field names,
-        #   passes `as:` with a field or compound key, or the block declares no attributes
+        # @param targets [Array<Symbol, Module>] a value-object type or attribute names
+        # @param as [Symbol, nil] the field name to mint for a value-object-type target
+        # @yield a bespoke value-object body for the identity's own value object
+        # @raise [Bluebook::DSL::Malformed] on a repeat declaration or an invalid mix of forms
         # rubocop:disable-next Metrics/CyclomaticComplexity, Metrics/MethodLength, Metrics/PerceivedComplexity
         def identified_by_impl(*targets, as: nil, &definition)
           return legacy_identified_by(*targets, as: as, &definition) if MetaValidator.shadow_parsing?
@@ -84,20 +35,8 @@ module Hecks
                   &definition
                 )
               rescue NameError => e
-                # A removed spelling must refuse loudly, not degrade into a raw
-                # Ruby error — the one contract `EraGuard.shadow_parse` leans
-                # on to know a normal parse genuinely could not read this text
-                # (only `Malformed` triggers its shadow-mode retry, era_guard.rb's
-                # own comment). The old `identified_by { name.value }` — a block
-                # whose text was never called, only extracted (legacy_
-                # identified_by, below) — is exactly this shape: read under the
-                # current grammar it is instead instance_eval'd as a value-object
-                # definition, and a bare identifier like `name` inside it resolves
-                # to nothing WordGate#method_missing recognizes, so Ruby itself
-                # raises NameError. Left uncaught, that NameError skipped
-                # shadow_parse's rescue entirely and reached callers as a raw
-                # crash instead of the frozen-era fallback that exists for
-                # precisely this text.
+                # Must raise Malformed: EraGuard.shadow_parse retries frozen text only on
+                # Malformed, and a bare identifier in an old block form raises NameError here.
                 raise Malformed,
                       "#{@name}.identified_by do ... end could not be read as a value-object " \
                       "definition: #{e.message}"
@@ -122,10 +61,7 @@ module Hecks
               raise Malformed,
                     "#{@name}.identified_by takes no as: — name the declared field itself"
             end
-            # Transitional compatibility: the self-hosted language and live
-            # corpus still contain this form. Keep it readable until their
-            # exemplar-led migration is complete; the final lifecycle cutover
-            # replaces this assignment with the targeted refusal.
+            # Transitional: the self-hosted language and live corpus still use this form.
             @identity_field_pending = field
             return
           end
@@ -141,11 +77,7 @@ module Hecks
 
         private
 
-        # Resolves whichever of the three `identified_by` shapes is
-        # pending, against `identity_pool` — the includer's own private
-        # hook. Called at build time, not at `identified_by`'s own call
-        # time — see `AttributeCollector#resolve_identity_field!`'s own
-        # comment on why.
+        # Resolves the pending identity against `identity_pool` at build time, not call time.
         def resolve_pending_identity!
           if @identity_type_pending
             type, as, insert_at = @identity_type_pending
@@ -162,11 +94,7 @@ module Hecks
         def identity_type?(target) = target.to_s.match?(/\A[A-Z]/)
 
         def refuse_second_identity!
-          # During the staged migration a transitional one-symbol declaration
-          # may be replaced by the new declaration later in the same builder.
-          # This keeps existing builder fixtures/source readable while their
-          # exemplar is migrated. Once one-symbol identity is retired this
-          # compatibility branch disappears with it.
+          # Transitional: a one-symbol declaration may still be replaced by a later one.
           if @identity_field_pending && !@identity_type_pending && !@identity_fields_pending
             @identity_field_pending = nil
             return
@@ -178,10 +106,7 @@ module Hecks
           raise Malformed, "#{@name} declares identified_by more than once"
         end
 
-        # Legacy — the two removed spellings (a value object + as:, and the
-        # multi-line block), kept alive only for `EraGuard.shadow_parse`
-        # (S0a, ADR 0025) to still make sense of frozen era text that used
-        # them; unreachable outside `MetaValidator.shadow_parsing?`.
+        # Parses the spellings frozen era text uses, for `EraGuard.shadow_parse`.
         def legacy_identified_by(*targets, as:, &path)
           target = targets.first
           if target

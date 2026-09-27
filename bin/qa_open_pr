@@ -1,57 +1,21 @@
 #!/usr/bin/env ruby
 
-# Opens a PR and writes it down, in one breath — the only door into
-# `QualityControl::Patch.Open` / `Improvement.Open`.
-#
-# **The gap this closes**. Asking a sweep subagent to open a PR by hand —
-# running `gh pr view --json number,url, headRefName,headRefOid,title`,
-# putting those five facts in its report, and asking the orchestrator to
-# copy them into `patch.open` once the report comes back
-# (`.claude/skills/hecks_qa/SKILL.md`'s old prose instructions) — is fifty
-# lines about a fact that is true the instant `gh pr create` returns.
-# Copying it later means a retried report can record a PR twice and a
-# dropped one never; and the daily cap
-# (`QualityControlDials::PR_CAP_PER_DAY`) becomes a grep an agent has to
-# remember to run. This script replaces that whole paragraph with one
-# mechanical run: every refusal below is a rule that would otherwise only
-# be a sentence.
-#
+# Opens a PR and records it in the QualityControl ledger in one step.
+# The only door into `QualityControl::Patch.Open` / `Improvement.Open`.
+
 #   bin/qa_open_pr --bug bug#n --title "…" [--body "…"]
 #   bin/qa_open_pr --improvement [--angle angle-n] --title "…" [--body "…"]
-#
-# Refusals (exit 1, nothing opened, nothing recorded):
-#   - the current branch does not start with `QualityControlDials::
-#     BRANCH_PREFIX` (the old `loop-parity/` convention was never
-#     enforced and drifted — `Patch`'s own header, #534);
-#   - the working tree is dirty (a PR opened from an unpushed tree is a
-#     PR at the wrong commit);
-#   - `PR_CAP_PER_DAY` is positive and `Patch.OpenedSince` +
-#     `Improvement.OpenedSince` from local midnight already meets it
-#     (`0` = uncapped; a row whose `opened_at` is 0 — recorded before
-#     the field existed — never counts);
-#   - `--bug`: the bug is not `fixed`, or `Bug.commit` is not an ancestor
-#     of `HEAD` (`git merge-base --is-ancestor`) — the PR must actually
-#     carry the commit the ledger says fixes it;
-#   - `--improvement --angle`: the angle is not `investigating`.
-#
-# **Then, in order**: `gh pr create` (`--draft` iff `DRAFT_ONLY`); `gh pr
-# view --json …` to read the five facts straight back; `patch.open` (or
-# `improvement.open` + `improvement.land`, so `ImprovementCiWatch` starts
-# before this script exits) with an explicit `now`; and `gh pr merge
-# --auto --squash` iff `AUTO_MERGE`. Idempotent: if the branch already
-# has an open PR, it is not re-created, and a number the ledger already
-# holds is not re-recorded — running this twice is safe.
-#
-# `QA_REPO_DIR` — which checkout `git` runs in; defaults to this
-# repository's own root. An escape hatch in the `QA_SWEEP_DOMAIN_DIR`
-# spirit, so a spec can point a real run of this script at a throwaway
-# repo (with a fake `gh` on PATH) rather than at the branch it is itself
-# being developed on.
+
+# Refuses (exit 1, nothing opened or recorded) unless: the branch starts with `BRANCH_PREFIX`;
+# the tree is clean; `PR_CAP_PER_DAY` (0 = uncapped) is unmet since local midnight; with `--bug`,
+# the bug is `fixed` and its commit is an ancestor of HEAD; with `--angle`, it is `investigating`.
+# Idempotent: an open PR is not re-created and a recorded number is not re-recorded.
+# `QA_REPO_DIR` picks the checkout `git` runs in, so a spec can use a throwaway repo and fake `gh`.
 
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
 
 require "hecks"
-# ADR 0033 — see bin/run's own identical require.
+# The era subsystem does not load with core (ADR 0033); see bin/run.
 require "hecks/ports/persistence/plugins/era"
 require "json"
 require "open3"
@@ -91,24 +55,11 @@ abort "#{USAGE}\ngive --bug BUG#n OR --improvement, not both" if options[:bug] &
 abort "#{USAGE}\ngive --bug BUG#n or --improvement" unless options.key?(:bug) || options.key?(:improvement)
 abort "#{USAGE}\n--angle only means something with --improvement" if options[:angle] && !options[:improvement]
 
-# ── git and gh, never guessing at their exit codes ─────────────────────
-
-# Runs a git subcommand in `REPO_DIR` and captures its output rather than
-# letting it write to this process's own stdout/stderr.
-#
-# @param args (forwarded) the git subcommand and its arguments, e.g. `"status", "--porcelain"`
-# @return [Array(String, String, Process::Status)] trimmed stdout, trimmed stderr, and the
-#   subprocess's exit status
 def git(*)
   out, err, status = Open3.capture3("git", *, chdir: REPO_DIR)
   [out.strip, err.strip, status]
 end
 
-# Runs a `gh` CLI subcommand in `REPO_DIR` and captures its output.
-#
-# @param args (forwarded) the `gh` subcommand and its arguments, e.g. `"pr", "create", ...`
-# @return [Array(String, String, Process::Status)] trimmed stdout, trimmed stderr, and the
-#   subprocess's exit status
 def gh(*)
   out, err, status = Open3.capture3("gh", *, chdir: REPO_DIR)
   [out.strip, err.strip, status]
@@ -123,8 +74,6 @@ abort "refused: the working tree at #{REPO_DIR} is dirty — commit or discard f
 
 head, _err, = git("rev-parse", "HEAD")
 
-# ── boot the ledger for real ───────────────────────────────────────────
-
 runtime = begin
   Hecks.boot(DOMAIN_DIR)
 rescue StandardError => e
@@ -132,23 +81,9 @@ rescue StandardError => e
         "(#{e.class}: #{e.message})"
 end
 
-# Runs a query against the QualityControl domain, prefixing the query name so
-# every call site below stays short.
-#
-# @param runtime [Runtime::Instance] the booted QualityControl runtime
-# @param name [String] the query name without the `QualityControl::` prefix, e.g. `"Patch.All"`
-# @param args [Hash{Symbol => Object}] the query's declared arguments
-# @return [Array<Hash>] the matching rows, as `Runtime::Instance#query` returns them for the verb
 def q(runtime, name, **args) = runtime.query("QualityControl::#{name}", **args)
 
-# The dials, read once the boot above has loaded the bluebook that
-# defines them — with the same fallbacks a dial-less fixture ledger
-# gets everywhere else: uncapped, non-draft, no auto-merge, `qa/`.
-#
-# @param name [Symbol] the constant name to read off `QualityControlDials`
-# @param fallback [Object] the value to use when `QualityControlDials` is undefined or
-#   lacks that constant
-# @return [Object] the dial's declared value, or `fallback` if not defined
+# Falls back to a dial-less fixture ledger's values: uncapped, non-draft, no auto-merge, `qa/`.
 def dial(name, fallback)
   return fallback unless defined?(QualityControlDials) && QualityControlDials.const_defined?(name)
 
@@ -165,8 +100,6 @@ unless branch.start_with?(BRANCH_PREFIX)
         "(#{BRANCH_PREFIX.inspect}) — a PR this practice opens is on a branch it can recognise as its own"
 end
 
-# ── the cap, counted from the ledger ───────────────────────────────────
-
 if PR_CAP_PER_DAY.positive?
   today = Time.now
   midnight = Time.new(today.year, today.month, today.day).to_i
@@ -178,8 +111,6 @@ if PR_CAP_PER_DAY.positive?
           "raise the dial in qa/bluebook/quality_control.bluebook"
   end
 end
-
-# ── the record this PR is for ──────────────────────────────────────────
 
 bug = angle = nil
 
@@ -208,16 +139,8 @@ if options[:angle]
   end
 end
 
-# ── open it, or find the one already open on this branch ───────────────
-
 VIEW_FIELDS = "number,url,headRefName,headRefOid,title,state".freeze
 
-# Reads back a branch's open PR via `gh pr view`, if it has one.
-#
-# @param branch [String] the branch name to look up
-# @return [Hash, nil] the parsed `gh pr view` JSON (symbolized keys: `:number`, `:url`,
-#   `:headRefName`, `:headRefOid`, `:title`, `:state`) if a PR for the branch exists and its
-#   `:state` is `"OPEN"`; nil if `gh pr view` fails or the PR is not open
 def view_pr(branch)
   out, _err, status = gh("pr", "view", branch, "--json", VIEW_FIELDS)
   return nil unless status.success?
@@ -230,8 +153,7 @@ view = view_pr(branch)
 if view
   puts "PR ##{view[:number]} already open for #{branch} — not re-creating"
 else
-  # **The body names the ledger record** — so the PR and the ledger point at
-  # each other from both sides, the same way `Patch.bug` does from here.
+  # The body names the ledger record so the PR and the ledger point at each other.
   cited = if bug then "Fixes #{bug.id}."
           elsif angle then "Builds #{angle.id}."
           else "Deliberate work, no Bug or Angle behind it."
@@ -249,8 +171,6 @@ end
 number = view[:number]
 sha    = view[:headRefOid].to_s
 abort "refused: gh reports head #{sha.inspect} for ##{number}, which does not look like a sha" unless sha.match?(SHA_PATTERN)
-
-# ── write it down — once ───────────────────────────────────────────────
 
 now = Time.now.to_i
 

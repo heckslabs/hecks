@@ -2,36 +2,13 @@ module Hecks
   module Adapters
     class PostgresEra
       class Lineage
-        # Owner-only schema bootstrap: creates the lineage tables
-        # (`hecks_eras`, `hecks_era_texts`, `hecks_approvals`, the
-        # partitioned journal), sets up its RLS fence, bridges a renamed
-        # domain's history (`rename_domain!`), and attaches each era's
-        # journal partition (`ensure_partition!`) — the build-then-ATTACH
-        # dance that keeps a mint from stopping every writer.
+        # Owner-only schema bootstrap: lineage tables, the RLS fence, the domain rename
+        # bridge, and per-era journal partitions.
         module Provisioning
-          # Builds or tops up this domain's lineage schema when the connected role
-          # owns the journal (or no journal exists yet); for any other role it only
-          # attempts the `formerly_known_as` rename bridge, when one is declared, and
-          # leaves the schema as the owner built it.
+          # Builds or tops up this domain's lineage schema when the connected role owns the
+          # journal (or none exists yet); any other role only attempts the rename bridge.
           #
-          # Provisioning is the owner's job, and a deployment's app role is
-          # deliberately not the owner — it may append and read, and it
-          # owns nothing. By the time such a role connects, the base is
-          # already built, so its boot verifies rather than builds.
-          #
-          # Without this guard the per-era fence below is unreachable: the
-          # ALTER TABLE and REVOKE here are owner-only, so the very role
-          # grant_era! exists to constrain could never finish booting
-          # ("must be owner of table hecks_eras"). A fence nothing can
-          # reach is not a fence.
-          # One bootstrap sequence of DDL, order-dependent throughout —
-          # every guarded ALTER (RLS, REVOKE) is guarded and placed
-          # exactly where it is for measured, documented reasons (see the
-          # inline comments on each: catalog-lock avoidance, RLS timing,
-          # `FORCE` semantics). Splitting this into smaller methods would
-          # only hide that single ordered sequence behind several call
-          # sites, with nothing gained — each statement already reads as
-          # one step, and the length here is DDL, not branching logic.
+          # ALTER TABLE and REVOKE are owner-only, so a non-owner app role must skip them to boot.
           #
           # @return [void]
           # @raise [Runtime::WiringError] if the `formerly_known_as` rename cannot take
@@ -55,12 +32,10 @@ module Hecks
             SQL
             @db.exec("ALTER TABLE hecks_eras ADD COLUMN IF NOT EXISTS held_digest text")
             @db.exec("ALTER TABLE hecks_eras ADD COLUMN IF NOT EXISTS held_projection jsonb")
-            # which canonical-form version minted this name — see
-            # Runtime::StorageShape::FORM_VERSION; rows minted before the
-            # column carry NULL, read as an implicit 1
+            # Canonical-form version that minted the name (Runtime::StorageShape::FORM_VERSION);
+            # NULL reads as 1.
             @db.exec("ALTER TABLE hecks_eras ADD COLUMN IF NOT EXISTS canon_form int")
-            # every frozen text version, archived where an edit cannot
-            # reach it — the recovery the hard reattest refusal points at
+            # Every frozen text version, archived where an edit cannot reach it.
             @db.exec(<<~SQL)
               CREATE TABLE IF NOT EXISTS hecks_era_texts (
                 domain      text NOT NULL,
@@ -82,10 +57,8 @@ module Hecks
               )
             SQL
             @db.exec("CREATE SEQUENCE IF NOT EXISTS #{quote(sequence)}")
-            # `GENERATED ALWAYS AS IDENTITY` is the intent, but identity
-            # columns on partitioned tables need Postgres 17 — an owned
-            # sequence default is the same spanning ordinal on any
-            # supported server.
+            # An owned sequence default, not GENERATED ALWAYS AS IDENTITY, which
+            # partitioned tables only support from Postgres 17.
             @db.exec(<<~SQL)
               CREATE TABLE IF NOT EXISTS #{quoted_journal} (
                 ordinal      bigint NOT NULL DEFAULT nextval('#{sequence}'),
@@ -98,83 +71,27 @@ module Hecks
               ) PARTITION BY LIST (era)
             SQL
             ensure_partition!(1)
-            # Immutability by privilege: nothing updates or deletes journal
-            # rows. The owner's implicit rights remain (Postgres has no way
-            # to revoke them from the owner itself); a deployment's app
-            # role connects as a non-owner and gets exactly INSERT, per
-            # era, at mint time.
+            # Journal rows are immutable by privilege: nothing updates or deletes them.
+            # The REVOKE is guarded because it rewrites pg_class.relacl and takes a lock
+            # even when nothing changes, so concurrent reboots would race into
+            # `tuple concurrently updated`.
             #
-            # Guarded, same reasoning as the RLS ALTER TABLE calls just
-            # below: REVOKE still writes pg_class.relacl (and takes the
-            # matching lock) even when the resulting privileges are
-            # unchanged, so an unconditional reissue on every ordinary
-            # reboot races two concurrent boots into
-            # `PG::InternalError: tuple concurrently updated` — read
-            # first, touch the catalog only on the boot that actually
-            # needs to.
-            #
-            # `relacl IS NULL`, not `has_table_privilege('public', ...,
-            # 'UPDATE')` — found live, not assumed: a brand-new table's
-            # `PUBLIC` privilege is already "no UPDATE" by Postgres's own
-            # default (nothing has ever been explicitly granted to
-            # `PUBLIC`), so `has_table_privilege` answers false both before
-            # the REVOKE has ever run and after it has — indistinguishable
-            # by that check alone. Guarding on it means the very first
-            # boot's own REVOKE never actually runs, `relacl` stays NULL
-            # forever, and "journal rows accept no `UPDATE`/`DELETE` from
-            # `PUBLIC`" is true only by accident of Postgres's default, not
-            # by the explicit privilege revocation this method exists to
-            # record.
-            # `relacl IS NULL` means "default ACL, nothing explicit yet" —
-            # exactly the one-time signal needed, and (like the RLS flags
-            # below) `pg_table_is_visible(oid)`, not a bare relname match,
-            # for the same shared-instance/storehouse reason.
+            # The guard is `relacl IS NULL`, not has_table_privilege('public', ..., 'UPDATE'):
+            # a new table already answers "no UPDATE", so that check would skip the first
+            # REVOKE and leave relacl NULL forever. pg_table_is_visible(oid), not a bare
+            # relname match, so a sibling schema's same-named table is never mistaken for ours.
             relacl_null = @db.exec_params(
               "SELECT relacl IS NULL FROM pg_class WHERE relname = $1 AND pg_table_is_visible(oid)", [journal]
             ).getvalue(0, 0)
             @db.exec("REVOKE UPDATE, DELETE ON #{quoted_journal} FROM PUBLIC") if relacl_null == "t"
-            # RLS goes on at provisioning, never mid-life — enabling it
-            # later would deny every role that has no policy yet, on
-            # whatever the shape of the schema happened to be at that
-            # moment.
+            # RLS goes on at provisioning, never mid-life: enabling it later would deny
+            # every role that has no policy yet.
             #
-            # `FORCE`, not merely `ENABLE`: without it, the table owner is
-            # exempt from every policy here, by Postgres default — which
-            # would leave the schema writable forever to whoever holds
-            # the owner's credentials, the one connection this whole
-            # design cannot fence. Checked, not assumed: mint_era! never
-            # inserts into the journal at all (only hecks_eras/
-            # hecks_era_texts, neither RLS-protected), and merge_tail!'s
-            # one journal INSERT targets the current era, which the fence
-            # already admits for anyone with base privileges — so `FORCE`
-            # costs the owner nothing operations here actually need.
+            # FORCE, not just ENABLE, or the table owner is exempt from every policy. A
+            # superuser or BYPASSRLS role stays exempt regardless (see check_fence_applies!).
             #
-            # This still exempts an actual Postgres superuser (or any
-            # role granted BYPASSRLS) unconditionally — `FORCE` only
-            # narrows what `ENABLE` already narrows for the owner
-            # specifically, and superuser bypass sits above both. Running
-            # migrations as a real superuser (self-hosted Postgres, most
-            # commonly) leaves this gap open regardless; a managed
-            # provider's admin account is typically not a superuser, and
-            # is exactly what `FORCE` closes.
-            #
-            # Guarded, not reissued unconditionally — measured, not
-            # assumed: `ALTER TABLE ... ENABLE/FORCE ROW LEVEL SECURITY`
-            # takes AccessExclusiveLock even when the setting is already
-            # correct (Postgres does not skip the lock just because the
-            # statement would be a no-op). ensure_base! runs on every
-            # boot by the owning role, not only the first — so an
-            # unconditional reissue here would mean every ordinary
-            # reboot of the deployment's own identity re-freezes every
-            # concurrent writer, on any era, for as long as that
-            # ALTER TABLE has to wait its turn. Read the current state first;
-            # touch the catalog only on the boot that actually needs to.
-            # pg_table_is_visible, not a bare relname match — a shared
-            # instance (storehouse) can hold a same-named journal table
-            # per schema; catalog lookups here must resolve the same way
-            # search_path resolves an unqualified SQL reference, or a
-            # sibling domain's table satisfies a query meant for this
-            # domain's own.
+            # Guarded: ENABLE/FORCE takes an AccessExclusiveLock even as a no-op, and this
+            # runs on every boot, so an unconditional reissue would freeze concurrent writers.
             current = @db.exec_params(
               "SELECT relrowsecurity, relforcerowsecurity FROM pg_class " \
               "WHERE relname = $1 AND pg_table_is_visible(oid)", [journal]
@@ -184,48 +101,16 @@ module Hecks
             install_transforms!
           end
 
-          # Moves a renamed domain's journal, sequence, partitions and lineage rows
-          # from `formerly_known_as` to the current domain name, in one transaction.
+          # Moves a domain's journal, sequence, partitions and lineage rows from
+          # `formerly_known_as` to the current name, in one transaction.
           #
-          # **A domain's own identity changed** — bridge its history under the
-          # new name, before `provisioner?`/the CREATE TABLE IF NOT EXISTS
-          # block in `ensure_base!` ever run. That ordering is load-bearing, not
-          # tidiness: `provisioner?` and every statement in ensure_base!
-          # test for the journal under `journal` — the new name — and a
-          # freshly-renamed domain looks, to those checks, exactly like a
-          # domain that has never been provisioned at all. Called any later,
-          # ensure_base! would happily CREATE TABLE IF NOT EXISTS
-          # a brand-new, empty journal under the new name before
-          # this method ever got a chance to run — and the
-          # `ALTER TABLE ... RENAME` here would then fail, renaming onto a
-          # name that already exists.
-          #
-          # Three-way precheck, cheapest first:
-          #   1. no hecks_eras table at all yet — a genuinely fresh
-          #      database; nothing to bridge, fall through to the
-          #      ordinary provisioning path.
-          #   2. hecks_eras already has rows under the new name — this
-          #      rename already ran (a prior boot, possibly this one on a
-          #      retry); idempotent no-op.
-          #   3. hecks_eras has rows under the old name — run the
-          #      migration.
-          # Anything else (no rows under either name) falls through
-          # harmlessly — `formerly_known_as` pointing at a name with no
-          # held history is not an error, just inert.
-          #
-          # One transactional migration, with the three-way precheck above
-          # and a fixed lock-acquisition order
-          # (old before new, eras before ordinal) chosen specifically to
-          # avoid a deadlock against a concurrent rename/mint/write.
-          # Splitting this would separate the precheck from the locking
-          # from the renames from the commit/rollback handling — each a
-          # piece of one transaction that must stay in this exact order
-          # or the deadlock-avoidance guarantee stops holding.
+          # Runs before `provisioner?` and the CREATE TABLE calls in `ensure_base!`; a no-op when
+          # `hecks_eras` is missing, the new name has rows, or the former name has none.
+          # Locks go in a fixed order (old before new, eras before ordinal) so nothing deadlocks.
           #
           # @return [void]
-          # @raise [Runtime::WiringError] if the domain locks are not granted within 10s
-          #   (`PG::LockNotAvailable`), or Postgres refuses any statement here, the
-          #   prechecks included (`PG::Error`, message carried over); both roll back first
+          # @raise [Runtime::WiringError] if the locks are not granted within 10s or Postgres
+          #   refuses a statement (prechecks included); both roll back first
           # rubocop:disable-next Metrics/AbcSize
           # rubocop:disable-next Metrics/MethodLength
           def rename_domain!
@@ -245,10 +130,6 @@ module Hecks
 
             @db.exec("BEGIN")
             @db.exec("SET LOCAL lock_timeout = '10s'")
-            # Fixed order — old before new, the `eras:` family before the
-            # `ordinal:` family — so two rename attempts (or a rename
-            # racing a mint/plain-write on either name) can only ever
-            # queue behind one another, never deadlock.
             [
               "hecks_eras:#{@formerly_known_as}", "hecks_eras:#{@domain}",
               "hecks_ordinal:#{@formerly_known_as}", "hecks_ordinal:#{@domain}"
@@ -257,18 +138,10 @@ module Hecks
             end
 
             @db.exec("ALTER TABLE #{quote(old_journal)} RENAME TO #{quote(journal)}")
-            # An owned `SERIAL`/`IDENTITY` sequence moves automatically with
-            # its table and errors if renamed explicitly — this one is a
-            # plain `CREATE SEQUENCE` the journal's `DEFAULT` merely points
-            # at (see ensure_base!), so it does need its own rename, and
-            # the column default survives untouched: Postgres stores
-            # nextval('...') as a regclass reference internally, not
-            # literal text.
+            # The sequence is a plain CREATE SEQUENCE, not owned by the column, so it
+            # does not move with the table and needs its own rename.
             @db.exec("ALTER SEQUENCE #{quote(old_sequence)} RENAME TO #{quote(sequence)}")
-            # `ALTER TABLE ... RENAME` on the parent does not cascade to
-            # child partition names — each one needs its own explicit
-            # rename, sourced from the ordinals held under the old name,
-            # captured above before the `UPDATE` below flips the column.
+            # Renaming the parent does not rename its partitions.
             ordinals.each do |ordinal|
               old_partition = "#{old_journal}_era_#{ordinal}"
               @db.exec("ALTER TABLE #{quote(old_partition)} RENAME TO #{quote(partition(ordinal))}")
@@ -277,10 +150,7 @@ module Hecks
             %w[hecks_eras hecks_era_texts hecks_approvals].each do |table|
               @db.exec_params("UPDATE #{table} SET domain = $1 WHERE domain = $2", [@domain, @formerly_known_as])
             end
-            # Unlike its siblings, hecks_attestations is not created in
-            # ensure_base! at all — only lazily, on first reattest! — so a
-            # domain that never needed one must not be forced through an
-            # `UPDATE` against a table that doesn't exist.
+            # hecks_attestations is created lazily on first reattest!, so it may not exist.
             if @db.exec_params(
               "SELECT to_regclass($1)", ["hecks_attestations"]
             )[0]["to_regclass"]
@@ -307,35 +177,11 @@ module Hecks
             raise Runtime::WiringError, "cannot rename #{@formerly_known_as} to #{@domain}: #{e.message.strip}"
           end
 
-          # Refuses to boot on a connection whose role Postgres exempts from row-level
-          # security — a superuser or a BYPASSRLS role — unless the caller opts in.
+          # Refuses to boot on a connection whose role Postgres exempts from row-level security
+          # (a superuser or BYPASSRLS role) unless the caller opts in.
           #
-          # **The fence has to be able to bite this connection, or nothing
-          # `ensure_base!` builds means anything**. The whole write-fence is
-          # row-level security (`FORCE ROW LEVEL SECURITY` above, plus
-          # advance_era!'s one INSERT policy), and Postgres exempts a
-          # superuser — or any role granted BYPASSRLS — from every policy
-          # on every table, unconditionally: `FORCE` only narrows the
-          # owner's exemption and has no lever against either of those.
-          # Found live, not reasoned about (BUG#24): the QA ledger's own
-          # `.world` named a bare database, so every session connected as
-          # the machine's default Postgres user — a superuser — and an
-          # old checkout wrote its own superseded era straight through
-          # two mints, 37 rows no newer head could read, and nothing
-          # warned. Asked of the catalog once, at boot, before anything
-          # is provisioned: the answer is a fact about the role, not about
-          # any table, so there is nothing to wait for and nothing to
-          # half-build first.
-          #
-          # Refuses by default — quiet divergence is the enemy — naming
-          # the role and both ways out. `allow_superuser` boots anyway,
-          # but says so on stderr on every boot, because the only guard
-          # left standing then is PostgresEra#append's own in-process
-          # superseded-era check (the belt to this suspender), and an
-          # operator reading the log deserves to know which one they are
-          # relying on. Presence-over-truthiness for the setting itself
-          # is `PostgresEra.setting`'s job (the caller's); here a truthy
-          # value opts in and anything else does not.
+          # Those roles bypass the write-fence, so a stale checkout could keep writing a
+          # superseded era unnoticed. With `allow_superuser` it boots and warns on stderr.
           #
           # @param allow_superuser [Boolean, Object, nil] any truthy value boots anyway
           #   with a warning on stderr; `false` or `nil` refuses
@@ -370,10 +216,6 @@ module Hecks
           # Tells whether this connection's role is the one that builds the schema:
           # it owns the domain's journal, or no journal is visible yet.
           #
-          # Nothing provisioned yet — build it. Provisioned and owned —
-          # keep it current. Provisioned by someone else — this is an app
-          # role, and the owner has already done this work.
-          #
           # @return [Boolean] true when no journal table is visible on the search path
           #   or `current_user` owns it; false when another role owns it
           # @raise [PG::Error] if the catalog lookup fails
@@ -389,25 +231,10 @@ module Hecks
           # Creates and attaches one era's journal partition, unless it is already
           # attached; finishes the attach for a table a crashed boot left detached.
           #
-          # **Build, then ATTACH** — never CREATE ... PARTITION OF. The two
-          # produce the same partition; only the lock differs, and that
-          # difference is the whole availability story of a mint:
-          #
-          #   CREATE TABLE ... PARTITION OF  → AccessExclusiveLock (parent)
-          #   CREATE, then ALTER ... ATTACH  → ShareUpdateExclusiveLock
-          #
-          # AccessExclusive conflicts with every insert in the hierarchy —
-          # routed through the parent or addressed to an existing leaf —
-          # so attaching the new era that way inside the mint transaction
-          # stops every writer for the whole mint, tail materialization
-          # included. ShareUpdateExclusive conflicts with neither, so the
-          # old checkout keeps writing its own era straight through the
-          # build and only pauses for the head swap at the end.
-          #
-          # That is what makes the fork real during a mint rather than
-          # merely before and after one. Measured, and pinned by the spec
-          # — which writes through a live mint rather than reading a lock
-          # mode out of the catalog.
+          # Build then ATTACH, never CREATE ... PARTITION OF: the latter takes an
+          # AccessExclusiveLock on the parent and stops every writer for the whole mint,
+          # while ATTACH takes only ShareUpdateExclusiveLock, so a running checkout keeps
+          # writing through the build.
           #
           # @param era [Integer] ordinal of the era whose partition is ensured
           # @return [void]
@@ -429,9 +256,8 @@ module Hecks
           # Tells whether an era's partition is part of the journal, by asking
           # `pg_inherits` rather than checking that the table exists.
           #
-          # Attached, not merely present: a crash between the `CREATE` and
-          # the ATTACH leaves a table that is not yet part of the journal,
-          # and the next boot must finish the job rather than skip it.
+          # A table left by a crash between CREATE and ATTACH exists but is not attached,
+          # and the next boot must finish the job.
           #
           # @param era [Integer] ordinal of the era whose partition is looked up
           # @return [Boolean] true when the partition is attached to this domain's

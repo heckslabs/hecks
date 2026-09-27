@@ -1,33 +1,5 @@
-//! `hecks-parse` — the fresh, purpose-built Rust parser for hecks's
-//! own `.bluebook` DSL (Stage 1 of the 8-stage Rust port plan).
-//!
-//! Stage 1: crate skeleton, lexer, generated keyword table, and all four
-//! parsing gates wired — with every per-construct handler
-//! (`parse::aggregate`, `parse::entity`, ...) stubbed to a clear
-//! `not_yet_implemented` diagnostic. The differential harness
-//! (`spec/parser_parity_spec.rb`, `spec/parser_coverage_spec.rb`) exists
-//! and runs green, with an itemized pending list, before this parser
-//! implements anything real — that ordering is the plan's actual
-//! methodological difference from two previous, failed hand-written
-//! Rust bluebook parsers (see the plan's own framing).
-//!
-//! The four gates every line goes through (see parse/mod.rs and lex.rs
-//! for where each actually lives):
-//!   1. shape     — a line must be one of a small fixed set of forms;
-//!                  bare Ruby expressions/`if`/local assignment are hard
-//!                  errors (lex.rs::classify).
-//!   2. word      — the leading identifier must hit a row in the
-//!                  generated `keywords.rs::KEYWORDS` table for the
-//!                  current context (parse::word_gate).
-//!   3. body      — `none`/`keywords`/`source`/`rows` must match what
-//!                  actually follows (parse::body_gate).
-//!   4. argument  — positional/named count and lexical kind must match
-//!                  the declared `keywords.rs::ARGUMENTS` row(s)
-//!                  (parse::argument_gate).
-//!
-//! **No lenient/best-effort mode, ever.** An unrecognized construct is
-//! always a hard error, never silently skipped — see diag.rs's own
-//! header for why this is the single most important invariant here.
+//! `hecks-parse`: parses `.bluebook` files into `ir.json` and reports the constructs it covers.
+//! Every line passes four gates (shape, word, body, argument); unknown constructs are errors.
 
 mod build;
 mod canonical;
@@ -83,12 +55,7 @@ fn run(args: &[String]) -> Result<(), RunError> {
     }
 }
 
-/// `hecks-parse chapter --chapter <Name> <files...>` — emits that
-/// chapter's `ir.json` on stdout. Most real chapters parse for real now
-/// (spec/parser_parity_spec.rb's REAL_PARITY_MEMBERS); "not yet
-/// implemented" is expected only for a member still on that spec's own
-/// PENDING_MEMBERS table, or an unsupported construct inside an
-/// otherwise-real chapter (see parse::chapter's own header).
+/// `hecks-parse chapter --chapter <Name> <files...>`: emits the chapter's `ir.json` on stdout.
 fn run_chapter(args: &[String]) -> Result<(), RunError> {
     let mut chapter_name: Option<String> = None;
     let mut files: Vec<String> = Vec::new();
@@ -123,30 +90,10 @@ fn run_chapter(args: &[String]) -> Result<(), RunError> {
     Ok(())
 }
 
-/// `hecks-parse resolve --chapter <Name> <file.hecksagon>` — `{"domain":
-/// "<Name>", "uses_framework": [...], "uses_embryonaut_bluebook": [...]}`.
-/// Stage 8: real, not a stub — `parse::chapter::
-/// resolve_hecksagon_dependencies` walks every top-level `Hecks.hecksagon
-/// "..." do ... end` block in the file (fail-closed gated, exactly like
-/// `chapter`'s own `.hecksagon` handling), applies only the block whose
-/// own declared name matches `--chapter`, and returns every
-/// `uses_framework "X"` and `uses_embryonaut_bluebook "X"` argument it
-/// names, each in file order — a vendored package attaches onto the
-/// same registry the same `Kernel.load` way a framework member does
-/// (`lib/hecks/embryonaut_bluebook.rb`'s own header), so the opt-in
-/// pipeline orchestration needs both facts from the one scan.
+/// `hecks-parse resolve --chapter <Name> <file.hecksagon>`: prints that chapter's
+/// `uses_framework` and `uses_embryonaut_bluebook` names as JSON, in file order.
 ///
-/// `--chapter` is required, a deliberate departure from the plan's own
-/// original `hecks-parse resolve <file.hecksagon>` sketch (no chapter
-/// argument at all): a single `.hecksagon` file can declare more than
-/// one `Hecks.hecksagon` block (banking.hecksagon's own shape — a
-/// `"Banking"` block plus sibling `"Governance"`/`"Identity"` blocks,
-/// see `parse::chapter`'s own header), so "the domain" isn't something
-/// this file can safely infer on its own — the caller (`bin/project_
-/// rust`'s opt-in orchestration) already knows the target chapter's own
-/// declared name (read off its `.bluebook` file's header, the same way
-/// `hecks-parse chapter --chapter <Name> ...` already requires it
-/// upfront) and passes it through rather than have this command guess.
+/// `--chapter` is required because one file can hold several `Hecks.hecksagon` blocks.
 fn run_resolve(args: &[String]) -> Result<(), RunError> {
     let mut chapter_name: Option<String> = None;
     let mut path: Option<&String> = None;
@@ -195,49 +142,8 @@ fn run_resolve(args: &[String]) -> Result<(), RunError> {
     Ok(())
 }
 
-/// `hecks-parse coverage` — prints the `(word, context)` pairs actually
-/// implemented, as a JSON array of `[word, context]` pairs, for
-/// `spec/parser_coverage_spec.rb` to compare against `syntax.bluebook`'s
-/// own declared set (minus a shrinking, itemized allowlist).
-///
-/// Every pair listed here is a word this parser genuinely turns into real
-/// `ir::*` fields for some real corpus member's own real usage of it —
-/// confirmed by `spec/parser_parity_spec.rb`'s byte-exact comparison
-/// against Ruby's own `ir.json`, not just "the word gates cleanly." A
-/// word this crate merely gates but doesn't build real IR for (e.g.
-/// `entity`) stays off this list — reporting it here would be exactly
-/// the kind of claim this whole plan exists to make impossible.
-/// `identified_by`'s bare-field form (ADR 0025's live spelling, `build/
-/// identity.rs::resolve_identity_field`) joined the legacy type-form in
-/// building real IR, so the pair stays listed on the same terms it
-/// always was. Grouped by construct, in the same order
-/// `parse::mod::dispatch_stub` maps contexts.
-///
-/// Stage 2 built the first block (pizzas.bluebook). Stage 3 added the
-/// entries marked below. Stage 4 (banking.bluebook — entities, composite
-/// identity, process managers, read models with every query option,
-/// `provenance`, a nested `policy`, `belongs_to`, `on`'s blockless form —
-/// also confirmed by the concurrently-landed `compliance`/`interview`
-/// real corpus members, which this stage's own real construction work
-/// happened to fully cover too) adds the entries marked stage 4.
-///
-/// Stage 6 (the self-hosted grammar itself,
-/// `MetaValidator::GRAMMAR_FILES`'s discovered files parsed as one `Bluebook`
-/// chapter) adds `("list_of", "Type")`/`("one_of", "Type")` below,
-/// marked stage 6 — not new dispatch work (both have built real IR since
-/// Stage 2/3, `resolve_type_expression`'s own header: pizzas.bluebook's
-/// `list_of(Topping)`, console_settings.bluebook's inline
-/// `one_of("good", ...)`), but a pre-existing bookkeeping gap this stage
-/// closed while auditing every `(word, context)` pair the self-hosted
-/// grammar's own nine files genuinely exercise (every other pair they
-/// use — `aggregate`/`command`/`query`/`attribute`/`value_object`/
-/// `identified_by`/`reference_to`/`one_of`(ValueObject)/`member`/
-/// `invariant`/`given`/`sets`/`emits`/`role`/`goal`/`where`/`order_by`/
-/// `include`/`description`/`report`/`vision`/`core` in their various
-/// contexts — was already on this list). Confirmed by tracing every
-/// `next_line` dispatch while parsing the nine files for real (a
-/// temporary `eprintln!`, removed again once the audit was done) and
-/// cross-checking the traced set against this table by hand.
+/// `(word, context)` pairs this parser builds real IR for, printed by `hecks-parse coverage`.
+/// A word that is only gated, never built into IR, must stay off this list.
 const COVERED_PAIRS: &[(&str, &str)] = &[
     ("bluebook", "File"),
     ("hecksagon", "File"),
@@ -247,34 +153,32 @@ const COVERED_PAIRS: &[(&str, &str)] = &[
     ("generic", "Bluebook"),
     ("aggregate", "Bluebook"),
     ("policy", "Bluebook"),
-    ("process_manager", "Bluebook"), // Stage 4
-    ("provides", "Bluebook"),        // Phase 2a — `provides "authorization", ...`
+    ("process_manager", "Bluebook"),
+    ("provides", "Bluebook"),
     ("description", "Aggregate"),
-    ("provenance", "Aggregate"), // Stage 4
+    ("provenance", "Aggregate"),
     ("identified_by", "Aggregate"),
     ("attribute", "Aggregate"),
     ("value_object", "Aggregate"),
     ("lifecycle", "Aggregate"),
-    ("entity", "Aggregate"), // Stage 4
+    ("entity", "Aggregate"),
     ("query", "Aggregate"),
     ("command", "Aggregate"),
-    ("policy", "Aggregate"),       // Stage 4
-    ("reference_to", "Aggregate"), // Stage 3
-    ("belongs_to", "Aggregate"),   // Stage 4
-    ("description", "Entity"),     // Stage 4
-    ("identified_by", "Entity"),   // Stage 4
-    ("attribute", "Entity"),       // Stage 4
-    ("command", "Entity"),         // Stage 4
-    ("query", "Entity"),           // Stage 4
-    ("lifecycle", "Entity"),       // Stage 4
+    ("policy", "Aggregate"),
+    ("reference_to", "Aggregate"),
+    ("belongs_to", "Aggregate"),
+    ("description", "Entity"),
+    ("identified_by", "Entity"),
+    ("attribute", "Entity"),
+    ("command", "Entity"),
+    ("query", "Entity"),
+    ("lifecycle", "Entity"),
     ("role", "Command"),
     ("goal", "Command"),
     ("reference_to", "Command"),
     ("given", "Command"),
-    ("ensures", "Command"), // Stage 4
+    ("ensures", "Command"),
     ("sets", "Command"),
-    // Parsed and byte-matched by parser parity (banking/chess), but never
-    // listed here until the pending audit checked each pair in context.
     ("corrects", "Command"),
     ("delegates_to", "Command"),
     ("given", "Aggregate"),
@@ -291,22 +195,22 @@ const COVERED_PAIRS: &[(&str, &str)] = &[
     ("invariant", "ValueObject"),
     ("member", "OneOf"),
     ("transition", "Lifecycle"),
-    ("description", "Query"), // Stage 3
+    ("description", "Query"),
     ("attribute", "Query"),
     ("where", "Query"),
     ("order_by", "Query"),
-    ("limit", "Query"),     // Stage 4
-    ("authorize", "Query"), // Stage 4
+    ("limit", "Query"),
+    ("authorize", "Query"),
     ("on", "Policy"),
     ("trigger", "Policy"),
-    ("across", "Policy"),                // Stage 4
-    ("where", "Policy"),                 // chess, roster
-    ("for_each", "Policy"),              // banking
-    ("correlates_by", "ProcessManager"), // Stage 4
-    ("starts_on", "ProcessManager"),     // Stage 4
-    ("ends_on", "ProcessManager"),       // Stage 4
-    ("transition", "ProcessManager"),    // banking, settlement (was `state`/`on`)
-    ("dispatch", "Handler"),             // Stage 4
+    ("across", "Policy"),
+    ("where", "Policy"),
+    ("for_each", "Policy"),
+    ("correlates_by", "ProcessManager"),
+    ("starts_on", "ProcessManager"),
+    ("ends_on", "ProcessManager"),
+    ("transition", "ProcessManager"),
+    ("dispatch", "Handler"),
     ("port", "Hecksagon"),
     ("translates", "Hecksagon"),
     ("bounded", "Hecksagon"),
@@ -314,18 +218,18 @@ const COVERED_PAIRS: &[(&str, &str)] = &[
     ("reference_to", "PortOperation"),
     ("attribute", "PortOperation"),
     ("emits", "PortOperation"),
-    ("read_model", "Bluebook"),    // Stage 3
-    ("description", "ReadModel"),  // Stage 3
-    ("include", "ReadModel"),      // Stage 3
-    ("group_by", "ReadModel"),     // Stage 3
-    ("count", "ReadModel"), // real, this session — banking.bluebook's own DisputedPaymentCount
-    ("median", "ReadModel"), // real, this session — banking.bluebook's own DisputedPaymentMedian
-    ("reference_to", "ReadModel"), // Stage 4
-    ("where", "ReadModel"), // Stage 4
-    ("order_by", "ReadModel"), // Stage 4
-    ("limit", "ReadModel"), // Stage 4
-    ("list_of", "Type"),    // Stage 6 (bookkeeping — see this const's own header)
-    ("one_of", "Type"),     // Stage 6 (bookkeeping — see this const's own header)
+    ("read_model", "Bluebook"),
+    ("description", "ReadModel"),
+    ("include", "ReadModel"),
+    ("group_by", "ReadModel"),
+    ("count", "ReadModel"),
+    ("median", "ReadModel"),
+    ("reference_to", "ReadModel"),
+    ("where", "ReadModel"),
+    ("order_by", "ReadModel"),
+    ("limit", "ReadModel"),
+    ("list_of", "Type"),
+    ("one_of", "Type"),
 ];
 
 fn run_coverage(_args: &[String]) -> Result<(), RunError> {

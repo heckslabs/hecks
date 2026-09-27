@@ -19,12 +19,8 @@ RSpec.describe "Banking across persistence adapters" do
     FileUtils.remove_entry(@dir) if @dir
   end
 
-  # One fixture boot, declared whole — every aggregate's persisted_by/
-  # projected_by pairing has to be read alongside the same `projected`
-  # flag deciding whether that pairing applies at all; splitting this
-  # into smaller methods would mean threading `adapter`/`projected`/
-  # `root` through each one for no gain over reading the whole boot in
-  # one place.
+  # One fixture boot, kept whole: each aggregate's persisted_by/projected_by pairing depends
+  # on the same `projected` flag, so splitting it would only thread arguments through.
   # rubocop:disable-next Metrics/AbcSize
   # rubocop:disable-next Metrics/CyclomaticComplexity
   # rubocop:disable-next Metrics/MethodLength
@@ -116,9 +112,7 @@ RSpec.describe "Banking across persistence adapters" do
     JSON.parse(JSON.generate(refusals: refusals, queries: queries, stores: stores))
   end
 
-  # A command is a Ruby class and answers `hecks_name`; a query is still an IR
-  # object and answers `name`. This walks both kinds, so it asks for whichever the
-  # declaration has — and collapses to `hecks_name` when queries cross over too.
+  # Commands answer `hecks_name`; queries are still IR objects that answer `name`.
   def verb_name(declaration)
     declaration.respond_to?(:hecks_name) ? declaration.hecks_name : declaration.name
   end
@@ -168,10 +162,9 @@ daily_limit: { cents: 1_000 })
       Hecks::Ports::Projection.worker(runtime.registry, "Banking", aggregate)
     end
     workers.each(&:catch_up!)
-    # Which repository, not which methods. `read_repository` hands back the
-    # authoritative store whenever the projection is judged stale, and Heki
-    # answers `query_read_model` too — so `respond_to` passed either way and
-    # a projection silently declining to serve would have read as success.
+    # Assert which repository, not which methods: `read_repository` falls back to the
+    # authoritative store when the projection is stale, and Heki also answers
+    # `query_read_model`, so a `respond_to` check would pass either way.
     customer = runtime.registry.bluebook("Banking").aggregate("Customer")
     projection_repository = runtime.registry.read_repository("Banking", customer)
     expect(projection_repository.adapter).to be_a(Hecks::Adapters::SqliteProjection)
@@ -180,8 +173,7 @@ daily_limit: { cents: 1_000 })
     expect(after).to eq(before)
     expect(workers.map(&:checkpoint)).to eq(workers.map { |worker| worker.projection.entries.length })
 
-    # Refresh is safe to repeat after a restart: it rebuilds from the durable
-    # authoritative journal without changing the report.
+    # Repeating the refresh after a restart rebuilds from the journal without changing the report.
     workers.each(&:catch_up!)
     expect(runtime.query("Banking.customer_portfolio", customer: "c")).to eq(after)
 
@@ -213,16 +205,14 @@ daily_limit: { cents: 1_000 })
     memory = boot("Memory", root: File.join(@dir, "read-model-memory"))
     sqlite = boot("SqlitePersistence", root: File.join(@dir, "read-model-sqlite"))
 
-    # Exercise the complete banking matrix before comparing the domain-level
-    # report. This ensures the read model sees the same successful commands,
-    # refusals, and aggregate heads as the corpus replay.
+    # Replay the full matrix first so the read model has seen the same commands, refusals
+    # and aggregate heads as the corpus replay.
     replay_matrix(memory)
     replay_matrix(sqlite)
 
     args = { customer: "CUST-0001" }
-    # SQLite returns JSON-decoded reference payloads with string keys while
-    # Memory retains symbol keys. Compare the wire representation so this
-    # checks report data parity rather than Ruby hash-key spelling.
+    # SQLite returns string-keyed reference payloads, Memory symbol-keyed; compare the wire
+    # form so only report data is checked.
     canonical = ->(rows) { JSON.parse(JSON.generate(rows)) }
     expect(canonical.call(sqlite.query("Banking.customer_portfolio", **args)))
       .to eq(canonical.call(memory.query("Banking.customer_portfolio", **args)))

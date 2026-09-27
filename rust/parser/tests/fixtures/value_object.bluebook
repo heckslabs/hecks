@@ -1,6 +1,4 @@
-# One hand-written case per grammar form — ValueObject (and, sharing its
-# own builder in Ruby, OneOf — see spec/syntax_conformance_spec.rb's
-# BUILDER table).
+# ValueObject fixture (OneOf shares its builder; see spec/syntax_conformance_spec.rb).
 Hecks.bluebook "FixtureValueObject" do
   aggregate "Widget" do
     value_object "Color" do

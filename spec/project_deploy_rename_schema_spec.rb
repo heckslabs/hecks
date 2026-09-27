@@ -2,23 +2,8 @@ require "tmpdir"
 require "fileutils"
 require "open3"
 
-# L20 (docs/audits/2026-08-10-main-bug-audit.md): interpolating
-# `$(OLD)`/`$(NEW)` unsanitized into SQL (a `nspname = '...'` lookup and an
-# `ALTER SCHEMA "..." RENAME TO "..."`) with nothing checking their shape
-# first would be a real hole -- operator-only (this is a `make rename-schema
-# OLD=<old> NEW=<new>` command line, not user-facing web input), but
-# against production RDS, so a typo'd or copy-pasted value containing SQL
-# metacharacters could execute unintended SQL. Fixed by allowlisting old
-# and new as bare identifiers (schema names can't be bound as a SQL
-# parameter the way a value can, so escaping isn't the available option --
-# refusing anything that isn't `^[A-Za-z_][A-Za-z0-9_]*$` is).
-#
-# Like spec/project_deploy_contract_spec.rb, this tests the thing that
-# actually matters in the real generated output, not a re-derivation of
-# the same Ruby text that produced it: bin/project_deploy is a script, not
-# a library (nothing to require), so the fixture below is generated once
-# and its Makefile's rename-schema recipe is inspected directly, the same
-# way an operator would encounter it.
+# Pins the `^[A-Za-z_][A-Za-z0-9_]*$` allowlist guard on `make rename-schema OLD=.. NEW=..`.
+# Reads a generated fixture Makefile, since bin/project_deploy is a script, not a library.
 RSpec.describe "bin/project_deploy's rename-schema OLD/NEW allowlist, in its own generated Makefile", :io do
   RENAME_SCHEMA_FIXTURE_BASENAME = "project_deploy_rename_schema_spec_fixture".freeze
 
@@ -66,19 +51,16 @@ RSpec.describe "bin/project_deploy's rename-schema OLD/NEW allowlist, in its own
 
   after(:context) { FileUtils.rm_rf(@generated_dir) }
 
-  # Stops at the next top-level target line, not just the next
-  # non-whitespace line -- the recipe's own leading comment lines start
-  # with `#`, which is non-whitespace too.
+  # Stops at the next top-level target, not the next non-whitespace line: recipe comments start
+  # with `#`.
   def rename_schema_recipe
     @makefile[/^rename-schema:\n(.*?)(?=^[A-Za-z_][A-Za-z0-9_.-]*:)/m, 1] or
       raise "no rename-schema recipe found in the generated Makefile"
   end
 
   it "gates the recipe on an OLD/NEW identifier-shape check before either reaches SQL" do
-    # Only the recipe's actual commands, not its leading comment lines --
-    # the comment above the guard itself explains what it protects by
-    # naming `nspname`/`ALTER SCHEMA`, which would otherwise look like an
-    # earlier "use" of them than the guard that runs before the real ones.
+    # Commands only: the guard's own leading comment names `nspname`/`ALTER SCHEMA` and would
+    # look like an earlier use.
     recipe = rename_schema_recipe.lines.reject { |line| line.lstrip.start_with?("#") }.join
 
     guard_old = recipe.index(/invalid OLD schema name/)
@@ -98,14 +80,8 @@ RSpec.describe "bin/project_deploy's rename-schema OLD/NEW allowlist, in its own
   end
 
   it "reads OLD/NEW as real shell environment variables for the guard, not Make-spliced text" do
-    # $(Old)/$(new) is Make substituting raw text into the recipe line
-    # *before* the shell ever parses it -- a value containing `"` or `;`
-    # would break out of the guard's own shell command and run before the
-    # pattern match sees it (confirmed live: this is exactly how it was
-    # bypassable while the guard used $(old)/$(new) instead of $$OLD/$$NEW).
-    # $$OLD/$$NEW is Make's escaping for a literal `$OLD`/`$NEW`, which the
-    # shell resolves as one opaque environment variable regardless of its
-    # contents -- `make` auto-exports command-line-assigned variables.
+    # Make substitutes $(old) into the recipe before the shell parses it, so a `"` or `;` would
+    # escape the guard. $$OLD/$$NEW reach the shell as opaque env vars (make exports CLI vars).
     recipe = rename_schema_recipe
     guard_lines = recipe.lines.select { |line| line.include?("grep -Eq") }
 
@@ -123,8 +99,7 @@ RSpec.describe "bin/project_deploy's rename-schema OLD/NEW allowlist, in its own
     raw_pattern = recipe[/grep -Eq '(\^\[A-Za-z_\]\[A-Za-z0-9_\]\*\$\$)'/, 1]
     expect(raw_pattern).not_to be_nil, "couldn't find the identifier pattern in the generated recipe"
 
-    # `$$` is Make's escaping for a literal `$` (the shell/grep never sees
-    # the doubled form) -- undo that to get the real regex grep runs.
+    # `$$` is Make's escape for `$`; undo it to get the regex grep actually runs.
     pattern = Regexp.new(raw_pattern.sub(/\$\$\z/, "$"))
 
     # rubocop:disable RSpec/IteratedExpectation -- each item gets its own failure message

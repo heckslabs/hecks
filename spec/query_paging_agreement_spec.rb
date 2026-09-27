@@ -1,19 +1,7 @@
 require "spec_helper"
 
-# Limit and offset together, on every engine, answering the same.
-#
-# `Ports::Query::InMemory` applied `limit` before `offset` — take n, then
-# drop m — where `SqlQueryBuilder` emits `LIMIT n OFFSET m`, which SQL
-# reads the other way round. So one declaration meant two different
-# things depending on where the aggregate happened to be stored, and
-# neither engine refused: a short page is indistinguishable from a page
-# that genuinely ran out of rows.
-#
-# The existing adapter-agreement gate did not catch it because nothing in
-# the corpus declares both words on one query — banking's `Overdrawn` has
-# a limit and no offset, and no query anywhere has an offset with a
-# limit. This is that missing case, written as the arithmetic rather than
-# as a comparison, so it holds even for an engine nobody has added yet.
+# Limit and offset together answer the same on every engine: skip m rows, then take n,
+# as SQL's LIMIT n OFFSET m reads. Stated as arithmetic so it holds for any new engine.
 RSpec.describe "limit and offset on one query" do
   def boot_pages
     registry = Hecks::Runtime::Registry.new
@@ -42,8 +30,6 @@ RSpec.describe "limit and offset on one query" do
             order_by :number
           end
 
-          # Page two, written the way anybody pages: skip a page, take a
-          # page. The bug made this answer nothing at all.
           query "SecondPage" do
             order_by :number
             limit 2
@@ -92,9 +78,7 @@ RSpec.describe "limit and offset on one query" do
     expect(numbers("SkipTwo")).to eq(%w[t-3 t-4 t-5])
   end
 
-  # The arithmetic, not a fixture — paging is only correct if the pages
-  # reassemble into the whole, in order, with nothing dropped or seen
-  # twice. Stated this way it stays true for any page size.
+  # Pages must reassemble into the whole, in order, with nothing dropped or repeated.
   it "reassembles every row exactly once across consecutive pages" do
     all = numbers("All")
     # AfterFirst is rows 2-3; SkipTwo starts at row 3, so one row of it

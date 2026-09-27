@@ -33,10 +33,8 @@ RSpec.describe "Memory execution-plan capabilities" do
     Hecks::Runtime::Loader.bind_runtime(Hecks::Runtime::Dispatcher.new(registry))
   end
 
-  # One instrumented `finds` counter tracked across three dispatches
-  # (first insert, duplicate-identity refusal, wrong-receiver refusal)
-  # proves the single end-to-end claim that atomic put never falls back
-  # to a read — splitting would lose the shared counter's continuity.
+  # One shared `finds` counter across three dispatches proves atomic put never falls back to a
+  # read; splitting the example would lose the counter's continuity.
   # rubocop:disable-next RSpec/ExampleLength
   it "uses atomic put only after a complete-state proof and reports its outcome" do
     runtime = boot_inventory
@@ -58,13 +56,8 @@ RSpec.describe "Memory execution-plan capabilities" do
     expect(inserted.execution_plan).to be_state_independent
     expect(inserted.persistence_outcome.status).to eq(:inserted)
 
-    # A second creation is not a fresh one. `Register` is a creating command
-    # (no reference_to — nothing to act on yet), so a second dispatch at the
-    # same identity refuses instead of silently replacing what the first one
-    # wrote — the adapter's own `insert_only:` conflict check decides this
-    # atomically (still zero `find` calls below: the conflict check reuses
-    # the adapter's own native existence check, never the interpreter
-    # reading the record first to ask).
+    # A second creation at the same identity refuses instead of replacing; the adapter's
+    # `insert_only:` check decides it atomically, so `find` stays at zero.
     expect do
       runtime.dispatch(
         "Inventory::Item.Register",

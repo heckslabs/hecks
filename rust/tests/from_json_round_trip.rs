@@ -1,21 +1,6 @@
-// Verifies the mechanical claim `emit_from_json_state`'s own header
-// (rust/project/json_codec.rb) makes: it's the true inverse of
-// `emit_to_json_flat` for a real aggregate record — `to_json().
-// from_json()` should reproduce an equal struct, round-tripping through
-// the exact "key always present, Json::Null for an unset Option field"
-// shape `to_json` actually emits (not the "key absent" shape
-// command-args `from_json` expects — see that method's own header on
-// why it's a distinct emitter from `emit_from_json_flat`). Exists for
-// `Store::from_seed`'s own sake: if this round trip doesn't hold, a
-// host seeding prior state back into a fresh Store (rather than
-// replaying full command history) would silently corrupt it.
-//
-// Only compiles/runs when the banking domain is the currently-generated
-// one (`bin/project_rust examples/banking`) — Cargo.toml's own
-// per-domain feature gate, kept in sync by bin/project_rust. Uses a
-// real dispatched record (via `dispatch_by_name`), not a hand-built
-// struct literal — the actual shape a `Store` produces, not a
-// synthetic approximation of it.
+// `to_json().from_json()` must reproduce an equal record, including `Json::Null` for unset
+// Option fields; `Store::from_seed` would otherwise silently corrupt seeded state.
+// Compiles only when banking is the generated domain (bin/project_rust examples/banking).
 #![cfg(feature = "banking")]
 
 use rust::generated::active::{dispatch_by_name, Store};
@@ -45,14 +30,7 @@ fn a_dispatched_record_round_trips_through_to_json_and_from_json() {
     assert_eq!(original, parsed, "round-tripping a record through to_json/from_json should reproduce it exactly");
 }
 
-// **The sharper proof** — an attribute genuinely left `None` (not just
-// "happens to be Some for every field a Register call sets") must
-// round-trip too, since that's the entire reason emit_from_json_state
-// exists as a separate emitter: `standing`/`status` are set by
-// Register, but nothing about a freshly-created Customer sets every
-// possible optional field on every aggregate in this domain — Account's
-// own optional fields are a cleaner, more direct proof: `AtmCard`
-// issuance leaves fields unset that a later command fills in.
+// An attribute genuinely left `None` must round-trip as `None`, not a refusal.
 #[test]
 fn an_unset_optional_field_round_trips_as_none_not_a_refusal() {
     let mut store = Store::new();
@@ -76,13 +54,7 @@ fn an_unset_optional_field_round_trips_as_none_not_a_refusal() {
     assert_eq!(original, parsed, "an account with unset optional fields should still round-trip exactly");
 }
 
-// **The entity case specifically** — never exercised before this pass
-// (entities had no from_json at all). SafeDepositBox.visits is a
-// `Vec<Visit>`, so the record's own from_json only round-trips
-// correctly if `Visit::from_json` (also newly generated) does too, one
-// visit logged with a note and one left `None` — the same "unset
-// optional round-trips as None" proof, one level of nesting deeper,
-// plus the entity's own lifecycle field.
+// Entities in a `Vec` (SafeDepositBox.visits) round-trip, with and without an optional note.
 #[test]
 fn a_record_holding_entities_with_and_without_an_optional_field_round_trips() {
     let mut store = Store::new();
@@ -108,8 +80,7 @@ fn a_record_holding_entities_with_and_without_an_optional_field_round_trips() {
     dispatch_by_name(&mut store, "Banking::SafeDepositBox.LogVisit", &visit_with_note, None, None, &mut mutations)
         .expect("logging a visit with a note should succeed");
 
-    // note left unset — the entity-level version of the same proof
-    // above, and the one this test exists for.
+    // note left unset
     let visit_without_note = Json::obj(vec![
         ("branch_code", Json::obj(vec![("value", Json::str("downtown"))])),
         ("box_number", Json::obj(vec![("value", Json::int(12))])),
@@ -129,12 +100,7 @@ fn a_record_holding_entities_with_and_without_an_optional_field_round_trips() {
     assert_eq!(original, parsed, "a record holding entities (with and without their own optional field) should round-trip exactly");
 }
 
-// The actual point of all the above — `Store::from_seed` is what a host
-// (rust/host) would call instead of `Store::new()` to stop replaying
-// full command history: seed a fresh Store from a prior `instances()`
-// dump, then dispatch is one call, not a full replay. If `instances()`
-// and `from_seed` aren't true inverses, a seeded Store silently
-// diverges from the real one it's meant to stand in for.
+// `Store::from_seed` must invert `instances()`, or a seeded Store diverges from the original.
 #[test]
 fn a_seeded_store_matches_the_store_it_was_seeded_from() {
     let mut original_store = Store::new();
@@ -158,10 +124,7 @@ fn a_seeded_store_matches_the_store_it_was_seeded_from() {
         "a Store seeded from another Store's own instances() dump should produce the identical dump back"
     );
 
-    // And it's usable, not just structurally equal — dispatching a new
-    // command against the seeded store should see the seeded state
-    // (the customer it never itself registered), the entire reason a
-    // host would seed instead of replay in the first place.
+    // Usable, not just equal: the seeded store sees state it never registered itself.
     let credit_args = Json::obj(vec![
         ("number", Json::obj(vec![("value", Json::str("acct-rt-2"))])),
         ("amount", Json::obj(vec![("cents", Json::int(500)), ("currency", Json::str("USD"))])),
