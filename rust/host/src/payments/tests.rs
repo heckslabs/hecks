@@ -299,7 +299,7 @@ impl Tenant {
     }
 
     async fn schedule_event_with_capacity(&self, slug: &str, capacity: i64) {
-        let args = json!({"slug": {"value": slug}, "name": {"value": "Yogadelics"}, "price": {"cents": 4200}, "capacity": {"value": capacity}});
+        let args = json!({"slug": {"value": slug}, "name": {"value": "Sample Studio"}, "price": {"cents": 4200}, "capacity": {"value": capacity}});
         let outcome = dispatch::handle(&self.client, &self.wasm, "CheckoutFixture::Event.Schedule", args, None, &self.config, &NeverInvoker).await.unwrap();
         assert!(outcome.accepted, "{:?}", outcome.result);
     }

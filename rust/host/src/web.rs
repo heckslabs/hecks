@@ -183,12 +183,12 @@ fn redirect_uri() -> String {
 // it expected data, and only notices when parsing fails.
 //
 // Redirecting both the same way would silently break
-// embryonautfoundersapp's own CI assertion (`curl -o /dev/null -w
+// a console app's own CI assertion (`curl -o /dev/null -w
 // '%{http_code}' /api/clients` is `401`) the moment the same domain is
 // served by this host instead of the Ruby console engine — a gap found
 // in production, not by a test.
 //
-// The rule is the Ruby engine's rule (embryonaut_console's
+// The rule is the Ruby engine's rule (the console app's
 // `web/app.rb` `before` filter: UNGATED_PATHS pass, then `/api/` gets
 // `halt 401, json({error:, message:})`, everything else redirects),
 // plus the one request shape that engine has no equivalent for — this
@@ -869,7 +869,7 @@ async fn google_callback(
 
     let Some(session) = session else { return redirect("/login?error=google_unlinked") };
 
-    // The Lifeadelics admin (Astro) authenticates on the account cookie,
+    // The site's admin (Astro) authenticates on the account cookie,
     // not rust/host's own Governance `session` cookie. Mint the same
     // account_token that /accounts/me and /accounts/sso-token verify. Same origin (production):
     // set the cookie here and send the browser to /admin.html. Different
@@ -2016,7 +2016,7 @@ mod tests {
     // The bug these pin: without the gate's two-answer split, every
     // unauthenticated request would get the same 302 to /login, so a
     // JSON caller would follow the redirect and parse a login page.
-    // embryonautfoundersapp's CI asserts a 401 on
+    // a console app's CI asserts a 401 on
     // `/api/clients`; the Ruby console engine gives it one.
 
     fn status(response: &Value) -> u64 {
@@ -2029,7 +2029,7 @@ mod tests {
 
         assert_eq!(status(&refusal), 401);
         assert_eq!(refusal["headers"]["content-type"], "application/json");
-        // Byte-for-byte embryonaut_console web/app.rb's own
+        // Byte-for-byte the console app's own web/app.rb
         // `halt 401, json({ error: "Unauthenticated", message: "sign in first" })`.
         assert_eq!(refusal["body"], r#"{"error":"Unauthenticated","message":"sign in first"}"#);
         assert!(refusal["headers"].get("location").is_none(), "a JSON caller must not be redirected: {refusal}");

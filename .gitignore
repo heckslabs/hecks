@@ -39,10 +39,6 @@ vendor/bundle/
 # real from a checkout that also runs `git status`, so nothing had
 # needed this entry before.
 .aws-sam/
-# lifeadelics's recipe is generated from its own repo's .world file
-# (bin/project_deploy <its domain> --out=<its repo>); a copy under this
-# repo's deploy/ goes stale and leaks a client into hecks.
-/deploy/lifeadelics/
 # banking's recipe is the recipe of a live stack that belongs to the
 # organisation running it, generated from its own environment overlay;
 # it is kept in that organisation's repo, and a copy under this repo's

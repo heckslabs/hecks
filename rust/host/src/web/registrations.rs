@@ -830,7 +830,7 @@ mod tests {
 
     async fn schedule_event(client: &Mutex<Client>, wasm_path: &Path, config: &LineageConfig, slug: &str, price_cents: i64) {
         let args = json!({
-            "slug": {"value": slug}, "name": {"value": "Yogadelics"},
+            "slug": {"value": slug}, "name": {"value": "Sample Studio"},
             "price": {"cents": price_cents}, "capacity": {"value": 20},
         });
         let outcome = dispatch::handle(client, wasm_path, "CheckoutFixture::Event.Schedule", args, None, config, &lambda_client::NeverInvoker)
@@ -1456,10 +1456,10 @@ mod tests {
 
     // A caller's own `return_to` (the page the guest was actually
     // registering from) drives the redirect, not the event's own
-    // slug -- the exact bug found live: a real Yogadelics registration
-    // succeeded but then redirected to /yogadelics-friday-september-5.html
+    // slug -- the exact bug found live: a real Sample Studio registration
+    // succeeded but then redirected to /sample-studio-friday-september-5.html
     // (the domain Event's own internal slug, never a real page route)
-    // instead of back to /yogadelics.html, 404ing every real guest right
+    // instead of back to /sample-studio.html, 404ing every real guest right
     // after a successful, already-charged registration.
     #[tokio::test]
     async fn registrations_route_redirects_to_the_caller_s_own_return_to_not_the_event_slug() {
@@ -1474,7 +1474,7 @@ mod tests {
             "event_slug": "happy-event",
             "name": "Ada Lovelace",
             "email": "ada@example.com",
-            "return_to": "/yogadelics.html",
+            "return_to": "/sample-studio.html",
         })
         .to_string();
         let response = registrations_route(&body, &payments::test_platform(), &client, &wasm_path, &config, &lambda_client::NeverInvoker, &crate::ir::fixture_payments()).await;
@@ -1484,7 +1484,7 @@ mod tests {
         assert_eq!(
             body["checkout_url"],
             format!(
-                "http://localhost:4321/pay/{reference}.html?success_url=http%3A%2F%2Flocalhost%3A4321%2Fregistration-confirmed.html%3Fregistration_id%3D{reference}%26outcome%3Dsucceeded%26return_to%3D%252Fyogadelics.html&cancel_url=http%3A%2F%2Flocalhost%3A4321%2Fregistration-confirmed.html%3Fregistration_id%3D{reference}%26outcome%3Dcancelled%26return_to%3D%252Fyogadelics.html"
+                "http://localhost:4321/pay/{reference}.html?success_url=http%3A%2F%2Flocalhost%3A4321%2Fregistration-confirmed.html%3Fregistration_id%3D{reference}%26outcome%3Dsucceeded%26return_to%3D%252Fsample-studio.html&cancel_url=http%3A%2F%2Flocalhost%3A4321%2Fregistration-confirmed.html%3Fregistration_id%3D{reference}%26outcome%3Dcancelled%26return_to%3D%252Fsample-studio.html"
             )
         );
     }

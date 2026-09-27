@@ -191,10 +191,10 @@ there in ~/Projects"): `bin/qa_discover_external_domains
 `~/Projects` (never this repo — already fully covered) for a directory
 shaped `<name>/bluebook/<name>.bluebook` — matched uniformly at every
 depth, so a sibling repo that IS one domain at its own root
-(`<repo>/bluebook/<repo>.bluebook`, e.g. `~/Projects/playaprep`) is
+(`<repo>/bluebook/<repo>.bluebook`, e.g. `~/Projects/some_site`) is
 found the same way a nested one is — confirmed against the project's
 own `Gemfile`/`Gemfile.lock` for a real `hecks` gem dependency (a repo
-depending only on `hecksagain`, e.g. `~/Projects/embryonautfoundersapp`
+depending only on `hecksagain`, e.g. `~/Projects/some_console_app`
 today, is correctly excluded even though its bluebook reads
 `Hecks.bluebook` — that gem aliases `Hecks = Hecksagain`, it is not the
 real `hecks` gem), cross-referenced against `Target.All` so an already-
