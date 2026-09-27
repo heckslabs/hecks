@@ -58,7 +58,8 @@ module Hecks
             next unless declared&.order_by && (declared.offset || declared.limit)
 
             domain, aggregate_name, = Naming.split_verb(asked[:query])
-            args = asked[:args] || {}
+            aggregate = bluebooks[domain]&.aggregate(aggregate_name)
+            args = normalize_query_args(aggregate, declared, asked[:args] || {})
             rows = query_eligible_rows(asked.fetch(:instances_at), domain, aggregate_name, declared.wheres, args,
                                        bluebooks: bluebooks)
             ordered = Ports::Query::Ordering.apply(
@@ -75,6 +76,25 @@ module Hecks
           end
 
           offenders.empty? || offenders.join("; ")
+        end
+
+        # Real dispatch normalizes a query's own declared arguments
+        # (`QueryInterpreter#normalize_args`) before ever evaluating a where clause,
+        # filling a composite argument's own declared defaults along the way
+        # (`Value.for_attribute` -> `Value.build`). The language's own ambiguous-
+        # comparison guard (`refuse_ambiguous_comparison!`) rules out comparing most
+        # multi-field value objects whole, but a single-attribute one (still eligible,
+        # since it is never ambiguous) can still arrive with that one field omitted —
+        # recomputing eligibility against the raw fuzzed args instead of this normalized
+        # copy would then disagree with real dispatch — the same false-divergence shape
+        # `build_guard_check` guards against for the guard check. `Runtime::QueryInterpreter.
+        # new(nil)` is safe: `normalize_args` never reads the registry it would otherwise need.
+        def normalize_query_args(aggregate, declared, args)
+          return args unless aggregate
+
+          Runtime::QueryInterpreter.new(nil).send(:normalize_args, aggregate, declared, args)
+        rescue StandardError
+          args
         end
 
         # Resolves the declared Query for a replayed verb.

@@ -16,6 +16,11 @@ Hecks.bluebook "EntityListMutations" do
     # that pins Value::Coercion#hydrate_entity_list handing back real `Value`s so
     # `remove:` can match them (ADR 0047). Used by SetTags and RemoveTagFromBoard.
     attribute :tags, list_of(Tag)
+    # Never set by any command — every board gets `Instance.defaults`' own fill,
+    # `ListCount`'s declared `default: 0`, with no command ever offering a value.
+    # `ByHighlightCount` exists to query it with a caller arg that omits its own
+    # sole field, the same default-omission shape `AddPrice`/`RemovePrice` exercise below.
+    attribute :highlight_count, ListCount
 
     value_object "BoardName" do
       attribute :value, String
@@ -34,6 +39,15 @@ Hecks.bluebook "EntityListMutations" do
       attribute :value, Integer, default: 0
     end
 
+    # A `list_of` element type with its own declared default: `AddPrice` never maps
+    # `tier`, and `RemovePrice` may be handed a `price` naming only `name` — both rely
+    # on this default filling in real dispatch's `Value.build`, which replay's own
+    # independent recompute must fill the same way.
+    value_object "PriceTier" do
+      attribute :name, String
+      attribute :tier, String, default: "standard"
+    end
+
     entity "TaggedList" do
       description "One list, own its own tags — the entity-owned list attribute this whole fixture exists to exercise."
 
@@ -41,8 +55,9 @@ Hecks.bluebook "EntityListMutations" do
 
       identified_by :label
 
-      attribute :tags,  list_of(Tag)
-      attribute :count, ListCount
+      attribute :tags,   list_of(Tag)
+      attribute :count,  ListCount
+      attribute :prices, list_of(PriceTier)
 
       command "AddTag" do
         role "Editor"
@@ -95,6 +110,31 @@ Hecks.bluebook "EntityListMutations" do
 
         emits "Clamped"
       end
+
+      command "AddPrice" do
+        role "Editor"
+        goal "Add a price tier to this list, leaving `tier` to its own declared default"
+
+        # `price_name`, not `name`: `name` is already Board's own routing identity arg.
+        attribute :price_name, String
+
+        # `tier` is deliberately unmapped: PriceTier's own `default: "standard"` must
+        # fill it, the same way real dispatch's `Value.build` does.
+        sets :prices, append: { name: :price_name }
+
+        emits "PriceAdded"
+      end
+
+      command "RemovePrice" do
+        role "Editor"
+        goal "Remove a price tier from this list, by a possibly-partial value"
+
+        attribute :price, PriceTier
+
+        sets :prices, remove: :price
+
+        emits "PriceRemoved"
+      end
     end
 
     command "OpenBoard" do
@@ -142,6 +182,15 @@ Hecks.bluebook "EntityListMutations" do
       sets :lists, append: { label: :label, count: 0 }
 
       emits "ListAdded"
+    end
+
+    query "ByHighlightCount" do
+      description "Boards matching a caller-supplied highlight count, possibly entirely omitted."
+
+      attribute :count, ListCount
+      where(highlight_count: :count)
+      order_by :name
+      limit 10
     end
   end
 end
