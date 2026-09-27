@@ -27,3 +27,5 @@ Done on 2026-09-26.
   - The scope is `@hecks`, so the package is `@hecks/client`. The owner's account is the organization's owner.
   - Publishing is still a separate step: `npm publish --access public` from `packages/hecks-client`, after a Hecks release whose version matches the package. npm is restricting tokens that bypass two-factor authentication (account changes from August 2026, direct publishing from January 2027), so plan for a two-factor prompt or a trusted-publishing setup rather than a long-lived token.
   - Until the first publish, installs keep using the vendored tarball or a git tag.
+
+- **Outcome (2026-09-27):** `@hecks/client` 2.7.0 was published by hand, once, with a short-lived token that bypassed two-factor. Later releases publish from CI through npm trusted publishing (the `heckslabs/hecks` repository, workflow `publish-client.yml`), so no long-lived token exists and the account keeps its passkey. The client site installs the package from npm instead of a vendored tarball.
