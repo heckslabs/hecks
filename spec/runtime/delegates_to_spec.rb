@@ -75,4 +75,31 @@ RSpec.describe "an aggregate command that delegates_to one nested entity command
 
     expect(square(runtime, name: "b3").to_h).to eq(file: 3, rank: 3)
   end
+
+  # BUG#148 — `step_delegate_to_entity` never runs `refuse_unknown_arguments`,
+  # `refuse_absent_arguments`, or `normalize_args` on the target command's own
+  # already-mapped args before dispatching it inline, unlike `EntityInterpreter`'s
+  # direct-dispatch path. `Piece.Relabel` declares `reason` as required; dispatching it
+  # directly without one correctly refuses, but `RelabelPiece`'s `with:` never names
+  # `reason` (and never declares it itself), so the exact same omission must refuse the
+  # same way when reached through the delegating aggregate command.
+  it "refuses the same absent required argument whether the entity command is dispatched directly or through delegates_to" do
+    runtime = boot
+    runtime.dispatch_flat("DelegatesTo::Board.OpenBoard", name: { value: "b5" })
+    runtime.dispatch_flat("DelegatesTo::Board.PlacePiece", name: "b5", id: { value: "p1" }, square: { file: 3, rank: 3 })
+
+    expect do
+      runtime.dispatch("DelegatesTo::Board.Piece.Relabel",
+                       to:   { aggregate: "b5", entity: "p1" },
+                       with: { destination: { file: 5, rank: 5 } })
+    end.to raise_error(Hecks::Runtime::AbsentArgument, /reason/)
+
+    expect do
+      runtime.dispatch("DelegatesTo::Board.RelabelPiece",
+                       to:   "b5",
+                       with: { id: { value: "p1" }, destination: { file: 5, rank: 5 } })
+    end.to raise_error(Hecks::Runtime::AbsentArgument, /reason/)
+
+    expect(square(runtime, name: "b5").to_h).to eq(file: 3, rank: 3)
+  end
 end

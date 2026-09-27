@@ -178,30 +178,13 @@ module Hecks
       # (givens, transition, mutations, ensures, emit) inline, to keep that
       # exact ordering in one place rather than threading state through
       # method boundaries as parameters.
-      # rubocop:disable-next Metrics/AbcSize
       def step_delegate_to_entity(ctx)
         delegation = ctx.command.mutations.find { |mutation| mutation.op == :delegate }
         return unless delegation
 
         step(:delegate_to_entity) do
-          entity_name, _dot, command_name = delegation.target.to_s.rpartition(".")
-          entity = ctx.aggregate.entities.find { |e| e.hecks_name == entity_name } ||
-                   raise(WiringError, "#{ctx.command.hecks_name} delegates_to #{entity_name}." \
-                                      "#{command_name}, but #{ctx.aggregate.hecks_name} has no " \
-                                      "entity named #{entity_name.inspect}")
-          target_command = entity.command(command_name) ||
-                           raise(WiringError, "#{ctx.command.hecks_name} delegates_to " \
-                                              "#{entity_name}.#{command_name}, which " \
-                                              "#{entity_name} declares no such command")
-
-          # `with:` remaps, it does not enumerate — starting from a copy of
-          # this command's own resolved args and overlaying the explicit
-          # mapping means ambient context the caller never named (the
-          # aggregate's own identity) still flows through to the target,
-          # the same as a direct dispatch of the entity command would get.
-          target_args = ctx.args.merge(
-            delegation.source.to_h { |target_key, source_key| [target_key.to_sym, ctx.args[source_key]] }
-          )
+          entity, target_command, command_name = resolve_delegation_target(ctx, delegation)
+          target_args = mapped_and_gated_delegation_args(ctx, delegation, entity, target_command)
 
           element = EntityElement.locate_chain(ctx.aggregate, [entity], ctx.instance, target_args, command_name)
           view = Instance.new(aggregate: entity, id: EntityElement.element_identity(entity, element).to_s, state: element)
@@ -225,6 +208,44 @@ module Hecks
           # commits, alongside every other command's events.
           ctx.pending_delegation = [target_command, target_args]
         end
+      end
+
+      # The entity and command a `delegates_to` mutation names, resolved once so
+      # `step_delegate_to_entity` can read them as plain locals.
+      def resolve_delegation_target(ctx, delegation)
+        entity_name, _dot, command_name = delegation.target.to_s.rpartition(".")
+        entity = ctx.aggregate.entities.find { |e| e.hecks_name == entity_name } ||
+                 raise(WiringError, "#{ctx.command.hecks_name} delegates_to #{entity_name}." \
+                                    "#{command_name}, but #{ctx.aggregate.hecks_name} has no " \
+                                    "entity named #{entity_name.inspect}")
+        target_command = entity.command(command_name) ||
+                         raise(WiringError, "#{ctx.command.hecks_name} delegates_to " \
+                                            "#{entity_name}.#{command_name}, which " \
+                                            "#{entity_name} declares no such command")
+        [entity, target_command, command_name]
+      end
+
+      # Builds the target command's own args, then runs the same argument gate
+      # `EntityInterpreter` runs before a direct dispatch of that command — evaluated
+      # against the target command's own declared attributes and the already
+      # `with:`-mapped args, not the delegating command's. Without this, a `with:`
+      # mapping that omits one of the target's required attributes would silently
+      # mutate and persist state that was never validated at all.
+      # `extra_identity_heads:` exempts the entity's own identity field (e.g. `id`),
+      # which locates the element but is never a declared attribute.
+      def mapped_and_gated_delegation_args(ctx, delegation, entity, target_command)
+        # `with:` remaps, it does not enumerate — starting from a copy of this command's
+        # own resolved args and overlaying the explicit mapping means ambient context the
+        # caller never named (the aggregate's own identity) still flows through to the
+        # target, the same as a direct dispatch of the entity command would get.
+        target_args = ctx.args.merge(
+          delegation.source.to_h { |target_key, source_key| [target_key.to_sym, ctx.args[source_key]] }
+        )
+
+        refuse_unknown_arguments(ctx.domain, ctx.aggregate, target_command, target_args,
+                                 extra_identity_heads: entity.identity_heads)
+        refuse_absent_arguments(target_command, target_args)
+        normalize_args(ctx.aggregate, target_command, target_args)
       end
 
       def step_enforce_ensures(ctx)
