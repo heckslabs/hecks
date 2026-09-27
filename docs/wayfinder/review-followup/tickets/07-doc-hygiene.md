@@ -1,6 +1,6 @@
 ---
 type: grilling
-status: open
+status: closed
 blocked_by: []
 claimed_by:
 ---
@@ -66,3 +66,10 @@ pass.
 5. Should `getting-started.md:18` drop the version number, matching the no-counts stance?
 
 ## Answer
+
+Decided 2026-09-27: guards plus a move of two docs. A banner spec for a dated-snapshot marker
+and a stale-version scan over `docs/`; a new `docs/archive/` (dated snapshot, never edited,
+banner required, not linked as current) that receives the survey and the adoption-readiness
+audit; the plan stays in `docs/` with a banner because the README links it as the roadmap; fix
+the survey's wording and `getting-started.md:18`. Recorded in
+[ADR 0070](../../../decisions/0070-docs-carry-dated-snapshot-banners-and-a-stale-version-guard.md).

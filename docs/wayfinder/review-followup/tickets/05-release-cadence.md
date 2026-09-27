@@ -1,6 +1,6 @@
 ---
 type: grilling
-status: open
+status: closed
 blocked_by: []
 claimed_by:
 ---
@@ -63,3 +63,10 @@ first outside adopter appears.
 5. Wrap `bin/release_gem` in CI, or is the Touch ID step deliberate?
 
 ## Answer
+
+Decided 2026-09-27: keep the pace and document a two-tier promise. A major means a breaking
+DSL or runtime change and carries a CHANGELOG `Breaking:` entry; a minor may carry a
+`Behavior change` entry; deploys pin exactly; a break reaching an installed client site gets one
+release of warning where a warning is possible. Cleanups: the missing `v2.5.0` tag, the `2.0.0`
+CHANGELOG date, the stale GitHub Releases page. Recorded in
+[ADR 0068](../../../decisions/0068-releases-keep-their-pace-and-state-a-two-tier-promise.md).
