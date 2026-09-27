@@ -25,27 +25,17 @@ module Hecks
                   :count, :median_field, :sum_field, :avg_field, :min_field, :max_field,
                   :percentile_field, :percentile_at, :any_field, :all_field
 
-      # Nil `reference_name`/`reference_target` mean a rootless read model, so `&.` keeps them nil.
+      # Nil `reference_name`/`reference_target` mean a rootless read model, so `&.` keeps
+      # them nil. `count` through `all_field` are `Behaviour::ReadModel::REDUCTION_FIELDS`,
+      # one keyword per wire field: `Assembly::Build`/`Reconstruction` construct this
+      # generically off the contract's own flat field list (contracts.rb), so grouping
+      # them into a nested object would break that reflection.
       #
       # @param name [String, Symbol] the read model's declared name
-      # @param description [String, nil] the read model's declared prose description
       # @param reference_name [Symbol, String, nil] the local reference attribute it roots at
       # @param reference_target [String, Symbol, nil] the rooted aggregate's name
       # @param aggregate_heads [Array<Hash{Symbol => Object}>] rows of `:aggregate`, `:as`, `:many`
       # @param group_by [Array<Hash{field: Symbol}>] the declared group-by fields, one row each
-      # @param count [Boolean, nil] whether it reduces to a row count
-      # @param median_field [Symbol, nil] the field it reduces to the median of
-      # @param sum_field [Symbol, nil] the field it reduces to the total of
-      # @param avg_field [Symbol, nil] the field it reduces to the mean of
-      # @param min_field [Symbol, nil] the field it reduces to the smallest value of
-      # @param max_field [Symbol, nil] the field it reduces to the largest value of
-      # @param percentile_field [Symbol, nil] the field it reduces to one interpolated rank of
-      # @param percentile_at [Float, nil] the rank `percentile_field` interpolates, `0.0..1.0`
-      # @param any_field [Symbol, nil] the boolean field it reduces to "is any row true"
-      # @param all_field [Symbol, nil] the boolean field it reduces to "are all rows true"
-      # One keyword per wire field: `Assembly::Build`/`Reconstruction` construct this
-      # generically off the contract's own flat field list (contracts.rb), so grouping
-      # the reductions into a nested object would break that reflection.
       # rubocop:disable-next Metrics/ParameterLists
       def initialize(name:, description: nil, reference_name: nil, reference_target: nil, aggregate_heads: [],
                      group_by: [], count: nil, median_field: nil, sum_field: nil, avg_field: nil,

@@ -73,18 +73,13 @@ module Hecks
         current
       end
 
-      # Decides from the declared shape whether a field path lands on one of `primitives`.
-      #
-      # A bare field matches if it is itself one of `primitives`, or a value object with
-      # exactly one member typed as one; a dotted path must land on a matching primitive
-      # directly (no reaching further into a value object it lands on).
+      # Whether a field path lands on one of `primitives`: itself, or (bare field only) a
+      # value object with a member typed as one.
       #
       # @param attribute [Bluebook::Attribute, nil] the root attribute; `nil` answers `false`
       # @param segments [Array<String>] the path's remaining segments, `[]` for a bare field
       # @param primitives [Array<String>] the primitive type names that count as a match
       # @yield looks a value object up by name, as for `leaf_attribute`
-      # @yieldparam type [String] the type name to look up
-      # @yieldreturn [Class<Bluebook::ValueObject>, nil] the declared shape, or `nil`
       # @return [Boolean] `false` for a list, a reference, or a path that lands nowhere
       def matches_primitive?(attribute, segments, primitives, &)
         leaf = leaf_attribute(attribute, segments, &)
