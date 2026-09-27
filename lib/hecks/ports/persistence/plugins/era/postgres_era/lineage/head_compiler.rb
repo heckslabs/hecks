@@ -78,9 +78,11 @@ module Hecks
             @db.exec_params("SELECT to_regclass($1) IS NOT NULL AS present", [name]).getvalue(0, 0) == "t"
           end
 
-          # @db.transaction is a bare BEGIN/COMMIT with no savepoint nesting,
+          # Runs the block inside a transaction, nesting via `SAVEPOINT` when one is already open.
+          #
+          # `@db.transaction` is a bare `BEGIN`/`COMMIT` with no savepoint nesting,
           # so calling it while already inside a transaction would commit
-          # early; this uses a SAVEPOINT instead whenever one is already open.
+          # early; this uses a `SAVEPOINT` instead whenever one is already open.
           def nested_transaction(name, &)
             return @db.transaction(&) if @db.transaction_status == PG::PQTRANS_IDLE
 
@@ -110,7 +112,7 @@ module Hecks
           # Reduces the tail before chaining edges over it, not after: every
           # reader already reduces to latest-per-id, so translating a
           # superseded entry would be wasted work. `era` survives the
-          # reduction because each edge's CASE still needs it.
+          # reduction because each edge's case still needs it.
           def latest_per_id(tail)
             return tail if tail.to_s.empty?
 

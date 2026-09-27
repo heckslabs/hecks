@@ -307,6 +307,8 @@ module Hecks
         end
       end
 
+      # Persists a saga's checkpointed state as one D1 statement.
+      #
       # @param process_manager [String, Symbol] the process manager's name
       # @param correlation [String, Object] the instance's correlation value, stored as
       #   `correlation.to_s`

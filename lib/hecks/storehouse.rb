@@ -20,6 +20,7 @@ module Hecks
 
     # Kept under Hecks::CacheDir, not the domain directory (part of the domain's
     # own state) or the gem directory (read-only once installed).
+    # :nodoc:
     def log_root = Hecks::CacheDir.path("storehouse")
 
     # The root every domain path resolves under; HECKS_STOREHOUSE_ROOT widens it.
@@ -29,6 +30,7 @@ module Hecks
 
     # Refuses a path outside BOOT_ROOT rather than silently clamping it — a
     # stray relative path and a deliberate escape both deserve a clear refusal.
+    # :nodoc:
     def confine!(path, label)
       resolved = File.expand_path(path.to_s, BOOT_ROOT)
       return resolved if resolved == BOOT_ROOT || resolved.start_with?("#{BOOT_ROOT}#{File::SEPARATOR}")
@@ -40,11 +42,13 @@ module Hecks
 
     # The one bluebook this runtime booted; every whole-domain door assumes
     # the same one-bluebook-per-boot shape.
+    # :nodoc:
     def bluebook_for(runtime)
       runtime.registry.bluebooks.values.first or
         raise Runtime::NotFound, "this boot loaded no bluebook"
     end
 
+    # :nodoc:
     def aggregate_ir!(bluebook, name)
       bluebook.aggregate(name) or
         raise Runtime::NotFound, "#{bluebook.name} declares no aggregate named #{name.inspect} — " \
@@ -53,6 +57,7 @@ module Hecks
 
     # The same alias table CliRunner resolves against, kept here so dispatch
     # and query never drift from what a human typing bin/run sees.
+    # :nodoc:
     def resolve!(cli, name, asking:)
       pool = asking ? cli[:questions] : cli[:verbs]
       key  = cli[:names][asking ? :question : :command][name]
@@ -64,6 +69,7 @@ module Hecks
     end
 
     # Required on dispatch/query/state: what makes an audit row legible later.
+    # :nodoc:
     def require_summary!(summary)
       return unless summary.nil? || summary.to_s.strip.empty?
 
@@ -71,6 +77,7 @@ module Hecks
             "a one-line summary: is required on dispatch/query/state — it is what makes an audit row legible later"
     end
 
+    # :nodoc:
     def valid_source!(source)
       return if source.nil? || SOURCE_TAGS.include?(source.to_s)
 
@@ -79,6 +86,7 @@ module Hecks
 
     # actor_id without role would silently bind nothing rather than a real
     # caller — refusing here beats a caller thinking it identified itself.
+    # :nodoc:
     def valid_caller!(role, actor_id)
       return unless actor_id && role.nil?
 
@@ -87,6 +95,7 @@ module Hecks
 
     # Binds role/actor_id for the block's duration via Hecks.as_caller; role: nil
     # runs the block unbound (query's own authorization does not depend on it).
+    # :nodoc:
     def with_caller(role, actor_id, &block)
       return block.call if role.nil?
 
@@ -95,6 +104,7 @@ module Hecks
 
     # A caller who omits role: would otherwise reach a role-gated command
     # unchecked (refuse_role_mismatch no-ops with no bound caller) — refuse here instead.
+    # :nodoc:
     def require_caller_for_role_gated!(spec, role)
       return unless spec[:role_gated] && role.nil?
 
@@ -105,6 +115,7 @@ module Hecks
 
     # dry_run? (Runtime::Dispatcher) only understands the pre-envelope flat
     # args shape; this is the one door back into it from dispatch's own envelope.
+    # :nodoc:
     def flatten_legacy(envelope, receiver, legacy_receiver)
       facts = envelope[:with] || {}
       return facts unless envelope.key?(:to)
@@ -119,12 +130,14 @@ module Hecks
       end
     end
 
+    # :nodoc:
     def log_path(domain_name)
       File.join(log_root, "#{domain_name.to_s.gsub(/[^A-Za-z0-9_-]/, '_')}.jsonl")
     end
 
     # Never fails a real call because its own audit log couldn't be written —
     # a full disk silences follow, not the dispatch/query/state call itself.
+    # :nodoc:
     def record!(domain_name, tool:, summary:, source:, outcome:, verb: nil, role: nil, actor_id: nil)
       return unless domain_name
 
@@ -140,8 +153,14 @@ module Hecks
     # Issues a command, or previews it with dry_run: true — a domain refusal
     # on a dry run is a legitimate answer (would_succeed: false), not a failure.
     #
+    # @param runtime [Runtime::Registry] the booted domain to dispatch against
     # @param command [String, Symbol] the command name, bare or qualified
+    # @param summary [String] a one-line audit summary; required
+    # @param args [Hash] the command's arguments, JSON-shaped
     # @param source [String, Symbol, nil] a SOURCE_TAGS tag naming who is calling
+    # @param dry_run [Boolean] true previews without dispatching for real
+    # @param role [String, Symbol, nil] the caller's bound role, or nil to run unbound
+    # @param actor_id [String, nil] the caller's identity; requires role:
     # @return [Hash] :ok plus :id/:state/:events (real) or :would_succeed/:error
     #   (dry run); or the refused shape
     def dispatch(runtime:, command:, summary:, args: {}, source: nil, dry_run: false, role: nil, actor_id: nil)
@@ -159,6 +178,7 @@ module Hecks
       outcome
     end
 
+    # :nodoc:
     def perform_dispatch(runtime, bluebook, command, summary, args, source, dry_run, role, actor_id)
       require_summary!(summary)
       valid_source!(source)
@@ -176,6 +196,7 @@ module Hecks
       result.merge(verb: spec[:verb])
     end
 
+    # :nodoc:
     def real_dispatch(runtime, spec, envelope, summary)
       result = runtime.dispatch_flat(spec[:verb], envelope)
       ok(summary: summary,
@@ -184,6 +205,7 @@ module Hecks
          events:  result.events.map { |event| { name: event.name, payload: Facade::JsonDoor.materialize(event.payload) } })
     end
 
+    # :nodoc:
     def dry_run_outcome(runtime, spec, envelope, summary:)
       flat = flatten_legacy(envelope, spec[:receiver], spec[:legacy_receiver])
       runtime.dry_run?(spec[:verb], **flat)
@@ -197,7 +219,12 @@ module Hecks
     # refuses, since a later step naming a since-refused record will refuse
     # honestly on its own account.
     #
+    # @param runtime [Runtime::Registry] the booted domain to dispatch against
     # @param steps [Array<Hash>] each step's command/args, JSON-shaped
+    # @param summary [String] a one-line audit summary; required
+    # @param source [String, Symbol, nil] a SOURCE_TAGS tag naming who is calling
+    # @param role [String, Symbol, nil] the caller's bound role, or nil to run unbound
+    # @param actor_id [String, nil] the caller's identity; requires role:
     # @return [Hash] :ok (true only if every step's own :ok was true), :results
     def dispatch_batch(runtime:, steps:, summary:, source: nil, role: nil, actor_id: nil)
       require_summary!(summary)
@@ -213,7 +240,13 @@ module Hecks
 
     # Answers one declared query.
     #
+    # @param runtime [Runtime::Registry] the booted domain to query
     # @param question [String, Symbol] the query name, bare or qualified
+    # @param summary [String] a one-line audit summary; required
+    # @param args [Hash] the query's arguments, JSON-shaped
+    # @param source [String, Symbol, nil] a SOURCE_TAGS tag naming who is calling
+    # @param role [String, Symbol, nil] the caller's bound role, or nil to run unbound
+    # @param actor_id [String, nil] the caller's identity; requires role:
     # @return [Hash] :ok and :rows (each JSON-safe); or the refused shape
     def query(runtime:, question:, summary:, args: {}, source: nil, role: nil, actor_id: nil)
       bluebook = bluebook_for(runtime)
@@ -229,6 +262,7 @@ module Hecks
       outcome
     end
 
+    # :nodoc:
     def perform_query(bluebook, runtime, question, summary, args, source, role, actor_id)
       require_summary!(summary)
       valid_source!(source)
@@ -243,8 +277,11 @@ module Hecks
     # Reads one aggregate's stored records directly, bypassing any declared
     # query — id: answers one record, omitted answers every record.
     #
+    # @param runtime [Runtime::Registry] the booted domain to read
     # @param aggregate [String, Symbol] the aggregate's declared name
+    # @param summary [String] a one-line audit summary; required
     # @param id [String, Object, nil] one record's identity, or nil for every record
+    # @param source [String, Symbol, nil] a SOURCE_TAGS tag naming who is calling
     # @return [Hash] :ok and, with id:, :record; without it, :count/:records; or refused
     def state(runtime:, aggregate:, summary:, id: nil, source: nil)
       bluebook = bluebook_for(runtime)
@@ -258,6 +295,7 @@ module Hecks
       outcome
     end
 
+    # :nodoc:
     def perform_state(runtime, bluebook, aggregate, summary, id)
       require_summary!(summary)
       ir         = aggregate_ir!(bluebook, aggregate)
@@ -292,6 +330,7 @@ module Hecks
     # Lists a domain's aggregates and their command/query names, snake_cased
     # exactly as dispatch/query want them.
     #
+    # @param runtime [Runtime::Registry] the booted domain to describe
     # @return [Hash] :ok, :domain, :aggregates (each {name:, commands:, queries:},
     #   command names suffixed !); or the refused shape
     def catalog(runtime:)
@@ -310,6 +349,7 @@ module Hecks
     # One aggregate's (or the whole chapter's) full usage documentation — the
     # same document bin/docs renders for a human.
     #
+    # @param runtime [Runtime::Registry] the booted domain to describe
     # @param aggregate [String, Symbol, nil] one aggregate's name, or nil for the
     #   whole chapter
     # @return [Hash] :ok, :domain, :docs; or the refused shape
@@ -351,6 +391,7 @@ module Hecks
     # The full write history, not just the current head — every operation that
     # ever touched each aggregate, off its repository's own append-only entries.
     #
+    # @param runtime [Runtime::Registry] the booted domain to read
     # @return [Hash] :ok, :domain, :history (each aggregate's storage name
     #   mapped to its journal_entries); or the refused shape
     def history(runtime:)
@@ -365,6 +406,7 @@ module Hecks
       refused(e)
     end
 
+    # :nodoc:
     def journal_entries(repository)
       repository.entries.map { |entry| { operation: entry.operation, id: entry.id, state: Facade::JsonDoor.materialize(entry.state) } }
     end
@@ -390,6 +432,7 @@ module Hecks
       refused(e)
     end
 
+    # :nodoc:
     def behaviors_file(result)
       { path:        result.path,
         parse_error: result.parse_error,
@@ -400,6 +443,7 @@ module Hecks
     # substitute for a push subscription, since a stdio door answers one
     # request at a time with no channel to push through.
     #
+    # @param runtime [Runtime::Registry] the booted domain to tail
     # @param limit [Integer, #to_i] how many recent log entries to return
     # @return [Hash] :ok, :domain, :entries; or the refused shape
     def follow(runtime:, limit: 20)
@@ -411,6 +455,7 @@ module Hecks
       refused(e)
     end
 
+    # :nodoc:
     def log_lines(domain_name)
       path = log_path(domain_name)
       return [] unless File.exist?(path)
@@ -423,6 +468,9 @@ module Hecks
     # event-sourcing replay. aggregate: narrows the search; id: (requires
     # aggregate:) narrows further to one record.
     #
+    # @param runtime [Runtime::Registry] the booted domain to search
+    # @param aggregate [String, Symbol, nil] narrows the search to one aggregate
+    # @param id [String, Object, nil] narrows further to one record; requires aggregate
     # @param limit [Integer, #to_i, nil] how many recent matching events to
     #   return; nil returns every one found
     # @return [Hash] :ok, :domain, :events; or the refused shape
@@ -441,6 +489,7 @@ module Hecks
       refused(e)
     end
 
+    # :nodoc:
     def entry_events(entry, fqn, id)
       return unless entry[:tool] == "dispatch" && entry[:ok] && entry[:events]
       return if fqn && !entry[:verb].to_s.start_with?("#{fqn}.")
@@ -452,12 +501,15 @@ module Hecks
     # Runtime::WiringError is included alongside the true domain refusals: a
     # bus caller sees an honest refusal here too, not a crash, even though a
     # wiring defect isn't a rule the caller broke.
+    # :nodoc:
     def refusal_classes = [Runtime::NotFound, Runtime::TypeMismatch, Runtime::WiringError, *Runtime::DOMAIN_REFUSALS]
 
+    # :nodoc:
     def ok(**fields) = { ok: true }.merge(fields)
 
     # The domain's own refusal text travels verbatim; this only wraps it
     # consistently, rather than letting a stack trace reach the caller.
+    # :nodoc:
     def refused(error, summary: nil) = { ok: false, summary: summary, error: error.message }
   end
 end

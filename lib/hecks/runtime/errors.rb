@@ -26,6 +26,8 @@ module Hecks
         @detail = detail
       end
 
+      # Overrides Ruby's own error formatting to append the refusal's detail.
+      #
       # @return [String] `message`, with `" (#{detail})"` appended when `detail` is present
       def detailed_message(highlight: false, **opts)
         base = super

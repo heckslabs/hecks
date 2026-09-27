@@ -1,6 +1,7 @@
 module Hecks
   module Ports
-    # Holds the persistence-plugin registry and its `register_plugin`/`plugin?`/`each_plugin` surface.
+    # Holds the persistence-plugin registry and its `register_plugin`/`plugin?`/`each_plugin`
+    # surface.
     module Persistence
       # The persistence-plugin registry (ADR 0033). A plugin registers itself when required, and
       # need only respond to `contribute_boot_gates(registry, gates)`; a no-op is valid.
@@ -20,7 +21,9 @@ module Hecks
             @plugins[name.to_sym] = plugin
           end
 
-          # @return [Boolean] whether a plugin is registered under `name`
+          # Whether a plugin is registered under `name`.
+          #
+          # @return [Boolean]
           def registered?(name)
             @plugins.key?(name.to_sym)
           end
@@ -30,7 +33,9 @@ module Hecks
             @plugins.each_value(&)
           end
 
-          # @return [Boolean] whether at least one plugin is registered
+          # Whether at least one plugin is registered.
+          #
+          # @return [Boolean]
           def any? = !@plugins.empty?
         end
       end
@@ -44,13 +49,17 @@ module Hecks
       # @return [Object] the plugin just registered
       def register_plugin(name, plugin) = Plugin.register(name, plugin)
 
-      # @return [Boolean] whether the named persistence plugin is loaded in this process
+      # Whether the named persistence plugin is loaded in this process.
+      #
+      # @return [Boolean]
       def plugin?(name) = Plugin.registered?(name)
 
       # Yields every loaded persistence plugin, in registration order.
       def each_plugin(&) = Plugin.each(&)
 
-      # @return [Boolean] whether any persistence plugin is loaded in this process
+      # Whether any persistence plugin is loaded in this process.
+      #
+      # @return [Boolean]
       def plugins_loaded? = Plugin.any?
     end
   end

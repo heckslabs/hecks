@@ -61,6 +61,7 @@ module CommentStyle
     SAM SAVEPOINT SDK SELECT SHA SME SQL SSH SSL SSM SW STDERR STDIN STDOUT TCP TLA TLS TOCTOU TODO TTL UID UL
     URI URL UTC UTF UUID VO WASM XML YAML
     ACL ALB BC GNU OAC WAF
+    CLOUDFRONT ECS HSM KMS
   ].to_set.freeze
 
   # Names whose correct spelling is neither all-caps nor all-lowercase.
@@ -146,7 +147,7 @@ module CommentStyle
   CODE_NOISE = %i[on_comment on_sp on_nl on_ignored_nl].freeze
 
   Violation = Struct.new(:path, :line, :category, :message)
-  MethodDef = Struct.new(:name, :line, :params, :visibility, :raises, :block_param)
+  MethodDef = Struct.new(:name, :line, :params, :visibility, :raises, :block_param, :type_fqn)
   TypeDef = Struct.new(:fqn, :line, :namespace_only)
   Comment = Struct.new(:line, :col, :text, :full_line)
   Block = Struct.new(:line, :lines, :key)
@@ -214,6 +215,20 @@ module CommentStyle
   # Lexes `source` and drops every comment and whitespace token.
   def self.code_tokens(source)
     Ripper.lex(source).reject { |token| CODE_NOISE.include?(token[1]) }.map { |token| token[2] }
+  end
+
+  # Bare class/module names on Hecks's documented public surface (ADR 0075 ticket 01):
+  # an operator or a client calls these directly. The DSL itself (`aggregate`,
+  # `command`, `query`, ...) is invoked through the `Hecks.bluebook` block, not by
+  # naming a builder class, so its builder classes stay off this list.
+  #
+  # A method's structural checks (tags, `undocumented_method`) apply only when its
+  # innermost enclosing type's own name is here; everything else is internal and
+  # needs no doc unless it carries a real WHY.
+  PUBLIC_SURFACE = Set["Storehouse"].freeze
+
+  def self.public_surface
+    PUBLIC_SURFACE
   end
 
   # The checked-in list of comment blocks already over `MAX_BLOCK` lines.
@@ -632,6 +647,7 @@ module CommentStyle
 
     def method_violations(method)
       return [] unless method.visibility == :public
+      return [] unless CommentStyle.public_surface.include?(method.type_fqn.to_s.split("::").last)
 
       doc = doc_above(method.line).join("\n")
       if doc.empty?
@@ -722,8 +738,8 @@ module CommentStyle
       when :class then open_type(node[1], node[3], scope)
       when :module then open_type(node[1], node[2], scope)
       when :sclass then walk_body(node[2], Scope.new(scope.nesting, :public))
-      when :def then record(node[1], node[2], node[3], scope.visibility)
-      when :defs then record(node[3], node[4], node[5], :public)
+      when :def then record(node[1], node[2], node[3], scope.visibility, scope.nesting)
+      when :defs then record(node[3], node[4], node[5], :public, scope.nesting)
       when :vcall, :var_ref then switch_visibility(node, scope)
       when :command, :method_add_arg then visibility_call?(node, scope) || walk_children(node, scope)
       else walk_children(node, scope)
@@ -781,8 +797,8 @@ module CommentStyle
         next unless argument.is_a?(Array)
 
         case argument[0]
-        when :def then record(argument[1], argument[2], argument[3], :private)
-        when :defs then record(argument[3], argument[4], argument[5], :private)
+        when :def then record(argument[1], argument[2], argument[3], :private, scope.nesting)
+        when :defs then record(argument[3], argument[4], argument[5], :private, scope.nesting)
         when :symbol_literal, :dyna_symbol
           @private_names << argument.flatten.grep(String).last
         else walk(argument, scope)
@@ -791,9 +807,10 @@ module CommentStyle
       true
     end
 
-    def record(name_node, params, body, visibility)
+    def record(name_node, params, body, visibility, nesting)
       names, block = parameter_names(params)
-      @methods << MethodDef.new(name_node[1], name_node[2][0], names, visibility, raises?(body), block)
+      @methods << MethodDef.new(name_node[1], name_node[2][0], names, visibility, raises?(body), block,
+                                nesting.join("::"))
     end
 
     def parameter_names(params)
@@ -938,6 +955,7 @@ module CommentStyle
     def undocumented_types(sources)
       openings = sources.flat_map { |s| s.types.reject(&:namespace_only).map { |t| [s, t] } }
       openings.group_by { |_, type| type.fqn }.filter_map do |fqn, group|
+        next unless CommentStyle.public_surface.include?(fqn.to_s.split("::").last)
         next if group.any? { |source, type| source.documented?(type) }
 
         source, type = group.first

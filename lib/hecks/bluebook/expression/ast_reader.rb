@@ -9,7 +9,8 @@ module Hecks
       module AstReader
         module_function
 
-        # Arm for arm with `AstJson`: a new op there fails spec/expression_ast_spec.rb until added here.
+        # Arm for arm with `AstJson`: a new op there fails spec/expression_ast_spec.rb until added
+        # here.
         # A literal-array `.include?` is emitted as an or of equalities, so it never reads back as
         # an `Include` over an `ArrayLiteral`; evaluation is unchanged.
 

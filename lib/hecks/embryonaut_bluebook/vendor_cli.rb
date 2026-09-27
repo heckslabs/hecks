@@ -6,7 +6,7 @@ module Hecks
     # The command line behind `bin/vendor_bluebook`; lives in the gem so a
     # consuming project reaches it through its own bundle, no script to copy.
     #
-    #     vendor_bluebook <package>[@<version-or-commit>] [--from PATH] [--root PATH]
+    #     vendor_bluebook <package>[@<version-or-commit>] [--from path] [--root path]
     module VendorCli
       USAGE = "usage: vendor_bluebook <package>[@<version-or-commit>] [--from PATH] [--root PATH]".freeze
 

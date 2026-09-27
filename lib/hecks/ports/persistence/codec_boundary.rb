@@ -21,7 +21,9 @@ module Hecks
           adapter
         end
 
-        # @return [Boolean] whether this thread is inside a guarded adapter call
+        # Whether this thread is currently inside a guarded adapter call.
+        #
+        # @return [Boolean]
         def active? = Thread.current[KEY] == true
 
         # Runs the block with the boundary on for this thread; re-entrant.

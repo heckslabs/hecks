@@ -14,7 +14,7 @@ module Hecks
       # literal chapter name "Newsletter".
       NEWSLETTER = "newsletter".freeze
       # Sending an issue to confirmed subscribers; kept separate from
-      # NEWSLETTER so a signup-only chapter declares nothing more.
+      # `NEWSLETTER` so a signup-only chapter declares nothing more.
       NEWSLETTER_ISSUES = "newsletter_issues".freeze
 
       # Taking a payment through an external processor, recognised by

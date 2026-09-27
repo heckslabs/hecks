@@ -244,7 +244,9 @@ module Hecks
           end
         end
 
-        # @return [Entry, Section, nil] the matching term or aggregate section
+        # Looks up a term or aggregate section by kind and name.
+        #
+        # @return [Entry, Section, nil]
         def [](kind, name, within: nil)
           @by_key[within ? [kind, within, name] : [kind, name]]
         end

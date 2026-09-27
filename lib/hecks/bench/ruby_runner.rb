@@ -38,7 +38,7 @@ module Hecks
       end
 
       # Every aggregate opens its own connection and each repeats the `schema already exists`
-      # notice, burying progress lines; PGOPTIONS is restored afterwards.
+      # notice, burying progress lines; `PGOPTIONS` is restored afterwards.
       def quietly_for_postgres
         previous = ENV.fetch("PGOPTIONS", nil)
         ENV["PGOPTIONS"] = [previous, "-c client_min_messages=warning"].compact.join(" ")

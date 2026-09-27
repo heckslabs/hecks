@@ -8,7 +8,8 @@ require_relative "../naming"
 module Hecks
   module Fuzzing
     # Races a generated sequence's own command step across two real OS processes
-    # against a live domain, checking the outcome against a sequential oracle to catch a broken cross-process lock.
+    # against a live domain, checking the outcome against a sequential oracle to catch a broken
+    # cross-process lock.
     module ConcurrentDispatch
       module_function
 

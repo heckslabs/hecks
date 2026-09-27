@@ -181,7 +181,7 @@ module Hecks
       end
 
       # Prose keyed by word: everything between a section's generated region
-      # and the next `## ` heading. Starts collecting under PREAMBLE (not nil)
+      # and the next `## ` heading. Starts collecting under `PREAMBLE` (not nil)
       # so a page written before that region existed still parses unchanged.
       # rubocop:disable-next Metrics/PerceivedComplexity
       def harvest(text)

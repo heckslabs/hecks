@@ -20,9 +20,11 @@ module Hecks
         commands:      many(:commands),
         queries:       many(:queries),
         entities:      many(:entities),
-        # Read-only record of the piece's own `given`; resolved text lands on each command's `givens`.
+        # Read-only record of the piece's own `given`; resolved text lands on each command's
+        # `givens`.
         preconditions: -> { preconditions.map { |rule| Expression::AstJson.rule_row(rule) } },
-        # Checked against every instance of this piece, at the same points as an aggregate's invariants.
+        # Checked against every instance of this piece, at the same points as an aggregate's
+        # invariants.
         invariants:    -> { invariants.map { |rule| Expression::AstJson.rule_row(rule) } },
         lifecycle:     one(:lifecycle)
       )
@@ -52,7 +54,8 @@ module Hecks
           piece
         end
 
-        # Assigns the declared fields, then lets the behaviour's `settle` derive identity and indexes.
+        # Assigns the declared fields, then lets the behaviour's `settle` derive identity and
+        # indexes.
         def absorb(description:, identified_by:, attributes:, commands:, queries:, entities:, preconditions:, invariants:,
                    lifecycle:)
           @description    = description

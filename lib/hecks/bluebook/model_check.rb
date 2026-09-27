@@ -272,7 +272,7 @@ module Hecks
                                            "checker's scope, same as CommandRules#resolve_references")
         end
 
-        # No handler anywhere answers REFUSED means SagaInterpreter#unwind never
+        # No handler anywhere answers `REFUSED` means SagaInterpreter#unwind never
         # runs for this process manager, so a declared compensates is structurally
         # unreachable — a dead declaration, not a style warning.
         if !process_manager.saga? && handler.dispatches.any?(&:compensates)
@@ -296,7 +296,7 @@ module Hecks
                               "handler chain ever reaches — a refusal here can never fire it")]
       end
 
-      # Only a handler that can actually fire extends the closure — REFUSED always
+      # Only a handler that can actually fire extends the closure — `REFUSED` always
       # can (it's a compensation trigger, not an event); any other handler needs its
       # event genuinely emitted. Otherwise a deaf handler's edge would read as
       # connected even though nothing can ever traverse it.

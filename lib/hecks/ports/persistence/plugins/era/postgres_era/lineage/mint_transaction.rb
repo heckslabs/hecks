@@ -44,7 +44,7 @@ module Hecks
             # tables that it grants on.
             aggregates.each { |aggregate| compile_head!(aggregate, ordinal, label, edges) }
             grant_role!(role, aggregates: aggregates, era: ordinal) if role
-            # Must stay last, right before COMMIT: DROP/CREATE POLICY takes an
+            # Must stay last, right before `COMMIT`: DROP/CREATE POLICY takes an
             # AccessExclusiveLock held to commit, so placing it before compile_head!
             # would block every writer for the whole matview build.
             #

@@ -57,7 +57,7 @@ module Hecks
               )
             SQL
             @db.exec("CREATE SEQUENCE IF NOT EXISTS #{quote(sequence)}")
-            # An owned sequence default, not GENERATED ALWAYS AS IDENTITY, which
+            # An owned sequence default, not generated always as identity, which
             # partitioned tables only support from Postgres 17.
             @db.exec(<<~SQL)
               CREATE TABLE IF NOT EXISTS #{quoted_journal} (
@@ -87,10 +87,10 @@ module Hecks
             # RLS goes on at provisioning, never mid-life: enabling it later would deny
             # every role that has no policy yet.
             #
-            # FORCE, not just ENABLE, or the table owner is exempt from every policy. A
+            # FORCE, not just enable, or the table owner is exempt from every policy. A
             # superuser or BYPASSRLS role stays exempt regardless (see check_fence_applies!).
             #
-            # Guarded: ENABLE/FORCE takes an AccessExclusiveLock even as a no-op, and this
+            # Guarded: enable/FORCE takes an AccessExclusiveLock even as a no-op, and this
             # runs on every boot, so an unconditional reissue would freeze concurrent writers.
             current = @db.exec_params(
               "SELECT relrowsecurity, relforcerowsecurity FROM pg_class " \
@@ -138,7 +138,7 @@ module Hecks
             end
 
             @db.exec("ALTER TABLE #{quote(old_journal)} RENAME TO #{quote(journal)}")
-            # The sequence is a plain CREATE SEQUENCE, not owned by the column, so it
+            # The sequence is a plain create sequence, not owned by the column, so it
             # does not move with the table and needs its own rename.
             @db.exec("ALTER SEQUENCE #{quote(old_sequence)} RENAME TO #{quote(sequence)}")
             # Renaming the parent does not rename its partitions.

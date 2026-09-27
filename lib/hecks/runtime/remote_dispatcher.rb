@@ -17,10 +17,14 @@ module Hecks
     # not be pre-checked here against incomplete local state.
     class RemoteDispatcher
       Result = Struct.new(:verb, :instance, :events, keyword_init: true) do
-        # @return [String] the settled record's identity
+        # The settled record's identity.
+        #
+        # @return [String]
         def id    = instance.id
 
-        # @return [Hash{Symbol => Object}] the settled record's attributes, `:id` merged in last
+        # The settled record's attributes.
+        #
+        # @return [Hash{Symbol => Object}] `:id` merged in last
         def state = instance.to_h
       end
 

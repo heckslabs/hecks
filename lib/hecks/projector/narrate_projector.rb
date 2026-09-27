@@ -232,6 +232,8 @@ module Hecks
 
       def to_sentence_list(items, conj: "and") = Naming.to_sentence_list(items, conj: conj)
 
+      # Picks the article for `word`.
+      #
       # @return [String] `"a"` or `"an"`
       def a_or_an(word) = Naming.a_or_an(word)
     end

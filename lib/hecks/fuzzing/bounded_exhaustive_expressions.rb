@@ -144,7 +144,7 @@ module Hecks
       # @return [Array<String>] at most `SAMPLE_CAP` expressions
       def bounded(type, depth) = sample(productions(type, depth))
 
-      # NUMERIC from Addition, Modulo, Size (string or array), and First/Last of a numeric array.
+      # Numeric from Addition, Modulo, Size (string or array), and First/Last of a numeric array.
       #
       # @param depth [Integer] maximum recursive steps remaining
       # @return [Array<String>] numeric expressions one construct deep
@@ -197,7 +197,7 @@ module Hecks
           sample(numeric_array_productions(depth)).flat_map { |a| ["#{a}.first", "#{a}.last"] }
       end
 
-      # STRING from ToS of numeric, boolean, nil or string, and First/Last of a string array.
+      # String from ToS of numeric, boolean, nil or string, and First/Last of a string array.
       #
       # `Split` is not listed: it produces an array, never a String.
       #
@@ -211,7 +211,7 @@ module Hecks
           sample(string_array_productions(depth - 1)).flat_map { |a| ["#{a}.first", "#{a}.last"] }
       end
 
-      # ARRAY from Split and same-type array literals; array is mostly a receiver type, so
+      # Array from Split and same-type array literals; array is mostly a receiver type, so
       # few producers are needed.
       #
       # @param depth [Integer] maximum recursive steps remaining
@@ -254,7 +254,7 @@ module Hecks
         ["arr_str", string_array_literal(depth)] + bounded(:string, depth).map { |s| "#{s}.split(\",\")" }
       end
 
-      # BOOLEAN from every comparison and predicate construct; a `given` body is boolean-
+      # Boolean from every comparison and predicate construct; a `given` body is boolean-
       # typed at its own top level (`Evaluator.truthy?`), so this is also
       # the set `all_predicates` draws from.
       #

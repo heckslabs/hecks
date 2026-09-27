@@ -55,7 +55,7 @@ module Hecks
 
                     # A value that fails its own type's invariant can never match a stored
                     # element (every stored one already satisfies it) — degrade to
-                    # UNMATCHABLE here rather than letting InvariantViolation propagate.
+                    # `UNMATCHABLE` here rather than letting InvariantViolation propagate.
                     want = begin
                       Value.for_attribute(root_aggregate, entity.attribute(head), raw)
                     rescue InvariantViolation

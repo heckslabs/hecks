@@ -35,7 +35,7 @@ module Hecks
           deploy_settings = world.for_verb("deployed_to")
 
           # Structural-only load (no `run_boot_gates!`/live persistence adapter)
-          # populates `registry.pending_privacy_markings` for PII detection below
+          # populates `registry.pending_privacy_markings` for pii detection below
           # without requiring a real Postgres connection to generate a template.
           pii_registry = Hecks::Runtime::Registry.new(root: File.expand_path(domain))
           Hecks.with_registry(pii_registry) do
@@ -1750,7 +1750,7 @@ bastion_yaml = shared ? nil : Shared.bastion_yaml(
           files
         end
 
-        # Builds the CloudFront/WAFv2/logging resources a PII-marked domain is
+        # Builds the CloudFront/WAFv2/logging resources a pii-marked domain is
         # fronted by. `use_oac` signs requests only for the AWS_IAM case; the
         # already-public WebFunction/rust_web Function URL stays as reachable
         # as before. Managed cache/origin-request policy ids are AWS's own

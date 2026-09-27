@@ -24,7 +24,7 @@ module Hecks
           #
           # One transaction; any refusal rolls back. Records both worlds touched need a winner.
           # rubocop:disable Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/MethodLength, Metrics/PerceivedComplexity
-          # One transaction with a manual ROLLBACK at each refusal, and `new_states` must be
+          # One transaction with a manual `ROLLBACK` at each refusal, and `new_states` must be
           # captured before the head rebuild; splitting the steps would scatter both.
           #
           # @param aggregates [Array<Bluebook::Aggregate>] the current bluebook's aggregates

@@ -5,7 +5,8 @@ module Hecks
   module Bluebook
     module Expression
       # Walks the Evaluator/Resolver AST and emits JSON-serializable Hashes tagged by `"op"`.
-      # Lives in core because rust/host cannot link the kernel crate and interprets this from ir.json.
+      # Lives in core because rust/host cannot link the kernel crate and interprets this from
+      # ir.json.
       module AstJson
         module_function
 
@@ -60,7 +61,8 @@ module Hecks
         # Refuses a rule that calls a method the grammar lacks, such as `value.between?(100, 599)`.
         # It would parse as a `lookup` of an attribute that cannot exist and fail on first dispatch.
         #
-        # @raise [Bluebook::DSL::Malformed] if a `lookup` path contains a parenthesis, comma or space
+        # @raise [Bluebook::DSL::Malformed] if a `lookup` path contains a parenthesis, comma or
+        #   space
         def refuse_unresolvable_lookups!(ast, owner:, word:)
           return ast if Hecks::Bluebook::MetaValidator.shadow_parsing? # frozen era text is history
 
@@ -142,7 +144,8 @@ module Hecks
           equalities.reduce { |left, right| { "op" => "or", "left" => left, "right" => right } }
         end
 
-        # One case arm per Resolver node type, kept in one method so exhaustiveness shows at a glance.
+        # One case arm per Resolver node type, kept in one method so exhaustiveness shows at a
+        # glance.
         # rubocop:disable-next Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/MethodLength
         def emit_resolver(node)
           case node

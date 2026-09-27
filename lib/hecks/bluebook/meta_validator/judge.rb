@@ -131,7 +131,7 @@ module Hecks
         end
 
         # Each identity field comes from one of three places: the parent
-        # link, the walk's own index (POSITION), or a real field read off
+        # link, the walk's own index (`POSITION`), or a real field read off
         # the node.
         def node_identity(plan, category, node, index, parent_id)
           plan.identity_paths.each_with_object({}) do |path, fields|
