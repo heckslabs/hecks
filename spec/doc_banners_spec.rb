@@ -6,7 +6,7 @@ require_relative "support/doctest_names"
 # gates (`DoctestNames::UNGATED_STATUS_DOCS`) and the files in `docs/archive/` each
 # carry a status or historical-snapshot banner in their first lines.
 module DocBanners
-  ROOT = File.expand_path("..", __dir__)
+  ROOT_DIR = File.expand_path("..", __dir__)
 
   # How many lines from the top count as "the first lines".
   WINDOW = 12
@@ -39,7 +39,7 @@ module DocBanners
 
   # @return [Array<String>] the archived files that must carry a banner
   def self.archived
-    Dir.glob(File.join(ROOT, "docs/archive/*.md")).reject { |path| File.basename(path) == "README.md" }
+    Dir.glob(File.join(ROOT_DIR, "docs/archive/*.md")).reject { |path| File.basename(path) == "README.md" }
   end
 
   # @param what [String] the doc that lacks a banner
@@ -56,7 +56,7 @@ RSpec.describe "dated-snapshot banners" do
 
   DocBanners.required.each do |doc|
     it "docs/#{doc} opens with a status or dated-snapshot banner" do
-      path = File.join(DocBanners::ROOT, "docs", doc)
+      path = File.join(DocBanners::ROOT_DIR, "docs", doc)
 
       expect(DocBanners.banner?(path)).to be(true), DocBanners.missing("docs/#{doc}")
     end
