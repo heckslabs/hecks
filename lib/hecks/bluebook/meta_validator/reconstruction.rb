@@ -228,7 +228,7 @@ module Hecks
         # by its own dotted `ValueObject.Member.Pair`. Its data therefore
         # lives inline on the value object's own dispatched state — same as
         # any other entity list — not behind a separate `DeclaredIn` query:
-        # there is no such query any more, because there is no top-level
+        # there is no such query, because there is no top-level
         # "Member" aggregate left to hold one. Pairs are still an open map,
         # which no value object can hold, so they still come back one pair
         # at a time.
@@ -330,7 +330,7 @@ module Hecks
         # Handler.Dispatch`/`...Dispatch.Bind`. Its data therefore lives
         # inline on the process manager's own dispatched state — same as
         # any other entity list — not behind a separate `DeclaredIn`
-        # query : there is no such query any more, the same fix
+        # query : there is no such query, the same fix
         # `Reconstruction#members_of` already made for Member.
         def process_manager(row)
           declaration("ProcessManager", row,

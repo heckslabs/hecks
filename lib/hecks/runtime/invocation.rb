@@ -12,7 +12,7 @@ module Hecks
     # vs the flat facts hash `dispatch_flat` carries, a port operation's
     # reference attribute
     # lifted into `to:`). `Runtime::Routing.envelope`/`.payload` delegate here
-    # and no longer hold that logic themselves.
+    # and hold none of that logic themselves.
     #
     # `facts` maps a fact name to exactly one of:
     #

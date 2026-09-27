@@ -7,11 +7,10 @@ module Hecks
     # the policy, and this module is where the two meet — a pure function
     # of both, nothing else read.
     #
-    # Why this is not in `bin/qa_sweep` any more. It was — `WIDENING_TIERS`
-    # and `widen_for_streak` lived at the top of that script, which meant
-    # policy data lived in a script (unlike every other dial, which lives
-    # in the bluebook a human edits and reviews) and duplicated itself as
-    # prose in SKILL.md. Now the table is a dial, this is the one reader,
+    # Why this is not in `bin/qa_sweep`. Policy data in a script (`WIDENING_TIERS`
+    # and `widen_for_streak`) would sit apart from every other dial, which lives
+    # in the bluebook a human edits and reviews, and would duplicate itself as
+    # prose in SKILL.md. So the table is a dial, this is the one reader,
     # and `bin/qa_sweep` calls it the way it already calls
     # `RotationPriority.pick`.
     #

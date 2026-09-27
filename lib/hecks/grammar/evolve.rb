@@ -10,7 +10,7 @@ module Hecks
     # and grouping are part of the declaration, and a rewrite that
     # round-tripped it through the IR would flatten both. Everything
     # here touches only bare `member ` lines inside Keyword's own body
-    # (S3, ADR 0025 — no `one_of do ... end` wrapper anymore) and leaves
+    # (S3, ADR 0025 — there is no `one_of do ... end` wrapper) and leaves
     # every other byte alone.
     module Evolve
       class Refusal < StandardError; end

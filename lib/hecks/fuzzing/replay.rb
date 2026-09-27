@@ -719,7 +719,7 @@ module Hecks
       # @param trace [Hash] the mutation trace `build_mutation_trace` built for this step,
       #   read for `:domain`, `:aggregate`, `:parent_id`, `:list_attr`, `:element_wants`
       # @return [Hash, nil] the element's materialized state after dispatch, or nil if
-      #   the parent record, its aggregate, or the element itself can no longer be found
+      #   the parent record, its aggregate, or the element itself cannot be found
       def read_mutation_after(runtime, trace)
         aggregate = runtime.registry.bluebook(trace[:domain])&.aggregate(trace[:aggregate])
         return nil unless aggregate

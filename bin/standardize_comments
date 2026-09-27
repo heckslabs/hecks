@@ -119,7 +119,8 @@ module CommentStyle
     /\b(?:was|were|been|got) renamed\b/i, /\brenamed from\b/i, /\bhas since\b/i,
     /\bbefore (?:this|the) (?:change|fix|refactor|split|rename|pr|commit|patch)\b/i, /\bBefore this, /,
     /\ban? earlier (?:version|revision|draft|pass)\b/i, /\bwhen this was (?:written|added)\b/i,
-    /\b(?:in|since|by|after|before|until) (?:PR )?\#\d{2,}/i, /\bPR \#?\d{2,}\b/
+    /\b(?:in|since|by|after|before|until) (?:PR )?\#\d{2,}/i, /\bPR \#?\d{2,}\b/,
+    /\bno longer\b/i, /\bany more\b/i, /\banymore\b/i
   ].freeze
 
   DIRECTIVE = /\A#\s*(?:rubocop:|frozen_string_literal:|encoding:|coding:|shareable_constant|typed:|!)/
@@ -826,6 +827,7 @@ module CommentStyle
         before = IO.popen(["git", "show", "#{ref}:#{path}"], err: File::NULL, &:read)
         next false unless $CHILD_STATUS.success?
 
+        before = before.force_encoding(Encoding::UTF_8)
         CommentStyle.code_tokens(before) != CommentStyle.code_tokens(File.read(path))
       end
     end

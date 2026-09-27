@@ -247,7 +247,7 @@ module Hecks
       #   an update to apply; nil writes unconditionally. Ignored for a delete
       # @return [Runtime::Instance, PG::Result, nil] for a save, a new instance over the
       #   entry's state with `version` set to the stored `hecks_version`, or nil when
-      #   `expected_version` no longer matched and nothing was written; for a delete, the
+      #   `expected_version` did not match and nothing was written; for a delete, the
       #   `DELETE` statement's `PG::Result`
       # @raise [PG::Error] if the statement fails
       # rubocop:disable Metrics/AbcSize -- the CAS/plain upsert split is one

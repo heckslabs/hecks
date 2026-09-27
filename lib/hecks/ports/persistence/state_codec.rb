@@ -44,7 +44,7 @@ module Hecks
       # drops a key, nil or not: a stored nil stays a stored nil.
       #
       # It never touches an undeclared key's value — a retired field, or a
-      # member a value object no longer declares, is exactly what an Era
+      # member a value object does not declare, is exactly what an Era
       # translation (rename/move/drop) still has to read. Its key keeps its
       # spelling below the top level; at the top level every key is a
       # symbol, declared or not, because every adapter has always

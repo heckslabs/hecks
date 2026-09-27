@@ -271,9 +271,9 @@ module Hecks
       # aggregate, never one of its entities). An entity target's own identity
       # is resolved entirely separately, from `args` (`build`'s own `entity_
       # identities` loop) — this method is never consulted for it, so
-      # answering for an entity target does not "invent an entity identity"
-      # any more than answering for a plain one invents that identity; it was
-      # already the one thing this method has ever supplied. `build`'s own
+      # answering for an entity target does not "invent an entity identity",
+      # just as answering for a plain one invents none; it is
+      # the one thing this method supplies. `build`'s own
       # explicit branch (below) already applies this correctly either way
       # (`aggregate_identity ||= inherited_receiver`, entity identities read
       # from `args` regardless) — the caller that actually needed a guard

@@ -89,8 +89,8 @@ module Hecks
     # caller (a file loads once per process: one `bin/ir` run, one
     # rspec worker), but a codemod legitimately reloads the same path
     # after editing it, and a stale cached tree reports a
-    # `given`/`ensures` block at its old line number, which no longer
-    # matches the freshly re-executed file's own `block.source_location`
+    # `given`/`ensures` block at its old line number, which does not
+    # match the freshly re-executed file's own `block.source_location`
     # — surfacing as "did not survive extraction" on a perfectly valid
     # file. `Prism.forget` is the real invalidation API this module's
     # own first use motivated (found here, fixed at the source rather

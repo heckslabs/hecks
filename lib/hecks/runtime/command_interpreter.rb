@@ -106,7 +106,7 @@ module Hecks
           ctx.plan = DependencyPlanning::Analyzer.call(aggregate: aggregate, command: command)
           # **Resolved here, once, before hydration** — `Registry#repository`
           # memoizes, so this and `step_hydrate`'s own read of `ctx.repository`
-          # (no second fetch there any more) always name the same instance;
+          # (no second fetch there) always name the same instance;
           # the isolation decision below (lock vs. CAS+retry) needs the
           # repository's capabilities before a single step runs.
           ctx.repository = @registry.repository(domain, aggregate)
@@ -154,7 +154,7 @@ module Hecks
 
       def step_hydrate(ctx)
         # `ctx.repository` is resolved once, in `#call`, before the
-        # isolation decision (lock vs. CAS+retry) — not here any more.
+        # isolation decision (lock vs. CAS+retry) — not here.
         ctx.strategy = ctx.plan.strategy_for(capabilities: ctx.repository.capabilities)
         ctx.instance = step(:hydrate) do
           if ctx.plan.complete_state? && ctx.plan.state_independent?
@@ -543,7 +543,7 @@ module Hecks
       # Transitional compatibility for live source that has not yet
       # acquired explicit effects, same as it always was — deliberately
       # isolated from the normal routing and planning path so
-      # `reference_to` no longer chooses how a migrated command hydrates
+      # `reference_to` does not choose how a migrated command hydrates
       # or persists. A real, future Wave 8 removes this once that wider
       # inventory is empty, not before.
       #

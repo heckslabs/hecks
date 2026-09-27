@@ -108,7 +108,7 @@ module Hecks
             # S17, ADR 0026 — Member/Handler/Dispatch are entities now
             # (`entity "Member" do ... end`, nested under `ValueObject`/
             # `ProcessManager`/`Handler`), not their own top-level
-            # aggregates — so `meta.aggregates` alone no longer finds
+            # aggregates — so `meta.aggregates` alone does not find
             # them the way it always found a standalone `aggregate
             # "Member"`. Each still needs its own named category here:
             # `Assembly::Contracts` keeps a bespoke entry for each
@@ -125,8 +125,8 @@ module Hecks
             # itself ever declares are exactly the three this ADR
             # names. `entity_owned: true` records why this is a
             # category at all — the real runtime has no top-level
-            # aggregate named "Member" to dispatch a bare verb into
-            # any more, so the judge has to build a dotted one instead
+            # aggregate named "Member" to dispatch a bare verb into,
+            # so the judge has to build a dotted one instead
             # (see `Judge#verb_for`).
             #
             # Recurses — `Dispatch` nests inside `Handler`, which nests
@@ -158,7 +158,7 @@ module Hecks
         # Every verb the language declares, spelled as the judge would
         # dispatch it. S17, ADR 0026 — an entity-owned category (its
         # own `entity_owned` flag) has no real top-level aggregate the
-        # runtime can route a bare verb into any more, so it is
+        # runtime can route a bare verb into, so it is
         # spelled dotted here too — `Bluebook::ValueObject.Member.
         # Declare`, `Bluebook::ProcessManager.Handler.Dispatch.Bind` —
         # matching `Judge#verb_for`/`#dotted_prefix`'s own build

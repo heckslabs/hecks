@@ -25,7 +25,7 @@ module Hecks
       # **A finding shipped, not silenced** — the coverage-gate idiom, empty
       # allowlists enforced both directions (spec/model_check_spec.rb holds
       # this exact table: an error the checker reports and this does not
-      # name is a regression, an entry the checker no longer reports is
+      # name is a regression, an entry the checker does not report is
       # stale and must be deleted). bin/model_check reads this same
       # constant, so the tool and the spec can never drift apart.
       #
@@ -44,9 +44,9 @@ module Hecks
       # was a `state "x"` line never named by any handler's own from:/to:, a
       # pure declaration-drift artifact. States are derived from the
       # transitions that name them now (ProcessManagerBuilder#derived_
-      # states), so a state nothing ever transitions into or out of no
-      # longer exists to be unreachable — the finding that entry allowlisted
-      # cannot occur any more, by construction.
+      # states), so a state nothing ever transitions into or out of does
+      # not exist to be unreachable — the finding that entry allowlisted
+      # cannot occur, by construction.
       #
       # "banking"/NotifyOnClosure, FlagKeyReturn — gone from here, moved
       # to banking. `across "Notifications"` names a domain that does not

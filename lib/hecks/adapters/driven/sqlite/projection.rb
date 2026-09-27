@@ -15,7 +15,7 @@ module Hecks
     # Rebuilds a read store from the authoritative journal, entry by entry.
     # A value object is written as its JSON object and a reference as the
     # bare id it holds — the same shapes the command path writes, so there
-    # is no second representation to accept here any more.
+    # is no second representation to accept here.
     class SqliteProjection < Sqlite
       # Replaces or deletes the read store's row for one journal entry, encoding the entry's
       # state directly rather than through a `Runtime::Instance`.
