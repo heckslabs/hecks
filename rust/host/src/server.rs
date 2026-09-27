@@ -44,9 +44,10 @@
 
 use crate::dispatch;
 use crate::journal::LineageConfig;
-use crate::lambda_client::{AwsLambdaInvoker, LambdaInvoker};
+use crate::lambda_client::LambdaInvoker;
 use crate::log;
 use crate::rate_limit::{self, RateLimits, Verdict};
+use crate::wasm_runner;
 use crate::web;
 use axum::body::Bytes;
 use axum::extract::{ConnectInfo, State};
@@ -136,7 +137,7 @@ pub struct ServerState {
     pub client: Arc<Mutex<Client>>,
     pub wasm_path: Arc<PathBuf>,
     pub lineage_config: Arc<LineageConfig>,
-    pub invoker: Arc<AwsLambdaInvoker>,
+    pub invoker: Arc<dyn LambdaInvoker>,
     pub limits: Arc<RateLimits>,
 }
 
@@ -169,10 +170,13 @@ pub fn version_router(body: Value) -> Router {
     Router::new().route("/version", get(move || std::future::ready(axum::Json(body.as_ref().clone()))))
 }
 
-/// Binds `0.0.0.0:$PORT` (`PORT`, matching `fargate.rb`'s own generated
+/// Compiles the domain's wasm module (`warm_wasm`), then binds
+/// `0.0.0.0:$PORT` (`PORT`, matching `fargate.rb`'s own generated
 /// container `Environment` — falls back to 8080, the same default
 /// `deployed_to("AwsFargate")`'s own `port` setting uses, purely for
 /// convenience running this outside a real deploy) and serves forever.
+/// Nothing is listening until the compile is done, so the health check
+/// reports a host that can answer.
 ///
 /// Three routes: `GET /version` (see `version_router`) reports the era
 /// and build without touching dispatch. `GET /` is a bare, dispatch-free
@@ -193,18 +197,46 @@ pub fn version_router(body: Value) -> Router {
 pub async fn serve(state: ServerState, version: Value) -> Result<(), Error> {
     let port: u16 = std::env::var("PORT").ok().and_then(|v| v.parse().ok()).unwrap_or(8080);
 
+    warm_wasm(&state.wasm_path).await;
+
+    let phase = log::phase_with("serve_start", serde_json::json!({ "port": port }));
+    let listener = tokio::net::TcpListener::bind(("0.0.0.0", port)).await?;
+    phase.end();
+    serve_on(listener, state, version).await
+}
+
+/// The router and serve loop over an already-bound `listener`: the part of
+/// `serve` that answers requests, split out so a test can run the real
+/// service on an ephemeral port.
+async fn serve_on(listener: tokio::net::TcpListener, state: ServerState, version: Value) -> Result<(), Error> {
     let app = Router::new()
         .route("/", get(health))
         .fallback(any(dispatch_route))
         .with_state(state)
         .merge(version_router(version));
 
-    let phase = log::phase_with("serve_start", serde_json::json!({ "port": port }));
-    let listener = tokio::net::TcpListener::bind(("0.0.0.0", port)).await?;
-    phase.end();
     // The connect info is the TCP peer, which `rate_limit` needs to tell a visitor from a proxy.
     axum::serve(listener, app.into_make_service_with_connect_info::<SocketAddr>()).await?;
     Ok(())
+}
+
+/// Compiles the domain's wasm module before the host listens, so a
+/// request that arrives right after boot finds it ready instead of
+/// waiting out a compile that can outlast the caller's own timeout
+/// (`wasm_runner::warm` has the whole story). A module that will not
+/// compile is logged, not fatal: the host still boots as it did before
+/// this step existed, and every request that needs the module reports
+/// the same error it would have.
+async fn warm_wasm(wasm_path: &Arc<PathBuf>) {
+    let phase = log::phase("wasm_warm");
+    let path = Arc::clone(wasm_path);
+    match tokio::task::spawn_blocking(move || wasm_runner::warm(&path)).await {
+        Ok(Ok(())) => {
+            phase.end();
+        }
+        Ok(Err(e)) => log::error("wasm_warm_failed", serde_json::json!({ "error": format!("{e:#}") })),
+        Err(e) => log::error("wasm_warm_failed", serde_json::json!({ "error": format!("{e}") })),
+    }
 }
 
 /// The ALB health check — cheap and fast on purpose, no dispatch logic
@@ -623,6 +655,68 @@ mod tests {
         for _ in 0..10 {
             assert_eq!(post(addr, SUBSCRIBE, None, "{}").await.status(), 200);
         }
+    }
+
+    // The real service on an ephemeral port — the same router, connect info and dispatch the host
+    // serves, over a scratch Postgres and a cold copy of the checkout fixture's wasm, so the first
+    // request is a real compile. Returns the address and the wasm path it serves.
+    async fn fixture_host(database: &str, copy_name: &str) -> (SocketAddr, Arc<PathBuf>) {
+        let client = crate::dispatch::tests::scratch_db(database).await;
+        crate::dispatch::tests::provision_lineage(&*client.lock().await, "CheckoutFixture", 1, &["Event"]).await;
+        let wasm_path = Arc::new(crate::wasm_runner::tests::cold_copy_of_fixture(copy_name));
+        let state = ServerState {
+            client: Arc::new(client),
+            wasm_path: Arc::clone(&wasm_path),
+            lineage_config: Arc::new(LineageConfig { domain: "CheckoutFixture".to_string(), era: Some(1), mirrored: None }),
+            invoker: Arc::new(crate::lambda_client::NeverInvoker),
+            limits: limits_from(&[]),
+        };
+        let listener = tokio::net::TcpListener::bind(("127.0.0.1", 0)).await.unwrap();
+        let addr = listener.local_addr().unwrap();
+        tokio::spawn(async move { serve_on(listener, state, sample_version()).await });
+        (addr, wasm_path)
+    }
+
+    // `burst` simultaneous reads, each with the protocol's own `{"read": true}` body.
+    async fn read_burst(addr: SocketAddr, burst: usize) -> Vec<(StatusCode, Value)> {
+        let requests: Vec<_> = (0..burst)
+            .map(|_| {
+                tokio::spawn(async move {
+                    let response = reqwest::Client::new().post(format!("http://{addr}/dispatch")).body(r#"{"read": true}"#).send().await.unwrap();
+                    let status = StatusCode::from_u16(response.status().as_u16()).unwrap();
+                    (status, response.json::<Value>().await.unwrap())
+                })
+            })
+            .collect();
+        let mut answers = Vec::new();
+        for request in requests {
+            answers.push(tokio::time::timeout(std::time::Duration::from_secs(120), request).await.expect("a read was never answered").unwrap());
+        }
+        answers
+    }
+
+    #[tokio::test]
+    async fn a_burst_of_reads_on_a_cold_host_is_answered_from_one_compile() {
+        let (addr, wasm_path) = fixture_host("rust_host_serve_cold_burst", "serve_cold").await;
+
+        for (status, answer) in read_burst(addr, 8).await {
+            assert_eq!(status, StatusCode::OK, "{answer}");
+            assert!(answer["instances"].is_object(), "{answer}");
+        }
+        assert_eq!(crate::wasm_runner::compile_count(&wasm_path), 1);
+    }
+
+    #[tokio::test]
+    async fn warming_before_serving_leaves_no_compile_for_the_first_read() {
+        let (addr, wasm_path) = fixture_host("rust_host_serve_warmed", "serve_warmed").await;
+        warm_wasm(&wasm_path).await;
+        assert_eq!(crate::wasm_runner::compile_count(&wasm_path), 1);
+
+        let started = std::time::Instant::now();
+        let answers = read_burst(addr, 1).await;
+        assert_eq!(answers[0].0, StatusCode::OK, "{}", answers[0].1);
+        assert_eq!(crate::wasm_runner::compile_count(&wasm_path), 1);
+        assert!(started.elapsed() < std::time::Duration::from_secs(1), "a warmed read took {:?}", started.elapsed());
     }
 
     #[test]
