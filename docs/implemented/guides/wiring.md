@@ -300,8 +300,7 @@ end
 
 `deployed_to("AwsLambda")` is read by `bin/project_deploy` (see
 [Projections: Rust and
-WebAssembly](../../../README.md#projections-rust-and-webassembly) in
-the README, and [architecture-map.md](../../architecture-map.md) for
+WebAssembly](projections.md), and [architecture-map.md](../../architecture-map.md) for
 the projector inventory) to generate a SAM template, build Makefile and
 deploy config, no secret typed anywhere. Because this example declares
 `database "Shared"`, the stack borrows the VPC and Postgres instance of

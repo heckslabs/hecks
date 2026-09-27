@@ -49,3 +49,36 @@ you're not.
 15. **[Language versioning](language-versioning.md)** — how the bluebook
     surface itself carries `proposed`/`admitted`/`deprecated`/`retired`,
     and what `bin/evolve` does with a rename.
+16. **[Projections: Rust and WebAssembly](projections.md)** — the
+    bluebook as the one definition, projected to generated Rust and WASM,
+    and how that output is held equal to Ruby's.
+17. **[AI-native development](ai-native-development.md)** — the
+    storehouse bus and its MCP door: one checked surface an agent works
+    through, and what its identity check does not do.
+18. **[Project status](project-status.md)** — what works today, what is
+    experimental or partial, and where the gaps are written down.
+
+## Beyond the guides
+
+- **[The DSL reference](../reference/index.md)** — one page per context,
+  one runnable example per word.
+- **[Architecture map](../../architecture-map.md)** — the `lib/hecks/`
+  and `rust/` directory layout, and the dependency direction the split
+  follows.
+- **[The tools](../../tools.md)** — every `bin/` script, one line each.
+- **Resolution rules** — the exact algorithm behind every piece of DSL
+  sugar that lets a bluebook omit something the runtime can derive:
+  [overview](../../resolution-rules/README.md),
+  [cross-entity given](../resolution-rules/cross-entity-given.md).
+- **[Decision log](../../decisions/)** and
+  **[implemented decisions](../decisions/)** — one
+  document per architectural decision, kept even after superseded.
+- **[Changelog](../../../CHANGELOG.md)** and
+  **[1.0 readiness](../../1.0-readiness.md)**.
+- **[The query DSL](../../query-dsl.md)**,
+  **[command/query form](../../command-form-and-query-form-bluebook.md)**,
+  **[Rails integration](../../rails-integration.md)** (design only).
+- **[`docs/HECKS_IMPLEMENTATION_PLAN.md`](../../HECKS_IMPLEMENTATION_PLAN.md)**
+  — the full aspirational architecture in one document. Treat this as a
+  roadmap, not a status report; [Project status](project-status.md) is
+  the status report.

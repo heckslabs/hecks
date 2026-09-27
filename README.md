@@ -1,9 +1,9 @@
 # hecks
 
-hecks is an **executable domain specification language**. A `.bluebook`
-file declares a business domain — its aggregates, rules, and events —
-and that declaration *is* the running system, not a spec that code is
-later written from:
+hecks is an **executable domain specification language**. A
+[`.bluebook`](#bluebook) file declares a business domain — its aggregates,
+rules, and events — and that declaration *is* the running system, not a
+spec that code is later written from:
 
 ```ruby skip
 given("at most 10 toppings") { toppings.size < 10 }
@@ -20,6 +20,45 @@ directly from the declaration. A domain is data, so it can be read,
 diffed, statically checked, run against generated fuzz sequences, and
 compiled into another language, the same way any other data can.
 
+**Status:** Current release: `2.7.0`. See [Project status](#project-status)
+for what the stability promise made at `1.0.0` covers and what it explicitly
+doesn't yet.
+
+## Install
+
+```sh
+gem install hecks
+```
+
+Or in a Gemfile: `gem "hecks"`.
+
+The gem installs a `hecks` command for a domain you supply: `run`,
+`docs`, `narrate`, `ir`, `stores`, `model_check`, `smoke_test`,
+`project_diagrams`, `project_cli`, and `mcp` (the MCP door, over stdio
+only). `hecks` lists them and `hecks <command> --help` prints one's
+usage. Each runs the same code as its `bin/` script in a clone (`mcp`
+is `bin/hecks_mcp_door`).
+
+The gem carries no sample domain, so the quickstart below starts from a
+clone of this repository.
+
+## Quickstart
+
+About ten minutes, and no database server:
+
+```sh
+git clone https://github.com/heckslabs/hecks
+cd hecks
+bundle install
+bin/console
+```
+
+`bin/console` boots the `examples/pizzas` domain on the in-memory adapter
+and drops you into IRB with its [door](#door) installed. The domain's
+own [hecksagon](#hecksagon) binds [PostgresEra](#postgresera), so the
+console loads the Memory-bound sibling `examples/pizzas/pizzas_behaviors.hecksagon`
+instead, and `git status` stays clean. Type this at the prompt:
+
 <!-- doctest:boot
 Kernel.load(File.join(InMemoryDomain::ROOT, "examples/pizzas/bluebook/pizzas.bluebook"))
 Hecks.hecksagon("Pizzas") do
@@ -33,31 +72,31 @@ end
 -->
 
 ```ruby
-order = Order.create_pizza!(name: { value: "Margherita" }, pizza: { price_cents: { cents: 1200 }, size: { value: "large" } })
-order.add_topping!(topping: { value: "Basil" }, amount: { value: 3 })
-order.purchase!(customer_name: { value: "Chris" }, amount: { cents: 1200 })
+order = Order.create_pizza!(name: "Margherita", pizza: { price_cents: { cents: 1200 }, size: "large" })
+order.purchase!(customer_name: "Chris", amount: { cents: 1200 })   # ~> GivenNotMet: a pizza needs at least one topping
+
+order.add_topping!(topping: "Basil", amount: 3)
+order.purchase!(customer_name: "Chris", amount: { cents: 1200 })
 
 order.status             # => "sold"
 order.events.last.name   # => "PizzaPurchased"
 ```
+
+A value object with a single attribute takes a bare scalar (`name:
+"Margherita"` wraps into its one field); one with several fields, like
+`pizza:`, takes an object. The first `purchase!` is refused by a `given`
+declared on the command, before anything changes.
 
 That block runs on every push, claims and all — not an illustration.
 So does every other `ruby`-fenced example in this README and in
 [the guides](docs/implemented/guides/); `spec/guides_spec.rb` is the
 harness.
 
-**Status:** Current release: `2.7.0`. See [Project status](#project-status)
-for what the stability promise made at `1.0.0` covers and what it explicitly
-doesn't yet.
-
-## Install
-
-```sh
-gem install hecks
-```
-
-Or in a Gemfile: `gem "hecks"`. See [Quickstart](#quickstart) below to
-go from a bare install to a running domain.
+Next, [Getting started](docs/implemented/guides/getting-started.md) walks
+through the pizzas bluebook you just dispatched against, and the
+[Glossary](#glossary) at the end of this page defines the project's own
+words. `bin/console <domain>` boots any other domain directory as that
+directory is wired.
 
 ## Why
 
@@ -104,9 +143,9 @@ The specification is what a reviewer reads to know what the business
 actually requires; it is also, unmodified, what runs. Swapping the
 runtime underneath it — a different persistence adapter, a different
 dispatch language entirely — does not touch the specification at all
-(see [Projections](#projections-rust-and-webassembly)).
+(see [Projections](docs/implemented/guides/projections.md)).
 
-This is not a hypothetical concern about hecks's own corpus. [ADR
+This is not a hypothetical concern about hecks's own [corpus](#corpus). [ADR
 0025](docs/decisions/0025-the-dsl-names-one-idea-one-way-and-a-word-earns-its-place-by-being-used.md)
 in this repository's own decision log measured it directly: two
 preconditions — "the customer is active" and "the customer is not
@@ -137,15 +176,15 @@ would otherwise depend on whoever (or whatever) is editing the code
 noticing it. A bluebook that violates an invariant refuses to boot or
 refuses to dispatch, deterministically, regardless of whether a person
 or a model wrote the line. See [AI-native
-development](#ai-native-development) for what that looks like as a
-concrete integration today, not just an argument.
+development](docs/implemented/guides/ai-native-development.md) for what
+that looks like as a concrete integration today, not just an argument.
 
 ## How it works
 
 A domain is three files, each with one job. `.bluebook` declares what
 the domain *is* — aggregates, commands, rules — independent of how any
 deployment runs it. `.hecksagon` wires it to real ports: which adapter
-persists it, which framework it attaches to. `.world` holds the one
+persists it, which framework it attaches to. [`.world`](#world) holds the one
 thing neither of those names — per-deployment values, like a database
 URL. [Wiring](docs/implemented/guides/wiring.md) covers the last two in
 full; here is the first, in full — `examples/pizzas/bluebook/pizzas.bluebook`,
@@ -302,7 +341,7 @@ end
 An aggregate, a lifecycle, an invariant, a command, an event — executed:
 
 ```ruby
-account = Account.open!(number: { value: "1001" })
+account = Account.open!(number: "1001")
 account.credit!(amount: { cents: 500, currency: "USD" })
 
 account.balance.to_h                                       # => { cents: 500, currency: "USD" }
@@ -357,6 +396,27 @@ stateDiagram-v2
     frozen --> closed: CloseAccount
 ```
 
+To drive the full domain by hand, `bin/console examples/banking` boots it
+as wired. Banking is bound to [Heki](#heki), which keeps its records in
+the git-tracked `examples/banking/data/`, so a dispatch there shows up in
+`git status`; `git checkout -- examples/banking/data` and
+`git clean -f examples/banking/data` put the clone back.
+
+```ruby skip
+customer = Customer.register!(reference: "CUST-1001", name: { given: "Chris", family: "Young" }, email: { address: "chris@example.com" })
+account  = Account.open!(customer: "CUST-1001", number: "1001", kind: { name: "current" }, daily_limit: { cents: 50_000 })
+account.credit!(amount: { cents: 500, currency: "USD" }, narrative: { text: "Opening deposit" })
+
+account.balance.to_h    # => { cents: 500, currency: "USD" }
+account.status          # => "open"
+```
+
+To run a scripted step list instead of a REPL, writing to the same files:
+
+```sh
+bin/run examples/banking spec/corpus/banking.json
+```
+
 ## Why this architecture matters
 
 Only what this repository actually does today, checked, not aspired to:
@@ -396,246 +456,23 @@ Only what this repository actually does today, checked, not aspired to:
   (an append-only journal, no server) all satisfy the same persistence
   port.
 
-The same separation extends past persistence, to dispatch itself —
-which is the more interesting claim, and where it currently matters
-most:
-
-## Projections: Rust and WebAssembly
-
-The point is not "hecks also supports Rust." It's that the bluebook is
-the one authoritative definition of a domain, and everything else —
-including *where code runs* — is a **projection** of that definition,
-generated, not hand-maintained a second time.
-
-```
-.bluebook  →  canonical IR  →  generated Rust source  →  native binary
-                                                       →  WASM (WASI or browser)
-```
-
-`bin/project_rust <domain>` reads a booted domain's canonical IR and
-generates typed Rust structs and enums for every value object, entity,
-and aggregate record. `given`/`ensures`/mutation logic stays data,
-interpreted at runtime by one small, hand-written kernel
-(`rust/src/kernel/{expr,dispatch}.rs`) that walks it exactly the way
-`CommandInterpreter#call` does in Ruby — so extending the language
-means extending one interpreter twice, not maintaining a second
-hand-written implementation that silently drifts. The parser is
-generated too (`bin/project_parser_table`, from the language's own
-`Syntax` chapter), not hand-written a second time either.
-
-Ruby is the reference implementation; Rust is checked against it
-continuously, not just at release time: `spec/codegen_parity_spec.rb`
-holds Rust's generated output byte-identical to Ruby's, and
-`spec/rust_conformance_spec.rb` replays every pinned fixture script in
-`spec/corpus/rust_conformance/` through the compiled binary, diffing instances, events, refusals,
-reactions, sagas, and query rows against Ruby's byte-for-byte, in CI,
-on every push. That parity is proven on the pinned fixtures and on the
-whole-script corpus members promoted below. Measured
-directly in this repository, generating and building the `pizzas`
-domain from a clean `rust/src/generated/`:
-
-```sh
-$ bin/project_rust examples/pizzas      # canonical IR → Rust source
-# ~4s
-
-$ bin/project_wasm examples/pizzas      # cross-compiles the SAME binary to wasm32-wasip1
-# ~13s cargo build --release; produces rust/dist/pizzas.wasm (551 KB)
-
-$ wasmtime run rust/dist/pizzas.wasm < spec/corpus/pizzas.json
-# real dispatch output — instances, events, refusals — matching Ruby's
-```
-
-The whole `spec/corpus/banking.json` script is held to the same bar: the
-conformance spec replays it in full against the compiled binary and
-requires instances, events, refusals, queries, sagas, and reactions to
-match Ruby byte-for-byte. Replaying it found two refusals Rust worded
-differently from Ruby (a value object offered as a bare scalar, and a
-read model asked for a record that does not exist), both fixed in Rust.
-`spec/corpus/chess.json` is held to the same bar and agreed from the start.
-Corpus scripts are promoted to that whole-script bar one at a time; the
-rest are covered by the smaller pinned fixtures, or have no Rust build of
-their own to compare against: the framework/grammar chapters
-(`governance`, `identity`, `console_settings`, `expression`,
-`translation` — `lib/hecks/framework` and `lib/hecks/grammar`) have no
-Cargo feature and are only folded into the build of a domain that
-attaches them. The history of the Ruby/Rust divergence findings is in
-[`docs/audits/2026-08-11-bug-triage.md`](docs/audits/2026-08-11-bug-triage.md)'s
-R1–R4.
-
-Named/declared aggregate queries and `read_model` ("report") execution
-in Rust cover a real, proven subset — not "no Rust path at all": a
-wheres-only, single-aggregate field-comparator query (plus its own
-`order_by`/`limit` on a plain field) and a bare read model declaring no
-`where`/`order_by`/`limit`/`offset`/`freshness`/`authorization`/
-`index_hints` execute for real and match Ruby byte-for-byte
-(`Banking.CustomerPortfolio`, one of the pinned fixtures). A query or
-read model outside that shape — `Banking.ComplianceDashboard`'s
-`freshness`/`index_hints`, `Banking::Account.OpenForSuspendedCustomers`,
-`Banking::ATMCard.ByFee` — refuses with an explicit "is not generated
-for this domain" error in Rust instead of running; both sides are
-documented, allowlisted gaps (`rust/project/queries.rb`,
-`rust/project/read_models.rb`, `bin/rust_coverage`'s own allowlist), not
-silent wrong answers.
-
-That WASM artifact is not a second implementation compiled for a
-different target — it is `rust/src/main.rs`'s stdin/stdout JSON CLI,
-unchanged, cross-compiled ([ADR
-0012](docs/implemented/decisions/0012-wasm-via-wasi-stdio.md)): it reads a step
-list on stdin and writes the same `{"instances","events","refusals"}`
-shape the native binary and Ruby both produce, so a runtime built for a
-browser tab, an edge function, or a sandboxed plugin host runs the
-*same checked semantics* — no server, no Ruby, no database — as the
-one CI holds equal to the reference implementation. A separate
-`wasm-bindgen` build (`bin/project_wasm_browser`) targets an ES module
-for the browser specifically.
-
-What this buys, concretely: the business definition is not coupled to
-where or how it executes. A human or an AI agent edits the bluebook;
-hecks validates it against the same semantics regardless of target,
-then projects it to whichever execution form the deployment actually
-needs — a Ruby process talking to Postgres, or a portable binary with
-no runtime dependencies at all. Deployment (SAM/Lambda templates via
-`bin/project_deploy`, an OIDC manifest via `bin/project_oidc`, a
-standalone CLI via `bin/project_cli`) is downstream of that same
-projection step, not a separate hand-authored artifact.
-
-What this does *not* yet claim: throughput and latency are measured only
-by a single-machine harness (`bin/bench`; the [baseline and its
-caveats](docs/benchmarks.md)), not under a production-like load,
-`read_model` queries outside the proven subset above are refused in Rust
-rather than run, and the WASM projector is one command away
-(`bin/project_wasm`) but not part of any deployed pipeline today. See
-[Running a runtime](docs/implemented/guides/running-a-runtime.md) for
-the exact field-by-field contract a third dispatch runtime would need,
-and [the retired first Rust
-runtime](docs/implemented/rust-experiment.md) for why hand-writing a
-second implementation was tried and abandoned before this
-generate-and-check architecture replaced it.
-
-## AI-native development
-
-The thesis from [Why](#why-this-gets-sharper-with-ai-generated-code)
-made concrete: a coding agent working on a hecks domain has a
-narrower, checked surface to operate on than one editing an arbitrary
-codebase, and — as of this repository's most recent work — a real,
-tested way to operate on it without shelling out to ad hoc scripts.
-
-`bin/hecks_mcp_door` (backed by `Hecks::Storehouse`,
-`lib/hecks/storehouse.rb`, tested by `spec/storehouse_spec.rb`) is an
-MCP server exposing one bus for *every* booted domain: `dispatch`
-(commands, with `dry_run` and batched steps), `query`, `state`,
-`history`, `catalog`, `describe`, `validate` (a deep model-check pass),
-`domains` (auto-discovery, so a caller that doesn't already know a
-path can find one), `behaviors`, and `follow` (tails a domain's own
-audit log live). Every call carries a required `summary` and, for
-`dispatch`/`query`, a caller identity (`role`/`actor_id`) bound for the
-call — checked against a role-gated command's own declared role, the
-same string-vs-`Governance::RoleAssignment` check ADR 0025 gives every
-other caller. `dispatch` requires it: a command that declares a role
-refuses rather than runs when no caller is bound. `query`'s own
-authorization runs on a separate mechanism (tenant scope) that `role`
-does not gate, so a query executes unbound either way. Identity here is
-self-asserted by whoever is calling, not authenticated — this bus
-checks a stated `role`/`actor_id` consistently, it does not verify who
-is actually on the other end (see `bin/hecks_mcp_door`'s header for
-what that does and does not guard against). Every domain-scoped tool's
-`domain:`/`under:` is confined to `Hecks::Storehouse::BOOT_ROOT` (the
-project directory by default) — `Hecks.boot` loads real Ruby, and this
-bus refuses to boot one from outside its own root. `bin/hecks_query_ir_mcp`
-is a smaller, older, read-only sibling exposing structural queries over
-the language itself (`lib/hecks/query_ir.rb`) — meta-tooling for
-working on hecks, not on a business domain. Both speak MCP over stdio
-only and refuse to start otherwise (`Hecks::McpStdioGuard`: no network
-argument or `HECKS_MCP_*` option, no IP socket as stdin or stdout), and
-both print an identity warning on stderr at startup. The door is
-unauthenticated beyond the caller-asserted `role`/`actor_id` above, and
-its readers (`state`, `events`, `history`, `follow`, `describe`,
-`catalog`) take no identity; the query-IR server asks for none. Neither
-should be exposed over a network — [ADR
-0062](docs/decisions/0062-mcp-servers-need-real-authentication-before-any-network-transport.md)
-proposes what a network transport would need first. Both are
-registered in `.mcp.json` in this repository.
-
-What this means in practice: an agent can inspect a domain's shape,
-dispatch a real command, read back events and state, and statically
-validate a change — all through the same closed, checked vocabulary a
-human reads in the bluebook — instead of grepping and editing
-arbitrary Ruby files. It does not mean the agent is unsupervised, or
-that the vocabulary is complete (see [Project
-status](#project-status)); it means the interface an agent operates
-through is the same constrained one this whole document has been
-arguing for.
+The same separation extends past persistence, to dispatch itself:
+[Projections: Rust and WebAssembly](docs/implemented/guides/projections.md)
+covers the generated Rust runtime, its WASM build, and how both are held
+byte-for-byte to Ruby in CI. [AI-native
+development](docs/implemented/guides/ai-native-development.md) covers the
+[storehouse](#storehouse) bus and the MCP door a coding agent works
+through.
 
 ## Project status
 
 Current release: `2.7.0`. [`docs/1.0-readiness.md`](docs/1.0-readiness.md)
-states plainly what the stability promise made at `1.0.0` covers — the DSL and runtime API in
-[the DSL reference](docs/implemented/reference/index.md) won't change in
-a breaking way without a major-version bump — and what it explicitly
-doesn't cover yet (query DSL aggregation beyond `count`/`median`/`group_by`,
-Rust codegen for `read_model` beyond its proven subset, Rails integration,
-Drivers, the outbox's standalone relay — see that doc's "Explicitly not
-covered" section). [ADR 0025](docs/decisions/0025-the-dsl-names-one-idea-one-way-and-a-word-earns-its-place-by-being-used.md),
-the breaking DSL redesign this release was blocked on, is fully landed —
-see [Quickstart](#quickstart) for the current syntax.
-
-**Working today**, exercised in CI on every push (the full rspec suite,
-alongside `bin/model_check` and `bin/fuzz`):
-
-- The DSL → IR → dispatch pipeline; the Ruby reference runtime.
-- Persistence adapters: Memory, Sqlite, Postgres, PostgresEra, Heki,
-  Folder.
-- Static model checking, property-based fuzzing (Memory, Sqlite, and
-  Postgres adapters), corpus regression, golden IR snapshots.
-- The generated Rust dispatch runtime, differentially tested against
-  Ruby continuously (not merely at release time).
-- WASM projection (WASI and browser targets) from the same generated
-  Rust.
-- AWS Lambda/SAM deployment projection; Mermaid diagram projection.
-- Both MCP servers described in [AI-native
-  development](#ai-native-development) — the Storehouse dispatch door
-  landed very recently and is the least battle-tested item on this
-  list.
-
-**Experimental or partial:**
-
-- Property-based fuzzing defaults to the Memory adapter but also runs
-  against real Sqlite and Postgres (`bin/fuzz --adapter sqlite|postgres`
-  — Postgres needs a real reachable local server and is noticeably
-  slower per seed, so pass smaller `--seeds`/`--steps` than the default
-  sweep). A reference-hop query field (`owner/field`) is *queried*, not
-  just indexed, on every SQL adapter: the hop folds into a local `in:`
-  clause before any adapter sees it
-  (`spec/adapters/query_hop_agreement_spec.rb`).
-- Query aggregation is partial. A `read_model` can declare `count`,
-  `median` and `group_by`, on Ruby and on the generated Rust runtime;
-  there is no `sum`, `avg`, `min` or `max`, and a plain `query` reduces
-  nothing. On the in-memory adapter, `group_by` also keeps only the first
-  row when several share a key path — a known defect, written up in
-  [ADR 0061](docs/decisions/0061-query-dsl-aggregation-count-sum-group-by.md).
-- `PostgresEra`'s schema-evolution/translation system works and is
-  exercised in CI; the migration/rekey data-loss findings tracked
-  against it (era-migrated deletes resurrecting, rekey SQL invisible
-  to the approval digest, a dotted `compute` exempting its whole
-  parent attribute from the equivalence gate) are fixed and
-  live-verified against real Postgres as of 2026-08-27 — see
-  `docs/future-features.md`'s "Bug audits" section for the specifics
-  and what's *not* independently re-checked yet. One related gap is
-  recorded and unfixed: a `compute` whose source is a dotted member
-  never fires in the compiled SQL, so the mint succeeds and the record
-  keeps its old value.
-- Rust codegen runs a proven subset of `read_model` queries (see
-  [Projections](#projections-rust-and-webassembly) above for its shape); one outside
-  that subset is refused in Rust with a "not generated for this domain"
-  error and still requires Ruby.
-- The transactional outbox ([ADR 0053](docs/decisions/0053-transactional-outbox-for-domain-events-and-effects.md),
-  `Runtime::Outbox`): a command's save, its events, and one
-  `pending` row per policy/process-manager consumer commit together on
-  Sqlite/Postgres/PostgresEra (Memory keeps in-process rows); the
-  dispatcher drains them inline, the next boot redrives `pending` rows
-  and surfaces `claimed` ones. Heki/LocalStorage/D1 have no outbox yet
-  (boot warns); the relay is the dispatching thread plus boot-time
-  reconciliation, not a separate process.
+states plainly what the stability promise made at `1.0.0` covers — the DSL
+and runtime API in [the DSL reference](docs/implemented/reference/index.md)
+won't change in a breaking way without a major-version bump — and what it
+explicitly doesn't cover yet. [Project
+status](docs/implemented/guides/project-status.md) lists what works today,
+exercised in CI on every push, and what is experimental or partial.
 
 **Planned or research only — nothing below is built:**
 
@@ -643,61 +480,19 @@ alongside `bin/model_check` and `bin/fuzz`):
 - Inbound scheduling ("Drivers": interval/cron/clock triggers declared
   in the hecksagon).
 - A standalone outbox relay process / shared adapter-host protocol
-  (the transactional outbox itself shipped — see "Experimental or partial").
+  (the transactional outbox itself shipped — see
+  [Project status](docs/implemented/guides/project-status.md#experimental-or-partial)).
 - Mutation testing and coverage-guided fuzzing.
 
 [`docs/future-features.md`](docs/future-features.md) is the project's
 own running list of gaps, ranked by how much depends on them — read it
 before assuming a capability exists that isn't demonstrated above.
 
-## Quickstart
-
-`gem install hecks` gets you the runtime, but the examples and docs
-below live in the repository, so cloning it is still the fastest way
-to try the whole thing:
-
-```sh
-git clone https://github.com/heckslabs/hecks
-cd hecks
-bundle install
-bin/console examples/banking     # drops into IRB with the domain booted
-```
-
-No server, no setup — `examples/banking` wires `Heki`, a local
-append-only file, so this works offline on a clean clone:
-
-```ruby skip
-customer = Customer.register!(reference: { value: "CUST-1001" }, name: { given: "Chris", family: "Young" }, email: { address: "chris@example.com" })
-account  = Account.open!(customer: "CUST-1001", number: { value: "1001" }, kind: { name: "current" }, daily_limit: { cents: 50_000 })
-account.credit!(amount: { cents: 500, currency: "USD" }, narrative: { text: "Opening deposit" })
-
-account.balance.to_h    # => { cents: 500, currency: "USD" }
-account.status          # => "open"
-```
-
-`bin/console` with no domain argument boots `examples/pizzas` instead —
-the domain [Getting started](docs/implemented/guides/getting-started.md)
-walks through — but that domain's real wiring uses `PostgresEra`, so it
-needs a reachable local Postgres. Reach for `examples/banking` first if
-one isn't already running. To run a scripted step list instead of a
-REPL:
-
-```sh
-bin/run examples/banking spec/corpus/banking.json
-```
-
-To verify the whole claim, not just the demo:
-
-```sh
-bundle exec rspec       # the whole suite
-bin/model_check         # static analysis over a domain's IR
-bin/fuzz                # generated sequences, checked against declared properties
-```
-
-## Architecture and documentation
+## Documentation
 
 <!-- generated:begin id=guides -->
 - [Aggregates and value objects](docs/implemented/guides/aggregates-and-value-objects.md)
+- [AI-native development](docs/implemented/guides/ai-native-development.md)
 - [Behaviors](docs/implemented/guides/behaviors.md)
 - [Commands](docs/implemented/guides/commands.md)
 - [Entities](docs/implemented/guides/entities.md)
@@ -707,6 +502,8 @@ bin/fuzz                # generated sequences, checked against declared properti
 - [Language versioning](docs/implemented/guides/language-versioning.md)
 - [Lifecycles](docs/implemented/guides/lifecycles.md)
 - [Policies and process managers](docs/implemented/guides/policies-and-process-managers.md)
+- [Project status](docs/implemented/guides/project-status.md)
+- [Projections: Rust and WebAssembly](docs/implemented/guides/projections.md)
 - [Queries and read models](docs/implemented/guides/queries-and-read-models.md)
 - [Running a runtime](docs/implemented/guides/running-a-runtime.md)
 - [Schema evolution](docs/implemented/guides/schema-evolution.md)
@@ -719,29 +516,12 @@ bin/fuzz                # generated sequences, checked against declared properti
 [The DSL reference](docs/implemented/reference/index.md) — 23 contexts, generated from the aggregate-local tables under `lib/hecks/language/` and held to them by `spec/reference_golden_spec.rb`.
 <!-- generated:end -->
 
-Beyond the guides and the DSL reference:
+The architecture map, the tools table, the resolution rules, the decision
+log, the changelog and the design documents are listed under [Beyond the
+guides](docs/implemented/guides/index.md#beyond-the-guides).
 
-- **[Architecture map](docs/architecture-map.md)** — the `lib/hecks/`
-  and `rust/` directory layout, and the dependency direction the split
-  follows.
-- **[The tools](docs/tools.md)** — every `bin/` script, one line each.
-- **Resolution rules** — the exact algorithm behind every piece of DSL
-  sugar that lets a bluebook omit something the runtime can derive:
-  [overview](docs/resolution-rules/README.md),
-  [cross-entity given](docs/implemented/resolution-rules/cross-entity-given.md).
-- **[Decision log](docs/decisions/)** and
-  **[implemented decisions](docs/implemented/decisions/)** — one
-  document per architectural decision, kept even after superseded.
-- **[Changelog](CHANGELOG.md)** and **[1.0 readiness](docs/1.0-readiness.md)**.
-- **[The query DSL](docs/query-dsl.md)**,
-  **[command/query form](docs/command-form-and-query-form-bluebook.md)**,
-  **[Rails integration](docs/rails-integration.md)** (design only).
-- **[`docs/HECKS_IMPLEMENTATION_PLAN.md`](docs/HECKS_IMPLEMENTATION_PLAN.md)**
-  — the full aspirational architecture in one document. Treat this as a
-  roadmap, not a status report; [Project status](#project-status) above
-  is the status report.
-
-The example domains this README draws from:
+The example domains this README draws from, plus one that consumes a
+vendored [embryonaut bluebook](#embryonaut-bluebook):
 
 <!-- generated:begin id=corpus -->
 - **banking** — Customers hold accounts, accounts move money, and every movement is a transfer that can fail halfway. The domain that has to get it right twice — once in the rules, once in the recovery.
@@ -753,16 +533,104 @@ The example domains this README draws from:
 - **roster** — A crew roster: seats added one at a time, members enlisted, each seated once — the smallest domain whose every rule is a question asked of a LIST.
 <!-- generated:end -->
 
+## Glossary
+
+The project's own words, in the order a newcomer usually meets them.
+
+### Bluebook
+
+A `.bluebook` file: one domain's declaration — its aggregates, value
+objects, commands, rules, events, queries and policies — written in the
+hecks DSL (`Hecks.bluebook "Pizzas" do … end`). It never names a backend.
+
+### Hecksagon
+
+A `.hecksagon` file: the wiring for a bluebook — which adapter persists
+each aggregate (`Pizzas::Order.persisted_by("Memory")`), which framework
+chapters it attaches (`uses_framework "Governance"`), and its ports. See
+[Wiring](docs/implemented/guides/wiring.md).
+
+### World
+
+A `.world` file: per-deployment values neither the bluebook nor the
+hecksagon names, such as a database URL (`examples/pizzas/bluebook/pizzas.world`).
+
+### Door
+
+The Ruby surface a boot installs: one top-level module per booted
+chapter and one per aggregate, so `Order.create_pizza!(…)` dispatches the
+`CreatePizza` command. Each boot re-installs it. The MCP server
+`bin/hecks_mcp_door` is a door of the same kind, for an agent over stdio.
+
+### Chapter
+
+One named `Hecks.bluebook` declaration and the module the door installs
+for it (`Pizzas`). The language's framework chapters (`Governance`,
+`Identity`, `Privacy` and others) live in `lib/hecks/framework/bluebook/`
+and its grammar chapters in `lib/hecks/grammar/`; a hecksagon attaches a
+framework chapter with `uses_framework`.
+
+### Heki
+
+A persistence adapter with no server: an append-only journal file per
+aggregate (`data/*.heki`, `*.heki.journal`). `examples/banking` is bound
+to it.
+
+### PostgresEra
+
+The Postgres persistence adapter that also tracks schema evolution. It
+holds the source text each [era](#era) of a domain was born from, refuses
+to boot on drift between that text and the booting text, and requires a
+`translations/*.bluebook` file before a shape change reinterprets old
+rows. It is a plugin loaded with
+`require "hecks/ports/persistence/plugins/era"`, and it needs a reachable
+Postgres. See [Schema evolution](docs/implemented/guides/schema-evolution.md).
+
+### Era
+
+One version of a domain's shape as `PostgresEra` holds it, numbered in
+order. A declared translation carries existing records from one era to
+the next.
+
+### Corpus
+
+Every real domain in this repository that the tooling walks: the example
+domains under `examples/`, the framework and grammar chapters, and the
+other domain directories `lib/hecks/corpus.rb` names. `spec/corpus/*.json`
+holds the scripted command and query sequences replayed against them.
+
+### Storehouse
+
+`Hecks::Storehouse` (`lib/hecks/storehouse.rb`): one bus that dispatches,
+queries and inspects every booted domain, requiring a `summary` on every
+call and a caller role on a role-gated command. `bin/hecks_mcp_door`
+serves it over MCP. See [AI-native
+development](docs/implemented/guides/ai-native-development.md).
+
+### Embryonaut bluebook
+
+A bluebook package vendored into a consuming domain's own
+`vendor/embryonaut_bluebooks/<name>/` directory and attached from its
+hecksagon with `uses_embryonaut_bluebook "<name>"`, the same way
+`uses_framework` attaches a framework chapter.
+`examples/embryonaut_vendoring_demo` is the worked example.
+
 ## Contributing
 
 Issues, examples, and runtime/adapter work are all welcome — the gaps
-in [Project status](#project-status) are real starting points, not a
-formality.
+in [Project status](docs/implemented/guides/project-status.md) are real
+starting points, not a formality.
 Before sending a change: `bundle exec rspec`, `bin/model_check`, and
 `bin/fuzz` are what CI runs, and every `ruby`-fenced example in a guide
 or this README is expected to execute exactly as shown
 (`spec/guides_spec.rb`). See [`CONTRIBUTING.md`](CONTRIBUTING.md) for
-the full checklist.
+the full checklist. To check the whole claim, not just the demo:
+
+```sh
+bundle exec rspec       # the whole suite
+bin/model_check         # static analysis over a domain's IR
+bin/fuzz                # generated sequences, checked against declared properties
+```
 
 ## License
 
