@@ -1,25 +1,5 @@
-// Stripe checkout and webhook mechanics for the registration routes:
-// verifying a webhook's HMAC-SHA256 signature, opening an embedded Checkout
-// Session, and the mock session used when no Stripe account is connected.
-//
-// These are hand-written rather than IR-driven. `rust/project/ports.rb`'s
-// `emit_port_operation` covers inbound port operations only
-// (PaymentGateway.Succeeded/Failed, dispatched from the registration routes
-// through the port-operation and policy-reaction codegen path), and no domain
-// has an outbound driving port or a webhook signature scheme to generalize
-// against yet.
-//
-// Mock by default, real Stripe opt-in. payments.rs's `checkout_plan` decides
-// which side of the line a request is on, from the tenant's own
-// `PaymentConnection`: anything short of an enabled Stripe connection means
-// `mock_checkout_session` below, never a network call. `STRIPE_WEBHOOK_SECRET`
-// then falls back to the fixed, publicly known, non-secret
-// `MOCK_STRIPE_WEBHOOK_SECRET` (web/registrations.rs), so a mock deploy needs
-// no webhook secret configured to walk a registration through to
-// confirmation. Tooling that signs webhooks with its own fixed string must
-// set `STRIPE_WEBHOOK_SECRET` to that string.
-//
-// `HECKS_CHECKOUT_DOMAIN` (web.rs `render`) picks the domain these routes serve.
+//! Stripe checkout and webhook mechanics for the registration routes: HMAC
+//! signature verification, an embedded Checkout Session, and a mock session.
 
 use hmac::{Hmac, Mac};
 use serde_json::Value;
@@ -39,17 +19,9 @@ impl std::fmt::Display for SignatureError {
     }
 }
 
-// Stripe's own documented scheme (docs.stripe.com/webhooks#verify-
-// manually), ported from `Stripe::Webhook.construct_event` (the Ruby
-// gem, called directly from the Ruby HTTP adapter) rather than
-// reinvented: header shape "t=<unix ts>,v1=<hex hmac>[,v1=<hex
-// hmac>...]" (more than one v1 during a secret-rotation window — any
-// match is accepted, same as the gem), signed payload is exactly
-// "<timestamp>.<raw body>", the raw bytes Stripe sent, never a
-// re-serialized JSON string (re-encoding would silently disagree on
-// whitespace/key order and every signature would fail to verify).
-// `now` is a parameter, not read internally, so a test can hold time
-// fixed rather than racing the tolerance window.
+// Signs `<timestamp>.<raw body>`, the exact bytes Stripe sent -- re-serializing
+// the JSON would disagree on whitespace or key order and break every match.
+// `now` is a parameter, not read internally, so a test can hold time fixed.
 pub fn verify_signature(payload: &str, header: &str, secret: &str, now: i64) -> Result<(), SignatureError> {
     let mut timestamp: Option<i64> = None;
     let mut signatures: Vec<&str> = Vec::new();
@@ -90,13 +62,8 @@ fn hex_encode(bytes: &[u8]) -> String {
     bytes.iter().map(|b| format!("{b:02x}")).collect()
 }
 
-// A timing side-channel on webhook signature comparison is a real,
-// documented attack class — exactly why Stripe's own libraries compare
-// this way rather than a bare `==`, which short-circuits at the first
-// differing byte. Compared as the hex text the header actually carries
-// (hmac's own `finalize()` gives a constant-time-comparable `CtOutput`
-// for the raw bytes, but this needs the same hex round-trip either way
-// to line up against `header`'s own v1= values, so it's done by hand).
+// A bare `==` short-circuits at the first differing byte, opening a timing
+// side-channel on the signature comparison, so this compares every byte.
 fn constant_time_eq(a: &[u8], b: &[u8]) -> bool {
     if a.len() != b.len() {
         return false;
@@ -104,20 +71,8 @@ fn constant_time_eq(a: &[u8], b: &[u8]) -> bool {
     a.iter().zip(b.iter()).fold(0u8, |acc, (x, y)| acc | (x ^ y)) == 0
 }
 
-// **The mock outbound side** — a site-owned local checkout adapter, not
-// hecks' generic MockStripeAdapter (mock_stripe_adapter.rb's
-// `create_session`, which instant-skips straight to `success_url` with
-// nothing for a guest to see). The local adapter hands back a URL to the
-// site's own `/pay/<registration_id>.html` page — a real page showing
-// what's owed, with a "Pay"/"Cancel" a guest
-// actually clicks, before the browser ever reaches success_url/
-// cancel_url. Still entirely fake underneath: that page's "Pay" button
-// calls this same host's own POST /registrations/:id/complete
-// (registration_complete_route, above), which settles the Payment
-// through the same PaymentGateway port /webhooks/stripe uses.
-// success_url/cancel_url ride along as query params on the /pay URL
-// (encoded, not interpolated raw) exactly like the Ruby adapter's own
-// `URI.encode_www_form(success_url:, cancel_url:)`.
+// Encodes success_url/cancel_url as query params, matching the Ruby local
+// checkout adapter's own `URI.encode_www_form` output exactly.
 pub fn mock_checkout_session(registration_id: &str, success_url: &str, cancel_url: &str, site_url: &str) -> String {
     let mut url = reqwest::Url::parse(&format!("{site_url}/pay/{registration_id}.html"))
         .unwrap_or_else(|_| reqwest::Url::parse("http://invalid.invalid/").unwrap());
@@ -125,63 +80,32 @@ pub fn mock_checkout_session(registration_id: &str, success_url: &str, cancel_ur
     url.to_string()
 }
 
-// **The outbound side** — the Ruby Stripe adapter's own `create_session`,
-// same line item the Ruby version builds: currency hardcoded "usd" (same as
-// Ruby — the site's own Event::Money value object carries no currency at
-// all),
-// one line item, quantity 1, and the same metadata key ("registration_id")
-// web.rs's own webhook route reads back to recover which Payment/
-// Registration this session belongs to.
-//
-// A charge on the business's own Stripe account: that account's own key
-// authenticates the call, so the session (and the money) belongs to it and no
-// other account is named.
-//
-// The session is embedded: the guest pays in a form the site mounts inline,
-// never on a Stripe-hosted page, so Stripe returns a `client_secret` for the
-// browser instead of a `url`. `ui_mode` is `embedded_page`; Stripe rejects the
-// older `embedded` value on every API version. `redirect_on_completion=never`
-// keeps the guest on the site when the payment completes, and there is no
-// success_url or cancel_url because nothing leaves the site: the browser
-// learns of completion from Stripe.js and the payment itself is settled by the
-// webhook.
+// Embedded, not Stripe-hosted, so Stripe returns a `client_secret` instead of
+// a `url`. `ui_mode` must be `embedded_page`; Stripe rejects the older
+// `embedded` value. No success_url/cancel_url: the browser stays on the site
+// and learns of completion from Stripe.js, with the webhook settling payment.
 
-/// The Stripe API version every session request is pinned to. `embedded_page`
-/// exists from this line of versions on, so the request must not depend on
-/// whatever default the account happens to have.
+// Pinned: `embedded_page` needs this version line, not whatever the account defaults to.
 pub const STRIPE_API_VERSION: &str = "2026-04-22.dahlia";
 
-/// How one Stripe call is authenticated and addressed: the business's own
-/// secret key and the API base URL (`https://api.stripe.com` outside of tests).
 pub struct StripeAuth<'a> {
     pub api_key: &'a str,
     pub base_url: &'a str,
 }
 
-/// What the browser needs to mount an embedded Checkout Session: the session's
-/// own id and the `client_secret` Stripe.js takes to render the payment form.
 pub struct EmbeddedSession {
     pub session_id: String,
     pub client_secret: String,
 }
 
-/// How long an unpaid checkout keeps its seat, in seconds. Stripe accepts an
-/// expiry from 30 minutes to 24 hours after the session is created, so the
-/// hold is 31 minutes to stay clear of the minimum; when the session expires,
-/// Stripe's `checkout.session.expired` event fails the Payment and the seat is
-/// free again.
+// 31, not 30: Stripe requires an expiry at least 30 minutes out.
 pub const SESSION_HOLD_SECONDS: i64 = 31 * 60;
 
-/// The Unix time an embedded session created at `now` expires at.
 pub fn session_expires_at(now: i64) -> i64 {
     now + SESSION_HOLD_SECONDS
 }
 
-/// Opens an embedded Checkout Session for one registration on the business's
-/// account and returns what the browser needs to mount the payment form. The
-/// session expires at `expires_at` (Unix seconds), which releases the seat an
-/// abandoned checkout was holding. Errors carry Stripe's message when it
-/// refuses, never a secret.
+// Errors carry Stripe's message when it refuses, never a secret.
 pub async fn create_checkout_session(
     auth: &StripeAuth<'_>,
     price_cents: i64,

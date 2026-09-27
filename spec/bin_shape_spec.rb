@@ -3,12 +3,8 @@ require "open3"
 require "json"
 require "hecks/ports/persistence/plugins/era"
 
-# bin/shape is a script, not a library, so this runs it as a real subprocess
-# against real files — the same approach spec/bin_stores_spec.rb takes.
-#
-# Covers the two modes: one bluebook file prints the shape projection as JSON,
-# a directory prints one "<Domain> <label>" line per domain declared by the
-# `*.bluebook` files directly in it.
+# Runs bin/shape as a real subprocess against real files, covering both
+# modes: a single bluebook file (JSON) and a directory (one line per domain).
 RSpec.describe "bin/shape" do
   BIN_SHAPE_SCRIPT = File.join(InMemoryDomain::ROOT, "bin/shape").freeze
 

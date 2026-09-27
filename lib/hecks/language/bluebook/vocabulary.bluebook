@@ -1,24 +1,10 @@
 Hecks.bluebook "Bluebook" do
   aggregate "Vocabulary" do
-    # These are DECLARATIONS, not runtime state — a language's admitted sets are
-    # fixed when the language is defined, which is what one_of means. They carry
-    # no commands on purpose : nothing dispatches a vocabulary. They are READ
-    # from the IR and projected — bin/project_vocabulary writes the Ruby tables
-    # (lib/hecks/vocabulary.rb) the runtime's constants read, and
-    # bin/project_rust_vocabulary writes rust/src/kernel/vocab/ — so the
-    # runtimes carry no hand-typed copies to drift.
-    #
-    # Every one of these is a set the runtime must agree with, and every one has
-    # already drifted or leaked at least once :
-    #   Comparison            went disjoint from the grammar chapter's operator table
-    #   NormalisationStrategy is the third, unchecked copy of the canonical-form table
-    #   Primitive             is what "primitives live in value objects only" is ABOUT
-    #   DomainRefusal         is the boundary three raw Ruby TypeErrors crossed tonight
+    # Closed sets the language admits, projected into matching Ruby and Rust
+    # tables (bin/project_vocabulary, bin/project_rust_vocabulary) so both runtimes agree.
     description "The closed sets the language admits — the whole of what any runtime may accept, declared once."
 
-    # ITS NAME, and nothing else. A vocabulary hangs under no other thing — the
-    # closed sets are the language's own, declared once — so one path is the whole
-    # identity.
+    # Named only by itself; a vocabulary hangs under nothing else.
     identified_by VocabularyName, as: :name
 
 
@@ -27,11 +13,9 @@ Hecks.bluebook "Bluebook" do
       invariant("a vocabulary is named") { !value.to_s.empty? }
     end
 
-    # Expression::Evaluator::COMPARISONS — six operators, all reduced by the
-    # evaluator to two primitives (less_than, equal) combined with a small boolean
-    # algebra: compares_less_than and compares_equal choose which primitive(s) OR
-    # together, negated inverts the result. `compare` reads this table instead of
-    # hardcoding a six-way case statement — see Evaluator::COMPARISONS.
+    # The six comparison operators. `compare` reduces each to two primitives
+    # (less_than, equal) combined by compares_less_than/compares_equal/negated,
+    # rather than a six-way case statement (Expression::Evaluator::COMPARISONS).
     value_object "Comparison" do
       attribute :symbol,             String
       attribute :compares_less_than, String
@@ -46,12 +30,9 @@ Hecks.bluebook "Bluebook" do
       member symbol: "!=", compares_less_than: "false", compares_equal: "true",  negated: "true"
     end
 
-    # Expression::Resolver::SIGN_TESTS
-    # Each sign test is comparing against the literal 0, using an operator
-    # Comparison already declares — compares_via names which one, so a sign
-    # test is sugar for an existing operator rather than a second algebra
-    # beside it. `positive?` = value > 0, `negative?` = value < 0, `zero?` =
-    # value == 0.
+    # Each sign test compares against 0 using an operator Comparison already
+    # declares (compares_via) — sugar for an existing operator, not a second
+    # algebra. positive? = value > 0, negative? = value < 0, zero? = value == 0.
     value_object "SignTest" do
       attribute :name,         String
       attribute :compares_via, String
@@ -61,11 +42,9 @@ Hecks.bluebook "Bluebook" do
       member name: "zero?",     compares_via: "=="
     end
 
-    # `.include?`'s haystack type decides its behaviour : Array does
-    # membership (the same equal? primitive Comparison's == uses), String
-    # does an exact substring match and refuses a non-String needle. Anything
-    # else is always false — not declared here, since it is the fallback
-    # every OTHER haystack type shares, not a case of its own.
+    # `.include?`'s haystack type decides its behavior: Array does membership,
+    # String does substring match. Every other type is always false and is not
+    # declared here — that fallback isn't a case of its own.
     value_object "IncludeHaystack" do
       attribute :type,     String
       attribute :strategy, String
@@ -74,18 +53,15 @@ Hecks.bluebook "Bluebook" do
       member type: "String", strategy: "substring"
     end
 
-    # `.to_s` admits exactly these scalar types, and every one of them uses
-    # the SAME rule (Ruby's own to_s — nil renders "", a bool its name, a
-    # number its digits, a string itself) — a closed set to admit into, not a
-    # table of different rules per type.
+    # Scalar types `.to_s` admits; every one uses Ruby's own to_s (nil → "",
+    # a bool its name, a number its digits) — one rule, not a table per type.
     value_object "ToStringType" do
       attribute :type, String, one_of: ["String", "Integer", "Float", "TrueClass", "FalseClass", "NilClass"]
     end
 
-    # `.size` and `.empty?` admit exactly the same closed set — a list, a
-    # string, or an open map — and each just calls the one Ruby method
-    # already named for it. One declaration for both, since the set itself is
-    # the only thing either needed to say.
+    # The closed set `.size` and `.empty?` both admit — a list, a string, or
+    # an open map — sharing one declaration since both just call Ruby's own
+    # method of the same name.
     value_object "SizedType" do
       attribute :type, String, one_of: ["Array", "String", "Hash"]
     end
@@ -100,12 +76,9 @@ Hecks.bluebook "Bluebook" do
       attribute :name, String, one_of: ["collapse_whitespace", "replace"]
     end
 
-    # the ops Runtime::CommandInterpreter applies. `sign` is the arithmetic
-    # delta increment/decrement share one primitive by — CommandRules#arithmetic
-    # applies `current + sign *
-    # amount`, differing only in which sign. set and append do no arithmetic,
-    # so they carry no sign — ABSENT IS NOT EMPTY, same reading as elsewhere in
-    # this file.
+    # Ops Runtime::CommandInterpreter applies. `sign` is the arithmetic delta
+    # increment/decrement share (current + sign * amount); set and append do
+    # no arithmetic, so they carry no sign.
     value_object "MutationOp" do
       attribute :name, String
       attribute :sign, String
@@ -114,46 +87,27 @@ Hecks.bluebook "Bluebook" do
       member name: "append",    sign: ""
       member name: "increment", sign: "1"
       member name: "decrement", sign: "-1"
-      # Vendored addition, not (yet) upstream hecks (migration plan
-      # task 4, i106 in-DSL math — CommandRules::Arithmetic#multiply/
-      # #clamp): multiply scales (`current * amount`), clamp bounds
-      # (`current.clamp(min, max)`) — neither is an add/subtract, so
-      # neither carries a sign, same reading as set/append above.
+      # multiply scales (current * amount), clamp bounds
+      # (current.clamp(min, max)) — neither is add/subtract, so neither
+      # carries a sign.
       member name: "multiply",  sign: ""
       member name: "clamp",     sign: ""
-      # Vendored addition, not (yet) upstream hecks (migration plan
-      # task 4): remove — the list-removal counterpart to append,
-      # matching an element by value. No sign, same reading as append.
+      # remove is append's list-removal counterpart, matching an element
+      # by value; no sign, same reading as append.
       member name: "remove",    sign: ""
-      # Vendored addition, not (yet) upstream hecks — CommandBuilder
-      # #delegates_to's own comment gives the full reasoning: an
-      # aggregate-level command's synchronous, single-dispatch handoff
-      # into one nested entity command, rather than a policy/saga's own
-      # commit-then-react reentry. Rides the SAME multi-binding wire
-      # shape append does (`with: {...}` is a field map, same as
-      # append's own `fields:`), so it carries no sign, same reading.
+      # delegate is an aggregate command's synchronous handoff into a nested
+      # entity command (see CommandBuilder#delegates_to). Shares append's
+      # multi-binding wire shape (`with:` ~ `fields:`), so it carries no sign.
       member name: "delegate",  sign: ""
-      # CommandBuilder#corrects_impl's own comment gives the full
-      # reasoning — a command declaring a past event it amends, rather
-      # than a fresh mutation of its own. Rides the SAME multi-binding
-      # wire shape append/delegate do (`as:`/`reason:`/`reverses:`,
-      # assembled into one `source` hash by hand, same as `with:` is),
-      # so it carries no sign either.
+      # corrects declares a past event it amends rather than a fresh
+      # mutation (see CommandBuilder#corrects_impl). Shares append/delegate's
+      # multi-binding wire shape (as:/reason:/reverses:), so no sign either.
       member name: "corrects",  sign: ""
     end
 
-    # QuerySpecification::Common::Comparators::COMPARATORS — a where-clause's
-    # admitted operators. Unlike Comparison, these do not reduce to one shared
-    # boolean algebra (eq/ne compare values, gt/gte/lt/lte order them, in/contains
-    # test membership in opposite directions), so this stays a flat closed set —
-    # the same shape MutationOp had before it grew a sign.
-    # `none_in_state` (the last member) is a vendored addition, not (yet)
-    # upstream hecks (migration plan task 4) — see
-    # query_specification/common/comparators.rb's own comment on
-    # none_in_state. Both closed sets (the Ruby COMPARATORS constant and
-    # this self-hosted grammar entry) must agree, the same two-places-
-    # must-agree discipline MutationOp/multiply/clamp already required
-    # earlier this pass.
+    # A where-clause's admitted operators (QuerySpecification::Common::
+    # Comparators::COMPARATORS) — flat, not one shared algebra like Comparison,
+    # since eq/ne/gt/lt/in/contains differ in kind. Must stay in sync with that constant.
     value_object "QueryComparator" do
       attribute :name, String, one_of: ["eq", "ne", "gt", "gte", "lt", "lte", "in", "contains", "none_in_state"]
     end
@@ -164,24 +118,13 @@ Hecks.bluebook "Bluebook" do
                 one_of: ["*.port", "*.adapter", "*.bluebook", "translations/*.bluebook", "*.hecksagon", "*.world"]
     end
 
-    # CommandInterpreter#call — an aggregate command's
-    # own interpretation, ending at the events it emits. Reaction (policies,
-    # sagas) is a structurally separate phase and is not part
-    # of this : CommandInterpreter#call returns before it runs, in a
-    # different class — reaction is
-    # what a command's OWN emitted events cause, not what interpreting
-    # the command does. Two conditional steps — assign_creation_attributes only
-    # fires for a creating command, advance_lifecycle only when a transition
-    # applies — so this is the order a command that does both follows,
-    # confirmed by tracing a real dispatch, not read off the source.
+    # The order CommandInterpreter#call follows, ending at the events it
+    # emits — reaction (policies, sagas) is a separate phase that runs after,
+    # in a different class. assign_creation_attributes only fires for a
+    # creating command; advance_lifecycle only when a transition applies.
     #
-    # decode_arguments leads both dispatch orders: turning the caller's raw
-    # facts into a command's declared arguments, before any argument gate
-    # judges them. A no-op in Ruby today (routing already hands the
-    # interpreter a decoded hash) and in the Rust kernel's dispatch loop
-    # (generated `from_json` still decodes and gates in one pass) — declared
-    # now so the Rust kernel's step enum has a place for a generated decoder
-    # to move into, rather than the order being implied by generated code.
+    # decode_arguments is a no-op today in both runtimes but is declared here
+    # so a future generated decoder has a step to occupy.
     value_object "AggregateDispatchOrder" do
       attribute :step, String,
                 one_of: ["decode_arguments", "refuse_unknown_arguments", "refuse_absent_arguments", "normalize_args",
@@ -191,21 +134,12 @@ Hecks.bluebook "Bluebook" do
                          "save", "emit"]
     end
 
-    # EntityInterpreter#call — the same shape
-    # one level down, on a piece an aggregate holds rather than the aggregate
-    # itself. `refuse_unknown_arguments`/`refuse_absent_arguments` lead it,
-    # the same position they hold in AggregateDispatchOrder — bug audit H1
-    # (docs/audits/2026-08-10-main-bug-audit.md): an entity command used to
-    # run NEITHER at all, on a since-corrected comment claiming it "inherits
-    # its aggregate's own gate" — nothing on this path ever ran one, and a
-    # bogus argument or a silently-nil'd absent one both went straight
-    # through. The only real difference from AggregateDispatchOrder now is
-    # that an entity is never CREATED through this path (no
-    # assign_creation_attributes) — hydrating the parent and locating the
-    # element replace a single hydrate. resolve_references stayed, though —
-    # an entity command can declare a reference-typed attribute the same way
-    # an aggregate command can (CommandRules#resolve_references is shared by
-    # both interpreters), even though nothing in the real corpus does yet.
+    # EntityInterpreter#call — the same shape as AggregateDispatchOrder, one
+    # level down on an entity. Differs in that an entity is never created
+    # through this path (hydrate_parent + locate_element replace hydrate;
+    # no assign_creation_attributes). resolve_references stays: an entity
+    # command can declare a reference-typed attribute too, shared via
+    # CommandRules#resolve_references.
     value_object "EntityDispatchOrder" do
       attribute :step, String,
                 one_of: ["decode_arguments", "refuse_unknown_arguments", "refuse_absent_arguments", "normalize_args",
@@ -224,23 +158,15 @@ Hecks.bluebook "Bluebook" do
                          "RemoteRefusal", "TypeMismatch", "Unauthorized", "UnknownArgument", "UnknownVerb"]
     end
 
-    # THE WORDING ITSELF, for every DomainRefusal site that is not already
-    # data — `given`/`ensures`/a declared `invariant` already carry their own
-    # description, read at dispatch time off the command or value object that
-    # declared them. Everything here is different in kind: a LANGUAGE-LEVEL
-    # refusal, the same wording for every domain, not authored per-bluebook —
-    # closer to Comparison/SignTest beside it than to a given. So it follows
-    # THEIR pattern, not given's: declared here, and projected into the
-    # generated tables a dispatch actually reads (Runtime::RefusalWording in
-    # Ruby, kernel::vocab::RefusalSite in Rust) rather than read live off
-    # this very chapter at every call.
+    # The wording for every DomainRefusal site not already carried by data
+    # (given/ensures/invariant already describe themselves). Language-level
+    # and the same for every domain, so it is declared here and projected
+    # into Runtime::RefusalWording (Ruby) / kernel::vocab::RefusalSite (Rust)
+    # rather than read live off this chapter at every call.
     #
-    # `{name}` markers are placeholders — plain text substitution, not
-    # expression syntax ; a template is read, never evaluated. Two call
-    # sites that happen to raise the same sentence share one `site` row
-    # (entity_interpreter.rb and command_interpreter.rb's own "not found"
-    # messages, for instance) rather than being declared as two facts that
-    # would have to be kept identical by hand.
+    # `{name}` markers are plain text substitution, not expression syntax —
+    # a template is read, never evaluated. Two call sites that raise the
+    # same sentence share one `site` row instead of duplicating it.
     value_object "RefusalTemplate" do
       attribute :refusal,  String, admits: "Vocabulary::DomainRefusal"
       attribute :site,     String
@@ -294,18 +220,8 @@ Hecks.bluebook "Bluebook" do
              template: "{command} refused — {field} is {current}, and {command} moves it only from {allowed}"
       member refusal: "TypeMismatch", site: "value_object_shape",
              template: "{name} is a {type} — pass its fields as an object, not {offered}"
-      # RENAMED FROM `reference_as_object` (BUG#27, QualityControl ledger) —
-      # a reference command argument that is an object was never the only
-      # wrong shape, only the first one anyone noticed: a bare Boolean,
-      # Array, or `null` used to sail past this refusal entirely, get
-      # `.to_s`'d into a lookup key by `CommandRules::References#
-      # reference_key` ("true", "false", "[8, 8]"), and answer NotFound (or,
-      # for `null`, skip the lookup outright and answer whatever the
-      # command's own `given` said instead) — a shape error misreading as a
-      # missing record. `{offered}` now names what actually arrived; the
-      # Hash/Value case still renders "an object" (Value::Coercion's own
-      # `reference_shape_description`), so the wording already pinned byte
-      # for byte in spec/runtime/reference_shape_spec.rb is unchanged.
+      # A bare Boolean, Array, or null reference argument is a shape error,
+      # not a missing record — {offered} names what arrived.
       member refusal: "TypeMismatch", site: "reference_wrong_shape",
              template: "{command} refused — a reference is an id, and {attribute} arrived as {offered}{known_by}"
       member refusal: "TypeMismatch", site: "multi_field_scalar",
@@ -367,33 +283,17 @@ Hecks.bluebook "Bluebook" do
                        "or read {reference}.{remote_field} directly if this rule cannot wait"
     end
 
-    # THE ARGUMENTS EACH RefusalTemplate TAKES, AND HOW EACH ONE IS WRITTEN.
-    # A template says WHERE a value goes; this says WHICH values a site
-    # takes (in the order its placeholders first appear) and how each is
-    # rendered before it goes there — so a caller hands over the raw value
-    # (a list of names, a name) rather than a string it formatted itself.
-    # BUG#134 was exactly the hand-formatted kind: Ruby's `declared_reading`
-    # fell back to "none" for an empty list, the Rust generators joined
-    # the list themselves and never did.
+    # Which values a RefusalTemplate site takes (in placeholder order) and how
+    # each renders, so a caller hands over a raw value rather than a
+    # pre-formatted string. Read by Runtime::RefusalWording.render_site and
+    # projected into rust/src/kernel/vocab/refusal_template.rs as one typed
+    # args struct per site.
     #
-    # Read by Runtime::RefusalWording.render_site (a missing or extra
-    # argument refuses to render at all) and projected into
-    # rust/src/kernel/vocab/refusal_template.rs as one typed args struct
-    # per site (`render_args` — a missing argument does not compile).
-    #
-    #   shape      — "scalar" (one value) or "list" (a collection of them)
-    #   quoting    — "none" (the value's own text) or "inspect" (Ruby's
-    #                `#inspect`; Rust's `{:?}`), per value or per item
-    #   separator  — what a list's items are joined with
-    #   sorted     — "true" sorts a list's items first (before quoting)
+    #   shape      — "scalar" or "list"
+    #   quoting    — "none" (raw text) or "inspect" (Ruby #inspect / Rust {:?})
+    #   separator  — what joins a list's items
+    #   sorted     — "true" sorts a list's items before quoting
     #   when_empty — what an empty list renders as
-    #
-    # Recorded from what the Ruby call sites did when this table was
-    # introduced; no wording changed. A value whose rendering depends on
-    # its runtime type (`Rendering.describe`, `offered.inspect` of an
-    # arbitrary value) stays a caller-rendered "none" scalar, as do the
-    # identity readings (`identity`, `heads`, `wants`) the Rust side already
-    # joins once at codegen time or inside `extract_wants`.
     value_object "RefusalSiteArgument" do
       attribute :refusal,    String, admits: "Vocabulary::DomainRefusal"
       attribute :site,       String
@@ -674,36 +574,23 @@ Hecks.bluebook "Bluebook" do
              shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: ""
     end
 
-    # SagaInterpreter::REFUSED.
-    #
-    # A leg answers an EVENT — `on "AccountDebited"` — or it answers one of these,
-    # which are not events at all: no aggregate announces that a leg the procedure
-    # dispatched was declined. `on :refused` is the compensating leg, and without
-    # this declaration the word lived only as a magic string in the interpreter,
-    # and a reader of the language could not discover the
-    # trigger existed.
+    # A leg answers an event (`on "AccountDebited"`) or one of these non-event
+    # outcomes — `on :refused` is the compensating leg for a dispatch the
+    # procedure declined (SagaInterpreter::REFUSED).
     value_object "Trigger" do
       attribute :name, String, one_of: ["refused"]
     end
 
-    # Hecks::Forms::FieldShape's own EMAIL_HINT/URL_HINT/
-    # TEL_HINT/TEXTAREA_HINT (lib/hecks/forms/field_shape.rb)
-    # — the regexes `text_field` matches a text attribute's own NAME
-    # against (case-insensitively) to guess an HTML input type or a
-    # textarea kind, when nothing more specific (a `pattern:`, an
-    # `admits:`, a closed set) already answered the question. Declared
-    # here for the same reason RefusalTemplate is: a LANGUAGE-LEVEL
-    # rendering convention, the same guess for every domain, not
-    # authored per-bluebook — closer to Comparison/SignTest than to a
-    # given. `pattern` is the regex SOURCE, no delimiters or flags
-    # (Ruby's own `Regexp#source`) — FieldShape builds its four constants
-    # off these rows, and bin/project_field_hints writes the Rust host's
-    # copy from them, so neither side is typed by hand.
+    # Regexes `text_field` matches a text attribute's name against
+    # (case-insensitively) to guess an HTML input type or textarea kind, when
+    # nothing more specific already answered (Hecks::Forms::FieldShape's
+    # EMAIL_HINT/URL_HINT/TEL_HINT/TEXTAREA_HINT). `pattern` is the regex
+    # source, no delimiters or flags. bin/project_field_hints writes the Rust
+    # host's copy from these rows, so neither side is typed by hand.
     #
-    # `resolves_to` names WHICH Field attribute a match sets — `html_type`
-    # for email/url/tel (three candidates, only one wins, checked in that
-    # order), `kind` for textarea (checked separately, and only once
-    # html_type has already fallen through to "text").
+    # `resolves_to` names which Field attribute a match sets: html_type for
+    # email/url/tel (checked in that order, first match wins), kind for
+    # textarea (checked once html_type has fallen through to "text").
     value_object "FieldHint" do
       attribute :name,        String
       attribute :pattern,     String
@@ -715,13 +602,11 @@ Hecks.bluebook "Bluebook" do
       member name: "textarea", pattern: '\b(text|body|note|notes|description|message|comment)\b', resolves_to: "kind"
     end
 
-    # The Rust keywords (strict + reserved) a generated identifier must not
-    # collide with — RustProjection::Projector::RUST_KEYWORDS (rust/project/
-    # naming.rb) reads this, and bin/project_reserved_names projects it into
-    # rust/codegen/src/reserved_names.rs, so the Ruby and Rust generators
-    # escape (a field: `r#type`) or refuse (a module name) the SAME words.
-    # Declared once here because the two hand-typed copies were held equal
-    # by nothing but a comment.
+    # Rust keywords (strict + reserved) a generated identifier must not
+    # collide with. RustProjection::Projector::RUST_KEYWORDS reads this;
+    # bin/project_reserved_names projects it into
+    # rust/codegen/src/reserved_names.rs, so Ruby and Rust escape or refuse
+    # the same words from one declaration instead of two hand-typed copies.
     value_object "RustReservedWord" do
       attribute :word, String,
                 one_of: ["as", "break", "const", "continue", "crate", "dyn", "else", "enum", "extern", "false",

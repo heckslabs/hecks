@@ -2,21 +2,8 @@ module Hecks
   module Projections
     module Deploy
       module Scripts
-        # The `deployed_to("AwsFargate")` settings the hosting scripts read,
-        # with their defaults and the check each value must pass.
-        #
-        # Every value ends up inside a shell script or a Makefile, so each one
-        # is refused unless it matches a conservative pattern for what it names
-        # (a region, a cluster, a GitHub repository). That check is what lets
-        # the renderers write values without per-context escaping.
-        #
-        # The containers, their ECR repositories and image-tag parameters, and
-        # the default cluster and service names are not settings here. They come
-        # from the template generator's own resolved plan
-        # (`Fargate::Settings::Plan`), so a script can only name what the
-        # generated `template.yaml` defines.
-        #
-        # The keys are documented on `Scripts`.
+        # The `deployed_to("AwsFargate")` settings the hosting scripts read, checked
+        # against a conservative pattern so a renderer can splice one in without escaping.
         class Settings
           RESOURCE  = /\A[a-zA-Z0-9][a-zA-Z0-9_-]*\z/
           REGION    = /\A[a-z]{2}(-[a-z]+)+-\d\z/
@@ -34,16 +21,7 @@ module Hecks
           attr_reader :region, :stack, :cluster, :service, :containers, :hecks_release, :hecks_source,
                       :hecks_cache_dir, :smoke_repo, :smoke_workflow, :smoke_ref, :expected_eras, :public_url
 
-          # Reads and checks every hosting setting.
-          #
-          # @param deploy_settings [Hash{Symbol => Object}] the world's
-          #   `deployed_to("AwsFargate")` settings
-          # @param plan [Fargate::Settings::Plan] the template generator's resolved settings:
-          #   its `layout` holds the containers, its `names` the cluster and service
-          # @param stack_name [String] the CloudFormation stack
-          # @param region [String] the validated AWS region
-          # @raise [ArgumentError] if `hecks_release` is missing, or a value
-          #   does not match the pattern for what it names
+          # `plan.layout` holds the containers; `plan.names` the cluster and service.
           def initialize(deploy_settings:, plan:, stack_name:, region:)
             @raw = deploy_settings
             @region = check(:region, region, REGION)

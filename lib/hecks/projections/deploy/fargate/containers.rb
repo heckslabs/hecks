@@ -6,32 +6,7 @@ module Hecks
     module Deploy
       module Fargate
         # The containers of one Fargate task and how the load balancer reaches them.
-        #
-        # A stack always has the domain container: `rust/host` built from the
-        # domain itself. The world's `containers` setting adds more containers
-        # to the same task (a website, a content admin), each with its own ECR
-        # repository, image-tag parameter, target group and health check.
-        # `routes` sends URL path patterns to a container through listener
-        # rules on the one load balancer, and `default_container` names the
-        # container that answers everything else.
-        #
-        # ## Settings
-        #
-        # `domain_container` renames the domain container's own pieces:
-        # `name`, `repository`, `image_tag_parameter` and `health_path`. Its `essential`
-        # writes an explicit `Essential` flag; the container is essential either way,
-        # since that is `ECS`'s default.
-        #
-        # Each `containers` entry takes `name` and `repository` (required),
-        # and `port`, `health_path`, `env`, `secrets`, `image_tag_parameter`,
-        # `essential`, `cpu`, `memory`, `repository_id` and `target_group_id`.
-        # A container without a `port` receives no load-balancer traffic.
-        # `env` values and `secrets` values may be CloudFormation intrinsics
-        # written as strings (`"!Ref Name"`, `"!Sub \"...\""`).
-        #
-        # Each `routes` entry takes `container`, `paths` (one to five path
-        # patterns, since a listener rule condition holds at most five),
-        # `priority` and an optional `id`.
+        # The domain container (`rust/host`) is always present; more are added via `containers`.
         module Containers
           module_function
 
@@ -43,23 +18,15 @@ module Hecks
           Route = Struct.new(:id, :container, :paths, :priority, keyword_init: true)
           Layout = Struct.new(:domain, :extras, :routes, :default_container, keyword_init: true) do
             # Lists the domain container followed by every added container.
-            #
-            # @return [Array<Container>] every container of the task
             def all = [domain, *extras]
 
             # Lists the containers that receive load-balancer traffic.
-            #
-            # @return [Array<Container>] the containers with a port
             def balanced = all.select(&:port)
 
             # Tells whether the stack has any container besides the domain's own.
-            #
-            # @return [Boolean] true when `containers` added at least one
             def multi? = !extras.empty?
 
             # Finds the container the listener forwards to by default.
-            #
-            # @return [Container] the default container
             def default = all.find { |container| container.name == default_container }
           end
 
@@ -71,15 +38,6 @@ module Hecks
           ROUTE_KEYS = [:container, :paths, :priority, :id].freeze
 
           # Reads the container-related settings into a `Layout`.
-          #
-          # @param settings [Hash{Symbol => Object}] the world's `deployed_to("AwsFargate")`
-          #   settings
-          # @param infra_name [String] the domain's own AWS-facing name, the default container name
-          # @param port [Integer] the validated port of the domain container
-          # @param ids [Hash{Symbol => String}] the resolved logical ids, for the domain container's
-          #   own
-          # @return [Layout] the containers, routes and default container
-          # @raise [ArgumentError] if a container, route or the default container is invalid
           def normalize(settings, infra_name:, port:, ids:)
             domain = domain_container(settings[:domain_container], infra_name: infra_name, port: port, ids: ids)
             extras = Check.hashes!(settings.fetch(:containers, []), "containers", allowed:  CONTAINER_KEYS,
@@ -96,9 +54,6 @@ module Hecks
           end
 
           # Renders the ECR repository of every added container.
-          #
-          # @param layout [Layout] the stack's containers
-          # @return [String] flush-left resources separated by blank lines, or empty
           def repositories_yaml(layout)
             layout.extras.map do |container|
               <<~REPOSITORY.rstrip
@@ -113,9 +68,6 @@ module Hecks
           end
 
           # Renders the image-tag parameter of every added container.
-          #
-          # @param layout [Layout] the stack's containers
-          # @return [String] flush-left parameters, each ending in a newline, or empty
           def parameters_yaml(layout)
             layout.extras.map do |container|
               <<~PARAMETER
@@ -128,21 +80,11 @@ module Hecks
           end
 
           # Renders the added containers as `ContainerDefinitions` list entries.
-          #
-          # @param layout [Layout] the stack's containers
-          # @param log_group_id [String] the logical id of the shared log group
-          # @return [String] flush-left list entries separated by blank lines, or empty
           def definitions_yaml(layout, log_group_id)
             layout.extras.map { |container| definition_yaml(container, log_group_id) }.join("\n\n")
           end
 
           # Renders the target group of every added container.
-          #
-          # @param layout [Layout] the stack's containers
-          # @param vpc_ref [String] the `!Ref` expression for the VPC the targets live in
-          # @param deregistration_delay [Integer, nil] seconds the load balancer drains a target, or
-          #   nil for the default
-          # @return [String] flush-left resources separated by blank lines, or empty
           def target_groups_yaml(layout, vpc_ref, deregistration_delay)
             layout.extras.select(&:port).map do |container|
               [
@@ -161,9 +103,6 @@ module Hecks
           end
 
           # Renders the `TargetGroupAttributes` property for a drain delay.
-          #
-          # @param deregistration_delay [Integer, nil] seconds the load balancer drains a target
-          # @return [String] flush-left property lines ending in a newline, or empty for nil
           def target_group_attributes_yaml(deregistration_delay)
             return "" unless deregistration_delay
 
@@ -175,10 +114,6 @@ module Hecks
           end
 
           # Renders one listener rule per route.
-          #
-          # @param layout [Layout] the stack's containers and routes
-          # @param listener_id [String] the logical id of the HTTP listener
-          # @return [String] flush-left resources separated by blank lines, or empty
           def listener_rules_yaml(layout, listener_id)
             layout.routes.map do |route|
               target = layout.all.find { |container| container.name == route.container }
@@ -199,9 +134,6 @@ module Hecks
           end
 
           # Renders the service's `LoadBalancers` entries for the added containers.
-          #
-          # @param layout [Layout] the stack's containers
-          # @return [String] flush-left list entries, or empty
           def load_balancers_yaml(layout)
             layout.extras.select(&:port).map do |container|
               <<~ENTRY
@@ -212,12 +144,8 @@ module Hecks
             end.join
           end
 
-          # Writes the `DependsOn` value that holds the service until the listener and its rules
-          # exist.
-          #
-          # @param layout [Layout] the stack's containers and routes
-          # @param listener_id [String] the logical id of the HTTP listener
-          # @return [String] a single id, or a flow list of ids
+          # Writes the `DependsOn` value that holds the service until the listener and its
+          # rules exist.
           def depends_on(layout, listener_id)
             return listener_id if layout.routes.empty?
 
@@ -225,9 +153,6 @@ module Hecks
           end
 
           # Finds the first and last container port the load balancer must reach.
-          #
-          # @param layout [Layout] the stack's containers
-          # @return [Range<Integer>] the security-group ingress port range
           def port_range(layout)
             ports = layout.balanced.map(&:port)
             ports.min..ports.max

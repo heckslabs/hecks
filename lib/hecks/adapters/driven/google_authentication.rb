@@ -4,31 +4,14 @@ require_relative "../../ports/authentication"
 
 module Hecks
   module Adapters
-    # **Google's own OIDC handshake** — the `authentication` port's one real
-    # implementation today. Consolidates what was hand-rolled per-app
-    # (a console app's `google_auth.rb` did this on its own) into
-    # one adapter, so any hecks-based app gets Google sign-in for free, the
-    # same "one adapter, reusable everywhere" value every other adapter
-    # in this directory already has.
+    # Google's OIDC handshake — the `authentication` port's adapter for Google
+    # sign-in, via `oauth2` (code exchange) and `google-id-token` (verification).
     #
-    # `oauth2` does only the authorization-code exchange (no Rack
-    # middleware, no Omniauth strategy indirection) ; `google-id-token`
-    # does only ID-token verification (signature checked against
-    # Google's real, rotating JWKS — real, maintained code, never
-    # hand-rolled here). Neither library decides what a verified
-    # (issuer, subject) means — that's `Ports::IdentityResolution`'s
-    # job, called by whoever consumes this port's `verify`.
+    # `oauth2`/`google-id-token` load lazily, inside the methods that use
+    # them, so a domain that never binds this adapter never needs them installed.
     #
-    # Lazy requires, same reasoning `Postgres.connect_for` already
-    # holds itself to for `pg`: a domain that never binds
-    # `authentication` to this adapter should never need these gems
-    # installed. This file loads in every boot (driven.rb's own
-    # unconditional require_relative list) ; the gems load only where
-    # a real handshake actually happens.
-    #
-    # `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET`/`GOOGLE_REDIRECT_URI` —
-    # no defaults, on purpose: a login mechanism silently
-    # half-configured is worse than one that refuses to boot at all.
+    # `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET`/`GOOGLE_REDIRECT_URI` have no
+    # defaults, on purpose: a half-configured login should refuse to boot.
     module GoogleAuthentication
       ISSUER = "https://accounts.google.com".freeze
 
@@ -48,9 +31,8 @@ module Hecks
         )
       end
 
-      # The URL to send a browser to, carrying a fresh CSRF `state` the
-      # caller is responsible for stashing (a session, typically) and
-      # checking again in `verify`.
+      # The URL to send a browser to, carrying a fresh CSRF `state` the caller
+      # must stash (typically in a session) and check again in `verify`.
       #
       # @return [Array(String, String)] the URL to send the browser to, and the fresh CSRF
       #   `state` embedded in it
@@ -66,38 +48,22 @@ module Hecks
         [url, state]
       end
 
-      # Exchanges `code` for tokens, verifies the returned ID token's
-      # signature and claims against Google's own JWKS, and confirms
-      # `state` matches what `authorization_url` handed out — a
-      # mismatch (or any failure in the exchange/verification itself)
-      # is a Ports::Authentication::ValidationError, never a
-      # silently-empty result. Returns
-      # {issuer:, subject:, email:, email_verified:} on success — never
-      # the raw token, never anything a caller would need to re-verify
-      # itself. `email_verified` rides along because a caller granting
-      # access off this email needs to know Google actually checked it.
-      #
+      # Exchanges `code` for tokens and verifies the ID token against Google's
+      # JWKS; `email_verified` tells a caller if Google actually checked the email.
       # @param code [String] the authorization code the provider sent back
       # @param state [String, nil] the state parameter the provider returned; nil is refused
       # @param expected_state [String, nil] the state `authorization_url` handed out before
       #   the redirect; nil is refused
       # @return [Hash{Symbol => Object}] `issuer:` and `subject:` (String), `email:` (String,
       #   or nil if the token carries none), `email_verified:` (Boolean)
-      # @raise [Ports::Authentication::ValidationError] if either state is nil or the two
-      #   differ, the code exchange fails, the response has no ID token, or the ID token does
-      #   not verify
+      # @raise [Ports::Authentication::ValidationError] if the state check, code exchange, or
+      #   ID token verification fails
       # @raise [KeyError] if `GOOGLE_CLIENT_ID` or `GOOGLE_REDIRECT_URI` is unset, or a
       #   verified token lacks an `iss` or `sub` claim
       def verify(code:, state:, expected_state:)
-        # **Both gems, before anything else** — not staggered further down
-        # this method: the rescue clause below names GoogleIDToken
-        # ::ValidationError, and Ruby resolves that constant reference
-        # at the moment an exception is being matched, not at parse
-        # time. An OAuth2::Error raised before a later `require
-        # "google-id-token"` line ran would make the rescue clause
-        # itself blow up on an undefined constant, masking the real
-        # error. Requiring both up front means whichever one raises
-        # first, the constant is already there to catch it.
+        # Both requires happen up front: the rescue below matches
+        # GoogleIDToken::ValidationError, resolved only when caught, so
+        # requiring it lazily after an OAuth2::Error would mask the real failure.
         require "oauth2"
         require "google-id-token"
 

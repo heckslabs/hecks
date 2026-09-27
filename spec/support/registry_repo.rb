@@ -1,12 +1,8 @@
 require "fileutils"
 require "open3"
 
-# A throwaway git repository standing in for a bluebook registry: several
-# packages, each `<name>/bluebook.yml`, `<name>/bluebook/*.bluebook` and
-# release tags `<name>-v<X.Y.Z>`.
-#
-# Used by the vendoring specs, which only ever read it through `git`, the way
-# they read a real registry checkout.
+# A throwaway git repository standing in for a bluebook registry: packages
+# under `<name>/bluebook.yml` and `<name>/bluebook/*.bluebook`, tagged `<name>-vX.Y.Z`.
 class RegistryRepo
   attr_reader :path
 

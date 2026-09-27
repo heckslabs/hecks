@@ -3,17 +3,9 @@ require_relative "../../rust/project/exemplar"
 require_relative "../../rust/project/naming"
 require_relative "../../rust/project/fielded"
 
-# `fielded_capable_nested?`/`emit_closed_set_fielded_impl` — a real,
-# invisible-until-now gap: `fielded.rb`'s three "is this attribute a
-# nested value object" sites excluded every closed-set VO from a
-# `Fielded` impl at all, so a `given` clause naming a closed-set-typed
-# attribute (`processor: Processor`, a `one_of:` VO) could never resolve
-# it — no domain in the corpus (banking/pizzas/compliance) ever declared
-# a `given` over one before a client project's vendored embryonaut_bluebooks/
-# payments (`Payment::Succeed`'s "the processor matches..."). Found live:
-# `dispatch_operation_paymentgateway_succeeded` refusing with "cannot
-# resolve \"processor\" — no such attribute or argument" even though the
-# aggregate held a real, rehydrated `processor` value the whole time.
+# `fielded_capable_nested?`/`emit_closed_set_fielded_impl` — a single-field
+# closed-set VO (a `one_of:` type) was excluded from every `Fielded` impl,
+# so a `given` clause naming such an attribute could never resolve it.
 #
 # A multi-field closed set (Syntax::Keyword/Argument-shaped) stays
 # excluded on purpose — no proven need, and `Field::Nested` has nothing

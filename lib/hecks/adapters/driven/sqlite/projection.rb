@@ -13,9 +13,7 @@ require_relative "../sqlite"
 module Hecks
   module Adapters
     # Rebuilds a read store from the authoritative journal, entry by entry.
-    # A value object is written as its JSON object and a reference as the
-    # bare id it holds — the same shapes the command path writes, so there
-    # is no second representation to accept here.
+    # Values are written as JSON, references as bare ids — the shapes the command path writes.
     class SqliteProjection < Sqlite
       # Replaces or deletes the read store's row for one journal entry, encoding the entry's
       # state directly rather than through a `Runtime::Instance`.
@@ -36,68 +34,31 @@ module Hecks
         entry
       end
 
-      # Execute a declared read model against the projected aggregate-head
-      # tables. The report shape is assembled from SQL-selected rows, rather
-      # than scanning repositories and matching references in Ruby.
+      # Executes a declared read model against the projected read-store tables.
       #
-      # M19 (docs/audits/2026-08-10-main-bug-audit.md,
-      # docs/audits/2026-08-11-bug-triage.md) — this agrees with
-      # `Runtime::ReadModelInterpreter#project` (the in-process path) on
-      # the two counts where a native path can most easily diverge:
+      # A missing root raises, matching the in-process interpreter; a head
+      # matches against any already-projected source, not only the root.
       #
-      # **Missing root**: the in-process path's own `fetch` refuses with
-      # `NotFound` when the reference argument names no record, and so
-      # does this. Answering a silent `{root: nil, ...}` instead would
-      # make this the one path where a caller could dispatch a read model
-      # against a record that never existed and get back something that
-      # looks like an empty report rather than the refusal every other
-      # path gives.
-      #
-      # **Chained-include join scope**: matching a non-root head against
-      # the root's own id alone, regardless of what it actually
-      # references, is correct for a head that references the root
-      # directly and silently empty for one that references another
-      # included head instead (`Leaf` -> `Mid` -> `Root`, `Leaf` itself
-      # has no attribute referencing `Root` at all, so its `references`
-      # would always be `[]`). The in-process path
-      # (`ReadModelInterpreter#project`'s "root first, always" comment)
-      # matches a head against any already-projected source, not
-      # only the root — `select_related` does the same: each head is
-      # matched against every source resolved so far (root first, then
-      # declared order — the same one-level-of-declaration-order
-      # dependency the in-process path itself has, documented
-      # there as L2, not a gap introduced here).
-      #
-      # @param _domain [String, Symbol] name of the domain declaring the read model; not read
-      # @param model [Bluebook::ReadModel, Runtime::TenantScope::Scoped] the read model to
-      #   answer, or the tenant-scoping delegator around one; must have a reference target
-      # @param args [Hash{Symbol => Object}] the read model's arguments; the entry under
-      #   `model.reference_name` is the root record's id
-      # @param bluebook [Bluebook::Chapter, nil] the domain's bluebook, which resolves each
-      #   included aggregate by name; nil is refused
-      # @return [Array<Hash>] a one-element Array holding the report Hash, keyed by each
-      #   head's `as` name: an Array of plain state Hashes (each with `:id`) for a `many`
-      #   head, otherwise one such Hash, or nil when that head matched no row
-      # @raise [ArgumentError] if `bluebook` is nil
-      # @raise [KeyError] if `args` has no entry for the model's reference argument
-      # @raise [Runtime::NotFound] if no projected row has the referenced root id
-      # @raise [SQLite3::Exception] if a statement fails
+      # @param _domain [String, Symbol] domain name; not read
+      # @param model [Bluebook::ReadModel, Runtime::TenantScope::Scoped] read model to answer
+      # @param args [Hash] arguments; `model.reference_name` holds the root id
+      # @param bluebook [Bluebook::Chapter, nil] resolves each included aggregate; nil refused
+      # @return [Array<Hash>] one-element Array of the report, keyed by each head's `as`
+      # @raise [ArgumentError] if bluebook is nil
+      # @raise [Runtime::NotFound] if no projected row matches the referenced root id
       def query_read_model(_domain, model, args, bluebook = nil)
         raise ArgumentError, "projection query needs its domain bluebook" unless bluebook
 
-        # The reference's own shape, read the same way ReadModelInterpreter
-        # reads it — not the identity unwrap, which is gone : an identity is
-        # declared as a path and followed.
+        # Read the same way ReadModelInterpreter reads it: an identity is a
+        # declared path, not unwrapped.
         reference_id = args.fetch(model.reference_name).to_s
         # Plural (ADR 0055) — `on:` lets `where`/`order_by`/`limit`/`offset`
-        # each name a different many-side head, so more than one can be
-        # eligible in the same read model now.
+        # each name a different many-side head, so more than one may be
+        # eligible in the same read model.
         eligible = model.filtered_head_names
 
-        # **Root first, always** — see this method's own header. Mirrors
-        # `ReadModelInterpreter#project`'s identical partition, for the
-        # identical reason: a later head's own join has to be able to
-        # match against a root (or another head) already resolved.
+        # Root first, always (see this method's own header): a later head's
+        # join must match against a root or head already resolved.
         root_heads, other_heads = model.aggregate_heads.partition { |head| head[:aggregate] == model.reference_target }
         projected = []
         reports = {}
@@ -130,12 +91,8 @@ module Hecks
         row && projected_instance(aggregate, row)
       end
 
-      # Matched against every source already projected (root first, then
-      # declared order — see this class's own `query_read_model` header),
-      # not only the root — a head whose own reference points at another
-      # included head rather than the root directly would otherwise match
-      # nothing at all, since its reference attribute would be compared
-      # against a target (the root) it never names.
+      # Matches every already-projected source, not just the root, so a head
+      # referencing another included head still matches.
       def select_related(aggregate, projected)
         matches = projected.flat_map do |source|
           references = aggregate.attributes.select do |attribute|
@@ -150,10 +107,7 @@ module Hecks
         end
         return [] if matches.empty?
 
-        # A reference column holds the ID, so it compares as itself. The
-        # `json_extract(col,'$.value') = ? OR col = ?` this replaced was
-        # reading both shapes because both existed — one written by the
-        # command path, one by older journals. There is one shape now.
+        # A reference column holds the id, so it compares directly against itself.
         clauses = matches.map { |attribute, _id| "#{quote_ident(attribute.name)} = ?" }
         bind = matches.map { |_attribute, id| id }
         @db.execute("SELECT * FROM #{quote_ident(aggregate.storage_name)} WHERE #{clauses.join(' OR ')} ORDER BY id", bind)
@@ -168,37 +122,27 @@ module Hecks
         decode_fields(fields_for(aggregate), aggregate, row)
       end
 
-      # The field list a row decodes against: every declared attribute,
-      # plus the lifecycle field and any `projects` fields not already
-      # among them (both read back raw — see `decode_fields`).
+      # Declared attributes plus the lifecycle field and any unlisted
+      # `projects` fields, all read back raw (see `decode_fields`).
       def fields_for(aggregate)
         fields = aggregate.attributes.map { |attribute| [attribute.name, attribute] }
         if (lifecycle = aggregate.lifecycle) && fields.none? { |name, _| name == lifecycle.field }
           fields << [lifecycle.field, nil]
         end
-        # `projects` fields (S12, ADR 0025) need reading back too — `project`
-        # (above) already writes one into its own column via `persisted_fields`
-        # (`Codec#persisted_fields`, this class's own superclass module), but
-        # this method built its own independent field list that never
-        # consulted it — a column `project` populated correctly, silently
-        # dropped on every read back out. Same raw-passthrough treatment as
-        # the lifecycle field just above: `attribute: nil` down in the loop.
+        # `projects` fields (ADR 0025) read back raw too — see `persisted_fields`.
         aggregate.projected_fields.each do |field|
           fields << [field.name, nil] unless fields.any? { |name, _| name == field.name }
         end
         fields
       end
 
-      # Decoded through the state codec (PR A3) against the row's own
-      # aggregate — see Codec#decode, including why a NULL projected-only
-      # column reads back absent.
+      # Decoded through the state codec against the row's own aggregate —
+      # see Codec#decode for why a NULL projected-only column reads back absent.
       def decode_fields(fields, aggregate, row)
         state = fields.each_with_object({}) do |(name, attribute), raw_state|
           raw = row[name.to_s]
           # rubocop:disable Lint/DuplicateBranch -- the nil-attribute and
-          # reference-id branches both just answer `raw`, coincidentally, for
-          # two unrelated reasons (see each branch's own comment); merging
-          # them would blur that distinction.
+          # reference-id branches both just answer `raw`, for unrelated reasons.
           next if attribute.nil? && raw.nil? && aggregate.lifecycle&.field&.to_sym != name.to_sym
 
           raw_state[name] =

@@ -1,41 +1,16 @@
-//! A Rust port of `Exporter.lineage` (`lib/hecks/projector/exporter.rb`)
-//! by way of `rust/project_rust_pipeline.rb::derive_lineage` — the second
-//! (and, as of this module, LAST) named gap `pipeline.rs`'s own header used
-//! to carry. Read `rust/project_rust_pipeline.rb`'s own header on
-//! `derive_lineage` in full before touching this file — it explains, at
-//! length, exactly why a narrow text scan for one specific bind shape
-//! (`<Ns>::<Aggregate>.persisted_by("Adapter")`, no `role:`) closes this
-//! gap without reopening ADR 0023's own permanent open-vocabulary escape
-//! for `.hecksagon` adapter binds (`parse::hecksagon` still shape-matches
-//! and drops everything, unchanged) — this module mirrors that Ruby
-//! function line for line, at the same orchestration tier
-//! `optional_pass` already occupies, never inside `rust/parser`/
-//! `rust/codegen` themselves.
-//!
-//! **The one fact needed per aggregate**: which adapter its sole authoritative
-//! `persisted_by` bind names (`Ports::Persistence::BindingPolicy.resolve`) —
-//! or, for an aggregate the hecksagon leaves out, the `default_adapter` the
-//! target chapter's own world declares —
-//! checked against which adapters declare `lineage_capable? = true`
-//! (`EraCheck.lineage_capable?`) — read off both sources the same "plain
-//! text scanning of a file, not DSL execution" way `resolve::header_
-//! chapter_name` already reads a bluebook's own header line.
+//! Rust port of `Exporter.lineage` (`lib/hecks/projector/exporter.rb`), by way
+//! of `rust/project_rust_pipeline.rb::derive_lineage`.
 
 use std::collections::HashMap;
 use std::path::Path;
 
 use crate::json::Json;
 
-/// `derive_lineage` (Ruby) — sets `ir["lineage"]` to
-/// `{"capable_aggregates": [{"name":, "storage_name":}, ...]}`, matching
-/// `Exporter.lineage`'s own output shape exactly. `hecksagon_path: None`
-/// (no `.hecksagon` file at all) means every aggregate is unbound —
-/// `BindingPolicy.default_binding`'s own "Memory" answer, never
-/// lineage-capable — so `capable_aggregates` comes back empty without
-/// this function needing to special-case it. An unbound aggregate takes the
-/// `default_adapter` `world_path` declares for the target chapter instead of
-/// "Memory" (`BindingPolicy.resolve`'s own order: the hecksagon's bind, then
-/// the world's default, then the framework's in-memory fallback).
+/// Sets `ir["lineage"]` to `{"capable_aggregates": [{"name":, "storage_name":}, ...]}`,
+/// matching `Exporter.lineage`'s own output shape.
+///
+/// An aggregate with no `persisted_by` bind falls back to `world_path`'s own
+/// `default_adapter` for the target chapter, then to `"Memory"`.
 pub fn run(ir: &mut Json, hecksagon_path: Option<&Path>, world_path: Option<&Path>, root: &Path) -> Result<(), String> {
     let binds = match hecksagon_path {
         Some(path) => {
@@ -55,11 +30,8 @@ pub fn run(ir: &mut Json, hecksagon_path: Option<&Path>, world_path: Option<&Pat
     .unwrap_or_else(|| "Memory".to_string());
     let capable_adapters = lineage_capable_adapter_names(root)?;
 
-    // Collected up front, not read live off `ir` while building the
-    // replacement — same "gather, then apply" split `optional_pass`'s
-    // own header explains, for the same reason: Rust can't hold this
-    // immutable borrow of `ir` at the same time as the `&mut` `ir.set`
-    // call below.
+    // Collected up front: Rust can't hold this borrow of `ir` alongside the
+    // `&mut` call to `ir.set` below.
     let aggregate_names: Vec<String> = ir
         .get("aggregates")
         .map(Json::each)
@@ -84,16 +56,7 @@ pub fn run(ir: &mut Json, hecksagon_path: Option<&Path>, world_path: Option<&Pat
     Ok(())
 }
 
-/// Plain text scanning for one specific shape — see this module's own
-/// header. Skips any line naming a `role:` (the sole exclusion
-/// `BindingPolicy.resolve`'s own "authoritative" filter applies; every
-/// real corpus `persisted_by` call today is role-less, so this is a
-/// completeness guard against a future role-bearing bind, not dead code
-/// against the present corpus). The aggregate's own bare name is
-/// whatever identifier run sits immediately before `.persisted_by(` —
-/// `Naming.demodulise`'s own job (strip everything up to the last `::`)
-/// falls out of taking the LAST identifier-character run in that
-/// position, with no separate demodulise step needed.
+// Skips any line naming `role:` — only a role-less bind is authoritative.
 fn persistence_binds(text: &str) -> HashMap<String, String> {
     let mut binds = HashMap::new();
 
@@ -122,13 +85,8 @@ fn persistence_binds(text: &str) -> HashMap<String, String> {
     binds
 }
 
-/// `default_adapter "Adapter"` inside the `Hecks.world "<chapter>"` block —
-/// the same narrow text scan `persistence_binds` is, for the one world word
-/// that changes which adapter an unbound aggregate resolves to. A `.world`
-/// file may hold several worlds (one per chapter), so only lines after the
-/// target chapter's own `Hecks.world` opener count; a later `default_adapter`
-/// in the same block wins, as it does in the Ruby builder. `None` when the
-/// block declares none.
+// Only lines inside the target chapter's own `Hecks.world` block count; the
+// last `default_adapter` there wins, matching the Ruby builder.
 fn default_adapter_name(text: &str, chapter: &str) -> Option<String> {
     let mut in_target_world = false;
     let mut found = None;
@@ -155,19 +113,13 @@ fn default_adapter_name(text: &str, chapter: &str) -> Option<String> {
     found
 }
 
-/// The chapter name a `Hecks.world "Name" do` (or `Hecks.world("Name")`) line
-/// opens, `None` for any other line.
 fn world_opener_name(line: &str) -> Option<String> {
     let rest = line.strip_prefix("Hecks.world")?;
     let quoted = &rest[rest.find('"')? + 1..];
     Some(quoted[..quoted.find('"')?].to_string())
 }
 
-/// Which adapters carry eras — read off their own source, the same
-/// "structural fact about a file" precedent this module's own header
-/// establishes, so a second lineage-capable adapter arriving needs no
-/// change here (mirrors `EraCheck.lineage_capable?`'s own "the
-/// capability is asked of the adapter, never of its name" design).
+// Reads each adapter's own source file rather than invoking Ruby.
 fn lineage_capable_adapter_names(root: &Path) -> Result<Vec<String>, String> {
     let dir = root.join("lib/hecks/adapters/driven");
     let entries = std::fs::read_dir(&dir).map_err(|e| format!("reading {}: {e}", dir.display()))?;
@@ -192,11 +144,8 @@ fn lineage_capable_adapter_names(root: &Path) -> Result<Vec<String>, String> {
     Ok(names)
 }
 
-/// `text =~ /lineage_capable\?\s*=\s*true/` (Ruby), by hand: every
-/// occurrence of the literal method name, followed (past only
-/// whitespace) by `= true` — matches `def self.lineage_capable? = true`
-/// (the endless-method form every real adapter in this corpus uses)
-/// without needing a regex dependency for one fixed pattern.
+// Matches `def self.lineage_capable? = true`, including the endless-method
+// form, without a regex dependency.
 fn declares_lineage_capable_true(text: &str) -> bool {
     const NEEDLE: &str = "lineage_capable?";
     let mut search_from = 0;
@@ -211,11 +160,7 @@ fn declares_lineage_capable_true(text: &str) -> bool {
     false
 }
 
-/// The first `class Name` line's own name — every adapter file in this
-/// corpus declares exactly one primary class this way (`class PostgresEra`
-/// under `module Hecks; module Adapters; ...; end; end`), so the
-/// first match is the adapter's own registration name, the same short
-/// spelling `persisted_by("PostgresEra")` itself uses.
+// Assumes one primary class per adapter file, matching the corpus.
 fn top_level_class_name(text: &str) -> Option<String> {
     for line in text.lines() {
         let trimmed = line.trim_start();
@@ -229,28 +174,8 @@ fn top_level_class_name(text: &str) -> Option<String> {
     None
 }
 
-/// `Naming.snake` (Ruby), ported by hand rather than with a regex
-/// dependency — two passes over the same fixed two-step substitution
-/// `naming.rb`'s own body performs, then a final ASCII downcase (every
-/// real aggregate name in this corpus is plain ASCII PascalCase, the
-/// same assumption `Naming.snake`'s own callers already make):
-///
-/// Pass 1 (`gsub(/([A-Z]+)([A-Z][a-z])/, '\1_\2')`) — an acronym-to-word
-/// boundary: a maximal run of 2+ uppercase letters immediately followed
-/// by a lowercase letter gets an underscore inserted before the run's
-/// own last letter (`"ATMCard"` → `"ATM_Card"`: the run is `"ATMC"`,
-/// followed by `'a'`, so the underscore lands before `'C'` — verified
-/// against `Hecks::Naming.snake("ATMCard")` directly, a real
-/// corpus name (`Banking::ATMCard`) this exact shape needs). A run of
-/// exactly 1 uppercase letter never matches this pass at all (the regex
-/// needs 2 separate uppercase-letter matches minimum — one for each
-/// capture group), so an ordinary word-initial capital
-/// (`"SafeDepositBox"`'s own `S`/`D`/`B`) is untouched here.
-///
-/// Pass 2 (`gsub(/([a-z\d])([A-Z])/, '\1_\2')`) — the ordinary
-/// camelCase boundary: a lowercase letter or digit immediately followed
-/// by an uppercase letter gets an underscore inserted between them
-/// (`"SafeDepositBox"` → `"Safe_Deposit_Box"`).
+// Hand-ported `Naming.snake` (Ruby): split acronym boundaries, then camelCase
+// boundaries, then downcase — no regex dependency.
 fn snake_case(name: &str) -> String {
     let after_pass1 = split_acronym_boundaries(name);
     let after_pass2 = split_camel_boundaries(&after_pass1);

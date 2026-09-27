@@ -1,23 +1,11 @@
 module Hecks
   module Bluebook
     module ModelCheck
-      # The opt-in `client` profile: refuses the bluebook constructs this
-      # repository already knows produce a silently wrong answer, so a client
-      # domain cannot reach one without being told.
+      # The opt-in `client` profile: refuses bluebook constructs already known
+      # to produce a silently wrong answer, so a client domain can't reach one
+      # unnoticed.
       #
-      # ## What it is not
-      #
-      # It fixes nothing. Each rule below names a bug that is still open and
-      # stops a domain reaching it unnoticed; when the bug is fixed the rule
-      # goes with it. `spec/model_check_client_profile_spec.rb` holds a probe
-      # per rule that runs the buggy code and fails the moment the bug stops
-      # reproducing, naming the rule to delete.
-      #
-      # ## The rules
-      #
-      # - `:client_native_read_model` — a read model the SQLite projection
-      #   answers natively, where every other path answers it in process
-      #   (docs/1.0-readiness.md, "Known gaps at 1.0", item 2).
+      # Each rule names a bug that is still open; delete the rule when the bug is fixed.
       module ClientProfile
         # Adapters whose Ruby class implements `query_read_model`, which is what
         # makes `ReadModelInterpreter#project` take the native path. The spec
@@ -42,11 +30,8 @@ module Hecks
 
         # Refuses a read model that the SQLite projection would answer natively.
         #
-        # Mirrors the fork in `ReadModelInterpreter#project`: a rooted model with no `group_by`,
-        # `count` or `median` reads through `read_repository`, which is a projection repository
-        # only for an aggregate with a `projected_by` bind. Whether that projection is current
-        # is only known at run time (`Registry#projection_current?`), so a model eligible here
-        # can also silently run in process.
+        # Mirrors the fork in `ReadModelInterpreter#project`: which path runs is only
+        # known at run time, so a model eligible here can still run in process.
         #
         # @param model [Bluebook::ReadModel] the read model to inspect
         # @param hecksagon [Bluebook::Hecksagon, nil] the wiring holding the `projected_by` binds

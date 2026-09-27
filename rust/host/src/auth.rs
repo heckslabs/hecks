@@ -1,32 +1,5 @@
-// Google sign-in + sessions, in-process — the Rust-native counterpart
-// to `Ports::Authentication`/`Ports::IdentityResolution`/Embryonaut's
-// own `EmbryonautAccessControl` adapter (Ruby, hecks +
-// embryonaut repos). Ported behavior-for-behavior against those, not
-// reinvented: same OAuth scope, same state-CSRF check, same ID-token
-// signature verification against Google's real JWKS, same
-// Identity::ExternalIdentifier `"#{issuer}:{subject}"` key shape, same
-// "GrantAccess happens separately from Admit" provisioning rule.
-//
-// One real difference from the Ruby version: no server-side session
-// store. `session_cookie`/`parse_session_cookie` are a plain
-// HMAC-SHA256-signed, base64url-encoded JSON payload — stateless by
-// construction, verified by recomputing the signature, never trusted
-// bytes off the wire alone. `SESSION_SECRET` (the same secret
-// template.yaml already mints via SecretsManager for the Ruby app)
-// signs both this and the OAuth `state` token below.
-//
-// Generic over which aggregate is "MEMBERSHIP," not just Embryonaut's —
-// `member_row_by_email`/`member_rows`/`append_member_state`/
-// `session_for_member_by_identity` resolve the aggregate through
-// `membership_aggregate`, which reads `ir.json`'s own `membership` key
-// (`Exporter.membership` / a chapter's `provides "membership"`), rather
-// than an env var (`HECKS_MEMBERSHIP_AGGREGATE`) or a hardcoded
-// "member"/"Member". Same declared-not-named shape authorization
-// already uses for Governance. Still Embryonaut-shaped in spirit — the
-// OAuth flow, the "GrantAccess happens separately from Admit" rule, the
-// whole `Session`/provisioning protocol below — just not hardcoded to
-// Embryonaut's own aggregate name. `HECKS_DOMAIN`, read once at main.rs
-// boot, remains the only runtime domain selector this binary has.
+//! Google sign-in and stateless sessions: OAuth, ID-token verification
+//! against Google's real JWKS, and HMAC-signed session/account cookies.
 
 use crate::dispatch;
 use crate::journal;
@@ -41,6 +14,7 @@ use tokio_postgres::Client;
 const ISSUER: &str = "https://accounts.google.com";
 const STATE_TTL_SECS: u64 = 600;
 
+/// A verified Google ID token's claims.
 pub struct Claims {
     pub issuer: String,
     pub subject: String,
@@ -48,14 +22,13 @@ pub struct Claims {
     pub email_verified: bool,
 }
 
+/// A signed-in person, as carried in the session cookie.
 pub struct Session {
     pub identity_id: String,
     pub email: String,
     pub name: String,
     pub role: Option<String>,
 }
-
-// ---------- OAuth ----------
 
 pub fn authorization_url(redirect_uri: &str, secret: &str) -> Result<String, String> {
     let client_id = std::env::var("GOOGLE_CLIENT_ID").map_err(|_| "GOOGLE_CLIENT_ID not set".to_string())?;
@@ -70,10 +43,8 @@ pub fn authorization_url(redirect_uri: &str, secret: &str) -> Result<String, Str
     ))
 }
 
-// `expected` is unused beyond "a state was minted at all" — unlike the
-// Ruby version (which compares against a server-stashed session value),
-// this state is its own proof: `verify_state` alone (recomputing the
-// HMAC) is what a mismatched/forged/expired state actually fails on.
+// No server-side stash to compare against — recomputing the HMAC here
+// is the whole check: a forged, mismatched, or expired state fails on it.
 pub fn verify_state(state: &str, secret: &str) -> Result<(), String> {
     let payload = verify_sig(secret, state).ok_or_else(|| "state mismatch".to_string())?;
     let minted: u64 = payload.parse().map_err(|_| "state mismatch".to_string())?;
@@ -115,11 +86,9 @@ pub async fn verify(code: &str, redirect_uri: &str) -> Result<Claims, String> {
     verify_id_token(id_token, &client_id).await
 }
 
-// Google's own rotating JWKS (https://www.googleapis.com/oauth2/v3/certs)
-// — fetched fresh every call, deliberately not cached: /auth/google/callback
-// is a real sign-in, not a hot path, and a stale cached key set failing
-// to pick up Google's own rotation would be a worse failure mode than
-// one extra HTTPS round trip per login.
+// Fetched fresh, never cached: this is a real sign-in, not a hot path,
+// and missing Google's own key rotation would be worse than one extra
+// HTTPS round trip per login.
 async fn verify_id_token(id_token: &str, client_id: &str) -> Result<Claims, String> {
     let header = jsonwebtoken::decode_header(id_token).map_err(|e| format!("bad id_token header: {e}"))?;
     let kid = header.kid.ok_or_else(|| "id_token header has no kid".to_string())?;
@@ -165,17 +134,12 @@ async fn verify_id_token(id_token: &str, client_id: &str) -> Result<Claims, Stri
     })
 }
 
-// ---------- Account token (the account cookie and CMS handoff) ----------
-
 /// The cookie name the account token travels in when a deploy names none.
-/// A deploy whose site already sends a different name pins it with
-/// `HECKS_SESSION_COOKIE`.
+/// A deploy naming its own uses `HECKS_SESSION_COOKIE` instead.
 pub const DEFAULT_ACCOUNT_COOKIE: &str = "hecks_session";
 
-/// The pure half of `account_cookie_name`, unit-tested apart from the env
-/// read. Unset or empty means the default; anything else must be a valid
-/// cookie name (letters, digits, `_`, `-`, `.`) because it is written
-/// straight into a `Set-Cookie` header.
+/// Unset or empty means the default; otherwise must be a valid cookie
+/// name (letters, digits, `_`, `-`, `.`) since it lands in `Set-Cookie` raw.
 pub fn resolve_account_cookie(configured: Option<&str>) -> Result<String, String> {
     match configured {
         None | Some("") => Ok(DEFAULT_ACCOUNT_COOKIE.to_string()),
@@ -186,21 +150,14 @@ pub fn resolve_account_cookie(configured: Option<&str>) -> Result<String, String
     }
 }
 
-/// The name of the cookie the account token travels in, from
-/// `HECKS_SESSION_COOKIE`. An invalid value falls back to the default here;
-/// `main` refuses it at boot so a misconfiguration is loud, not silent.
+/// Reads `HECKS_SESSION_COOKIE`; an invalid value falls back to the
+/// default here, but `main` refuses it at boot so it can't go unnoticed.
 pub fn account_cookie_name() -> String {
     resolve_account_cookie(std::env::var("HECKS_SESSION_COOKIE").ok().as_deref()).unwrap_or_else(|_| DEFAULT_ACCOUNT_COOKIE.to_string())
 }
 
-// A flat, HMAC-signed claim -- ported behavior-for-behavior from
-// a client site's Ruby http_server adapter's own sign_token/verify_token
-// (that file's own comment: "not a JWT library, since there's exactly
-// one shape to sign"). Minted after a Google sign-in and verified by
-// /accounts/me and /accounts/sso-token. Deliberately separate from
-// Session/session_cookie above: those carry identity_id/role for the
-// Governance/Member-shaped admin console (auth.rs's own header) -- an
-// email and an expiry is the whole claim here.
+/// A flat, HMAC-signed `email` + expiry claim, verified by /accounts/me
+/// and the SSO handoff — deliberately not a `Session` cookie.
 pub fn account_token(secret: &str, email: &str, ttl_secs: u64) -> String {
     let payload = json!({"email": email, "exp": now_secs() + ttl_secs});
     let encoded = base64_encode(payload.to_string().as_bytes());
@@ -218,13 +175,8 @@ pub fn verify_account_token(secret: &str, token: &str) -> Option<String> {
     value.get("email")?.as_str().map(|s| s.to_string())
 }
 
-// ---------- Purpose-bound token ----------
-
-/// A short-lived signed token that only verifies for the `purpose` it was
-/// minted for. The signing key is derived from the purpose, so a token minted
-/// for one flow can never be replayed as a session cookie (whose key is the
-/// bare secret) or as a token for a different flow. `claims` must be a JSON
-/// object; `purpose` and `exp` are added to it.
+/// Verifies only for `purpose` (the signing key derives from it, so it
+/// can't be replayed elsewhere). `claims` must be a JSON object.
 pub fn purpose_token(secret: &str, purpose: &str, claims: Value, ttl_secs: u64) -> String {
     let mut payload = claims;
     payload["purpose"] = json!(purpose);
@@ -247,8 +199,6 @@ pub fn verify_purpose_token(secret: &str, purpose: &str, token: &str) -> Option<
 fn purpose_key(secret: &str, purpose: &str) -> String {
     format!("{purpose}:{secret}")
 }
-
-// ---------- Session cookie ----------
 
 pub fn session_cookie(secret: &str, session: &Session) -> String {
     let payload = json!({
@@ -273,13 +223,8 @@ pub fn parse_session_cookie(secret: &str, cookie: &str) -> Option<Session> {
     })
 }
 
-// ---------- Identity resolution + provisioning (Embryonaut::Member glue) ----------
-
-// `Identity::ExternalIdentifier`'s own `identified_by { key.value }` is
-// literally `"#{issuer}:#{subject}"` (identity.bluebook) -- a direct
-// key lookup, the same shape `dispatch::read`'s own `instances` map
-// already uses everywhere else (Adapters::Lambda#instances's own
-// "Domain::Aggregate#id" convention, Ruby side).
+/// Looks up `"Identity::ExternalIdentifier#{issuer}:{subject}"` in
+/// `instances` — the same key shape used everywhere else there.
 pub fn resolve_identity(instances: &Value, issuer: &str, subject: &str) -> Option<String> {
     let key = format!("Identity::ExternalIdentifier#{issuer}:{subject}");
     identity_id_from_state(instances.get(&key)?)
@@ -306,11 +251,8 @@ fn identity_id_from_state(state: &Value) -> Option<String> {
         })
 }
 
-/// Identity is PostgresEra-backed, same split as Membership — not in
-/// `dispatch::read`'s journal `instances`. Query the ExternalIdentifier
-/// head by (issuer, subject). Relation names try the consuming domain
-/// (0059), the Identity chapter, then the pre-0059 bare storage name
-/// (`external_identifier_head` as actually deployed).
+/// Identity lives in the PostgresEra head, not `dispatch::read`'s
+/// `instances` — tries both the domain-qualified and the bare relation name.
 pub async fn resolve_identity_from_head(
     client: &Mutex<Client>,
     domain_ir: &Value,
@@ -346,39 +288,13 @@ pub async fn resolve_identity_from_head(
     Ok(None)
 }
 
-// `Embryonaut::Member` is not in `dispatch::read`'s own `instances` --
-// it's permanently `persisted_by("PostgresEra")` (its rekey/translation
-// history needs real SQL, embryonaut.hecksagon's own comment), so it
-// was never migrated into rust/host's flat `hecks_lambda_journal` at
-// all (bin/bootstrap_lambda_data's own header: "Member is dispatched
-// locally ... against whatever DATABASE_URL names"). Queried straight
-// off `<domain>_member_head` instead -- the same era-scoped read view
-// Ruby's own `Adapters::PostgresEra#all`/`#find` already read from
-// (`SELECT id, state FROM #{lineage.head_view(table)}`,
-// `head_view(storage_name) = "#{qualified_name(storage_name)}_head"`,
-// `table = aggregate.storage_name` = "member"; `qualified_name` folds
-// in the owning domain's own snake_cased name -- docs/decisions/0059)
-// -- confirmed live against the real deployed database. A
-// real, live "google_unlinked" for an already-linked member
-// caught this: `resolve_identity` correctly found the member's real identity_id,
-// but scanning `instances` for their Member record could never find it.
-//
-// Thin wrappers, now — `journal::read_lineage_head_by_id`/`_all` are
-// the same two queries, generalized over `storage_name` instead of
-// hard-typed to `"member_head"`, so Member is no longer the only
-// aggregate this crate can read this way (see journal.rs's own header
-// on the generic pair, and ir.rs's `lineage_capable_aggregates` for how
-// a caller learns which other aggregates qualify). Kept as named,
-// Member-specific functions here rather than inlined at each call site
-// below — every call site still reads "the Member row," not "a lineage
-// row for whichever storage name," which is the real shape of what
-// auth.rs is doing.
+// Member lives in the PostgresEra head, not `dispatch::read`'s journal
+// `instances` — reading `instances` for an already-linked member misses
+// it entirely, so this queries the head view directly instead.
 async fn member_row_by_email(client: &Mutex<Client>, domain_ir: &Value, email: &str) -> anyhow::Result<Option<Value>> {
     let (_, storage_name) = membership_aggregate(domain_ir)?;
-    // docs/decisions/0059 — `head_view` is domain-qualified now, so the
-    // generic read needs the same domain name `PostgresEra#initialize`
-    // (Ruby) and this deployment's own mint used, the owning bluebook's
-    // declared name, exactly as `ir.rs`/`web.rs` already extract it.
+    // docs/decisions/0059: `head_view` needs the domain name too, the
+    // same one `ir.rs`/`web.rs` already extract this way.
     let domain = domain_ir.get("name").and_then(|v| v.as_str()).unwrap_or("");
     let guard = client.lock().await;
     journal::read_lineage_head_by_id(&*guard, domain, &storage_name, email).await
@@ -391,13 +307,9 @@ async fn member_rows(client: &Mutex<Client>, domain_ir: &Value) -> anyhow::Resul
     journal::read_lineage_head_all(&*guard, domain, &storage_name).await
 }
 
-// Which aggregate this deployment treats as "the membership one" —
-// `ir.json`'s own `membership` key (`Exporter.membership`, from a
-// chapter's `provides "membership"`) names it. No env var and no
-// lookup against lineage_capable_aggregates: the chapter declaration
-// is the fact, same as authorization already is for Governance. Bare
-// name + snake storage_name, so Person → ("Person", "person").
-// Resolved lazily, at request time — not every domain uses Google-auth.
+// The membership aggregate comes from `ir.json`'s declared `membership`
+// key, never an env var or a lookup against lineage_capable_aggregates —
+// the chapter declaration is the fact, same as Governance's authorization.
 fn membership_aggregate(domain_ir: &Value) -> anyhow::Result<(String, String)> {
     let provider = crate::ir::membership_provider(domain_ir).ok_or_else(|| {
         anyhow::anyhow!(
@@ -413,36 +325,9 @@ fn membership_names(aggregate: &str) -> (String, String) {
     (bare, storage_name)
 }
 
-// `Adapters::PostgresEra#append`, ported verbatim (postgres_era.rb:176-201) --
-// confirmed against the real deployed schema, not just source reading.
-// The same transactional, ordinal-tracked write every other field-set
-// on member_head already goes through (`Member.Admit`,
-// `Member.GrantAccess` when dispatched by Ruby -- see
-// bin/grant_first_admin) -- not a raw `UPDATE member_head` bypass. One
-// real difference from Ruby's own `Entry`/`save?` machinery: this
-// function is the whole state-with-one-field-changed, computed by its
-// two callers below, not a generic append-any-entry path -- there's
-// only ever "save" (never "delete") for Member here, so `entry.
-// operation`/`entry.mirrors`'s own branches (always "save"/always nil,
-// confirmed by tracing CommandInterpreter -> Postgres#save) collapse
-// to literals rather than being reintroduced as unused generality.
-// Generalized onto journal::append_lineage_mutation (ADR 0029 step 2) —
-// was a hand-rolled duplicate of that function's own journal-insert +
-// snapshot-upsert transaction, with "member"/`member_head_snapshot_{era}`
-// spelled out by hand instead of derived. The lock below is not the
-// generalization's job to supply: `journal::append_lineage_mutation`
-// deliberately takes no lock of its own (see its own header) — locking
-// is a caller concern, and dispatch.rs's caller already holds its own
-// (a differently-named, invocation-scoped lock, journal.rs's own
-// `hecks_lambda_journal.` advisory lock in dispatch.rs). This caller's
-// concern is the one Ruby's own `append` takes right before its
-// identical journal insert (postgres_era.rb:253-256) — `hecks_ordinal:`,
-// which serializes against a concurrent domain rename holding that same
-// lock name while repartitioning (postgres_era.rb:181), not against
-// ordinal uniqueness (a real Postgres sequence default already owns
-// that). Kept here, unchanged, rather than folded into the generic
-// function, because a rename is a domain-wide concern every lineage
-// write should serialize against — not specific to Member.
+// Ported from `Adapters::PostgresEra#append` -- the same journal-insert
+// + snapshot-upsert transaction every Member write uses. The advisory
+// lock guards a concurrent domain rename, not ordinal uniqueness.
 async fn append_member_state(client: &Mutex<Client>, config: &LineageConfig, domain_ir: &Value, id: &str, state: &Value) -> anyhow::Result<()> {
     let (aggregate_name, _) = membership_aggregate(domain_ir)?;
     let mut guard = client.lock().await;
@@ -467,7 +352,7 @@ async fn append_member_state(client: &Mutex<Client>, config: &LineageConfig, dom
 
 pub async fn session_for_member_by_identity(client: &Mutex<Client>, domain_ir: &Value, identity_id: &str) -> anyhow::Result<Option<Session>> {
     let (_, storage_name) = membership_aggregate(domain_ir)?;
-    // docs/decisions/0059 — same domain-qualification as member_row_by_email/member_rows above.
+    // docs/decisions/0059 — same domain-qualification as above.
     let domain = domain_ir.get("name").and_then(|v| v.as_str()).unwrap_or("");
     let guard = client.lock().await;
     let row = guard
@@ -494,10 +379,8 @@ pub async fn session_for_member_by_identity(client: &Mutex<Client>, domain_ir: &
     }))
 }
 
-// Never creates a Member (Admit is a real cap-table event) -- only
-// mints Identity/Governance facts for a Member who already has `role`
-// set (via GrantAccess) but no `identity_id` yet, matching
-// embryonaut_access_control.rb's `provision` exactly.
+/// Mints Identity/Governance facts for an already-granted Member —
+/// never creates one; Admit is a separate, real cap-table event.
 #[allow(clippy::too_many_arguments)]
 pub async fn provision(
     client: &Mutex<Client>,
@@ -523,19 +406,16 @@ pub async fn provision(
     };
     let identity_id = uuid::Uuid::new_v4().to_string();
 
-    // The identity verbs this domain's declared identity provider names
-    // (`ir::identity_provider`), never a hard-coded chapter. Breaking in
-    // 2.0: Link's reference field is `identity`, never `identity_id`.
+    // Uses this domain's declared identity provider (`ir::identity_provider`),
+    // never a hard-coded chapter. Link's reference field is `identity`, not
+    // `identity_id` -- changing this silently breaks linking.
     let Some(identity) = crate::ir::identity_provider(domain_ir) else {
         anyhow::bail!("this domain attaches no chapter that provides \"identity\" — cannot register or link an identity");
     };
 
-    // `None` on all three dispatches below -- this whole function is
-    // system-initiated provisioning (minting Identity/Governance facts
-    // for a Member the operator already granted access to via
-    // GrantAccess, not a command a logged-in caller is submitting), so
-    // there is no caller role to assert here -- matches what every call
-    // site in this function has always done.
+    // `None` on every dispatch below: this is system-initiated
+    // provisioning, not a caller-submitted command, so there is no
+    // caller role to assert.
     let register = dispatch::handle(
         client, wasm_path, &identity.register,
         json!({"identity_id": {"value": identity_id}}), None, config, invoker,
@@ -571,18 +451,9 @@ pub async fn provision(
         anyhow::bail!("{} refused: {}", provider.grant, assign_role.result);
     }
 
-    // Not dispatch::handle -- Embryonaut::Member isn't in rust/host's
-    // flat journal at all (member_row_by_email's own comment on why),
-    // so a WASM-replay dispatch here would rehydrate zero prior Member
-    // steps and refuse with a confusing "no such record" instead of
-    // the real story. `append_member_state` is `Adapters::Postgres
-    // #append`'s own transactional, ordinal-tracked protocol instead --
-    // the same journal INSERT + head_snapshot upsert every other write
-    // to this table already goes through, not a raw update bypassing
-    // it. LinkIdentity's own bluebook command is a single `sets
-    // :identity_id, to: :identity_id` with no other invariant beyond
-    // "not already linked" -- already checked above -- so the new
-    // state is just the current row with that one field replaced.
+    // Not dispatch::handle: Member isn't in the flat journal, so a
+    // WASM-replay dispatch here would rehydrate no prior steps and
+    // refuse. Writes through the same journal+snapshot append instead.
     let mut new_state = member.clone();
     new_state["identity_id"] = json!({"value": identity_id});
     append_member_state(client, config, domain_ir, email, &new_state).await?;
@@ -604,21 +475,16 @@ pub async fn grant_access(
         return Ok(false);
     };
 
-    // Same real append protocol provision() uses -- see its own
-    // comment. GrantAccess's own bluebook command is a single
-    // `sets :role, to: :role`, no other invariant.
+    // Same append protocol `provision` uses. GrantAccess's own bluebook
+    // command sets only `:role`, no other invariant to preserve here.
     let mut new_state = member;
     new_state["role"] = json!({"value": role});
     append_member_state(client, config, domain_ir, email, &new_state).await?;
     Ok(true)
 }
 
-/// Records a new person with just a name and email, the state the
-/// membership aggregate's `Admit` command sets. Written with the same
-/// journalled append `grant_access` uses, since the membership aggregate
-/// lives in the lineage head rather than the replayed flat journal.
-/// Returns `false` without writing when a person with that email
-/// (compared case-insensitively) already exists.
+/// Admits a new person (name + email), the same state `Admit` sets.
+/// Returns `false` without writing when that email already exists.
 pub async fn admit_person(
     client: &Mutex<Client>,
     config: &LineageConfig,
@@ -636,21 +502,19 @@ pub async fn admit_person(
     Ok(true)
 }
 
-/// Whether a membership row carries the explicit disabled flag. The flag is
-/// stored beside the role rather than replacing it, so enabling a person
-/// again restores exactly the role they held.
+// The disabled flag sits beside the role rather than replacing it, so
+// enabling a person again restores exactly the role they held.
 fn is_disabled(state: &Value) -> bool {
     state.get("disabled").and_then(|v| v.as_bool()).unwrap_or(false)
 }
 
-/// The role name a membership row holds, if any.
+// The role name a membership row holds, if any.
 fn role_of(state: &Value) -> Option<&str> {
     state.get("role").and_then(|v| v.get("value")).and_then(|v| v.as_str())
 }
 
-/// The roles that pass the admin gate. "Owner" is a superset of "Admin": a
-/// person holds a single role, so an Owner would otherwise lose admin access
-/// the moment they were made Owner.
+/// The roles that pass the admin gate. "Owner" is a superset of "Admin" —
+/// a person holds one role, so Owner must pass this gate too.
 pub const ADMIN_ROLES: [&str; 2] = ["Admin", "Owner"];
 
 /// The roles the grant routes will assign. Granting "Owner" is deliberately
@@ -662,12 +526,12 @@ pub fn is_admin_role(role: &str) -> bool {
     ADMIN_ROLES.contains(&role)
 }
 
-/// Whether the row holds an admin role ("Admin" or "Owner") and is not disabled.
+// Whether the row holds an admin role ("Admin" or "Owner") and is not disabled.
 fn is_active_admin(state: &Value) -> bool {
     role_of(state).is_some_and(is_admin_role) && !is_disabled(state)
 }
 
-/// Whether `state` is the only active admin (Admin or Owner) among `rows`.
+// Whether `state` is the only active admin (Admin or Owner) among `rows`.
 fn is_last_active_admin(rows: &[(String, Value)], state: &Value) -> bool {
     is_active_admin(state) && rows.iter().filter(|(_, s)| is_active_admin(s)).count() <= 1
 }
@@ -679,10 +543,8 @@ pub async fn caller_is_admin(client: &Mutex<Client>, domain_ir: &Value, email: &
     Ok(member_rows(client, domain_ir).await?.iter().any(|(id, state)| id.to_lowercase() == email && is_active_admin(state)))
 }
 
-/// Whether the person with `email` (compared case-insensitively) may hold a
-/// session right now: admitted, granted a role, and not disabled. A
-/// signature check alone can't tell, since a session cookie outlives a
-/// later disable.
+/// Whether `email` may hold a session right now: admitted, granted a role,
+/// and not disabled — a signature alone can't tell, since a cookie outlives a later disable.
 pub async fn has_access(client: &Mutex<Client>, domain_ir: &Value, email: &str) -> anyhow::Result<bool> {
     let email = email.to_lowercase();
     Ok(member_rows(client, domain_ir)
@@ -691,10 +553,8 @@ pub async fn has_access(client: &Mutex<Client>, domain_ir: &Value, email: &str) 
         .any(|(id, state)| id.to_lowercase() == email && role_of(state).is_some() && !is_disabled(state)))
 }
 
-/// The role the person with `email` (compared case-insensitively) holds right
-/// now, or `None` when they are unknown, have no role, or are disabled. This
-/// is the "Owner"/"Admin" check the payments routes make against the current
-/// membership head rather than trusting anything in the session cookie.
+/// The role `email` holds right now, or `None` if unknown, roleless, or
+/// disabled — reads the live membership head, never the session cookie.
 pub async fn active_role(client: &Mutex<Client>, domain_ir: &Value, email: &str) -> anyhow::Result<Option<String>> {
     let email = email.to_lowercase();
     Ok(member_rows(client, domain_ir)
@@ -704,9 +564,8 @@ pub async fn active_role(client: &Mutex<Client>, domain_ir: &Value, email: &str)
         .and_then(|(_, state)| role_of(state).map(String::from)))
 }
 
-/// Every admitted person as a JSON row: name, email, the retained role,
-/// whether they have signed in (`linked`), whether they currently have
-/// access (`granted`, false while disabled) and whether they are `disabled`.
+/// Every admitted person as a JSON row: name, email, role, `linked`
+/// (signed in), `granted` (has access), and `disabled`.
 pub async fn all_people(client: &Mutex<Client>, domain_ir: &Value) -> anyhow::Result<Vec<Value>> {
     Ok(member_rows(client, domain_ir)
         .await?
@@ -742,14 +601,8 @@ pub enum DisableOutcome {
     LastAdmin,
 }
 
-/// Disables or enables the person with email `target` on behalf of `caller`.
-/// Disabling keeps the person, their role and their identity link, and only
-/// sets the explicit flag, so enabling restores exactly the prior access.
-/// Every rule is checked under the same advisory lock and transaction the
-/// other membership writes use, reading the head after the lock is held, so
-/// two admins disabling each other at once cannot both succeed: the second
-/// sees the first's committed write, finds its caller already disabled, and
-/// is refused. The last-admin check is a second, independent guard.
+/// Disables or enables `target` for `caller`, keeping role and identity
+/// link — locked with other membership writes so concurrent disables can't both win.
 pub async fn set_person_disabled(
     client: &Mutex<Client>,
     config: &LineageConfig,
@@ -812,15 +665,8 @@ pub enum RoleOutcome {
     LastAdmin,
 }
 
-/// Sets the role of the already-admitted person with email `target` on behalf
-/// of `caller`. Any active admin may grant any role in `GRANTABLE_ROLES`, Owner
-/// included, so the first Owner can be granted by an Admin. The person's name,
-/// identity link and disabled flag are kept, so a disabled person stays
-/// disabled and holds the new role once enabled. Asking for the role the person
-/// already holds writes nothing. The caller check and the last-admin check run
-/// under the same advisory lock and transaction `set_person_disabled` uses,
-/// reading the head after the lock is held, so two admins demoting each other
-/// at once cannot both succeed.
+/// Sets `target`'s role on `caller`'s behalf; any active admin may
+/// grant any role, Owner included, locked against concurrent demotions.
 pub async fn set_person_role(
     client: &Mutex<Client>,
     config: &LineageConfig,
@@ -863,10 +709,8 @@ pub async fn set_person_role(
     Ok(RoleOutcome::Done)
 }
 
-/// Whether `identity_id` holds a live "Admin" or "Owner" assignment in the chapter
-/// this domain declares as its authorization provider (`ir::
-/// authorization_provider`). `None` — nothing attached provides
-/// authorization — means no assignment can exist, so never admin.
+/// Whether `identity_id` holds a live Admin/Owner assignment in this
+/// domain's authorization provider; `None` provider means never admin.
 pub fn holds_admin(instances: &Value, identity_id: &str, provider: Option<&crate::ir::AuthorizationProvider>) -> bool {
     let Some(provider) = provider else { return false };
     let prefix = format!("{}#", provider.assignment_aggregate);
@@ -880,16 +724,13 @@ pub fn holds_admin(instances: &Value, identity_id: &str, provider: Option<&crate
     })
 }
 
-// ---------- small helpers (no external crate pulled in just for these) ----------
-
 fn now_secs() -> u64 {
     SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs()
 }
 
-// `pub(crate)` — `dispatch.rs`'s own `occurred_at` stamping reuses this
-// exact ISO-8601 rendering rather than re-deriving it a second time; see
-// this function's own body comment for the format guarantee both call
-// sites depend on.
+// `dispatch.rs`'s `occurred_at` stamping reuses this exact rendering
+// rather than re-deriving it — see the body comment for the format
+// guarantee both call sites depend on.
 pub(crate) fn httpdate_now() -> String {
     // ISO 8601 UTC, matching Ruby's Time.now.utc.iso8601 -- Governance::
     // RoleAssignment.starts_at only needs to parse as a real instant,
@@ -1198,15 +1039,9 @@ mod tests {
         assert!(membership_aggregate(&json!({"name": "Pizzas"})).is_err());
     }
 
-    // A real, throwaway Postgres database per test, matching the real
-    // shape `head_view` names (`qualified_name(domain, "#{storage_name}
-    // _head")`, postgres/lineage.rb — docs/decisions/0059 folded the
-    // owning domain, "Acme" in this fixture, into this name) -- member_row_by_
-    // email/session_for_member_by_identity/all_people all query this
-    // exact table against the real, deployed database (originally
-    // confirmed live via a bastion tunnel, pre-0059, when this table was
-    // still bare `member_head`). Uniquely named per test, same reasoning
-    // dispatch.rs's own `scratch_db` gives itself.
+    // A throwaway Postgres database per test, matching the real
+    // `head_view` naming (`qualified_name(domain, "#{storage_name}_head")`,
+    // docs/decisions/0059) that the functions under test query directly.
     async fn scratch_member_db(name: &str) -> Mutex<tokio_postgres::Client> {
         use tokio_postgres::NoTls;
         let (admin, conn) = tokio_postgres::connect("host=localhost dbname=postgres", NoTls)
@@ -1224,16 +1059,9 @@ mod tests {
         tokio::spawn(async move {
             let _ = conn.await;
         });
-        // The real shape, originally confirmed live against the deployed
-        // database via a bastion tunnel (pre-0059, when this was still
-        // bare `member_head`): `acme_member_head` is a view over
-        // the era-1 snapshot table (postgres/lineage/head_compiler.rb's
-        // `ensure_first_head!`,
-        // `CREATE OR REPLACE VIEW "acme_member_head" AS SELECT id, state FROM
-        // "acme_member_head_snapshot_1"`), and every write goes through the
-        // domain's own era-partitioned journal table first
-        // (`hecks_journal_acme`) -- `append_member_state`'s own
-        // target, exercised by the test below.
+        // `acme_member_head` mirrors the real shape: a view over the
+        // era-1 snapshot table (`head_compiler.rb`'s `ensure_first_head!`),
+        // written through the era-partitioned journal first.
         client
             .batch_execute(
                 "CREATE TABLE acme_member_head_snapshot_1 (id text PRIMARY KEY, ordinal bigint NOT NULL, state jsonb NOT NULL);
@@ -1248,10 +1076,8 @@ mod tests {
         Mutex::new(client)
     }
 
-    // A minimal `ir.json`-shaped fixture naming exactly one lineage-
-    // capable aggregate, "Member" (storage_name "member"), plus the
-    // `membership` key Exporter.membership writes -- everything
-    // `resolve_membership_aggregate`/`membership_aggregate` actually reads.
+    // A minimal `ir.json`-shaped fixture: one lineage-capable aggregate
+    // plus the `membership` key `membership_aggregate` reads.
     fn member_domain_ir() -> Value {
         json!({
             "name": "Acme",
@@ -1305,14 +1131,9 @@ mod tests {
         let config = LineageConfig { domain: "Acme".to_string(), era: Some(1), mirrored: None };
         {
             let guard = db.lock().await;
-            // ordinal 0 -- below anything the fresh journal's own
-            // bigserial sequence will ever produce (starts at 1), the
-            // same way a real seed row's ordinal is always lower than
-            // any later real write's. Seeding this at 1 created a
-            // genuine collision with the journal's first real insert
-            // (also ordinal 1) and made the guard correctly refuse to
-            // advance -- caught live by this very test, not a
-            // hypothetical.
+            // ordinal 0 -- below the journal's bigserial sequence (starts
+            // at 1). Seeding at 1 instead once collided with the journal's
+            // first real insert and masked this guard; pins that regression.
             guard.execute(
                 "INSERT INTO acme_member_head_snapshot_1 (id, ordinal, state) VALUES ($1, 0, $2::jsonb)",
                 &[
@@ -1359,13 +1180,9 @@ mod tests {
         assert!(ordinal > 0, "should have advanced past the seed row's ordinal 0");
         drop(guard);
 
-        // The same ordinal-guarded upsert Ruby's own append() uses
-        // (`WHERE ordinal < EXCLUDED.ordinal`) refuses to move the
-        // snapshot backward -- append a second, earlier-looking write
-        // isn't possible through this function (ordinal always comes
-        // from the same sequence the journal INSERT just used), but
-        // the guard itself is directly testable: a manual attempt to
-        // downgrade the snapshot with a smaller ordinal is a no-op.
+        // The ordinal-guarded upsert (`WHERE ordinal < EXCLUDED.ordinal`)
+        // can't be exercised through normal writes, so this pins it
+        // directly: a manual downgrade attempt is a no-op.
         let guard = db.lock().await;
         guard.execute(
             "INSERT INTO acme_member_head_snapshot_1 (id, ordinal, state) VALUES ($1, 1, $2::jsonb) \

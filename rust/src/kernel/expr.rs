@@ -1,52 +1,12 @@
-// **Hand-written, once, generic** — a direct structural port of
-// `Hecks::Bluebook::Expression::Evaluator` and `::Resolver`
-// (docs/implemented/guides/running-a-runtime.md's "The expression grammar"), not a
-// reimplementation of parsing. bin/project_rust parses real canonical
-// `given`/`ensures`/invariant text with the real Ruby parser and emits
-// `Expr` data literals from that AST; the only thing written here is
-// interpretation — `Evaluator#interpret`/`Resolver#interpret`, ported.
-//
-// This is what replaces compiling each expression to bespoke Rust
-// boolean source: one generic `interpret()` walks any expression this
-// grammar can produce, driven by data a generator emits, the same way
-// `CommandInterpreter` is one Ruby method that walks any command's IR
-// rather than one method per command shape.
-//
-// This file is a router, not where the logic lives. Every real
-// interpretation rule — what `+` does, what `.empty?` does on a list vs
-// a string, what a `:composite` field's dotted lookup does — is in
-// `expression_operators/<category>.rs` or `attribute_shapes/<shape>.rs`,
-// one file per capability, named after the exact vocabulary
-// `bin/ir --meta` (attribute shapes) and `lib/hecks/bluebook/
-// expression/projection.json` (operator categories) already use for it.
-// `interpret`'s own match handles only the leaves no capability file
-// owns (literals, `Lookup`) plus `dispatch_operator`, below, which is
-// exhaustive over the generated `OperatorCategory` enum with no
-// wildcard arm on purpose: `bin/project_kernel_capabilities` regenerates
-// that enum straight from the live Ruby grammar (`OperatorCategory`'s
-// own header names the exact call), so the day a `given`/`ensures`/
-// invariant clause gains a new kind of operator, this match stops
-// compiling until a real arm — and the file it calls into — exists for
-// it. A `_ =>` arm here would silently swallow that day instead,
-// routing the new category into whatever arm happened to sit above it,
-// compiling cleanly while quietly interpreting the new capability wrong.
-// That failure mode is the entire reason this refactor exists, so this
-// match must never grow one back.
+//! Interprets the `Expr` AST — a structural port of Ruby's
+//! `Evaluator`/`Resolver` (docs/implemented/guides/running-a-runtime.md).
 
 use super::Refusal;
 use crate::kernel::attribute_shapes::composite;
 use crate::kernel::expression_operators::{self, comparison, OperatorCategory};
 
-// ── Value — the dynamic runtime value an expression evaluates to.
-// Mirrors what Ruby's `Resolver#interpret` can return (Integer/Float/
-// String/true/false/nil), plus one addition: `List(usize)`. Real corpus
-// expressions only ever ask `.size`/`.empty?` of a list-typed field,
-// never index into its elements by expression — so a list field
-// surfaces as its length, not its contents. Each variant is one of the
-// four `AttributeShape`s once resolved to a runtime value: `Int`/
-// `Float`/`Str`/`Bool` are `:scalar`, `List` is `:list`, `Nil` is
-// `:optional` (see `attribute_shapes/*.rs` for the shape-owned behavior
-// of each).
+/// The dynamic runtime value an expression evaluates to — mirrors
+/// Ruby's `Resolver#interpret`, plus `List(usize)`: a list field's length.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Value {
     Int(i64),
@@ -55,93 +15,46 @@ pub enum Value {
     Bool(bool),
     List(usize),
     Nil,
-    /// A real, fully-materialised list of `Value`s — distinct from
-    /// `List(usize)` (a length-only reading of a field; see this enum's
-    /// own header) — produced by an `ArrayLiteral` (`Resolver::
-    /// ArrayLiteral`, `[a, b]`, `Expr::Array` below) or a `.split` call.
-    /// `expression_operators::text::split` produces it;
-    /// `expression_operators::positional` (`.first`/`.last`) is its main
-    /// consumer. Not how a literal-array `.include?` haystack reaches
-    /// the kernel — `rust/project/expr_emitter.rb`'s own `emit_include`
-    /// rewrites that specific shape into an or-of-equalities at codegen
-    /// time instead (see its header for why), so this variant never
-    /// needs to carry `.include?`'s own membership test.
+    /// A materialised list — distinct from the length-only `List(usize)`
+    /// above. Produced by an array literal or `.split`; never used for
+    /// `.include?`'s haystack (`expr_emitter.rb`'s `emit_include` rewrites
+    /// that shape at codegen time instead).
     Array(Vec<Value>),
 }
 
 impl Value {
-    /// Ruby's `Evaluator.truthy?`: `!value.nil? && value != false`. Kept
-    /// here, not split per-shape — every `Value` variant answers this the
-    /// same generic way regardless of which shape produced it, unlike
-    /// `numeric`/`to_s`/`size`/`empty?`, which genuinely differ shape by
-    /// shape and live in `attribute_shapes/*.rs` instead.
+    /// Ruby's `Evaluator.truthy?`: false only for `Nil`/`Bool(false)`.
     pub fn truthy(&self) -> bool {
         !matches!(self, Value::Nil | Value::Bool(false))
     }
 }
 
-// ── **Field / fielded** — the lookup surface every generated struct (value
-// object or aggregate record, and command args structs) implements. A
-// dotted `Lookup` path walks this: the first segment resolves against
-// args-then-instance (see `lookup`, below); every later segment walks a
-// `Field::Nested` chain via `attribute_shapes::composite`. Implementations
-// are mechanical and generated — one match arm per real attribute, the
-// same shape for every type — not bespoke per command.
 pub enum Field<'a> {
     Value(Value),
     Nested(&'a dyn Fielded),
 }
 
+/// The lookup surface every generated struct implements. A dotted
+/// `Lookup` resolves its head segment here, then walks `Field::Nested`.
 pub trait Fielded {
     fn field(&self, name: &str) -> Option<Field<'_>>;
 
-    /// A bare (undotted) `Lookup` terminating on this object rather than
-    /// one of its own fields — `Resolver#unwrap_scalar`'s own "not a
-    /// single-field VO" fallthrough (resolver.rb, read directly): Ruby
-    /// returns the whole thing as-is (a Hash), still comparable/testable
-    /// generically (`==`/`!=`/`.empty?`) even though it's not a single
-    /// scalar. Most `Fielded` implementers have no sensible scalar
-    /// reading of themselves and don't override this (`None`, the
-    /// existing "refuse — nothing generated does this" behavior,
-    /// unchanged) — `reference_lookup.rs`'s `DerefNode` is the one real
-    /// override: a dereferenced record collapses to the id it was
-    /// fetched by, which is exactly what makes a bare `source !=
-    /// destination` (`examples/banking/bluebook/`'s own
-    /// `Transfer.Request`, "a transfer moves BETWEEN accounts") a real
-    /// identity comparison instead of an unrepresentable object-to-object
-    /// one — two references are the same reference iff they resolved to
-    /// the same id, the identical fact `Value::Str` equality already
-    /// tests for every other string field in this grammar.
+    /// The bare (undotted) `Lookup` reading of this object — Ruby's
+    /// `unwrap_scalar` fallthrough. `DerefNode` overrides to answer its id.
     fn as_scalar(&self) -> Option<Value> {
         None
     }
 
     /// The elements of a list-typed field, for the enumeration operators
-    /// (`expression_operators/enumeration.rs` — `.any?`/`.none?`/`.all?`/
-    /// `.find { |x| ... }`). `field` answers a list as `Value::List(len)`
-    /// — the length, which is all `.size`/`.empty?` ever asked (see
-    /// `Value`'s own header) — and stays that way; this is the second
-    /// reading of the same field, its members one by one, each a
-    /// `Field` exactly as a nested lookup would see it (`Nested` for a
-    /// value object or entity element, `Value` for a scalar list). The
-    /// default answers `None` for every name, the same "refuse — nothing
-    /// generated does this" reading `as_scalar` takes; `fielded.rb`/
-    /// `rust/codegen/src/fielded.rs` generate an override with one arm
-    /// per real list attribute (exemplar `fielded_items_arm_*`).
+    /// (`.any?`/`.all?`/`.none?`/`.find`). Default `None`, like `as_scalar`.
     fn items(&self, _name: &str) -> Option<Vec<Field<'_>>> {
         None
     }
 }
 
-/// `attrs.merge(node.param.to_sym => element)` — `Resolver::
-/// interpret_with_element` (resolver/block_predicates.rb), read
-/// directly: a block's own parameter is bound by merging it into the
-/// args side for the predicate's evaluation, so it is checked before
-/// every real argument and every instance field, and an argument that
-/// happens to share the parameter's name is shadowed the identical way
-/// in both runtimes. `rest` is whatever `args` was outside the block —
-/// nested blocks chain a `Bound` inside a `Bound`, exactly as Ruby's
-/// nested `merge` does.
+/// A block's own parameter, checked before `rest` (real args/instance) —
+/// Ruby's `interpret_with_element` merge order. Nested blocks chain a
+/// `Bound` inside a `Bound`, matching Ruby's nested `merge`.
 pub struct Bound<'a> {
     pub name: &'a str,
     pub value: Field<'a>,
@@ -168,9 +81,8 @@ impl<'a> Fielded for Bound<'a> {
     }
 }
 
-/// A `Fielded` with nothing in it — used where Ruby's own `attrs` is `{}`
-/// too, i.e. a value object checking its own invariants (no command
-/// arguments are in scope, only the value object's own fields as `state`).
+/// A `Fielded` with nothing in it — Ruby's own `attrs` is `{}` too, e.g.
+/// a value object checking its own invariants against only its fields.
 pub struct NoFields;
 impl Fielded for NoFields {
     fn field(&self, _name: &str) -> Option<Field<'_>> {
@@ -178,13 +90,8 @@ impl Fielded for NoFields {
     }
 }
 
-/// `args.merge(old: old)` — `CommandRules::Admissibility#enforce_ensures`,
-/// read directly. `ensures` runs with the same `attrs` a `given` would,
-/// plus one merged key: `old`, the instance as it stood before
-/// `apply_mutations` ran. `old` is checked first, the same order Ruby's
-/// own `Hash#merge` gives it precedence in — a real argument named `old`
-/// would be shadowed the identical way in both runtimes, not just this
-/// one.
+/// `ensures`'s own `attrs`, plus `old` (pre-mutation instance) merged in
+/// and checked first — Ruby's `Hash#merge` precedence, `enforce_ensures`.
 pub struct WithOld<'a> {
     pub args: &'a dyn Fielded,
     pub old: &'a dyn Fielded,
@@ -206,12 +113,9 @@ impl<'a> Fielded for WithOld<'a> {
     }
 }
 
-/// C2.3 (docs/semantics/bluebook-semantics.md) — inside an `ensures` the
-/// settled state comes first: an argument that shares a field's name
-/// does not shadow the candidate (it does in a `given`, C2.2). Ruby's
-/// `Admissibility#enforce_ensures` drops such arguments from the rule's
-/// scope (`args.reject { |name, _| subject.key?(name) }`); this adapter
-/// is the same drop, answered lazily per lookup.
+/// C2.3 (docs/semantics/bluebook-semantics.md): inside `ensures`, settled
+/// state wins over a same-named argument (unlike `given`'s C2.2) — the
+/// same drop `enforce_ensures` does, answered lazily per lookup.
 pub struct StateFirst<'a> {
     pub args: &'a dyn Fielded,
     pub settled: &'a dyn Fielded,
@@ -233,13 +137,9 @@ impl<'a> Fielded for StateFirst<'a> {
     }
 }
 
-/// `attrs.merge(parent: parent.state …)` — `Admissibility#enforce_givens`
-/// and `#enforce_ensures`, read directly: an entity command's own
-/// predicates read the owning record under one name, `parent`, on the
-/// args side. Built by `dispatch::apply_entity_command` for a
-/// delegating door (see its own header for why the routing layer's
-/// `parent_deref` snapshot is not enough there); merged after `old`
-/// exactly as Ruby's own `merge` order gives `old` precedence.
+/// An entity command's owning record, exposed as `parent` on the args
+/// side (`enforce_givens`/`enforce_ensures`), merged after `old` — Ruby's
+/// own `merge` order gives `old` precedence.
 pub struct WithParent<'a> {
     pub args: &'a dyn Fielded,
     pub parent: &'a dyn Fielded,
@@ -261,17 +161,12 @@ impl<'a> Fielded for WithParent<'a> {
     }
 }
 
-// `Comparison` lives in `expression_operators::comparison` (the
-// "comparison" category owns the algebra it's named for) and is
-// re-exported at this same path so every call site — hand-written or
-// generated (`rust/project/expr_emitter.rb` emits
-// `crate::kernel::Comparison { .. }` literals directly) — keeps working
-// unchanged.
+// Re-exported here so generated call sites (`expr_emitter.rb` emits
+// `crate::kernel::Comparison { .. }`) keep working unchanged.
 pub use comparison::Comparison;
 
-/// `BLOCK_PREDICATE_MODES` (resolver/block_predicates.rb): the three
-/// spellings of one Array-aggregation family, kept as one node with a
-/// mode exactly as Ruby keeps them (`BlockPredicate#mode`).
+/// The three spellings of one Array-aggregation family, kept as one
+/// node with a mode — matching Ruby's `BlockPredicate#mode`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum BlockMode {
     All,
@@ -291,19 +186,9 @@ impl BlockMode {
     }
 }
 
-// ── Expr — the full Evaluator + Resolver AST as one recursive Rust enum.
-// Every variant corresponds to exactly one real Ruby node type:
-// Evaluator::{Or,And,Not,Compare,Include,Resolve} and Resolver::
-// {IntegerLiteral,FloatLiteral,StringLiteral,BoolLiteral,NilLiteral,
-// Addition,SignTest,Empty,ToS,Modulo,Size,Lookup,BlockPredicate,Find}.
-// `Resolve` itself
-// doesn't need its own variant — Ruby's `Resolve` is just "interpret the
-// wrapped Resolver node, then check truthiness," and every `Expr` variant
-// below already produces a `Value` that `interpret`'s callers can check
-// for truthiness directly.
-// Not every domain's `given`/`ensures`/invariant text exercises every
-// node this grammar admits — a variant going unconstructed for one
-// domain is expected, not a sign of dead code to prune.
+/// The full Evaluator + Resolver AST, one recursive enum — each variant
+/// is exactly one Ruby node type. An unconstructed variant for one
+/// domain is expected, not dead code to prune.
 #[derive(Debug, Clone)]
 #[allow(dead_code)]
 pub enum Expr {
@@ -324,42 +209,25 @@ pub enum Expr {
     Modulo { receiver: Box<Expr>, divisor: Box<Expr> },
     Size(Box<Expr>),
     Lookup(&'static str),
-    /// `receiver.any? { |param| predicate }` and its `.none?`/`.all?`
-    /// siblings — `Resolver::BlockPredicate`. `predicate` is a whole
-    /// Evaluator-level expression (`Evaluator.parse` of the block body),
+    /// `receiver.any?`/`.all?`/`.none? { |param| predicate }` —
     /// evaluated once per element with `param` bound (see `Bound`).
     BlockPredicate { mode: BlockMode, receiver: Box<Expr>, param: &'static str, predicate: Box<Expr> },
-    /// `receiver.find { |param| predicate }.a.b` — `Resolver::Find`: the
-    /// first element the predicate accepts, projected through `path`
-    /// (empty for a bare `.find { }`), or nil when nothing matches.
+    /// `receiver.find { |param| predicate }.a.b` — first accepted
+    /// element, projected through `path`, or nil when nothing matches.
     Find { receiver: Box<Expr>, param: &'static str, predicate: Box<Expr>, path: &'static [&'static str] },
-    /// `[a, b, c]` — `Resolver::ArrayLiteral`. A leaf, like `Int`/`Str`/
-    /// `Nil` above, not an expression-ledger operator — see expression.
-    /// bluebook's own "what is not here" comment on the `Operator`
-    /// aggregate: a literal's spelling doesn't differ per target the
-    /// way an operation's might, so `interpret`'s leaf match handles
-    /// this directly rather than routing it through `category_of`/
-    /// `dispatch_operator`, the identical treatment every other literal
-    /// already gets.
+    /// `[a, b, c]` — a leaf like `Int`/`Str`/`Nil` above, not an
+    /// operator, so `interpret` handles it directly, not via
+    /// `dispatch_operator`.
     Array(Vec<Expr>),
-    /// `receiver.match?(/pattern/flags)` — `Resolver::MatchesRegex`. The
-    /// pattern text is a real Ruby-Regexp source, taken as-is between
-    /// the slashes (see `expression_operators::pattern_match`'s own
-    /// header for why this crate takes a `regex` dependency for it).
+    /// `receiver.match?(/pattern/flags)` — `pattern` is a real
+    /// Ruby-Regexp source, taken as-is between the slashes.
     MatchesRegex { receiver: Box<Expr>, pattern: String, flags: String },
-    /// `receiver.present?` / `receiver.blank?` — `Resolver::Presence`,
-    /// one node for the symbol pair, `negated` distinguishing them
-    /// (`.blank?` is `.present?` negated) exactly the way `SignTest`
-    /// above is one node for three symbols.
+    /// `receiver.present?` / `.blank?` — one node for the pair,
+    /// `negated` distinguishing them (`.blank?` is `.present?` negated).
     Presence { receiver: Box<Expr>, negated: bool },
-    /// `receiver.set?` / `receiver.unset?` — `Resolver::Assignment`, the
-    /// same one-node-per-symbol-pair shape as `Presence` immediately
-    /// above, for a deliberately narrower question: `!receiver.is_nil()`,
-    /// full stop — not `Presence`'s own Rails-standard emptiness (nil/
-    /// false, or an empty String/Array, are blank). An assigned-but-empty
-    /// value is `.set?`, not `.unset?`, unlike `.present?`'s own reading
-    /// of the identical value — see `expression_operators::presence`'s
-    /// own header for the full reasoning.
+    /// `receiver.set?` / `.unset?` — narrower than `Presence`: only
+    /// `!receiver.is_nil()`. An assigned-but-empty value is `.set?`,
+    /// unlike `Presence`'s Rails-standard emptiness reading.
     Assignment { receiver: Box<Expr>, negated: bool },
     /// `receiver.split("SEP")` — `Resolver::Split`. Produces a real
     /// `Value::Array`, not `Value::List` — see that variant's own header.
@@ -374,20 +242,15 @@ pub enum Expr {
     Last(Box<Expr>),
 }
 
-/// `state`/`attrs` from `Evaluator.call(expr, state, attrs)` — `args` is
-/// checked first for every `Lookup`, `instance` second, matching
-/// `Resolver#fetch` exactly. Pass `&NoFields` for whichever side Ruby's
-/// own call site would have passed `{}` for.
+/// `args`/`instance` from `Evaluator.call` — `args` is checked first for
+/// every `Lookup`, matching `Resolver#fetch`. Pass `&NoFields` for `{}`.
 pub struct EvalContext<'a> {
     pub args: &'a dyn Fielded,
     pub instance: &'a dyn Fielded,
 }
 
-/// **The router**. Leaves (literals, `Lookup`) are handled directly — they
-/// aren't expression operators at all (`projection.json`'s own operator
-/// list contains no literal/lookup entries), so they have no
-/// `OperatorCategory` to route through. Everything else falls to
-/// `dispatch_operator`, below.
+/// Leaves (literals, `Lookup`) have no `OperatorCategory`, so they're
+/// handled directly; everything else routes through `dispatch_operator`.
 pub fn interpret(expr: &Expr, ctx: &EvalContext) -> Result<Value, Refusal> {
     use Expr::*;
     match expr {
@@ -403,12 +266,8 @@ pub fn interpret(expr: &Expr, ctx: &EvalContext) -> Result<Value, Refusal> {
 }
 
 /// Which `OperatorCategory` a non-leaf `Expr` variant belongs to — a
-/// plain, hand-written association (this enum's variant names are
-/// generated; which `Expr` node maps to which of them is not, since
-/// `Expr` itself is hand-written and grows only when this file is
-/// edited). The trailing leaf arm can't actually be reached — `interpret`
-/// above never calls this for a leaf — so it says so rather than
-/// silently returning a wrong category.
+/// hand-written association `interpret` never calls for a leaf, hence
+/// the `unreachable!` there rather than a wrong category.
 fn category_of(expr: &Expr) -> OperatorCategory {
     use Expr::*;
     match expr {
@@ -430,13 +289,10 @@ fn category_of(expr: &Expr) -> OperatorCategory {
     }
 }
 
-/// **The central dispatch point** — see this file's own header. Exhaustive
-/// over `OperatorCategory` with no wildcard `_ =>` arm: regenerate
-/// `expression_operators::OperatorCategory`
-/// (bin/project_kernel_capabilities) with a variant added or removed and
-/// this match stops compiling until a matching arm — and the
-/// `expression_operators::<name>` file it calls into — is added or
-/// removed by hand. This match must never grow a `_ =>` arm back.
+/// Exhaustive over `OperatorCategory`, no wildcard `_ =>` arm: adding or
+/// removing a variant (bin/project_kernel_capabilities) stops this
+/// compiling until a matching arm exists. Never add one back — it would
+/// silently route a new category to the wrong operator file.
 fn dispatch_operator(category: OperatorCategory, expr: &Expr, ctx: &EvalContext) -> Result<Value, Refusal> {
     use expression_operators::*;
     match category {
@@ -467,20 +323,10 @@ fn dispatch_operator(category: OperatorCategory, expr: &Expr, ctx: &EvalContext)
     }
 }
 
-/// `Resolver#fetch`: the first path segment is checked against `attrs`
-/// (args) first, `state` (instance) second; every later segment walks
-/// through `attribute_shapes::composite::step` — a `Field::Nested` chain
-/// one level further in, or (`step`'s own header) Ruby's `walk_path`
-/// fallthrough to `Value::Nil` once the value in hand is already a
-/// scalar, which is what a trailing `.nil?` segment resolves through.
-/// Only the first segment can refuse outright here; a refusal from this
-/// point on means a codegen bug, not a real business refusal — canonical
-/// text was already validated when the domain booted, so an
-/// `EvaluationError` in Ruby is never one of the nine real
-/// `DOMAIN_REFUSALS`. `TypeMismatch` is the closest existing refusal to
-/// "this shouldn't be possible if the generator is correct," so it's
-/// what this raises, rather than inventing a tenth refusal kind Ruby
-/// doesn't have.
+/// `Resolver#fetch`: the head segment checks `args` then `instance`;
+/// later segments walk `composite::step`. Only the head segment can
+/// refuse here — canonical text is validated at boot, so any refusal
+/// past this point is a codegen bug, not a real business refusal.
 fn lookup(path: &str, ctx: &EvalContext) -> Result<Value, Refusal> {
     let mut segments = path.split('.');
     let head = segments.next().unwrap();
@@ -497,21 +343,17 @@ fn lookup(path: &str, ctx: &EvalContext) -> Result<Value, Refusal> {
     composite::finish(current, path)
 }
 
-/// The list-elements reading of a `Lookup` path, for the enumeration
-/// operators: the same args-then-instance head resolution and
-/// `composite::step` walk `lookup` does for every segment but the last,
-/// then `Fielded::items` for the last one — a list is the end of a
-/// path, never the middle of it. `op` is only for the wording
-/// (`Resolver#evaluate_block_predicate`: "any? expects a list, got …").
+/// The list-elements reading of a `Lookup` path — same head resolution
+/// as `lookup`, then `Fielded::items` on the last segment (a list is
+/// always the end of a path). `op` names the caller for error wording.
 pub(crate) fn lookup_items<'a>(path: &str, ctx: &EvalContext<'a>, op: &str) -> Result<Vec<Field<'a>>, Refusal> {
     let segments: Vec<&str> = path.split('.').collect();
     let (head, rest) = segments.split_first().unwrap();
 
     if rest.is_empty() {
-        // `Resolver#fetch`: attrs first when the key exists there, state
-        // second — decided by the field's presence, so an argument that
-        // is not a list refuses rather than silently falling through to
-        // a same-named instance list.
+        // args first when the key is present there, state second — a
+        // non-list argument refuses rather than falling through to a
+        // same-named instance list.
         let side: &'a dyn Fielded = if ctx.args.field(head).is_some() { ctx.args } else { ctx.instance };
         return side
             .items(head)
@@ -551,11 +393,9 @@ pub(crate) fn eval_error(message: String) -> Refusal {
 mod lookup_tests {
     use super::*;
 
-    // Shaped like a generated value object with one required boolean
-    // attribute and one optional one — `previous_sessions`/`first_time`
-    // on a client site's real `Attendee`, the exact live shape
-    // `!previous_sessions.nil?` names (`composite::step`'s own header
-    // has the full reasoning).
+    // Shaped like a generated value object: one required boolean field,
+    // one optional — the exact shape `!previous_sessions.nil?` names
+    // (see `composite::step`'s own header).
     struct Attendee {
         previous_sessions: bool,
         first_time: Option<bool>,
@@ -590,33 +430,26 @@ mod lookup_tests {
 
     #[test]
     fn a_present_false_boolean_also_answers_not_nil() {
-        // The other half of the live crash — `previous_sessions: false`
-        // is exactly as present as `true`, and Ruby's own `walk_path`
-        // fallthrough (composite::step's header) never actually inspects
-        // the boolean's own value, only whether the head attribute
-        // resolved at all.
+        // The other half of the live crash: `false` is exactly as
+        // present as `true` — `walk_path` never inspects the value,
+        // only whether the head attribute resolved at all.
         let attendee = Attendee { previous_sessions: false, first_time: None };
         assert_eq!(not_nil("previous_sessions.nil?", &attendee), Value::Bool(true));
     }
 
     #[test]
     fn a_genuinely_unset_optional_field_still_answers_not_nil() {
-        // Matches real Ruby parity, not an abstract "correct" nil check:
-        // `Resolver#walk_path` breaks to `nil` off **any** scalar (including
-        // a scalar that is itself already `nil`) before it ever inspects
-        // `.nil?`'s own segment name, so `!x.nil?` reads `true` for any
-        // head attribute that resolved at all, set or unset alike — see
-        // `composite::step`'s own header for the full Ruby trace.
+        // Matches Ruby parity: `walk_path` breaks to `nil` off any
+        // scalar before inspecting `.nil?`'s segment name, so `!x.nil?`
+        // reads `true` for any head attribute that resolved, set or not.
         let attendee = Attendee { previous_sessions: true, first_time: None };
         assert_eq!(not_nil("first_time.nil?", &attendee), Value::Bool(true));
     }
 
     #[test]
     fn a_genuinely_missing_head_attribute_still_refuses() {
-        // The one case this fix leaves refusing, unchanged: an
-        // undeclared attribute name in the path's own head segment is a
-        // codegen bug, never a legitimate absent value — `lookup`'s own
-        // doc comment.
+        // An undeclared head attribute is still a codegen bug, not a
+        // legitimate absent value — see `lookup`'s own doc comment.
         let attendee = Attendee { previous_sessions: true, first_time: None };
         let expr = Expr::Not(Box::new(Expr::Lookup("not_a_real_attribute.nil?")));
         let ctx = EvalContext { args: &NoFields, instance: &attendee };

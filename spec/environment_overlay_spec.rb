@@ -1,17 +1,9 @@
 require "spec_helper"
 require "tmpdir"
 
-# Recovered, then generalized — see Runtime::Loader.boot's own comment
-# for the full provenance: `environment:` and `uses_embryonaut_bluebook`
-# existed on a prior commit of this repo (933d1dd), were vendored out to
-# a real downstream consumer project, and were then lost from this
-# repo's own reachable history entirely — no branch here reached that
-# commit. Ported forward from the consumer's vendor snapshot (the only
-# surviving copy), reworked against current main's own Hecksagon/World
-# shape rather than copied wholesale, since the two trees had otherwise
-# diverged independently for weeks. This spec is the end-to-end proof
-# the recovery actually works against a real boot, not just against the
-# builder in isolation — dsl_spec.rb covers the builder-level surface.
+# End-to-end proof that environment overlays and vendored bluebooks work
+# against a real boot, not just the builder in isolation — dsl_spec.rb
+# covers the builder-level surface.
 RSpec.describe "environment overlays and vendored bluebooks" do
   def write(dir, relative, content)
     path = File.join(dir, relative)
@@ -20,9 +12,8 @@ RSpec.describe "environment overlays and vendored bluebooks" do
   end
 
   # A minimal real domain, one command, one role — just enough to prove
-  # the ungoverned-role check runs correctly against the merged
-  # hecksagon, which is the actual regression this recovery fixes (see
-  # Registry::Verification#refuse_ungoverned_roles!'s own comment).
+  # the ungoverned-role check runs against the merged hecksagon (see
+  # Registry::Verification#refuse_ungoverned_roles!).
   def bluebook_source(role:)
     <<~BLUEBOOK
       Hecks.bluebook "Overlaid" do
@@ -81,8 +72,8 @@ RSpec.describe "environment overlays and vendored bluebooks" do
         write(dir, "overlaid.bluebook", bluebook_source(role: "Someone"))
         # Base declares no Governance — an overlay-only `uses_framework
         # "Governance"` must still be enough. Checking each block in
-        # isolation (the pre-recovery behavior) would refuse the base
-        # block here even though the final, merged hecksagon is fine.
+        # isolation would wrongly refuse the base block, even though the
+        # final, merged hecksagon is fine.
         write(dir, "overlaid.hecksagon", <<~HECKSAGON)
           Hecks.hecksagon "Overlaid" do
             Overlaid::Thing.persisted_by("Memory")

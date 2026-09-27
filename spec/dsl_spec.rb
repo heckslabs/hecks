@@ -16,13 +16,9 @@ RSpec.describe "the DSL surface" do
     in_registry { Hecks.bluebook(name, &block) }.bluebook(name)
   end
 
-  # A baseline identity, so tests exercising something else entirely — a
-  # lifecycle, a query, a default — do not each have to declare one to pass
-  # MetaValidator's "an aggregate says what it is known by" (Seal never
-  # defaults this any more ; see the `identified_by` tests below, which are
-  # what actually exercises the rule). A block that declares its own
-  # `identified_by` overrides this one, since it runs after and the builder
-  # keeps only the last call.
+  # A baseline identity so tests for other behavior don't each need their
+  # own (MetaValidator requires one). A block's own `identified_by`
+  # overrides this, since the builder keeps only the last call.
   def build_aggregate(domain, &block)
     build_bluebook(domain) do
       aggregate("Thing") do
@@ -37,11 +33,9 @@ RSpec.describe "the DSL surface" do
       value_object("Size") { attribute :value, Integer }
       value_object("Tag") { attribute :value, String }
 
-      # The fields the sets cases below mutate. A mutation must name a field
-      # the aggregate declares (AggregateBuilder#seal_mutation_targets), so the
-      # fixture declares them instead of mutating into a void, which would
-      # otherwise happen silently, while still asserting the mutation had
-      # been recorded.
+      # Fields the `sets` cases below mutate; a mutation must name a
+      # declared field (AggregateBuilder#seal_mutation_targets) or it
+      # fails silently.
       attribute :status,  Tag
       attribute :balance, Size
       attribute :lives,   Size
@@ -147,11 +141,9 @@ RSpec.describe "the DSL surface" do
     end
 
     it ".hecksagon's uses_embryonaut_bluebook records the name and needs a registry root to vendor from" do
-      # `in_registry`'s bare `Registry.new` sets no root — the exact real
-      # guard this exercises (EmbryonautBluebook.load!'s own refusal),
-      # not a fixture-less stand-in for it: a registry with nowhere to
-      # vendor from (`<root>/vendor/embryonaut_bluebooks/...`) has to
-      # refuse loudly rather than silently finding nothing.
+      # `in_registry`'s bare `Registry.new` sets no root, so this exercises
+      # the real refusal a registry with nowhere to vendor from must
+      # raise, not a fixture stand-in for it.
       expect do
         in_registry do
           Hecks.hecksagon("Hexed") do
@@ -260,11 +252,8 @@ RSpec.describe "the DSL surface" do
       end.to raise_error(Hecks::Bluebook::DSL::Malformed, /leaves :cost unresolved/)
     end
 
-    # WordGate (item #13's remaining builders) replaced the builder's
-    # own hand-written method_missing — a genuine typo, admitted
-    # nowhere in the whole grammar, now steps aside entirely
-    # (word_gate.rb's own comment) and falls through to Ruby's own
-    # plain NoMethodError rather than a DSL-level Malformed.
+    # A typo admitted nowhere in the grammar falls through to Ruby's own
+    # NoMethodError, not a DSL-level Malformed.
     it ".data_translation falls through to NoMethodError for a typo admitted nowhere in the grammar" do
       expect do
         in_registry do
@@ -275,10 +264,9 @@ RSpec.describe "the DSL surface" do
       end.to raise_error(NoMethodError, /renmae/)
     end
 
-    # A word admitted somewhere else in the grammar (Aggregate context)
-    # but not inside a TranslationAggregate body still gets WordGate's
-    # own richer, table-driven refusal, naming this context's real
-    # legal words.
+    # A word legal elsewhere (Aggregate context) but not inside a
+    # TranslationAggregate body still gets WordGate's table-driven
+    # refusal, naming this context's legal words.
     it ".data_translation refuses a word admitted elsewhere in the grammar but not here" do
       expect do
         in_registry do
@@ -297,12 +285,9 @@ RSpec.describe "the DSL surface" do
       end.to raise_error(NoMethodError, /banana/)
     end
 
-    # A real `Hecks.boot`, not `boot_in_memory` — examples/pizzas' own
-    # .world declares `persisted_by("PostgresEra")` unconditionally (see
-    # support/postgres_probe.rb's own note on why that probe exists), so
-    # this genuinely needs a reachable Postgres carrying the hecks_pizzas
-    # database — same as every other real-Postgres spec, `io: true` and
-    # self-skipping otherwise.
+    # Needs a real `Hecks.boot`, not `boot_in_memory`: examples/pizzas
+    # declares `persisted_by("PostgresEra")` unconditionally, so this
+    # needs a reachable Postgres (`io: true`, self-skipping otherwise).
     it ".boot loads a domain directory and returns the door", :io do
       skip "no reachable Postgres — start one to run this spec" unless PostgresProbe.available?
 
@@ -316,11 +301,8 @@ RSpec.describe "the DSL surface" do
         .to raise_error(Hecks::LoadOutsideBoot, /outside a boot/)
     end
 
-    # `.boot_files` — the explicit-file sibling of `.boot`. Memory-persisted
-    # (unlike `.boot`'s own pizzas example above), so this needs no
-    # Postgres: the real pizzas.bluebook, paired with the sibling
-    # Memory-persisted hecksagon behaviors examples boot through
-    # (examples/pizzas/pizzas_behaviors.hecksagon), named exactly, not
+    # `.boot_files` is the explicit-file sibling of `.boot`, Memory-
+    # persisted so it needs no Postgres. Files are named exactly, not
     # discovered by globbing a directory.
     it ".boot_files loads exactly the files named, in place" do
       root = File.expand_path("../examples/pizzas", __dir__)
@@ -376,23 +358,17 @@ RSpec.describe "the DSL surface" do
       end.to raise_error(Malformed, /an attribute is named/)
     end
 
-    # What it is known by, not "id". A ValueObject is known by its aggregate and
-    # its name — `identified_by do aggregate_id ; name.value end` — and this said
-    # `id`, a field the category does not have, because the refusal read
-    # `identified_by`, which is the single head and goes nil the moment an
-    # identity has two parts. The quoted id was always the join of those two
-    # ("Primitive:Thing" and "String"); now the message says so.
+    # A ValueObject is known by aggregate + name, not `id`; the refusal
+    # must quote the actual two-part identity, not an `id` field the
+    # category doesn't have.
     it "refuses an aggregate attribute that is not a value object" do
       expect { build_aggregate("Primitive") { attribute :code, String } }
         .to raise_error(Malformed, /no ValueObject with aggregate, name "Primitive:Thing:String"/)
     end
 
-    # A piece is reached through its aggregate, so a command on one addresses
-    # the aggregate and never the piece. Describing this as "a reference to an
-    # entity rather than an aggregate head" is not accurate to what it checks:
-    # `CommandBuilder#reference_to` only sets `references` when the
-    # target names the owner, so the only thing that can reach here is a piece's
-    # command naming itself.
+    # A piece is reached through its aggregate, so a command on one
+    # addresses the aggregate, never the piece; `CommandBuilder#reference_to`
+    # only sets `references` when the target names the owner.
     it "refuses an entity command that names itself as its root" do
       expect do
         build_bluebook("HeadOnly") do
@@ -410,11 +386,8 @@ RSpec.describe "the DSL surface" do
                          "Root.Child.Change names itself as its root")
     end
 
-    # Refused by the language now, not by a raise beside the builder. A
-    # command's reference argument is offered to the meta-domain as the head's
-    # own id, so "points at a declared head" is what reference resolution
-    # already means — no predicate, and a message that says which id it looked
-    # for and failed to find.
+    # A command's reference argument is offered to the meta-domain as the
+    # head's own id, so resolution failure names which id it looked for.
     it "refuses a reference to a value object rather than an aggregate head" do
       expect do
         build_bluebook("HeadOnly") do
@@ -430,11 +403,9 @@ RSpec.describe "the DSL surface" do
                          /UseCode#attributes\[0\]: no Aggregate with bluebook, name "HeadOnly:Code"/)
     end
 
-    # A default fills the shape it is declared on. `default: "open"` on a
-    # value-object attribute built cleanly and then refused every create at
-    # dispatch, which cost a corpus member 33 refusals out of 40 steps while
-    # every downstream check still passed — refusing consistently is
-    # agreement about nothing.
+    # A default must fill the shape it's declared on: `default: "open"` on
+    # a value-object attribute built cleanly but refused every create at
+    # dispatch — refusing consistently is agreement about nothing.
     it "refuses a bare default where the type wants fields" do
       expect do
         build_aggregate("Defaulted") do
@@ -453,18 +424,9 @@ RSpec.describe "the DSL surface" do
       expect(thing.attribute(:cover).default).to eq({ value: "open" })
     end
 
-    # The exact case seal_defaults' own comment names — an inline closed
-    # set (`one_of(...)` in the type position) synthesises its value
-    # object through `closed_sets`, not `@value_objects`, and would
-    # otherwise be invisible to this exact check: `attribute :cover,
-    # one_of("covered", "open"), default: "open"` would build cleanly and
-    # then refuse every create at dispatch, the same silent-then-loud
-    # failure the block-declared case above is already sealed against.
-    # A name declared twice would otherwise survive into the IR as two
-    # distinct attributes sharing one name — every downstream reader that
-    # finds an attribute by name (a mutation target, a query field,
-    # `Instance#[]`) would silently see only the first, the second
-    # permanently unreachable and yet still real IR, checked by nothing.
+    # A name declared twice would survive into the IR as two attributes
+    # sharing one name; every downstream reader (mutation target, query
+    # field, `Instance#[]`) would silently see only the first.
     it "refuses an attribute name declared twice" do
       expect do
         build_aggregate("DupAttr") do
@@ -533,14 +495,9 @@ RSpec.describe "the DSL surface" do
         .to raise_error(Malformed, /repeats the target/)
     end
 
-    # C4.2 (docs/semantics/bluebook-semantics.md) — effects are one update
-    # set over the pre-dispatch state; a field written twice would make
-    # declaration order significant (last-wins), which the update set
-    # says it is not.
-    # C3.6 (docs/semantics/bluebook-semantics.md) — a rule's `.match?`
-    # pattern is held to PatternSubset exactly as an attribute's own
-    # `pattern:` already is: a regex whose meaning depends on the engine
-    # reading it is refused at build, at every rule site.
+    # C4.2 / C3.6 (docs/semantics/bluebook-semantics.md) — effects are one
+    # update set (order can't matter), and a rule's `.match?` pattern is
+    # held to PatternSubset exactly as an attribute's own `pattern:` is.
     it "refuses a .match? pattern outside PatternSubset in a given — a backreference means different things " \
        "to different engines" do
       expect do
@@ -632,10 +589,9 @@ RSpec.describe "the DSL surface" do
     end
 
     it "then_set is gone — sets is the word now (ADR 0025 reverts the rename)" do
-      # `sets` is the word; `then_set` was the era every existing bluebook was
-      # written under (Syntax::Keyword still carries it as `was:`) — reachable
-      # only for frozen era text under EraGuard.shadow_parse now, the same
-      # bridge S2's has_* removal used.
+      # `then_set` is reachable only as frozen era text through
+      # EraGuard.shadow_parse (Syntax::Keyword carries it as `was:`), never
+      # as live syntax.
       expect { build_command("Spelled2") { then_set :balance, increment: :amount } }
         .to raise_error(Malformed, "Do's then_set is gone — sets is the word now")
     end
@@ -695,15 +651,9 @@ RSpec.describe "the DSL surface" do
       )
     end
 
-    # L7 (docs/audits/2026-08-11-bug-triage.md, Tier 7) — calling `.to_s`
-    # on every member field value in `to_h`'s own `members:` emission
-    # would make `minor_units: 2` (a genuine Integer, `currency.members`
-    # above proves it) cross the wire as the string `"2"` — indistinguishable
-    # from a member some other row spelled as text. Only the field name is
-    # a Ruby symbol that has to become a string for the wire; the value's
-    # own type is real information (`Bluebook::Attribute#to_h`'s own
-    # `default:` already preserves it the same way, unstringified) and
-    # `to_h` should not be the place that erases it.
+    # `to_h` must preserve a member field's declared type (e.g. an Integer
+    # stays an Integer), not stringify it — indistinguishable otherwise
+    # from a value some row spelled as text.
     it "to_h preserves a member field's own declared type, not just its String spelling" do
       registry = in_registry do
         Hecks.bluebook("Coins") do
@@ -743,9 +693,8 @@ RSpec.describe "the DSL surface" do
     end
 
     it "desugars an inline one_of into a value object named for the attribute" do
-      # An earlier reader parsed this spelling and threw the values away — the
-      # attribute became a plain String and the closed set meant nothing. The
-      # desugaring here keeps the set closed.
+      # Desugaring keeps the closed set closed; a plain String attribute
+      # would let the set mean nothing.
       aggregate = build_aggregate("Inline") do
         attribute :status, one_of("open", "shut")
       end
@@ -781,10 +730,9 @@ RSpec.describe "the DSL surface" do
 
         Hecks.bluebook("Coerced") do
           aggregate("Holding") do
-            # The ID every test below already passes ("h1", "h2"...) Is the fact.
-            # A bare scalar payload short-circuits the ".value" dig (see
-            # `identity_from`'s "an ID is always a scalar" note), so this derives
-            # from exactly what each dispatch already supplies — nothing minted.
+            # A bare scalar id short-circuits the `.value` dig
+            # (`identity_from`), so this derives from exactly what dispatch
+            # supplies — nothing minted.
             identified_by :id
 
             attribute :kind,   Kind
@@ -853,14 +801,10 @@ RSpec.describe "the DSL surface" do
         .to raise_error(Hecks::Runtime::InvariantViolation, /current or savings/)
     end
 
-    # Not for every value object any more. `Value::Coercion#fields_for` was
-    # deliberately widened (migration plan task 5, this split's own item 17)
-    # to auto-wrap a bare scalar into a single-field value object's sole
-    # attribute — `Kind` here has exactly one field, so `kind: "current"`
-    # now auto-wraps to `{ name: "current" }` rather than refusing. The
-    # refusal survives only for a genuinely multi-field value object, where
-    # the scalar cannot say which field it means — `Amount` (cents +
-    # currency) is that case here.
+    # A bare scalar auto-wraps into a single-field value object's sole
+    # attribute (`Value::Coercion#fields_for`); the refusal survives only
+    # for a multi-field one like `Amount`, where the scalar can't say
+    # which field it means.
     it "refuses a scalar for every multi-field value object" do
       registry = account_domain
       runtime  = Hecks::Runtime::Loader.bind_runtime(
@@ -876,12 +820,9 @@ RSpec.describe "the DSL surface" do
   end
 
   describe "a bluebook" do
-    # Shared fixture for the two correlates_by-dot-resolution refusal specs
-    # below: an aggregate whose command carries a value-object field (`Ref`)
-    # that itself nests another value object (`Amount`), so `correlates_by`
-    # has somewhere to run out of scalar. Each caller only supplies the
-    # process_manager body, since that's the only part that differs between
-    # them.
+    # Shared fixture for the two correlates_by dot-resolution refusal specs
+    # below: `Ref` nests `Amount`, giving `correlates_by` somewhere to run
+    # out of scalar.
     def build_ref_amount_bluebook(domain_name, &process_manager_block)
       build_bluebook(domain_name) do
         aggregate "Thing" do
@@ -953,10 +894,9 @@ RSpec.describe "the DSL surface" do
     end
 
     it "gathers includes declared before the reference, in either order" do
-      # `many:` is decided by comparing each include against the reference,
-      # so declaring an include before the reference would be refused if
-      # order mattered at declare time. The includes are resolved at build
-      # instead, which removes the ordering rule rather than moving it.
+      # `many:` compares each include against the reference; includes
+      # resolve at build, so declaration order between include and
+      # reference doesn't matter.
       before = build_bluebook("EitherWay") do
         read_model("Portfolio") do
           description "a portfolio"
@@ -977,9 +917,8 @@ RSpec.describe "the DSL surface" do
       expect(before.aggregate_heads).to eq(after.aggregate_heads)
     end
 
-    # An include with no reference at all is now a rootless read model —
-    # a bulk view of its own included head(s), no root record required —
-    # and succeeds rather than refusing.
+    # An include with no reference is a rootless read model — a bulk view
+    # of its own included head(s), no root record required.
     it "lets a read model include with no reference at all, as a rootless read model" do
       expect do
         build_bluebook("BadModel") do
@@ -1094,11 +1033,9 @@ RSpec.describe "the DSL surface" do
                          /reference cycle: (Rider -> Bicycle -> Rider|Bicycle -> Rider -> Bicycle)/)
     end
 
-    # S9, ADR 0025 — an owned piece's own reference_to would feed no
-    # edge into this same check at all if only AggregateBuilder#reference_to
-    # populated @reference_targets, so a ring closing through a
-    # contained entity would build cleanly, invisibly, the same shape this
-    # check already refuses when the ring is direct.
+    # A ring can close through an owned entity's own `reference_to`, not
+    # only a direct aggregate-to-aggregate edge; both must feed the same
+    # cycle check.
     it "refuses a reference cycle that closes through an owned entity" do
       expect do
         build_bluebook("BackAndForthThroughAPiece") do
@@ -1160,11 +1097,9 @@ RSpec.describe "the DSL surface" do
       expect(build_bluebook("Renamed") { formerly_known_as "OldName" }.formerly_known_as).to eq("OldName")
     end
 
-    # M10 — `formerly_known_as` drives a real Postgres schema rename at
-    # boot (EraResolver) and is what the meta-validator hashes as its
-    # cache key (`SHA256(JSON(bluebook.to_h))`); a field this method
-    # doesn't spell is a fact the wire — and the cache key — cannot see,
-    # so a chapter reassembled from exported IR loses it silently.
+    # `formerly_known_as` drives a real Postgres schema rename at boot and
+    # is hashed into the meta-validator's cache key; a chapter reassembled
+    # from exported IR must not lose it silently.
     it "formerly_known_as survives onto the wire, not just the live object" do
       expect(build_bluebook("RenamedOnWire") { formerly_known_as "OldName" }.to_h[:formerly_known_as])
         .to eq("OldName")
@@ -1201,30 +1136,24 @@ RSpec.describe "the DSL surface" do
       end.process_managers.first
 
       expect([checkout.correlates_by, checkout.starts_on]).to eq([:"order.id", "OrderPlaced"])
-      # Derived (S7), not declared — no `state "x"` lines exist any more;
-      # every state a transition names is a state this procedure has,
-      # first-seen order, the same reading Behaviour::Lifecycle#states
-      # already gives an aggregate's own field.
+      # States are derived from the transitions that name them, first-seen
+      # order — the same reading `Behaviour::Lifecycle#states` gives an
+      # aggregate's own field.
       expect(checkout.states).to eq(["awaiting_payment", "paid"])
 
       handler = checkout.handler_for("PaymentAuthorized")
       expect([handler.from_state, handler.to_state]).to eq(["awaiting_payment", "paid"])
       expect(handler.dispatches.first.to_h)
         .to eq({ command_name: "Order.Confirm", with_spec: [["order", ":order_id"]], compensates: nil })
-      # M11 — `correlates_by` must cross the wire as the same bare word
-      # `Assembly::Build`'s `:identity` reader turns back into a Symbol
-      # (`value&.to_sym`); a colon-wrapped `Literal.render` spelling or a
-      # stringified-Symbol-then-lost-nil-ness both break that round trip.
+      # `correlates_by` must cross the wire as the same bare word Symbol
+      # readers expect (`value&.to_sym`); a colon-wrapped or stringified
+      # spelling would break that round trip.
       expect(checkout.to_h[:correlates_by]).to eq("order.id")
     end
 
-    # M11 — a process manager built straight from the IR class (as
-    # `Assembly::Build`/a hand-rolled hash-to-object rebuild does) rather
-    # than through the DSL can carry a nil `correlates_by`; the DSL itself
-    # always refuses to mint one without it (`ProcessManagerBuilder#build`,
-    # "declares no correlates_by"). Spelling that absent case as `""` in
-    # `to_h` would be indistinguishable on the wire from a genuinely empty
-    # name, and would read back as the wrong non-nil `:""` rather than `nil`.
+    # A process manager built straight from the IR class can carry a nil
+    # `correlates_by`, even though the DSL itself always refuses to mint
+    # one without it; `to_h` must read back `nil`, not the ambiguous `""`.
     it "a process manager's absent correlates_by survives to_h as nil, not an empty string" do
       expect(Hecks::Bluebook::ProcessManager.new(name: "Untethered").to_h[:correlates_by]).to be_nil
     end
@@ -1240,14 +1169,9 @@ RSpec.describe "the DSL surface" do
       end.to raise_error(/declares no transitions/)
     end
 
-    # S7, ADR 0025 — one state-machine vocabulary: states are derived
-    # from the transitions that name them now, so "a transition through
-    # an undeclared state" is no longer a mistake a bluebook can make —
-    # every from:/to: a transition names automatically becomes a state
-    # this procedure has, by construction. What replaces it: a
-    # transition naming no from: at all, which `advance_saga`'s own
-    # plain-equality admission check would never match — refused here
-    # instead of building a handler nothing could ever reach.
+    # States are derived from the transitions that name them, so this
+    # isn't a transition through an undeclared state — it's a transition
+    # naming no from: at all, which no admission check would ever match.
     it "process_manager refuses a transition naming no from: — it would match no instance ever" do
       expect do
         build_bluebook("Unguarded") do
@@ -1262,11 +1186,9 @@ RSpec.describe "the DSL surface" do
       end.to raise_error(/names no from:/)
     end
 
-    # C10.3 (docs/semantics/bluebook-semantics.md) — a leg is selected by
-    # (event, current state). Two legs answering the same event from
-    # different states are the point (see spec/corpus/semantics/
-    # saga_leg_selected_by_state.json); two from the same state would
-    # leave the runtime picking by declaration order, silently.
+    # A leg is selected by (event, current state); two from different
+    # states are fine, but two from the same state would leave the
+    # runtime picking by declaration order, silently.
     it "process_manager refuses two transitions on one event from the same state — the leg would be ambiguous" do
       expect do
         build_bluebook("Ambiguous") do
@@ -1295,13 +1217,9 @@ RSpec.describe "the DSL surface" do
     end
 
     it "process_manager refuses correlates_by that resolves to a value object, not a scalar" do
-      # ProcessManagerBuilder#validate! only knows the spelling has a dot ;
-      # the whole-document check knows what that dot actually reaches.
-      # `ref.amount` is a real field on a real value object — `Ref` genuinely
-      # declares `amount` — but `amount`'s own type, `Amount`, is another
-      # value object, not a scalar. The dot ran out one VO short of a real
-      # field, the same class of mistake `identified_by` already refuses on
-      # the aggregate side.
+      # `ref.amount` reaches a real field, but that field's type (`Amount`)
+      # is itself a value object, not a scalar — the same one-VO-short
+      # mistake `identified_by` already refuses on the aggregate side.
       expect do
         build_ref_amount_bluebook("NonScalarKey") do
           correlates_by :"ref.amount"
@@ -1326,10 +1244,9 @@ RSpec.describe "the DSL surface" do
     end
 
     it "aggregate adds an aggregate" do
-      # `identified_by` reads its own source line via Prism, so it needs a line to
-      # itself — stacking it on the same line as the block that opens it makes
-      # `block_node_at` find that outer block first (walk is pre-order) and read
-      # the wrong source entirely.
+      # `identified_by` reads its own source line via Prism, so it needs a
+      # line to itself; sharing a line with the outer block would make
+      # `block_node_at` read the wrong source (pre-order walk).
       built = build_bluebook("Agged") do
         aggregate("Thing") do
           identified_by :id
@@ -1347,13 +1264,10 @@ RSpec.describe "the DSL surface" do
     end
 
     it "resolve_pending_chapter_givens! resolves a bare chapter-given left pending by an earlier file" do
-      # Two separate `Hecks.bluebook` calls, same chapter name — the same
-      # shape a chapter split across real files takes. "Referencer" loads
-      # first and bare-references a description "Declarer" (loaded second)
-      # is the one that actually declares — unresolvable at the moment
-      # "Referencer" itself is built, deferred instead of refused
-      # (`AggregateBuilder#pending_chapter_given`), and only resolved once
-      # `MetaValidator.judge_deferred!` runs, after both have loaded.
+      # Two separate `Hecks.bluebook` calls, same chapter name — the shape
+      # a chapter split across real files takes. The reference is
+      # deferred, not refused, until `MetaValidator.judge_deferred!` runs
+      # after both have loaded.
       registry = Hecks::Runtime::Registry.new
       Hecks.with_registry(registry) do
         Kernel.load(InMemoryDomain::EXTRACTION_PORT)
@@ -1379,18 +1293,15 @@ RSpec.describe "the DSL surface" do
       expect(referencer.preconditions.map(&:canonical)).to eq(["true"])
     end
 
-    # One coherent two-file-load scenario through
-    # MetaValidator.defer/judge_deferred!, proving a single end-to-end
+    # One coherent two-file-load scenario proving a single end-to-end
     # resolution claim; splitting it would separate the deferred
-    # declarations from the assertion that only the deferred pass produces.
+    # declarations from the assertion only the deferred pass produces.
     # rubocop:disable-next RSpec/ExampleLength
     it "resolve_pending_chapter_entity_givens! resolves a bare entity-level given left pending by an " \
        "earlier file, DECLARED ON A DIFFERENT AGGREGATE'S OWN PIECE" do
-      # The entity-scoped analogue, one level down — see the spec just
-      # above's own comment; identical shape, except the reference and
-      # the declaration each live on a piece, under two different
-      # aggregates, exactly the real corpus shape
-      # (Account::LedgerEntry / SafeDepositBox::Visit) this scope closes.
+      # The entity-scoped analogue, one level down: reference and
+      # declaration live on a piece under two different aggregates
+      # (Account::LedgerEntry / SafeDepositBox::Visit).
       registry = Hecks::Runtime::Registry.new
       Hecks.with_registry(registry) do
         Kernel.load(InMemoryDomain::EXTRACTION_PORT)
@@ -1433,13 +1344,9 @@ RSpec.describe "the DSL surface" do
       expect(bluebook.verbs).to eq(["Verbed::Thing.Do"])
     end
 
-    # An entity-owned command reaches Runtime::Dispatcher#dispatch through
-    # the same dotted-verb routing (command_name.include?(".")) an
-    # ordinary command never uses — so it was always real and dispatchable,
-    # just missing from this list. Two levels deep, not one, because S17
-    # (ADR 0026) made entities nest inside entities for real (Dispatch,
-    # inside Handler) — a fix that only walked one level would still miss
-    # the deepest verb.
+    # An entity-owned command reaches Dispatcher#dispatch through the same
+    # dotted-verb routing as an ordinary command, recursing two levels
+    # deep because entities can nest inside entities (ADR 0026).
     it "verbs recurses into entities, arbitrarily deep, as dotted verbs" do
       bluebook = build_bluebook("Nested") do
         aggregate("Thing") do
@@ -1495,9 +1402,8 @@ RSpec.describe "the DSL surface" do
         value_object("CompositeName") { attribute :value, String }
         attribute :name, CompositeName
 
-        # `:batch_id` — no matching attribute, resolved bare by the same
-        # `_id`-convention `resolve_identity_field!` already grants a
-        # reference (see that method's own comment); `:name` unwraps
+        # `:batch_id` has no matching attribute, resolved bare by the
+        # `_id` convention (`resolve_identity_field!`); `:name` unwraps
         # its single-field value object the ordinary way.
         identified_by :batch_id, :name
       end
@@ -1507,15 +1413,9 @@ RSpec.describe "the DSL surface" do
       expect(identified.identified_by).to be_nil
     end
 
-    # Nothing is minted, so nothing defaults either — a default was a mint, just
-    # a lazier one. An aggregate that declares no identity has none : it cannot
-    # be created (hydrate's creating branch has nothing to derive from) until it
-    # says what it is known by.
-    #
-    # Built through the raw builder, not `build_aggregate` : that helper hands
-    # every fixture a baseline identity so the other 40 tests in this file
-    # don't have to think about one, which makes it the wrong tool for proving
-    # there is no default underneath.
+    # Nothing is minted, so nothing defaults either — an aggregate with no
+    # identity can't be created. Uses the raw builder, not
+    # `build_aggregate`, which hands fixtures a baseline identity.
     it "identified_by has no default : an aggregate that declares none has none" do
       undeclared = Hecks::Bluebook::DSL::AggregateBuilder.build("Undeclared") {}
 
@@ -1554,12 +1454,9 @@ RSpec.describe "the DSL surface" do
         end.to raise_error(Malformed, /identified_by :nonexistent names no attribute Thing declares/)
       end
 
-      # ADR 0025, "References": an identity head may be a single-field
-      # value object, a bare scalar, or a reference — a reference is
-      # already a scalar id the moment it is stored (`reference_to`
-      # mints a bare attribute, never a nested object), so there is
-      # nothing to unwrap and it resolves to its own name unchanged.
-      # ADR 0025 deliberately admits this rather than refusing it.
+      # ADR 0025 — an identity head may be a single-field value object, a
+      # bare scalar, or a reference; a reference is already a scalar id
+      # (`reference_to` mints a bare attribute), so it resolves unchanged.
       it "admits a reference — already a scalar, nothing to derive" do
         bluebook = build_bluebook("Refs") do
           aggregate "Team" do
@@ -1629,13 +1526,9 @@ RSpec.describe "the DSL surface" do
         .to include([:pizza_name, "PizzaName"])
     end
 
-    # Frozen era text using the now-restored value-object form still passes
-    # through the explicit shadow boundary. These examples pin that the new
-    # live implementation does not make historical source unreadable.
-    # `MetaValidator.while_shadow_parsing` is what `EraGuard.shadow_parse`
-    # wraps its own eval in — these tests exercise the same mechanism
-    # directly, at the DSL layer, rather than round-tripping through a
-    # real file on disk the way `spec/shadow_parse_spec.rb` does end to end.
+    # Frozen era text using the value-object form passes through the
+    # explicit shadow boundary directly at the DSL layer — the same
+    # mechanism `EraGuard.shadow_parse` wraps its eval in.
     describe "identified_by ValueObject while shadow-parsing" do
       def legacy(&)
         Hecks::Bluebook::MetaValidator.while_shadow_parsing(&)
@@ -1721,10 +1614,9 @@ RSpec.describe "the DSL surface" do
       expect(machine.target_for("Purchase")).to eq("sold")
     end
 
-    # C5.3 (docs/semantics/bluebook-semantics.md) — the lifecycle field
-    # moves only by transition, and the state machine is checked whole at
-    # build: no `sets` on the field, no `from:` naming an undeclared
-    # state, no two transitions for one command.
+    # The lifecycle field moves only by transition; the state machine is
+    # checked whole at build — no `sets` on the field, no `from:` naming
+    # an undeclared state, no two transitions for one command.
     it "refuses sets on the lifecycle field — it moves only by transition" do
       expect do
         build_aggregate("Bypassed") do
@@ -1931,11 +1823,9 @@ RSpec.describe "the DSL surface" do
         end
       end.lifecycle
 
-      # "z" admits neither declared "Advance" transition — silently
-      # falling back to the first one ("b") would be a wrong answer for a
-      # state no transition actually admits, rather than the loud
-      # refusal every real dispatch path gets from
-      # CommandRules::Admissibility#admissible_transition.
+      # "z" admits neither declared transition — silently falling back to
+      # the first one would be a wrong answer, rather than the loud
+      # refusal every real dispatch path gets from `admissible_transition`.
       expect { machine.target_for("Advance", "z") }
         .to raise_error(Hecks::Runtime::WiringError, /no transition for "Advance" admits state "z"/)
     end
@@ -2104,13 +1994,9 @@ RSpec.describe "the DSL surface" do
       end
     end
 
-    # **The query seal** — the same gate sets gets, closing the same silence.
-    # Without it, every case here would build cleanly and answer wrongly
-    # forever: a where over an undeclared field matches nothing on every adapter, an
-    # ordered comparator over text is answered differently per adapter (the
-    # reference interpreter quietly matches no rows; SQL compares
-    # lexicographically), a :symbol naming no argument resolves to nil, and a
-    # dotted path is answered by SQL and silently ignored by Memory.
+    # Without this seal, every case here would build cleanly and answer
+    # wrongly: an undeclared-field where matches nothing, an ordered
+    # comparator differs per adapter, a bad :symbol resolves to nil.
     describe "a query the aggregate cannot answer" do
       it "refuses a where over a field nothing declares" do
         expect do
@@ -2275,15 +2161,9 @@ RSpec.describe "the DSL surface" do
           end.to raise_error(Malformed, /hops to Client and then asks about nonexistent, which Client never declares/)
         end
 
-        # S9, ADR 0025 — an entity's own `reference_to` (EntityBuilder,
-        # added after `validate_query_hops!`'s own comment first claimed
-        # "an entity has no reference_to at all") went uncheckable at
-        # declaration and unresolved at runtime: tier-1 sealing deferred
-        # the hop the same way an aggregate's does, but nothing at tier 2
-        # ever walked an entity's own queries to check the deferral, and
-        # `QueryInterpreter#entity_rows` never follows a reference either
-        # — a where over a piece's own hop built cleanly and then matched
-        # nothing, forever, on every adapter. Refused outright now.
+        # An entity's own `reference_to` was uncheckable at declaration
+        # and unresolved at runtime; a where over a piece's own hop built
+        # cleanly and matched nothing, forever, on every adapter.
         it "refuses a hop where-clause on an entity's own query" do
           expect do
             build_bluebook("PieceHop") do
@@ -2311,16 +2191,9 @@ RSpec.describe "the DSL surface" do
                              %r{Board::Card\.ForProduct asks about product/sku, which hops through Card's own reference})
         end
 
-        # M14 (docs/audits/2026-08-11-bug-triage.md) — the exact case named
-        # in this whole battery's own title: an entity query's `where`
-        # hopping through a reference to an aggregate this chapter never
-        # declares at all, not merely one the entity's own query cannot
-        # follow. The blanket refusal above already catches this (it
-        # refuses every entity-query hop outright, unconditionally,
-        # never reaching whether the target even resolves) — pinned here
-        # separately so a future loosening of that refusal (e.g. "teach
-        # entity queries to follow a hop for real") cannot reopen this
-        # exact silent gap without a failing test naming it.
+        # The blanket refusal above already catches this unconditionally;
+        # pinned separately so a future loosening of that refusal (e.g.
+        # teaching entity queries to follow a hop) can't reopen this gap.
         it "refuses a hop where-clause on an entity's own query through an aggregate the chapter never declares" do
           expect do
             build_bluebook("PieceHopUndeclared") do
@@ -2344,13 +2217,8 @@ RSpec.describe "the DSL surface" do
 
         it "refuses a hop whose tail lands on a value object rather than a scalar" do
           # A bare tail landing on a value object ("client.balance") is
-          # fine — the same one-level convention a same-aggregate bare
-          # field already gets (query_agreement_spec.rb's AtLeast500Desc
-          # does exactly this). It takes a second dotted level, landing
-          # on a nested value object instead of finally reaching a
-          # scalar, to trigger this refusal — Box -> Price, mirroring
-          # the existing same-aggregate "lands on a value object" spec's
-          # own Pizza -> Price shape above.
+          # fine; a second dotted level landing on a nested value object
+          # (Box -> Price) is what refuses.
           client = proc do
             value_object("Price") { attribute :cents, Integer }
             value_object("Box")   { attribute :price, Price }
@@ -2446,12 +2314,9 @@ RSpec.describe "the DSL surface" do
           end.to raise_error(Malformed, /whose hop chain reaches 8 references deep/)
         end
 
-        # `/` crosses into another record, `.` walks fields inside this one
-        # (ADR 0025, "References") — the operator alone answers which kind
-        # of path this is, whatever the reference happens to be named. A
-        # reference declared `as: :studio` gets no special-cased spelling
-        # either way: `studio.x` never hops, no matter what `studio` names,
-        # and `studio/x` always does.
+        # `/` crosses into another record, `.` walks fields inside this
+        # one (ADR 0025) — the operator alone decides, regardless of what
+        # the reference is named (`as: :studio`).
         it "a dot onto a reference attribute never hops — it dead-ends the same way any dotted path onto a " \
            "non-value-object does" do
           expect do
@@ -2531,14 +2396,9 @@ RSpec.describe "the DSL surface" do
       end.aggregate("Thing").command("Do")
 
       expect(command.creates?).to be true
-      # The graph holds the edge and the export holds the spelling. Both of these
-      # assertions passed unchanged through the reference crossing, because
-      # `Reference` carried an `==` that compared equal to the string it
-      # replaced — so they went on affirming the pre-crossing truth for a whole
-      # commit. The shim is gone ; they say what is actually there.
-      #
-      # `customer`, not `customer_id` (ADR 0025, "References") — `reference_to`
-      # mints the bare name now.
+      # Both assertions must reflect the real `Reference`, not a same-
+      # named string; `reference_to` mints the bare name `customer`,
+      # never `customer_id` (ADR 0025).
       expect(command.attribute(:customer).type.target_name).to eq("Customer")
       expect(command.attribute(:customer).to_h[:type]).to eq("Reference<Customer>")
     end
@@ -2719,12 +2579,9 @@ RSpec.describe "the DSL surface" do
       expect(mutation.to_h[:source]).to eq(kind: "literal", value: "sold")
     end
 
-    # Real coverage for item 12e's plumbing (migration plan task 4/7/8):
-    # sets's unset-sentinel rewrite -- to: false no longer reads as
-    # absent, and a bare positional second argument is boolean shorthand
-    # for to:. remove:/multiply:/clamp: are covered by their own items'
-    # dispatch-level specs (13/15/16); this file only proves the DSL
-    # surface itself parses and records the right op.
+    # Covers `sets`'s unset-sentinel rewrite: `to: false` reads as a real
+    # value, not absent, and a bare positional second argument is boolean
+    # shorthand for `to:`.
     it "sets to: false is a real mutation, not an absent to:" do
       mutation = build_command("CmdSetToFalse") { sets :status, to: false }.mutations.first
 
@@ -2750,28 +2607,15 @@ RSpec.describe "the DSL surface" do
         .to raise_error(Hecks::Bluebook::DSL::Malformed, /tries to set and remove/)
     end
 
-    # `delegates_to` — CommandBuilder#delegates_to_impl's own comment gives
-    # the full reasoning (an aggregate-level command's synchronous,
-    # single-dispatch handoff into one nested entity command) and
-    # CommandInterpreter#step_delegate_to_entity is where it actually
-    # runs. Recorded as a `:delegate`-op Mutation, same wire shape
-    # `append:` already uses — these three specs cover the DSL surface
-    # only: that it parses into the right mutation, and that its two
-    # build-time refusals fire. Dispatch-level behavior (synchronous
-    # refusal propagation, atomic all-or-nothing persistence) is a
-    # runtime concern with its own coverage elsewhere.
+    # `delegates_to` is an aggregate-level command's synchronous, single-
+    # dispatch handoff into one nested entity command, recorded as a
+    # `:delegate`-op Mutation. These specs cover the DSL surface only.
     it "delegates_to records a :delegate mutation naming the target and the field map" do
       mutation = build_command("CmdDelegate") { delegates_to "Piece.Move", with: { id: :id, to: :to } }.mutations.first
 
-      # `target` reads back a Symbol through the real DSL word-dispatch
-      # path (confirmed directly — calling `delegates_to_impl` straight
-      # against a bare builder stores the String it was handed, but
-      # going through `delegates_to`/`calls:` the ordinary way does not)
-      # — the same shape every other mutation's own `target` already is
-      # (`sets`'s own specs above compare against `:parts`/`:status`,
-      # never a String). `step_delegate_to_entity` reads it via `.to_s`
-      # either way, so this is harmless, just worth pinning rather than
-      # asserting the wrong type by accident.
+      # `target` reads back a Symbol through the ordinary DSL word-
+      # dispatch path, the same shape every other mutation's `target`
+      # already is — worth pinning rather than asserting the wrong type.
       expect([mutation.target.to_s, mutation.op]).to eq(["Piece.Move", :delegate])
       expect(mutation.to_h[:fields]).to eq(id: ":id", to: ":to")
     end
@@ -2790,22 +2634,13 @@ RSpec.describe "the DSL surface" do
       end.to raise_error(Hecks::Bluebook::DSL::Malformed, /pure passthrough/)
     end
 
-    # `corrects` — CommandBuilder#corrects_impl's own comment gives the
-    # full reasoning (a command declaring what past event it amends, the
-    # append-only answer to retroactive correction). Recorded as a
-    # `:corrects`-op Mutation, the same multi-binding wire shape
-    # `append:`/`delegates_to`'s own `with:` already use — these specs
-    # cover the DSL surface only: that it parses into the right
-    # mutation, and that its build-time refusal fires.
-    # AggregateBuilder#seal_correction_targets (build-time cross-command
-    # validation) and CommandRules::Admissibility
-    # #enforce_correction_target (the dispatch-time refusal) have their
-    # own coverage elsewhere (spec/runtime/corrects_spec.rb).
+    # `corrects` declares what past event a command amends, the append-
+    # only answer to retroactive correction, recorded as a `:corrects`-op
+    # Mutation. These specs cover the DSL surface only.
     it "corrects records a :corrects mutation naming the event and the reason" do
-      # `seal_correction_targets` (AggregateBuilder#build) refuses a
-      # `corrects` naming an event nothing in the aggregate ever emits —
-      # so, unlike a bare `build_command`, this needs a sibling command
-      # that really does emit it.
+      # `seal_correction_targets` refuses a `corrects` naming an event
+      # nothing in the aggregate emits, so this needs a sibling command
+      # that really emits it.
       aggregate = build_aggregate("CmdCorrects") do
         command("Happen") { emits "SomethingHappened" }
         command("Fix") { corrects "SomethingHappened", as: :original, reason: "it was wrong" }
@@ -2866,25 +2701,18 @@ RSpec.describe "the DSL surface" do
       expect(mutation.to_h[:source]).to eq(kind: "literal", value: 1)
     end
 
-    # The implicit-attribute sugar (mirrors S10's `given`-reference
-    # pattern, ADR 0025 "one idea, one spelling") — a bare `sets :field`
-    # already says the command accepts an argument named :field; when
-    # the command has not also declared its own `attribute :field`, it
-    # imports the owner's (the aggregate `build_command` builds against)
-    # already-declared attribute of that name verbatim, rather than
-    # requiring a byte-identical retype. `balance` is `build_command`'s
-    # own fixture field, declared `Size` on the owning aggregate.
+    # A bare `sets :field` (ADR 0025) already says the command accepts
+    # that argument; if the command has no local `attribute :field`, it
+    # imports the owner's already-declared attribute verbatim.
     it "sets :field with no local attribute imports the owner's own attribute, verbatim" do
       command = build_command("CmdImplicitAttr") { sets :balance }
 
       expect(command.attribute(:balance).type).to eq("Size")
     end
 
-    # An explicit local attribute is never clobbered — it is checked
-    # first (CommandBuilder#resolve_implicit_attributes!), so a command
-    # narrowing or retyping its own argument still wins, the same way a
-    # command's own `given` always could say something the owner's
-    # named one did not.
+    # An explicit local attribute is checked first
+    # (`resolve_implicit_attributes!`), so a command narrowing or
+    # retyping its own argument still wins over the owner's.
     it "an explicit local attribute still shadows the owner's own, rather than being clobbered" do
       command = build_command("CmdShadowAttr") do
         attribute :balance, Tag
@@ -2894,12 +2722,9 @@ RSpec.describe "the DSL surface" do
       expect(command.attribute(:balance).type).to eq("Tag")
     end
 
-    # A literal that spells the field's own name is not the shorthand —
-    # `sets :moved, to: "moved"` (a chess rook recording that it has
-    # moved, into a closed set whose member is literally "moved") used
-    # to read as `sets :moved` and import the owner's attribute as a
-    # phantom argument. Only a bare symbol naming its own target is the
-    # sugar; a String is a value.
+    # A literal that spells the field's own name is not the shorthand:
+    # `sets :moved, to: "moved"` is a value, not a bare-symbol self-
+    # reference, so it must not import the owner's attribute.
     it "sets :field, to: \"field\" — a literal spelling the field's name — imports nothing" do
       command = build_command("CmdLiteralSpellsName") { sets :balance, to: "balance" }
 
@@ -2907,28 +2732,18 @@ RSpec.describe "the DSL surface" do
       expect(command.mutations.first.to_h[:source]).to eq(kind: "literal", value: "balance")
     end
 
-    # **The remap's own negative case** — `to: :symbol` naming something the
-    # command never declares at all (a typo, not a legitimately absent
-    # optional argument — CommandRules::Arithmetic#resolve_source's own
-    # header has the full distinction). Unlike the bare self-referential
-    # shape below, this is CommandBuilder#refuse_unknown_argument_sources!'s
-    # own refusal, not AggregateBuilder's — the source and target names
-    # genuinely differ here, so there is no downstream target-shaped
-    # check to defer to.
+    # `to: :symbol` naming something the command never declares is a
+    # typo, refused at command build time
+    # (`refuse_unknown_argument_sources!`), not silently left nil forever.
     it "sets to: a symbol naming no declared attribute refuses at command build time, not silently forever nil" do
       expect { build_command("CmdUnknownRemap") { sets :status, to: :nonexistent_arg } }
         .to raise_error(Hecks::Bluebook::DSL::Malformed,
                         /resolves :nonexistent_arg from its arguments, but Do declares no nonexistent_arg attribute/)
     end
 
-    # **The negative case** — neither the command nor the owner declares the
-    # field a bare `sets` names. `resolve_implicit_attributes!` finds no
-    # owner attribute and adds nothing, so the command's own `attributes`
-    # stays silent about it too; the refusal actually surfaces one level
-    # up, at AggregateBuilder#seal_mutation_targets (a pre-existing
-    # build-time gate, unrelated to this sugar) — a mutation into a
-    # field the aggregate never declares writes nothing and refuses
-    # nothing, so it is refused outright instead.
+    # When neither the command nor the owner declares the field a bare
+    # `sets` names, nothing is imported; the refusal surfaces one level
+    # up, at `AggregateBuilder#seal_mutation_targets`.
     it "sets a field neither the command nor the owner declares still refuses, at aggregate build time" do
       expect { build_command("CmdUnresolvedSets") { sets :nonexistent } }
         .to raise_error(Hecks::Bluebook::DSL::Malformed, /never declares/)
@@ -3019,10 +2834,9 @@ RSpec.describe "the DSL surface" do
       expect(port.operation("Receive").hecks_name).to eq("Receive")
     end
 
-    # The driven half, reached through the same `port` call — registered
-    # the same way `Hecks.port`'s own top-level method registers one
-    # (`registry.ports`, not the aggregate's own IR — that's where an
-    # operations-shaped port lands, checked above).
+    # The driven half, reached through the same `port` call, registered
+    # the same way `Hecks.port`'s top-level method registers one
+    # (`registry.ports`, not the aggregate's own IR).
     it "verb builds a resource-style port, registered the same way Hecks.port is" do
       registry = in_registry do
         Hecks.bluebook("DomPortVerb") do
@@ -3038,13 +2852,9 @@ RSpec.describe "the DSL surface" do
       expect(registry.bluebook("DomPortVerb").aggregate("Thing").port("Checkout")).to be_nil
     end
 
-    # Proves DomainPortBuilder's bare-verb fallback produces a `Port`
-    # byte-identical to what PortBuilder itself builds for the same
-    # input — the migration every bare `.port` file depends on.
-    # `signal :effect` (projection.port's own, the one non-default
-    # signal in the corpus) and `answers` (extraction.port's own
-    # `answers :canonical`, the one real corpus use of the word) are
-    # both real, live cases, not hypothetical ones.
+    # Proves `DomainPortBuilder`'s bare-verb fallback produces a `Port`
+    # byte-identical to `PortBuilder`'s. `signal :effect` and `answers`
+    # are real corpus uses, not hypothetical ones.
     it "signal builds the same Port PortBuilder itself would, non-default value included" do
       via_domain_port = Hecks::Bluebook::DSL::DomainPortBuilder.build("projection") do
         verb "projected_by"

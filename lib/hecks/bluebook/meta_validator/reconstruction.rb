@@ -1,70 +1,15 @@
 module Hecks
   module Bluebook
     module MetaValidator
-      # A bluebook rebuilt from the meta-domain, in the shape the builder produces.
-      #
-      # This is the second half of the claim at the top of bluebook.bluebook —
-      # "loading a domain becomes dispatching commands into this meta-domain ; the
-      # IR it stores must equal the IR the DSL builder produces". The judge is the
-      # first half. This reads the records back and assembles `to_h`.
-      #
-      # ## One table, both directions
-      #
-      # It is the inverse of the walk and shares its plan: the walk reads a node's
-      # lists through the command that appends to each, and this reads them back out
-      # of the rows those commands wrote. The retired `experiment/replay.rb` needed
-      # 420 hand-written lines because the dispatch half was hand-written too; there
-      # is nothing to hand-write when both directions are one table.
-      #
-      # This file is the traversal. The hashes at its tips, and the encodings they
-      # undo, are in Shapes.
-      #
-      # The parent key of every level is read from the language's own plan, the same
-      # Plan the walk dispatches from — so the two directions really are one table,
-      # which is what the header above has always claimed.
-      #
-      # ## Reads level by level, not through the read model
-      #
-      # It reads level by level, through `DeclaredIn`, and not through the read
-      # model — which is the difference between a reconstruction that can be the
-      # source and one that can only be a check.
-      #
-      # `Meta.whole_bluebook` gathers a chapter in a single read, and it sorts:
-      # `ReadModelInterpreter#matching` ends `.sort_by(&:id)` deliberately, because
-      # a store's iteration order is an accident, and a read model returning store
-      # order would let that accident leak into an answer.
-      # Right for a read model, fatal here — the order a bluebook declares its
-      # commands in is a fact about the source, and the IR is a contract field for
-      # field and index for index ; the export carries that order verbatim.
-      # `DeclaredIn` preserves it (spec/executes_spec says so), so this asks each
-      # level for its own children rather than filtering one sorted gather.
-      #
-      # ## What it cannot rebuild
-      #
-      # What it cannot rebuild matters as much as what it can, and
-      # spec/round_trip_spec pins the difference as an exact set: a field the language
-      # does not hold appears there as a named gap, and a field it stops holding
-      # appears as a failure.
+      # A bluebook rebuilt from the meta-domain, in the shape the DSL builder's `to_h` produces.
+      # Reads level by level through `DeclaredIn`, not the read model, to preserve declared order.
       class Reconstruction
         include Readings
         include Shapes
 
         # Reads one judged chapter back out of `runtime` and assembles it.
-        #
-        # @param runtime [Runtime::Dispatcher] the dispatcher holding the
-        #   judge's own records
-        # @param chapter [String] the chapter's own `hecks_name`
-        # @return [Hash{Symbol => Object}] the reconstructed IR, in the
-        #   shape the DSL builder's own `to_h` produces
-        # @raise [Runtime::NotFound] if `runtime` holds no bluebook named
-        #   `chapter`
         def self.of(runtime, chapter) = new(runtime, chapter).to_h
 
-        # @param runtime [Runtime::Dispatcher] the dispatcher holding the
-        #   judge's own records
-        # @param chapter [String] the chapter's own `hecks_name`
-        # @raise [Runtime::NotFound] if `runtime` holds no bluebook named
-        #   `chapter`
         def initialize(runtime, chapter)
           @runtime = runtime
           @plan    = Plan.for(MetaValidator.grammar_registry)
@@ -99,17 +44,8 @@ module Hecks
           @runtime.query("Bluebook::#{category}.DeclaredIn", key.to_sym => { value: parent_id.to_s })
         end
 
-        # One declaration, built from the contract.
-        #
-        # There were eleven methods here, one per category, each spelling out the same
-        # keys `Assembly::Contracts` already names — which is the shape the judge used
-        # to have and paid fourteen unoffered verbs for. The keys come from the table
-        # now, and the exceptions come from its `reads:` column: a list needs a reader
-        # per element, a folded field is gathered rather than fetched, and everything
-        # else is one cell.
-        #
-        # `extra` is what the containment supplies — children, and the folded objects
-        # a row cannot hold on its own.
+        # One declaration, built from the contract's field table. `extra` supplies
+        # children and folded objects a row cannot hold on its own.
         def declaration(category, row, extra = {})
           contract = Assembly.contract(category)
 
@@ -130,10 +66,8 @@ module Hecks
           end
         end
 
-        # The readers are the ones `Shapes` already has, called by name — no wrappers,
-        # so nothing shadows them. `:each_with_id` is the single exception that needs
-        # more than the element: an attribute's type came in as the ID of whatever it
-        # names, so reading it back needs the row it belongs to.
+        # `Shapes`'s own readers, called by name. `:each_with_id` also passes the
+        # row, since an attribute's type arrives as the ID of what it names.
         def read_shaped(spec, key, row)
           shape, named = spec
 
@@ -170,20 +104,14 @@ module Hecks
           cell
         end
 
-        # An aggregate's own verbs and asks — the ones no entity declared. Both carry
-        # the parent link either way, because that is the head the reference resolves
-        # against, so the entity ones have to be told apart by `entity_id`. Rejecting
-        # from an ordered read keeps the order.
+        # An aggregate's own verbs/asks, told apart from an entity's by `entity_id`;
+        # both carry the same parent link. Selecting from an ordered read keeps order.
         def own(category, aggregate_id)
           declared(category, aggregate_id).select { |row| text(row[:entity_id]).to_s == "" }
         end
 
-        # A piece's own verbs and asks. There is no `DeclaredIn` keyed by entity, so
-        # this reads the aggregate's — in declaration order — and keeps the ones that
-        # name this piece. `row[:aggregate]` — an entity row's own `reference_to
-        # Aggregate` (bare, no `_id` since ADR 0025) — not `entity_id`, which
-        # stays suffixed below : that one is Command/Query's own explicit `as:`,
-        # never touched by the rename.
+        # A piece's own verbs/asks: no `DeclaredIn` is keyed by entity, so this
+        # queries by `row[:aggregate]` and filters the results by `entity_id`.
         def within(category, row)
           declared(category, text(row[:aggregate]))
             .select { |held| text(held[:entity_id]).to_s == row[:id].to_s }
@@ -199,16 +127,10 @@ module Hecks
             attributes:       Array(row[:attributes]).map { |field| attribute(field, id) },
             value_objects:    declared("ValueObject", id).map { |shape| value_object(shape) },
             commands:         own("Command", id).map { |verb| command(verb) },
-            # The aggregate boundary, and the precondition a command may
-            # reference by name (S10, ADR 0025 — "Rules") — the same
-            # `rule` reader `command`'s own givens/ensures already use
-            # (Assembly::Contracts' generic `declaration()` path), read
-            # here by hand because `aggregate(row)` itself is hand-typed,
-            # unlike `command`/`value_object`/`query` below.
+            # Read by hand, not via `declaration()`, since this method builds its
+            # hash directly; `rule` is the same reader `command`'s own uses.
             invariants:       Array(row[:invariants]).map { |held| rule(held) },
             preconditions:    Array(row[:preconditions]).map { |held| rule(held) },
-            # S12, ADR 0025 — same reason invariants/preconditions are
-            # read by hand two lines up: `aggregate(row)` is hand-typed.
             projected_fields: Array(row[:projected_fields]).map { |held| projected_field(held) },
             lifecycle:        lifecycle(row),
             entities:         direct_entities(id, id).map { |piece| entity(piece) },
@@ -221,32 +143,12 @@ module Hecks
 
         def closed_set_of(row) = !text(row[:rows]).nil?
 
-        # A closed set's admitted rows. S17, ADR 0026 — Member is a genuine
-        # entity now (`entity "Member" do ... end`, nested under
-        # ValueObject), created by `ValueObject.Member` (an ordinary append,
-        # the same way `Account.LogEntry` creates a LedgerEntry) and mutated
-        # by its own dotted `ValueObject.Member.Pair`. Its data therefore
-        # lives inline on the value object's own dispatched state — same as
-        # any other entity list — not behind a separate `DeclaredIn` query:
-        # there is no such query, because there is no top-level
-        # "Member" aggregate left to hold one. Pairs are still an open map,
-        # which no value object can hold, so they still come back one pair
-        # at a time.
+        # A closed set's admitted rows live inline on the value object's own
+        # dispatched state, one member at a time, not behind a `DeclaredIn` query.
         def members_row(row) = members_of(row)
 
-        # The key is stringified, never the value — the same split
-        # `Bluebook::ValueObject#to_h`'s own `members:` emission makes
-        # (lib/hecks/bluebook/value_object.rb, L7 docs/audits/
-        # 2026-08-11-bug-triage.md). `Pair.value` is declared `String`
-        # (shape.bluebook), but a real pair can hold whatever native Ruby
-        # type the source member line actually wrote (`StatementFrequency`'s
-        # own `retention_months: 84`, examples/banking/bluebook/
-        # statements.bluebook) — `text` already unwraps the stored Value to
-        # that real type, so calling `.to_s` here erased it a second time,
-        # on the side spec/round_trip_spec.rb compares straight against a
-        # fresh raw load (`Reconstruction.of` directly, no Assembly in
-        # between): `declared 84, read back "84"` the moment `to_h` stopped
-        # erasing it on the other side and this one kept erasing it alone.
+        # The key is stringified, never the value: a pair's value keeps whatever
+        # native Ruby type the source line actually wrote.
         def members_of(value_object_row)
           Array(value_object_row[:members]).map do |member|
             Array(member[:pairs]).map { |pair| [text(pair[:key]).to_s, text(pair[:value])] }
@@ -257,15 +159,8 @@ module Hecks
 
         def query(row) = declaration("Query", row).merge(options_of(row))
 
-        # Every direct entity of one owner — S17, ADR 0026. `declared
-        # ("Entity", root_id)` returns every entity sharing the same
-        # root aggregate, nested or not (Dispatch and Handler both carry
-        # `aggregate: process_manager_id`) — `owner` is the field that
-        # actually tells them apart : `Judge#nest_entities`'s own
-        # comment explains why it is the one to repurpose. Called with
-        # `owner_id == root_id` for an aggregate's own direct entities
-        # (Handler), and with `owner_id == some entity's own id` for
-        # that entity's own nested ones (Dispatch, owned by Handler).
+        # Every entity sharing one root aggregate; `owner` (not the root id) tells
+        # a direct entity apart from one nested further in.
         def direct_entities(root_id, owner_id)
           declared("Entity", root_id).select { |held| text(held[:owner]).to_s == owner_id.to_s }
         end
@@ -274,42 +169,19 @@ module Hecks
           {
             name:          text(row[:name]),
             description:   text(row[:description]),
-            # The same shape as an aggregate's now. It was a String here and a
-            # Symbol there — the IR was not uniform about it, and only a round trip
-            # ever said so.
             identified_by: identity_paths(row),
-            # `text(row[:aggregate])` — the owning aggregate, the same one
-            # `Judge#owning_aggregate_ref` resolved this piece's own
-            # attribute types against on the way in, so reconstruction reads
-            # a value-object-typed attribute back the identical way an
-            # aggregate's own is (`Shapes#shape_field`'s own comment).
             attributes:    Array(row[:attributes]).map { |field| shape_field(field, text(row[:aggregate])) },
-            # ADR 0028 — the same shape `aggregate(row)`'s own
-            # `preconditions:` reads two hand-typed methods up, read by
-            # hand for the identical reason: `entity(row)` is hand-typed
-            # too, unlike `command`/`value_object`/`query`.
             preconditions: Array(row[:preconditions]).map { |held| rule(held) },
-            # Round 7 — the same shape `aggregate(row)`'s own
-            # `invariants:` reads, one level down: a piece's own shape
-            # rule, checked against every instance of this piece.
             invariants:    Array(row[:invariants]).map { |held| rule(held) },
             commands:      within("Command", row).map { |verb| command(verb) },
             queries:       within("Query", row).map { |ask| query(ask) },
-            # S17, ADR 0026 — Dispatch, inside Handler : an entity's own
-            # nested entities, found the same way its own direct ones
-            # were one level up.
             entities:      direct_entities(text(row[:aggregate]), row[:id]).map { |piece| entity(piece) },
-            # An entity has its own state machine, and the language has held it all
-            # along — Entity.Lifecycle and Entity.Transition were two of the fourteen
-            # verbs that started firing when the judge became a walk. Only the
-            # reconstruction had never asked for them.
             lifecycle:     lifecycle(row)
           }
         end
 
         # Assembled from three fields, because the IR keeps one object where the
-        # language keeps the parts — the same difference Readings holds for the walk,
-        # in the other direction.
+        # language keeps the parts.
         def lifecycle(row)
           field = text(row[:state_field])
           return nil if field.to_s.empty?
@@ -323,45 +195,21 @@ module Hecks
 
         def policy(row) = declaration("Policy", row)
 
-        # S17, ADR 0026 — Handler is a genuine entity now, nested under
-        # ProcessManager, created by `ProcessManager.Handler` (an
-        # ordinary append, the same way `Account.LogEntry` creates a
-        # LedgerEntry) and mutated by its own dotted `ProcessManager.
-        # Handler.Dispatch`/`...Dispatch.Bind`. Its data therefore lives
-        # inline on the process manager's own dispatched state — same as
-        # any other entity list — not behind a separate `DeclaredIn`
-        # query : there is no such query, the same fix
-        # `Reconstruction#members_of` already made for Member.
+        # A process manager's handlers live inline on its own dispatched state,
+        # not behind a `DeclaredIn` query.
         def process_manager(row)
           declaration("ProcessManager", row,
                       handlers: Array(row[:handlers]).map { |leg| handler(leg) })
         end
 
-        # S17, ADR 0026 — Dispatch, one level further in : nested under
-        # Handler, its data lives inline on the handler row this method
-        # was just handed (`row` here is one element of `handlers`,
-        # above), not behind any query either.
+        # A handler's dispatches, nested one level further in, the same way.
         def handler(row)
           declaration("Handler", row,
                       dispatches: Array(row[:dispatches]).map { |leg| dispatch(leg) })
         end
 
-        # `compensates` — two flat fields on this same row
-        # (`process_manager.bluebook`'s own comment on `Dispatch` for
-        # why), assembled by hand into the shape its own field actually
-        # is — `declaration()`'s generic per-field hash-build has no
-        # way to turn two cells into a second object, so this reads
-        # them directly and passes the result through `extra:`, the
-        # same seam `handler`/`process_manager` already use for a
-        # `:children` shape a flat Contract cannot describe.
-        # `compensates_command_name` absent means no compensation at
-        # all — a plain dispatch with nothing to undo. A plain hash, the
-        # same declaration shape `to_h` spells for everything else in
-        # this file (this file's own top comment) — never a real
-        # `DispatchSpec` here; `Assembly#dispatch` is the one place a
-        # declaration hash becomes the real object, and building it
-        # twice, in two different shapes, is exactly the kind of drift
-        # this whole arc exists to remove.
+        # `compensates` folds two flat fields on this row into one object; an
+        # absent `compensates_command_name` means a plain dispatch with nothing to undo.
         def dispatch(row)
           name = text(row[:compensates_command_name])
           compensates = name && { command_name: name, with_spec: pairs(row[:compensates_with_spec]) }

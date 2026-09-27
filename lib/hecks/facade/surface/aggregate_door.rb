@@ -9,36 +9,14 @@ require_relative "../../naming"
 module Hecks
   module Facade
     module Surface
-      # One aggregate's door: creating verbs as module methods returning
-      # the record in hand, CRUD delegation to the repository, the
-      # `persisted_by`-style binding collector a `.hecksagon` lands on, and
-      # the aggregate-scoped `port` a `.hecksagon` lands on beside it.
+      # One aggregate's door: creating verbs and queries as module methods, CRUD
+      # delegation, and the `.hecksagon` binding/port hooks it lands on.
       module AggregateDoor
-        # Builds the anonymous module that is one aggregate's door: a `name!` method per
-        # creating command, a bare method per query, `find`/`all`/`count`/`events`,
-        # `project`/`docs`/`narrate`, and the `.hecksagon` binding hooks.
+        # Builds one aggregate's door module: creating-command methods, query methods,
+        # find/all/count/events, project/docs/narrate, and the port/binding hooks.
         #
-        # Warns once for each attribute whose name is in `RESERVED`.
-        #
-        # One method building one `door` module's ~20 singleton methods
-        # looks like it splits along each `define_singleton_method` call,
-        # but three of those blocks (`:port`, `:method_missing`,
-        # `:const_missing`) are a single cross-referencing essay on the
-        # stale-facade-across-boots hazard — each one's comment explicitly
-        # points at "below"/"above" as part of the same method. Splitting
-        # into helper methods wouldn't break anything at runtime (no
-        # shared mutable state beyond the closed-over args, which just
-        # become parameters), but it would sever that narrative across
-        # method boundaries for no functional gain.
-        #
-        # @param dispatcher [Runtime::Dispatcher, Runtime::RemoteDispatcher] the booted
-        #   dispatcher the door's methods dispatch, query and read repositories through
-        # @param domain [String] the owning chapter's name, the first half of the
-        #   aggregate's FQN (`"Pizzas"` in `"Pizzas::Pizza"`)
-        # @param aggregate [Bluebook::Aggregate] the aggregate to build a door for
-        # @return [Module] a fresh, unnamed module carrying the door's singleton methods
-        # @raise [Bluebook::DSL::Malformed] never while building; the returned door's
-        #   `port` raises it when called with no boot in progress
+        # Kept as one method: `:port`/`:method_missing`/`:const_missing` below
+        # cross-reference each other and would lose that thread if split up.
         # rubocop:disable-next Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/MethodLength, Metrics/PerceivedComplexity
         def aggregate_module(dispatcher, domain, aggregate)
           fqn  = "#{domain}::#{aggregate.hecks_name}"
@@ -50,16 +28,9 @@ module Hecks
             warn "[hecks] #{aggregate.hecks_name}##{attribute.name} shadows a built-in — no reader defined"
           end
 
-          # A creating verb is a module method returning the new record in hand ;
-          # a verb that reaches an existing record lives on the Handle. `!` —
-          # a command does something (mutates, may refuse), Ruby's own
-          # convention for that ; `Naming.snake` alone would leave a
-          # creating command's bare name claiming the exact spelling a
-          # query of the same business name also wants (`Account`'s own
-          # "Open" — the creating command and a query listing open
-          # accounts, a real same-aggregate collision this corpus already
-          # has) — the suffix is what makes both nameable at all, not
-          # merely a style choice.
+          # `!` marks a creating command (Ruby's mutate-and-may-refuse convention).
+          # Without it, a query sharing the same business name (e.g. Account's
+          # "Open") would collide with the creating command's own bare name.
           aggregate.commands.select(&:creates?).each do |command|
             door.define_singleton_method("#{Naming.snake(command.hecks_name)}!") do |**args|
               Handle.new(dispatcher: dispatcher, domain: domain, aggregate: aggregate,
@@ -67,12 +38,8 @@ module Hecks
             end
           end
 
-          # A query is a module method too — same level as a creating
-          # command, since neither needs an existing record in hand — but
-          # bare: a query reads and returns, nothing to warn a caller
-          # about the way `!` does for a command. Answers the raw row
-          # array `dispatcher.query` itself answers, the same shape
-          # `runtime.query("#{fqn}.Name")` already gave.
+          # A query is a bare module method (no `!`): it just reads and returns
+          # the same raw row array `dispatcher.query` itself answers.
           aggregate.queries.each do |query|
             door.define_singleton_method(Naming.snake(query.hecks_name)) do |**args|
               dispatcher.query("#{fqn}.#{query.hecks_name}", **args)
@@ -82,16 +49,9 @@ module Hecks
           door.define_singleton_method(:fqn)        { fqn }
           door.define_singleton_method(:ir)         { aggregate }
 
-          # The same verb the chapter answers, one level down. Every
-          # construct emits its own IR (Hecks::IR), so an aggregate
-          # is a legitimate thing to project — `Pizzas::Order.project(
-          # Projections::IR)` is this aggregate's IR, not the chapter's.
-          #
-          # A chapter-scoped target refuses here rather than inventing an
-          # answer: `Projector.admits!` is what tells `Projections::IR`
-          # (`from: :any`) apart from `Projections::Shape`
-          # (`from: :chapter`), which would otherwise answer a confidently
-          # empty `{"aggregates" => []}` for an aggregate.
+          # Every construct emits its own IR, so an aggregate is a legitimate
+          # `project` target too. A chapter-scoped target refuses here via
+          # `Projector.admits!` rather than answering a confidently empty result.
           door.define_singleton_method(:project) do |target, out: nil, **options|
             key      = Projector.key_for(target)
             artifact = Projector.call(key, bluebook: aggregate, options: options)
@@ -104,16 +64,12 @@ module Hecks
             aggregate.commands.map { |c| "#{Naming.snake(c.hecks_name)}!" }.sort
           end
           door.define_singleton_method(:queries) { aggregate.queries.map { |q| Naming.snake(q.hecks_name) }.sort }
-          # **One aggregate's usage document** — the same projection the chapter
-          # answers with, narrowed to this head. `commands` above already
-          # answers "what can I call"; this answers "and what does each one
-          # want, refuse, and guarantee", which is the rest of the question.
+          # This chapter's own `:docs` projection, narrowed to this aggregate.
           door.define_singleton_method(:docs) do |**options|
             Projector.call(:docs, bluebook: dispatcher.registry.bluebook(domain),
                                   options:  options.merge(aggregate: aggregate.hecks_name))
           end
-          # **One aggregate, read back in english** — the same narrowing `:docs`
-          # takes, aimed at `:narrate` instead.
+          # Same narrowing as `:docs`, aimed at `:narrate`.
           door.define_singleton_method(:narrate) do |**options|
             Projector.call(:narrate, bluebook: dispatcher.registry.bluebook(domain),
                                      options:  options.merge(aggregate: aggregate.hecks_name))
@@ -132,24 +88,9 @@ module Hecks
             end
           end
 
-          # The same reason `method_missing` below exists at all — a facade
-          # left over from a previous boot in this process shadows the fresh
-          # `BindingProxy` a `.hecksagon` would otherwise reach through
-          # `ConstShim`/`const_missing`, so `Pizzas::Pizza.port(...)` lands
-          # here instead once any boot has run before.
-          #
-          # Re-resolved, not the closed-over `aggregate` — this door can be a
-          # stale one, built by a boot from earlier in this same process,
-          # sitting on the `Pizzas`/`Pizza` constants only because nothing
-          # has re-installed them since. Attaching to this door's own
-          # `aggregate` would attach the port to a discarded aggregate from
-          # that old boot, invisible to the current one actually being
-          # loaded — silently, the exact way `method_missing` below already
-          # has to avoid it for a plain bind, via `HecksagonBuilder.collector`
-          # rather than anything this door closes over. `Hecks.current_registry`
-          # is the same "whichever boot is actually in progress" indirection,
-          # and `BindingProxy#port` already re-resolves through it the same
-          # way — this is that door's fallback twin, not a shortcut past it.
+          # Re-resolves via `Hecks.current_registry` rather than the closed-over
+          # `aggregate`: this door can be stale from an earlier boot, and its own
+          # `aggregate` would silently port a discarded one instead of the live one.
           door.define_singleton_method(:port) do |name, &block|
             current = Hecks.current_registry&.bluebook(domain)&.aggregate(aggregate.hecks_name) or
               raise Bluebook::DSL::Malformed, "#{fqn}.port(#{name.inspect}) called outside a boot"
@@ -165,11 +106,9 @@ module Hecks
           end
 
           door.define_singleton_method(:method_missing) do |verb, *args, **kwargs, &block|
-            # A bare call starts a Privacy marking chain — see
-            # `Bluebook::DSL::BindingProxy#method_missing`'s own header;
-            # this is the same mechanism, reached when the constant is
-            # already a real, installed door (a second boot in-process)
-            # rather than a `.hecksagon`-parse-time `BindingProxy`.
+            # A bare call starts a Privacy marking chain (see
+            # `BindingProxy#method_missing`), reached here when the door is already
+            # installed (a second in-process boot) rather than at parse time.
             return Bluebook::DSL::AttributePath.new(fqn, [verb.to_s]) if args.empty? && kwargs.empty? && !block
 
             collector = Bluebook::DSL::HecksagonBuilder.collector
@@ -189,24 +128,9 @@ module Hecks
             !Bluebook::DSL::HecksagonBuilder.collector.nil? || super(name, include_private)
           end
 
-          # The same stale-facade hazard `method_missing`/`port` above already
-          # document, one door lower — `Surface.install` installs an aggregate's
-          # own name as a bare top-level constant too (`Namespace.install(Object,
-          # aggregate.hecks_name, ...)`, surface.rb's own `install`), not only
-          # nested under its chapter. So once any domain has booted once in this
-          # process, `Account::Debit` written while declaring some other
-          # bluebook — same domain or a different one — reaches this door's
-          # const_missing directly, never `Object.const_missing`/`ConstShim::
-          # Hook` at all: real modules resolve without ever calling that.
-          #
-          # `aggregate.hecks_name`, not the qualified `fqn` — a scoped
-          # reference has to read the same either way, whether or not a stale
-          # door happens to be sitting on this process from an earlier boot;
-          # qualifying it here would make `Account::Debit`'s own meaning
-          # depend on incidental process history, which is the exact
-          # instability S0b exists to remove (docs/dsl-work-slices.md — "two
-          # domains in one registry" is this file's own reason for being
-          # owned by that slice).
+          # Uses `aggregate.hecks_name`, not the qualified `fqn`: qualifying it here
+          # would make `Account::Debit`'s meaning depend on whether a stale door
+          # from an earlier boot happens to be sitting on this process.
           door.define_singleton_method(:const_missing) do |name|
             resolver = Bluebook::DSL::ConstShim.resolver
             return resolver.call("#{aggregate.hecks_name}::#{name}") if resolver

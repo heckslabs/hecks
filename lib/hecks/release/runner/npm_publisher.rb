@@ -6,17 +6,6 @@ module Hecks
     class Runner
       # The npm step: publishes `@hecks/client` from `packages/hecks-client`
       # with the token 1Password holds.
-      #
-      # `op run` resolves `release/npm_publish.env` into the environment of the
-      # one `npm publish` process. npm reads its token from a config file, so a
-      # throwaway user config holds a placeholder that npm expands from that
-      # environment; the file never contains the token and is deleted afterwards.
-      # The package's `prepack` builds `dist/`.
-      #
-      # The token is a granular one that bypasses two-factor authentication, because
-      # the account's second factor is a passkey. As a fallback the publish runs with
-      # `--auth-type=web` and its output is not captured, so if npm does ask for an
-      # approval it prints the link straight to the terminal and waits for it.
       class NpmPublisher
         PACKAGE_DIR = "packages/hecks-client".freeze
         ENV_FILE = "release/npm_publish.env".freeze
@@ -24,21 +13,14 @@ module Hecks
                           "This step waits for you.".freeze
         USERCONFIG_LINE = "//registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}".freeze
 
-        # @param root [String] the repository root
-        # @param commands [#run!] runs npm and op
-        # @param console [Console] progress output
         def initialize(root:, commands:, console:)
           @root = root
           @commands = commands
           @console = console
         end
 
-        # Publishes the package, or with `dry_run` only packs it.
-        #
-        # @param version [String] the version being released
-        # @param dry_run [Boolean] run `npm publish --dry-run`, which needs no credentials
-        # @return [void]
-        # @raise [CommandFailed] if installing, building or publishing fails
+        # Publishes the package, or with `dry_run` only packs it, which needs no
+        # credentials.
         def publish!(version, dry_run:)
           install_dependencies
           if dry_run
@@ -57,6 +39,7 @@ module Hecks
           File.join(@root, PACKAGE_DIR)
         end
 
+        # npm's `prepack` hook builds `dist/`; there is no separate build step here.
         def install_dependencies
           return if Dir.exist?(File.join(package_dir, "node_modules"))
 
@@ -64,6 +47,9 @@ module Hecks
           @commands.run!("npm", "ci", chdir: package_dir)
         end
 
+        # The token bypasses 2FA (the account's second factor is a passkey); this
+        # fallback publish runs with `--auth-type=web` and doesn't capture output,
+        # so an approval prompt reaches the terminal.
         def publish_with_token
           with_userconfig do |userconfig|
             @commands.run!(

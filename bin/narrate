@@ -7,18 +7,7 @@
 #   bin/narrate examples/banking Account    # one aggregate
 #   bin/narrate qa > qa-for-review.md       # on disk, if you want it there
 #
-# Same idea as `bin/docs`, different reader: this one is for the subject-
-# matter expert who can say whether "Debit only goes through if the balance
-# would stay non-negative" is actually right, and has no reason to read a
-# markdown table of argument shapes to get there. See
-# `Hecks::Projector::NarrateProjector` for what it does and does not do.
-#
-# Every failure is a sentence, not a backtrace, and not silence — same
-# reasoning as `bin/docs`: a misspelled aggregate refuses by name instead of
-# quietly answering with nothing.
-
-# The logic is `Hecks::CLI::Document` (lib/hecks/cli/document.rb), which
-# `hecks narrate` also runs.
+# A misspelled aggregate refuses by name; it never answers with nothing.
 
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
 require "hecks/cli/document"

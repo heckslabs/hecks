@@ -2,27 +2,11 @@
 
 # Executes a step list — commands and queries, declared as JSON — and
 # reports instances, events, refusals, reactions, sagas, and query rows.
-# The corpus scripts under spec/corpus/ are exactly this format.
 #
 #   bin/run <domain> <script.json>
 #   bin/run <domain> -            # the same script, on stdin
 #   bin/run <domain> '{"steps":[…]}'
-#
-# The last two are for a caller with one verb to issue. A corpus member is a
-# file because it is kept; an agent dispatching a single command should not
-# have to leave a file behind to do it, and a temp file is exactly the friction
-# that sends somebody back to editing the store by hand. `bin/docs <domain>`
-# prints what each verb wants — its arguments, the states it may be issued
-# from, and every way it can refuse.
-#
 #   bin/run qa '{"steps":[{"query":"QualityControl::Bug.Unfixed"}]}'
-#
-#   bin/run qa - <<'JSON'
-#   {"steps":[
-#     {"verb":"QualityControl::Session.Start",
-#      "args":{"reference":{"value":"QA-1"},"engineer":{"value":"Claude QA"}}}
-#   ]}
-#   JSON
 
 # The logic is `Hecks::CLI::Run` (lib/hecks/cli/run.rb), which `hecks run` also runs.
 

@@ -3,21 +3,10 @@ require_relative "vendor"
 
 module Hecks
   module EmbryonautBluebook
-    # The command line behind `bin/vendor_bluebook`.
+    # The command line behind `bin/vendor_bluebook`; lives in the gem so a
+    # consuming project reaches it through its own bundle, no script to copy.
     #
-    # It lives in the gem, not in a script, so a consuming project reaches it
-    # through its own bundle without a copy of the script:
-    #
-    #     bundle exec ruby -rhecks \
-    #       -e 'exit Hecks::EmbryonautBluebook::VendorCli.run(ARGV)' payments@1.2.0
-    #
-    # ## Usage
-    #
-    #     vendor_bluebook <package>[@<version-or-commit>] [--from <path>] [--root <path>]
-    #
-    # `--from` defaults to `$EMBRYONAUT_BLUEBOOKS_SRC` and `--root` to the current
-    # directory. `ALLOW_DOWNGRADE=1` in the environment permits a release older
-    # than the vendored one.
+    #     vendor_bluebook <package>[@<version-or-commit>] [--from PATH] [--root PATH]
     module VendorCli
       USAGE = "usage: vendor_bluebook <package>[@<version-or-commit>] [--from PATH] [--root PATH]".freeze
 
@@ -44,11 +33,7 @@ module Hecks
         1
       end
 
-      # Reads the options into a hash and picks out the package argument.
-      #
-      # @param argv [Array<String>] the command-line arguments
-      # @param options [Hash{Symbol => String}] receives `:from` and `:root` when given
-      # @return [String, nil] the one positional argument, nil unless exactly one was given
+      # nil unless argv held exactly one positional argument.
       def self.parse(argv, options)
         parser = OptionParser.new
         parser.on("--from PATH") { |path| options[:from] = path }

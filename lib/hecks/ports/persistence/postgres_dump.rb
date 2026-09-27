@@ -5,42 +5,16 @@ require_relative "postgres_dump/connection"
 module Hecks
   module Ports
     module Persistence
-      # Dumps one schema of a Postgres database and proves the dump restores.
-      #
-      # ## What the proof is
-      #
-      # A dump nobody has restored is a hope. After `pg_dump` writes the file,
-      # the dump is restored into a scratch database (on the source server, or on a
-      # separate `verify_url` server such as the one the dump will be loaded
-      # into) and every table's row count is compared with the source. That shows
-      # the dump is complete and loadable. It does not re-derive current state
-      # from an event journal, so a caller who needs that proves it separately.
-      #
-      # ## Credentials
-      #
-      # URLs are split by `Connection`: the password travels in the child
-      # process's environment, never in `argv`.
-      #
-      # ## Requirements
-      #
-      # The `pg` gem, and `pg_dump` and `pg_restore` on `PATH` at a version no older
-      # than the server's. Neither the gem nor the tools are a dependency of
-      # hecks; nothing here loads until a dump is asked for.
+      # Dumps one schema of a Postgres database and proves the dump restores, by
+      # restoring it into a scratch database and comparing every table's row count.
       class PostgresDump
         # Raised for a refusal or a failed tool.
         class Error < StandardError; end
 
-        # What a verified dump holds.
-        #
-        # @!attribute [r] tables
-        #   @return [Hash{String => Integer}] row count of every table in the schema, by name
+        # What a verified dump holds: `tables` is each table's row count, by name.
         Result = Struct.new(:tables, keyword_init: true)
 
-        # @param url [String] the source database's `postgres://` URL
-        # @param schema [String] the schema to dump, a plain identifier
-        # @param verify_url [String, nil] the server to restore into for the proof; the source
-        #   server when nil
-        # @raise [Error] if `schema` is not a plain identifier or a URL is not a Postgres URL
+        # Splits `url` and `verify_url` into connections and validates `schema`.
         def initialize(url:, schema:, verify_url: nil)
           raise Error, "schema #{schema.inspect} is not a plain identifier" unless schema.to_s.match?(/\A[a-z_][a-z0-9_]*\z/i)
 
@@ -50,11 +24,6 @@ module Hecks
         end
 
         # Writes a custom-format dump of the schema and proves it restores.
-        #
-        # @param dest [String] the file to write
-        # @return [Result] the verified row counts
-        # @raise [Error] if the schema has no tables, a tool fails, the database refuses, or
-        #   the restored counts differ from the source's
         def call(dest)
           require "pg"
           raise Error, "schema #{@schema} has no tables in #{@source.database}" if counting(@source) { |db| counts(db) }.empty?

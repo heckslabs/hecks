@@ -5,26 +5,11 @@ require_relative "storage_shape"
 
 module Hecks
   module Runtime
-    # The refusal wording for a held era whose digest does not match its
-    # frozen text — the digest mismatch alone is what detects tampering (a
-    # plain SHA256 comparison over raw bytes, unrelated to any of this);
-    # this only supplies the wording once that's already fired.
+    # Wording for the boot refusal when a held era's frozen text was
+    # edited after freezing (detected elsewhere via a digest mismatch).
     #
-    # Lives here, not under `Ports::Persistence` — `project` below directly
-    # calls `Runtime::EraGuard.shadow_parse`/`Runtime::StorageShape.project`
-    # (DSL-execution machinery), the "an adapter/port reaches into the
-    # runtime instead of being handed already-computed data" shape that
-    # has caused trouble here before. A capability this dependent on the
-    # runtime is a runtime-owned one that the Postgres adapter calls, not
-    # a ports-level module that happens to reach sideways into it.
-    #
-    # Every tamper refusal reaches the same generic wording, cosmetic edit
-    # or real shape change alike: telling the two apart by re-parsing the
-    # edited text is a pure quality-of-message nicety, not a safety
-    # property, and an edit that cannot be classified has to fall to the
-    # generic wording anyway. An operator judges "did this matter"
-    # themselves, reading the still-archived original — an anomalous
-    # recovery moment already, not a normal boot path.
+    # Lives here, not under `Ports::Persistence`, because `project` below
+    # calls runtime DSL-execution machinery (`EraGuard`, `StorageShape`) directly.
     module EraTamper
       module_function
 
@@ -40,12 +25,8 @@ module Hecks
 
       # Parses a bluebook text and returns its storage-shape projection.
       #
-      # The projection is JSON-normalized for structural comparison
-      # against a stored projection; nil when the text does not load.
-      # Always parsed through a fresh tempfile, never the held file's own
-      # path: the predicate extractor caches source by path, and a held
-      # path whose content has changed (the very situation this module
-      # exists for) would hand it stale lines.
+      # Always parsed from a fresh tempfile, never the held file's own path,
+      # since the predicate extractor caches source by path and would see stale lines there.
       #
       # @param text [String] the bluebook source to parse
       # @param _source_path [String, nil] ignored; the text is always parsed from a tempfile
