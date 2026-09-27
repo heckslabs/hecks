@@ -200,8 +200,8 @@ module Hecks
         end
       end
 
-      # Rewrites every `.hecksagon` in the copy to bind through Memory and drops its
-      # `.world` files, so the boot needs no settings at all.
+      # Rewrites every `.hecksagon` in the copy to bind through Memory and replaces its
+      # `.world` files with a `default_adapter "Memory"` one, so the boot needs no settings.
       #
       # @param copy [String] the isolated copy's root directory
       # @return [void]
@@ -219,8 +219,11 @@ module Hecks
         # `data/<table>.db` under `root:` when unset — the same
         # zero-config default Memory gets from having no `.world` at
         # all), so the simplest correct fix for either target is
-        # dropping `.world` from the copy entirely.
-        Dir.glob(File.join(copy, "**", "*.world")).each { |path| File.delete(path) }
+        # dropping the shipped `.world` from the copy. What replaces it is
+        # only a `default_adapter`, so an aggregate the hecksagon leaves
+        # unbound (the real world's `default_adapter` bound it) still lands on
+        # this mode's adapter — see `write_default_worlds!`.
+        write_default_worlds!(copy, "Memory")
       end
 
       # Same dance as memory, one adapter over — `Adapters::Sqlite#
@@ -237,7 +240,7 @@ module Hecks
       def rebind_to_sqlite!(copy)
         rewrite_bindings!(copy, "SqlitePersistence")
         strip_translations!(copy)
-        Dir.glob(File.join(copy, "**", "*.world")).each { |path| File.delete(path) }
+        write_default_worlds!(copy, "SqlitePersistence")
       end
 
       # **The expensive one** — Postgres has no zero-config default the way
@@ -292,6 +295,7 @@ module Hecks
         write_worlds!(copy, "hecks_fuzz_postgres.world") do |name|
           <<~WORLD
             Hecks.world "#{name}" do
+              default_adapter "Postgres"
               persisted_by("Postgres") do
                 database "#{database}"
                 schema "#{schema}"
@@ -442,11 +446,31 @@ module Hecks
         write_worlds!(copy, "hecks_fuzz_postgres_era.world") do |name|
           <<~WORLD
             Hecks.world "#{name}" do
+              default_adapter "PostgresEra"
               persisted_by("PostgresEra") do
                 database "#{database}"
                 schema "#{schema}"
                 allow_superuser true
               end
+            end
+          WORLD
+        end
+      end
+
+      # Replaces every `.world` in the copy with one that declares only `default_adapter`,
+      # so the copy needs no settings and an aggregate its hecksagon leaves unbound
+      # (a chapter whose real world bound it through `default_adapter`) persists through
+      # `adapter_name` like every bound one.
+      #
+      # @param copy [String] the isolated copy's root directory
+      # @param adapter_name [String] the persistence adapter every unbound aggregate falls
+      #   back to, such as `"Memory"` or `"SqlitePersistence"`
+      # @return [void]
+      def write_default_worlds!(copy, adapter_name)
+        write_worlds!(copy, "hecks_fuzz_default.world") do |name|
+          <<~WORLD
+            Hecks.world "#{name}" do
+              default_adapter "#{adapter_name}"
             end
           WORLD
         end

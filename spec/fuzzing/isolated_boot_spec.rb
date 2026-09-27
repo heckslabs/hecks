@@ -186,6 +186,41 @@ RSpec.describe Hecks::Fuzzing::IsolatedBoot do
     end
   end
 
+  # A domain can bind its aggregates only through its world's `default_adapter`, its
+  # hecksagon declaring no `persisted_by` at all. The copy drops that world, so it must
+  # bring a `default_adapter` of its own or the unbound aggregate raises a WiringError at
+  # the first dispatch (BindingPolicy reads the world through `Registry#default_adapter_for`).
+  describe ".call, for a domain bound only by its world's default_adapter" do
+    def default_adapter_project(root)
+      write(root, "bluebook/consumer.hecksagon", <<~HECKSAGON)
+        Hecks.hecksagon "Widgets" do
+          uses_embryonaut_bluebook "widgets"
+          uses_framework "Governance"
+        end
+      HECKSAGON
+      write(root, "bluebook/consumer.world", %(Hecks.world "Widgets" do\n  default_adapter "PostgresEra"\nend\n))
+      write(root, "bluebook/context_map.hecksagon", InMemoryDomain::GOVERNANCE_MEMORY_HECKSAGON)
+      write(root, "vendor/embryonaut_bluebooks/widgets/bluebook/widgets.bluebook", WIDGETS_BLUEBOOK)
+      File.join(root, "bluebook")
+    end
+
+    def bind_adapter_in_copy(root, adapter)
+      described_class.call(default_adapter_project(root), adapter: adapter) do |copy|
+        registry = Hecks.boot(copy, install_facade: false).registry
+        aggregate = registry.bluebook("Widgets").aggregates.find { |a| a.hecks_name == "Widget" }
+        Hecks::Ports::Persistence::BindingPolicy.resolve(registry, "Widgets", aggregate).adapter
+      end
+    end
+
+    it "binds the unbound aggregate to Memory in a :memory copy" do
+      Dir.mktmpdir { |root| expect(bind_adapter_in_copy(root, :memory)).to eq("Memory") }
+    end
+
+    it "binds the unbound aggregate to SqlitePersistence in a :sqlite copy" do
+      Dir.mktmpdir { |root| expect(bind_adapter_in_copy(root, :sqlite)).to eq("SqlitePersistence") }
+    end
+  end
+
   # The `qa` domain keeps Governance in `context_map.hecksagon` and QualityControl in
   # `quality_control.hecksagon`, side by side; every Postgres-bound boot of it needs a
   # `database` for both. Real Postgres, because the refusal this guards is raised when the
