@@ -319,15 +319,21 @@ also gets the scripts an operator runs after the stack exists, in the
 same directory as the template. A block without it generates exactly
 what it did before.
 
-```ruby skip
-deployed_to("AwsFargate") do
-  region "us-east-1"
-  hosting_scripts true
-  hecks_release "2.5.1"       # required: the Hecks release the image is built from
-  smoke_repo "owner/name"     # GitHub repository holding the smoke workflow
-  smoke_workflow "smoke.yml"
-  expected_eras ["199b08"]
-end
+The block's words are `hosting_scripts true`, `hecks_release "2.5.1"` (required:
+the Hecks release the image is built from), `smoke_repo "owner/name"` (the GitHub
+repository holding the smoke workflow), `smoke_workflow "smoke.yml"` and
+`expected_eras ["199b08"]`, next to the `region` the block already carries.
+`bin/project_deploy` hands the block to the projection as a plain Hash, and this
+is what it does with it:
+
+```ruby
+settings = { hosting_scripts: true, hecks_release: "2.5.1", smoke_repo: "owner/name",
+             smoke_workflow: "smoke.yml", expected_eras: ["199b08"] }
+common = { infra_name: "pizzas", stack_name: "pizzas", region: "us-east-1" }
+scripts = Hecks::Projections::Deploy::Scripts
+files = scripts.extend_files({ "Makefile" => "" }, deploy_settings: settings, **common)
+files.keys.sort   # => ["Makefile", "deploy-service.sh", "expected-era", "hosting.mk", "smoke-after-deploy.sh"]
+scripts.extend_files({ "Makefile" => "" }, deploy_settings: {}, **common).keys   # => ["Makefile"]
 ```
 
 | File | What it does |
@@ -343,6 +349,93 @@ compares the era a running host reports with that file and exits 1 when it
 is not listed. The scripts never read the stack template, so a container,
 ECR repository or parameter name set here has to match it.
 
+The other opt-in files below share its rule: nothing is generated for a block
+that does not ask, so a stack that never mentions them is unchanged.
+
+### Per-branch previews for `AwsFargate`
+
+A `preview` setting inside the `deployed_to("AwsFargate")` block adds two files
+beside the template: `preview.yaml`, a separate CloudFormation template, so a
+preview never appears in a change set against the live stack, and `preview.sh`,
+which creates, updates and deletes one isolated copy of the stack per git branch.
+`preview true`, or a `preview do ... end` block with no settings, accepts every
+default:
+
+```ruby
+deploy = Hecks::Projections::Deploy::Preview
+deploy.requested?({ preview: true })    # => true
+deploy.requested?({ preview: {} })      # => true
+deploy.requested?({ preview: false })   # => false
+deploy.requested?({})                   # => false
+```
+
+`preview.sh` takes `deploy` (create or update this branch's preview, from the
+images built locally, so it deploys the working tree, and the stack's `Commit`
+tag ends in `-dirty` when there were uncommitted changes), `destroy` (which also drops the branch's database
+when `PREVIEW_DROP_DATABASE=1`), `list`, `url`, `name`, `ensure-database` and,
+unless `first_admin false`, `login`, which prints a browser-console line that
+signs the deployer in as the preview's first admin. A preview's database is
+created inside the VPC by a one-shot task the template declares, so neither the
+main stack's bastion nor a tunnel is involved, and the host mints era 1 itself on
+the empty database.
+
+It cannot touch the live stack: `preview.sh` only operates on stacks under the
+preview `prefix`, refuses the `protected_branches` (`main` and `master` unless
+set), and the database task refuses the main database, `postgres` and the two
+template databases. The block's keys, all optional, are `prefix`, `alb_prefix`,
+`owner_stack`, `database_stack`, `database_endpoint_output`,
+`database_secret_output`, `db_prefix`, `protected_databases`,
+`protected_branches`, `cpu`, `memory`, `log_retention_days`, `session_cookie`,
+`first_admin`, `signup_path`, `landing_path`, `db_init_image` and `containers`
+(the containers the preview task runs; by default the main stack's). A key that
+is not on that list, or a value that breaks the pattern its place allows (each
+ends up in a stack name, a database name or a shell script), fails the generate
+with a message naming it. The defaults and every pattern are documented on
+`Hecks::Projections::Deploy::Preview`.
+
+### A generic smoke workflow for `AwsFargate`
+
+`smoke true` in the same block adds `smoke/harness.js`, a JavaScript smoke
+harness that knows nothing about any site, and `smoke/workflow.yml`, a GitHub
+Actions workflow that runs it on a schedule and on demand. `bin/project_deploy`
+adds them to whatever the deploy target produced; copy the workflow into the
+repository's `.github/workflows/`.
+
+```ruby
+smoke = Hecks::Projections::Deploy::Smoke
+role = "arn:aws:iam::123456789012:role/example-smoke"
+settings = { smoke: true, region: "us-east-1", smoke_role_arn: role,
+             smoke_secret_id: "example/session-secret", smoke_site_url: "https://example.org" }
+smoke.files(settings, stack_name: "pizzas").keys.sort   # => ["smoke/harness.js", "smoke/workflow.yml"]
+smoke.files({}, stack_name: "pizzas")                   # => {}
+```
+
+Three settings are required beside the `region`: `smoke_role_arn` (the role the
+workflow assumes by OIDC, with no long-lived keys; created once, by hand, outside
+the stack), `smoke_secret_id` (the Secrets Manager secret holding the signing
+secret the harness needs) and `smoke_site_url`. Optional: `smoke_secret_field`
+(a JSON field, when the secret is a JSON document), `smoke_secret_env` (the
+variable the harness reads it from, `SESSION_SECRET` by default),
+`smoke_schedule` (a cron expression, every 15 minutes by default),
+`smoke_harness` and `smoke_config` (the repository-relative paths the workflow
+runs, `smoke/harness.js` and `smoke/config.js`) and `smoke_setup` (one shell
+command run before the AWS steps). A missing required setting, or a value that
+could break out of the YAML or shell line it lands on, fails the generate.
+
+What stays with the site is its own `config.js`, which this never writes: the
+pages and flows to assert, the cookie name and the expected-era file. The
+harness owns the rest: the check runner and its summary, HTTP helpers, signed
+claims and session cookies, sandbox guest addresses, the expected-era check
+against `GET /version` (the same allow-list format `bin/check_era` reads), and a
+sweep that takes a run's own rows back out. It runs `SMOKE_MODE=safe` by default,
+which tags every guest address with a sandbox mailbox so a run against
+production never mails a real person; `SMOKE_MODE=full` is for a throwaway
+database. The harness's header lists the config module's keys. The hosting scripts'
+`smoke_repo` and `smoke_workflow` settings above name where
+`smoke-after-deploy.sh` finds this workflow to dispatch it.
+
+### Project-wide defaults
+
 A project that attaches many chapters does not have to repeat that
 `persisted_by ... database` block in a world per chapter, nor a
 `persisted_by` line per aggregate in a hecksagon per chapter. The
@@ -352,6 +445,15 @@ supplies the `database` of every bound adapter that takes one — and a
 chapter's own bind or settings still win. `examples/compliance` does
 exactly this; the [world reference](../reference/world.md) has the
 resolution order.
+
+A chapter can also come from a package of the shared bluebook registry
+instead of hecks's own `lib/`: `uses_embryonaut_bluebook` in the hecksagon
+loads the package vendored into the project, and `bin/vendor_bluebook` pins
+one there. The [hecksagon reference](../reference/hecksagon.md#vendoring-a-package)
+has the command, the `VENDORED_COMMIT` and `bluebook.lock` files it writes, and
+what it refuses. The environment the host itself reads (checkout, payments and
+the public-route rate limits, which a proxy in front of the host changes the
+meaning of) is on [its own page](../rust-host.md).
 
 ## Writing your own port or adapter
 
