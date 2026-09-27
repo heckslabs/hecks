@@ -1,12 +1,6 @@
 #!/usr/bin/env ruby
 
-# Projects the chapter's own Syntax aggregate into the Rust parser's
-# keyword table — the parser's grammar knowledge derived from
-# hecks's self-description rather than hand-typed a second time.
-#
-# The projection itself is Projections::ParserTable; this asks the
-# registry for it. spec/parser_table_spec.rb re-projects through the same
-# call and refuses a diff, so grammar drift fails the ordinary suite.
+# Projects the Bluebook chapter's Syntax aggregate into the Rust parser's keyword table.
 #
 #   bin/project_parser_table
 

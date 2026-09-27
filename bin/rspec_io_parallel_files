@@ -1,67 +1,17 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
-# Prints, one per line, the `spec/**/*_spec.rb` files that actually carry
-# at least one example matching the given RSpec tag filter — used by
-# `rspec_postgres_io_parallel` in `.github/workflows/ci.yml` to build the
-# file list it hands to `parallel_rspec`, instead of handing it the whole
-# `spec` directory.
+# Prints, one per line, the spec files with at least one example matching an RSpec tag filter.
+# ci.yml hands the list to `parallel_rspec` instead of the whole `spec` directory.
 #
-# Why this exists (root cause, confirmed against the vendored
-# parallel_tests-4.10.1 gem source and reproduced locally, not guessed):
-#
-# `parallel_rspec spec --exclude-pattern '...'` — the previous approach —
-# discovers all `_spec.rb` files under `spec/` (288 of them, after that
-# job's own exclusions) and hands that whole list to
-# `ParallelTests::Test::Runner.tests_with_size`. With `--group-by` left
-# unset (the correct choice — see ci.yml's own comment on why
-# `--group-by default` is not a real option), that method's `when nil`
-# branch only uses the recorded-runtime log if
-# `runtimes.size * 1.5 > tests.size` — i.e. the log must already cover at
-# least ~67% of the candidate files, or it silently falls back to
-# `sort_by_filesize` with no warning printed. But `rspec`'s own
-# `RuntimeLogger` formatter only logs a file when at least one of its
-# examples actually ran under this job's `--tag io --tag ~fuzzing`
-# filter — and only 30 of the 288 candidate files (measured via a real
-# `--dry-run`, see below) carry any such example. `runtimes.size` can
-# therefore never exceed ~30, `30 * 1.5 = 45`, nowhere near `288` — the
-# runtime-log branch is unreachable for this job's file list no matter
-# how warm or complete the cache is. That fully explains why three
-# different nominal grouping strategies (the original unmodified
-# baseline, `--group-by filesize`, and `--group-by`-unset-with-a-real-
-# warm-runtime-cache) all produced the identical 33/59/74/82 worker
-# split — all three silently ran `sort_by_filesize` underneath.
-#
-# **The fix**: shrink the candidate list itself down to the ~30 files that
-# can ever contribute a real example, via a real `--dry-run` (loads every
-# candidate file and asks RSpec's own filter which examples would run —
-# far more reliable than grepping for the literal tag, which can't see
-# tag inheritance from a surrounding `describe`/`context`, `~fuzzing`
-# exclusion, or shared examples). Once `tests.size` is ~30 instead of
-# 288, the runtime-log branch's 67%-coverage bar is realistic to clear
-# after even one prior run, and grouping is finally driven by real
-# measured cost instead of always silently falling back to file size.
-#
-# Usage:
-#   bin/rspec_io_parallel_files '<exclude-pattern regex>' -- --tag io --tag ~fuzzing
-#
-# The exclude-pattern argument is the same regex string
-# `rspec_postgres_io_parallel` already passes as its own top-level
-# `--exclude-pattern` elsewhere (moved to a job `env:` var so both places
-# read one copy) — applied here first so the dry-run never has to load
-# the Rust-building / shared-hecks_pizzas files this job already routes
-# elsewhere.
+# Why: given every spec file, parallel_tests ignores the runtime log unless it covers ~67% of
+# them, so a tag-filtered job silently groups by file size. A dry run, not grep, picks the
+# files so inherited tags, `~fuzzing` and shared examples count.
 
+# The list is committed (.github/postgres_io_spec_files.txt). `--write FILE` refreshes it;
+# `--check FILE` (CI's postgres_io_file_list job) fails on a stale list.
 #
-# The list is committed (.github/postgres_io_spec_files.txt) and the shards
-# read that file instead of each paying the dry run's own 26-48s cost on a
-# CI runner before running a single example. `--write FILE` refreshes
-# the committed list; `--check FILE` is what CI's postgres_io_file_list job
-# runs, once, off the shards' critical path — a stale list fails there
-# instead of an io spec silently never running.
-#
-#   bin/rspec_io_parallel_files --write .github/postgres_io_spec_files.txt '<pattern>' -- --tag io
-#   --tag ~fuzzing
+#   bin/rspec_io_parallel_files '<exclude-pattern regex>' -- --tag io --tag ~fuzzing
 
 require "json"
 require "open3"
@@ -107,12 +57,6 @@ end
 warn "bin/rspec_io_parallel_files: #{files.size} of #{candidates.size} candidate files carry a matching example " \
      "(#{data['examples'].size} examples total) under `#{tag_args.join(' ')}`"
 
-# Formats one mismatch section of the `--check` report: a heading followed
-# by its paths, each indented four spaces.
-#
-# @param heading [String] label describing what the listed paths were found to be
-# @param paths [Array<String>] spec file paths to list, one per line
-# @return [String] the heading line and its indented paths, joined with newlines
 def named(heading, paths)
   "  #{heading}:\n    #{paths.join("\n    ")}"
 end

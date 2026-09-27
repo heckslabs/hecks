@@ -1,23 +1,9 @@
 require "spec_helper"
 require "hecks/ports/persistence/plugins/era"
 
-# Every committed translation edge, checked without a database.
-#
-# A domain's `bluebook/translations/*.bluebook` edges are the record of
-# how its storage shape moved from era to era. Nothing else gated reads
-# the committed ones: Fuzzing::IsolatedBoot strips `translations/` before
-# every sweep, and the Postgres specs that apply an edge build their own
-# (only examples/directory's is read off disk, and only under `io: true`).
-# So an edge could fail to load, skip an era, or fall behind its bluebook
-# and every suite would stay green.
-#
-# Discovered, not listed — every sweepable domain with a
-# `bluebook/translations/` directory. For each: every edge loads through
-# the translation judge and names this chapter; the files run 2, 3, 4, ...
-# with no hole; each edge starts where the previous one ended and is named
-# for the era it lands on; and the newest lands on the storage shape the
-# chapter declares today, so a shape change committed without its edge
-# fails here.
+# Checks every committed bluebook/translations edge without a database: each loads, the chain runs
+# era to era, and the newest lands on the shape the bluebook declares today.
+# Nothing else reads them: Fuzzing::IsolatedBoot strips translations/ before every sweep.
 RSpec.describe "the committed translation edges" do
   def self.domains_with_edges
     Hecks::Corpus.sweepable_domains.select { |domain| File.directory?(File.join(domain, "bluebook", "translations")) }

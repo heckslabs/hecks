@@ -1,12 +1,7 @@
 require "hecks"
 
-# S2 (docs/audits/2026-08-10-main-bug-audit.md) — reading a nested hash
-# with `h[k.to_sym] || h[k]` in `Identity.scalar`/`Identity.from` would
-# drop a genuinely-stored `false` to `nil` (`false || h[k]` falls
-# through). A composite/dotted identity part that is itself a boolean
-# would then resolve to `nil` and take down the whole identity with it
-# (`Identity.of` refuses any part that is `nil`), not merely mis-read
-# that one part.
+# A stored `false` in a dotted identity part must not read as nil: `Identity.of`
+# refuses any nil part, so it would take the whole identity down.
 RSpec.describe Hecks::Runtime::Identity do
   describe ".scalar" do
     it "reads a stored false member rather than nil" do
@@ -19,9 +14,8 @@ RSpec.describe Hecks::Runtime::Identity do
   end
 
   describe ".of" do
-    # A minimal double is enough: the dotted branch of `.from` never
-    # touches `identity_heads`/`.attribute` at all — it walks the raw
-    # hash the same way `FieldPath` does.
+    # A minimal double suffices: the dotted branch of `.from` walks the raw hash and
+    # never touches `identity_heads`.
     IdentityOfFakeConstruct = Struct.new(:identity_paths) unless defined?(IdentityOfFakeConstruct)
 
     it "resolves a false-valued dotted identity part to its real value, not nil" do
@@ -42,15 +36,8 @@ RSpec.describe Hecks::Runtime::Identity do
       expect(described_class.of(construct, { flag: {} })).to be_nil
     end
 
-    # R4 (docs/audits/2026-08-11-bug-triage.md) — the Rust kernel's own
-    # `to_id_component` (rust/src/kernel/json.rs) accepting an
-    # empty-string identity component and persisting a record under it
-    # would be a real, live divergence from this behavior: an empty string names
-    # nothing here, the same as a genuinely absent part, and the whole
-    # identity is refused (`nil`) rather than resolving to a blank-but-
-    # real id. `to_id_component_refuses_an_empty_string`
-    # (rust/src/kernel/json.rs's own `#[cfg(test)]` module) is the same
-    # proof on the Rust side.
+    # Parity with the Rust kernel's `to_id_component` (rust/src/kernel/json.rs), which
+    # also refuses an empty-string component.
     it "refuses (nil) a blank-string identity part — the same as an absent one" do
       construct = IdentityOfFakeConstruct.new(["flag.active"])
 
@@ -58,22 +45,11 @@ RSpec.describe Hecks::Runtime::Identity do
     end
   end
 
-  # M18 (docs/audits/2026-08-10-main-bug-audit.md,
-  # docs/audits/2026-08-11-bug-triage.md) — checking a derived part in
-  # `Identity.of` with a bare `part.empty?` would raise `NoMethodError`
-  # on any part that isn't a String (an Integer, an Array, a Hash — the
-  # exact shape a reference-typed identity head can resolve to when its
-  # own attribute lookup falls through). Re-verified against the current
-  # file: the blank-part guard now checks `part.respond_to?(:empty?)`
-  # first, so a non-string part is compared by identity/`nil?` alone and
-  # never reaches a bare `.empty?` call — these lock that in as a
-  # regression rather than a `NoMethodError` reappearing silently.
+  # Pins that the blank-part guard checks `respond_to?(:empty?)`: a bare `part.empty?`
+  # raises NoMethodError on an Integer, Array or Hash part.
   describe ".of with a non-string identity part (a reference-typed head)" do
-    # `attribute(name)` returns nil — the same "not found, coerce
-    # nothing" branch `Identity.from`'s bare (undotted) reader falls
-    # through on a head whose own attribute lookup doesn't resolve
-    # (a saga's already-resolved correlation key, `from`'s own comment)
-    # — `raw` is handed back exactly as given, whatever type it is.
+    # `attribute(name)` returns nil, the "not found, coerce nothing" branch, so `raw`
+    # comes back exactly as given, whatever its type.
     IdentityNonStringFakeConstruct = Struct.new(:identity_paths, :identity_heads) do
       def attribute(_name) = nil
     end

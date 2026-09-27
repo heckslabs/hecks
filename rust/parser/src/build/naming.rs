@@ -1,18 +1,6 @@
-//! Mirrors `Hecks::Naming` (`lib/hecks/naming.rb`) — the small,
-//! pure name-shape conversions several other derivations lean on:
-//! `pascal` (an attribute name -> a synthesized value-object type name,
-//! `closed_sets.rs`), `snake` (a value-object type name -> a minted
-//! attribute name, `identity.rs`/`references.rs`), plus `qualifier`/
-//! `unqualified` for a policy's `on_event` splitting. Deliberately its own
-//! module rather than inlined per-caller, matching the Ruby source's own
-//! shape: every derivation that needs a name transform reads it from one
-//! place, not a second hand-rolled copy per call site.
+//! Pure name-shape conversions (mirrors `Hecks::Naming`) shared by the other derivations.
 
-/// `Hecks::Naming.demodulise` — `"Pizzas::Order" -> "Order"`. A bare
-/// constant written in a bluebook never carries a namespace prefix in
-/// practice (the DSL's own `const_missing` hands back a plain Symbol), so
-/// this is mostly a no-op here, kept for parity with the Ruby call sites
-/// that always route a type name through it before minting an attribute.
+/// `"Pizzas::Order" -> "Order"`.
 pub fn demodulise(type_name: &str) -> String {
     type_name
         .rsplit("::")
@@ -21,17 +9,9 @@ pub fn demodulise(type_name: &str) -> String {
         .to_string()
 }
 
-/// `Hecks::Naming.command_ref` — the command-reference text a bare
-/// command constant (`trigger Account::Debit`) or the legacy quoted
-/// string (`trigger "Account.Debit"`, still accepted under
-/// `MetaValidator.shadow_parsing?`) resolves to. A String/Symbol value
-/// passes through unchanged (`value.to_s`); a bare constant chain is
-/// split at its last `::` and rejoined with `.` — `"Account::Debit"` ->
-/// `"Account.Debit"`, `"Banking::Account::Debit"` ->
-/// `"Banking::Account.Debit"` (only one `rpartition`, so an inner `::`
-/// stays exactly as written). `raw` is the argument's raw source text —
-/// quoted or bare — read the same way `positional_text` reads any other
-/// positional argument.
+/// A bare command constant (`Account::Debit`) becomes `Account.Debit`; strings pass through.
+///
+/// Only the last `::` is rewritten, so `Banking::Account::Debit` -> `Banking::Account.Debit`.
 pub fn command_ref(raw: &str) -> String {
     match crate::ruby_value::read(raw.trim()) {
         crate::ruby_value::Value::Str(s) => s,
@@ -43,17 +23,9 @@ pub fn command_ref(raw: &str) -> String {
     }
 }
 
-/// `Hecks::Naming.event_name_ref` — a process manager's own event
-/// references (`transition Account::AccountDebited => "state"`,
-/// `starts_on Transfer::TransferRequested`, `ends_on Transfer::
-/// TransferSettled`), deliberately not `command_ref` — that method's
-/// own Ruby-side header (`lib/hecks/naming.rb`) has the full account:
-/// `SagaInterpreter` matches these against a bare `event.name`, never
-/// a `.`-qualified one (unlike a policy's own cross-aggregate `on`,
-/// matched by splitting the qualifier apart from the name instead of
-/// comparing the whole string). A String passes through unchanged,
-/// same as `command_ref`; a bare constant chain keeps only its final
-/// segment (`demodulise`, above) rather than being rejoined with `.`.
+/// Event reference of a process manager: a bare constant chain keeps only its last segment.
+///
+/// `SagaInterpreter` matches a bare `event.name`, never a `.`-qualified one.
 pub fn event_name_ref(raw: &str) -> String {
     match crate::ruby_value::read(raw.trim()) {
         crate::ruby_value::Value::Str(s) => s,
@@ -62,11 +34,7 @@ pub fn event_name_ref(raw: &str) -> String {
     }
 }
 
-/// `Hecks::Naming.snake` — `"PizzaName" -> "pizza_name"`. Mirrors
-/// the two-pass regex exactly: first split a run of capitals followed by
-/// a Capital+lowercase (`"HTTPServer"` -> `"HTTP_Server"`), then split a
-/// lowercase/digit followed by a capital (`"PizzaName"` -> `"Pizza_Name"`),
-/// then lowercase the whole thing.
+/// `"PizzaName" -> "pizza_name"`, using the same two-pass split as `Hecks::Naming.snake`.
 pub fn snake(text: &str) -> String {
     let chars: Vec<char> = text.chars().collect();
     let mut pass1 = String::new();
@@ -97,12 +65,7 @@ pub fn snake(text: &str) -> String {
     pass2.to_lowercase()
 }
 
-/// `Hecks::Naming.pascal` — `"pizza_name" -> "PizzaName"`. Not
-/// exercised by pizzas.bluebook (its one closed set, `Size`, is a
-/// hand-written sibling `value_object`, not the inline `attribute :size,
-/// one_of(...)` shorthand this backs) — kept for the same reason `snake`
-/// above is: a small, pure, easily-verified transform other derivations
-/// lean on.
+/// `"pizza_name" -> "PizzaName"`.
 pub fn pascal(text: &str) -> String {
     text.split('_')
         .map(|part| {
@@ -115,13 +78,7 @@ pub fn pascal(text: &str) -> String {
         .collect()
 }
 
-/// `Hecks::Naming.plural` — the name a collection of something
-/// takes, e.g. a read model's own many-side `include` head
-/// (`ReadModelBuilder#add_aggregate_head`, `build/read_model.rs`) when no
-/// `as:` is given: `"state_style" -> "state_styles"`, `"collection" ->
-/// "collections"`. Three suffix rules, tried in order — `snake(target)`
-/// is already applied by the caller before this runs, matching Ruby's own
-/// `plural(snake(target))` call shape.
+/// Pluralizes a snake-cased name: `y` -> `ies`, sibilants take `es`, else `s`.
 pub fn plural(text: &str) -> String {
     if text.len() > 1 {
         let last = &text[text.len() - 1..];
@@ -138,10 +95,7 @@ pub fn plural(text: &str) -> String {
     format!("{text}s")
 }
 
-/// `Hecks::Naming.singularize` — the inverse of `plural`, used by
-/// `has_many`'s own target-name derivation (`has_many Invoices` points at
-/// `Invoice`). Two suffix rules only, tried in order — the same two
-/// `plural` itself inverts, not a general-purpose singularizer.
+/// Inverse of `plural` for `has_many` targets: `ies` -> `y`, trailing `s` dropped.
 pub fn singularize(text: &str) -> String {
     if text.len() > 3 && text.ends_with("ies") {
         return format!("{}y", &text[..text.len() - 3]);

@@ -1,17 +1,7 @@
 require "spec_helper"
 
-# A procedure coordinates. It is a saga when it also knows how to undo itself.
-#
-# These are two things and the industry slurs them into one word. A procedure has
-# legs, states, and an opinion about who goes next. A saga has compensation: every
-# step that changed the world declares what makes it good again, and a failure
-# runs those backwards. Neither implies the other — a hiring pipeline is ordered
-# and has no undo, a choreographed refund has undo and nobody in charge.
-#
-# The word `saga` appears in no .bluebook and never will: it is not a word a bank
-# says, and an author never types it. They declare a compensating leg, and the
-# saga-ness follows. So the name is derived rather than declared, which is also
-# why it cannot drift from the thing it describes.
+# A procedure coordinates; it is a saga when a leg also declares compensation.
+# `saga` is derived from that leg and never written in a .bluebook.
 RSpec.describe "a procedure, and when it is a saga" do
   def in_registry
     registry = Hecks::Runtime::Registry.new
@@ -23,7 +13,7 @@ RSpec.describe "a procedure, and when it is a saga" do
     registry
   end
 
-  # Coordination only. Steps in order, no undo — you cannot un-interview anybody.
+  # Coordination only: ordered steps, no undo.
   def hiring
     in_registry do
       Hecks.bluebook("Hiring") do
@@ -64,9 +54,7 @@ RSpec.describe "a procedure, and when it is a saga" do
     end.bluebook("Hiring").process_managers.first
   end
 
-  # Banking's settlement, which compensates — money out of one account has to come
-  # back if the other will not take it. Booted once per file — nothing below
-  # ever dispatches, only reads the loaded process manager's IR back out.
+  # Banking's settlement compensates. Booted once per file; nothing dispatches.
   before(:context) do
     registry = Hecks::Runtime::Registry.new
     Hecks.with_registry(registry) do
@@ -94,20 +82,15 @@ RSpec.describe "a procedure, and when it is a saga" do
   end
 
   it "names what the saga undoes, in the order it undoes it" do
-    # Today the order is the author's — one `on :refused` leg, written by hand.
-    # When compensation moves beside each dispatch this reads the completed legs
-    # newest-first instead, and the shape here does not change.
+    # The order is the author's: one hand-written `on :refused` leg.
     expect(settlement.saga.undoes).to eq(
       ["Account.Credit", "Transfer.Reverse"]
     )
   end
 
   it "keeps the word out of the shared IR contract" do
-    # `saga?` is derived. Putting it in to_h would make it a fact about the source
-    # that every reader of the IR would then have to carry — and it is not a fact
-    # about the source, it is a reading of it. The IR is a shared contract; adding
-    # a derived field to it has split contract from source twice already in this
-    # project's history.
+    # `saga?` is a reading of the source, not a fact about it, and the IR is a shared
+    # contract that must not carry derived fields.
     expect(settlement.to_h.keys).not_to include(:saga, :saga?)
   end
 end

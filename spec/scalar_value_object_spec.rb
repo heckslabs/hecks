@@ -1,30 +1,8 @@
 require "spec_helper"
 
-# "Single-element value objects strictly answer `.value`" — the three
-# halves of one language rule, asserted together because they only mean
-# anything together:
-#
-#   1. the bare DSL shorthand — `value_object "Price", Integer` declares
-#      exactly one attribute, named `value`, of that type (sugar for the
-#      block form's single `attribute :value, Type` line;
-#      `AggregateBuilder#value_object`'s own comment);
-#   2. the runtime alias — any value object with exactly one declared
-#      attribute answers `.value`, whatever that attribute is actually
-#      named (`Runtime::Value#method_missing` / `#resolve_field`), and a
-#      multi-attribute one keeps its refusal (there is no single value
-#      `.value` could honestly mean);
-#   3. call-site collapsing — a bare scalar offered where a
-#      single-attribute value object is declared wraps into that value
-#      object's own real field automatically
-#      (`Runtime::Value::Coercion#fields_for`'s count-one auto-wrap),
-#      while the explicit `{real_field: x}` spelling keeps working
-#      unchanged.
-#
-# The fixture (spec/fixtures/scalar_value_objects.bluebook — also a
-# parser-parity corpus member, so the Rust parser byte-matches the same
-# shapes) carries one of each declaration: a shorthand-declared
-# `StickerRef{value}`, a shorthand `Shelf{value}` (Integer), and a
-# block-form `Price{amount}` whose author picked a domain name.
+# Three halves of one rule, asserted together: the `value_object "Price", Integer` shorthand,
+# the runtime `.value` alias for single-attribute value objects, and call-site scalar wrapping.
+# The fixture is also a parser-parity corpus member.
 RSpec.describe "single-element value objects strictly answer .value" do
   SCALAR_VO_BLUEBOOK = File.join(InMemoryDomain::ROOT, "spec/fixtures/scalar_value_objects.bluebook")
 
@@ -85,9 +63,7 @@ RSpec.describe "single-element value objects strictly answer .value" do
     end
 
     it "keeps today's behavior for neither type nor block: an empty attribute list" do
-      # Pinned deliberately, not endorsed — whatever downstream judges
-      # make of an attributeless value object is their business; the
-      # shorthand must not change what this spelling has always built.
+      # Pinned deliberately, not endorsed: the shorthand must not change what this spelling builds.
       aggregate = Hecks::Bluebook::DSL::ConstShim.with(->(const) { const }) do
         Hecks::Bluebook::DSL::AggregateBuilder.build("Bare") { value_object "Empty" }
       end
@@ -177,10 +153,8 @@ RSpec.describe "single-element value objects strictly answer .value" do
       runtime = boot_stickers
       runtime.dispatch_flat("ScalarValueObjects::Sticker.Print", ref: "S4", price: 2)
 
-      # The fixture has no multi-field command argument on purpose (its
-      # whole point is single-attribute shapes) — the refusal is pinned
-      # at the coercion door directly instead, against an ad-hoc
-      # two-field shape, so the auto-wrap provably stays count-gated.
+      # The fixture has no multi-field argument, so the refusal is pinned at the coercion
+      # directly, against an ad-hoc two-field shape: auto-wrap must stay count-gated.
       two_field = Hecks::Bluebook::ValueObject.declare(
         name:       "Range",
         attributes: [Hecks::Bluebook::Attribute.new(name: :lo, type: "Integer"),

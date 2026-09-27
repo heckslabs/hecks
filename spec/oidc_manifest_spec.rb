@@ -1,18 +1,8 @@
 require "spec_helper"
 require "hecks/ports/persistence/plugins/era"
 
-# The anti-drift gate for every checked-in `oidc.json` — the same shape
-# spec/vocabulary_table_spec.rb and spec/parser_table_spec.rb already use
-# for their own generated artifacts: regenerate in memory from the
-# domain's own bluebook and refuse a diff, so a manifest that stopped
-# matching its source fails the ordinary suite rather than waiting for
-# someone to notice a stale client scope list in production.
-#
-# Discovered dynamically, not a hardcoded list — the same domain-glob
-# `bin/project_oidc` itself uses, so a new domain that runs the driver and
-# commits its own oidc.json is covered here for free, and a domain whose
-# manifest gets deleted simply drops out rather than leaving a stale
-# expectation behind.
+# Anti-drift gate: each checked-in `oidc.json` must equal a fresh projection of its bluebook.
+# Manifests are found by the same domain glob `bin/project_oidc` uses.
 RSpec.describe "committed OIDC manifests (bin/project_oidc)" do
   ROOT = InMemoryDomain::ROOT
 
@@ -34,14 +24,7 @@ RSpec.describe "committed OIDC manifests (bin/project_oidc)" do
     relative = path.delete_prefix("#{ROOT}/")
     domain   = File.dirname(relative)
 
-    # `:io` — this boots whatever domain committed this manifest, which
-    # today is only examples/pizzas (PostgresEra-bound) but is discovered
-    # dynamically (see this file's own header): a future domain with its
-    # own committed oidc.json would generate a new example here with no
-    # code change, and it might also be PostgresEra-bound. Tagging every
-    # generated example unconditionally, not just the one domain known
-    # to need it today, is what keeps that true without anyone having to
-    # remember to update an exclusion list.
+    # `:io` on every example: a domain that commits an oidc.json may be PostgresEra-bound.
     it "#{relative} is exactly what bin/project_oidc would regenerate right now", :io do
       runtime  = Hecks.boot(File.join(ROOT, domain), install_facade: false)
       name     = runtime.registry.bluebooks.keys.first

@@ -1,29 +1,4 @@
-// Implements the Ruby grammar's "sized" expression-operator category
-// (projection.json: `.empty?`, `.size` — two symbols, two interpreter
-// nodes sharing one category) — `Resolver::Empty`/`Resolver::Size`
-// (resolver.rb), read directly: both ask a question about a value's own
-// length, differing only in whether the answer is a boolean or a count.
-// Routed straight through the two attribute shapes that have a length —
-// `attribute_shapes::scalar` (a `Str` value's own character count) and
-// `attribute_shapes::list` (a list field's already-bare length) — rather
-// than reimplemented here; this file's own job is only "which shape
-// answered, and what to say when none did."
-//
-// Every `Value` variant is named below, none left to a wildcard. The
-// four that don't support `.empty?`/`.size` (`Int`, `Float`, `Bool`,
-// `Nil`) are refused explicitly, one arm each, rather than behind a
-// catch-all `_ =>` — the same reasoning `expr.rs`'s own header gives for
-// `dispatch_operator`'s enum match: if `Value` ever grows a seventh
-// variant (a new attribute-representation shape at the `Value` level,
-// not merely a new `AttributeShape`/`OperatorCategory` name), a wildcard
-// here would silently decide "refuse it" for a case nobody actually
-// evaluated — an explicit arm forces whoever adds the variant to decide
-// on purpose whether `.empty?`/`.size` support it.
-//
-// `expr.rs`'s `category_of` guarantees `empty`/`size` below are only
-// ever called with `Empty`/`Size` respectively — see `logical.rs`'s
-// header for why each trailing arm is a router-bug guard, not a real
-// refusal path.
+//! Interprets `.empty?` and `.size` over strings, lists and arrays.
 
 use crate::kernel::attribute_shapes::{list, scalar};
 use crate::kernel::expr::{eval_error, interpret as eval, EvalContext, Expr, Value};
@@ -35,14 +10,11 @@ pub fn empty(expr: &Expr, ctx: &EvalContext) -> Result<Value, Refusal> {
     };
 
     let v = eval(receiver, ctx)?;
+    // Every `Value` variant is named so a new one forces a decision here.
     match v {
         Value::Str(_) => Ok(Value::Bool(scalar::is_empty(&v).expect("Str always answers is_empty"))),
         Value::List(_) => Ok(Value::Bool(list::is_empty(&v).expect("List always answers is_empty"))),
-        // `Value::Array` (an `ArrayLiteral`/`.split` result — see its own
-        // header) is a materialised list, not a length-only `List` — its
-        // own `.len()` answers `.empty?`/`.size` directly, no
-        // `attribute_shapes::list` indirection needed the way `List`
-        // has (that file is keyed on `Value::List(usize)` specifically).
+        // A materialised Array answers from its own length.
         Value::Array(ref elements) => Ok(Value::Bool(elements.is_empty())),
         Value::Int(_) | Value::Float(_) | Value::Bool(_) | Value::Nil => Err(eval_error(format!("empty? expects a list or string, got {v:?}"))),
     }

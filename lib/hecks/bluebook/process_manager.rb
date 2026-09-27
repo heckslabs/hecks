@@ -3,19 +3,10 @@ require_relative "../ir"
 
 module Hecks
   module Bluebook
-    # `compensates` — a second `DispatchSpec`, shape-identical to this
-    # one, naming the command that undoes this dispatch specifically
-    # (see `ProcessManagerBuilder::HandlerBuilder#dispatch_impl`'s own
-    # comment). `nil` for a dispatch with nothing to undo (a pure
-    # bookkeeping mark, or one whose own effect is superseded by a later
-    # command rather than needing its own compensation). Never nested
-    # further — a compensation is not itself compensable; no known
-    # corpus need, and ADR 0025's own "a word earns its place by being
-    # used" bar would refuse a second level speculatively.
+    # `compensates` is a second `DispatchSpec` naming the command that undoes this one, or nil.
+    # Never nested; `reverses` stays reserved for `corrects`.
     DispatchSpec = Struct.new(:command_name, :with_spec, :compensates, keyword_init: true) do
-      # A Struct already answers to_h; including the mixin puts the
-      # declared emission ahead of Struct's own in the ancestry, which
-      # is what makes the shape data rather than a method body.
+      # Struct already answers to_h; the mixin puts the declared emission ahead of it.
       include Hecks::IR
 
       emits_ir(
@@ -37,62 +28,19 @@ module Hecks
       )
     end
 
-    # The compensation half of a procedure, as its own thing.
-    #
-    # A process manager coordinates: legs, states, an opinion about who goes
-    # next. A saga undoes: what makes the world good again when a leg it
-    # dispatched is refused. Two concepts, and the industry slurs them into one
-    # word — so here they are two objects, and a procedure either has a saga or
-    # does not.
-    #
-    # `undoes` is the ordered list of commands the compensation sends — a
-    # static preview, declaration order (`Behaviour::ProcessManager#saga`),
-    # not one instance's own runtime history. Per-dispatch compensation
-    # (`compensates`, on the step it compensates for) moved most of what
-    # a saga undoes off this leg's own hand-written body and onto
-    # whichever forward dispatch each one undoes — this reads every
-    # declared `compensates` across the whole saga first, then whatever
-    # this leg's own hand-written body still lists, for compensation
-    # that isn't expressible as "undo command X." which of a declared
-    # `compensates` actually fires for one instance, and in what order
-    # (newest-first, completed-legs-only), is `SagaInterpreter`'s own
-    # dynamic `completed_compensations` — a per-instance runtime fact
-    # this declaration-only object could never hold.
-    #
-    # **Naming collision, once flagged, now resolved** — `command`'s own
-    # `corrects event, reverses: true` (docs/implemented/decisions/0036-
-    # corrects-is-an-appended-fact-not-a-rewrite.md) already claimed
-    # `reverses` for a different meaning: auto-deriving a command's own
-    # corrective mutation from a past event, not a saga's own
-    # compensating leg from a past dispatch. This feature keeps
-    # `reverses` reserved for `corrects` and uses `compensates` for
-    # per-dispatch saga compensation instead — a deliberate choice, not
-    # an accidental collision.
+    # The compensation half of a procedure: the commands sent to undo a refused leg.
+    # `undoes` is a static declaration-order preview; per-instance order is the runtime's.
     Saga = Struct.new(:trigger, :from_state, :to_state, :compensations, keyword_init: true) do
-      # Lists the commands this saga sends to undo a refused leg.
-      #
-      # @return [Array<String>] the name of each compensating command, in the order
-      #   `compensations` lists them
       def undoes = compensations.map(&:command_name)
 
       def to_s = "#{trigger} → #{to_state} (#{undoes.join(', ')})"
     end
 
-    # The built form of a `process_manager "Name" do ... end` block,
-    # produced by `DSL::ProcessManagerBuilder` — its start/end events,
-    # correlation field, derived states, and handler rows. Its
-    # compensation half (`saga`, `Behaviour::ProcessManager#saga`) is
-    # derived from the handler answering `REFUSED`, below, not declared as
-    # its own construct.
+    # The built form of a `process_manager "Name" do ... end` block, made by
+    # `DSL::ProcessManagerBuilder`.
     class ProcessManager
-      # The bluebook's name for this construct, asked the same way of a class
-      # that has crossed over and of an IR object that has not. Collapses into
-      # Construct when this one crosses.
-      # The trigger of a compensating leg. Not an event name — no aggregate
-      # announces that a leg the procedure dispatched was declined — so it lives
-      # here beside the thing it triggers rather than in the runtime that
-      # notices it. Declared in the language's Trigger vocabulary, which
-      # spec/vocabulary_conformance_spec holds to this constant.
+      # The trigger of a compensating leg. Not an event name: no aggregate announces a declined
+      # leg. Held to the language's Trigger vocabulary by spec/vocabulary_conformance_spec.
       REFUSED = Hecks::Vocabulary.fetch("Trigger").first
 
       include Hecks::IR
@@ -100,21 +48,8 @@ module Hecks
 
       emits_ir(
         name:          :name,
-        # M11 — `&.`, not `.`: a DSL-built process manager always carries
-        # a real `correlates_by` (`ProcessManagerBuilder#build` refuses to
-        # mint one without it), but the IR class itself defaults it to
-        # `nil` and is what `Assembly::Build`'s `:identity` reader
-        # (`value&.to_sym`) round-trips against. A bare `.to_s` mapped
-        # that absent case to `""`, indistinguishable on the wire from a
-        # real empty name and read back as the wrong, non-nil `:""`
-        # instead of `nil` — the same nil-erasure S1 fixed for
-        # `render_value`, one field over. `correlates_by` is always a
-        # bare Symbol (`SagaInterpreter` hash-looks-up a payload by it),
-        # never a `Literal`-encoded polymorphic value, so this stays a
-        # local `&.` rather than routing through `Literal.render` — that
-        # would wrap a real value in a leading `:` and break both the
-        # `:identity` reader's plain `to_sym` and the pinned golden IR
-        # fixtures' bare-string spelling (`"reference.value"`).
+        # `&.` because the IR class defaults `correlates_by` to nil; `.to_s` reads back as `""`.
+        # A bare Symbol string, not `Literal.render`, to match the golden IR fixtures.
         correlates_by: -> { correlates_by&.to_s },
         starts_on:     :starts_on,
         ends_on:       :ends_on,
@@ -124,15 +59,10 @@ module Hecks
 
       attr_reader :name, :correlates_by, :starts_on, :ends_on, :states, :handlers
 
-      # @param name [String, Symbol] the process manager's declared name
-      # @param correlates_by [Symbol, nil] the payload field a triggering event's
-      #   instances are correlated by
+      # @param correlates_by [Symbol, nil] the payload field that correlates a triggering
+      #   event to an instance
       # @param starts_on [String, nil] the event that starts a new instance
       # @param ends_on [String, nil] the event that ends an instance
-      # @param states [Array<String>] the declared states this procedure's instances pass
-      #   through
-      # @param handlers [Array<Bluebook::ProcessManagerHandler>] the declared handler rows,
-      #   one per (event, state) leg
       def initialize(name:, correlates_by: nil, starts_on: nil, ends_on: nil,
                      states: [], handlers: [])
         @name          = name.to_s

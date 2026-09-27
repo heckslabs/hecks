@@ -1,20 +1,13 @@
 Hecks.bluebook "Identity" do
   vision "Authentication proves an identifier; the organization decides what that identity means."
-  # S13, ADR 0025 (coverage standard) — GENERIC, not `supporting`: an
-  # OIDC-shaped external identifier is the textbook generic subdomain
-  # (Vernon's own example of one), off-the-shelf and buyable —
-  # `Governance` (role/scope RBAC beside it) stays `supporting`
-  # instead, since ITS OWN model is bespoke to this codebase's actor/
-  # role/scope shape, not a drop-in replaceable concept the way an
-  # identity provider is.
+  # Generic, not `supporting`: an OIDC-shaped external identifier is the textbook generic
+  # subdomain. Governance's role/scope RBAC is bespoke to this codebase, so it stays
+  # `supporting` (ADR 0025).
   generic
 
-  # WHAT THIS CHAPTER ANSWERS FOR EVERY DOMAIN THAT ATTACHES IT. Same
-  # declared-not-named shape Governance's own `provides "authorization"`
-  # already is. rust/host does not build this chapter's payloads — any
-  # field mapping lives on the consuming hecksagon's `translates` ACL
-  # (any field; this chapter does not list which). Link's reference is
-  # `identity`, not `identity_id` and not `to:`.
+  # What this chapter answers for every attaching domain, declared rather than named as
+  # Governance's `provides "authorization"` is. Field mapping lives on the consuming
+  # hecksagon's `translates` ACL; Link's reference is `identity`, not `identity_id` or `to:`.
   provides "identity",
            register: "Identity.Register",
            link:     "ExternalIdentifier.Link",
@@ -32,10 +25,8 @@ Hecks.bluebook "Identity" do
       invariant("an identity id is present") { !value.to_s.empty? }
     end
 
-    # No natural key exists for "a newly recognized identity" — the
-    # caller mints identity_id via Ports::IdentityGeneration.uuid
-    # before dispatching (see spec/ports/identity_generation_spec.rb),
-    # the same pattern proven there against Pizzas.
+    # No natural key exists for a new identity: the caller mints `identity_id` via
+    # `Ports::IdentityGeneration.uuid` before dispatching.
     command "Register" do
       role "Identity registrar"
       goal "Recognize an identity"
@@ -70,9 +61,7 @@ Hecks.bluebook "Identity" do
       invariant("a subject is present") { !value.to_s.empty? }
     end
 
-    # `key` is deliberately not derived here — a caller-side concern
-    # (e.g. SHA256 of issuer+subject), same as any other identity
-    # field this domain never mints itself.
+    # `key` is not derived here; the caller derives it (e.g. SHA256 of issuer+subject).
     command "Link" do
       role "Identity registrar"
       goal "Associate an external authenticated subject with an identity"
@@ -85,12 +74,8 @@ Hecks.bluebook "Identity" do
       emits ExternalIdentifierLinked
     end
 
-    # THE OIDC-SHAPED LOOKUP — a token hands over `(issuer, subject)`,
-    # never the `key` this aggregate is actually identified by (`key`
-    # is a caller-side derivation, deliberately not reproduced here —
-    # see `Link`'s own comment). `identity` rides the row already,
-    # from `reference_to Identity` above, so a caller reads it straight
-    # off the match rather than needing a second query.
+    # The OIDC-shaped lookup: a token hands over `(issuer, subject)`, never `key`. `identity`
+    # rides the row from `reference_to Identity`, so no second query is needed.
     query "ResolvedBy" do
       description "The external identifier linked to this exact (issuer, subject) pair, if any."
       attribute :issuer,  Issuer

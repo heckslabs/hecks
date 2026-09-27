@@ -17,18 +17,8 @@ mod cooldown;
 #[cfg(test)]
 mod tests;
 
-// ---- newsletter: guest-facing subscribe/confirm/unsubscribe, admin
-// listing ----------------------------------------------------------
-// Ported from the Ruby HTTP adapter's POST /newsletter/subscribers, GET
-// /newsletter/subscribers, GET /newsletter/subscribers/confirm, and GET
-// /newsletter/subscribers/unsubscribe. Confirm and unsubscribe are served here
-// too, since a deploy of this host has no Ruby process behind it: without
-// them every real unsubscribe link fell through to auth_gate's 401 ("sign in
-// first"; neither path is in UNGATED_PATHS), never so much as reaching a "no
-// such subscriber" 404. The Ruby adapter has to declare these two routes before
-// a generic /:email route so "confirm"/"unsubscribe" are not read as an email;
-// that ordering concern does not apply here, since a Rust match on an exact
-// (method, path) tuple has no prefix or wildcard ambiguity to order around.
+// Guest-facing subscribe/confirm/unsubscribe routes, plus the admin listing.
+// Served here (not passed to Ruby) so a signed link still resolves without one.
 pub(super) async fn newsletter_route(
     method: &str,
     path: &str,
@@ -52,11 +42,8 @@ pub(super) async fn newsletter_route(
     }
 }
 
-/// POST /newsletter/subscribers — Subscribe on a new email, AddName on a
-/// returning one (the two-step public signup form's own step
-/// 1/step 2 — the site's signup form documents the full
-/// reasoning). The response carries the subscriber's resulting status,
-/// `pending` for a new subscriber.
+// Called twice by the two-step signup form: first without a name (Subscribe),
+// then with one (AddName).
 async fn newsletter_subscribe_route(
     provider: &NewsletterProvider,
     raw_body: &str,
@@ -121,14 +108,9 @@ async fn newsletter_subscribe_route(
     respond(200, "application/json", &json!({"email": email, "status": status}).to_string())
 }
 
-/// GET /newsletter/subscribers — every subscriber, alphabetically by
-/// email (Newsletter::Subscriber.Listing's own declared order) — the
-/// admin overview/Users pages' own read. Read directly off `instances`
-/// rather than `dispatch::query` (which would need the qualified
-/// question name resolved against `config.domain`, but Subscriber lives
-/// under "Newsletter", not `config.domain` -- same cross-chapter
-/// reasoning `instances_for(&read, "Payments::Payment#")` above already
-/// follows for reading Payment).
+// Reads directly off `instances`, not `dispatch::query`: Subscriber lives
+// under the Newsletter chapter, not `config.domain`, so the qualified
+// question name would not resolve there.
 async fn newsletter_subscribers_list_route(provider: &NewsletterProvider, client: &Mutex<Client>, wasm_path: &Path) -> Value {
     let read = match dispatch::read(client, wasm_path).await {
         Ok(r) => r,
@@ -152,9 +134,7 @@ async fn newsletter_subscribers_list_route(provider: &NewsletterProvider, client
 const CONFIRM_PURPOSE: &str = "newsletter-confirm";
 const CONFIRM_TTL_SECS: u64 = 14 * 24 * 60 * 60;
 
-/// The secret the confirm links are signed with: the session secret, the same
-/// one every other signed token here uses. `None` while it is unset, in which
-/// case no link can be signed and none is sent.
+// SESSION_SECRET; unset means no confirm link can be signed and none is sent.
 fn confirm_secret() -> Option<String> {
     std::env::var("SESSION_SECRET").ok().filter(|s| !s.is_empty())
 }
@@ -163,25 +143,20 @@ fn confirm_token(secret: &str, email: &str) -> String {
     auth::purpose_token(secret, CONFIRM_PURPOSE, json!({ "email": email }), CONFIRM_TTL_SECS)
 }
 
-/// Whether `token` was minted for exactly this `email`, for this purpose, and
-/// has not expired.
 fn confirm_token_matches(secret: &str, token: &str, email: &str) -> bool {
     auth::verify_purpose_token(secret, CONFIRM_PURPOSE, token)
         .and_then(|claims| claims.get("email").and_then(|v| v.as_str()).map(|signed| signed == email))
         .unwrap_or(false)
 }
 
-/// The link in the confirmation email: the site's own confirm page, carrying
-/// the address and the signed token (encoded, so a `+` in the local part
-/// survives). That page calls back to the confirm route below.
+// Percent-encodes the address so a '+' in the local part survives the URL.
 fn confirm_url(site_url: &str, email: &str, token: &str) -> String {
     let mut url = reqwest::Url::parse(&format!("{site_url}/newsletter-confirmed.html")).unwrap_or_else(|_| reqwest::Url::parse("http://invalid.invalid/").unwrap());
     url.query_pairs_mut().append_pair("email", email).append_pair("token", token);
     url.to_string()
 }
 
-/// The one cooldown every confirmation email goes through. Per process: see
-/// `ConfirmationCooldown`.
+// Per-process only (not shared across instances); see `ConfirmationCooldown`.
 fn confirmation_cooldown() -> &'static cooldown::ConfirmationCooldown {
     static COOLDOWN: OnceLock<cooldown::ConfirmationCooldown> = OnceLock::new();
     COOLDOWN.get_or_init(|| cooldown::ConfirmationCooldown::new(cooldown::WINDOW, cooldown::CAPACITY))
@@ -193,12 +168,9 @@ fn confirmation_body(confirm_url: &str) -> String {
     )
 }
 
-/// Emails the signed confirm link to `email`. Best effort: a subscriber who
-/// signs up must never see an error because mail is down or unconfigured, so
-/// every failure is logged (without the address) and swallowed, and the
-/// subscriber simply stays `pending`. An address that was already mailed a
-/// confirmation inside the cooldown window is not mailed again, so the form
-/// cannot be used to flood someone else's inbox.
+// Best-effort: failures are swallowed (subscriber stays `pending`) so a
+// flaky mail provider never surfaces as a signup error. Cooldown-gated so
+// the form can't be used to flood an address with repeat confirmations.
 pub(super) async fn send_confirmation(email: &str) {
     let Some(secret) = confirm_secret() else {
         eprintln!("newsletter: SESSION_SECRET is not set, so no confirmation link can be signed; the subscriber stays pending");
@@ -230,10 +202,8 @@ pub(super) async fn send_confirmation(email: &str) {
     }
 }
 
-/// For a subscriber the domain just created as a side effect of something
-/// else (a registration that ticked the newsletter box): email the confirm
-/// link only when the address is now a pending subscriber. A registrant
-/// already confirmed, or unsubscribed, is left alone.
+// Only mails when the address is now `pending`; an already-confirmed or
+// unsubscribed registrant is left alone.
 pub(super) async fn send_confirmation_if_pending(email: &str, client: &Mutex<Client>, wasm_path: &Path) {
     let Some(provider) = ir().and_then(newsletter_provider) else {
         return;
@@ -249,14 +219,10 @@ pub(super) async fn send_confirmation_if_pending(email: &str, client: &Mutex<Cli
     }
 }
 
-/// GET /newsletter/subscribers/confirm?email=...&token=... — the token is the
-/// signed one the confirmation email carries (`confirm_token`), and must have
-/// been minted for this exact address. Without it, or with a wrong or expired
-/// one, the route refuses: an address alone no longer confirms anyone.
-/// Idempotent — Confirm only dispatches when the subscriber is actually
-/// `pending` (its own `given` refuses a second attempt outright), so a guest
-/// double-clicking, or a mail client prefetching the link, still lands on the
-/// same success response instead of a 422.
+// The token must have been minted for this exact address (`confirm_token`);
+// a missing, wrong or expired one refuses before any subscriber is touched.
+// Idempotent: dispatches Confirm only while still `pending`, so a double
+// click or link-prefetch lands on the same success response, not a 422.
 async fn newsletter_confirm_route(provider: &NewsletterProvider, query: &HashMap<String, String>, client: &Mutex<Client>, wasm_path: &Path, config: &LineageConfig, invoker: &dyn LambdaInvoker) -> Value {
     let Some(email) = query.get("email") else {
         return respond(400, "application/json", &json!({"error": "email"}).to_string());
@@ -293,10 +259,8 @@ async fn newsletter_confirm_route(provider: &NewsletterProvider, query: &HashMap
     respond(200, "application/json", &json!({"email": email, "status": status}).to_string())
 }
 
-/// The refusal for an unsubscribe request that does not carry a valid signed
-/// token for its own address: 400 with no address, 403 with a missing, wrong,
-/// other-address or expired token, or when there is no secret to check against.
-/// On success, the address.
+// 400 with no address; 403 for a missing, wrong, other-address or expired
+// token, or no secret to check against. Otherwise Ok(email).
 fn unsubscribe_authorized<'a>(secret: Option<&str>, query: &'a HashMap<String, String>) -> Result<&'a str, Value> {
     let Some(email) = query.get("email") else {
         return Err(respond(400, "application/json", &json!({"error": "email"}).to_string()));
@@ -312,15 +276,9 @@ fn unsubscribe_authorized<'a>(secret: Option<&str>, query: &'a HashMap<String, S
     }
 }
 
-/// GET /newsletter/subscribers/unsubscribe?email=...&token=... — same shape as
-/// newsletter_confirm_route above, and like it the token must be the signed
-/// one the emails carry (`unsubscribe_token`), minted for this exact address;
-/// anything else is a 403 before any subscriber is looked up. Ported from
-/// the Ruby HTTP adapter's own route (that one had no token), with the same
-/// idempotency reasoning: Unsubscribe's own `given` only accepts a pending or confirmed
-/// subscriber, so a repeat click on an already-unsubscribed row would
-/// otherwise 422 instead of showing the same success page). This is the
-/// route the site's unsubscribed page fetches server-side.
+// Same token/idempotency shape as newsletter_confirm_route: Unsubscribe's
+// own `given` accepts a pending or confirmed subscriber, so a repeat click
+// on an already-unsubscribed row lands on the same success response.
 async fn newsletter_unsubscribe_route(provider: &NewsletterProvider, query: &HashMap<String, String>, client: &Mutex<Client>, wasm_path: &Path, config: &LineageConfig, invoker: &dyn LambdaInvoker) -> Value {
     let email = match unsubscribe_authorized(confirm_secret().as_deref(), query) {
         Ok(email) => email,

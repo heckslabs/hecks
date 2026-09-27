@@ -1,25 +1,13 @@
-//! Port of `rust/project/dependency_planning.rb` — read that file's own
-//! header in full for why this is a separate, independent re-derivation
-//! (never a shared field ferried through ir.json) of `Runtime::
-//! DependencyPlanning::Analyzer#call`'s `complete_state? &&
-//! state_independent?` predicate, and why that's the right shape for
-//! BUG#28 (QualityControl ledger) rather than the more obvious-looking
-//! "compute it once in Ruby, read a bool here" alternative.
-//!
-//! Mirrors the Ruby file function-for-function so the two stay directly
-//! diffable; `spec/codegen_parity_spec.rb`'s existing whole-file
-//! byte-identity check is what proves they agree.
+//! Port of `rust/project/dependency_planning.rb`, an independent re-derivation of the
+//! Analyzer's `complete_state? && state_independent?` predicate. Mirrors the Ruby file.
 
 use crate::json::Json;
 use crate::literal::{self, Literal};
 use std::collections::{HashMap, HashSet};
 
-/// `complete_state_creation?` — see the Ruby file's own header (BUG#22,
-/// QualityControl ledger): `state_independent?`'s conjunct alone, split
-/// out because `registry.rb`'s router needs it independently, to decide
-/// whether a route given to a creating command should be checked against
-/// its derived identity at all (`complete_state?` true) or force a plain
-/// find-or-`NotFound` instead (`complete_state?` false, the legacy path).
+/// True when every owner field of a creating command is written from known values.
+///
+/// The router uses it alone to decide whether a route is checked against derived identity.
 pub fn complete_state_creation(aggregate: &Json, command: &Json, value_objects_by_name: &HashMap<String, &Json>) -> bool {
     let owner_fields = owner_fields(aggregate);
     let payload_fields: HashSet<String> = command.get("attributes").map(Json::each).unwrap_or(&[]).iter().map(|a| crate::attr::name(a).to_string()).collect();
@@ -28,11 +16,9 @@ pub fn complete_state_creation(aggregate: &Json, command: &Json, value_objects_b
     !disqualified && owner_fields.iter().all(|field| known_writes.contains(field))
 }
 
-/// `state_independent_creation?` — see the Ruby file's own header.
-/// Only meaningful for a command `crate::shared::creates_owner` already
-/// answered `true` for. `value_objects_by_name` — the same domain-wide
-/// map `emit_command`'s own caller already built, reused rather than
-/// rebuilt.
+/// True when a creating command's result does not depend on prior state.
+///
+/// Only meaningful for a command `crate::shared::creates_owner` answered `true` for.
 pub fn state_independent_creation(aggregate: &Json, command: &Json, value_objects_by_name: &HashMap<String, &Json>) -> bool {
     if !complete_state_creation(aggregate, command, value_objects_by_name) {
         return false;
@@ -57,7 +43,6 @@ pub fn state_independent_creation(aggregate: &Json, command: &Json, value_object
     })
 }
 
-/// `creation_owner_fields`, ported directly.
 fn owner_fields(aggregate: &Json) -> HashSet<String> {
     let mut fields: HashSet<String> = aggregate.get("attributes").map(Json::each).unwrap_or(&[]).iter().map(|a| crate::attr::name(a).to_string()).collect();
     if let Some(lifecycle) = aggregate.get("lifecycle") {
@@ -75,7 +60,6 @@ enum Classification {
     Unresolved,
 }
 
-/// `creation_classify_symbol`, ported directly.
 fn classify_symbol(name: &str, payload_fields: &HashSet<String>, owner_fields: &HashSet<String>) -> Classification {
     if payload_fields.contains(name) {
         Classification::Known
@@ -86,10 +70,8 @@ fn classify_symbol(name: &str, payload_fields: &HashSet<String>, owner_fields: &
     }
 }
 
-/// `creation_classify_source`, ported directly — `"state"` (a `StateRef`)
-/// mirrors the live Ruby Analyzer's own missing `when StateRef` branch
-/// (falls to `else -> true`) faithfully, not "correctly" — see the Ruby
-/// file's own comment on this exact point.
+// A `StateRef` source falls through to `Known`, matching the Ruby Analyzer, which has no
+// `when StateRef` branch.
 fn classify_source(source: &Json, payload_fields: &HashSet<String>, owner_fields: &HashSet<String>) -> Classification {
     match source.get("kind").map(Json::to_s).as_deref() {
         Some("argument") => classify_symbol(&source.get("name").map(Json::to_s).unwrap_or_default(), payload_fields, owner_fields),
@@ -97,7 +79,6 @@ fn classify_source(source: &Json, payload_fields: &HashSet<String>, owner_fields
     }
 }
 
-/// `creation_known_writes`, ported directly.
 fn known_writes(
     aggregate: &Json,
     command: &Json,
@@ -116,9 +97,7 @@ fn known_writes(
         known.insert(field.clone());
     }
 
-    // `analyze_lifecycle`'s own `state_reads << lifecycle.field if
-    // command.from` — a creating command guarded by a lifecycle `from:`
-    // state has no prior state to check.
+    // A creating command guarded by a lifecycle `from:` state has no prior state to check.
     let mut disqualified = command.get("from").is_some() && aggregate.get("lifecycle").is_some();
 
     for mutation in command.get("mutations").map(Json::each).unwrap_or(&[]) {
@@ -154,9 +133,7 @@ fn known_writes(
                 }
             }
             "increment" | "decrement" | "multiply" | "clamp" | "remove" => {
-                // Stateful — never contributes to `known_writes`; `target`
-                // staying out of it is already enough (see the Ruby
-                // file's own comment on this exact arm).
+                // Stateful: never contributes to `known_writes`.
             }
             _ => disqualified = true,
         }
@@ -165,7 +142,6 @@ fn known_writes(
     (known, disqualified)
 }
 
-/// `creation_deterministic_initial_value?`, ported directly.
 fn deterministic_initial_value(attr: &Json, value_objects_by_name: &HashMap<String, &Json>) -> bool {
     if crate::attr::list(attr) || crate::attr::optional(attr) || crate::attr::default(attr).is_some() {
         return true;
@@ -177,17 +153,12 @@ fn deterministic_initial_value(attr: &Json, value_objects_by_name: &HashMap<Stri
     }
 }
 
-/// `creation_rule_state_independent?`, ported directly. `before` stands
-/// in for the Ruby port's `phase == :before` (a `given`, vs an `ensures`/
-/// invariant).
+// `before` is true for a `given`, false for an `ensures` or invariant.
 fn rule_state_independent(ast: &Json, before: bool, payload_fields: &HashSet<String>, owner_fields: &HashSet<String>) -> bool {
     paths(ast, &HashSet::new()).iter().all(|path| path_state_independent(path, before, payload_fields, owner_fields))
 }
 
-/// `creation_paths`, ported node-for-node over the same JSON `ast` shape
-/// `expr_emitter.rs` already walks — see the Ruby file's own header for
-/// why `"lookup"`/`"block_predicate"` are the only two special-cased
-/// node kinds.
+// Only `lookup` and `block_predicate` nodes are special-cased; the rest recurse.
 fn paths(node: &Json, bound_names: &HashSet<String>) -> Vec<String> {
     match node {
         Json::Object(pairs) => {
@@ -220,7 +191,6 @@ fn paths(node: &Json, bound_names: &HashSet<String>) -> Vec<String> {
     }
 }
 
-/// `creation_path_state_independent?`, ported directly.
 fn path_state_independent(path: &str, before: bool, payload_fields: &HashSet<String>, owner_fields: &HashSet<String>) -> bool {
     let head = path.split('.').next().unwrap_or("");
 

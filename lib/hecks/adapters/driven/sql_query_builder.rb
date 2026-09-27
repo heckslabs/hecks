@@ -6,28 +6,10 @@ require_relative "../../runtime/value"
 
 module Hecks
   module Adapters
-    # The one SQL query compilation, shared by the SQLite and Postgres
-    # adapters — one walk rather than a near-line-identical copy per
-    # adapter, because copies can only drift. Every declared operator
-    # compiles fully into SQL or the query refuses loudly; the null-policy
-    # predicate, the comma-separated `in` convention, and the identity
-    # ORDER BY fallback are spelled once, here.
-    #
-    # What a dialect actually differs on is narrow, and each adapter
-    # supplies exactly those hooks:
-    #
-    #   placeholder(binds, value)     — "?" or "$N", recording the bind
-    #   contains_clause(expr, ph)     — instr() or position(), for a scalar field
-    #   list_contains_clause(name, member, ph) — real element containment,
-    #                                  for a `list_of` field (json_each /
-    #                                  jsonb_array_elements)
-    #   empty_in_clause               — "0" or "FALSE"
-    #   comparable_expression(e, v)   — ::numeric cast, where the dialect casts
-    #   plain_column(name)            — a real column or a jsonb path
-    #   nested_expression(name, path, member) — json_extract or state #>>
-    #   order_clause(order_by, policy)
-    #   execute_query(sql, binds)     — run it, return instances
-    #   dialect_name                  — for the refusal message
+    # The SQL query compilation shared by the SQLite and Postgres adapters. Each dialect
+    # supplies hooks: placeholder, contains_clause, list_contains_clause, empty_in_clause,
+    # comparable_expression, plain_column, nested_expression, order_clause, execute_query
+    # and dialect_name.
     module SqlQueryBuilder
       COMPARATORS = {
         "eq" => "=", "ne" => "<>", "gt" => ">", "gte" => ">=", "lt" => "<", "lte" => "<="
@@ -52,11 +34,7 @@ module Hecks
         sql << " WHERE #{clauses.join(' AND ')}" unless clauses.empty?
         sql << order_by_sql(declared)
         sql << " LIMIT #{placeholder(binds, query_value(declared.limit.value, args).to_i)}" if declared.limit
-        # An offset with no declared limit — SQLite refuses a bare OFFSET
-        # outright (LIMIT -1 is its unbounded idiom) while Postgres accepts
-        # one, so the dialect supplies its own unbounded spelling. Found by
-        # the adapter-agreement gate on its first run, not by either
-        # adapter's own spec: each was self-consistent, they just disagreed.
+        # SQLite refuses a bare OFFSET, so the dialect spells its own unbounded limit.
         sql << unbounded_limit if !declared.limit && declared.offset
         sql << " OFFSET #{placeholder(binds, query_value(declared.offset.value, args).to_i)}" if declared.offset
         execute_query(sql, binds)
@@ -64,12 +42,7 @@ module Hecks
 
       private
 
-      # Every declared `where` clause, compiled in declaration order — a
-      # null-policy predicate short-circuits the ordinary comparator path
-      # per clause, same as it did inline. `binds` is populated in place
-      # (the same array `query` goes on to push LIMIT/OFFSET placeholders
-      # into afterward), so pulling this loop out changes nothing about
-      # bind-parameter order.
+      # `binds` is filled in place so LIMIT/OFFSET placeholders follow the where binds.
       def where_clauses(declared, args, binds)
         declared.wheres.each_with_object([]) do |clause, clauses|
           value = query_value(clause.value, args)
@@ -103,71 +76,26 @@ module Hecks
           members = in_members(value)
           return empty_in_clause if members.empty?
 
-          # **Both sides as text**. `in` is a textual reading everywhere else
-          # — Ports::Query::InMemory#holds? compares `held.to_s` against
-          # stringified members, and `in_members` above stringifies its
-          # own — so a numeric field was the one shape where the engines
-          # could not agree: `in_members` binds '100', while the column
-          # expression yields the number 100, and `100 IN ('100','300')`
-          # is false in SQLite (a json_extract result carries no column
-          # affinity to coerce it) where Memory matched. Casting the
-          # expression rather than typing the members keeps one rule for
-          # every field: no type inference, and `in` means the same thing
-          # on a String, an Integer, and a value-object member.
-          #
-          # `eq`/`gt`/`lt` never had this problem because they bind the
-          # value's own type and route through `comparable_expression`,
-          # which Postgres overrides to cast numerics.
+          # `in` reads as text everywhere: casting the column keeps a numeric field
+          # matching the stringified members (SQLite's json_extract carries no affinity).
           "CAST(#{expression} AS TEXT) IN (#{members.map { |member| placeholder(binds, member) }.join(', ')})"
         else
           raise ArgumentError, "#{dialect_name} query adapter does not support #{oper.inspect}"
         end
       end
 
-      # A real array already says where its members end. Splitting one on
-      # commas re-reads a boundary it already drew — and an id is a
-      # domain value (Naming::IDENTITY_JOIN joins a composite identity's
-      # own parts, and the parts it joins are whatever an identity path
-      # pulled out of real data), so a name carrying a comma would
-      # silently become two members matching the wrong rows, or nothing.
-      # Calling `value.to_s` unconditionally would mean only a
-      # comma-joined string ever works here, while
-      # Ports::Query::InMemory and QueryInterpreter's own `members`
-      # handle a real Array — three implementations of `in`,
-      # two readings of it. Narrower than those two on one point,
-      # deliberately: they unwrap a value-object/Hash element to its
-      # own scalar first (`comparable`) before stringifying, a rule
-      # this doesn't reproduce — every real caller of `in` today, and
-      # the cross-aggregate hop this exists for, passes plain scalar
-      # ids, never a value-object element.
+      # A real array is not re-split on commas: an id is a domain value and may hold one.
+      # Unlike the other engines, a Hash or value-object element is not unwrapped.
       def in_members(value)
         return value.map(&:to_s).reject(&:empty?) if value.is_a?(Array)
 
         value.to_s.split(",").map(&:strip).reject(&:empty?)
       end
 
-      # Every declared field compiles into an expression over the stored
-      # shape — or the query never runs. The member-picking rules are the
-      # same in both dialects: a value-object field compares through the
-      # member the bound value (or the declared types) say is numeric,
-      # falling back to the one-field convention `value`.
-      #
-      # A reference is an ID, stored as a bare scalar (never wrapped —
-      # `Runtime::Value.refuse_object_reference` guarantees it), so it
-      # takes the same plain-column path as any other non-value-object
-      # attribute. Excluding it into the value-object member-picking logic
-      # compiles a nested read against a row that has no nested key — a
-      # path that can never match. Measured, not assumed: a `where` on a
-      # has_one/belongs_to/reference_to field returned zero rows against
-      # real data until that exclusion was removed.
-      # `member` resolves through two ordered fallback tiers — the bound
-      # value's own numeric field first, then the declared value object's
-      # numeric-or-sole attribute — each documented above as fixing a
-      # real, measured bug (a reference field matching nothing, a
-      # single-attribute VO silently falling to the wrong convention).
-      # Splitting the tiers apart would separate two writes to the same
-      # `member` local across method boundaries, hiding the fallback
-      # order that makes them correct together.
+      # Compiles a declared field into an expression over the stored shape. A value-object
+      # field compares through its numeric member, else its sole attribute, else `value`.
+      # A reference is a bare id, so it takes the plain-column path.
+      # The two member fallbacks stay in one method so their order is visible.
       # rubocop:disable-next Metrics/CyclomaticComplexity
       # rubocop:disable-next Metrics/PerceivedComplexity
       def query_expression(field, value: nil)
@@ -180,40 +108,20 @@ module Hecks
         member = if path.empty? && value
                    hash = value.is_a?(Runtime::Value) ? value.to_h : value
                    numeric = hash.is_a?(Hash) && hash.find { |_key, item| item.is_a?(Numeric) }
-                   # Not &.-able: `numeric` can be `false` (hash.is_a?(Hash) came
-                   # back false) as well as nil (.find came back empty) — `&.`
-                   # only guards nil, so `false.first` raises. False positive.
+                   # `numeric` can be false, which `&.` does not guard.
                    # rubocop:disable-next Style/SafeNavigation
                    numeric ? numeric.first : nil
                  end
         member ||= if path.empty? && attribute && value_object?(attribute)
                      object = Runtime::Value.value_object_for(@aggregate, attribute.type)
-                     # A sole attribute is the fallback when no member is
-                     # numeric — a single-attribute value object is its one
-                     # field whatever that field is named (`Behaviour::
-                     # ValueObject#sole_attribute`, the same strict rule
-                     # `Runtime::Value`'s own `.value` alias enforces), so
-                     # `EmailAddress{address}` compiles to `$.address`
-                     # rather than falling through to the dialects' own
-                     # `member || "value"` convention and silently matching
-                     # nothing. Multi-field non-numeric shapes still fall
-                     # through to that convention, unchanged — there is no
-                     # single field to honestly pick for them here either.
+                     # A single-attribute value object is its one field, whatever it is named.
                      (Forms::ValueObjectShape.numeric_member(object) || object.sole_attribute)&.name
                    end
         nested_expression(name, path, member)
       end
 
-      # A numeric member wins if the value object has one (Price, Money —
-      # what every ordered comparison in the corpus until now compared),
-      # otherwise the same single-field fallback `query_expression`'s own
-      # `nested_expression(name, path, member || "value")` already
-      # makes for the column side — a plain `attribute :value, String`
-      # value object (IdentityId, RoleName, ...) has no numeric member at
-      # all, and returning nil there silently turned an equality
-      # comparison into `IS NULL`, matching nothing. Both sides of one
-      # comparison have to agree on which field they mean, or they
-      # compare two different things and call it a where clause.
+      # Picks the same member `query_expression` does, so both sides of a comparison
+      # agree on which field they mean.
       def query_value(value, args)
         value = args[value] if value.is_a?(Symbol)
         hash = value.is_a?(Runtime::Value) ? value.to_h : value
@@ -233,17 +141,9 @@ module Hecks
         !attr.list? && !Runtime::Value.value_object_for(@aggregate, attr.type).nil?
       end
 
-      # `contains` on a `list_of` field means real element membership, not
-      # a substring search over the column's raw JSON text — the reading
-      # QueryInterpreter#holds? and Ports::Query::InMemory already give a
-      # real Array, and a substring search would disagree with it (a
-      # substring match over `[{"value":"not_high_risk"}]` falsely matches
-      # "high_risk"). Returns nil for a non-list field (the caller falls
-      # back to `contains_clause`, unchanged), "" for a list of bare
-      # scalars (no member to walk into), or the one field name a
-      # single-field value-object element carries. A list of a
-      # multi-field value object has no one scalar to compare against and
-      # is refused rather than guessed.
+      # `contains` on a list means element membership, not a substring search over JSON text.
+      # Returns nil for a non-list field, "" for bare scalars, else the sole member name.
+      # Raises for a multi-field value object.
       def list_member(field)
         return nil if field.to_s.include?(".")
 

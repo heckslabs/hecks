@@ -2,32 +2,8 @@ require_relative "gem_pin/published_versions"
 
 module Hecks
   module Release
-    # Finds the hecks version a project runs on, and refuses one that a
-    # stranger could not install.
-    #
-    # ## Why it exists
-    #
-    # A project that is copied out of its own workspace (handed to someone who
-    # will `bundle install` it, or built in an image with no sibling checkout)
-    # has to name a hecks release RubyGems actually publishes. A `path:` or
-    # `git:` source only works where the path or remote is reachable, and a
-    # version that was never published resolves nowhere. This reads the
-    # project's Gemfiles and lockfiles, without running Bundler, and says which
-    # version each pins or refuses.
-    #
-    # ## Resolution
-    #
-    # For each `Gemfile` under the root (a project can hold several, such as a
-    # domain and a helper app) the pin is, in order: the version its
-    # `Gemfile.lock` resolved, or the newest stable release its version
-    # constraint allows. Each pin must be published; the Gemfiles need not
-    # agree.
-    #
-    # ## Injectable network
-    #
-    # The published list comes from `published:`, any object answering
-    # `include?(version)` and `newest_satisfying(requirement)`. The default asks
-    # RubyGems; a caller without network hands in its own.
+    # Reads a project's Gemfiles and lockfiles (no Bundler run) and says which
+    # hecks version each pins, refusing any version RubyGems does not publish.
     class GemPin
       GEM_LINE = /^\s*gem\s+["']hecks["'](?<rest>.*)$/
       SOURCE_OPTION = /\b(?:path|git|github|gitlab|bitbucket|branch|ref|tag):/

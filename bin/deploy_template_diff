@@ -1,29 +1,11 @@
 #!/usr/bin/env ruby
 
-# Compares two CloudFormation templates offline and reports what differs.
+# Compares two CloudFormation templates offline and reports differences by
+# logical id; --strict also counts cosmetic differences (comments, key order).
 #
 #   bin/deploy_template_diff <before.yaml> <after.yaml> [--json] [--strict]
 #
-# The usual pair is the template a stack was deployed from and the template
-# `bin/project_deploy` generates for it: when they differ in nothing but
-# comments, key order and spelling, a change set against the live stack is
-# empty too. This is the offline half of that check; it reads two files and
-# nothing else, never calls AWS, and writes nothing.
-#
-# Resources, parameters, outputs, conditions and mappings are reported as
-# added (+), removed (-) or changed (~) by logical id, with every changed
-# property and its value before and after. CloudFormation short forms
-# (`!Ref`, `!GetAtt`, `!Sub`) are read as the long forms they stand for.
-# See `Hecks::Projections::Deploy::TemplateDiff` for what counts as a
-# difference and what does not.
-#
-# Options:
-#   --json    write the report as JSON instead of text
-#   --strict  count differences that are only in how a value is written
-#             (`256` against `"256"`) as differences
-#
-# Exit status: 0 when the templates do not differ, 1 when they do, 2 when a
-# file is missing or is not a template.
+# Exit status: 0 no diff, 1 diff, 2 bad input.
 
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
 require "optparse"

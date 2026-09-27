@@ -2,39 +2,12 @@ require "spec_helper"
 require "hecks/fuzzing"
 require "hecks/fuzzing/self_consistency"
 
-# Proving each check kind can actually fire — not just that it stays
-# quiet against a well-behaved domain (the "clean" example below already
-# covers that; on its own it would prove nothing about whether a real
-# regression could ever be caught). Each `describe` block below
-# temporarily breaks one real, production code path the corresponding
-# check depends on — `Adapters::Heki#all` (the cold-read side of
-# rehydration), `Adapters::Heki#append` (the durable-write side, made to
-# leak a hidden counter into what gets persisted), `Runtime::Value#to_json`
-# (the serialize half of check 3's own round trip) — confirms the check
-# fires, then restores the original method and confirms a follow-up
-# replay is clean again. `instance_method`/`define_method(name, method)`
-# is what makes the restore exact: the original `UnboundMethod` is
-# captured before the break and reinstalled afterward, in an `ensure`, so
-# a failing expectation never leaves a later example running against a
-# broken runtime.
-#
-# The overlap is real, not a test bug. `check_rehydration`/
-# `check_idempotency`/`check_value_object_round_trip` all ultimately rest
-# on the same JSON serialize/deserialize boundary (`Adapters::Heki`'s own
-# journal write calls `Value#to_json` on every nested value object;
-# `Value.build` is the one door every one of them reconstructs through) —
-# see `lib/hecks/fuzzing/self_consistency.rb`'s own header. So the
-# `Heki#all` break below fires only `check_rehydration` (the read side,
-# in isolation), but the `Value#to_json` break fires both `check_
-# rehydration` (Heki's own journal write is corrupted too) and `check_
-# value_object_round_trip` — that is a true fact about how deeply these
-# three checks share one mechanism, not an artifact of a sloppy break.
+# Each check kind must be able to fire: each `describe` breaks one production path, confirms
+# the finding, then restores the original method in `ensure` and confirms a clean replay.
 RSpec.describe "Hecks::Fuzzing::SelfConsistency" do
   SELF_CONSISTENCY_PIZZAS = File.join(InMemoryDomain::ROOT, "examples/pizzas")
 
-  # **One fixed, deterministic sequence** — seed 2 is not special, just
-  # pinned so every example (and the "restore" half of each) replays the
-  # identical steps and gets the identical, reproducible baseline.
+  # One fixed sequence so every example, and its restore half, replays identical steps.
   STEPS = Hecks::Fuzzing::SequenceGenerator.generate(SELF_CONSISTENCY_PIZZAS, seed: 2, steps: 15).freeze
 
   def self_consistency_findings

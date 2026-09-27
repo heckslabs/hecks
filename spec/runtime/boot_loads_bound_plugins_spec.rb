@@ -7,13 +7,9 @@ require "tmpdir"
 require_relative "../support/postgres_probe"
 require_relative "../support/fenced_owner"
 
-# A domain that declares `persisted_by "PostgresEra"` boots with the era plugin
-# loaded and its gates registered, without the application requiring
-# "hecks/ports/persistence/plugins/era" first.
-#
-# The plugin registers itself process-wide when it loads, and other specs load
-# it, so each example runs the boot in a fresh Ruby process and reads the answer
-# back from its output.
+# A domain bound to PostgresEra boots with the era plugin loaded, without the
+# application requiring the plugin file itself. Each example boots in a fresh
+# Ruby process since the plugin registers itself process-wide.
 RSpec.describe "Booting a domain bound to a lazily loaded persistence plugin" do
   let(:scratch) { Dir.mktmpdir("hecks-bound-plugin-spec") }
   let(:lib) { File.expand_path("../../lib", __dir__) }
@@ -65,8 +61,7 @@ RSpec.describe "Booting a domain bound to a lazily loaded persistence plugin" do
     WORLD
   end
 
-  # Runs a script in a fresh Ruby that has required hecks and nothing else, and
-  # parses the one JSON line it prints.
+  # Runs a script in a fresh Ruby process and parses the one JSON line it prints.
   def run_fresh(script)
     out, err, status = Open3.capture3(RbConfig.ruby, "-I", lib, "-e", "require 'hecks'\nrequire 'json'\n#{script}")
     raise "fresh process failed:\n#{err}" unless status.success?

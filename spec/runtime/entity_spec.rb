@@ -45,10 +45,8 @@ narrative: { text: "Groceries" })
     runtime.dispatch_flat("Banking::Account.Open", customer: "c", number: { value: "a1" },
                                               kind: { name: "current" }, daily_limit: { cents: 50_000 })
 
-    # Narrative carries a `pattern:` (the whitespace-only sweep) as well as
-    # its "a movement explains itself" invariant — attribute coercion runs
-    # before invariants, so a blank narrative is refused as a TypeMismatch,
-    # not an InvariantViolation, before sets ever appends the entry.
+    # Coercion runs before invariants, so a blank narrative is a TypeMismatch,
+    # not an InvariantViolation.
     expect do
       runtime.dispatch_flat("Banking::Account.Credit", number: { value: "a1" }, amount: { cents: 100, currency: "USD" },
 narrative: { text: "" })
@@ -75,13 +73,8 @@ narrative: { text: "" })
     runtime.dispatch_flat("Banking::Account.LedgerEntry.Reverse",
                           number: { value: "a1" }, sequence: { value: 2 }, narrative: { text: "Once" })
 
-    # LedgerEntry.Reverse also carries its own explicit `given("entry is
-    # posted")` (a customer/account/entry status guard) — since
-    # `enforce_givens` runs before `admissible_transition` in
-    # DISPATCH_ORDER, an already-reversed entry is refused there first:
-    # GivenNotMet, not the lifecycle's own LifecycleRefused. Still refused
-    # either way — see spec/runtime/command_rules_spec.rb's own matching
-    # note on Account.FreezeAccount/Transfer.Settle for the general shape.
+    # `enforce_givens` runs before `admissible_transition` (DISPATCH_ORDER), so the
+    # given refuses first: GivenNotMet, not LifecycleRefused.
     expect do
       runtime.dispatch_flat("Banking::Account.LedgerEntry.Reverse",
                             number: { value: "a1" }, sequence: { value: 2 }, narrative: { text: "Twice" })
@@ -95,23 +88,14 @@ narrative: { text: "" })
     expect do
       runtime.dispatch_flat("Banking::Account.LedgerEntry.Reverse",
                             number: { value: "a1" }, sequence: { value: 99 }, narrative: { text: "Ghost" })
-      # The message names the declared path now ("sequence.value"), not just the
-      # head — the same precision every construct's not-found message carries.
+      # The message names the declared path ("sequence.value"), not just the head.
     end.to raise_error(Hecks::Runtime::NotFound,
                        'no LedgerEntry with sequence.value 99 on Account "a1"')
   end
 
   it "refuses an element by an identity that fails its own type's invariant as NotFound, not InvariantViolation" do
-    # BUG#3 (found live by `bin/qa_sweep`, banking fuzz seed 23) —
-    # `LedgerSequence`'s own "a ledger sequence is positive" invariant used
-    # to be checked while locating the element, before this method ever
-    # asked whether one existed — so `sequence: 0` (which can never be a
-    # real, posted entry's sequence) raised InvariantViolation instead of
-    # the same NotFound `sequence: 99` (a valid-shaped but nonexistent
-    # sequence, the sibling case above) already gets. Rust's own
-    # `extract_wants` never rebuilds a typed value at all for this
-    # addressing path, so it always answered NotFound here — this is the
-    # divergence that closed.
+    # `sequence: 0` fails LedgerSequence's invariant but must still answer NotFound,
+    # as Rust does: its `extract_wants` never rebuilds the typed value.
     runtime = boot_banking
     funded_account(runtime)
 

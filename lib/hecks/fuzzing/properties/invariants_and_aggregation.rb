@@ -2,58 +2,12 @@ module Hecks
   module Fuzzing
     module Properties
       # Stored-record, saga-rehydration, fan-out, and read-model-aggregation
-      # properties: every stored record still satisfies its own declared
-      # invariants, a saga rehydrates cleanly from a checkpoint, a policy's
-      # own for_each/where fans out exactly once per matching row, and a
-      # read model's count/median/group_by answers match an independent
-      # recomputation.
-
-      # Holds stored_records_satisfy_declared_invariants, sagas_rehydrate_cleanly,
-      # fanout_dispatches_once_per_matching_row, aggregation_matches_recompute,
-      # and group_by_matches_recompute, plus the recomputation helpers
-      # (#check_piece_invariants, #eligible_rows, #nest_rows,
-      # #recompute_median) each leans on.
+      # properties, extended into Properties.
       module InvariantsAndAggregation
-        # Every stored record still satisfies its own aggregate's declared
-        # invariants — Admissibility#enforce_invariants (command_rules/
-        # admissibility.rb) checks these after every command's mutations,
-        # before save, the same point `ensures` is checked. Nothing until
-        # now re-checked a record after a whole replay finished, independent
-        # of whichever call site was supposed to have refused a violation
-        # in the first place — a record failing its own declared invariant
-        # here is proof a violating write landed anyway: the call site
-        # stopped calling enforce_invariants, or some other path (a
-        # translation, a backfill) wrote around it entirely.
-        #
-        # `history[:instances]` entries are already plain, symbol-keyed
-        # state Hashes (Replay.call's own `record.state`) — called against
-        # Evaluator.call the same way ValueObject::Builder#build already
-        # does for a VO's own invariants (value/coercion.rb), no GuardState
-        # wrapper needed the way enforce_invariants' own live call uses one
-        # (GuardState exists for `parent.`/projected-field dereferencing
-        # mid-dispatch; a stored record's own scalar fields need none of
-        # that to re-check a same-aggregate invariant against itself).
-        #
-        # Real target: Account's own `invariant("the balance never goes
-        # negative") { balance.cents >= 0 }`.
-        #
-        # Entity#invariants (round 7) closes here too, not for free —
-        # `stored_records_satisfy_declared_invariants` only ever checked
-        # the aggregate's own flat state; a piece's own invariant is
-        # checked against every element of a `list_of` field, a genuinely
-        # different walk `check_piece_invariants` below makes,
-        # independently of `Admissibility#check_entity_invariants` (the
-        # live enforcement path this property exists to catch drifting
-        # from) — same reasoning `stored_records_satisfy_declared_
-        # invariants`' own top-level check already applies one level up.
-        #
-        # Real target: SafeDepositBox's own Visit — `invariant("a written
-        # note is not blank") { !note || !note.text.to_s.empty? }`.
-        #
-        # @param history [Hash] a replayed history as returned by `Replay.call`
-        # @return [true, String] true if every stored record satisfies its own
-        #   (and its own entities') declared invariants; otherwise a message
-        #   naming the record and the invariant it violates
+        # Every stored record — and every entity nested inside it — still
+        # satisfies its own declared invariants, re-checked independently of
+        # whichever call site (Admissibility#enforce_invariants) was supposed
+        # to have refused a violation live.
         def stored_records_satisfy_declared_invariants(history)
           bluebooks = history.fetch(:bluebooks)
 
@@ -75,18 +29,9 @@ module Hecks
           offenders.empty? || offenders.join("; ")
         end
 
-        # A piece's own invariant, checked against every element a
-        # `list_of` field holds — the same lookup `Admissibility#
-        # check_entity_invariants` makes (`owner.attributes.find { |a|
-        # a.list? && a.type.to_s == entity.hecks_name }`), independently
-        # reapplied here against a stored record's own plain Hash state
-        # rather than a live `Instance`.
-        # @param owner_construct [Bluebook::Aggregate, Bluebook::Entity] the
-        #   construct whose own `list_of` entities to check
-        # @param owner_state [Hash] `owner_construct`'s own stored state
-        # @param key [String] the top-level record key, for the message
-        # @return [String, nil] a message naming the first violating piece found,
-        #   at any nesting depth; `nil` if every piece satisfies its invariants
+        # A piece's own invariant, checked against every element its owner's
+        # `list_of` field holds — reapplies Admissibility#check_entity_invariants'
+        # own lookup against a plain Hash state rather than a live Instance.
         def check_piece_invariants(owner_construct, owner_state, key)
           owner_construct.entities.each do |entity|
             next if entity.invariants.empty?
@@ -110,33 +55,10 @@ module Hecks
           nil
         end
 
-        # A saga instance's own checkpoint survives being written and read
-        # back — the durability contract `SagaInterpreter#checkpoint` makes
-        # (`state:` plus a `deep_copy`d `memory:`, handed to whatever
-        # adapter answers `save_saga`) and `Registry#rehydrate_sagas!`
-        # promises to restore on the next boot (`each_saga` yielding
-        # `[pm, correlation, state, memory]` back into `saga_instances`).
-        # `Replay` captures the live store already materialised the same
-        # way `checkpoint` itself does (`Value.materialize`, not raw
-        # `Runtime::Value`s — see its own comment); this property pushes
-        # that captured memory through the same `JSON.generate` then
-        # `JSON.parse(symbolize_names: true)` round-trip `checkpoint`'s own
-        # `deep_copy` performs (mirrored here rather than called — a
-        # private instance method with no registry to hand it) and checks
-        # it comes back byte-identical. A memory holding anything that
-        # round-trip cannot carry faithfully — a bare Symbol leaf, a
-        # non-JSON type a future field introduces — is corruption the
-        # durable path would introduce on a real restart, caught here
-        # without needing one.
-        #
-        # `declares_state?` (Behaviour::ProcessManager) is the other half:
-        # a live or rehydrated instance sitting in a state the procedure
-        # never declares is the saga-durability twin of
-        # `lifecycle_values_are_declared` above.
-        # @param history [Hash] a replayed history as returned by `Replay.call`
-        # @return [true, String] true if every saga instance holds a declared
-        #   state and its own memory survives a checkpoint round-trip; otherwise a
-        #   message naming the process manager, correlation, and problem
+        # A saga instance's own state is one the process manager declares, and
+        # its memory survives the same JSON round-trip `SagaInterpreter#checkpoint`'s
+        # own `deep_copy` performs (mirrored here, a private instance method
+        # with no registry to hand it).
         def sagas_rehydrate_cleanly(history)
           bluebook = history.fetch(:bluebook)
           process_managers = bluebook.process_managers.to_h { |pm| [pm.name, pm] }
@@ -165,23 +87,10 @@ module Hecks
           offenders.empty? || offenders.join("; ")
         end
 
-        # A `for_each` policy dispatches exactly once per row its declared
-        # query answers — never once for the triggering event regardless of
-        # row count, never skipping a matched row, never firing on a row a
-        # concurrent mutation only made match after the fact. `Replay`
-        # computes the expected row-id set independently, at the same
-        # instant the real dispatch runs (`Replay.expected_fan_out_rows`,
-        # the query oracle's own shape aimed at fan-out: two engines
-        # compared, never one graded against itself), and records it
-        # beside what the reaction log actually shows. `expected_row_ids`
-        # is `nil`, not `[]`, when `policy.where` did not hold — no
-        # dispatch is the claim then, not "dispatched to zero rows," and a
-        # policy that dispatched anyway despite a failing guard is as real
-        # a finding as a row it skipped.
-        # @param history [Hash] a replayed history as returned by `Replay.call`
-        # @return [true, String] true if every fan-out finding's actual dispatches
-        #   match its independently computed expected row set; otherwise a message
-        #   naming the policy, event, and disagreement
+        # A `for_each` policy dispatches exactly once per row its declared query
+        # answers, checked against `Replay.expected_fan_out_rows`'s independent
+        # computation. `expected_row_ids` is `nil`, not `[]`, when `policy.where`
+        # never held — no dispatch is the claim then, not "dispatched to zero rows."
         def fanout_dispatches_once_per_matching_row(history)
           offenders = history.fetch(:fan_outs).filter_map do |finding|
             expected = finding[:expected_row_ids]
@@ -202,38 +111,13 @@ module Hecks
           offenders.empty? || offenders.join("; ")
         end
 
-        # A `count`/`median` report's reduced scalar matches the same
-        # reduction done independently, over the same eligible rows —
-        # `ReadModelInterpreter#project`'s own FK-join (root first, then
-        # each many-side head matched against it) and `#median` (odd →
-        # the true middle, even → the average of the two middles as a
-        # Float, empty → `nil`; `count` is the filtered length, empty →
-        # `0`), reproduced here in plain Ruby against `history[:instances]`
-        # rather than a live registry — `FieldPath.dig` +
-        # `Ports::Query::InMemory.comparable`/`.holds?` are the same two
-        # calls the interpreter itself makes to read a field and judge a
-        # `where`, called here rather than re-derived, so this oracle
-        # cannot drift from what "read a field" or "a clause holds" mean
-        # without the interpreter drifting the identical way.
-        #
-        # Only a report whose `:query` is answered by the same bluebook
-        # `history[:bluebook]` carries (the bare `Domain.report_name`
-        # form, `domain == bluebook.name`) is checked — the same "only
-        # what we have the grammar for" scope `lifecycle_values_are_declared`
-        # already takes for a multi-domain replay.
-        # See the comment above: a closed chain of eligibility guards
-        # ("only a report answered by this bluebook, only a count/median
-        # report, only one with a reduced many-side head") each gating the
-        # next, ending in one independent recomputation compared against
-        # the live answer. The guards are what make this oracle scoped
-        # correctly, not incidental complexity — narrower than "every
-        # branch reads as its own precondition."
+        # A `count`/`median` report's reduced scalar matches the same reduction
+        # done independently over the same eligible rows, reusing FieldPath.dig
+        # and InMemory.comparable/.holds? — the same calls the interpreter
+        # itself makes, so this oracle can't drift from what a field read or a
+        # `where` clause means without the interpreter drifting identically.
         # rubocop:disable-next Metrics/CyclomaticComplexity
         # rubocop:disable-next Metrics/PerceivedComplexity
-        # @param history [Hash] a replayed history as returned by `Replay.call`
-        # @return [true, String] true if every eligible count/median report answer
-        #   matches an independent recomputation; otherwise a message naming the
-        #   query and the disagreement
         def aggregation_matches_recompute(history)
           bluebook = history.fetch(:bluebook)
 
@@ -261,35 +145,10 @@ module Hecks
           offenders.empty? || offenders.join("; ")
         end
 
-        # `aggregation_matches_recompute`'s own shape, extended from
-        # reducing a many-side head to a scalar (count/median) to nesting
-        # it — `ReadModelInterpreter#group_by_target`/`#nest`, reproduced
-        # here in plain Ruby against `history[:instances]` the same way
-        # `eligible_rows` already reproduces the FK-join and `where`
-        # narrowing count/median share. `Value.materialize_unwrapped` is
-        # the same call `#project` makes before nesting (a single-field
-        # value object recurses to its bare scalar — a real grouping key
-        # has to be one) — called here rather than re-derived, so this
-        # oracle cannot drift from what "the group key" means without the
-        # interpreter drifting the identical way.
-        #
-        # A group_by leaf holds one row (ADR 0061, decision D1). Whether two
-        # eligible rows share a full key path is recomputed here from the
-        # rows themselves, independently of any nesting: when they do and the
-        # key path does not cover the aggregate's identity, the ask must have
-        # refused, and an answer is the finding; when none do, the answer must
-        # equal `nest_rows`.
-        #
-        # Real target: AccountsByKind (`group_by :kind, :number`,
-        # rootless — always generator-eligible with `{}` args).
-        # Same closed eligibility-guard chain as aggregation_matches_
-        # recompute just above (see its own comment) — group_by in place
-        # of count/median, nest_rows in place of recompute_median.
-        #
-        # @param history [Hash] a replayed history as returned by `Replay.call`
-        # @return [true, String] true if every group_by report refused exactly when two
-        #   eligible rows share a key path and otherwise matches an independent recompute;
-        #   otherwise a semicolon-joined message naming each offending query
+        # aggregation_matches_recompute's own shape, extended from reducing a
+        # many-side head to a scalar to nesting it (ADR 0061, decision D1): a
+        # group_by leaf holds one row, so two eligible rows sharing a full key
+        # path not covering identity means the ask must have refused.
         def group_by_matches_recompute(history)
           bluebook = history.fetch(:bluebook)
 
@@ -312,12 +171,6 @@ module Hecks
         # Judges one `group_by` ask against the rows it was eligible to see:
         # refused exactly when two of them share a checked key path, and
         # otherwise nested exactly as `nest_rows` nests them.
-        #
-        # @param bluebook [Bluebook::Chapter] the bluebook the read model belongs to
-        # @param asked [Hash] one `history[:queries]` entry, carrying `:instances_at`
-        # @param model [Bluebook::ReadModel] the `group_by` read model asked
-        # @param grouped_head [Hash{Symbol => Object}] the model's one many-side head
-        # @return [String, nil] the offense, or nil when the ask agrees with the recompute
         def group_by_offense(bluebook, asked, model, grouped_head)
           rows = eligible_rows(bluebook, asked.fetch(:instances_at), bluebook.name, model, grouped_head, asked[:args] || {})
           materialized = rows.map { |state| Runtime::Value.materialize_unwrapped(state) }
@@ -335,12 +188,6 @@ module Hecks
         # Judges an ask whose eligible rows share at least one full key path:
         # a checked key path must have refused, and an identity-covering one
         # cannot be shared by rows that hold their identity.
-        #
-        # @param asked [Hash] one `history[:queries]` entry (`:query`, `:args`, `:error`)
-        # @param fields [Array<Symbol>] the read model's `group_by` fields
-        # @param shared [Integer] how many key paths more than one eligible row reaches
-        # @param checked [Boolean] false when the key path covers the grouped aggregate's identity
-        # @return [String, nil] the offense, or nil when a checked ask refused
         def collision_offense(asked, fields, shared, checked)
           return nil if checked && asked[:error]
 
@@ -351,27 +198,14 @@ module Hecks
 
         # Every full `group_by` key path more than one row reaches, found by
         # tallying each row's tuple of grouped values, with no nesting at all.
-        #
-        # @param rows [Array<Hash>] materialized, symbol-keyed rows
-        # @param fields [Array<Symbol>] the `group_by` fields, in declared order
-        # @return [Array<Array>] each shared key path's values, in `fields` order;
-        #   `[]` when every row's key path is its own
         def shared_key_paths(rows, fields)
           rows.map { |row| fields.map { |field| row[field] } }.tally.select { |_, count| count > 1 }.keys
         end
 
-        # One level of nesting per `group_by` field in declared order; the
-        # leaf is the row with every grouped field stripped (already spent,
-        # as the keys that reached it). Called only when no key path is
-        # shared, so each leaf's group holds exactly one row; a second row
-        # raises rather than being picked over.
-        # @param rows [Array<Hash>] materialized, symbol-keyed rows to nest, no two
-        #   sharing a full key path
-        # @param fields [Array<Symbol>] the `group_by` fields, in declared order
-        # @return [Hash] one level of nesting per field, in order; the leaf under
-        #   each key path is that path's one row with every grouped field stripped
-        # @raise [ArgumentError] if two rows share a full key path, which
-        #   `shared_key_paths` rules out before this is called
+        # One level of nesting per `group_by` field in declared order; the leaf
+        # is the row with every grouped field stripped. Called only when no key
+        # path is shared (`shared_key_paths` rules that out), so each leaf holds
+        # exactly one row; a second row raises rather than being picked over.
         def nest_rows(rows, fields)
           field, *rest = fields
           rows.group_by { |row| row[field] }.transform_values do |group|
@@ -383,31 +217,14 @@ module Hecks
           end
         end
 
-        # The eligible rows a `count`/`median` head reduces — every
-        # instance of the reduced head's own aggregate, FK-matched against
-        # the report's root reference (if it has one; a rootless report has
-        # none to match) exactly the way `ReadModelInterpreter#reference_fields`
-        # finds the matching attribute, then narrowed by the report's own
-        # `where` clauses via the same `InMemory.holds?` the interpreter's
-        # `execute` calls.
-        # @param bluebook [Bluebook::Chapter] the bluebook the report belongs to
-        # @param instances [Hash] the snapshot to read rows from (`history[:instances]`
-        #   shape, or the query's own `instances_at`)
-        # @param domain [String] the domain name the reduced aggregate belongs to
-        # @param model [Bluebook::ReadModel] the report being recomputed
-        # @param reduced_head [Hash] the many-side aggregate head being reduced, from
-        #   `model.aggregate_heads`
-        # @param args [Hash] the query's own arguments, for FK matching and `where`
-        #   evaluation
-        # @return [Array<Hash>] every eligible row's own state, `id:` merged in
+        # The eligible rows a `count`/`median` head reduces: every instance of
+        # the reduced head's own aggregate, FK-matched against the report's root
+        # reference (if any), then narrowed by the report's own `where` clauses.
         def eligible_rows(bluebook, instances, domain, model, reduced_head, args)
           aggregate = bluebook.aggregate(reduced_head[:aggregate])
           prefix = "#{domain}::#{reduced_head[:aggregate]}#"
-          # `id:` merged in, the same `record.to_h` (`@state.merge(id:
-          # @id)`) every live head row carries — count/median never read
-          # it, but group_by_matches_recompute's own independent nesting
-          # does, the same way ReadModelInterpreter#row(record) = record.
-          # to_h does for the live path it's checking against.
+          # `id:` merged in, the same shape every live head row carries —
+          # count/median never read it, but group_by's own nesting does.
           rows = instances.filter_map { |key, state| state.merge(id: key.split("#").last) if key.start_with?(prefix) }
 
           if model.reference_target
@@ -427,16 +244,9 @@ module Hecks
           end
         end
 
-        # `ReadModelInterpreter#median`'s own definition, reproduced byte
-        # for byte: odd count → the true middle value, sorted; even count
-        # → the average of the two middle values, as a Float; empty → nil,
-        # never zero, so a caller cannot mistake "nothing to average" for
-        # "averaged to zero."
-        # @param rows [Array<Hash>] eligible rows, as returned by `#eligible_rows`
-        # @param field [Symbol] the field to average
-        # @return [Object, Float, nil] the true middle value for an odd count, the
-        #   Float average of the two middle values for an even count, or `nil` for
-        #   an empty `rows`
+        # ReadModelInterpreter#median's own definition, reproduced: the true
+        # middle for an odd count, the average of the two middles for an even
+        # count, `nil` for empty — never zero, so "nothing" isn't "zero."
         def recompute_median(rows, field)
           values = rows.map { |state| Ports::Query::InMemory.comparable(QuerySpecification::FieldPath.dig(state, field)) }
                        .compact.sort

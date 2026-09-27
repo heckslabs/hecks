@@ -1,38 +1,10 @@
 module Hecks
-  # The one place that knows how to freeze a domain value.
-  #
-  # Freezing here has been fixed four times in four places, each time by
-  # topping the container and leaving the contents: list attributes, the
-  # event log, query rows, and value objects. `.freeze` on a Hash stops a
-  # key being added or removed and nothing else — the String, Array or
-  # Hash a field holds stays mutable, so a caller reaches straight
-  # through and edits in place. Each fix looked complete and none was.
-  #
-  # ## What should be frozen, and why it is not everything
-  #
-  #   a value object has no identity to change over. `with` already
-  #   answers a new one rather than mutating, so freezing it through is
-  #   what it always claimed to be.
-  #
-  #   an emitted event is a record of something that happened. A mutable
-  #   audit trail is not one.
-  #
-  #   a query row is an answer, not a handle — mutating one edits nobody's
-  #   state and silently disagrees with the store.
-  #
-  #   an instance's state is not frozen, deliberately: the interpreter
-  #   builds it up across a dispatch, and a command's whole job is to
-  #   change it. Its values are frozen; the holder is not.
-  #
-  #   a command's arguments are not frozen either. They arrive from
-  #   outside, are normalised and coerced on the way in, and the coerced
-  #   result is what becomes a frozen value.
+  # The one place that freezes a domain value all the way down, not just its container.
+  # Instance state and command arguments are deliberately left unfrozen; values and events are.
   module Freezer
     module_function
 
-    # Numbers, symbols, nil and booleans are already immediate or frozen;
-    # a Value froze itself when it was built. What is left is the mutable
-    # trio, and each has to be walked rather than topped.
+    # Freezes a Hash, Array or String and everything inside it.
     #
     # @param held [Object] any domain value
     # @return [Object] `held`, recursively frozen if it is a Hash, Array, or
@@ -46,17 +18,13 @@ module Hecks
       end
     end
 
-    # The question a gate asks, rather than the act. Answers false for the
-    # first thing that is reachable and mutable, which is what makes a
-    # failure message worth reading.
+    # True when `held` and everything reachable from it is frozen.
     #
     # @param held [Object] any domain value
     # @return [Boolean] true if `held` and everything reachable from it is frozen
     def deeply_frozen?(held) = unfrozen_within(held).nil?
 
     # The path to the first mutable thing reachable from `held`, or nil.
-    # A path rather than a boolean because "something in this event is
-    # mutable" is not an actionable sentence.
     #
     # @param held [Object] any domain value
     # @param path [Array<String>] the owner path accumulated by the recursive
@@ -72,9 +40,7 @@ module Hecks
       end
     end
 
-    # Immediates are frozen in every Ruby that matters, but asking
-    # `frozen?` of them and trusting the answer has bitten enough people
-    # that it is worth being explicit.
+    # Explicit rather than trusting `frozen?` on immediates.
     #
     # @param held [Object] any domain value
     # @return [Boolean] true if `held` is nil, true, false, a Numeric, or a Symbol

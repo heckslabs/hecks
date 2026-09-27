@@ -31,10 +31,7 @@ Hecks.bluebook "Adapter" do
       goal "Register a real implementation of one resource port"
 
       attribute :name, AdapterName
-      # OPTIONAL — real, pre-existing AdapterBuilder behavior (spec/
-      # dsl_spec.rb's own "field names a config value..." and "secret
-      # names one too..." each build an adapter with only `field`/
-      # `secret`, never calling `port` at all).
+      # Optional: an adapter may declare only fields or secrets and never name a port.
       attribute :port, AdapterPortName, optional: true
 
       sets :name
@@ -67,9 +64,7 @@ Hecks.bluebook "Adapter" do
       emits "AdapterSecretAdded"
     end
 
-    # HOW ADAPTER IS SPELLED. These rows live with the concept
-    # they describe; SyntaxBoot discovers every aggregate-local seed table.
-    # Contexts represented here: File, Adapter.
+    # Grammar rows for the `adapter` keyword; SyntaxBoot discovers aggregate-local seed tables.
     value_object "KeywordSeed" do
       attribute :word,          String
       attribute :context,       String, admits: "Syntax::Context"

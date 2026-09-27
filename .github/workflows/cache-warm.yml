@@ -1,53 +1,9 @@
 name: Cache warm (main)
 
-# WHY THIS FILE EXISTS — ci.yml deliberately has no `push: branches:
-# [main]` trigger (see its own header comment): re-running the whole
-# suite on every merge was found to buy nothing once the merge-queue
-# ruleset (`merge_group`) already tests everything before the merge
-# actually lands. That's the right call for the SUITE, but it has a
-# real side effect nobody had checked until now: main's own ref never
-# runs ci.yml at all, so none of its Rust build caches (rust/target,
-# rust/build/target, rust/parser/target, rust/codegen/target,
-# rust/host/target, rust/lsp/target) ever get a refs/heads/main-scoped cache entry.
-#
-# Confirmed empirically (`gh api repos/heckslabs/hecks/actions/caches`,
-# 2026-09-09) — every existing cache entry for these crates is scoped
-# to either `refs/pull/<N>/merge` (warm only across pushes to THAT one
-# open PR) or a one-shot `refs/heads/gh-readonly-queue/main/pr-<N>-
-# <sha>` (embeds the SHA, never revisited again even by the very next
-# PR) — never `refs/heads/main`. GitHub's cross-branch cache fallback
-# only reaches a branch's own history or the DEFAULT branch's cache,
-# never a sibling PR's, so every brand-new PR's first CI run pays a
-# full cold build of every one of these crates, always — not an
-# artifact of any one session's branch history, a structural gap.
-#
-# This workflow's only job is to exist on main's own ref (the one place
-# ci.yml's own trigger set deliberately excludes) and populate that
-# missing refs/heads/main scope. BUILD ONLY — no rspec, no full suite,
-# so it stays cheap and doesn't reopen the "duplicate full CI run on
-# every merge" question ci.yml's own header already settled. Each
-# job's cache path/key/restore-keys below is copy-pasted VERBATIM from
-# ci.yml's own equivalent step — deliberately, so the exact-hash key
-# ci.yml computes matches this workflow's saved entry byte-for-byte,
-# and the restore-keys PREFIX fallback ci.yml already has configured
-# on every one of these steps picks this up automatically the moment a
-# PR's own exact-hash key misses (a Cargo.lock bump between here and
-# there is the only thing that would still force a cold build; that's
-# a real, tolerable gap the restore-keys prefix cannot close, only the
-# exact key can, once THIS workflow runs again after that bump lands).
-# TRIGGERED BY THE PUSH ITSELF AGAIN, NOT BY CI FINISHING ON MAIN. It
-# waited on `workflow_run` so these builds wouldn't fight ci.yml's own
-# push-triggered Postgres legs for runners, and ran only if that CI run
-# SUCCEEDED. Neither half holds any more: those legs no longer run on push
-# (nothing read what they produced), and while main was red on 2026-09-18
-# the `success` guard skipped this workflow four merges running (23:31 to
-# 00:59 UTC), so the caches PRs restore from fell behind main exactly when
-# CI was busiest. Warming a cache proves nothing about main, so it has no
-# reason to wait for a verdict on it.
-#
-# One warm at a time: only the newest main is worth warming, so a push
-# that lands mid-warm cancels the older one instead of queueing six more
-# jobs behind it.
+# Populates the refs/heads/main Rust build caches, which ci.yml never writes (no push trigger).
+# Build only. Cache path/key/restore-keys match ci.yml verbatim so PRs restore these entries.
+# Runs on the push itself, not after CI: a red main must not skip the warm.
+# Only the newest main is worth warming, so a newer push cancels an in-flight warm.
 on:
   push:
     branches: [main]
@@ -57,17 +13,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # Mirrors rspec_rust_io's own "Cache Rust build artifacts (main
-  # crate)" step. Builds all three domain features that spec/
-  # rust_conformance_spec.rb's shared RustConformanceHelpers cache
-  # actually exercises (banking/pizzas/roster) — a bare `cargo build`
-  # here would only warm ONE feature combo (whatever `default` in
-  # rust/Cargo.toml happens to be), leaving the other two still cold.
-  # Also warms the wasm32-wasip1 cross-compile artifacts (under the
-  # same rust/target path) that rspec_rust_io_build/rspec_rust_io_deploy
-  # need — bin/project_wasm handles the toolchain/target selection
-  # itself (see rspec_rust_io_deploy's own comment on why TWO
-  # toolchains need the target installed).
+  # Mirrors rspec_rust_io's main-crate cache. Builds every feature combo the conformance
+  # helpers use, plus the wasm32-wasip1 artifacts rspec_rust_io_build/deploy need.
   warm_main_crate:
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -97,8 +44,7 @@ jobs:
           ruby bin/project_wasm examples/pizzas
           ruby bin/project_wasm examples/roster
 
-  # Mirrors rspec_rust_io_build's own "Cache Rust build artifacts (build
-  # crate)" step exactly.
+  # Mirrors rspec_rust_io_build's cache step.
   warm_build_crate:
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -115,9 +61,7 @@ jobs:
       - name: Warm rust/build (hecks-build)
         run: cd rust/build && cargo build
 
-  # Mirrors rspec_rust_parser's own cache step. Bare `cargo build` —
-  # the exact command spec/parser_parity_spec.rb's own build_parser!
-  # (and every sibling spec's copy of it) runs.
+  # Mirrors rspec_rust_parser's cache step; bare `cargo build` is what the parity specs run.
   warm_parser_crate:
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -133,8 +77,7 @@ jobs:
       - name: Warm rust/parser (hecks-parse)
         run: cd rust/parser && cargo build
 
-  # Mirrors rspec_rust_codegen's own cache step. Bare `cargo build` —
-  # the exact command spec/codegen_parity_spec.rb's build_codegen! runs.
+  # Mirrors rspec_rust_codegen's cache step; bare `cargo build` is what the parity specs run.
   warm_codegen_crate:
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -150,14 +93,12 @@ jobs:
       - name: Warm rust/codegen (hecks-codegen)
         run: cd rust/codegen && cargo build
 
-  # Mirrors rspec_rust_parser's own lsp cache step (rust/lsp's `cargo
-  # test` runs in that job).
+  # Mirrors rspec_rust_parser's lsp cache step.
   warm_lsp_crate:
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
     steps:
-      # `ref:` pinned to the triggering run — see warm_main_crate's comment.
       - uses: actions/checkout@v4
 
       - uses: ./.github/actions/cargo-cache
@@ -168,15 +109,8 @@ jobs:
       - name: Warm rust/lsp (hecks_lsp)
         run: cd rust/lsp && cargo build
 
-  # Mirrors rspec_rust_host's own cache step. Builds both binaries
-  # spec/rust_host_lineage_conformance_spec.rb needs — the exact
-  # `cargo build --bin <name>` commands its own lineage_harness_binary/
-  # mint_harness_binary helpers run. No `rustup run 1.98.0` prefix
-  # needed here the way a local machine with an earlier Homebrew rustc
-  # on PATH sometimes does (see rust-toolchain.toml's own comment) —
-  # ubuntu-latest's ambient rustc already resolves through rustup's own
-  # proxy binaries, the same as every other job in ci.yml that builds
-  # under rust/host already relies on without an explicit override.
+  # Mirrors rspec_rust_host's cache step; builds the two binaries the lineage conformance
+  # spec needs.
   warm_host_crate:
     runs-on: ubuntu-latest
     timeout-minutes: 30

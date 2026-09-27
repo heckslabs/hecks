@@ -1,7 +1,5 @@
-# A FIXTURE FOR spec/qa_domain_novelty_spec.rb — the "existing target"
-# side of the comparison: one plain reference, one lifecycle, one query
-# with no hop. Everything `hopper` (its sibling fixture) pairs, minus
-# the reference-hop family.
+# Fixture for spec/qa_domain_novelty_spec.rb: the existing-target side, `hopper` minus
+# the reference-hop query.
 Hecks.bluebook "Baseline" do
   generic
 

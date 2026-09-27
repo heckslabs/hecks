@@ -1,28 +1,5 @@
-//! Port of `rust/project/domain_generator.rb`'s `DomainGenerator.call` —
-//! the full per-aggregate `.rs` file (value objects, entities incl. their
-//! own commands, the record, aggregate-level commands, port operations)
-//! plus `registry.rs`. Read that file's own header comments in full.
-//!
-//! Deliberately not reused from `prelude.rs`: the real Ruby file
-//! interleaves entity commands (`entity[:commands].each`) inside the
-//! `aggregate[:entities].each` loop, before `emit_record` — a real
-//! aggregate with entity commands (banking's `SafeDepositBox`/`ATMCard`)
-//! would get the wrong full-file shape from `prelude.rs`'s own entities
-//! loop, which only ever emitted entity struct/codec/extract_id, never
-//! entity commands (a real, confirmed gap in the prior stage's own
-//! "prelude" scope — see this module's own report). This file
-//! reimplements the whole per-aggregate walk from scratch instead, so it
-//! is correct for any aggregate, not just ones without entity commands.
-//!
-//! Not ported here: `metadata.rs` (embeds `ir.json` as a Rust string
-//! constant via Ruby's own `.inspect` — needs a JSON pretty-printer this
-//! crate does not have, see `json.rs`'s own header on why: this crate
-//! only ever reads `ir.json`, never re-emits it) and `ir.json` itself (the
-//! same reason) — named, honest gaps, not silently dropped.
-//!
-//! `manifest.json` is ported (`manifest.rs`): every `manifest_entry` call
-//! site in the Ruby file has a `manifest.*` call at the matching decision
-//! point below, with byte-identical reason text.
+//! Port of `rust/project/domain_generator.rb`'s `DomainGenerator.call`: the per-aggregate
+//! `.rs` files plus `registry.rs`. `metadata.rs` and `ir.json` are not emitted here.
 
 use crate::exemplar::Exemplar;
 use crate::json::Json;
@@ -69,18 +46,11 @@ pub struct GeneratedDomain {
     pub aggregate_files: Vec<GeneratedFile>,
     pub registry_rs: String,
     pub mod_rs: String,
-    /// Returned for a multi-chapter caller the same way
-    /// `domain_generator.rb#call`'s own return value is — used by
-    /// `main.rs::run_full` (stage 8) to build a target domain's own
-    /// `merged.rs`, unioning this chapter's own aggregates/queries/read
-    /// models with every attached framework chapter's own, exactly the
-    /// way `bin/project_rust`'s Ruby orchestration already does with
-    /// `RustProjection::DomainGenerator.call`'s own return Hash
-    /// (`:aggregates`/`:queries`/`:read_models`).
+    /// Returned so a multi-chapter caller can union aggregates, queries and read models.
     pub registry_aggregates: Vec<AggregateEntry>,
     pub query_defs: Vec<crate::queries::QueryDef>,
     pub read_model_defs: Vec<crate::read_models::ReadModelDef>,
-    /// `JSON.pretty_generate(manifest)` — the exact `manifest.json` bytes.
+    /// The exact `manifest.json` bytes.
     pub manifest_json: String,
 }
 
@@ -128,22 +98,10 @@ fn reference_checks(
         .collect()
 }
 
-/// Port of `rust/project/domain_generator.rb#state_reference_checks` —
-/// see that method's own header for the full argument. `CommandRules::
-/// References#resolve_state_references`' own case (references.rb): a
-/// reference field redeclared on this command under a plain value object
-/// (`attribute :member, Handle; sets :member` — `Referral.Reassign`'s
-/// own shape, ADR 0037 Finding 5, reopened as QualityControl BUG#26),
-/// checked against the aggregate's own `Reference<X>` attribute of the
-/// same name instead of the command's (non-reference) one, which
-/// `reference_checks` above cannot see. A bare `sets :field` mutation
-/// copies its source argument's value straight into the aggregate's
-/// field, unconditionally, so the settled value this needs is already
-/// sitting in `args` before dispatch even runs — this reuses the exact
-/// same pre-dispatch check shape `reference_checks` already emits, just
-/// resolved against the aggregate's own attribute. Skips a source
-/// argument that is already `Reference<X>`-typed (`Referral.Issue`'s own
-/// `member`) — `reference_checks` above already covers that shape.
+/// Reference checks for a command that sets an aggregate `Reference<X>` field from a plain
+/// value-object argument (`sets :member`), which `reference_checks` cannot see.
+///
+/// Sources already typed `Reference<X>` are skipped; `reference_checks` covers them.
 fn state_reference_checks(
     aggregate: &Json,
     command: &Json,
@@ -173,8 +131,7 @@ fn state_reference_checks(
                 return None;
             }
 
-            // A `has_many` field — see `rust/project/domain_generator.rb
-            // #state_reference_checks`: one `check_reference` per element.
+            // A `has_many` field gets one `check_reference` per element.
             let (accessor, list_item) = if crate::attr::list(attr) {
                 let item = list_reference_check_item(source_attr, value_objects_by_name)?;
                 (crate::attr::name(source_attr).to_string(), Some(item))
@@ -217,10 +174,7 @@ fn state_reference_checks(
         .collect()
 }
 
-/// Port of `rust/project/domain_generator.rb#tenant_field_for` — the
-/// aggregate's own declared tenant field, read off the first query that
-/// declares `authorize ..., tenant:`. `None` unless the aggregate is
-/// tenant-scoped at all.
+/// The tenant field read off the first query that declares `authorize ..., tenant:`.
 fn tenant_field_for(aggregate: &Json) -> Option<String> {
     aggregate
         .get("queries")
@@ -230,13 +184,10 @@ fn tenant_field_for(aggregate: &Json) -> Option<String> {
         .find_map(|q| q.get("authorization").and_then(|a| a.get("tenant")).map(Json::to_s))
 }
 
-/// Port of `rust/project/domain_generator.rb#tenant_boundary_checks` — the
-/// angle-8 write-side tenant boundary (`CommandRules::References#enforce_
-/// tenant_boundary`), read at codegen time; see that method's own header
-/// for the full argument. Fires only when both this aggregate and a
-/// referenced one declare a tenant field and both tenant attributes have
-/// `state_reference_check_accessor`'s narrow shape; every other shape is
-/// silently not checked, never a wrong answer.
+/// Write-side tenant boundary checks for a command's references.
+///
+/// Only emitted when both aggregates declare a tenant field and both tenant attributes have
+/// `state_reference_check_accessor`'s shape; any other shape is left unchecked.
 fn tenant_boundary_checks(
     aggregate: &Json,
     command: &Json,
@@ -286,10 +237,8 @@ fn tenant_boundary_checks(
         .collect()
 }
 
-/// Port of `rust/project/domain_generator.rb#list_reference_check_item` —
-/// the per-element key expression for a list source argument: bare
-/// `item` for `list_of(String)`, `&item.<field>` for a list of
-/// single-String-attribute value objects, `None` for anything else.
+/// Per-element key expression for a list argument: `item` for `list_of(String)`,
+/// `&item.<field>` for single-String-attribute value objects, `None` otherwise.
 fn list_reference_check_item(
     source_attr: &Json,
     value_objects_by_name: &HashMap<String, &Json>,
@@ -312,12 +261,10 @@ fn list_reference_check_item(
     ))
 }
 
-/// Port of `rust/project/domain_generator.rb#state_reference_check_accessor`
-/// — see that method's own header for the full argument. `None` for a
-/// multi-attribute value object, or an optional single-attribute one
-/// (`check_reference`'s optional-argument template assumes `Option<
-/// String>`, not `Option<Struct>`) — both real, narrow, deliberately
-/// uncovered gaps, matching ADR 0037 Finding 5's own precedent.
+/// Accessor path for the value a reference check reads off a source argument.
+///
+/// `None` for a multi-attribute value object, or an optional one: `check_reference`'s
+/// optional template assumes `Option<String>`.
 fn state_reference_check_accessor(source_attr: &Json, value_objects_by_name: &HashMap<String, &Json>) -> Option<String> {
     let name = crate::attr::name(source_attr);
     if crate::naming::effective_scalar_type(crate::attr::type_name(source_attr)).is_some() {
@@ -385,8 +332,6 @@ pub fn generate(
 
     let mut aggregate_files: Vec<GeneratedFile> = Vec::new();
     let mut registry_aggregates: Vec<AggregateEntry> = Vec::new();
-    // **The coverage manifest** — `domain_generator.rb`'s own `manifest`
-    // array; see `manifest.rs`.
     let mut manifest = Manifest::default();
     let process_managers: Vec<Json> = ir
         .get("process_managers")
@@ -394,14 +339,8 @@ pub fn generate(
         .unwrap_or(&[])
         .to_vec();
 
-    // Which aggregate owns each value object, across this whole domain — a
-    // command's own attribute can name any value object the domain
-    // declares, not just one its own owner also happens to declare
-    // (`Banking::SafeDepositBox.Rent`'s own `attribute :customer,
-    // CustomerNumber` — `CustomerNumber` is `Customer`'s own, never
-    // `SafeDepositBox`'s). See `bridging.rs`'s own
-    // `cross_aggregate_vo_imports` header. Last-writer-wins per name,
-    // matching Ruby's `each_with_object`.
+    // Owner of each value object across the whole domain: a command attribute can name a value
+    // object declared by another aggregate. Last writer wins per name.
     let mut domain_value_object_owner: HashMap<String, String> = HashMap::new();
     for a in all_aggregates {
         let owner = a.get("name").and_then(Json::as_str).unwrap_or("").to_string();
@@ -412,11 +351,8 @@ pub fn generate(
             );
         }
     }
-    // The value objects themselves, same domain-wide reach — `bridging.rs`'s
-    // own `bridgeable_value_types`/`value_rhs` need the actual definition
-    // (not just which aggregate owns it) to bridge a cross-aggregate command
-    // argument's type into its target field. Merged into each aggregate's
-    // own local map below with the local map winning any name collision.
+    // The value objects themselves, domain-wide; `bridging.rs` needs the definition to bridge
+    // a cross-aggregate argument. Each aggregate's own map wins a name collision.
     let mut domain_value_objects_by_name: HashMap<String, &Json> = HashMap::new();
     for a in all_aggregates {
         for vo in a.get("value_objects").map(Json::each).unwrap_or(&[]) {
@@ -442,12 +378,8 @@ pub fn generate(
             )
         }));
 
-        // Checked against the domain-merged value-object map, exactly as
-        // `domain_generator.rb` does (`Projector.unsupported_attribute_
-        // types(aggregate, value_objects_by_name)`), and cascaded into
-        // the manifest: every command/entity/entity-command/port-op the
-        // skipped aggregate owns gets its own entry tracing back to the
-        // same root cause.
+        // A skipped aggregate cascades into the manifest: everything it owns gets an entry
+        // tracing back to the same root cause.
         let unsupported = types::unsupported_attribute_types(aggregate, &value_objects_by_name);
         if !unsupported.is_empty() {
             let aggregate_reason = format!(
@@ -527,16 +459,8 @@ pub fn generate(
                     &json_codec::emit_to_json_flat(exemplar, &name, attrs, &value_objects_by_name, false, &[], None),
                 );
                 puts_blank(&mut out);
-                // `Some(&[])` — mirrors the Ruby generator's own fix
-                // (rust/project/domain_generator.rb): a value object gets
-                // the same unknown-key refusal an aggregate command's own
-                // args struct already gets below, just with no extra
-                // allowed keys beyond its own declared attributes. Without
-                // this, a mistyped nested VO field (e.g. `{"value": N}`
-                // for a VO that declares `count`) silently fell through to
-                // any `default:` the real field carries, with zero
-                // refusal — found live dispatching a real command through
-                // the compiled binary.
+                // `Some(&[])` refuses unknown keys: without it a mistyped nested field (`value`
+                // for a declared `count`) silently falls through to the field's `default:`.
                 let empty_allowlist: [String; 0] = [];
                 puts_str(
                     &mut out,
@@ -558,14 +482,8 @@ pub fn generate(
 
         let mut entity_commands: Vec<EntityCommandEntry> = Vec::new();
         let mut nested_entity_commands: Vec<NestedEntityCommandEntry> = Vec::new();
-        // This aggregate's own nested entities, name + identity paths
-        // only (BUG#10) — mirrors `domain_generator.rb`'s own identical
-        // `entities:` collection, one level up from `entity_commands`
-        // above: every entity this aggregate directly declares gets an
-        // entry here regardless of whether any of its own commands ended
-        // up routable (`entity_can_route`, below) — `reactions.rs`'s own
-        // `emit_entity_identity_head_table` needs the entity's identity
-        // shape, not its own command routability.
+        // Every entity this aggregate declares, routable or not: `reactions.rs` needs its
+        // identity shape, not its command routability.
         let mut registry_entities: Vec<EntityIdentityEntry> = Vec::new();
 
         for entity in aggregate.get("entities").map(Json::each).unwrap_or(&[]) {
@@ -611,39 +529,11 @@ pub fn generate(
             );
             puts_blank(&mut out);
 
-            // S17, ADR 0026 — an entity nested inside this one
-            // (`ProcessManager.Handler.Dispatch`). Struct + JSON codec,
-            // mirroring rust/project/domain_generator.rb's own identical
-            // shape exactly.
+            // Entities nested one level deeper get a struct, JSON codec and routed commands
+            // (`to: { aggregate:, entities: [...] }`). Not generalized past two levels.
             //
-            // BUG#11 (loop-parity) — its own commands are now routed
-            // too, for the routed (`to: { aggregate:, entities: [...] }`)
-            // addressing shape. See `commands.rs::emit_nested_entity_
-            // command`'s own doc comment and `rust/project/domain_
-            // generator.rb`'s own header for the full argument — short
-            // version: `kernel::dispatch_entity`/`kernel::apply_entity_
-            // command` (dispatch.rs) were already generic enough to
-            // compose one hop deeper with no kernel change at all, so
-            // this was a real, bounded codegen gap, not an architecture
-            // mismatch. Deliberately not generalized past two levels —
-            // still real, separate, still-open scope.
-            //
-            // BUG#19 (loop-parity) — BUG#11 deliberately shipped routed
-            // only, refusing every flat-args depth-2 dispatch (one
-            // identity head per hop, no `to:` at all — the same
-            // convention `entity_arms`'s own depth-1 `None =>` branch
-            // already resolves) with `TypeMismatch`, even though Ruby's
-            // `locate_chain` never distinguished the two addressing
-            // modes. `entity_can_route`, computed here (moved up from
-            // below — the nested loop needs it too now), gates whether
-            // `entity`'s own identity supports `extract_id`/`extract_
-            // wants` at all; `nested_can_route`, computed per `nested`
-            // below, is the same check one hop deeper. Both true is what
-            // `unrouted_supported` (each `NestedEntityCommandEntry`, read
-            // by `registry.rs`'s own `nested_entity_arms`) actually
-            // gates — extending the two-hop router with the identical
-            // `Some(route) => ... | None => ...` shape `entity_arms`
-            // already has, never a new mechanism.
+            // `entity_can_route` gates `extract_id`/`extract_wants` for `entity`; flat-args
+            // dispatch at depth 2 additionally needs the same check on `nested`.
             let entity_can_route = json_codec::extract_id_supported(entity);
 
             for nested in entity.get("entities").map(Json::each).unwrap_or(&[]) {
@@ -685,29 +575,17 @@ pub fn generate(
                     ),
                 );
                 puts_blank(&mut out);
-                // `identity()` — what a routed dispatch needs off a
-                // doubly-nested element (`matches = |el| el.identity()
-                // == hop2_id`), emitted unconditionally the way
-                // `entity`'s own always is.
+                // `identity()` is what a routed dispatch matches a doubly-nested element by.
                 puts_str(&mut out, &json_codec::emit_self_identity(exemplar, nested));
                 puts_blank(&mut out);
 
-                // BUG#19 — `extract_id`/`extract_wants`, back flat-args
-                // addressing at this depth exactly the way `entity_can_
-                // route` already backs it one hop shallower (below,
-                // `entity`'s own). Needs both hops' identity shape to
-                // support it (a flat dispatch has to resolve `hop1_id`
-                // off `entity`'s own `extract_id` too — `registry.rs`'s
-                // own `nested_entity_arms`, `None =>` branch), so this is
-                // gated on `entity_can_route && nested_can_route`, not
-                // `nested_can_route` alone.
+                // Flat-args addressing resolves `hop1_id` off `entity`'s own `extract_id` too, so
+                // both hops must support it.
                 let nested_can_route = json_codec::extract_id_supported(nested);
                 let unrouted_supported = entity_can_route && nested_can_route;
                 if unrouted_supported {
                     puts_str(&mut out, &json_codec::emit_extract_id(exemplar, nested));
                     puts_blank(&mut out);
-                    // BUG#140 — see `rust/project/domain_generator.rb`'s
-                    // own identical comment.
                     puts_str(&mut out, &json_codec::emit_extract_id_lenient(exemplar, nested));
                     puts_blank(&mut out);
                     puts_str(&mut out, &json_codec::emit_extract_wants(exemplar, nested));
@@ -805,23 +683,13 @@ pub fn generate(
                             .collect::<Vec<_>>()
                             .join(", "),
                         unrouted_supported,
-                        // **Argument gates** — no `structural_precheck` field any more
-                        // (roadmap D2): `registry.rs` builds `kernel::ArgumentGates` out of
-                        // this command's own generated gate functions (`json_codec::emit_
-                        // argument_gates`) and the kernel calls them in vocabulary order,
-                        // ahead of identity resolution.
                     });
                 }
             }
 
-            // `entity_can_route` — computed once, above, before this
-            // aggregate's own nested-entities loop (BUG#19 needs it
-            // there too).
             if entity_can_route {
                 puts_str(&mut out, &json_codec::emit_extract_id(exemplar, entity));
                 puts_blank(&mut out);
-                // BUG#140 — see `rust/project/domain_generator.rb`'s own
-                // identical comment.
                 puts_str(&mut out, &json_codec::emit_extract_id_lenient(exemplar, entity));
                 puts_blank(&mut out);
                 puts_str(&mut out, &json_codec::emit_extract_wants(exemplar, entity));
@@ -852,9 +720,8 @@ pub fn generate(
                 );
                 puts_blank(&mut out);
 
-                // **The routability split** — the function above is real, but
-                // unreachable through the JSON router when the entity's
-                // identity isn't `extract_id`-supported.
+                // The function above is generated, but the JSON router cannot reach it unless the
+                // entity identity is `extract_id`-supported.
                 if !entity_can_route {
                     manifest.unrouted(
                         "entity_command",
@@ -926,22 +793,12 @@ pub fn generate(
                         .map(Json::to_s)
                         .collect::<Vec<_>>()
                         .join(", "),
-                    // **Argument gates** — no `structural_precheck` field any more
-                    // (roadmap D2): `registry.rs` builds `kernel::ArgumentGates` out of
-                    // this command's own generated gate functions (`json_codec::emit_
-                    // argument_gates`) and the kernel calls them in vocabulary order,
-                    // ahead of identity resolution.
                 });
             }
         }
 
-        // `record_for_struct`/`record_attrs` — `aggregate[:attributes]`
-        // plus a pseudo-attribute per `projects` field (`types.rs`'s own
-        // `projected_field_pseudo_attributes` header), matching
-        // `domain_generator.rb`'s identical merge: the record's own
-        // struct/Fielded/JSON shape carries a seeded projection exactly
-        // like any other attribute; a command's own Args struct never
-        // sees this (built elsewhere, from `command[:attributes]` alone).
+        // The record carries a pseudo-attribute per `projects` field; a command's Args struct
+        // never sees it.
         let record_for_struct = types::with_projected_field_pseudo_attributes(aggregate);
         puts_str(
             &mut out,
@@ -1038,10 +895,8 @@ pub fn generate(
                 ),
             );
             puts_blank(&mut out);
-            // The argument gates (roadmap D2) — one generated function
-            // per declared argument-gate step, called in vocabulary order
-            // by `kernel::decode_aggregate_arguments`; see
-            // `json_codec::emit_argument_gates`' own header.
+            // One generated gate function per declared argument-gate step, called in vocabulary
+            // order by `kernel::decode_aggregate_arguments`.
             puts_str(
                 &mut out,
                 &json_codec::emit_argument_gates(&args_struct, command_name, cmd_attrs, Some(&allowlist)),
@@ -1070,12 +925,6 @@ pub fn generate(
             }
             manifest.routed("command", command_verb);
 
-            // **Argument gates** — no `structural_precheck` field any more
-            // (roadmap D2): `registry.rs` builds `kernel::ArgumentGates` out of
-            // this command's own generated gate functions (`json_codec::emit_
-            // argument_gates`) and the kernel calls them in vocabulary order,
-            // ahead of identity resolution.
-
             registry_commands.push(CommandEntry {
                 verb: format!("{domain_name}::{agg_name}.{command_name}"),
                 name: command_name.to_string(),
@@ -1083,10 +932,7 @@ pub fn generate(
                 args_struct,
                 creates,
                 identity_extra_params,
-                // `state_reference_checks` — ADR 0037 Finding 5 (reopened,
-                // QualityControl BUG#26): only ever adds entries
-                // `reference_checks` above didn't already cover — see
-                // that function's own header.
+                // `state_reference_checks` only adds entries `reference_checks` did not cover.
                 reference_checks: {
                     let mut checks = reference_checks(command, &aggregates_by_name, &unsupported_names);
                     checks.extend(state_reference_checks(aggregate, command, &aggregates_by_name, &unsupported_names, &value_objects_by_name));
@@ -1148,31 +994,12 @@ pub fn generate(
                             == Some(agg_name)
                     })
                     .map(|attr| crate::attr::name(attr).to_string());
-                // `to:`-declared operations — mirrors
-                // Dispatcher#port_invocation's own second, additive
-                // branch (lib/hecks/runtime/dispatcher.rb): no
-                // Reference-typed attribute exists for these
-                // (legacy_receiver_field is always None), so the
-                // receiver instead comes from a plain external-fact
-                // attribute named for the owning aggregate's own
-                // identified_by field. Kept as a genuinely separate
-                // field from legacy_receiver_field, not folded into it
-                // — the kernel side (split_aggregate_receiver) must not
-                // strip this one out of the payload the way it strips a
-                // legacy receiver, since it's a real declared fact, not
-                // routing-only synthetic state.
+                // A `to:`-declared operation has no Reference-typed attribute; its receiver is a
+                // plain attribute named for the aggregate's identified_by field. Kept apart from
+                // legacy_receiver_field because `split_aggregate_receiver` must not strip it.
                 let to_receiver_field = if operation.get("to").and_then(Json::as_str) == Some(agg_name) {
-                    // `.split('.').next()` — `identified_by` in the IR is
-                    // identity_paths, not the plain declared name
-                    // (lib/hecks/bluebook/aggregate.rb's own
-                    // `emits_ir(identified_by: :identity_paths, ...)`) —
-                    // for a value-object-typed identity this resolves to
-                    // a dotted internal path ("reference.value"), not
-                    // the flat field name ("reference") the operation's
-                    // own plain attribute is actually named. Confirmed
-                    // the hard way against the Ruby mirror
-                    // (rust/project/domain_generator.rb) generating the
-                    // wrong, ungrepped field first.
+                    // `identified_by` holds identity paths: a value-object identity is dotted
+                    // ("reference.value"), while the attribute is named "reference".
                     aggregate
                         .get("identified_by")
                         .map(Json::each)
@@ -1232,7 +1059,6 @@ pub fn generate(
         });
     }
 
-    // ── Queries.
     let mut query_defs: Vec<queries::QueryDef> = Vec::new();
     let assignments_verb = queries::provided_assignments(ir);
     for aggregate in all_aggregates {
@@ -1278,7 +1104,7 @@ pub fn generate(
             });
         }
 
-        // Entity queries, one level down — domain_generator.rb's own comment.
+        // Entity queries, one level down.
         let aggregate_id = format!("{domain_name}::{agg_name}");
         let attrs = aggregate.get("attributes").map(Json::each).unwrap_or(&[]);
         for entity in aggregate.get("entities").map(Json::each).unwrap_or(&[]) {
@@ -1322,7 +1148,6 @@ pub fn generate(
         }
     }
 
-    // ── **Read models**.
     let mut read_model_defs: Vec<read_models::ReadModelDef> = Vec::new();
     for read_model in ir.get("read_models").map(Json::each).unwrap_or(&[]) {
         let read_model_id = format!("{domain_name}::{}", node_name(read_model));
@@ -1338,17 +1163,14 @@ pub fn generate(
         ));
     }
 
-    // ── **Policies / process managers** — no per-instance skip condition on
-    // either (see `domain_generator.rb`'s own comments on both loops).
+    // Policies and process managers have no per-instance skip condition.
     for policy in ir.get("policies").map(Json::each).unwrap_or(&[]) {
         manifest.routed("policy", format!("{domain_name}::{}", node_name(policy)));
     }
     for pm in &process_managers {
         manifest.routed("process_manager", format!("{domain_name}::{}", node_name(pm)));
     }
-    // ── **Lineage-capable aggregates** — `ir[:lineage][:capable_aggregates]`,
-    // generated/routed unconditionally (rust/host's journal path is
-    // generic over `storage_name`).
+    // Lineage-capable aggregates are always generated and routed; the journal path is generic.
     let lineage_aggregates = ir.get("lineage").and_then(|l| l.get("capable_aggregates")).map(Json::each).unwrap_or(&[]);
     for lineage_aggregate in lineage_aggregates {
         manifest.record(
@@ -1366,8 +1188,7 @@ pub fn generate(
     }
 
     let policies: Vec<Json> = ir.get("policies").map(Json::each).unwrap_or(&[]).to_vec();
-    // The raw aggregate JSON, not `registry_aggregates` — a fan-out's
-    // addressing key is read off the target command's own declared
+    // Raw aggregate JSON: a fan-out's addressing key comes from the target command's declared
     // `references`/`attributes`, which `AggregateEntry` does not carry.
     let policy_aggregates: Vec<Json> = ir.get("aggregates").map(Json::each).unwrap_or(&[]).to_vec();
 

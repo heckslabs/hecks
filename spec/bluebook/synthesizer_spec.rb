@@ -3,12 +3,8 @@ require "hecks/bluebook/synthesizer"
 require "tmpdir"
 
 RSpec.describe Hecks::Bluebook::Synthesizer do
-  # **A real, loaded chapter** — the whole point of testing this against
-  # actual IR rather than a hand-built double: `pizzas.bluebook`
-  # already exercises a closed set (`Size`), a plain multi-field value
-  # object (`Topping`), and — the case that first exposed a real gap
-  # here — a value object whose own field is another value object
-  # (`Pizza.price_cents: Price`, not a raw primitive).
+  # Real IR from pizzas.bluebook: a closed set (`Size`), a multi-field value object (`Topping`),
+  # and a value object nested in another (`Pizza.price_cents: Price`).
   let(:chapter) do
     registry = Hecks::Runtime::Registry.new
     Hecks.with_registry(registry) do
@@ -54,11 +50,8 @@ RSpec.describe Hecks::Bluebook::Synthesizer do
       expect(value).to eq({ name: "smoke-test", amount: 0 })
     end
 
-    # **The bug this once had**: `Pizza.price_cents` is typed `Price`, not
-    # `Integer` — another value object, nested. A first version treated
-    # anything non-primitive as an opaque marker string, so this came
-    # back as `{price_cents: "smoke-test", size: "smoke-test"}` instead
-    # of the real nested shape a command actually declares.
+    # Regression: `Pizza.price_cents` is a nested value object, not a primitive, and must not
+    # collapse to a marker string.
     it "recurses into a nested value object rather than treating it as an opaque scalar" do
       value = described_class.value_for(chapter, order, "Pizza")
 
@@ -71,11 +64,8 @@ RSpec.describe Hecks::Bluebook::Synthesizer do
   end
 
   describe ".args_for" do
-    # `AddTopping` addresses Order by a bare self-reference (no `as:`),
-    # which never becomes a declared attribute at all — the caller
-    # (`SmokeTest`) supplies that separately via `id:`. What `args_for`
-    # does own is a real cross-aggregate reference, tested here against
-    # a small hand-built domain for full certainty about the shape.
+    # A bare self-reference is never a declared attribute (`SmokeTest` supplies it via `id:`),
+    # so cross-aggregate references are tested against a small hand-built domain.
     around do |example|
       @root = Dir.mktmpdir("hecks-synth-")
       example.run

@@ -2,13 +2,8 @@ require_relative "word_gate"
 module Hecks
   module Bluebook
     module DSL
-      # Parses a `process_manager "Name" do ... end` block into a
-      # `ProcessManager` — its own `starts_on`/`ends_on` events, what
-      # correlates its instances (`correlates_by`), and the `transition`-
-      # declared state machine whose `dispatch`es (each optionally paired
-      # with its own per-dispatch `compensates`) become its handlers. States
-      # are derived from the transitions rather than declared separately
-      # (S7, ADR 0025).
+      # Parses a `process_manager "Name" do ... end` block into a `ProcessManager`; its states
+      # are derived from its `transition`s (ADR 0025).
       class ProcessManagerBuilder
         GRAMMAR_CONTEXT = "ProcessManager".freeze
 
@@ -24,16 +19,9 @@ module Hecks
 
         # Records the event that begins a fresh instance of this process manager.
         #
-        # `starts_on Transfer::TransferRequested` — bare constant
-        # accepted (ADR 0025, S6 — "events first-class"), resolved
-        # through `ConstShim` the same way `on_impl`/`transition_impl`
-        # resolve an event reference — but through `Naming.
-        # event_name_ref`, not `Naming.event_ref` (that method's own
-        # header has the full account: `SagaInterpreter` matches
-        # `pm.starts_on`/`pm.ends_on` against a bare `event.name`, never
-        # a "." qualified one). A plain String still passes through
-        # unchanged, both for `shadow_parse` and for any corpus site a
-        # future pass hasn't migrated yet.
+        # `starts_on Transfer::TransferRequested`: a bare constant, stored as the bare event
+        # name (`Naming.event_name_ref`) because `SagaInterpreter` matches an undotted name.
+        # A plain String passes through unchanged.
         #
         # @param event_ref [Symbol, String, Module] the event, as a bare constant (a
         #   `ScopedConstant` module `ConstShim` resolves) or quoted text
@@ -42,9 +30,7 @@ module Hecks
           @starts_on = Naming.event_name_ref(event_ref)
         end
 
-        # Records the event this process manager expects to close out its instance on.
-        #
-        # `ends_on` — same reasoning as `starts_on_impl`, above.
+        # Records the event that closes out this process manager's instance.
         #
         # @param event_ref [Symbol, String, Module] the event, as a bare constant (a
         #   `ScopedConstant` module `ConstShim` resolves) or quoted text
@@ -53,67 +39,14 @@ module Hecks
           @ends_on = Naming.event_name_ref(event_ref)
         end
 
-        # `correlates_by` — item #13's full metaprogrammed dispatch,
-        # slice 1 (whole-project table-unification survey): a bare,
-        # kind-driven coerce-and-assign with nothing else, executed by
-        # `GenericDispatch`.
+        # Records one leg of the state machine: the event that takes it, the state(s) it
+        # applies from, and the dispatches (with optional compensations) it fires.
         #
-        # `starts_on`/`ends_on` are hand-written rather than table-driven
-        # the same way, because ADR 0025 S6 gives each a second,
-        # `kind: "constant"` ArgumentSeed row (`starts_on
-        # Transfer::TransferRequested`) — `GenericDispatch::COERCE_BY_KIND`
-        # only knows `"text"`/`"symbol"`, and `shape_for` refuses to pick a
-        # `single_fill` shape at all once two Argument rows share a
-        # `fills:` target (`arguments.size == 1` below), so both words are
-        # `calls:`-routed like `transition` already is.
-
-        # Records one leg of this process manager's state machine: the event that takes it, the
-        # state(s) it applies from, and the dispatches (and optional compensation) it fires.
-        #
-        # One state-machine vocabulary (S7, ADR 0025 — "events and
-        # reactions"): the same word `Lifecycle#transition` already
-        # carries, one level over — `transition "AccountDebited" =>
-        # "awaiting_credit", from: "requested" do ... end` replaces `on
-        # "AccountDebited", transition: { "requested" => "awaiting_
-        # credit" } do ... end`. Same bare rocket-pair argument shape
-        # (not a named `transition:` kwarg wrapping a second Hash), same
-        # `from:` — including the array form Lifecycle's own commands
-        # could already take and a process manager's own events could
-        # not — and the states a procedure runs on are derived from the
-        # transitions that name them, the same way `Behaviour::Lifecycle
-        # #states` already derives an aggregate's ; `state "x"` lines
-        # duplicated exactly what the transition list already said,
-        # and could drift from it (`validate!`'s own "undeclared state"
-        # check existed only because they could).
-        #
-        # `starts_on`/`ends_on` are not unified into this — verified
-        # against the real corpus rather than assumed: Settlement's own
-        # `ends_on "TransferSettled"` names an event none of its own
-        # transitions ever handle (`Transfer.Settle`'s own emission, a
-        # full step downstream of the transition that dispatches it),
-        # so "the terminal state's own event" is not a fact the
-        # transition graph carries — deriving it would either be wrong
-        # for this exact corpus member or need a second new word to
-        # cover the case, which is not less vocabulary than keeping the
-        # one that already says it correctly.
-        #
-        # Expands immediately, unlike `Lifecycle#transition` (which
-        # defers to `Behaviour::Lifecycle#expand`, called at emission
-        # time) — `ProcessManager`'s own IR constructor takes `states:`/
-        # `handlers:` exactly as it always has, so the runtime
-        # (`Behaviour::ProcessManager`, `SagaInterpreter`, saga
-        # persistence/rehydration) needs no change at all: what changed
-        # is how the declaration reaches that same shape, not the shape
-        # a real run ever sees or persists.
-        # Reached through `calls: "transition_impl"`. Not exercised during boot itself — checked
-        # directly, no core/attached chapter declares a `ProcessManager` of its own — though the
-        # (context, word) pair is still carried in `GenericDispatch::BOOTSTRAP_CALLS_FALLBACK`
-        # unconditionally, along with every other `calls:`-routed row.
+        # States are derived from the transitions, not declared.
         #
         # @param mapping [Hash] one `event => target_state` pair plus a required `from:` key
-        #   naming the source state(s) (`String`, `Symbol`, or `Array<String, Symbol>`) this
-        #   transition applies from
-        # @yield the transition's dispatch body, `instance_eval`'d against a fresh `HandlerBuilder`
+        #   naming the source state(s): a `String`, `Symbol`, or an `Array` of them
+        # @yield the transition's dispatch body, `instance_eval`'d against a `HandlerBuilder`
         # @return [void]
         # @raise [Bluebook::DSL::ProcessManagerBuilder::InvalidProcessManager] if `mapping` names
         #   no `from:`
@@ -121,18 +54,8 @@ module Hecks
           mapping = mapping.dup
           from    = mapping.delete(:from)
 
-          # Always required, unlike `Lifecycle#transition`'s own `from:`
-          # — an aggregate's unconstrained transition is admitted from
-          # any current state (`Behaviour::Lifecycle#applies_from?`
-          # returns true for a nil `from`), a reading `SagaInterpreter#
-          # advance_saga`'s own admission check does not share: it tests
-          # `instance[:state] == handler.from_state` by plain equality,
-          # nothing softer. Leaving that check unchanged (this slice's
-          # own scope decision — see the class-level comment on why the
-          # runtime stays untouched) means an unconstrained PM
-          # transition would build cleanly and then match no instance
-          # ever, silently — refused here instead, at the one point that
-          # can still see the mistake.
+          # `from:` is required: the saga's admission check tests `from_state` by plain equality,
+          # so a transition with no `from:` would match no instance.
           if from.nil?
             raise InvalidProcessManager,
                   "#{@name}'s transition #{mapping.inspect} names no from: — a process manager's own " \
@@ -144,23 +67,8 @@ module Hecks
           handler.instance_eval(&block) if block
 
           mapping.each do |event_type, target|
-            # Bare constant accepted (ADR 0025, S6 — "events first-
-            # class"), `transition Account::AccountDebited => "state"` —
-            # `Naming.event_name_ref`, not the dotted `Naming.event_ref`
-            # transform `PolicyBuilder#on_impl` uses (that method's own
-            # header has the full account, found live wiring a real
-            # migrated corpus site into `bin/model_check` for the first
-            # time: `SagaInterpreter#advance_saga` matches `handler.
-            # event_type` against a bare `event.name`, never a "."
-            # qualified one — a policy's own cross-aggregate match
-            # works differently, splitting the qualifier apart from the
-            # name rather than comparing the whole string). Writing the
-            # qualifier is still worth it (the same provenance `trigger
-            # Account::Debit` gives a reader) — `event_name_ref` keeps
-            # only the final segment, so `Account::AccountDebited` and a
-            # bare `AccountDebited` store identically. A plain String
-            # still passes through unchanged, both for `shadow_parse`
-            # and for every corpus site this pass didn't migrate.
+            # `event_name_ref` keeps only the final segment: `SagaInterpreter` matches a bare
+            # `event.name`, so `Account::AccountDebited` and `AccountDebited` store the same.
             state_transition = StateTransition.new(target: target, from: from)
             expand(Naming.event_name_ref(event_type), state_transition, handler.dispatches).each { |row| @handlers << row }
           end
@@ -202,12 +110,7 @@ module Hecks
 
         private
 
-        # One declared transition is several rows when `from` names more
-        # than one source state — `Behaviour::Lifecycle#expand`'s own
-        # comment, the identical fan-out, one level over: a
-        # `ProcessManagerHandler` only ever carries a single `from_state`,
-        # so a `from: [...]` transition mints one row per source, each
-        # carrying the same dispatches.
+        # One row per source state, since a `ProcessManagerHandler` carries a single `from_state`.
         def expand(event_type, transition, dispatches)
           sources = transition.from.nil? ? [nil] : Array(transition.from)
 
@@ -221,15 +124,7 @@ module Hecks
           end
         end
 
-        # Derived, not declared (S7) — every state this procedure ever
-        # runs on is already named by some transition's own `from_state`
-        # or `to_state`; a state nothing transitions into or out of is
-        # not a state this procedure has, the same reading
-        # `Behaviour::Lifecycle#states` already gives an aggregate's own
-        # field. First-seen order, walking declaration order — `begin_
-        # saga`'s own `pm.states.first` is what a fresh instance starts
-        # in, so the order has to survive the derivation, not just the
-        # membership.
+        # First-seen order matters: `pm.states.first` is the state a fresh instance starts in.
         def derived_states
           @handlers.flat_map { |h| [h.from_state, h.to_state] }.reject(&:empty?).uniq
         end
@@ -240,16 +135,8 @@ module Hecks
                                          "nothing would tie its events to one instance"
           end
 
-          # **The field, named** — never the value object that carries it. A bare
-          # `correlates_by :end_to_end` reads whatever the payload holds under
-          # that key as the correlation key, and what a non-scalar key even
-          # is stays open (the object itself? its serialised text?).
-          # Requiring the dotted spelling —
-          # `:"end_to_end.value"` — makes every correlates_by name a scalar
-          # by construction, the same discipline `identified_by` already
-          # holds a head to. This is a syntactic check, not a type check: it
-          # does not know or care whether the field is a value object, only
-          # that the declaration cannot leave that question open.
+          # Names a scalar (`:"end_to_end.value"`), never a whole field or value object.
+          # A syntactic check: the dotted spelling leaves no question about the key's type.
           unless @correlates_by.to_s.include?(".")
             raise InvalidProcessManager, "#{@name} correlates_by #{@correlates_by.inspect}, which names a whole " \
                                          "field rather than one of its scalars — say which one, e.g. " \
@@ -269,12 +156,8 @@ module Hecks
           refuse_ambiguous_legs!
         end
 
-        # C10.3 — a leg is selected by (event, current state), so two
-        # legs answering the same event from the same state would leave
-        # the runtime to pick by declaration order, silently. Refused
-        # here, where the declaration can still be read whole. (`from:
-        # [...]` fan-out counts: `transition E => "a", from: ["x", "y"]`
-        # and `transition E => "b", from: "y"` collide on ("E", "y").)
+        # A leg is selected by (event, current state), so two legs on the same pair would
+        # be picked by declaration order; `from: [...]` fan-out counts.
         def refuse_ambiguous_legs!
           return if MetaValidator.shadow_parsing? # frozen era text is history
 
@@ -292,10 +175,7 @@ module Hecks
           end
         end
 
-        # The body of one `transition ... do ... end` block — collects the
-        # `dispatch` calls (each optionally opening its own `compensates`
-        # via the nested `DispatchBuilder`) that fire when this transition
-        # is taken.
+        # The body of one `transition ... do ... end` block; collects its `dispatch` calls.
         class HandlerBuilder
           GRAMMAR_CONTEXT = "Handler".freeze
 
@@ -309,34 +189,12 @@ module Hecks
           # Records one command this transition dispatches, and, if given a block, the
           # compensation that reverses it.
           #
-          # The command itself (ADR 0025, "events and reactions" — command
-          # references become first-class), same shape and same reasons
-          # as `PolicyBuilder#trigger`'s own header — bare constant live,
-          # quoted text only under shadow-parsing (S0a's bridge; frozen
-          # era text still writes `dispatch "Banking::Account.Debit"`).
+          # The command is a bare constant; quoted text is accepted only under shadow-parsing.
           #
-          # Reached through `calls: "dispatch_impl"`.
-          #
-          # An optional block opens `compensates` on this dispatch
-          # specifically — per-dispatch saga compensation, replacing a
-          # hand-written list at the saga's own `on :refused` leg. Real,
-          # live bug this closes: `examples/banking/bluebook/transfers_
-          # and_payments.bluebook`'s own `Settlement` saga wrote a
-          # compensating reversal by hand that depended on an event only
-          # fired if someone dispatched it manually — "the reversal was
-          # written and never armed" (that file's own comment). The
-          # runtime now tracks which legs actually completed
-          # (`SagaInterpreter`'s own `completed_compensations`) and
-          # compensates only those, newest first, instead of trusting an
-          # author's static list to be complete and correctly ordered.
-          #
-          # @param command_ref [Symbol, String, Module] the command, as a bare constant (a
-          #   `ScopedConstant` module `ConstShim` resolves) or, under shadow-parsing, quoted text
-          # @param with [Hash{Symbol => Object}, nil] a projection onto the command's own
-          #   arguments, the same `key => value` shape a policy's own `trigger ..., with:` takes;
-          #   `nil` forwards the triggering context verbatim
-          # @yield the dispatch's own `compensates` body, `instance_eval`'d against a
-          #   `DispatchBuilder`
+          # @param command_ref [Symbol, String, Module] the command, as a bare constant
+          # @param with [Hash{Symbol => Object}, nil] a projection onto the command's arguments,
+          #   as in a policy's `trigger ..., with:`; `nil` forwards the triggering context
+          # @yield the `compensates` body, run only if this leg completed
           # @return [Bluebook::DispatchSpec] the dispatch just recorded
           # @raise [Bluebook::DSL::ProcessManagerBuilder::InvalidProcessManager] if `command_ref`
           #   is quoted text outside shadow-parsing
@@ -356,11 +214,8 @@ module Hecks
             if block
               builder = DispatchBuilder.new
               builder.instance_eval(&block)
-              # `instance_variable_get`, not a public `compensates_spec`
-              # reader — a public one would be a method the grammar
-              # never declares, exactly what `spec/syntax_conformance_
-              # spec.rb`'s "answers only words the language declares"
-              # check exists to catch.
+              # `instance_variable_get`, not a public reader: a reader would be a method the
+              # grammar never declares (syntax_conformance_spec).
               spec.compensates = builder.instance_variable_get(:@compensates_spec)
             end
 
@@ -368,16 +223,8 @@ module Hecks
             spec
           end
 
-          # The nested scope `dispatch ... do ... end` opens — one word
-          # only (`compensates`), the compensating half of the dispatch it
-          # sits inside. Its own `compensates_impl` builds a second
-          # `DispatchSpec`, shape-identical to `HandlerBuilder#dispatch_
-          # impl`'s own — a compensation takes the exact same two
-          # arguments (a bare command constant, an optional `with:`)
-          # because it resolves through the identical scope (current
-          # event payload, opening event memory, correlation binding)
-          # any saga dispatch already does
-          # (`SagaInterpreter#dispatch_args`).
+          # The nested scope `dispatch ... do ... end` opens; its one word, `compensates`,
+          # takes the same arguments as `dispatch` and resolves in the same saga scope.
           class DispatchBuilder
             GRAMMAR_CONTEXT = "Dispatch".freeze
 

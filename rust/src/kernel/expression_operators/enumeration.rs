@@ -1,21 +1,7 @@
-// **The "enumeration" operator category** — `.any?`/`.none?`/`.all?` and
-// `.find`, each taking a `{ |param| predicate }` block; the port of
-// `Resolver#evaluate_block_predicate`/`#found_of`
-// (lib/hecks/bluebook/expression/resolver/block_predicates.rb), read
-// directly. Admitted into the expression ledger as one category
-// (`lib/hecks/grammar/expression_operators.json`, strategy
-// `block_pattern_match`) the day the first domain to lean on them —
-// chess, whose every occupancy, path-clearance and check-safety given
-// is one, three deep — asked to be projected to Rust and the generator
-// refused with "unhandled resolver node BlockPredicate". A block's
-// parameter is bound by `Bound` (expr.rs) exactly as Ruby merges it
-// into attrs; the receiver's elements come from `Fielded::items`, the
-// second reading of a list field beside `Value::List(len)`.
-//
-// Every element's outcome is computed before the aggregation, not
-// short-circuited — Ruby's own `collection.map { … }` then `.all?`/
-// `.any?`/`.none?` does the same, so an evaluation error on the third
-// element surfaces identically in both runtimes.
+//! `.any?`/`.none?`/`.all?` and `.find`, each taking a `{ |param| predicate }` block.
+
+// Every element is evaluated before aggregating, not short-circuited, so an error on any
+// element surfaces exactly as it does in Ruby.
 use crate::kernel::attribute_shapes::composite;
 use crate::kernel::expr::{eval_error, interpret as eval, lookup_items, BlockMode, Bound, EvalContext, Expr, Field, Value};
 use crate::kernel::Refusal;
@@ -48,17 +34,14 @@ pub fn interpret(expr: &Expr, ctx: &EvalContext) -> Result<Value, Refusal> {
                     return project(item, path);
                 }
             }
-            // `return nil if found.nil?` — nothing matched, and a path
-            // walked from nothing is nil too.
+            // Nothing matched, and a path walked from nothing is nil too.
             Ok(Value::Nil)
         }
         _ => Err(Refusal::TypeMismatch(format!("enumeration::interpret called with a non-enumeration node {expr:?} — a router bug"))),
     }
 }
 
-/// The receiver must be a `Lookup` — the only node that names a list
-/// field. Anything else is evaluated for the wording only: Ruby raises
-/// "any? expects a list, got …" for a non-Array receiver.
+/// Only a `Lookup` names a list field; any other receiver is evaluated just to word the error.
 fn elements<'a>(receiver: &Expr, ctx: &EvalContext<'a>, op: &str) -> Result<Vec<Field<'a>>, Refusal> {
     match receiver {
         Expr::Lookup(path) => lookup_items(path, ctx, op),
@@ -76,9 +59,7 @@ fn borrow<'a>(field: &Field<'a>) -> Field<'a> {
     }
 }
 
-/// `found_of`'s tail: `unwrap_scalar(found)` for a bare `.find { }`,
-/// `unwrap_scalar(walk_path(found, path))` otherwise — the same
-/// `composite::step`/`finish` walk a dotted `Lookup` takes past its head.
+/// Walks `path` past the found element, as a dotted `Lookup` does past its head.
 fn project(item: Field<'_>, path: &[&str]) -> Result<Value, Refusal> {
     let mut current = item;
     let rendered = path.join(".");
@@ -94,9 +75,7 @@ mod tests {
     use crate::kernel::expr::{Fielded, NoFields};
     use crate::kernel::Comparison;
 
-    // A hand-built host, shaped like the generated `Fielded` impls
-    // fielded.rb emits: `field` answers the list as its length, `items`
-    // answers its members.
+    // Shaped like generated `Fielded` impls: `field` answers a list's length, `items` its members.
     struct Seat {
         number: i64,
         taken: bool,
@@ -193,9 +172,7 @@ mod tests {
 
     #[test]
     fn the_parameter_shadows_a_same_named_field_only_inside_the_block() {
-        // `number` on the instance is 99; inside the block `number` is
-        // not the parameter (the parameter is `s`), so it still reads 99
-        // — while `s.number` reads the element's own.
+        // Inside the block `number` still reads the instance's 99; only `s` is bound.
         let shadow = Expr::BlockPredicate {
             mode: BlockMode::Any,
             receiver: Box::new(Expr::Lookup("seats")),
@@ -210,9 +187,8 @@ mod tests {
 
     #[test]
     fn nested_blocks_see_the_outer_parameter() {
-        // seats.any? { |s| s.taken == false && seats.none? { |o| o.number == s.number + 1 } }
-        // — the free seat (2) is followed by seat 3, so this is false;
-        // the inner block reads both its own `o` and the outer `s`.
+        // The free seat (2) is followed by seat 3, so this is false; the inner block reads
+        // both its own `o` and the outer `s`.
         let inner = Expr::BlockPredicate {
             mode: BlockMode::None,
             receiver: Box::new(Expr::Lookup("seats")),

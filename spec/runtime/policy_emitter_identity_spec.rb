@@ -1,20 +1,7 @@
 require "spec_helper"
 
-# A policy's `with:` may read the emitting record's own identity.
-#
-# Routing separated from payload (`to:`/`with:`) stopped carrying the
-# emitting aggregate's identity in an event's payload — right for the
-# event, but it left a cross-aggregate reaction with no way to say which
-# record to address. The real case: chess's Graveyard is one per game,
-# fed by policy from every piece's own Captured event; an entity
-# command's event never declares its aggregate's identity (it arrives
-# through `reference_to`), so `with: { label: :label }` was refused at
-# build time and a wholesale forward fell through to the captured
-# piece's `id` as the graveyard's identity — every burial refused.
-#
-# `PolicyInterpreter#emitter_identity` offers `Event#id` under the
-# emitter's own identity heads, to an explicit projection only;
-# `BluebookBuilder.check_with_spec!` admits the same names.
+# A policy's `with:` may read the emitting record's own identity, offered by
+# `PolicyInterpreter#emitter_identity` as `Event#id` under the emitter's identity heads.
 RSpec.describe "a policy projecting its emitter's identity" do
   # One inline bluebook, declared whole — a domain-definition DSL block
   # read top to bottom as the fixture, not a sequence of independent
@@ -105,8 +92,8 @@ RSpec.describe "a policy projecting its emitter's identity" do
           trigger Graveyard::Open
         end
 
-        # **The point**: `PieceCaptured` declares nothing — the board's own
-        # `label` only ever reaches this projection as the emitter's identity.
+        # `PieceCaptured` declares nothing: `label` reaches this projection
+        # only as the emitter's identity.
         policy "BuryOnCapture" do
           on      "PieceCaptured"
           trigger Graveyard::Bury, with: with_spec

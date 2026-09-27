@@ -10,20 +10,12 @@ module Hecks
     # command line, or executes a JSON step list and reports instances, events,
     # refusals, reactions, sagas and query rows.
     #
-    # ## Two forms, one argument
-    #
-    # `run bug.discover reference=BUG#1 severity=high …` needs no JSON. The verb
-    # tree, every argument, its declared type and every way the verb can refuse are
-    # projected out of the bluebook (`Projector::CliProjector`) and run by
-    # `Facade::CliRunner`, so this knows nothing about any domain and its help
-    # cannot go stale. The step-list form takes a script path, `-` for stdin, or the
-    # JSON itself, which is how the corpus scripts under `spec/corpus/` are run.
-    #
-    # ## Standing in a domain is enough
-    #
-    # `Adapters::Folder#domain_root` walks up for the nearest `.hecksagon`, so inside
-    # a domain the path can be left off. The first argument is a domain only when it
-    # is a directory.
+    # `run bug.discover reference=BUG#1 severity=high …` needs no JSON; the verb
+    # tree and its arguments are projected from the bluebook, so this knows nothing
+    # about any domain and its help cannot go stale. The step-list form takes a
+    # script path, `-` for stdin, or the JSON itself. The first argument is a
+    # domain only when it is a directory; otherwise the nearest enclosing one is
+    # used.
     module Run
       module_function
 
@@ -59,19 +51,9 @@ module Hecks
         abort unmet.join("\n") unless unmet.empty?
       end
 
-      # Boots `domain` and dispatches `argv` as a projected verb invocation, printing
-      # the result and exiting the process.
-      #
-      # **No fall-through**. This is reached only when the argument is not
-      # script-shaped, so a near miss deserves the runner's "did you mean" rather
-      # than the step-list form's "no such script".
-      #
-      # @param domain [String] the domain's directory path
-      # @param argv [Array<String>] the arguments after the domain, e.g.
-      #   `["bug.discover", "reference=BUG#1"]`
-      # @param program [String] the name the runner's help calls this command by
-      # @return [void]
-      # @raise [SystemExit] always
+      # No fall-through: reached only when the argument is not script-shaped, so a
+      # near miss deserves the runner's "did you mean" rather than the step-list
+      # form's "no such script".
       def cli_form(domain, argv, program)
         runtime = Hecks.boot(domain, install_facade: false)
         text, status = Facade::CliRunner.call(runtime: runtime, argv: argv, program: program)
@@ -79,20 +61,10 @@ module Hecks
         exit 0
       end
 
-      # Says whether `arg` is a step list rather than a verb: stdin, inline JSON, or
-      # a file that exists.
-      #
-      # @param arg [String] the first argument after the domain
-      # @return [Boolean] true when `arg` is script-shaped
       def script_shaped?(arg) = arg == "-" || arg.match?(/\A\s*\{/) || File.file?(arg)
 
-      # Reads the step list from stdin, from the argument itself, or from a file,
-      # decided by looking, because a script beginning with `{` is not a filename
+      # Decided by looking, because a script beginning with `{` is not a filename
       # anybody meant.
-      #
-      # @param script [String] `-`, inline JSON, or a file path
-      # @return [String] the script's JSON text
-      # @raise [SystemExit] when `script` names no file
       def read_source(script)
         case script
         when "-" then $stdin.read
@@ -102,25 +74,14 @@ module Hecks
         end
       end
 
-      # Parses the step list before anything boots, because booting opens a real
-      # store and a typo in the JSON should cost a sentence, not a connection.
-      #
-      # @param source [String] the script's JSON text
-      # @return [Hash{String => Object}] the parsed script
-      # @raise [SystemExit] when `source` is not JSON
+      # Parsed before anything boots, because booting opens a real store and a typo
+      # in the JSON should cost a sentence, not a connection.
       def parse(source)
         JSON.parse(source)
       rescue JSON::ParserError => e
         abort "that is not JSON: #{e.message.lines.first.strip}"
       end
 
-      # Runs every step and gathers what the runtime holds afterwards.
-      #
-      # @param runtime [Runtime::Dispatcher, Runtime::RemoteDispatcher] the booted domain
-      # @param steps [Array<Hash{String => Object}>] the script's steps, each a
-      #   `"verb"` or a `"query"` with optional `"args"`
-      # @return [Hash{Symbol => Object}] `:instances`, `:events`, `:refusals`,
-      #   `:reactions`, `:sagas` and `:queries`, in the order they are printed
       def execute(runtime, steps)
         refusals = []
         queries = []
@@ -171,13 +132,6 @@ module Hecks
         end
       end
 
-      # Checks the script's `"expectations"` against what the run produced.
-      #
-      # @param expectations [Hash{String => Object}] the script's `"event_names"`,
-      #   `"refusals"` and `"instances"` expectations; `{}` when it declares none
-      # @param report [Hash{Symbol => Object}] what `execute` answered
-      # @return [Array<String>] one message per unmet expectation; empty when every
-      #   one held
       def unmet_expectations(expectations, report)
         missing_events = Array(expectations["event_names"]) - report[:events].map { |event| event[:name] }
         unmet = []

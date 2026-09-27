@@ -26,12 +26,8 @@ Hecks.bluebook "Shaped" do
       attribute :value, String
     end
 
-    # SINGLE-FIELD HERE, unlike base.bluebook's own Money — a bare
-    # `identified_by :balance` only auto-unwraps when there is exactly
-    # one field to unwrap to (ADR 0025, "Identity"); this fixture is
-    # unused by any spec today, so trimming `currency` is the minimal
-    # way to keep it syntactically valid rather than giving it a
-    # dedicated identity field that would muddy what "bumped" here.
+    # Single field, unlike base.bluebook's Money: a bare `identified_by :balance` only
+    # auto-unwraps a one-field value object (ADR 0025).
     value_object "Money" do
       attribute :cents, Integer
     end

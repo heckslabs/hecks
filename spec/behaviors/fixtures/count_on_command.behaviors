@@ -1,5 +1,4 @@
-# `count:` is never read by run_command — it used to build and pass
-# unconditionally. Build-time validation refuses it instead.
+# `count:` on a command is never read, so build-time validation refuses it.
 Hecks.behaviors "CountOnCommand" do
   vision "count: on a command is meaningless and should refuse to build."
   loads "../../../examples/pizzas/bluebook/pizzas.bluebook", "../../../examples/pizzas/pizzas_behaviors.hecksagon"

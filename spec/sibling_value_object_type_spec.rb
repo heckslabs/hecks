@@ -1,15 +1,9 @@
 require "spec_helper"
 require_relative "support/sibling_value_object_domain"
 
-# An attribute typed with a value object a sibling aggregate declares is a value
-# object, not a reference.
-#
-# The assembly offers an attribute's type to the language as the id of what it
-# names: a head's id (chapter, aggregate) for a `reference_to`, a declaration's id
-# (chapter, owning aggregate, name) for a value object or entity. Reading the id
-# back has to tell the two apart by shape, or a value object owned by another
-# aggregate comes back as `Reference<Name>` and every consumer that asks "is this
-# a value object" gets the wrong answer.
+# An attribute typed with a sibling aggregate's value object is a value object, not a reference.
+# The id read back must be told apart by shape (head id vs declaration id), or the value
+# object comes back as `Reference<Name>`.
 RSpec.describe "an attribute typed with a sibling aggregate's value object" do
   let(:chapter) { SiblingValueObjectDomain.chapter }
   let(:booking) { chapter.aggregate("Booking") }

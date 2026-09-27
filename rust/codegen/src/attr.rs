@@ -1,9 +1,5 @@
-//! Small accessors over an `IR::Attribute#to_h`-shaped `Json::Object` —
-//! the JSON-round-tripped shape rust/project/*.rb reads via `attr[:name]`
-//! etc. Kept as free functions over `&Json` rather than a wrapper struct:
-//! every Ruby call site is a bare Hash lookup, and mirroring that directly
-//! keeps this file trivially diffable against the Ruby source rather than
-//! introducing a struct shape the Ruby original never had.
+//! Free-function accessors over an `IR::Attribute#to_h`-shaped `Json::Object`, mirroring the
+//! bare Hash lookups in rust/project/*.rb.
 
 use crate::json::Json;
 

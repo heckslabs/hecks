@@ -4,18 +4,8 @@ module Hecks
   module Projections
     module Deploy
       module Preview
-        # The resolved, validated settings of one preview stack family.
-        #
-        # `Settings.build` is the only place a raw `preview` block meets the
-        # main stack's own facts, so every default lives here and the two
-        # renderers (`Template`, `Script`) read plain values.
-        #
-        # ## Why validation is this strict
-        #
-        # Every value ends up in a CloudFormation name, a Postgres database
-        # name that `CREATE DATABASE` cannot parameterize, or a shell script
-        # baked with the value. Patterns are checked once here, so neither
-        # renderer has to quote defensively.
+        # The resolved, validated settings of one preview stack, built once by `build`.
+        # Checked strictly: values feed CloudFormation names and a baked shell script.
         class Settings
           KEYS = %i[prefix alb_prefix owner_stack database_stack database_endpoint_output database_secret_output
                     db_prefix protected_databases protected_branches cpu memory log_retention_days session_cookie
@@ -34,18 +24,7 @@ module Hecks
 
           attr_reader(*KEYS, :region, :stack_name, :infra_name, :main)
 
-          # Builds the settings for one domain's previews.
-          #
-          # @param raw [Hash{Symbol => Object}, true] the `preview` block; `true` accepts
-          #   every default
-          # @param deploy_settings [Hash{Symbol => Object}] the `deployed_to` settings
-          # @param main [Hash{Symbol => Object}] the main stack's facts: `:infra_name`,
-          #   `:stack_name`,
-          #   `:stack_prefix`, `:region`, `:cpu`, `:memory`, `:db_name`, `:owner_stack` (nil unless
-          #   the main stack borrows a database), `:name`, `:port`, `:image`, `:domain`, `:web`,
-          #   `:wasm_path`, `:ir_path`, `:schema`
-          # @return [Settings] the validated settings
-          # @raise [ArgumentError] if a key is unknown or a value breaks its pattern
+          # `raw` may be `true`, accepting every default.
           def self.build(raw, deploy_settings:, main:)
             raw = raw.is_a?(Hash) ? raw.transform_keys(&:to_sym) : {}
             unknown = raw.keys - KEYS
@@ -56,9 +35,6 @@ module Hecks
             new(raw, deploy_settings, main)
           end
 
-          # @param raw [Hash{Symbol => Object}] the symbolized `preview` settings
-          # @param deploy_settings [Hash{Symbol => Object}] the `deployed_to` settings
-          # @param main [Hash{Symbol => Object}] the main stack's facts, see `build`
           def initialize(raw, deploy_settings, main)
             @main = main
             @region = main.fetch(:region)
@@ -72,14 +48,8 @@ module Hecks
                                              signup_path: (signup_path if first_admin))
           end
 
-          # Answers the host container, when the task has one.
-          #
-          # @return [Containers::Entry, nil] the entry flagged `host`
           def host = containers.find(&:host)
 
-          # Answers the container that receives unmatched requests.
-          #
-          # @return [Containers::Entry] the default entry
           def default_container = containers.find(&:default)
 
           private

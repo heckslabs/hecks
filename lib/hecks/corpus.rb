@@ -1,19 +1,8 @@
 require_relative "fuzzing/target_capabilities"
 
 module Hecks
-  # **The corpus, discovered** — every place in this repo that holds a real
-  # domain, named once.
-  #
-  # One table here, rather than each consumer spelling out its own copy —
-  # spec/corpus_spec.rb, spec/model_check_spec.rb, bin/model_check,
-  # spec/parser_parity_spec.rb, bin/fuzz, Fuzzing::CombinationMiner all did,
-  # and the copies had already drifted: only the model checker saw
-  # `qa/bluebook`, only parser parity saw `spec/fixtures`, and nothing but
-  # bin/fuzz's own sweep ever saw `qa/stress_domains`. Each consumer names
-  # the `KINDS` it walks rather than re-deriving where those kinds live.
-  #
-  # Plain Dir/File only — bin/ scripts require this before (or without)
-  # booting anything.
+  # The corpus: every place in this repo that holds a real domain, named once.
+  # Plain Dir/File only — bin/ scripts require this before booting anything.
   module Corpus
     ROOT = File.expand_path("../..", __dir__).freeze
 
@@ -25,17 +14,8 @@ module Hecks
       example:   "examples/*",
       stress:    "qa/stress_domains/*",
       semantics: "spec/corpus/semantics/domains/*",
-      # A package vendored via `uses_embryonaut_bluebook` — same real
-      # mechanism `uses_framework` is (`lib/hecks/embryonaut_bluebook.rb`'s
-      # own header: "same shape as Framework"), one level further out: not
-      # a chapter shipped inside this gem's own `lib/hecks/framework/
-      # bluebook/` (the `:framework` FILE_KIND, below), but a directory
-      # nested inside the consuming example's own checkout
-      # (`<domain>/vendor/embryonaut_bluebooks/<name>/bluebook/`,
-      # EmbryonautBluebook.load!'s own resolution path) — hence its own
-      # DIRECTORY_KIND rather than reuse of `:framework`'s shape. First
-      # real member: docs/decisions/0058's own
-      # examples/embryonaut_vendoring_demo/vendor/embryonaut_bluebooks/widgets.
+      # A package vendored via `uses_embryonaut_bluebook` — nested inside the
+      # consuming example's own checkout, not this gem's own framework/bluebook/.
       vendored:  "examples/*/vendor/embryonaut_bluebooks/*"
     }.freeze
 
@@ -54,21 +34,9 @@ module Hecks
 
     KINDS = (DIRECTORY_KINDS.keys + FILE_KINDS.keys).freeze
 
-    # Where a bluebook the sweep does not boot goes instead. Not a filter:
-    # nothing leaves `sweepable_domains` without naming the check that owns
-    # it, and spec/corpus_accounting_spec.rb proves each destination exists
-    # and actually exercises what is routed to it.
-    #
-    #   check: :named_in   — `destination` names every routed file
-    #                        (`names: :each_file`) or the given text
-    #   check: :gitignored — `destination` holds the ignore rule `names`,
-    #                        and nothing matching is committed
-    #   check: :gap        — no check exercises these yet. Listed so the
-    #                        gap is visible; the accounting spec keeps it
-    #                        pending and fails the moment one appears.
-    #
-    # Ordered — a bluebook belongs to the first route it matches, so a
-    # specific destination sits above the catch-all for its shape.
+    # A route sends what the sweep does not boot elsewhere; each entry's
+    # `check` (:named_in, :gitignored, :gap) is verified by
+    # spec/corpus_accounting_spec.rb, matched in order.
     Route = Struct.new(:pattern, :check, :destination, :names, :why)
 
     ROUTES = [
@@ -90,10 +58,9 @@ module Hecks
                 "its filename declares (bump_* / same_*)"),
       Route.new(%r{\Aspec/fixtures/model_check/}, :named_in, "spec/model_check_spec.rb", :each_file,
                 "domains broken on purpose; each must produce exactly the finding kinds it is built to trigger"),
-      # bin/fuzz sweeps it too, once Fuzzing::Replay coerces value-object
-      # args before recomputing givens — today its oracle reads raw args
-      # while dispatch coerces, so checkout_fixture's VO-reading given
-      # reads as wrongly admitted.
+      # bin/fuzz sweeps it too, once Fuzzing::Replay coerces value-object args
+      # before recomputing givens — today it doesn't, so this given reads as
+      # wrongly admitted.
       Route.new(%r{\Aspec/fixtures/rust_host/}, :named_in, "rust/host/src/web.rs", "checkout_fixture",
                 "the Rust host's checkout fixture, pinned by its web and /api tests")
     ].freeze
@@ -123,9 +90,8 @@ module Hecks
       end
     end
 
-    # What a boot loads for a member: a directory kind's bluebook
-    # directory, a file kind's own file. `nil` for a directory holding no
-    # bluebook at all.
+    # What a boot loads for a member — a directory kind's bluebook
+    # directory, or a file kind's own file.
     #
     # @param member [Member] the corpus member
     # @return [String, nil] the path to boot, or nil when a directory member holds
@@ -134,9 +100,8 @@ module Hecks
       DIRECTORY_KINDS.key?(member.kind) ? bluebook_dir(member.path) : member.path
     end
 
-    # Where a domain path keeps its bluebooks — `<domain>/bluebook/*.bluebook`
-    # (every example and stress domain), or the directory itself
-    # (`qa/bluebook`). `nil` when neither holds a bluebook.
+    # Where a domain path keeps its bluebooks — `<domain>/bluebook/*.bluebook`,
+    # or the directory itself when that holds none (e.g. `qa/bluebook`).
     #
     # @param domain_path [String] path to a domain directory
     # @return [Array<String>, nil] `.bluebook` file paths found, or nil when none
@@ -167,12 +132,8 @@ module Hecks
       ROUTES.find { |route| route.pattern.match?(relative_path) }
     end
 
-    # What bin/model_check and spec/model_check_spec.rb walk — every kind,
-    # less the language (examined as one judged chapter, not file by file)
-    # and deploy chapters (the SAM projector's own inputs), and less any
-    # member a route already sends to a destination of its own: the
-    # broken-on-purpose model_check fixtures must produce their findings
-    # there, so a clean-corpus gate here would be the wrong check for them.
+    # Every kind bin/model_check walks: excludes language/deploy (checked
+    # elsewhere) and anything a route already sends to its own destination.
     MODEL_CHECK_KINDS = %i[example grammar framework vendored qa stress fixture].freeze
 
     # Every corpus member `bin/model_check` and `spec/model_check_spec.rb` walk.
@@ -188,18 +149,8 @@ module Hecks
     # stress domain.
     ROTATION_LEDGER = { "quality_control" => "qa/bluebook" }.freeze
 
-    # What the QA rotation is made of — every example and stress domain
-    # this repository owns, plus the ledger, as `reference => repo-relative
-    # path`: exactly the shape `Target.path` is stored in.
-    #
-    # Derived, because the hand-kept version silently went stale.
-    # `bin/qa_seed_targets` carried a literal list naming three of the
-    # thirteen stress domains; the other ten were authored, argued for in
-    # their own NOTES.md, several promoted by `bin/qa_generated_domains
-    # --promote` — and never swept once, because a `Target` row is what
-    # puts a domain in the rotation and nothing tied that list to the
-    # corpus. Promotion only ever printed the `target.identify` line for a
-    # human to run.
+    # What the QA rotation is made of — every example and stress domain,
+    # plus the ledger, as `reference => repo-relative path` — derived, not hand-kept.
     #
     # @param root [String] repository root to search under
     # @return [Hash{String => String}] each rotation member's stem/reference mapped
@@ -210,9 +161,8 @@ module Hecks
         .merge(ROTATION_LEDGER)
     end
 
-    # Every bootable domain in the project, not a hand-kept list — any
-    # directory holding a `.bluebook` no route sends elsewhere, a
-    # `bluebook/` folder standing for the domain directory around it.
+    # Every bootable domain in the project — any directory holding a
+    # `.bluebook` no route sends elsewhere (a `bluebook/` folder stands for its parent).
     #
     # @param root [String] repository root to search under
     # @return [Array<String>] absolute paths of every sweepable domain directory
@@ -237,23 +187,8 @@ module Hecks
       File.basename(dir) == "bluebook" ? File.dirname(dir) : dir
     end
 
-    # ── The Rust-facing corpus ─────────────────────────────────────────
-    #
-    # Every Rust-facing list (the fuzz bridge, the codegen drift check,
-    # rust coverage, codegen parity) reads `rust/Cargo.toml`'s `[features]`
-    # as its one source, rather than being typed out by hand per consumer
-    # and drifting from it — hand-typed, fuzzing once saw only 8 of 20
-    # features. The `rust/src/generated/` modules split into buckets, and
-    # spec/corpus_rust_spec.rb proves every Cargo feature and every
-    # generated module lands in exactly one of them:
-    #
-    #   rust_domains       an in-repo domain directory with a Cargo feature
-    #                      of its own: fuzzed, regenerated, coverage- and
-    #                      parity-checked
-    #   framework chapters no feature and no merged.rs; written as a side
-    #                      effect of every `uses_framework` domain's regen
-    #   RUST_ELSEWHERE     a feature with no in-repo domain directory, and
-    #                      the check that owns it instead
+    # Every Rust-facing list reads `rust/Cargo.toml`'s `[features]` as its
+    # one source, rather than each consumer typing it out by hand.
     GENERATED_DIR = "rust/src/generated".freeze
     RUST_DOMAIN_KINDS = %i[example stress fixture].freeze
 
@@ -270,8 +205,7 @@ module Hecks
     }.freeze
 
     # Every place a Rust-facing domain's own `uses_framework`/
-    # `uses_embryonaut_bluebook` attachment could be declared — every
-    # in-repo Rust domain's own hecksagon files.
+    # `uses_embryonaut_bluebook` attachment could be declared.
     #
     # @param root [String] repository root to search under
     # @return [String] every reachable hecksagon file's own text, joined by newlines
@@ -280,10 +214,9 @@ module Hecks
                               .map { |path| File.read(path) }.join("\n")
     end
 
-    # **Shrink-only**. A generated module `bin/rust_coverage` still reports a
-    # gap for. `bin/corpus --rust-coverage` requires each of these to
-    # still fail, so an entry that starts passing breaks the build until
-    # it is deleted here.
+    # **Shrink-only**: a generated module `bin/rust_coverage` still flags.
+    # `bin/corpus --rust-coverage` requires each entry to still fail, so a
+    # newly-passing module breaks the build until removed here.
     RUST_COVERAGE_PENDING = {}.freeze
 
     # The Cargo `[features]` table's raw text.
@@ -312,10 +245,7 @@ module Hecks
     end
 
     # Every in-repo domain directory whose name is a Cargo feature, sorted
-    # by path. When the module is already generated, its metadata.rs stamp
-    # decides which directory it came from — a directory name alone is not
-    # enough: spec/fixtures/qa_discover_external_domains vendors a second
-    # `examples/pizzas` that no Cargo feature was ever generated from.
+    # by path — disambiguated by the generated module's metadata.rs stamp when one exists.
     #
     # @param root [String] repository root to search under
     # @return [Array<RustDomain>] each Rust-facing domain, sorted by directory path
@@ -341,11 +271,9 @@ module Hecks
       features.include?(feature) && (source.nil? || source == dir.delete_prefix("#{root}/"))
     end
 
-    # Where a generated module came from, read off the stamp bin/project_rust
-    # writes into its metadata.rs — `examples/pizzas`, `/abs/path/embryonaut`,
-    # `the self-hosted language (lib/hecks/language/bluebook)`, with any
-    # ` (uses_framework "X")` or ` (uses_embryonaut_bluebook "X")` suffix
-    # dropped. `nil` when not generated.
+    # The stamp bin/project_rust writes into metadata.rs, e.g.
+    # `examples/pizzas` or `the self-hosted language (...)`, with any
+    # ` (uses_framework "X")`/` (uses_embryonaut_bluebook "X")` suffix stripped.
     SOURCE_STAMP = %r{
       GENERATED\ by\ bin/project_rust\ —\ (.+?)
       (?:\ \((?:uses_framework|uses_embryonaut_bluebook)\ "\w+"\))?
@@ -381,19 +309,8 @@ module Hecks
       File.file?(File.join(root, GENERATED_DIR, feature, "merged.rs"))
     end
 
-    # Chapters attached via `kind` (`:framework` or `:vendored`) that
-    # `bin/project_rust` writes a module for as a side effect of the
-    # attaching domain — a module, no merged.rs of its own. Both kinds
-    # share this shape: `bin/project_rust`'s own generated module name is
-    # always `chapter_name.downcase` (rust/src/generated/mod.rs's own
-    # convention), and for either kind that downcased name is always the
-    # original lowercase directory stem again — confirmed live for a
-    # framework member and for a vendored package alike (a vendored
-    # package's own bluebook stem doesn't have to equal its declared
-    # chapter name the way a framework member's does — `EmbryonautBluebook.
-    # load!` resolves it as `Naming.pascal(dir_name)`, e.g. "widgets" ->
-    # "Widgets" — but downcasing a `Naming.pascal`-derived name always
-    # returns the original lowercase stem again).
+    # Chapters attached via `kind` that get a generated module as a side
+    # effect of the attaching domain's regen, with no merged.rs of their own.
     #
     # @param kind [Symbol] :framework or :vendored
     # @param root [String] repository root to search under
@@ -409,14 +326,7 @@ module Hecks
     end
 
     # The generated module name a `:framework`/`:vendored` stem writes
-    # under — `Naming.pascal(stem).downcase` (`bin/project_rust`'s own
-    # convention, see `rust_side_chapters`'s header); a chapter whose
-    # stem holds an underscore ("console_settings") writes to a
-    # different, underscore-free module name ("consolesettings"), so a
-    # bucket-membership check against `generated_modules` (a directory
-    # name) needs this mapping rather than the raw stem
-    # `rust_framework_chapters`/`rust_vendored_chapters` still return
-    # (every other caller wants the stem, to build a bluebook file path).
+    # under — strips underscores, so it can differ from the raw stem.
     #
     # @param stem [String] a `:framework`/`:vendored` corpus member's stem
     # @return [String] the generated module's own directory name
@@ -440,10 +350,8 @@ module Hecks
       rust_side_chapters(:vendored, root: root)
     end
 
-    # Chapters an in-repo Rust domain carries beside its own bluebook (a
-    # sibling `.bluebook` in the domain's directory) that `bin/project_rust`
-    # writes a module for as a side effect — a module, no merged.rs of its
-    # own. Today: `payments`, beside spec/fixtures/rust_host/checkout_fixture.
+    # Chapters an in-repo Rust domain carries beside its own bluebook,
+    # written as a module by `bin/project_rust` with no merged.rs of its own.
     #
     # @param root [String] repository root to search under
     # @return [Array<String>] generated module names with no merged.rs of their own
@@ -456,11 +364,8 @@ module Hecks
         .select { |name| modules.include?(name) && !generated?(name, root: root) }
     end
 
-    # The regeneration order the drift check runs. Sorted by path, so
-    # which domain runs last — and so wins Cargo's `default`, mod.rs's cfg
-    # comments and the shared framework modules' attribution stamp — is a
-    # fact of the sorted list, not a hand-picked order: today that is
-    # `has_many_fixture`. spec/corpus_rust_spec.rb pins last == default.
+    # The regeneration order the drift check runs, sorted by path — so which
+    # domain wins Cargo's `default` is derived, not hand-picked.
     #
     # @param root [String] repository root to search under
     # @return [Array<RustDomain>] already-generated Rust domains, in regeneration order
@@ -468,11 +373,8 @@ module Hecks
       rust_domains(root: root).select { |domain| generated?(domain.feature, root: root) }
     end
 
-    # The chapter a bluebook declares — `Hecks.bluebook "<Name>"`, read
-    # off the file rather than guessed from its name (a grammar chapter's
-    # file is named after its role, `aggregate.bluebook`, while its
-    # chapter is always "Bluebook"). Scans the whole file: a framework
-    # member's header comment can run past any fixed line cap.
+    # The chapter a bluebook declares — `Hecks.bluebook "<Name>"` — read off
+    # the file rather than guessed from its name, since the two can differ.
     #
     # @param bluebook_path [String, Array<String>] a `.bluebook` file path, or an
     #   array whose first element is used

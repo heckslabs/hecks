@@ -1,7 +1,4 @@
-// Hand-written, domain-agnostic invocation boundary. Receiver identity is
-// transport/routing data; command facts are a different channel. Generated
-// routers accept this shape while retaining the legacy mixed-args object as a
-// compatibility input during migration.
+// Domain-agnostic invocation boundary: receiver identity (routing) is separate from command facts.
 
 use super::{Json, Refusal};
 
@@ -91,19 +88,7 @@ impl RoutingEnvelope {
         &self.entities
     }
 
-    // BUG#146 (qa/bluebook/quality_control.bluebook) — this wording
-    // matches Ruby's own `Invocation.route` (lib/hecks/runtime/
-    // invocation.rb), which raises `"to: for an entity command needs N
-    // entity identity/identities after the aggregate — got M"` for the
-    // identical depth mismatch, rather than `routing_refusal`'s own
-    // generic "invalid routing envelope: route requires N entity
-    // identit{y,ies}, got M" text — both sides already agree on the
-    // refusal kind, `TypeMismatch`; only the wording needs to match,
-    // found while verifying BUG#141/BUG#123's own aggregate-
-    // dispatch-order fix, which needs this exact wording to match for
-    // its own regression fixtures to byte-compare clean. No `routing_
-    // refusal` prefix here on purpose — Ruby's message carries none
-    // either.
+    // Wording matches Ruby's `Invocation.route` so refusals byte-compare across both sides.
     pub fn require_depth(&self, expected: usize) -> Result<(), Refusal> {
         if self.entities.len() == expected {
             Ok(())
@@ -121,98 +106,19 @@ impl RoutingEnvelope {
 pub struct CommandInvocation {
     route: Option<RoutingEnvelope>,
     facts: Json,
-    // BUG#141/BUG#123 (qa/bluebook/quality_control.bluebook) — which of
-    // the two shapes `from_json` parsed this call as: the explicit
-    // `with:` form (`true`) or the legacy/flat-facts form (`false`,
-    // whether or not a route was also given). Ruby's own `Invocation.
-    // from_call` (lib/hecks/runtime/invocation.rb) treats these two
-    // shapes differently for an :aggregate-receiver command: `with:`
-    // validates facts (`refuse_unknown_facts!`/`refuse_absent_facts!`)
-    // before `route(to)` ever runs, but the legacy shape's own `facts_
-    // for` is a silent no-op — so `route(to)`'s own `TypeMismatch` (a
-    // malformed/wrong-depth `to:`) is effectively the first thing that
-    // can raise, well before `CommandInterpreter`'s own args-gate
-    // (`refuse_unknown_arguments`/`refuse_absent_arguments`, now
-    // `kernel::decode_aggregate_arguments`) ever runs. Exposed here
-    // (`explicit_with`, below) so a generated aggregate-command dispatch
-    // (`rust/project/registry.rb`/`rust/codegen/src/registry.rs`'s own
-    // aggregate arm) can replicate that same conditional ordering at
-    // runtime, per call, rather than picking one fixed order for every
-    // call. Roadmap D2 (#751) made the route-depth check run eagerly,
-    // ahead of `decode_aggregate_arguments`, for every aggregate
-    // command — correct for the legacy shape, but D2's own comment on
-    // `route_precheck_line` names the gap left open: the with: shape's
-    // own facts-strictness (`refuse_unknown_facts!`/`refuse_absent_
-    // facts!`) genuinely runs before `route(to)` on the Ruby side, so a
-    // wrong-depth route alongside bad with:-shaped facts refused
-    // TypeMismatch in Rust where Ruby refuses UnknownArgument/
-    // AbsentArgument first. Entity- and port-receiver dispatch need no
-    // such conditional — Ruby already resolves `to:` unconditionally
-    // first for those, regardless of shape, so this field exists only
-    // for the aggregate arm to read.
+    // True for the explicit `with:` shape, false for flat facts. Ruby validates `with:` facts
+    // before checking route depth but not flat facts, so an aggregate command needs the shape
+    // to refuse in the same order.
     explicit: bool,
 }
 
 impl CommandInvocation {
-    /// Parses either an explicit `{ "to": ..., "with": {...} }` routed
-    /// invocation, an unrouted create `{ "with": {...} }`, or a legacy
-    /// mixed command-args object. `to` or `with` selects the explicit form
-    /// — but only when present and non-NULL. BUG#16: a legacy-shaped
-    /// payload whose own domain declares a fact literally named `to`
-    /// (`Roster::Roster.Notice`, `optional: true`, no `sets` — deliberately
-    /// the same naming collision BUG#7's own comment on `scalar_envelope`
-    /// already documents for `Mark`) still carries a `"to"` key when that
-    /// fact is offered as JSON `null` — the fuzzer's ordinary way of
-    /// spelling "argument omitted" for an optional field, and exactly what
-    /// `Fuzzing::Replay`/`StepBuilder` produce. `value.get("to")` answers
-    /// `Some(Json::Null)`, not `None`, for that key — so the old `target.
-    /// is_none()` check read a present-but-null `to` as "the caller wants
-    /// explicit routing," and `RoutingEnvelope::from_json(&Json::Null)`
-    /// then refused it, TypeMismatch, before the domain's own generated
-    /// `NoticeArgs::from_json` (which already treats `Some(Json::Null)`
-    /// the same as absence, correctly) ever got a chance to accept it —
-    /// Ruby's own `Dispatcher#dispatch(verb, to: nil, with: nil, **legacy)`
-    /// takes the identical `to: nil` through `Routing.envelope`, which
-    /// short-circuits (`return nil if to.nil?`) without ever attempting to
-    /// parse a route from it, so Ruby succeeds where Rust refused —
-    /// confirmed live, `bin/qa_sweep roster --seeds 4`. `non_null` restores
-    /// that same "JSON null reads as absent" contract on this side, for
-    /// `to` and `with` alike (the two are otherwise symmetric here).
+    /// Parses an explicit `{ "to": ..., "with": {...} }` invocation, an unrouted create
+    /// `{ "with": {...} }`, or a flat mixed-args object.
     ///
-    /// `strip_routing_keys` — the same fix's other half. Ruby's own
-    /// `dispatch(verb, to: nil, with: nil, ..., **legacy_args)` captures a
-    /// top-level `to`/`with` key into its own keyword parameters
-    /// unconditionally — `legacy_args` (what actually reaches the domain,
-    /// and what an emitted event's payload is built from) never carries
-    /// either key at all once that kwarg binding has run, whether the
-    /// caller offered `nil` or omitted the key entirely; Ruby cannot even
-    /// tell the two apart. Left as `value.clone()` unstripped, Rust's own
-    /// legacy-shape facts still carried the literal `"to": null` entry
-    /// through to `MarkNoticed`'s own emitted payload (`Json::overlay`,
-    /// the generated dispatch code's own `payload` local) even once the
-    /// parse-level TypeMismatch above was fixed — an event-payload
-    /// content divergence, confirmed live the same way.
-    ///
-    /// BUG#17 — Ruby's `Routing.payload(command, with:, legacy:)` decides
-    /// its facts source from `with:` alone: `return legacy unless with`.
-    /// Whether `to:` was also given, and whatever it carries, never enters
-    /// that decision — `Dispatcher#dispatch(verb, to: nil, with: nil,
-    /// **legacy_args)` captures `to:` into its own parameter the same way
-    /// regardless, and `Routing.envelope(to)` is computed entirely
-    /// separately. Conflating the two would fall through to legacy/flat
-    /// facts only when both `to` and `with` are absent-or-null (a
-    /// `target.is_none() && explicit_facts.is_none()` guard) — once a
-    /// caller sends a real, non-null `to:` (scalar or routing-shaped
-    /// object) alongside flat command facts and no `with:` key at all,
-    /// that falls into the "explicit" branch below and sets `facts` to
-    /// `with`'s default of an empty object, silently dropping every real
-    /// fact the caller sent. The command's own generated
-    /// `*Args::from_json` would then refuse those facts as absent — a
-    /// refusal Ruby never produces, since Ruby's `legacy` still has them
-    /// — confirmed live on `pizzas`/`banking`/`chess`/`nested_pieces`.
-    /// The fix: gate the facts source on `explicit_facts` alone, exactly
-    /// like Ruby's `unless with`, independent of whatever `target`/`to:`
-    /// resolves to.
+    /// JSON `null` for `to` or `with` reads as absent, and `to`/`with` never reach the facts
+    /// of the flat shape; Ruby binds them as keyword arguments and cannot tell the cases apart.
+    /// The facts source depends on `with:` alone, never on `to:`.
     pub fn from_json(value: &Json) -> Result<Self, Refusal> {
         let target = non_null(value.get("to"));
         let explicit_facts = non_null(value.get("with"));
@@ -229,40 +135,8 @@ impl CommandInvocation {
             return Err(routing_refusal("cannot combine to/with with legacy args"));
         }
 
-        // BUG#18's own `with:` half. `with:` chooses the explicit
-        // envelope — Ruby's own `Routing.payload` doc comment: "a caller
-        // choosing the explicit envelope cannot smuggle receiver
-        // identity back into the payload" — so a `with:` key sitting
-        // beside a genuine legacy fact (the mixed-args convention the
-        // fuzzer's own nested `step["args"]` object otherwise carries
-        // wholesale, `command_input`'s own doc comment above — a domain
-        // fact happening to collide with the reserved name `with`,
-        // exactly the class BUG#7/#16 already fixed for `to`) is the
-        // same conflict Ruby's own `with && !legacy.empty?` check
-        // already refuses, TypeMismatch, before ever looking at what
-        // `with:` actually contains. Unchecked here, that sibling key
-        // was simply discarded (facts became `with:`'s own value,
-        // whole) and whatever `with:` held next got judged on its own
-        // merits — an out-of-contract routing-shaped object landed as
-        // ordinary command facts and only then refused UnknownArgument,
-        // a different kind for the identical malformed step.
-        //
-        // Not every sibling key is a legacy fact, though — `command_
-        // input`'s own comment above documents two real wire shapes
-        // sharing this one parser: a "direct caller" whose step itself
-        // carries top-level `to`/`with` beside `verb`/`role`/
-        // `actor_id`/`occurred_at`/`dry_run`/`query` (this kernel's own
-        // envelope, read directly off `step` — `top_level_with_selects_
-        // an_unrouted_compound_create_invocation`, below, pins this),
-        // and the fuzzer's own nested-`args` shape, where none of those
-        // step-level names ever appear (they live one level up, outside
-        // whatever object this function ever sees) — so a real domain
-        // fact and a step-envelope key are told apart by name here, the
-        // same way `args` already is (the check just above this one).
-        // A domain that names an actual fact `role`/`verb`/etc. is the
-        // same open, pre-existing collision class `to`/`with` already
-        // are — not this bug's concern to close for every reserved name
-        // at once.
+        // `with:` beside a loose fact is refused, as Ruby's `Routing.payload` refuses it.
+        // Step-envelope keys (`verb`, `role`, ...) are not facts and are exempt.
         const STEP_ENVELOPE_KEYS: [&str; 6] =
             ["verb", "role", "actor_id", "occurred_at", "dry_run", "query"];
         if explicit_facts.is_some() {
@@ -297,30 +171,15 @@ impl CommandInvocation {
         &self.facts
     }
 
-    /// `true` when this call used the explicit `with:` shape, `false` for
-    /// the legacy/flat-facts shape (whether or not `to:` was also given)
-    /// — see this struct's own `explicit` field header for the full
-    /// reasoning and why a generated aggregate-command dispatch needs it.
+    /// True when this call used the explicit `with:` shape, false for flat facts.
     pub fn explicit_with(&self) -> bool {
         self.explicit
     }
 
-    /// Splits an aggregate-scoped port invocation into receiver identity and
-    /// external facts. A migration-era operation may name its old self-
-    /// reference field; that field is accepted as a legacy receiver source
-    /// but is removed from the returned facts in both invocation forms.
-    /// `to_receiver_field` — the `to:`-declared operation counterpart to
-    /// `legacy_receiver_field` (Dispatcher#port_invocation's own second,
-    /// additive branch, lib/hecks/runtime/dispatcher.rb). A genuinely
-    /// separate parameter, not folded into `legacy_receiver_field`, for
-    /// exactly one reason: a legacy receiver is synthetic routing-only
-    /// state and gets stripped from the returned facts below; a `to:`
-    /// receiver is a real declared external fact (rust/parser's own
-    /// domain_port.rs header: "declare only external facts with
-    /// attribute") that the operation's own generated Args struct still
-    /// expects to find in its payload — stripping it the same way would
-    /// reproduce the exact AbsentArgument bug the Ruby side hit first
-    /// (dispatcher.rb's own comment on why `[]` replaced `delete` there).
+    /// Splits an aggregate-scoped port invocation into receiver identity and external facts.
+    ///
+    /// `legacy_receiver_field` is routing-only and is stripped from the facts; the `to:`-declared
+    /// `to_receiver_field` is a real fact the operation's Args still expects, so it is kept.
     pub fn split_aggregate_receiver(
         &self,
         legacy_receiver_field: Option<&str>,
@@ -343,8 +202,6 @@ impl CommandInvocation {
             return Err(routing_refusal("aggregate-scoped operation requires to"));
         };
 
-        // **Only the legacy field is stripped** — to_receiver_field stays in
-        // the returned facts (see this method's own header comment).
         let facts = match (&self.facts, legacy_receiver_field) {
             (Json::Object(fields), Some(field)) => Json::Object(
                 fields
@@ -359,39 +216,12 @@ impl CommandInvocation {
     }
 }
 
-// BUG#16 — `value.get("to")`/`.get("with")` answer `Some(&Json::Null)` for
-// a key that is present with a JSON `null` value, not `None` — the two are
-// different questions (does the key exist vs. does it carry a value), and
-// `CommandInvocation::from_json`'s own "is this the explicit routed form"
-// test only ever meant the second one. Filters a null value back down to
-// `None`, matching Ruby's `to.nil?`/`with.nil?` (`Routing.envelope`,
-// `Routing.payload`), which never distinguishes "omitted" from "offered
-// as null" either.
+// JSON `null` reads as absent, matching Ruby's `to.nil?` / `with.nil?`.
 fn non_null(value: Option<&Json>) -> Option<&Json> {
     value.filter(|v| !matches!(v, Json::Null))
 }
 
-// The other half of BUG#16's fix, generalized by BUG#17 — see
-// `from_json`'s own doc comment. Called whenever `from_json` has decided
-// `with:` is absent-or-null, so facts come from the flat/legacy args —
-// whether or not `to:` is also present with a real, non-null routing
-// value (BUG#17: reachability here depends on `with:` alone, never on
-// `to:`, and every `to`/`with` key is stripped regardless of whether it
-// held `null`). Ruby's own `Dispatcher#dispatch(verb, to: nil,
-// with: nil, **legacy_args)` keyword-argument binding captures a
-// top-level `to`/`with` key into its own named parameters
-// unconditionally — whether the caller offered `nil`, a real value, or
-// omitted the key entirely — so `legacy_args` never carries either key
-// once that binding has run, full stop. This helper matches that: it
-// drops `to`/`with` unconditionally, not only when they are `null`.
-//
-// A domain legitimately declaring its own non-optional fact literally
-// named `to` — `Roster::Roster.Mark` — is still unaffected by that
-// unconditional drop: whenever `to` is present and non-null, `from_json`
-// always reads it as an attempted route (computing `route` from it, not
-// leaving it in `value` for facts purposes) regardless of what this
-// helper does afterward — BUG#7's own established, matching-refusal
-// behavior for that collision stays exactly as it was, on both branches.
+// Drops `to`/`with` from flat facts unconditionally, as Ruby's keyword binding does.
 fn strip_routing_keys(value: &Json) -> Json {
     match value {
         Json::Object(fields) => Json::Object(
@@ -516,21 +346,7 @@ mod tests {
         );
     }
 
-    // BUG#16 — a legacy-shaped payload whose domain declares its own
-    // fact literally named `to` (`Roster::Roster.Notice`, `optional:
-    // true`) offered as explicit JSON null (the fuzzer's own way of
-    // spelling "omitted" for an optional argument — see this method's
-    // own header comment) must not be misread as an attempted explicit
-    // routing envelope: misreading it that way refuses parsing `null`
-    // as a route — TypeMismatch — before the domain's own generated
-    // args parser ever sees it. `to: null` (no `with` key at all) must fall through to the
-    // legacy mixed-args form, exactly like `to` being absent entirely.
-    // Also: the stray `"to": null` key must not survive into `facts` —
-    // Ruby's own `to:` keyword capture drops it unconditionally, and an
-    // emitted event's payload is built from these same facts
-    // (`Json::overlay`, the generated dispatch code), so a leftover null
-    // key here would still show up as a payload-content divergence even
-    // once the routing misparse itself is fixed.
+    // A JSON-null `to` is not a route, and the stray key must not reach the event payload.
     #[test]
     fn null_to_with_no_with_key_is_read_as_legacy_shape_not_a_route() {
         let input = Json::obj(vec![
@@ -546,10 +362,7 @@ mod tests {
         );
     }
 
-    // Same asymmetry, the `with` side — offered as explicit null with no
-    // `to` key, it must fall through to the legacy shape too, not be
-    // read as "explicit facts of null," and the stray null key must not
-    // survive into `facts` either.
+    // Same for a null `with`: read as the no-`to:` shape; the null key is dropped from the facts.
     #[test]
     fn null_with_and_no_to_key_is_read_as_legacy_shape_not_explicit_facts() {
         let input = Json::obj(vec![
@@ -562,14 +375,7 @@ mod tests {
         assert_eq!(invocation.facts(), &Json::obj(vec![("amount", Json::int(20))]));
     }
 
-    // A domain fact legitimately named `to`, offered non-null in the
-    // legacy shape, is unchanged by this fix — `from_json` still always
-    // reads a present, non-null `to` as an attempted route (computing
-    // `route` from it, erroring here before `facts` is ever computed
-    // since this malformed route object has no `aggregate` key) rather
-    // than as a domain fact, so `Roster::Roster.Mark`'s own required `to`
-    // collides with routing exactly as it always did (BUG#7's own
-    // established, matching-refusal behavior).
+    // A non-null `to` is always parsed as a route, even when a domain fact is named `to`.
     #[test]
     fn non_null_to_still_takes_the_routing_branch_not_the_legacy_one() {
         let input = Json::obj(vec![("to", Json::obj(vec![("value", Json::int(282))]))]);
@@ -578,17 +384,7 @@ mod tests {
         assert!(err.to_string().contains("entity route requires a scalar aggregate identity"));
     }
 
-    // BUG#17 — a caller sending a real, non-null `to:` (here a plain
-    // scalar aggregate identity) alongside the command's own flat/legacy
-    // facts, with no `with:` key at all, must not have those facts
-    // silently dropped: gating the "explicit" branch on any non-null
-    // `to`/`with` would default `facts` to `with`'s own value — an
-    // empty object, since `with` is never offered here. Ruby's
-    // `Routing.payload` never makes that mistake:
-    // its facts source is gated on `with:` alone (`return legacy unless
-    // with`), completely independent of whatever `to:` resolves to. The
-    // command's own real declared fact (`quantity`) must survive into
-    // `facts` here, and the route must still resolve from `to`.
+    // A real `to:` with flat facts and no `with:` must keep the facts; only `with:` selects them.
     #[test]
     fn non_null_scalar_to_with_no_with_key_keeps_the_flat_facts() {
         let input = Json::obj(vec![
@@ -603,8 +399,7 @@ mod tests {
         assert_eq!(invocation.facts(), &Json::obj(vec![("quantity", Json::int(3))]));
     }
 
-    // Same bug, the routing-shaped-object form of `to:` (an entity route)
-    // instead of a bare scalar — confirms the fix isn't scalar-specific.
+    // Same, with an entity route as `to:`.
     #[test]
     fn non_null_entity_route_to_with_no_with_key_keeps_the_flat_facts() {
         let input = Json::obj(vec![
@@ -629,12 +424,7 @@ mod tests {
         );
     }
 
-    // Same bug again, the "undeclared to: carries an explicit null" shape
-    // named in BUG#17's own ledger entry — belt-and-suspenders alongside
-    // BUG#16's own null-to tests above, but written against a payload
-    // that also carries a real command fact, matching the actual repro
-    // shape (a fuzzer-offered `to: null` sitting next to the command's
-    // own declared facts, no `with:` key at all).
+    // Same, with `to: null` beside real facts.
     #[test]
     fn null_to_alongside_real_facts_keeps_the_flat_facts() {
         let input = Json::obj(vec![
@@ -647,11 +437,7 @@ mod tests {
         assert_eq!(invocation.facts(), &Json::obj(vec![("quantity", Json::int(3))]));
     }
 
-    // BUG#141/BUG#123 — `explicit_with()` is the one new bit of surface
-    // this fix adds: it must read `true` exactly when `from_json` took
-    // the explicit `with:` branch, `false` for every legacy-shaped call,
-    // whether or not a route was also given (a generated aggregate-
-    // command dispatch needs to tell those apart regardless of `to:`).
+    // `explicit_with()` is true only when the explicit `with:` branch was taken.
     #[test]
     fn explicit_with_is_true_only_for_the_explicit_with_shape() {
         let with_and_to = CommandInvocation::from_json(&Json::obj(vec![
@@ -735,13 +521,8 @@ mod tests {
             .contains("requires to"));
     }
 
-    // `to:`-declared operations — the second, additive receiver field
-    // (domain_generator.rs's own comment on why it stays separate from
-    // legacy_receiver_field). The one behavioral difference that matters:
-    // unlike the legacy field just above, this one is a real declared
-    // fact and must survive in `facts`, not get stripped out — a real,
-    // live AbsentArgument on the Ruby side (dispatcher.rb's own comment)
-    // is exactly the bug this test exists to catch on the Rust side too.
+    // The `to:`-declared receiver is a real fact and must stay in `facts`; the Ruby side
+    // raised AbsentArgument when it was stripped.
     #[test]
     fn to_declared_receiver_is_found_but_not_stripped_from_facts() {
         let invocation = CommandInvocation::from_json(&Json::obj(vec![
@@ -761,8 +542,7 @@ mod tests {
             ])
         );
 
-        // An explicit `to:` still wins over either receiver field —
-        // unchanged precedence, same as the legacy field already has.
+        // An explicit `to:` wins over either receiver field.
         let explicit = CommandInvocation::from_json(&Json::obj(vec![
             ("to", Json::str("pay2")),
             ("with", Json::obj(vec![("reference", Json::str("pay1"))])),
@@ -774,12 +554,7 @@ mod tests {
         assert_eq!(receiver, "pay2");
     }
 
-    // BUG#18 — `entities: []` (present, explicitly empty — as distinct
-    // from `refuses_an_incomplete_entity_route`, above, which covers
-    // `entity`/`entities` absent altogether) must refuse exactly like
-    // absence does: Rust already did, unconditionally, regardless of
-    // the calling command's own entity depth; this pins that this stays
-    // true now that Ruby's `parse_envelope_hash` refuses it too.
+    // An explicitly empty `entities` refuses the same as an absent one.
     #[test]
     fn refuses_an_explicitly_empty_entities_array() {
         let refusal = RoutingEnvelope::from_json(&Json::obj(vec![
@@ -792,16 +567,8 @@ mod tests {
             .contains("requires at least one entity identity"));
     }
 
-    // BUG#18's own `with:` half — a `with:` key carrying any value
-    // (a route-shaped object among them) beside a genuine sibling
-    // command fact is the same "explicit envelope smuggling a payload
-    // fact" conflict Ruby's `Routing.payload` already refuses,
-    // TypeMismatch, before ever looking at what `with:` holds. Reaching
-    // the domain's own generated args parser instead (`with:`'s value
-    // becoming `facts` whole, the sibling fact silently dropped) would
-    // refuse UnknownArgument for an entirely different reason — a
-    // different kind for the identical malformed step. Both refuse at
-    // the same point, for the same reason.
+    // `with:` beside a loose fact refuses TypeMismatch, as in Ruby, rather than UnknownArgument
+    // from the args parser.
     #[test]
     fn refuses_with_beside_a_sibling_legacy_fact_the_same_as_ruby_does() {
         let input = Json::obj(vec![
@@ -821,12 +588,7 @@ mod tests {
             .contains("with: takes command facts, not both with: and loose keyword arguments"));
     }
 
-    // The step-envelope keys a "direct caller" step legitimately carries
-    // beside a top-level `with:` (`command_input`'s own doc comment,
-    // cli.rs) are not legacy facts and must not trip the check above —
-    // `top_level_with_selects_an_unrouted_compound_create_invocation`
-    // (kernel::cli::routing_tests) already pins `verb`; this covers the
-    // rest of that same set directly against `CommandInvocation` itself.
+    // Step-envelope keys beside `with:` are not loose facts.
     #[test]
     fn step_envelope_keys_beside_with_are_not_mistaken_for_legacy_facts() {
         let input = Json::obj(vec![

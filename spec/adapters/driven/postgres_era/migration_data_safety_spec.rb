@@ -4,37 +4,11 @@ require "tempfile"
 require_relative "../../../support/postgres_probe"
 require_relative "../../../support/fenced_owner"
 
-# The three data-loss defects the 2026-08-10 audit found in PostgresEra's
-# migration path, each pinned against a real Postgres. A migration that
-# loses or resurrects a record, or mints under an approval that no longer
-# describes it, does damage nothing else notices, so each fix is held here
-# by a spec that fails without it.
+# Three data-loss regressions in PostgresEra's migration path (H3-H5 below),
+# each pinned against a real Postgres so a fix that regresses fails loudly.
 #
-# - **H3, era-migrated deletes.** A delete of a record carried in from an
-#   ancestor era writes a tombstone row (`operation = 'delete'`) that
-#   outranks the ancestor's save row, so the record stays deleted. The
-#   one-mint case lives in `lineage_spec.rb` ("deleting an era-migrated
-#   record does not resurrect the ancestor era's save row"); this file adds
-#   the case across two mints, where era 3's head is built on era 2's.
-# - **H4, the rekey digest.** A compute or rekey edge mints only under a
-#   recorded human approval bound to the edge's digest. The digest covers a
-#   rekey's SQL and a backfill's default; editing either after approval must
-#   refuse the mint, and the old approval must still mint the edge it
-#   approved. `spec/exporter_spec.rb` pins the digest itself with no
-#   database; this file pins what a mint does with it.
-# - **H5, dotted computes.** A compute owning `price.cents` exempts that one
-#   member from Layer 2's reference-transform comparison, never its sibling
-#   `price.currency`. `layer_two_spec.rb` pins `strip_compute_paths` with
-#   hand-built rows. This file feeds the audit the rows a real compiled
-#   head produces: a dotted compute that only writes its own member mints,
-#   and a compiled edge that also loses a sibling is refused.
-#
-# Every example runs against a disposable database owned here and connects
-# as a non-superuser owner (`FencedOwner`), the way a deployment boots
-# PostgresEra. Under `CI`, an unreachable Postgres fails the group instead of
-# skipping it (`PostgresProbe`), and this file is in
-# `.github/postgres_io_spec_files.txt`, so a leg that provisions Postgres
-# always runs it.
+# Listed in .github/postgres_io_spec_files.txt — moving this file must also
+# update that list, or a Postgres-provisioning CI leg stops running it.
 RSpec.describe "PostgresEra migration data safety", :io do
   DATA_SAFETY_DB = "hecks_era_data_safety_spec".freeze
 
@@ -124,8 +98,6 @@ RSpec.describe "PostgresEra migration data safety", :io do
     end
   end
 
-  # ── H3 ────────────────────────────────────────────────────────────────
-
   describe "H3 — a delete of an era-migrated record stays deleted across two mints" do
     # An `Acct` whose one free-text attribute is spelled `attribute_name`; each era renames it.
     def ledger_source(attribute_name, value_object_name)
@@ -206,8 +178,6 @@ RSpec.describe "PostgresEra migration data safety", :io do
       expect(head3.all.map(&:id)).to eq(%w[keep])
     end
   end
-
-  # ── H4 ────────────────────────────────────────────────────────────────
 
   describe "H4 — an approval binds to the rekey and backfill the human reviewed" do
     DATA_SAFETY_ROSTER_ONE = <<~BLUEBOOK.freeze
@@ -311,8 +281,6 @@ RSpec.describe "PostgresEra migration data safety", :io do
       expect(head_for(registry, "Person", "Roster").find("someone-else@example.com")).to be_nil
     end
   end
-
-  # ── H5 ────────────────────────────────────────────────────────────────
 
   describe "H5 — a dotted compute exempts only the member it owns" do
     DATA_SAFETY_PRICING_ONE = <<~BLUEBOOK.freeze

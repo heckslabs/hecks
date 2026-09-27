@@ -2,24 +2,12 @@ require "spec_helper"
 require "json"
 require_relative "../../rust/project"
 
-# BUG#28 (QualityControl ledger) — `RustProjection::Projector.state_
-# independent_creation?` (rust/project/dependency_planning.rb) is a
-# separate, independent re-derivation of `Runtime::DependencyPlanning
-# ::Analyzer#call`'s `complete_state? && state_independent?` predicate —
-# see that file's own header for the full reasoning on why it's a port
-# rather than a shared call. `spec/codegen_parity_spec.rb`'s existing
-# whole-file byte-identity check already proves this Ruby port agrees
-# with its own Rust sibling (`rust/codegen/src/dependency_planning.rs`);
-# this spec proves the Ruby port agrees with the real Analyzer it exists
-# to mirror, across every `creates?`-true aggregate-root command in the
-# whole live example-domain corpus — not just the handful of IR fixtures
-# the parity spec happens to enumerate.
+# `state_independent_creation?` is an independent port of the Analyzer's
+# `complete_state? && state_independent?`; this checks it agrees with the live Analyzer.
 RSpec.describe "RustProjection::Projector.state_independent_creation? matches the live Analyzer" do
   def self.json_shaped(payload) = JSON.parse(JSON.generate(payload), symbolize_names: true)
 
-  # Returns [live_registry, live_bluebook, exported_ir_hash] — the live
-  # objects (for `Runtime::DependencyPlanning::Analyzer`) and the
-  # JSON-round-tripped IR (for the port under test), off the same boot.
+  # Returns [registry, bluebook, IR hash]: live objects for the Analyzer, JSON IR for the port.
   def self.load_domain(bluebook_path, domain_name)
     registry = Hecks::Runtime::Registry.new
     Hecks.with_registry(registry) do
@@ -35,13 +23,8 @@ RSpec.describe "RustProjection::Projector.state_independent_creation? matches th
     [registry, bluebook, ir]
   end
 
-  # Every real example/stress domain with at least one `creates?`-true
-  # aggregate-root command declaring a `given` — the exact shape BUG#28
-  # is about — plus the self-hosted grammar (the widest single corpus
-  # member) and the two domains the ledger's own investigation named as
-  # the sharpest and the originally-repro'd cases (`Banking` — the
-  # `Account.Open` invariant-adjacency case — and `ReferralChain` —
-  # `Member.Join`, the bug's own repro).
+  # Every corpus domain with a `creates?`-true aggregate-root command declaring a `given`,
+  # plus the self-hosted grammar, Banking (`Account.Open`) and ReferralChain (`Member.Join`).
   DEPENDENCY_PLANNING_CORPUS = [
     ["Pizzas", -> { load_domain(File.join(InMemoryDomain::ROOT, "examples/pizzas/bluebook/pizzas.bluebook"), "Pizzas") }],
     ["Compliance", lambda {
@@ -81,12 +64,8 @@ RSpec.describe "RustProjection::Projector.state_independent_creation? matches th
                               "to be #{expected} (Runtime::DependencyPlanning::Analyzer: complete_state?=" \
                               "#{plan.complete_state?}, state_independent?=#{plan.state_independent?}), got #{actual}"
 
-            # BUG#22 (QualityControl ledger) — `complete_state?` alone (no
-            # `state_independent?` conjunct) is what `registry.rb`'s
-            # router now needs, to decide whether a route given to this
-            # creating command is checked against its derived identity
-            # (complete_state?-true) or forces a plain find-or-`NotFound`
-            # instead (complete_state?-false, the legacy path).
+            # `complete_state?` alone decides whether a routed creating command is checked
+            # against its derived identity or falls back to find-or-NotFound.
             complete_actual = RustProjection::Projector.complete_state_creation?(aggregate_ir, command_ir, value_objects_by_name)
             expect(complete_actual).to eq(plan.complete_state?),
                                        "#{aggregate.hecks_name}.#{command.hecks_name}: expected " \

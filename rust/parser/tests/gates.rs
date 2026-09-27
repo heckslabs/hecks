@@ -1,27 +1,5 @@
-//! Integration tests — drives the actual `hecks-parse` binary as a
-//! subprocess against `tests/fixtures/*`, the same "shell out and check
-//! the real exit code/stderr" discipline `spec/parser_parity_spec.rb`
-//! (Ruby side) uses. Stage 1's core claim (every fixture fails closed
-//! with a real, named diagnostic — never silently succeeds, never
-//! panics, never claims coverage it doesn't have) still holds for every
-//! construct this crate has not built real IR for yet. Stage 2 shrinks
-//! `STILL_PENDING` below the same way `spec/parser_parity_spec.rb`'s own
-//! `PENDING_MEMBERS`/`spec/parser_coverage_spec.rb`'s own
-//! `STAGE_1_PENDING` shrink — `command.bluebook`/`query.bluebook`/
-//! `value_object.bluebook`/`policy.bluebook`/`lifecycle.bluebook` now
-//! parse for real (see `now_implemented_fixtures_parse_for_real` below),
-//! since `parse::command`/`parse::query`/`parse::value_object`/
-//! `parse::policy`/`parse::lifecycle` all stopped being stubs. Stage 4
-//! adds `process_manager.bluebook` to that same list (`parse::
-//! process_manager` implements it in full). ADR 0025's identity
-//! slice (S1, docs/dsl-work-slices.md) closes the last two:
-//! `aggregate.bluebook`/`entity.bluebook` exercise `identified_by`'s
-//! bare-field form — the last `not_yet_implemented` diagnostic this
-//! crate raised on purpose — `build/identity.rs::
-//! resolve_identity_field` now builds real IR for it, so both fixtures
-//! moved to `now_implemented_fixtures_parse_for_real` below and the
-//! `still_pending_bluebook_fixtures_fail_closed_naming_their_own_construct`
-//! test that pinned their failure is gone — nothing is still pending.
+//! Drives the `hecks-parse` binary as a subprocess against `tests/fixtures/*`, checking the
+//! real exit code and output, as `spec/parser_parity_spec.rb` does on the Ruby side.
 
 use std::path::PathBuf;
 use std::process::{Command, Output};
@@ -41,12 +19,6 @@ fn run(args: &[&str]) -> Output {
 
 #[test]
 fn now_implemented_fixtures_parse_for_real() {
-    // Stage 2 taught `parse::command`/`parse::query`/`parse::value_object`/
-    // `parse::policy`/`parse::lifecycle` to build real IR; stage 3 adds
-    // `parse::read_model` (`read_model`'s own `description`/`include`/
-    // `group_by`) — all six fixtures (unlike the ones above) now succeed
-    // outright: exit 0, and stdout is real, non-empty `ir.json`, not a
-    // diagnostic.
     let cases: &[(&str, &str)] = &[
         ("command.bluebook", "FixtureCommand"),
         ("query.bluebook", "FixtureQuery"),
@@ -54,9 +26,7 @@ fn now_implemented_fixtures_parse_for_real() {
         ("policy.bluebook", "FixturePolicy"),
         ("lifecycle.bluebook", "FixtureLifecycle"),
         ("read_model.bluebook", "FixtureReadModel"),
-        ("process_manager.bluebook", "FixtureProcessManager"), // Stage 4
-        // ADR 0025 identity slice (S1) — `identified_by`'s bare-field
-        // form, the one remaining not-yet-implemented diagnostic.
+        ("process_manager.bluebook", "FixtureProcessManager"),
         ("aggregate.bluebook", "FixtureAggregate"),
         ("entity.bluebook", "FixtureEntity"),
     ];
@@ -84,11 +54,8 @@ fn now_implemented_fixtures_parse_for_real() {
 
 #[test]
 fn one_of_values_unmark_like_member_rows() {
-    // Ruby's `one_of:` writes member rows that round-trip through
-    // `Marks#unmark_scalar`, so a quoted "true"/"false"/"0" exports as a
-    // JSON boolean/integer — the same shape a bare `member` row already
-    // gets. Keeping them strings broke bluebook_language parity once
-    // RustReservedWord listed the keywords `true`/`false`.
+    // Ruby's `one_of:` member rows round-trip through `Marks#unmark_scalar`, so a quoted
+    // "true"/"false"/"0" exports as a JSON boolean or integer, like a bare `member` row.
     let path = fixture("one_of_unmarked.bluebook");
     let output = run(&[
         "chapter",
@@ -225,14 +192,8 @@ fn query_arguments_are_inferred_from_local_and_resolved_hop_fields() {
 
 #[test]
 fn translates_builds_the_same_policy_ir_a_bluebook_policy_block_would() {
-    // `translates` (Hecksagon context) builds the exact same `ir::Policy`
-    // a `.bluebook`'s own `policy` block would (this crate's
-    // `parse::hecksagon`'s own `"translates"` arm calls `parse::policy::
-    // parse_body` directly, then pushes straight onto `bluebook.policies`
-    // — see that arm's own comment). This test pins the wire shape: a
-    // cross-domain `on`/bare-constant `trigger`/`with:` triple, attached
-    // to the chapter named by `Hecks.hecksagon`, not one it declares
-    // itself in the sibling `.bluebook`.
+    // `translates` builds the same `ir::Policy` a `policy` block would, attached to the chapter
+    // named by `Hecks.hecksagon` rather than one declared in the sibling `.bluebook`.
     let bluebook = fixture("translates.bluebook");
     let hecksagon = fixture("translates.hecksagon");
     let output = run(&[
@@ -299,18 +260,6 @@ fn aggregate_port_operation_does_not_declare_its_receiver_as_a_fact() {
     );
 }
 
-// Stage 8: `hecks-parse resolve --chapter <Name> <file.hecksagon>` is
-// now real (`parse::chapter::resolve_hecksagon_dependencies`, built for
-// `bin/project_rust`'s own opt-in Rust orchestration path) — these two
-// fixtures are genuine success cases rather than `not yet implemented`
-// ones, since resolve is no longer a stub that always fails regardless
-// of input — the same shift
-// `now_implemented_fixtures_parse_for_real` above already documents for
-// `chapter`. Also confirms the CLI contract change itself: `resolve`
-// now requires `--chapter` (a deliberate departure from the plan's own
-// original one-argument sketch — `main.rs::run_resolve`'s own header
-// has the full reasoning), so a missing `--chapter` is a usage error
-// (exit 2), not a parse error (exit 1).
 #[test]
 fn hecksagon_fixtures_resolve_for_real() {
     let path = fixture("hecksagon.hecksagon");
@@ -373,9 +322,8 @@ fn resolve_without_chapter_is_a_usage_error_not_a_parse_error() {
 
 #[test]
 fn a_real_grammar_violation_is_a_hard_error_not_a_stub() {
-    // A deliberately malformed file — `aggregate` is not a word `File`
-    // context admits (it's `bluebook`'s own inner Aggregate context) —
-    // must be refused by the word gate itself, distinctly worded from
+    // `aggregate` is not a word the `File` context admits; the word gate must refuse it,
+    // worded unlike a stub.
     // "not yet implemented".
     let dir = std::env::temp_dir().join(format!("hecks_parse_gate_test_{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
@@ -440,9 +388,6 @@ fn coverage_now_reports_the_pairs_pizzas_bluebook_actually_exercises() {
         stdout.contains("[\"port\", \"Hecksagon\"]"),
         "expected port/Hecksagon covered, got: {stdout}"
     );
-    // Stage 3: `read_model` now has a real `parse::read_model` of its
-    // own (console_settings.bluebook's own `Styles`/`Curated`). ADR 0025
-    // reverts the word from `report`.
     assert!(
         stdout.contains("[\"read_model\", \"Bluebook\"]"),
         "expected read_model/Bluebook covered, got: {stdout}"
@@ -455,10 +400,6 @@ fn coverage_now_reports_the_pairs_pizzas_bluebook_actually_exercises() {
         stdout.contains("[\"group_by\", \"ReadModel\"]"),
         "expected group_by/ReadModel covered, got: {stdout}"
     );
-    // Stage 4: `entity`/`process_manager` now have real `parse_body`s of
-    // their own (banking.bluebook's own `LedgerEntry`/`Settlement`, and
-    // the concurrently-landed `compliance`/`interview` real corpus
-    // members this stage's own work happened to fully cover too).
     assert!(
         stdout.contains("[\"identified_by\", \"Entity\"]"),
         "expected identified_by/Entity covered, got: {stdout}"
@@ -471,10 +412,7 @@ fn coverage_now_reports_the_pairs_pizzas_bluebook_actually_exercises() {
         stdout.contains("[\"dispatch\", \"Handler\"]"),
         "expected dispatch/Handler covered, got: {stdout}"
     );
-    // Still not covered — the bare-field `identified_by` form has no
-    // real corpus member exercising it yet, so `Entity`'s own coverage
-    // stays partial (real for the six words banking.bluebook's pieces
-    // actually use, not a blanket claim).
+    // `has_many` has no corpus member exercising it, so coverage must not overclaim it.
     assert!(
         !stdout.contains("[\"has_many\", \"Aggregate\"]"),
         "has_many is still not built — coverage must not overclaim it: {stdout}"

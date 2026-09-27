@@ -4,21 +4,12 @@ require "open3"
 require "tmpdir"
 require_relative "support/rust_conformance_helpers"
 
-# `bin/rust_conformance` compares dry runs. Without that, a `{"dry_run":
-# verb}` step's answer would be invisible to the script, so a dry-run split
-# `bin/qa_sweep` had found (`Hecks::Fuzzing::Differential` compares
-# `dry_runs`) could not be given a failing demonstration for
-# `bin/qa_log_bug`.
-#
-# The fixture is the one `spec/qa_sweep_all_report_and_parity_spec.rb`
-# already proves the sweep's own dry-run surface with:
-# `qa_sweep_all_dry_run_fixture`'s hand-written binary answers empty
-# instances/events/refusals plus one phantom dry run per `"dry_run":` step,
-# so a dry-run script disagrees on `dry_runs` and on nothing else.
+# bin/rust_conformance must compare `dry_runs`, or a dry-run split found by bin/qa_sweep
+# cannot be reproduced. The fixture binary answers one phantom dry run per step, so a
+# dry-run script disagrees on `dry_runs` alone.
 RSpec.describe "bin/rust_conformance", :io do
-  # Helper methods, not constants: a constant assigned inside a describe
-  # block lands at top level and collides with any other spec file's
-  # same-named one (spec/load_hygiene_spec.rb holds the suite to that).
+  # Helper methods, not constants: a constant in a describe block lands at top level
+  # and can collide with other specs (spec/load_hygiene_spec.rb enforces this).
   def fixture_domain = File.join(InMemoryDomain::ROOT, "spec/fixtures/qa_sweep_all_dry_run_fixture")
   def fixture_crate  = File.join(InMemoryDomain::ROOT, "spec/fixtures/qa_sweep_all_found_fixture_rust")
   def conformance    = File.join(InMemoryDomain::ROOT, "bin/rust_conformance")

@@ -1,16 +1,8 @@
 require "spec_helper"
 require "hecks/fuzzing"
 
-# `Hecks::Fuzzing::Properties.outbox_rows_match_reactions` — the
-# transactional outbox's own contract (`Runtime::Outbox`), held to a
-# replay's own `history[:outbox_traces]` (`Replay#call`'s own before/
-# after capture around each step's dispatch). See `lib/hecks/fuzzing/
-# properties/outbox.rb`'s own header for the two checks this makes and
-# why a `saga:` row gets only the weaker one — that asymmetry is not
-# hypothetical: the first version of this property claimed the stronger
-# check for sagas too, and it was live-caught false-positiving on
-# `examples/banking`'s own `Onboarding` saga before this file existed
-# (see "passes a real replay" below, which pins the exact scenario).
+# `Properties.outbox_rows_match_reactions` holds `history[:outbox_traces]` to the outbox contract;
+# a `saga:` row gets only the weaker check (see the real-replay example below).
 RSpec.describe "Hecks::Fuzzing::Properties.outbox_rows_match_reactions" do
   OUTBOX_SPEC_ROOT    = InMemoryDomain::ROOT
   OUTBOX_SPEC_BANKING = File.join(OUTBOX_SPEC_ROOT, "examples/banking")
@@ -19,14 +11,8 @@ RSpec.describe "Hecks::Fuzzing::Properties.outbox_rows_match_reactions" do
     "OUTBOX-#{rand(1_000_000_000)}"
   end
 
-  # A minimal duck-typed stand-in for `Bluebook::Behaviour::Policy` —
-  # never the real DSL-built class, which needs a whole domain boot to
-  # construct. The property reads exactly three things off a policy:
-  # `#name` (to resolve the row's own consumer back to a declaration),
-  # `#where` (the raw canonical string `Bluebook::Expression::Evaluator.
-  # call` parses directly — see `properties/outbox.rb`'s own comment on
-  # why `call`, not `call_rule`, is what lets a fake this simple work at
-  # all), and `#fans_out?`.
+  # Duck-typed stand-in for a policy: the property reads only #name, #where (parsed by
+  # `Evaluator.call`) and #fans_out?.
   OutboxSpecFakePolicy = Struct.new(:name, :where) do
     def fans_out? = false
   end
@@ -44,19 +30,9 @@ RSpec.describe "Hecks::Fuzzing::Properties.outbox_rows_match_reactions" do
     { verb: "Fake::Thing.Do", rows: rows.is_a?(Array) ? rows : [rows], reactions: reactions, sagas: sagas }
   end
 
-  # The real scenario this property's own first version got wrong.
-  # `Onboarding`'s `ends_on Account::AccountOpened` (new_customer_
-  # onboarding.bluebook) means `Outbox::Fanout.sagas`' own `listens?`
-  # enqueues a `saga:Banking::Onboarding` row on every `AccountOpened`,
-  # including one this replay's own steps produce by opening an account
-  # directly — bypassing the onboarding case whose correlation would
-  # actually have a live instance. `SagaInterpreter#end_saga` finds
-  # nothing under that correlation to delete and logs nothing at all
-  # (saga_interpreter.rb's own `return false unless ...delete(...)`) —
-  # a `delivered` row with zero matching `saga_log` entries, produced by
-  # perfectly ordinary operation, not a bug. This is a real replay
-  # against `examples/banking` (no doctoring), and the property must
-  # still answer `true`.
+  # Regression: Onboarding's `ends_on AccountOpened` enqueues a saga row on every AccountOpened,
+  # even with no live instance; `end_saga` then logs nothing, so a delivered saga row can
+  # legitimately have no saga_log entry. Real replay, no doctoring; must answer true.
   it "passes a real replay whose saga row drains with no matching saga_log entry, and whose policy row drains " \
      "with a matching (if refused) reaction_log entry" do
     reference = unique_reference
@@ -76,11 +52,7 @@ RSpec.describe "Hecks::Fuzzing::Properties.outbox_rows_match_reactions" do
     history = Hecks::Fuzzing::Replay.call(OUTBOX_SPEC_BANKING, steps)
     expect(history[:refusals]).to eq([])
 
-    # Pin the fixture itself, not just the property's own verdict — if a
-    # future change to Banking's own bluebooks makes CloseAccount stop
-    # enqueueing a saga row for Onboarding, this test would otherwise
-    # keep passing for a reason that no longer has anything to do with
-    # what it claims to prove.
+    # Pin the fixture: if CloseAccount stops enqueueing a saga row, this would pass vacuously.
     saga_rows = history[:outbox_traces].flat_map { |t| t[:rows] }.select { |r| r[:consumer].start_with?("saga:") }
     expect(saga_rows).not_to be_empty
     expect(saga_rows.map { |r| r[:status] }.uniq).to eq(["delivered"])

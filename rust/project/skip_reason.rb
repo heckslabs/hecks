@@ -2,28 +2,11 @@ module RustProjection
   module Projector
     module_function
 
-    # A SKIP DECISION, CARRYING THE CONSTRUCT FAMILY THAT FORCED IT.
+    # A skip reason: the message text (a String) plus the machine-readable
+    # `construct` family (`rootless`, `optional_source`, ...) that forced the skip.
     #
-    # Every `*_skip_reason` in this generator answers `nil` (generate it)
-    # or one of these. It IS the reason text (a String subclass), so every
-    # existing reader — `puts "skipping #{verb}: #{reason}"`, a spec's
-    # `include("kind: string")`, the manifest's own `reason` field — keeps
-    # reading exactly the text it always read. What it adds is `construct`:
-    # a short, machine-readable family name (`reference_hop_where`,
-    # `optional_source`, `rootless`, ...) set by the SAME branch that wrote
-    # the text, at the moment that branch decided.
-    #
-    # WHY THIS EXISTS (Phase 4 of the exclusions-to-inclusions plan): the
-    # differential fuzzer used to learn "Rust didn't generate this" by
-    # substring-matching Rust's refusal wording, and `bin/rust_coverage`
-    # used to allowlist gaps by regexing this reason text. Both now read
-    # `construct` off `manifest.json` instead, so the prose here is free to
-    # change and a new, undeclared kind of skip can't hide behind a
-    # familiar-looking message.
-    #
-    # A wrapper that re-words an inner reason (`"eligible head X's own
-    # #{reason}"`) must keep the inner construct — `reskip` does that;
-    # plain string interpolation would silently drop it back to a String.
+    # Consumers read `construct` from manifest.json, so the prose is free to change.
+    # Re-wording an inner reason must go through `reskip`; interpolation drops `construct`.
     class SkipReason < String
       attr_reader :construct
 
@@ -37,8 +20,7 @@ module RustProjection
 
     def skip(construct, text) = SkipReason.new(construct, text)
 
-    # `inner`'s own construct, re-worded. Falls back to `fallback` only when
-    # `inner` is a plain String from somewhere that never set one.
+    # Re-words `inner` while keeping its construct; `fallback` applies only to a plain String.
     def reskip(inner, text, fallback: nil)
       construct = inner.respond_to?(:construct) ? inner.construct : fallback
       SkipReason.new(construct, text)

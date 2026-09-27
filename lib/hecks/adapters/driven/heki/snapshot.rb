@@ -23,11 +23,7 @@ module Hecks
           raise Malformed, "#{@path}: json error: #{e.message}"
         end
 
-        # Temp-file-plus-rename, fsynced ahead of the `File.rename` call: a reader can
-        # only ever see the last complete snapshot or the one before it,
-        # never a truncated or partial one — `File.binwrite`'s old
-        # truncate-then-write left a window, proportional to the whole
-        # dataset, where the file on disk was neither.
+        # Temp file, fsync, then rename, so a reader never sees a partial snapshot.
         def write(records)
           sorted = records.sort_by { |id, _| id }.to_h
           json   = JSON.generate(sorted)
@@ -42,13 +38,9 @@ module Hecks
           File.rename(tmp, @path)
         end
 
-        # Serializes the read-modify-write each save/delete does against
-        # the snapshot (and the journal append that precedes it) across
-        # processes — `flock` is per-process advisory, so every writer
-        # has to go through this to matter, which `with_lock`'s only two
-        # callers (`Heki#save`/`#delete`, `SagaStore#save_saga`/
-        # `#delete_saga`) both do. The lock file is separate from
-        # `@path` so a held lock never blocks `write`'s own rename.
+        # Serializes each save/delete's read-modify-write across processes; `flock` is
+        # advisory, so every writer must use it. The lock file is separate from `@path`
+        # so a held lock never blocks `write`'s rename.
         def with_lock
           File.open(lock_path, File::CREAT | File::RDWR, 0o644) do |lock|
             lock.flock(File::LOCK_EX)

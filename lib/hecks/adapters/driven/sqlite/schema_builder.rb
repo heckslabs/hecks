@@ -1,9 +1,7 @@
 module Hecks
   module Adapters
     class Sqlite
-      # The DDL: one table per aggregate head, an append-only entry table
-      # beside it, the shared events table, and the two ALTERs that let an
-      # older database grow the columns newer code writes.
+      # DDL for one aggregate: head table, entry table, events, saga and outbox tables.
       module SchemaBuilder
         private
 
@@ -12,15 +10,7 @@ module Hecks
           @db.execute(
             "CREATE TABLE IF NOT EXISTS #{quoted_table} (id TEXT PRIMARY KEY#{', ' unless columns.empty?}#{columns.join(', ')})"
           )
-          # Right here, not as a separate step in `Sqlite#initialize` —
-          # `create_aggregate_table!` is the one piece of DDL `D1`
-          # already calls verbatim through this same shared module
-          # (`d1.rb`'s own header: "reuses Sqlite::SchemaBuilder and
-          # Sqlite::Codec unchanged"). Folding index creation in here,
-          # right after the table it indexes exists, is what makes D1's
-          # own automatic indexing a real, running thing rather than an
-          # aspiration that only Sqlite ever calls — no D1-specific
-          # wiring needed, because D1 never has to know this exists.
+          # Called here so D1, which reuses this module, gets automatic indexing too.
           ensure_indexes!
         end
 
@@ -63,14 +53,8 @@ module Hecks
           @db.execute("ALTER TABLE #{quoted_entry_table} ADD COLUMN mirrors TEXT")
         end
 
-        # The optional saga-persistence capability's own table (§2/§4) —
-        # shared here so `D1`, which `include`s this module verbatim for
-        # its own `events`-table DDL (`d1.rb`), gets this for free too.
-        # `domain` stays an explicit column even though SQLite has no
-        # schema/namespace concept the way Postgres does — matches
-        # `hecks_saga_instances`' own Postgres shape (§3) and covers the
-        # (uncommon but real) case of a domain explicitly sharing one
-        # `database` file/D1 database with another.
+        # Shared with D1, which includes this module. `domain` is an explicit column so
+        # two domains can share one database file.
         def create_saga_table!
           @db.execute(<<~SQL)
             CREATE TABLE IF NOT EXISTS hecks_saga_instances (
@@ -83,14 +67,8 @@ module Hecks
               PRIMARY KEY (domain, process_manager, correlation)
             )
           SQL
-          # `CREATE TABLE IF NOT EXISTS` above is a no-op against a table
-          # this same domain already created before this column existed
-          # — the same reason Postgres's own `create_saga_table!` needs
-          # its own `ADD COLUMN IF NOT EXISTS`. SQLite/D1's own `ALTER
-          # TABLE ... ADD COLUMN` has no `IF NOT EXISTS` guard on every
-          # version this adapter supports, so a duplicate-column error
-          # is caught and treated as "already there" rather than relied
-          # on to never happen.
+          # The table may predate this column, and SQLite lacks ADD COLUMN IF NOT EXISTS,
+          # so a duplicate-column error is treated as already applied.
           @db.execute("ALTER TABLE hecks_saga_instances ADD COLUMN completed_compensations TEXT NOT NULL DEFAULT '[]'")
         rescue StandardError => e
           raise unless e.message.include?("duplicate column name")
@@ -124,21 +102,8 @@ module Hecks
           SQL_TYPES.fetch(attr.type, "TEXT")
         end
 
-        # ── automatic indexing (plan principle 3: derived from existing
-        # declared `where`/`order_by` IR, no new DSL keyword — this runs
-        # unconditionally on every boot, `CREATE INDEX IF NOT EXISTS`,
-        # the same self-healing idiom `postgres_era.rb`'s own
-        # `ensure_head_snapshot!`/`ensure_first_head!` already use) ────
-
-        # Every field a declared query ever filters or sorts on, across
-        # the aggregate's own queries and every entity's own queries —
-        # `query_surfaces` in `dsl/aggregate_builder.rb` walks the
-        # identical pair. An entity's query still runs against this
-        # table: it compiles through `query_expression`, which is
-        # `@aggregate`-scoped, not entity-scoped, so an entity's
-        # declared `where`/`order_by` is indexed here too, same as any
-        # other declared query — not skipped as "some other table's
-        # concern."
+        # Indexes every field a declared query filters or sorts on, entity queries included
+        # (they compile against this table too). Idempotent, so it is safe on every boot.
         def ensure_indexes!
           declared_query_fields.each { |field| ensure_index_for_field!(field) }
         end
@@ -149,38 +114,10 @@ module Hecks
                  .compact.map(&:to_s).uniq
         end
 
-        # One field name resolves to exactly one of three outcomes:
-        #
-        #   - a plain scalar attribute (or the lifecycle field itself)
-        #     — a real btree index on the column, using `plain_column`'s
-        #     own `quote_ident(name)` phrasing (reached by calling
-        #     `query_expression` itself, not a second copy of its
-        #     plain-vs-nested decision);
-        #   - a non-list value-object attribute, referenced bare or
-        #     through a member path (`field` or `field.member`) — an
-        #     expression index over `query_expression(field)`'s own
-        #     `json_extract(...)` text. Reusing the query compiler's own
-        #     expression, not re-deriving the string a second way, is
-        #     the whole point: a textual mismatch between the index and
-        #     what a real query compiles to is invisible to SQLite's
-        #     planner, and two independent copies of this logic can only
-        #     drift apart over time;
-        #   - a list-typed attribute — no index. SQLite's `contains`
-        #     compiles to `EXISTS (SELECT 1 FROM json_each(col) WHERE
-        #     ...)` (`list_contains_clause`, in `sql_query_builder.rb`)
-        #     — an element-membership scan a plain index on the raw
-        #     column (or even an expression index on it) does nothing to
-        #     speed, since neither indexes the elements individually.
-        #     SQLite has no inverted/array index short of FTS5/R-tree,
-        #     and neither fits a `list_of` scalar or value-object field
-        #     — well beyond this plan's scope. Left unindexed
-        #     deliberately, not a silent gap.
-        #
-        # A field naming neither a real attribute nor the lifecycle
-        # field can't happen through the DSL today — `seal_query_field`
-        # (`dsl/aggregate_builder.rb`) already refuses it at parse time.
-        # This runs at adapter boot, not parse time, so it skips rather
-        # than crashes ugly if that invariant is ever violated.
+        # A scalar or lifecycle field gets a btree index; a value-object path gets an expression
+        # index over `query_expression`'s own text, so the planner matches what queries compile to.
+        # List fields are left unindexed: SQLite cannot index json_each elements.
+        # Unknown fields are skipped rather than raised, since the DSL already refuses them.
         def ensure_index_for_field!(field)
           name, * = field.to_s.split(".")
           attribute = @aggregate.attribute(name)
@@ -195,15 +132,8 @@ module Hecks
           )
         end
 
-        # `idx_<table>_<sanitized field>` — table-prefixed because
-        # SQLite index names are global to the database, not scoped per
-        # table the way a column name is; two different aggregates each
-        # indexing a field called "name" would collide without it. The
-        # field itself is sanitized (a dotted path's "." in particular)
-        # to stay a valid identifier while remaining visibly tied to
-        # what it indexes — collision-free across every field/path this
-        # aggregate declares, since `declared_query_fields` already
-        # de-duplicates the field strings themselves.
+        # Table-prefixed because SQLite index names are global to the database.
+        # The field is sanitized (a dotted path's ".") to stay a valid identifier.
         def index_name(field)
           sanitized = field.to_s.gsub(/[^a-zA-Z0-9_]/, "_")
           "idx_#{table}_#{sanitized}"

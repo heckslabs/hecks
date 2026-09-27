@@ -4,46 +4,9 @@ require "tmpdir"
 require_relative "../support/postgres_probe"
 require_relative "../support/fenced_owner"
 
-# The multi-bluebook / PostgresEra gap, found live against a real,
-# private client project attaching a vendored chapter
-# via `uses_embryonaut_bluebook`: PostgresEra's own era-1 self-mint for
-# the second bluebook loaded into a registry wrote the first (target)
-# bluebook's own source text into `hecks_eras.held_text` — not the
-# second bluebook's own. The very next boot re-derived the second
-# bluebook's real shape, found it didn't match the (wrongly) stored
-# text, and refused to boot toward a scaffold for drift that never
-# actually happened. 100% reproducible, not a race — confirmed twice in
-# a row against real Postgres before this spec existed.
-#
-# **Root cause** — `EraCheck.source_text_for` (era_check.rb): its own
-# single-file-directory fallback only excluded a bluebook known to
-# `Framework.members` (a `uses_framework` member, e.g. Governance) from
-# being handed the one other file that happens to sit in the domain's
-# own directory. A `uses_embryonaut_bluebook`-vendored chapter has no
-# equivalent registry to check against — its real source lives under
-# `vendor/embryonaut_bluebooks/<name>/bluebook/`, entirely outside the
-# domain's own directory — so the guard let it fall straight through
-# and hand back the target domain's own single file as if it were the
-# vendored bluebook's own source. Fixed by teaching `source_text_for`
-# to ask the registry itself whether any hecksagon recorded a
-# `uses_embryonaut_bluebook` call whose name Pascal-cases to this
-# bluebook's own name, and if so, read its real source straight from
-# the vendored package's own directory — the same path
-# `EmbryonautBluebook.load!` itself already resolves from.
-#
-# **Never exercised together before this spec** — confirmed by reading the
-# existing suite: `spec/runtime/era_check_spec.rb` only ever boots a
-# single bluebook (Memory-backed, no era system in play at all — "holds
-# nothing for an adapter that has no eras"); every `uses_framework`/
-# `uses_embryonaut_bluebook` spec (`tenant_isolation_spec.rb`,
-# `spec/act_as_spec.rb`, etc.) boots Memory or a bare `uses_framework
-# "Governance"` — which is a `Framework.members` name, so it never took
-# the single-file fallback's wrong branch — and every real PostgresEra
-# era-minting spec (`spec/adapters/driven/postgres_era_spec.rb`,
-# `spec/adapters/driven/postgres_era/lineage_spec.rb`) boots exactly one
-# bluebook at a time, directly through `LineageManager.check!`, never
-# through a registry holding a second, attached one. Multi-bluebook +
-# PostgresEra self-minting was a genuine, unexercised seam.
+# Pins a fix: PostgresEra's era-1 self-mint for a second, vendored bluebook
+# in a registry wrote the first bluebook's own source text into
+# `hecks_eras.held_text` instead of the second bluebook's own.
 RSpec.describe "PostgresEra era-1 minting for a second bluebook in a multi-bluebook registry", :io do
   VENDORED_BLUEBOOK_DB = "hecks_era_vendored_bluebook_spec".freeze
 
@@ -116,13 +79,10 @@ RSpec.describe "PostgresEra era-1 minting for a second bluebook in a multi-blueb
     File.write(path, content)
   end
 
-  # A target domain whose own bluebook directory holds exactly one
-  # `.bluebook` file of its own — the single-file shape the fallback in
-  # `EraCheck.source_text_for` special-cases — attaching a second,
-  # vendored bluebook via `uses_embryonaut_bluebook`. Both hecksagons
-  # also `uses_framework "Governance"`, purely to satisfy the ordinary
-  # "a command with a role needs an authorization provider" boot gate —
-  # unrelated to the bug itself.
+  # Target's directory holds exactly one `.bluebook` file — the single-file
+  # shape `EraCheck.source_text_for`'s fallback special-cases. The
+  # `uses_framework "Governance"` calls only satisfy the role-authorization
+  # boot gate and are unrelated to the bug this pins.
   def write_domain(dir)
     write(File.join(dir, "bluebook", "target.bluebook"), target_bluebook)
     write(
@@ -210,9 +170,7 @@ RSpec.describe "PostgresEra era-1 minting for a second bluebook in a multi-blueb
       notes_row  = rows.find { |row| row["domain"] == "Notes" }
 
       expect(target_row["held_text"]).to include('Hecks.bluebook "Target"')
-      # **The bug, pinned**: without the fix, this would hold the target's own
-      # text (byte-identical to target_row["held_text"]) instead of
-      # Notes' own.
+      # Pinned: pre-fix this held the target's own text instead of Notes' own.
       expect(notes_row["held_text"]).to include('Hecks.bluebook "Notes"')
       expect(notes_row["held_text"]).not_to eq(target_row["held_text"])
     end

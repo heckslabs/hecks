@@ -1,13 +1,7 @@
 require "spec_helper"
 
-# ADR 0047 — regression coverage against the real, shipped corpus command
-# the bug was traced against (`Banking::CardPayment.Authorize`'s own bare
-# `sets :tags`, `list_of(Tag)`), not just the synthetic fixture in
-# spec/runtime/entity_list_mutations_spec.rb. Deliberately its own file,
-# not folded into an existing one — spec/runtime/entity_list_mutations_
-# spec.rb's own header already names the real gotcha with a bare
-# top-level constant reused across files, so this one names nothing bare
-# at all, reaching `InMemoryDomain::BANKING_BLUEBOOK_DIR` directly.
+# ADR 0047: pins bare `sets :tags` hydration on the shipped `Banking::CardPayment.Authorize`.
+# Reaches `InMemoryDomain::BANKING_BLUEBOOK_DIR` directly; bare top-level constants collide.
 RSpec.describe "Banking::CardPayment.Authorize's own bare-sets tags list" do
   def boot_banking
     registry = Hecks::Runtime::Registry.new

@@ -4,25 +4,9 @@ require "tmpdir"
 require "fileutils"
 require_relative "../support/postgres_probe"
 
-# A refusal is the domain saying no. Anything else is the runtime breaking.
-#
-# `Runtime::DOMAIN_REFUSALS` declares that boundary, and the policy and saga
-# interpreters honour it — they rescue only those classes, so a crash in a
-# reaction propagates instead of being logged as "declined". The runner did
-# not: `bin/run` catches everything a dispatch throws and
-# writes it into `refusals`, so a crash arrives in the run contract wearing a
-# refusal's clothes.
-#
-# That is not hypothetical. Every one of these was recorded as a refusal:
-#
-#   positive? expects a number, got {"value":3}     the append flatten bug
-#   no implicit conversion of Symbol into Integer   an argument/attribute collision
-#   addition expects a number, got "a lot"          a String reaching a numeric field
-#
-# The last is fixed at the source — `Value.check_numeric_fields` now refuses it
-# as a TypeMismatch, which is a domain refusal. This spec is what stops the
-# class from coming back: every error the corpus provokes must be one the
-# domain is allowed to raise.
+# A refusal is the domain saying no; anything else is the runtime breaking.
+# Every error the corpus provokes must be in `Runtime::DOMAIN_REFUSALS`, so a crash
+# is never recorded as a refusal.
 RSpec.describe "every refusal the corpus provokes" do
   CORPUS = {
     "banking" => "examples/banking",
@@ -34,15 +18,9 @@ RSpec.describe "every refusal the corpus provokes" do
   end
 
   CORPUS.each do |name, path|
-    # `rm_rf(data/)` isolates a Heki-backed copy ("banking") for real —
-    # copying the directory copies the store, and wiping `data/` resets
-    # it. It isolates nothing for "pizzas": examples/pizzas' own .world
-    # declares `persisted_by("PostgresEra")` unconditionally (a fixed
-    # connection string, not a path inside the copied tree — see
-    # support/postgres_probe.rb's own note), so the copy still boots
-    # against the real, shared hecks_pizzas database. `io: true` and
-    # self-skipping otherwise, same as every other real-Postgres spec —
-    # only for "pizzas"; "banking" stays a plain, always-runs example.
+    # Copying the tree isolates the Heki-backed "banking" store, but "pizzas" declares
+    # `persisted_by("PostgresEra")` with a fixed connection string and still boots against the
+    # shared database, so only "pizzas" is `io: true` and skips without Postgres.
     it "#{name} raises only errors the domain is allowed to raise",
        io: (name == "pizzas") do
       skip "no reachable Postgres — start one to run this spec" if name == "pizzas" && !PostgresProbe.available?
@@ -50,8 +28,7 @@ RSpec.describe "every refusal the corpus provokes" do
       script = JSON.parse(File.read(File.join(InMemoryDomain::ROOT, "spec/corpus/#{name}.json")))
       Dir.mktmpdir do |tmp|
         domain = File.join(tmp, name)
-        # Never copy data/: parallel workers boot the same example in place,
-        # and Heki's atomic snapshot write renames its .tmp file mid-copy.
+        # Skip data/: parallel workers boot the example in place; Heki renames its .tmp mid-copy.
         source = File.join(InMemoryDomain::ROOT, path)
         FileUtils.mkdir_p(domain)
         (Dir.children(source) - ["data"]).each { |child| FileUtils.cp_r(File.join(source, child), domain) }
@@ -78,8 +55,7 @@ RSpec.describe "every refusal the corpus provokes" do
   end
 
   it "catches an error the domain is NOT allowed to raise" do
-    # The guard has to be seen refusing something, or it is one more rule that
-    # cannot fire. EvaluationError is the class the three leaks above wore.
+    # The guard must be seen rejecting something, or it cannot be trusted to fire.
     error = Hecks::Bluebook::Expression::EvaluationError.new("a predicate blew up")
     expect(domain_refusal?(error)).to be(false)
     expect(domain_refusal?(Hecks::Runtime::TypeMismatch.new("a value was wrong"))).to be(true)

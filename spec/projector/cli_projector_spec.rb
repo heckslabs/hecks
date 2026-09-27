@@ -1,11 +1,7 @@
 require "spec_helper"
 
 # A bluebook, projected as its own command-line surface.
-#
-# Against banking and pizzas, not the chapter this was written beside — the
-# same discipline the docs projector spec keeps, and it earned it twice here:
-# banking is the domain that declares a command and a query of one name, and
-# pizzas is the one whose value objects nest two deep.
+# Runs on banking (a command and query share a name) and pizzas (value objects nest two deep).
 RSpec.describe Hecks::Projector::CliProjector do
   def corpus
     registry = Hecks::Runtime::Registry.new
@@ -17,16 +13,8 @@ RSpec.describe Hecks::Projector::CliProjector do
       load_bluebook_files(InMemoryDomain::BANKING_BLUEBOOK_DIR)
       Kernel.load(InMemoryDomain::PIZZAS_BLUEBOOK)
 
-      # Ports are projected too (`CliProjector#port_spec`), and neither
-      # banking nor pizzas' own `.bluebook` declares one — a port lives in
-      # the hecksagon, the boundary file, same as `spec/
-      # port_operation_interpreter_spec.rb` sets one up. Skipping this
-      # left `aggregate.ports.each` in `#call` dead code as far as this
-      # file's own corpus went, which is exactly how `port_spec` calling
-      # a method (`receiver_options`) that is defined nowhere in the
-      # codebase shipped and broke `bin/run` for every port-declaring
-      # domain (pizzas' real `PaymentGateway` included) without this
-      # spec file ever noticing.
+      # Neither corpus bluebook declares a port (ports live in the hecksagon), so set one up here;
+      # otherwise `CliProjector#port_spec` never runs.
       Kernel.load(File.join(InMemoryDomain::ROOT, "spec/fixtures/payments.bluebook"))
       Hecks.hecksagon("Payments") do
         uses_framework "Governance"
@@ -47,8 +35,7 @@ RSpec.describe Hecks::Projector::CliProjector do
     registry
   end
 
-  # Read-only across every example in this file (never dispatched
-  # against) — built once per file, not once per example, for speed.
+  # Read-only across every example (never dispatched against), so built once per file.
   before(:context) { @registry = corpus }
 
   let(:registry) { @registry }
@@ -69,10 +56,8 @@ RSpec.describe Hecks::Projector::CliProjector do
     expect(banking[:verbs]["account.freeze_account"][:kind]).to eq(:command)
   end
 
-  # **The collision that decided the shape**. Banking declares a command
-  # `Account.Open` and a query `Account.Open`; the language namespaces them and
-  # a flat subcommand list cannot. Refusing would make banking uncallable, so
-  # questions live under `ask` and the ambiguity cannot arise.
+  # Banking declares a command and a query both named `Account.Open`, which a flat subcommand
+  # list cannot hold; questions live under `ask`.
   it "keeps commands and questions in separate namespaces" do
     expect(banking[:verbs]).to have_key("account.open")
     expect(banking[:questions]).to have_key("account.open")
@@ -81,9 +66,8 @@ RSpec.describe Hecks::Projector::CliProjector do
   end
 
   describe "the arguments" do
-    # A CLI hands everything over as a string, so the declared type is the
-    # only honest way to know what to send. Guessing from the value would send
-    # the Integer 99 for a version string of "99".
+    # A CLI hands over strings, so the declared type decides what to send; guessing from the
+    # value would send the Integer 99 for a version string of "99".
     it "carries each field's declared type" do
       expect(option(banking, "account.open", "daily_limit.cents")[:type]).to eq("Integer")
       expect(option(banking, "account.open", "number.value")[:type]).to eq("String")
@@ -97,10 +81,8 @@ RSpec.describe Hecks::Projector::CliProjector do
       expect(option(banking, "customer.register", "email.address")[:pattern]).to be_a(String)
     end
 
-    # Nested two deep, which a single level got wrong. `Pizza` holds a `Price`,
-    # so stopping at one level produced `pizza.price_cents` and sent the string
-    # "1500" where `{ cents: 1500 }` belonged — and the runtime took it, per
-    # qa/FINDINGS.md #2. Measured against a real store before it was fixed.
+    # Nested two deep: `Pizza` holds a `Price`, and stopping at one level sent "1500"
+    # where `{ cents: 1500 }` belongs.
     it "recurses through a value object that holds another" do
       expect(option(pizzas, "order.create_pizza", "pizza.price_cents.cents")).not_to be_nil
       expect(option(pizzas, "order.create_pizza", "pizza.price_cents")).to be_nil
@@ -129,13 +111,8 @@ RSpec.describe Hecks::Projector::CliProjector do
       expect(annotate[:arguments].map { |argument| argument[:path] }).not_to include("date", "sequence")
     end
 
-    # A port is a verb too (`CliProjector#port_spec`) — it never had its own
-    # receiver-argument code, it shares `command_spec`'s via
-    # `receiver_options`, because a port operation always addresses an
-    # aggregate record exactly the way a non-creating command does. This is
-    # the one path through `#call` that only runs when a corpus actually
-    # declares a port; without it here, `port_spec` calling a
-    # never-defined method shipped undetected.
+    # A port is a verb too; it shares `command_spec`'s `receiver_options`. This is the only path
+    # through `#call` that runs when a corpus declares a port.
     it "projects a port operation as a verb, with the same aggregate receiver a command gets" do
       receive = payments[:verbs].fetch("payment.receive")
 
@@ -168,9 +145,7 @@ RSpec.describe Hecks::Projector::CliProjector do
       expect(banking[:usage]).to include("freeze")
     end
 
-    # The short spelling, where it cannot be ambiguous. `pizzas create_pizza`
-    # rather than `pizzas order.create_pizza`; the aggregate is worth typing
-    # only when two of them declare the same word.
+    # The short spelling where unambiguous: `pizzas create_pizza`, not `pizzas order.create_pizza`.
     it "shortens a verb no other aggregate declares, and keeps both spellings" do
       expect(pizzas[:verbs]["order.create_pizza"][:short]).to eq("create_pizza")
       expect(pizzas[:names][:command]["create_pizza"]).to eq("order.create_pizza")

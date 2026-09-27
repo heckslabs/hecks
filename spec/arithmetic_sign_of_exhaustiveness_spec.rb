@@ -1,13 +1,7 @@
 require "spec_helper"
 
-# `Arithmetic#sign_of` would answer decrement's sign for both an unknown
-# op name and a declared, real op that carries no sign at all (set/append/
-# multiply/clamp/remove) if it relied on `.find(...)&.sign || -1`, which
-# can't tell "not found" from "found, sign legitimately nil" apart from
-# "found, sign is -1". Both
-# callers already gate every non-arithmetic op through their own `case`
-# before reaching #sign_of, so this is a direct, no-boot unit test of the
-# backstop itself, not a real dispatch path today.
+# Pins `sign_of` refusing an unknown op and a signless op (set/append/...) instead of
+# defaulting to decrement's -1. Callers gate non-arithmetic ops first, so this tests the backstop.
 RSpec.describe "CommandRules::Arithmetic#sign_of" do
   def rules = Hecks::Runtime::CommandRules.new(nil)
 

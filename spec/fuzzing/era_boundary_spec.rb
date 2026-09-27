@@ -7,26 +7,13 @@ require "tempfile"
 require "pg"
 require "json"
 
-# `Hecks::Fuzzing::EraBoundary`, proven against a real diverged write —
-# not a stand-in for it. This module exists to answer, automatically,
-# the exact question `bin/merge_tail`'s own diagnostic line already
-# answers by hand (`spec/adapters/driven/postgres_era/lineage_spec.rb`'s
-# own "however a post-cut row lands in a superseded era..." example is
-# where that arithmetic is proven at the lowest level); this file proves
-# the thin wrapper around it — real file-based domain loading, real
-# `BindingPolicy` resolution, real connection settings read off a real
-# `.world` — reaches the same answer.
+# `Hecks::Fuzzing::EraBoundary` against a real diverged write: file-based domain loading,
+# `BindingPolicy` resolution and `.world` settings reach the answer `bin/merge_tail` reports.
 RSpec.describe Hecks::Fuzzing::EraBoundary, :io do
   ERA_BOUNDARY_SPEC_DATABASE = "hecks_era_boundary_spec".freeze
 
-  # The same two-shape recipe `lineage_spec.rb` already proves correct,
-  # deliberately named so it never collides with that file's own
-  # `V1_SOURCE`/`V2_SOURCE` — both are written directly inside an
-  # `RSpec.describe do ... end` block, which assigns at top-level
-  # (`Object`) scope, not inside the example-group class (that file's
-  # own `PERSISTENCE_PARITY_FIXTURE_BLUEBOOK` comment explains the real
-  # gotcha this avoids: two files naming the same constant this way
-  # silently clobber each other, whichever loads last).
+  # Prefixed names: constants assigned inside `RSpec.describe` land on `Object`, so a
+  # generic `V1_SOURCE` would clobber another spec's.
   ERA_BOUNDARY_V1_SOURCE = <<~BLUEBOOK.freeze
     Hecks.bluebook "EraBoundaryFixture" do
       aggregate "Widget" do
@@ -92,10 +79,7 @@ RSpec.describe Hecks::Fuzzing::EraBoundary, :io do
     admin.close
   end
 
-  # The same `check!` shape `lineage_spec.rb` already proves — an
-  # in-memory registry (a real `Kernel.eval`'d bluebook, never a file on
-  # disk: this is setup, building real database state to later read back,
-  # not the thing under test) minted/verified against the real database.
+  # Setup, not the thing under test: an in-memory registry minted/verified against the database.
   def check!(source, translation_source: nil)
     registry = Hecks::Runtime::Registry.new
     loading = Hecks::Ports::Loading.bootstrap
@@ -140,16 +124,8 @@ RSpec.describe Hecks::Fuzzing::EraBoundary, :io do
     adapter.save(instance)
   end
 
-  # A real file-based domain, the fixture the module under test actually
-  # loads — `Hecks::Fuzzing::EraBoundary.diverged_ancestor_writes` boots
-  # from a real directory (`Hecks::Ports::Loading.bootstrap`, the exact
-  # mechanism `bin/merge_tail` itself uses), never an in-memory registry
-  # the way `check!` above sets state up with. The shape written here
-  # does not need to match whichever era is current in the database at
-  # all — this module never verifies a shape hash, only ever reads
-  # `hecks_eras`/the journal directly (see its own header) — so any
-  # PostgresEra-bound aggregate pointed at the right database answers
-  # correctly regardless of which V it declares.
+  # `diverged_ancestor_writes` boots from a real directory, so the fixture is files. Its shape
+  # need not match the current era: the module reads `hecks_eras`/the journal, never a shape hash.
   def write_fixture_files!(root, bluebook_source)
     File.write(File.join(root, "fixture.bluebook"), bluebook_source)
     File.write(File.join(root, "fixture.hecksagon"), <<~RUBY)
@@ -199,11 +175,8 @@ RSpec.describe Hecks::Fuzzing::EraBoundary, :io do
     expect(result[:reason]).to include("not PostgresEra")
   end
 
-  # Nothing to audit and could-not-audit must not look alike — they did,
-  # and `bin/qa_sweep` logged the second as a held Check, so a refused
-  # connection or a `Lineage` defect counted toward the target's clean
-  # streak. `kind:` is what the sweep now reads to tell a note (no Check
-  # at all) from a finding.
+  # Nothing to audit and could-not-audit must differ: `bin/qa_sweep` reads `kind:` to tell
+  # a note (no Check) from a finding.
   it "reports kind: :error when the audit itself cannot run" do
     result = described_class.diverged_ancestor_writes(@fixture_root)
 
@@ -220,10 +193,7 @@ RSpec.describe Hecks::Fuzzing::EraBoundary, :io do
     expect(result).to eq(checked: true, era_count: 1, breakdown: [], diverged_total: 0)
   end
 
-  # The finding this module exists to surface — the exact recipe
-  # `lineage_spec.rb`'s own "however a post-cut row lands in a
-  # superseded era..." example already proves at the SQL level, read
-  # back through this module's own public API instead.
+  # The finding this module exists to surface, read back through its public API.
   it "reports the finding: a real post-cut write an ancestor era still holds, nothing has merged forward" do
     write_v1_record("w1")
     from = label_of(ERA_BOUNDARY_V1_SOURCE)
@@ -238,8 +208,7 @@ RSpec.describe Hecks::Fuzzing::EraBoundary, :io do
       "VALUES (1, 'widget', $1, 'save', $2) RETURNING ordinal",
       ["w9", state]
     )[0]["ordinal"]
-    # domain-qualified (docs/decisions/0059) — Naming.snake("EraBoundaryFixture") ==
-    # "era_boundary_fixture"
+    # Domain-qualified table name (ADR 0059).
     db.exec_params("INSERT INTO era_boundary_fixture_widget_head_snapshot_1 (id, ordinal, state) VALUES ($1, $2, $3)",
                    ["w9", ordinal, state])
     db.close

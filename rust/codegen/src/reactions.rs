@@ -1,6 +1,4 @@
-//! Port of `rust/project/reactions.rb` — read that file's own header
-//! comments in full; this mirrors its algorithm directly, function for
-//! function.
+//! Port of `rust/project/reactions.rb`, mirrored function for function.
 
 use crate::exemplar::Exemplar;
 use crate::json::Json;
@@ -24,7 +22,6 @@ pub fn policy_event_name(on_event: &str) -> String {
     }
 }
 
-/// ── **The policy table**.
 pub fn emit_policy_table(exemplar: &Exemplar, domain_name: &str, policies: &[Json], aggregates: &[Json]) -> String {
     let fns = where_fns(policies);
     let rows = local_policy_rows(domain_name, policies, aggregates);
@@ -39,8 +36,7 @@ pub fn emit_policy_table(exemplar: &Exemplar, domain_name: &str, policies: &[Jso
     }
 }
 
-/// Port of reactions.rb's `where_fn_name`/`where_expr`/`where_fns` — a
-/// policy's `where { … }` as a generated function the kernel calls.
+// A policy's `where { … }` becomes a generated function the kernel calls.
 fn where_fn_name(policy: &Json) -> String {
     format!("where_{}", naming::dispatch_fn_name(&naming::rust_ident(&policy.get("name").map(Json::to_s).unwrap_or_default())))
 }
@@ -96,11 +92,7 @@ fn local_policy_rows(domain_name: &str, policies: &[Json], aggregates: &[Json]) 
         .collect()
 }
 
-/// Every policy `local_policy_rows` filters out, represented instead of
-/// dropped — extracted so `emit_merged_cross_domain_policy_table` (below)
-/// can reuse it per-source, exactly the way `rust/project/reactions.rb`'s
-/// own `cross_domain_policy_rows` is shared by `emit_cross_domain_policy_
-/// table` and `emit_merged_cross_domain_policy_table`.
+// Rows for the policies `local_policy_rows` filters out; shared per source by the merged table.
 fn cross_domain_policy_rows(domain_name: &str, policies: &[Json]) -> Vec<String> {
     policies
         .iter()
@@ -132,7 +124,6 @@ fn cross_domain_policy_rows(domain_name: &str, policies: &[Json]) -> Vec<String>
         .collect()
 }
 
-/// ── **The cross-domain policy table**.
 pub fn emit_cross_domain_policy_table(exemplar: &Exemplar, domain_name: &str, policies: &[Json]) -> String {
     let rows = cross_domain_policy_rows(domain_name, policies);
 
@@ -149,34 +140,18 @@ pub fn emit_cross_domain_policy_table(exemplar: &Exemplar, domain_name: &str, po
     )
 }
 
-/// One chapter's own policies, for a merged-table call — the direct port
-/// of `rust/project/reactions.rb`'s own `{domain_name:, policies:,
-/// aggregates:}` source hash. `aggregates` rides along for
-/// `local_policy_rows`' own fan-out addressing key; unused by the
-/// cross-domain half (`cross_domain_policy_rows` needs no fan-out key —
-/// see that function's own shape), same as the Ruby side.
+/// One chapter's policies for a merged-table call. `aggregates` feeds the fan-out
+/// addressing key of local rows only; cross-domain rows ignore it.
 pub struct PolicySource<'a> {
     pub domain_name: &'a str,
     pub policies: &'a [Json],
     pub aggregates: &'a [Json],
 }
 
-/// ── **The merged policy table** — `bin/project_rust`'s own `merged.rs`,
-/// spanning the target domain and every framework/vendored chapter it
-/// attaches, mirroring `rust/project/reactions.rb`'s own
-/// `emit_merged_policy_table` byte for byte. Recovers the same
-/// documented, deliberate gap that function's own header names:
-/// building `merged.rs`'s policy table from `run_full` (`main.rs`)'s
-/// target-domain policies alone is correct only when no attached
-/// framework chapter (Governance/Identity, today) declares any
-/// policies of its own; a vendored chapter that does would see its
-/// policies compiled into its own standalone `registry.rs` table but
-/// never folded into the one table `kernel::orchestrate` actually reads
-/// at runtime — the identical silent-drop bug the Ruby side found live
-/// against a real deployed second chapter. Each source runs through the
-/// identical `local_policy_rows` a standalone chapter's own table already
-/// uses, so a policy's own `target_verb` is qualified against its own
-/// `domain_name`/`aggregates`, never the target's.
+/// The policy table for `merged.rs`, spanning the target domain and every attached chapter.
+///
+/// Each source's `target_verb` is qualified against its own domain, never the target's;
+/// omitting a chapter's policies would leave them out of the table `kernel::orchestrate` reads.
 pub fn emit_merged_policy_table(exemplar: &Exemplar, sources: &[PolicySource]) -> String {
     let rows: Vec<String> = sources.iter().flat_map(|source| local_policy_rows(source.domain_name, source.policies, source.aggregates)).collect();
     let fns: Vec<String> = sources.iter().flat_map(|source| where_fns(source.policies)).collect();
@@ -192,10 +167,7 @@ pub fn emit_merged_policy_table(exemplar: &Exemplar, sources: &[PolicySource]) -
     }
 }
 
-/// ── **The merged cross-domain policy table** — same recovery as
-/// `emit_merged_policy_table` above, same documented gap, same reason
-/// (Governance/Identity declare no cross-domain policies either, so this
-/// half was equally invisible until a vendored chapter needed it).
+/// The cross-domain policy table for `merged.rs`, folding in every attached chapter.
 pub fn emit_merged_cross_domain_policy_table(exemplar: &Exemplar, sources: &[PolicySource]) -> String {
     let rows: Vec<String> = sources.iter().flat_map(|source| cross_domain_policy_rows(source.domain_name, source.policies)).collect();
 
@@ -216,8 +188,7 @@ fn with_value_parsed(raw: &str) -> Literal {
     literal::read(raw)
 }
 
-/// A parsed `with:` literal to a Rust expression building the equivalent
-/// `Json` value.
+// Renders a parsed `with:` literal as a Rust expression building the equivalent `Json`.
 fn json_literal_expr(value: &Literal) -> String {
     match value {
         Literal::Hash(pairs) => {
@@ -242,15 +213,8 @@ fn ruby_float_text(n: f64) -> String {
     }
 }
 
-// `compensates` — per-dispatch saga compensation (`ir::DispatchSpec::
-// compensates`/`Hecks::Bluebook::DispatchSpec#compensates`,
-// `lib/hecks/bluebook/process_manager.rb`): absent/`null` on the IR
-// (`Json::get` already reads both as `None`) emits `None`; a nested
-// object recurses through this same function one level in. Mirrors
-// rust/project/reactions.rb's own `emit_dispatch_spec` exactly — never
-// nested further than one level on the Ruby side (a compensation is not
-// itself compensable), so this recursion bottoms out in at most one
-// extra call.
+// `compensates` (saga compensation) recurses one level; a compensation is not itself
+// compensable, so the recursion ends after one extra call.
 fn emit_dispatch_spec(exemplar: &Exemplar, spec: &Json, literal_fns: &mut Vec<String>) -> String {
     let with_spec = spec.get("with_spec").map(Json::each).unwrap_or(&[]);
     let with_pairs: Vec<String> = with_spec
@@ -274,9 +238,8 @@ fn emit_dispatch_spec(exemplar: &Exemplar, spec: &Json, literal_fns: &mut Vec<St
     )
 }
 
-/// One `with:` binding, resolved to a `WithValue` — a bare Symbol is a
-/// runtime reference; anything else is a literal, emitted as its own tiny
-/// `fn() -> Json` (`literal_fns` collects these).
+// A bare Symbol is a runtime reference; anything else is a literal emitted as its own
+// `fn() -> Json`, collected in `literal_fns`.
 fn emit_with_value(exemplar: &Exemplar, raw: &str, literal_fns: &mut Vec<String>) -> String {
     let parsed = with_value_parsed(raw);
     if let Literal::Symbol(name) = &parsed {
@@ -300,7 +263,6 @@ fn emit_handler(exemplar: &Exemplar, handler: &Json, literal_fns: &mut Vec<Strin
     )
 }
 
-/// ── **The process manager table**.
 pub fn emit_process_manager_table(exemplar: &Exemplar, process_managers: &[Json]) -> String {
     let mut literal_fns: Vec<String> = Vec::new();
     let pm_exprs: Vec<String> = process_managers
@@ -334,7 +296,6 @@ pub fn emit_process_manager_table(exemplar: &Exemplar, process_managers: &[Json]
     )
 }
 
-/// `Naming.reference_key(event.aggregate)`, precomputed per aggregate.
 pub fn emit_reference_key_table(exemplar: &Exemplar, chapters: &[(String, Vec<String>)]) -> String {
     let arms: Vec<String> = chapters
         .iter()
@@ -350,16 +311,9 @@ pub fn emit_reference_key_table(exemplar: &Exemplar, chapters: &[(String, Vec<St
     exemplar.render("reference_key_table", &[("\"tmpl_qualified\" => Some(\"tmpl_key\"),", arms.join("\n"))])
 }
 
-/// "Does this verb create the record it addresses" — `orchestrate.rs`'s
-/// own routing split (`split_routed_args`) needs this before it can
-/// decide whether a policy/saga-triggered dispatch's projected args
-/// should have their addressing key promoted into `to:` at all —
-/// `rust/project/reactions.rb`'s own `emit_creates_table` header has the
-/// full argument. Reuses each aggregate entry's own already-computed
-/// `commands[].creates`/`commands[].verb` fields verbatim; an entity
-/// command is never creating (commands.rs's own header on
-/// `emit_entity_command`), so it always reads `false` without needing
-/// its own branch.
+/// Whether each verb creates the record it addresses; `split_routed_args` in
+/// `orchestrate.rs` needs this to decide if the addressing key is promoted into `to:`.
+/// An entity command never creates, so it is always `false`.
 pub fn emit_creates_table(exemplar: &Exemplar, aggregates: &[AggregateEntry]) -> String {
     let mut arms: Vec<String> = Vec::new();
     for a in aggregates {
@@ -374,11 +328,8 @@ pub fn emit_creates_table(exemplar: &Exemplar, aggregates: &[AggregateEntry]) ->
     exemplar.render("creates_table", &[("\"tmpl_verb\" => true,", arms.join("\n"))])
 }
 
-/// The single-component identity head `orchestrate.rs`'s own routing
-/// split tries first — `rust/project/reactions.rb`'s own `emit_identity_
-/// head_table` header has the full argument, including why a composite
-/// identity is a real, documented gap here rather than silently assumed
-/// to work.
+/// The single-component identity head that `orchestrate.rs` routes by first.
+/// Aggregates with a composite identity are omitted, not assumed to work.
 pub fn emit_identity_head_table(exemplar: &Exemplar, aggregates: &[AggregateEntry]) -> String {
     let arms: Vec<String> = aggregates
         .iter()
@@ -395,13 +346,8 @@ pub fn emit_identity_head_table(exemplar: &Exemplar, aggregates: &[AggregateEntr
     exemplar.render("identity_head_table", &[("\"tmpl_qualified\" => Some(\"tmpl_head\"),", arms.join("\n"))])
 }
 
-/// Port of `rust/project/reactions.rb`'s own `emit_entity_identity_head_
-/// table` (BUG#10) — see that function's own header for the full
-/// argument: the same single-component restriction `emit_identity_head_
-/// table` (above) already carries, one level down, for an entity's own
-/// declared identity rather than its owning aggregate's. Keyed by
-/// "Domain::Aggregate.Entity" — a two-level-deep entity command (BUG#11)
-/// never resolves through this table, deliberately.
+/// Like `emit_identity_head_table`, for an entity's own identity, keyed by
+/// "Domain::Aggregate.Entity". Two-level-deep entity commands deliberately never resolve here.
 pub fn emit_entity_identity_head_table(exemplar: &Exemplar, aggregates: &[AggregateEntry]) -> String {
     let arms: Vec<String> = aggregates
         .iter()
@@ -420,9 +366,6 @@ pub fn emit_entity_identity_head_table(exemplar: &Exemplar, aggregates: &[Aggreg
     exemplar.render("entity_identity_head_table", &[("\"tmpl_qualified\" => Some(\"tmpl_head\"),", arms.join("\n"))])
 }
 
-/// Port of `rust/project/reactions.rb`'s own `emit_command_attributes_
-/// table` — see that function's own header for the full argument (R1,
-/// docs/audits/2026-08-11-bug-triage.md).
 pub fn emit_command_attributes_table(exemplar: &Exemplar, aggregates: &[AggregateEntry]) -> String {
     let mut arms: Vec<String> = Vec::new();
     for a in aggregates {
@@ -439,10 +382,8 @@ pub fn emit_command_attributes_table(exemplar: &Exemplar, aggregates: &[Aggregat
     exemplar.render("command_attributes_table", &[("\"tmpl_verb\" => &[\"tmpl_attr\"],", arms.join("\n"))])
 }
 
-/// `for_each` — the fan-out's own query, qualified here rather than in
-/// the kernel: `Behaviour::Policy#for_each_route` resolves the bare
-/// "Aggregate.query" spelling against the policy's own domain, and that
-/// resolution is a fact about the source.
+// Qualifies the bare "Aggregate.query" `for_each` spelling against the policy's own domain
+// here, not in the kernel, as `Behaviour::Policy#for_each_route` does.
 fn fan_out_verb_expr(domain_name: &str, policy: &Json) -> String {
     let for_each = policy.get("for_each").map(Json::to_s).unwrap_or_default();
     if for_each.is_empty() {
@@ -452,11 +393,8 @@ fn fan_out_verb_expr(domain_name: &str, policy: &Json) -> String {
     format!("Some({})", naming::ruby_inspect_string(&qualified))
 }
 
-/// The name a matched row's ID is minted under — the target command's
-/// question, not the aggregate's. `Behaviour::Command#addressing_key_for`
-/// is the rule; this is that rule read off the exported IR, and
-/// `spec/codegen_parity_spec.rb` holds it byte-identical to
-/// `rust/project/reactions.rb`'s own spelling of the same thing.
+// The name a matched row's ID is minted under, per `Behaviour::Command#addressing_key_for`
+// read off the exported IR; `spec/codegen_parity_spec.rb` holds it identical to the Ruby side.
 fn fan_out_key_expr(policy: &Json, aggregates: &[Json]) -> String {
     let for_each = policy.get("for_each").map(Json::to_s).unwrap_or_default();
     if for_each.is_empty() {
@@ -504,8 +442,7 @@ fn addressing_key_for(command: &Json, aggregate_name: &str) -> Option<String> {
     }
 }
 
-/// `trigger ..., with:` — each binding already rendered on the wire
-/// (`Literal::render`, so a Symbol keeps its leading colon).
+// `trigger ..., with:` bindings are already wire-rendered, so a Symbol keeps its leading colon.
 fn with_spec_expr(policy: &Json) -> String {
     let pairs = match policy.get("with_spec") {
         Some(Json::Array(items)) => items.clone(),
@@ -532,13 +469,8 @@ fn with_spec_expr(policy: &Json) -> String {
 mod tests {
     use super::*;
 
-    /// Mirrors `spec/rust_project/reactions_merge_spec.rb`'s own
-    /// `TARGET_POLICY`/`VENDORED_POLICY`/`VENDORED_CROSS_DOMAIN_POLICY`
-    /// fixtures exactly, so a future edit here can be checked against
-    /// that spec's own expectations by eye. No real corpus domain
-    /// exercises this shape (Governance/Identity, the only framework
-    /// chapters attached today, declare no policies) — tested directly
-    /// here for the identical reason the Ruby spec's own header gives.
+    // Mirrors the fixtures in `spec/rust_project/reactions_merge_spec.rb`; no real corpus
+    // domain exercises this merged-chapter shape.
     fn policy(name: &str, on_event: &str, trigger_command: &str, target_domain: Option<&str>) -> Json {
         let target_domain_json = match target_domain {
             Some(domain) => format!("\"{domain}\""),
@@ -567,12 +499,10 @@ mod tests {
 
         // The target domain's own policy, qualified against its own domain.
         assert!(table.contains("target_verb: \"Orders::Invoice.Open\""));
-        // Also a vendored chapter's own same-domain policy, qualified
-        // against its domain — the fixed gap.
+        // A vendored chapter's same-domain policy, qualified against its own domain.
         assert!(table.contains("policy_name: \"OnPaymentConfirmedByProcessor\""));
         assert!(table.contains("target_verb: \"Payments::Payment.Succeed\""));
-        // A vendored chapter's own cross-domain policy is excluded —
-        // that one belongs to the cross-domain table instead.
+        // Cross-domain policies belong to the cross-domain table.
         assert!(!table.contains("OnPaymentFailed"));
     }
 
@@ -595,8 +525,7 @@ mod tests {
         assert!(table.contains("policy_name: \"OnPaymentFailed\""));
         assert!(table.contains("target_domain: \"Ledger\""));
         assert!(table.contains("target_verb: \"Ledger::Ledger.Reverse\""));
-        // A same-domain policy from either source is excluded — that
-        // one belongs to the local table instead.
+        // Same-domain policies belong to the local table.
         assert!(!table.contains("OnOrderPlaced"));
         assert!(!table.contains("OnPaymentConfirmedByProcessor"));
     }

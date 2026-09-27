@@ -11,39 +11,10 @@ require_relative "runner/ci_publisher"
 module Hecks
   module Release
     # Performs the release once the release PR has merged: tags the merge
-    # commit, publishes the gem to rubygems.org and gets the JavaScript client
-    # published to npm.
+    # commit, publishes the gem, and gets the JS client published to npm.
     #
-    # ## Why it exists
-    #
-    # A release is four steps that have to happen in one order, and only
-    # the contributing guide remembered it. This runs them in that order, refuses to
-    # start from a checkout that is not the merged `main`, and can be run again:
-    # it asks the registries what is already published and skips it, so a run
-    # that died between the gem and the package resumes at the package.
-    #
-    # ## Steps
-    #
-    # 1. Preflight: tools installed, on a clean `main` equal to `origin/main`,
-    #    the gem and the client at one version, the changelog naming it.
-    # 2. Published state: which of the gem and the package are already out.
-    # 3. Tag: an annotated `vX.Y.Z` on the release commit, pushed to origin.
-    # 4. Gem: `bin/release_gem`, unchanged.
-    # 5. npm, one of two ways:
-    #    - by default CI publishes: the tag triggers `publish-client.yml`, which
-    #      uses npm trusted publishing, and this waits for the version to appear
-    #      (`--no-wait` skips the wait);
-    #    - with `--npm-local` this publishes from the machine, with a
-    #      bypass-two-factor token 1Password holds: the way to make the first
-    #      publish, before trusted publishing can be configured, and the fallback
-    #      when CI is down.
-    #
-    # ## Injectable commands and time
-    #
-    # Every process is started through `commands`, any object answering
-    # `capture(*argv, env:, chdir:)` and `run!(*argv, env:, chdir:)` like
-    # {Commands}, so a spec drives the whole release with a recorder. The wait for
-    # CI takes its clock and its pause as callables for the same reason.
+    # Idempotent: it asks the registries what is already published and skips
+    # it, so a run that died between the gem and the package resumes at the package.
     class Runner
       # Which steps to run and how.
       class Options

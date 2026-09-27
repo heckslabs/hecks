@@ -1,11 +1,6 @@
-// Exemplar shapes for rust/project/types.rb — see mod.rs's own header.
-//
-// `closed_set_enum` is the Rust reading of a `ShapeField` (shape.bluebook)
-// whose owning value object closed over exactly one field (`one_of do
-// member value: "credit" ... end`) — a real enum choice, one variant per
-// admitted member. A closed set over more than one field (`Statement
-// Frequency`) is a different shape entirely — a fixed data table, not a
-// tag — and gets its own exemplar item once that wave lands.
+// Exemplar shapes for rust/project/types.rb; see mod.rs.
+// `closed_set_enum` is a one-field closed set (one variant per member); a multi-field closed
+// set is a fixed data table instead.
 #![allow(dead_code, unused_variables)]
 
 // TMPL:closed_set_enum BEGIN
@@ -17,15 +12,8 @@ pub enum TmplKind {
 }
 // TMPL:closed_set_enum END
 
-// `plain_struct` — the Rust reading of a `ShapeField` list (a whole value
-// object's/entity's/aggregate record's declared attributes), independent
-// of the per-attribute `Option<T>`/`&'static str`/`Vec<T>` decision —
-// that decision is already made in Ruby before a field ever reaches this
-// shape (`TmplFieldType` stands for whatever fully-resolved type string
-// the caller computed). Reused by plain value objects, entities, and
-// aggregate records alike (all three emit the identical struct skeleton
-// in real output — only which attributes and which types differ), and
-// by `closed_set_table`'s own struct half, below.
+// `plain_struct` backs value objects, entities and aggregate records alike; field types
+// arrive already resolved as `TmplFieldType`.
 type TmplFieldType = i64;
 
 // TMPL:plain_struct BEGIN
@@ -37,17 +25,8 @@ pub struct TmplType {
 }
 // TMPL:plain_struct END
 
-// `closed_set_table` — the other real shape a closed set can take
-// (`closed_set_enum`'s own header explains the split): a fixed data
-// table when the set closes over more than one field. Its struct half
-// is `plain_struct` again (String fields become `&'static str` — Ruby's
-// own `TmplFieldType` computation already differs there, nothing new
-// for this shape to express) glued in Ruby to the `pub const` array
-// below — deliberately not one monolithic exemplar item: gluing two
-// already-independently-valid pieces with a blank line is exactly the
-// same class of plain-Ruby assembly `Exemplar.render_each`'s own
-// `join_with` already does, not a new place hand-built Rust syntax risk
-// creeps back in.
+// `closed_set_table` — a closed set over more than one field: a `plain_struct` glued in Ruby
+// to the `pub const` array, kept as two independently valid pieces.
 struct TmplRow {
     tmpl_field: i64,
 }

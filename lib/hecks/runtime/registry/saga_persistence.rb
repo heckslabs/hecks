@@ -3,52 +3,10 @@ require_relative "../saga_pending_dispatch"
 module Hecks
   module Runtime
     class Registry
-      # **Saga persistence** — no new DSL verb, no new world setting.
-      # Whatever adapter a domain's own aggregates already use for
-      # durability, its sagas use the same one, automatically: three
-      # optional adapter methods (`save_saga`/`delete_saga`/`each_saga`),
-      # `respond_to?`-checked the same way `Ports::Persistence::AppendOnly`
-      # already treats an adapter's own optional methods
-      # (`find`/`all`/`count`/`reset!`/`events`/`record_event`).
+      # A domain's sagas persist through whatever adapter its aggregates already use;
+      # `save_saga`/`delete_saga`/`each_saga` are optional, `respond_to?`-checked capabilities.
       module SagaPersistence
-        # Resolved and memoized per domain — the first real aggregate
-        # declared in the domain's own bluebook is the resolution
-        # anchor. `Ports::Persistence::BindingPolicy.resolve` for that
-        # aggregate already falls back to a domain-level default bind
-        # (§0's `Hecksagon#bind_for`) before falling back to Memory, so
-        # this needs no separate "was a default declared" branch of its
-        # own — whatever adapter that anchor resolves to already is the
-        # domain's own default in the normal case (every aggregate
-        # shares one adapter), and is the honest, documented fallback
-        # for the rarer domain genuinely split across more than one
-        # local adapter with no default declared.
-        #
-        # Genuinely lazy, genuinely POST-boot — unlike `rehydrate_sagas!`
-        # below (boot-only), this is called from live dispatch
-        # (`SagaInterpreter#checkpoint`/`#end_saga`, on every saga
-        # transition), so the first call for a given domain can come from
-        # any dispatching thread, not just the boot thread. `@saga_persistence`
-        # itself is a plain Hash stood up once in `Registry#initialize` (no
-        # race on the container), but `resolve_saga_persistence` is real work
-        # (a `BindingPolicy.resolve` plus a lazy `repository` build) whose
-        # result — the actual adapter instance a domain's sagas persist
-        # through — must be the same object for every caller: two threads
-        # racing the first lookup and each building their own adapter would
-        # silently split one domain's saga writes across two adapter
-        # instances (worse than `Dispatcher#reaction_depth`'s M20 — that bug
-        # corrupted a counter; this one can corrupt which store a saga's
-        # state lands in). Double-checked locking against a dedicated mutex
-        # — never `@saga_mutex` — see `Registry#initialize`'s own comment for
-        # why reusing that one would deadlock.
-        # Resolves and memoizes the adapter a domain's sagas persist through.
-        #
-        # @param domain [String, Symbol] the domain to resolve saga persistence for
-        # @return [Adapters::Heki, Adapters::Postgres, Adapters::Sqlite, Adapters::D1,
-        #   Ports::Persistence::Plugins::Era::PostgresEra, Ports::Persistence::NullSagaStore]
-        #   the same adapter instance the domain's anchor aggregate persists through, when it
-        #   implements `save_saga`; `NULL_SAGA_STORE` for a domain with no anchor aggregate, an
-        #   adapter that does not implement the capability, a `RemoteRuntime`-shaped adapter,
-        #   or a `Runtime::WiringError` resolving the anchor's own bind
+        # Memoized per domain via double-checked locking; never reuse @saga_mutex, see #initialize.
         def saga_persistence(domain)
           key = domain.to_s
           @saga_persistence[key] || @saga_persistence_mutex.synchronize do
@@ -56,34 +14,11 @@ module Hecks
           end
         end
 
-        # Every domain whose sagas can persist somewhere: one with a hecksagon, or one a
-        # world's `default_adapter` binds though it has none.
-        #
-        # @return [Array<String>] the domain names, hecksagon domains first
         def saga_domains = @hecksagons.keys | @bluebooks.keys.select { |domain| default_adapter_for(domain) }
 
-        # Walks every loaded domain in `saga_domains`, repopulating `saga_instances` from
-        # whatever `saga_persistence(domain)` resolves to — a real store
-        # for a domain whose adapter answers the capability, `each_saga`
-        # yielding real rows; `NULL_SAGA_STORE`'s own `each_saga` for
-        # everything else, which never yields at all, so this needs no
-        # `respond_to?` branch of its own — the same reason every other
-        # call site in this capability never needs one. Called once at
-        # boot (`Loader.boot`, between `verify!` and dispatcher
-        # construction) — a process that's been running has no reason to
-        # re-walk its own already-current `saga_instances`.
-        #
-        # Boot-time-only (or its test-runner equivalent) — this method's
-        # only callers are `Loader.run_boot_gates!` (single-threaded, before
-        # `dispatcher_for` ever exists) and `Registry#reset_runtime_state!`
-        # (single-threaded test runner — see that method's own comment).
-        # Never called from live dispatch, so `@saga_instances` mutation
-        # here has no concurrent caller to race, unlike its other two write
-        # points inside `@saga_mutex.synchronize` blocks (`saga_interpreter.
-        # rb`), which genuinely do and are guarded accordingly.
+        # Boot-time-only (Loader.run_boot_gates!, before dispatch exists); no concurrent
+        # writer to race here, unlike saga_interpreter.rb's writes under @saga_mutex.
         # rubocop:disable-next Hecks/ThreadSharedIvarMutation
-        #
-        # @return [Hecks::Runtime::Registry] self
         def rehydrate_sagas!
           saga_domains.each do |domain|
             saga_persistence(domain).each_saga do |process_manager, correlation, state, memory, completed_compensations = []|
@@ -98,33 +33,12 @@ module Hecks
 
         private
 
-        # The other half of the outbox-shaped fix (see saga_pending_
-        # dispatch.rb) — `SAGA_PENDING_DISPATCH_KEY`, if the crashed
-        # process left it standing, means the row's own `state` was
-        # checkpointed but the dispatch cascade that justifies it may
-        # never have run. Stripped out of `memory` before it becomes
-        # this instance's live `:memory` (so nothing downstream — a
-        # `given`, a `with:` mapping, the fuzzer — ever sees it), and
-        # surfaced loudly instead: a warning plus a `saga_log` entry,
-        # never an automatic redrive (see saga_pending_dispatch.rb for
-        # why redriving without idempotent delivery would be worse than
-        # the stall). This is real, durable crash-recovery visibility —
-        # still not the reconciliation itself, which stays a human's
-        # call until hecks has idempotent redelivery to make it safe.
+        # A pending dispatch marker left by a crash: state was checkpointed but the dispatch
+        # cascade it justifies may never have run. Surfaced as a warning, never auto-redriven.
         # rubocop:disable-next Hecks/ThreadSharedIvarMutation -- same
-        # justification as `rehydrate_sagas!`'s own disable comment
-        # above: this method's only caller is that boot-time-only walk,
-        # never live dispatch, so `@saga_log` has no concurrent writer
-        # to race here.
         def warn_stalled_saga(domain, process_manager, correlation, state, pending)
-          # `.transform_keys(&:to_sym)` — Heki's own `each_saga` only
-          # symbolizes `memory`'s top-level keys (`SagaStore#each_saga`'s
-          # own `transform_keys`, one level deep); a value nested under
-          # one of those keys, like this marker, comes back with plain
-          # string keys from Heki specifically, symbol keys already from
-          # Postgres/SQLite/D1's own `symbolize_names: true` parse. Normalizing
-          # here, once, is simpler than teaching every adapter's own
-          # shallow/deep parsing convention about this one reserved key.
+          # Heki's each_saga only symbolizes memory's top-level keys, not nested values;
+          # Postgres/SQLite/D1 already return symbol keys. Normalize here once for all adapters.
           pending    = pending.transform_keys(&:to_sym)
           dispatches = Array(pending[:dispatches]).join(", ")
           warn "[hecks] #{domain} rehydrated #{process_manager} instance #{correlation.inspect} in state " \
@@ -146,13 +60,7 @@ module Hecks
           adapter = repository(domain, anchor).adapter
           adapter.respond_to?(:save_saga) ? adapter : Ports::Persistence::NULL_SAGA_STORE
         rescue WiringError
-          # A domain not cleanly wired for its own anchor aggregate's
-          # persistence (a test fixture binding only the aggregates it
-          # exercises, say) degrades saga persistence to the same no-op
-          # default an unbound domain gets — never raises out of a
-          # dispatch that would otherwise have succeeded. Matches this
-          # capability's own framing throughout: automatic wherever it's
-          # cleanly supported, silently absent wherever it isn't.
+          # An unwired domain degrades to no saga persistence rather than raising mid-dispatch.
           Ports::Persistence::NULL_SAGA_STORE
         end
       end

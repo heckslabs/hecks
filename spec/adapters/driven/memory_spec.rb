@@ -1,12 +1,7 @@
 require "hecks"
 
-# `Memory` was the one driven adapter without `reset!` — Postgres/
-# PostgresEra/Sqlite/D1 all already have it, and `Ports::Persistence::
-# AppendOnly#reset!` already forwards to whichever adapter it wraps,
-# raising only when the adapter doesn't respond to `reset!` at all. This
-# closes that one gap: a caller that keeps one booted runtime across many
-# cases (skipping `load_domain`'s own per-boot cost) can now reset it back
-# to the same clean slate a fresh `Hecks.boot` would have given it.
+# `Memory#reset!` returns the adapter to the clean slate a fresh `Hecks.boot` gives, so a caller
+# can reuse one booted runtime across cases.
 RSpec.describe Hecks::Adapters::Memory do
   let(:runtime) { boot_in_memory }
 
@@ -43,12 +38,8 @@ RSpec.describe Hecks::Adapters::Memory do
     expect(repository.find(pizza.id)).not_to be_nil
   end
 
-  # `registry.repository` always hands back an `AppendOnly`-wrapped
-  # adapter (`RepositoryFactory.build`) — every assertion above already
-  # went through `AppendOnly#reset!`'s own forwarding, not `Memory#reset!`
-  # called bare. This confirms the one thing those don't: the raw adapter
-  # itself, unwrapped, without which `AppendOnly#reset!` would still raise
-  # "append-only adapter cannot reset" today.
+  # `registry.repository` returns an `AppendOnly` wrapper, so the examples above go through its
+  # forwarding; this one checks the raw adapter.
   it "responds to reset! on the raw adapter, not only through AppendOnly's wrapper" do
     memory = described_class.new(aggregate: runtime.registry.bluebook("Pizzas").aggregate("Order"))
     memory.save(Struct.new(:id, :state).new("1", { name: { value: "Margherita" } }))

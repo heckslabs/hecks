@@ -1,40 +1,6 @@
 #!/usr/bin/env ruby
-# ADR 0029 step 4/5 — the Ruby side of the differential-parity harness.
-# Extends mint_stale_era.rb's own DB/role-provisioning + mint pattern
-# (that file's own header names it as reused almost verbatim from
-# lineage_spec.rb) with what that fixture deliberately doesn't do:
-# writing REAL data through Ruby's own PostgresEra adapter under era 1,
-# minting era 2, writing more real data under era 2, then emitting
-# Ruby's own INDEPENDENTLY COMPUTED ground truth for the merged head as
-# JSON on stdout — what spec/rust_host_lineage_conformance_spec.rb
-# diffs lineage_harness's own answer against.
-#
-# "Independently computed" is deliberate, not just "read the same
-# Postgres view twice": era 1's rows are translated through
-# Ports::Persistence::Lineage#translate — Ruby's OWN in-process
-# reference implementation of the portable rule kinds (rename/move/
-# convert/drop/backfill), the exact mechanism the real Layer 2 audit
-# (translation/audit/layer_two.rb) diffs Postgres's compiled SQL
-# against. A ground truth built by re-reading Postgres's own <storage>_
-# head view would only prove "two SQL clients agree," which is a
-# structurally weaker claim than "Rust's read agrees with Ruby's own
-# reference transform" — see this file's own compute/rekey sibling
-# for the one case where that weaker claim is genuinely the best
-# available (no in-process reference exists for compute/rekey at all).
-#
-# NOT spec/corpus/fixtures/lineage_v1*.json — read directly, those
-# three files (a) target lineage/tail_merge.rb's fork-reconciliation
-# scenario specifically (their own note text: "the fork's own... must
-# refuse it by name"), a different and more advanced case than era-
-# boundary read/write parity; (b) mix "Lineage::Acct" (the command
-# namespace) with "Lineage::Account" (the query verb) — no bluebook
-# anywhere in this repo declares either, and nothing in the tree
-# consumes them, so this reads as a staged, never-finished draft
-# carrying its own naming bug, not something safe to load as-is. Left
-# for a follow-on that wants tail_merge coverage specifically; this
-# fixture authors its own minimal, working two-era history instead,
-# matching mint_stale_era.rb's OWN proven "Ledger"/"Account" shape
-# rather than inventing a third.
+# Seeds real data across two eras through PostgresEra, then prints the merged head as JSON.
+# Ground truth translates era 1 with Ports::Persistence::Lineage#translate, not the head view.
 #
 # usage: mint_and_seed_lineage.rb <db_name> <owner_role> <app_role>
 
@@ -67,16 +33,11 @@ grant.exec("GRANT USAGE ON SCHEMA public TO #{app_role}")
 grant.close
 
 owner_url = "postgres://#{owner_role}@localhost/#{db_name}"
-# app_role gets no connection URL of its own here — the RSpec caller
-# (spec/rust_host_lineage_conformance_spec.rb) connects as app_role
-# through lineage_harness, the ONLY thing in this harness meant to
-# exercise that role's own grants (see the adapter_v2 comment below).
+# app_role gets no URL here; the RSpec caller connects as it through lineage_harness.
 
 DOMAIN = "Ledger"
 
-# SAME shape mint_stale_era.rb proved — one attribute rename (cost ->
-# amount) is enough to change StorageShape.project's output and trigger
-# a real mint; nothing about this harness needs a richer domain.
+# One attribute rename is enough to change the storage shape and trigger a mint.
 V1 = <<~BLUEBOOK
   Hecks.bluebook "Ledger" do
     aggregate "Account" do
@@ -113,9 +74,7 @@ V2 = <<~BLUEBOOK
   end
 BLUEBOOK
 
-# ── the proven helpers mint_stale_era.rb already carries, `check!`
-# additionally returning its own registry so this script can read real
-# instances/translations back through it ──
+# Helpers as in mint_stale_era.rb, except `check!` also returns its registry.
 
 def load_registry(source, translation_source: nil)
   registry = Hecks::Runtime::Registry.new
@@ -166,7 +125,6 @@ def account_instance(aggregate, kind_label, cents:)
   built
 end
 
-# ── era 1: mint, then real writes through Ruby's own adapter ──
 
 registry_v1 = check!(V1, owner_url: owner_url)
 aggregate_v1 = registry_v1.bluebooks.values.first.aggregate("Account")
@@ -176,34 +134,20 @@ adapter_v1 = Hecks::Adapters::PostgresEra.new(
 era1_writes = { "biz" => 100, "pers" => 250 }
 era1_writes.each { |kind, cents| adapter_v1.save(account_instance(aggregate_v1, kind, cents: cents)) }
 
-# ── era 2: mint (role-fenced to app_role), then real writes ──
 
 from = label_of(V1)
 to = label_of(V2)
 registry_v2 = check!(V2, owner_url: owner_url, translation_source: edge_source(from: from, to: to), role: app_role)
 aggregate_v2 = registry_v2.bluebooks.values.first.aggregate("Account")
 adapter_v2 = Hecks::Adapters::PostgresEra.new(
-  # owner_url, NOT app_url — a fresh PostgresEra.new re-runs
-  # ensure_head_snapshot!'s idempotent backfill check
-  # (head_compiler.rb), which touches hecks_backfill_progress;
-  # grant_role! never grants that bookkeeping table to the app role
-  # (only the journal/head_snapshot/head_view an app role's own real
-  # traffic touches), because in real deployment a fresh aggregate's
-  # snapshot is already backfilled by the SAME owner-authenticated
-  # mint boot before any app-role connection is ever made. RLS
-  # fencing itself is proven separately and already, by journal.rs's
-  # own a_stale_era_write_is_refused_by_postgres_rls_not_this_crate
-  # test — this script's job is seeding real data, not re-proving that.
+  # owner_url, not the app role: a fresh PostgresEra re-runs the backfill check, which touches
+  # hecks_backfill_progress, a table grant_role! never gives the app role.
   aggregate: aggregate_v2, settings: { database: owner_url, domain: DOMAIN, era: 2 }
 )
 era2_writes = { "gift" => 5 }
 era2_writes.each { |kind, cents| adapter_v2.save(account_instance(aggregate_v2, kind, cents: cents)) }
 
-# ── ground truth: era 1's raw writes translated through Ruby's OWN
-# Ports::Persistence::Lineage#translate (the same in-process reference
-# the real Layer 2 audit diffs Postgres's compiled SQL against), merged
-# with era 2's own untranslated writes — independent of anything this
-# script has already read back FROM Postgres. ──
+# Ground truth: era 1 translated in-process, merged with era 2's untranslated writes.
 
 lineage = Hecks::Ports::Persistence::Lineage.for(registry_v2, DOMAIN, aggregate_v2)
 raise "expected a real translation edge for Account" unless lineage
@@ -221,9 +165,7 @@ untranslated_era2 = era2_writes.map do |kind, cents|
 end
 
 ground_truth_rows = (translated_era1 + untranslated_era2).map do |id, state|
-  # JSON round-trip: same normalization spec/rust_conformance_spec.rb's
-  # own comparisons already rely on, so a symbol-vs-string key
-  # difference can never register as a real disagreement.
+  # JSON round-trip so symbol-vs-string key differences never register as disagreement.
   [id, JSON.parse(JSON.generate(state))]
 end
 

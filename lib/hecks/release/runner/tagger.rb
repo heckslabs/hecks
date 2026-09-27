@@ -7,21 +7,14 @@ module Hecks
       # Makes sure the release tag `vX.Y.Z` is an annotated tag on the release
       # commit and is on origin, creating and pushing it only when it is missing.
       class Tagger
-        # @param git [Git] the repository the release is cut from
-        # @param console [Console] asks before the tag is created or pushed
-        # @param dry_run [Boolean] report what would happen and change nothing
         def initialize(git:, console:, dry_run:)
           @git = git
           @console = console
           @dry_run = dry_run
         end
 
-        # Brings the tag to the state described above, saying what it did.
-        #
-        # @param facts [Preflight::Facts] the version and commit being released
-        # @return [Boolean] false when the person declined the question, true otherwise
-        # @raise [Refusal] if the tag already points at another commit, locally or on origin
-        # @raise [CommandFailed] if creating or pushing the tag fails
+        # Brings the tag to the state described above, saying what it did; returns
+        # false only when the person declined the confirmation.
         def ensure!(facts)
           tag = "v#{facts.version}"
           local = local_commit(tag)

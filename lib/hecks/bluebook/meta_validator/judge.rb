@@ -1,69 +1,27 @@
 module Hecks
   module Bluebook
     module MetaValidator
-      # Offers every declaration in a built bluebook to the meta-domain.
-      #
-      # There are no hand-written branches, one per category: that shape's
-      # real cost is any verb the language declares that the judge never
-      # offers — a branch nobody wrote for it — going undetected, since a
-      # branch that does not exist cannot fail. `Command.Argument` and
-      # `ValueObject.Field` were both admitted that way once, undetected;
-      # every rule hanging off them was decoration until offered for real.
-      #
-      # So instead the judge walks: it reads the plan the language makes of
-      # itself (Plan), and for each node offers the creating command, then
-      # each list through the command that appends to it, then each child. A
-      # verb in the plan with no offer is now impossible — there is no
-      # branch left in which to forget one, and spec/judge_coverage_spec
-      # holds it to that.
-      #
-      # What is not uniform lives in Readings, and only where the IR's shape
-      # differs from the language's. Naming differences do not appear at all: the
-      # language spells its fields as the IR spells them.
-      #
-      # Only the dispatch half of the round trip lives here. Reconstruction is the
-      # experiment's business ; judging does not need it.
+      # Offers every declaration in a built bluebook to the meta-domain by
+      # walking the plan itself, so no verb the language declares can go
+      # un-offered by omission.
       class Judge
         include Readings
 
-        # Children offered before the parent's own lists, in this order. An
-        # attribute's type is offered as the id of the thing it names, so the
-        # value objects have to exist before anything that can name one — an
-        # aggregate's own attributes, and an entity's own (M13: an entity is its
-        # own root, repeating the aggregate's whole shape one level down, so its
-        # attributes resolve against the same value-object pool). ValueObject
-        # first, Entity second, so an entity's own attributes are never offered
-        # before the value objects they may reference exist — a self-hosting
-        # casualty found live: the meta-grammar's own Handler/Dispatch/Member/
-        # Keyword/Argument entities (S17, ADR 0026) failed reference resolution
-        # on their own plain value-object-typed attributes (`HandlerText`,
-        # `MemberPosition`, ...) the moment entity attributes started being
-        # checked at all, because `@plan.names`' own (incidental) declaration
-        # order happened to walk Entity first. The order is stated here, not
-        # left to whatever order the plan's own category table iterates in —
-        # see `detail_node`'s own use of this constant, below.
+        # ValueObject before Entity: an entity's own attributes may
+        # reference a value object, which must exist before it resolves.
         EAGER_CHILDREN = { "Aggregate" => %w[ValueObject Entity] }.freeze
 
-        # Categories an entity declares as well as an aggregate. The IR reuses
-        # Command and Query for a piece's own commands and queries, so the
-        # language reuses Command and Query — and the plan cannot express a second
-        # parent, because a category's parent is derived from the one `*_id` argument
-        # its creating command carries. This says the other edge out loud.
+        # Command and Query are reused for a piece's own commands/queries,
+        # since the plan derives a category's parent from its creating
+        # command's one `*_id` argument and cannot express a second parent.
         WITHIN_ENTITY = %w[Command Query].freeze
 
         attr_reader :refusals
 
-        # **The records survive the verdict**.
-        #
-        # Judging a bluebook and holding one differ by exactly this: whether anyone
-        # keeps the runtime the declarations were dispatched into. Nobody did, so
-        # `spec/round_trip_spec` reached the records by `Judge.allocate` and four
-        # `instance_variable_set` calls. Reading the chapter back is the point now,
-        # not a curiosity, so the runtime is simply readable.
+        # The runtime dispatched into, not just the refusals, so a caller
+        # can read the resulting records back out.
         attr_reader :runtime
 
-        # @param bluebook [Object] a built bluebook chapter graph, as
-        #   `MetaValidator.call` receives it
         def initialize(bluebook)
           @bluebook = bluebook
           @refusals = []
@@ -74,13 +32,9 @@ module Hecks
 
         private
 
-        # Absent is not empty. The rules read "if you declare it, declare
-        # something" — a description never given is legal. Passing "" for a nil
-        # turns every one of them into "you must declare it".
-        #
-        # An Integer stays an Integer : RowCount declares `attribute :value,
-        # Integer`, so stringifying a member count fails the type gate rather than
-        # feeding the rule it was meant to feed.
+        # nil stays nil so an optional field reads as undeclared rather
+        # than declared-empty; an Integer passes through raw so a typed
+        # field (RowCount's `value`) still hits its own type gate.
         def v(text)
           return nil if text.nil?
           return { value: text } if text.is_a?(Integer)
@@ -88,14 +42,8 @@ module Hecks
           { value: text.to_s }
         end
 
-        # A reference is an ID, and an ID is a scalar.
-        #
-        # Every other field goes to the meta-domain as a one-field value object,
-        # because that is what it is. A reference is not: it carries the id of a
-        # head, and wrapping an id in an object was the language saying `{value:
-        # "Banking::Customer"}` where it meant `"Banking::Customer"`. The plan
-        # answers which arguments those are, read from the language's own IR, so
-        # nothing here needs to know the names.
+        # A reference argument is passed as the bare id it names; every
+        # other field is wrapped as a one-field value object instead.
         def carried(plan, verb, argument, value)
           return v(value) unless plan && verb && plan.references?(verb, argument)
 
@@ -108,48 +56,25 @@ module Hecks
           yield
         rescue Runtime::GivenNotMet, Runtime::InvariantViolation,
                Runtime::TypeMismatch, Runtime::NotFound => e
-          # NotFound is a verdict, not noise. An attribute's type is a reference to
-          # its value object, so "no ValueObject with id …" is the rule `attributes
-          # must use value-object types` refusing.
+          # NotFound is a verdict, not noise: an attribute's type is a
+          # reference to its value object, so "no ValueObject with id ..."
+          # is `attributes must use value-object types` refusing.
           @refusals << "#{label}: #{e.message}"
         rescue Runtime::UnknownVerb
           nil
         end
 
-        # QualityControl BUG#125 — every dispatch the judge makes into the
-        # meta-domain goes through here, and only here, so this is the one
-        # place `Runtime::Value.judge_bootstrapping` needs to wrap: it tells
-        # `Value::Coercion#check_scalar_shapes` this construction is the
-        # language's own self-hosted grammar walk, not a real domain's
-        # command, so a String-typed meta-grammar field (`Normalise`'s
-        # `position`, a `RuleText` — `appends`' generic walk-index handling
-        # collides with that field's own name, see the flag's own comment
-        # in coercion.rb) may still arrive as the raw Integer `appends`
-        # hands it. Scoped to exactly this method: nothing outside a judge's
-        # own dispatch ever runs inside it, so an ordinary domain command
-        # (a real caller's own PieceId, Money, …) is never affected.
+        # Wrapped in judge_bootstrapping: the walk's own values sometimes
+        # arrive as raw types a real domain command would never accept,
+        # and only a judge's own dispatch should relax for that.
         def send_to(verb, label, to: nil, **payload)
           Runtime::Value.judge_bootstrapping do
             offer(label) { @runtime.dispatch(verb, to: to, with: args(payload)) }
           end
         end
 
-        # The receiver, spelled the way a real caller addresses it.
-        #
-        # `receiver` is an internal accumulator — it tracks the aggregate this
-        # walk is inside and, once it crosses into a real entity-owned category
-        # (Member/Handler/Dispatch — S17, ADR 0026), every entity hop on top of
-        # it. But `Routing.envelope`/`parse_envelope_hash` do not want that
-        # shape restated when there is no entity to route to: a plain aggregate
-        # command is addressed by its bare id (`Facade::Handle#dispatch` — "to:
-        # @id" — and `CommandRequest`'s own header: "aggregate command: { to:
-        # "record-id", ... }"), never `{aggregate:, entities: []}` — that hash
-        # is the entity route's own shape, degenerate with nothing in it.
-        #
-        # So this is the one place `receiver` turns into a `to:` value: bare
-        # when there is no entity hop (the overwhelming common case — every
-        # category but those three), the full envelope only when there
-        # genuinely is one.
+        # A bare id when there is no entity hop (the common case); the
+        # full {aggregate:, entities:} envelope only when there is one.
         def address(receiver)
           return receiver[:aggregate] if receiver[:entities].empty?
 
@@ -161,19 +86,9 @@ module Hecks
           detail_node("Bluebook", @bluebook, nil, 0)
         end
 
-        # Declared before detailed, for every set of siblings.
-        #
-        # Offering a node whole — declared, then its lists, then its children
-        # — one sibling at a time would mean an aggregate's attributes are
-        # offered before its later siblings exist, so an attribute that
-        # points at another aggregate could only resolve if that aggregate
-        # happens to be declared earlier in the file: banking would survive
-        # on luck, Customer written above Account.
-        #
-        # So siblings are declared in one pass and detailed in a second. It is the
-        # same ordering the walk already used one level down — value objects before
-        # the attributes that name them — lifted to the level above, and it is what
-        # lets a reference be a reference rather than a string nobody can check.
+        # Every sibling is declared before any is detailed, so one
+        # sibling's attribute can reference another declared later in
+        # the same file.
         def declare_node(category, node, parent_id, index, extra = {}, receiver: nil)
           plan = @plan.category(category)
           return unless plan
@@ -186,51 +101,21 @@ module Hecks
           return unless plan
 
           id = identify(category, parent_id, node, index)
-          # `extra` is the cumulative identity of every entity-owned
-          # ancestor above this node (Handler's own `event_type` and
-          # ProcessManager's own `bluebook`/`name`, by the time Dispatch
-          # is reached — S17, ADR 0026's two-level chain). `identity`
-          # adds this node's own on top — computed for every category,
-          # entity-owned or not, because a node need not be entity-owned
-          # itself to own one (ValueObject isn't, and Member still needs
-          # its `aggregate:`/`name:`) — it is simply what this node's own
-          # `identified_by` resolves to, the same fields `identify` two
-          # lines up already derives the joined id from.
-          #
-          # `own` is the subset actually spent on a dispatch payload —
-          # only when this category is itself entity-owned, since an
-          # ordinary category (Command's own "Rule"/"Argument", offered
-          # through the same `extra` slot for a different reason, see
-          # `within_entity` below) locates the record it attaches to
-          # through the parent id `id:` already carries, and merging
-          # unrecognized `aggregate:`/`entity_id:` into their payload
-          # would have the runtime refuse them for an argument they
-          # never declared.
+          # `extra` carries every entity-owned ancestor's identity down to
+          # this node; an ordinary category ignores it and locates its
+          # record through `id:` instead, so merging it in would be
+          # refused as an unrecognized argument.
           identity     = extra.merge(node_identity(plan, category, node, index, parent_id))
           receiver   ||= { aggregate: id, entities: [] }
           eager, later = children_of(category).partition { |child| eager?(category, child) }
-          # Ordered as `EAGER_CHILDREN` declares, not as `children_of` happens to
-          # list them — `children_of` reads `@plan.names`, whose own order is an
-          # accident of which .bluebook file registered which category first,
-          # never a promise about which of two eager children exists before the
-          # other. `EAGER_CHILDREN`'s own array is that promise (ValueObject
-          # before Entity), so the walk keeps only what this parent actually
-          # has, in the order the constant states — see that constant's own
-          # comment for the bug this exact reordering fixes.
+          # `children_of`'s order is incidental (plan registration order);
+          # keep only what EAGER_CHILDREN promises, in the order it does.
           eager = Array(EAGER_CHILDREN[category]) & eager
 
           eager.each { |child| walk_all(child, node, id, entity_child_extra(child, identity), receiver: receiver) }
           setters(plan, category, node, receiver)
-          # Before `appends`, not after — the same reason `EAGER_CHILDREN`
-          # walks an aggregate's own entities before its own attributes
-          # (M13): a piece nested inside a piece (Handler's own
-          # `dispatches, list_of(Dispatch)` — S17, ADR 0026) must exist
-          # before this piece's own attribute list can reference it as a
-          # held entity, the same way `Account#ledger` needs Account's own
-          # entities walked eagerly. `nest_entities` is a no-op for every
-          # category but "Entity" (its own early return), so reordering it
-          # ahead of `appends` costs nothing for anything else that walks
-          # through here.
+          # Before `appends`: a nested entity referenced from this node's
+          # own attribute list must exist before that list is walked.
           nest_entities(category, node, id, parent_id)
           appends(plan, category, node, receiver, parent_id)
           later.each { |child| walk_all(child, node, id, entity_child_extra(child, identity), receiver: receiver) }
@@ -238,42 +123,16 @@ module Hecks
           sealers(plan, category, receiver)
         end
 
-        # What a child's own `extra` starts from. An entity-owned child's
-        # own dotted dispatch needs every ancestor's identity, which is
-        # exactly `identity` — already accumulated one level at a time by
-        # `detail_node` itself (regardless of whether each ancestor is
-        # itself entity-owned — ValueObject contributes its own `aggregate:
-        # `/`name:` to Member's payload despite being an ordinary top-
-        # level category), so there is nothing left to re-derive here. An
-        # ordinary child (one with a real top-level aggregate of its own
-        # to dispatch a bare verb into) needs none of it.
+        # Only an entity-owned child needs the accumulated ancestor
+        # identity; an ordinary child dispatches through its own
+        # top-level aggregate.
         def entity_child_extra(child, identity)
           @plan.category(child)&.entity_owned ? identity : {}
         end
 
-        # One node's own identity, read off its own declaration — S17,
-        # ADR 0026. Three cases, the same three `identify`/`identity_part`
-        # already resolve one level up, unified here because a chain now
-        # walks more than one level (Handler -> Dispatch) and each level
-        # needs the same three answered about itself, not just the first:
-        #
-        #   the parent link   (plan.parent_key)   -> `parent_id`, the id
-        #                     the walk already carries in from one level up
-        #   a walk-minted one (`POSITION`)         -> the walk index itself ;
-        #                     never a stored field (Member's own header:
-        #                     "position is not a mint — it is read straight
-        #                     out of the source file")
-        #   a real field      (anything else)      -> `field_value`, same
-        #                     reader every other field in this file uses
-        #                     (Handler's own `event_type`, Dispatch's own
-        #                     `command_name`)
-        #
-        # `carried` still decides bare-vs-wrapped the normal way ; `POSITION`
-        # is the one case with no verb to ask `carried` about (`plan.
-        # declare` is always nil for an entity-owned category — Plan#read's
-        # own comment says why), so it is minted straight as a value object,
-        # matching exactly what `declare`'s own field loop already mints a
-        # `POSITION` field as.
+        # Each identity field comes from one of three places: the parent
+        # link, the walk's own index (`POSITION`), or a real field read off
+        # the node.
         def node_identity(plan, category, node, index, parent_id)
           plan.identity_paths.each_with_object({}) do |path, fields|
             head = path.to_s.split(".").first
@@ -288,26 +147,19 @@ module Hecks
           end
         end
 
-        # The full dotted prefix a category's own verbs hang off — the
-        # plain name for an ordinary category (its own top-level
-        # aggregate reaches every verb bare), or its parent's own prefix
-        # with this category's name appended, for an entity-owned one.
-        # Dispatch's own parent, Handler, is itself entity-owned (S17,
-        # ADR 0026's two-level chain — `ProcessManager.Handler.Dispatch`),
-        # so this recurses rather than reading one level and stopping.
+        # An ordinary category's own top-level aggregate reaches every
+        # verb bare; an entity-owned one prefixes its parent's own dotted
+        # path instead (ADR 0026), since a nested entity's parent may
+        # itself be entity-owned.
         def dotted_prefix(plan)
           return plan.name unless plan.entity_owned
 
           "#{dotted_prefix(@plan.category(plan.parent))}.#{plan.name}"
         end
 
-        # Entity-owned categories have no top-level aggregate for the runtime
-        # to route a bare verb into — `Member`'s own "Pair" reaches
-        # the runtime as `ValueObject.Member.Pair`, and a nested one
-        # (`Dispatch`, inside `Handler`) reaches it as `ProcessManager.
-        # Handler.Dispatch.Bind` — the dotted shape `EntityInterpreter#call`
-        # already splits any real entity's own verb into, one hop per
-        # segment (`walk_entity_chain`, entity_interpreter.rb).
+        # Entity-owned categories have no top-level aggregate to route a
+        # bare verb into, so the verb is addressed by this category's
+        # full dotted path instead.
         def verb_for(plan, verb)
           "#{dotted_prefix(plan)}.#{verb}"
         end
@@ -329,15 +181,10 @@ module Hecks
           end
         end
 
-        # A piece's commands and queries, addressed under the piece so two commands
-        # of the same name on an aggregate and on one of its entities cannot collide,
-        # while `aggregate` still names the aggregate the reference resolves
-        # against and `entity_id` says which piece declared it. `entity_id`
-        # keeps its own `_id` — an explicit `as:` on `reference_to Entity`,
-        # never touched by ADR 0025's rename (only the default, un-aliased
-        # mint dropped the suffix; `aggregate` did precisely because
-        # `Command#reference_to Aggregate`/`Query#reference_to Aggregate`
-        # carry no `as:` of their own).
+        # Addressed under the piece so a command name can't collide
+        # between an aggregate and one of its entities; `aggregate` says
+        # what a reference resolves against, `entity_id` says which
+        # piece declared it.
         def within_entity(category, node, id, aggregate)
           return unless category == "Entity"
 
@@ -350,30 +197,10 @@ module Hecks
           end
         end
 
-        # An entity may nest further entities — S17, ADR 0026's own words:
-        # "That is what `entity` is for, and `entity` is declared by the
-        # language and used zero times in it." `Dispatch`, inside
-        # `Handler`, is the first real use. The generic "Entity" category
-        # cannot express this through `children_of`/`EAGER_CHILDREN` the
-        # way Aggregate's own entities/value_objects can — there is only
-        # one "Entity" Plan category, describing what any entity looks
-        # like, not one per nesting level — so this recurses by hand,
-        # the same special case `within_entity` (above) already is for
-        # Command/Query.
-        #
-        # `owner` is the field this repurposes — `entity.bluebook`
-        # declares it (`attribute :owner, EntityText`) and it has held
-        # exactly one value since ADR 0025's rename: the same id
-        # `aggregate` already carries, kept as a wrapped-text copy,
-        # never read back anywhere else in this codebase (grep finds no
-        # second reference). For a nested entity, the two finally
-        # diverge — `aggregate` stays the root (Dispatch resolves
-        # exactly the way any other Entity record does, by its root
-        # aggregate), and `owner` becomes this entity's own direct
-        # parent (Handler, not ProcessManager) — which is exactly the
-        # fact `Reconstruction#direct_entities` needs to tell a
-        # root-level entity apart from a nested one sharing the same
-        # root.
+        # An entity may nest further entities (ADR 0026): `aggregate`
+        # stays the walk's root, while `owner` is this entity's own
+        # direct parent — what tells a nested entity apart from a
+        # root-level one sharing that same root.
         def nest_entities(category, node, id, aggregate)
           return unless category == "Entity"
 
@@ -384,16 +211,11 @@ module Hecks
                    })
         end
 
-        # Where it sits among its siblings is a fact about the walk, not about the
-        # node : a command does not know it is the third command on its aggregate.
-        # The walk knows, so the walk supplies it, and every other field still
-        # comes from the node. Without this, declaration order would survive only
-        # because the meta store happens to iterate in insertion order — an
-        # accident that an ask ordered any other way would take away, and
-        # Reconstruction is the one reader that must have the source's order
-        # rather than a stable one.
+        # Where a node sits among siblings is a fact about the walk, not
+        # the node, so the walk supplies it rather than reading a stored
+        # field; Reconstruction depends on this being the source order.
         # `private` above has no effect on a constant; kept here anyway,
-        # beside the method that reads it, for the narrative.
+        # beside the method that reads it.
         # rubocop:disable-next Lint/UselessConstantScoping
         POSITION = "position".freeze
 
@@ -413,10 +235,9 @@ module Hecks
           send_to("Bluebook::#{verb_for(plan, plan.declare)}", id, to: id, **payload.merge(extra))
         end
 
-        # A setter whose every source is absent is not dispatched. An aggregate
-        # with no lifecycle has no Lifecycle to offer, and a creating command has
-        # no root to act on — offering either as "" would make a rule refuse a
-        # bluebook that is perfectly well formed.
+        # A setter whose every source is absent is not dispatched —
+        # offering "" would make a rule refuse a bluebook that is
+        # well-formed.
         def setters(plan, category, node, receiver)
           plan.setters.each do |setter|
             payload = setter.targets.to_h do |target, argument|
@@ -434,10 +255,8 @@ module Hecks
           plan.appends.each do |list_name, append|
             rows_for(category, list_name, node).each_with_index do |row, index|
               chosen = append_for(category, list_name, append, row, node)
-              # `position` is the walk index here exactly as it is in `declare` —
-              # an appended element that names its position (ValueObject.Member,
-              # S17) is ordered by where the walk found it, never by a field the
-              # row happens to hold.
+              # `position` is the walk index, as in `declare`: an appended
+              # element is ordered by where the walk found it.
               payload = chosen.map.to_h do |field, argument|
                 value = if field.to_s == POSITION
                           v(index)
@@ -454,16 +273,10 @@ module Hecks
           end
         end
 
-        # Which aggregate owns the value objects an attribute's type may
-        # resolve against. An aggregate owns its own — `id` already names
-        # it. An entity never has value objects of its own (Entity
-        # deliberately never answers `value_object` — see entity.rb's own
-        # comment on why); its attributes read the same pool its
-        # enclosing aggregate declares, one level up the construct tree
-        # no matter how many entities deep this attribute is nested —
-        # `parent_id` names it because `detail_node`/`nest_entities`
-        # thread the root aggregate's id down as `parent_id` at every
-        # entity level, never the direct (possibly entity) parent.
+        # An entity has no value objects of its own; its attributes
+        # resolve against its enclosing aggregate's pool, so the root
+        # aggregate id (`parent_id`, not the direct parent) is what this
+        # returns for it.
         def owning_aggregate_ref(category, id, parent_id)
           category == "Entity" ? parent_id : id
         end
@@ -473,68 +286,36 @@ module Hecks
           plan.sealers.each { |verb| send_to("Bluebook::#{verb_for(plan, verb)}", id, to: address(receiver)) }
         end
 
-        # An aggregate's or an entity's attribute names its value object by type,
-        # and the language models that as a reference — so the type is offered as
-        # the value object's own id. This is the rule "attributes must use
-        # value-object types", enforced by reference resolution rather than by a
-        # predicate — for a head's own attributes, aggregate or entity alike: an
-        # entity is its own root, repeating the aggregate's whole shape one level
-        # down (entity.rb's own words), and an undeclared type on an entity's
-        # attribute must fail the same reference resolution an aggregate's own
-        # does, not go unchecked because only "Aggregate.attributes" was ever
-        # asked.
-        # An attribute's type is offered as the ID of the thing it names, so the
-        # language resolves it as a reference and "the type is declared" costs no
-        # predicate. Three kinds, three ids: a value object and an entity both hang
-        # off this aggregate, so they share its prefix; another aggregate's head
-        # hangs off the chapter.
+        # An attribute's type is offered as the id of the value object it
+        # names, so "attributes must use value-object types" is enforced
+        # by reference resolution rather than a predicate — for an
+        # entity's own attributes too, since an entity is its own root.
         def cell(category, list_name, row, field, id, append, aggregate_id)
           value = row_value(row, field)
-          # A default keeps its type by being written as a literal — 0.0 rather than
-          # "0.0" — because the language holds it as text and text alone forgets.
+          # A default keeps its type by being written as a literal (0.0,
+          # not "0.0"): the language holds it as text, and text alone forgets.
           return encode_literal(value) if field == :default
           return value unless field == :type
-          # A reference names another head wherever it is written — on a head, on
-          # a command, on a piece, on an ask — so it is offered as that head's
-          # id in all four. Only a head's own attributes additionally qualify
-          # an ordinary type into a value object's id ; a command argument's
-          # type is text and stays text.
+          # A reference names another head wherever it's written (on a
+          # head, a command, a piece, or an ask), so it's offered as that
+          # head's id in all four; only a head's own attributes further
+          # qualify a plain type into a value object's id.
           return points_at(row, id) if append.verb == "Reference"
           return value unless attribute_list?(category, list_name)
 
           Naming.identity([owning_aggregate_id(aggregate_id, value), value])
         end
 
-        # A head's own attributes — an aggregate's, or an entity's (its own root,
-        # one level down). Every other "attributes" list belongs to something that
-        # is not a head at all (a command's arguments, a value object's own
-        # fields), and a type written there is a name, not a reference — the same
-        # distinction `cell`'s own comment draws.
+        # A head's own attributes (an aggregate's, or an entity's own
+        # root). Every other "attributes" list belongs to something that
+        # isn't a head, so a type written there is a name, not a reference.
         def attribute_list?(category, list_name)
           list_name.to_s == "attributes" && %w[Aggregate Entity].include?(category)
         end
 
-        # `id` names the attribute's own aggregate, not necessarily the
-        # value object's — Wave 7's own translation.bluebook/translation_
-        # aggregate.bluebook split proved the difference live:
-        # TranslationAggregate's own `was`/every rename-rule's own `from`/
-        # `to`/... all deliberately reuse the sibling "Translation"
-        # aggregate's own `TranslationName` (that file's own header:
-        # "the shared TranslationName every non-identity field below
-        # uses"), a real, intentional cross-aggregate reuse — not the
-        # local-only ownership every other real domain in this corpus
-        # happens to have used until now.
-        #
-        # `id` (already `Naming.identity([chapter, aggregate])`-joined)
-        # only ever composes with the local aggregate for real, non-
-        # entity-owned attributes — an entity's own `id` never matches
-        # any top-level aggregate here, so `local` stays nil and this
-        # returns `id` unchanged, exactly the prior behavior. Same for
-        # every attribute whose type is locally declared (the overwhelming
-        # common case, Banking's own Customer/Account included) — this
-        # only ever changes the answer when the local aggregate does not
-        # declare `value` itself, falling back to the first (declaration-
-        # order) other aggregate in the same chapter that does.
+        # A value object's type may be declared on a different aggregate
+        # in the same chapter; the local aggregate is tried first, then
+        # the first (declaration-order) other aggregate that declares it.
         def owning_aggregate_id(id, value)
           local = @bluebook.aggregates.find { |aggregate| Naming.identity([@bluebook.name, aggregate.name]) == id }
           return id unless local
@@ -546,37 +327,20 @@ module Hecks
           Naming.identity([@bluebook.name, owner.name])
         end
 
-        # Whichever construct kind `value` actually is — a value object
-        # (Attribute) or an entity this aggregate holds (Holds); `cell`'s
-        # own caller already knows which verb it dispatches, but not
-        # which collection to search here without re-deriving that same
-        # decision, so this simply checks both. The self-hosted grammar's
-        # own Bluebook:Syntax#attributes proved entities need the same
-        # cross-aggregate fallback value objects do — Syntax's own
-        # `Argument`-typed attribute names Command's entity, not one of
-        # Syntax's own.
+        # Checks both value objects and entities this aggregate declares:
+        # the caller already knows which verb it dispatches, not which
+        # collection to search, without re-deriving that here.
         def names?(aggregate, value)
           aggregate.value_objects.any? { |vo| vo.hecks_name == value } ||
             aggregate.entities.any? { |entity| entity.hecks_name == value }
         end
 
-        # Which verb an attribute row belongs to. The plan cannot decide this — all
-        # three append to the same list — and what tells them apart is the row:
-        #
-        #   Attribute  its type names a value object of this aggregate
-        #   Reference  its type is Reference<X>, another aggregate's head
-        #   Holds      its type names an entity this aggregate declares
-        #
-        # Nothing is skipped. Without Reference and Holds the walk would drop
-        # both kinds and the meta-domain would silently not contain
-        # Account#customer_id or Account#ledger.
-        # Each alternate carries its own map, read from the language. Borrowing the
-        # primary's map dispatched `type:` where Reference declares `points_at:`,
-        # and the payload gate caught it — which is the gate paying for itself.
-        # `reference_to` can be written in four places — on a head, a command, a
-        # piece, an ask — and each keeps its own list of attributes, so each
-        # needs the Reference alternate. Only a head can hold a piece, so Holds
-        # stays where it was.
+        # The row itself decides which verb an attribute belongs to:
+        # Attribute for a value-object type, Reference<X> for another
+        # aggregate's head, Holds for an entity this aggregate declares.
+        # Each alternate carries its own field map — borrowing the
+        # primary's would dispatch `type:` where Reference declares
+        # `points_at:`.
         def append_for(category, list_name, append, row, node)
           return append unless list_name.to_s == "attributes"
           return alternate(category, "Reference") || append if reference_row?(row)
@@ -591,28 +355,19 @@ module Hecks
 
         def reference_row?(row) = row.respond_to?(:reference?) && row.reference?
 
-        # Only a head declares pieces, and now that every attribute list reaches
-        # this, the node may be a command, a piece or an ask — none of which
-        # answer `entities` at all.
+        # Only a head declares pieces; since every attribute list reaches
+        # here now, `node` may be a command, a piece or an ask, none of
+        # which answer `entities`.
         def entity_row?(row, node)
           return false unless node.respond_to?(:entities)
 
           Array(node.entities).any? { |entity| entity.hecks_name == row.type.to_s }
         end
 
-        # A record's ID is its declared identity, joined — the same join the runtime
-        # does, off the same declaration, because there is only one way to name a
-        # thing and it should be written once.
-        #
-        # This was a branch per category: "#{parent}::#{name}" for an aggregate,
-        # "#{parent}.#{name}" for most, "#{parent}##{index}" for the three that had
-        # no name to use. It was the composite identity all along, hand-written here
-        # because the language could not say it — which is why the language having
-        # no identity of its own and this method existing were the same fact.
-        #
-        # A part resolves from one of three places, and the declaration says which:
-        # the parent reference is the walk's parent_id, `position` is where the walk
-        # is, and anything else is read off the node.
+        # A record's id is its declared identity, joined the same way the
+        # runtime joins it, so there is exactly one way to name a thing.
+        # Each part comes from the parent link, the walk index
+        # (`position`), or a field read off the node.
         def identify(category, parent_id, node, index)
           plan = @plan.category(category)
           return declared_name(node) unless plan
@@ -620,17 +375,13 @@ module Hecks
           Naming.identity(plan.identity_paths.map { |path| identity_part(plan, path, parent_id, node, index, category) })
         end
 
-        # "owner_id" is a second reserved head, beside `position` : it names
-        # whichever record is walking this one right now, aggregate or entity
-        # alike, without saying which — Command and Query read it so an
-        # entity's verbs are the entity's own. It is never a declared
-        # attribute (declaring one for a field that names two different types
-        # would be a lie about which), so it cannot be read through
-        # `field_value` ; it is read the same way `plan.parent_key` already is,
-        # because it is that fact, spelled for the walk's immediate parent
-        # rather than for one specific kind of one.
+        # `owner_id` is a second reserved head (beside `position`): it
+        # names whichever record is walking this one right now, aggregate
+        # or entity, so Command/Query address the right piece. It is
+        # never a declared attribute, so it can't be read through
+        # `field_value`.
         # `private` above has no effect on a constant; kept here anyway,
-        # beside the method that reads it, for the narrative.
+        # beside the method that reads it.
         # rubocop:disable-next Lint/UselessConstantScoping
         OWNER = "owner_id".freeze
 
@@ -642,8 +393,8 @@ module Hecks
           v_scalar(field_value(category, node, head.to_sym, parent_id))
         end
 
-        # The scalar inside whatever the reading handed back — a name is already one,
-        # a value object is not.
+        # The scalar inside whatever the reading handed back: a name is
+        # already one, a value object is not.
         def v_scalar(held)
           return held.to_s unless held.respond_to?(:to_h) && !held.is_a?(String)
 
@@ -656,10 +407,9 @@ module Hecks
 
         def eager?(category, child) = Array(EAGER_CHILDREN[category]).include?(child)
 
-        # Command -> commands, ValueObject -> value_objects, Query -> queries.
-        # Convention, not a table : the IR names a collection after what it holds.
-        # The pluraliser lives in Naming, kept to exactly one implementation — a
-        # second one risks disagreeing with it — see Naming.plural.
+        # Command -> commands, ValueObject -> value_objects, Query ->
+        # queries: convention, not a table. Naming.plural is kept as the
+        # single implementation, so a second one can't disagree with it.
         def collection_reader(category) = Naming.plural(Naming.snake(category))
       end
     end

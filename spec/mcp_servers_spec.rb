@@ -6,12 +6,9 @@ require "socket"
 require "stringio"
 require "tmpdir"
 
-# The two stdio MCP servers, `bin/hecks_mcp_door` and `bin/hecks_query_ir_mcp`, as
-# processes: what they refuse to start as, what they print, and what a caller who
-# supplies no identity gets. The bus's own rules are in `spec/storehouse_spec.rb`; this
-# file proves the same refusals reach a caller of the real door, and that the
-# transport gate in `Hecks::McpStdioGuard` holds. Identity here is self-asserted, and
-# nothing in this file claims otherwise.
+# Process-level checks for the stdio MCP doors (bin/hecks_mcp_door,
+# bin/hecks_query_ir_mcp): what they refuse, print, and require of a caller.
+# Identity here is self-asserted only; nothing in this file claims otherwise.
 RSpec.describe "the stdio MCP servers" do
   let(:root)               { File.expand_path("..", __dir__) }
   let(:door)               { File.join(root, "bin/hecks_mcp_door") }
@@ -104,10 +101,8 @@ RSpec.describe "the stdio MCP servers" do
     end
   end
 
-  # The pizzas example as a copy under `root_dir`, bound to Memory instead of the PostgresEra its
-  # own hecksagon and world name. The door boots whatever binds a domain declares, so the door
-  # examples below run against this copy: they prove the door's refusals and framing, which need no
-  # database, and a job with no Postgres must be able to run them.
+  # Copies the pizzas example under root_dir, rebound from PostgresEra to Memory, so
+  # the door examples below need no database to prove the door's refusals and framing.
   def memory_pizzas_under(root_dir)
     target = File.join(root_dir, "pizzas")
     FileUtils.cp_r(File.join(root, "examples/pizzas/bluebook"), target)

@@ -1,19 +1,10 @@
-//! Two functions ported out of `rust/project/mutations.rb` early — used by
-//! both `types.rb`'s `emit_record` and `json_codec.rb`'s `emit_to_json_flat`
-//! /`emit_from_json_state`, so they live here rather than being duplicated.
-//! `mutations.rb` itself (the command-mutation codegen this stage does not
-//! port — see the report) is not ported; only these two self-contained
-//! predicates, whose only real dependency is `aggregate[:commands]`'s shape
-//! as already present in ir.json, moved over.
+//! Predicates ported from `rust/project/mutations.rb` that `types.rs` and `json_codec.rs` share.
 
 use crate::json::Json;
 use std::collections::HashMap;
 
-/// Argument names already claimed by an append (this command's own) — an
-/// append's element-field argument is never also eligible to bare-name-
-/// match an unrelated owner field that happens to share its name. Shared
-/// between `creates_owner` and `mutations.rs#identity_components`, which
-/// both need the identical exclusion set for the identical reason.
+/// Argument names claimed by an append, so an append's element-field argument never bare-name-
+/// matches an unrelated owner field. Shared by `creates_owner` and `identity_components`.
 pub fn append_claimed_names(command: &Json) -> std::collections::HashSet<String> {
     let mut claimed = std::collections::HashSet::new();
     for m in command.get("mutations").map(Json::each).unwrap_or(&[]) {
@@ -32,27 +23,11 @@ pub fn append_claimed_names(command: &Json) -> std::collections::HashSet<String>
     claimed
 }
 
-/// `creates_owner(aggregate, command, value_objects_by_name)` — replaces
-/// `command.get("references").is_none()` alone (and
-/// `mutations.rs#identity_components`'s coincidental bare-name matching)
-/// as the "does this command build the OWNER record from scratch" test.
+/// Whether `command` builds the owner record from scratch (`mutations.rb#creates_owner?`).
 ///
-/// Ported directly from `rust/project/mutations.rb#creates_owner?` — read
-/// that function's own header for the full argument: `references.nil?` is
-/// honest whenever it's set (a genuine `reference_to <owner>` really does
-/// mean "acts on an existing one"), dishonest only when absent — and even
-/// then, the real test is not completeness (a creating command's generated
-/// struct Option-wraps every scalar field regardless, so an uncovered
-/// field just becomes `None` — `Pizzas::Order.CreatePizza`, zero
-/// mutations, is the corpus's plainest live proof). The real test: does
-/// this command supply — via a `:set` mutation or a same-named argument
-/// `record_fields` (commands.rb) copies straight across with no mutation
-/// at all — at least one of the owner's own required (non-list, non-
-/// optional) fields, excluding any argument already claimed by an append
-/// (`append_claimed_names`, above — the same bare-name coincidence this
-/// whole fix exists to stop trusting blindly, e.g. `ValueObject.Member`'s
-/// own `position` feeding the appended member's `position`, never
-/// `ValueObject`'s own unrelated field of the same name).
+/// A command with `references` acts on an existing record. Otherwise it creates when it supplies,
+/// via a `:set` mutation or a same-named argument, a required non-list owner field, ignoring
+/// arguments claimed by an append (`append_claimed_names`).
 pub fn creates_owner(aggregate: &Json, command: &Json, _value_objects_by_name: &HashMap<String, &Json>) -> bool {
     if command.get("references").is_some() {
         return false;
@@ -85,9 +60,8 @@ pub fn creates_owner(aggregate: &Json, command: &Json, _value_objects_by_name: &
     required_fields.iter().any(|field| known_writes.contains(field))
 }
 
-/// A list-typed aggregate attribute reads `nil` in Ruby, not `[]`, under
-/// one precise condition — see `mutations.rb#list_attr_creation_optional?`'s
-/// own header for the full argument. Mirrored directly here.
+/// Whether a list-typed attribute reads `nil` rather than `[]` in Ruby; see
+/// `mutations.rb#list_attr_creation_optional?`.
 pub fn list_attr_creation_optional(aggregate: &Json, attr_name: &str, value_objects_by_name: &HashMap<String, &Json>) -> bool {
     let commands = aggregate.get("commands").map(Json::each).unwrap_or(&[]);
     commands.iter().any(|command| {

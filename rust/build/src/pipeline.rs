@@ -1,24 +1,5 @@
-//! `RustProjectPipeline.call` (`rust/project_rust_pipeline.rb`), ported
-//! to Rust — the crate's own orchestration core. Reads a domain's
-//! `.bluebook`/`.hecksagon` header text (plain scanning, never a
-//! `Kernel.load`-equivalent — there is no interpreter here to load
-//! anything into), shells out to `hecks-parse`/`hecks-codegen` exactly
-//! the way the Ruby original shells out to the same two binaries, runs
-//! this crate's own `optional_pass::run` (the Rust port of
-//! `mark_append_optional_fields!`) on each chapter's freshly-parsed
-//! `ir.json` before handing it to codegen, runs `lineage_pass::run` on
-//! the target chapter's own `ir.json` only (matching the default Ruby
-//! path's own `target_ir[:lineage] = ...` — never set on a framework
-//! chapter or on `meta`), writes the same sidecars, and syncs
-//! `rust/Cargo.toml`. See each helper module's own header for the piece
-//! it owns; this file is the sequencing, matching
-//! `RustProjectPipeline.call`'s own body step for step.
-//!
-//! `manifest.json` is written per directory by `hecks-codegen full` itself
-//! (rust/codegen/src/manifest.rs). The `lineage` key gap is closed
-//! (`lineage_pass`'s own header has the full reasoning) — see
-//! `rust/project_rust_pipeline.rb`'s own header for that fix's own
-//! Ruby-side account, which this crate mirrors rather than re-deriving.
+//! Rust port of `RustProjectPipeline.call` (`rust/project_rust_pipeline.rb`) —
+//! this crate's own orchestration core.
 
 use std::path::{Path, PathBuf};
 
@@ -97,21 +78,16 @@ pub fn run(root: &Path, domain: &str, opts: &Options) -> Result<(), String> {
         target_files.push(p.clone());
     }
     let target_ir_text = parse_chapter_with_optionals(&parser_bin, &target_chapter_name, &target_files)?;
-    // Only the target — see this file's own header on why a framework
-    // chapter or `meta` never gets a `lineage` key either. A second,
-    // independent parse/mutate/re-emit pass over the already-derived
-    // text, mirroring `derive_lineage(target_ir_text, hecksagon_path)`
-    // (Ruby) taking a string and re-`JSON.parse`ing it rather than
-    // chaining a live object through both passes — the same structure,
-    // not an accident of this port.
+    // Only the target chapter gets a `lineage` key — a framework chapter or
+    // `meta` never does, matching `derive_lineage` (Ruby) re-`JSON.parse`ing
+    // rather than chaining a live object through both passes.
     let mut target_ir = Json::parse(&target_ir_text).map_err(|e| format!("re-parsing target ir.json for lineage: {e}"))?;
     lineage_pass::run(&mut target_ir, hecksagon_path.as_deref(), world_path.as_deref(), root)?;
     let target_ir_text = crate::json::write(&target_ir);
 
-    // **Every other chapter `uses_framework` names** — resolved through the
-    // same `Hecks::Framework.members`-equivalent directory listing
-    // (`resolve::framework_members`) the Ruby pipeline itself calls,
-    // never hand-derived.
+    // Every other chapter's `uses_framework` names, resolved through the
+    // same directory listing (`resolve::framework_members`) the Ruby
+    // pipeline itself calls.
     let framework_members = resolve::framework_members(root)?;
     let mut chapters: Vec<Chapter> = Vec::new();
     for fw_name in &uses_framework_names {
@@ -138,14 +114,9 @@ pub fn run(root: &Path, domain: &str, opts: &Options) -> Result<(), String> {
         });
     }
 
-    // Every vendored package `uses_embryonaut_bluebook` names — same real
-    // packages the Ruby default path's own `EmbryonautBluebook.load!`
-    // pulls in, resolved the same way that module resolves them
-    // (`resolve::vendored_bluebook_files`). Without this loop,
-    // `resolve::resolve_uses_framework` would be the only resolution
-    // called, so `hecks-build` would silently drop a vendored chapter from
-    // its own output — this loop mirrors the `uses_framework` one above
-    // step for step.
+    // Every vendored package's `uses_embryonaut_bluebook` names, resolved the
+    // same way `EmbryonautBluebook.load!` (Ruby) resolves them — without this,
+    // a vendored chapter would silently drop from the output.
     for pkg_name in &uses_embryonaut_bluebook_names {
         let pkg_files = resolve::vendored_bluebook_files(&domain_path, pkg_name)?;
         let pkg_chapter_name = resolve::header_chapter_name(&pkg_files[0])?;
@@ -165,23 +136,18 @@ pub fn run(root: &Path, domain: &str, opts: &Options) -> Result<(), String> {
         }
         let pkg_ir_text = parse_chapter_with_optionals(&parser_bin, &pkg_chapter_name, &pkg_bluebooks)?;
         chapters.push(Chapter {
-            // Same derivation as the framework loop's own `fw_name.
-            // to_lowercase()` (off the declared chapter name, asserted
-            // equal to `expected_chapter_name` just above) — not
-            // `pkg_name.to_lowercase()` off the raw argument, which
-            // diverges the moment a package name contains an
-            // underscore.
+            // Derived from the declared chapter name (asserted equal to
+            // `expected_chapter_name` above), not the raw `pkg_name` — that
+            // would diverge the moment a package name has an underscore.
             mod_name: expected_chapter_name.to_lowercase(),
             source_label: format!("{domain} (uses_embryonaut_bluebook {pkg_name:?})"),
             ir_text: pkg_ir_text,
         });
     }
 
-    // No silent collision between a `uses_framework`- and a
-    // `uses_embryonaut_bluebook`-derived entry — mirrors the same guard
-    // `rust/project_rust_pipeline.rb`'s own opt-in Ruby pipeline carries
-    // for the identical reason (a duplicate `mod_name` would silently
-    // overwrite one chapter's sidecars with another's).
+    // Guards against a `uses_framework`- and a `uses_embryonaut_bluebook`-
+    // derived entry sharing a `mod_name`, which would silently overwrite one
+    // chapter's sidecars with another's.
     {
         let mut seen: Vec<&str> = Vec::new();
         for c in &chapters {
@@ -196,8 +162,8 @@ pub fn run(root: &Path, domain: &str, opts: &Options) -> Result<(), String> {
         }
     }
 
-    // **The self-hosted language, compiled in too** — one discovered concept
-    // folder, the same "Bluebook" chapter name.
+    // The self-hosted language, compiled in too, under the same "Bluebook"
+    // chapter name.
     let grammar_files = resolve::grammar_files(root)?;
     let meta_ir_text = parse_chapter_with_optionals(&parser_bin, "Bluebook", &grammar_files)?;
 
@@ -260,11 +226,8 @@ pub fn run(root: &Path, domain: &str, opts: &Options) -> Result<(), String> {
     Ok(())
 }
 
-/// `hecks-parse chapter --chapter <Name> <files...>`, followed
-/// immediately by this crate's own `optional_pass::run` and re-emission
-/// — matching `derive_append_optionals(run_capture!(PARSER_BIN,
-/// "chapter", ...))` (Ruby) exactly: parse once, mutate once,
-/// re-serialize once, never touched again.
+// Parses via `hecks-parse chapter`, then runs `optional_pass::run` and
+// re-serializes — matching `derive_append_optionals` (Ruby).
 fn parse_chapter_with_optionals(parser_bin: &Path, chapter_name: &str, files: &[PathBuf]) -> Result<String, String> {
     let parser_bin_str = parser_bin.to_string_lossy().to_string();
     let mut args: Vec<String> = vec!["chapter".to_string(), "--chapter".to_string(), chapter_name.to_string()];
@@ -292,10 +255,8 @@ fn remove_dir_if_exists(path: &Path) -> Result<(), String> {
     Ok(())
 }
 
-/// `ensure_binaries_built!` (Ruby) — a plain `cargo build` (debug
-/// profile, matching `PARSER_BIN`/`CODEGEN_BIN`'s own `target/debug/...`
-/// paths) in each sibling crate directory, output suppressed unless it
-/// fails.
+// Plain `cargo build` (debug profile) in each sibling crate directory,
+// output suppressed unless it fails.
 fn ensure_binaries_built(parser_dir: &Path, codegen_dir: &Path) -> Result<(), String> {
     subprocess::cargo_build_quiet(parser_dir)?;
     subprocess::cargo_build_quiet(codegen_dir)?;

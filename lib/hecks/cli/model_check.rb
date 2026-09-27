@@ -5,26 +5,13 @@ module Hecks
   module CLI
     # The command behind `bin/model_check` and `hecks model_check`: static analysis
     # over the IR, printed per domain, exiting non-zero when any error-severity
-    # finding is left.
+    # finding is left — unreachable lifecycle states, dead transitions, unreached
+    # saga states, dispatches to a nonexistent command, handlers for an event
+    # nothing emits. The runtime checks none of these; a dead transition never
+    # fires, in silence.
     #
-    # It finds unreachable lifecycle states, transitions nothing can fire, saga
-    # states no handler chain reaches, a compensation whose `from_state` is
-    # unreachable, dispatches to a command that does not exist, and handlers
-    # listening for an event nothing emits. The runtime checks none of these: a dead
-    # transition never fires, in silence.
-    #
-    # ## Named domains, or the whole corpus
-    #
-    # Given domain paths, it boots each and runs one cross-domain check across all
-    # of them. Given none, it sweeps the repository's corpus (`Corpus.model_check_members`)
-    # and the language's own chapters; that needs `root:`, the repository, so an
-    # installed gem without one asks for a domain path instead.
-    #
-    # ## Options
-    #
-    # `--strict` makes a `rust_reserved_name` finding an error for every target, not
-    # only for those with a Cargo feature under `root`'s `rust/Cargo.toml`.
-    # `--profile client` adds `Bluebook::ModelCheck::ClientProfile`'s error findings.
+    # Given domain paths it checks just those, cross-domain; given none it sweeps
+    # the repository's corpus and the language's own chapters, which needs `root:`.
     module ModelCheck
       # The directory the framework's own `.port` and `.adapter` files live under.
       HECKS_DIR = File.expand_path("..", __dir__)
@@ -64,10 +51,6 @@ module Hecks
         exit(ok ? 0 : 1)
       end
 
-      # Reads `--profile client` or `--profile=client` and removes it from `argv`.
-      #
-      # @param argv [Array<String>] the arguments, changed in place
-      # @return [Symbol, nil] the requested profile, or nil when none was asked for
       def take_profile(argv)
         inline = argv.find { |arg| arg.start_with?("--profile=") }
         index = argv.index("--profile")
@@ -79,13 +62,8 @@ module Hecks
         name.to_sym
       end
 
-      # Boots each named domain and examines them against one shared set of known
-      # domains and emitted events, so a cross-domain reaction between two of them
-      # is checked.
-      #
-      # @param domain_args [Array<String>] domain directory paths
-      # @param options [Options] the run's configuration
-      # @return [Boolean] true when every domain passes
+      # Examines every named domain against one shared set of known domains and
+      # emitted events, so a cross-domain reaction between two of them is checked.
       def check_domains(domain_args, options)
         booted = domain_args.map do |domain_arg|
           [File.basename(domain_arg.chomp("/")), boot(bluebook_dir(domain_arg.chomp("/")) || domain_arg)]
@@ -93,15 +71,8 @@ module Hecks
         examine_all(booted, options)
       end
 
-      # Boots every corpus member once, then examines each against the set of names
-      # every member declares, then examines the language itself.
-      #
       # Two passes over the same boots, because a single boot's own registry cannot
       # answer whether a target domain exists anywhere in the corpus.
-      #
-      # @param root [String] the repository root
-      # @param options [Options] the run's configuration
-      # @return [Boolean] true when every member and the language pass
       def check_corpus(root, options)
         require_relative "../corpus"
         targets = Corpus.model_check_members(root: root).map { |member| [member.stem, Corpus.source_of(member)] }
@@ -110,17 +81,8 @@ module Hecks
         examine_language(options) && ok
       end
 
-      # Boots one source into a fresh registry, with its sibling hecksagons so a
-      # policy bound from there is visible too.
-      #
-      # `root:` is the source's parent: a directory source is already the domain's
-      # own `bluebook/` folder, and without a root a member declaring
-      # `uses_embryonaut_bluebook` refuses with "needs a registry with a root to
-      # vendor from".
-      #
-      # @param source [String] a directory to boot (every bluebook within), or a
-      #   single `.bluebook` file path
-      # @return [Runtime::Registry] the registry populated with the booted bluebooks
+      # `root:` is the source's parent, so a member declaring
+      # `uses_embryonaut_bluebook` can vendor from it.
       def boot(source)
         root = File.directory?(source) ? File.dirname(source) : nil
         registry = Runtime::Registry.new(root: root)
@@ -142,10 +104,8 @@ module Hecks
         end
 
         # A port attaches to its aggregate from the hecksagon, not the bluebook, so a
-        # deaf-policy check that never loads it would see a policy reacting to an
-        # event nothing appears to emit. A directory loads every `*.hecksagon` in it,
-        # as a real boot does. Recording a bind builds IR only, so no adapter needs to
-        # resolve here.
+        # deaf-policy check that skipped it would miss a policy reacting to an event
+        # nothing emits. Recording a bind builds IR only; no adapter resolves here.
         hecksagons = if File.directory?(source)
                        Dir.glob(File.join(source, "*.hecksagon"))
                      else
@@ -167,17 +127,6 @@ module Hecks
         end
       end
 
-      # Runs `Bluebook::ModelCheck` over one booted domain's chapters, prints its
-      # findings against the allowlist, and reports whether it passes.
-      #
-      # @param name [String] the domain's display name, for the header and the
-      #   `ALLOWED_FINDINGS` lookup
-      # @param registry [Runtime::Registry] a booted registry holding the domain's chapters
-      # @param options [Options] the run's configuration
-      # @param known_domains [Set<String>] every bluebook and hecksagon name booted this run
-      # @param global_emitted_events [Set<String>] every event any booted chapter emits
-      # @return [Boolean] false if an allowlist entry is stale; otherwise true when no
-      #   error-severity finding is left
       def domain_passes?(name, registry, options, known_domains:, global_emitted_events:)
         puts "── #{name}"
 
@@ -203,12 +152,9 @@ module Hecks
         passes?(findings, "   clean — #{chapters.size} chapter(s), no dead states, no unreachable protocol steps")
       end
 
-      # Examines the language's own `Bluebook` and `World` chapters through
-      # `MetaValidator.grammar_registry`, the judged graph its conformance specs use,
-      # because any one grammar file booted alone is a fraction of the language.
-      #
-      # @param options [Options] the run's configuration
-      # @return [Boolean] true when neither chapter has an error-severity finding
+      # Checked through `MetaValidator.grammar_registry`, the judged graph its
+      # conformance specs use, because any one grammar file booted alone is a
+      # fraction of the language.
       def examine_language(options)
         ok = true
         ["Bluebook", "World"].each do |name|
@@ -235,16 +181,8 @@ module Hecks
         errors.empty?
       end
 
-      # Says whether the domain has a Cargo feature, which makes a
-      # `rust_reserved_name` finding an error for it.
-      #
-      # The check reads `rust/Cargo.toml` through the repository-only fuzzing
-      # tooling, so it is loaded only when there is a `rust/` to read.
-      #
-      # @param name [String] the domain's display name
-      # @param rust_dir [String, nil] the repository's `rust/` directory; nil without a
-      #   checkout
-      # @return [Boolean] true when `rust_dir` declares a feature named after the domain
+      # The repository-only fuzzing tooling is loaded lazily, only when there is a
+      # `rust/` to read.
       def rust_target?(name, rust_dir)
         return false unless rust_dir
 
@@ -252,12 +190,7 @@ module Hecks
         Fuzzing::TargetCapabilities.rust_feature?(name, rust_dir)
       end
 
-      # The directory holding a domain's bluebooks: `<domain>/bluebook/` or the
-      # domain directory itself, the same rule `Corpus.bluebook_dir` applies.
-      #
-      # @param domain_path [String] a domain directory path
-      # @return [String, nil] the directory of the first `.bluebook` found, or nil when
-      #   neither place holds one
+      # The same rule `Corpus.bluebook_dir` applies.
       def bluebook_dir(domain_path)
         [File.join(domain_path, "bluebook"), domain_path].each do |dir|
           files = Dir[File.join(dir, "*.bluebook")]

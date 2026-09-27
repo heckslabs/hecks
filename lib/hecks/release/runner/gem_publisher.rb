@@ -4,9 +4,8 @@ require_relative "commands"
 module Hecks
   module Release
     class Runner
-      # The gem step: hands the push to `bin/release_gem`, which owns building the
-      # gem and pushing it with the key 1Password holds. A dry run builds the gem
-      # to prove it builds and deletes it.
+      # The gem step: hands the push to `bin/release_gem`, which builds and pushes
+      # it with the key 1Password holds; a dry run only builds it, then deletes it.
       class GemPublisher
         # @param root [String] the repository root
         # @param commands [#run!] runs the build and the push

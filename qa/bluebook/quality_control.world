@@ -1,145 +1,21 @@
-# THE LEDGER'S OWN CONNECTION — sibling to `quality_control.hecksagon`
-# (which names only the adapter, `PostgresEra`) the same way `examples/
-# pizzas/bluebook/pizzas.world` sits beside `pizzas.hecksagon`. `database`
-# is read once, by `RepositoryFactory.build`, and merged into every
-# QualityControl aggregate's own adapter settings — see `postgres_era.rb`'s
-# own `connect_for` for why a bare dbname resolves through the local
-# Postgres socket exactly the way `psql hecks_quality_control` already
-# would, no URI required.
-#
-# `hecks_quality_control`, not the shorter `hecks_qa` the five template
-# domains' own `hecks_<name>` naming might suggest — QualityControl is
-# this repo's own PascalCase domain name, snake_cased in full, the same
-# derivation `postgres_era.rb`'s own `@domain` default already uses
-# (`aggregate.hecks_owner&.name`) for the journal/lock namespace this
-# database holds. Matching it in the database name too means a `psql -l`
-# reader can find this domain's own data by the same name the runtime
-# itself already calls it internally.
-#
-# CHECK THIS NAME IS ACTUALLY FREE BEFORE YOUR FIRST REAL BOOT. A local
-# Postgres on this same machine may already hold a database by this exact
-# name from an earlier, unrelated experiment (`psql -l` to check) — found,
-# live, during this binding's own migration work: `hecks_quality_control`
-# already existed with `hecks_era_texts` rows old enough that shadow-
-# parsing them against TODAY's grammar fails outright — confirmed live,
-# 2026-09-10: five stale eras held from this binding's own earlier manual
-# testing, all still spelling a hop query the PRE-ADR-0025 way
-# (`where(:"bug.status" => ...)`, a dot — the reference-crossing operator
-# is `/` now) which is not one of the "genuinely removed spellings"
-# shadow-parsing exists to keep readable (`identified_by { }`/
-# `belongs_to`/`has_one`/`has_many`, and `reference_to`'s default-naming
-# fork — see `Runtime::EraGuard.shadow_parse`'s own comment), so it
-# refuses loudly under the shadow/legacy fallback too, exactly like a
-# live boot. Not a shape PostgresEra's own translation machinery can
-# reconcile, because the DSL itself moved on, not just the domain. `bin/
-# run qa/bluebook --help` refuses to boot at all against a database in
-# that state. If `psql -l` shows this name already taken and boot refuses
-# the same way, the fix is `dropdb hecks_quality_control` (empty of
-# anything you want kept — confirm what it actually holds first), THEN
-# `createdb hecks_quality_control` (PostgresEra provisions every TABLE it
-# needs on first connect, idempotently, but never the database itself —
-# `PG.connect(dbname: ...)` fails outright against a name with no
-# database behind it at all), then reboot; renaming this setting to a
-# still-free name works too.
-#
-# CONNECTS AS `hecks_qa`, AN ORDINARY ROLE — NOT THE MACHINE'S DEFAULT
-# USER. A bare `database "hecks_quality_control"` (what this file used to
-# say) connects as whatever Postgres user the shell defaults to, which on
-# a self-hosted dev box is a SUPERUSER — and PostgresEra's era write-fence
-# is row-level security, which a superuser (or any BYPASSRLS role) walks
-# straight through, FORCE ROW LEVEL SECURITY notwithstanding. Found live
-# on this very ledger (BUG#24): an old checkout kept writing era 3
-# through two mints, 37 rows invisible to every newer head, and nothing
-# warned. The boot now REFUSES a superuser connection outright
-# (`Lineage#check_fence_applies!`), naming this file's two ways out:
-# an ordinary role in the URL, or an explicit `allow_superuser true`
-# opt-in that boots with the fence void, on the record, warning on every
-# boot. This ledger takes the real fix, not the opt-in.
-#
-# `hecks_qa` OWNS the database and everything in it — an owner is fenced
-# by RLS like any other role (that is what FORCE is for), and only an
-# owner can provision and mint, which any QA session may have to do
-# (`provisioner?`, owner-only DDL). Not the `role` setting: that names
-# an app role the PROVISIONER grants privileges to, never who this
-# process connects as — `RepositoryFactory` strips it, `connect_for`
-# reads only `database`. A URL with no password: local pg_hba is
-# `trust` on the socket and on localhost, same as every other
-# `postgres://<role>@localhost/...` binding this repo's specs use.
-#
-# THE ONE OPERATOR STEP, BEFORE THE FIRST BOOT AGAINST THIS FILE — the
-# role has to exist and hold the database, or `PG.connect` refuses the
-# login before PostgresEra ever gets a say:
-#
-#   bin/qa_postgres_role hecks_quality_control
-#
-# Idempotent (creates the role only if missing, transfers ownership of
-# the database, the `public` schema, and every relation and function in
-# it only where not already `hecks_qa`'s — see that script's own header),
-# and proven end-to-end on disposable databases by `spec/qa_sweep_all_
-# spec.rb` and `spec/qa_sweep_persistence_parity_spec.rb`, which run this
-# exact script against their own fixtures before binding to the same URL
-# shape. `reset!` (postgres_era.rb) is the one operation that genuinely
-# needs a superuser — spec teardown only, never something this ledger
-# does.
+# Connection for the QualityControl ledger; the sibling .hecksagon names only the adapter.
+# Run `bin/qa_postgres_role hecks_quality_control` once before the first boot.
 Hecks.world "QualityControl" do
   realm "QA"
+  # Connects as the ordinary role hecks_qa: a superuser bypasses the era write-fence
+  # (row-level security), so the boot refuses one. hecks_qa owns the database.
   persisted_by("PostgresEra") do
     database "postgres://hecks_qa@localhost/hecks_quality_control"
   end
 
-  # THE REAL, LIVE DEPLOY — the GitHub webhook driving adapter
-  # (lib/hecks/adapters/driving/github_webhook.rb's own generic base,
-  # qa/adapters/github_ci_webhook.rb's own QualityControl-specific
-  # subclass) made reachable from GitHub for real, through the SAME
-  # `bin/project_deploy` projection every other AwsLambda deploy in this
-  # repo already goes through — never a hand-rolled one-off script; see
-  # that generator's own header for the mechanism this extends.
-  #
-  # `dispatch "None"` — this domain has no `.bluebook`-shaped command
-  # surface dispatched through rust/host's wasmtime host at all (no
-  # `#{domain}.hecksagon`, no compiled `.wasm`); every real command this
-  # webhook ever issues (`QualityControl::Clearance.start!`/`.passed!`/
-  # `.failed!`) goes straight through Ruby, the same way `bin/qa_pr_check`
-  # already does locally. So there is nothing for a rust/host dispatch
-  # Lambda to ever serve — `dispatch "None"` skips generating one
-  # entirely, and `qa/lambda_handler.rb` (this domain's own hand-written
-  # driving-adapter wrapper, the SAME "opt-in by file presence"
-  # convention Embryonaut's own `lambda_handler.rb` already established)
-  # becomes this stack's ONLY Lambda.
-  #
-  # `handler_module "QaWebhookLambdaHandler"` — names the module
-  # `qa/lambda_handler.rb` actually defines, so `bin/project_deploy`
-  # never has to guess it.
-  #
-  # `secret_env "GITHUB_WEBHOOK_SECRET"` — a real, auto-generated (never
+  # GitHub webhook deploy. There is no rust/host command surface here, so
+  # qa/lambda_handler.rb is the stack's only Lambda. An auto-generated (never
   # typed, never committed) Secrets Manager secret gets minted for this
-  # deploy target and wired into the Lambda's own environment as
-  # `GITHUB_WEBHOOK_SECRET_ARN`; `qa/lambda_handler.rb` fetches it at
-  # cold start, over the SDK, and exposes the plaintext under
-  # `ENV["GITHUB_WEBHOOK_SECRET"]` — never resolved into CloudFormation
-  # or Lambda's own configuration, matching every other secret this
-  # generator already handles this way (DATABASE_URL, SESSION_SECRET,
-  # GOOGLE_CLIENT_ID/SECRET).
-  #
-  # "Postgres" (bin/project_deploy's own default) — a small, dedicated,
-  # self-contained RDS instance for this domain alone; QualityControl's
-  # own real, live ledger has no reason to borrow another domain's
-  # instance ("Shared") or pay for Aurora Serverless.
+  # target; the handler reads it at cold start.
   deployed_to("AwsLambda") do
-    # NAMED EXPLICITLY, not left to default to "qa" (this domain's own
-    # directory basename) — `hecks-quality-control-webhook`, clearly
-    # identifiable and safely removable as its own stack, matching this
-    # domain's own PascalCase-snake_cased database name convention
-    # (this file's own header comment) rather than its shorter directory
-    # name.
     stack_name "quality-control-webhook"
     region "us-east-1"
-    # 512MB/15s -- WebFunction's own fixed defaults (bin/project_deploy
-    # never reads these two for a `dispatch "None"` deploy target; they
-    # exist here only because `Deploy::LambdaTarget.Declare` validates
-    # all four unconditionally — see that command's own header for why
-    # it stays that way rather than growing a conditional it would need
-    # the expression grammar's own narrow admits to express).
+    # Unused for dispatch "None", but Deploy::LambdaTarget.Declare validates all four.
     memory 512
     timeout 15
     database "Postgres"

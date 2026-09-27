@@ -2,126 +2,27 @@ require_relative "generic_dispatch"
 module Hecks
   module Bluebook
     module DSL
-      # The Ruby-side `word_gate` (`rust/parser/src/parse/mod.rs`'s own,
-      # read there first — this is the same job, one level up: Rust's own
-      # gate refuses a mistyped/inadmissible word directly, at the
-      # moment it reads a line of `.bluebook` source text, before any
-      # per-construct parsing runs. Ruby never lexes source text — a
-      # `.bluebook` file is Ruby, so `given("x")` is already a real
-      # method call by the time any of this code runs, and Ruby's own
-      # method dispatch already refuses an arity mismatch on an
-      # existing method for free. What Ruby's own dispatch does not do
-      # is consult the self-hosted grammar table at all — a mistyped
-      # word (`giv3n("x")`) or a word used in the wrong context
-      # (`identified_by` inside a `command` block) just raises Ruby's
-      # own generic `NoMethodError`, naming nothing about what the
-      # language actually admits. This module closes that gap.
+      # Checks undefined DSL words against the self-hosted grammar table, dispatching admitted ones
+      # through `GenericDispatch` and refusing the rest with the table's own message.
       #
-      # ## What reaches this module
-      #
-      # `method_missing`/`respond_to_missing?` only — a word this
-      # builder class already answers with an ordinary `def` (or a
-      # method a shared mixin such as `AttributeCollector` defines) never
-      # reaches this module at all; Ruby's own method lookup finds it
-      # first, and not every word has had its hand-written method
-      # removed. A word the grammar admits whose builder has no
-      # hand-written method executes for real here, via `GenericDispatch`
-      # (item #13's full metaprogrammed dispatch, whole-project
-      # table-unification survey) — see that module's own header for
-      # exactly which ones, and the full account of what was verified
-      # before each was migrated. A mistyped or wrongly-contexted word
-      # gets the same real, helpful, table-driven refusal Rust's own
-      # `word_gate` already gives, instead of Ruby's own generic
-      # `NoMethodError`.
-      #
-      # ## `GRAMMAR_CONTEXT`
-      #
-      # `self.class::GRAMMAR_CONTEXT` — each including class names which
-      # row of the self-hosted `Context` closed set it corresponds to
-      # (`AggregateBuilder::GRAMMAR_CONTEXT = "Aggregate"`, etc.) — the
-      # same string `word_gate`'s own `context` parameter already is on
-      # the Rust side, read off the identical table.
-      #
-      # ## Bootstrapping
-      #
-      # Bootstrapping gated, the same reason `RuleReference#lookup`
-      # already is (`rule_reference.rb`'s own comment has the full
-      # story) — the meta-domain's own bootstrap calls dozens of
-      # keywords on itself before its own grammar table exists to
-      # check them against. For most words, this module steps aside
-      # entirely during bootstrap (`super`, Ruby's own ordinary
-      # `NoMethodError`) — the exact behavior every builder already had
-      # before this module existed, and (unlike `RuleReference`) there
-      # is deliberately no fallback covering the whole ~200-row table —
-      # that would defeat the entire point.
-      #
-      # One narrow exception (item #13's full metaprogrammed dispatch,
-      # slice 3, whole-project table-unification survey):
-      # `GenericDispatch::BOOTSTRAP_CALLS_FALLBACK`, an explicit table
-      # naming the same (context, word) -> method pairs the real
-      # `calls:` column carries, projected ahead of time into the
-      # committed `bootstrap_table.rb` — it matters only for words both
-      # migrated to the `calls:` shape and bootstrap-reachable
-      # (`attribute`, for one). This is the one place in this whole arc a
-      # bootstrap fallback was worth building despite `RuleReference`'s
-      # own precedent against it: it duplicates no logic, only a method
-      # name — `attribute_impl`'s own real, hand-written body is called
-      # either way, bootstrap or not, so there is nothing here that can
-      # drift the way a full behavioral duplicate could.
-      #
-      # ## `word_gate_dispatch` and the type-position fallback
-      #
-      # Two further pieces, both slice 5:
-      #   - `word_gate_dispatch` is the same admission+dispatch logic
-      #     `method_missing` below runs, factored out so a class with
-      #     its own class-level `method_missing` (`HecksagonBuilder`'s/
-      #     `WorldBuilder`'s genuinely open-ended verb vocabulary) can
-      #     call it directly and fall back to its own open-verb handling
-      #     only when this returns `NOT_ADMITTED` — a class-level `def`
-      #     always wins over an included module's in Ruby's own method
-      #     resolution, so their own `method_missing` is the only one
-      #     that ever runs for them, and this is what lets a real,
-      #     closed-set word (`port`/`realm`/`latest`) still reach
-      #     `GenericDispatch` despite that.
-      #   - the "Type"-position fallback inside `word_gate_dispatch`
-      #     itself, for `one_of`/`list_of` — called inside an
-      #     attribute's own type argument, with `self` as whatever
-      #     builder is currently `instance_eval`ing, never a dedicated
-      #     "Type" builder `self.class::GRAMMAR_CONTEXT` could ever
-      #     name. See that method's own comment.
+      # Each including class names its grammar row in `GRAMMAR_CONTEXT`. While the meta-domain
+      # boots there is no table, so only `GenericDispatch::BOOTSTRAP_CALLS_FALLBACK` applies.
       module WordGate
-        # A caller with its own class-level `method_missing`
-        # (`HecksagonBuilder`/`WorldBuilder` — see `word_gate_dispatch`'s
-        # own header) checks for this to tell "not a word the grammar
-        # admits at all" apart from every other outcome below (a real
-        # dispatch, or a raised refusal) — never raised itself, so a
-        # caller can fall through to its own open-ended handling instead.
+        # Returned by `word_gate_dispatch` for a word no grammar row admits, so a caller with
+        # its own `method_missing` can fall back to open-ended handling.
         NOT_ADMITTED = Object.new.freeze
 
-        # Private, matching Ruby's own convention for both (`Object`
-        # defines them private too) — and load-bearing here, not just
-        # style: `spec/syntax_conformance_spec.rb`'s "declares every
-        # word X answers" check walks `public_instance_methods`, and a
-        # public `method_missing`/`respond_to_missing?` would show up
-        # there as two more "answered words" no row of the grammar ever
-        # declares, on every builder this module touches.
+        # Private like Object's own; public ones would appear as extra "answered words" in
+        # spec/syntax_conformance_spec.rb, which walks `public_instance_methods`.
 
         private
 
         def method_missing(word, *args, **kwargs, &block)
           if MetaValidator.bootstrapping?
             fallback = GenericDispatch::BOOTSTRAP_CALLS_FALLBACK
-            # Own context first, "Type" second — the same order the
-            # ordinary (non-bootstrapping) `word_gate_dispatch` path
-            # below checks them in, for the same reason: `list_of`/
-            # `one_of` used in an attribute's own type position never
-            # arrive with `self.class::GRAMMAR_CONTEXT == "Type"`.
+            # Own context first, then "Type", as in `word_gate_dispatch`.
             own_key  = [self.class::GRAMMAR_CONTEXT, word.to_s]
             type_key = ["Type", word.to_s]
-            # key? first, never `||` — a target method name is never
-            # actually stored as `false`, but the fallback lookup itself
-            # must not silently prefer "Type" over this class's own
-            # context on the strength of a falsy-looking value.
             found  = fallback.key?(own_key) || fallback.key?(type_key)
             target = fallback.key?(own_key) ? fallback[own_key] : fallback[type_key]
             return send(target, *args, **kwargs, &block) if found
@@ -135,31 +36,8 @@ module Hecks
           result
         end
 
-        # The core admission+dispatch logic, factored out of
-        # `method_missing` — item #13's full metaprogrammed dispatch
-        # (slice 5, whole-project table-unification survey) — so a
-        # class with its own class-level `method_missing`
-        # (`HecksagonBuilder`'s/`WorldBuilder`'s genuinely open-ended
-        # verb vocabulary, `persisted_by "Heki"`/`posted_by "Carrier"`,
-        # can never be a closed table) can still route a word the
-        # grammar admits through here first, falling back to its own
-        # open-verb handling only for what this doesn't recognize at
-        # all — unblocking `Hecksagon#port`/`World#realm`/`World#latest`,
-        # each a real, closed-set word that happened to sit on a class
-        # whose own `method_missing` a class-level `def` always wins
-        # over Ruby's own module-inclusion order.
-        #
-        # Never raises "not admitted" — returns `NOT_ADMITTED` instead,
-        # so the caller (this module's own `method_missing`, or one of
-        # the two above) decides what that means for it. Does still
-        # raise the richer, table-driven refusals below once a word is
-        # admitted-but-unimplemented, or admitted-somewhere-else-only —
-        # those are real, useful refusals regardless of which
-        # `method_missing` is asking.
-        # One ordered admission-then-dispatch pipeline (own context, then
-        # "Type" fallback, then admitted-elsewhere check, then dispatch) —
-        # see this method's own header comment above for the full,
-        # order-dependent account of why each check runs where it does.
+        # Admission then dispatch: own context, "Type" fallback, admitted-elsewhere check,
+        # `GenericDispatch`. Returns `NOT_ADMITTED` for an unknown word rather than raising.
         # rubocop:disable-next Metrics/CyclomaticComplexity, Metrics/PerceivedComplexity
         def word_gate_dispatch(word, args, kwargs, block)
           context = self.class::GRAMMAR_CONTEXT
@@ -167,19 +45,9 @@ module Hecks
           keywords = rows[:keywords]
           admitted = keywords.select { |row| row[:context] == context && (row[:word] == word.to_s || row[:was] == word.to_s) }
 
-          # **The type-position fallback** — item #13's full metaprogrammed
-          # dispatch (slice 5). `one_of`/`list_of`, called inside an
-          # attribute's own type argument (`attribute :x,
-          # one_of("a","b")`), run with `self` as whatever builder is
-          # currently instance_eval'ing — there is no dedicated "Type"
-          # builder of its own; every attribute()-taking builder answers
-          # these identically, through the shared `AttributeCollector`
-          # mixin. `self.class::GRAMMAR_CONTEXT` can never actually be
-          # "Type", so a word admitted only there would otherwise look
-          # inadmissible everywhere. Checked only once this context has
-          # already come up empty, so a context with its own same-named
-          # row (`ValueObject`'s own `one_of`, the block-wrapper form)
-          # keeps using that instead, unaffected.
+          # `one_of`/`list_of` in an attribute's type position run on whichever builder is
+          # evaluating, whose context is never "Type". Try "Type" only when its own context has
+          # no row, so a same-named row of its own (ValueObject's `one_of`) still wins.
           if admitted.empty?
             type_admitted = keywords.select { |row| row[:context] == "Type" && row[:word] == word.to_s }
             unless type_admitted.empty?
@@ -196,13 +64,6 @@ module Hecks
                   "'#{word}' is not a word #{context} admits — legal words here: #{legal.join(', ')}"
           end
 
-          # Item #13's full metaprogrammed dispatch — the word is
-          # admitted here, and this builder has no hand-written method
-          # left for it; before falling through to the "not yet
-          # implemented" refusal every word without one still gets,
-          # offer it to GenericDispatch — the safe, verified subset of
-          # words whose whole behavior is now executed off this same
-          # table, not just checked against it.
           dispatched = GenericDispatch.try(self, context, word.to_s, args, kwargs, block, rows)
           return dispatched unless dispatched.equal?(GenericDispatch::NOT_HANDLED)
 
@@ -221,15 +82,8 @@ module Hecks
             super
         end
 
-        # A word admitted somewhere, just not in this context, still
-        # falls through to Ruby's own `NoMethodError` rather than this
-        # module's own richer refusal — `method_missing` fires for
-        # every typo in the whole codebase (this class's own genuinely
-        # private helper methods included), not just DSL keyword calls;
-        # only raise the rich, table-driven message when the word is at
-        # least something the grammar knows about, anywhere, so an
-        # unrelated Ruby-level typo inside a builder's own private code
-        # keeps its own ordinary, unconfusing `NoMethodError`.
+        # `method_missing` fires for every typo in a builder, so only words the grammar knows
+        # anywhere get the rich refusal; other typos keep Ruby's ordinary `NoMethodError`.
         def admitted_anywhere?(rows, word)
           rows.any? { |row| row[:word] == word.to_s || row[:was] == word.to_s }
         end

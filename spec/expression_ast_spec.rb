@@ -2,29 +2,8 @@ require "spec_helper"
 require "json"
 require "hecks/fuzzing/bounded_exhaustive_expressions"
 
-# Every rule row carries its structured form, and that form is the whole
-# meaning.
-#
-# A `given`/`ensures`/invariant/precondition/policy `where` travels in
-# the IR as `{description, canonical, ast}` (`Expression::AstJson.
-# rule_row`) — `canonical` for anything that displays, `ast` for anything
-# that evaluates. The Ruby runtime now walks `ast` at dispatch
-# (`Evaluator.call_rule` + `Expression::AstReader`; HECKS_EVAL=string
-# reverts to text for one release), and the Rust generators transcribe
-# it — this spec pins the contract every reader stands on:
-#
-#   1. `ast` is present at every rule site, in every corpus chapter, and
-#      is a pure function of `canonical`.
-#   2. It is plain JSON: serialising and re-reading it is the identity,
-#      byte-for-byte deterministic.
-#   3. Its `"op"` tags are a closed roster (`ExprAstJson::OPS`), and paths
-#      are segment arrays, never dotted strings.
-#   4. It carries the whole meaning: for every well-typed expression the
-#      bounded-exhaustive generator can spell, reading the emitted `ast`
-#      back into evaluator nodes and interpreting those answers exactly
-#      what interpreting the parsed text answers — same value, or the
-#      same `EvaluationError`.
-#   5. Emission is total: no generated expression makes `ExprAstJson` raise.
+# Every rule row carries `{description, canonical, ast}`: `canonical` for display,
+# `ast` for evaluation. This spec pins the contract every reader of `ast` relies on.
 RSpec.describe "the structured expression AST every rule row carries" do
   ExprAstJson = Hecks::Bluebook::Expression::AstJson
   ExprAstEvaluator = Hecks::Bluebook::Expression::Evaluator
@@ -33,7 +12,7 @@ RSpec.describe "the structured expression AST every rule row carries" do
   CHAPTERS = {
     "Pizzas"     => "examples/pizzas/bluebook/pizzas.bluebook",
     "Banking"    => InMemoryDomain::BANKING_BLUEBOOK_DIR,
-    # The one example whose policies carry a `where` (`by.value == "white"`).
+    # The only example whose policies carry a `where`.
     "Chess"      => "examples/chess/bluebook",
     "Expression" => "lib/hecks/grammar/expression.bluebook",
     "TillRoom"   => "spec/fixtures/till.bluebook",
@@ -53,17 +32,14 @@ RSpec.describe "the structured expression AST every rule row carries" do
     registry
   end
 
-  # Every `{description, canonical, ...}` row anywhere in an IR tree,
-  # wherever the construct put it — found by shape, not by a list of
-  # sites, so a new rule site is covered the day it emits.
+  # Rule rows are found by shape, not by a list of sites, so a new site is covered on day one.
   RULE_SITES = %i[givens ensures invariants preconditions].freeze
 
   def rule_rows(node, path = [])
     case node
     when Hash
-      # A rule row sits directly inside one of the four rule lists; the
-      # key test alone would also match the meta-domain's own `Rule`
-      # value object wherever a mutation names its fields.
+      # The path check is needed: the key test alone also matches the meta-domain's `Rule`
+      # value object.
       own = RULE_SITES.include?(path[-2]) && node.key?(:canonical) ? [[path, node]] : []
       own + node.flat_map { |k, v| rule_rows(v, path + [k]) }
     when Array then node.each_with_index.flat_map { |v, i| rule_rows(v, path + [i]) }
@@ -89,9 +65,7 @@ RSpec.describe "the structured expression AST every rule row carries" do
     end
   end
 
-  # Read-only in every example below (never dispatched or mutated) —
-  # built once per file, not once per example, for speed: 7 chapters
-  # (plus the 3 meta-domains) parsed from disk is real work.
+  # Read-only in every example, so built once per file for speed.
   before(:context) do
     loaded    = CHAPTERS.to_h { |name, file| [name, load_chapter(file).bluebook(name).to_h] }
     languages = %w[Bluebook World Hecksagon].to_h do |name|
@@ -144,8 +118,7 @@ RSpec.describe "the structured expression AST every rule row carries" do
   end
 
   it "names every op the reader knows and no other — the roster is the reader's contract" do
-    # The reader (lib/hecks/bluebook/expression/ast_reader.rb) mirrors ExprAstJson arm for arm;
-    # an op that only one side knows is a drift between them.
+    # The reader mirrors ExprAstJson arm for arm; an op only one side knows is drift.
     roster = ExprAstJson::OPS
     reader_ops = File.read(File.expand_path("../lib/hecks/bluebook/expression/ast_reader.rb",
                                             __dir__)).scan(/when "([a-z_]+)"/).flatten.uniq

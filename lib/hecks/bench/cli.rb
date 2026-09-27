@@ -5,9 +5,7 @@ require_relative "report"
 module Hecks
   module Bench
     # The command line behind `bin/bench`: parses flags, runs the `Suite`, prints the report.
-    #
-    # Kept in `lib/` so a spec can drive it with a tiny configuration and read what it
-    # prints, rather than shelling out to a script.
+    # Lives in `lib/` so a spec can drive it without shelling out.
     module CLI
       # The defaults `bin/bench` runs with when no flag says otherwise.
       DEFAULTS = { domains: %w[pizzas banking], targets: Suite::TARGETS, warmup: 200, iterations: 1000,
@@ -15,11 +13,8 @@ module Hecks
 
       module_function
 
-      # Runs the benchmark described by the command line and prints its report.
+      # Runs the benchmark described by `argv` and prints its report.
       #
-      # @param argv [Array<String>] the command-line arguments
-      # @param out [#puts] where the report goes
-      # @param err [#puts] where progress and usage errors go
       # @return [Integer] the process exit status: 0 on success, 2 for a usage error
       def run(argv, out: $stdout, err: $stderr)
         options = parse(argv)
@@ -34,8 +29,6 @@ module Hecks
 
       # Turns command-line arguments into a configuration and output choices.
       #
-      # @param argv [Array<String>] the command-line arguments
-      # @return [Hash{Symbol => Object}] `:config` (a `Suite::Config`), `:format` and `:output`
       # @raise [OptionParser::ParseError] on an unknown or malformed flag
       def parse(argv)
         values = DEFAULTS.dup
@@ -45,11 +38,6 @@ module Hecks
           format: extras[:format], output: extras[:output] }
       end
 
-      # Builds the flag parser.
-      #
-      # @param values [Hash{Symbol => Object}] the `Suite::Config` fields, filled in as flags parse
-      # @param extras [Hash{Symbol => Object}] the output choices, filled in as flags parse
-      # @return [OptionParser] the parser
       def parser(values, extras)
         OptionParser.new do |opts|
           opts.banner = "usage: bin/bench [options]"

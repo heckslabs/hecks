@@ -11,9 +11,7 @@ RSpec.describe Hecks::Adapters::Heki do
     FileUtils.remove_entry(@dir) if @dir
   end
 
-  # Booted once per file — solely to read the static "Order" IR back
-  # out; every real mutation below goes to the adapter's own per-example
-  # tmpdir store (the `around` above), so a shared boot is safe.
+  # Booted once to read the static Order IR; mutations go to each example's own tmpdir store.
   before(:context) { @aggregate = boot_in_memory.registry.bluebook("Pizzas").aggregate("Order") }
 
   let(:aggregate) { @aggregate }
@@ -34,9 +32,8 @@ RSpec.describe Hecks::Adapters::Heki do
     end
 
     it "saves and finds" do
-      # Both fields declared on Order — the state codec symbolizes a declared
-      # value object's members on the way back out; an undeclared field's
-      # nested keys keep the spelling the store holds (StateCodec's header).
+      # Both fields are declared on Order, so the codec symbolizes their members on read;
+      # an undeclared field's nested keys keep the stored spelling (StateCodec's header).
       adapter.save(instance("p1", name: { value: "Margherita" }, customer_name: { value: "Ada" }))
 
       found = adapter.find("p1")
@@ -100,9 +97,8 @@ RSpec.describe Hecks::Adapters::Heki do
 
     it "#project answers the removed Runtime::Instance on delete, or nil when none was held" do
       adapter.save(instance("p1", name: { value: "Doomed" }))
-      # `append` before `project`, in that order, the same pairing `#delete` itself uses —
-      # `#project` alone would leave the still-journalled save entry to resurrect the record
-      # on the next `read`'s `replay_journal`.
+      # `append` before `project`, as `#delete` does; `#project` alone would let the journalled
+      # save entry resurrect the record on the next `read`'s `replay_journal`.
       delete_entry = Hecks::Ports::Persistence::Entry.new(operation: "delete", id: "p1", state: nil)
       adapter.append(delete_entry)
       deleted = adapter.project(delete_entry)
@@ -121,14 +117,10 @@ RSpec.describe Hecks::Adapters::Heki do
       allow(File).to receive(:rename).and_raise("boom")
       expect { adapter.save(instance("p2", name: { value: "Second" })) }.to raise_error("boom")
 
-      # The rename never happened, so the snapshot on disk is exactly
-      # what it was before the failed save — never truncated, never
-      # partially overwritten.
+      # The rename never happened, so the snapshot is untouched.
       expect(File.binread(adapter.path)).to eq(original)
 
-      # The journal append already landed (and fsynced) before the
-      # snapshot write was attempted, so the save isn't lost — a fresh
-      # boot recovers it by replaying the journal over the stale snapshot.
+      # The journal append landed before the snapshot write; a fresh boot replays it.
       reopened = described_class.new(aggregate: aggregate, settings: { dir: "." }, root: @dir)
       expect(reopened.find("p2")[:name].to_h).to eq(value: "Second")
     end
@@ -159,8 +151,7 @@ RSpec.describe Hecks::Adapters::Heki do
 
       reopened = described_class.new(aggregate: aggregate, settings: { dir: "." }, root: @dir)
       expect(reopened.all.map(&:id)).to eq(ids.map { |i| "p#{i}" }.sort)
-      # Every journal line parses — none was split by another process's
-      # concurrent append landing mid-line.
+      # Every journal line parses; none was split by a concurrent append.
       expect { reopened.entries }.not_to raise_error
     end
   end
@@ -185,9 +176,7 @@ RSpec.describe Hecks::Adapters::Heki do
       expect(File.size(journal_path)).to eq(0)
       expect(adapter.all.map { |record| [record.id, record[:name].to_h] }).to eq(expected)
 
-      # **A fresh boot** — not just the same in-memory adapter — replaying
-      # only the now-empty journal over the freshly-written snapshot
-      # must land on the exact same state as before compaction.
+      # A fresh boot replaying the emptied journal must match the pre-compaction state.
       reopened = described_class.new(aggregate: aggregate, settings: { dir: "." }, root: @dir)
       expect(reopened.all.map { |record| [record.id, record[:name].to_h] }).to eq(expected)
       expect(reopened.find("p3")).to be_nil
@@ -200,11 +189,7 @@ RSpec.describe Hecks::Adapters::Heki do
       allow(File).to receive(:rename).and_raise("boom")
       expect { adapter.compact! }.to raise_error("boom")
 
-      # The rename never happened, so compact! never reached the
-      # truncate step either — the journal is untouched, and a fresh
-      # boot still recovers the correct (pre-compaction) state from
-      # the old snapshot plus the still-full journal, exactly like an
-      # ordinary save's own crash-safety test above.
+      # No rename means no truncate: the journal stays full and a fresh boot recovers from it.
       expect(File.read("#{adapter.path}.journal")).not_to be_empty
       reopened = described_class.new(aggregate: aggregate, settings: { dir: "." }, root: @dir)
       expect(reopened.find("p1")[:name].to_h).to eq(value: "Second")
@@ -214,13 +199,7 @@ RSpec.describe Hecks::Adapters::Heki do
       adapter.save(instance("p1", name: { value: "First" }))
       adapter.save(instance("p1", name: { value: "Second" }))
 
-      # The snapshot write (`write`, via `File.rename`) is allowed to
-      # succeed for real; only the truncate step that follows it is
-      # made to "crash" — the exact window the task calls out as the
-      # real risk. Since `write` already durably persisted the fresh
-      # snapshot before this raises, the old (now fully redundant)
-      # journal lines are simply replayed again on next boot —
-      # idempotent, not wrong, just unnecessary work once.
+      # Only the truncate step crashes; the now-redundant journal lines replay idempotently.
       allow(adapter).to receive(:truncate_journal!).and_raise("simulated crash mid-truncate")
       expect { adapter.compact! }.to raise_error("simulated crash mid-truncate")
 
@@ -230,8 +209,7 @@ RSpec.describe Hecks::Adapters::Heki do
       expect(reopened.find("p1")[:name].to_h).to eq(value: "Second")
       expect(reopened.count).to eq(1)
 
-      # And the journal is still perfectly compactable afterward — the
-      # half-crashed attempt above left nothing broken behind it.
+      # The half-crashed attempt leaves the journal still compactable.
       reopened.compact!
       expect(reopened.entries).to eq([])
       expect(reopened.find("p1")[:name].to_h).to eq(value: "Second")
@@ -343,11 +321,7 @@ RSpec.describe Hecks::Adapters::Heki do
   end
 
   describe "resolve_path" do
-    # Issue #129: `dir: :default` (a bare Symbol) crashes `File.join`
-    # with `TypeError: no implicit conversion of Symbol into String`
-    # unless treated the same as no `dir` setting at all —
-    # `resolve_path` only ever checked for a missing `dir` setting,
-    # never a Symbol one.
+    # `dir: :default` (a bare Symbol) must behave like no `dir` setting; `File.join` raises on it.
     it "treats a bare :default Symbol the same as no dir setting at all" do
       defaulted = described_class.new(aggregate: aggregate, settings: { dir: :default }, root: @dir)
       absent    = described_class.new(aggregate: aggregate, settings: {}, root: @dir)

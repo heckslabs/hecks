@@ -1,26 +1,21 @@
 name: CI rust codegen (reusable)
 
-# REUSABLE-WORKFLOW SPLIT OF ci.yml, group 3 (part 3 of 4) — see
-# ci-rust-io.yml's own header for the full split rationale. This file
-# holds only `rspec_rust_codegen`, the required-status-check job.
+# Group 3 (part 3 of 4) of the ci.yml split: only `rspec_rust_codegen`, a required check.
 
 on:
   workflow_call:
 
 jobs:
-  # rust/codegen/ ("hecks-codegen") — same shape as rspec_rust_parser,
-  # a different independent Cargo project. codegen_parity_spec.rb builds
-  # it via its own `before(:context) { self.class.build_codegen! }`.
+  # rust/codegen/ (hecks-codegen), an independent Cargo project; codegen_parity_spec.rb
+  # builds it via `build_codegen!`.
   rspec_rust_codegen:
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
-    # See `rspec` job's own comment in ci.yml — cache-warming push doesn't
-    # need this job.
+    # Push runs only warm caches.
     if: github.event_name != 'push'
 
-    # PHASE 8, GHCR BINARY CACHE — see ci-rust-parser.yml's own comment
-    # on the identical block; same reasoning applies here.
+    # GHCR binary cache; see ci-rust-parser.yml's comment on the identical block.
     permissions:
       contents: read
       packages: write
@@ -34,9 +29,7 @@ jobs:
           name: codegen
           crate-root: rust/codegen
 
-      # PHASE 8, GHCR BINARY CACHE — see ghcr-binary-cache-restore's own
-      # header. A hit here means rspec_rust_io's own opt-in codegen build
-      # already ran this run and pushed the identical content.
+      # A hit means rspec_rust_io's opt-in codegen build already pushed identical content.
       - uses: ./.github/actions/ghcr-binary-cache-restore
         id: ghcr_cache
         with:
@@ -47,8 +40,6 @@ jobs:
       - name: "rspec: Rust codegen parity"
         run: bundle exec rspec --tag io spec/codegen_parity_spec.rb spec/codegen_manifest_parity_spec.rb
 
-      # The crate's own unit tests — never ran in CI before (only
-      # `cargo test --lib` in rust/ did).
       - name: "cargo test: rust/codegen (hecks-codegen)"
         run: cd rust/codegen && cargo test
 

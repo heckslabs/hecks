@@ -3,30 +3,11 @@ require "fileutils"
 require "tmpdir"
 
 module Hecks
-  # The one place the runtime's own scratch files live, outside the gem.
+  # The one place the runtime's own scratch files live, outside the gem: an
+  # installed gem is read-only, and a checkout's `tmp/` isn't this library's to assume.
   #
-  # The syntax-boot cache and the Storehouse audit log are written on a
-  # normal run, so they cannot sit under the gem's own directory: an
-  # installed gem is read-only, and a checkout's `tmp/` is not a place a
-  # library gets to assume. Both ask this module for a subdirectory instead.
-  #
-  # ## Where the root is
-  #
-  # The first of these that can be made a private directory wins:
-  #
-  # 1. `$XDG_CACHE_HOME/hecks`, when `XDG_CACHE_HOME` is set to an absolute path
-  # 2. `~/.cache/hecks`
-  # 3. `<system temp dir>/hecks-<uid>`
-  #
-  # ## Private, or not used
-  #
-  # The syntax-boot cache is read back with `Marshal.load`, so a directory
-  # another account can write to is a way to run code as this one. A
-  # candidate is accepted only if it is owned by the current user and
-  # writable by nobody else; the shared temp directory in particular is
-  # where a predictable name can be planted by someone else. When no candidate
-  # qualifies, a fresh per-process directory stands in: the cache still
-  # works within the process and is never shared with a stranger.
+  # A candidate root is used only if it is private to the current user, since the
+  # syntax-boot cache it holds is read back with `Marshal.load`.
   module CacheDir
     module_function
 

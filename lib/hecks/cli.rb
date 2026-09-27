@@ -1,27 +1,9 @@
 module Hecks
   # The `hecks` command an installed gem puts on the path: one router over the
-  # domain-operator tools, each of which also runs from a checkout as `bin/<name>`.
+  # domain-operator tools, each also runnable from a checkout as `bin/<name>`.
   #
-  # ## A router, not a second copy
-  #
-  # Every subcommand's logic lives in `lib/hecks/cli/`, and the matching `bin/`
-  # script is a thin wrapper over the same entry point, so `hecks run` and
-  # `bin/run` cannot drift apart. The domain-scoped verbs go through
-  # `Facade::CliRunner`, the same way `bin/run` does.
-  #
-  # ## What a checkout has and an install does not
-  #
-  # The `bin/` wrappers pass the repository root, which is where they look for
-  # `examples/`, `rust/` and `docs/generated/`. Here the root is the working
-  # directory, so a command that lists or writes files does it where the caller
-  # stands. `model_check` with no domain sweeps the repository's corpus, which an
-  # install does not carry, so here it needs at least one domain path.
-  #
-  # ## Loading
-  #
-  # Nothing here requires the framework. A subcommand loads it when it runs, and
-  # `mcp` checks its transport before anything else loads, as
-  # `McpStdioGuard.enforce_stdio!` requires.
+  # Every subcommand's logic lives under `cli/`, with `bin/<name>` a thin wrapper
+  # over the same entry point, so the two can't drift apart.
   #
   # See `docs/decisions/0066-the-gem-ships-a-hecks-executable-and-dev-tooling-stays-in-the-repo.md`.
   module CLI
@@ -81,9 +63,8 @@ module Hecks
 
     # Routes `argv` to its subcommand and runs it.
     #
-    # A subcommand followed by only `--help` or `-h` prints that subcommand's usage
-    # without running it; any other arguments pass through untouched, so
-    # `hecks run order.place --help` still reaches the verb's own help.
+    # A subcommand followed only by `--help`/`-h` prints its usage without
+    # running it; other arguments still reach the verb itself.
     #
     # @param argv [Array<String>] the command line, subcommand first
     # @param out [#puts] where help goes

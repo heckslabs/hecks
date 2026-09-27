@@ -1,9 +1,7 @@
 Hecks.world "Banking" do
   realm "Examples"
-  # S13, ADR 0025 (coverage standard) — the chapter itself already
-  # pins `version: "v1"`; this is that same pin restated on the
-  # world, so an unversioned FQN dispatched against this deployment
-  # resolves to it rather than the boot refusing to guess.
+  # (ADR 0025) Restates the chapter's own `version: "v1"` pin on the
+  # world, so an unversioned FQN resolves to it here too.
   latest "v1"
   persisted_by("Heki") do
     dir "data"
@@ -13,23 +11,15 @@ Hecks.world "Banking" do
     database "data/banking_projection.sqlite3"
   end
 
-  # bin/project_deploy's own real target — `deployed_to` is a generic
-  # settings-bag verb, the same way `persisted_by`/`projected_by` are;
-  # nothing about WorldBuilder needed to change for this to work.
+  # `deployed_to` is a generic settings-bag verb like `persisted_by`/
+  # `projected_by`; WorldBuilder needed no change to support it.
   deployed_to("AwsLambda") do
     region "us-east-1"
     memory 512
     timeout 10
-    # The shared-database mode: no RDS/VPC of Banking's own. Borrows another
-    # domain's already-live instance instead, isolated by its own
-    # native Postgres schema (banking.*, created directly by this
-    # domain's own provisioning on deploy). `owner` is that other
-    # domain; a real deployment that needs a specific owner stack or
-    # stack prefix layers them in an environment overlay
-    # (environments/<name>.world, applied with
-    # `bin/project_deploy examples/banking --environment=<name>`), so
-    # this file stays generic and the overlay stays with whoever runs
-    # the deployment.
+    # "Shared" mode: no RDS/VPC of its own, borrows `owner`'s live instance
+    # under its own Postgres schema (banking.*). A stack-specific owner
+    # goes in an environment overlay, not here.
     database "Shared"
     owner "Platform"
   end

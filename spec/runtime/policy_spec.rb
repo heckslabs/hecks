@@ -19,8 +19,6 @@ RSpec.describe "a policy" do
   end
 
   def topped_pizza(runtime)
-    # `name:` was written twice here — once bare, once as the value object — and
-    # Ruby warned on every run while silently keeping the second.
     pizza = runtime.dispatch_flat("Pizzas::Order.CreatePizza",
                                   name: { value: "Margherita" }, pizza: { price_cents: { cents: 900 }, size: { value: "small" } })
     runtime.dispatch_flat("Pizzas::Order.AddTopping", name: pizza.id, topping: { value: "Basil" }, amount: { value: 3 })
@@ -41,11 +39,8 @@ RSpec.describe "a policy" do
 
   it "fires once per matching event, not once per declaration site" do
     runtime = boot_reflex
-    # **Two distinct lights** — `name:` is what Light is identified by; `id:` is
-    # never anything but an unread decoy. Without a check on whether a
-    # creating command's identity already existed, the second dispatch would
-    # collide with the first (same `name:`, silently overwritten) and still
-    # pass. AlreadyExists (see command_interpreter.rb) catches it.
+    # Two distinct lights: `name:` is the identity, `id:` an unread decoy. Reusing a
+    # name would overwrite silently and still pass, but AlreadyExists catches it.
     runtime.dispatch_flat("Reflex::Light.Flip", name: { value: "light-1" }, id: "light-1")
     runtime.dispatch_flat("Reflex::Light.Flip", name: { value: "light-2" }, id: "light-2")
 
@@ -87,20 +82,11 @@ RSpec.describe "a policy" do
     expect(Pizzas::Order.find(pizza.id).status).to eq("sold")
   end
 
-  # `reaction_defects_spec.rb` proves the split at PolicyInterpreter's own
-  # level, in isolation. This proves it end to end, through the same
-  # `Dispatcher#dispatch` a real caller uses : the triggering command
-  # (`Flip`) has already succeeded and persisted by the time its own
-  # `Flipped` event fires `LogOnFlip`, and a genuine defect in the
-  # reaction's target must not reach back and fail the caller's own
-  # dispatch for a command it already got right.
+  # End to end through `Dispatcher#dispatch`: `Flip` has already persisted when `LogOnFlip`
+  # fires, so a defect in the reaction's target must not fail the caller's dispatch.
   #
-  # `reenter` is overridden on this one `runtime` instance, not stubbed with
-  # a mocking framework this codebase otherwise never reaches for — the
-  # override only intercepts the one verb this test cares about breaking
-  # (`Reflex::Light.Log`, `LogOnFlip`'s own trigger) and calls straight
-  # through to the real dispatch for everything else, so `Flip` itself, and
-  # every other path this fixture exercises, runs unmodified.
+  # `reenter` is overridden on this one runtime rather than stubbed; only
+  # `Reflex::Light.Log` is broken and every other verb runs the real dispatch.
   it "keeps the triggering command's own success when the reaction it fires is a defect, not a refusal" do
     runtime = boot_reflex
     real_reenter = runtime.method(:reenter)
@@ -123,24 +109,10 @@ RSpec.describe "a policy" do
     )
   end
 
-  # `where` (a conditional guard on whether a policy fires) and `for_each`
-  # (fan-out — the same trigger dispatched once per row a query answers,
-  # instead of once for the event) — new language surface, not a bug fix.
-  # Built inline (`Hecks.bluebook "Fanout" do ... end`), not a fixture
-  # file: `spec/fixtures/**/*.bluebook` is swept into
-  # `spec/parser_parity_spec.rb`'s own byte-exact Rust comparison
-  # automatically (stage 5's own "EVERY member" merge), and the Rust
-  # parser does not build `where`/`for_each` yet (a deliberate, named
-  # `PENDING_PAIRS` entry — see `spec/parser_coverage_spec.rb`) — an
-  # inline bluebook never reaches that scan at all, the same reason
-  # `spec/dsl_spec.rb`'s own `build_bluebook` helper builds inline rather
-  # than from a file.
+  # `where` guards whether a policy fires; `for_each` dispatches the trigger once per row a
+  # query answers. Built inline because fixture bluebooks are swept into
+  # `spec/parser_parity_spec.rb`, and the Rust parser lacks both (`PENDING_PAIRS`).
   describe "where and for_each" do
-    # A declarative inline bluebook fixture, not procedural logic — the
-    # comment above this `describe` explains why it must stay inline
-    # (parser-parity scan, PENDING_PAIRS) rather than move to a fixture
-    # file. Splitting it into helper methods would only fragment one
-    # self-contained domain declaration across artificial boundaries.
     # rubocop:disable-next Metrics/AbcSize, Metrics/MethodLength
     def boot_fanout
       registry = Hecks::Runtime::Registry.new
@@ -217,17 +189,14 @@ RSpec.describe "a policy" do
             end
           end
 
-          # **The guard alone** — no for_each, isolates `where` on its own.
+          # The guard alone, isolating `where`.
           policy "NotifyOnFlag" do
             on      "Customer.Flagged"
             where { risk == "high" }
             trigger Customer::Acknowledge
           end
 
-          # **The guard and the fan-out together** — the task's own worked
-          # example ("for each open Account belonging to this Customer,
-          # trigger AccountFreezeReview.Open"), self-contained in one
-          # domain rather than crossing `across`.
+          # The guard and the fan-out together, within one domain rather than `across`.
           policy "ReviewOnFlag" do
             on "Customer.Flagged"
             where { risk == "high" }
@@ -283,8 +252,7 @@ RSpec.describe "a policy" do
     it "fans a for_each policy out once per row a query answers, not once for the event" do
       runtime = boot_fanout
       open_two_accounts_for(runtime, "c1")
-      # A third account, a different customer — proves the fan-out is
-      # scoped by the query's own where, not "every Account that exists".
+      # A different customer's account proves the fan-out is scoped by the query's `where`.
       runtime.dispatch_flat("Fanout::Account.Open", account_id: { value: "c2-a1" }, customer_id: { value: "c2" })
 
       runtime.dispatch_flat("Fanout::Customer.Flag", customer_id: { value: "c1" }, risk: { value: "high" })
@@ -302,13 +270,8 @@ RSpec.describe "a policy" do
     it "records a for_each row it cannot deliver as a refusal, and still delivers the rest" do
       runtime = boot_fanout
       open_two_accounts_for(runtime, "c1")
-      # Already reviewing — Account has no lifecycle/transition guard of
-      # its own here, so this dispatch does not refuse ; the refusal this
-      # test actually reaches for is the same payload-gate refusal the
-      # earlier plain-`trigger` smoke test found (Account.Review would
-      # refuse if it did not declare a field the event forwards), proven
-      # here by naming a for_each query on an aggregate that has none —
-      # a real, ordinary UnknownVerb refusal, recorded and not fatal.
+      # Naming a query the aggregate lacks forces an ordinary UnknownVerb refusal,
+      # which must be recorded and not fatal.
       registry = runtime.registry
       registry.bluebook("Fanout").policies.find { |p| p.name == "ReviewOnFlag" }
               .instance_variable_set(:@for_each, "Account.NoSuchQuery")

@@ -5,73 +5,11 @@ require "tmpdir"
 require "open3"
 require_relative "../rust/project"
 
-# The differential harness for stage 7 (codegen) — modeled directly on
-# spec/parser_parity_spec.rb's own proven pattern (cargo-build-then-
-# subprocess, byte-exact comparison, a real corpus enumeration, an
-# honestly-shrinking CODEGEN_PENDING_MEMBERS table with a reason per entry) and on
-# spec/rust_conformance_spec.rb's own cargo-build-inside-rspec convention.
-#
-# **Two slices, two checks**. The first Stage 7 slice ported the value-object/
-# entity/record/JSON-codec/closed-set/invariant/identity-extraction half
-# of `rust/project/*.rb` (types.rb, fielded.rb, json_codec.rb,
-# constraints.rb, naming.rb, exemplar.rb, plus a Rust port of Evaluator/
-# Resolver's parse step for expr_emitter.rb) — real and independently
-# verifiable, but not a whole generated `.rs` file, because
-# `domain_generator.rb#call` interleaves that slice with commands/ports
-# into one file per aggregate. That gap is what this continuation closes:
-# `rust/codegen/src/{commands,mutations,bridging,queries,read_models,
-# reactions,ports,registry,domain_generator,literal}.rs` port the
-# command-dispatch half (argument gating, role checking, given/ensures
-# wiring, mutation application, JSON routing), and `hecks-codegen domain`
-# (a new CLI subcommand alongside `prelude`, backed by
-# `rust/codegen/src/domain_generator.rs`, a from-scratch port of
-# `DomainGenerator.call` — not built by reusing `prelude.rs`, which
-# omits entity commands entirely; see that file's own header) generates
-# the full per-chapter output: every aggregate `.rs` file, `registry.rs`,
-# `mod.rs`.
-#
-# Every member gets the whole-file check. The older prelude-only check
-# (and its `WHOLE_FILE_MEMBERS` split) is gone: once every hand-listed
-# member reached whole-file byte-exactness it had nothing left to run.
-# Members that don't match yet sit in `CODEGEN_PENDING_MEMBERS`, where
-# the same whole-file check runs as RSpec `pending`.
-#
-# Not covered even by the whole-file check: `metadata.rs` (embeds
-# `ir.json` as a Rust string constant via Ruby's own `JSON.pretty_generate
-# (ir).inspect` — this crate has no JSON pretty-printer, only a reader,
-# see `json.rs`'s own header), `ir.json` itself (the same reason), and
-# `manifest.json` (bookkeeping about what got generated, not the
-# generated source itself) — all three are real, named, deliberately
-# out-of-scope gaps in `rust/codegen/src/domain_generator.rs`'s own
-# header, not silently dropped. `mod.rs` is covered (cheap, deterministic,
-# no JSON pretty-printer needed) but compared against Ruby's own
-# `DomainGenerator.call` output directly (this spec's own whole-file `it`
-# block, below) — not against the checked-in `rust/src/generated/
-# <member>/mod.rs`, which `bin/project_rust` itself (not
-# `DomainGenerator.call`) appends a `pub mod merged;` line to as a
-# separate, later post-processing step (`bin/project_rust`'s own
-# multi-chapter merge, out of this generator's own scope per the plan) —
-# comparing against the checked-in file would be comparing against the
-# wrong artifact.
-#
-# `mark_append_optional_fields!` (mutations.rb) is still not ported —
-# `Json` (this crate's own IR value type) has no mutation API (see
-# `json.rs`'s own header), and every real corpus field that pass would
-# touch already declares `optional: true` directly in its own bluebook
-# source, so the mutating pass is a no-op everywhere this corpus actually
-# reaches it (confirmed true for `banking`/`bluebook_language`, the two
-# members that exercise an `append` fed by a caller-omittable argument).
-# Left named here as a real, confirmed-currently-harmless gap, not
-# silently dropped — see `mutations.rs`'s own header for the full
-# argument.
-# `io: true` — a `cargo build` subprocess spawn is real I/O by this
-# suite's own convention (see spec_helper.rb's `io: true` note). Running
-# `build_codegen!` at `describe`-body load time, unconditionally, would run
-# it on every `bundle exec rspec` — RSpec still evaluates a group's top-level
-# body while building the example tree even when every example in it gets
-# excluded by the `io: true` filter, so tagging the group alone is not
-# enough; the build itself lives in a `before(:context)` hook instead,
-# which — unlike plain body code — really is skipped when excluded.
+# Holds hecks-codegen's whole-file domain output (aggregate .rs, registry.rs, mod.rs)
+# byte-identical to Ruby's `DomainGenerator.call` for every corpus member.
+
+# The cargo build lives in `before(:context)`: RSpec evaluates a group body even when
+# `io: true` excludes its examples, so a body-level build would run on every suite.
 RSpec.describe "Rust codegen parity (hecks-codegen)", :io do
   CODEGEN_DIR = File.expand_path("../rust/codegen", __dir__)
   CODEGEN_BINARY = File.join(CODEGEN_DIR, "target", "debug", "hecks-codegen")
@@ -86,11 +24,7 @@ RSpec.describe "Rust codegen parity (hecks-codegen)", :io do
 
   def self.json_shaped(payload) = JSON.parse(JSON.generate(payload), symbolize_names: true)
 
-  # The same sequence `bin/project_rust` itself loads a single-bluebook
-  # domain through (persistence/extraction ports, memory + prism +
-  # postgres adapters, then the domain's own `.bluebook`) — reused
-  # directly so this can't silently drift from what "the real generator's
-  # own input" means.
+  # Loads a domain the way bin/project_rust does, so the input cannot drift from the generator's.
   def self.domain_ir(bluebook_path, domain_name)
     registry = Hecks::Runtime::Registry.new
     Hecks.with_registry(registry) do
@@ -104,27 +38,13 @@ RSpec.describe "Rust codegen parity (hecks-codegen)", :io do
     json_shaped(Hecks::Projector::Exporter.call(registry).fetch(domain_name))
   end
 
-  # The one member that can't go through `domain_ir` — same reason
-  # spec/parser_parity_spec.rb's own `ruby_ir_json` special-cases it:
-  # `MetaValidator.grammar_registry` is the only door that sets
-  # `@bootstrapping = true` around the self-hosted grammar's own nine-file
-  # load (aggregate.bluebook references ValueObject/Entity, both declared
-  # in later files — the ordinary `Hecks.bluebook`-triggered path refuses
-  # immediately).
+  # `MetaValidator.grammar_registry` is the only door that sets @bootstrapping around the
+  # self-hosted grammar's load, whose files reference types declared in later files.
   def self.meta_ir
     json_shaped(Hecks::Projector::Exporter.call(Hecks::Bluebook::MetaValidator.grammar_registry).fetch("Bluebook"))
   end
 
-  # [member name, ir-loader lambda] — derived, not hand-listed:
-  #   - every in-repo Rust domain `bin/project_rust` has generated
-  #     (`Hecks::Corpus.rust_regen_order`, the list the drift check
-  #     regenerates), loaded from its bluebook directory the way
-  #     bin/project_rust loads it, under the chapter its header declares
-  #   - every framework chapter generated as a side effect of a
-  #     `uses_framework` domain (`Corpus.rust_framework_chapters`)
-  #   - the self-hosted language, `bluebook_language` (the `meta` module)
-  # spec/corpus_rust_spec.rb proves every generated module is one of these
-  # or a sibling chapter beside an in-repo domain's own bluebook.
+  # [member name, ir-loader lambda], derived from Hecks::Corpus rather than hand-listed.
   def self.corpus_member(name, source)
     [name, -> { domain_ir(source, Hecks::Corpus.chapter_name_of(Hecks::Corpus.bluebook_files(source) || source)) }]
   end
@@ -134,13 +54,7 @@ RSpec.describe "Rust codegen parity (hecks-codegen)", :io do
     *Hecks::Corpus.rust_framework_chapters.map do |stem|
       corpus_member(stem, File.join(Hecks::Corpus::ROOT, "lib/hecks/framework/bluebook/#{stem}.bluebook"))
     end,
-    # SAME SHAPE, `uses_embryonaut_bluebook`'s own side (docs/decisions/
-    # 0058) — a vendored package generated as a side effect of some other
-    # domain's own regen, same "no merged.rs, no Cargo feature of its
-    # own" fact `rust_framework_chapters` already carries, just sourced
-    # from `:vendored` corpus members (nested inside a consuming
-    # example's own `vendor/embryonaut_bluebooks/`) instead of this gem's
-    # own `lib/hecks/framework/bluebook/`.
+    # A vendored package (ADR 0058) generated as a side effect of another domain's regen.
     *Hecks::Corpus.rust_vendored_chapters.map do |stem|
       member = Hecks::Corpus.members(:vendored).find { |m| m.stem == stem }
       corpus_member(stem, Hecks::Corpus.bluebook_dir(member.path))
@@ -148,10 +62,8 @@ RSpec.describe "Rust codegen parity (hecks-codegen)", :io do
     ["bluebook_language", -> { meta_ir }]
   ].freeze
 
-  # **Shrink-only**: a derived member whose Rust codegen still disagrees with
-  # Ruby's, with the bug that owns it. It runs the same whole-file check
-  # as RSpec `pending`, so the day it matches, the example fails until the
-  # entry is deleted here.
+  # Shrink-only: members whose Rust output still differs from Ruby's, with the owning bug.
+  # Runs as RSpec `pending`, so a member that now matches fails until it is removed.
   CODEGEN_PENDING_MEMBERS = {}.freeze
 
   it "finds at least one real corpus member" do
@@ -172,11 +84,7 @@ RSpec.describe "Rust codegen parity (hecks-codegen)", :io do
         ruby_dir = File.join(tmp, "ruby")
         rust_dir = File.join(tmp, "rust")
 
-        # Ruby's own `DomainGenerator.call` — the same real function
-        # `bin/project_rust` calls, not a reimplementation. Also writes
-        # metadata.rs/ir.json/manifest.json into `ruby_dir` (this method's
-        # own contract) — deliberately not compared (see this file's own
-        # header on why those three are out of scope for this crate).
+        # Also writes metadata.rs/ir.json/manifest.json into `ruby_dir`; those are not compared.
         RustProjection::DomainGenerator.call(ir, name, ruby_dir, name)
 
         ir_json_path = File.join(tmp, "ir.json")
@@ -184,10 +92,9 @@ RSpec.describe "Rust codegen parity (hecks-codegen)", :io do
         stdout, status = Open3.capture2(CODEGEN_BINARY, "domain", ir_json_path, name, name, rust_dir)
         expect(status.success?).to be(true), "hecks-codegen domain failed for #{name}:\n#{stdout}"
 
-        # Compare exactly the files this crate claims to generate
-        # (aggregate `.rs` files, `registry.rs`, `mod.rs`) — never
-        # metadata.rs/ir.json/manifest.json, which aren't ported (see
-        # this file's own header).
+        # Only what the crate generates: metadata.rs, ir.json and manifest.json are not ported.
+        # mod.rs is compared with `DomainGenerator.call`, not the checked-in file
+        # that bin/project_rust extends.
         compared_names = generated_aggregate_basenames(ir) + ["registry.rs", "mod.rs"]
 
         compared_names.each do |basename|
@@ -206,10 +113,7 @@ RSpec.describe "Rust codegen parity (hecks-codegen)", :io do
     end
   end
 
-  # Every aggregate name the real `DomainGenerator.call` would generate a
-  # file for — mirrors that method's own `unsupported_attribute_types`
-  # skip check exactly (rather than hand-listing basenames), so this can
-  # never silently drift from which aggregates a real run actually emits.
+  # Mirrors `DomainGenerator.call`'s unsupported_attribute_types skip so basenames cannot drift.
   def generated_aggregate_basenames(payload)
     payload[:aggregates].filter_map do |aggregate|
       vo_by_name = aggregate[:value_objects].to_h { |vo| [vo[:name], vo] }

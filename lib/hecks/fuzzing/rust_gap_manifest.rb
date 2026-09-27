@@ -3,40 +3,16 @@ require "hecks/naming"
 
 module Hecks
   module Fuzzing
-    # What a compiled Rust binary declares it did not generate — read off the
-    # `manifest.json` files `rust/project/domain_generator.rb` writes beside
-    # every generated module, never inferred from Rust's refusal wording.
+    # What a compiled Rust binary declares it did not generate, read from the generated
+    # `manifest.json` files rather than inferred from Rust's refusal wording.
     #
-    # The differential fuzzer (`Differential.diff`) drops a query or
-    # read-model verb from the comparison if and only if the generator's own
-    # manifest recorded it as `generated: false`, with the `gap_class` and
-    # `construct` that explain why — never by pattern-matching Rust's
-    # refusal wording ("is not generated for this domain"), which would
-    # tolerate whatever Rust happened to say, including a codegen
-    # regression that silently started refusing a construct it once
-    # generated. A refusal the manifest does not account for stays in the
-    # comparison and fails it.
+    # The differential fuzzer drops a query or read-model verb only when a manifest says
+    # `generated: false`; any other refusal stays in the comparison and fails it.
     #
-    # ## Which manifests describe a binary
-    #
-    # `build_and_pin` (spec/support/rust_conformance_helpers.rb) and
-    # `bin/qa_generated_domains` both pin a feature's binary at
-    # `<rust_dir>/target/debug/rust-<feature>`. That binary compiles
-    # `src/generated/<feature>/` plus every shared framework chapter (a
-    # generated directory with no `merged.rs` of its own — `governance`,
-    # `identity`; see the generated `mod.rs` header). Ids in those manifests
-    # are domain-qualified, so a chapter a domain never attaches contributes
-    # entries no sequence for that domain can name.
-    #
-    # ## A missing manifest tolerates nothing
-    #
-    # A hand-written fixture crate, or a tree generated before manifests
-    # existed, has no declaration to honour, so every refusal it produces
-    # is compared as-is. That is the fail-closed direction.
+    # A binary's manifests are its own `src/generated/<feature>/` plus every shared chapter
+    # (a generated directory with no `merged.rs`). A missing manifest tolerates nothing.
     class RustGapManifest
-      # The only kinds the kernel answers as a query step. A not-generated
-      # command changes state, so dropping its refusal would not make the
-      # comparison honest; those stay compared and fail.
+      # Commands change state, so dropping their refusal would make the comparison dishonest.
       TOLERABLE_KINDS = %w[query read_model].freeze
       PINNED_BINARY = %r{\A(?<rust_dir>.+)/target/debug/rust-(?<feature>[a-z0-9_]+)\z}
 
@@ -57,13 +33,10 @@ module Hecks
         new(rust_dir: match[:rust_dir], feature: match[:feature])
       end
 
-      # Every committed manifest entry under `rust_dir`, each tagged with the
-      # generated module it came from — what the boundary ratchet and
-      # bin/rust_coverage's allowlist staleness check read.
+      # Every committed manifest entry under `rust_dir`, each tagged with its generated module.
       #
       # @param rust_dir [String] path to the Rust project root (holds `src/generated/*/`)
-      # @return [Array<Hash>] every `src/generated/*/manifest.json` entry, each a
-      #   String-keyed manifest Hash plus `"module" => String` naming the directory it came from
+      # @return [Array<Hash>] String-keyed entries, each plus `"module" => String`
       def self.all_entries(rust_dir)
         Dir.glob(File.join(rust_dir, "src/generated/*/manifest.json")).flat_map do |path|
           module_name = File.basename(File.dirname(path))
@@ -80,13 +53,11 @@ module Hecks
         @not_generated = index_not_generated
       end
 
-      # The manifest entry that declares `verb` not generated, or nil. `verb`
-      # is the wire spelling a sequence step uses; an ad hoc filter (a Hash)
-      # is never declared and answers nil.
+      # The manifest entry declaring `verb` not generated, or nil. An ad hoc filter (a Hash)
+      # is never declared.
       #
-      # @param verb [String, Object] the wire-spelled query or read-model verb to look up
-      # @return [Hash, nil] the String-keyed manifest entry declaring `verb` not generated,
-      #   or nil if `verb` is not a String or no entry declares it
+      # @param verb [String, Object] the wire-spelled query or read-model verb
+      # @return [Hash, nil] the String-keyed manifest entry
       def not_generated(verb)
         return nil unless verb.is_a?(String)
 
@@ -124,10 +95,8 @@ module Hecks
         end.freeze
       end
 
-      # A query is asked by its id. A read model's id is "Domain::Name", but
-      # it is asked as "Domain.Name" or "Domain.name_in_snake_case" — the two
-      # spellings `kernel::read_model::find` accepts (`matches_snake_alias`,
-      # a port of `Hecks::Naming.snake`).
+      # A read model's id is "Domain::Name" but it is asked as "Domain.Name" or
+      # "Domain.snake_name" (the spellings `kernel::read_model::find` accepts).
       def wire_verbs(entry)
         return [entry["id"]] if entry["kind"] == "query"
 

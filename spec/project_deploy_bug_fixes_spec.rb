@@ -2,39 +2,8 @@ require "tmpdir"
 require "fileutils"
 require "open3"
 
-# Regression coverage for four bugs found in the 2026-08-10 audit
-# (docs/audits/2026-08-10-main-bug-audit.md, triaged in
-# docs/audits/2026-08-11-bug-triage.md) against bin/project_deploy's
-# generated Makefile output. Structural/text-based, mirroring the
-# existing convention in this directory (project_deploy_contract_spec.rb,
-# project_deploy_shared_rust_oauth_spec.rb): bin/project_deploy is a
-# script with nothing to require, so each context here shells out to it
-# once (in a before(:context)) and asserts on the real generated
-# Makefile text.
-#
-#   H13 — a Shared-mode domain's `mint-era` stub `exit 1`ing after
-#         reporting a manual step remains would make `deploy:`'s own
-#         unconditional trailing `$(MAKE) mint-era` turn a fully
-#         successful `make deploy` into an always-nonzero exit.
-#   H14 — `scaffold-translation`/`translation-audit` open a real SSM
-#         tunnel to production, then run scripts that resolve their DB
-#         connection from the domain's `.world` file, not from the
-#         DATABASE_URL/HECKS_SCHEMA this recipe exports — silently
-#         scaffolding/auditing the local dev database while reporting
-#         success. Fixed here by refusing (loudly) unless
-#         ALLOW_LOCAL_DB=1 is set, rather than silently doing the wrong
-#         thing — see translation_recipe's own `db_env_blind` comment
-#         in bin/project_deploy for why a full "make it actually use the
-#         tunnel" fix isn't done here (it would require changing
-#         bin/scaffold_translation/bin/translation_audit themselves,
-#         out of this script's own scope).
-#   M28 — adding Google OAuth to an existing (already-deployed) stack
-#         would deadlock `make deploy`: the pre-deploy `mint-era`
-#         bridge queries PublicSubnetId/BastionSubnetId outputs that
-#         don't exist until the OAuth-adding `sam deploy` itself creates
-#         them, so the pre-check would fail before that deploy ever ran.
-#   M29 — RDS master passwords may contain `%`, invalid in libpq's URI
-#         parser; DATABASE_URL now carries a percent-encoded password.
+# Regression coverage for four bugs in bin/project_deploy's generated Makefile
+# (H13, H14, M28, M29). Each context shells out once and asserts on the real output.
 RSpec.describe "bin/project_deploy — H13/H14/M28/M29 regressions", :io do
   def self.root = File.expand_path("..", __dir__)
 
@@ -75,11 +44,8 @@ RSpec.describe "bin/project_deploy — H13/H14/M28/M29 regressions", :io do
     domain_dir
   end
 
-  # Generates the fixture for `basename` under a throwaway tmpdir and
-  # returns the path bin/project_deploy actually wrote to
-  # (<repo_root>/deploy/<basename> — always there regardless of where
-  # the source domain lived, same as every other spec in this
-  # directory).
+  # Generates the fixture and returns <repo_root>/deploy/<basename>, where
+  # bin/project_deploy always writes.
   def self.generate!(basename, world_body, env_local: nil)
     Dir.mktmpdir do |dir|
       domain_dir = write_fixture(dir, basename, world_body, env_local: env_local)
@@ -89,27 +55,16 @@ RSpec.describe "bin/project_deploy — H13/H14/M28/M29 regressions", :io do
     File.join(root, "deploy", basename)
   end
 
-  # Extracts a Make target's recipe lines (tab/blank-prefixed lines
-  # immediately following "target:\n"), same convention as
-  # project_deploy_shared_rust_oauth_spec.rb's own `deploy_recipe_lines`.
+  # Extracts a Make target's recipe lines: those following "target:\n".
   def self.recipe_lines(makefile, target)
     lines = makefile.lines
     start = lines.index { |l| l == "#{target}:\n" } or raise "no #{target}: target found in the generated Makefile"
-    # Recipe lines proper start with a tab; a target's own explanatory
-    # comments (e.g. mint_era_recipe's Shared-mode branch) are written
-    # at column 0, with no leading tab, sitting between "target:" and
-    # the tab-prefixed recipe lines — still part of this target's own
-    # block (Make just ignores them), so they're included here too.
+    # Column-0 comments between "target:" and the tab-prefixed lines belong to the target.
     lines[(start + 1)..].take_while { |l| l == "\n" || l.start_with?("\t") || l.start_with?("#") }
   end
 
-  # Splits a recipe's lines into independent shell chains — a "chain"
-  # break happens after any line that does not end in a backslash
-  # continuation (Make runs each such segment as its own separate shell
-  # invocation). Comment lines are dropped; they sit between chains,
-  # never inside one (bin/project_deploy's own documented rule — a
-  # comment spliced mid-chain corrupts Make's assembly of it into one
-  # shell script).
+  # Splits a recipe into shell chains: Make runs each run of backslash-continued
+  # lines as one shell invocation. Comment lines are dropped.
   def self.shell_chains(lines)
     body = lines.reject { |l| l.sub(/\A\t/, "").start_with?("#") || l == "\n" }
     chains = []
@@ -126,17 +81,12 @@ RSpec.describe "bin/project_deploy — H13/H14/M28/M29 regressions", :io do
     chains
   end
 
-  # One own-RDS fixture (a bare `region "us-east-1"` world, no .env.local),
-  # generated once and shared by H14 and M29 below, rather than each
-  # generating its own byte-identical copy of this same world under a
-  # different name.
+  # One own-RDS fixture shared by H14 and M29.
   before(:context) { @own_dir = self.class.generate!("h14_m29_own_fixture", <<~WORLD) }
     region "us-east-1"
   WORLD
 
   after(:context) { FileUtils.rm_rf(@own_dir) }
-
-  # --- H13 -----------------------------------------------------------
 
   describe "H13 — Shared-mode mint-era no longer poisons a successful deploy's exit code" do
     before(:context) { @generated_dir = self.class.generate!("h13_shared_fixture", <<~WORLD) }
@@ -165,8 +115,6 @@ RSpec.describe "bin/project_deploy — H13/H14/M28/M29 regressions", :io do
     end
   end
 
-  # --- H14 -------------------------------------------------------------
-
   describe "H14 — scaffold-translation/translation-audit refuse instead of silently running against the local DB" do
     %w[scaffold-translation translation-audit].each do |target|
       it "#{target} refuses up front unless ALLOW_LOCAL_DB is set, before doing anything with AWS" do
@@ -178,10 +126,7 @@ RSpec.describe "bin/project_deploy — H13/H14/M28/M29 regressions", :io do
         expect(recipe).to include("REFUSING")
         expect(recipe).to match(/resolves its OWN database connection from .* \.world file, NOT from DATABASE_URL/)
 
-        # The guard must be the recipe's own first chain (before the
-        # "Looking up $(STACK)'s VPC/security group..." lookup, the
-        # bastion stand-up, or the tunnel) — otherwise this is a fix
-        # that reports the danger only after already causing it.
+        # The guard must be the first chain, before any lookup, bastion or tunnel.
         expect(chains.first.join).to include("ALLOW_LOCAL_DB"),
                                      "the ALLOW_LOCAL_DB guard must be the FIRST thing #{target} does, not spliced in " \
                                      "after bastion/tunnel setup has already started"
@@ -201,17 +146,10 @@ RSpec.describe "bin/project_deploy — H13/H14/M28/M29 regressions", :io do
     end
   end
 
-  # --- M28 -------------------------------------------------------------
-
   describe "M28 — adding Google OAuth to an existing stack no longer deadlocks the pre-deploy mint-era bridge" do
     before(:context) do
-      # Built as a single-line string, not a heredoc whose own body
-      # would put "GOOGLE_CLIENT_ID=..."/"GOOGLE_CLIENT_SECRET=..." at
-      # column 0 of a spec.rb source line — load_hygiene_spec.rb's own
-      # "no two spec files disagree about a top-level constant" check
-      # scans for exactly that shape and would otherwise (falsely) flag
-      # a collision with project_deploy_shared_rust_oauth_spec.rb's own
-      # identical fixture content.
+      # A single-line string, not a heredoc: load_hygiene_spec.rb scans for
+      # column-0 GOOGLE_CLIENT_ID= lines and would flag a false collision.
       env_local = %(GOOGLE_CLIENT_ID=test-client-id.apps.googleusercontent.com\nGOOGLE_CLIENT_SECRET=test-secret\n)
       @oauth_dir = self.class.generate!("m28_oauth_fixture", <<~WORLD, env_local: env_local)
         region "us-east-1"
@@ -233,9 +171,7 @@ RSpec.describe "bin/project_deploy — H13/H14/M28/M29 regressions", :io do
 
       expect(recipe).to include("OutputKey=='PublicSubnetId'")
       expect(recipe).to include("skipping the pre-deploy bridge")
-      # The dangerous branch (calling mint-era pre-deploy) must still be
-      # reachable when the output is already live — this isn't a
-      # blanket skip.
+      # Not a blanket skip: the mint-era call stays reachable once the output is live.
       expect(recipe).to include("$(MAKE) mint-era || exit 1")
     end
 
@@ -253,9 +189,7 @@ RSpec.describe "bin/project_deploy — H13/H14/M28/M29 regressions", :io do
         chains = self.class.shell_chains(self.class.recipe_lines(makefile, "deploy"))
 
         chains.each do |chain|
-          # Make strips a single leading "@" (its own "don't echo this"
-          # marker) off the true first line before ever handing the
-          # chain to the shell — replicate that before checking syntax.
+          # Make strips a leading "@" before handing the chain to the shell.
           script = chain.join("\n").sub(/\A@/, "").gsub("$$", "$")
           _stdout, stderr, status = Open3.capture3("bash", "-n", stdin_data: script)
           expect(status.success?).to be(true),
@@ -264,8 +198,6 @@ RSpec.describe "bin/project_deploy — H13/H14/M28/M29 regressions", :io do
       end
     end
   end
-
-  # --- M29 -------------------------------------------------------------
 
   describe "M29 — the RDS master password is percent-encoded before it reaches a postgres:// URI" do
     it "derives DB_PASS_URLENC via ERB::Util.url_encode and uses it (not raw DB_PASS) in every DATABASE_URL" do

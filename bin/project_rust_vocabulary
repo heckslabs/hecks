@@ -1,15 +1,7 @@
 #!/usr/bin/env ruby
 
-# Projects the language's Vocabulary tables into the Rust kernel —
-# rust/src/kernel/vocab/*.rs, one exhaustive enum per table (refusal
-# templates, query comparators, field hints, aggregate/entity dispatch
-# orders). The projection itself is Projections::RustVocabulary; this asks
-# the registry for it and writes each file atomically, removing any stale
-# file under vocab/ the projection no longer emits.
-#
-# Replaces bin/project_refusal_wording (now a shim onto this script).
-# spec/rust_vocabulary_spec.rb re-projects in memory and refuses a diff,
-# and CI's checks_codegen_drift job regenerates and fails on drift.
+# Projects the Vocabulary tables into rust/src/kernel/vocab/*.rs, one enum per table.
+# Deletes any file under vocab/ that the projection does not emit.
 #
 #   bin/project_rust_vocabulary
 
@@ -21,13 +13,7 @@ require "tempfile"
 
 KERNEL = File.expand_path("../rust/src/kernel", __dir__)
 
-# Writes `content` to `target` through a temp file and atomic rename, so a
-# reader never observes a partially written file even if the process is
-# killed mid-write.
-#
-# @param target [String] absolute path of the file to write
-# @param content [String] full file content to write
-# @return [void]
+# Temp file plus rename, so a reader never sees a partial file if the process is killed.
 def write_atomically(target, content)
   FileUtils.mkdir_p(File.dirname(target))
   Tempfile.create(File.basename(target), File.dirname(target)) do |tmp|

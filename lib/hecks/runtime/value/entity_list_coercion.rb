@@ -5,38 +5,11 @@ require_relative "../../rendering"
 module Hecks
   module Runtime
     class Value
-      # How a `list_of` attribute's own elements GET hydrated — entity-typed
-      # and value-object-typed alike — split out of `Coercion` (this file's
-      # sibling, extended into `Value` alongside it exactly the way
-      # `Admission` already is) once `Coercion` itself grew past
-      # `Metrics/ModuleLength`'s budget from two, unrelated fixes landing in
-      # the same method the same week (BUG#32's own `hydrate_entity_identity`
-      # and BUG#33's own `check_entity_list_identities` — see each method's
-      # own header, and this repo's `.rubocop_todo.yml` for the merge that
-      # made the split necessary). Cross-calls into `Coercion`'s own
-      # `for_attribute`/`build`/`fields_for`/`value_object_for`/
-      # `trusting_stored_state?` work unqualified here, exactly as they do
-      # within `Coercion` itself, because both modules land on the same
-      # `Value` singleton class once extended — `self` never has to know
-      # which file a sibling method actually lives in.
+      # Hydrates a `list_of` attribute's own elements, entity-typed and
+      # value-object-typed alike; extended into `Value` alongside `Coercion`.
       module EntityListCoercion
-        # S17, ADR 0026 — searches the whole entity tree, not only the
-        # root's own direct children. `aggregate` here is always the
-        # root aggregate — `for_attribute`'s own `aggregate` argument is
-        # never reassigned as hydration recurses into a nested element,
-        # because coercion has to resolve value objects, and only the
-        # root answers `.value_object` at all (Entity's own header
-        # comment: an entity must not answer to it, or `Value.
-        # for_attribute` could not tell a piece from a head). So
-        # a nested entity — Dispatch, inside Handler — is not a direct
-        # child of the root the way Handler itself is, and a plain
-        # `aggregate.entities.find` stops one level short of it.
-        #
-        # @param construct [Bluebook::Aggregate, Bluebook::Entity] the construct to
-        #   search, and every entity nested under it
-        # @param name [String] the entity's declared `hecks_name` to find
-        # @return [Bluebook::Entity, nil] the matching entity anywhere in the tree, or
-        #   nil if none matches
+        # Searches the whole entity tree, not just the root's direct
+        # children; `aggregate` here is always the root aggregate. (ADR 0026)
         def find_entity(construct, name)
           construct.entities.each do |candidate|
             return candidate if candidate.hecks_name == name
@@ -47,54 +20,12 @@ module Hecks
           nil
         end
 
-        # Hydrates a `list_of` attribute's offered value — each element of a
-        # whole-list offering, or a single remove-target value, depending on
-        # `attribute.type` and `value`'s own shape.
+        # Hydrates a `list_of` attribute's offered value: each element of a
+        # whole-list Array, or a single remove-target value.
         #
-        # Frozen through: a list read back out of the store is an answer,
-        # not a handle on what is stored.
-        #
-        # ADR 0047 — bailing (`return value unless entity`) the moment
-        # `attribute.type` names a value object rather than an entity would
-        # hand back the raw, un-hydrated argument untouched. A `sets :field`
-        # mutation sourced from a whole-array argument (as opposed to
-        # element-by-element `append:`) goes straight through
-        # `for_attribute`'s `:list` branch, so `Banking::CardPayment.
-        # Authorize`'s own `sets :tags` (`list_of(Tag)`) would store plain
-        # Ruby Hashes as its `tags` elements forever — never a real
-        # `Value`, never through `Tag`'s own `pattern:`/`invariant`
-        # checks. `remove:`'s `==` comparison (a real `Value` against a
-        # raw `Hash`) would then always fail, since `Hash#==` refuses
-        # anything that isn't itself a compatible Hash — the bug ADR 0047
-        # traces in full. Delegating to `hydrate_value_object_list` below
-        # closes that gap the same way the entity branch already works:
-        # build a real, validated `Value` per element, reusing
-        # `for_attribute`'s own composite-construction path rather than
-        # inventing a second one.
-        # BUG#32 (QualityControl ledger) — without this, `remove:`'s own
-        # single-target value would fall straight into
-        # `Array(value).map { ... }` below unguarded, unlike this method's
-        # own delegated `hydrate_value_object_list` sibling, whose
-        # `value.is_a?(Array)` check exists for exactly this shape (see
-        # that method's own comment). For an entity-typed list, `remove:`'s
-        # scalar target (`Ledger.Void`'s `sequence: EntrySequence`) is
-        # never a Hash, so `Array(2)` would merely wrap it as `[2]` rather
-        # than shredding it — but the wrapping itself would still be wrong:
-        # `MutationApplier#removed`'s `element == value` would then compare
-        # a stored `Entry` Hash against a one-element Array, which can
-        # never be `==` a Hash, so nothing would ever be removed and
-        # nothing would ever refuse either. Routed to `hydrate_entity_identity`
-        # instead, below.
-        #
-        # @param aggregate [Bluebook::Aggregate] the root aggregate `attribute` is
-        #   declared on
-        # @param attribute [Bluebook::Attribute] the `list_of` attribute being hydrated
-        # @param value [Array<Hash, Object>, Object] the offered value: a whole-list
-        #   Array (a `sets`/hydrate load) or a single remove-target value
-        # @return [Object] a frozen Array of hydrated elements when `value` is a
-        #   whole-list Array and `attribute.type` names an entity; otherwise whatever
-        #   `hydrate_entity_identity` (a non-Array value naming an entity) or
-        #   `hydrate_value_object_list` (`attribute.type` naming no entity) returns
+        # Delegates non-entity types to `hydrate_value_object_list` so
+        # elements get the same `pattern:`/invariant checks other
+        # composites get. (ADR 0047)
         def hydrate_entity_list(aggregate, attribute, value)
           entity = find_entity(aggregate, attribute.type.to_s)
           return hydrate_value_object_list(aggregate, attribute, value) unless entity
@@ -110,61 +41,16 @@ module Hecks
               acc[key] = field ? for_attribute(aggregate, field, field_value) : field_value
             end
           end
-          # BUG#33 — only a genuine whole-list offering (`value.is_a?(Array)`)
-          # is a caller naming every element's own identity at once; the
-          # single-target shape this same method also hydrates (a `remove:`
-          # target, wrapped one level up by `Array()`) never reaches this
-          # check, and never should — see `check_entity_list_identities`'s
-          # own comment.
+          # Only a genuine whole-list offering names every element's own
+          # identity at once; a single `remove:` target never reaches this.
           check_entity_list_identities(aggregate, entity, hydrated) if value.is_a?(Array)
           Freezer.deep(hydrated)
         end
 
-        # `MutationApplier#check_entity_collision`'s own guard
-        # (mutation_applier.rb), extended from a single caller-supplied
-        # append (BUG#13) to a whole-list replace — `sets :entries` bare
-        # (`Ledger.ReplaceEntries`, the corpus's first `list_of(ENTITY)`
-        # command argument/mutation, qa/stress_domains/corrections). The
-        # array branch above rebuilds each offered element's own declared
-        # fields but never checked the offered list itself for either way
-        # it can misname its own entities:
-        #
-        #   - two elements sharing one identity — the same silent-duplicate
-        #     hazard BUG#13's own comment describes: `EntityInterpreter#
-        #     element_of`'s own `find_index` always matches the first
-        #     match, so the second becomes permanently unaddressable by any
-        #     later command.
-        #   - an element missing its identity altogether — there is no
-        #     auto-mint for a whole-list replace the way `MutationApplier#
-        #     entity_element` mints one for a single append (which element
-        #     would it mint for? every element here is the caller's own
-        #     whole state, offered at once), so an absent identity is
-        #     refused rather than guessed.
-        #
-        # Non-composite identities only, exactly BUG#13's own scope
-        # (`entity.identified_by` answers a single Symbol only when
-        # `identity_heads.size == 1`, `Behaviour::Traits#derive_identity`) —
-        # a composite identity's own duplicate/missing question is the
-        # same pre-existing, narrower gap BUG#13 documented and left open,
-        # not widened here.
-        #
-        # Refuses a whole-list offering that misnames its own entities' identities —
-        # a duplicate identity across two elements, or an element missing one.
-        #
-        # Skipped under `trusting_stored_state?`, the same guard `validate!`
-        # already gives every value object (C6.3): a record already
-        # written is trusted as it was, so tightening this check can never
-        # make an old, already-persisted record unreadable.
-        #
-        # @param aggregate [Bluebook::Aggregate] the aggregate `entity` belongs to,
-        #   named in a refusal
-        # @param entity [Bluebook::Entity] the entity type `elements` are shaped as
-        # @param elements [Array<Hash, Object>] the hydrated whole-list offering; a
-        #   non-Hash element is skipped, not checked
-        # @return [void]
-        # @raise [Runtime::TypeMismatch] if `entity` declares a single-field identity
-        #   and an element offers no value for it
-        # @raise [Runtime::AlreadyExists] if two elements offer the same identity value
+        # Refuses a whole-list offering that misnames its own entities: a
+        # duplicate identity across two elements, or an element missing
+        # one. Single-field identities only; skipped once
+        # `trusting_stored_state?`.
         def check_entity_list_identities(aggregate, entity, elements)
           identity = entity.identified_by
           return unless identity
@@ -194,43 +80,10 @@ module Hecks
           end
         end
 
-        # BUG#32 — `remove:`'s own single-target value against an
-        # entity-typed list. An entity is never offered to `remove:`
-        # whole the way a value object is (`hydrate_value_object_list`'s
-        # own `element == value` full-value-equality shape) — an entity
-        # must never answer `.value_object` at all (`Entity`'s own header
-        # comment), so there is no whole-value shape here to rebuild in
-        # the first place, only the one field a caller would otherwise
-        # have to name to address that element any other way
-        # (`EntityElement#element_of`'s own `wants`). So this coerces the
-        # offered scalar against the entity's own identity field's
-        # declared type — not the entity's full shape — and hands back a
-        # real, correctly-typed `Value` ready to compare against each
-        # stored element's own identity field
-        # (`EntityElement.list_element_match?`, the shared rule both
-        # `MutationApplier#removed` and `EntityElement#
-        # removed_from_element` match against).
-        #
-        # A composite identity (more than one head) has no single field a
-        # bare `remove:` target could mean, so this passes the value
-        # through uncoerced rather than guessing which head — the same
-        # "nothing in this corpus needs it yet" boundary
-        # `MutationApplier#check_entity_collision`'s own header already
-        # draws for entity identity elsewhere in this runtime.
-        # Coerces a `remove:` target against an entity's own single-field
-        # identity type, rather than the entity's full shape.
-        #
-        # `list_element_match?` treats an uncoerced value the same way
-        # it always treated the pre-fix wrapped Array: never a match, a
-        # documented no-op rather than a crash.
-        #
-        # @param aggregate [Bluebook::Aggregate] the aggregate `entity` belongs to
-        # @param entity [Bluebook::Entity] the entity type `value` addresses
-        # @param value [Object] the offered remove-target value
-        # @return [Runtime::Value, Object] `value` already coerced (returned unchanged);
-        #   the value coerced against the identity field's declared type when `entity`
-        #   has a single identity head and a matching attribute; `value` unchanged
-        #   otherwise (no identity head, a composite identity, or no matching attribute)
+        # Coerces a `remove:` target against an entity's single-field
+        # identity type, rather than the entity's full shape. Passed
+        # through unchanged for a composite identity (more than one head)
+        # rather than guessing which head it means.
         def hydrate_entity_identity(aggregate, entity, value)
           return value if value.is_a?(self)
 
@@ -243,47 +96,12 @@ module Hecks
           for_attribute(aggregate, field, value)
         end
 
-        # Hydrates a `list_of` attribute's offered value when `attribute.type`
-        # names a value object rather than an entity.
+        # Hydrates a `list_of` attribute's offered value when
+        # `attribute.type` names a value object rather than an entity.
         #
-        # The value-object sibling of the entity branch above: an element
-        # already shaped like the target `Value` (or a `Hash`/scalar that
-        # `fields_for` can still open) is rebuilt through the same `build`
-        # a scalar composite attribute already uses (`for_attribute`'s own
-        # `coerced = ... build(value_object, fields_for(...), aggregate)`
-        # line) — same defaults, same `pattern:`/`admits:`/invariant
-        # checks, same `trusting_stored_state?` bypass on a trusted load.
-        # `attribute.type` naming neither an entity nor a value object
-        # (a `list_of(String)`, say) has no shape to rebuild into, so the
-        # element passes through unchanged, exactly as the entity branch's
-        # own non-Hash elements do.
-        #
-        # Not `Array(value).map` (unlike the entity branch above) — `value`
-        # here is not always genuinely list-shaped. `MutationApplier#
-        # removed`'s own `Value.for_attribute(aggregate, attribute, value)`
-        # call (`attribute` = the list attribute, `mutation.target`; `value`
-        # = the single remove-target argument, already a real `Value` by
-        # the time it gets here) reuses this exact branch — for `remove:`,
-        # not for a whole-list `sets`. `Array(a_real_Value)` alone would be
-        # harmless (`Value` defines neither `to_a` nor `to_ary`, so Kernel
-        # wraps it `[value]`), but `Array(a_Hash)` is not harmless: Ruby's
-        # `Array()` opens a bare Hash into its own `[[k, v], ...]` pairs,
-        # not `[hash]` — silently shredding a single-element Hash-shaped
-        # target into garbage instead of hydrating it. Branching on
-        # `value.is_a?(Array)` up front (true only for a genuine whole-list
-        # `sets`/hydrate load) keeps the single-target shape a single
-        # target, hydrated the same way, never listified.
-        #
-        # @param aggregate [Bluebook::Aggregate] the aggregate `attribute` is declared
-        #   on, or a construct that does not respond to `value_object` (an entity), in
-        #   which case `value` passes through unchanged
-        # @param attribute [Bluebook::Attribute] the `list_of` attribute being hydrated
-        # @param value [Array<Hash, Object>, Object] the offered value: a whole-list
-        #   Array, or a single remove-target value
-        # @return [Object] `value` unchanged when `aggregate` does not respond to
-        #   `value_object`, or `attribute.type` names no value object; otherwise a
-        #   frozen Array of built `Value`s for a whole-list Array, or a single built
-        #   `Value` (via `hydrate_value_object_element`) otherwise
+        # Branches on `value.is_a?(Array)` rather than `Array(value)`: a
+        # bare Hash-shaped single target would otherwise be shredded into
+        # its own `[[k, v], ...]` pairs instead of hydrated whole.
         def hydrate_value_object_list(aggregate, attribute, value)
           return value unless aggregate.respond_to?(:value_object)
 
@@ -296,19 +114,8 @@ module Hecks
           Freezer.deep(hydrated)
         end
 
-        # Rebuilds one `list_of` element into a real, validated `Value`, unless it
-        # already is one of `value_object`'s own type.
-        #
-        # @param aggregate [Bluebook::Aggregate] the aggregate `value_object` is
-        #   resolved against
-        # @param attribute [Bluebook::Attribute] the `list_of` attribute `element`
-        #   belongs to
-        # @param value_object [Class] the `Bluebook::ValueObject` subclass `element`
-        #   is built as
-        # @param element [Object] the raw element to build: a Hash of fields, a scalar
-        #   `fields_for` can still open, or an already-built `Value`
-        # @return [Runtime::Value] `element` unchanged if it is already a `Value` of
-        #   `value_object`'s own type; otherwise a freshly built one
+        # Rebuilds one `list_of` element into a real, validated `Value`,
+        # unless it already is one of `value_object`'s own type.
         def hydrate_value_object_element(aggregate, attribute, value_object, element)
           return element if element.is_a?(self) && element.type_name == value_object.hecks_name
 

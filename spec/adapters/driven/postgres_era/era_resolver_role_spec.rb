@@ -1,18 +1,9 @@
 require "hecks"
 require "hecks/ports/persistence/plugins/era"
 
-# `EraResolver.check!`'s own `role` lookup — deliberately not `io: true`:
-# every collaborator that would otherwise need a real Postgres connection
-# (connect_for, Lineage) is doubled, so this isolates exactly the one
-# thing under test — which settings spelling `role` resolves to — without
-# needing a live database.
-#
-# `role` only ever grants privileges when truthy (`grant_role!(...) if
-# role`), so a `false` role and an absent one are downstream-equivalent —
-# except at the moment of resolution itself: the old `settings[:role] ||
-# settings["role"]` would silently substitute the string spelling's value
-# whenever the symbol spelling held `false`, granting a role nobody asked
-# for. That substitution is exactly what this proves does not happen.
+# Which settings spelling `EraResolver.check!` resolves `role` from. Postgres
+# collaborators are doubled, so no live database is needed.
+# Pins that a `false` symbol-keyed role does not fall through to the string key.
 RSpec.describe "Hecks::Adapters::PostgresEra::LineageManager::EraResolver — role resolution" do
   let(:lineage) do
     instance_double(Hecks::Adapters::PostgresEra::Lineage, check_fence_applies!: nil, ensure_base!: nil, eras: [],

@@ -2,24 +2,9 @@ require "tmpdir"
 require "open3"
 require "fileutils"
 
-# bin/heki_compact is a script, not a library — same reasoning
-# bin_stores_spec.rb's own header gives: run it as a real subprocess
-# (Open3) against real, on-disk fixture directories.
-#
-# Two fixtures, both real:
-#   - spec/fixtures/heki_compact_fixture — one Heki-persisted aggregate
-#     with no `projected_by` binding at all, where compaction is
-#     genuinely safe. Proves the actual behavior (dry run reports,
-#     --force compacts, current state survives a fresh boot).
-#   - examples/banking — a real, already-shipped example that pairs
-#     `persisted_by("Heki")` with `projected_by("SqliteProjection")`.
-#     Proves the refusal: compacting here would silently break
-#     `Ports::Projection::Worker#catch_up!`/`Registry#
-#     projection_current?`, both of which read an authoritative
-#     adapter's `entries` in full, forever — confirmed directly (see
-#     `Hecks::Adapters::Heki::Journal#compact!`'s own header) by
-#     driving `Worker#catch_up!` against a compacted Heki store and
-#     watching it raise `Runtime::WiringError` for real.
+# Runs bin/heki_compact as a subprocess (Open3) against on-disk fixtures: a Heki
+# aggregate with no `projected_by` (safe to compact) and examples/banking (refused,
+# since a projection worker reads the full journal).
 RSpec.describe "bin/heki_compact" do
   HEKI_COMPACT_SCRIPT = File.join(InMemoryDomain::ROOT, "bin/heki_compact").freeze
   HEKI_COMPACT_FIXTURE = File.join(InMemoryDomain::ROOT, "spec/fixtures/heki_compact_fixture/bluebook").freeze
@@ -72,11 +57,8 @@ RSpec.describe "bin/heki_compact" do
     it "dry-runs without touching the journal, then compacts for real under --force" do
       bluebook_dir = copy_fixture(HEKI_COMPACT_FIXTURE, "fixture")
       seed_gadget(bluebook_dir)
-      # Heki's own `resolve_path` resolves relative to the boot root
-      # (`File.dirname` of the bluebook directory itself, per
-      # `Runtime::Loader.boot`), not the bluebook directory — so the
-      # store lands one level up from `bluebook_dir`, beside it, not
-      # inside it.
+      # Heki resolves paths against the boot root (the bluebook directory's parent),
+      # so the store lands beside `bluebook_dir`, not inside it.
       journal_path = File.join(@dir, "data", "gadget.heki.journal")
       expect(File.size(journal_path)).to be > 0
 
@@ -91,8 +73,6 @@ RSpec.describe "bin/heki_compact" do
       expect(force_stdout).to include("COMPACTED gadget")
       expect(File.size(journal_path)).to eq(0)
 
-      # Current state survives — a fresh boot after compaction sees
-      # exactly what it did before.
       runtime    = Hecks.boot(bluebook_dir, install_facade: false)
       aggregate  = runtime.registry.bluebook("HekiCompactFixture").aggregate("Gadget")
       repository = runtime.registry.repository("HekiCompactFixture", aggregate)
@@ -125,9 +105,7 @@ RSpec.describe "bin/heki_compact" do
         expect(stderr).to include("projected_by binding")
       end
 
-      # The journal for a real Heki-backed banking aggregate is
-      # untouched — nothing was compacted (and this spec never seeded
-      # any data for it either, so it's never been written at all).
+      # Nothing was compacted; this spec never seeds banking data, so no journal exists.
       journal_path = File.join(@dir, "data", "account.heki.journal")
       expect(File.exist?(journal_path)).to be false
     end

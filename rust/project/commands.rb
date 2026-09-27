@@ -4,27 +4,14 @@ module RustProjection
   module Projector
     module_function
 
-    # THE AGGREGATE'S OWN INVARIANT SET, generated once per aggregate file
-    # and passed to every dispatch of its commands (entity commands
-    # included — Ruby checks the PARENT on those too). Mirrors
-    # `Admissibility#enforce_invariants`/`#check_entity_invariants`: the
-    # aggregate's rules, then each entity list whose entity declares
-    # invariants (an entity with none is not descended into, exactly as
-    # Ruby's `next if invariants.empty?`), nested pieces recursively.
-    # docs/semantics/bluebook-semantics.md C6.2.
+    # The aggregate's own invariant set, passed to every dispatch of its commands.
+    # Entity lists are descended into only when the entity declares invariants (C6.2).
     def invariants_fn_name(aggregate) = "#{rust_ident_field(aggregate[:name]).downcase}_invariants"
 
     def emit_invariants_fn(aggregate)
       aggregate_vec = invariant_specs_vec(aggregate[:invariants], 8)
       entities_vec = entity_invariants_vec(aggregate, 8)
-      # `use crate::kernel::Expr;` is only needed when one of the two
-      # vecs below actually built an `Expr::...` literal
-      # (`invariant_specs_vec`'s own `ExprEmitter.emit_ast` call, never
-      # reached when `rules.empty?` short-circuits to a bare `vec![]`) —
-      # an aggregate/entity with NO invariants at all (most of the
-      # corpus) emits neither, leaving the import unused. Found live as
-      # a real `cargo check --workspace` warning across several
-      # generated files (RoleAssignment, RoleTransition, Identity, ...).
+      # Skip the `Expr` import when neither vec built an `Expr::` literal; it would be unused.
       needs_expr = [aggregate_vec, entities_vec].any? { |vec| vec.include?("Expr::") }
       [
         "fn #{invariants_fn_name(aggregate)}() -> crate::kernel::InvariantSet {",
@@ -69,13 +56,8 @@ module RustProjection
       "vec![\n#{rows.join("\n")}\n#{' ' * indent}]"
     end
 
-    # The `transition:` argument `dispatch`/`dispatch_entity` take.
-    # `None` covers two different "no check" cases on purpose: no
-    # transition row at all, and an UNCONSTRAINED row (`from: nil` —
-    # admits from any state). The kernel refuses whatever `from_states`
-    # does not contain, so an unconstrained transition emitted as an
-    # EMPTY slice would refuse every state instead of admitting every
-    # state — the exact inversion of what the declaration says.
+    # `None` covers both "no transition" and an unconstrained one (`from: nil`); an empty
+    # `from_states` slice would refuse every state instead of admitting every state.
     def transition_check_arg(transition)
       return "None" if transition.nil? || transition[:unconstrained]
 
@@ -83,87 +65,37 @@ module RustProjection
         "from_states: &[#{transition[:from_states].map(&:inspect).join(', ')}] })"
     end
 
-    # `owner_deref`/`command_deref` — the two EXTRA parameters every
-    # generated `dispatch_*`/`dispatch_entity_*` function now takes,
-    # alongside its typed `args`, carrying whatever cross-aggregate
-    # dereference (`customer.status`, `parent.account.customer.status`)
-    # its OWN `given`/`ensures` clauses might need — already resolved,
-    # by the ROUTER (`registry.rb`'s own `aggregate_arms`/`entity_arms`),
-    # into plain owned data before this function is ever called
-    # (`reference_lookup.rs`'s own header on why that has to happen
-    # there, not here). Shared between `emit_command`/`emit_entity_command`
-    # — identical shape either way, the same way `invariant_checks_for`
-    # already is.
+    # Cross-aggregate dereferences, already resolved by the router into owned data,
+    # that every generated dispatch function takes.
     DEREF_PARAMS = ["owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>",
                      "command_deref: Vec<(&'static str, crate::kernel::DerefNode)>"].freeze
 
-    # BUG#139 — the AGGREGATE-COMMAND-ONLY counterpart to `DEREF_PARAMS`,
-    # above: `kernel/dispatch.rs`'s own `dispatch()` (never `dispatch_
-    # entity`/`apply_entity_command` — write-side tenant boundary checks
-    # are wired for aggregate commands only, `registry.rb`'s own
-    # `tenant_boundary_checks` header) now takes an already-computed
-    # `Result<(), Refusal>`, deferred to the exact position Ruby's own
-    # `step_save` checks it (see `dispatch()`'s own header comment on the
-    # parameter for the full reasoning). Only `emit_command` threads this
-    # — never `emit_entity_command` or the two-hop nested-entity emitter —
-    # since neither of those calls `crate::kernel::dispatch` at all.
+    # Deferred tenant-boundary result, aggregate commands only; `dispatch()` checks it where
+    # Ruby's `step_save` does.
     TENANT_BOUNDARY_PARAM = "tenant_boundary_check: Result<(), crate::kernel::Refusal>".freeze
 
-    # The ONE line every generated `dispatch_*`/`dispatch_entity_*` body
-    # adds — `crate::kernel::WithReferences`, read directly
-    # (reference_lookup.rs): `command_deref` wins ties (an entity
-    # command's own `"parent"` entry lives in THAT list, appended by the
-    # router), the untouched typed `args` struct is checked second,
-    # `owner_deref` (an aggregate's own STORED reference fields) is
-    # checked last — the exact precedence `CommandRules::Admissibility
-    # #enforce_givens`'s own three-way `.merge` chain already has.
+    # Binds `WithReferences`. Precedence, highest first: `command_deref`, typed `args`,
+    # `owner_deref`, matching the merge chain in `Admissibility#enforce_givens`.
     def with_references_binding
       "let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };"
     end
 
-    # THE SYNCHRONOUS HALF OF `projects` (S12, ADR 0025) — the ONE line
-    # every generated `dispatch_*`/`dispatch_entity_*` body adds right
-    # after `with_references_binding`, mirroring that same line's own
-    # shape: `crate::kernel::seeded_projections`, read directly
-    # (reference_lookup.rs), off the SAME `with_references` just built —
-    # no new router-level parameter needed the way `owner_deref`/
-    # `command_deref` themselves are, since a projected field's own
-    # source (whichever reference `with_references` already resolves)
-    # is exactly what `owner_deref`/`command_deref` exist to answer.
-    # `#{AGGREGATE}_PROJECTED_FIELDS` (types.rb's own `emit_projected_
-    # field_table`) is always emitted, even empty — `seeded_projections`
-    # over an empty spec list is a real, cheap no-op, not a branch this
-    # generator needs to special-case away.
+    # Seeds `projects` fields from the same `with_references` (ADR 0025); the field table is
+    # always emitted, so an empty spec list is a no-op.
     def seed_projections_binding(aggregate)
       table = screaming_snake(aggregate[:name])
       "let seed_projections = crate::kernel::seeded_projections(&with_references, #{table}_PROJECTED_FIELDS);"
     end
 
     def command_skip_reason(command, aggregate, value_objects_by_name, creating_possible: true)
-      # BUG#32 (QualityControl ledger) — `remove` used to be excluded
-      # from this list OUTRIGHT, for every shape, entity-typed or not:
-      # nothing in this generator had ever implemented ANY `remove:`
-      # mutation before this fix. `remove_field_problems`, below,
-      # narrows that to exactly the one shape this generator can
-      # actually emit correctly today (an ENTITY-typed list, matched by
-      # its own identity field) — a VALUE-OBJECT-typed list's own
-      # `remove:` (matched by whole-value equality) is real on the Ruby
-      # side (`spec/mutation_remove_growth_spec.rb`) but has no live
-      # corpus command declaring one for THIS generator to prove itself
-      # against, so it stays unsupported here, same as before this fix.
+      # `remove` is generated only for entity-typed lists matched by identity; value-object
+      # lists stay unsupported.
       unsupported_ops = command[:mutations].reject { |m| %w[append set increment decrement multiply clamp remove delegate corrects].include?(m[:op].to_s) }.map { |m| m[:op] }.uniq
       return skip("mutation_op", "sets op(s) #{unsupported_ops.join(', ')} not generated yet (only append/set/increment/decrement/multiply/clamp/remove/delegate/corrects are)") if unsupported_ops.any?
 
       corrects = corrects_of(command)
-      # `derive_reverses_mutations!` (mutations.rb, called before this
-      # ever runs) already appended the derived inverse mutation(s) onto
-      # THIS command when every sibling mutation it reverses was
-      # increment/decrement — the one shape Ruby's own `seal_correction_
-      # targets` has resolved. Skip ONLY when that pass left this command
-      # untouched: nothing emits the event, or a sibling mutation is one
-      # of the non-invertible ops (append/remove/set/multiply/clamp)
-      # Ruby's own authors haven't finished designing a reversal for
-      # (ADR 0041) — the real, still-open gap, not this whole construct.
+      # Skip only when `derive_reverses_mutations!` left this command untouched: a non-invertible
+      # sibling op has no reversal design yet (ADR 0041).
       return skip("corrects_reverses", "corrects #{corrects[:target]}, reverses: true — the derived append/remove-reversal shape is a real, separate gap Ruby's own authors haven't finished designing (AggregateBuilder#seal_correction_targets's own comment) — not generated yet") \
         if corrects && corrects_reverses?(corrects) && command[:mutations].none? { |m| m[:op].to_s != "corrects" }
 
@@ -179,24 +111,11 @@ module RustProjection
 
       lifecycle_field = aggregate[:lifecycle] && aggregate[:lifecycle][:field].to_s
       target_type_for = ->(target) { target.to_s == lifecycle_field ? "String" : aggregate[:attributes].find { |a| a[:name].to_s == target.to_s }&.dig(:type) }
-      # BUG#25 — the lifecycle field is never list-typed; every other
-      # target's own `[:list]` flag, straight off the aggregate's
-      # declared attribute (`false`/nil when the target isn't found at
-      # all — `target_type_for` above already answers nil for that same
-      # case, so the `target_type && ...` guard below short-circuits
-      # first).
+      # The lifecycle field is never list-typed.
       target_list_for = ->(target) { target.to_s != lifecycle_field && !!aggregate[:attributes].find { |a| a[:name].to_s == target.to_s }&.dig(:list) }
 
-      # A `:set` mutation's literal source is EITHER a bare scalar (`to:
-      # "sold"`) or a raw Ruby Hash (`to: { value: "good" }` —
-      # Command::Mutation#classified_source wraps any non-Symbol source as
-      # `{kind: "literal", value: source}` UNTOUCHED, unlike `:append`'s
-      # `.inspect`'d fields, so a literal value object needs no re-parsing —
-      # `literal_hash_rhs`, above, builds its Rust struct literal straight
-      # from the Hash). Bridgeable only when every field the target VO
-      # declares is actually present in the literal; checked generically (not
-      # just "is it a Hash") so nothing NEW and unexpected can crash the run
-      # instead of being skipped.
+      # A literal `:set` source is a scalar or a raw Hash; a Hash must supply every field of the
+      # target value object.
       literal_set_targets = command[:mutations].select do |m|
         next false unless m[:op].to_s == "set" && m[:source][:kind] == "literal"
 
@@ -204,28 +123,8 @@ module RustProjection
       end.map { |m| m[:target] }
       return skip("set_literal", "sets to: a literal that doesn't bridge to the target's type (#{literal_set_targets.join(', ')}) — not generated yet") if literal_set_targets.any?
 
-      # Ruby's real `apply`, for `:set`, does `Value.for(aggregate, mutation.target,
-      # value)` — it coerces whatever arrived into the TARGET attribute's OWN
-      # declared type, regardless of what type the SOURCE argument was declared
-      # as (found live: the self-hosted grammar sets an `IdentityField`-typed
-      # attribute from a `FieldName`-typed argument — different value objects,
-      # same one-`value`-field shape). This generator's `:set` just clones the
-      # argument's own type straight across, which only compiles when source
-      # and target genuinely agree — checked here so a real mismatch is a named
-      # skip, not a `cargo build` error with no Ruby-side explanation.
-      # BUG#25 — `bridgeable_value_types?` checks ELEMENT types only
-      # (correct: a `has_many`'s own `Reference<Target>` element and a
-      # `list_of(Handle)` argument's own `Handle` element genuinely ARE
-      # bridgeable, the same single-field rewrap any other Handle-shaped
-      # scalar gets). What it never checked is CARDINALITY — a scalar
-      # argument can't broadcast into a list target, and (before this
-      # fix, the literal BUG#25 defect) a list argument reaching a list
-      # target via `value_rhs` alone collapsed as if it were one bare
-      # scalar (`args.members.value.clone()` against a `Vec<Handle>`).
-      # `mutation_set_rhs`'s own `target_list:`/`list_value_rhs` (BUG#25)
-      # is what actually generates the list-to-list case correctly, so
-      # the only shape genuinely unsupported here is a MISMATCHED
-      # cardinality — checked as its own, list-aware condition.
+      # Ruby coerces a `:set` value into the target's declared type; the generated clone only
+      # compiles when source and target agree, and cardinality (list vs scalar) must match.
       mismatched_sets = command[:mutations].select do |m|
         next false unless m[:op].to_s == "set" && m[:source][:kind] == "argument"
 
@@ -238,20 +137,8 @@ module RustProjection
       end.map { |m| m[:target] }
       return skip("set_argument_bridge", "sets :#{mismatched_sets.join(', ')} sources an argument no single-field rewrap can bridge to the target's type — not generated yet") if mismatched_sets.any?
 
-      # `:increment`/`:decrement`/`:multiply` — Ruby's real
-      # `arithmetic_value_object`/`multiply` (command_rules/arithmetic.rb,
-      # read directly) both find the ONE field that's `Integer` in both the
-      # target VO and the (already target-type-coerced) amount, and change
-      # only that field — `multiply` differs from `arithmetic_value_object`
-      # ONLY in which Proc does the combining (`{ |c, a| c * a }` vs `current
-      # + sign*amount`), never in which field is eligible or how the amount
-      # is resolved, so this generator's own eligibility check and amount-
-      # resolution are shared across all three ops, matching Ruby's own
-      # shared `unwrap_single_numeric_field`/shared-numeric-field-matching
-      # machinery. Bridgeable when the target names such a field AND the
-      # amount resolves to a raw integer expression — `arithmetic_amount_
-      # expr`, above, is the same "can we generate this" / "here's how"
-      # pairing `bridgeable_value_types?`/`value_rhs` already use for `:set`.
+      # increment/decrement/multiply share one check: the target names an Integer field and the
+      # amount resolves to an integer expression.
       arithmetic_targets = command[:mutations].select { |m| %w[increment decrement multiply].include?(m[:op].to_s) }
       unsupported_arithmetic = arithmetic_targets.reject do |m|
         target = arithmetic_target_field(m, aggregate, value_objects_by_name)
@@ -259,17 +146,8 @@ module RustProjection
       end.map { |m| m[:target] }
       return skip("arithmetic", "sets :#{unsupported_arithmetic.join(', ')} increment/decrement/multiply amount or target field isn't bridgeable — not generated yet") if unsupported_arithmetic.any?
 
-      # `:clamp` — Ruby's real `Arithmetic#clamp` (read directly): "a
-      # genuinely different shape [from #arithmetic/#multiply] -- its
-      # source is always a literal [min, max] pair, never an argument
-      # reference -- and it bounds the CURRENT value rather than
-      # combining it with an amount." No `arithmetic_amount_expr` to
-      # resolve at all — the ELIGIBLE TARGET half is identical to
-      # increment/decrement/multiply (`arithmetic_target_field`, the
-      # same Integer-VO-field scope, not widened here either), but the
-      # bounds themselves need their own check: a literal two-element
-      # Array of Integers, exactly the shape `classified_source` always
-      # produces for a `clamp:` mutation (`clamp_bounds_ints`, below).
+      # `clamp` bounds the current value with a literal [min, max] Integer pair; the target
+      # field rule is the same as arithmetic.
       clamp_targets = command[:mutations].select { |m| m[:op].to_s == "clamp" }
       unsupported_clamp = clamp_targets.reject do |m|
         arithmetic_target_field(m, aggregate, value_objects_by_name) && clamp_bounds_ints(m[:source])
@@ -282,44 +160,17 @@ module RustProjection
       nil
     end
 
-    # `attr[:optional]` (0014/0015) means a caller-omittable ARGUMENT — a
-    # fact about the COMMAND. Nothing in this IR ever marks a value
-    # object's or entity's OWN attribute `optional: true` by declaration;
-    # the only way one becomes `Option<T>`-representable here is by
-    # RECEIVING one (an entity attribute this generator Option-wraps
-    # because SOME command's optional argument feeds it — `SafeDepositBox
-    # ::Visit.note`, via `LogVisit`'s `append`). That works cleanly when
-    # the target is ALSO the thing Option-wrapped for the same reason. It
-    # does NOT work when an optional argument feeds a field this generator
-    # has no OTHER reason to make `Option<T>` — the self-hosted meta
-    # grammar's own `Attribute.Declare` is the real example: `default:`/
-    # `pattern:`/`admits:` are optional COMMAND arguments, appended onto a
-    # `Field` value object whose OWN attributes are never Option-wrapped
-    # (nothing else in this corpus ever needs `Field.default` to be
-    # absent). Ruby stores `nil` there without complaint — its args hash
-    # has no static shape to violate. A generated Rust struct's shape is
-    # fixed at compile time, so there is no honest choice here between
-    # "leave the target non-optional and lose the omission" and "generate
-    # something this domain's OWN declarations never asked for" — skipped,
-    # loudly, the same as every other ungenerable shape above.
+    # An optional argument feeding a field that is not `Option<T>` cannot be generated: the Rust
+    # struct shape is fixed at compile time, while Ruby stores `nil`. Skipped, not guessed.
     def optional_source_mismatches(command, aggregate, value_objects_by_name, creating_possible: true)
       lifecycle_field = aggregate[:lifecycle] && aggregate[:lifecycle][:field].to_s
       problems = []
 
-      # An ENTITY command never creates — it acts on one already-addressed
-      # element — so its own (optional) identity argument (a chess
-      # `Pawn.Promote`'s `id`, declared optional so the crowning policy's
-      # projection may name it) is not an identity source at all, and
-      # `creates_owner?`'s bare-name heuristic must not read it as one:
-      # `creating_possible: false` from `entity_command_skip_reason`.
+      # An entity command never creates, so its optional identity argument is not an identity
+      # source (`creating_possible: false`).
 
-      # `identified_by` (creating commands only — `identity_components`,
-      # mutations.rb, is never called for an acting command) is read
-      # straight off the command's own arguments to build the record's
-      # `id:` at creation time — never Option-wrapped, since a record has
-      # no "identity absent" state. An optional argument feeding it
-      # (`Member.Declare`'s own `position`) isn't a `sets` mutation at
-      # all, so the checks below never see it; caught here instead.
+      # `identified_by` is never Option-wrapped, so an optional argument feeding it is caught
+      # here; the `sets` checks below never see it.
       if creating_possible && creates_owner?(aggregate, command, value_objects_by_name)
         aggregate[:identified_by].each do |path|
           head, = path.split(".")
@@ -344,22 +195,12 @@ module RustProjection
           end
 
           target_attr = aggregate[:attributes].find { |a| a[:name].to_s == m[:target].to_s }
-          # A LIST target is exempt — a record's own list field is
-          # EITHER plain `Vec<T>` (`emit_record`'s default rule, resolved
-          # cleanly via `.unwrap_or_default()`) OR `Option<Vec<T>>`
-          # (`list_attr_creation_optional?` — `CardPayment.tags`, resolved
-          # cleanly via a straight assignment) — `emit_mutation_line`'s
-          # `:set` branch already handles both. Not a real mismatch to
-          # skip over either way.
+          # A list target is exempt: both `Vec<T>` and `Option<Vec<T>>` record fields are handled
+          # by the `:set` branch.
           next if target_attr && target_attr[:list]
 
-          # AN AGGREGATE COMMAND (`creating_possible`) writes into a record
-          # whose EVERY scalar/value-object field is `Option<T>`
-          # (`emit_record`), and `emit_mutation_line`'s `:set` branch assigns
-          # an optional argument's `Option<T>` straight across — `None` for
-          # an omitted argument, Ruby's own `nil`. Only an ENTITY command's
-          # element field is plain `T` unless declared optional, so only
-          # there is this a real mismatch.
+          # Aggregate-command records hold `Option<T>` fields, so an optional argument assigns
+          # straight across; only entity element fields can mismatch.
           next if creating_possible
 
           problems << "sets :#{m[:target]} sources optional argument #{source_attr[:name]}" unless target_attr && target_attr[:optional]
@@ -384,64 +225,16 @@ module RustProjection
       problems
     end
 
-    # Shared by `emit_command`/`emit_entity_command` — identical logic
-    # either way, since an entity command's own `command[:attributes]` has
-    # the exact same shape an aggregate command's does. Two independent
-    # concerns per attribute: the EXISTING nested-VO-invariant recursion
-    # (`args.field.check_invariants()?`, unchanged), and a command/entity-
-    # command argument's own usage-level `admits:` constraint
-    # (`constraints.rb`) — the OTHER door from `types.rb`'s own value-
-    # object-field-level check.
-    #
-    # `pattern:` at THIS usage-level door is deliberately NOT checked —
-    # docs/decisions/0043/0051 found, by tracing `Runtime::
-    # CommandInterpreter`'s full dispatch pipeline exhaustively and
-    # confirming live against Ruby's real interpreter, that a bare
-    # command-attribute's OWN `pattern:` is NEVER enforced by Ruby: `Value#
-    # check_patterns` fires only from `build`, which fires only when the
-    # attribute's type resolves to an actual value object and gets
-    # rebuilt — a usage-level `pattern:` on a scalar command argument has
-    # no VO to build at all, so it is silently accepted, whether or not
-    # that argument is ever a mutation source. Generating a check here
-    # made Rust STRICTER than Ruby (the opposite direction from every
-    # other gap this plan closed) — removed rather than kept, per ADR
-    # 0010 (Ruby is the reference implementation; Rust conforms to it,
-    # not the other way around). `admits:` at this SAME door is genuinely
-    # different: it fires unconditionally from `normalize_args`'s own
-    # `admit_declared_set` call, for every declared argument present in
-    # the payload, regardless of mutation usage — confirmed enforced,
-    # kept exactly as it was.
-    #
-    # `attr[:list]` attributes are skipped for the `admits:` check too —
-    # `admit_declared_set` is reached only via `Value.for_attribute`'s
-    # SCALAR branch (a list attribute returns early into
-    # `hydrate_entity_list` instead, before ever reaching it) — so a list
-    # attribute's own `admits:`/`pattern:` is unenforced by Ruby exactly
-    # like a scalar's `pattern:` is; no check is generated for either, on
-    # any list attribute, matching that silent acceptance rather than
-    # refusing to generate the command at all (this file used to refuse
-    # via `constraint_list_problems`, since removed — real, confirmed
-    # non-enforcement isn't a gap to name, it's the actual answer).
-    # ONE ATTRIBUTE's own admits-constraint-plus-invariant pair, against
-    # an ARBITRARY already-bound value expression — factored out of
-    # `invariant_checks_for` (below) so `json_codec.rb`'s own
-    # `emit_from_json_flat` can run the IDENTICAL two checks against a
-    # bare local (`let #{ident} = ...;`, ADR 0037 Finding 7's own fix)
-    # instead of waiting for `invariant_checks_for`'s POST-construction
-    # copy to run against the whole already-built `args.#{field}`. Same
-    # two doors either caller needs (`admits:` usage-level constraint,
-    # nested-VO invariant recursion), same per-attribute grouping — only
-    # the value expression differs.
+    # Per-attribute admits-constraint and nested-value-object invariant checks, against an
+    # already-bound value expression.
+    # Usage-level `pattern:` is deliberately not checked: Ruby never enforces it on a command
+    # argument (ADR 0010). List attributes skip `admits:` too, since `admit_declared_set` is
+    # only reached on the scalar branch.
     def argument_check_lines(attr, value_expr, aggregates_by_name, value_objects_by_name)
       lines = []
 
       unless attr[:list]
-        # RAW FIELD EXPRESSION, UNCONDITIONALLY — `types.rb`'s own value-
-        # object-field door (the OTHER caller of `emit_admits_check`)
-        # passes `self.#{field}` raw and never wraps the result itself,
-        # trusting `constraints.rb`'s own internal `optional_scalar_expr`/
-        # `wrap_if_optional` to do the ENTIRE optional-handling, self-
-        # contained.
+        # Raw field expression: `emit_admits_check` does its own optional handling.
         constraint = emit_admits_check(value_expr, attr, aggregates_by_name, value_objects_by_name)
         lines << "        #{constraint}" if constraint
       end
@@ -457,20 +250,8 @@ module RustProjection
       lines
     end
 
-    # THE POST-CONSTRUCTION COPY — `args.#{field}` against the WHOLE
-    # already-built Args struct, run a second time at both the router
-    # level (registry.rb's own `invariant_check_lines`, ahead of
-    # `refuse_role_mismatch`/`resolve_references`, R3) and again at the
-    # top of the generated `dispatch_*`/`dispatch_operation_*` function
-    # itself — deliberately kept, not replaced, by `emit_from_json_flat`'s
-    # own INTERLEAVED copy (`argument_check_lines`, above, called with a
-    # bare local instead of `args.#{field}`) now doing the same work
-    # per-argument, in declaration order, before the NEXT argument's own
-    # shape is even built: every real caller reaches a generated dispatch
-    # fn exclusively through the router, so this redundant copy only ever
-    # re-confirms what `from_json` already enforced correctly — see
-    # `domain_generator.rb`'s own comment on why the redundancy itself is
-    # kept.
+    # Post-construction copy against the built Args struct, run at the router and again in the
+    # dispatch fn; redundant with the interleaved checks in `from_json`, but kept.
     def invariant_checks_for(command, aggregates_by_name, value_objects_by_name)
       command[:attributes].flat_map do |attr|
         field = rust_ident_field(attr[:name])
@@ -478,13 +259,7 @@ module RustProjection
       end
     end
 
-    # ── ONE emitter for every command shape kernel::dispatch can run —
-    # creating or acting, with or without givens or an append mutation.
-    # What used to be emit_create_command's implicit, name-matched
-    # `assign_creation_attributes` step now lives inside the `Hydrate::Create`
-    # `build` closure; what used to be emit_act_command's given/mutation
-    # generation is now just data (`GivenSpec`s, a closure) handed to
-    # kernel::dispatch instead of hand-assembled control flow.
+    # One emitter for every command shape `kernel::dispatch` can run, creating or acting.
     def emit_command(command, aggregate, domain_name, value_objects_by_name, aggregates_by_name)
       record = rust_ident(aggregate[:name])
       cmd    = rust_ident(command[:name])
@@ -492,39 +267,17 @@ module RustProjection
       identity = identity_components(aggregate, command)
       identity_extra_params = identity.filter_map { |c| c[:param] }
 
-      # `aggregate_name`/`identity_reading` — the bare (never domain-
-      # qualified) name `CommandInterpreter#hydrate`'s own refusal wording
-      # quotes, and its declared identity reading (`Identity.reading`,
-      # identity.rb: `construct.identity_paths.join(", ")`) — the SAME
-      # join `domain_generator.rb`'s own `reference_checks` already
-      # computes for `reference_target_missing`'s `heads`. Needed by BOTH
-      # `creating_duplicate` and `record_missing` inside `kernel::dispatch`
-      # regardless of whether THIS command creates or acts, so this is
-      # computed once here rather than duplicated in the `if creates`
-      # branch below.
+      # `aggregate_name`/`identity_reading` feed the refusal wording of both `creating_duplicate`
+      # and `record_missing`, whatever the command shape.
       aggregate_name    = aggregate[:name].to_s
       identity_reading  = aggregate[:identified_by].join(", ")
 
-      # `struct_field` reused directly (not the whole `plain_struct`
-      # wrapper, types.rb) — an Args struct's own surrounding derive is
-      # `#[derive(Debug, Clone)]`, no `PartialEq` (never compared),
-      # different from `plain_struct`'s baked-in one, so only the ONE
-      # already-proven-valid piece that's actually identical (a single
-      # field declaration line) is worth sharing here.
+      # Reuses `struct_field` only; the Args derive lacks `PartialEq`, unlike `plain_struct`.
       args_struct = ["pub struct #{cmd}Args {"]
       command[:attributes].each do |attr|
         type = rust_type(attr[:type], list: attr[:list])
-        # `optional: true`, no default — a caller-omittable argument
-        # (`refuse_absent_arguments`'s own `required = attributes.reject
-        # (&:optional?)`, argument_gate.rb, read directly). Modeled as
-        # `Option<T>` — 0014/0015's own fix: nothing here used to
-        # represent "omitted" at all, so a real, legal call omitting one
-        # (`SafeDepositBox.LogVisit`'s own `note:`) failed with a
-        # manufactured "missing from JSON args" refusal Ruby never
-        # raises. `command_skip_reason` guards the one shape this can't
-        # honestly represent yet (an optional source feeding a
-        # NON-optional VO/entity field) before generation ever reaches
-        # here.
+        # An optional argument is `Option<T>`; `command_skip_reason` guards the one shape that
+        # cannot represent it.
         type = "Option<#{type}>" if attr[:optional]
         args_struct << "    #{Exemplar.render('struct_field', 'TmplFieldType' => type, 'tmpl_field' => rust_ident_field(attr[:name]))}"
       end
@@ -548,22 +301,15 @@ module RustProjection
                                           .map { |m| emit_mutation_line(m, aggregate, command, value_objects_by_name) }
       mutation_lines.unshift(pre_state_line) if reads_pre_state?(command[:mutations])
       mutation_lines.concat(corrects_flag_mutation_lines(command, aggregate))
-      # advance_lifecycle: unconditional once a transition applies at all —
-      # see kernel/dispatch.rs's TransitionCheck comment for why this lives
-      # here, as one more line in the SAME closure, rather than as its own
-      # dispatch() step. Covers commands with no explicit sets on the
-      # lifecycle field (Banking's Freeze/Unfreeze have none) — Purchase's
-      # own explicit sets above already covers itself, redundantly.
+      # Advance the lifecycle unconditionally once a transition applies, even when no explicit
+      # set targets the lifecycle field.
       mutation_lines << "        record.#{rust_ident_field(transition[:field])} = #{transition[:to_state].inspect}.to_string();" if transition && transition[:to_state]
       mutation_lines = ["        let _ = record;"] if mutation_lines.empty? # nothing to apply — silence the unused-param warning
       delegation = delegation_of(command, aggregate, value_objects_by_name, domain_name)
       if delegation
         raise "#{command[:name]}: a creating command cannot delegate — nothing exists to delegate to" if creates
 
-        # BUG#140 — `delegation[:element]` (the target's own identity
-        # extraction) now runs FIRST, inside the SAME closure `dispatch`
-        # only ever calls AFTER a successful hydrate — never, as before,
-        # spliced ahead of `dispatch` entirely via `delegation[:prelude]`.
+        # The element extraction runs first inside the closure, after a successful hydrate.
         mutation_lines = [delegation[:element], delegation[:apply]]
       end
       prelude   = delegation ? delegation[:prelude] : ""
@@ -571,39 +317,22 @@ module RustProjection
       emits_out = delegation ? delegation[:emits] : command[:emits]
 
       if creates
-        # `projected_field_pseudo_attributes` — a `projects` field is
-        # never a command argument (never `matched` below), so this
-        # always falls to the plain `None,` branch: correct, since
-        # `seed_projections` (this same dispatch's own trailing step,
-        # right before save) is what actually populates it, not
-        # anything a creating command's own args could set.
+        # A `projects` field is never a command argument, so it falls to `None`;
+        # `seed_projections` fills it before save.
         record_fields = (aggregate[:attributes] + Projector.projected_field_pseudo_attributes(aggregate)).map do |attr|
           matched = command[:attributes].find { |a| a[:name] == attr[:name] }
           field = rust_ident_field(attr[:name])
           if matched && matched[:optional]
-            # The COMMAND's own attribute is `Option<T>` now. A scalar/VO
-            # record field is ALREADY `Option<T>` unconditionally, so the
-            # optional arg's own `Option<T>` assigns straight across —
-            # wrapping it in another `Some(...)` would be
-            # `Option<Option<T>>`, not this record field's type. A
-            # list-typed record field is the SAME shape ONLY when
-            # `list_attr_creation_optional?` also Option-wrapped it
-            # (`CardPayment.tags`, types.rb's own matching check) —
-            # otherwise (emit_record's default rule: lists are never
-            # Option-wrapped) it needs unwrapping with the same `[]`
-            # fallback `default_for` gives an UNMATCHED list attribute.
+            # An optional argument is already `Option<T>`; a scalar record field takes it as is.
+            # A list field does too only when `list_attr_creation_optional?` wrapped it, else it is
+            # unwrapped with the `[]` fallback `default_for` gives an unmatched list attribute.
             if attr[:list] && !list_attr_creation_optional?(aggregate, attr[:name], value_objects_by_name)
               "            #{field}: args.#{field}.clone().unwrap_or_default(),"
             elsif attr[:list] || matched[:type] == attr[:type]
               "            #{field}: args.#{field}.clone(),"
             else
-              # A CROSS-AGGREGATE argument, same name as the owner's own
-              # field but a DIFFERENT declared type — `bridging.rb`'s own
-              # header (`SafeDepositBox.Rent`'s `attribute :customer,
-              # CustomerNumber`, bridged into the owner's own `customer:
-              # Reference<Customer>` field). A blind `.clone()` here
-              # assumed the two types were always identical, which this
-              # generic name-match never actually required.
+              # Same-named cross-aggregate argument of a different type (see `bridging.rb`):
+              # bridge it rather than clone.
               "            #{field}: #{optional_value_rhs("args.#{field}", matched[:type], attr[:type], value_objects_by_name)},"
             end
           elsif matched
@@ -622,9 +351,7 @@ module RustProjection
         record_fields << "            #{rust_ident_field(aggregate[:lifecycle][:field])}: #{aggregate[:lifecycle][:default].inspect}.to_string()," if aggregate[:lifecycle]
         correctable_event_names(aggregate).each { |name| record_fields << "            #{corrects_flag_field(name)}: false," }
 
-        # BUG#28 — mirrors `CommandInterpreter#step_hydrate`'s own branch
-        # (`ctx.plan.complete_state? && ctx.plan.state_independent?`):
-        # `state_independent_creation?`'s own header has the full story.
+        # Mirrors `CommandInterpreter#step_hydrate`'s complete-state and state-independent branch.
         state_independent = state_independent_creation?(aggregate, command, value_objects_by_name)
         create_block = <<~RUST.rstrip
           crate::kernel::Hydrate::Create {
@@ -636,32 +363,9 @@ module RustProjection
               }
         RUST
 
-        # BUG#22 (QualityControl ledger) — `CommandInterpreter#hydrate_
-        # existing`/`#hydrate_complete_state` both check ROUTE at runtime
-        # before deciding create-vs-find, a decision this generator used
-        # to make purely from `creates:`'s own STATIC flag, never reading
-        # `route` at all. `complete_state_creation?`'s own header has the
-        # full story on why `complete_state?` ALONE (not `state_
-        # independent?`) is the fact that decides which of Ruby's two
-        # route-handling shapes applies here:
-        #   - complete_state?-true (`hydrate_complete_state`/`hydrate_
-        #     prior_or_initial`): a route is checked against this
-        #     command's own derived identity, refusing `TypeMismatch` on a
-        #     mismatch, then creates using that (now-agreeing) identity —
-        #     exactly the plain `None` (no route) case below, just with
-        #     the identity pre-validated against what the caller routed
-        #     to instead of trusted blind.
-        #   - complete_state?-false (`hydrate_existing`, the legacy
-        #     path): `route.nil? && creates?` (`legacy_implicit_
-        #     creation?`) is ALL that gates minting a fresh record — a
-        #     route present, on a creating command or not, forces a plain
-        #     find-or-`NotFound` instead, the exact `Hydrate::Act` shape
-        #     a non-creating command already uses. `route` is already a
-        #     parameter here (this fn takes it whether or not this branch
-        #     ever reads it — see `registry.rb`'s own header on why it's
-        #     ALWAYS bound at the router, unused for a legacy-branch
-        #     creating command before this fix) so no new plumbing is
-        #     needed beyond this function's own signature gaining it.
+        # Ruby checks the route before choosing create-vs-find. With `complete_state?` a route is
+        # validated against the derived identity (`TypeMismatch` on mismatch), then creates;
+        # otherwise a route forces find-or-`NotFound` (`Hydrate::Act`).
         complete_state = complete_state_creation?(aggregate, command, value_objects_by_name)
         route_mismatch_message = "#{command[:name]} routes to {:?}, but its identity facts name {:?}"
         route_arm =
@@ -726,30 +430,14 @@ module RustProjection
       "#{emit_fielded_flat("#{cmd}Args", command[:attributes], value_objects_by_name)}\n\n#[derive(Debug, Clone)]\n#{args_struct.join("\n")}\n\n#{dispatch_fn}"
     end
 
-    # `corrects "EventName", reason: "..."` — `CommandRules::Admissibility
-    # #enforce_correction_target`, read directly: "structural, before the
-    # declared givens... has THIS record actually [emitted the named
-    # event] yet." Ported as a synthetic, PREPENDED GivenSpec (see
-    # `corrects_given_specs`) whose `expr` reads a per-record boolean
-    # field this same generator also arranges to set — `corrects_flag_field`
-    # names it, `corrects_flag_targets` (domain_generator.rb) finds every
-    # aggregate needing one, and `mutations.rb`'s own corrects-flag mutation
-    # line sets it whenever a command emitting the named event succeeds.
-    #
-    # `reverses: true` is the SEPARATE, harder derived-mutation shape
-    # `AggregateBuilder#seal_correction_targets`'s own comment (read
-    # directly) says Ruby's OWN authors have not finished designing
-    # ("append/remove reversal LOOK symmetric but are not reliably so...
-    # a real gap, left for a follow-on round") — refused here rather than
-    # guessed at, matching that same deferral.
+    # `corrects "Event"`: a synthetic prepended GivenSpec reads a per-record flag set when a
+    # command emitting the event succeeds. `reverses: true` is refused; Ruby has not finished
+    # designing it (ADR 0041).
     def corrects_of(command) = command[:mutations].find { |m| m[:op].to_s == "corrects" }
 
     def corrects_reverses?(mutation) = !!(mutation[:source].is_a?(Hash) && mutation[:source][:value].is_a?(Hash) && mutation[:source][:value][:reverses])
 
-    # `emitted_fee_applied`, from `"FeeApplied"` — a plain, deterministic
-    # snake_case rendering (never bluebook-author-visible; this is a
-    # SYNTHETIC field name, not a spelling the language exposes), shared
-    # between the record's own struct field and every reader/writer of it.
+    # Synthetic snake_case flag field name, e.g. `emitted_fee_applied` for `FeeApplied`.
     def corrects_flag_field(event_name) = "emitted_#{event_name.to_s.gsub(/([a-z0-9])([A-Z])/, '\1_\2').downcase}"
 
     def corrects_given_specs(command)
@@ -762,32 +450,8 @@ module RustProjection
        "corrects_event: Some(#{event_name.inspect}) },"]
     end
 
-    # Every event name ANY command on this aggregate names in a `corrects`
-    # mutation — the set a record needs its own flag field for at all.
-    # Aggregate-wide (not per-command), the same scope `AggregateBuilder
-    # #seal_correction_targets`'s own build-time check already reads
-    # (`command_skip_reason`'s own header on that check's other half).
-    #
-    # BUG#31 — RECURSES INTO ENTITIES TOO, not just `aggregate[:commands]`.
-    # An entity-level `corrects` (`Ledger::Entry.Amend`, qa/stress_domains/
-    # corrections — the corpus's only example) names an event exactly the
-    # same way an aggregate-level one does, and the flag field it checks
-    # against lives on the PARENT record regardless of which level
-    # declared the `corrects` mutation — BUG#30's own Ruby fix
-    # (`lib/hecks/runtime/entity_interpreter.rb`) is explicit that an
-    # entity has no event stream of its own, so `enforce_correction_
-    # target` is always asked in terms of the PARENT record/ROOT
-    # aggregate. Before this fix, an entity's own `corrects` was entirely
-    # invisible here: `Entry.Amend` corrects "EntryRecorded" but `Record`
-    # (the aggregate-level command that actually emits it) never got a
-    # `emitted_entry_recorded` flag field generated for it at all — the
-    # struct had no such field, `corrects_extra_fields`/the create-time
-    # `false` default/the flag-set mutation line all silently no-opped,
-    # and `corrects_given_specs` (below) would have generated a
-    # `Expr::Lookup` against a field that doesn't exist. Recurses through
-    # nested entities too (`entity[:entities]`) for the same reason
-    # `entity_invariants_vec` already does, though no real corpus domain
-    # nests `corrects` two levels deep today.
+    # Event names any command or entity command on this aggregate corrects. The flag lives on
+    # the parent record whichever level declares `corrects`; entities have no event stream.
     def correctable_event_names(aggregate)
       names = corrects_targets_of(aggregate[:commands])
       (aggregate[:entities] || []).each { |entity| names.concat(entity_correctable_event_names(entity)) }
@@ -806,15 +470,7 @@ module RustProjection
               .map { |m| m[:target].to_s }
     end
 
-    # `extra_fields:` entries for `corrects`'s own per-record flag fields
-    # (`emit_to_json_flat`/`emit_from_json_state`, json_codec.rb) — the
-    # SAME mechanism `lifecycle_extra_field` already uses for the
-    # lifecycle field, reused rather than duplicated so this rides along
-    # with the record's own ordinary JSON round-trip automatically (and
-    # therefore with whatever generic snapshot mechanism a host already
-    # persists that JSON through — `rust/host`'s own `hecks_lambda_
-    # snapshot.seed jsonb` column, confirmed by reading `journal.rs`
-    # directly, needs no schema change of its own for this).
+    # `extra_fields:` entries so the flag rides the record's ordinary JSON round-trip.
     def corrects_extra_fields(aggregate)
       correctable_event_names(aggregate).map do |ev|
         field = corrects_flag_field(ev)
@@ -825,29 +481,16 @@ module RustProjection
       end
     end
 
-    # THE OTHER HALF of `corrects` — read directly, `MutationApplier#apply`'s
-    # own `:corrects` branch is a no-op (nothing here targets a field on
-    # the SAME command's own instance), but a LATER command's own
-    # `enforce_correction_target` needs to observe that this event
-    # happened at all. Ruby's real `@registry.event_log` (a full, ambient
-    # history) makes this free; this generator has no such history to
-    # consult, so it stamps the SAME fact forward onto the record itself,
-    # at the moment the correctable event is actually emitted — an
-    # ADDITIVE mutation line, appended after every declared one, for
-    # every command whose own `emits` list names an event some `corrects`
-    # mutation elsewhere on this aggregate targets.
+    # Stamps the flag onto the record when a command emitting a correctable event succeeds;
+    # Rust has no ambient event log to consult.
     def corrects_flag_mutation_lines(command, aggregate)
       correctable = correctable_event_names(aggregate)
       Array(command[:emits]).map(&:to_s).uniq.select { |name| correctable.include?(name) }
                             .map { |name| "        record.#{corrects_flag_field(name)} = true;" }
     end
 
-    # `delegates_to "Entity.Command", with: { … }` — the `:delegate`
-    # mutation (`CommandInterpreter#step_delegate_to_entity`, read
-    # directly; the exemplar's own `delegate_prelude`/`delegate_apply`
-    # comment has the shape). One per command, and the command's only
-    # mutation: the door's entire effect IS the target entity command,
-    # run on the record inside the door's own `dispatch` closure.
+    # `delegates_to "Entity.Command"`: the door's only mutation, run on the record inside the
+    # dispatch closure.
     def delegate_of(command) = command[:mutations].find { |m| m[:op].to_s == "delegate" }
 
     def delegate_mapping(delegation)
@@ -883,26 +526,8 @@ module RustProjection
         next if source.nil? && attr[:optional]
         return "#{label}: target argument #{attr[:name]} has no source on the door" unless source
         return "#{label}: door argument #{source_name} is a list, target wants a scalar (or vice versa) — not generated yet" if !!source[:list] != !!attr[:list]
-        # `bridgeable_value_types?`, not exact type-name equality — the
-        # SAME question `mutation_set_rhs` already answers for a `sets`
-        # RHS, and the right one here too: `with_aliases`/`from_json`
-        # (`CommandInterpreter#step_delegate_to_entity`, read directly —
-        # `ctx.args.merge(delegation.source.to_h { |target_key,
-        # source_key| [target_key, ctx.args[source_key]] })`) copies the
-        # door's OWN raw wire value under the target's key and lets the
-        # TARGET's own coercion (`Value.for`) make sense of it — Ruby
-        # never once compares the two ARGUMENTS' declared type names to
-        # each other. Confirmed empirically (docs/decisions/0045): a
-        # purpose-built door whose own argument was a differently-named
-        # single-field VO wrapping the identical scalar as the target's
-        # own declared type dispatched correctly through real Ruby, no
-        # refusal — exact-name equality was refusing something Ruby
-        # genuinely supports. `bridgeable_value_types?` is the already-
-        # audited "is copying source into target semantically sound"
-        # check (field-name alignment for two VOs, closed-set member
-        # coverage, scalar-representation equivalence) — exactly the
-        # question the JSON-level alias-then-deserialize mechanism cares
-        # about, since it never does a typed Rust-level field copy either.
+        # Compare with `bridgeable_value_types?`, not type-name equality: Ruby copies the raw wire
+        # value and lets the target's coercion decide (ADR 0045).
         unless bridgeable_value_types?(source[:type].to_s, attr[:type].to_s, value_objects_by_name)
           return "#{label}: door argument #{source_name} is #{source[:type]}, target wants #{attr[:type]} — not generated yet"
         end
@@ -918,10 +543,8 @@ module RustProjection
       nil
     end
 
-    # The three rendered pieces a delegating door needs: the prelude
-    # (before `dispatch`), the apply block (its whole closure body), and
-    # the events it emits — the TARGET's, exactly as `step_emit` answers
-    # `ctx.delegated_events` in place of the door's own.
+    # The prelude (before `dispatch`), the apply block (the closure body), and the target's
+    # events, as `step_emit` answers for a delegation.
     def delegation_of(command, aggregate, value_objects_by_name, domain_name)
       delegation = delegate_of(command)
       return nil unless delegation
@@ -951,16 +574,8 @@ module RustProjection
           "tmpl_aliases_placeholder()" => aliases.join(", "),
           "TmplTargetArgs" => target_args_name
         ).lines.map { |l| "    #{l}" }.join.rstrip,
-        # BUG#140 — split OUT of `delegate_prelude`: `element_id`'s own
-        # extraction has to run strictly AFTER `dispatch`'s own hydrate,
-        # so it's rendered separately and spliced as the FIRST lines
-        # inside the mutation closure (`emit_command`'s own `mutation_
-        # lines = [delegation[:element], delegation[:apply]]`, below),
-        # not before `dispatch` is even called — `rust/src/exemplar/
-        # commands.rs`'s own `tmpl_delegate_element_host` header has the
-        # full trace against Ruby's real `DISPATCH_ORDER`. Same 8-space
-        # indent as `apply`, below — both fill the SAME closure-body
-        # textual slot (`tmpl_mutation_lines_placeholder(record);`).
+        # Rendered separately: the element extraction must run after `dispatch`'s hydrate, as the
+        # first closure lines.
         element: Exemplar.render(
           "delegate_element",
           "TmplElement" => element_record
@@ -970,30 +585,11 @@ module RustProjection
           "TmplRecord" => rust_ident(aggregate[:name]),
           "tmpl_list_field" => rust_ident_field(list_attr[:name]),
           "TmplElement" => element_record,
-          # BARE, not "#{entity[:name]}.#{target[:name]}" — this feeds
-          # straight into refusal-message TEXT (`dispatch_entity`'s own
-          # `"{command_name} refused — ..."`), and Ruby's own message
-          # construction (`CommandRules::Admissibility#enforce_givens`,
-          # `"#{command.hecks_name} refused — ..."`) reads a bare
-          # `hecks_name` — never entity-qualified (`Command#hecks_name =
-          # name.to_s`, `lib/hecks/bluebook/command.rb`). The placeholder
-          # is misnamed (never actually "qualified" on the Ruby side) but
-          # left as-is to avoid an unrelated rename churning both codegen
-          # paths' templates.
+          # Bare command name: it feeds refusal text, and Ruby's `hecks_name` is never
+          # entity-qualified.
           '"TmplQualifiedCommandName"' => target[:name].to_s.inspect,
-          # BUG#31 — `apply_entity_command`'s own new parameter (kernel/
-          # dispatch.rs), needed for the SAME reason `dispatch_entity`
-          # already carries one: rendering `NothingToCorrect`'s own
-          # wording if a corrects-flagged given ever reaches this path.
-          # No real corpus domain combines `delegates_to` with `corrects`
-          # today (BUG#30's own Ruby fix left this exact combination
-          # unexercised too — `CommandInterpreter#step_delegate_to_
-          # entity`'s own inline pipeline doesn't call `enforce_
-          # correction_target` either), so `given_specs` here never
-          # actually carries a `corrects_event: Some(...)` row — this
-          # value is computed correctly anyway, at no extra cost, rather
-          # than left a landmine for the day some domain's door target
-          # does declare one.
+          # `apply_entity_command` needs the qualified name to render `NothingToCorrect` should a
+          # corrects-flagged given reach this path.
           '"TmplQualifiedName"' => "#{domain_name}::#{aggregate[:name]}".inspect,
           '"TmplAggregateName"' => aggregate[:name].to_s.inspect,
           '"TmplEntityName"' => entity[:name].to_s.inspect,
@@ -1007,61 +603,33 @@ module RustProjection
       }
     end
 
-    # `entity_command_skip_reason` — deliberately just `command_skip_reason`
-    # with `entity` standing in for `aggregate`: an entity's own IR shape
-    # (`attributes`/`lifecycle`/`commands`) is the SAME six-key shape an
-    # aggregate's is (docs/implemented/guides/running-a-runtime.md, "Entities" —
-    # exported recursively, identically). The one real divergence —
-    # `append_field_problems`/`append_element` reading `aggregate[:entities]`,
-    # which an entity node doesn't carry — is why this guards `:append`
-    # BEFORE delegating, rather than risking a `nil.find` crash reaching
-    # that branch: no entity command in either example domain ever appends
-    # to a nested list of its own (an entity addressing one element of
-    # ANOTHER entity's list isn't a shape this corpus declares), so this is
-    # a real, separate, still-open gap flagged loudly, not silently worked
-    # around by the delegation below.
+    # `command_skip_reason` with `entity` standing in for `aggregate`; both share one IR shape.
     def entity_command_skip_reason(command, entity, value_objects_by_name)
       command_skip_reason(command, entity, value_objects_by_name, creating_possible: false)
     end
 
-    # ── AN ENTITY COMMAND — `EntityInterpreter#call`'s shorter
-    # `DISPATCH_ORDER` (docs/implemented/guides/entities.md), ported the same way
-    # `emit_command` ports `CommandInterpreter#call`: compile the type
-    # shapes, hand the kernel `Expr` data plus closures to interpret.
-    # `kernel::dispatch_entity` (dispatch.rs) is the generic, hand-written
-    # counterpart to `kernel::dispatch` this reuses — no `Hydrate` branch
-    # (an entity command never creates), a `matches` closure in place of
-    # `Hydrate::Act`'s bare `id` (an entity is addressed by ITS OWN
-    # identity, found via `identity()`, not the parent's), and BOTH a
-    # `parent_id` and the entity's own address as separate caller-supplied
-    # strings, mirroring `EntityInterpreter#parent`/`#element_of`'s two
-    # separate lookups.
+    # An entity command: `kernel::dispatch_entity` ports `EntityInterpreter#call`, with no
+    # `Hydrate` branch; the entity is found by `identity()` within the parent.
     def emit_entity_command(command, entity, parent_aggregate, domain_name, value_objects_by_name, aggregates_by_name,
                             process_managers: [])
       parent_record  = rust_ident(parent_aggregate[:name])
       element_record = rust_ident(entity[:name])
       cmd = rust_ident(command[:name])
 
-      # `record_missing` (the parent lookup) and `entity_element_missing`
-      # (the element lookup) each need their OWN bare name/identity
-      # reading — the parent aggregate's and the entity's are almost never
-      # the same text (`SafeDepositBox` vs `Visit`), so both pairs are
-      # computed here rather than reusing `emit_command`'s single pair.
+      # The parent lookup and the element lookup each need their own bare name and identity
+      # reading.
       aggregate_name           = parent_aggregate[:name].to_s
       parent_identity_reading  = parent_aggregate[:identified_by].join(", ")
       entity_name              = entity[:name].to_s
       entity_identity_reading  = entity[:identified_by].join(", ")
 
-      # THE PARENT'S LIST ATTRIBUTE HOLDING THIS ENTITY — found the exact
-      # way `element_of` finds it at Ruby's own runtime (`a.list? &&
-      # a.type == entity_name`), just resolved once here at generation
-      # time instead of once per dispatch.
+      # The parent's list attribute holding this entity, resolved at generation time.
       list_attr = parent_aggregate[:attributes].find { |a| a[:list] && a[:type] == entity[:name] }
       raise "#{entity[:name]}: no list attribute on #{parent_aggregate[:name]} holds it — unsupported_attribute_types should have caught this" unless list_attr
 
       list_field = rust_ident_field(list_attr[:name])
-      # `EntityArgs` — see domain_generator.rb's own routing entry: a door
-      # named after the entity command it delegates to must not collide.
+      # `EntityArgs` suffix keeps a door named after the entity command it delegates to from
+      # colliding.
       args_struct_name = "#{element_record}#{cmd}EntityArgs"
 
       args_struct = ["pub struct #{args_struct_name} {"]
@@ -1074,20 +642,8 @@ module RustProjection
 
       invariant_checks = invariant_checks_for(command, aggregates_by_name, value_objects_by_name)
 
-      # BUG#31 — `corrects_given_specs(command)` PREPENDED here, exactly
-      # the way `emit_command`'s own aggregate-level twin already does
-      # (above): before this fix, an entity-level `corrects` command
-      # (`Ledger::Entry.Amend`, qa/stress_domains/corrections) got NO
-      # admissibility check generated at all — the synthetic
-      # `emitted_*`-flag GivenSpec only ever came from this call, and
-      # `emit_entity_command` never made it. `apply_entity_command`
-      # (kernel/dispatch.rs) evaluates a `corrects_event`-carrying given
-      # against the PARENT record, never the entity's own element —
-      # mirroring BUG#30's own Ruby fix (`EntityInterpreter#step_enforce_
-      # givens`, `enforce_correction_target` called with the parent
-      # record/root aggregate) exactly, at the same granularity: "this
-      # PARENT record has emitted the named event at some point," never
-      # narrowed to this one entity element.
+      # `corrects_given_specs` is prepended as in `emit_command`; `apply_entity_command`
+      # evaluates it against the parent record, never the element.
       given_specs = corrects_given_specs(command) + command[:givens].map do |given|
         "            crate::kernel::GivenSpec { description: #{rust_string_literal(given[:description])}, expr: #{ExprEmitter.emit_ast(given[:ast])}, corrects_event: None },"
       end
@@ -1096,44 +652,21 @@ module RustProjection
         "            crate::kernel::EnsuresSpec { description: #{rust_string_literal(rule[:description])}, expr: #{ExprEmitter.emit_ast(rule[:ast])} },"
       end
 
-      # THE ENTITY's OWN lifecycle, not the parent aggregate's —
-      # `lifecycle_transition_for`/`emit_mutation_line` (bridging.rb/
-      # mutations.rb) already take a "declaring" node generically; passing
-      # `entity` here is exactly that, not a special case either helper
-      # needs to know about.
+      # The entity's own lifecycle, not the parent's.
       transition = lifecycle_transition_for(command, entity)
       transition_arg =
         transition_check_arg(transition)
 
-      # A `:corrects` mutation reaches `emit_mutation_line` here rather
-      # than being `reject`-ed first the way `emit_command`'s own
-      # aggregate-level twin does (above) — `emit_mutation_line_body`'s
-      # `case mutation.op` has no `"corrects"` arm and no `else`, so it
-      # silently returns `nil` (an effectively blank line), the same
-      # documented-no-op semantics `EntityElement.apply_to_element`'s own
-      # `:corrects` branch has (BUG#30) — harmless, since the admissibility
-      # check itself already ran, above, via `corrects_given_specs`.
-      #
-      # NOT HANDLED HERE, DELIBERATELY, MATCHING BUG#31'S OWN SCOPE: an
-      # ENTITY-level command whose OWN `emits` names a correctable event
-      # (some OTHER command's `corrects` target) would need its flag set
-      # on the PARENT record, but `record` inside THIS closure is typed
-      # `&mut #{element_record}` (the entity element), not the parent —
-      # structurally unreachable from here the way `corrects_flag_mutation_
-      # lines` reaches it at the aggregate level. No real corpus domain
-      # exercises this shape today (`qa/stress_domains/corrections`'
-      # own correctable event, "EntryRecorded", is emitted by `Record`,
-      # an AGGREGATE-level command) — left open the same way BUG#30's own
-      # Ruby fix left `delegates_to`+`corrects` open: latent, not
-      # exercised, not silently miscompiled.
+      # A `:corrects` mutation reaches `emit_mutation_line` unfiltered and yields a blank line, a
+      # no-op; the check already ran via `corrects_given_specs`.
+      # Not handled: an entity command emitting a correctable event would need the flag set on the
+      # parent, but `record` in this closure is the element.
       mutation_lines = command[:mutations].map { |m| emit_mutation_line(m, entity, command, value_objects_by_name, optional: false) }
       mutation_lines.unshift(pre_state_line) if reads_pre_state?(command[:mutations])
       mutation_lines << "        record.#{rust_ident_field(transition[:field])} = #{transition[:to_state].inspect}.to_string();" if transition && transition[:to_state]
       mutation_lines = ["        let _ = record;"] if mutation_lines.empty?
 
-      # BARE, not entity-qualified — same reasoning as delegation_of's own
-      # identical fix above: feeds straight into refusal-message text,
-      # which Ruby's own `command.hecks_name` never qualifies.
+      # Bare name: it feeds refusal text, which Ruby never qualifies.
       qualified_command_name = command[:name].to_s
 
       entity_dispatch_fn = Exemplar.render(
@@ -1166,19 +699,9 @@ module RustProjection
       [
         emit_fielded_flat(args_struct_name, command[:attributes], value_objects_by_name),
         "#[derive(Debug, Clone)]\n#{args_struct.join("\n")}",
-        # NOT `sparse: true` — same reasoning as the aggregate-command
-        # call site (domain_generator.rb's own comment): real, tested,
-        # deliberately left unwired to avoid diverging from
-        # `hecks-codegen`'s own separate reimplementation.
         emit_to_json_flat(args_struct_name, command[:attributes], value_objects_by_name, sparse: true),
-        # `unknown_argument_allowlist:` — BUG#8's own fix: an entity
-        # command's args struct used to build every declared field
-        # straight through, unknown-key check skipped entirely (see
-        # `command_argument_allowlist`'s own comment, json_codec.rb, for
-        # the stale-premise history). Computed the SAME way an aggregate
-        # command's own call site does (domain_generator.rb), plus the
-        # entity's own identity head — `ArgumentGate#refuse_unknown_
-        # arguments`'s `extra_identity_heads:` on the Ruby runtime side.
+        # Allowlist matches the aggregate-command call site plus the entity's own identity head
+        # (`extra_identity_heads:`).
         emit_from_json_flat(args_struct_name, command[:attributes], value_objects_by_name,
                             unknown_argument_allowlist: command_argument_allowlist(
                               parent_aggregate, command, process_managers,
@@ -1186,9 +709,7 @@ module RustProjection
                             ),
                             command_name: command[:name].to_s, absent_argument_check: true,
                             interleave_checks: true, aggregates_by_name: aggregates_by_name),
-        # THE ARGUMENT GATES (roadmap D2) — `kernel::decode_entity_
-        # arguments` calls these in `EntityStep::ORDER`; see
-        # `emit_argument_gates`' own header (json_codec.rb).
+        # Argument gates run in `EntityStep::ORDER`; see `emit_argument_gates` (json_codec.rb).
         emit_argument_gates(args_struct_name, command[:name].to_s, command[:attributes],
                             command_argument_allowlist(
                               parent_aggregate, command, process_managers,
@@ -1198,45 +719,10 @@ module RustProjection
       ].join("\n\n")
     end
 
-    # BUG#11 (loop-parity) — A COMMAND OWNED BY AN ENTITY NESTED TWO
-    # LEVELS DEEP (`Aggregate.Entity.Entity.Command`, e.g. `Workspace.
-    # Board.Card.Annotate`). `domain_generator.rb`'s own header on its
-    # nested-entity loop has the full argument for why this is a real,
-    # bounded gap rather than an architecture mismatch — the short
-    # version: `kernel::dispatch_entity` and `kernel::apply_entity_
-    # command` (dispatch.rs) are ALREADY generic over any (parent, list,
-    # matches, apply_mutations) tuple, so the second hop is just ANOTHER
-    # `apply_entity_command` call, nested INSIDE the first hop's own
-    # `apply_mutations` closure — no new kernel primitive, just one more
-    # composition of the two that already exist. `delegation_of`'s own
-    # `delegate_apply` (above) already proves the same primitive
-    # (`apply_entity_command`, called directly rather than through
-    # `dispatch_entity`) composes with a surrounding `dispatch`/`dispatch_
-    # entity` call; this is that same composition, one level deeper.
-    #
-    # THE GENERATED `dispatch_entity_<entity>_<nested>_<fn>` FUNCTION
-    # BELOW IS ADDRESSING-AGNOSTIC — it takes `parent_id`/`hop1_id`/
-    # `hop1_wants`/`hop2_id`/`hop2_wants` as plain `&str` parameters, no
-    # `RoutingEnvelope` in sight. BUG#11 (this function's own original
-    # form) only ever CALLED it from the ROUTED (`to: { aggregate:,
-    # entities: [hop1, hop2] }`) shape; BUG#19 taught `registry.rb`'s own
-    # `nested_entity_arms` a SECOND caller shape — flat args, one
-    # identity head per hop, resolved via `entity`'s/`nested`'s own
-    # `extract_id`/`extract_wants` (domain_generator.rb's own header) —
-    # with no change needed here at all, confirming what BUG#11's own
-    # investigation already found: this function was always generic
-    # enough, only the router in front of it was scoped narrow.
-    #
-    # NO Board-level (the OUTER hop's own) given/ensures/transition —
-    # `nested`'s OWN command never declares one for the entity it is
-    # nested inside; that entity is purely a chain link here, the same
-    # way `locate_chain` (entity_element.rb) treats every intermediate
-    # `owner` — so the outer `dispatch_entity` call below is handed `&[]`/
-    # `None` for those three parameters, and every REAL given/ensures/
-    # transition this command declares belongs to the INNER `apply_
-    # entity_command` call instead, exactly where `command[:givens]`/
-    # `command[:ensures]`/`lifecycle_transition_for(command, nested)`
-    # actually name them.
+    # A command owned by an entity nested two levels deep. The second hop is another
+    # `apply_entity_command` inside the first hop's `apply_mutations` closure.
+    # The generated function takes plain `&str` ids per hop, so flat-args and routed callers
+    # share it. The outer hop has no given/ensures/transition; those belong to the inner call.
     def emit_nested_entity_command(command, nested, entity, parent_aggregate, domain_name, value_objects_by_name, aggregates_by_name,
                                    process_managers: [])
       parent_record = rust_ident(parent_aggregate[:name])
@@ -1251,10 +737,8 @@ module RustProjection
       nested_name             = nested[:name].to_s
       nested_identity_reading = nested[:identified_by].join(", ")
 
-      # THE TWO LIST ATTRIBUTES THIS CHAIN WALKS — the parent aggregate's
-      # own list holding `entity` (exactly `emit_entity_command`'s own
-      # `list_attr`), and `entity`'s OWN list holding `nested` (the SAME
-      # `a.list? && a.type == entity_name` search, one level in).
+      # The two list attributes the chain walks: the parent's holding `entity`, and
+      # `entity`'s holding `nested`.
       list_attr1 = parent_aggregate[:attributes].find { |a| a[:list] && a[:type] == entity[:name] }
       raise "#{entity[:name]}: no list attribute on #{parent_aggregate[:name]} holds it — unsupported_attribute_types should have caught this" unless list_attr1
 
@@ -1264,10 +748,7 @@ module RustProjection
       list_field1 = rust_ident_field(list_attr1[:name])
       list_field2 = rust_ident_field(list_attr2[:name])
 
-      # `NestedEntityArgs`, not `EntityArgs` — a THIRD args-struct suffix,
-      # alongside `emit_command`'s bare `Args` and `emit_entity_command`'s
-      # `EntityArgs`, for the identical name-collision reason
-      # `emit_entity_command`'s own header already gives for ITS suffix.
+      # `NestedEntityArgs` suffix, distinct from `Args` and `EntityArgs`, for the same reason.
       args_struct_name = "#{nested_record}#{cmd}NestedEntityArgs"
 
       args_struct = ["pub struct #{args_struct_name} {"]
@@ -1288,9 +769,7 @@ module RustProjection
         "                    crate::kernel::EnsuresSpec { description: #{rust_string_literal(rule[:description])}, expr: #{ExprEmitter.emit_ast(rule[:ast])} },"
       end
 
-      # THE NESTED ENTITY's OWN lifecycle, not `entity`'s and not the
-      # parent aggregate's — same reasoning as `emit_entity_command`'s
-      # identical call, one level deeper.
+      # The nested entity's own lifecycle.
       transition = lifecycle_transition_for(command, nested)
       transition_arg = transition_check_arg(transition)
 
@@ -1299,48 +778,15 @@ module RustProjection
       mutation_lines << "                record.#{rust_ident_field(transition[:field])} = #{transition[:to_state].inspect}.to_string();" if transition && transition[:to_state]
       mutation_lines = ["                let _ = record;"] if mutation_lines.empty?
 
-      # BARE — same reasoning as `emit_entity_command`'s identical
-      # `qualified_command_name`: feeds refusal-message text, which
-      # Ruby's own `command.hecks_name` never domain/entity-qualifies.
+      # Bare name, as in `emit_entity_command`.
       qualified_command_name = command[:name].to_s
       fn_name = "dispatch_entity_#{entity[:name].downcase}_#{nested[:name].downcase}_#{dispatch_fn_name(cmd)}"
 
-      # BUG#31 — the hop-2 `apply_entity_command` call below gets the
-      # ROOT aggregate's own qualified name (that new parameter's own
-      # comment, kernel/dispatch.rs) purely to keep the signature
-      # compiling, NOT to make its own `corrects` admissibility real:
-      # `given_specs`, below, is never prepended with `corrects_given_
-      # specs(command)` the way `emit_entity_command`'s ONE-level twin
-      # now is. A hop-2 command's OWN `record` at that inner closure is
-      # the hop-1 ENTITY (`nested_owner`), not the root aggregate — a
-      # correction check evaluated there against `record.clone()` would
-      # check the wrong thing (BUG#30/BUG#31's own semantics need the
-      # ROOT aggregate record specifically). Fixing that honestly needs
-      # the OUTER `record` (the root aggregate, one closure up) threaded
-      # into the hop-2 call, which no real corpus domain needs today: no
-      # two-level-nested entity command anywhere declares `corrects` (the
-      # corpus's only entity-level `corrects` example, `qa/stress_domains/
-      # corrections`' `Ledger::Entry.Amend`, nests exactly one level).
-      # Left open the same way BUG#11's own two-level-nesting note already
-      # documents a structural gap at this exact depth, and matching
-      # BUG#30's own explicit choice to leave every unexercised `corrects`
-      # combination open rather than guessed at.
-      #
-      # BUG#137 — the hop-2 `apply_entity_command` call's own trailing
-      # `parent_in_args` literal, below, is `true` now, not `false`: the
-      # SAME fix `emit_entity_command`'s one-level twin needed
-      # (`kernel/dispatch.rs`'s own `apply_entity_command`/`dispatch_
-      # entity` header has the full argument). `lib/hecks/language/
-      # bluebook/process_manager.bluebook`'s own `Handler.Dispatch` (its
-      # `Handler` entity nests `Dispatch`) is a REAL two-level corpus
-      # member reaching this exact call — attached to every domain as
-      # `meta` — though it declares no `given`/`ensures` of its own, so
-      # this literal's VALUE has no behavioral effect there today; fixed
-      # for the same reason the one-level case was: correctness, not
-      # just consistency, the moment a real hop-2 command ever DOES
-      # declare one. `rust/codegen/src/commands.rs`'s own byte-identical
-      # twin needs the SAME literal flip — `spec/project_rust_pipeline_
-      # spec.rb`'s own whole-file byte comparison catches a drift here.
+      # The hop-2 call gets the root aggregate's qualified name only so it compiles; `corrects`
+      # admissibility is not generated at this depth, since the inner `record` is the hop-1 entity,
+      # not the root.
+      # The trailing `parent_in_args` literal is `true`; `rust/codegen/src/commands.rs` needs the
+      # same value (`spec/project_rust_pipeline_spec.rb` compares byte for byte).
       nested_dispatch_fn = <<~RUST
         pub fn #{fn_name}(
             repo: &mut impl crate::kernel::Repository<#{parent_record}>, parent_id: &str, hop1_id: &str, hop1_wants: &str,
@@ -1409,12 +855,8 @@ module RustProjection
         emit_fielded_flat(args_struct_name, command[:attributes], value_objects_by_name),
         "#[derive(Debug, Clone)]\n#{args_struct.join("\n")}",
         emit_to_json_flat(args_struct_name, command[:attributes], value_objects_by_name, sparse: true),
-        # `extra_identity_heads:` — BOTH hops' own identity heads, not
-        # just the addressed (innermost) entity's — matching Ruby's own
-        # `ctx.chain.flat_map(&:identity_heads)` (entity_interpreter.rb),
-        # which allows a caller's JSON to carry every construct the
-        # chain walked through, not only the one a command's own
-        # attributes declare.
+        # Both hops' identity heads are allowed, matching `ctx.chain.flat_map(&:identity_heads)`
+        # (entity_interpreter.rb).
         emit_from_json_flat(args_struct_name, command[:attributes], value_objects_by_name,
                             unknown_argument_allowlist: command_argument_allowlist(
                               parent_aggregate, command, process_managers,
@@ -1422,8 +864,7 @@ module RustProjection
                             ),
                             command_name: command[:name].to_s, absent_argument_check: true,
                             interleave_checks: true, aggregates_by_name: aggregates_by_name),
-        # THE ARGUMENT GATES (roadmap D2) — see the one-hop entity
-        # command's own identical call, above.
+        # Argument gates, as in the one-hop entity command above.
         emit_argument_gates(args_struct_name, command[:name].to_s, command[:attributes],
                             command_argument_allowlist(
                               parent_aggregate, command, process_managers,

@@ -4,46 +4,11 @@ require_relative "journal"
 module Hecks
   module Adapters
     class Heki
-      # The optional saga-persistence capability (§2)'s Heki-specific store — a sibling
-      # snapshot+journal file pair, keyed by (domain, process manager, correlation).
+      # Saga checkpoints in a sibling snapshot+journal file pair, keyed by
+      # (domain, process manager, correlation).
       #
-      # ## Why a sibling file pair, not a table
-      #
-      # Built the exact same way an aggregate's own persistence already
-      # is: `Snapshot`/`Journal` (heki/snapshot.rb, heki/journal.rb)
-      # operate generically on `@path`/`@journal_path`/`@entry_mirrors`
-      # and never touch `@aggregate`, so this reuses them unchanged
-      # rather than re-deriving the same binary framing and
-      # crash-recovery replay.
-      #
-      # ## Where the file lives
-      #
-      # Reserved file name (`hecks_saga_instances.heki`, matching the
-      # `hecks_`-prefix convention every other new saga table in this
-      # work uses) avoids colliding with any real aggregate's own
-      # `storage_name`. Lives in the same directory an aggregate's own
-      # `.heki` file would (`File.dirname(@path)`, `Heki`'s own call
-      # below) — which, since Heki's `resolve_path` has no per-domain
-      # component at all, is typically shared across every domain
-      # booted from the same `root`. `domain` is therefore carried
-      # inside each record and filtered on read, the same reason
-      # Postgres's own `hecks_saga_instances` keeps an explicit `domain`
-      # column under schema isolation (§3).
-      #
-      # ## Record shape
-      #
-      # One flat records hash, keyed by a composite string (Heki's own
-      # snapshot format is id-keyed, not tuple-keyed) — never exposed
-      # outside this class; `each_saga` yields the five real fields a
-      # caller actually wants, not the internal key shape.
-      #
-      # ## Locking
-      #
-      # Locked the same way an aggregate's own store is: `with_lock`
-      # (`Snapshot`, shared) serializes each save/delete's read-modify-
-      # write against `@path`'s own lock file — a saga gets exactly the
-      # durability and concurrency-safety this adapter already gives its
-      # aggregates, no better, no worse.
+      # The file is shared by every domain booted from the same directory, so `domain`
+      # is stored in each record and filtered on read.
       class SagaStore
         include Snapshot
         include Journal
@@ -59,16 +24,13 @@ module Hecks
         # Upserts one saga instance's checkpoint, keyed by domain, process manager and
         # correlation, under the file lock.
         #
-        # @param domain [String] the owning domain, carried in the record and filtered on
-        #   read
+        # @param domain [String] the owning domain, carried in the record and filtered on read
         # @param process_manager [String] the process manager's name
         # @param correlation [String] the instance's correlation value
         # @param state [String] the saga's current state name
         # @param memory [Hash] the saga's working memory to persist
-        # @param completed_compensations [Array] the ledger of completed compensable legs;
-        #   `[]` when none
-        # @return [Hash{String => Hash}] the store's full internal records Hash after the
-        #   write; callers ignore it
+        # @param completed_compensations [Array] completed compensable legs; `[]` when none
+        # @return [Hash{String => Hash}] the full records Hash after the write; callers ignore it
         def save_saga(domain, process_manager, correlation, state, memory, completed_compensations = [])
           key    = key_for(domain, process_manager, correlation)
           record = { "domain" => domain, "process_manager" => process_manager,
@@ -104,8 +66,7 @@ module Hecks
           end
         end
 
-        # Yields every checkpointed saga instance of `domain`, for `Registry
-        # #rehydrate_sagas!` to restore at boot.
+        # Yields every checkpointed saga instance of `domain`, for boot-time rehydration.
         #
         # @param domain [String] the owning domain to filter records to
         # @yieldparam process_manager [String] the process manager's name
@@ -113,10 +74,8 @@ module Hecks
         # @yieldparam state [String] the saga's state name
         # @yieldparam memory [Hash{Symbol => Object}] the saga's memory, Symbol keys at every
         #   depth
-        # @yieldparam completed_compensations [Array] the completed-compensation ledger, `[]`
-        #   when the record carries none
-        # @return [Enumerator, Hash{String => Hash}] an enumerator over the same five values
-        #   when no block is given; otherwise the store's full internal records Hash
+        # @yieldparam completed_compensations [Array] the completed-compensation ledger
+        # @return [Enumerator, Hash{String => Hash}] an enumerator when no block is given
         def each_saga(domain)
           return enum_for(:each_saga, domain) unless block_given?
 
@@ -135,9 +94,8 @@ module Hecks
           @store ||= replay_journal(read_snapshot)
         end
 
-        # A plain space-joined key, not anything fancier — a correlation value is real
-        # business data (an order id, a customer reference) and nothing
-        # here should assume it never contains a space.
+        # Space-joined; the key is opaque and never parsed back, so spaces in a
+        # correlation value are harmless.
         def key_for(domain, process_manager, correlation) = [domain, process_manager, correlation].join(" ")
       end
     end

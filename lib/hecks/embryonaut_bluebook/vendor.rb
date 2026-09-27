@@ -5,32 +5,8 @@ require_relative "shape"
 
 module Hecks
   module EmbryonautBluebook
-    # Vendors one package of the bluebook registry into a consuming project.
-    #
-    # ## What it does
-    #
-    # Pins the package's top-level `bluebook/*.bluebook` files from one commit
-    # of a local source repository into
-    # `<root>/vendor/embryonaut_bluebooks/<name>/bluebook/`, where `load!`
-    # resolves them. Only bluebook files are taken: a `.hecksagon`, `.port` or
-    # `.adapter` is a wiring decision for whoever deploys, never part of the
-    # vendored package.
-    #
-    # ## Releases and bare commits
-    #
-    # The source repository tags each release `<name>-v<X.Y.Z>` on a commit
-    # whose `<name>/bluebook.yml` says that version. A release pin (`ref` nil for
-    # the newest tag, `"1.2.0"`, or the tag name) also writes `bluebook.lock`,
-    # which records version, tag, commit, content digest and storage shape, and
-    # holds two refusals, because a production project is bound to `PostgresEra`:
-    #
-    # - a version lower than the vendored one, unless `allow_downgrade`;
-    # - a storage-shape change that does not raise the version by at least a
-    #   minor, so a new era shows in the version number and not only in a hash.
-    #
-    # Any other commit-ish pins that commit and writes only the marker, with no
-    # lock and no version checks. Either way nothing on disk changes when a
-    # pin is refused or its files do not load.
+    # Pins a package's `bluebook/*.bluebook` files from a source repo commit; a
+    # release pin also refuses a downgrade or an era-breaking storage-shape change.
     class Vendor
       # A release version, `X.Y.Z`.
       VERSION = /\A\d+\.\d+\.\d+\z/
@@ -38,33 +14,17 @@ module Hecks
       # A package name is a directory name and a bluebook name stem.
       NAME = /\A[a-z][a-z0-9_]*\z/
 
-      # What a vendoring changed.
-      #
-      # @!attribute [r] previous_version
-      #   @return [String, nil] the version recorded before, nil when there was none
-      # @!attribute [r] previous_shape
-      #   @return [Array<String>, nil] the shape lines measured before, nil when there was
-      #   no earlier copy
+      # What a vendoring changed; previous_version/previous_shape are nil when
+      # there was no earlier vendored copy.
       Result = Struct.new(:package, :commit, :version, :tag, :digest, :shape,
                           :previous_version, :previous_shape, :dir, keyword_init: true) do
-        # Says whether this was a release pin, which writes a lock.
-        #
-        # @return [Boolean] true for a release, false for a bare commit
         def release? = !tag.nil?
 
-        # Says whether the storage shape moved since the earlier copy.
-        #
-        # @return [Boolean] true when an earlier copy existed and its shape differs
         def shape_changed? = !previous_shape.nil? && previous_shape != shape
       end
 
-      # @param name [String, Symbol] the package's directory name, such as `"payments"`
-      # @param from [String] path of the local source repository
-      # @param ref [String, nil] `X.Y.Z`, a release tag name, any commit-ish, or nil for the
-      #   newest release
-      # @param root [String] the consuming project's root
-      # @param allow_downgrade [Boolean] whether a release older than the vendored one is allowed
-      # @raise [Vendoring::Error] if the name is not a plain package name
+      # `ref` accepts `X.Y.Z`, a release tag name, any commit-ish, or nil for
+      # the newest release.
       def initialize(name, from:, root:, ref: nil, allow_downgrade: false)
         @name = name.to_s
         raise Vendoring::Error, "#{name.inspect} is not a package name" unless @name.match?(NAME)
@@ -76,10 +36,6 @@ module Hecks
       end
 
       # Pins the package and reports what changed.
-      #
-      # @return [Result] the commit, version and shape now vendored
-      # @raise [Vendoring::Error] if the release or commit is not found, the tagged commit
-      #   disagrees with its own version, the files do not load, or a refusal above applies
       def call
         tag, version = release
         previous_version, previous_shape = existing
@@ -99,9 +55,8 @@ module Hecks
 
       def package_dir = File.join(@root, "vendor", "embryonaut_bluebooks", @name)
 
-      # Resolves what `ref` asks for into a release tag and its version.
-      #
-      # @return [Array(String, String), nil] tag and version for a release, nil for a bare commit
+      # Resolves what `ref` asks for into a release tag and its version, or nil
+      # for a bare commit.
       def release
         tag = release_tag
         return nil unless tag

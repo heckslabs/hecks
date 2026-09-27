@@ -1,9 +1,7 @@
 require "hecks"
-# `Hecks.behaviors` is opt-in (lib/hecks/behaviors.rb's own
-# header), but once loaded anywhere in the process it is a real,
-# permanent singleton method — required here directly so this file's own
-# coverage list is correct whether or not it happens to run alongside
-# something else that also requires it.
+# `Hecks.behaviors` is opt-in but becomes a real, permanent singleton method once
+# loaded anywhere in the process — required here directly so this file's coverage
+# list is correct regardless of load order elsewhere in the suite.
 require "hecks/behaviors"
 
 RSpec.describe "the DSL surface is fully covered" do
@@ -12,46 +10,34 @@ RSpec.describe "the DSL surface is fully covered" do
   COVERED = {
     "Hecks (module surface)"      => [
       Hecks.singleton_class,
-      # `boot_files` — Loader.boot_files's explicit-file sibling of `boot`.
-      # `behaviors` — lib/hecks/behaviors.rb, opt-in (see its own
-      # header) but a process-global singleton method the moment anything
-      # in the suite requires it, same as `boot_files`.
+      # `boot_files` is Loader.boot_files's explicit-file sibling of `boot`; `behaviors`
+      # is opt-in but becomes a real singleton method once anything requires it.
       %i[boot boot_files with_registry bluebook hecksagon port adapter world data_translation current_registry
          as_caller behaviors]
     ],
     "BluebookBuilder"             => [
       Hecks::Bluebook::DSL::BluebookBuilder,
-      # `attaches_to`/`aggregate` -> `*_impl` — item #13's full
-      # metaprogrammed dispatch (slice 4c).
+      # `attaches_to`/`aggregate` are covered by their `_impl` dispatch targets.
       %i[vision formerly_known_as attaches_to_impl provides_impl core supporting generic aggregate_impl report read_model policy
          process_manager classification resolve_pending_chapter_givens! resolve_pending_chapter_entity_givens!]
     ],
     "AggregateBuilder"            => [
       Hecks::Bluebook::DSL::AggregateBuilder,
-      # `has_many`/`has_one`/`belongs_to`/`given`/`invariant`/
-      # `reference_to` (slices 4/4b) and `provenance`/`identified_by`/
-      # `lifecycle`/`entity`/`query`/`policy`/`command`/`projects`
-      # (slice 4c) -> `*_impl` — item #13's full metaprogrammed
-      # dispatch, same reasoning as role_impl throughout.
+      # These DSL words are covered by their `_impl` dispatch targets, not the bare names.
       %i[description provenance_impl identified_by reference_to_impl has_many_impl has_one_impl belongs_to_impl
          value_object command_impl lifecycle_impl entity_impl query_impl policy_impl attribute list_of attributes
          invariant_impl given_impl projects_impl]
     ],
     "ValueObjectBuilder"          => [
       Hecks::Bluebook::DSL::ValueObjectBuilder,
-      # `invariant`/`member`/`one_of` -> `*_impl`, same reasoning,
-      # slices 4b/4c/5.
+      # Covered by their `_impl` dispatch targets, same as elsewhere in this table.
       %i[invariant_impl one_of_impl member_impl attribute list_of attributes]
     ],
     "CommandBuilder"              => [
       Hecks::Bluebook::DSL::CommandBuilder,
-      # `role`/`given`/`reference_to` (slices 4/4b), `provenance`/`sets`
-      # (slice 4c), and `then_set` (slice 5) -> `*_impl` — item #13's
-      # full metaprogrammed dispatch. GenericDispatch forwards via
-      # calls:; these are the real, directly-defined methods.
-      # `delegates_to_impl`/`corrects_impl` are new words, not migrated
-      # ones — their own comments give the full reasoning — but reached
-      # the same `calls:`-forwarded way.
+      # Covered by their `_impl` dispatch targets, reached via `GenericDispatch`'s
+      # `calls:` — including `delegates_to_impl`/`corrects_impl`, documented at
+      # their own definitions.
       %i[role_impl goal provenance_impl reference_to_impl given_impl ensures then_set_impl sets_impl
          delegates_to_impl corrects_impl emits state attribute list_of attributes]
     ],
@@ -61,18 +47,14 @@ RSpec.describe "the DSL surface is fully covered" do
     ],
     "DomainPortBuilder"           => [
       Hecks::Bluebook::DSL::DomainPortBuilder,
-      # `tells`/`asks` -> `*_impl` — item #13's full metaprogrammed
-      # dispatch (slice 4c). `operation` is a Ruby `alias` no more —
-      # both "operation" and "tells" Keyword rows name `tells_impl` in
-      # `calls:` now, so `operation` no longer shows up here as a
-      # directly-defined method at all. `verb`/`signal`/`answers` — the
-      # bare-Port fallback shape, ordinary defs mirroring PortBuilder's
-      # own (see that class's own row, above).
+      # `tells`/`asks` are `_impl` dispatch targets; both "operation" and "tells"
+      # Keyword rows name `tells_impl` in `calls:`, so `operation` is not a
+      # directly-defined method here.
       %i[tells_impl asks_impl verb signal answers]
     ],
     "PortOperationBuilder"        => [
       Hecks::Bluebook::DSL::PortOperationBuilder,
-      # `reference_to` -> `reference_to_impl`, same reasoning, slice 4b.
+      # `reference_to` is covered by `reference_to_impl`.
       %i[reference_to_impl emits attribute list_of attributes]
     ],
     "AdapterBuilder"              => [
@@ -81,14 +63,10 @@ RSpec.describe "the DSL surface is fully covered" do
     ],
     "WorldBuilder"                => [
       Hecks::Bluebook::DSL::WorldBuilder,
-      # `realm`/`latest` -> `*_impl` — item #13's full metaprogrammed
-      # dispatch (slice 5), reached through WordGate#word_gate_dispatch
-      # now, called explicitly from this class's own method_missing.
-      # `default_database`/`default_adapter` are the same shape, added
-      # for the project-wide defaults (spec/world_defaults_spec.rb).
-      # `record_binding` — extracted from the old `method_missing` body
-      # (#143) so `WorldConstProxy`'s own aggregate-qualified verb calls
-      # share the same write path the bare top-level spelling uses.
+      # `realm`/`latest`/`default_database`/`default_adapter` are `_impl` dispatch
+      # targets, reached through `WordGate#word_gate_dispatch` from this class's own
+      # `method_missing`. `record_binding` keeps `WorldConstProxy`'s writes on the
+      # same path as the bare top-level spelling.
       %i[realm_impl latest_impl default_database_impl default_adapter_impl method_missing record_binding]
     ],
     "SettingsCollector"           => [
@@ -100,31 +78,27 @@ RSpec.describe "the DSL surface is fully covered" do
       %i[port method_missing to_s]
     ],
     "WorldConstProxy"             => [
-      # The `.world` file's own ConstShim bridge (#143) — mirrors
-      # `BindingProxy`'s job for `.hecksagon` files, minus the
-      # aggregate-qualifier bookkeeping `IR::World` never reads back
-      # out; see this class's own header comment.
+      # The `.world` file's ConstShim bridge — mirrors `BindingProxy`'s job for
+      # `.hecksagon` files, minus the aggregate-qualifier bookkeeping `IR::World`
+      # never reads back out.
       Hecks::Bluebook::DSL::WorldConstProxy,
       %i[method_missing]
     ],
     "HecksagonBuilder"            => [
       Hecks::Bluebook::DSL::HecksagonBuilder,
-      # `port` -> `port_impl`, same reasoning, slice 5. `translates` is
-      # an ordinary method (no `_impl` split — nothing calls it through
-      # `word_gate_dispatch`'s `calls:` machinery, Ruby's own method
-      # lookup finds it directly), tested in spec/hecksagon_translates_spec.rb.
+      # `port` is covered by `port_impl`. `translates` has no `_impl` split — Ruby's
+      # own method lookup finds it directly — and is tested in spec/hecksagon_translates_spec.rb.
       %i[binds subscribe subscriptions port_impl uses_framework framework_members
          uses_embryonaut_bluebook vendored_bluebooks translates bounded method_missing]
     ],
     "TranslationBuilder"          => [
       Hecks::Bluebook::DSL::TranslationBuilder,
-      # `aggregate` -> `aggregate_impl`, slice 4c.
+      # `aggregate` is covered by `aggregate_impl`.
       %i[aggregate_impl]
     ],
     "TranslationAggregateBuilder" => [
       Hecks::Bluebook::DSL::TranslationAggregateBuilder,
-      # `unresolved` (slice 4) and `rename`/`move`/`convert`/`retype`/
-      # `compute`/`rekey`/`backfill` (slice 4c) -> `*_impl`.
+      # These are all covered by their `_impl` dispatch targets.
       %i[rename_impl move_impl convert_impl retype_impl compute_impl rekey_impl backfill_impl unresolved_impl]
     ]
   }.freeze
@@ -143,10 +117,8 @@ RSpec.describe "the DSL surface is fully covered" do
 
     it "#{label} declares nothing that has been removed" do
       actual = subject.public_instance_methods(false) + PLUMBING
-      # `identified_by` (S9, ADR 0025) — shared by AggregateBuilder and
-      # EntityBuilder via IdentityDeclaration, the same reason
-      # attribute/list_of/attributes are already exempted here for
-      # AttributeCollector.
+      # `identified_by` (S9, ADR 0025) is shared by AggregateBuilder and EntityBuilder
+      # via IdentityDeclaration, same reason attribute/list_of/attributes are exempted here.
       stale = declared - actual - %i[attributes list_of attribute identified_by]
 
       expect(stale).to be_empty,
@@ -156,23 +128,18 @@ RSpec.describe "the DSL surface is fully covered" do
 
   it "AttributeCollector has no method without a test" do
     actual = Hecks::Bluebook::DSL::AttributeCollector.public_instance_methods(false)
-    # `attribute` -> `attribute_impl` — item #13's full metaprogrammed
-    # dispatch (slice 3, whole-project table-unification survey): the
-    # word `attribute` is no longer a real method any builder answers
-    # directly, `GenericDispatch` forwards to this renamed one instead.
-    # `list_of`/`one_of` -> `*_impl`, slice 5, reached through
-    # WordGate#word_gate_dispatch's own new "Type"-context fallback.
+    # `attribute` is not a real method any builder answers directly — `GenericDispatch`
+    # forwards it to `attribute_impl`. `list_of`/`one_of` are `_impl` targets too, reached
+    # through `WordGate#word_gate_dispatch`'s "Type"-context fallback.
     expect(actual.sort).to eq(%i[attribute_impl attributes closed_sets list_of_impl one_of_impl].sort)
   end
 
-  # S9, ADR 0025 — `identified_by`, split out of AttributeCollector into
-  # its own module so only AggregateBuilder/EntityBuilder (its two real
-  # includers) answer it, not every attribute()-taking builder.
+  # S9, ADR 0025 — `identified_by` lives in its own module so only AggregateBuilder
+  # and EntityBuilder (its two includers) answer it, not every attribute()-taking builder.
   it "IdentityDeclaration has no method without a test" do
     actual = Hecks::Bluebook::DSL::IdentityDeclaration.public_instance_methods(false)
-    # `identified_by` -> `identified_by_impl` — item #13's full
-    # metaprogrammed dispatch (slice 4c), same shared-mixin shape
-    # `attribute_impl` proved in slice 3.
+    # `identified_by` is covered by `identified_by_impl`, the same shared-mixin
+    # dispatch shape as `attribute_impl`.
     expect(actual.sort).to eq(%i[identified_by_impl].sort)
   end
 
@@ -196,9 +163,9 @@ RSpec.describe "the DSL surface is fully covered" do
   end
 
   it "builds no runtime surface at all — the door is the facade's, at bind" do
-    # There is nothing left to keep `define_readers`/`define_command` private
-    # for, because a build produces only IR. The
-    # public surface is a per-boot projection installed by Loader.bind_runtime.
+    # A build produces only IR, so there is nothing left to keep `define_readers`/
+    # `define_command` private for; the public surface is a per-boot projection
+    # installed by Loader.bind_runtime.
     builder = Hecks::Bluebook::DSL::AggregateBuilder
 
     surface = builder.instance_methods(false) + builder.private_instance_methods(false)

@@ -29,15 +29,8 @@ Hecks.bluebook "Banking" do
     end
 
     value_object "EmailAddress" do
-      # THE SHAPE, DECLARED. This was `address.include?("@")` — a rule about
-      # spelling, hand-rolled as a predicate because the language had no way to
-      # say it. A pattern says it once, and says it strictly : "a b@c.d" and
-      # "a@b" passed the old invariant and are not addresses.
-      #
-      # Spelled with explicit ranges rather than \S, because the perl classes
-      # flip between ASCII and Unicode across regex engines — see
-      # PatternSubset, which refuses them when the bluebook is declared rather
-      # than letting readers disagree about a customer later.
+      # The pattern uses explicit ranges rather than \S: perl classes differ between ASCII and
+      # Unicode across regex engines, and PatternSubset refuses them.
       attribute :address, String, pattern: '^[^@ ]+@[^@ ]+\.[^@ ]+$'
     end
 
@@ -58,14 +51,8 @@ Hecks.bluebook "Banking" do
       emits CustomerRegistered
     end
 
-    # LIFECYCLE STATE AS A COMMAND GUARD (S10, ADR 0025) — `from:`
-    # replaces a `given` that only re-checked the exact state the
-    # matching `lifecycle` transition above already gates. Removing it
-    # is not just tidiness: `admissible_transition` and the given-based
-    # `enforce_lifecycle_guard` both route through the identical
-    # `LifecycleRefused`/`transition_blocked` wording (`RefusalWording`,
-    # `command_rules/admissibility.rb`), so the caller-visible refusal
-    # is byte-for-byte unchanged — only the duplicate check goes away.
+    # `from:` gates the command on lifecycle state; the refusal wording matches the
+    # lifecycle transition's own (ADR 0025).
     command "Suspend", from: "active" do
       role "Compliance officer"
       goal "Stop a customer transacting while something is investigated"

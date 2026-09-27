@@ -7,33 +7,17 @@ module Hecks
     # command-line launcher beside each domain, named after its bluebook, so
     # `Hecks.bluebook "QualityControl"` in `qa/` becomes `qa/quality_control`.
     #
-    # ## A launcher, not a CLI
-    #
-    # Each file is a dozen lines pinning one directory and handing over to
-    # `Facade::CliRunner`. The surface still comes from `Projector.call(:cli, …)` at
-    # the moment it runs, so editing a chapter changes the launcher's behaviour
-    # without regenerating anything. Re-run this when a domain is added or renamed.
-    #
-    # ## Beside the domain
-    #
-    # A domain's command line lives with the domain, so a folder is the whole unit.
-    # The launcher boots `__dir__`, and reaches `lib` by counting how deep the domain
-    # sits below the root, so no line knows where the checkout was cloned.
+    # Each launcher is a dozen lines pinning one directory and handing over to
+    # `Facade::CliRunner`; the surface itself is projected at the moment it runs,
+    # so editing a chapter changes behaviour without regenerating anything.
     module ProjectCli
       # Build output and other trees under a root that hold no domain a caller means.
       IGNORED = %r{\A(rust|deploy|tmp|coverage)/}
 
       module_function
 
-      # Writes a launcher for each domain `argv` names, or for every domain under
-      # `root`.
-      #
-      # @param argv [Array<String>] domain paths relative to `root`; empty for all of them
-      # @param program [String] the name the generated header credits
-      # @param root [String] the directory domains are found under and paths resolve against
-      # @param remove_stale_bin [Boolean] whether to delete `root/bin/<name>`, where a
-      #   launcher for the same chapter would otherwise linger as a second front door
-      # @return [void]
+      # `remove_stale_bin` deletes `root/bin/<name>`, where a launcher for the same
+      # chapter would otherwise linger as a second front door.
       def call(argv, program:, root:, remove_stale_bin: true)
         wanted = argv.empty? ? domains(root) : argv.map { |path| path.delete_prefix("#{root}/").chomp("/") }
 
@@ -50,11 +34,6 @@ module Hecks
         end
       end
 
-      # Finds every domain under `root` a launcher can be written for.
-      #
-      # @param root [String] the directory to search under
-      # @return [Array<String>] domain directory paths relative to `root`,
-      #   deduplicated and sorted
       def domains(root)
         folder = Adapters::Folder.new
         Dir.glob(File.join(root, "**/*.hecksagon"))
@@ -65,14 +44,8 @@ module Hecks
            .uniq.sort
       end
 
-      # Boots the domain to read its declared name, which comes from
-      # `Hecks.bluebook "…"` rather than the directory, so a domain renamed with
-      # `formerly_known_as` gets a launcher under its new name.
-      #
-      # @param root [String] the directory `path` is relative to
-      # @param path [String] a domain directory path
-      # @return [String, nil] the domain's declared bluebook name, or nil after warning
-      #   when it fails to boot
+      # Reads the name from `Hecks.bluebook "…"` rather than the directory, so a
+      # domain using `formerly_known_as` gets a launcher under its current name.
       def bluebook_name(root, path)
         Hecks.boot(File.join(root, path), install_facade: false).registry.bluebooks.keys.first
       rescue StandardError => e
@@ -80,12 +53,6 @@ module Hecks
         nil
       end
 
-      # Renders one domain's launcher.
-      #
-      # @param path [String] the domain directory path, relative to the root
-      # @param name [String] the domain's declared bluebook name
-      # @param program [String] the name the generated header credits
-      # @return [String] the launcher script's full source
       def launcher(path, name, program)
         snake = Naming.snake(name)
         up    = "../" * path.count("/").succ

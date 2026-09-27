@@ -1,57 +1,8 @@
-//! A Rust port of `RustProjection::Projector.mark_append_optional_fields!`
-//! (`rust/project/mutations.rb`), operating on the parsed `ir.json` tree
-//! (`crate::json::Json`) rather than a live Ruby Hash. This is the one
-//! genuinely new piece of data-transform logic this crate ports — see
-//! `rust/project_rust_pipeline.rb::derive_append_optionals`'s own header
-//! for why it's still necessary even though `spec/codegen_parity_spec.rb`
-//! found it a no-op against `hecks-codegen domain`'s own corpus fixture:
-//! that spec builds its `ir.json` from Ruby's already-mutated Hash (Ruby's
-//! `DomainGenerator.call` runs this same pass in-place before the spec
-//! ever serializes it), so it never actually exercised codegen against
-//! genuinely pre-derivation input the way this crate's own pipeline does.
-//!
-//! The rule (read directly off `mutations.rb`'s own `mark_append_
-//! optional_fields!`/`append_element`/`append_field_source`, not
-//! reinvented): for every attribute on an aggregate whose declared type
-//! resolves to a value object or an entity, look at every `append`
-//! mutation any command on this aggregate targets at that attribute; for
-//! every one of that mutation's own bound fields, if the field's source
-//! is a command argument (not a literal) and that argument is itself
-//! `optional: true`, then the element's own field of the same name is
-//! marked `optional: true` too — because Ruby's real `apply_mutations`
-//! runs every declared mutation unconditionally, and a caller-omitted
-//! optional argument arrives as a genuine `nil` that would otherwise
-//! reach a Rust struct field typed as a bare (non-`Option`) value.
-//!
-//! Which wire values count as "argument-sourced": `IR::Mutation#to_h`'s
-//! own `appended_fields` renders each append field's value through
-//! `Hecks::Literal.render` (`lib/hecks/literal.rb`) — the one
-//! pinned spelling for every captured Ruby literal on the wire. Of its
-//! six cases, only `Symbol` (a command argument's own name) gets a
-//! leading colon (`:#{value}`); every other case (`nil`, `true`/`false`,
-//! a number, a quoted String, a brace-wrapped Hash, a bracket-wrapped
-//! Array) is spelled some other way that can never start with `:`. So
-//! "does this field's own wire text start with `:`" is the exact,
-//! unambiguous inverse of `Marks.read(source).is_a?(Symbol)` — the
-//! check `append_field_source`/`mark_append_optional_fields!` actually
-//! make — without needing this crate to implement `Literal.read`'s full
-//! grammar (hash/array/number/string literal parsing) for a fact this
-//! one pass never otherwise needs. Confirmed live: banking's own
-//! `Credit.ledger` append (`"amount": ":amount"`, `"direction":
-//! "{value: \"credit\"}"`) shows both shapes in the same real mutation —
-//! the argument-sourced field starts with `:`, the literal Hash field
-//! starts with `{`.
+//! Marks value-object and entity fields `optional` when an `append` mutation binds them to an
+//! optional command argument, so the generated struct field is an `Option`.
 
 use crate::json::Json;
 
-/// `derive_append_optionals` (Ruby) top level — runs the pass over every
-/// aggregate in a chapter's `ir.json`, matching
-/// `ir[:aggregates].each { |aggregate| mark_append_optional_fields!
-/// (aggregate, value_objects_by_name) }` exactly (this Rust port
-/// recomputes each aggregate's own value-object/entity lookup inline
-/// rather than building the intermediate `value_objects_by_name` Hash —
-/// same outcome, since Ruby's own Hash was only ever a name->object
-/// index, never handed anywhere else).
 pub fn run(ir: &mut Json) {
     if let Some(aggregates) = ir.get_mut("aggregates").and_then(Json::as_array_mut) {
         for aggregate in aggregates.iter_mut() {
@@ -65,12 +16,6 @@ enum ElementRef {
     Entity(usize),
 }
 
-/// `append_element` (Ruby) — a plain value object or an entity, resolved
-/// by declared type name; value objects are checked first, matching
-/// `value_objects_by_name.key?(target_type)`'s own priority (a name
-/// cannot legally be both in one real aggregate, so order is never
-/// actually load-bearing against real corpus, but this mirrors Ruby's
-/// own branch order exactly regardless).
 fn find_element_ref(aggregate: &Json, target_type: &str) -> Option<ElementRef> {
     if let Some(idx) = aggregate.get("value_objects").map(Json::each).unwrap_or(&[]).iter().position(|vo| vo.get("name").and_then(Json::as_str) == Some(target_type)) {
         return Some(ElementRef::ValueObject(idx));
@@ -81,17 +26,8 @@ fn find_element_ref(aggregate: &Json, target_type: &str) -> Option<ElementRef> {
     None
 }
 
-/// One aggregate's own pass — `mark_append_optional_fields!` (Ruby),
-/// restructured into two steps (gather, then apply) rather than Ruby's
-/// single mutate-while-walking loop, because Rust's borrow checker
-/// can't hold a mutable reference into `aggregate["value_objects"]`/
-/// `aggregate["entities"]` at the same time as an immutable one into
-/// `aggregate["commands"]` the way Ruby's shared-object-graph mutation
-/// does implicitly. Behaviorally identical: nothing this pass writes
-/// (`field_attr[:optional]`) is ever read by this same pass (it only
-/// reads `source_attr[:optional]`, a command argument, never a
-/// value-object/entity field), so there is no ordering dependency
-/// between the two steps to preserve.
+// Gathers the fields to mark first, then applies them: the commands are read while the
+// value objects and entities are mutated.
 fn mark_append_optional_fields(aggregate: &mut Json) {
     let target_attrs: Vec<(String, String)> = aggregate
         .get("attributes")
@@ -117,10 +53,6 @@ fn mark_append_optional_fields(aggregate: &mut Json) {
     }
 }
 
-/// Every field name, across every command's every `append` mutation
-/// targeting `target_attr_name`, whose own source is a command argument
-/// that is itself `optional: true` — this pass's whole "which fields
-/// need `Option<T>`" question, answered without mutating anything yet.
 fn collect_fields_to_mark(aggregate: &Json, target_attr_name: &str) -> Vec<String> {
     let mut out = Vec::new();
 
@@ -136,9 +68,7 @@ fn collect_fields_to_mark(aggregate: &Json, target_attr_name: &str) -> Vec<Strin
 
             let Some(fields) = mutation.get("fields").and_then(Json::as_object) else { continue };
             for (field_name, source) in fields {
-                // A symbol (an argument name) is the only `Literal.render`
-                // spelling that starts with `:` — see this module's own
-                // header on why that's the exact, sufficient check.
+                // Only a Symbol (an argument name) renders with a leading `:` in `Literal.render`.
                 let Some(source_text) = source.as_str() else { continue };
                 let Some(arg_name) = source_text.strip_prefix(':') else { continue };
 
@@ -155,11 +85,6 @@ fn collect_fields_to_mark(aggregate: &Json, target_attr_name: &str) -> Vec<Strin
     out
 }
 
-/// `field_attr[:optional] = true if field_attr` — applied to whichever
-/// value-object or entity element `find_element_ref` resolved, by index
-/// into `aggregate`'s own `value_objects`/`entities` array (never a
-/// detached copy — the same in-place-mutation guarantee Ruby's shared
-/// Hash graph gives for free).
 fn apply_marks(aggregate: &mut Json, element_ref: &ElementRef, fields_to_mark: &[String]) {
     let element = match element_ref {
         ElementRef::ValueObject(idx) => aggregate.get_mut("value_objects").and_then(Json::as_array_mut).and_then(|v| v.get_mut(*idx)),
@@ -179,12 +104,8 @@ fn apply_marks(aggregate: &mut Json, element_ref: &ElementRef, fields_to_mark: &
 mod tests {
     use super::*;
 
-    /// A minimal stand-in for banking's own `Account.Credit` shape: a
-    /// list attribute `ledger` of entity type `LedgerEntry`, one
-    /// `append` mutation binding `amount` from the command's own
-    /// `amount` argument (declared `optional: true`) and `direction`
-    /// from a literal Hash — the same two shapes the real corpus's
-    /// `Credit`/`Debit` mutations show side by side.
+    // Banking's `Account.Credit` shape: entity list `ledger`, one `append` binding `amount` from
+    // an optional argument and `direction` from a literal Hash.
     fn fixture() -> Json {
         Json::parse(
             r#"{

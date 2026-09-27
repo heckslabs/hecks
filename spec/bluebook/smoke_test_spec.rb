@@ -35,12 +35,8 @@ RSpec.describe Hecks::Bluebook::SmokeTest do
     expect(described_class.call(dir)).to eq([])
   end
 
-  # The exact shape this tool was built for — a command that acts on an
-  # existing record but never says so (`reference_to Item` missing),
-  # which makes it look creating instead. Reloads clean, checks clean —
-  # only breaks once dispatched twice against the same identity, the
-  # same class of bug this tool caught for real in `bin/interview`'s
-  # own build.
+  # A command acting on an existing record without `reference_to Item` looks creating.
+  # It reloads and checks clean, and only breaks when dispatched twice against one identity.
   it "catches a command wrongly classified as creating — reloads clean, only breaks on dispatch" do
     dir = write_domain("SmokeWidget", <<~RUBY)
       aggregate "Item" do
@@ -98,18 +94,9 @@ RSpec.describe Hecks::Bluebook::SmokeTest do
     expect(described_class.call(dir)).to eq([])
   end
 
-  # The safety property this tool exists to guarantee — measured against
-  # a real collision, not assumed: pointed at `examples/pizzas` (a real,
-  # file-backed store carrying real accumulated records), a synthesized
-  # `CreatePizza` collided with an actual pre-existing record. This
-  # domain reproduces the same shape — a real Heki-bound aggregate with
-  # a real record already in it — and proves that record survives a
-  # smoke-test run untouched, regardless of what `dir`'s own `.hecksagon`
-  # and `.world` actually bind to.
-  # A real boot-dispatch-smoke-reboot sequence proving one end-to-end
-  # claim — the persisted record survives the smoke-test run untouched.
-  # Splitting the before/after reboot comparison across examples would
-  # lose the very thing this test exists to prove.
+  # A synthesized command once collided with a real record in a file-backed store. This proves a
+  # Heki-bound record survives a smoke run, whatever `.hecksagon` and `.world` bind to.
+  # One example on purpose: splitting the boot and reboot comparison would lose the claim.
   # rubocop:disable-next RSpec/ExampleLength
   it "never touches the target directory's own real persisted data, however it's really bound" do
     dir = write_domain("SmokeWidget", <<~RUBY)
@@ -143,9 +130,7 @@ RSpec.describe Hecks::Bluebook::SmokeTest do
 
     described_class.call(dir)
 
-    # **Re-read from disk, a fresh boot** — not the same in-memory Ruby
-    # objects, so this proves the real Heki file itself was untouched,
-    # not merely that a stale reference still looks right.
+    # A fresh boot re-reads the Heki file from disk instead of trusting in-memory objects.
     reread = Hecks.boot(dir, install_facade: false)
     reread_repository = reread.registry.repository("SmokeWidget", reread.registry.bluebook("SmokeWidget").aggregate("Item"))
     expect(reread_repository.all.map(&:id)).to eq(["smoke-test"])

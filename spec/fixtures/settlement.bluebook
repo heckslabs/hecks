@@ -124,11 +124,7 @@ Hecks.bluebook "Wire" do
   end
 
   process_manager "Carry" do
-    # THE FIELD, NAMED — Wire.Ask declares `attribute :reference,
-    # WireReference`, the same field Wire's own `identified_by :reference`
-    # derives its id from, so this reaches the exact scalar the old bare
-    # `:wire` reached only by coincidence (the aggregate's own reference key
-    # happening to spell the same as the correlation name).
+    # Names the field: Wire's `identified_by :reference` derives its id from the same scalar.
     correlates_by :"reference.value"
     starts_on "WireAsked"
     ends_on   "WireLanded"
@@ -140,11 +136,8 @@ Hecks.bluebook "Wire" do
     end
 
     transition "Taken" => "carrying", from: "asked" do
-      # `wire:` HERE IS DIFFERENT — Wire.Moved references Wire itself, so
-      # `wire:` is its own reference key (Naming.reference_key("Wire::Wire")
-      # == "wire"), addressing which record to act on. The VALUE stays
-      # `:reference`, reading the correlation the same way every other leg
-      # does.
+      # Wire.Moved references Wire itself, so `wire:` is the addressing key; the value is still
+      # `:reference`.
       dispatch Wire::Moved,  with: { wire: :reference }
       dispatch Drawer::Put,  with: { number: :destination, amount: :amount, reference: :reference }
     end
@@ -153,11 +146,7 @@ Hecks.bluebook "Wire" do
       dispatch Wire::Landed, with: { wire: :reference }
     end
 
-    # The compensating leg, and its trigger is a REFUSAL rather than an event —
-    # no aggregate announces "the leg you dispatched was declined". It used to
-    # hang off "WireReturned", which meant a human had to notice the wire had
-    # stalled and dispatch Wire.Returned by hand ; until they did, the money was
-    # out of the source drawer and nowhere else.
+    # Compensating leg, triggered by a refusal because no aggregate announces a declined leg.
     transition :refused => "returned", from: "carrying" do
       dispatch Drawer::Put,    with: { number: :source, amount: :amount, reference: :reference }
       dispatch Wire::Returned, with: { wire: :reference }

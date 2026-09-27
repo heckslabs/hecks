@@ -1,8 +1,5 @@
-//! Port of `rust/project/json_codec.rb` — the JSON boundary generator.
-//! Mirrors `to_json`/`from_json` for value objects/entities/records and
-//! the closed-set codecs, plus `extract_id`/`extract_wants`/
-//! `self_identity`. Read the Ruby file's own header comments; this
-//! follows its algorithm directly, function for function.
+//! Port of `rust/project/json_codec.rb`, the JSON boundary generator: `to_json`/`from_json`
+//! codecs, closed-set codecs, and `extract_id`/`extract_wants`/`self_identity`.
 
 use crate::exemplar::Exemplar;
 use crate::json::Json;
@@ -13,16 +10,8 @@ pub fn json_type_error(struct_name: &str, key: &str, expectation: &str) -> Strin
     format!("crate::kernel::Refusal::TypeMismatch({}.to_string())", naming::ruby_inspect_string(&format!("{struct_name}.{key}: expected {expectation}")))
 }
 
-// See rust/project/json_codec.rb's own (much longer) comment on this
-// exact function for the full story: PRD 04's generated-sequence fuzzer
-// bridge found a real, generated `String` scalar mismatch
-// (`Pizzas::Order.AddTopping`'s `ToppingName.value` given an Array) whose
-// Rust wording didn't match Ruby's own `Value::Coercion
-// #check_scalar_shapes` ("numeric_field" template, fired only when the
-// offered value is Array/Hash-shaped — Ruby tolerates any other scalar
-// mismatch for a String field, so this stays scoped to composite shapes
-// only, checked at runtime since codegen can't know the offered value's
-// shape ahead of time).
+// A String field refuses only composite-shaped (or null) values, as Ruby's
+// `Value::Coercion#check_scalar_shapes` does; the offered shape is only known at runtime.
 pub fn scalar_type_error(struct_name: &str, key: &str, scalar_type: &str, value_var: &str) -> String {
     if scalar_type != "Integer" && scalar_type != "Float" && scalar_type != "String" {
         return json_type_error(struct_name, key, scalar_type);
@@ -33,15 +22,11 @@ pub fn scalar_type_error(struct_name: &str, key: &str, scalar_type: &str, value_
         return proper;
     }
     let generic = json_type_error(struct_name, key, scalar_type);
-    // `Json::Null` words like a composite too — see json_codec.rb's own
-    // `scalar_type_error` comment (a present-but-null field refuses with
-    // exactly Ruby's `check_required_fields` wording, "got nil").
+    // `Json::Null` words like a composite: Ruby's `check_required_fields` says "got nil".
     format!("if matches!({value_var}, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_) | crate::kernel::Json::Null) {{ {proper} }} else {{ {generic} }}")
 }
 
-/// Port of `json_codec.rb#required_field_expr` — a non-optional field the
-/// caller's JSON never mentions refuses as "{type}.{field} expects
-/// {expected}, got nil", Ruby's own `check_required_fields` wording.
+/// A missing non-optional field refuses as "{type}.{field} expects {expected}, got nil".
 pub fn required_field_expr(struct_name: &str, key: &str, expected: &str) -> String {
     let message = format!("{struct_name}.{key} expects {expected}, got nil");
     format!("v.get({}).ok_or_else(|| crate::kernel::Refusal::TypeMismatch({}.to_string()))?", naming::ruby_inspect_string(key), naming::ruby_inspect_string(&message))
@@ -89,11 +74,7 @@ pub fn scalar_to_json_expr(scalar_type: &str, rust_expr: &str) -> String {
     }
 }
 
-/// `Value.for_attribute` → `fields_for`'s own bare-scalar branch
-/// (lib/hecks/runtime/value/coercion.rb), at codegen time instead
-/// of runtime — port of `json_codec.rb#sole_field_of`. `None` for
-/// anything but a genuinely single-field value object, so every other
-/// composite branch below is unchanged.
+/// The attribute name of a single-field value object (Ruby's bare-scalar shorthand), else `None`.
 pub fn sole_field_of(type_name: &str, value_objects_by_name: &HashMap<String, &Json>) -> Option<String> {
     let vo = value_objects_by_name.get(type_name)?;
     let attrs = vo.get("attributes").map(Json::each).unwrap_or(&[]);
@@ -104,14 +85,8 @@ pub fn sole_field_of(type_name: &str, value_objects_by_name: &HashMap<String, &J
     }
 }
 
-/// Port of `json_codec.rb#composite_from_json_expr` — the
-/// `NestedType::from_json(expr)?` call, wrapped in
-/// `Json::coerce_single_field` (kernel/json.rs) first when `attr`'s own
-/// type is single-field. Shared by both composite branches in
-/// `emit_from_json_flat`/`emit_from_json_state` below. A multi-field
-/// type's value is shape-checked ahead of its own `from_json`
-/// (`Json::expect_value_object_shape`), because only this call site knows
-/// the attribute name Ruby's `value_object_shape` refusal quotes.
+/// `NestedType::from_json(expr)?`, via `coerce_single_field` for a single-field type.
+/// A multi-field type is shape-checked first: only this site knows the attribute name Ruby quotes.
 pub fn composite_from_json_expr(attr: &Json, value_objects_by_name: &HashMap<String, &Json>, value_expr: &str) -> String {
     let nested_type = naming::rust_ident(crate::attr::type_name(attr));
     match sole_field_of(crate::attr::type_name(attr), value_objects_by_name) {
@@ -124,45 +99,8 @@ pub fn composite_from_json_expr(attr: &Json, value_objects_by_name: &HashMap<Str
     }
 }
 
-/// Port of `json_codec.rb#list_element_from_json_mapper` — BUG#25 (see
-/// the Ruby function's own header for the full story). Not every list
-/// element is a genuine value object with its own generated
-/// `Type::from_json` (that only holds for `list_of(Mark)`): a
-/// scalar-represented element (a bare `list_of(String)`, or
-/// `has_many`'s own `Reference<Target>` element, which
-/// `naming::reference_type`/`effective_scalar_type` map to the same
-/// plain `String` representation any other reference gets, never a
-/// real generated type) has no such function, so calling
-/// `ReferenceMember::from_json` (`rust_ident("Reference<Member>")`)
-/// would name a type that was never generated and fail to compile. A
-/// scalar element instead reads exactly the way any other scalar field
-/// already does (`scalar_from_json_value_expr`) — its own trailing `?`
-/// (meant to propagate out of `from_json` itself at a non-list call
-/// site) is stripped here: inside `.map(...)`, the closure's own tail
-/// expression must stay a `Result`, not the unwrapped value, so the
-/// list caller's own trailing `?` on `.collect::<Result<Vec<_>, _>>()`
-/// is what actually propagates a per-element refusal, not this one.
-///
-/// QualityControl ledger — the value-object branch (the `None` arm
-/// below) mirrors `composite_from_json_expr` above and calls
-/// `coerce_single_field` first when there is a sole field, rather than
-/// calling `Type::from_json` bare straight off `.iter().map(...)`,
-/// because Ruby's own runtime hydration
-/// (`Value::EntityListCoercion#hydrate_value_object_list` →
-/// `Coercion#fields_for`) applies that same bare-scalar-per-sole-
-/// attribute shorthand to every element of a `list_of` value-object
-/// attribute, not only to a scalar (non-list) composite field:
-/// `CardPayment.Authorize`'s own `tags: list_of(Tag)` (a single-
-/// attribute VO) accepts a bare string element on the Ruby side
-/// (`"a-tag"` auto-wraps to `{value: "a-tag"}`), so calling
-/// `Tag::from_json` on the bare JSON string directly would refuse
-/// `TypeMismatch` where Ruby instead coerces — confirmed live: seed 25
-/// of a `--seeds 40 --adversarial 0.3 --steps 25` banking sweep,
-/// `Banking::CardPayment.Authorize` with `tags: ["juliet echo"]`, Ruby
-/// coerces the element, then correctly refuses `InvariantViolation` on
-/// the same step's `amount: 0` (`PaymentAmount`'s own "a payment amount
-/// is positive"), while Rust never gets that far — `TypeMismatch` on
-/// `tags` first.
+/// Scalar elements (`list_of(String)`, `has_many` references) have no generated `from_json`;
+/// they read as scalars minus the trailing `?`. Single-field value objects coerce bare scalars.
 pub fn list_element_from_json_mapper(struct_name: &str, key: &str, attr: &Json, value_objects_by_name: &HashMap<String, &Json>) -> String {
     match naming::effective_scalar_type(crate::attr::type_name(attr)) {
         Some(scalar) => {
@@ -180,11 +118,7 @@ pub fn list_element_from_json_mapper(struct_name: &str, key: &str, attr: &Json, 
     }
 }
 
-/// Port of `json_codec.rb#list_element_to_json_expr` — the inverse of
-/// `list_element_from_json_mapper`, for `emit_to_json_flat`'s own list
-/// branches: a scalar-represented element serializes the same way any
-/// other scalar field does (`scalar_to_json_expr`) instead of calling a
-/// `.to_json()` method String/Integer/Float never have.
+/// Inverse of `list_element_from_json_mapper`: scalar elements have no `.to_json()` method.
 pub fn list_element_to_json_expr(attr: &Json) -> String {
     match naming::effective_scalar_type(crate::attr::type_name(attr)) {
         Some(scalar) => scalar_to_json_expr(scalar, "x"),
@@ -192,30 +126,9 @@ pub fn list_element_to_json_expr(attr: &Json) -> String {
     }
 }
 
-/// Port of `json_codec.rb#required_composite_argument_expr` — BUG#4
-/// (loop-parity). See that method's own header for the full trace:
-/// `Value::Coercion#nil_argument` (coercion.rb) builds a required
-/// command/entity-command argument's own value-object type from no
-/// fields at all when the caller's JSON offers a bare `null`, exactly as
-/// if the key had been omitted — never a per-field null the way a
-/// nested/state-assembly field's own `null` genuinely is. Substituting
-/// an empty object for a bare `null` before `coerce_single_field` ever
-/// runs lets the nested type's own declared defaults (`scalar_from_json_
-/// expr`'s `default:` branch, untouched) fill exactly what an omitted
-/// key would, and still refuses whatever field has none — same as
-/// Ruby's own `build`/`validate!`/`check_required_fields`. Only ever
-/// called from this method's own two `absent_argument_check: true`
-/// call sites (the argument door) — a plain value object's own nested
-/// from_json keeps calling `composite_from_json_expr` directly.
-/// Both match arms are owned `Json` (the `Null` arm a fresh empty
-/// object, the fallback a `.clone()` of the real value) — not
-/// `composite_from_json_expr`'s ordinary reference-shaped `value_expr`
-/// contract, so this builds its own final expression rather than
-/// delegating to it: mixing an owned, arm-local `&Json::Object(...)`
-/// temporary with the fallback arm's own differently-scoped `&Json`
-/// does not borrow-check (E0716, "temporary value dropped while
-/// borrowed") — the match's overall temporary has to be one unified
-/// owned value, referenced once at the top of the whole expression.
+/// A required composite argument offered as `null` reads as an empty object, like an omitted key.
+///
+/// Builds one owned value up front: mixing arm-local temporaries does not borrow-check (E0716).
 pub fn required_composite_argument_expr(struct_name: &str, key: &str, attr: &Json, value_objects_by_name: &HashMap<String, &Json>) -> String {
     let fetch = required_field_expr(struct_name, key, crate::attr::type_name(attr));
     let nested_type = naming::rust_ident(crate::attr::type_name(attr));
@@ -230,33 +143,10 @@ pub fn required_composite_argument_expr(struct_name: &str, key: &str, attr: &Jso
     }
 }
 
-/// `CommandInterpreter::ArgumentGate#refuse_unknown_arguments`'s own
-/// allowlist — declared attributes plus every other name a caller is
-/// legitimately allowed to address a command by or smuggle a saga's
-/// correlation through. Originally documented as "only ever passed for
-/// an aggregate-level command's own `from_json` — entity commands run no
-/// such check at all", quoting `EntityInterpreter::DISPATCH_ORDER`'s
-/// pre-H1 shape. That premise went stale the moment H1
-/// (docs/audits/2026-08-10-main-bug-audit.md) gave
-/// `EntityInterpreter::DISPATCH_ORDER` its own `refuse_unknown_arguments`/
-/// `refuse_absent_arguments` steps, "same position `AggregateDispatchOrder`
-/// holds them at" (entity_interpreter.rb's own comment on that fix) —
-/// this generator was never updated to match, so an entity command's own
-/// generated `from_json` kept building every declared field, invariant
-/// checks included, straight through an undeclared key it should have
-/// refused first (BUG#8: `Chess::Game.Piece.Move` — an extra `colour` key
-/// sailed past a missing check here, and coercing `destination` next
-/// raised `InvariantViolation` where Ruby's real `refuse_unknown_
-/// arguments` step, now running before any field is ever built, already
-/// refuses `UnknownArgument`).
+/// The names `ArgumentGate#refuse_unknown_arguments` accepts: declared attributes plus the
+/// reference key, identity heads and saga correlation keys.
 ///
-/// `extra_identity_heads` — `ArgumentGate#refuse_unknown_arguments`'s own
-/// `extra_identity_heads:` (argument_gate.rb), the same reason that kwarg
-/// exists there: an entity dispatch addresses not just the root aggregate
-/// but the entity itself, and `element_of` (entity_element.rb) reads the
-/// entity's own identity head straight out of `args`, never as a
-/// declared command fact. `&[]` for a plain aggregate command's own call
-/// site, which has no entity to add.
+/// `extra_identity_heads` is the entity's own identity head for entity commands, else `&[]`.
 pub fn command_argument_allowlist(aggregate: &Json, command: &Json, process_managers: &[Json], extra_identity_heads: &[String]) -> Vec<String> {
     let references = command.get("references").map(Json::to_s).unwrap_or_default();
     let reference_key = if references.is_empty() { None } else { Some(crate::hecks_naming::reference_key(&references)) };
@@ -285,29 +175,10 @@ pub fn command_argument_allowlist(aggregate: &Json, command: &Json, process_mana
     out
 }
 
-/// Mirrors `json_codec.rb#emit_unknown_argument_check`'s own `<<~RUST`
-/// squiggly heredoc exactly, including its own dedent margin — the
-/// marker this splices into (`from_json_flat`'s own `let
-/// _tmpl_unknown_check_placeholder = ();`) sits at column 0 in the
-/// exemplar template, so this block's own first line lands there too,
-/// with every following line indented relative to that. Found live,
-/// byte-diffing a real generated aggregate command's `from_json` for the
-/// first time — this path is never exercised by the prior stage's
-/// prelude-only scope (an aggregate command's own `unknown_argument_
-/// allowlist` is never passed there), so a guessed indentation here is
-/// easy to get wrong without that byte-diff — confirmed as a genuine,
-/// real mismatch.
-/// Port of `json_codec.rb#emit_absent_argument_check` — `ArgumentGate#
-/// refuse_absent_arguments`, generated: every declared non-optional name
-/// the caller's JSON never mentions, sorted, refused as `AbsentArgument`
-/// through the same wording site, before any field is built.
+/// `ArgumentGate#refuse_absent_arguments`, generated: every declared non-optional name the JSON
+/// omits, sorted, refuses as `AbsentArgument` before any field is built.
 ///
-/// V3 — the typed door, byte-identical to what the Ruby generator emits.
-/// `RefusalSite::...render` is private to the generated vocabulary module
-/// now, so the only way in is the site's own `<Variant>Args` struct:
-/// leaving an argument out does not compile, and the "none" reading of an
-/// empty `declared` list is `render_args`' business (that argument's own
-/// `Vocabulary::RefusalSiteArgument` row), not this emitter's.
+/// Goes through the site's `<Variant>Args` struct, so leaving an argument out does not compile.
 fn emit_absent_argument_check(command_name: &str, attributes: &[Json]) -> String {
     let mut required: Vec<String> = attributes.iter().filter(|a| !crate::attr::optional(a)).map(|a| naming::rust_field(crate::attr::name(a))).collect();
     required.sort();
@@ -323,20 +194,8 @@ fn emit_absent_argument_check(command_name: &str, attributes: &[Json]) -> String
     )
 }
 
-/// Mirrors `json_codec.rb#emit_unknown_argument_check`. Splicing
-/// `declared_names.join(", ")` straight into a hand-written `format!` of
-/// the template's own text is correct for every command with at least
-/// one attribute, but renders the empty string and trails the sentence
-/// off mid-clause ("Close does not declare parcel — it takes ") for a
-/// command that declares none — `declared_reading`'s own "none"
-/// fallback (argument_gate.rb) never reaches that path at all. Found
-/// via `bin/qa_generated_domains` (BUG#134).
-///
-/// V3 retires the whole class rather than that one instance: no join, no
-/// sort, no "none" and no template text here any more — both lists go
-/// over raw to `UnknownArgumentUnknownArgsArgs::render_args`, which reads
-/// the same `Vocabulary::RefusalSiteArgument` rows Ruby's own
-/// `RefusalWording.render_site` does.
+/// Both name lists go over raw to `UnknownArgumentUnknownArgsArgs::render_args`, which reads
+/// the same vocabulary rows as Ruby's `RefusalWording.render_site`; no join or "none" here.
 fn emit_unknown_argument_check(command_name: &str, known_keys: &[String], declared_names: &[String]) -> String {
     format!(
         "let unknown = v.unknown_keys(&[{}]);\nif !unknown.is_empty() {{\n    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();\n    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {{\n        command: {},\n        unknown: &unknown,\n        declared: &[{}],\n    }}.render_args()));\n}}\n",
@@ -346,12 +205,7 @@ fn emit_unknown_argument_check(command_name: &str, known_keys: &[String], declar
     )
 }
 
-/// Port of `json_codec.rb#unknown_and_absent_argument_checks` — factored
-/// out of `emit_from_json_flat` (pure extraction, no behavior change) so
-/// `registry.rs`'s own standalone structural pre-pass (BUG#23, see that
-/// file's header) can build the identical text: the unknown-argument
-/// check, then the absent-argument check, matching Ruby's own
-/// DISPATCH_ORDER.
+/// The unknown-argument check then the absent-argument check, in Ruby's DISPATCH_ORDER.
 pub fn unknown_and_absent_argument_checks(command_name: &str, attributes: &[Json], unknown_argument_allowlist: Option<&[String]>, absent_argument_check: bool) -> String {
     let mut check = match unknown_argument_allowlist {
         Some(allowlist) => {
@@ -372,16 +226,8 @@ pub fn unknown_and_absent_argument_checks(command_name: &str, attributes: &[Json
     check
 }
 
-/// Port of `json_codec.rb#emit_argument_gates` (roadmap D2) — one
-/// generated function per declared argument-gate step, emitted beside a
-/// command's own `from_json` so `kernel::decode_aggregate_arguments`/
-/// `decode_entity_arguments` can call them in `AggregateStep::ORDER`/
-/// `EntityStep::ORDER`. No standalone `structural_precheck` runs ahead
-/// of `id_line`/`extract_id` — the same checks are the steps
-/// themselves, and identity resolution runs after every gate, matching
-/// Ruby's own order. See the Ruby half's own
-/// header for the full argument, including why `from_json` keeps its
-/// internal preamble for every other caller.
+/// One generated function per argument-gate step, beside a command's `from_json`, for
+/// `kernel::decode_aggregate_arguments`/`decode_entity_arguments` to call in step order.
 pub fn emit_argument_gates(struct_name: &str, command_name: &str, attributes: &[Json], unknown_argument_allowlist: Option<&[String]>) -> String {
     let unknown = match unknown_argument_allowlist {
         Some(_) => unknown_and_absent_argument_checks(command_name, attributes, unknown_argument_allowlist, false),
@@ -397,28 +243,15 @@ pub fn emit_argument_gates(struct_name: &str, command_name: &str, attributes: &[
     )
 }
 
-/// One gate function — port of `json_codec.rb#argument_gate_fn`. An empty
-/// body still gets its own function (the kernel's loop calls every
-/// declared step for every command) and names its parameter `_v` so an
-/// empty one never warns.
+/// An empty body still gets its function (the kernel calls every step); `_v` avoids a warning.
 fn argument_gate_fn(name: &str, body: &str) -> String {
     let parameter = if body.is_empty() { "_v" } else { "v" };
     format!("    pub fn {name}({parameter}: &crate::kernel::Json) -> Result<(), crate::kernel::Refusal> {{\n{body}        Ok(())\n    }}")
 }
 
-/// `interleave_checks`/`aggregates_by_name` — port of `json_codec.rb#
-/// emit_from_json_flat`'s own ADR 0037 Finding 7 fix: `false` (every
-/// value-object `from_json`) keeps the original one-shot struct-literal
-/// shape, invariants checked entirely separately afterward
-/// (`commands.rs#invariant_checks_for`). `true` — every command/entity-
-/// command/port-operation Args struct — builds each field into its own
-/// `let` binding, runs that field's own admits-plus-invariant pair
-/// (`commands::argument_check_lines`) immediately after, then moves to
-/// the next declared attribute, matching Ruby's own `coerce_declared_
-/// arguments` (interpreting.rb): one argument's shape and invariant
-/// together before the next argument's shape is even attempted.
-/// `aggregates_by_name` is required whenever `interleave_checks` is
-/// true.
+/// With `interleave_checks`, each field's `let` is followed by its admits and invariant checks
+/// before the next field is built, as in Ruby's `coerce_declared_arguments`; this needs
+/// `aggregates_by_name`. Otherwise the value object is one struct literal.
 #[allow(clippy::too_many_arguments)]
 pub fn emit_from_json_flat(
     exemplar: &Exemplar,
@@ -456,16 +289,14 @@ pub fn emit_from_json_flat(
                     naming::ruby_inspect_string(&key)
                 )
             } else if optional && scalar.is_some() {
-                // `Some(Json::Null) | None` — see json_codec.rb: an optional
-                // argument offered as null is the same absence as an omitted key.
+                // An optional argument offered as null is the same absence as an omitted key.
                 format!("match v.get({}) {{ Some(crate::kernel::Json::Null) | None => None, Some(x) => Some({}) }}", naming::ruby_inspect_string(&key), scalar_from_json_value_expr(struct_name, &key, scalar.unwrap(), "x"))
             } else if optional {
                 format!("match v.get({}) {{ Some(crate::kernel::Json::Null) | None => None, Some(x) => Some({}) }}", naming::ruby_inspect_string(&key), composite_from_json_expr(attr, value_objects_by_name, "x"))
             } else if let Some(scalar) = scalar {
                 scalar_from_json_expr(struct_name, &key, scalar, crate::attr::default(attr))
             } else if absent_argument_check {
-                // BUG#4 — the argument door only; see
-                // `required_composite_argument_expr`'s own header.
+                // The argument door only; see `required_composite_argument_expr`.
                 required_composite_argument_expr(struct_name, &key, attr, value_objects_by_name)
             } else {
                 composite_from_json_expr(attr, value_objects_by_name, &required_field_expr(struct_name, &key, crate::attr::type_name(attr)))
@@ -497,22 +328,14 @@ pub fn emit_from_json_flat(
     emit_from_json_skeleton(exemplar, struct_name, &field_exprs, &unknown_check, shorthand_fields)
 }
 
-/// Port of `json_codec.rb#emit_object_shape_check` — see that function's
-/// own comment for the full story (ADR 0037's fuzz bridge).
 fn emit_object_shape_check(struct_name: &str) -> String {
     format!(
         "if !matches!(v, crate::kernel::Json::Object(_)) {{\n    return Err(crate::kernel::Refusal::TypeMismatch(format!(\"{struct_name} expects an object, got {{}}\", v.inspect())));\n}}\n"
     )
 }
 
-/// `shorthand_fields` — port of `json_codec.rb#emit_from_json_skeleton`'s
-/// own ADR 0037 Finding 7 fix. `None` (the default) keeps the original
-/// shape: `field_exprs` are already-complete `ident: rhs,` lines, folded
-/// straight into the struct literal. `Some(idents)` (interleaved callers
-/// only) means `field_exprs` are instead already-indented, already-
-/// terminated multi-line `let`+check blocks — folded into the preamble
-/// (ahead of `Ok(Self {`, not inside it), with the struct literal itself
-/// closing over the shorthand field-init form.
+/// `shorthand_fields: None` folds `ident: rhs,` lines into the struct literal; `Some(idents)`
+/// puts the `let`+check blocks in the preamble and closes the literal with shorthand init.
 fn emit_from_json_skeleton(exemplar: &Exemplar, struct_name: &str, field_exprs: &[String], unknown_check: &str, shorthand_fields: Option<&[String]>) -> String {
     let mut preamble = format!("{}{unknown_check}", emit_object_shape_check(struct_name));
     let field_block = match shorthand_fields {
@@ -570,13 +393,7 @@ pub fn emit_to_json_flat(exemplar: &Exemplar, struct_name: &str, attributes: &[J
         .collect();
 
     field_exprs.extend(extra_fields.iter().map(|(key, expr)| exemplar.render("to_json_field", &[("\"tmpl_field_name\"", naming::ruby_inspect_string(key)), ("tmpl_json_value_placeholder()", expr.clone())])));
-    // `corrects`'s own per-record flag fields — read straight off
-    // `aggregate` (already in scope for a record's own to_json, never for
-    // an Args/other flat struct) rather than threaded through
-    // `extra_fields`'s own 2-tuple shape, which the lifecycle field's
-    // always-String assumption owns exclusively; mirrors `rust/project/
-    // commands.rb`'s own `corrects_extra_fields` output, just computed
-    // inline instead of passed in.
+    // `corrects` flag fields are read off `aggregate`, not `extra_fields` (String-only).
     if let Some(aggregate) = aggregate {
         field_exprs.extend(crate::bridging::correctable_event_names(aggregate).iter().map(|ev| {
             let field = crate::bridging::corrects_flag_field(ev);
@@ -588,13 +405,8 @@ pub fn emit_to_json_flat(exemplar: &Exemplar, struct_name: &str, attributes: &[J
     format!("{}\n", exemplar.render("to_json_flat", &[("TmplFlatType2", struct_name.to_string()), ("tmpl_to_json_field_block()", field_block)]))
 }
 
-/// `emit_to_json_flat(..., sparse: true)` — command args structs only
-/// (json_codec.rb's own two call sites, domain_generator.rb + commands.rb):
-/// an absent optional argument is absent from the event payload, as
-/// Ruby's own `payload: args` never had the key (the exemplar's
-/// `to_json_flat_sparse` comment has the full argument). Same field
-/// block as the dense form, re-read off it so the two can never
-/// disagree about a field.
+/// Command args structs only: an absent optional argument is absent from the event payload, as in
+/// Ruby. Re-reads the dense field block so the two forms cannot disagree about a field.
 pub fn emit_to_json_flat_sparse(exemplar: &Exemplar, struct_name: &str, attributes: &[Json], value_objects_by_name: &HashMap<String, &Json>) -> String {
     let dense = emit_to_json_flat(exemplar, struct_name, attributes, value_objects_by_name, false, &[], None);
     let open = "vec![\n";
@@ -664,9 +476,7 @@ pub fn emit_from_json_state(
         let rhs = format!("v.require({}, {})?.as_str().ok_or_else(|| {})?.to_string()", naming::ruby_inspect_string(key), naming::ruby_inspect_string(struct_name), json_type_error(struct_name, key, "a string"));
         field_exprs.push(exemplar.render("field_assignment", &[("tmpl_ident", ident), ("tmpl_rhs_placeholder()", rhs)]));
     }
-    // `corrects`'s own per-record flag fields — see `emit_to_json_flat`'s
-    // own matching comment for why this reads `aggregate` directly
-    // rather than going through `extra_fields`'s own always-String shape.
+    // `corrects` flag fields: see `emit_to_json_flat`.
     if let Some(aggregate) = aggregate {
         for ev in crate::bridging::correctable_event_names(aggregate) {
             let field = crate::bridging::corrects_flag_field(&ev);
@@ -709,15 +519,9 @@ pub fn emit_closed_set_codec(exemplar: &Exemplar, vo: &Json) -> String {
         .collect();
 
     let type_name = vo.get("name").and_then(Json::as_str).unwrap_or("").to_string();
-    // V3 — the member list goes over raw; `admitted`'s own
-    // `Vocabulary::RefusalSiteArgument` row is what quotes and joins it,
-    // inside `InvariantViolationClosedSetMemberArgs::render_args`.
+    // The member list goes over raw; `render_args` quotes and joins it.
     let admitted = format!("[{}]", rows.iter().map(|(_v, raw)| naming::ruby_inspect_string(raw)).collect::<Vec<_>>().join(", "));
-    // BUG#14 — the same "numeric_field" wording `required_field_expr`
-    // already gives every other composite field's own missing-key case
-    // ("{type}.{field} expects {expected}, got nil"), resolved here at
-    // codegen time since the sole field's declared name/type are both
-    // already known statically, matching `admitted`/`type_name` just above.
+    // Same wording as `required_field_expr`, resolved at codegen time from the sole field.
     let null_message = format!("{type_name}.{sole_attribute_name} expects {sole_attribute_type}, got nil");
 
     exemplar.assemble(
@@ -797,12 +601,8 @@ pub fn emit_extract_id(exemplar: &Exemplar, aggregate: &Json) -> String {
     emit_extract_id_shaped(exemplar, aggregate, "extract_id", "to_id_component")
 }
 
-/// BUG#140 — see `rust/project/json_codec.rb`'s own `emit_extract_id_
-/// lenient` header for the full reasoning: the same `extract_id` shape,
-/// minted a second time as `extract_id_lenient`, calling `to_id_
-/// component_lenient` (kernel `json.rs`) instead of the strict `to_id_
-/// component`. Wired only into entity/nested-entity addressing call
-/// sites — never a root aggregate's own hydrate.
+/// `extract_id` minted as `extract_id_lenient` on `to_id_component_lenient`; entity addressing
+/// only, never a root aggregate's hydrate.
 pub fn emit_extract_id_lenient(exemplar: &Exemplar, entity: &Json) -> String {
     emit_extract_id_shaped(exemplar, entity, "extract_id_lenient", "to_id_component_lenient")
 }
@@ -812,11 +612,8 @@ fn emit_extract_id_shaped(exemplar: &Exemplar, aggregate: &Json, method_name: &s
     let identified_by: Vec<String> = aggregate.get("identified_by").map(Json::each).unwrap_or(&[]).iter().map(Json::to_s).collect();
     let reference_key = crate::hecks_naming::snake(aggregate.get("name").and_then(Json::as_str).unwrap_or(""));
 
-    // `"tmpl_id_coercion" => coercion` also goes into each tier1_subs
-    // entry — mirrors `rust/project/json_codec.rb`'s own identical fix:
-    // `compose`'s nested `TIER1_LINE` slot enforces its own leftover-
-    // placeholder check independently, before the outer text's other two
-    // `tmpl_id_coercion` occurrences ever get substituted.
+    // `tmpl_id_coercion` is also set per tier1 entry: `compose` checks the nested `TIER1_LINE`
+    // slot for leftover placeholders before the outer text is substituted.
     let tier1_subs: Vec<Vec<(&str, String)>> = identified_by
         .iter()
         .enumerate()

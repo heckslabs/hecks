@@ -5,27 +5,19 @@ require_relative "value"
 
 module Hecks
   module Runtime
-    # Turns facts selected by a policy or process manager into the same
-    # receiver/payload envelope an outside caller uses. A reaction declares
-    # both receiver identities and facts through one `with:` map, so this is
-    # the one compatibility seam that separates them after resolving the
-    # declaration and before re-entering the dispatcher.
+    # Turns facts a policy or process manager selected into the receiver/payload
+    # envelope an outside caller uses.
     module ReactionInvocation
       Target = Struct.new(:aggregate, :entities, :command, keyword_init: true)
       # :facts, not :values — Struct.new already defines #values (every
-      # member's own value, in order); naming this field :values silently
-      # shadowed that with the single Hash it actually holds.
+      # member's own value, in order); naming this field :values would
+      # silently shadow that with the single Hash it actually holds.
       Scope = Struct.new(:name, :facts, keyword_init: true)
 
       module_function
 
-      # Reports whether a reaction declared an explicit `with:` projection.
-      #
-      # An omitted projection and an explicitly empty `with: {}` both hold
-      # as the same empty array on the holding IR. Builders preserve
-      # declaration presence off-wire, in `@projection_declared`;
-      # reconstructed/legacy IR without that ivar falls back to reading
-      # presence off whether `with_spec` is non-empty.
+      # Reports whether a reaction declared an explicit `with:` projection;
+      # an omitted projection and an explicit `with: {}` both count as none.
       #
       # @param declaration [Bluebook::Policy, Bluebook::DispatchSpec] the reacting
       #   declaration to check
@@ -38,27 +30,16 @@ module Hecks
         end
       end
 
-      # Resolves a declared `with:` projection against the scopes and bindings visible to it.
+      # Resolves a declared `with:` projection against the scopes and bindings visible
+      # to it, refusing a name resolved in neither rather than passing it as nil.
       #
-      # A reaction's source names resolve lexically, not globally. Policies
-      # supply one event/row scope. Process managers supply current event then
-      # opening-event memory, while correlation is an explicit binding ahead
-      # of both. Missing names are refused here rather than materialized as nil
-      # and accidentally presented as target command facts.
-      #
-      # @param with_spec [Hash{Symbol => Object}] each target fact name mapped to its source:
-      #   a Symbol naming a fact visible in `bindings` or `scopes`, or any other value taken
-      #   as a literal
-      # @param scopes [Array<Hecks::Runtime::ReactionInvocation::Scope, Array(String,
-      #   Hash)>] the named fact scopes to resolve a Symbol source against, checked in order;
-      #   a bare `[name, facts]` pair is wrapped into a `Scope`
-      # @param bindings [Hash] explicit bindings (such as a saga's correlation key), checked
-      #   before any scope
+      # @param with_spec [Hash] fact name => source: a Symbol looked up in `bindings`/`scopes`,
+      #   or any other value taken as a literal
+      # @param scopes [Array<Scope, Array(String, Hash)>] named fact scopes, checked in order
+      # @param bindings [Hash] explicit bindings (e.g. a saga's correlation key), checked first
       # @param label [String] names this resolution in an `UnknownArgument` refusal
-      # @return [Hash{Symbol => Object}] `with_spec`'s keys mapped to their resolved,
-      #   materialized values
-      # @raise [Runtime::UnknownArgument] if a Symbol source names a fact visible in no
-      #   binding and no scope
+      # @return [Hash] `with_spec`'s keys mapped to their resolved, materialized values
+      # @raise [Runtime::UnknownArgument] if a Symbol source is visible in no binding or scope
       def resolve_mapping(with_spec:, scopes:, bindings: {}, label: "reaction")
         normalized_bindings = bindings.transform_keys(&:to_sym)
         normalized_scopes = scopes.map do |scope|
@@ -72,10 +53,6 @@ module Hecks
         end
       end
 
-      # One `with:` source, resolved — pulled out of resolve_mapping
-      # because it is a pure function of its own arguments (a literal, a
-      # binding, or a name visible in some scope), with no dependency on
-      # anything else resolve_mapping's own to_h block is doing.
       def resolved_mapping_value(source, bindings, scopes, label)
         return source unless source.is_a?(Symbol)
         return bindings.fetch(source) if bindings.key?(source)
@@ -83,13 +60,7 @@ module Hecks
         visible = scopes.find { |scope| scope.facts.key?(source) }
         unless visible
           names = scopes.map(&:name).join(" then ")
-          # **What is visible, named**. A refusal that only says which name is
-          # missing sent a modeler guessing field after field
-          # (`number`, `reference`…) at a fan-out row that is addressed
-          # by one key — `account`, the lowercase aggregate — which
-          # nothing else in the domain spells out. The names each scope
-          # actually offers are the whole diagnosis; the refusal now
-          # lists them, scope by scope.
+          # Names every visible option so a caller isn't left guessing at fields.
           offered = scopes.map { |scope| "#{scope.name}: #{scope.facts.keys.sort.join(', ')}" }.join("; ")
           raise UnknownArgument,
                 "#{label}'s with: reads :#{source}, which is not visible in #{names} (visible — #{offered})"
@@ -98,39 +69,18 @@ module Hecks
       end
       private_class_method :resolved_mapping_value
 
-      # A reaction without an explicit projection retains wholesale legacy
-      # forwarding. Choosing `with:` opts into the strict envelope: only target
-      # command attributes enter `with:`, while identities become `to:`.
-      # `consumed` accumulates across the aggregate-identity and entity-
-      # identity steps below, and refuse_unconsumed! at the end reads the
-      # final list — an ordering dependency threaded through one shared
-      # local. Already leans on private helpers (identity_for,
-      # source_receiver_for, command_facts, refuse_unconsumed!) for every
-      # piece that is self-contained; what remains is the sequencing
-      # itself, which further splitting would only relocate, not remove.
+      # A reaction without an explicit `with:` projection forwards its payload
+      # wholesale; an explicit one builds a strict `{to:, with:}` envelope instead.
       # rubocop:disable-next Metrics/MethodLength, Metrics/PerceivedComplexity
-      #
-      # @param registry [Runtime::Registry] the booted registry to resolve `verb` against
       # @param verb [String] the fully qualified target command verb
-      # @param projected [Hash] the facts to send, already resolved (e.g. by
-      #   `resolve_mapping`) or, for a legacy reaction, the raw event/row payload
-      # @param explicit [Boolean] true when the reaction declared its own `with:` projection
-      #   (`projection_declared?`); false forwards `projected` wholesale as legacy args
-      # @param passthrough [Array<String, Symbol>] extra fact names allowed to ride along
-      #   unconsumed, beyond the receiver identity and declared command facts
-      # @param source_receiver [Hash{Symbol => Object}, nil] the triggering event's own
-      #   `{aggregate:, identity:}`, offered as a same-aggregate receiver when nothing else
-      #   supplies one; nil when there is no such event to inherit from
-      # @return [Hash{Symbol => Object}] `{to:, with:}` for an explicit projection targeting
-      #   a non-creating command (`with:` only for a creating command); otherwise `projected`
-      #   (with `to:` merged in when a receiver could be inherited)
-      # @raise [Runtime::UnknownVerb] if `verb` does not resolve to a declared command,
-      #   entity command, or port operation (only when `explicit` is true; a legacy call
-      #   resolving `verb` only to check inheritance swallows this and forwards unchanged)
-      # @raise [Runtime::TypeMismatch] if an explicit projection resolves no receiver
-      #   identity for the target aggregate or one of its entities
-      # @raise [Runtime::UnknownArgument] if an explicit projection's facts include a name
-      #   that is neither a consumed receiver identity nor a declared command fact
+      # @param projected [Hash] resolved facts, or the raw payload when not `explicit`
+      # @param explicit [Boolean] whether the reaction declared its own `with:` projection
+      # @param passthrough [Array<String, Symbol>] extra fact names allowed unconsumed
+      # @param source_receiver [Hash, nil] an inheritable receiver from the triggering event
+      # @return [Hash] `{to:, with:}` when explicit, else `projected` merged with `to:`
+      # @raise [Runtime::UnknownVerb] if `verb` does not resolve (only when `explicit`)
+      # @raise [Runtime::TypeMismatch] if no receiver identity resolves for an explicit target
+      # @raise [Runtime::UnknownArgument] if an explicit projection has an undeclared fact
       def build(registry:, verb:, projected:, explicit:, passthrough: [], source_receiver: nil)
         args = projected.transform_keys(&:to_sym)
         unless explicit
@@ -144,16 +94,9 @@ module Hecks
           rescue UnknownVerb
             return args
           end
-          # An entity target has no shape this branch can build — an
-          # implicit (unprojected) `to:` is always a bare scalar, the
-          # aggregate's own identity alone; an entity command's receiver is
-          # `{aggregate:, entities:}`, which needs the entity's own
-          # identity too, and nothing here resolves one (the same "cannot
-          # invent an entity identity" limit `source_receiver_for`'s own
-          # comment already states). So this stays exactly the pre-BUG#6
-          # behavior for an entity target: no receiver is lifted, and the
-          # payload forwards wholesale, unchanged, same as when there is
-          # no `source_receiver` at all.
+          # An entity target's receiver needs `{aggregate:, entities:}`, but nothing
+          # here can invent the entity's own identity — so no receiver is lifted here;
+          # the payload forwards wholesale, same as with no `source_receiver` at all.
           return args unless target.entities.empty?
 
           inherited_receiver = source_receiver_for(target, source_receiver)
@@ -212,18 +155,9 @@ module Hecks
 
         *entity_names, command_name = command_path.split(".")
 
-        # A port operation, reached by the same two-segment tail shape an
-        # entity command uses ("Head.Rest") — checked first, same order
-        # `Dispatcher#dispatch` already resolves a live verb in (an
-        # aggregate that declared both a port and an entity of the same
-        # name would resolve to the port there too; no domain in this
-        # corpus does). A port has no `entities` of its own — the
-        # receiver is always the aggregate itself — so `Target#entities`
-        # stays empty and `#command` holds the `PortOperation`, which
-        # answers `#creates?` (always false) the same way an ordinary
-        # `Command` does, letting `source_receiver_for` lift a same-
-        # aggregate policy's own Event.id as the operation's receiver
-        # exactly as it already does for a plain command.
+        # A port operation shares the two-segment tail shape an entity command
+        # uses ("Head.Rest"); checked first, matching the order
+        # `Dispatcher#dispatch` already resolves a live verb in.
         if entity_names.one? && (port = aggregate.port(entity_names.first))
           operation = port.operation(command_name)
           raise UnknownVerb, "reaction target #{verb.inspect} does not resolve to a declared port operation" unless operation
@@ -259,49 +193,13 @@ module Hecks
       end
       private_class_method :aggregate_aliases
 
-      # Event.id names the aggregate that emitted the event. It can therefore
-      # supply only the receiver of a non-creating command on that same root;
-      # it cannot address another aggregate, invent an entity identity, or turn
-      # a creation into a mutation. An explicit projected receiver is resolved
-      # first and remains authoritative.
-      #
-      # Answers regardless of `target.entities` — the value this method hands
-      # back is only ever the root aggregate's own identity (`source_receiver`
-      # carries nothing else: `event.aggregate`/`event.id` name the emitting
-      # aggregate, never one of its entities). An entity target's own identity
-      # is resolved entirely separately, from `args` (`build`'s own `entity_
-      # identities` loop) — this method is never consulted for it, so
-      # answering for an entity target does not "invent an entity identity",
-      # just as answering for a plain one invents none; it is
-      # the one thing this method supplies. `build`'s own
-      # explicit branch (below) already applies this correctly either way
-      # (`aggregate_identity ||= inherited_receiver`, entity identities read
-      # from `args` regardless) — the caller that actually needed a guard
-      # here is the implicit one, above, which has no shape to build a
-      # `{aggregate:, entities:}` receiver from an inherited scalar alone,
-      # and now guards itself for exactly that reason instead of this method
-      # doing it on that caller's behalf and, as a side effect, also refusing
-      # the explicit caller's own legitimate case — confirmed missing until
-      # `qa/stress_domains/waybill` (BUG#6) exercised it for the first time
-      # anywhere in the corpus: a saga dispatching into a nested entity's own
-      # command, inheriting its aggregate receiver from the event that
-      # triggered it.
+      # An event's own identity can supply the receiver of a non-creating command on
+      # the same aggregate root; it never addresses another aggregate or an entity.
       def source_receiver_for(target, source_receiver)
         return nil unless source_receiver
-        # `target.command.creates?` alone misreads every entity command —
-        # `Behaviour::Command#creates?`'s own comment: "a verb declared on
-        # an entity always acts on that piece... which means `creates?`
-        # answers true for every one of them" (it never sets `@references`
-        # the way an aggregate-level command's own `reference_to` does,
-        # not because it brings anything new into being). `build`'s own
-        # `if target.entities.empty? && target.command.creates?` guard,
-        # 20-odd lines below, already reads `creates?` correctly for
-        # exactly this reason — an entity command is never a genuine
-        # creation, whatever `creates?` alone answers — so this checks the
-        # same compound condition instead of the bare, misleading half of
-        # it. Left unfixed, an entity target's own receiver was refused
-        # here even after this method stopped refusing on `target.entities`
-        # alone — the second half of BUG#6's own fix.
+        # `target.command.creates?` alone misreads every entity command, which always
+        # answers true for `creates?` though it never creates anything (Behaviour::
+        # Command#creates?) — checked as the same compound condition `build` uses below.
         return nil if target.entities.empty? && target.command.creates?
 
         source = source_receiver.transform_keys(&:to_sym)

@@ -1,24 +1,5 @@
-// The business's own Stripe keys, saved from the Payments page instead of set
-// in the environment. They are stored in one AWS Secrets Manager secret, never
-// in the domain's database or its journal, and they are never logged, echoed in
-// a response or put in an error message.
-//
-// The secret's `SecretString` is a JSON document with one entry per mode:
-//
-//   {"test": {"secret_key": "...", "publishable_key": "...",
-//             "webhook_secret": "...", "webhook_endpoint_id": "...",
-//             "saved_at": "2026-09-26T05:00:00Z"},
-//    "live": {...}}
-//
-// The secret's name comes from `PAYMENTS_ACCOUNT_SECRET_ID`, and the task role
-// must be allowed `GetSecretValue`, `PutSecretValue`, `CreateSecret` and
-// `DescribeSecret` on that one secret. There is no default name. An unset
-// variable means no store, so nothing can be saved and only environment keys
-// are used, except on AWS with checkout enabled, where the host refuses to boot
-// (`refusal_at_boot`) rather than run payments without a place to keep keys.
-//
-// Reads go through a short cache so a request does not call Secrets Manager
-// every time; a save or a disconnect invalidates it at once.
+// The business's own Stripe keys, saved from the Payments page instead of set in
+// the environment, kept in one AWS Secrets Manager secret named by `PAYMENTS_ACCOUNT_SECRET_ID`.
 
 use crate::secrets::AwsSecretFetcher;
 use serde_json::{json, Value};
@@ -111,7 +92,7 @@ pub struct AwsRawStore {
 }
 
 impl AwsRawStore {
-    /// A store over the secret named `secret_id`; nothing is fetched until the first read or write.
+    /// A store over the secret named `secret_id`; nothing is fetched until the first use.
     pub fn new(secret_id: String) -> Self {
         Self { secret_id, fetcher: tokio::sync::OnceCell::new() }
     }
@@ -132,9 +113,8 @@ impl RawStore for AwsRawStore {
     }
 }
 
-/// The document with a short read cache in front. `update` always reads fresh,
-/// so two saves cannot overwrite each other with stale data, and it
-/// invalidates the cache when it writes.
+/// A short read cache in front of the document. `update` always reads fresh, so two
+/// saves cannot overwrite each other with stale data, and invalidates the cache on write.
 pub struct KeyStore {
     raw: Arc<dyn RawStore>,
     cache: Mutex<Option<(Instant, Arc<StoredDocument>)>>,

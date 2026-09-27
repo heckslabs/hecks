@@ -2,15 +2,8 @@ require "spec_helper"
 require "hecks/ports/persistence/plugins/era"
 require "tmpdir"
 
-# The boot-time gate for adapters that have eras. Eras are facts about
-# stored data some adapter can carry across a shape change, so only a
-# lineage-capable adapter holds them — everything else has no era, holds
-# nothing, and is never lectured about drift it could not act on. (The
-# Postgres side of this lives in spec/adapters/postgres_lineage_spec.rb.)
-#
-# What remains adapter-agnostic is the compute gate, which was never an
-# era fact. Its refusal is pinned byte-for-byte — the wording is contract,
-# asserted here against the fixture.
+# The boot-time era gate: only lineage-capable adapters hold eras (Postgres side in
+# spec/adapters/postgres_lineage_spec.rb). The compute gate's refusal wording is pinned.
 RSpec.describe "the era check at boot" do
   ERA_FIXTURES = File.join(InMemoryDomain::ROOT, "spec", "fixtures", "eras")
 
@@ -59,13 +52,8 @@ RSpec.describe "the era check at boot" do
   end
 
   it "reads source containing non-ASCII bytes even when the process default external encoding is US-ASCII" do
-    # The tebako-packaged production container runs with no locale set,
-    # so Ruby's default external encoding is us-ASCII — a real prose
-    # comment (an em-dash, say) in a domain's own .bluebook file made
-    # File.foreach/File.read here raise ArgumentError: invalid byte
-    # sequence in us-ASCII the moment a regex touched it, well before
-    # this spec suite (which always runs under a UTF-8 locale) could
-    # ever observe it.
+    # The production container runs with no locale, so the default external encoding is
+    # us-ASCII; an em-dash in a .bluebook comment raised ArgumentError.
     previous_external = Encoding.default_external
     Encoding.default_external = Encoding::US_ASCII
     begin
@@ -100,8 +88,7 @@ RSpec.describe "the era check at boot" do
       check!(root, ERA_V1)
       expect(Dir.exist?(File.join(root, "data", "eras"))).to be(false)
 
-      # the shape moves, twice, and Memory is never lectured about a
-      # translation it could not apply
+      # the shape moves twice without refusal: Memory has no translation to apply
       expect { check!(root, ERA_DRIFTED) }.not_to raise_error
       expect { check!(root, ERA_BEHAVIOR_ONLY) }.not_to raise_error
       expect(Dir.exist?(File.join(root, "data", "eras"))).to be(false)
@@ -123,11 +110,6 @@ RSpec.describe "the era check at boot" do
     end
   end
 
-  # The four examples below are independent facts about shape_guard!'s
-  # re-attestation, kept apart rather than bundled into one example that
-  # shares a stored_hash. Each recomputes it via the shared shaped_bluebook
-  # helper (cheap: no real I/O, just an in-memory bluebook boot), so
-  # nothing here re-pays real setup cost by being split.
   it "cosmetic edits (comments, whitespace) still project to the minted era name" do
     Dir.mktmpdir do |root|
       stored_hash = Hecks::Runtime::StorageShape.mint_hash(shaped_bluebook(root))
@@ -156,14 +138,8 @@ RSpec.describe "the era check at boot" do
     end
   end
 
-  # unloadable text is not attestable at all — held texts are bootable
-  # source. A plain Ruby syntax error, not a rule the meta-domain
-  # enforces (an empty `vision`, say) — S0a's own shadow-parse legacy
-  # grammar (docs/dsl-work-slices.md) means `shadow_parse` no longer
-  # refuses that, on purpose: a since-tightened meta-domain rule must
-  # not make a frozen era text that once booted fine suddenly
-  # unattestable. What still cannot load, under any grammar, is text
-  # that is not even valid Ruby.
+  # A plain syntax error, not a meta-domain rule: shadow_parse's grammar must not
+  # refuse frozen era texts that boot.
   it "unloadable text is not attestable at all" do
     Dir.mktmpdir do |root|
       stored_hash = Hecks::Runtime::StorageShape.mint_hash(shaped_bluebook(root))
@@ -184,15 +160,8 @@ RSpec.describe "the era check at boot" do
     ).to eq(:unnamed)
   end
 
-  # The three examples below are independent facts about shape_guard!
-  # preferring stored_projection over stored_hash, kept apart rather than
-  # bundled into one example that shares a projection. Each recomputes it via
-  # the shared shaped_projection helper (cheap: no real I/O), so
-  # nothing here re-pays real setup cost by being split.
-  #
-  # a hash minted under a different canonical form would no longer
-  # match a recomputation — the projection comparison must win, or
-  # every cosmetic edit to an old-form era false-refuses
+  # A hash minted under a different canonical form does not match a recomputation, so
+  # the projection comparison must win or cosmetic edits to an old-form era false-refuse.
   it "prefers a matching stored projection over a stored_hash minted under a different canonical form" do
     Dir.mktmpdir do |root|
       projection = shaped_projection(root)
@@ -225,8 +194,6 @@ RSpec.describe "the era check at boot" do
     end
   end
 
-  # a stored projection also lets an unnamed era be shape-checked —
-  # strictly better than the :unnamed shrug
   it "a stored projection lets an UNNAMED era be shape-checked, not just shrugged at" do
     Dir.mktmpdir do |root|
       projection = shaped_projection(root)

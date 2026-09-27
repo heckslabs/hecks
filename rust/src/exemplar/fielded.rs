@@ -1,36 +1,6 @@
-// Exemplar shapes for rust/project/fielded.rb — see mod.rs's own header.
-//
-// `Fielded::field`'s per-attribute match arm has six distinct real
-// shapes, driven by `ShapeField`'s own `list`/`optional` axes crossed
-// against whether the field is a scalar or a nested value object —
-// `emit_fielded_flat`'s own header names the same six; `emit_fielded_
-// record`'s blanket-Option-wrap collapses to the same four of them
-// (its `scalar`/`nested` arms reuse flat's `optional_scalar`/
-// `optional_nested` shapes verbatim, since every record field is
-// Option-wrapped regardless of the IR's own `optional:` flag). Plus a
-// seventh, `fielded_lifecycle_arm`, shared between `emit_record`'s own
-// lifecycle arm and `emit_entity`'s `extra_arms:` lifecycle arm — same
-// text, two different Ruby call sites.
-//
-// All seven are standalone top-level leaves, not nested inside either
-// outer skeleton (`fielded_flat`/`fielded_record`, below) — reused
-// across both outers, so nesting would mean physically duplicating each
-// one's source into both (`json.rs`'s `to_json_field` header explains
-// the same choice at length). Each host below exists only to give its
-// one arm a real, differently-shaped field to operate on; none of the
-// seven need to coexist on one real struct, so each gets its own small
-// host type rather than forcing one shared struct into seven
-// incompatible shapes at once.
-//
-// Two markers per arm, not one — `"tmpl_field"` (the quoted match
-// pattern, a JSON key) and `tmpl_ident` (the bare `self.` field access,
-// a Rust identifier) — because `naming.rb`'s own `rust_field`/
-// `rust_ident_field` are not always the same string: a field literally
-// named after a Rust keyword (`type`, `match`, ...) gets `r#type` as its
-// identifier while the JSON key stays plain `"type"`. Conflating the two
-// into one marker would put the escaped `r#`-identifier inside the
-// quoted key too — wrong, and a real (if rare) corpus-breaking bug this
-// split avoids rather than risks.
+//! Exemplar shapes for rust/project/fielded.rb (see mod.rs).
+//!
+//! Each `Fielded::field` arm shape is a standalone leaf so both outer skeletons can reuse it.
 #![allow(dead_code, unused_variables)]
 
 fn tmpl_value_expr_placeholder(v: &i64) -> crate::kernel::Value {
@@ -153,12 +123,7 @@ impl TmplLifecycleHost {
     }
 }
 
-// `corrects`'s own per-record flag field — a plain, non-optional `bool`
-// (`Copy`, no `.clone()` needed), exactly like the lifecycle arm above
-// but for `Value::Bool` instead of `Value::Str`. Read by `Expr::Lookup`
-// inside a `corrects`-declaring command's own synthetic GivenSpec
-// (`commands.rb`'s own `corrects_given_specs`) the same generic way any
-// other given predicate reads any other record field.
+// Plain `bool` flag field read by `corrects` givens, like the lifecycle arm.
 struct TmplCorrectsFlagHost {
     tmpl_ident: bool,
 }
@@ -175,52 +140,19 @@ impl TmplCorrectsFlagHost {
     }
 }
 
-// The two outer skeletons. Unlike `to_json_field`'s own outer (json.rs),
-// a bare function-call marker can't stand in for "zero or more match
-// arms" — a match arm is `pattern => expr,`, not an expression on its
-// own, so the marker here is the whole placeholder arm line
-// (`"tmpl_arms_placeholder" => tmpl_arms_block(),`), matched and
-// replaced wholesale the same way `TmplRow { ... }`'s own whole-span
-// markers work elsewhere. Ruby supplies the fully rendered, already-
-// 12-space-indented real arm block in its place (matching the original
-// hand-built string's own fixed indent, not an auto-reindented one —
-// see json.rs's `closed_set_table_codec` header for why plain `render`
-// is correct here, not `compose`/`assemble`). The marker line itself
-// sits at column 0 below, not indented like its match-arm siblings —
-// `render` never reindents a multi-line replacement, so any leading
-// whitespace on the marker's own line would double up with Ruby's
-// already-indented block on its first line only (found live: the first
-// arm came out 24 spaces deep, every arm after it 12).
-// Two different placeholder types, not one — `impl Fielded for X` twice
-// on the same type is a duplicate-impl error regardless of the fact the
-// two real Ruby functions never fire for the same struct (json.rs's
-// `TmplTableRow`-vs-`TmplKind` split is the same story).
+// The marker is the whole placeholder arm line at column 0: `render` never reindents, so leading
+// whitespace would double up with Ruby's already-indented arm block.
+// The two skeletons use distinct types because a second `impl Fielded` on one type is an error.
 fn tmpl_arms_block() -> Option<crate::kernel::Field<'static>> {
     None
 }
 
-// **The items half** — `Fielded::items` (kernel/expr.rs), the elements of a
-// list-typed field for the enumeration operators (`.any?`/`.none?`/
-// `.all?`/`.find { |x| … }`), beside `field`'s own `Value::List(len)`
-// reading of the same attribute. Four arm shapes: the element is either
-// a nested value object/entity (`Field::Nested`) or a scalar
-// (`Field::Value`, through the same `scalar_to_value` the scalar field
-// arms use), crossed with the list being plain or `Option`-wrapped.
-// Every `Fielded` impl carries the method; a struct with no list
-// attribute renders it with no arms at all, just the `_ => None` floor.
+// `Fielded::items`: list elements for the enumeration operators, as nested or scalar fields.
 fn tmpl_items_block() -> Option<Vec<crate::kernel::Field<'static>>> {
     None
 }
 
-// `Fielded::as_scalar` — `Resolver#unwrap_scalar`, read directly: an
-// object with exactly one declared attribute reads as that attribute's
-// value, whatever it is named (a chess piece's `color == "white"`, its
-// Color a single-field closed set; a `Money{amount}` its amount —
-// single-element value objects strictly answer `.value`). Rendered as
-// the sole attribute's own scalar for exactly that shape and `None`
-// for every other (multi-field structs, and a sole attribute that is
-// itself nested), the kernel's existing "refuse — nothing generated
-// does this" reading.
+// `Fielded::as_scalar`: a single-attribute object reads as that attribute, else `None`.
 fn tmpl_as_scalar_placeholder() -> Option<crate::kernel::Value> {
     None
 }
@@ -292,25 +224,8 @@ impl TmplItemsOptionalScalarHost {
 struct TmplFlatType;
 struct TmplRecordType;
 
-// The marker for the conditional `use crate::kernel::Value;` (present
-// only when at least one real arm actually needs it) is the real
-// statement text itself, not a `tmpl_`-prefixed token — a bare
-// identifier there wouldn't compile unsubstituted, and unlike every
-// other marker this one is safe to leave un-caught by the leftover-scan
-// if a caller ever forgot it: the worst case is an always-present,
-// harmless unused import (every generated file already tolerates
-// `unused_imports` warnings — `#![allow(dead_code, unused_variables)]`
-// doesn't even silence them, and the build already carries dozens from
-// unrelated generated files). Ruby substitutes either this exact text
-// (no-op) or an empty string, mirroring the original's own conditional
-// interpolation — including that a false condition leaves a genuinely
-// blank line behind, not a removed one.
-// `#[allow(unused_imports)]` sits before the fence, not inside it — real
-// substituted output does use `Field`/`Value` (the real arms reference
-// them); only this unsubstituted exemplar's own placeholder arm doesn't,
-// since `tmpl_arms_block()` already returns `Option<Field>` without
-// naming `Field` bare. An attribute before `// TMPL: BEGIN` silences the
-// warning here without becoming part of what gets extracted.
+// The conditional `use crate::kernel::Value;` marker is the real statement, so leaving it
+// unsubstituted is harmless. `#[allow(unused_imports)]` sits before the fence to stay out of it.
 #[allow(unused_imports)]
 // TMPL:fielded_flat BEGIN
 impl crate::kernel::Fielded for TmplFlatType {

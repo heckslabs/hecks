@@ -14,88 +14,43 @@ require_relative "command_interpreter/argument_gate"
 
 module Hecks
   module Runtime
-    # Interprets a command dispatched against a nested entity (a dotted
-    # verb like "Handler.Dispatch.Bind") rather than an aggregate root
-    # directly: walks the entity chain off the parent aggregate, applies
-    # the command's own DISPATCH_ORDER of steps against the located
-    # element, then saves and emits through the same parent record a
-    # plain aggregate command would. CommandInterpreter's sibling for
-    # entity-owned commands.
+    # Interprets a command dispatched against a nested entity (a dotted verb
+    # like "Handler.Dispatch.Bind") rather than an aggregate root directly.
+    # CommandInterpreter's sibling for entity-owned commands.
     class EntityInterpreter
       include Interpreting
-      # The same payload gate aggregate commands and port operations already
-      # run — bug audit H1 (docs/audits/2026-08-10-main-bug-audit.md): without
-      # this, this class runs neither refuse_unknown_arguments nor
-      # refuse_absent_arguments, on a comment claiming "an entity inherits
-      # its aggregate's own gate." Nothing on the entity dispatch path ever
-      # ran one — confirmed live, `LedgerEntry.Reverse` accepted an
-      # unrecognized `bogus_arg:` outright, and dispatching it with no
-      # `narrative:` silently overwrote the stored narrative with `nil`
-      # (`sets :narrative`'s bare self-referential form reads `args[:narrative]`
-      # unconditionally). See `step_refuse_unknown_arguments`/
-      # `step_refuse_absent_arguments`, below, for how the shared gate is
-      # reused rather than reimplemented.
+      # Same argument gate aggregate commands and port operations run —
+      # without it, entity commands skip unknown/absent-argument checks.
       include CommandInterpreter::ArgumentGate
 
       attr_reader :registry
 
-      # **The declared order** — Vocabulary::EntityDispatchOrder
-      # (language/bluebook/vocabulary.bluebook), read off the generated table
-      # the same way CommandInterpreter's own DISPATCH_ORDER is.
-      # `refuse_unknown_arguments`/`refuse_absent_arguments` now lead it, same
-      # position `AggregateDispatchOrder` holds them at (H1, above) — the only
-      # remaining difference from the aggregate order is no
-      # `assign_creation_attributes` (an entity is never created through this
-      # path).
+      # The command-execution steps, in order, generated from
+      # Vocabulary::EntityDispatchOrder. Never includes
+      # `assign_creation_attributes` — an entity is never created directly.
       DISPATCH_ORDER = Hecks::Vocabulary.symbols("EntityDispatchOrder")
 
-      # Same safety valve as `CommandInterpreter::MAX_STALE_WRITE_RETRIES` —
-      # see that constant's own comment.
+      # Retry cap for a stale write — same reasoning as
+      # `CommandInterpreter::MAX_STALE_WRITE_RETRIES`.
       MAX_STALE_WRITE_RETRIES = 5
 
-      # `instance` is the parent aggregate record (what gets saved and
-      # returned) ; `element`/`view` are the entity piece itself — `view`
-      # wraps `element` as it stood at `locate_element`, pre-mutation, and
-      # `enforce_ensures` builds its own settled wrapper off `element` as it
-      # stands after, the same split the original sequential code made.
-      #
-      # `chain` — S17, ADR 0026 — every entity the dotted verb passes
-      # through, root-first (`[Handler, Dispatch]` for `Handler.Dispatch.
-      # Bind`) ; `entity`/`entity_name` stay the chain's own last entry,
-      # the one a command actually belongs to and a mutation actually
-      # targets, so every step written before this ADR (enforce_givens,
-      # apply_mutations, advance_lifecycle, element_identity, ...) reads
-      # exactly as it always has. Only `locate_element` walks the chain.
-      # `:chain` shadows Enumerable#chain on purpose — every read is
-      # `ctx.chain` fetching the field (an Array of entities), never
-      # `ctx.chain(other)` combining enumerables. Verified before disabling
-      # this cop for it.
+      # `chain` holds every entity a dotted verb passes through, root-first
+      # (ADR 0026); `entity`/`entity_name` are always its last entry, the one
+      # a command targets. `instance` is the parent aggregate record;
+      # `element`/`view` are the entity piece itself, pre- and
+      # post-mutation. `:chain` intentionally shadows Enumerable#chain —
+      # every read is the struct field, never enumerable-combining.
       # rubocop:disable-next Lint/StructNewOverride
       Context = Struct.new(:domain, :aggregate, :entity, :entity_name, :command, :command_name,
                            :args, :repository, :instance, :chain, :element, :view, :transition,
                            :old_element, :result, :route, :plan, :persistence_outcome, :dry_run, :outbox_rows,
                            :correction_bindings, :invocation)
 
-      # A dotted entity verb resolved against its aggregate. `Resolution.of`
-      # lives here rather than as a second public verb on the interpreter
-      # (spec/runtime/command_rules_spec.rb holds each interpreter to one),
-      # so `Dispatcher` can resolve it at the point `Invocation.from_call`
-      # reads the declaring command — after `to:` is parsed, before the
-      # facts are.
+      # A dotted entity verb resolved against its aggregate: the entity
+      # chain it names and the command located at the end of it.
       Resolution = Data.define(:entity_names, :chain, :command_name, :command) do
-        # Resolves a dotted entity verb against `aggregate` into the entity
-        # chain it walks and the command it names.
-        #
-        # Refuses UnknownVerb for an unknown entity or command.
-        #
-        # @param aggregate [Bluebook::Aggregate] the root aggregate the dotted verb
-        #   is resolved against
-        # @param dotted [String, Symbol] the entity verb, with the leading
-        #   "Domain::Aggregate." already stripped (e.g. `"Handler.Dispatch.Bind"`)
-        # @return [EntityInterpreter::Resolution] the resolved entity names, chain,
-        #   command name and command class
-        # @raise [Runtime::UnknownVerb] if `dotted` names no entity, or the located
-        #   entity declares no such command
+        # Resolves a dotted entity verb into its entity chain and command,
+        # raising UnknownVerb if either segment doesn't exist.
         def self.of(aggregate, dotted)
           *entity_names, command_name = dotted.to_s.split(".")
           if entity_names.empty?
@@ -110,14 +65,8 @@ module Hecks
           new(entity_names: entity_names, chain: chain, command_name: command_name, command: command)
         end
 
-        # **One hop per dotted segment** — `ProcessManager.Handler.Dispatch.Bind`
-        # (once the dispatcher has already stripped "Domain::Aggregate.")
-        # walks Handler off the aggregate, then Dispatch off Handler, each
-        # step reading `.entities` exactly the way the single-level case
-        # always did — a nested entity is "structurally interchangeable
-        # with an aggregate" (Entity's own header) for precisely this
-        # reason. Two levels is what Handler/Dispatch need today ; nothing
-        # here assumes it stops at two.
+        # Walks one hop per dotted segment, resolving each entity name off
+        # the previous one — not limited to two levels.
         def self.walk(aggregate, entity_names)
           owner = aggregate
           entity_names.map do |name|
@@ -139,37 +88,19 @@ module Hecks
         @rules    = rules
       end
 
-      # `dry_run:` — CommandInterpreter#call's own twin, see that method's
-      # comment for the shared reasoning (Dispatcher#dry_run?'s own entry
-      # point). `step_save`/`step_emit` are the only two steps here that
-      # read it either.
-      # Retries the whole method body on `StaleWrite` — same reasoning as
-      # `CommandInterpreter#call`'s own retry: a fresh `ctx`, a fresh
-      # `step_hydrate_parent`/`step_locate_element` re-reading current
-      # state.
-      #
-      # `resolution` is #resolve's answer; `invocation` the
-      # `Runtime::Invocation` `Dispatcher` built — `ctx.args` is its
-      # `to_args`, `ctx.route` its `target`.
-      #
+      # Runs the entity dispatch order for one command, saving and emitting
+      # through the parent record. Retries once on `StaleWrite` with a fresh
+      # `ctx`, re-reading current state.
       # @param domain [String, Symbol] the domain `aggregate` belongs to
-      # @param aggregate [Bluebook::Aggregate] the root aggregate owning the entity
-      #   chain the command targets
-      # @param resolution [EntityInterpreter::Resolution] the resolved entity chain
-      #   and command, as `Resolution.of` builds it
-      # @param invocation [Runtime::Invocation] the invocation `Dispatcher` built for
-      #   this call
-      # @param dry_run [Boolean] whether to run every step through validation without
-      #   saving, emitting or enqueueing
-      # @return [Array(Runtime::Instance, Array<Runtime::Event>,
-      #   Runtime::DependencyPlanning::Plan, Ports::Persistence::Execution,
-      #   Array<Runtime::Outbox::Row>)] the settled parent aggregate instance, emitted
-      #   events, execution plan, persistence outcome and outbox rows — the last
-      #   three nil on a dry run, which skips save/emit/outbox
-      # @raise [StandardError] any class in `Runtime::DOMAIN_REFUSALS` when a
-      #   given/ensures/invariant/authorization/admissibility rule refuses
-      # @raise [Runtime::StaleWrite] if concurrent writers beat this one through every
-      #   retry (`MAX_STALE_WRITE_RETRIES`)
+      # @param aggregate [Bluebook::Aggregate] the root aggregate owning the entity chain
+      # @param resolution [EntityInterpreter::Resolution] the resolved entity chain and command
+      # @param invocation [Runtime::Invocation] the invocation `Dispatcher` built
+      # @param dry_run [Boolean] validate every step without saving, emitting or enqueueing
+      # @return [Array(Runtime::Instance, Array<Runtime::Event>, Runtime::DependencyPlanning::Plan,
+      #   Ports::Persistence::Execution, Array<Runtime::Outbox::Row>)] instance, events, plan,
+      #   persistence outcome and outbox rows — last three nil on a dry run
+      # @raise [StandardError] any `Runtime::DOMAIN_REFUSALS` class when a rule refuses
+      # @raise [Runtime::StaleWrite] if writers race through every retry
       # @raise [Runtime::WiringError] if the aggregate's repository cannot be resolved
       def call(domain, aggregate, resolution, invocation, dry_run: false)
         chain        = resolution.chain
@@ -185,16 +116,12 @@ module Hecks
           ctx.chain = chain
           ctx.route = route
           ctx.dry_run = dry_run
-          # `root_aggregate:` — `entity` is the immediate owner (what
-          # `owner_fields` inside the Analyzer means), but a `parent.X`
-          # read inside this command's own given/ensures means the root
-          # aggregate's own field, not the entity's — `aggregate` here is
-          # that root (this method's own first parameter, never the
-          # entity). See DependencyPlanning::Analyzer.call's own header
-          # for the bug this closes.
+          # `root_aggregate:` is the true root aggregate (this method's first
+          # parameter), never `entity` — a `parent.X` read in this command's
+          # given/ensures means the root's field, not the entity's.
           ctx.plan = DependencyPlanning::Analyzer.call(aggregate: entity, command: command, root_aggregate: aggregate)
-          # **Resolved here, once** — see CommandInterpreter#call's own comment;
-          # `step_hydrate_parent` reads `ctx.repository` without re-fetching.
+          # Resolved once, here — `step_hydrate_parent` reuses `ctx.repository`
+          # rather than re-fetching it.
           ctx.repository = @registry.repository(domain, aggregate)
           lock_id = Identity.best_effort(aggregate, args, route)
           run_dispatch_order_with_isolation(DISPATCH_ORDER, ctx, lock_key_id: lock_id)
@@ -208,18 +135,12 @@ module Hecks
 
       private
 
-      # **A no-op, and untraced** — Vocabulary::EntityDispatchOrder's
-      # decode_arguments. See CommandInterpreter#step_decode_arguments.
+      # No-op — entities have no `decode_arguments` step of their own.
       def step_decode_arguments(_ctx); end
 
-      # `extra_identity_heads:` — every entity `ctx.chain` walks through, not
-      # just the root aggregate `ArgumentGate` already knows about. A
-      # two-hop dispatch (`Handler.Dispatch.Bind`) is addressed by both
-      # hops' own identity, each read straight out of `args` by
-      # `EntityElement#element_of` — refusing those as unknown would refuse
-      # every legitimate nested-entity dispatch there is, the same reasoning
-      # `ArgumentGate#refuse_unknown_arguments`'s own header gives for `:id`/
-      # the root's `identity_heads`.
+      # `extra_identity_heads:` covers every entity in `ctx.chain`, not just
+      # the root — each hop is addressed by its own identity fields, which
+      # would otherwise be refused as unknown arguments.
       def step_refuse_unknown_arguments(ctx)
         step(:refuse_unknown_arguments) do
           refuse_unknown_arguments(ctx.domain, ctx.aggregate, ctx.command, ctx.args,
@@ -227,12 +148,8 @@ module Hecks
         end
       end
 
-      # No `aggregate:` exemption to pass — that kwarg exists only for a
-      # port operation's own self-address (`ArgumentGate#refuse_absent_
-      # arguments`'s own comment); an entity command's chain identity never
-      # reaches `command.attributes` in the first place (resolved as
-      # addressing above, not as a declared fact), so there is nothing here
-      # for the exemption to need to strip.
+      # No `aggregate:` exemption needed — an entity command's chain identity
+      # never reaches `command.attributes` in the first place.
       def step_refuse_absent_arguments(ctx)
         step(:refuse_absent_arguments) { refuse_absent_arguments(ctx.command, ctx.args) }
       end
@@ -268,61 +185,10 @@ module Hecks
                                 state: ctx.element)
       end
 
-      # BUG#30 — the entity-level half of `CommandInterpreter#step_enforce_
-      # givens`'s own structural-before-declared ordering (see that
-      # method's comment for the shared reasoning): "does the fact this
-      # command's `corrects` names even exist" is checked here too, once,
-      # before the entity's own `given`s.
-      #
-      # Admissibility is checked against the parent/root, not the entity —
-      # deliberately `ctx.instance`/`ctx.aggregate` (the parent aggregate
-      # record and the root aggregate construct), never `ctx.view`/
-      # `ctx.entity` (the entity's own pre-mutation view/construct). This
-      # is not a simplification; it is the only choice that lines up with
-      # how the event being corrected was actually recorded: an entity has
-      # no event stream of its own — `CommandRules::Emission#emit` (called
-      # from this class's own `step_emit`, and from `CommandInterpreter`'s
-      # `step_emit` for an aggregate-level command alike) always stamps an
-      # emitted event with the root aggregate's own qualified name
-      # (`"#{domain}::#{aggregate.hecks_name}"`) and the parent record's
-      # own id (`ctx.instance.id`), regardless of which level dispatched
-      # it. `enforce_correction_target` (CommandRules::Admissibility)
-      # looks a correction target up by exactly those two fields plus the
-      # event name — asking it in terms of the entity instead would search
-      # for an event key/id that no emitted event could ever actually
-      # carry, and every entity-level correction would refuse
-      # (NothingToCorrect) even against a real, already-emitted event.
-      # `qa/stress_domains/corrections`' own `Entry.Amend` (corrects
-      # "EntryRecorded", which `Ledger.Record` — an aggregate-level
-      # command — actually emits) is exactly this shape: the corrected
-      # event's `aggregate`/`id` are the ledger's, never the Entry's own
-      # (an Entry has no id an event could be filed under in the first
-      # place). `Fuzzing::Properties::Corrections#corrections_reference_
-      # an_emitted_event` independently encodes the identical rule
-      # (`aggregate_key` built off the outer aggregate for both the
-      # `corrects` target and the `emits` produced event, regardless of
-      # entity nesting depth) — this is that property's dispatch-time
-      # enforcement counterpart, not a new invention.
-      #
-      # One structural consequence, worth being explicit about for a
-      # Rust port: because the lookup is scoped to the parent record
-      # (not to any one entity element within it), an entity-level
-      # `corrects` only proves "this parent record has emitted the named
-      # event at some point" — it does not, and cannot, further narrow
-      # to "...specifically for THIS entity element" (a Ledger with three
-      # Entries all satisfy the same `EntryRecorded`-was-emitted check).
-      # That is not a gap this fix introduces: it is the same granularity
-      # the aggregate-level check already has (one record, one event
-      # history), just observed from one level down. A command wanting a
-      # tighter, element-specific correlation has to encode it itself, in
-      # its own `given`s, off `correction`-bound payload fields.
-      #
-      # `correction:` bindings computed here are threaded through to both
-      # halves of the same command's admissibility, same as the
-      # aggregate-level path: `ctx.correction_bindings` is read again by
-      # `step_enforce_ensures`, below, so an `as:`-named binding is
-      # visible to a settled-record `ensures` exactly as freely as it is
-      # here, pre-mutation.
+      # Enforces this command's `given`s and correction-target admissibility.
+      # Checked against the parent aggregate, never the entity view — every
+      # emitted event is stamped with the root aggregate's name and the
+      # parent record's id, regardless of dispatch level.
       def step_enforce_givens(ctx)
         step(:enforce_givens) do
           ctx.correction_bindings = @rules.enforce_correction_target(ctx.instance, ctx.aggregate, ctx.command, domain: ctx.domain)
@@ -338,7 +204,7 @@ module Hecks
       def step_apply_mutations(ctx)
         ctx.old_element = ctx.element.dup unless ctx.command.ensures.empty?
         step(:apply_mutations) do
-          pre = ctx.element.dup # C4.2 — the update set reads the element as it was
+          pre = ctx.element.dup # the update set reads the element as it stood before mutation
           ctx.command.mutations.each do |mutation|
             EntityElement.apply_to_element(@rules, ctx.aggregate, ctx.entity, ctx.element, mutation, ctx.args, pre)
           end
@@ -357,46 +223,33 @@ module Hecks
       def step_enforce_ensures(ctx)
         step(:enforce_ensures) do
           settled = Instance.new(aggregate: ctx.entity, id: ctx.view.id, state: ctx.element)
-          # `correction:` — same `as:`-bound corrected-event payload
-          # `step_enforce_givens` already located, above; `|| {}` covers
-          # a command with no `corrects` mutation at all, where
-          # `ctx.correction_bindings` is `{}` from that call already, or
-          # (belt-and-braces, matching `CommandInterpreter#step_enforce_
-          # ensures`'s own identical `|| {}`) never set.
+          # `correction:` reuses the `as:`-bound bindings `step_enforce_givens`
+          # already located; `|| {}` covers a command with no `corrects`
+          # mutation, where `ctx.correction_bindings` may be unset.
           @rules.enforce_ensures(settled, ctx.command, ctx.args, old: ctx.old_element, domain: ctx.domain, parent: ctx.instance,
                                  correction: ctx.correction_bindings || {})
         end
       end
 
-      # The parent aggregate's own invariants — `ctx.instance` is the
-      # parent record an entity mutation writes into (this file's own
-      # `Context` comment), the same boundary an aggregate-level
-      # invariant guards regardless of which interpreter changed it. No
-      # separate "entity invariant" exists (S10, ADR 0025 scopes
-      # `invariant` to the aggregate only) — see `Admissibility#
-      # enforce_invariants`'s own comment.
+      # Enforces the parent aggregate's own invariants — there is no separate
+      # "entity invariant" concept (ADR 0025 scopes `invariant` to the aggregate).
       def step_enforce_invariants(ctx)
         step(:enforce_invariants) { @rules.enforce_invariants(ctx.instance, ctx.aggregate, domain: ctx.domain) }
       end
 
-      # `dry_run:` skips the write half of this step — see
-      # CommandInterpreter#step_save's own comment (BUG#127): the
-      # reference-existence check stays unconditional, only the actual
-      # persist is behind the early return.
+      # `dry_run:` skips only the persist — the reference-existence check
+      # above stays unconditional either way.
       def step_save(ctx)
         step(:save) { @rules.resolve_state_references(ctx.domain, ctx.aggregate, ctx.instance.state) }
 
         return if ctx.dry_run
 
         step(:save) do
-          # `expected_version:` — see CommandInterpreter#step_save's own
-          # comment: nil for a repository that isn't CAS-capable, or an
-          # instance never read from storage, either of which falls
-          # through to a plain save inside `AppendOnly#save`.
+          # `expected_version:` is nil for a non-CAS repository or an instance
+          # never read from storage — either falls through to a plain save.
           ctx.persistence_outcome = ctx.repository.save(ctx.instance, expected_version: ctx.instance.version)
           if ctx.persistence_outcome.status == :stale
-            # Not a `RefusalWording.render` call — see
-            # `CommandInterpreter#step_save`'s identical branch and
+            # Intentionally not a `RefusalWording.render` call — see
             # `Runtime::StaleWrite`'s own comment.
             raise(StaleWrite,
                   "#{ctx.command.hecks_name} on #{ctx.aggregate.hecks_name} " \
@@ -414,10 +267,8 @@ module Hecks
         ctx.result = step(:emit) { @rules.emit(ctx.command, ctx.domain, ctx.aggregate, ctx.instance, ctx.args, ctx.repository) }
       end
 
-      # The parent aggregate, addressed exactly as `CommandInterpreter#hydrate`
-      # addresses one acting on itself — derive from the declared identity first
-      # (`Identity.of`), and let a bare `id:` name an already-derived record when
-      # the identity itself is not what the caller is holding.
+      # Finds the parent aggregate: the declared identity first, then a bare
+      # `id:` for a record the caller derived itself.
       def parent(repository, aggregate, entity_name, command_name, args, route = nil)
         parent_id = route&.aggregate ||
                     Identity.of(aggregate, args) ||
@@ -433,13 +284,9 @@ module Hecks
         found.dup
       end
 
-      # `locate_chain`/`element_of`/`element_identity`/`apply_to_element` and
-      # their own helpers live in `Runtime::EntityElement`
-      # (see that file's own header), shared rather than kept here, so
-      # `CommandInterpreter`'s own `delegate_to_entity` step can locate and
-      # mutate the same element the same way, against an aggregate record
-      # already held in memory. `call`, above, and every `step_*` method
-      # reach them through that module.
+      # Entity element helpers (`locate_chain`, `element_of`, `element_identity`,
+      # `apply_to_element`) live in `Runtime::EntityElement`, shared with
+      # `CommandInterpreter#delegate_to_entity`.
     end
   end
 end

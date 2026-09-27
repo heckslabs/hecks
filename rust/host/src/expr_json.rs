@@ -1,56 +1,9 @@
-// A host-local, JSON-backed port of `rust::kernel::expr::Expr` — see
-// `reference_validate.rs`'s own header for why this exists at all
-// (a value object's own `invariant` predicate, checked at mint-time
-// audit, with no kernel crate this binary is allowed to link against).
-// `lib/hecks/bluebook/expression/ast_json.rb`'s own header is the Ruby
-// side of the same port — read that file first; this is its mirror.
-//
-// Parsed from `&serde_json::Value` by hand, not `#[derive(Deserialize)]`
-// — matching this crate's own established, exceptionless idiom
-// (`reference_validate.rs`/`ir.rs`/every other file here reads `ir.json`
-// dynamically via `serde_json::Value`, never a derived struct; grepping
-// this whole crate for `derive(Deserialize)` finds nothing) rather than
-// adding `serde`'s `derive` feature as this file's own one-off
-// dependency for a shape every sibling file already knows how to read
-// the plain way.
-//
-// **Structurally complete, narrowly interpreted** — a real, deliberate split,
-// not an oversight:
-//
-// - `parse`, below, accepts every node the real grammar admits (all 28
-//   `rust::kernel::expr::Expr` variants), because `AstJson` on the Ruby
-//   side emits all of them for any value-object invariant an author
-//   writes — refusing to even parse an unfamiliar shape would turn
-//   "this operator isn't checked yet" into "this domain's own ir.json is
-//   malformed," a strictly worse failure.
-//
-// - `interpret`, below, is complete for exactly the operators a full
-//   corpus survey found any real value-object invariant actually using
-//   today (`Or`/`And`/`Not`, `Compare`, `SignTest`, `Empty`/`Size`,
-//   `ToS`, plus the literal/`Lookup` leaves every expression needs) —
-//   the identical algebra `rust::kernel::expression_operators::{logical,
-//   comparison, sign_test, sized, to_string}` already implement, ported
-//   by reading those files directly rather than re-derived from
-//   scratch, since this crate cannot import them. Every other variant
-//   (`Include`, `Add`, `Modulo`, `BlockPredicate`, `Find`, `Array`,
-//   `MatchesRegex`, `Presence`, `Assignment`, `Split`, `StartsWith`,
-//   `EndsWith`, `First`, `Last`) is a real, deliberate boundary, not a
-//   silent gap: `interpret` refuses them by name, cleanly, the same
-//   "unresolved, never guessed" discipline `reference_validate.rs`'s
-//   own unrecognized-type-name handling already holds to — an author
-//   who writes a value-object invariant using one of these gets a clear, loud audit
-//   failure naming exactly which operator isn't checked yet, never a
-//   silently-skipped or silently-wrong evaluation. Porting the full
-//   11-file operator surface (enumeration's own block-predicate
-//   machinery most of all) against zero real corpus examples to validate
-//   the port against would be exactly the "invented generality with no
-//   real backing" this codebase's own comments elsewhere warn against
-//   (`checkout.rs`'s own header, same reasoning one boundary over) —
-//   grow this the day a real value-object invariant actually needs one
-//   of them, against that real example, not before.
+//! Host-local JSON port of `rust::kernel::expr::Expr`: `parse` reads every node, `interpret`
+//! evaluates only the operators real invariants use and refuses the rest by name.
 
 use serde_json::Value as Json;
 
+/// The `cmp` flags of a comparison node: `<`, `==`, and whether the result is negated.
 #[derive(Debug, Clone, Copy)]
 pub struct Comparison {
     pub less_than: bool,
@@ -65,11 +18,8 @@ pub enum BlockMode {
     None,
 }
 
-/// One JSON object per node, tagged by `"op"` — the exact wire shape
-/// `lib/hecks/bluebook/expression/ast_json.rb`'s own `emit_bool`/
-/// `emit_resolver` build. Field names match that file's Hash keys 1:1
-/// (`cmp` for a `Comparison`, `receiver`/`left`/`right`/`expr` for
-/// nested nodes, matching each operator's own Ruby-side vocabulary).
+/// One JSON object per node, tagged by `"op"`; field names match the Hash keys
+/// `ast_json.rb` emits.
 #[derive(Debug, Clone)]
 #[allow(dead_code)]
 pub enum Expr {
@@ -103,11 +53,9 @@ pub enum Expr {
     Last { receiver: Box<Expr> },
 }
 
-/// `json["ast"]`, straight off an `invariant`'s own IR node — every real
-/// arm named below, an unrecognized `"op"` (or a malformed shape under a
-/// recognized one) refused by name rather than silently defaulted, the
-/// same discipline `reference_validate.rs`'s own header holds every
-/// other check here to.
+/// Parses an invariant's `ast` node into an `Expr`.
+///
+/// An unrecognized `"op"`, or a malformed shape under a known one, is an `Err`.
 pub fn parse(json: &Json) -> Result<Expr, String> {
     let op = json.get("op").and_then(Json::as_str).ok_or_else(|| format!("{json} has no string \"op\" field"))?;
 
@@ -116,8 +64,7 @@ pub fn parse(json: &Json) -> Result<Expr, String> {
     let str_field = |name: &str| -> Result<String, String> {
         field(name)?.as_str().map(str::to_string).ok_or_else(|| format!("{op}'s {name:?} isn't a string: {json}"))
     };
-    // `lookup.path` and `find.path` share one shape: segments, never a
-    // dotted string a reader would have to split by its own rule.
+    // `lookup.path` and `find.path` are segment arrays, never dotted strings.
     let path_field = |name: &str| -> Result<Vec<String>, String> {
         field(name)?
             .as_array()
@@ -196,15 +143,9 @@ pub fn parse(json: &Json) -> Result<Expr, String> {
     })
 }
 
-/// The runtime value an `Expr` evaluates to — mirrors `rust::kernel::
-/// expr::Value` (`Int`/`Float`/`Str`/`Bool`/`Nil`), collapsed to one
-/// list shape (`Array`) rather than that file's own `List(usize)`/
-/// `Array(Vec<Value>)` split: that split exists there only because a
-/// compiled kernel field's own length and its own elements are two
-/// separately-reachable things (`Fielded::field` vs `::items`) — here,
-/// every "field" is already a fully-materialised `serde_json::Value`,
-/// so a list's own elements are always already in hand; there is no
-/// length-only reading to keep separate.
+/// The runtime value an `Expr` evaluates to.
+///
+/// Lists are a single `Array` variant: every field here is already a materialised JSON value.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Value {
     Int(i64),
@@ -216,12 +157,9 @@ pub enum Value {
 }
 
 impl Value {
-    /// Ruby's `Evaluator.truthy?` — `rust::kernel::expr::Value::truthy`,
-    /// read directly. `pub(crate)`, not private — `reference_validate.rs`'s
-    /// own `check_invariants` needs the identical reading of an
-    /// invariant's own final result (a value object's `invariant("...")
-    /// { predicate }` is checked for truthiness, not strict `== true`,
-    /// the same way a command's own `given`/`ensures` already is).
+    /// Ruby truthiness: everything but `Nil` and `false`.
+    ///
+    /// Invariant results are checked for truthiness, not `== true`, as `given`/`ensures` are.
     pub(crate) fn truthy(&self) -> bool {
         !matches!(self, Value::Nil | Value::Bool(false))
     }
@@ -246,8 +184,7 @@ impl Value {
     }
 }
 
-/// `Resolver.numeric` (resolver.rb) — `rust::kernel::attribute_shapes::
-/// scalar::numeric`, read directly.
+/// The value as an `f64` when it is an `Int` or `Float`.
 fn numeric(v: &Value) -> Option<f64> {
     match v {
         Value::Int(i) => Some(*i as f64),
@@ -256,8 +193,7 @@ fn numeric(v: &Value) -> Option<f64> {
     }
 }
 
-/// `comparison::values_equal`, read directly: numeric-coerce both sides
-/// first (so `Int(3) == Float(3.0)`), else compare structurally.
+/// Numeric-coerces both sides first (so `Int(3) == Float(3.0)`), else compares structurally.
 fn values_equal(l: &Value, r: &Value) -> bool {
     match (numeric(l), numeric(r)) {
         (Some(a), Some(b)) => a == b,
@@ -265,8 +201,7 @@ fn values_equal(l: &Value, r: &Value) -> bool {
     }
 }
 
-/// `comparison::less_than`, read directly: numeric first, string second,
-/// refuse anything else the same way that file's own trailing arm does.
+/// Orders numbers, then strings; any other pairing is an error.
 fn less_than(l: &Value, r: &Value) -> Result<bool, String> {
     match (numeric(l), numeric(r)) {
         (Some(a), Some(b)) => Ok(a < b),
@@ -277,21 +212,14 @@ fn less_than(l: &Value, r: &Value) -> Result<bool, String> {
     }
 }
 
-/// `comparison::apply`, read directly: or the two primitives together,
-/// negate if the operator says to. `sign_test` below reuses this against
-/// a literal `Value::Int(0)`, the identical reuse the kernel's own
-/// `sign_test.rs` makes of `comparison::apply`.
+/// ORs `<` and `==`, then negates if the operator says so; `SignTest` reuses it against 0.
 fn apply_comparison(op: &Comparison, l: &Value, r: &Value) -> Result<bool, String> {
     let lt = op.less_than && less_than(l, r)?;
     let eq = op.equal && values_equal(l, r);
     Ok(if op.negated { !(lt || eq) } else { lt || eq })
 }
 
-/// `scalar::to_s`, read directly — `Int`/`Float`/`Bool`/`Str` each
-/// stringify; `Nil` stringifies to `""` (`attribute_shapes::optional::
-/// to_s`, read directly). `Array` refuses, the same explicit "no real
-/// corpus predicate calls `.to_s` on a list" refusal `to_string.rs`'s
-/// own trailing arm gives.
+/// Stringifies a scalar (`Nil` becomes `""`); an `Array` is an error.
 fn to_s(v: &Value) -> Result<String, String> {
     match v {
         Value::Str(s) => Ok(s.clone()),
@@ -303,16 +231,10 @@ fn to_s(v: &Value) -> Result<String, String> {
     }
 }
 
-/// **The one interpreter** — see this file's own header for exactly which
-/// operators below are real and which cleanly refuse. `instance` is the
-/// value object's own already-materialised JSON fields — a value-object
-/// invariant is always checked with no command arguments in scope
-/// (`rust::kernel::expr::NoFields`'s own header: "a value object
-/// checking its own invariants... only the value object's own fields as
-/// `state`"), so there is no args-then-instance precedence to thread
-/// here the way the kernel's own `EvalContext` needs for a command's
-/// `given`/`ensures` — one flat lookup surface is the whole, correct
-/// story for this specific caller.
+/// Evaluates `expr` against a value object's JSON fields.
+///
+/// Unsupported operators return an `Err` naming them. No command arguments are in scope,
+/// so `Lookup` reads `instance` alone.
 pub fn interpret(expr: &Expr, instance: &Json) -> Result<Value, String> {
     match expr {
         Expr::Int { value } => Ok(Value::Int(*value)),
@@ -345,8 +267,7 @@ pub fn interpret(expr: &Expr, instance: &Json) -> Result<Value, String> {
             other => Err(format!("size expects a list or string, got {other:?}")),
         },
         Expr::ToS { receiver } => Ok(Value::Str(to_s(&interpret(receiver, instance)?)?)),
-        // See this file's own header — deliberately not yet interpreted,
-        // refused by name rather than silently mis-evaluated or panicking.
+        // Parsed but not interpreted: refused by name, never mis-evaluated.
         Expr::Include { .. }
         | Expr::Add { .. }
         | Expr::Modulo { .. }
@@ -364,36 +285,9 @@ pub fn interpret(expr: &Expr, instance: &Json) -> Result<Value, String> {
     }
 }
 
-/// `Resolver#fetch` (the first segment) plus `Resolver#walk_path` (every
-/// segment after it) — two different rules, not one uniform walk,
-/// ported by reading both directly rather than assumed from an earlier,
-/// narrower description of this function. `fetch` refuses outright when
-/// the first, bare attribute name is missing entirely — preserved
-/// below, and what every "cannot resolve X — no such field" violation
-/// this file raises still means. `walk_path` is far more permissive:
-/// `segments.reduce(value) { |current, segment| break nil unless
-/// current.respond_to?(:[]) ... }` — once the value in hand stops being
-/// something Ruby can index into (a scalar: a String, an Integer, a
-/// bool), the rest of the path silently resolves to `nil`, and a
-/// missing key on a Hash that does respond to `#[]` also resolves to
-/// `nil` (Ruby's own `Hash#[]` default), never an error.
-///
-/// Found live, a real gap: a bluebook invariant idiom this DSL's own
-/// real evaluator treats as completely ordinary —
-/// `!some_boolean_attribute.nil?` — parses to a plain two-segment
-/// `Lookup` (`["some_boolean_attribute", "nil?"]`; confirmed directly
-/// off a real `ir.json`, not assumed), because `.nil?`'s real meaning
-/// here is exactly this fallthrough: `some_boolean_attribute`'s own
-/// value (`true`/`false`) never responds to `#[]`, so `.nil?` always
-/// walks straight to Ruby's own `nil`, and `!nil` is `true` — the
-/// invariant's actual job is "does `fetch` succeed at all" (does the
-/// attribute exist), never a literal `NilClass#nil?` call. Only the
-/// first segment refuses when missing, below; every later segment that
-/// stops indexing resolves to `Nil` instead, so `previous_sessions:
-/// false` (a real, present, perfectly valid value a backfill rule can
-/// write to satisfy exactly this invariant) reads as present rather
-/// than refusing with "cannot resolve \"nil?\"" the way a boolean with
-/// no such JSON key otherwise would.
+/// Resolves a path: the first segment must exist, later segments resolve to `Nil` once
+/// the value stops indexing, as Ruby's `Resolver#walk_path` does. That fallthrough is what
+/// makes `!flag.nil?` (`["flag", "nil?"]`) mean "does `flag` exist".
 fn lookup(path: &[String], instance: &Json) -> Result<Value, String> {
     let Some((head, rest)) = path.split_first() else {
         return Err(format!("lookup given an empty path (path {path:?})"));
@@ -420,9 +314,7 @@ mod tests {
 
     #[test]
     fn cents_gte_zero_holds_for_a_non_negative_amount() {
-        // `cents >= 0`, the exact shape `AstJson.emit_predicate` builds —
-        // see this file's own smoke test in the Ruby suite for the
-        // matching JSON.
+        // `cents >= 0`, the shape `AstJson.emit_predicate` builds.
         let ast = serde_json::json!({"op":"compare","cmp":{"less_than":true,"equal":false,"negated":true},
             "left":{"op":"lookup","path":["cents"]},"right":{"op":"int","value":0}});
         let expr = parse(&ast).expect("valid Expr JSON");
@@ -434,8 +326,7 @@ mod tests {
 
     #[test]
     fn a_compound_and_of_four_comparisons_matches_chess_square_bounds() {
-        // `file >= 0 && file <= 7 && rank >= 0 && rank <= 7`, real corpus
-        // text (chess.bluebook's own `Square`).
+        // `file >= 0 && file <= 7 && rank >= 0 && rank <= 7`, chess.bluebook's `Square`.
         fn cmp(less_than: bool, equal: bool, negated: bool, field: &str, n: i64) -> serde_json::Value {
             serde_json::json!({"op":"compare","cmp":{"less_than":less_than,"equal":equal,"negated":negated},
                 "left":{"op":"lookup","path":[field]},"right":{"op":"int","value":n}})
@@ -455,8 +346,7 @@ mod tests {
 
     #[test]
     fn a_blank_string_fails_the_not_empty_to_s_pattern() {
-        // `!value.to_s.empty?`, the most common real corpus shape
-        // (PizzaName, CustomerName, ToppingName, ...).
+        // `!value.to_s.empty?`, the most common real invariant shape.
         let ast = serde_json::json!({"op":"not","expr":{"op":"empty","receiver":{"op":"to_s","receiver":{"op":"lookup","path":["value"]}}}});
         let expr = parse(&ast).expect("valid Expr JSON");
 
@@ -466,9 +356,7 @@ mod tests {
 
     #[test]
     fn sign_test_positive_matches_a_real_amount_invariant() {
-        // `value.positive?` — `{less_than: true, equal: true, negated:
-        // true}`, confirmed against the real Ruby emitter directly
-        // (`value.positive?` compiles to NOT(value < 0 or value == 0)).
+        // `value.positive?` compiles to NOT(value < 0 or value == 0).
         let ast = serde_json::json!({"op":"sign_test","cmp":{"less_than":true,"equal":true,"negated":true},"receiver":{"op":"lookup","path":["value"]}});
         let expr = parse(&ast).expect("valid Expr JSON");
 

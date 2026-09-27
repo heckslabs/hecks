@@ -2,10 +2,8 @@ require_relative "behaviour/lifecycle"
 
 module Hecks
   module Bluebook
-    # One declared `transition` row — the state a command moves an
-    # aggregate or entity to, and, when guarded, the state(s) it must
-    # currently be in (`from:`) for the transition to apply. An unguarded
-    # transition (`from: nil`) applies from any current state.
+    # One declared `transition` row: the target state, and optionally the `from:` state(s) it needs.
+    # An unguarded transition (`from: nil`) applies from any state.
     class StateTransition
       attr_reader :target, :from
 
@@ -21,18 +19,11 @@ module Hecks
                   end
       end
 
-      # Says whether this transition is guarded to specific source states.
-      #
-      # @return [Boolean] whether this transition is guarded to specific source states,
-      #   rather than applying from any current state
       def constrained? = !@from.nil?
     end
 
-    # The built form of a `lifecycle :field, default: ... do ... end`
-    # block, produced by `DSL::LifecycleBuilder` — the field a state
-    # machine lives on, its starting value, and the declared transition
-    # table. `Behaviour::Lifecycle` supplies the reads (`states`,
-    # `target_for`, ...) built purely from this data.
+    # The built form of a `lifecycle :field, default: ... do ... end` block.
+    # Reads (`states`, `target_for`, ...) come from `Behaviour::Lifecycle`.
     class Lifecycle
       include Hecks::IR
       include Behaviour::Lifecycle
@@ -40,9 +31,7 @@ module Hecks
       emits_ir(
         field:       -> { field.to_s },
         default:     :default,
-        # `expand` is private; a Proc runs in the construct's own
-        # context, so declared emission reaches it exactly as the
-        # hand-written to_h did.
+        # `expand` is private; a Proc runs in the construct's own context, so it can reach it.
         transitions: -> { transitions.flat_map { |command, t| expand(command, t) } }
       )
 

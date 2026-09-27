@@ -1,9 +1,7 @@
 Hecks.bluebook "HopChain" do
   generic
 
-  # Proposal -> Engagement -> Client, the real shape this feature exists
-  # for (Embryonaut's own hand-written PRECONDITIONS table, made a
-  # declared query instead).
+  # Proposal -> Engagement -> Client: a two-hop reference chain queried by dotted path.
   aggregate "Client" do
     identified_by :name
     attribute :name, Name
@@ -63,11 +61,8 @@ Hecks.bluebook "HopChain" do
       transition "Accept" => "accepted", from: "sent"
     end
 
-    # The command's own reference is optional, even though the aggregate
-    # head's is optional too — a nil/never-set reference is real state a hop has
-    # to answer for (it never holds, whatever the comparator), and this
-    # to answer for. The command input and retained relationship therefore
-    # state the same optionality explicitly.
+    # A nil reference is real state a hop must answer for (it never holds, whatever
+    # the comparator), so the command and the aggregate both declare optional: true.
     command "Draft" do
       reference_to Engagement, optional: true
       attribute :number, Number
@@ -91,8 +86,7 @@ Hecks.bluebook "HopChain" do
       order_by :number
     end
 
-    # The existential-negation case: NOT active must mean "points at a
-    # client that is churned," not "nil/dangling reference also counts."
+    # Negation must mean "points at a churned client", not "nil or dangling also counts".
     query "SentButNotFromActiveClients" do
       where status: "sent"
       where :"engagement/client/status" => { ne: "active" }
@@ -105,19 +99,12 @@ Hecks.bluebook "HopChain" do
     end
   end
 
-  # A SELF-REFERENCE, TWO HOPS DEEP — "grandparent" — proving a hop
-  # chain revisiting the same aggregate TYPE is real and safe, not a
-  # cycle to refuse. HopPath.MAX_HOPS bounds chain LENGTH, deliberately
-  # not aggregate identity: nothing about walking Node -> Node -> Node
-  # can loop forever, since the walk is bounded by the query's own
-  # literal dotted string, not by the reference graph's shape.
+  # A self-reference two hops deep: a chain may revisit an aggregate type, since
+  # HopPath.MAX_HOPS bounds chain length, not aggregate identity.
   aggregate "Node" do
     identified_by :label
-    # `as:` is required for a self-reference to mean a plain ATTRIBUTE
-    # rather than "the root this command acts on" —
-    # CommandBuilder#reference_to's own comment names this exactly:
-    # without it, a command referencing its own aggregate's type reads
-    # as a second self-reference, refused as naming two roots.
+    # Without `as:`, a command referencing its own aggregate's type reads as a
+    # second self-reference and is refused as naming two roots.
     reference_to Node, as: :parent, optional: true
     attribute :label, Label
     value_object("Label") { attribute :value, String }

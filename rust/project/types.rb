@@ -2,34 +2,14 @@ module RustProjection
   module Projector
     module_function
 
-    # `InvariantViolation`/`value_object_invariant` — `Value.build`'s own
-    # invariant loop (runtime/value/coercion.rb), read directly: `"#{value_
-    # object.hecks_name} invariant violated — #{invariant.description}
-    # (given #{canonical_fields(fields)})"`, now itself routed through
-    # `RefusalWording.render` on the Ruby side too (the one Ruby-side
-    # change this migration makes — see refusal_wording.rb's own new
-    # `value_object_invariant` entry). `name`/`description` are
-    # codegen-time-static (`vo[:name]`/`inv[:description]`); `offered` is
-    # the one genuinely runtime piece — Ruby's `canonical_fields` is
-    # `JSON.generate(fields.sort_by { |name, _| name.to_s }.to_h)`, and
-    # `self.to_json()` already produces the SAME per-field JSON `fields`
-    # would (0021 closed that parity), just in DECLARATION order rather
-    # than sorted — so this sorts the top-level `(name, value)` pairs
-    # `to_json()` already built rather than re-deriving them, then
-    # stringifies. Only the TOP level is sorted, matching Ruby exactly:
-    # `canonical_fields` never recurses into a nested value object's own
-    # field order, and neither does this.
+    # `check_invariants` mirroring `Value.build` (runtime/value/coercion.rb). `offered` sorts only
+    # the top-level fields, matching Ruby's `canonical_fields`.
     def emit_check_invariants(vo, value_objects_by_name, aggregates_by_name)
       name = rust_ident(vo[:name])
       type_name = vo[:name].to_s
 
-      # ORDER IS RUBY'S OWN (`Value.build` -> `normalize_composite_fields`
-      # -> `validate!`, coercion.rb; C3.7): every NESTED value object is
-      # validated first, then this one's own field constraints (`admits`,
-      # `pattern`), and its invariants LAST — so a field that fails its
-      # pattern is a `TypeMismatch`, never an `InvariantViolation` from an
-      # invariant that happened to read the same field (ADR 0037's fuzz
-      # bridge found the old invariants-first order live).
+      # Ruby's order (`Value.build`, coercion.rb): nested value objects, then field
+      # constraints, then invariants last, so a failed pattern is a `TypeMismatch`.
       body = []
 
       vo[:attributes].each do |attr|
@@ -42,12 +22,8 @@ module RustProjection
         body << (attr[:list] ? "        for item in &self.#{field} { item.check_invariants()?; }" : "        self.#{field}.check_invariants()?;")
       end
 
-      # `check_admitted`/`check_patterns` — `admission.rb`'s/`coercion.rb`'s
-      # OWN door: `pattern:`/`admits:` declared on the VALUE OBJECT'S OWN
-      # field (`EmailAddress.address, pattern: ...`), not on some outer
-      # usage — the OTHER door is `commands.rb`'s own `invariant_checks`,
-      # for a command/entity-command argument's usage-level `admits:`
-      # (`ExternalTransfer.Request`'s own `direction`).
+      # `pattern:`/`admits:` declared on the value object's own fields; command-argument
+      # usage-level `admits:` is handled in commands.rb.
       vo[:attributes].each do |attr|
         next if attr[:list]
 
@@ -89,13 +65,8 @@ module RustProjection
       RUST
     end
 
-    # A multi-field closed set — not a choice among tags, a fixed DATA
-    # TABLE. Emitted as a plain struct (the same shape a non-closed-set
-    # value object gets) plus every member as one entry in a `pub const`
-    # array of struct literals. No `Fielded`/`check_invariants` generated —
-    # nothing in this corpus looks one of these up generically by field
-    # name or checks an invariant on it; a real future need should extend
-    # this, not be worked around by skipping the gap silently.
+    # A multi-field closed set: a plain struct plus a `pub const` array of members.
+    # No `Fielded` or `check_invariants`.
     def emit_closed_set_table(vo)
       name = rust_ident(vo[:name])
 
@@ -106,13 +77,7 @@ module RustProjection
       end
       struct_part = Exemplar.compose("plain_struct", { "TmplType" => name }, field_id: "struct_field", field_subs_list: field_subs_list)
 
-      # A member's row only carries the fields its declaration actually SET —
-      # `Keyword`'s own `status` (declares `default: "admitted"`) and `was`
-      # (no default at all) are both missing from most rows, found live as a
-      # missing-struct-field compile error. Iterate every DECLARED attribute,
-      # not just what a given row happens to carry, falling back to the
-      # attribute's own `default:` (or "" absent one) exactly the way a real
-      # member's own construction would.
+      # Rows carry only the fields they set; missing ones fall back to `default:` or "".
       member_literals = vo[:members].map do |row|
         present = row.to_h { |field_name, value| [field_name.to_s, value] }
         fields = vo[:attributes].map do |attr|
@@ -135,16 +100,8 @@ module RustProjection
       name = rust_ident(vo[:name])
 
       if vo[:closed_set]
-        # One field per member (Size: small/large) is a real ENUM CHOICE —
-        # the member IS the whole fact, so a tag is the honest Rust shape.
-        # More than one field (Vocabulary::Comparison: symbol PLUS three
-        # algebra flags; Syntax::Keyword: eight fields, several members
-        # sharing the same `word` across different `context`s) is not a
-        # choice among interchangeable tags at all — it's a small, fixed
-        # DATA TABLE, and forcing it into an enum either loses the other
-        # fields or collides different members that happen to share
-        # whichever one field got picked as the tag (found live: several
-        # Keyword rows share a `word`, differing only in `context`).
+        # One field is an enum tag. Several are a data table: members can share any
+        # single field (Keyword rows share `word`), so no one field can be the tag.
         return emit_closed_set_table(vo) if vo[:attributes].size > 1
 
         variants = vo[:members].map { |row| closed_set_variant(row) }
@@ -154,9 +111,7 @@ module RustProjection
           field_id: "closed_set_enum:VARIANT",
           field_subs_list: variants.map { |v| { "TmplMemberA" => v } }
         )
-        # `fielded_capable_nested?`'s own real consumer — see its header
-        # (naming.rb) for the full story. Purely additive alongside the
-        # enum itself; nothing about `enum_part`'s own generation changed.
+        # Consumer of `fielded_capable_nested?` (naming.rb).
         return "#{enum_part}\n\n#{emit_closed_set_fielded_impl(vo)}"
       end
 
@@ -186,39 +141,21 @@ module RustProjection
         .uniq
     end
 
-    # An entity, resolved to a Rust type the SAME mechanical way a value
-    # object is — same six-key `attributes` shape, same `Fielded` impl. No
-    # `check_invariants` (entities declare no `invariants` of their own —
-    # every field's OWN value object already checked itself, either at the
-    # command argument boundary or via `literal_hash_rhs`/`value_rhs`
-    # below) and no dispatch functions for the entity's OWN commands
-    # (`Amend`/`Reverse` — a real, separate, still-unbuilt feature: an
-    # entity's commands address ONE element of the list by its own
-    # identity, not the whole aggregate, and nothing here generates that
-    # addressing). This only makes an entity usable as an `append` TARGET.
+    # An entity as a struct with a `Fielded` impl and no `check_invariants`.
+    # Commands addressing one element by identity are not generated; this only enables `append`.
     def emit_entity(entity, value_objects_by_name)
       name = rust_ident(entity[:name])
       field_subs_list = entity[:attributes].map do |attr|
         type = rust_type(attr[:type], list: attr[:list])
-        # `optional: true` — a caller-omittable field (0014/0015's own
-        # gap: `SafeDepositBox::Visit.note`, populated by `LogVisit`'s
-        # `append` and later overwritten by `Visit.Annotate`'s `set`, is
-        # the one real case). `command_skip_reason`'s own new check
-        # (bridging.rb) guarantees anything that reaches this branch has
-        # only OPTIONAL sources feeding it, or only feeds a field this IS
-        # optional here — the mismatched case (an optional source into a
-        # non-optional VO field) is skipped, loudly, before generation.
+        # `optional: true` becomes `Option<T>`; `command_skip_reason` (bridging.rb) skips
+        # optional sources feeding a non-optional field.
         type = "Option<#{type}>" if attr[:optional]
         { "TmplFieldType" => type, "tmpl_field" => rust_ident_field(attr[:name]) }
       end
       field_subs_list << { "TmplFieldType" => "String", "tmpl_field" => rust_ident_field(entity[:lifecycle][:field]) } if entity[:lifecycle]
       struct_part = Exemplar.compose("plain_struct", { "TmplType" => name }, field_id: "struct_field", field_subs_list: field_subs_list)
 
-      # An entity command's own TransitionCheck reads this field generically
-      # (kernel::dispatch_entity, the same way an aggregate command's does
-      # off emit_fielded_record's own lifecycle arm) — entity_lifecycle_arm
-      # is this struct's one, in the flat (non-Option) shape emit_entity's
-      # own field actually has.
+      # The entity's TransitionCheck reads the lifecycle field generically, in the flat shape.
       lifecycle_arm =
         if entity[:lifecycle]
           field = rust_field(entity[:lifecycle][:field])
@@ -233,72 +170,30 @@ module RustProjection
     def emit_record(aggregate, value_objects_by_name)
       name = rust_ident(aggregate[:name])
       field_subs_list = aggregate[:attributes].map do |attr|
-        # Every field starts optional at the Rust-struct level regardless of
-        # the IR's own optional: flag — a creating command may not set every
-        # field on step one (Order.CreatePizza never sets customer_name), and
-        # Rust has no notion of "field exists but is unset" the way a Ruby
-        # Hash does. Non-optional-per-IR fields are asserted present at
-        # generated-dispatch time instead, not encoded away here.
-        #
-        # A LIST field is the one exception to the blanket wrap — UNLESS
-        # `list_attr_creation_optional?` says otherwise (`CardPayment.
-        # tags`, mutations.rb's own header): most list attributes are
-        # populated only by `append` from non-creating commands and start
-        # at `Instance.defaults`' own `[]` baseline forever until
-        # something appends, which `Vec<T>` (never absent) already
-        # represents correctly.
+        # Optional because a creating command may not set every field. A list field stays a
+        # `Vec<T>` unless `list_attr_creation_optional?`.
         type = rust_type(attr[:type], list: attr[:list])
         type = "Option<#{type}>" if !attr[:list] || list_attr_creation_optional?(aggregate, attr[:name], value_objects_by_name)
         { "TmplFieldType" => type, "tmpl_field" => rust_ident_field(attr[:name]) }
       end
       field_subs_list << { "TmplFieldType" => "String", "tmpl_field" => rust_ident_field(aggregate[:lifecycle][:field]) } if aggregate[:lifecycle]
-      # `corrects`'s own per-record flag fields — one plain, non-optional
-      # `bool` per event name some command on this aggregate `corrects`
-      # against (see `commands.rb`'s own `corrects_flag_field`/
-      # `correctable_event_names` for the full reasoning). Appended the
-      # same way the lifecycle field is, right above — a real struct
-      # field, not a `list_of`/value-object shape, so it needs neither
-      # `Option<T>` wrapping nor an entry in `emit_fielded_record`'s own
-      # `attributes`-driven arm-building (handled by its own dedicated
-      # arm instead, right alongside the lifecycle one there).
+      # One plain `bool` field per event a command `corrects` (see `corrects_flag_field`).
       correctable_event_names(aggregate).each { |ev| field_subs_list << { "TmplFieldType" => "bool", "tmpl_field" => corrects_flag_field(ev) } }
       struct_part = Exemplar.compose("plain_struct", { "TmplType" => name }, field_id: "struct_field", field_subs_list: field_subs_list)
 
       "#{struct_part}\n\n#{emit_fielded_record(aggregate, value_objects_by_name)}"
     end
 
-    # THE SYNCHRONOUS HALF OF `projects` (S12, ADR 0025), the CODEGEN
-    # side — `CommandInterpreter#seed_projected_fields`'s own target is
-    # a genuinely dynamic Ruby Hash key; Rust's struct has no such thing,
-    # so a `projects` field is generated as an ordinary `String`-typed,
-    # always-optional ATTRIBUTE (struct field, `Fielded::field` read arm,
-    # `to_json`/`from_json_state` key) rather than inventing a second,
-    # parallel codegen path for it. `emit_record`'s caller
-    # (`domain_generator.rb`) merges this onto `aggregate[:attributes]`
-    # for exactly those four emissions — never for a command's own Args
-    # struct (a projected field is never a command argument) and never
-    # for `emit_from_json_flat` (command-args parsing), so the merge
-    # happens at the ONE call site that builds the record shape, not
-    # inside `emit_record`/`emit_fielded_record` themselves.
-    #
-    # `type: "String"` — every real `projects` declaration in the corpus
-    # today projects a lifecycle `status` field or another projected
-    # field, both always String; see `reference_lookup.rs`'s own
-    # `seeded_projections` header for the same scoping note on the Rust
-    # runtime side.
+    # `projects` fields become always-optional String attributes. The caller merges them onto
+    # `aggregate[:attributes]` for record emission only, never for command Args or from_json_flat.
     def projected_field_pseudo_attributes(aggregate)
       (aggregate[:projected_fields] || []).map do |field|
         { name: field[:name], type: "String", list: false, optional: true }
       end
     end
 
-    # `impl crate::kernel::SetProjectedField for X` — the write half a
-    # generic `Fielded::field` read has no counterpart for
-    # (`reference_lookup.rs`'s own trait header). One match arm per
-    # `projects` field this aggregate declares; an aggregate with none
-    # still implements the trait, empty match body, so `kernel::dispatch`
-    # can require the bound unconditionally rather than special-casing
-    # "this aggregate has no projections."
+    # `impl SetProjectedField`: one arm per `projects` field, empty match when there are none,
+    # so dispatch can require the bound unconditionally.
     def emit_set_projected_field(aggregate)
       name = rust_ident(aggregate[:name])
       arms = (aggregate[:projected_fields] || []).map do |field|
@@ -317,14 +212,7 @@ module RustProjection
       RUST
     end
 
-    # `#{NAME}_PROJECTED_FIELDS` — one static table per aggregate,
-    # `crate::kernel::ProjectedFieldSpec` rows read at dispatch time
-    # (`commands.rb`'s own `tmpl_seed_projections_placeholder`
-    # substitution) to compute `seeded_projections` off the SAME
-    # `with_references` already built for given/ensures evaluation.
-    # Empty for an aggregate with no `projects` fields, the same
-    # "always emitted, sometimes empty" shape `REFERENCE_TABLE`'s own
-    # per-aggregate rows already use (reference_specs.rb).
+    # `<NAME>_PROJECTED_FIELDS`: one `ProjectedFieldSpec` row per `projects` field, empty if none.
     def emit_projected_field_table(aggregate)
       name = screaming_snake(aggregate[:name])
       rows = (aggregate[:projected_fields] || []).map do |field|

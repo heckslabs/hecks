@@ -3,32 +3,14 @@ require "hecks/bluebook/model_check"
 require "hecks/fuzzing/target_capabilities"
 require "tmpdir"
 
-# The lightweight-formal-methods leg of the verification arc: every
-# lifecycle is a declared FSM and every process manager a declared
-# protocol, so both can be model-checked — unreachable states, dead
-# transitions, saga states no handler chain reaches, a compensation
-# whose from_state is unreachable (the deadlock class this arc named),
-# dispatches to nowhere, handlers listening for an event nothing emits.
+# Model-checks lifecycles and process managers: unreachable states, dead transitions,
+# unreachable compensations, dispatches to nowhere, handlers for events nothing emits.
 RSpec.describe "the model checker" do
   ROOT_DIR = InMemoryDomain::ROOT unless defined?(ROOT_DIR)
 
   def boot(bluebook)
-    # `root:` — WITHOUT IT, a real corpus member declaring
-    # `uses_embryonaut_bluebook` (docs/decisions/0058's own
-    # examples/embryonaut_vendoring_demo, the first) refuses here with
-    # "needs a registry with a root to vendor from": `EmbryonautBluebook.
-    # load!` resolves `<root>/vendor/embryonaut_bluebooks/<name>/bluebook/`
-    # off this registry's own root, same as any other boot
-    # (`Runtime::Loader.boot`'s own `root: File.dirname(directory)`,
-    # `bin/project_rust`'s own copy of this same comment). `bluebook` here
-    # is already the domain's own `bluebook/` folder (`Hecks::Corpus.
-    # source_of`, a directory kind's `bluebook_dir`) for every real corpus
-    # member this matters for, so its OWN parent is the domain root —
-    # exactly `Runtime::Loader.boot`'s own `directory`/`root` relationship.
-    # `nil` for anything else (a bare `.bluebook` FILE — a framework
-    # member or `spec/fixtures/model_check/` fixture, neither of which
-    # ever vendors anything) — unchanged, since none of those callers ever
-    # reach `uses_embryonaut_bluebook`.
+    # `root:` lets a corpus member using `uses_embryonaut_bluebook` vendor from its own root
+    # (the parent of its `bluebook/` folder); a bare `.bluebook` file has none.
     root = File.directory?(bluebook) ? File.dirname(bluebook) : nil
     registry = Hecks::Runtime::Registry.new(root: root)
     Hecks.with_registry(registry) do
@@ -38,9 +20,7 @@ RSpec.describe "the model checker" do
       Kernel.load(InMemoryDomain::PRISM_ADAPTER)
       load_bluebook_files(bluebook)
 
-      # **The sibling hecksagon(s), if any** — see bin/model_check's own
-      # copy of this comment. Fixtures under spec/fixtures/model_check/
-      # have none, so this is a no-op for every test but the real corpus.
+      # The sibling hecksagon(s), if any, as in bin/model_check; fixtures have none.
       hecksagons = if File.directory?(bluebook)
                      Dir.glob(File.join(bluebook, "*.hecksagon"))
                    else
@@ -51,8 +31,7 @@ RSpec.describe "the model checker" do
     registry
   end
 
-  # `boot` now returns the registry, not the bluebook directly — every
-  # caller needs `registry.hecksagon(bluebook.name)` too, to exercise the
+  # Returns the registry: callers also need `registry.hecksagon(bluebook.name)` for the
   # cross-domain relationship findings.
   def call_model_check(registry, known_domains: nil)
     bluebook = registry.bluebooks.values.first
@@ -94,12 +73,8 @@ RSpec.describe "the model checker" do
     end
 
     it "raises no finding kind outside the ones this fixture deliberately triggers" do
-      # Not an exact count: "Vanish"'s own from: ("active") is itself
-      # reached via Activate, so its target ("gone") cascades into
-      # reachable-but-stuck too — a second, legitimate unreachable_state
-      # (the untouched "abandoned") and a stuck_state ride along. The
-      # fixture's job is proving each kind fires at least once, not
-      # pinning how many states a hand-written FSM happens to produce.
+      # Not an exact count: "Vanish" cascades into a second unreachable_state and a stuck_state.
+      # The fixture proves each kind fires at least once, not how many a hand-written FSM yields.
       expect(findings.select { |f| f.subject == "Widget" }.map(&:kind).uniq.sort)
         .to eq(%i[dead_transition stuck_state unknown_command unreachable_state].sort)
     end
@@ -178,22 +153,8 @@ RSpec.describe "the model checker" do
       expect(findings.map(&:kind).uniq.sort).to eq(%i[deaf_policy unknown_trigger])
     end
 
-    # BUG#23 — a policy triggering an `asks`/`tells` port operation
-    # (`Aggregate::Port::Operation`, three colon-joined segments) rather
-    # than a plain command (`Aggregate::Command`, two). The real-world
-    # case, not a synthetic one: `qa/bluebook/quality_control.bluebook`'s
-    # own `FileWhenSubmitted`/`AskOnceMore` policies, both `trigger
-    # Ticket::IssueTracker::File`. `triggerable_verbs` unions `verbs_of`
-    # (ordinary/entity commands) with `port_verbs_of` (port operations)
-    # and compares both as `Naming.split_verb` triples, matching how the
-    # same trigger genuinely dispatches at runtime (`PolicyInterpreter#
-    # deliver` re-qualifies with this domain's own name, and
-    # `Naming.split_verb` already folds the leftover `::` correctly).
-    # Never enumerating a port operation as a triggerable verb, and
-    # comparing raw strings instead of triples, would always report
-    # `unknown_trigger` here instead. See `Hecks::Bluebook::ModelCheck::
-    # ALLOWED_FINDINGS`'s own now-removed "quality_control" entry for the
-    # full trace.
+    # A policy triggering an `asks`/`tells` port operation (three segments) is not an
+    # `unknown_trigger`; qa/bluebook/quality_control.bluebook's FileWhenSubmitted is the real case.
     it "does not flag a policy triggering a real, declared port operation (BUG#23)" do
       quality_control = File.join(ROOT_DIR, "qa/bluebook/quality_control.bluebook")
       real_findings = call_model_check(boot(quality_control))
@@ -225,22 +186,15 @@ RSpec.describe "the model checker" do
     end
 
     it "checked, not routed — no sibling hecksagon at all means no cross-domain finding either way" do
-      # `findings_for` loads the fixture's own sibling `.hecksagon`
-      # (`boot`'s own comment) — this proves the inverse directly: a
-      # bluebook with a cross-domain policy but genuinely no sibling
-      # hecksagon (every other model_check fixture's own shape) raises
-      # neither new finding, the same `return [] unless hecksagon` guard
-      # `policy_findings.bluebook`'s own OnArchive/OnWrite already prove
-      # for the pre-existing same-domain checks.
+      # With a cross-domain policy but no sibling hecksagon (every other fixture's shape),
+      # neither new finding is raised: the `return [] unless hecksagon` guard.
       no_hecksagon_findings = call_model_check(boot(File.join(ROOT_DIR, "spec/fixtures/model_check/policy_findings.bluebook")))
       expect(no_hecksagon_findings.map(&:kind)).not_to include(:contradictory_relationship, :unacknowledged_relationship)
     end
   end
 
-  # A domain or aggregate whose Rust module name (downcased) is a Rust
-  # keyword, or a domain whose module/Cargo feature key is a reserved
-  # Cargo.toml key (BUG#124). Warning by default; error with a Rust target
-  # or under strict. The Rust generator refuses through the same check.
+  # A Rust keyword as a domain or aggregate name, or a reserved Cargo.toml key as a domain
+  # module/feature key: a warning by default, an error with a Rust target or strict.
   describe "Rust reserved names" do
     def reserved_name_findings(domain, aggregate, **options)
       Dir.mktmpdir("model-check-reserved-name") do |dir|
@@ -307,36 +261,18 @@ RSpec.describe "the model checker" do
     end
   end
 
-  # **The coverage gate**. `bin/model_check` runs this same walk over every
-  # example domain, every grammar chapter, and the language itself — the
-  # spec keeps that corpus finding-free by holding it to bin/model_check's
-  # own allowlist: an error the tool reports and the allowlist does not
-  # name is a regression ; an allowlist entry the tool no longer reports
-  # is stale and must be deleted, the same both-directions discipline
-  # plurality_coverage_spec's ALLOWED_SINGLETON holds itself to.
+  # The coverage gate: the real corpus stays finding-free against bin/model_check's allowlist.
+  # An unlisted reported error, or a stale allowlist entry, fails.
   describe "the real corpus" do
-    # The same kinds bin/model_check walks, from the one table both read
-    # (Hecks::Corpus). Globbed separately, the ledger (`:qa`) once went
-    # missing here while MODEL_CHECK_ALLOWED named it, and
-    # `.fetch(name) { next }` below silently returned nil instead of
-    # skipping the entry.
+    # The same kinds bin/model_check walks, from the one table both read (Hecks::Corpus).
     MODEL_CHECK_CORPUS = Hecks::Corpus.model_check_members
                                       .map { |member| [member.stem, Hecks::Corpus.source_of(member)] }.freeze
 
     # The same constant bin/model_check reads — one table, not a copy.
     MODEL_CHECK_ALLOWED = Hecks::Bluebook::ModelCheck::ALLOWED_FINDINGS
 
-    # Two passes over the same boots — the identical structure
-    # bin/model_check's own main loop takes, own comment there. Every
-    # corpus member's own bluebook/hecksagon name has to be known before
-    # any member's own cross-domain check can trust "this target isn't
-    # anywhere in the corpus" — a single member's own boot (Compliance
-    # never loaded in the same registry as Banking, by design) cannot
-    # answer that alone. Computed lazily, once, on first use (not at
-    # class-body/file-load time) and memoized — every corpus member gets
-    # re-booted once more per `it` below regardless (each test needs its
-    # own fresh registry the same way it always did), so this only adds
-    # one extra full boot pass, not one per example.
+    # Two passes over the same boots, as in bin/model_check: a cross-domain check needs every
+    # corpus member's domain name known first. Computed lazily and memoized.
     def self.known_domains
       @known_domains ||= MODEL_CHECK_CORPUS.flat_map do |_, source|
         registry = Hecks::Runtime::Registry.new
@@ -380,9 +316,7 @@ RSpec.describe "the model checker" do
       end
     end
 
-    # Pinned empty, the way bin/fuzz's KNOWN_FUZZ_FINDINGS is — a domain
-    # that means to keep a finding declares it in its own source (banking's
-    # `across "Notifications", expect_undelivered: true`), never here.
+    # Pinned empty: a domain that keeps a finding declares it in its own source, never here.
     it "keeps the core allowlist empty" do
       expect(MODEL_CHECK_ALLOWED).to eq({})
     end

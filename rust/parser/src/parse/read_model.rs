@@ -1,18 +1,5 @@
-//! The `ReadModel` construct (`lib/hecks/bluebook/ir/read_model.rb`,
-//! `read_model` the current spelling — ADR 0025 reverts `report`, `was:
-//! "report"`, still answered for frozen era text under the legacy
-//! grammar). Stage 3: `description`/`include`/`group_by` —
-//! console_settings.bluebook's own `Styles`/`Curated` read models, both
-//! rootless (no `reference_to`) with a single many-side `include` and a
-//! `group_by` naming that same head's own fields. Stage 4 adds
-//! `reference_to` (the single-root form: `CustomerPortfolio`/
-//! `ComplianceDashboard`) and the five open-map option words plus
-//! `where`/`order_by`/`limit` — `ReadModelBuilder` `include
-//! QuerySpecification::Common::DSL`, the same module `parse::query`
-//! shares via `build::query_options`; confirmed real by
-//! `ComplianceDashboard`'s own filtered/ordered/capped shape
-//! (banking.bluebook's own comment names it "the one shape
-//! seal_query_options allows").
+//! The `ReadModel` construct: `include`, `reference_to`, `group_by`, `where`/`order_by`/`limit`
+//! and the open-map option words.
 
 use crate::build::{naming, query_derive, query_options, read_model as build_read_model};
 use crate::diag::{Diagnostic, ParseResult};
@@ -26,13 +13,7 @@ pub fn not_implemented(file: &str, line: usize, word: &str) -> Diagnostic {
 const OPTION_WORDS: &[&str] = &["offset", "cursor", "authorize", "nulls", "inspect_query"];
 
 /// Parses a `report "Name" do ... end` body (`report`/`read_model`).
-/// `include`s are gathered raw and resolved into `aggregate_heads` at the
-/// end (mirroring `ReadModelBuilder#build`'s own build-time resolution —
-/// "order-independent," per that builder's own comment), the same
-/// deferred-resolution shape `parse::aggregate`'s own `identified_by`
-/// handling already uses for the identical Ruby-side reason — this is
-/// also why `reference_to` (needed to compute each head's own `many:`)
-/// is read into a plain local rather than applied eagerly.
+/// `include`s are resolved into `aggregate_heads` at the end, so declaration order is free.
 pub fn parse_body(
     file: &str,
     lines: &[SourceLine],
@@ -68,21 +49,12 @@ pub fn parse_body(
                     1,
                 )?)
             }
-            // `ReadModelBuilder#reference_to(type, as: nil)` — the
-            // single-root form (`CustomerPortfolio`'s own `reference_to
-            // Customer`). Ruby refuses a second call ("already has a
-            // projection reference") — a `seal`-style declaration-time
-            // check, out of scope here the same way `AggregateBuilder`'s
-            // own seals are (this parser's job is shape, not semantics);
-            // a bluebook that violates it never produced the oracle this
-            // parser is compared against in the first place.
+            // Ruby refuses a second `reference_to`; that seal is out of scope for this parser.
             "reference_to" => {
                 let target_raw =
                     super::positional_constant(file, last_line, "reference_to", &gated.args, 1)?;
                 let target = naming::demodulise(target_raw);
-                // `@reference_name = (as || Naming.snake(@reference_target)).to_sym`
-                // — always set once `reference_to` is called, defaulting
-                // to the target's own snake-cased name.
+                // Defaults to the target's snake-cased name.
                 reference_name = Some(
                     super::named_symbol(&gated.args, "as")
                         .unwrap_or_else(|| naming::snake(&target)),
@@ -96,10 +68,7 @@ pub fn parse_body(
                 includes.push((naming::demodulise(target), as_name));
             }
             "group_by" => {
-                // Variadic — `argument_gate`'s own `variadic: "true"`
-                // handling (syntax.bluebook's own comment on that
-                // column) already confirmed every positional here reads
-                // as a symbol; just strip each one's leading `:`.
+                // Variadic; the argument gate already checked each positional is a symbol.
                 group_by_fields = gated
                     .args
                     .positional
@@ -107,14 +76,8 @@ pub fn parse_body(
                     .map(|(_, text)| text.trim().trim_start_matches(':').to_string())
                     .collect();
             }
-            // `ReadModelBuilder#count` — a bare word, no argument at
-            // all (`def count = @count = true`); its presence in the
-            // source is the value, same as `generic`'s own Bluebook-
-            // context row.
+            // A bare word: its presence is the value.
             "count" => count = true,
-            // `ReadModelBuilder#median(field)` — one required
-            // positional symbol (`def median(field) = @median_field =
-            // field.to_sym`).
             "median" => {
                 median_field = Some(super::positional_symbol(
                     file,
@@ -129,14 +92,7 @@ pub fn parse_body(
                 wheres.extend(query_derive::where_clauses(&gated.args.named))
             }
             "order_by" => {
-                // Not `refuse_on_target` here — unlike `where` (below),
-                // `order_by` has a fixed, declared argument schema, so
-                // the argument gate itself already refuses an
-                // undeclared `on:` upstream, before this arm ever runs
-                // (confirmed live: "'order_by' takes no 'on:'
-                // argument"). Only `where`'s own open-ended `pairs`
-                // shape needs a defensive check — there is no fixed
-                // schema for it to be caught against.
+                // The gate already refuses an undeclared `on:`; only `where` needs a check.
                 let field = super::positional_symbol(file, last_line, "order_by", &gated.args, 1)?;
                 let direction = match gated.args.positional.iter().find(|(idx, _)| *idx == 2) {
                     Some((_, text)) => text.trim().trim_start_matches(':').to_string(),

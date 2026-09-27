@@ -1,19 +1,6 @@
-//! Port of `rust/project/mutations.rb` — read that file's own header
-//! comments in full; this mirrors its algorithm directly, function for
-//! function. `list_attr_creation_optional?` was already ported to
-//! `shared.rs` in the prior stage (two already-ported modules depend on
-//! it) — not duplicated here.
-//!
-//! `mark_append_optional_fields!` is deliberately not ported — see
-//! `spec/codegen_parity_spec.rb`'s own note: every real corpus field that
-//! pass would touch already declares `optional: true` directly in its own
-//! bluebook source, so the mutating pass is a no-op everywhere this corpus
-//! actually reaches it. `Json` (this crate's own IR value type) has no
-//! mutation API to begin with — see `json.rs`'s own header — so a real
-//! port would need a materially different (mutable-tree) representation
-//! for no currently-observable behavioral gain. Named here as a real,
-//! confirmed-currently-harmless gap, exactly like the Ruby-side harness
-//! already names it, not silently dropped from consideration.
+//! Port of `rust/project/mutations.rb`, function for function.
+//! `mark_append_optional_fields!` is not ported: `Json` has no mutation API and the corpus
+//! already declares `optional: true` on every field that pass would touch.
 
 use crate::exemplar::Exemplar;
 use crate::json::Json;
@@ -21,21 +8,10 @@ use crate::literal::{self, Literal};
 use crate::naming;
 use std::collections::HashMap;
 
-/// `append`'s target, resolved to whichever real thing it is — a plain
-/// value object or an entity.
+/// Resolves `append`'s target to a local entity or a domain-wide value object.
 ///
-/// Local (an entity this aggregate declares) first, matching
-/// mutations.rb's own header — `value_objects_by_name` is merged domain-
-/// wide (every aggregate's own value objects, so a cross-aggregate reuse
-/// like Translation's own TranslationName resolves at all), but the two
-/// namespaces aren't meant to collide. The self-hosted grammar's own
-/// Bluebook chapter proves they can: Command's domain-wide value_object
-/// "Argument" (an ordinary command's own argument row) and Syntax's own
-/// local entity "Argument" (S14, ADR 0026 — one row of the syntax table
-/// itself) share a name purely by coincidence. Checking local first means
-/// Syntax's own Argument entity resolves correctly; every other
-/// aggregate, with no such collision, sees identical behavior either
-/// order.
+/// Local entities are checked first: value objects are merged domain-wide, so a same-named
+/// value object (Command's `Argument`) must not shadow Syntax's own `Argument` entity.
 pub fn append_element<'a>(aggregate: &'a Json, target_type: &str, value_objects_by_name: &HashMap<String, &'a Json>) -> Option<&'a Json> {
     if let Some(local) = aggregate.get("entities").map(Json::each).unwrap_or(&[]).iter().find(|e| e.get("name").and_then(Json::as_str) == Some(target_type)) {
         return Some(local);
@@ -43,9 +19,8 @@ pub fn append_element<'a>(aggregate: &'a Json, target_type: &str, value_objects_
     value_objects_by_name.get(target_type).copied()
 }
 
-/// An entity element's identity, auto-minted at append time — see
-/// mutations.rb's own header for the full argument. Returns
-/// `(identity_attribute, its_single_field_value_object)`.
+/// Returns an entity's identity attribute and its single-field value object, when it can be
+/// auto-minted at append time.
 pub fn entity_identity_mint<'a>(entity: &'a Json, value_objects_by_name: &HashMap<String, &'a Json>) -> Option<(&'a Json, &'a Json)> {
     let identified_by = entity.get("identified_by").map(Json::each).unwrap_or(&[]);
     let id_path = identified_by.first()?.as_str()?;
@@ -69,13 +44,9 @@ pub fn entity_identity_mint<'a>(entity: &'a Json, value_objects_by_name: &HashMa
     Some((attr, vo))
 }
 
-/// BUG#33 — mirrors `rust/project/mutations.rb`'s own
-/// `entity_list_replace_guard` byte for byte (see that method's own
-/// comment for the full argument, including why a missing identity
-/// needs no guard here — the generated `Entity::from_json`'s own
-/// `require(...)` call already refuses it before this codegen is ever
-/// reached, and only the duplicate case is a real gap). Returns
-/// `(guard_text, effective_rhs)`.
+/// Returns the duplicate-identity guard for a whole-list `set`, and the right-hand side to assign.
+///
+/// A missing identity needs no guard: the generated `Entity::from_json` already refuses it.
 pub fn entity_list_replace_guard<'a>(aggregate: &Json, target_attr: &Json, target_field: &str, rhs: &str, value_objects_by_name: &HashMap<String, &'a Json>) -> (String, String) {
     let target_type = crate::attr::type_name(target_attr);
     let entity = aggregate.get("entities").map(Json::each).unwrap_or(&[]).iter().find(|e| e.get("name").and_then(Json::as_str) == Some(target_type));
@@ -97,12 +68,8 @@ pub fn entity_list_replace_guard<'a>(aggregate: &Json, target_attr: &Json, targe
     };
 
     let id_field = naming::rust_ident_field(crate::attr::name(id_attr));
-    // `Rendering.describe`'s own single-field unwrap (rendering.rb),
-    // matched here so `format!` renders the same bare scalar Ruby's own
-    // `RefusalWording.render`'s "offered" arm does — `e.{id_field}`
-    // alone Debug-prints the whole identity value object
-    // (`EntrySequence { value: 1 }`), not the bare `1` a reader (and
-    // `bin/rust_conformance`'s own byte-exact comparison) expects.
+    // Unwrap a single-field identity so `offered` prints the bare scalar, as `Rendering.describe`
+    // does; Debug-printing the value object would give `EntrySequence { value: 1 }`.
     let id_vo = value_objects_by_name.get(crate::attr::type_name(id_attr)).copied();
     let offered_expr = match id_vo {
         Some(vo) if !vo.get("closed_set").map(Json::as_bool).unwrap_or(false) && vo.get("attributes").map(Json::each).unwrap_or(&[]).len() == 1 => {
@@ -124,18 +91,12 @@ pub fn entity_list_replace_guard<'a>(aggregate: &Json, target_attr: &Json, targe
     (guard, local_var)
 }
 
-/// `Marks.read`/`append_field_source` — the exact inverse of `appended_fields`'s
-/// own spelling: a leading `:` marks a command argument; anything else is
-/// the literal value.
+/// Inverse of `appended_fields`' spelling: a leading `:` is a command argument, else a literal.
 pub fn append_field_source(source: &str) -> Literal {
     literal::read(source)
 }
 
-/// `rust/project/mutations.rb`'s own `reads_pre_state?` — whether any
-/// effect reads the record's own state (a `set` from `state(:field)`, or
-/// an `append` field sourced from one, spelled `state(:field)` on the
-/// wire — `Literal::StateRef`'s own rendering). Only then does the emitted
-/// closure bind `let pre = record.clone();` (C4.2).
+/// Whether any effect reads the record's own state, so the closure must bind `let pre`.
 pub fn reads_pre_state(mutations: &[Json]) -> bool {
     mutations.iter().any(|m| match m.get("op").map(Json::to_s).unwrap_or_default().as_str() {
         "set" => m.get("source").and_then(|s| s.get("kind")).map(Json::to_s).unwrap_or_default() == "state",
@@ -151,9 +112,7 @@ pub fn pre_state_line() -> String {
     "        let pre = record.clone();".to_string()
 }
 
-/// `rust/project/mutations.rb`'s own `checked_arithmetic` — C3.3: an
-/// effect's Integer arithmetic that leaves signed 64 bits is a
-/// `Refusal::Fault`, never a wrap and never a panic. Byte for byte.
+// Integer arithmetic that leaves signed 64 bits is a `Refusal::Fault`, never a wrap or a panic.
 fn checked_arithmetic(op: &str, field_ident: &str, symbol: &str, amount_expr: &str) -> String {
     let checked = match symbol {
         "+" => "checked_add",
@@ -174,10 +133,8 @@ pub fn literal_problem(mutation: &Json, field_name: &str, lit: &Literal, field_a
     Some(format!("{target}.{field_name}: literal doesn't bridge to {}", crate::attr::type_name(field_attr)))
 }
 
-/// Port of `rust/project/mutations.rb#state_source_problems` — a `set` from
-/// `state(:field)`, or an `append` field sourced from one, whose state field
-/// the aggregate doesn't declare or whose type/cardinality differs from the
-/// target's. Same checks, same order, same message text.
+/// Problems with `set`/`append` fields sourced from `state(:field)`: an undeclared state field,
+/// or a type or cardinality that differs from the target's.
 pub fn state_source_problems(command: &Json, aggregate: &Json, value_objects_by_name: &HashMap<String, &Json>) -> Vec<String> {
     let attrs = aggregate.get("attributes").map(Json::each).unwrap_or(&[]);
     let mutations = command.get("mutations").map(Json::each).unwrap_or(&[]);
@@ -237,8 +194,7 @@ fn state_source_problem(label: &str, state_name: &str, aggregate: &Json, target_
     ))
 }
 
-/// Every `append` mutation's own field(s), checked against the element
-/// they're building.
+/// Problems with each `append` mutation's fields, checked against the element they build.
 pub fn append_field_problems(command: &Json, aggregate: &Json, value_objects_by_name: &HashMap<String, &Json>) -> Vec<String> {
     let mutations = command.get("mutations").map(Json::each).unwrap_or(&[]);
     mutations
@@ -295,12 +251,8 @@ pub fn append_field_problems(command: &Json, aggregate: &Json, value_objects_by_
         .collect()
 }
 
-/// BUG#32 — port of `rust/project/mutations.rb#remove_field_problems`
-/// (read that method's own comment for the full argument): a `remove:`
-/// is generatable only against an entity-typed list whose single-head
-/// identity `entity_identity_mint` accepts, sourced from a declared
-/// argument that bridges to that identity's type. Same checks, same
-/// order, same message text.
+/// Problems with `remove:` mutations, which are generatable only against an entity list whose
+/// single-head identity mints, sourced from a declared argument that bridges to its type.
 pub fn remove_field_problems(command: &Json, aggregate: &Json, value_objects_by_name: &HashMap<String, &Json>) -> Vec<String> {
     let mutations = command.get("mutations").map(Json::each).unwrap_or(&[]);
     mutations
@@ -348,9 +300,7 @@ pub fn remove_field_problems(command: &Json, aggregate: &Json, value_objects_by_
         .collect()
 }
 
-/// `m[:fields]` (a JSON object) as an ordered `(key, raw_wire_value)` list
-/// — mirrors Ruby's own Hash iteration order (declaration order,
-/// preserved by `Json::Object`'s own insertion-ordered pairs).
+/// A mutation's `fields` object as ordered `(key, raw_wire_value)` pairs.
 fn fields_pairs(fields: &Json) -> Vec<(String, String)> {
     match fields {
         Json::Object(pairs) => pairs.iter().map(|(k, v)| (k.clone(), v.to_s())).collect(),
@@ -364,17 +314,14 @@ pub struct Transition {
     pub from_states: Vec<String>,
 }
 
-/// All transition rows this command names, collapsed into the one
-/// `field`/`from_states` shape `TransitionCheck` wants.
+/// Collapses a command's transition rows into the shape `TransitionCheck` wants.
 pub fn lifecycle_transition_for(command: &Json, aggregate: &Json) -> Option<Transition> {
     let lifecycle = aggregate.get("lifecycle")?;
     let command_name = command.get("name").map(Json::to_s).unwrap_or_default();
     let transitions = lifecycle.get("transitions").map(Json::each).unwrap_or(&[]);
     let rows: Vec<&Json> = transitions.iter().filter(|t| t.get("command").map(Json::to_s).unwrap_or_default() == command_name).collect();
     if rows.is_empty() {
-        // `from:` without a transition — see mutations.rb's own
-        // `lifecycle_transition_for`: a guard on the current state that
-        // moves nothing; `to_state` empty is that "moves nothing".
+        // `from:` without a transition guards the current state and moves nothing.
         let froms: Vec<String> = match command.get("from") {
             Some(Json::Null) | None => Vec::new(),
             Some(Json::String(s)) => vec![s.clone()],
@@ -405,17 +352,9 @@ pub fn lifecycle_transition_for(command: &Json, aggregate: &Json) -> Option<Tran
     Some(Transition { field, to_state, from_states })
 }
 
-/// Ruby's real `apply`, for `:set` — coerces whatever arrived into the
-/// target attribute's own declared type. `source` is `mutation[:source]`
-/// (raw JSON — `classified_source`'s own shape, never Literal-rendered).
+/// Right-hand side for a `set`, coercing the source into the target attribute's declared type.
 ///
-/// `target_list` (BUG#25) — true exactly when the mutation's target
-/// attribute is itself a list. See `rust/project/mutations.rb#mutation_
-/// set_rhs`'s own header for the full story: `value_rhs` is scalar/
-/// element-only by design, so when both sides are lists this routes
-/// through `list_value_rhs` instead, rather than running `value_rhs`'s
-/// own "unwrap a single-field value object into its sole field"
-/// fallback directly against a `Vec<T>`.
+/// `target_list` routes list-to-list sets through `list_value_rhs`; `value_rhs` is scalar-only.
 pub fn mutation_set_rhs(source: &Json, target_type: &str, command: &Json, value_objects_by_name: &HashMap<String, &Json>, target_list: bool) -> String {
     if source.get("kind").map(Json::to_s).unwrap_or_default() == "literal" {
         let value = source.get("value").unwrap_or(&Json::Null);
@@ -423,9 +362,7 @@ pub fn mutation_set_rhs(source: &Json, target_type: &str, command: &Json, value_
     }
 
     let source_name = source.get("name").map(Json::to_s).unwrap_or_default();
-    // `pre`, not `record` — the pre-dispatch state (C4.2), mirroring
-    // `rust/project/mutations.rb`'s own `mutation_set_rhs`; `reads_pre_state`
-    // is what makes the caller bind `pre` at all.
+    // `pre`, not `record`: the pre-dispatch state, bound when `reads_pre_state`.
     if source.get("kind").map(Json::to_s).unwrap_or_default() == "state" {
         return format!("pre.{}.clone()", naming::rust_ident_field(&source_name));
     }
@@ -444,23 +381,8 @@ pub struct IdentityComponent {
     pub head: Option<String>,
 }
 
-/// The identity is the join of its parts — see mutations.rb's own header
-/// for the full argument on the three component shapes.
-///
-/// "DECLARED" means the same test `creates_owner` (shared.rs, own header)
-/// uses to count a field as supplied: a `:set` mutation targeting it, or
-/// a same-named command argument copied straight across by `record_fields`
-/// (commands.rb) with no mutation at all — excluding an argument already
-/// claimed by an append (`append_claimed_names`, shared.rs). A "creates"
-/// command whose identity head is supplied this second way
-/// (`Governance::RoleAssignment.Assign`'s own `actor_id`/`role_name`/
-/// `starts_at` — no explicit `:set` at all, bare-name-matched like
-/// `Order.CreatePizza`'s whole record) reads `args.<head>` exactly the
-/// same as one supplied via an explicit `sets :<head>`. Ported to match
-/// mutations.rb exactly, including its `.to_string()` on the external
-/// branch's own expr — the one combination (single identity component,
-/// entirely external) that otherwise leaves a bare `&str` where `String`
-/// is expected.
+/// Builds one component per identity part: a `set` target or same-named command argument reads
+/// `args.<head>`, and anything else becomes a parameter.
 pub fn identity_components(aggregate: &Json, command: &Json) -> Vec<IdentityComponent> {
     let identified_by = aggregate.get("identified_by").map(Json::each).unwrap_or(&[]);
     let cmd_mutations = command.get("mutations").map(Json::each).unwrap_or(&[]);
@@ -509,7 +431,7 @@ pub fn build_identity_expr(components: &[IdentityComponent]) -> String {
     format!("format!({}, {})", naming::ruby_inspect_string(&placeholders), components.iter().map(|c| c.expr.as_str()).collect::<Vec<_>>().join(", "))
 }
 
-/// One `append` field's value.
+/// The value expression for one `append` field.
 pub fn append_field_rhs(source: &str, field_attr: &Json, command: &Json, value_objects_by_name: &HashMap<String, &Json>) -> String {
     let parsed = append_field_source(source);
     let Literal::Symbol(arg_name) = &parsed else {
@@ -540,12 +462,12 @@ pub fn append_field_rhs(source: &str, field_attr: &Json, command: &Json, value_o
     }
 }
 
-/// The optional half of `value_rhs`.
+/// The optional-source variant of `value_rhs`.
 pub fn optional_value_rhs(source_expr: &str, source_type: &str, target_type: &str, value_objects_by_name: &HashMap<String, &Json>) -> String {
     format!("{source_expr}.clone().map(|v| {})", crate::bridging::value_rhs("v", source_type, target_type, value_objects_by_name))
 }
 
-/// `:append` and `:set` — the two `sets` ops this slice generates.
+/// Emits the closure line for one mutation.
 pub fn emit_mutation_line(exemplar: &Exemplar, mutation: &Json, aggregate: &Json, command: &Json, value_objects_by_name: &HashMap<String, &Json>, optional: bool) -> String {
     let target_field = naming::rust_ident_field(&mutation.get("target").map(Json::to_s).unwrap_or_default());
     let lifecycle_field = aggregate.get("lifecycle").and_then(|l| l.get("field")).map(Json::to_s);
@@ -590,8 +512,7 @@ fn emit_mutation_line_body(
                     let id_name = crate::attr::name(id_attr);
                     if !present.iter().any(|p| p == id_name) {
                         let id_vo_attrs = id_vo.get("attributes").map(Json::each).unwrap_or(&[]);
-                        // One past the highest identity held (C4.5) —
-                        // `rust/project/mutations.rb`'s own mint, byte for byte.
+                        // Mint one past the highest identity held.
                         let id_field = naming::rust_ident_field(id_name);
                         let vo_field = naming::rust_ident_field(crate::attr::name(&id_vo_attrs[0]));
                         let mint = format!(
@@ -601,40 +522,9 @@ fn emit_mutation_line_body(
                         fields_assignment.push(format!("{}: {mint}", naming::rust_ident_field(id_name)));
                         present.push(id_name.to_string());
                     } else if entity.get("identified_by").map(Json::each).unwrap_or(&[]).len() == 1 {
-                        // A caller-supplied identity, non-composite only —
-                        // `MutationApplier#check_entity_collision`'s own
-                        // guard (mutation_applier.rb), ported: reached only
-                        // when the append's own field map already carries
-                        // the identity (the `if` above skips auto-minting),
-                        // the same condition Ruby's own `entity_element`
-                        // branches on. Checks the sibling list here for
-                        // exactly this reason: without it, a second element
-                        // offered under an identity already held would
-                        // silently duplicate, and become permanently
-                        // unaddressable by any later command
-                        // (`EntityInterpreter#element_of`'s own `find_index`
-                        // always matches the first match). Mirrors
-                        // `rust/project/mutations.rb`'s own identical check
-                        // byte for byte — this is a separate, independent
-                        // implementation of the same codegen, and
-                        // codegen_parity_spec holds the two byte-identical.
-                        //
-                        // Composite identities (`identified_by.len() != 1`,
-                        // e.g. `ProcessManager::Dispatch`'s own
-                        // `command_name.value, position.value`) are
-                        // deliberately excluded here — `entity_identity_mint`
-                        // (above) only ever inspects `identified_by.first()`,
-                        // so `id_attr`/`id_name` at this point name just one
-                        // of a composite identity's several heads. Guarding
-                        // on that alone would refuse two elements as
-                        // duplicates whenever they merely share that one
-                        // head (e.g. two `Dispatch`es with the same
-                        // `command_name` at different `position`s) — a false
-                        // positive, not a fix. Left as a real, documented,
-                        // pre-existing gap (composite-identity entity lists
-                        // still accept a genuine duplicate silently),
-                        // narrower than the single-field case this bug
-                        // report actually demonstrated.
+                        // Caller-supplied single-field identity: refuse a duplicate, which would
+                        // be unaddressable later. Composite identities are excluded; sharing one
+                        // head does not make two elements duplicates.
                         let id_field = naming::rust_ident_field(id_name);
                         let id_rhs = fields
                             .iter()
@@ -653,21 +543,8 @@ fn emit_mutation_line_body(
                         let entity_lit = naming::ruby_inspect_string(entity_name);
                         let aggregate_lit = naming::ruby_inspect_string(aggregate_name);
                         let identity_lit = naming::ruby_inspect_string(&identity_reading);
-                        // BUG#143 — `Rendering.describe`'s own single-field
-                        // unwrap (rendering.rb), matched here so `format!`
-                        // renders the same bare scalar Ruby's own
-                        // `RefusalWording.render`'s "offered" arm does, the
-                        // identical fix `entity_list_replace_guard` (BUG#33,
-                        // above) already applies to the sibling whole-list
-                        // `:set` replace guard. `{id_rhs}` alone Debug-prints
-                        // the whole identity value object (`SlipReference {
-                        // value: "juliet" }`), not the bare `"juliet"` a
-                        // reader (and `bin/rust_conformance`'s own
-                        // byte-exact comparison) expects. `id_vo` here is
-                        // `entity_identity_mint`'s own return — this branch
-                        // only runs inside its `if let Some((id_attr,
-                        // id_vo))`, so it is already guaranteed exactly one
-                        // attribute; no fallback arm is needed.
+                        // Unwrap to the bare scalar, as `entity_list_replace_guard` does; the mint
+                        // branch above guarantees exactly one attribute.
                         let offered_field = naming::rust_ident_field(crate::attr::name(&id_vo.get("attributes").map(Json::each).unwrap_or(&[])[0]));
                         let offered_expr = format!("{id_rhs}.{offered_field}");
                         collision_guard = format!(
@@ -684,17 +561,7 @@ fn emit_mutation_line_body(
                     }
                 }
 
-                // A third field no `append: { ... }` binding ever names, on
-                // top of the two above: a list-typed attribute the entity
-                // declares for some other command to `append`/`remove` into
-                // later (`ValueObject::Member#pairs`, bound only by its own
-                // `Pair` command — S17, ADR 0026). Mirrors the identical fix
-                // in rust/project/mutations.rb's own `emit_mutation_line_body`
-                // exactly — this is a separate, independent implementation of
-                // the same codegen (Stage 8's opt-in `hecks-codegen` pipeline),
-                // and codegen_parity_spec holds the two byte-identical, so a
-                // gap fixed in one and not the other is a real, caught
-                // divergence, not a hypothetical one.
+                // Fill list attributes no `append:` names; a later command appends to them.
                 for attr in element_attrs {
                     if !crate::attr::list(attr) {
                         continue;
@@ -707,16 +574,7 @@ fn emit_mutation_line_body(
                     present.push(attr_name.to_string());
                 }
 
-                // A fourth field no `append: { ... }` binding ever names: a
-                // scalar optional attribute the entity declares for some
-                // other command to `set` later (e.g. `Dispatch#
-                // compensates_command_name`, S18 — `compensates:`
-                // per-dispatch saga compensation, bound only by the
-                // dispatch that opens a saga, never by the one it
-                // compensates). Mirrors the identical fix in
-                // rust/project/mutations.rb's own
-                // `emit_mutation_line_body` exactly — same reason as the
-                // list case above.
+                // Fill optional scalars no `append:` names; a later command sets them.
                 for attr in element_attrs {
                     if crate::attr::list(attr) || !crate::attr::optional(attr) {
                         continue;
@@ -754,9 +612,7 @@ fn emit_mutation_line_body(
                 } else if crate::attr::list(target_attr) && source_attr.map(crate::attr::optional).unwrap_or(false) {
                     exemplar.render("mutation_set_unwrap_or_default", &[("tmpl_field", target_field.to_string()), ("tmpl_optional_rhs_placeholder()", rhs)])
                 } else if crate::attr::list(target_attr) {
-                    // BUG#33 — see `entity_list_replace_guard`'s own comment.
-                    // Scoped to exactly this branch, mirroring rust/project/
-                    // mutations.rb's own identical scoping note.
+                    // Only whole-list replaces carry the duplicate-identity guard.
                     let (guard, effective_rhs) = entity_list_replace_guard(aggregate, target_attr, &target_field, &rhs, value_objects_by_name);
                     format!("{guard}{}", exemplar.render("mutation_set_plain", &[("tmpl_field", target_field.to_string()), ("tmpl_rhs_placeholder2()", effective_rhs)]))
                 } else {
@@ -774,9 +630,7 @@ fn emit_mutation_line_body(
             let vo_type = naming::rust_ident(crate::attr::type_name(target_attr));
             let field_ident = naming::rust_ident_field(&integer_field);
             let amount_expr = crate::bridging::arithmetic_amount_expr(mutation.get("source").unwrap_or(&Json::Null), command, value_objects_by_name, &integer_field).expect("arithmetic amount must resolve");
-            // The IR'S own sign field, not re-derived from the op name —
-            // port of rust/project/mutations.rb's own fix; see that
-            // file's comment for the full argument.
+            // Use the IR's `sign`, not the op name.
             let sign = if mutation.get("sign").map(Json::to_s).unwrap_or_default() == "1" { "+" } else { "-" };
             let current = if optional { format!("record.{target_field}.clone().unwrap()") } else { format!("record.{target_field}.clone()") };
             let op = mutation.get("op").map(Json::to_s).unwrap_or_default();
@@ -787,11 +641,7 @@ fn emit_mutation_line_body(
             )
         }
         "multiply" => {
-            // Port of rust/project/mutations.rb's own `when "multiply"` —
-            // see that file's comment for the full argument (reuses the
-            // same `arithmetic_target_field`/`arithmetic_amount_expr`
-            // pairing `increment`/`decrement` use, `*` in place of `sign`,
-            // deliberately scoped to the same Integer-field subset).
+            // Same Integer-field subset as `increment`/`decrement`, with `*`.
             let (target_attr, integer_field) = crate::bridging::arithmetic_target_field(mutation, aggregate, value_objects_by_name).expect("arithmetic target must resolve");
             let vo_type = naming::rust_ident(crate::attr::type_name(target_attr));
             let field_ident = naming::rust_ident_field(&integer_field);
@@ -804,13 +654,7 @@ fn emit_mutation_line_body(
             )
         }
         "clamp" => {
-            // Port of rust/project/mutations.rb's own `when "clamp"` — see
-            // that file's comment for the full argument. No amount
-            // argument to resolve at all (`mutation.source` is always a
-            // literal `[min, max]` pair — `clamp_bounds_ints`, bridging.rs)
-            // — the target half is the same `arithmetic_target_field` pairing
-            // increment/decrement/multiply use. Rust's own `i64::clamp`
-            // matches Ruby's `Integer#clamp(min, max)` exactly.
+            // The source is always a literal `[min, max]` pair, so there is no amount to resolve.
             let (target_attr, integer_field) = crate::bridging::arithmetic_target_field(mutation, aggregate, value_objects_by_name).expect("clamp target must resolve");
             let vo_type = naming::rust_ident(crate::attr::type_name(target_attr));
             let field_ident = naming::rust_ident_field(&integer_field);
@@ -822,32 +666,8 @@ fn emit_mutation_line_body(
                 &[("tmpl_field", target_field.to_string()), ("tmpl_current_placeholder()", current), ("tmpl_updated_placeholder()", if optional { format!("Some({updated})") } else { updated })],
             )
         }
-        // BUG#31 — `rust/project/mutations.rb`'s own `emit_mutation_line_
-        // body` has no `"corrects"` arm and no `else`, so it silently
-        // returns Ruby `nil`, which `emit_mutation_line`'s own
-        // `"        #{...}"` interpolation renders as an effectively
-        // blank (whitespace-only) line — a documented no-op, the same
-        // semantics `EntityElement.apply_to_element`'s own `:corrects`
-        // branch has (BUG#30): the mutation targets no field, the
-        // admissibility check already ran up front, and whatever the
-        // correction actually changes is an ordinary declared mutation
-        // of its own, handled by one of the arms above. Reached only
-        // from an entity-level command's own mutation list
-        // (`emit_entity_command`/`emit_nested_entity_command`, which —
-        // like their Ruby-hosted twins — do not filter `"corrects"` out
-        // before calling this function, unlike `emit_command`'s
-        // aggregate-level path, which already does): without that filter,
-        // this would hit the `other` panic arm below instead, crashing
-        // `hecks-codegen domain` outright the moment any entity-level
-        // `corrects` command reached it — BUG#31's own
-        // `corrects_given_specs` prepend is what makes entity-level
-        // `corrects` admissible enough to reach real codegen at all in
-        // this crate.
         "remove" => {
-            // BUG#32 — port of rust/project/mutations.rb's own `when
-            // "remove"` (see that comment for the full "identity, not
-            // whole-value equality" argument). `remove_field_problems`
-            // already confirmed every lookup below resolves.
+            // `remove_field_problems` already confirmed every lookup below resolves.
             let attrs = aggregate.get("attributes").map(Json::each).unwrap_or(&[]);
             let target_attr = attrs.iter().find(|a| crate::attr::name(a) == target_name).expect("remove target must be a declared aggregate attribute");
             let entities = aggregate.get("entities").map(Json::each).unwrap_or(&[]);
@@ -865,6 +685,7 @@ fn emit_mutation_line_body(
             );
             exemplar.render("mutation_remove", &[("tmpl_field", target_field.to_string()), ("tmpl_id_field", id_field), ("tmpl_remove_match_placeholder()", match_expr)])
         }
+        // `corrects` targets no field; entity-level commands do not filter it out first.
         "corrects" => String::new(),
         other => panic!("unsupported mutation op {other:?} — command_skip_reason should have caught this"),
     }

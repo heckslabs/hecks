@@ -5,27 +5,8 @@ require "uri"
 module Hecks
   module Runtime
     module EraCheck
-      # The read side of the era gate, for a deploy operator rather than a boot:
-      # asks a running host which era it reports at `GET /version` and compares
-      # it with an allow-list file of the eras that should be running.
-      #
-      # `EraCheck.check!` decides at boot, against the store, whether a host may
-      # run on an era. This answers the question after a roll, from outside:
-      # did the host that came up report an era the operator expects? The two
-      # never share state. The host's own `GET /version` document
-      # (`rust/host/src/server.rs`, `version_body`) is the only input, so a
-      # rollback to an older image, or a fork of the journal back onto an older
-      # era, shows up here as an era missing from the list.
-      #
-      # ## The allow-list file
-      #
-      # One era id per line. Blank lines and lines starting with `#` are
-      # ignored, and so is a trailing ` # comment`. A file that lists no era
-      # means "only check that the host reports one", so a first roll can be
-      # checked before any era id is known. The generated `expected-era` file
-      # (`Deploy::Scripts`) has this shape.
-      #
-      # `bin/check_era` is the command-line wrapper.
+      # Compares a running host's reported era (`GET /version`) against an
+      # allow-list file of eras that should be running, for use after a roll.
       module ExpectedEra
         # The host could not be reached, or did not answer with a `200`.
         class Unreachable < StandardError; end
@@ -36,7 +17,7 @@ module Hecks
         # What a comparison concluded.
         #
         # @!attribute [r] status
-        #   @return [Symbol] `:match`, `:unlisted` (no era on the list, one reported) or `:mismatch`
+        #   @return [Symbol] `:match`, `:unlisted` (no era listed) or `:mismatch`
         # @!attribute [r] era
         #   @return [String] the era the host reported
         # @!attribute [r] allowed

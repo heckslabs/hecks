@@ -29,16 +29,9 @@ module Hecks
               catalog_entities(domain_name, aggregate, entity_commands, entity_queries)
             end
 
-            # **The bare domain form** — "Domain.report_name", no "::" — the
-            # same shape `Dispatcher#query` itself branches on to route a
-            # read-model ask apart from an aggregate query. A report was
-            # never in this catalog at all before: `aggregation_matches_
-            # recompute` (count/median) has only ever been exercised by
-            # hand-built specs, never a single real generated sequence,
-            # because nothing here ever asked one. `model:`, not
-            # `aggregate:` — a rootless report has no aggregate of its
-            # own to be eligible against (see picker.rb's own use of
-            # `model.reference_target`).
+            # Reports use the bare "Domain.report_name" form, which `Dispatcher#query`
+            # routes to the read model. Keyed by `model:`, not `aggregate:`: a
+            # rootless report has no aggregate to be eligible against.
             bluebook.read_models.each do |model|
               read_models << { verb: "#{domain_name}.#{model.query_name}", model: model }
             end
@@ -47,41 +40,25 @@ module Hecks
           { creating: creating, instance: instance, entity_commands: entity_commands,
             queries: queries, entity_queries: entity_queries, read_models: read_models,
             populators: populators(runtime),
-            # The aggregates a query filters on, and the fields it compares
-            # (query_binding.rb).
+            # The aggregates a query filters on, and the fields it compares.
             query_bindings: build_query_bindings(runtime),
-            # Every `role "..."` any command in the boot declares — the
-            # "wrong hat" pool the caller draw's `mismatched` shape picks
-            # from (adversary.rb `other_role`).
+            # Every `role "..."` a command declares; the `mismatched` caller shape draws from it.
             roles: (creating + instance + entity_commands).filter_map { |e| e[:command].role }
                                                           .map(&:to_s).reject(&:empty?).uniq.sort,
-            # The grant verb every loaded authorization provider declares
-            # (`provides "authorization", grant: ...`) — what the caller
-            # draw steers at a declared role and records as a real grant.
-            # Read off the declaration, never the literal Governance name.
+            # The grant verb each authorization provider declares, read off the
+            # declaration rather than a hard-coded Governance name.
             grant_verbs: runtime.registry.authorization_providers
                                 .filter_map { |chapter| chapter.provided_verb(Bluebook::Capabilities::AUTHORIZATION, :grant) }
                                 .sort,
-            # Which aggregates this corpus can actually make one of — the ones
-            # `satisfiable?` is entitled to wait for.
+            # Aggregates some creating command can make; `satisfiable?` only waits on these.
             creatable: creating.to_set { |entry| entry[:aggregate].hecks_name } }
         end
 
-        # Every entity, at every depth — `Card` nested inside `Board`
-        # inside `Workspace` (qa/stress_domains/nested_pieces) walks in
-        # as `chain: [Board, Card]`, the exact hop list
-        # `EntityInterpreter::Resolution.of` resolves the dotted verb
-        # back into. Before this walk existed the catalog only ever read
-        # `aggregate.entities` one level down, so a two-hop entity
-        # command (BUG#11's whole class) could never be generated at all
-        # — the one shape the differential harness most needed to reach
-        # was structurally absent from every sequence it ever produced.
-        # `entity:` stays the last hop (what every existing reader means
-        # by "the entity"); `chain:` is the whole path.
+        # Indexes every entity at every depth; `chain:` is the whole hop list
+        # (`[Board, Card]`) and `entity:` its last hop.
         #
-        # Entity queries stay one hop deep, exactly as before — a nested
-        # entity's query has no established wire spelling this generator
-        # can vouch for, and nothing in the corpus declares one.
+        # Entity queries stay one hop deep: a nested entity's query has no
+        # established wire spelling.
         def catalog_entities(domain_name, aggregate, entity_commands, entity_queries)
           each_entity_chain(aggregate) do |chain|
             entity = chain.last
@@ -99,11 +76,8 @@ module Hecks
           end
         end
 
-        # Depth-first, parents before children, in declaration order — so
-        # the depth-1 entries land in `entity_commands` in exactly the
-        # order they always did (a pinned seed's picker pool is the same
-        # pool it was), and a nested entity's own entries follow its
-        # parent's.
+        # Depth-first, parents before children, in declaration order, which
+        # keeps a pinned seed's picker pool stable.
         def each_entity_chain(owner, chain = [], &block)
           owner.entities.each do |entity|
             path = chain + [entity]
@@ -112,26 +86,13 @@ module Hecks
           end
         end
 
-        # Which command, on which owner, appends to which entity list — so a
-        # successful dispatch can predict the identity the element it just
-        # added landed on. Entity#identified_by is filled by `Array(current).size + 1`
-        # (CommandInterpreter#entity_element) when the append's own field
-        # mapping doesn't already assign it — the common case, predicted here.
-        # A domain whose append explicitly assigns identity through a mapped
-        # argument is covered too, without guessing: whatever value this
-        # generator supplied for that argument at dispatch time is the
-        # identity, and gets recorded directly (see `record_outcome`).
+        # Which command appends to which entity list, so a successful dispatch
+        # can predict the identity of the element it added.
         #
-        # `owner_chain:` — `[]` for an aggregate-level append (`Board.AddList`,
-        # `Folder.AddSlip`), the entity path for an entity-level one
-        # (`Board.AddCard` appending into `Board.cards`, owner_chain
-        # `[Board]`) — so `record_outcome` can key the appended element
-        # under the exact parent-plus-hops it landed beneath.
-        # `identity_arguments:` — every identity head the mapping sources
-        # from a command argument (a composite entity identity has several),
-        # what the adversarial duplicate-identity mutation replays;
-        # `identity_argument:` stays the single-head reading the existing
-        # auto-mint prediction already keys on.
+        # `owner_chain:` is `[]` for an aggregate-level append and the entity
+        # path for an entity-level one. `identity_arguments:` lists every
+        # identity head sourced from a command argument; `identity_argument:`
+        # is the single-head reading the auto-mint prediction keys on.
         def populators(runtime)
           runtime.registry.bluebooks.each_value.flat_map do |bluebook|
             bluebook.aggregates.flat_map do |aggregate|

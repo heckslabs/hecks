@@ -1,15 +1,7 @@
 require "spec_helper"
 
-# S2 (docs/audits/2026-08-10-main-bug-audit.md) — trying a symbol key, then
-# falling back into the string spelling with `||` (`current[segment.to_sym]
-# || current[segment]`) would break `dig`/`read` on a genuinely-stored
-# `false`: `false || current[segment]` falls through to the (usually
-# absent) string spelling and returns `nil` instead of the real answer.
-# The seal admits boolean leaves (`SCALAR_PRIMITIVES` below carries
-# `TrueClass`/`FalseClass`), so a query filtering on a `false`-valued leaf
-# silently never matched. This is the root helper every in-process query
-# path (`Ports::Query::InMemory`, `Runtime::QueryInterpreter`) digs a
-# record through, so fixing it here retires the bug everywhere it dug.
+# Pins S2 (docs/audits/2026-08-10-main-bug-audit.md): a stored `false` leaf must read back
+# as `false`, not fall through a `sym || string` lookup to nil.
 RSpec.describe Hecks::QuerySpecification::FieldPath do
   describe ".dig" do
     it "reads a stored false leaf, symbol-keyed, rather than nil" do
@@ -35,12 +27,8 @@ RSpec.describe Hecks::QuerySpecification::FieldPath do
       expect(described_class.dig({ flags: { other: true } }, "flags.active")).to be_nil
     end
 
-    # M5 (docs/audits/2026-08-10-main-bug-audit.md) — `.dig`/`.read`'s own
-    # contract is "the held value, or nil — never a raise". Stepping a
-    # dotted path onto an Array (a `list_of` attribute, or any other
-    # Array a stored hash happens to hold) broke it: `Array#[]` demands
-    # an Integer/Range index, so `current[segment]` (a String) raised a
-    # raw `TypeError` straight through `dig` instead of answering nil.
+    # M5 (docs/audits/2026-08-10-main-bug-audit.md): `.dig` answers nil, never raises,
+    # when a dotted path steps onto an Array (`Array#[]` rejects a String index).
     it "reads nil rather than raising when a dotted path steps onto an Array" do
       expect { described_class.dig({ items: [1, 2, 3] }, "items.name") }.not_to raise_error
       expect(described_class.dig({ items: [1, 2, 3] }, "items.name")).to be_nil
@@ -53,10 +41,7 @@ RSpec.describe Hecks::QuerySpecification::FieldPath do
 
   describe ".read" do
     it "prefers the symbol spelling when both a true string value and a false symbol value are held" do
-      # **The adversarial case**: if the symbol side genuinely holds `false`,
-      # nothing may fall through to the string side even when the string
-      # side holds something else entirely — presence at the symbol key
-      # decides the read outright.
+      # If the symbol side holds `false`, the string side must never be consulted.
       expect(described_class.read({ active: false, "active" => true }, "active")).to be(false)
     end
 

@@ -2,12 +2,8 @@ require "tmpdir"
 require "open3"
 require "fileutils"
 
-# bin/standardize_comments is a script whose `main` only runs when it is the program,
-# so loading it here defines `CommentStyle` without running anything.
-#
-# These specs cover two rules. `design_history` flags phrasing that narrates change. `long_block`
-# fails a block over `MAX_BLOCK` comment lines unless the checked-in baseline holds it at that
-# length or longer.
+# Loads bin/standardize_comments here so CommentStyle is defined without
+# running main (which only runs when this file is the program).
 load File.join(InMemoryDomain::ROOT, "bin/standardize_comments") unless defined?(CommentStyle)
 
 RSpec.describe "bin/standardize_comments" do
