@@ -4,6 +4,18 @@ module Hecks
       # What a read model does. Its declared half is the gathered heads
       # and the query shape; these are readings taken off them.
       module ReadModel
+        # Every reduction a read model may declare over its one eligible collection, each
+        # naming the ivar that holds its declared value and the word it reads back as in a
+        # refusal message. A read model reports one shape, so at most one of these is ever set.
+        REDUCTION_FIELDS = {
+          count: "count", median_field: "median", sum_field: "sum", avg_field: "avg",
+          min_field: "min", max_field: "max", percentile_field: "percentile",
+          any_field: "any", all_field: "all"
+        }.freeze
+
+        # @return [Boolean] whether this read model declares any reduction (`REDUCTION_FIELDS`)
+        def reducing? = REDUCTION_FIELDS.each_key.any? { |ivar| instance_variable_get(:"@#{ivar}") }
+
         # Lists the fields this read model groups rows by.
         #
         # @return [Array<Symbol>] each declared `group_by` field's name, in declaration order
@@ -62,7 +74,7 @@ module Hecks
         #   declared, else `[]`
         def single_filtered_head_name(many)
           declared = wheres.any? || order_by || limit || offset || authorization&.tenant ||
-                     @group_by.any? || count? || @median_field
+                     @group_by.any? || reducing?
           declared ? [many.first[:as]] : []
         end
 

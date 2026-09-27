@@ -96,12 +96,10 @@ module Hecks
       # @param resolution [EntityInterpreter::Resolution] the resolved entity chain and command
       # @param invocation [Runtime::Invocation] the invocation `Dispatcher` built
       # @param dry_run [Boolean] validate every step without saving, emitting or enqueueing
-      # @return [Array(Runtime::Instance, Array<Runtime::Event>, Runtime::DependencyPlanning::Plan,
-      #   Ports::Persistence::Execution, Array<Runtime::Outbox::Row>)] instance, events, plan,
-      #   persistence outcome and outbox rows — last three nil on a dry run
+      # @return [Array] instance, events, plan, persistence outcome, outbox rows — last three
+      #   nil on a dry run
       # @raise [StandardError] any `Runtime::DOMAIN_REFUSALS` class when a rule refuses
-      # @raise [Runtime::StaleWrite] if writers race through every retry
-      # @raise [Runtime::WiringError] if the aggregate's repository cannot be resolved
+      # @raise [Runtime::StaleWrite, Runtime::WiringError] every retry loses, or resolve fails
       def call(domain, aggregate, resolution, invocation, dry_run: false)
         chain        = resolution.chain
         entity       = chain.last

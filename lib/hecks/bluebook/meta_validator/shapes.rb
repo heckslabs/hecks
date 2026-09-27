@@ -166,6 +166,11 @@ module Hecks
         # read model — matching `ReadModel#to_h`'s own true/nil pairing.
         def read_model_count(row) = (true if text(row[:count]).to_s == "true")
 
+        # `percentile_at` is stored as text (the self-hosted grammar's own
+        # `ReadModelText`, ADR 0078), but the wire and `ReadModel#initialize`'s
+        # own `&.to_f` both want a Float.
+        def read_model_percentile_at(row) = text(row[:percentile_at])&.to_f
+
         # The append flattening, in reverse: regroups per-binding rows back
         # into one mutation per distinct target/op pair.
         def mutations(row)

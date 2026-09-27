@@ -307,6 +307,23 @@ module Hecks
         end
       end
 
+      # One record's recorded events, oldest first — pushed down as a `WHERE` clause
+      # (`hecks_events_aggregate_id_idx`) instead of filtering `#events`'s whole-table read.
+      def events_for(aggregate:, id:)
+        @db.execute(
+          "SELECT * FROM events WHERE aggregate = ? AND aggregate_id = ? ORDER BY id",
+          [aggregate, id.to_s]
+        ).map do |row|
+          Runtime::Event.new(
+            name:        row["name"],
+            aggregate:   row["aggregate"],
+            id:          row["aggregate_id"],
+            payload:     JSON.parse(row["payload"], symbolize_names: true),
+            occurred_at: row["occurred_at"]
+          )
+        end
+      end
+
       # Persists a saga's checkpointed state as one D1 statement.
       #
       # @param process_manager [String, Symbol] the process manager's name

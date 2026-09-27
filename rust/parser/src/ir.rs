@@ -242,9 +242,20 @@ pub struct ReadModel {
     pub aggregate_heads: Vec<AggregateHead>,
     // One `{"field": ...}` row per name, re-wrapped by `read_model_json`.
     pub group_by: Vec<String>,
-    // `group_by`'s siblings; both are omitted from the wire when absent, not `null`.
+    // `group_by`'s siblings; every one is omitted from the wire when absent, not `null`
+    // (ADR 0078 — a read model reports one shape, so at most one is ever set).
     pub count: bool,
     pub median_field: Option<String>,
+    pub sum_field: Option<String>,
+    pub avg_field: Option<String>,
+    pub min_field: Option<String>,
+    pub max_field: Option<String>,
+    pub percentile_field: Option<String>,
+    // Kept as text (Ruby's own self-hosted grammar wraps it in `ReadModelText`), coerced
+    // by `Bluebook::ReadModel#initialize`'s own `&.to_f` on the Ruby side.
+    pub percentile_at: Option<String>,
+    pub any_field: Option<String>,
+    pub all_field: Option<String>,
     // Same shape as `Query.options`.
     pub options: QueryOptions,
 }

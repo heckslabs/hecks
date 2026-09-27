@@ -371,6 +371,29 @@ module Hecks
         end
       end
 
+      # Reads back one record's recorded events, oldest first — pushed down as a `WHERE`
+      # clause (`hecks_events_aggregate_id_idx`) instead of filtering `#events`'s whole-table
+      # read, since a `corrects` command's history lookup only ever needs this one record.
+      #
+      # @param aggregate [String] the `"domain::AggregateName"` key events are stored under
+      # @param id [String, Object] the record's identity, matched as `id.to_s`
+      # @return [Array<Runtime::Event>] the record's stored events; `[]` when it has none
+      # @raise [PG::Error] if the statement fails
+      def events_for(aggregate:, id:)
+        pg_exec_params(
+          "SELECT * FROM events WHERE aggregate = $1 AND aggregate_id = $2 ORDER BY id",
+          [aggregate, id.to_s]
+        ).map do |row|
+          Runtime::Event.new(
+            name:        row["name"],
+            aggregate:   row["aggregate"],
+            id:          row["aggregate_id"],
+            payload:     JSON.parse(row["payload"], symbolize_names: true),
+            occurred_at: row["occurred_at"]
+          )
+        end
+      end
+
       # Upserts one saga instance's checkpoint, keyed by domain, process manager and
       # correlation.
       #

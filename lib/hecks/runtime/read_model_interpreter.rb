@@ -8,9 +8,20 @@ require_relative "../query_specification/field_path"
 
 module Hecks
   module Runtime
-    # Interprets one declared `read_model`: resolves its `include`d heads and applies
-    # any group_by/count/median reduction, preferring a native SQLite path when it can.
+    # Interprets one declared `read_model`: resolves its `include`d heads and applies any
+    # `group_by` or reduction (`REDUCTION_WORD`), preferring a native SQLite path when it can.
     class ReadModelInterpreter
+      # The word each non-`count` reduction ivar reads back as in a refusal message.
+      REDUCTION_WORD = {
+        median_field: "median", sum_field: "sum", avg_field: "avg", min_field: "min",
+        max_field: "max", percentile_field: "percentile", any_field: "any", all_field: "all"
+      }.freeze
+
+      # `sum`/`avg` refuse a Float field (ADR 0078): summing floats cannot be made to agree,
+      # byte for byte, between Ruby and Rust, so v1 admits only the Integer case.
+      INTEGER_ONLY_REDUCTIONS = %i[sum_field avg_field].freeze
+      BOOLEAN_REDUCTIONS = %i[any_field all_field].freeze
+
       # @param registry [Runtime::Registry] the booted registry whose repositories
       #   this interpreter reads
       def initialize(registry) = @registry = registry
@@ -20,10 +31,11 @@ module Hecks
       # @param model [Bluebook::ReadModel] the read model to run
       # @param args [Hash] the query's declared arguments
       # @return [Array<Hash>] a one-element array of head name => projected rows
-      # @raise [Runtime::TypeMismatch] if a reference is a whole object, or median is non-numeric
+      # @raise [Runtime::TypeMismatch] if a reference is a whole object
       # @raise [Runtime::NotFound] if the reference argument names no record
       # @raise [KeyError] if a rooted read model is asked without its reference argument
-      # @raise [ArgumentError] if `group_by`/`median` names an undeclared field
+      # @raise [ArgumentError] if `group_by` or a reduction names an undeclared field, or one
+      #   of the wrong type
       # @raise [Runtime::InvariantViolation] if two rows collide on a full `group_by` key
       # @raise [Runtime::WiringError] if the aggregate's repository cannot be resolved
       def call(domain, model, args)
@@ -50,10 +62,10 @@ module Hecks
         # clause added underneath (ADR 0055; `on:` allows more than one head).
         eligible = model.filtered_head_names
         model = TenantScope.apply(model, args)
-        # A rootless, `group_by`, `count`, or `median` model always runs the
-        # in-process loop below — none of those are pushed down into
+        # A rootless model, or one declaring `group_by` or any reduction, always runs
+        # the in-process loop below — none of those are pushed down into
         # `query_read_model`, a known limit, not a silent one.
-        unless rootless || model.group_by.any? || model.count? || model.median_field
+        unless rootless || model.group_by.any? || model.reducing?
           repository = @registry.read_repository(domain, bluebook.aggregate(model.reference_target))
           if repository.respond_to?(:query_read_model) && repository.adapter.respond_to?(:query_read_model)
             return repository.query_read_model(domain, model, args,
@@ -100,7 +112,7 @@ module Hecks
                     elsif reduced_head && as == reduced_head[:as] && model.count?
                       value.length
                     elsif reduced_head && as == reduced_head[:as]
-                      median(value, model.median_field)
+                      reduce(model, value)
                     elsif value.is_a?(Array)
                       value.map { |record| Value.materialize(row(record)) }
                     else
@@ -192,39 +204,83 @@ module Hecks
                                          key: path.map { |field, value| "#{field} = #{value}" }.join(", "))
       end
 
-      # Resolves `count`/`median`'s single many-side head, raising on a `median`
-      # field that doesn't exist or isn't numeric rather than comparing garbage.
+      # Resolves a reduction's single many-side head, raising on a field that doesn't
+      # exist or has the wrong type rather than comparing garbage.
       def aggregation_target(model, bluebook)
-        return nil unless model.count? || model.median_field
+        return nil unless model.reducing?
 
         target = model.aggregate_heads.find { |head| head[:many] }
-        return target unless model.median_field
+        return target if model.count?
 
+        ivar, word = REDUCTION_WORD.find { |name, _| model.public_send(name) }
+        field = model.public_send(ivar)
         aggregate = bluebook.aggregate(target[:aggregate])
-        attribute = aggregate.attribute(model.median_field)
+        attribute = aggregate.attribute(field)
         unless attribute
           raise ArgumentError,
-                "#{model.name}'s median names #{model.median_field.inspect}, but #{target[:aggregate]} " \
+                "#{model.name}'s #{word} names #{field.inspect}, but #{target[:aggregate]} " \
                 "declares no such attribute (it declares #{aggregate.attributes.map(&:name).join(', ')})"
         end
-        unless QuerySpecification::FieldPath.numeric?(attribute, []) { |type| aggregate.value_object(type) }
-          raise ArgumentError,
-                "#{model.name}'s median names #{model.median_field.inspect} on #{target[:aggregate]}, " \
-                "which is not numeric — median needs a numeric field (a bare number, or a " \
-                "value object carrying one)"
-        end
+        validate_reduction_type!(model, word, field, target[:aggregate], aggregate, attribute, ivar)
         target
       end
 
-      # The standard median: middle value when odd, average of the two middle
-      # values when even; an empty collection has no median (nil, not zero).
-      def median(rows, field)
-        values = rows.map { |record| Ports::Query::InMemory.comparable(QuerySpecification::FieldPath.dig(row(record), field)) }
-                     .compact.sort
+      # @raise [ArgumentError] if `attribute` does not have the type `ivar`'s reduction needs
+      def validate_reduction_type!(model, word, field, aggregate_name, aggregate, attribute, ivar)
+        wrap = ->(type) { aggregate.value_object(type) }
+        ok = if BOOLEAN_REDUCTIONS.include?(ivar)
+               QuerySpecification::FieldPath.boolean?(attribute, [], &wrap)
+             elsif INTEGER_ONLY_REDUCTIONS.include?(ivar)
+               QuerySpecification::FieldPath.integer?(attribute, [], &wrap)
+             else
+               QuerySpecification::FieldPath.numeric?(attribute, [], &wrap)
+             end
+        return if ok
+
+        kind = BOOLEAN_REDUCTIONS.include?(ivar) ? "boolean" : "numeric"
+        raise ArgumentError,
+              "#{model.name}'s #{word} names #{field.inspect} on #{aggregate_name}, " \
+              "which is not #{kind} — #{word} needs a #{kind == 'boolean' ? 'true/false' : 'numeric'} field"
+      end
+
+      # Dispatches to the one reduction `model` declares, over the eligible collection's own
+      # `comparable`-mapped values (or raw booleans for `any`/`all`) — the interpretation of
+      # `Runtime::ReadModelInterpreter#project`'s `reduced_head` branch.
+      def reduce(model, rows)
+        return boolean_values(rows, model.any_field).any? if model.any_field
+        return boolean_values(rows, model.all_field).all? if model.all_field
+        return numeric_values(rows, model.sum_field).sum if model.sum_field
+        return average(numeric_values(rows, model.avg_field)) if model.avg_field
+        return numeric_values(rows, model.min_field).min if model.min_field
+        return numeric_values(rows, model.max_field).max if model.max_field
+        return percentile(numeric_values(rows, model.percentile_field), model.percentile_at) if model.percentile_field
+
+        percentile(numeric_values(rows, model.median_field), 0.5)
+      end
+
+      # Shared by every reduction: `comparable` unwraps a value-object-wrapped field down to
+      # its sole member (numeric or boolean alike) exactly as `where`/`order_by` already read
+      # it, so `flagged: { value: true }` reduces on the boolean, not the ever-truthy Hash.
+      def reduction_values(rows, field)
+        # `compact`, not `filter_map`: a stored `false` is a real value, not an absent one.
+        rows.map { |record| Ports::Query::InMemory.comparable(QuerySpecification::FieldPath.dig(row(record), field)) }.compact
+      end
+      alias numeric_values reduction_values
+      alias boolean_values reduction_values
+
+      # `nil` on no rows: a rate of nothing is undefined, not zero.
+      def average(values) = values.empty? ? nil : values.sum.to_f / values.length
+
+      # The value at one interpolated rank (`0.0`..`1.0`); `at: 0.5` is the standard median
+      # (middle value when odd, average of the two middle values when even). `nil` on no rows.
+      def percentile(values, at)
         return nil if values.empty?
 
-        middle = values.length / 2
-        values.length.odd? ? values[middle] : (values[middle - 1] + values[middle]) / 2.0
+        sorted = values.sort
+        position = at * (sorted.length - 1)
+        lower = position.floor
+        fraction = position - lower
+        fraction.zero? ? sorted[lower] : sorted[lower] + (fraction * (sorted[lower + 1] - sorted[lower]))
       end
 
       def fetch(bluebook, domain, aggregate_name, id)

@@ -48,6 +48,10 @@ module Hecks
               occurred_at  text
             )
           SQL
+          # Backs #events_for's per-record lookup (a `corrects` command's history read).
+          @db.exec(
+            "CREATE INDEX IF NOT EXISTS hecks_events_aggregate_id_idx ON events (aggregate, aggregate_id)"
+          )
         end
 
         # One row per aggregate table, naming the highest entry `sequence` this table has

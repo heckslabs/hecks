@@ -52,19 +52,11 @@ runs:
         sudo pg_conftool "$PG_VERSION" main set synchronous_commit off
         sudo pg_conftool "$PG_VERSION" main set full_page_writes off
 
-        # TRUST FOR LOCAL TCP CONNECTIONS — matches this repo's own
-        # former `services:` block (`POSTGRES_HOST_AUTH_METHOD: trust`),
-        # scoped the same way: only this ephemeral runner's own loopback.
-        # PREPENDED, not appended: pg_hba.conf is first-match-wins, and
-        # the distro's own default file already has a stricter rule for
-        # 127.0.0.1/::1 earlier in the file that would otherwise shadow
-        # ours.
-        # `sudo cat`, NOT PLAIN `cat` — pg_hba.conf is owned by the
-        # `postgres` user/group, mode 640 by default, unreadable by the
-        # unprivileged runner user this whole script otherwise runs as.
-        # (Found live on this action's own first real CI run: plain
-        # `cat "$HBA_FILE"` failed "Permission denied", failing both
-        # rspec_postgres_io and rspec_rust_host before this fix.)
+        # Trust for local TCP connections, scoped to this ephemeral runner's own loopback.
+        # Prepended, not appended: pg_hba.conf is first-match-wins, and the distro's default
+        # file already has a stricter 127.0.0.1/::1 rule earlier that would otherwise shadow ours.
+        # `sudo cat`, not plain `cat`: pg_hba.conf is owned by `postgres`, mode 640, unreadable
+        # by the unprivileged runner user this script otherwise runs as.
         HBA_FILE=$(sudo -u postgres psql -tAc "SHOW hba_file;")
         {
           echo "host all all 127.0.0.1/32 trust"

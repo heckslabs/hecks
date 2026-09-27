@@ -109,6 +109,21 @@ module Hecks
           @adapter.events if @adapter.respond_to?(:events)
         end
 
+        # Reads back one record's durably recorded events, oldest first, scoped by the
+        # adapter itself when it can (a SQL adapter pushes this down as a `WHERE` clause
+        # instead of `#events`'s whole-table read); falls back to filtering `#events` for
+        # an adapter with no scoped lookup of its own.
+        #
+        # @param aggregate [String] the `"domain::AggregateName"` key events are stored under
+        # @param id [String, Object] the record's identity, matched as `id.to_s`
+        # @return [Array<Runtime::Event>, nil] the record's events; nil when the adapter
+        #   keeps no event log at all
+        def events_for(aggregate:, id:)
+          return @adapter.events_for(aggregate: aggregate, id: id) if @adapter.respond_to?(:events_for)
+
+          events&.select { |event| event.aggregate == aggregate && event.id.to_s == id.to_s }
+        end
+
         # Replays unprojected journal entries through `project` to rebuild the projected
         # records.
         #

@@ -24,9 +24,8 @@ module CommentStyle
   MAX_HEADING_WORDS = 6
 
   # A run of comment lines longer than this is a `long_block`, unless the baseline holds it.
-  # The threshold is provisional: ADR 0069 leaves it open, and 50 is the smallest of the
-  # values its ticket floated.
-  MAX_BLOCK = 50
+  # ADR 0075 ticket 01 sets this value, amending ADR 0069's provisional 50.
+  MAX_BLOCK = 12
 
   # Longest anchor kept in a block's baseline key.
   MAX_ANCHOR = 80
@@ -224,7 +223,7 @@ module CommentStyle
   #
   # A method's structural checks (tags, `undocumented_method`) apply only when its
   # innermost enclosing type's own name is here; everything else is internal and
-  # needs no doc unless it carries a real WHY.
+  # needs no doc unless it carries a real why.
   PUBLIC_SURFACE = Set["Storehouse"].freeze
 
   def self.public_surface

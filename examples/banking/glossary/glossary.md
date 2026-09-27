@@ -1317,10 +1317,30 @@ One account, its own status, and any card charges disputed against it — the wo
 
 A customer's cross-account position, rebuilt from aggregate heads.
 
+### Disputed payment average
+
+The mean amount of an account's own disputed card charges — whether the total is one outlier or many similar ones.
+
 ### Disputed payment count
 
 How many of an account's own card charges are under dispute — a single number, not the rows themselves.
 
+### Disputed payment largest
+
+The largest amount among an account's own disputed card charges.
+
 ### Disputed payment median
 
 The median amount of an account's own disputed card charges.
+
+### Disputed payment p95
+
+The 95th percentile amount of an account's own disputed card charges — the tail risk a median alone hides.
+
+### Disputed payment smallest
+
+The smallest amount among an account's own disputed card charges.
+
+### Disputed payment total
+
+The total amount of an account's own disputed card charges — the exposure a risk manager wants first.

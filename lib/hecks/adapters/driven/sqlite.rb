@@ -314,6 +314,29 @@ module Hecks
         end
       end
 
+      # Reads back one record's recorded events, oldest first — pushed down as a `WHERE`
+      # clause (`hecks_events_aggregate_id_idx`) instead of filtering `#events`'s whole-table
+      # read, since a `corrects` command's history lookup only ever needs this one record.
+      #
+      # @param aggregate [String] the `"domain::AggregateName"` key events are stored under
+      # @param id [String, Object] the record's identity, matched as `id.to_s`
+      # @return [Array<Runtime::Event>] the record's stored events; `[]` when it has none
+      # @raise [SQLite3::Exception] if the statement fails
+      def events_for(aggregate:, id:)
+        @db.execute(
+          "SELECT * FROM events WHERE aggregate = ? AND aggregate_id = ? ORDER BY id",
+          [aggregate, id.to_s]
+        ).map do |row|
+          Runtime::Event.new(
+            name:        row["name"],
+            aggregate:   row["aggregate"],
+            id:          row["aggregate_id"],
+            payload:     JSON.parse(row["payload"], symbolize_names: true),
+            occurred_at: row["occurred_at"]
+          )
+        end
+      end
+
       # Inserts new outbox rows as pending, skipping any whose `delivery_id` already exists.
       #
       # Rows share this aggregate's database so the enqueue joins the save's transaction, and

@@ -7,6 +7,8 @@ module Hecks
       module_function
 
       NUMERIC_PRIMITIVES = %w[Integer Float].freeze
+      INTEGER_PRIMITIVES = %w[Integer].freeze
+      BOOLEAN_PRIMITIVES = %w[TrueClass FalseClass].freeze
       SCALAR_PRIMITIVES  = %w[String Integer Float TrueClass FalseClass].freeze
 
       # Reads the value a dotted field path names out of a record's held state.
@@ -71,26 +73,32 @@ module Hecks
         current
       end
 
-      # Decides from the declared shape whether a field path holds a number.
-      #
-      # A bare field is numeric if a numeric primitive or a value object with a numeric
-      # member; a dotted path must land on a numeric primitive.
+      # Whether a field path lands on one of `primitives`: itself, or (bare field only) a
+      # value object with a member typed as one.
       #
       # @param attribute [Bluebook::Attribute, nil] the root attribute; `nil` answers `false`
       # @param segments [Array<String>] the path's remaining segments, `[]` for a bare field
+      # @param primitives [Array<String>] the primitive type names that count as a match
       # @yield looks a value object up by name, as for `leaf_attribute`
-      # @yieldparam type [String] the type name to look up
-      # @yieldreturn [Class<Bluebook::ValueObject>, nil] the declared shape, or `nil`
       # @return [Boolean] `false` for a list, a reference, or a path that lands nowhere
-      def numeric?(attribute, segments, &)
+      def matches_primitive?(attribute, segments, primitives, &)
         leaf = leaf_attribute(attribute, segments, &)
         return false if leaf.nil? || leaf.list? || leaf.reference?
-        return true if NUMERIC_PRIMITIVES.include?(leaf.type.to_s)
+        return true if primitives.include?(leaf.type.to_s)
         return false unless segments.empty?
 
         shape = yield(leaf.type.to_s)
-        !shape.nil? && shape.attributes.any? { |member| NUMERIC_PRIMITIVES.include?(member.type.to_s) }
+        !shape.nil? && shape.attributes.any? { |member| primitives.include?(member.type.to_s) }
       end
+
+      # @return [Boolean] whether a field path holds a number (`Integer` or `Float`)
+      def numeric?(attribute, segments, &) = matches_primitive?(attribute, segments, NUMERIC_PRIMITIVES, &)
+
+      # @return [Boolean] whether a field path holds specifically an `Integer` (not `Float`)
+      def integer?(attribute, segments, &) = matches_primitive?(attribute, segments, INTEGER_PRIMITIVES, &)
+
+      # @return [Boolean] whether a field path holds a `TrueClass`/`FalseClass`
+      def boolean?(attribute, segments, &) = matches_primitive?(attribute, segments, BOOLEAN_PRIMITIVES, &)
 
       # Decides whether a path ends on a scalar primitive every engine compares alike.
       #

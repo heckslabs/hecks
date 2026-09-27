@@ -6,7 +6,7 @@ require_relative "postgres_probe"
 require_relative "qa_ledger_role"
 
 # Shared fixture for the `bin/qa_sweep --all` specs; pass a per-file unique database name.
-# Files run as concurrent processes, so a shared name would race on CREATE/DROP.
+# Files run as concurrent processes, so a shared name would race on create/drop.
 RSpec.shared_context "with a qa_sweep_all fixture" do |database_name|
   # Guarded with `unless defined?`: this block is re-evaluated per `include_context`, and the
   # constants bind at top level. Fixture crate: standalone, outside `rust/`'s workspace, and its
