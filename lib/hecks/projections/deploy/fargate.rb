@@ -515,7 +515,7 @@ module Hecks
                           - Effect: Allow
                             Action: secretsmanager:GetSecretValue
                             Resource: !Ref #{session_secret_id}
-                    #{oauth_task_policy_yaml.each_line.with_index.map { |l, i| i.zero? ? l : "                    " + l }.join}
+                    #{oauth_task_policy_yaml.empty? ? "" : "# TMPL:oauth_task_policy"}
                     # TMPL:cross_domain_fargate_policies
                     # TMPL:extra_task_policies
 
@@ -595,7 +595,7 @@ module Hecks
                           Value: !Ref #{session_secret_id}
                         - Name: HECKS_CHECKOUT_DOMAIN
                           Value: #{declared_domain_name}
-                        #{oauth_task_env_yaml.each_line.with_index.map { |l, i| i.zero? ? l : "                        " + l }.join}
+                        #{oauth_task_env_yaml.empty? ? "" : "# TMPL:oauth_task_env"}
                         # TMPL:db_env
                         # TMPL:domain_env
                     # TMPL:extra_containers
@@ -679,6 +679,12 @@ module Hecks
           # capturing the marker's own real indentation, has no such
           # interaction with the text it replaces into.
           template_yaml = template_yaml.sub(/^([ \t]*)# TMPL:db_env\n/) { db_env_yaml(shared: shared, owner_db_name: owner_db_name, db_ref_id: db_ref_id, db_name: db_name, secret_sub: secret_sub, hecks_schema: hecks_schema, db_name_ref: db_name_ref, base: $1) }
+          # A multi-line block is indented by the marker's own rendered column, never a
+          # hand-computed one: the heredoc above is dedented after its interpolations
+          # evaluate, so a column counted in the source ran twelve too deep and made the
+          # Google sign-in blocks invalid YAML.
+          template_yaml = Yaml.splice(template_yaml, "oauth_task_policy", "#{oauth_task_policy_yaml}\n")
+          template_yaml = Yaml.splice(template_yaml, "oauth_task_env", "#{oauth_task_env_yaml}\n")
           template_yaml = template_yaml.sub(/^([ \t]*)# TMPL:cross_domain_fargate_policies\n/) {
             cross_domain_fargate_targets.empty? ? "" : cross_domain_fargate_policy_yaml(cross_domain_fargate_targets, $1)
           }

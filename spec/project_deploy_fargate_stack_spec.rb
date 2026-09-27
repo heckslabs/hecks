@@ -175,7 +175,7 @@ RSpec.describe "bin/project_deploy — a multi-container deployed_to(\"AwsFargat
 
   describe "a world that sets none of the multi-container settings" do
     FARGATE_STACK_SINGLE_WORLDS.each_key do |name|
-      it "renders the #{name} world exactly as it was rendered before those settings existed" do
+      it "renders the #{name} world as its golden files, and the template is valid YAML" do
         env_local = name == "aurora_oauth" ? "GOOGLE_CLIENT_ID=abc\n" : nil
         files, stderr = cached(name, FARGATE_STACK_SINGLE_WORLDS.fetch(name), env_local: env_local)
         expect(files).not_to be_nil, stderr
@@ -186,7 +186,18 @@ RSpec.describe "bin/project_deploy — a multi-container deployed_to(\"AwsFargat
           golden = File.read(File.join(FARGATE_STACK_GOLDEN_DIR, name, file))
           expect(files[file]).to eq(golden), "#{name}/#{file} differs from its golden file"
         end
+        expect { template_of(files) }.not_to raise_error
       end
+    end
+
+    it "indents the Google sign-in policy and environment when the domain has a client id" do
+      files, = cached("aurora_oauth", FARGATE_STACK_SINGLE_WORLDS.fetch("aurora_oauth"), env_local: "GOOGLE_CLIENT_ID=abc\n")
+      resources = template_of(files)["Resources"]
+      policies = resources.fetch("WidgetShopServiceTaskRole")["Properties"]["Policies"].map { |policy| policy["PolicyName"] }
+      environment = resources.fetch("WidgetShopServiceTaskDefinition")["Properties"]["ContainerDefinitions"].first["Environment"]
+
+      expect(policies).to include("GoogleOauthSecretRead")
+      expect(environment.map { |entry| entry["Name"] }).to include("GOOGLE_OAUTH_SECRET_ID", "GOOGLE_REDIRECT_URI")
     end
   end
 

@@ -380,12 +380,12 @@ Resources:
                 Action: secretsmanager:GetSecretValue
                 Resource: !Ref WidgetShopServiceSessionSecret
         - PolicyName: GoogleOauthSecretRead
-                      PolicyDocument:
-                        Version: '2012-10-17'
-                        Statement:
-                          - Effect: Allow
-                            Action: secretsmanager:GetSecretValue
-                            Resource: !Sub "arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:acme-widget-shop-web-google-oauth-*"
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: secretsmanager:GetSecretValue
+                Resource: !Sub "arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:acme-widget-shop-web-google-oauth-*"
 
   WidgetShopServiceTaskDefinition:
     Type: AWS::ECS::TaskDefinition
@@ -463,9 +463,9 @@ Resources:
             - Name: HECKS_CHECKOUT_DOMAIN
               Value: Scratch
             - Name: GOOGLE_OAUTH_SECRET_ID
-                          Value: acme-widget-shop-web-google-oauth
-                        - Name: GOOGLE_REDIRECT_URI
-                          Value: !Sub "${WebRedirectBaseUrl}/auth/google/callback"
+              Value: acme-widget-shop-web-google-oauth
+            - Name: GOOGLE_REDIRECT_URI
+              Value: !Sub "${WebRedirectBaseUrl}/auth/google/callback"
             - Name: DB_HOST
               Value: !GetAtt WidgetShopDbCluster.Endpoint.Address
             - Name: DB_NAME
