@@ -56,6 +56,18 @@ module Hecks
 
     HELP_FLAGS = ["--help", "-h"].freeze
 
+    # Printed above the usage line by `overview`, on every path that reaches it
+    # (a bare `hecks`, `hecks --help`, and an unknown subcommand alike).
+    HERO = <<~BANNER.freeze
+      #   #  #####   ####  #  #    ####
+      #   #  #      #      # #    #
+      #####  ####   #      ##      ###
+      #   #  #      #      # #        #
+      #   #  #####   ####  #  #   ####
+
+          It's all about the specs
+    BANNER
+
     # Exit status for a missing or unknown subcommand.
     USAGE_STATUS = 2
 
@@ -129,6 +141,7 @@ module Hecks
 
     # @api private
     def overview(io)
+      io.puts HERO
       io.puts "usage: hecks <command> [arguments]"
       io.puts ""
       width = COMMANDS.keys.map(&:length).max
