@@ -11,9 +11,43 @@
 # It never logs bugs, releases holds or opens PRs; those stay with a person or agent.
 
 require "open3"
+require "rbconfig"
+
+# **macOS only, harmless elsewhere.** `fork` below can race Apple's Objective-C runtime
+# initializing a class in a background thread and crash the forked child outright
+# ("may have been in progress in another thread when fork() was called... Crashing
+# instead"). Spring's preload-and-fork test runner sets this same flag for the same
+# reason. It has to be in the environment before the Ruby interpreter itself starts —
+# setting it via ENV[] from inside an already-running process is too late, libobjc has
+# already decided by then — so a bare macOS run re-execs itself once with it set. Linux
+# (where this actually runs, in CI) has no Objective-C runtime, so this never runs there.
+if RUBY_PLATFORM.include?("darwin") && !ENV["OBJC_DISABLE_INITIALIZE_FORK_SAFETY"]
+  ENV["OBJC_DISABLE_INITIALIZE_FORK_SAFETY"] = "YES"
+  exec(RbConfig.ruby, $PROGRAM_NAME, *ARGV)
+end
 
 ROOT     = File.expand_path("..", __dir__)
 REPO_DIR = ENV.fetch("QA_REPO_DIR", ROOT)
+
+# **Loaded once, here.** bin/qa_pr_check, bin/qa_sweep, and bin/qa_generated_domains each
+# `require "hecks"` (plus their own era/fuzzing extras) at their own top. Loading the
+# union up front means every `fork` below hands its step an already-booted Ruby with
+# Bundler's gems already activated and each of these files already in `$LOADED_FEATURES`,
+# so the step's own `require` lines are no-ops instead of a second, third, and fourth
+# cold load of the whole runtime.
+$LOAD_PATH.unshift File.join(ROOT, "lib")
+require "hecks"
+require "hecks/ports/persistence/plugins/era"
+require "hecks/fuzzing"
+require "hecks/fuzzing/self_consistency"
+require "hecks/fuzzing/differential"
+require "hecks/fuzzing/era_boundary"
+require "hecks/fuzzing/concurrent_dispatch"
+require "hecks/fuzzing/domain_generator"
+require "hecks/fuzzing/generated_domain_check"
+require "fileutils"
+require "json"
+require "tempfile"
 
 EXIT_OK              = 0
 EXIT_ERROR           = 1
@@ -59,24 +93,48 @@ end
 head, = git("rev-parse", "--short", "HEAD")
 puts "at #{head}"
 
-def run_step(*command)
-  output, status = Open3.capture2e(*command, chdir: ROOT)
-  puts output
-  status.exitstatus
+# **A real fork, not a subprocess.** `bundle exec ruby <step>` would re-pay Bundler's
+# gem activation and every `require` above from cold, on top of the boot this process
+# already paid for. `fork` hands the step a copy-on-write child that already has it
+# all loaded, then `load`s the step's own file into that child — a genuinely separate
+# OS process, so a crash or an `exit N` inside ends only that child, exactly as it
+# would under a real subprocess.
+#
+# `load` runs without `wrap`: an anonymous module's constant lookup does not fall
+# back to Object, so bare references to hecks's own top-level constants (e.g.
+# `Bluebook`) inside the loaded step raised NameError under it. Each step redefining
+# EXIT_OK etc. on top of this process's own is harmless, but its warning would clutter
+# every real tick's report, so $VERBOSE drops for the load, child-only.
+def run_step(path, *argv)
+  read, write = IO.pipe
+  pid = fork do
+    read.close
+    $stdout.reopen(write)
+    $stderr.reopen(write)
+    write.close
+    ARGV.replace(argv)
+    $VERBOSE = nil
+    load path
+  end
+  write.close
+  output = read.read
+  read.close
+  _, status = Process.wait2(pid)
+  [output, status.exitstatus]
 end
 
 banner "bin/qa_pr_check"
-pr_check_exit = run_step("bundle", "exec", "ruby", File.join(ROOT, "bin/qa_pr_check"))
+pr_check_output, pr_check_exit = run_step(File.join(ROOT, "bin/qa_pr_check"))
+puts pr_check_output
 
 banner "bin/qa_sweep --all"
-sweep_output, sweep_status = Open3.capture2e("bundle", "exec", "ruby", File.join(ROOT, "bin/qa_sweep"), "--all",
-                                             chdir: ROOT)
+sweep_output, sweep_exit = run_step(File.join(ROOT, "bin/qa_sweep"), "--all")
 puts sweep_output
-sweep_exit = sweep_status.exitstatus
-reclaimed  = sweep_output.scan(/^reclaimed stale hold: (\S+)/).flatten
+reclaimed = sweep_output.scan(/^reclaimed stale hold: (\S+)/).flatten
 
 banner "bin/qa_generated_domains --from-dials"
-generated_exit = run_step("bundle", "exec", "ruby", File.join(ROOT, "bin/qa_generated_domains"), "--from-dials")
+generated_output, generated_exit = run_step(File.join(ROOT, "bin/qa_generated_domains"), "--from-dials")
+puts generated_output
 
 def verdict(code)
   case code
