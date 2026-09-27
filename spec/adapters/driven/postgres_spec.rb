@@ -157,6 +157,35 @@ RSpec.describe Hecks::Adapters::Postgres, :io do
       .to eq([["PizzaPurchased", "p1", { customer: "c1" }]])
   end
 
+  it "reads back only one record's events, not the whole shared table" do
+    adapter.record_event(Hecks::Runtime::Event.new(
+                            name: "PizzaPurchased", aggregate: "Pizza", id: "p1",
+                            payload: { customer: "c1" }, occurred_at: "2026-01-01T00:00:00Z"
+                          ))
+    adapter.record_event(Hecks::Runtime::Event.new(
+                            name: "PizzaPurchased", aggregate: "Pizza", id: "p2",
+                            payload: { customer: "c2" }, occurred_at: "2026-01-01T00:00:01Z"
+                          ))
+    adapter.record_event(Hecks::Runtime::Event.new(
+                            name: "OrderPlaced", aggregate: "Order", id: "p1",
+                            payload: { total: 12 }, occurred_at: "2026-01-01T00:00:02Z"
+                          ))
+
+    found = adapter.events_for(aggregate: "Pizza", id: "p1")
+
+    expect(found.map { |item| [item.name, item.id, item.payload] })
+      .to eq([["PizzaPurchased", "p1", { customer: "c1" }]])
+  end
+
+  it "indexes the shared events table by aggregate and aggregate_id" do
+    adapter
+    db = PG.connect(dbname: PLAIN_POSTGRES_SPEC_DB)
+    indexes = indexes_on(db, "events")
+    db.close
+
+    expect(indexes).to include("hecks_events_aggregate_id_idx")
+  end
+
   it "self-heals its own connection after the backend is killed out from under it, instead of staying dead forever" do
     adapter.save(instance("p1", name: { value: "Margherita" }, status: "sold"))
     victim_pid = adapter.instance_variable_get(:@db).backend_pid
