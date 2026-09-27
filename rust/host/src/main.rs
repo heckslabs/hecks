@@ -168,6 +168,9 @@ async fn main() -> Result<(), Error> {
     // exactly today's behavior, unchanged.
     let domain = std::env::var("HECKS_DOMAIN").map_err(|_| "HECKS_DOMAIN is required")?;
     let schema = std::env::var("HECKS_SCHEMA").ok().filter(|s| !s.is_empty());
+    // Checkout on AWS keeps the business's payment keys in a named Secrets
+    // Manager secret; refuse before touching the database when none is named.
+    payments::check_boot(web::checkout_enabled(std::env::var("HECKS_CHECKOUT_DOMAIN").ok().as_deref(), &domain))?;
 
     // RDS Postgres refuses a plain NoTls connection by default (real,
     // live error: "no pg_hba.conf entry ... no encryption") -- and

@@ -19,22 +19,16 @@ mod tests;
 
 // ---- newsletter: guest-facing subscribe/confirm/unsubscribe, admin
 // listing ----------------------------------------------------------
-// Ported from http_server.rb's own POST /newsletter/subscribers, GET
+// Ported from the Ruby HTTP adapter's POST /newsletter/subscribers, GET
 // /newsletter/subscribers, GET /newsletter/subscribers/confirm, and GET
-// /newsletter/subscribers/unsubscribe. Confirm/unsubscribe were NOT
-// ported when this module was first written ("stay Ruby-only for now,
-// reached through LIFEADELICS_DOMAIN_SERVICE_URL pointing at the Ruby
-// process in whichever environment still runs it") — a real gap, since
-// production runs THIS host exclusively, with no Ruby fallback at all:
-// confirmed live, every real unsubscribe link 401'd ("sign in first",
-// auth_gate's own refusal — these two paths fell through to it since
-// nothing here recognized them, and neither is in UNGATED_PATHS), never
-// so much as reaching a "no such subscriber" 404. Same match-arm
-// ordering concern http_server.rb's own comment on this exact pair
-// flags for Sinatra (declared before a generic /:email route so
-// "confirm"/"unsubscribe" can't be treated as an email) doesn't apply
-// here — Rust match on an exact (method, path) tuple has no such
-// prefix/wildcard ambiguity to order around.
+// /newsletter/subscribers/unsubscribe. Confirm and unsubscribe are served here
+// too, since a deploy of this host has no Ruby process behind it: without
+// them every real unsubscribe link fell through to auth_gate's 401 ("sign in
+// first"; neither path is in UNGATED_PATHS), never so much as reaching a "no
+// such subscriber" 404. The Ruby adapter has to declare these two routes before
+// a generic /:email route so "confirm"/"unsubscribe" are not read as an email;
+// that ordering concern does not apply here, since a Rust match on an exact
+// (method, path) tuple has no prefix or wildcard ambiguity to order around.
 pub(super) async fn newsletter_route(
     method: &str,
     path: &str,
@@ -60,7 +54,7 @@ pub(super) async fn newsletter_route(
 
 /// POST /newsletter/subscribers — Subscribe on a new email, AddName on a
 /// returning one (the two-step public signup form's own step
-/// 1/step 2 — NewsletterSubscribeForm.astro's own header has the full
+/// 1/step 2 — the site's signup form documents the full
 /// reasoning). The response carries the subscriber's resulting status,
 /// `pending` for a new subscriber.
 async fn newsletter_subscribe_route(
@@ -322,15 +316,11 @@ fn unsubscribe_authorized<'a>(secret: Option<&str>, query: &'a HashMap<String, S
 /// newsletter_confirm_route above, and like it the token must be the signed
 /// one the emails carry (`unsubscribe_token`), minted for this exact address;
 /// anything else is a 403 before any subscriber is looked up. Ported from
-/// http_server.rb's own route (that one had no token), ported from http_server.rb's own
-/// with the same idempotency reasoning:
-/// Unsubscribe's own `given` only accepts a pending or confirmed
+/// the Ruby HTTP adapter's own route (that one had no token), with the same
+/// idempotency reasoning: Unsubscribe's own `given` only accepts a pending or confirmed
 /// subscriber, so a repeat click on an already-unsubscribed row would
 /// otherwise 422 instead of showing the same success page). This is the
-/// one newsletter-unsubscribed.astro's own server-side fetch calls —
-/// unreachable before this route existed (confirmed live: fell through
-/// to auth_gate's 401, never a 404, since neither this path nor
-/// /confirm was in UNGATED_PATHS and nothing recognized either one).
+/// route the site's unsubscribed page fetches server-side.
 async fn newsletter_unsubscribe_route(provider: &NewsletterProvider, query: &HashMap<String, String>, client: &Mutex<Client>, wasm_path: &Path, config: &LineageConfig, invoker: &dyn LambdaInvoker) -> Value {
     let email = match unsubscribe_authorized(confirm_secret().as_deref(), query) {
         Ok(email) => email,

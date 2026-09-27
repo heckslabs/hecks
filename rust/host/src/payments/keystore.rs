@@ -10,11 +10,12 @@
 //             "saved_at": "2026-09-26T05:00:00Z"},
 //    "live": {...}}
 //
-// The secret's name comes from `PAYMENTS_ACCOUNT_SECRET_ID`. On AWS, where the
-// task role must be allowed `GetSecretValue`, `PutSecretValue`, `CreateSecret`
-// and `DescribeSecret` on that one secret, an unset variable means the name
-// `lifeadelics-payments-account`. Anywhere else an unset variable means no
-// store, so nothing can be saved and only environment keys are used.
+// The secret's name comes from `PAYMENTS_ACCOUNT_SECRET_ID`, and the task role
+// must be allowed `GetSecretValue`, `PutSecretValue`, `CreateSecret` and
+// `DescribeSecret` on that one secret. There is no default name. An unset
+// variable means no store, so nothing can be saved and only environment keys
+// are used, except on AWS with checkout enabled, where the host refuses to boot
+// (`refusal_at_boot`) rather than run payments without a place to keep keys.
 //
 // Reads go through a short cache so a request does not call Secrets Manager
 // every time; a save or a disconnect invalidates it at once.
@@ -24,8 +25,7 @@ use serde_json::{json, Value};
 use std::sync::{Arc, Mutex, OnceLock};
 use std::time::{Duration, Instant};
 
-/// The secret's name when `PAYMENTS_ACCOUNT_SECRET_ID` is unset on AWS.
-pub const DEFAULT_SECRET_ID: &str = "lifeadelics-payments-account";
+const SECRET_ID_VARIABLE: &str = "PAYMENTS_ACCOUNT_SECRET_ID";
 const CACHE_TTL: Duration = Duration::from_secs(60);
 
 /// What is saved for one mode. Deliberately not `Debug`: it holds secrets.
@@ -189,20 +189,36 @@ impl KeyStore {
     }
 }
 
-/// The secret's name for this process, or `None` when there is no store.
-fn secret_id_from_env() -> Option<String> {
-    let configured = std::env::var("PAYMENTS_ACCOUNT_SECRET_ID").unwrap_or_default();
-    if !configured.trim().is_empty() {
-        return Some(configured.trim().to_string());
+/// The secret's name from a raw `PAYMENTS_ACCOUNT_SECRET_ID` value, or `None`
+/// when it is unset or blank.
+fn configured_secret_id(configured: Option<&str>) -> Option<String> {
+    configured.map(str::trim).filter(|id| !id.is_empty()).map(String::from)
+}
+
+/// Whether this process runs as a container task or a Lambda function on AWS.
+fn on_aws() -> bool {
+    ["ECS_CONTAINER_METADATA_URI_V4", "AWS_LAMBDA_FUNCTION_NAME"].iter().any(|name| std::env::var(name).is_ok_and(|v| !v.is_empty()))
+}
+
+/// The message that stops the boot when checkout is enabled on AWS without a
+/// secret to keep the business's keys in; `None` when the boot may go on.
+pub fn refusal_at_boot(checkout_enabled: bool, on_aws: bool, configured: Option<&str>) -> Option<String> {
+    let missing = checkout_enabled && on_aws && configured_secret_id(configured).is_none();
+    missing.then(|| format!("{SECRET_ID_VARIABLE} is required on AWS when checkout is enabled: name the Secrets Manager secret that holds the business's payment keys"))
+}
+
+/// `refusal_at_boot` for this process's environment.
+pub fn check_boot(checkout_enabled: bool) -> Result<(), String> {
+    match refusal_at_boot(checkout_enabled, on_aws(), std::env::var(SECRET_ID_VARIABLE).ok().as_deref()) {
+        Some(message) => Err(message),
+        None => Ok(()),
     }
-    let on_aws = ["ECS_CONTAINER_METADATA_URI_V4", "AWS_LAMBDA_FUNCTION_NAME"].iter().any(|name| std::env::var(name).is_ok_and(|v| !v.is_empty()));
-    on_aws.then(|| DEFAULT_SECRET_ID.to_string())
 }
 
 /// The process-wide store, built once so its cache is shared by every request.
 pub fn default_store() -> Option<Arc<KeyStore>> {
     static STORE: OnceLock<Option<Arc<KeyStore>>> = OnceLock::new();
-    STORE.get_or_init(|| secret_id_from_env().map(|id| Arc::new(KeyStore::new(Arc::new(AwsRawStore::new(id)))))).clone()
+    STORE.get_or_init(|| configured_secret_id(std::env::var(SECRET_ID_VARIABLE).ok().as_deref()).map(|id| Arc::new(KeyStore::new(Arc::new(AwsRawStore::new(id)))))).clone()
 }
 
 /// `YYYY-MM-DDTHH:MM:SSZ` for a Unix time in seconds (proleptic Gregorian,
@@ -300,6 +316,29 @@ mod tests {
         *raw.document.lock().unwrap() = Some("rk_live_SECRET not json".to_string());
         let error = KeyStore::new(raw).document().await.err().expect("an error").to_string();
         assert!(!error.contains("rk_live_SECRET"), "{error}");
+    }
+
+    #[test]
+    fn a_blank_or_unset_secret_id_names_no_store() {
+        assert_eq!(configured_secret_id(None), None);
+        assert_eq!(configured_secret_id(Some("")), None);
+        assert_eq!(configured_secret_id(Some("  ")), None);
+        assert_eq!(configured_secret_id(Some(" payments-keys ")), Some("payments-keys".to_string()));
+    }
+
+    #[test]
+    fn checkout_on_aws_without_a_secret_id_refuses_the_boot_and_names_the_variable() {
+        let message = refusal_at_boot(true, true, None).expect("refused");
+        assert!(message.contains("PAYMENTS_ACCOUNT_SECRET_ID"), "{message}");
+        assert!(refusal_at_boot(true, true, Some("  ")).is_some(), "a blank value is unset");
+    }
+
+    #[test]
+    fn every_other_combination_boots() {
+        assert_eq!(refusal_at_boot(true, true, Some("payments-keys")), None, "set: unchanged");
+        assert_eq!(refusal_at_boot(true, false, None), None, "off AWS: only environment keys");
+        assert_eq!(refusal_at_boot(false, true, None), None, "checkout off: payments are not served");
+        assert_eq!(refusal_at_boot(false, false, None), None);
     }
 
     #[test]
