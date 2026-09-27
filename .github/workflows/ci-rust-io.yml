@@ -6,8 +6,33 @@ name: CI rust io (reusable)
 
 on:
   workflow_call:
+    secrets:
+      HECKS_CI_ATTEST_KEY:
+        required: false
 
 jobs:
+  # Same detector-plus-gated-job shape as ci-rspec.yml's own ci_attestation_rspec —
+  # see ci-rust-parser.yml's identical addition for the full comment. Covers only
+  # rspec_rust_io itself, not the non-required rspec_rust_io_build/_deploy jobs in
+  # ci.yml — each already does its own independent checkout and build, consuming
+  # nothing this job produces, so this job skipping never affects them either way.
+  ci_attestation_rust_io:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    if: github.event_name != 'push'
+
+    outputs:
+      attested: ${{ steps.attest.outputs.attested }}
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/check-attestation
+        id: attest
+        with:
+          checks: rspec_rust_io
+          hmac-key: ${{ secrets.HECKS_CI_ATTEST_KEY }}
+
   # These specs share one checkout's rust/src/generated/ and Cargo.toml, so they run
   # serially in one job. The two heaviest, hecks_build_pipeline_spec.rb and
   # project_deploy_parity_gate_spec.rb, need wasm32-wasip1 and wasmtime and run
@@ -16,8 +41,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
-    # The cache-warming push run does not need this job.
-    if: github.event_name != 'push'
+    needs: ci_attestation_rust_io
+    if: always() && github.event_name != 'push' && (needs.ci_attestation_rust_io.result != 'success' || needs.ci_attestation_rust_io.outputs.attested != 'true')
 
     # `packages: write` is for the parser/codegen GHCR restore-and-save pair below.
     permissions:
