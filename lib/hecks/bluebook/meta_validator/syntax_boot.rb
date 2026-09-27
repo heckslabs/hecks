@@ -146,13 +146,10 @@ module Hecks
         #
         # Fails toward a real boot, never toward a wrong table — same
         # loud-not-silent discipline this codebase already holds CI to
-        # (`postgres_io_relevant_changed`'s own header). A missing file, a
-        # corrupt Marshal blob, a permission error, an unwritable cache directory —
-        # every one of these degrades to "no disk cache today", never to a
-        # crash or a served-but-wrong table. The cache lives under
-        # `Hecks::CacheDir`, never under the gem's own directory, which is
-        # read-only on an installed gem (`Storehouse.log_root` keeps its
-        # audit log in the same place).
+        # (`postgres_io_relevant_changed`'s own header). A missing file, a corrupt
+        # Marshal blob, a permission error or an unwritable cache directory degrades
+        # to "no disk cache today", never to a crash or a served-but-wrong table.
+        # The cache lives under `Hecks::CacheDir`, never the gem's read-only directory.
         #
         # **Atomic write, not a lock** — `qa_sweep --all` spawns up to 4
         # children at once, any of which could reach a cold cache
