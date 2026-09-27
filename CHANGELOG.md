@@ -7,6 +7,23 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+**Security: the Fargate host no longer runs a command or a read from an outside caller's body.**
+A POST to any path the load balancer forwards, carrying `{"verb": ..., "role": ...}`
+or `{"read": true}`, was read as the internal dispatch protocol and reached the kernel
+with the role the caller wrote and no session check; `{"read": true}` returned the
+whole current state with no role at all. The web layer's `auth_gate` never ran,
+because it only sees a request that already has the Function-URL shape, and the rate
+limiter did not count these bodies. The host now reads a body as the internal protocol
+only from a peer on the same host (`127.0.0.1`, `::1`, or an IPv4-mapped loopback),
+which is how the sidecar container in a shared task reaches it. From any other peer
+the same body is an ordinary request for the path it hit, answered by the web layer's
+own routes and gate. **Behavior change:** anything that sent the internal protocol to
+the host over a non-loopback address, for example a container published on a bridge
+network, now gets the web layer's answer for that path instead; send it from the same
+host, or invoke the Lambda directly. A Lambda deployment is unaffected, since it takes
+the internal protocol only through an IAM-authenticated invoke. Existing Fargate
+deployments pick this up only when they move to a host built with this release.
+
 **`bin/release` performs the whole release, and CI publishes `@hecks/client`.**
 After the release PR merges, one command tags the merge commit and publishes the
 gem through `bin/release_gem`. Pushing the tag starts the new

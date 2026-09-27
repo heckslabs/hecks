@@ -317,10 +317,15 @@ fn admit(limits: &RateLimits, peer: SocketAddr, method: &Method, uri: &Uri, head
     // the identical shape they already do behind a real Function URL.
     // A body that already matches one of the three shapes — the
     // sidecar-to-sidecar internal RPC protocol this module's own header
-    // documents — passes through completely unchanged; this can only
-    // ever turn a previously-guaranteed `"event missing \"verb\""`
-    // error into a real route, never break an existing one.
-    let envelope = if is_internal_dispatch_shape(&parsed) {
+    // documents — passes through unchanged when a same-host peer sent it.
+    // The internal shapes carry a caller's own claim of who it is (`role`)
+    // and reach the kernel with no session check, so a body is read as one
+    // only from a peer on the same host: the sidecar the shared task runs
+    // beside this container. Anyone else — the load balancer's traffic,
+    // which is the public internet — has the same body turned into an
+    // ordinary request for the path it actually hit, and answered by the
+    // web layer's own routes and gate.
+    let envelope = if trusts_internal_dispatch(peer) && is_internal_dispatch_shape(&parsed) {
         parsed
     } else {
         synthesize_function_url_envelope(method, uri, headers, body)
@@ -340,6 +345,18 @@ fn envelope_route(envelope: &Value) -> Option<(&str, &str)> {
     let method = envelope.get("requestContext")?.get("http")?.get("method")?.as_str()?;
     let path = envelope.get("rawPath")?.as_str()?;
     Some((method, path))
+}
+
+/// Whether a body from `peer` may be read as the internal dispatch protocol
+/// rather than as the request it arrived in. Only a peer on this host may:
+/// the sidecar container in the same task reaches this one over loopback,
+/// and the load balancer, and through it the public internet, does not. An
+/// IPv4 address mapped into IPv6 counts as the IPv4 address it wraps.
+fn trusts_internal_dispatch(peer: SocketAddr) -> bool {
+    match peer.ip() {
+        std::net::IpAddr::V4(addr) => addr.is_loopback(),
+        std::net::IpAddr::V6(addr) => addr.is_loopback() || addr.to_ipv4_mapped().is_some_and(|mapped| mapped.is_loopback()),
+    }
 }
 
 /// Whether `value` already matches one of `dispatch_body`'s own three
@@ -455,6 +472,63 @@ mod tests {
     #[test]
     fn an_empty_body_is_not_internal_dispatch() {
         assert!(!is_internal_dispatch_shape(&serde_json::json!({})));
+    }
+
+    fn peer(text: &str) -> SocketAddr {
+        text.parse().unwrap()
+    }
+
+    #[test]
+    fn only_a_peer_on_this_host_is_trusted_with_the_internal_protocol() {
+        for trusted in ["127.0.0.1:5000", "127.4.5.6:5000", "[::1]:5000", "[::ffff:127.0.0.1]:5000"] {
+            assert!(trusts_internal_dispatch(peer(trusted)), "{trusted} is this host");
+        }
+        for outside in ["10.0.0.5:5000", "172.31.4.9:5000", "203.0.113.7:5000", "[2001:db8::1]:5000", "[::ffff:10.0.0.5]:5000"] {
+            assert!(!trusts_internal_dispatch(peer(outside)), "{outside} is not this host");
+        }
+    }
+
+    fn admitted(from: &str, path: &str, body: &str) -> Value {
+        let uri: Uri = path.parse().unwrap();
+        let body = Bytes::from(body.to_string());
+        match admit(&limits_from(&[]), peer(from), &Method::POST, &uri, &HeaderMap::new(), &body) {
+            Ok(envelope) => envelope,
+            Err(_) => panic!("{from} POST {path} was refused before dispatch"),
+        }
+    }
+
+    // The gap this closes: a public POST to any path the load balancer forwards carried
+    // `{"verb": ..., "role": ...}` or `{"read": true}` straight to the kernel, with the
+    // caller's own word for its role and no session check.
+    #[test]
+    fn a_verb_or_read_body_from_outside_this_host_is_an_ordinary_request_not_a_command() {
+        for body in [r#"{"verb":"Approve","role":"admin"}"#, r#"{"read":true}"#] {
+            let envelope = admitted("10.0.0.5:5000", "/webhooks/x", body);
+
+            assert!(envelope.get("verb").is_none() && envelope.get("read").is_none(), "{body} must not reach dispatch as a command");
+            assert_eq!(envelope["requestContext"]["http"]["method"], "POST");
+            assert_eq!(envelope["rawPath"], "/webhooks/x");
+            assert_eq!(envelope["body"], body);
+        }
+    }
+
+    #[test]
+    fn a_body_from_outside_this_host_cannot_name_a_different_path_than_the_one_it_hit() {
+        let body = r#"{"requestContext":{"http":{"method":"GET"}},"rawPath":"/api/clients","headers":{"cookie":"session=forged"}}"#;
+        let envelope = admitted("203.0.113.7:5000", "/webhooks/x", body);
+
+        assert_eq!(envelope["rawPath"], "/webhooks/x");
+        assert_eq!(envelope["requestContext"]["http"]["method"], "POST");
+        assert!(envelope["headers"].get("cookie").is_none(), "headers come from the real request, not the body");
+    }
+
+    #[test]
+    fn a_verb_or_read_body_from_this_host_still_reaches_dispatch_unchanged() {
+        for body in [r#"{"verb":"Register","to":"r1","with":{}}"#, r#"{"read":true}"#] {
+            let envelope = admitted("127.0.0.1:5000", "/anything", body);
+
+            assert_eq!(envelope, serde_json::from_str::<Value>(body).unwrap());
+        }
     }
 
     // The exact case that was silently broken before this fix: a real
