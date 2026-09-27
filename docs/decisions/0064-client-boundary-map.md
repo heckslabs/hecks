@@ -33,16 +33,11 @@ Hecks holds no client names and no client product code. Generic capability that 
 - [09 The live banking deploy recipe](0064-client-boundary/09-the-live-banking-deploy-recipe.md) - the stack stays; its recipe moves to the platform repo after a byte-identical regeneration, and Hecks keeps a neutral example.
 - [10 Who generates deploy and smoke scripts](0064-client-boundary/10-who-generates-deploy-and-smoke-scripts.md) - Hecks generates them from the world block, gated by an empty change set; generating for new clients only is the fallback.
 - [11 How to slice the client-name scrub](0064-client-boundary/11-how-to-slice-the-client-name-scrub.md) - one PR, parallel workers by area, generated output regenerated last.
+- [06 The npm scope](0064-client-boundary/06-the-npm-scope.md) - the free `hecks` organization was created on npm, so the package is `@hecks/client`; nothing is published, and publishing waits for a matching Hecks release and a two-factor plan.
 
 ## Tickets
 
-**Open:**
-
-| Ticket | Type | Question in one line |
-| --- | --- | --- |
-| [06 The npm scope](0064-client-boundary/06-the-npm-scope.md) | task | Who owns the package scope, and is it claimed |
-
-Every other ticket is Accepted and indexed under "Decisions so far". Ticket 01 also carries one open sub-question about the org's own name outside the registry keyword.
+No ticket is open. Every ticket is Accepted or Resolved and indexed under "Decisions so far". Ticket 01 still carries one open sub-question about the org's own name outside the registry keyword; it is the next ticket to take.
 
 ## Not yet specified
 
