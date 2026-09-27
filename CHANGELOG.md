@@ -15,6 +15,8 @@ profile's native-read-model rule. A real boot loads all of them, and now so does
 this tool. Two corpus domains, `nested_pieces` and `tenant_ledger`, each had a
 second hecksagon that was being ignored; both stay clean with it loaded.
 
+## [2.6.0] - 2026-09-26
+
 **`bin/model_check --profile client` refuses three constructs that answer wrongly
 without refusing.** A `group_by` that does not cover its aggregate's whole
 identity (rows sharing a key path are silently reduced to the first, on every
