@@ -90,15 +90,21 @@ gate. None is merged yet. PR numbers are the GitHub pull requests on `heckslabs/
 | Deploy path and operator auth guide | 0071 | #875 |
 | `hecks` executable, dev tooling out of the package | 0066 step 2 | #876 |
 | Memory-default console, README rewrite | 0073 | #879 |
+| MCP door reader mode (per-tool and per-domain allowlist; the maintainer said multi-agent use is near) | 0072 decision 2 | #880 |
+| Host security fix (found while building; not in an ADR) | none | #878 |
 | `v2.5.0` tag and the GitHub Releases page | 0068 | done directly: the tag and a release for every tag from 1.0.1 to 2.7.0 |
 
 Found while building, outside the ADRs: the host ran a command or a read from any outside
 caller's body on the Fargate shape. That is fixed in #878, with a CHANGELOG entry; it is the
 one to review first.
 
-Still open, and not something a build session can finish: merging the PRs; finding an outside
-team for ADR 0071's exit test; and the two triggers in ADR 0072 (when multi-agent use is near,
-and when a network door is wanted).
+The two ADR 0072 triggers were answered on 2026-09-27: multi-agent use is near (so the
+allowlist is built, #880) and a network door is wanted. The network door is its own map,
+[docs/wayfinder/mcp-network-door/](../mcp-network-door/map.md); two of its questions are decided
+([ADR 0076](../../decisions/0076-the-network-door-is-a-separate-service-and-principals-live-in-each-domains-governance.md)).
+
+Still open, and not something a build session can finish: merging the PRs, and finding an
+outside team for ADR 0071's exit test.
 
 ## Not yet specified
 
