@@ -96,12 +96,16 @@ people call, which is how a caller is authenticated.
 | --- | --- | --- |
 | What runs | The host as a Lambda function (`provided.al2023`, arm64) | The host as an HTTP server in a container on Fargate |
 | How a client reaches it | The Lambda Invoke API with an AWS-signed request. The generated Function URL has `AuthType: AWS_IAM` | Plain HTTP to a CloudFront hostname, behind an Application Load Balancer |
-| What authenticates the JSON invoke path | AWS IAM | **Nothing.** See [step 7](#7-authentication-and-roles) |
+| What authenticates the JSON invoke path | AWS IAM | **Nothing.** Before 2.8.0 any caller could use it; from 2.8.0 only a same-host caller can, and that caller is unauthenticated. See [step 7](#7-authentication-and-roles) |
 | Build and ship | `sam build`, `sam deploy` | Cross-compile, `docker build`, push to ECR, `aws cloudformation deploy` |
 
-For a standalone rules service that outsiders call, **prefer `AwsLambda` on
-authentication grounds**: the request that can carry a `role` is only
-reachable through an IAM-authenticated call. The Function URL that Lambda
+Either target can serve a standalone rules service that outsiders call, and
+you choose; they differ in how a caller authenticates. **On `AwsLambda`**, the
+request that can carry a `role` is only reachable through an IAM-authenticated
+call. **On `AwsFargate`**, from 2.8.0 the host honors that request only from
+the same host, so an outside caller uses the session-cookie API (step 7);
+before 2.8.0 it was reachable by anyone who could reach the hostname. The
+Function URL that Lambda
 generates cannot carry that request at all, since a Function URL always
 wraps the HTTP body inside an event that the host treats as a web request
 (a comment in `lambda.rb` next to `AuthType` explains this, and
@@ -112,8 +116,8 @@ afternoon on it: neither generated stack has been taken from an empty
 account to a working service by this procedure, and each has a problem
 predicted from its own files. The Lambda stack's function may not be able to
 read its database password at cold start (known gap 2). The Fargate stack
-probably fails on its first image push (known gap 3), and it has no
-authentication in front of the invoke path (step 7).
+probably fails on its first image push (known gap 3), and before 2.8.0 it had
+no authentication in front of the invoke path (step 7).
 
 Status: the two generated templates were read and compared (verified here).
 Nothing was invoked on either target (not verified here).
@@ -583,7 +587,7 @@ service is mostly called through is the least protected by the host itself.
 
 | Surface | What it looks like | What the host checks |
 | --- | --- | --- |
-| **Invoke** | `POST` a JSON body containing `verb` or `read` to any path except `/` | **No credential.** `role` is read from the body and compared as a string to the command's declared role. |
+| **Invoke** | `POST` a JSON body containing `verb` or `read` to any path except `/` | **No credential.** `role` is read from the body and compared as a string to the command's declared role. From 2.8.0 the host honors this shape only from a peer on the same host; a body from any other peer is an ordinary web request (7.1). |
 | **Session-cookie API** | `GET`/`POST` `/api/...` and `/<Domain>/<Aggregate>...` | A `session` cookie signed with `SESSION_SECRET`. |
 | **Account cookie** | `/accounts/me`, `/members`, `/auth/google...` | An account cookie (`hecks_session`) signed with `SESSION_SECRET`, and a membership chapter that this repository does not ship. |
 
@@ -622,15 +626,30 @@ can reach the endpoint at all:
   API, which requires AWS credentials and an IAM permission
   (`lambda:InvokeFunction` on the function). Access control is IAM policy:
   who may invoke, not what role they claim.
-- **On Fargate as generated**, the raw invoke shape is reachable by anyone
-  who can send an HTTP request to the CloudFront hostname. The Application
+- **On Fargate, before 2.8.0**, the raw invoke shape was reachable by anyone
+  who could send an HTTP request to the CloudFront hostname. The Application
   Load Balancer accepts only CloudFront's address range, but the CloudFront
-  distribution itself is open and forwards every method. The generated
-  stack adds no authentication in front of the invoke path. Do not deploy the
-  Fargate target for a service whose rules matter until you have put your own
-  access control in front of it (a WAF rule, an authenticating proxy, or a
-  private network); the generator does not provide one and this document has
-  not verified any.
+  distribution itself is open and forwards every method, and the host read
+  any body containing `verb` or `read` as a command from any peer. The
+  generated stack added no authentication in front of the invoke path.
+- **On Fargate, from 2.8.0**, the host reads a body as the invoke shape only
+  when the peer is on the same host (`127.0.0.1`, `::1`, or an IPv4-mapped
+  loopback), which is how a sidecar in the same task reaches it. From any
+  other peer, including everything the load balancer forwards, the same body
+  is an ordinary request for the path it hit, answered by the web layer's own
+  routes and gate. This is covered by unit tests and was run against a local
+  host; it has not been verified on a deployed stack, so after moving a
+  stack to 2.8.0 send one `POST` of `{"verb":"NoSuchVerb"}` to a path the
+  load balancer forwards and confirm it no longer answers with a verb error
+  (do not use `{"read":true}` on a live service, which returns data). A same-host
+  caller still names its own role, so the sidecar case remains self-asserted.
+  Which target you deploy is your choice, and the projection for each is
+  generated. What differs is how an outside client calls it: on Lambda, through
+  the IAM-signed Invoke API; on Fargate, through the session-cookie API (7.2),
+  because from 2.8.0 the invoke shape is same-host only.
+  Do not deploy a Fargate host older than 2.8.0 for a service whose rules
+  matter without your own access control in front of it (a WAF rule, an
+  authenticating proxy, or a private network).
 
 ### 7.2 The `session` cookie, and how an operator gets one
 
@@ -707,7 +726,10 @@ The Governance part of the first-administrator question is settled by ADR
 administrator` assignment, so the very first grant has to come from a caller
 that binds no `actor_id` and is checked by string comparison. It is a
 bootstrap step, not a hole. On the host that first grant is the invoke path
-naming the role. Verified here:
+naming the role, sent from the same host: from 2.8.0 the host ignores that
+shape from any other peer, so on a deployed service run it from inside the
+task or container, not from outside. The run below is against a local host,
+which is the same-host case. Verified here:
 
 ```sh
 curl -s -X POST http://127.0.0.1:8080/invoke -d '{"verb":"Governance::RoleAssignment.Assign",
@@ -748,6 +770,14 @@ deployed.
 Everything here is plain HTTP and JSON. Examples use `curl`.
 
 ### The invoke API
+
+Where it can be called from depends on the target you chose (both projections
+are generated). On Lambda, an outside client uses the IAM-signed Invoke API
+below. On Fargate, from 2.8.0, this shape works only from the same host (a
+sidecar, or a shell inside the task), because the host does not act on it from
+any other peer (7.1); an outside client of a Fargate service uses the
+session-cookie API instead. The `curl` examples in this step that target
+`127.0.0.1` are the same-host case.
 
 `POST` to any path except `/`, body a JSON object:
 
@@ -927,8 +957,9 @@ an outside team would meet it.
    `DesiredCount: 0`), run `aws cloudformation deploy` by hand first so the
    repository exists, push, then set `desired_count 1` and deploy again. The
    Lambda target does not have this ordering problem.
-4. **Fargate exposes the invoke path with no credential** (7.1). Prefer
-   Lambda for now, once gap 2 is dealt with.
+4. **Fargate exposed the invoke path with no credential before 2.8.0**
+   (7.1). Fixed from 2.8.0, not yet verified on a deployed stack; on an older
+   host it is still open, and Lambda avoids it (once gap 2 is dealt with).
 5. **`make deploy` ends in `mint-era`, which is written for era-managed
    domains.** The recipe's Ruby command was run by hand (not through `make`,
    and without the tunnel) against a scratch database, for a domain with a

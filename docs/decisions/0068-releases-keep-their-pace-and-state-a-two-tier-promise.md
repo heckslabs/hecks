@@ -1,6 +1,6 @@
 # Releases keep their pace, and the stability promise is stated as two tiers
 
-**Status:** Accepted — not yet implemented. The promise text, the missing tag, the CHANGELOG date and the GitHub Releases page described under "Decision" have not been done. Date: 2026-09-27.
+**Status:** Accepted — implemented. The promise text is in `docs/1.0-readiness.md`, `v2.5.0` is tagged, the `2.0.0` CHANGELOG date is corrected, and the GitHub Releases page lists every tag from 1.0.1 (each with its CHANGELOG section as notes). The release steps in `CONTRIBUTING.md` now include creating the GitHub Release. Date: 2026-09-27.
 
 ## Context
 

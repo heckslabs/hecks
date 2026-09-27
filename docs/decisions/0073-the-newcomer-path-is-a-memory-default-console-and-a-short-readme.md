@@ -1,6 +1,6 @@
 # The newcomer path is a Memory-default console and a short README
 
-**Status:** Accepted — not yet implemented. Date: 2026-09-27. Nothing under "Decision" is built; this ADR records the shape so the work can be split into pull requests.
+**Status:** Accepted — implemented in 2.8.0. Date: 2026-09-27. A bare `bin/console` boots the Memory-bound pizzas hecksagon, and the README is a pitch, a quickstart and a glossary, with the status and projection material in guides. The open items below still stand.
 
 ## Context
 
