@@ -33,6 +33,8 @@ module Hecks
       # @raise [KeyError] if a rooted read model is asked without its reference argument
       # @raise [ArgumentError] if `group_by` or `median` names a field its target
       #   aggregate does not declare
+      # @raise [Runtime::InvariantViolation] if two rows reach the same full `group_by`
+      #   key path and that path does not cover the grouped aggregate's whole identity
       # @raise [Runtime::WiringError] if the aggregate's repository cannot be resolved
       def call(domain, model, args)
         project(domain, model, args)
@@ -148,7 +150,8 @@ module Hecks
         reduced_head = aggregation_target(model, bluebook)
         [heads.each_with_object({}) do |(as, value), out|
           out[as] = if grouped_head && as == grouped_head[:as]
-                      nest(value.map { |record| Value.materialize_unwrapped(row(record)) }, model.group_by_fields)
+                      nest(value.map { |record| Value.materialize_unwrapped(row(record)) }, model.group_by_fields,
+                           collision_check(model, bluebook, grouped_head))
                     elsif reduced_head && as == reduced_head[:as] && model.count?
                       value.length
                     elsif reduced_head && as == reduced_head[:as]
@@ -267,26 +270,45 @@ module Hecks
         target
       end
 
+      # The read model whose `group_by` leaves must each hold one row, or nil
+      # when its key path covers the grouped aggregate's whole identity and so
+      # cannot collide (ADR 0061, decision D1). Decided from the declaration,
+      # never from the rows.
+      def collision_check(model, bluebook, grouped_head)
+        model.groups_by_identity?(bluebook.aggregate(grouped_head[:aggregate])) ? nil : model
+      end
+
       # One level of nesting per field, in `group_by`'s own declared
       # order — the leaf is the row with every grouped field removed
-      # (already spent, as the keys that reached it). Assumes the full
-      # `group_by` path uniquely identifies one row (true for grouping by
-      # an aggregate's own full identity, ConsoleSettings' own real use)
-      # — `leaves.first` silently keeps only the first row when several
-      # share the same full key path. A real, deliberate scope limit:
-      # true multi-row-per-leaf grouping would change the leaf shape
-      # from "one row" to "an array of rows", which no caller needs yet.
-      def nest(rows, fields)
+      # (already spent, as the keys that reached it). A leaf holds one row:
+      # when `checked` names a read model and two rows reach the same full
+      # key path, this refuses rather than keep one of them (ADR 0061,
+      # decision D1). An array-of-rows leaf would change the output shape
+      # of every shipped `group_by`, so it is not offered here.
+      #
+      # Groups are walked in first-occurrence order and depth first, so the
+      # collision reported is the first one reached; the Rust kernel's
+      # `read_model::nest` walks in the same order.
+      def nest(rows, fields, checked, reached = [])
         field, *rest = fields
-        rows.group_by { |row| row[field] }.transform_values do |group|
+        rows.group_by { |row| row[field] }.to_h do |key, group|
           # Strip only the field just grouped by, not the whole remaining
           # list — `rest`'s own fields have to survive into the recursive
-          # call below, or the next level groups by a key that's already
-          # gone (found by trying it: a two-field group_by's own second
-          # level came back keyed `nil` for every group, every time).
-          stripped = group.map { |row| row.reject { |key, _| key == field } }
-          rest.empty? ? stripped.first : nest(stripped, rest)
+          # call below, or the next level groups by a key that's already gone.
+          stripped = group.map { |row| row.reject { |name, _| name == field } }
+          path = reached + [[field, key]]
+          [key, rest.empty? ? leaf(stripped, checked, path) : nest(stripped, rest, checked, path)]
         end
+      end
+
+      def leaf(rows, checked, path)
+        return rows.first unless checked && rows.size > 1
+
+        raise InvariantViolation,
+              RefusalWording.render_site("InvariantViolation", "group_by_collision",
+                                         read_model: checked.name, fields: checked.group_by_fields,
+                                         ids: rows.map { |row| row[:id] },
+                                         key: path.map { |field, value| "#{field} = #{value}" }.join(", "))
       end
 
       # `count`/`median`'s own declared target — the same single

@@ -7,6 +7,22 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+**A `group_by` refuses two rows on one key path instead of dropping one.** A
+read model's `group_by` leaf holds one row, and when two rows reached the same
+full key path the Ruby interpreter and the generated Rust runtime both kept the
+first and silently dropped the rest. Both now refuse the ask with
+`InvariantViolation`, in one shared wording (`group_by_collision`) that names the
+read model, its `group_by`, the colliding ids and the key path; a new
+cross-runtime fixture holds Ruby and Rust to the same refusal byte for byte. A
+key path that names every identity field of the grouped aggregate cannot
+collide and is accepted from the declaration without a check, which covers every
+`group_by` in the corpus. The fuzz oracle recomputes shared key paths from the
+rows and expects the refusal, and the `client_group_by_row_drop` rule of
+`bin/model_check --profile client` is gone with the bug it guarded (ADR 0061,
+decision D1; ADR 0065, decision 2). **Behavior change:** a read model grouped by
+a key its data does not keep unique answered with a subset before; it now
+refuses from the first request after a second row reaches a key path.
+
 ## [2.7.0] - 2026-09-27
 
 **The Rust host rate-limits public writes, on by default.** `POST /registrations`

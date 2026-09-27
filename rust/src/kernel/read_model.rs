@@ -34,7 +34,7 @@
 // `QuerySpecification::Common::NullPolicy` (lib/hecks/ports/query/,
 // lib/hecks/query_specification/common/null_policy.rb) for exactly
 // what `apply_filtered_head_options` below ports — all read directly.
-use super::refusal_wording::{NotFoundReadModelReferenceMissingArgs, UnauthorizedTenantRequiredArgs};
+use super::refusal_wording::{InvariantViolationGroupByCollisionArgs, NotFoundReadModelReferenceMissingArgs, UnauthorizedTenantRequiredArgs};
 use super::{named_query, query_comparators, query_ordering, repository, AggregateScan, Json, QueryCondition, QueryConditionValue, Refusal};
 
 /// One `where` clause that hops through a reference (`account/status`,
@@ -238,7 +238,7 @@ pub struct ReadModelDef {
     /// `append`. Applied to whichever head `group_by_target` names — the
     /// one `many`-side head this read model declares (`seal_group_by`'s
     /// own build-time check already refuses more than one).
-    pub group_by: Option<fn(Vec<(String, Json)>) -> Json>,
+    pub group_by: Option<fn(Vec<(String, Json)>) -> Result<Json, Refusal>>,
     /// `count` — a bare marker, `true` when declared. Unlike `group_by`,
     /// this needs no per-read-model generated function at all: "how many
     /// rows" needs no type-level knowledge to compute, just the already-
@@ -264,35 +264,28 @@ pub struct ReadModelDef {
     pub median_field: Option<&'static str>,
 }
 
-/// The lookup `kernel/cli.rs`'s string-form "query" step dispatches
-/// through for a read-model ask (a bare "Domain.Name" string, no "::") —
-/// a linear scan over a generated domain's own `READ_MODELS` table, the
-/// same shape `named_query::find` already uses for the sibling "Domain::
-/// Aggregate.Name" shape.
-///
-/// R2 fix (docs/audits/2026-08-11-bug-triage.md) — `ReadModelDef::verb`
-/// (`rust/project/read_models.rb`'s own `read_model_def`) only ever spells
-/// the read model's declared name ("Banking.CustomerPortfolio"), that
-/// file's own header explaining why: the one spelling this generator ever
-/// needs to emit. But `Runtime::Chapter#read_model` — the ground truth,
-/// `lib/hecks/bluebook/behaviour/chapter.rb` — accepts either that spelling
-/// Or the snake-cased one (`ReadModel#query_name`, `Naming.snake(@name)`),
-/// and a real corpus caller uses the snake_case spelling for exactly this
-/// read model (`spec/corpus/banking.json`'s own "Banking.customer_portfolio"
-/// query step). A `def.verb == verb` exact match alone made this compiled
-/// artifact refuse a read model Ruby answers for real — not a genuine
-/// codegen gap (`rust/src/generated/banking/manifest.json` already marks
-/// `Banking::CustomerPortfolio` `"generated": true`), just a narrower
-/// accepted-spelling set than Ruby's own. `matches_snake_alias` below
-/// closes it without touching codegen at all: still one row, one spelling
-/// baked in, checked against both of the two spellings Ruby itself accepts.
+/// Whether a `group_by` leaf is checked for a second row — decided once, by
+/// the generator, from the declaration alone (ADR 0061, decision D1).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LeafCheck {
+    /// The key path covers the grouped aggregate's whole identity, so no two
+    /// rows can reach one leaf and none is checked.
+    IdentityCovered,
+    /// Any other key path: two rows reaching one leaf refuse, naming this
+    /// read model (its bare declared name).
+    RefuseCollision(&'static str),
+}
+
 /// `ReadModelInterpreter#nest`, ported directly — one level of nesting
 /// per declared `group_by` field, in declared order; the leaf is the row
 /// with every grouped field already stripped, one per level, matching
-/// Ruby's own `row.reject { |key, _| key == field }`. Assumes the full
-/// `group_by` path uniquely identifies one row (Ruby's own comment, same
-/// scope limit): `stripped.first`/`group.first` below silently keeps
-/// only the first row when several share the same full key path.
+/// Ruby's own `row.reject { |key, _| key == field }`. A leaf holds one
+/// row: under `LeafCheck::RefuseCollision`, two rows reaching the same
+/// full key path refuse `InvariantViolation` with the shared
+/// `group_by_collision` wording rather than keeping one of them (ADR 0061,
+/// decision D1). Groups are walked in first-occurrence order and depth
+/// first, as Ruby's `Hash#group_by` walks them, so both runtimes report
+/// the same first collision.
 ///
 /// This is hand-written once, here — unlike the per-field unwrap
 /// (`rust/project/read_models.rb`'s own `emit_group_by_transform`,
@@ -309,7 +302,14 @@ pub struct ReadModelDef {
 /// ever simplifies it away), and Ruby's own `Hash#group_by` already
 /// preserves first-occurrence order — a `HashMap` would need its own
 /// separate order-tracking to match that, no simpler than this.
-pub fn nest(rows: Vec<Json>, fields: &[&str]) -> Json {
+pub fn nest(rows: Vec<Json>, fields: &[&str], check: LeafCheck) -> Result<Json, Refusal> {
+    nest_level(rows, fields, fields, check, &[])
+}
+
+/// One level of `nest`. `all_fields` is the whole declared `group_by`
+/// (the refusal names it); `reached` is the key path walked so far, one
+/// `(field, key)` per level above this one.
+fn nest_level(rows: Vec<Json>, all_fields: &[&str], fields: &[&str], check: LeafCheck, reached: &[(&str, Json)]) -> Result<Json, Refusal> {
     let (field, rest) = fields.split_first().expect("nest called with empty fields — read_model_skip_reason should refuse a group_by with none");
     let mut groups: Vec<(Json, Vec<Json>)> = Vec::new();
     for row in rows {
@@ -326,19 +326,35 @@ pub fn nest(rows: Vec<Json>, fields: &[&str]) -> Json {
             None => groups.push((key, vec![stripped])),
         }
     }
-    Json::Object(
-        groups
-            .into_iter()
-            .map(|(key, group)| {
-                let value = if rest.is_empty() { group.into_iter().next().unwrap_or(Json::Null) } else { nest(group, rest) };
-                // `Hash#[]=` implicitly stringifies a non-String key the
-                // moment it's used as a JSON object key — `query_
-                // comparators::to_s` already does exactly Ruby's own
-                // `.to_s` conversion, reused rather than duplicated.
-                (super::query_comparators::to_s(&key), value)
-            })
-            .collect(),
-    )
+    let mut out = Vec::with_capacity(groups.len());
+    for (key, group) in groups {
+        let mut path = reached.to_vec();
+        path.push((field, key.clone()));
+        let value = if rest.is_empty() { leaf(group, all_fields, check, &path)? } else { nest_level(group, all_fields, rest, check, &path)? };
+        // `Hash#[]=` implicitly stringifies a non-String key the
+        // moment it's used as a JSON object key — `query_
+        // comparators::to_s` already does exactly Ruby's own
+        // `.to_s` conversion, reused rather than duplicated.
+        out.push((super::query_comparators::to_s(&key), value));
+    }
+    Ok(Json::Object(out))
+}
+
+/// `ReadModelInterpreter#leaf`, ported directly: the one row a key path
+/// reached, or the `group_by_collision` refusal when a checked path was
+/// reached by more than one. Each key reads as its own `to_s`, the same
+/// text the nested object keys it by.
+fn leaf(group: Vec<Json>, all_fields: &[&str], check: LeafCheck, path: &[(&str, Json)]) -> Result<Json, Refusal> {
+    let read_model = match check {
+        LeafCheck::RefuseCollision(read_model) if group.len() > 1 => read_model,
+        _ => return Ok(group.into_iter().next().unwrap_or(Json::Null)),
+    };
+    let ids: Vec<String> = group.iter().map(|row| row.get("id").map(super::query_comparators::to_s).unwrap_or_default()).collect();
+    let id_refs: Vec<&str> = ids.iter().map(String::as_str).collect();
+    let key = path.iter().map(|(field, value)| format!("{field} = {}", super::query_comparators::to_s(value))).collect::<Vec<_>>().join(", ");
+    Err(Refusal::InvariantViolation(
+        InvariantViolationGroupByCollisionArgs { read_model, fields: all_fields, ids: &id_refs, key: &key }.render_args(),
+    ))
 }
 
 /// `Runtime::ReadModelInterpreter#median`, ported directly. The standard
@@ -382,6 +398,28 @@ fn median(rows: &[(String, Json)], field: &'static str) -> Json {
     }
 }
 
+/// The lookup `kernel/cli.rs`'s string-form "query" step dispatches
+/// through for a read-model ask (a bare "Domain.Name" string, no "::") —
+/// a linear scan over a generated domain's own `READ_MODELS` table, the
+/// same shape `named_query::find` already uses for the sibling "Domain::
+/// Aggregate.Name" shape.
+///
+/// R2 fix (docs/audits/2026-08-11-bug-triage.md) — `ReadModelDef::verb`
+/// (`rust/project/read_models.rb`'s own `read_model_def`) only ever spells
+/// the read model's declared name ("Banking.CustomerPortfolio"), that
+/// file's own header explaining why: the one spelling this generator ever
+/// needs to emit. But `Runtime::Chapter#read_model` — the ground truth,
+/// `lib/hecks/bluebook/behaviour/chapter.rb` — accepts either that spelling
+/// Or the snake-cased one (`ReadModel#query_name`, `Naming.snake(@name)`),
+/// and a real corpus caller uses the snake_case spelling for exactly this
+/// read model (`spec/corpus/banking.json`'s own "Banking.customer_portfolio"
+/// query step). A `def.verb == verb` exact match alone made this compiled
+/// artifact refuse a read model Ruby answers for real — not a genuine
+/// codegen gap (`rust/src/generated/banking/manifest.json` already marks
+/// `Banking::CustomerPortfolio` `"generated": true`), just a narrower
+/// accepted-spelling set than Ruby's own. `matches_snake_alias` below
+/// closes it without touching codegen at all: still one row, one spelling
+/// baked in, checked against both of the two spellings Ruby itself accepts.
 pub fn find<'a>(table: &'a [ReadModelDef], verb: &str) -> Option<&'a ReadModelDef> {
     table.iter().find(|def| def.verb == verb || matches_snake_alias(def.verb, verb))
 }
@@ -484,6 +522,57 @@ mod snake_alias_tests {
         assert!(find(&table, "Banking.customer_portfolio").is_some());
         assert!(find(&table, "Banking.somethingelse").is_none());
         assert!(find(&table, "Other.customer_portfolio").is_none());
+    }
+}
+
+/// ADR 0061, decision D1 — a `group_by` leaf holds one row. The wording is
+/// the one `ReadModelInterpreter#leaf` raises; `spec/corpus/rust_conformance/
+/// group_by_collision.json` holds the two runtimes to it end to end.
+#[cfg(test)]
+mod nest_tests {
+    use super::*;
+
+    fn part(id: &str, bin: &str) -> Json {
+        Json::obj(vec![("bin", Json::str(bin)), ("id", Json::str(id))])
+    }
+
+    #[test]
+    fn refuses_two_rows_on_one_checked_key_path() {
+        let rows = vec![part("p2", "b1"), part("p3", "b2"), part("p1", "b1")];
+
+        let err = nest(rows, &["bin"], LeafCheck::RefuseCollision("PartsByBin")).expect_err("p1 and p2 share bin b1");
+
+        assert_eq!(
+            err,
+            Refusal::InvariantViolation(
+                "PartsByBin groups by bin, but rows \"p1\", \"p2\" share bin = b1 — a group_by leaf holds one row; add a field that tells them apart"
+                    .to_string()
+            )
+        );
+    }
+
+    #[test]
+    fn answers_when_every_key_path_holds_one_row() {
+        let rows = vec![part("p1", "b1"), part("p3", "b2")];
+
+        let nested = nest(rows, &["bin"], LeafCheck::RefuseCollision("PartsByBin")).expect("no two parts share a bin");
+
+        assert_eq!(nested, Json::obj(vec![("b1", Json::obj(vec![("id", Json::str("p1"))])), ("b2", Json::obj(vec![("id", Json::str("p3"))]))]));
+    }
+
+    #[test]
+    fn names_every_level_of_a_multi_field_key_path() {
+        let row = |id: &str| Json::obj(vec![("bin", Json::str("b1")), ("shelf", Json::Num(2.0)), ("id", Json::str(id))]);
+
+        let err = nest(vec![row("p1"), row("p2")], &["bin", "shelf"], LeafCheck::RefuseCollision("PartsByShelf")).expect_err("same bin and shelf");
+
+        assert_eq!(
+            err,
+            Refusal::InvariantViolation(
+                "PartsByShelf groups by bin, shelf, but rows \"p1\", \"p2\" share bin = b1, shelf = 2 — a group_by leaf holds one row; add a field that tells them apart"
+                    .to_string()
+            )
+        );
     }
 }
 
@@ -910,7 +999,7 @@ pub fn run(store: &impl AggregateScan, def: &ReadModelDef, args: &Json) -> Resul
             // Already fully formed by the generated transform (its own
             // `row_json`-equivalent wrapping done internally) — must not
             // be wrapped again the way an ordinary head's rows are.
-            (def.group_by.expect("grouped_heads is only ever populated when def.group_by is Some"))(rows)
+            (def.group_by.expect("grouped_heads is only ever populated when def.group_by is Some"))(rows)?
         } else if many && def.count {
             // `value.length`, ported directly — `rows` here is already
             // the same post-`apply_filtered_head_options` set `group_by`

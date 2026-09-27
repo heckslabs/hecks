@@ -610,9 +610,9 @@ alongside `bin/model_check` and `bin/fuzz`):
 - Query aggregation is partial. A `read_model` can declare `count`,
   `median` and `group_by`, on Ruby and on the generated Rust runtime;
   there is no `sum`, `avg`, `min` or `max`, and a plain `query` reduces
-  nothing. On the in-memory adapter, `group_by` also keeps only the first
-  row when several share a key path — a known defect, written up in
-  [ADR 0061](docs/decisions/0061-query-dsl-aggregation-count-sum-group-by.md).
+  nothing. A `group_by` leaf holds one row: when several rows share a key
+  path the ask refuses, on every adapter and in Rust, rather than keeping
+  the first ([ADR 0061](docs/decisions/0061-query-dsl-aggregation-count-sum-group-by.md)).
 - `PostgresEra`'s schema-evolution/translation system works and is
   exercised in CI; the migration/rekey data-loss findings tracked
   against it (era-migrated deletes resurrecting, rekey SQL invisible

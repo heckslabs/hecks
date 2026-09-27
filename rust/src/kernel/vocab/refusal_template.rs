@@ -45,6 +45,7 @@ pub enum RefusalSite {
     InvariantViolationValueObjectInvariant,
     InvariantViolationAdmitsDeclaredSet,
     InvariantViolationUndeclaredSet,
+    InvariantViolationGroupByCollision,
     UnauthorizedTenantRequired,
     UnauthorizedRoleMismatch,
     UnauthorizedCrossTenantReference,
@@ -95,6 +96,7 @@ impl RefusalSite {
         RefusalSite::InvariantViolationValueObjectInvariant,
         RefusalSite::InvariantViolationAdmitsDeclaredSet,
         RefusalSite::InvariantViolationUndeclaredSet,
+        RefusalSite::InvariantViolationGroupByCollision,
         RefusalSite::UnauthorizedTenantRequired,
         RefusalSite::UnauthorizedRoleMismatch,
         RefusalSite::UnauthorizedCrossTenantReference,
@@ -145,6 +147,7 @@ impl RefusalSite {
             RefusalSite::InvariantViolationValueObjectInvariant => "InvariantViolation",
             RefusalSite::InvariantViolationAdmitsDeclaredSet => "InvariantViolation",
             RefusalSite::InvariantViolationUndeclaredSet => "InvariantViolation",
+            RefusalSite::InvariantViolationGroupByCollision => "InvariantViolation",
             RefusalSite::UnauthorizedTenantRequired => "Unauthorized",
             RefusalSite::UnauthorizedRoleMismatch => "Unauthorized",
             RefusalSite::UnauthorizedCrossTenantReference => "Unauthorized",
@@ -196,6 +199,7 @@ impl RefusalSite {
             RefusalSite::InvariantViolationValueObjectInvariant => "value_object_invariant",
             RefusalSite::InvariantViolationAdmitsDeclaredSet => "admits_declared_set",
             RefusalSite::InvariantViolationUndeclaredSet => "undeclared_set",
+            RefusalSite::InvariantViolationGroupByCollision => "group_by_collision",
             RefusalSite::UnauthorizedTenantRequired => "tenant_required",
             RefusalSite::UnauthorizedRoleMismatch => "role_mismatch",
             RefusalSite::UnauthorizedCrossTenantReference => "cross_tenant_reference",
@@ -247,6 +251,7 @@ impl RefusalSite {
             RefusalSite::InvariantViolationValueObjectInvariant => "{name} invariant violated — {description} (given {offered})",
             RefusalSite::InvariantViolationAdmitsDeclaredSet => "{name} admits {admits} — {admitted} — got {offered}",
             RefusalSite::InvariantViolationUndeclaredSet => "{name} admits {admits}, which this chapter does not declare — a closed set is named Aggregate::SetName, and it must be one the bluebook actually holds",
+            RefusalSite::InvariantViolationGroupByCollision => "{read_model} groups by {fields}, but rows {ids} share {key} — a group_by leaf holds one row; add a field that tells them apart",
             RefusalSite::UnauthorizedTenantRequired => "{query} declares authorize with tenant: {field} — pass {field}: to name which {field} this ask is scoped to",
             RefusalSite::UnauthorizedRoleMismatch => "{command} refused — role: {role}, and the caller stated {caller_role}",
             RefusalSite::UnauthorizedCrossTenantReference => "{aggregate} {field} is {tenant}, but {attribute} names a {target} whose own {target_field} is {other} — a cross-tenant reference",
@@ -1164,6 +1169,33 @@ impl InvariantViolationUndeclaredSetArgs<'_> {
     }
 }
 
+/// `RefusalSite::InvariantViolationGroupByCollision`'s arguments — `RefusalWording.render_site("InvariantViolation", "group_by_collision", ...)`.
+#[derive(Debug, Clone, Copy)]
+pub struct InvariantViolationGroupByCollisionArgs<'a> {
+    /// scalar
+    pub read_model: &'a str,
+    /// list, joined ", ", empty reads ""
+    pub fields: &'a [&'a str],
+    /// list, sorted, quoted, joined ", ", empty reads ""
+    pub ids: &'a [&'a str],
+    /// scalar
+    pub key: &'a str,
+}
+
+impl InvariantViolationGroupByCollisionArgs<'_> {
+    /// The site's wording, every argument formatted by its declared row.
+    pub fn render_args(&self) -> String {
+        let fields_text = list(self.fields, false, false, ", ", "");
+        let ids_text = list(self.ids, true, true, ", ", "");
+        RefusalSite::InvariantViolationGroupByCollision.render(&[
+            ("read_model", self.read_model),
+            ("fields", fields_text.as_str()),
+            ("ids", ids_text.as_str()),
+            ("key", self.key),
+        ])
+    }
+}
+
 /// `RefusalSite::UnauthorizedTenantRequired`'s arguments — `RefusalWording.render_site("Unauthorized", "tenant_required", ...)`.
 #[derive(Debug, Clone, Copy)]
 pub struct UnauthorizedTenantRequiredArgs<'a> {
@@ -1523,6 +1555,18 @@ mod tests {
         assert_eq!(
             InvariantViolationUndeclaredSetArgs { name: "name \"x\"", admits: "admits \"x\"" }.render_args(),
             "name \"x\" admits admits \"x\", which this chapter does not declare — a closed set is named Aggregate::SetName, and it must be one the bluebook actually holds"
+        );
+        assert_eq!(
+            InvariantViolationGroupByCollisionArgs { read_model: "read_model \"x\"", fields: &[], ids: &[], key: "key \"x\"" }.render_args(),
+            "read_model \"x\" groups by , but rows  share key \"x\" — a group_by leaf holds one row; add a field that tells them apart"
+        );
+        assert_eq!(
+            InvariantViolationGroupByCollisionArgs { read_model: "read_model \"x\"", fields: &["only \"one\""], ids: &["only \"one\""], key: "key \"x\"" }.render_args(),
+            "read_model \"x\" groups by only \"one\", but rows \"only \\\"one\\\"\" share key \"x\" — a group_by leaf holds one row; add a field that tells them apart"
+        );
+        assert_eq!(
+            InvariantViolationGroupByCollisionArgs { read_model: "read_model \"x\"", fields: &["zeta", "alpha", "mid"], ids: &["zeta", "alpha", "mid"], key: "key \"x\"" }.render_args(),
+            "read_model \"x\" groups by zeta, alpha, mid, but rows \"alpha\", \"mid\", \"zeta\" share key \"x\" — a group_by leaf holds one row; add a field that tells them apart"
         );
         assert_eq!(
             UnauthorizedTenantRequiredArgs { query: "query \"x\"", field: "field \"x\"" }.render_args(),

@@ -15,9 +15,6 @@ module Hecks
       #
       # ## The rules
       #
-      # - `:client_group_by_row_drop` — a `group_by` whose fields do not include
-      #   the grouped aggregate's whole identity. Rows sharing a key path are
-      #   collapsed to the first, on every adapter (docs/decisions/0061).
       # - `:client_native_read_model` — a read model the SQLite projection
       #   answers natively, where every other path answers it in process
       #   (docs/1.0-readiness.md, "Known gaps at 1.0", item 2).
@@ -30,7 +27,6 @@ module Hecks
         # checks this list against the adapter classes themselves.
         NATIVE_READ_MODEL_ADAPTERS = %w[SqliteProjection].freeze
 
-        GROUP_BY_TRACKER = "docs/decisions/0061-query-dsl-aggregation-count-sum-group-by.md".freeze
         NATIVE_READ_MODEL_TRACKER = "docs/1.0-readiness.md (Known gaps at 1.0, item 2)".freeze
         DOTTED_COMPUTE_TRACKER = "Translation::RuleCompiler.compile_compute, and the pending example " \
                                  "\"applies the SQL of a compute whose source is a dotted member\" in " \
@@ -48,27 +44,8 @@ module Hecks
         # @return [Array<ModelCheck::Finding>] one error-severity finding per construct refused
         def call(bluebook, hecksagon: nil, translations: [])
           bluebook.read_models.flat_map do |model|
-            group_by_findings(bluebook, model) + native_read_model_findings(model, hecksagon)
+            native_read_model_findings(model, hecksagon)
           end + dotted_compute_findings(translations)
-        end
-
-        # Refuses a `group_by` that cannot prove each of its key paths names one row.
-        #
-        # The interpreter's `nest` keeps `stripped.first` per key path, whichever adapter
-        # supplied the rows, because a `group_by` model never reaches the native path. Grouping
-        # by the aggregate's whole identity is the one shape that cannot collide.
-        #
-        # @param bluebook [Bluebook::Chapter] the chapter the read model is declared in
-        # @param model [Bluebook::ReadModel] the read model to inspect
-        # @return [Array<ModelCheck::Finding>] one finding, or `[]` when `model` declares no
-        #   `group_by` or groups by its aggregate's whole identity
-        def group_by_findings(bluebook, model)
-          return [] if model.group_by.empty? || groups_by_identity?(bluebook, model)
-
-          [finding(:client_group_by_row_drop, model.name,
-                   "group_by #{model.group_by_fields.map(&:inspect).join(', ')} does not cover the grouped " \
-                   "aggregate's whole identity, so rows sharing a key path are silently reduced to the " \
-                   "first. Tracked in #{GROUP_BY_TRACKER}.")]
         end
 
         # Refuses a read model that the SQLite projection would answer natively.
@@ -121,21 +98,6 @@ module Hecks
         # @return [Boolean] true for a rooted model declaring no `group_by`, `count` or `median`
         def native_eligible?(model)
           !model.reference_target.nil? && model.group_by.empty? && !model.count? && !model.median_field
-        end
-
-        # Reports whether a `group_by` names every identity path of the aggregate it groups.
-        #
-        # @param bluebook [Bluebook::Chapter] the chapter the read model is declared in
-        # @param model [Bluebook::ReadModel] a read model that declares a `group_by`
-        # @return [Boolean] false when the many-side aggregate is not a top-level aggregate or
-        #   declares no identity, since uniqueness cannot then be shown
-        def groups_by_identity?(bluebook, model)
-          target = model.aggregate_heads.find { |head| head[:many] }
-          aggregate = target && bluebook.aggregate(target[:aggregate])
-          return false unless aggregate
-
-          identity = Array(aggregate.identity_heads).map(&:to_sym)
-          !identity.empty? && (identity - model.group_by_fields.map(&:to_sym)).empty?
         end
 
         # Builds one error-severity finding of this profile.

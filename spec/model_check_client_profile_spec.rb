@@ -4,7 +4,7 @@ require "hecks/ports/persistence/plugins/era/translation/rule_compiler"
 require "open3"
 require "tmpdir"
 
-# The opt-in `client` profile of the model checker: it refuses three
+# The opt-in `client` profile of the model checker: it refuses the
 # constructs that answer wrongly without refusing, and changes nothing when
 # the profile is not asked for.
 #
@@ -49,16 +49,6 @@ RSpec.describe "the model checker's client profile" do
       read_model "WidgetsByGroup" do
         include Widget
         group_by :group
-      end
-
-      read_model "WidgetsByNumber" do
-        include Widget
-        group_by :number
-      end
-
-      read_model "WidgetsByGroupAndNumber" do
-        include Widget
-        group_by :group, :number
       end
 
       read_model "OwnerWidgets" do
@@ -126,31 +116,6 @@ RSpec.describe "the model checker's client profile" do
 
     it "refuses a profile it does not know" do
       expect { profiled(build, profile: :strict_client) }.to raise_error(ArgumentError, /unknown profile/)
-    end
-  end
-
-  describe "group_by row drop (docs/decisions/0061)" do
-    let(:findings) { profiled(build) }
-
-    it "refuses a group_by that does not cover the aggregate's identity" do
-      expect(subjects_for(findings, :client_group_by_row_drop)).to eq(["WidgetsByGroup"])
-    end
-
-    it "is silent when the group_by is the identity, alone or with another field" do
-      expect(subjects_for(findings, :client_group_by_row_drop)).not_to include("WidgetsByNumber", "WidgetsByGroupAndNumber")
-    end
-
-    it "does not depend on the adapter the aggregate is bound to" do
-      registry = build(projection: "SqliteProjection")
-
-      expect(subjects_for(profiled(registry), :client_group_by_row_drop)).to eq(["WidgetsByGroup"])
-    end
-
-    it "names the construct and the ADR that tracks it, as an error" do
-      finding = findings.find { |f| f.kind == :client_group_by_row_drop }
-
-      expect(finding.severity).to eq(:error)
-      expect(finding.message).to include("group_by :group", "docs/decisions/0061")
     end
   end
 
@@ -258,15 +223,6 @@ RSpec.describe "the model checker's client profile" do
   # still misbehave. When one fails, the bug is fixed: delete the rule named in
   # the message, its examples above, this probe, and the tracker it cites.
   describe "rules that retire with their bug" do
-    it "client_group_by_row_drop: nest still keeps only the first row per key path" do
-      rows = [{ group: "g1", id: "w1" }, { group: "g1", id: "w2" }]
-
-      nested = Hecks::Runtime::ReadModelInterpreter.new(nil).send(:nest, rows, [:group])
-
-      expect(nested.fetch("g1")).to be_a(Hash), "nest keeps every row now: docs/decisions/0061's row drop is " \
-                                                "fixed. Delete ClientProfile#group_by_findings, its examples, and this probe."
-    end
-
     it "client_native_read_model: the readiness doc still lists the missing agreement gate" do
       readiness = File.read(File.join(InMemoryDomain::ROOT, "docs/1.0-readiness.md"))
 
