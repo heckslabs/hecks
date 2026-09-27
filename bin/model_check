@@ -58,19 +58,24 @@ def boot(source)
     # for nothing else: an unprofiled run boots exactly what it always did.
     Dir[File.join(source, "translations", "*.bluebook")].each { |file| Kernel.load(file) } if PROFILE && File.directory?(source)
 
-    # **The sibling hecksagon, if one exists** — a port attaches to its
+    # **The sibling hecksagon(s), if any** — a port attaches to its
     # aggregate/chapter from there, not the bluebook (see
     # hecksagon_builder.rb), so a deaf-policy check that never loads it
     # would see a policy reacting to an event nothing appears to emit.
+    # A directory loads every `*.hecksagon` in it, as a real boot does
+    # (`Vocabulary`'s LoadOrder): a domain that splits its wiring across
+    # files (a context map beside the domain's own) would otherwise be
+    # checked against only the first of them, and a `projected_by` in the
+    # others would be invisible to the client profile.
     # No adapter needs to actually resolve here : recording a bind builds
     # IR only, `registry.verify!` (never called by this tool) is what
     # would need one.
-    hecksagon = if File.directory?(source)
-                  Dir.glob(File.join(source, "*.hecksagon")).min
-                else
-                  source.sub(/\.bluebook\z/, ".hecksagon")
-                end
-    Kernel.load(hecksagon) if hecksagon && File.exist?(hecksagon)
+    hecksagons = if File.directory?(source)
+                   Dir.glob(File.join(source, "*.hecksagon"))
+                 else
+                   [source.sub(/\.bluebook\z/, ".hecksagon")]
+                 end
+    hecksagons.each { |hecksagon| Kernel.load(hecksagon) if File.exist?(hecksagon) }
   end
   registry
 end

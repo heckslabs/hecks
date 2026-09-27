@@ -81,6 +81,14 @@ ADRs and this file no longer name any client project; where a fixture needed a
 domain name it now uses a neutral one. Released entries below are reworded to say
 "a client site" without changing what they record.
 
+**`bin/model_check` loads every `*.hecksagon` in a domain directory, not only the
+first.** It picked the alphabetically first one, so a domain that split its
+wiring across files (a context map beside its own) was checked against part of
+its wiring, and a `projected_by` in a later file was invisible to the client
+profile's native-read-model rule. A real boot loads all of them, and now so does
+this tool. Two corpus domains, `nested_pieces` and `tenant_ledger`, each had a
+second hecksagon that was being ignored; both stay clean with it loaded.
+
 ## [2.6.0] - 2026-09-26
 
 **`bin/model_check --profile client` refuses three constructs that answer wrongly
