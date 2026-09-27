@@ -1,5 +1,11 @@
 # Adoption readiness: what a skeptical outside evaluator sees
 
+> **Historical snapshot, 2026-08-26.** Every figure below (version 0.3.0, 980 commits,
+> the ADR and corpus counts, the defect list) was true on that day and has not been kept
+> current. The current version is in `lib/hecks/version.rb`, current history is
+> `git log`, and current release notes are in `CHANGELOG.md`. Read this as the audit
+> method and findings of its date, not as the state of the repo today.
+
 **Audit lens.** This reads the repo the way an engineer at another company
 would: a `git clone` of what's on GitHub, no Slack history, no side-channel
 context, no author to ask. Every claim below was checked against the actual
