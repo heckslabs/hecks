@@ -286,15 +286,29 @@ an issue first — see the templates under `.github/ISSUE_TEMPLATE/`.
    its own PR. Bump the JavaScript client to the same version in that PR
    (`npm version X.Y.Z --no-git-tag-version` in `packages/hecks-client`,
    which also updates its lockfile); `spec/hecks_client_version_spec.rb`
-   fails until it matches.
-2. Once that PR merges to `main`, tag the merge commit
-   (`git tag -a vX.Y.Z <sha>`) and push the tag.
-3. Run `bin/release_gem` to build and push to rubygems.org. It refuses
+   fails until it matches. Label the entry as the release promise says
+   ([What a release number promises](docs/1.0-readiness.md#what-a-release-number-promises)):
+   a major carries a `Breaking:` entry, and a minor that changes how a
+   running system behaves carries a `Behavior change` entry.
+2. Once that PR merges to `main`, tag the merge commit with an annotated
+   tag named for the release (`git tag -a vX.Y.Z <sha> -m "hecks X.Y.Z"`)
+   and push the tag. The tag goes on the "Release X.Y.Z (step 1)" commit,
+   as every earlier tag does.
+3. Create the GitHub Release for that tag, with the release's own
+   `CHANGELOG.md` section as its notes, so the Releases page lists every
+   tag. Mark it Latest only when it is the newest version:
+
+   ```sh
+   awk -v v="X.Y.Z" 'BEGIN{h="## [" v "]"} index($0,h)==1{p=1;next} /^## \[/{p=0} p' CHANGELOG.md > notes.md
+   gh release create vX.Y.Z --title "hecks X.Y.Z" --notes-file notes.md --verify-tag --latest
+   ```
+
+4. Run `bin/release_gem` to build and push to rubygems.org. It refuses
    to run while `packages/hecks-client` is at another version than the
    gem. It pulls the push API key from 1Password (`op run`, Touch
    ID-gated) rather than a credentials file on disk — see the script's
    header comment for one-time setup.
-4. Publish the client from its own directory: `npm publish --access
+5. Publish the client from its own directory: `npm publish --access
    public` in `packages/hecks-client` (its `prepack` step builds it).
    `bin/release_gem` does not do this. The `hecks` npm organization
    exists; the first publish is still to come, and until then the
