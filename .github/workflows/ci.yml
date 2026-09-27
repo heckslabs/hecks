@@ -117,16 +117,20 @@ jobs:
         rspec_rust_parser_impl,
         rspec_rust_codegen_impl,
         rspec_rust_host_impl,
+        rspec_fuzzing,
       ]
     # `!= 'push'` alone would also fire on merge_group, where re-signing the queue's own
     # tree helps nothing (nothing re-checks it against itself); `== 'pull_request'` is the
     # real gate, `!= 'push'` alongside it is spec/ci_summary_jobs_spec.rb's own pinned shape
-    # for "this job takes no runner on a push to main".
+    # for "this job takes no runner on a push to main". checks_fuzz/checks_fuzz_postgres/
+    # checks_fuzz_sqlite/checks_codegen_drift need no entry of their own here: they're not
+    # independently required, so needs.checks_impl.result already covers them.
     if: >-
       github.event_name != 'push' && github.event_name == 'pull_request' &&
       needs.rspec_impl.result == 'success' && needs.checks_impl.result == 'success' &&
       needs.rspec_rust_io_impl.result == 'success' && needs.rspec_rust_parser_impl.result == 'success' &&
-      needs.rspec_rust_codegen_impl.result == 'success' && needs.rspec_rust_host_impl.result == 'success'
+      needs.rspec_rust_codegen_impl.result == 'success' && needs.rspec_rust_host_impl.result == 'success' &&
+      needs.rspec_fuzzing.result == 'success'
 
     permissions:
       contents: write
@@ -144,7 +148,7 @@ jobs:
           fi
 
           tree=$(git rev-parse HEAD^{tree})
-          checks="doc_coverage,engine_agreement,model_check,rspec,rubocop,rspec_rust_io,rspec_rust_parser,rspec_rust_codegen,rspec_rust_host"
+          checks="doc_coverage,engine_agreement,model_check,rspec,rubocop,rspec_rust_io,rspec_rust_parser,rspec_rust_codegen,rspec_rust_host,rspec_fuzzing,checks_fuzz,checks_fuzz_postgres,checks_fuzz_sqlite,checks_codegen_drift"
           hmac=$(printf '%s:%s' "$tree" "$checks" | openssl dgst -sha256 -hmac "$HMAC_KEY" -r | awk '{print $1}')
           note="checks=$checks"$'\n'"hmac=$hmac"
 
@@ -380,12 +384,33 @@ jobs:
     secrets:
       HECKS_CI_ATTEST_KEY: ${{ secrets.HECKS_CI_ATTEST_KEY }}
 
+  # Same detector-plus-gated-job shape as ci-rspec.yml's own ci_attestation_rspec — see
+  # ci-rust-parser.yml's identical addition for the full comment. rspec_fuzzing is its own
+  # required-status-check name and a plain job (not a `uses:` call), so its detector lives
+  # here directly rather than needing a reusable-workflow file of its own.
+  ci_attestation_rspec_fuzzing:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    if: github.event_name != 'push'
+
+    outputs:
+      attested: ${{ steps.attest.outputs.attested }}
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/check-attestation
+        id: attest
+        with:
+          checks: rspec_fuzzing
+          hmac-key: ${{ secrets.HECKS_CI_ATTEST_KEY }}
+
   rspec_fuzzing:
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
-    # Cache-warming push doesn't need this job.
-    if: github.event_name != 'push'
+    needs: ci_attestation_rspec_fuzzing
+    if: always() && github.event_name != 'push' && (needs.ci_attestation_rspec_fuzzing.result != 'success' || needs.ci_attestation_rspec_fuzzing.outputs.attested != 'true')
 
     # Two fuzzing specs are `io: true` and need Postgres (concurrent_dispatch_spec.rb,
     # era_boundary_spec.rb). Every other io job runs `--tag ~fuzzing`, so only this lane runs

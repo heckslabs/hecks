@@ -13,6 +13,30 @@ on:
         required: false
 
 jobs:
+  # Same detector-plus-gated-job shape as ci-rspec.yml's own ci_attestation_rspec — see
+  # ci-rust-parser.yml's identical addition for the full comment. One detector for the four
+  # jobs below: none is independently required (they all feed the single `checks` name that
+  # checks_static's own step-level attestation already partly covers), so one note entry
+  # naming all four is enough. checks_codegen_drift regenerates code and diffs it against the
+  # committed tree — deterministic given a fixed tree, so skipping it on a proven-unchanged
+  # tree is exactly as safe as skipping a test job.
+  ci_attestation_checks_heavy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    if: github.event_name != 'push'
+
+    outputs:
+      attested: ${{ steps.attest.outputs.attested }}
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/check-attestation
+        id: attest
+        with:
+          checks: checks_fuzz,checks_fuzz_postgres,checks_fuzz_sqlite,checks_codegen_drift
+          hmac-key: ${{ secrets.HECKS_CI_ATTEST_KEY }}
+
   # Replays random-but-valid command/query sequences from every example
   # domain's own IR, checking every declared property plus interpreter-crash
   # and determinism. bin/fuzz's own defaults (20 seeds, 30 steps) keep this
@@ -21,8 +45,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
-    # See `rspec` job's own comment in ci.yml — cache-warming push doesn't need this job.
-    if: github.event_name != 'push'
+    needs: ci_attestation_checks_heavy
+    if: always() && github.event_name != 'push' && (needs.ci_attestation_checks_heavy.result != 'success' || needs.ci_attestation_checks_heavy.outputs.attested != 'true')
 
     steps:
       - uses: actions/checkout@v4
@@ -39,8 +63,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
-    # See `checks_fuzz`'s own `if:` above.
-    if: github.event_name != 'push'
+    needs: ci_attestation_checks_heavy
+    if: always() && github.event_name != 'push' && (needs.ci_attestation_checks_heavy.result != 'success' || needs.ci_attestation_checks_heavy.outputs.attested != 'true')
 
     steps:
       - uses: actions/checkout@v4
@@ -58,8 +82,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
-    # See `checks_fuzz`'s own `if:` above.
-    if: github.event_name != 'push'
+    needs: ci_attestation_checks_heavy
+    if: always() && github.event_name != 'push' && (needs.ci_attestation_checks_heavy.result != 'success' || needs.ci_attestation_checks_heavy.outputs.attested != 'true')
 
     env:
       PGHOST: localhost
@@ -150,8 +174,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
-    # Cache-warming push only, same as `checks_fuzz` above.
-    if: github.event_name != 'push'
+    needs: ci_attestation_checks_heavy
+    if: always() && github.event_name != 'push' && (needs.ci_attestation_checks_heavy.result != 'success' || needs.ci_attestation_checks_heavy.outputs.attested != 'true')
 
     steps:
       - uses: actions/checkout@v4
