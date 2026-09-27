@@ -1,6 +1,6 @@
 # CONTRIBUTING states how changes are built and reviewed, and what CI proves
 
-**Status:** Accepted — not yet implemented (2026-09-27). This ADR decides what the new CONTRIBUTING section must say. It does not write the section, and nothing in `CONTRIBUTING.md` has changed.
+**Status:** Accepted — implemented (2026-09-27). This ADR decides what the new CONTRIBUTING section must say; `CONTRIBUTING.md` now has the "How this project is built and reviewed" section. The open items below still stand.
 
 ## Context
 

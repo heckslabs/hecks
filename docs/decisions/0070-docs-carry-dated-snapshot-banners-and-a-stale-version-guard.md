@@ -1,6 +1,6 @@
 # Docs that are dated snapshots say so in a banner, an archive holds the ones that should not be read as current, and a scan catches stale versions
 
-**Status:** Accepted — not yet implemented (2026-09-27). Nothing below is built. PR #863 (open) adds a "Historical snapshot" banner to `docs/adoption-readiness.md`; the move in decision 3 happens after it merges.
+**Status:** Accepted — implemented in 2.8.0 (2026-09-27). The banner spec, the stale-version scan and `docs/archive/` (holding the survey and the adoption-readiness audit) shipped, after the "Historical snapshot" banner on `docs/adoption-readiness.md` landed.
 
 ## Context
 

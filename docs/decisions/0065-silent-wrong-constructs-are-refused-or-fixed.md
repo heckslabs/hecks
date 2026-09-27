@@ -1,6 +1,6 @@
 # A construct that silently returns a wrong answer is fixed or refused, and the two known ones are sequenced
 
-**Status:** Accepted — not yet implemented. Nothing below is built. [ADR 0061](0061-query-dsl-aggregation-count-sum-group-by.md) remains the design record for the `group_by` refusal (decision 2); this ADR accepts it and sequences it against the other work.
+**Status:** Accepted — implemented in 2.8.0, except decision 3. Decisions 1, 2 and 4 shipped: the dotted-`compute` fix, the `group_by` refusal on both runtimes, and the README correction. Decision 3, the interim seal-time check, was not built, because decision 2 landed first and made it moot. [ADR 0061](0061-query-dsl-aggregation-count-sum-group-by.md) remains the design record for the `group_by` refusal (decision 2).
 
 ## Context
 

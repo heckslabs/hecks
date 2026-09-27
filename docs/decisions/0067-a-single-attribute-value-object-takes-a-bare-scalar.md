@@ -1,6 +1,6 @@
 # A single-attribute value object takes a bare scalar, and no new syntax is added for it
 
-**Status:** Accepted — partly implemented. The behavior already ships in both runtimes. The live confirmation, the documentation sweep and the cross-runtime pin fixture under "Decision" are not done.
+**Status:** Accepted — implemented in 2.8.0. The behavior already shipped in both runtimes. The live confirmation on both runtimes and the cross-runtime pin fixture are done; the documentation sweep covered the README and the pizzas behaviors file, and the guides still use the explicit spelling in places.
 
 **Date:** 2026-09-27
 

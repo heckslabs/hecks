@@ -1,6 +1,6 @@
 # The first external adoption target is a standalone rules service
 
-**Status:** Accepted — not yet implemented. Date: 2026-09-27. Nothing under "Decision" is built; the two pieces the target needs (see "Consequences") do not exist yet.
+**Status:** Accepted — partly implemented. Date: 2026-09-27. The two pieces the target needs (see "Consequences") now exist as `docs/running-a-rules-service.md`, with its known gaps listed. The exit test, an outside team following it with only the docs, has not been run.
 
 ## Context
 
