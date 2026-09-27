@@ -288,7 +288,7 @@ routes (it started with `HECKS_CHECKOUT_DOMAIN` naming its domain) to check the
 
 The package version equals `Hecks::VERSION` and is released together with the
 gem; `spec/hecks_client_version_spec.rb` fails when they differ, and
-`bin/release_gem` refuses to push the gem while they do. When
+`bin/release` (and `bin/release_gem` on its own) refuses to publish while they do. When
 `lib/hecks/version.rb` changes, bump the package in the same change:
 
 ```sh
@@ -296,15 +296,34 @@ cd packages/hecks-client
 npm version <version> --no-git-tag-version   # also updates package-lock.json
 ```
 
-`bin/release_gem` publishes the gem only. Publish the package from this
-directory once the gem is out (until the first publish, the tag install above is
-the way to consume it). npm is restricting tokens that bypass two-factor
-authentication, so publish from an account that can answer the prompt or set up
-trusted publishing, rather than relying on a long-lived token:
+Pushing the release tag starts `.github/workflows/publish-client.yml`, which
+publishes the package with npm trusted publishing: a short-lived identity
+token from the workflow run, so no npm token and no one-time code is stored
+anywhere. `bin/release` pushes the tag, publishes the gem, and waits for the
+package to appear on npm (`bin/release --npm-only` waits again after a
+re-run; a version npm already has is skipped).
+
+One-time setup, by an owner of the `@hecks` scope, once the package exists:
+on npmjs.com, package `@hecks/client` > Settings > Trusted Publisher > GitHub
+Actions > organization or user `heckslabs`, repository `hecks`, workflow
+filename `publish-client.yml`, environment blank.
+
+The first publish, before that can be configured, and any emergency when CI is
+down, is `bin/release --npm-local`. It publishes from this machine with a
+token held in 1Password: the "publish token" field on the "npmjs.com" item in
+the Hecks vault (`release/npm_publish.env` names the vault, item and field;
+the setup is in the header of `bin/release`). That token must be a granular
+token scoped Read and write to the `@hecks` scope with "Bypass two-factor
+authentication" enabled, and short-lived: the account's second factor is a
+passkey, so a token that requires a one-time code cannot publish (npm answers
+`EOTP`). To publish by hand instead (`prepack` builds `dist/` first):
 
 ```sh
-npm publish --access public   # `prepack` builds dist/ first
+npm publish --access public
 ```
+
+Until the first publish, the tag install above is the way to consume the
+package.
 
 The steps as a whole are under "Releasing" in the repository's
 `CONTRIBUTING.md`.
