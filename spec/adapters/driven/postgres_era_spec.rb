@@ -146,17 +146,17 @@ RSpec.describe Hecks::Adapters::PostgresEra, :io do
 
   it "reads back only one record's events, not the whole shared table" do
     adapter.record_event(Hecks::Runtime::Event.new(
-                            name: "PizzaPurchased", aggregate: "Pizza", id: "p1",
-                            payload: { customer: "c1" }, occurred_at: "2026-01-01T00:00:00Z"
-                          ))
+                           name: "PizzaPurchased", aggregate: "Pizza", id: "p1",
+                           payload: { customer: "c1" }, occurred_at: "2026-01-01T00:00:00Z"
+                         ))
     adapter.record_event(Hecks::Runtime::Event.new(
-                            name: "PizzaPurchased", aggregate: "Pizza", id: "p2",
-                            payload: { customer: "c2" }, occurred_at: "2026-01-01T00:00:01Z"
-                          ))
+                           name: "PizzaPurchased", aggregate: "Pizza", id: "p2",
+                           payload: { customer: "c2" }, occurred_at: "2026-01-01T00:00:01Z"
+                         ))
     adapter.record_event(Hecks::Runtime::Event.new(
-                            name: "OrderPlaced", aggregate: "Order", id: "p1",
-                            payload: { total: 12 }, occurred_at: "2026-01-01T00:00:02Z"
-                          ))
+                           name: "OrderPlaced", aggregate: "Order", id: "p1",
+                           payload: { total: 12 }, occurred_at: "2026-01-01T00:00:02Z"
+                         ))
 
     found = adapter.events_for(aggregate: "Pizza", id: "p1")
 
