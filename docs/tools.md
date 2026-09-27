@@ -15,7 +15,7 @@ print a usage line on a missing argument).
 | `bin/check_era` | Checks the era a running host reports at `GET /version` against an allow-list file, after a roll: one era id per line, exit 0 when listed, 1 when not, 3 when the host cannot be reached. See [wiring](implemented/guides/wiring.md#hosting-scripts-for-awsfargate). |
 | `bin/codemod_hoist_local_givens` | A CODEMOD, not an agent — for the corpus duplication `bin/query_ir duplicates` surfaces directly: two or more commands under the SAME own... |
 | `bin/codemod_implicit_append_fields` | A CODEMOD, not an agent — for the class of redundancy `CommandBuilder#resolve_append_fields!` (lib/hecks/bluebook/dsl/ command_builder.rb... |
-| `bin/console` | Boots a domain (pizzas by default) and drops into IRB with its door installed — the fastest way to dispatch a real command by hand. bin/c... |
+| `bin/console` | Boots a domain (pizzas on the in-memory adapter by default) and drops into IRB with its door installed, the fastest way to dispatch a real command by hand. bin/c... |
 | `bin/doc_coverage` | EVERY LIVE WORD SHIPS WITH A RUNNING EXAMPLE, or this refuses. Prose is a declaration, and a declaration nothing runs cannot disagree wit... |
 | `bin/docs` | A domain's usage document, projected from its own bluebook. bin/docs # list every domain in this checkout bin/docs examples/banking # the... |
 | `bin/evolve` | The language-change convention, made executable. Adding a word to the bluebook surface has always been a many-file walk — syntax row, Rub... |
