@@ -1,6 +1,6 @@
 # The gem ships a `hecks` executable, and development tooling stays in the repo
 
-**Status:** Accepted — not yet implemented. Date: 2026-09-27. Nothing under "Decision" is built; this ADR records the shape so the work can be split into pull requests.
+**Status:** Accepted — implemented in 2.8.0. Date: 2026-09-27. Step 1 (the syntax-boot cache and the Storehouse log live under `Hecks::CacheDir`) and step 2 (`exe/hecks`, and a packaged file list without the repository-only tooling) both shipped. The open items below still stand.
 
 ## Context
 

@@ -74,8 +74,11 @@ prep's own estimates. Each item is its own build session and PR.
 
 ## Build status
 
-Each item is its own draft PR, built in an isolated worktree and pushed through the pre-push
-gate. None is merged yet. PR numbers are the GitHub pull requests on `heckslabs/hecks`.
+Each item was built as its own PR in an isolated worktree and pushed through the pre-push
+gate. Everything is merged and shipped in 2.8.0. #863, #867, #869, #875 and #878 merged on
+their own; #870, #871, #872, #873, #874, #876, #879 and #880 kept conflicting on the same
+CHANGELOG spot, so they were closed and combined into #881, which resolved those conflicts once.
+The release itself is #883. PR numbers are the GitHub pull requests on `heckslabs/hecks`.
 
 | Order item | ADR | PR |
 | --- | --- | --- |
@@ -95,18 +98,19 @@ gate. None is merged yet. PR numbers are the GitHub pull requests on `heckslabs/
 | `v2.5.0` tag and the GitHub Releases page | 0068 | done directly: the tag and a release for every tag from 1.0.1 to 2.7.0 |
 
 Found while building, outside the ADRs: the host ran a command or a read from any outside
-caller's body on the Fargate shape. That is fixed in #878, with a CHANGELOG entry; it is the
-one to review first.
+caller's body on the Fargate shape. That is fixed in #878 and shipped in 2.8.0; a deployed
+stack gets it by moving to a host built from 2.8.0, and the deploy guide says how to check it.
 
 The two ADR 0072 triggers were answered on 2026-09-27: multi-agent use is near (so the
-allowlist is built, #880) and a network door is wanted. The network door is its own map,
+allowlist shipped, #880 then #881) and a network door is wanted. The network door is its own map,
 [docs/wayfinder/mcp-network-door/](../mcp-network-door/map.md); all six of its questions are decided
 ([ADR 0076](../../decisions/0076-the-network-door-is-a-separate-service-and-principals-live-in-each-domains-governance.md)
 and [ADR 0077](../../decisions/0077-the-network-door-speaks-http-and-takes-a-signed-short-lived-token.md)),
 and nothing of it is built.
 
-Still open, and not something a build session can finish: merging the PRs, and finding an
-outside team for ADR 0071's exit test.
+Still open: finding an outside team for ADR 0071's exit test; moving deployed stacks to a host
+built from 2.8.0, which belongs to whoever owns each stack; and building the network door, if
+it is wanted.
 
 ## Not yet specified
 
