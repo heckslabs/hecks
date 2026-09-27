@@ -1,5 +1,6 @@
 require_relative "../../projector"
 require_relative "shared"
+require_relative "preview"
 
 module Hecks
   module Projections
@@ -827,6 +828,17 @@ module Hecks
           files["bastion.yaml"] = bastion_yaml if bastion_yaml
           files["Dockerfile"] = dockerfile
           files["Makefile"] = makefile_content
+          # Opt-in per-branch previews: nothing is added unless the domain declares a `preview`
+          # setting under deployed_to("AwsFargate"). See Preview's own header for the keys.
+          preview_main = {
+            infra_name: infra_name, stack_name: stack_name, stack_prefix: stack_prefix, region: region,
+            cpu: cpu, memory: memory, db_name: shared ? owner_db_name : db_name,
+            owner_stack: shared ? owner_stack_name : nil, name: infra_name, port: port,
+            image: "#{infra_name}:latest", domain: declared_domain_name, web: target.state[:web].value,
+            wasm_path: "/usr/local/bin/#{domain_name}.wasm", ir_path: "/usr/local/bin/#{domain_name}.ir.json",
+            schema: hecks_schema
+          }
+          files.merge!(Preview.call(deploy_settings: deploy_settings, main: preview_main))
           files
         end
 
