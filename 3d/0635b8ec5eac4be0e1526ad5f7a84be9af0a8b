@@ -1,0 +1,2 @@
+checks=doc_coverage,engine_agreement,model_check,rspec,rubocop,rspec_rust_io,rspec_rust_parser,rspec_rust_codegen,rspec_rust_host,rspec_fuzzing,checks_fuzz,checks_fuzz_postgres,checks_fuzz_sqlite,checks_codegen_drift
+hmac=39b50cef0da8d0d0ef479531262f354e3c9a5761258dffa8fe222b050ef7adfe
