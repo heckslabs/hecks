@@ -1,0 +1,111 @@
+name: Publish @hecks/client
+
+# Publishes packages/hecks-client to npm when a release tag (`vX.Y.Z`) is
+# pushed. It uses npm trusted publishing: the job proves who it is with a
+# short-lived OIDC identity token (`id-token: write`), so no npm token and no
+# one-time code is stored anywhere and nothing here reads a secret. `bin/release`
+# pushes the tag, publishes the gem, and then waits for this workflow.
+#
+# One-time setup on npmjs.com, done by an owner of the `@hecks` scope, and
+# possible only once the package exists (so the first publish is done by hand,
+# with `bin/release --npm-local`):
+#
+#   package @hecks/client > Settings > Trusted Publisher > GitHub Actions
+#     Organization or user:  heckslabs
+#     Repository:            hecks
+#     Workflow filename:     publish-client.yml
+#     Environment:           (leave blank)
+#
+# Re-running a release: start this workflow by hand (`gh workflow run
+# publish-client.yml -f tag=vX.Y.Z`). It skips a version npm already has, so a
+# re-run is safe.
+#
+# The guard step refuses a tag that does not name the package's version and the
+# gem's version, so a stray tag cannot publish the wrong thing.
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to publish, such as v2.7.0"
+        required: true
+        type: string
+
+# Releases must not race each other, and a running publish must never be
+# cancelled halfway.
+concurrency:
+  group: ${{ github.workflow }}-${{ inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    env:
+      TAG: ${{ inputs.tag || github.ref_name }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+
+      - name: The tag names this release
+        run: |
+          version="${TAG#v}"
+          package_version="$(node -p "require('./packages/hecks-client/package.json').version")"
+          gem_version="$(sed -n 's/^ *VERSION = "\(.*\)".*/\1/p' lib/hecks/version.rb)"
+          if [ "$version" != "$package_version" ] || [ "$version" != "$gem_version" ]; then
+            echo "::error::tag $TAG is release $version, but packages/hecks-client is at $package_version and Hecks::VERSION is $gem_version; they must all match. Fix the release PR or push the right tag."
+            exit 1
+          fi
+          echo "VERSION=$version" >> "$GITHUB_ENV"
+
+      # Read straight from the registry, so it needs no npm configuration.
+      - name: Already published?
+        id: state
+        run: |
+          status="$(curl -sS -o /dev/null -w '%{http_code}' "https://registry.npmjs.org/@hecks%2Fclient/$VERSION")"
+          case "$status" in
+            200) echo "@hecks/client $VERSION is already published; nothing to do."
+                 echo "published=true" >> "$GITHUB_OUTPUT" ;;
+            404) echo "published=false" >> "$GITHUB_OUTPUT" ;;
+            *)   echo "::error::the npm registry answered $status; re-run this workflow"; exit 1 ;;
+          esac
+
+      - uses: actions/setup-node@v4
+        if: steps.state.outputs.published == 'false'
+        with:
+          node-version: "24"
+          registry-url: https://registry.npmjs.org
+
+      # Trusted publishing needs npm 11.5.1 or newer.
+      - name: Use a current npm
+        if: steps.state.outputs.published == 'false'
+        run: |
+          npm install -g "npm@^11.5.1"
+          npm --version
+
+      - name: Install
+        if: steps.state.outputs.published == 'false'
+        run: npm ci
+        working-directory: packages/hecks-client
+
+      - name: Build and test
+        if: steps.state.outputs.published == 'false'
+        run: npm test
+        working-directory: packages/hecks-client
+
+      # `prepack` builds dist/ first. The provenance statement links the
+      # package to this workflow run and the tagged commit.
+      - name: Publish
+        if: steps.state.outputs.published == 'false'
+        run: npm publish --access public --provenance
+        working-directory: packages/hecks-client
