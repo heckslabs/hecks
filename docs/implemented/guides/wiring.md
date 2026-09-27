@@ -323,17 +323,60 @@ The block's words are `hosting_scripts true`, `hecks_release "2.5.1"` (required:
 the Hecks release the image is built from), `smoke_repo "owner/name"` (the GitHub
 repository holding the smoke workflow), `smoke_workflow "smoke.yml"` and
 `expected_eras ["199b08"]`, next to the `region` the block already carries.
-`bin/project_deploy` hands the block to the projection as a plain Hash, and this
-is what it does with it:
+Run `bin/project_deploy <domain> --out=<dir>` on a domain whose `.world` carries
+the block and it writes those files beside `template.yaml`. Without
+`hosting_scripts true` the same run writes only what it always did:
 
 ```ruby
-settings = { hosting_scripts: true, hecks_release: "2.5.1", smoke_repo: "owner/name",
-             smoke_workflow: "smoke.yml", expected_eras: ["199b08"] }
-common = { infra_name: "pizzas", stack_name: "pizzas", region: "us-east-1" }
-scripts = Hecks::Projections::Deploy::Scripts
-files = scripts.extend_files({ "Makefile" => "" }, deploy_settings: settings, **common)
-files.keys.sort   # => ["Makefile", "deploy-service.sh", "expected-era", "hosting.mk", "smoke-after-deploy.sh"]
-scripts.extend_files({ "Makefile" => "" }, deploy_settings: {}, **common).keys   # => ["Makefile"]
+require "fileutils"
+require "open3"
+require "tmpdir"
+
+deploy_bin = File.join(InMemoryDomain::ROOT, "bin/project_deploy")
+domain_dir = File.join(Dir.mktmpdir("hecks-doctest-hosting-"), "scratch")
+FileUtils.mkdir_p(File.join(domain_dir, "bluebook"))
+File.write(File.join(domain_dir, "bluebook/scratch.bluebook"), <<~BLUEBOOK)
+  Hecks.bluebook "Scratch" do
+    aggregate "Thing" do
+      identified_by :name
+      attribute :name, ThingName
+      value_object "ThingName" do
+        attribute :value, String
+      end
+      command "Create" do
+        attribute :name, ThingName
+        sets :name
+        emits "ThingCreated"
+      end
+    end
+  end
+BLUEBOOK
+
+generate = lambda do |hosting|
+  File.write(File.join(domain_dir, "bluebook/scratch.world"), <<~WORLD)
+    Hecks.world "Scratch" do
+      deployed_to("AwsFargate") do
+        region "us-east-1"
+        stack_prefix "acme"
+        #{hosting}
+      end
+    end
+  WORLD
+  out = File.join(domain_dir, "out-#{hosting.empty? ? 'plain' : 'hosting'}")
+  _stdout, stderr, status = Open3.capture3("ruby", deploy_bin, domain_dir, "--out=#{out}")
+  raise stderr unless status.success?
+
+  Dir.children(out).sort
+end
+
+hosting = <<~SETTINGS.strip
+  hosting_scripts true
+  hecks_release "2.5.1"
+  smoke_repo "owner/name"
+  smoke_workflow "smoke.yml"
+  expected_eras ["199b08"]
+SETTINGS
+generate.call(hosting) - generate.call("")   # => ["deploy-service.sh", "expected-era", "hosting.mk", "smoke-after-deploy.sh"]
 ```
 
 | File | What it does |
