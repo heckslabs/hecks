@@ -1,6 +1,6 @@
 ---
 type: grilling
-status: open
+status: closed
 blocked_by: [02-research-silent-wrong-status]
 claimed_by:
 ---
@@ -78,3 +78,10 @@ silent-wrong construct fail the suite.
 - Is ADR 0061 accepted or still a draft?
 
 ## Answer
+
+Decided 2026-09-27: accept the prep plan. Fix the dotted-source `compute` SQL now; adopt ADR
+0061 decision D1 (a runtime refusal on a colliding `group_by` on both runtimes, plus the
+identity shortcut at seal); until that lands, refuse a non-identity `group_by` key at seal by
+default; correct the README wording now. Order: README wording and the compute fix, then the
+seal-time stopgap, then the runtime refusal. Recorded in
+[ADR 0065](../../../decisions/0065-silent-wrong-constructs-are-refused-or-fixed.md).
