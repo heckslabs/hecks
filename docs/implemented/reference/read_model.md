@@ -57,16 +57,19 @@ Hecks.bluebook "ReadModelReference" do
     reference_to Depot
     attribute :region, Region
     attribute :weight, Weight, optional: true
+    attribute :fragile, Fragile
 
-    value_object("Label")  { attribute :value, String }
-    value_object("Region") { attribute :value, String }
-    value_object("Weight") { attribute :value, Integer }
+    value_object("Label")   { attribute :value, String }
+    value_object("Region")  { attribute :value, String }
+    value_object("Weight")  { attribute :value, Integer }
+    value_object("Fragile") { attribute :value, TrueClass }
 
     command "Accept" do
       attribute :depot,    Depot
       sets :label
       sets :region
       sets :weight
+      sets :fragile
       emits "ParcelAccepted"
     end
   end
@@ -82,6 +85,23 @@ Hecks.bluebook "ReadModelReference" do
     offset 1
     inspect_query :sql
     authorize :depot_access, tenant: :region
+  end
+
+  # `any`/`all` (ADR 0078) need a boolean field examples/banking doesn't declare —
+  # same reason `weight`/`nulls`/`offset`/`authorize` above live in this fixture,
+  # not the real corpus.
+  read_model "DepotHasFragileParcel" do
+    reference_to Depot
+    include Depot
+    include Parcel
+    any :fragile
+  end
+
+  read_model "DepotAllParcelsFragile" do
+    reference_to Depot
+    include Depot
+    include Parcel
+    all :fragile
   end
 end
 ```
@@ -125,10 +145,10 @@ second.dispute!(disputed_by: "rm-1")
 end
 
 runtime.dispatch("ReadModelReference::Depot.OpenDepot", with: { code: { value: "dp-1" } })
-runtime.dispatch("ReadModelReference::Parcel.Accept", with: { label: { value: "p-1" }, depot: "dp-1", region: { value: "north" }, weight: { value: 30 } })
-runtime.dispatch("ReadModelReference::Parcel.Accept", with: { label: { value: "p-2" }, depot: "dp-1", region: { value: "north" }, weight: { value: 20 } })
-runtime.dispatch("ReadModelReference::Parcel.Accept", with: { label: { value: "p-3" }, depot: "dp-1", region: { value: "north" }, weight: { value: 10 } })
-runtime.dispatch("ReadModelReference::Parcel.Accept", with: { label: { value: "p-4" }, depot: "dp-1", region: { value: "north" } })
+runtime.dispatch("ReadModelReference::Parcel.Accept", with: { label: { value: "p-1" }, depot: "dp-1", region: { value: "north" }, weight: { value: 30 }, fragile: { value: true } })
+runtime.dispatch("ReadModelReference::Parcel.Accept", with: { label: { value: "p-2" }, depot: "dp-1", region: { value: "north" }, weight: { value: 20 }, fragile: { value: false } })
+runtime.dispatch("ReadModelReference::Parcel.Accept", with: { label: { value: "p-3" }, depot: "dp-1", region: { value: "north" }, weight: { value: 10 }, fragile: { value: false } })
+runtime.dispatch("ReadModelReference::Parcel.Accept", with: { label: { value: "p-4" }, depot: "dp-1", region: { value: "north" }, fragile: { value: false } })
 ```
 
 ## description
@@ -338,6 +358,176 @@ runtime.query("Banking.DisputedPaymentMedian", account: "rm-a1").first[:card_pay
 An even number of values has no single middle, so the two nearest are
 averaged — which is why this answers a Float where `count` answers an
 Integer.
+
+## sum
+
+<!-- generated:begin word=sum -->
+`sum sum_field` — fills `sum_field`
+
+| argument | kind | required | fills |
+|---|---|---|---|
+| positional 1 | symbol | true | sum_field |
+<!-- generated:end -->
+
+Reduces the eligible collection's own (already `where`-filtered) rows
+to the total of one Integer field — never Float; summing floats
+cannot be made to agree, byte for byte, between Ruby and Rust, so
+`sum` refuses a Float field at dispatch time (ADR 0078). An empty
+collection answers `0`, not `nil` — "no disputes" means zero exposure,
+where `median` has no answer to give. Same `seal_aggregation` rule
+`median` carries: exactly one many-side head, never combined with
+`group_by` or with another reduction. See
+`Banking::DisputedPaymentTotal` for the real corpus example.
+
+The same two disputed charges — 4,200 and 900 — added together
+instead of counted or averaged:
+
+```ruby
+runtime.query("Banking.DisputedPaymentTotal", account: "rm-a1").first[:card_payments]  # => 5100
+```
+
+## avg
+
+<!-- generated:begin word=avg -->
+`avg avg_field` — fills `avg_field`
+
+| argument | kind | required | fills |
+|---|---|---|---|
+| positional 1 | symbol | true | avg_field |
+<!-- generated:end -->
+
+Reduces the eligible collection's own (already `where`-filtered) rows
+to the mean of one Integer field — `sum / count`, computed as a plain
+`f64` division; both operands are exact integers within 2^53 (`sum`'s
+own overflow refusal), so IEEE 754's correctly-rounded division agrees
+bit for bit between Ruby and Rust (ADR 0078). An empty collection
+answers `nil`, not zero — a rate of nothing is undefined. Same
+`seal_aggregation` rule every other reduction carries.
+
+The same two charges averaged rather than summed:
+
+```ruby
+runtime.query("Banking.DisputedPaymentAverage", account: "rm-a1").first[:card_payments]  # => 2550.0
+```
+
+## min
+
+<!-- generated:begin word=min -->
+`min min_field` — fills `min_field`
+
+| argument | kind | required | fills |
+|---|---|---|---|
+| positional 1 | symbol | true | min_field |
+<!-- generated:end -->
+
+Reduces the eligible collection's own (already `where`-filtered) rows
+to the smallest value of one numeric field — Integer or Float alike,
+since comparing (unlike summing) never loses precision between Ruby
+and Rust. An empty collection answers `nil`. Same `seal_aggregation`
+rule every other reduction carries.
+
+The smaller of the two disputed charges:
+
+```ruby
+runtime.query("Banking.DisputedPaymentSmallest", account: "rm-a1").first[:card_payments]  # => 900
+```
+
+## max
+
+<!-- generated:begin word=max -->
+`max max_field` — fills `max_field`
+
+| argument | kind | required | fills |
+|---|---|---|---|
+| positional 1 | symbol | true | max_field |
+<!-- generated:end -->
+
+`min`'s own sibling: the largest value of the same numeric field,
+Integer or Float alike. An empty collection answers `nil`. Same
+`seal_aggregation` rule every other reduction carries.
+
+The larger of the two disputed charges:
+
+```ruby
+runtime.query("Banking.DisputedPaymentLargest", account: "rm-a1").first[:card_payments]  # => 4200
+```
+
+## percentile
+
+<!-- generated:begin word=percentile -->
+`percentile percentile_field, at:` — fills `percentile_field`
+
+| argument | kind | required | fills |
+|---|---|---|---|
+| positional 1 | symbol | true | percentile_field |
+| `at:` | number | true | percentile_at |
+<!-- generated:end -->
+
+Reduces the eligible collection's own (already `where`-filtered) rows
+to the value at one interpolated rank, `at:` from `0.0` (the smallest)
+through `1.0` (the largest) — linear interpolation between the two
+closest ranks, matching SQL's `PERCENTILE_CONT`. `median` is the fixed
+`at: 0.5` case, sharing this exact fold so the two cannot silently
+diverge (ADR 0078). An empty collection answers `nil`. Same
+`seal_aggregation` rule every other reduction carries.
+
+`rm-a2` carries seven disputed charges — 4,200, 900, 500, 400, 300,
+200 and 100 — so the 95th percentile lands between the two largest
+rather than collapsing to the median:
+
+```ruby
+runtime.query("Banking.DisputedPaymentP95", account: "rm-a2").first[:card_payments].round(2)  # => 3210.0
+```
+
+Sorted, the seven values are 100, 200, 300, 400, 500, 900, 4200; rank
+`0.95 * 6 = 5.7` sits seven tenths of the way from the sixth value
+(900) to the seventh (4200).
+
+## any
+
+<!-- generated:begin word=any -->
+`any any_field` — fills `any_field`
+
+| argument | kind | required | fills |
+|---|---|---|---|
+| positional 1 | symbol | true | any_field |
+<!-- generated:end -->
+
+Reduces the eligible collection's own (already `where`-filtered) rows
+to whether ANY row's declared boolean field is `true` — a bare
+question needing a `true`/`false` answer, not a number a caller must
+remember to compare to zero (`count > 0` already answers this; `any`
+is the boolean-shaped restatement). An empty collection answers
+`false` — the ordinary OR-identity vacuous-truth reading (ADR 0078).
+No aggregate in `examples/banking` declares a bare boolean field yet,
+so this page's own `Parcel.fragile` demonstrates it instead of a real
+corpus site.
+
+Depot `dp-1` holds one fragile parcel among four:
+
+```ruby
+runtime.query("ReadModelReference.DepotHasFragileParcel", depot: "dp-1").first[:parcels]  # => true
+```
+
+## all
+
+<!-- generated:begin word=all -->
+`all all_field` — fills `all_field`
+
+| argument | kind | required | fills |
+|---|---|---|---|
+| positional 1 | symbol | true | all_field |
+<!-- generated:end -->
+
+`any`'s own sibling: whether EVERY row's declared boolean field is
+`true`. An empty collection answers `true` — the ordinary AND-identity
+vacuous-truth reading (ADR 0078), the mirror image of `any`'s `false`.
+
+Depot `dp-1`'s four parcels are not all fragile — only the first is:
+
+```ruby
+runtime.query("ReadModelReference.DepotAllParcelsFragile", depot: "dp-1").first[:parcels]  # => false
+```
 
 ## where
 

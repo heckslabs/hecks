@@ -42,8 +42,8 @@ RSpec.describe "bin/standardize_comments" do
       CommentStyle::SourceFile.new(path, source).violations(only: ["long_block"], baseline: baseline)
     end
 
-    it "names the provisional threshold as a constant" do
-      expect(limit).to eq(50)
+    it "names the decided threshold as a constant" do
+      expect(limit).to eq(12)
     end
 
     it "passes a block exactly at the threshold" do

@@ -5,6 +5,7 @@ require_relative "../../../../adapters/driven/postgres/outbox"
 require_relative "../../../../adapters/driven/postgres/reconnect"
 require_relative "postgres_era/lineage"
 require_relative "postgres_era/lineage_manager"
+require_relative "postgres_era/events"
 require_relative "../../../../ports/persistence/append_only"
 require_relative "../../../../query_specification/common/order_by"
 require_relative "../../../../runtime/errors"
@@ -20,16 +21,20 @@ module Hecks
       include SqlQueryBuilder
       include Adapters::PostgresOutbox
       include Adapters::PostgresReconnect
+      include Events
 
       attr_reader :aggregate
 
       # Names the optional persistence capabilities this adapter implements natively.
       #
       # `:cross_process_lock` lets dispatch hold `with_write_lock` instead of the in-process
-      # mutex, which `rust/host` in another OS process cannot see (ADR 0036).
+      # mutex, which `rust/host` in another OS process cannot see (ADR 0036). `:atomic_append`
+      # tells `RepositoryFactory.build` that `append` (below) already commits the snapshot in
+      # the same transaction as the journal row, so replaying the journal through `project` on
+      # boot has nothing left to fix up.
       #
-      # @return [Array<Symbol>] always `[:atomic_put, :cross_process_lock]`
-      def persistence_capabilities = %i[atomic_put cross_process_lock]
+      # @return [Array<Symbol>] always `[:atomic_put, :cross_process_lock, :atomic_append]`
+      def persistence_capabilities = %i[atomic_put cross_process_lock atomic_append]
 
       # Declares that this adapter can act on shape drift rather than only refuse.
       #
@@ -367,33 +372,6 @@ module Hecks
         true
       end
 
-      # Stores one emitted event in the `events` table, shared by every aggregate on this
-      # database and schema.
-      #
-      # @param event [Runtime::Event] the event to record; `correlation` is not stored
-      # @return [PG::Result] the INSERT's result
-      def record_event(event)
-        @db.exec_params(
-          "INSERT INTO events (name, aggregate, aggregate_id, payload, occurred_at) VALUES ($1, $2, $3, $4, $5)",
-          [event.name, event.aggregate, event.id.to_s, JSON.generate(event.payload), event.occurred_at]
-        )
-      end
-
-      # Reads every recorded event in the order recorded, across all aggregates.
-      #
-      # @return [Array<Runtime::Event>] events with symbol-keyed `payload` and `correlation` nil
-      def events
-        @db.exec("SELECT * FROM events ORDER BY id").map do |row|
-          Runtime::Event.new(
-            name:        row["name"],
-            aggregate:   row["aggregate"],
-            id:          row["aggregate_id"],
-            payload:     JSON.parse(row["payload"], symbolize_names: true),
-            occurred_at: row["occurred_at"]
-          )
-        end
-      end
-
       # Saga rows keep `domain` as a column so domains sharing one schema stay isolated. No lock
       # here: `SagaInterpreter`'s own mutex already serializes in-process writers.
 
@@ -643,19 +621,6 @@ module Hecks
         sql << unbounded_limit if !declared.limit && declared.offset
         sql << " OFFSET #{placeholder(binds, query_value(declared.offset.value, args).to_i)}" if declared.offset
         execute_query(sql, binds)
-      end
-
-      def create_event_table!
-        @db.exec(<<~SQL)
-          CREATE TABLE IF NOT EXISTS events (
-            id           bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-            name         text NOT NULL,
-            aggregate    text NOT NULL,
-            aggregate_id text NOT NULL,
-            payload      jsonb,
-            occurred_at  text
-          )
-        SQL
       end
 
       def create_saga_table!

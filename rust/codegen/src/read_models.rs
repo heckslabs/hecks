@@ -7,7 +7,17 @@ use crate::queries;
 use crate::skip_reason::{reskip, skip, SkipReason};
 use std::collections::HashMap;
 
-const READ_MODEL_BARE_KEYS: &[&str] = &["name", "description", "reference_name", "reference_target", "query_name", "aggregate_heads", "wheres", "order_by", "offset", "limit", "freshness", "index_hints", "group_by", "null_semantics", "authorization", "count", "median_field"];
+const READ_MODEL_BARE_KEYS: &[&str] = &[
+    "name", "description", "reference_name", "reference_target", "query_name", "aggregate_heads", "wheres", "order_by", "offset", "limit", "freshness", "index_hints", "group_by", "null_semantics", "authorization", "count", "median_field",
+    "sum_field", "avg_field", "min_field", "max_field", "percentile_field", "percentile_at", "any_field", "all_field",
+];
+
+// Every reduction beyond `count` (which needs no field) — mirrors
+// Runtime::ReadModelInterpreter::REDUCTION_WORD/INTEGER_ONLY_REDUCTIONS/BOOLEAN_REDUCTIONS
+// (ADR 0078).
+const AGGREGATION_FIELD_KEYS: &[&str] = &["median_field", "sum_field", "avg_field", "min_field", "max_field", "percentile_field", "any_field", "all_field"];
+const INTEGER_ONLY_AGGREGATION_FIELDS: &[&str] = &["sum_field", "avg_field"];
+const BOOLEAN_AGGREGATION_FIELDS: &[&str] = &["any_field", "all_field"];
 
 pub fn read_model_skip_reason(read_model: &Json, aggregates_by_name: &HashMap<String, &Json>, unsupported_names: &[String]) -> Option<SkipReason> {
     let keys: Vec<&str> = match read_model {
@@ -209,29 +219,52 @@ fn read_model_options_content_skip_reason(read_model: &Json, aggregates_by_name:
 }
 
 // `seal_aggregation` (Ruby, build time) already guarantees exactly one
-// many-side head and mutual exclusion with `group_by` — only `median`'s own
-// field needs checking here.
+// many-side head and mutual exclusion with `group_by` — only the one declared
+// reduction's own field needs checking here (ADR 0078).
 fn aggregation_skip_reason(read_model: &Json, aggregates_by_name: &HashMap<String, &Json>) -> Option<SkipReason> {
-    let median_field = read_model.get("median_field")?;
-    let field = Json::to_s(median_field);
+    let field_key = AGGREGATION_FIELD_KEYS.iter().find(|key| read_model.get(**key).is_some())?;
+    let field = Json::to_s(read_model.get(*field_key).expect("checked by find above"));
+    let word = field_key.strip_suffix("_field").unwrap_or(field_key);
 
     let heads = read_model.get("aggregate_heads").map(Json::each).unwrap_or(&[]);
     let target = heads.iter().find(|h| h.get("many").map(Json::as_bool).unwrap_or(false))?;
     let aggregate_name = target.get("aggregate").map(Json::to_s).unwrap_or_default();
     let Some(aggregate) = aggregates_by_name.get(&aggregate_name) else {
-        return Some(entity_head_skip_reason(&aggregate_name, "median target", "take a median of"));
+        return Some(entity_head_skip_reason(&aggregate_name, &format!("{word} target"), "reduce"));
     };
     let vos = aggregate.get("value_objects").map(Json::each).unwrap_or(&[]);
     let value_objects_by_name: HashMap<String, &Json> = vos.iter().map(|vo| (vo.get("name").and_then(Json::as_str).unwrap_or("").to_string(), vo)).collect();
 
-    match queries::query_field_kind(aggregate, &field, &value_objects_by_name) {
-        queries::FieldKind::Unknown => Some(skip("median_field", format!("median names {field:?}, but {aggregate_name} declares no such attribute — not generated yet"))),
-        queries::FieldKind::Number => None,
-        _ => Some(skip(
-            "median_field",
-            format!("median names {field:?} on {aggregate_name}, which is not numeric — median needs a numeric field (a bare number, or a value object carrying one) — not generated yet"),
-        )),
+    let kind = queries::query_field_kind(aggregate, &field, &value_objects_by_name);
+    if kind == queries::FieldKind::Unknown {
+        return Some(skip(*field_key, format!("{word} names {field:?}, but {aggregate_name} declares no such attribute — not generated yet")));
     }
+
+    if BOOLEAN_AGGREGATION_FIELDS.contains(field_key) {
+        return if queries::query_field_boolean(aggregate, &field, &value_objects_by_name) {
+            None
+        } else {
+            Some(skip(*field_key, format!("{word} names {field:?} on {aggregate_name}, which is not boolean — {word} needs a true/false field — not generated yet")))
+        };
+    }
+
+    if kind != queries::FieldKind::Number {
+        return Some(skip(
+            *field_key,
+            format!("{word} names {field:?} on {aggregate_name}, which is not numeric — {word} needs a numeric field (a bare number, or a value object carrying one) — not generated yet"),
+        ));
+    }
+
+    if INTEGER_ONLY_AGGREGATION_FIELDS.contains(field_key) {
+        if queries::query_field_numeric_type(aggregate, &field, &value_objects_by_name).as_deref() != Some("Integer") {
+            return Some(skip(
+                *field_key,
+                format!("{word} names {field:?} on {aggregate_name}, which is a Float field — {word} admits only an Integer field (summing/averaging Floats cannot be made to agree, byte for byte, between Ruby and Rust) — not generated yet"),
+            ));
+        }
+    }
+
+    None
 }
 
 // Mirrors `rust/project/read_models.rb`'s `group_by_skip_reason`: the one
@@ -245,8 +278,8 @@ fn group_by_skip_reason(read_model: &Json, aggregates_by_name: &HashMap<String, 
     if reference_target.is_some() && !matches!(reference_target, Some(Json::Null)) {
         return Some(skip("group_by", format!("declares group_by on a NON-rootless read model (reference_to {}) — not generated yet", reference_target.map(Json::to_s).unwrap_or_default())));
     }
-    if read_model.get("count").is_some() || read_model.get("median_field").is_some() {
-        return Some(skip("group_by", "declares group_by alongside count/median — not generated yet"));
+    if read_model.get("count").is_some() || AGGREGATION_FIELD_KEYS.iter().any(|key| read_model.get(*key).is_some()) {
+        return Some(skip("group_by", "declares group_by alongside a reduction — not generated yet"));
     }
     let has_wheres = read_model.get("wheres").map(Json::each).unwrap_or(&[]).iter().any(|_| true);
     if has_wheres || read_model.get("order_by").is_some() || read_model.get("limit").is_some() || read_model.get("offset").is_some() {
@@ -416,6 +449,14 @@ pub struct ReadModelDef {
     pub group_by_fn_body: Option<String>,
     pub count: bool,
     pub median_field: Option<String>,
+    pub sum_field: Option<String>,
+    pub avg_field: Option<String>,
+    pub min_field: Option<String>,
+    pub max_field: Option<String>,
+    pub percentile_field: Option<String>,
+    pub percentile_at: Option<String>,
+    pub any_field: Option<String>,
+    pub all_field: Option<String>,
 }
 
 /// `local_wheres, hop_wheres` compiled for one targeted head, mirroring
@@ -476,6 +517,14 @@ pub fn read_model_def(domain_name: &str, read_model: &Json, aggregates_by_name: 
         group_by_fn_body,
         count: read_model.get("count").is_some(),
         median_field: read_model.get("median_field").map(Json::to_s),
+        sum_field: read_model.get("sum_field").map(Json::to_s),
+        avg_field: read_model.get("avg_field").map(Json::to_s),
+        min_field: read_model.get("min_field").map(Json::to_s),
+        max_field: read_model.get("max_field").map(Json::to_s),
+        percentile_field: read_model.get("percentile_field").map(Json::to_s),
+        percentile_at: if read_model.get("percentile_field").is_some() { read_model.get("percentile_at").map(Json::to_s) } else { None },
+        any_field: read_model.get("any_field").map(Json::to_s),
+        all_field: read_model.get("all_field").map(Json::to_s),
     }
 }
 
@@ -507,13 +556,25 @@ pub fn emit_read_model_def(rmd: &ReadModelDef) -> String {
         None => "None".to_string(),
     };
     let count = if rmd.count { "true" } else { "false" };
-    let median_field = match &rmd.median_field {
-        Some(f) => format!("Some({})", crate::naming::ruby_inspect_string(f)),
+    let field_some = |f: &Option<String>| match f {
+        Some(v) => format!("Some({})", crate::naming::ruby_inspect_string(v)),
         None => "None".to_string(),
     };
+    let median_field = field_some(&rmd.median_field);
+    let sum_field = field_some(&rmd.sum_field);
+    let avg_field = field_some(&rmd.avg_field);
+    let min_field = field_some(&rmd.min_field);
+    let max_field = field_some(&rmd.max_field);
+    let percentile_field = field_some(&rmd.percentile_field);
+    let percentile_at = match &rmd.percentile_at {
+        Some(at) => format!("Some({at}_f64)"),
+        None => "None".to_string(),
+    };
+    let any_field = field_some(&rmd.any_field);
+    let all_field = field_some(&rmd.all_field);
 
     format!(
-        "crate::kernel::read_model::ReadModelDef {{\n    verb: {},\n    reference_name: {reference_name},\n    heads: &[\n{heads}\n    ],\n    filtered_heads: &[\n{filtered_heads}\n    ],\n    authorization: {authorization},\n    group_by: {group_by},\n    count: {count},\n    median_field: {median_field},\n}},",
+        "crate::kernel::read_model::ReadModelDef {{\n    verb: {},\n    reference_name: {reference_name},\n    heads: &[\n{heads}\n    ],\n    filtered_heads: &[\n{filtered_heads}\n    ],\n    authorization: {authorization},\n    group_by: {group_by},\n    count: {count},\n    median_field: {median_field},\n    sum_field: {sum_field},\n    avg_field: {avg_field},\n    min_field: {min_field},\n    max_field: {max_field},\n    percentile_field: {percentile_field},\n    percentile_at: {percentile_at},\n    any_field: {any_field},\n    all_field: {all_field},\n}},",
         crate::naming::ruby_inspect_string(&rmd.verb)
     )
 }
@@ -628,7 +689,7 @@ fn unwrap_json_expr(expr: &str, type_name: &str, list: bool, aggregate: &Json, v
     format!("match {expr} {{ crate::kernel::Json::Object(fields) => crate::kernel::Json::Object(fields.into_iter().map(|(k, v)| {{ let new_v = match k.as_str() {{ {inner_arms} _ => v }}; (k, new_v) }}).collect()), other => other }}")
 }
 
-const READ_MODEL_TABLE_ROW_PLACEHOLDER: &str = "crate::kernel::read_model::ReadModelDef {\n    verb: \"tmpl_verb\",\n    reference_name: Some(\"tmpl_reference_name\"),\n    heads: &[\n        crate::kernel::read_model::ReadModelHead {\n            aggregate: \"tmpl_aggregate\",\n            as_name: \"tmpl_as_name\",\n            many: true,\n            is_root: false,\n            reference_fields: &[\n                crate::kernel::read_model::ReferenceField { target_aggregate: \"tmpl_target_aggregate\", field: \"tmpl_field\" },\n            ],\n        },\n    ],\n    filtered_heads: &[\n        crate::kernel::read_model::FilteredHead { as_name: \"tmpl_as_name\", conditions: &[crate::kernel::QueryCondition { field: \"tmpl_field\", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Literal(\"tmpl_literal\") },], reference_hop_conditions: &[crate::kernel::read_model::ReferenceHopCondition { via_field: \"tmpl_via_field\", target_aggregate: \"tmpl_target_aggregate\", through: &[crate::kernel::read_model::HopStep { via_field: \"tmpl_via_field\", target_aggregate: \"tmpl_target_aggregate\" }], inner_field: \"tmpl_inner_field\", inner_comparator: crate::kernel::query_comparators::QueryComparator::Eq, inner_value: crate::kernel::QueryConditionValue::Literal(\"tmpl_literal\") },], order_by: Some(crate::kernel::read_model::ReadModelOrderBy { field: \"tmpl_order_field\", descending: true, nulls: crate::kernel::query_ordering::NullsMode::Last }), offset: Some(crate::kernel::read_model::ReadModelOffset::Literal(1)), limit: Some(crate::kernel::read_model::ReadModelLimit::Literal(5)) },\n    ],\n    authorization: Some(crate::kernel::named_query::TenantAuth { query_name: \"tmpl_query_name\", tenant_field: \"tmpl_tenant_field\", policy: \"tmpl_policy\" }),\n    group_by: None,\n    count: false,\n    median_field: None,\n},";
+const READ_MODEL_TABLE_ROW_PLACEHOLDER: &str = "crate::kernel::read_model::ReadModelDef {\n    verb: \"tmpl_verb\",\n    reference_name: Some(\"tmpl_reference_name\"),\n    heads: &[\n        crate::kernel::read_model::ReadModelHead {\n            aggregate: \"tmpl_aggregate\",\n            as_name: \"tmpl_as_name\",\n            many: true,\n            is_root: false,\n            reference_fields: &[\n                crate::kernel::read_model::ReferenceField { target_aggregate: \"tmpl_target_aggregate\", field: \"tmpl_field\" },\n            ],\n        },\n    ],\n    filtered_heads: &[\n        crate::kernel::read_model::FilteredHead { as_name: \"tmpl_as_name\", conditions: &[crate::kernel::QueryCondition { field: \"tmpl_field\", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Literal(\"tmpl_literal\") },], reference_hop_conditions: &[crate::kernel::read_model::ReferenceHopCondition { via_field: \"tmpl_via_field\", target_aggregate: \"tmpl_target_aggregate\", through: &[crate::kernel::read_model::HopStep { via_field: \"tmpl_via_field\", target_aggregate: \"tmpl_target_aggregate\" }], inner_field: \"tmpl_inner_field\", inner_comparator: crate::kernel::query_comparators::QueryComparator::Eq, inner_value: crate::kernel::QueryConditionValue::Literal(\"tmpl_literal\") },], order_by: Some(crate::kernel::read_model::ReadModelOrderBy { field: \"tmpl_order_field\", descending: true, nulls: crate::kernel::query_ordering::NullsMode::Last }), offset: Some(crate::kernel::read_model::ReadModelOffset::Literal(1)), limit: Some(crate::kernel::read_model::ReadModelLimit::Literal(5)) },\n    ],\n    authorization: Some(crate::kernel::named_query::TenantAuth { query_name: \"tmpl_query_name\", tenant_field: \"tmpl_tenant_field\", policy: \"tmpl_policy\" }),\n    group_by: None,\n    count: false,\n    median_field: None,\n    sum_field: None,\n    avg_field: None,\n    min_field: None,\n    max_field: None,\n    percentile_field: None,\n    percentile_at: None,\n    any_field: None,\n    all_field: None,\n},";
 
 pub fn emit_read_model_table(exemplar: &Exemplar, read_model_defs: &[ReadModelDef]) -> String {
     let rows: Vec<String> = read_model_defs.iter().map(emit_read_model_def).collect();

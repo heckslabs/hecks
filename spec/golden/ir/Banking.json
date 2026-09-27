@@ -9979,6 +9979,167 @@
       "aggregate_heads": [
         {
           "aggregate": "Account",
+          "as": "account",
+          "many": false
+        },
+        {
+          "aggregate": "CardPayment",
+          "as": "card_payments",
+          "many": true
+        }
+      ],
+      "description": "The total amount of an account's own disputed card charges — the exposure a risk manager wants first.",
+      "group_by": [
+
+      ],
+      "limit": null,
+      "name": "DisputedPaymentTotal",
+      "order_by": null,
+      "query_name": "disputed_payment_total",
+      "reference_name": "account",
+      "reference_target": "Account",
+      "sum_field": "amount",
+      "wheres": [
+        {
+          "field": "status",
+          "op": "eq",
+          "value": "\"disputed\""
+        }
+      ]
+    },
+    {
+      "aggregate_heads": [
+        {
+          "aggregate": "Account",
+          "as": "account",
+          "many": false
+        },
+        {
+          "aggregate": "CardPayment",
+          "as": "card_payments",
+          "many": true
+        }
+      ],
+      "avg_field": "amount",
+      "description": "The mean amount of an account's own disputed card charges — whether the total is one outlier or many similar ones.",
+      "group_by": [
+
+      ],
+      "limit": null,
+      "name": "DisputedPaymentAverage",
+      "order_by": null,
+      "query_name": "disputed_payment_average",
+      "reference_name": "account",
+      "reference_target": "Account",
+      "wheres": [
+        {
+          "field": "status",
+          "op": "eq",
+          "value": "\"disputed\""
+        }
+      ]
+    },
+    {
+      "aggregate_heads": [
+        {
+          "aggregate": "Account",
+          "as": "account",
+          "many": false
+        },
+        {
+          "aggregate": "CardPayment",
+          "as": "card_payments",
+          "many": true
+        }
+      ],
+      "description": "The smallest amount among an account's own disputed card charges.",
+      "group_by": [
+
+      ],
+      "limit": null,
+      "min_field": "amount",
+      "name": "DisputedPaymentSmallest",
+      "order_by": null,
+      "query_name": "disputed_payment_smallest",
+      "reference_name": "account",
+      "reference_target": "Account",
+      "wheres": [
+        {
+          "field": "status",
+          "op": "eq",
+          "value": "\"disputed\""
+        }
+      ]
+    },
+    {
+      "aggregate_heads": [
+        {
+          "aggregate": "Account",
+          "as": "account",
+          "many": false
+        },
+        {
+          "aggregate": "CardPayment",
+          "as": "card_payments",
+          "many": true
+        }
+      ],
+      "description": "The largest amount among an account's own disputed card charges.",
+      "group_by": [
+
+      ],
+      "limit": null,
+      "max_field": "amount",
+      "name": "DisputedPaymentLargest",
+      "order_by": null,
+      "query_name": "disputed_payment_largest",
+      "reference_name": "account",
+      "reference_target": "Account",
+      "wheres": [
+        {
+          "field": "status",
+          "op": "eq",
+          "value": "\"disputed\""
+        }
+      ]
+    },
+    {
+      "aggregate_heads": [
+        {
+          "aggregate": "Account",
+          "as": "account",
+          "many": false
+        },
+        {
+          "aggregate": "CardPayment",
+          "as": "card_payments",
+          "many": true
+        }
+      ],
+      "description": "The 95th percentile amount of an account's own disputed card charges — the tail risk a median alone hides.",
+      "group_by": [
+
+      ],
+      "limit": null,
+      "name": "DisputedPaymentP95",
+      "order_by": null,
+      "percentile_at": 0.95,
+      "percentile_field": "amount",
+      "query_name": "disputed_payment_p95",
+      "reference_name": "account",
+      "reference_target": "Account",
+      "wheres": [
+        {
+          "field": "status",
+          "op": "eq",
+          "value": "\"disputed\""
+        }
+      ]
+    },
+    {
+      "aggregate_heads": [
+        {
+          "aggregate": "Account",
           "as": "accounts",
           "many": true
         }

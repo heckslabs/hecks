@@ -43,6 +43,10 @@ RSpec.describe Hecks::Adapters::PostgresEra, :io do
     built
   end
 
+  it "declares :atomic_append — append already commits the snapshot inside its own transaction" do
+    expect(adapter.persistence_capabilities).to include(:atomic_append)
+  end
+
   it "refuses a binding that declares no database" do
     expect { described_class.new(aggregate: aggregate, settings: {}) }
       .to raise_error(Hecks::Runtime::WiringError, /declares no "database"/)
@@ -141,6 +145,26 @@ RSpec.describe Hecks::Adapters::PostgresEra, :io do
     adapter.record_event(event)
 
     expect(adapter.events.map { |item| [item.name, item.id, item.payload] })
+      .to eq([["PizzaPurchased", "p1", { customer: "c1" }]])
+  end
+
+  it "reads back only one record's events, not the whole shared table" do
+    adapter.record_event(Hecks::Runtime::Event.new(
+                           name: "PizzaPurchased", aggregate: "Pizza", id: "p1",
+                           payload: { customer: "c1" }, occurred_at: "2026-01-01T00:00:00Z"
+                         ))
+    adapter.record_event(Hecks::Runtime::Event.new(
+                           name: "PizzaPurchased", aggregate: "Pizza", id: "p2",
+                           payload: { customer: "c2" }, occurred_at: "2026-01-01T00:00:01Z"
+                         ))
+    adapter.record_event(Hecks::Runtime::Event.new(
+                           name: "OrderPlaced", aggregate: "Order", id: "p1",
+                           payload: { total: 12 }, occurred_at: "2026-01-01T00:00:02Z"
+                         ))
+
+    found = adapter.events_for(aggregate: "Pizza", id: "p1")
+
+    expect(found.map { |item| [item.name, item.id, item.payload] })
       .to eq([["PizzaPurchased", "p1", { customer: "c1" }]])
   end
 

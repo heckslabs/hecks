@@ -651,12 +651,37 @@ fn read_model_json(r: &ir::ReadModel) -> JsonValue {
             ),
         ),
     ];
-    // `count`/`median_field` are pushed only when set, never as a `null` key.
+    // Every reduction is pushed only when set, never as a `null` key (ADR 0078).
     if r.count {
         pairs.push(("count".to_string(), JsonValue::Bool(true)));
     }
     if let Some(field) = &r.median_field {
         pairs.push(("median_field".to_string(), JsonValue::str(field.clone())));
+    }
+    if let Some(field) = &r.sum_field {
+        pairs.push(("sum_field".to_string(), JsonValue::str(field.clone())));
+    }
+    if let Some(field) = &r.avg_field {
+        pairs.push(("avg_field".to_string(), JsonValue::str(field.clone())));
+    }
+    if let Some(field) = &r.min_field {
+        pairs.push(("min_field".to_string(), JsonValue::str(field.clone())));
+    }
+    if let Some(field) = &r.max_field {
+        pairs.push(("max_field".to_string(), JsonValue::str(field.clone())));
+    }
+    if let Some(field) = &r.percentile_field {
+        pairs.push(("percentile_field".to_string(), JsonValue::str(field.clone())));
+        // Ruby's own `to_h` guards `percentile_at` on `percentile_field`'s presence too.
+        if let Some(at) = &r.percentile_at {
+            pairs.push(("percentile_at".to_string(), JsonValue::Number(at.clone())));
+        }
+    }
+    if let Some(field) = &r.any_field {
+        pairs.push(("any_field".to_string(), JsonValue::str(field.clone())));
+    }
+    if let Some(field) = &r.all_field {
+        pairs.push(("all_field".to_string(), JsonValue::str(field.clone())));
     }
     pairs.extend(query_options_json(&r.options));
     JsonValue::Object(pairs)

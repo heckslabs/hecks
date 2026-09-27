@@ -5,7 +5,8 @@ require "open3"
 # `~/Projects`; `--known-path` bypasses the real ledger so this proves the script itself.
 RSpec.describe "bin/qa_discover_external_domains" do
   # Not `FIXTURES` — spec/runtime/storage_shape_spec.rb already owns that
-  # name; every spec loads into one process, so reusing it silently reads whichever file loaded last.
+  # name; every spec loads into one process, so reusing it silently reads whichever file loaded
+  # last.
   DISCOVER_EXTERNAL_DOMAINS_FIXTURES =
     File.join(InMemoryDomain::ROOT, "spec/fixtures/qa_discover_external_domains/projects").freeze
 

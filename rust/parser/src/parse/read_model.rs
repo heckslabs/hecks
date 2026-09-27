@@ -27,6 +27,14 @@ pub fn parse_body(
     let mut group_by_fields: Vec<String> = Vec::new();
     let mut count = false;
     let mut median_field: Option<String> = None;
+    let mut sum_field: Option<String> = None;
+    let mut avg_field: Option<String> = None;
+    let mut min_field: Option<String> = None;
+    let mut max_field: Option<String> = None;
+    let mut percentile_field: Option<String> = None;
+    let mut percentile_at: Option<String> = None;
+    let mut any_field: Option<String> = None;
+    let mut all_field: Option<String> = None;
     let mut wheres: Vec<ir::WhereClause> = Vec::new();
     let mut order_by: Option<ir::OrderBy> = None;
     let mut limit: Option<ir::LimitSpec> = None;
@@ -86,6 +94,36 @@ pub fn parse_body(
                     &gated.args,
                     1,
                 )?)
+            }
+            "sum" => {
+                sum_field = Some(super::positional_symbol(file, last_line, "sum", &gated.args, 1)?)
+            }
+            "avg" => {
+                avg_field = Some(super::positional_symbol(file, last_line, "avg", &gated.args, 1)?)
+            }
+            "min" => {
+                min_field = Some(super::positional_symbol(file, last_line, "min", &gated.args, 1)?)
+            }
+            "max" => {
+                max_field = Some(super::positional_symbol(file, last_line, "max", &gated.args, 1)?)
+            }
+            "percentile" => {
+                percentile_field = Some(super::positional_symbol(
+                    file,
+                    last_line,
+                    "percentile",
+                    &gated.args,
+                    1,
+                )?);
+                percentile_at = Some(super::named_text(&gated.args, "at").ok_or_else(|| {
+                    Diagnostic::new(file, last_line, "'percentile' needs an at: argument".to_string())
+                })?);
+            }
+            "any" => {
+                any_field = Some(super::positional_symbol(file, last_line, "any", &gated.args, 1)?)
+            }
+            "all" => {
+                all_field = Some(super::positional_symbol(file, last_line, "all", &gated.args, 1)?)
             }
             "where" => {
                 // ADR 0055: `on:` is a recognized named argument for `where` in ReadModel
@@ -163,6 +201,14 @@ pub fn parse_body(
         group_by: group_by_fields,
         count,
         median_field,
+        sum_field,
+        avg_field,
+        min_field,
+        max_field,
+        percentile_field,
+        percentile_at,
+        any_field,
+        all_field,
         options,
     })
 }

@@ -25,6 +25,10 @@ module Hecks
               occurred_at  TEXT
             )
           SQL
+          # Backs #events_for's per-record lookup (a `corrects` command's history read).
+          @db.execute(
+            "CREATE INDEX IF NOT EXISTS hecks_events_aggregate_id_idx ON events (aggregate, aggregate_id)"
+          )
         end
 
         def create_entry_table!
@@ -94,6 +98,28 @@ module Hecks
             )
           SQL
           @db.execute("CREATE INDEX IF NOT EXISTS idx_hecks_outbox_status ON hecks_outbox(aggregate, status)")
+        end
+
+        # One row per aggregate table, naming the highest entry `sequence` this table has
+        # already had projected into it — shared across every aggregate in the database file,
+        # since it is keyed by table name rather than declared per aggregate.
+        def create_checkpoint_table!
+          @db.execute(<<~SQL)
+            CREATE TABLE IF NOT EXISTS hecks_checkpoints (
+              aggregate_table TEXT PRIMARY KEY,
+              last_sequence   INTEGER NOT NULL DEFAULT 0
+            )
+          SQL
+          ensure_checkpoint_compacted_through_column!
+        end
+
+        # CREATE TABLE IF NOT EXISTS never adds a column to an existing table, so this healing
+        # step matches ensure_entry_operation_column!'s own for the entry table.
+        def ensure_checkpoint_compacted_through_column!
+          columns = @db.execute("PRAGMA table_info(hecks_checkpoints)").map { |row| row["name"] }
+          return if columns.include?("compacted_through")
+
+          @db.execute("ALTER TABLE hecks_checkpoints ADD COLUMN compacted_through INTEGER NOT NULL DEFAULT 0")
         end
 
         def sql_type(attr)

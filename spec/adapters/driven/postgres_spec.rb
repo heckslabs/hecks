@@ -157,6 +157,35 @@ RSpec.describe Hecks::Adapters::Postgres, :io do
       .to eq([["PizzaPurchased", "p1", { customer: "c1" }]])
   end
 
+  it "reads back only one record's events, not the whole shared table" do
+    adapter.record_event(Hecks::Runtime::Event.new(
+                           name: "PizzaPurchased", aggregate: "Pizza", id: "p1",
+                           payload: { customer: "c1" }, occurred_at: "2026-01-01T00:00:00Z"
+                         ))
+    adapter.record_event(Hecks::Runtime::Event.new(
+                           name: "PizzaPurchased", aggregate: "Pizza", id: "p2",
+                           payload: { customer: "c2" }, occurred_at: "2026-01-01T00:00:01Z"
+                         ))
+    adapter.record_event(Hecks::Runtime::Event.new(
+                           name: "OrderPlaced", aggregate: "Order", id: "p1",
+                           payload: { total: 12 }, occurred_at: "2026-01-01T00:00:02Z"
+                         ))
+
+    found = adapter.events_for(aggregate: "Pizza", id: "p1")
+
+    expect(found.map { |item| [item.name, item.id, item.payload] })
+      .to eq([["PizzaPurchased", "p1", { customer: "c1" }]])
+  end
+
+  it "indexes the shared events table by aggregate and aggregate_id" do
+    adapter
+    db = PG.connect(dbname: PLAIN_POSTGRES_SPEC_DB)
+    indexes = indexes_on(db, "events")
+    db.close
+
+    expect(indexes).to include("hecks_events_aggregate_id_idx")
+  end
+
   it "self-heals its own connection after the backend is killed out from under it, instead of staying dead forever" do
     adapter.save(instance("p1", name: { value: "Margherita" }, status: "sold"))
     victim_pid = adapter.instance_variable_get(:@db).backend_pid
@@ -203,6 +232,87 @@ RSpec.describe Hecks::Adapters::Postgres, :io do
                             customer_name: { value: "Chris" }))
 
     expect(reopened.find("p1").customer_name.value).to eq("Chris")
+  end
+
+  describe "the replay checkpoint (bounds AppendOnly#recover!'s replay to what a restart missed)" do
+    it "advances with every project, so entries_since(checkpoint) is empty right after a write" do
+      adapter.save(instance("p1", status: "available"))
+
+      expect(adapter.entries_since(adapter.checkpoint)).to eq([])
+    end
+
+    it "starts at zero for a table that has never been checkpointed" do
+      expect(adapter.checkpoint).to eq(0)
+    end
+
+    it "lets entries_since skip everything at or before a given sequence" do
+      adapter.save(instance("p1", status: "available"))
+      first_checkpoint = adapter.checkpoint
+      adapter.save(instance("p2", status: "available"))
+
+      expect(adapter.entries_since(first_checkpoint).map(&:id)).to eq(["p2"])
+    end
+
+    it "keeps AppendOnly#recover! from bumping hecks_version when nothing is behind the checkpoint" do
+      repository = Hecks::Ports::Persistence::AppendOnly.new(adapter)
+      repository.save(instance("p1", status: "available"))
+      version_before = repository.find("p1").version
+
+      repository.recover!
+
+      expect(repository.find("p1").version).to eq(version_before)
+    end
+
+    it "still catches up a real gap: an entry journaled without being projected is picked up" do
+      entry = Hecks::Ports::Persistence::Entry.new(operation: "save", id: "p1", state: { status: "available" })
+      adapter.append(entry)
+      expect(adapter.find("p1")).to be_nil
+
+      Hecks::Ports::Persistence::AppendOnly.new(adapter).recover!
+
+      expect(adapter.find("p1").status).to eq("available")
+    end
+  end
+
+  describe "compact_entries! (deletes old journal rows a :refresh projection no longer needs)" do
+    it "starts at zero when nothing has ever been compacted" do
+      expect(adapter.compacted_through).to eq(0)
+    end
+
+    it "deletes rows at or before through and reports how many, leaving the aggregate table untouched" do
+      adapter.save(instance("p1", status: "available"))
+      adapter.save(instance("p2", status: "available"))
+      through = adapter.checkpoint
+
+      removed = adapter.compact_entries!(through: through)
+
+      expect(removed).to eq(2)
+      expect(adapter.entries).to eq([])
+      expect(adapter.find("p1").status).to eq("available")
+      expect(adapter.compacted_through).to eq(through)
+    end
+
+    it "leaves rows after through in the journal" do
+      adapter.save(instance("p1", status: "available"))
+      first = adapter.checkpoint
+      adapter.save(instance("p2", status: "available"))
+
+      adapter.compact_entries!(through: first)
+
+      expect(adapter.entries.map(&:id)).to eq(["p2"])
+    end
+
+    it "never moves compacted_through backwards" do
+      adapter.save(instance("p1", status: "available"))
+      adapter.compact_entries!(through: adapter.checkpoint)
+      adapter.save(instance("p2", status: "available"))
+      high_water = adapter.checkpoint
+
+      adapter.compact_entries!(through: high_water)
+      adapter.compact_entries!(through: 0)
+
+      expect(adapter.compacted_through).to eq(high_water)
+    end
   end
 
   describe "a declared `where`/`order_by` query" do

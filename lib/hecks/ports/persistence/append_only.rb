@@ -6,7 +6,12 @@ module Hecks
     module Persistence
       # `mirrors` is durable replication intent.  It is part of the same
       # append as the authoritative state, never a second outbox store.
-      Entry = Struct.new(:operation, :id, :state, :mirrors, keyword_init: true) do
+      #
+      # `sequence` is the journal position an adapter assigned this entry
+      # (set by `append` on a live write, or by `entries`/`entries_since` on
+      # a replayed one); nil for an adapter that assigns none. It rides
+      # along so `project` can advance a checkpoint without a second lookup.
+      Entry = Struct.new(:operation, :id, :state, :mirrors, :sequence, keyword_init: true) do
         # Tells a projecting adapter that this entry writes a record.
         #
         # @return [Boolean] true when `operation` is the String `"save"`
@@ -70,6 +75,17 @@ module Hecks
         #   undecoded (`CodecBoundary.check_entries!`)
         def entries = @adapter.entries
 
+        # Reads how far this repository's journal has been compacted, when the adapter tracks
+        # that (Postgres, Sqlite).
+        #
+        # @return [Integer] the highest journal `sequence` already deleted by compaction; 0 for
+        #   an adapter that tracks no such thing, or nothing compacted yet
+        def compacted_through
+          return 0 unless @adapter.respond_to?(:compacted_through)
+
+          @adapter.compacted_through
+        end
+
         # Lists the optional persistence behaviours the adapter advertises.
         #
         # @return [Array<Symbol>] frozen capability names such as `:atomic_put`,
@@ -104,15 +120,39 @@ module Hecks
           @adapter.events if @adapter.respond_to?(:events)
         end
 
-        # Replays the whole journal through `project` to rebuild the projected records.
+        # Reads back one record's durably recorded events, oldest first, scoped by the
+        # adapter itself when it can (a SQL adapter pushes this down as a `WHERE` clause
+        # instead of `#events`'s whole-table read); falls back to filtering `#events` for
+        # an adapter with no scoped lookup of its own.
         #
-        # An append is durable before a projection is attempted. Replaying the
-        # log restores a snapshot/table after a crash in that small window.
+        # @param aggregate [String] the `"domain::AggregateName"` key events are stored under
+        # @param id [String, Object] the record's identity, matched as `id.to_s`
+        # @return [Array<Runtime::Event>, nil] the record's events; nil when the adapter
+        #   keeps no event log at all
+        def events_for(aggregate:, id:)
+          return @adapter.events_for(aggregate: aggregate, id: id) if @adapter.respond_to?(:events_for)
+
+          events&.select { |event| event.aggregate == aggregate && event.id.to_s == id.to_s }
+        end
+
+        # Replays unprojected journal entries through `project` to rebuild the projected records.
+        #
+        # An append is durable before a projection is attempted; replaying restores a
+        # snapshot/table after a crash in that small window. Postgres and Sqlite keep their
+        # projected table in the same transaction as the journal append, so they never fall
+        # behind it — each tracks how far it has replayed (`checkpoint`) and only re-walks
+        # entries past that point (`entries_since`), bounded by activity since the last boot,
+        # not total history. An adapter without that pair (Memory, Heki, D1, PostgresEra,
+        # RemoteRuntime) is unaffected: it still replays every entry.
         #
         # @return [Persistence::AppendOnly] self, so a factory can build and recover in one
         #   expression
         def recover!
-          entries.each { |entry| project(entry) }
+          if @adapter.respond_to?(:checkpoint) && @adapter.respond_to?(:entries_since)
+            @adapter.entries_since(@adapter.checkpoint).each { |entry| project(entry) }
+          else
+            entries.each { |entry| project(entry) }
+          end
           self
         end
 

@@ -724,6 +724,90 @@ pub fn dispatch_by_name(
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
               crate::generated::meta::readmodel::dispatch_median(&mut store.readmodel, &id, args, mutations, owner_deref, command_deref, tenant_boundary_check).map(|(_, events)| stamp_payload(events, &payload))
           }
+          "Bluebook::ReadModel.Sum" => {
+              let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
+              let route = invocation.route();
+              let facts_json = invocation.facts();
+              let args = if invocation.explicit_with() { let args = crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::meta::readmodel::SumArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::meta::readmodel::SumArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::meta::readmodel::SumArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::meta::readmodel::SumArgs::from_json(v)?; if let Some(v) = &args.sum_field { v.check_invariants()?; } Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Language"), "Sum", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|_args: &crate::generated::meta::readmodel::SumArgs| Ok(()) })?; if let Some(route) = route { route.require_depth(0)?; } args } else { if let Some(route) = route { route.require_depth(0)?; } crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::meta::readmodel::SumArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::meta::readmodel::SumArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::meta::readmodel::SumArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::meta::readmodel::SumArgs::from_json(v)?; if let Some(v) = &args.sum_field { v.check_invariants()?; } Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Language"), "Sum", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|_args: &crate::generated::meta::readmodel::SumArgs| Ok(()) })? };
+              let id = match route { Some(route) => route.aggregate().to_string(), None => crate::generated::meta::readmodel::ReadModel::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "Sum", aggregate: "ReadModel", identity: "bluebook, name.value" }.render_args()))?, };
+              let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
+              let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Bluebook::ReadModel", &id);
+              let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
+              let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
+              crate::generated::meta::readmodel::dispatch_sum(&mut store.readmodel, &id, args, mutations, owner_deref, command_deref, tenant_boundary_check).map(|(_, events)| stamp_payload(events, &payload))
+          }
+          "Bluebook::ReadModel.Avg" => {
+              let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
+              let route = invocation.route();
+              let facts_json = invocation.facts();
+              let args = if invocation.explicit_with() { let args = crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::meta::readmodel::AvgArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::meta::readmodel::AvgArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::meta::readmodel::AvgArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::meta::readmodel::AvgArgs::from_json(v)?; if let Some(v) = &args.avg_field { v.check_invariants()?; } Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Language"), "Avg", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|_args: &crate::generated::meta::readmodel::AvgArgs| Ok(()) })?; if let Some(route) = route { route.require_depth(0)?; } args } else { if let Some(route) = route { route.require_depth(0)?; } crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::meta::readmodel::AvgArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::meta::readmodel::AvgArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::meta::readmodel::AvgArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::meta::readmodel::AvgArgs::from_json(v)?; if let Some(v) = &args.avg_field { v.check_invariants()?; } Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Language"), "Avg", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|_args: &crate::generated::meta::readmodel::AvgArgs| Ok(()) })? };
+              let id = match route { Some(route) => route.aggregate().to_string(), None => crate::generated::meta::readmodel::ReadModel::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "Avg", aggregate: "ReadModel", identity: "bluebook, name.value" }.render_args()))?, };
+              let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
+              let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Bluebook::ReadModel", &id);
+              let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
+              let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
+              crate::generated::meta::readmodel::dispatch_avg(&mut store.readmodel, &id, args, mutations, owner_deref, command_deref, tenant_boundary_check).map(|(_, events)| stamp_payload(events, &payload))
+          }
+          "Bluebook::ReadModel.Min" => {
+              let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
+              let route = invocation.route();
+              let facts_json = invocation.facts();
+              let args = if invocation.explicit_with() { let args = crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::meta::readmodel::MinArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::meta::readmodel::MinArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::meta::readmodel::MinArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::meta::readmodel::MinArgs::from_json(v)?; if let Some(v) = &args.min_field { v.check_invariants()?; } Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Language"), "Min", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|_args: &crate::generated::meta::readmodel::MinArgs| Ok(()) })?; if let Some(route) = route { route.require_depth(0)?; } args } else { if let Some(route) = route { route.require_depth(0)?; } crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::meta::readmodel::MinArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::meta::readmodel::MinArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::meta::readmodel::MinArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::meta::readmodel::MinArgs::from_json(v)?; if let Some(v) = &args.min_field { v.check_invariants()?; } Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Language"), "Min", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|_args: &crate::generated::meta::readmodel::MinArgs| Ok(()) })? };
+              let id = match route { Some(route) => route.aggregate().to_string(), None => crate::generated::meta::readmodel::ReadModel::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "Min", aggregate: "ReadModel", identity: "bluebook, name.value" }.render_args()))?, };
+              let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
+              let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Bluebook::ReadModel", &id);
+              let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
+              let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
+              crate::generated::meta::readmodel::dispatch_min(&mut store.readmodel, &id, args, mutations, owner_deref, command_deref, tenant_boundary_check).map(|(_, events)| stamp_payload(events, &payload))
+          }
+          "Bluebook::ReadModel.Max" => {
+              let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
+              let route = invocation.route();
+              let facts_json = invocation.facts();
+              let args = if invocation.explicit_with() { let args = crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::meta::readmodel::MaxArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::meta::readmodel::MaxArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::meta::readmodel::MaxArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::meta::readmodel::MaxArgs::from_json(v)?; if let Some(v) = &args.max_field { v.check_invariants()?; } Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Language"), "Max", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|_args: &crate::generated::meta::readmodel::MaxArgs| Ok(()) })?; if let Some(route) = route { route.require_depth(0)?; } args } else { if let Some(route) = route { route.require_depth(0)?; } crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::meta::readmodel::MaxArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::meta::readmodel::MaxArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::meta::readmodel::MaxArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::meta::readmodel::MaxArgs::from_json(v)?; if let Some(v) = &args.max_field { v.check_invariants()?; } Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Language"), "Max", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|_args: &crate::generated::meta::readmodel::MaxArgs| Ok(()) })? };
+              let id = match route { Some(route) => route.aggregate().to_string(), None => crate::generated::meta::readmodel::ReadModel::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "Max", aggregate: "ReadModel", identity: "bluebook, name.value" }.render_args()))?, };
+              let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
+              let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Bluebook::ReadModel", &id);
+              let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
+              let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
+              crate::generated::meta::readmodel::dispatch_max(&mut store.readmodel, &id, args, mutations, owner_deref, command_deref, tenant_boundary_check).map(|(_, events)| stamp_payload(events, &payload))
+          }
+          "Bluebook::ReadModel.Percentile" => {
+              let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
+              let route = invocation.route();
+              let facts_json = invocation.facts();
+              let args = if invocation.explicit_with() { let args = crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::meta::readmodel::PercentileArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::meta::readmodel::PercentileArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::meta::readmodel::PercentileArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::meta::readmodel::PercentileArgs::from_json(v)?; if let Some(v) = &args.percentile_field { v.check_invariants()?; } if let Some(v) = &args.percentile_at { v.check_invariants()?; } Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Language"), "Percentile", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|_args: &crate::generated::meta::readmodel::PercentileArgs| Ok(()) })?; if let Some(route) = route { route.require_depth(0)?; } args } else { if let Some(route) = route { route.require_depth(0)?; } crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::meta::readmodel::PercentileArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::meta::readmodel::PercentileArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::meta::readmodel::PercentileArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::meta::readmodel::PercentileArgs::from_json(v)?; if let Some(v) = &args.percentile_field { v.check_invariants()?; } if let Some(v) = &args.percentile_at { v.check_invariants()?; } Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Language"), "Percentile", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|_args: &crate::generated::meta::readmodel::PercentileArgs| Ok(()) })? };
+              let id = match route { Some(route) => route.aggregate().to_string(), None => crate::generated::meta::readmodel::ReadModel::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "Percentile", aggregate: "ReadModel", identity: "bluebook, name.value" }.render_args()))?, };
+              let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
+              let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Bluebook::ReadModel", &id);
+              let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
+              let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
+              crate::generated::meta::readmodel::dispatch_percentile(&mut store.readmodel, &id, args, mutations, owner_deref, command_deref, tenant_boundary_check).map(|(_, events)| stamp_payload(events, &payload))
+          }
+          "Bluebook::ReadModel.Any" => {
+              let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
+              let route = invocation.route();
+              let facts_json = invocation.facts();
+              let args = if invocation.explicit_with() { let args = crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::meta::readmodel::AnyArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::meta::readmodel::AnyArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::meta::readmodel::AnyArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::meta::readmodel::AnyArgs::from_json(v)?; if let Some(v) = &args.any_field { v.check_invariants()?; } Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Language"), "Any", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|_args: &crate::generated::meta::readmodel::AnyArgs| Ok(()) })?; if let Some(route) = route { route.require_depth(0)?; } args } else { if let Some(route) = route { route.require_depth(0)?; } crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::meta::readmodel::AnyArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::meta::readmodel::AnyArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::meta::readmodel::AnyArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::meta::readmodel::AnyArgs::from_json(v)?; if let Some(v) = &args.any_field { v.check_invariants()?; } Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Language"), "Any", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|_args: &crate::generated::meta::readmodel::AnyArgs| Ok(()) })? };
+              let id = match route { Some(route) => route.aggregate().to_string(), None => crate::generated::meta::readmodel::ReadModel::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "Any", aggregate: "ReadModel", identity: "bluebook, name.value" }.render_args()))?, };
+              let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
+              let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Bluebook::ReadModel", &id);
+              let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
+              let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
+              crate::generated::meta::readmodel::dispatch_any(&mut store.readmodel, &id, args, mutations, owner_deref, command_deref, tenant_boundary_check).map(|(_, events)| stamp_payload(events, &payload))
+          }
+          "Bluebook::ReadModel.All" => {
+              let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
+              let route = invocation.route();
+              let facts_json = invocation.facts();
+              let args = if invocation.explicit_with() { let args = crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::meta::readmodel::AllArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::meta::readmodel::AllArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::meta::readmodel::AllArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::meta::readmodel::AllArgs::from_json(v)?; if let Some(v) = &args.all_field { v.check_invariants()?; } Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Language"), "All", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|_args: &crate::generated::meta::readmodel::AllArgs| Ok(()) })?; if let Some(route) = route { route.require_depth(0)?; } args } else { if let Some(route) = route { route.require_depth(0)?; } crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::meta::readmodel::AllArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::meta::readmodel::AllArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::meta::readmodel::AllArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::meta::readmodel::AllArgs::from_json(v)?; if let Some(v) = &args.all_field { v.check_invariants()?; } Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Language"), "All", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|_args: &crate::generated::meta::readmodel::AllArgs| Ok(()) })? };
+              let id = match route { Some(route) => route.aggregate().to_string(), None => crate::generated::meta::readmodel::ReadModel::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "All", aggregate: "ReadModel", identity: "bluebook, name.value" }.render_args()))?, };
+              let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
+              let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Bluebook::ReadModel", &id);
+              let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
+              let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
+              crate::generated::meta::readmodel::dispatch_all(&mut store.readmodel, &id, args, mutations, owner_deref, command_deref, tenant_boundary_check).map(|(_, events)| stamp_payload(events, &payload))
+          }
           "Bluebook::ReadModel.Option" => {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
@@ -1146,6 +1230,13 @@ pub fn command_creates(verb: &str) -> bool {
         "Bluebook::ReadModel.GroupBy" => false,
         "Bluebook::ReadModel.Count" => false,
         "Bluebook::ReadModel.Median" => false,
+        "Bluebook::ReadModel.Sum" => false,
+        "Bluebook::ReadModel.Avg" => false,
+        "Bluebook::ReadModel.Min" => false,
+        "Bluebook::ReadModel.Max" => false,
+        "Bluebook::ReadModel.Percentile" => false,
+        "Bluebook::ReadModel.Any" => false,
+        "Bluebook::ReadModel.All" => false,
         "Bluebook::ReadModel.Option" => false,
         "Bluebook::Query.Declare" => true,
         "Bluebook::Query.Filter" => false,
@@ -1233,6 +1324,13 @@ pub fn command_attributes_for_verb(verb: &str) -> &'static [&'static str] {
         "Bluebook::ReadModel.GroupBy" => &["field"],
         "Bluebook::ReadModel.Count" => &["count"],
         "Bluebook::ReadModel.Median" => &["median_field"],
+        "Bluebook::ReadModel.Sum" => &["sum_field"],
+        "Bluebook::ReadModel.Avg" => &["avg_field"],
+        "Bluebook::ReadModel.Min" => &["min_field"],
+        "Bluebook::ReadModel.Max" => &["max_field"],
+        "Bluebook::ReadModel.Percentile" => &["percentile_field", "percentile_at"],
+        "Bluebook::ReadModel.Any" => &["any_field"],
+        "Bluebook::ReadModel.All" => &["all_field"],
         "Bluebook::ReadModel.Option" => &["option", "key", "value", "at"],
         "Bluebook::Query.Declare" => &["aggregate", "entity_id", "name", "description", "order_field", "order_way", "limit", "position"],
         "Bluebook::Query.Filter" => &["field", "op", "value"],
@@ -1458,5 +1556,13 @@ crate::kernel::read_model::ReadModelDef {
     group_by: None,
     count: false,
     median_field: None,
+    sum_field: None,
+    avg_field: None,
+    min_field: None,
+    max_field: None,
+    percentile_field: None,
+    percentile_at: None,
+    any_field: None,
+    all_field: None,
 },
 ];

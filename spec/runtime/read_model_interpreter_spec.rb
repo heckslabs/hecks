@@ -826,7 +826,7 @@ RSpec.describe "a read model's query options" do
             end
           end
         end
-      end.to raise_error(Hecks::Bluebook::DSL::Malformed, %r{declares count/median together with group_by})
+      end.to raise_error(Hecks::Bluebook::DSL::Malformed, /declares count together with group_by/)
     end
 
     # The inline two-aggregate domain is the fixture for this refusal;
@@ -866,7 +866,219 @@ RSpec.describe "a read model's query options" do
             end
           end
         end
-      end.to raise_error(Hecks::Bluebook::DSL::Malformed, %r{declares count/median but includes 2 many-side})
+      end.to raise_error(Hecks::Bluebook::DSL::Malformed, /declares count but includes 2 many-side/)
+    end
+  end
+
+  # ADR 0078: sum/avg/min/max/percentile are sibling reductions to median, over the
+  # same `where`-filtered CardPayment.amount field, now real corpus read models
+  # (examples/banking/bluebook/customer_and_compliance_views.bluebook) — the plain
+  # `build` helper above already loads them. any/all need a boolean field no aggregate
+  # in this corpus declares yet, so they get their own small domain, below.
+  context "with sum, avg, min, max, and percentile" do
+    def open_new_account(customer:, account:)
+      Banking::Customer.register!(reference: { value: customer }, name: { given: "A", family: "B" },
+                                  email: { address: "#{customer}@example.com" })
+      Banking::Account.open!(customer: customer, number: { value: account },
+                             kind: { name: "current" }, daily_limit: { cents: 10_000 })
+    end
+
+    def dispute_payment(account:, index:, cents:)
+      pay = Banking::CardPayment.authorize!(account: account, authorisation: { value: "auth-#{account}-#{index}" },
+                                            amount: { cents: cents }, merchant: { value: "Shop#{index}" })
+      pay.capture!
+      pay.dispute!(disputed_by: "c-#{account}")
+    end
+
+    # Same four disputed amounts (and the same even-count shape) as "averages the
+    # two middle values", above, so this fixture's own median (400.0) is already
+    # known good — sum/avg/min/max/p95 are hand-computed against the same set.
+    it "sums, averages, and finds the extremes of a filtered set" do
+      runtime = build
+      open_new_account(customer: "c-acct-sum", account: "acct-sum")
+      [500, 100, 300, 700].each_with_index { |cents, i| dispute_payment(account: "acct-sum", index: i, cents: cents) }
+
+      expect(runtime.query("Banking.disputed_payment_total", account: "acct-sum").first[:card_payments]).to eq(1600)
+      expect(runtime.query("Banking.disputed_payment_average", account: "acct-sum").first[:card_payments]).to eq(400.0)
+      expect(runtime.query("Banking.disputed_payment_smallest", account: "acct-sum").first[:card_payments]).to eq(100)
+      expect(runtime.query("Banking.disputed_payment_largest", account: "acct-sum").first[:card_payments]).to eq(700)
+      # Sorted: [100, 300, 500, 700]; pos = 0.95 * 3 = 2.85 -> 500 + 0.85 * (700 - 500)
+      expect(runtime.query("Banking.disputed_payment_p95", account: "acct-sum").first[:card_payments]).to eq(670.0)
+    end
+
+    it "sums to zero and averages/extremes to nil for an empty set" do
+      runtime = build
+      open_new_account(customer: "c-acct-sum-empty", account: "acct-sum-empty")
+
+      expect(runtime.query("Banking.disputed_payment_total", account: "acct-sum-empty").first[:card_payments]).to eq(0)
+      expect(runtime.query("Banking.disputed_payment_average", account: "acct-sum-empty").first[:card_payments]).to be_nil
+      expect(runtime.query("Banking.disputed_payment_smallest", account: "acct-sum-empty").first[:card_payments]).to be_nil
+      expect(runtime.query("Banking.disputed_payment_largest", account: "acct-sum-empty").first[:card_payments]).to be_nil
+    end
+
+    # The full Banking boot is the fixture for this refusal; trimming it would lose
+    # the real-domain shape (a genuine non-numeric field on a real aggregate).
+    # rubocop:disable-next RSpec/ExampleLength
+    it "refuses a sum field that is not an Integer, at query time" do
+      registry = Hecks::Runtime::Registry.new
+      Hecks.with_registry(registry) do
+        Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
+        Kernel.load(InMemoryDomain::EXTRACTION_PORT)
+        Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
+        Kernel.load(InMemoryDomain::PRISM_ADAPTER)
+        load_bluebook_files(InMemoryDomain::BANKING_BLUEBOOK_DIR)
+        Hecks.bluebook("Banking") do
+          read_model "BadSumField" do
+            reference_to Account
+            include Account
+            include CardPayment
+
+            sum :merchant
+          end
+        end
+        Hecks.hecksagon("Banking") do
+          uses_framework "Governance"
+          Banking::Customer.persisted_by("Memory")
+          Banking::Account.persisted_by("Memory")
+          Banking::ATMCard.persisted_by("Memory")
+          Banking::Transfer.persisted_by("Memory")
+          Banking::CardPayment.persisted_by("Memory")
+          Banking::ExternalTransfer.persisted_by("Memory")
+          Banking::ScheduledPayment.persisted_by("Memory")
+          Banking::SafeDepositBox.persisted_by("Memory")
+          Banking::OnboardingCase.persisted_by("Memory")
+        end
+        Hecks.hecksagon("Governance") do
+          Governance::RoleAssignment.persisted_by("Memory")
+          Governance::RoleTransition.persisted_by("Memory")
+        end
+      end
+      registry.verify!
+      runtime = Hecks::Runtime::Loader.bind_runtime(Hecks::Runtime::Dispatcher.new(registry))
+      open_new_account(customer: "c-acct-bad-sum", account: "acct-bad-sum")
+
+      expect { runtime.query("Banking.bad_sum_field", account: "acct-bad-sum") }
+        .to raise_error(ArgumentError, /merchant.*not numeric/m)
+    end
+
+    it "refuses more than one reduction declared together" do
+      expect do
+        registry = Hecks::Runtime::Registry.new
+        Hecks.with_registry(registry) do
+          Kernel.load(InMemoryDomain::EXTRACTION_PORT)
+          Kernel.load(InMemoryDomain::PRISM_ADAPTER)
+          Hecks.bluebook("SumAndMax") do
+            vision "x"
+            generic
+
+            aggregate "Account" do
+              identified_by :ref
+              attribute :ref, Ref
+              value_object "Ref" do
+                attribute :value, String
+              end
+            end
+
+            read_model "Both" do
+              include Account
+
+              sum :ref
+              max :ref
+            end
+          end
+        end
+      end.to raise_error(Hecks::Bluebook::DSL::Malformed, /declares both sum and max/)
+    end
+  end
+
+  context "with any and all" do
+    # A whole fresh domain (aggregate, command, two read models) is the fixture for
+    # any/all — no aggregate in the real Banking corpus has a bare boolean field yet.
+    # rubocop:disable-next Metrics/AbcSize
+    # rubocop:disable-next Metrics/MethodLength
+    def build_with_boolean_reductions(adapter: "Memory")
+      registry = Hecks::Runtime::Registry.new
+      Hecks.with_registry(registry) do
+        Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
+        Kernel.load(InMemoryDomain::EXTRACTION_PORT)
+        Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
+        Kernel.load(InMemoryDomain::PRISM_ADAPTER)
+        Hecks.bluebook("Widgets") do
+          vision "a boolean-reduction fixture"
+          generic
+
+          aggregate "Shelf" do
+            identified_by :ref
+            attribute :ref, Ref
+            value_object "Ref" do
+              attribute :value, String
+            end
+
+            command "Open" do
+              sets :ref
+              emits "Opened"
+            end
+          end
+
+          aggregate "Widget" do
+            reference_to Shelf
+            identified_by :ref
+            attribute :ref, Ref
+            attribute :flagged, Flag
+            value_object "Ref" do
+              attribute :value, String
+            end
+            value_object "Flag" do
+              attribute :value, TrueClass
+            end
+
+            command "Place" do
+              sets :shelf
+              sets :ref
+              sets :flagged
+              emits "Placed"
+            end
+          end
+
+          read_model "ShelfHasFlagged" do
+            reference_to Shelf
+            include Shelf
+            include Widget
+
+            any :flagged
+          end
+
+          read_model "ShelfAllFlagged" do
+            reference_to Shelf
+            include Shelf
+            include Widget
+
+            all :flagged
+          end
+        end
+        Hecks.hecksagon("Widgets") do
+          Widgets::Shelf.persisted_by(adapter)
+          Widgets::Widget.persisted_by(adapter)
+        end
+      end
+      registry.verify!
+      Hecks::Runtime::Loader.bind_runtime(Hecks::Runtime::Dispatcher.new(registry))
+    end
+
+    it "answers any/all over a boolean field, and the empty-set vacuous-truth cases" do
+      runtime = build_with_boolean_reductions
+      Widgets::Shelf.open!(ref: { value: "s-mixed" })
+      Widgets::Widget.place!(shelf: "s-mixed", ref: { value: "w1" }, flagged: { value: true })
+      Widgets::Widget.place!(shelf: "s-mixed", ref: { value: "w2" }, flagged: { value: false })
+
+      expect(runtime.query("Widgets.shelf_has_flagged", shelf: "s-mixed").first[:widgets]).to be true
+      expect(runtime.query("Widgets.shelf_all_flagged", shelf: "s-mixed").first[:widgets]).to be false
+
+      Widgets::Shelf.open!(ref: { value: "s-empty" })
+      # `any` of nothing is false; `all` of nothing is true (the ordinary
+      # OR-identity/AND-identity vacuous-truth reading, ADR 0078).
+      expect(runtime.query("Widgets.shelf_has_flagged", shelf: "s-empty").first[:widgets]).to be false
+      expect(runtime.query("Widgets.shelf_all_flagged", shelf: "s-empty").first[:widgets]).to be true
     end
   end
 end
