@@ -1,5 +1,7 @@
 require_relative "../../projector"
 require_relative "shared"
+require_relative "fargate/settings"
+require_relative "fargate/assembly"
 
 module Hecks
   module Projections
@@ -61,6 +63,53 @@ module Hecks
       # pair is unreachable from the internet (found live,
       # lifeadelics-platform). SessionSecret is always minted: HECKS_SERVE_MODE
       # always runs web.rs, which panics on an empty SESSION_SECRET.
+      #
+      # ## Settings beyond the baseline
+      #
+      # `region`, `cpu`, `memory`, `port`, `database`, `web`, `stack_name`, `stack_prefix`,
+      # `schema`, `desired_count`, `owner` and `owner_stack` are the baseline settings. A world
+      # that sets none of the keys below renders the single-container stack described above,
+      # unchanged. Each key is optional, checked before anything is rendered, and refused with its
+      # own name when malformed; the module named beside it holds the full shape.
+      #
+      # - `domain_container`: renames the domain container, its repository, image-tag parameter
+      #   and health path (`Containers`).
+      # - `containers`: adds containers to the same task, each with a repository, port, health
+      #   path, environment and secrets (`Containers`).
+      # - `default_container`: the container the listener forwards to when no route matches
+      #   (`Containers`).
+      # - `routes`: sends path patterns to a container through listener rules, with priorities
+      #   (`Containers`).
+      # - `logical_ids`: fixes the logical id of each resource so an existing stack's ids are
+      #   reproduced (`Settings`).
+      # - `names`: fixes the AWS name of the cluster, log group, service, load balancer, task
+      #   family, the load balancer's security group description, and the task role's database
+      #   policy name (`Settings`).
+      # - `cdn`: aliases, certificate, behaviors and cache policies, an origin secret header,
+      #   S3 origins and retention (`Cdn`).
+      # - `alerts`: a `SNS` topic, an email subscription, alarms and a synthetic check
+      #   (`Monitoring`).
+      # - `buckets`, `generated_secrets` and `session_secret`: extra S3 buckets, generated
+      #   secrets and the session secret's name (`Extras`).
+      # - `task_policies` and `execution_policies`: extra IAM policies on the task role and the
+      #   execution role (`Extras`).
+      # - `parameters` and `outputs`: extra template parameters and outputs (`Extras`).
+      # - `execute_command`: enables `aws ecs execute-command` and grants the task role its SSM
+      #   actions (`Settings`).
+      # - `health_check_grace_period`: seconds `ECS` ignores failing health checks after a task
+      #   starts (`Settings`).
+      # - `deregistration_delay`: seconds a target group drains a target (`Settings`).
+      # - `desired_count_parameter`: makes the desired count a template parameter (`Settings`).
+      # - `domain_env`: extra environment for the domain container; a name the generator sets
+      #   is replaced, and a nil value removes it (`Settings`).
+      # - `execution_role_database_grant`: false leaves the database secret out of the execution
+      #   role (`Settings`).
+      # - `install_dir` and `build_context_dir`: where the Dockerfile installs the host and its
+      #   sidecars, and where it copies them from (`Settings`).
+      # - `db_name_parameter`: for `database "Shared"`, a parameter naming the shared database
+      #   (`Settings`).
+      #
+      # Per-branch preview stacks and the deploy and smoke scripts are not generated here.
       module Fargate
         extend Projector::Target
 
@@ -183,7 +232,22 @@ module Hecks
           stack_name     = "#{stack_prefix}-#{infra_name}"
           desired_count  = deploy_settings.fetch(:desired_count, 1)
 
-          db_id             = "#{logical_id.sub(/Service\z/, '')}Db"
+          # Every optional setting, checked; a world that sets none resolves to the
+          # derived ids and names the generator has always used.
+          begin
+            plan = Settings.resolve(
+              deploy_settings,
+              infra_name: infra_name, logical_id: logical_id, db_id: "#{logical_id.sub(/Service\z/, '')}Db",
+              stack_name: stack_name, port: port, shared: shared
+            )
+          rescue ArgumentError => e
+            raise ArgumentError, "#{world_file}'s deployed_to(\"AwsFargate\"): #{e.message}"
+          end
+          ids    = plan.ids
+          names  = plan.names
+          layout = plan.layout
+
+          db_id             = ids[:database_prefix]
           db_ref_id         = aurora ? "#{db_id}Cluster" : db_id
           secret_sub        = aurora ? "#{db_id}Secret" : "#{db_ref_id}.MasterUserSecret.SecretArn"
           secret_intrinsic  = aurora ? "!Ref #{db_id}Secret" : "!GetAtt #{db_ref_id}.MasterUserSecret.SecretArn"
@@ -208,20 +272,31 @@ module Hecks
           # `Lambda.call`'s own Shared-mode `VpcConfig`); the `ECS` task and
           # the `ALB`-ingress rule both reach through the borrowed owner's
           # own security group instead.
-          compute_security_group_ref = shared ? "!Ref OwningSecurityGroupId" : "!Ref #{logical_id}SecurityGroup"
+          compute_security_group_ref = shared ? "!Ref OwningSecurityGroupId" : "!Ref #{ids[:compute_prefix]}SecurityGroup"
 
-          ecr_repository_id = "#{logical_id}Repository"
-          cluster_id         = "#{logical_id}Cluster"
-          task_definition_id = "#{logical_id}TaskDefinition"
-          execution_role_id  = "#{logical_id}ExecutionRole"
-          task_role_id       = "#{logical_id}TaskRole"
-          log_group_id       = "#{logical_id}LogGroup"
-          target_group_id    = "#{logical_id}TargetGroup"
-          alb_id             = "#{logical_id}Alb"
-          alb_sg_id          = "#{logical_id}AlbSecurityGroup"
-          listener_id        = "#{logical_id}Listener"
-          distribution_id    = "#{logical_id}Distribution"
-          session_secret_id  = "#{logical_id}SessionSecret"
+          # `logical_id` stays the derived name in prose (descriptions, comments);
+          # the ids below are what the resources are actually declared with, which
+          # the world's `logical_ids` setting may replace.
+          service_id         = ids[:service]
+          ecr_repository_id  = ids[:ecr_repository]
+          cluster_id         = ids[:cluster]
+          task_definition_id = ids[:task_definition]
+          execution_role_id  = ids[:execution_role]
+          task_role_id       = ids[:task_role]
+          log_group_id       = ids[:log_group]
+          target_group_id    = ids[:target_group]
+          alb_id             = ids[:alb]
+          alb_sg_id          = ids[:alb_security_group]
+          listener_id        = ids[:listener]
+          distribution_id    = ids[:distribution]
+          session_secret_id  = ids[:session_secret]
+          domain_container   = layout.domain
+          alb_sg_description = names[:alb_security_group_description] ||
+                               "#{alb_sg_id} - HTTP ingress from CloudFront only, forwarded to #{logical_id} only"
+          port_range         = Containers.port_range(layout)
+          vpc_ref            = shared ? "!Ref OwningVpcId" : "!Ref #{db_id}Vpc"
+          sidecar_dir        = plan.install_dir
+          db_name_ref        = plan.db_name_parameter ? "!Ref #{plan.db_name_parameter}" : nil
 
           stack_outputs = Shared.stack_outputs(
             shared: shared, db_id: db_id, db_ref_id: db_ref_id, secret_intrinsic: secret_intrinsic,
@@ -231,7 +306,7 @@ module Hecks
           Shared.check_bastion_parameters!(bastion_parameters, stack_outputs)
 
           always_params_yaml = <<~ALWAYSPARAMS.rstrip
-            ImageTag:
+            #{domain_container.tag_parameter}:
               Type: String
               Default: latest
               Description: ECR image tag this task pulls — never hardcode latest in the TaskDefinition; a first deploy and a later rollout share this one parameter.
@@ -299,7 +374,8 @@ module Hecks
             OwningDatabaseSecretArn:
               Type: String
           SHAREDPARAMS
-          parameters_yaml = [always_params_yaml, oauth_params_yaml, owning_params_yaml].reject(&:empty?).join("\n")
+          extra_params_yaml = Settings.parameters_yaml(plan, default_count: desired_count, shared_db_name: owner_db_name).rstrip
+          parameters_yaml = [always_params_yaml, oauth_params_yaml, owning_params_yaml, extra_params_yaml].reject(&:empty?).join("\n")
 
           template_yaml = <<~YAML
             # GENERATED by bin/project_deploy #{domain} — re-run it to refresh
@@ -320,15 +396,15 @@ module Hecks
             Resources:
               #{shared ? "" : Shared.vpc_and_database_yaml(
                 db_id: db_id, db_name: db_name, infra_name: infra_name, aurora: aurora,
-                google_oauth_present: network_needs_internet, compute_logical_id: logical_id,
+                google_oauth_present: network_needs_internet, compute_logical_id: ids[:compute_prefix],
                 compute_description: "#{logical_id} - inbound from #{alb_sg_id} only, egress rules attached separately below"
               ).each_line.with_index.map { |l, i| (i.zero? ? "" : "  ") + l }.join.rstrip}
 
               #{alb_sg_id}:
                 Type: AWS::EC2::SecurityGroup
                 Properties:
-                  VpcId: #{shared ? "!Ref OwningVpcId" : "!Ref #{db_id}Vpc"}
-                  GroupDescription: #{alb_sg_id} - HTTP ingress from CloudFront only, forwarded to #{logical_id} only
+                  VpcId: #{vpc_ref}
+                  GroupDescription: #{alb_sg_description}
                   SecurityGroupIngress:
                     # pl-3b927c52 — com.amazonaws.global.cloudfront.origin-
                     # facing, AWS's own global, account-agnostic managed
@@ -348,31 +424,31 @@ module Hecks
                       ToPort: 80
                       SourcePrefixListId: pl-3b927c52
 
-              #{logical_id}IngressFromAlb:
+              #{ids[:ingress_from_alb]}:
                 Type: AWS::EC2::SecurityGroupIngress
                 Properties:
                   GroupId: #{compute_security_group_ref}
                   IpProtocol: tcp
-                  FromPort: #{port}
-                  ToPort: #{port}
+                  FromPort: #{port_range.min}
+                  ToPort: #{port_range.max}
                   SourceSecurityGroupId: !Ref #{alb_sg_id}
 
               #{ecr_repository_id}:
                 Type: AWS::ECR::Repository
                 Properties:
-                  RepositoryName: #{infra_name}
+                  RepositoryName: #{domain_container.repository_name}
                   ImageScanningConfiguration:
                     ScanOnPush: true
 
               #{cluster_id}:
                 Type: AWS::ECS::Cluster
                 Properties:
-                  ClusterName: #{stack_name}
+                  ClusterName: #{names[:cluster]}
 
               #{log_group_id}:
                 Type: AWS::Logs::LogGroup
                 Properties:
-                  LogGroupName: /ecs/#{stack_name}
+                  LogGroupName: #{names[:log_group]}
                   RetentionInDays: 30
 
               # Always minted — HECKS_SERVE_MODE always runs web.rs, which
@@ -382,6 +458,7 @@ module Hecks
               #{session_secret_id}:
                 Type: AWS::SecretsManager::Secret
                 Properties:
+                  # TMPL:session_secret_properties
                   GenerateSecretString:
                     SecretStringTemplate: '{}'
                     GenerateStringKey: session_secret
@@ -406,13 +483,8 @@ module Hecks
                   ManagedPolicyArns:
                     - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
                   Policies:
-                    - PolicyName: DbSecretRead
-                      PolicyDocument:
-                        Version: '2012-10-17'
-                        Statement:
-                          - Effect: Allow
-                            Action: secretsmanager:GetSecretValue
-                            Resource: !Sub "${#{db_secret_ref}}"
+                    # TMPL:execution_database_grant
+                    # TMPL:extra_execution_policies
 
               # The container's OWN runtime permissions — rust/host fetches
               # DB_SECRET_ARN itself, over the AWS SDK, the same "never let
@@ -430,7 +502,7 @@ module Hecks
                         Principal: { Service: ecs-tasks.amazonaws.com }
                         Action: sts:AssumeRole
                   Policies:
-                    - PolicyName: DbSecretRead
+                    - PolicyName: #{names[:db_secret_policy]}
                       PolicyDocument:
                         Version: '2012-10-17'
                         Statement:
@@ -446,11 +518,12 @@ module Hecks
                             Resource: !Ref #{session_secret_id}
                     #{oauth_task_policy_yaml.each_line.with_index.map { |l, i| i.zero? ? l : "                    " + l }.join}
                     # TMPL:cross_domain_fargate_policies
+                    # TMPL:extra_task_policies
 
               #{task_definition_id}:
                 Type: AWS::ECS::TaskDefinition
                 Properties:
-                  Family: #{infra_name}
+                  Family: #{names[:family]}
                   RequiresCompatibilities: [FARGATE]
                   NetworkMode: awsvpc
                   # ARM64, not Fargate's own x86_64 default — matching the
@@ -467,8 +540,9 @@ module Hecks
                   ExecutionRoleArn: !GetAtt #{execution_role_id}.Arn
                   TaskRoleArn: !GetAtt #{task_role_id}.Arn
                   ContainerDefinitions:
-                    - Name: #{infra_name}
-                      Image: !Sub "${#{ecr_repository_id}.RepositoryUri}:${ImageTag}"
+                    - Name: #{domain_container.name}
+                      Image: !Sub "${#{ecr_repository_id}.RepositoryUri}:${#{domain_container.tag_parameter}}"
+                      # TMPL:domain_essential
                       PortMappings:
                         - ContainerPort: #{port}
                       LogConfiguration:
@@ -476,7 +550,7 @@ module Hecks
                         Options:
                           awslogs-group: !Ref #{log_group_id}
                           awslogs-region: !Ref AWS::Region
-                          awslogs-stream-prefix: #{infra_name}
+                          awslogs-stream-prefix: #{domain_container.name}
                       Environment:
                         - Name: HECKS_DOMAIN
                           Value: #{declared_domain_name}
@@ -516,15 +590,17 @@ module Hecks
                         # both sidecars by default. Paths match the
                         # Dockerfile's own COPY destinations, below.
                         - Name: HECKS_WASM_PATH
-                          Value: /usr/local/bin/#{domain_name}.wasm
+                          Value: #{sidecar_dir}/#{domain_name}.wasm
                         - Name: HECKS_IR_PATH
-                          Value: /usr/local/bin/#{domain_name}.ir.json
+                          Value: #{sidecar_dir}/#{domain_name}.ir.json
                         - Name: SESSION_SECRET_ARN
                           Value: !Ref #{session_secret_id}
                         - Name: HECKS_CHECKOUT_DOMAIN
                           Value: #{declared_domain_name}
                         #{oauth_task_env_yaml.each_line.with_index.map { |l, i| i.zero? ? l : "                        " + l }.join}
                         # TMPL:db_env
+                        # TMPL:domain_env
+                    # TMPL:extra_containers
 
               #{target_group_id}:
                 Type: AWS::ElasticLoadBalancingV2::TargetGroup
@@ -532,14 +608,15 @@ module Hecks
                   TargetType: ip
                   Port: #{port}
                   Protocol: HTTP
-                  VpcId: #{shared ? "!Ref OwningVpcId" : "!Ref #{db_id}Vpc"}
-                  HealthCheckPath: /
+                  VpcId: #{vpc_ref}
+                  HealthCheckPath: #{domain_container.health_path}
                   HealthCheckPort: "#{port}"
+                  # TMPL:target_group_attributes
 
               #{alb_id}:
                 Type: AWS::ElasticLoadBalancingV2::LoadBalancer
                 Properties:
-                  Name: #{stack_name}-alb
+                  Name: #{names[:alb]}
                   Scheme: internet-facing
                   Type: application
                   SecurityGroups: [!Ref #{alb_sg_id}]
@@ -553,98 +630,40 @@ module Hecks
                   Protocol: HTTP
                   DefaultActions:
                     - Type: forward
-                      TargetGroupArn: !Ref #{target_group_id}
+                      TargetGroupArn: !Ref #{layout.default.target_group_id}
 
-              #{logical_id}:
+              # TMPL:extra_target_groups
+              #{service_id}:
                 Type: AWS::ECS::Service
-                DependsOn: #{listener_id}
+                DependsOn: #{Containers.depends_on(layout, listener_id)}
                 Properties:
-                  ServiceName: #{stack_name}
+                  ServiceName: #{names[:service]}
                   Cluster: !Ref #{cluster_id}
                   TaskDefinition: !Ref #{task_definition_id}
-                  DesiredCount: #{desired_count}
+                  DesiredCount: #{plan.desired_count_parameter ? "!Ref #{plan.desired_count_parameter}" : desired_count}
                   LaunchType: FARGATE
+                  # TMPL:service_tuning
                   NetworkConfiguration:
                     AwsvpcConfiguration:
                       AssignPublicIp: DISABLED
                       Subnets: #{shared ? "[!Ref OwningSubnetAId, !Ref OwningSubnetBId]" : "[!Ref #{db_id}SubnetA, !Ref #{db_id}SubnetB]"}
                       SecurityGroups: [#{compute_security_group_ref}]
                   LoadBalancers:
-                    - ContainerName: #{infra_name}
+                    - ContainerName: #{domain_container.name}
                       ContainerPort: #{port}
                       TargetGroupArn: !Ref #{target_group_id}
+                    # TMPL:extra_load_balancers
 
-              # Real HTTPS (the ALB's own Listener above is HTTP-only —
-              # nothing else in this stack terminates TLS) and, just as
-              # important, the ONE safe default this generator can offer
-              # for caching it has no way to reason about: Managed-
-              # CachingDisabled. This domain's own routes — including
-              # every hecks-native /login, /logout, /auth/google(/callback),
-              # /admin/members request (web.rs's own auth_gate/auth_route,
-              # generic across every domain, not just this one's own
-              # dispatch commands) — are all session-cookie-driven, and
-              # this generator has no way to tell which of a domain's own
-              # paths would ever be safe to cache. Found live, the hard
-              # way (lifeadelics, 2026-09-21): a hand-authored CloudFront
-              # stack applied the OPPOSITE default — a custom, cookie-
-              # blind cache policy with a 90-120s TTL — and it served one
-              # signed-in session's own response (a short-lived SSO
-              # handoff token among them) back to a different, unrelated
-              # request within that window. A domain that DOES know one
-              # of its own paths is genuinely safe to cache (a public,
-              # non-personalized page) adds its own more specific
-              # CacheBehavior by hand, the same way lifeadelics's own
-              # hand-extended three-container stack already does for
-              # /_astro/*, /videos/*, and friends — never by loosening
-              # this one.
-              #{distribution_id}:
-                Type: AWS::CloudFront::Distribution
-                Properties:
-                  DistributionConfig:
-                    Enabled: true
-                    HttpVersion: http2
-                    # No ACM/custom domain here — this generator has no
-                    # notion of one (deploy.bluebook's own FargateTarget
-                    # declares no `domain` attribute for it) and CloudFront
-                    # requires an ACM cert in us-east-1 specifically to
-                    # attach a custom Aliases entry, a real cross-region
-                    # dependency this generator can't assume. CloudFront's
-                    # own default *.cloudfront.net certificate/hostname
-                    # are what Outputs.CloudFrontDomain below reports;
-                    # point a real domain's DNS at it by hand, same
-                    # "generated, extend by hand" posture this whole file
-                    # already has for anything past its own baseline.
-                    ViewerCertificate:
-                      CloudFrontDefaultCertificate: true
-                    Origins:
-                      - Id: #{alb_id}Origin
-                        DomainName: !GetAtt #{alb_id}.DNSName
-                        CustomOriginConfig:
-                          OriginProtocolPolicy: http-only
-                          HTTPPort: 80
-                          HTTPSPort: 443
-                    DefaultCacheBehavior:
-                      TargetOriginId: #{alb_id}Origin
-                      ViewerProtocolPolicy: redirect-to-https
-                      Compress: true
-                      AllowedMethods: [GET, HEAD, OPTIONS, PUT, PATCH, POST, DELETE]
-                      CachedMethods: [GET, HEAD]
-                      # Managed-CachingDisabled — see this resource's own
-                      # header comment for why nothing else is safe here
-                      # by default.
-                      CachePolicyId: 4135ea2d-6df8-44a3-9df3-4b5a84be39ad
-                      # Managed-AllViewer — forwards every cookie/header/
-                      # query string through uncached, so rust/host's own
-                      # session-cookie-based auth sees the real request
-                      # exactly as the browser sent it.
-                      OriginRequestPolicyId: 216adef6-5c7f-47e4-b989-5492eafa07d3
+              # TMPL:distribution
 
+              # TMPL:extra_resources
             Outputs:
               ServiceUrl:
                 Value: !Sub "http://${#{alb_id}.DNSName}"
               CloudFrontDomain:
                 Value: !GetAtt #{distribution_id}.DomainName
               #{stack_outputs.map { |o| "#{o[:key]}:\n    Value: #{o[:ref]}" }.join("\n  ")}
+              # TMPL:extra_outputs
           YAML
 
           # Spliced in after the heredoc renders, not interpolated inside
@@ -661,10 +680,20 @@ module Hecks
           # deep as it should have). A plain `String#sub` after the fact,
           # capturing the marker's own real indentation, has no such
           # interaction with the text it replaces into.
-          template_yaml = template_yaml.sub(/^([ \t]*)# TMPL:db_env\n/) { db_env_yaml(shared: shared, owner_db_name: owner_db_name, db_ref_id: db_ref_id, db_name: db_name, secret_sub: secret_sub, hecks_schema: hecks_schema, base: $1) }
+          template_yaml = template_yaml.sub(/^([ \t]*)# TMPL:db_env\n/) { db_env_yaml(shared: shared, owner_db_name: owner_db_name, db_ref_id: db_ref_id, db_name: db_name, secret_sub: secret_sub, hecks_schema: hecks_schema, db_name_ref: db_name_ref, base: $1) }
           template_yaml = template_yaml.sub(/^([ \t]*)# TMPL:cross_domain_fargate_policies\n/) {
             cross_domain_fargate_targets.empty? ? "" : cross_domain_fargate_policy_yaml(cross_domain_fargate_targets, $1)
           }
+
+          begin
+            template_yaml = Assembly.apply(
+              template_yaml, plan,
+              stack_name: stack_name, vpc_ref: vpc_ref, listener_id: listener_id, alb_id: alb_id, distribution_id: distribution_id,
+              db_secret_ref: db_secret_ref
+            )
+          rescue ArgumentError => e
+            raise ArgumentError, "#{world_file}'s deployed_to(\"AwsFargate\"): #{e.message}"
+          end
 
           bastion_yaml = shared ? nil : Shared.bastion_yaml(
             domain: domain, infra_name: infra_name, stack_name: stack_name, db_id: db_id,
@@ -688,18 +717,18 @@ module Hecks
             RUN apt-get update -qq && apt-get install -y --no-install-recommends -qq ca-certificates libpq5 \\
                 && rm -rf /var/lib/apt/lists/*
 
-            COPY #{domain_name}-host /usr/local/bin/#{domain_name}-host
+            COPY #{plan.build_context_dir}#{domain_name}-host #{sidecar_dir}/#{domain_name}-host
             # The .wasm/.ir.json sidecars main.rs requires at boot —
             # HECKS_WASM_PATH/HECKS_IR_PATH (template.yaml's own
             # ContainerDefinitions Environment) point at these exact paths.
-            COPY #{domain_name}.wasm /usr/local/bin/#{domain_name}.wasm
-            COPY #{domain_name}.ir.json /usr/local/bin/#{domain_name}.ir.json
+            COPY #{plan.build_context_dir}#{domain_name}.wasm #{sidecar_dir}/#{domain_name}.wasm
+            COPY #{plan.build_context_dir}#{domain_name}.ir.json #{sidecar_dir}/#{domain_name}.ir.json
 
             ENV PORT=#{port}
             ENV BIND=0.0.0.0
             EXPOSE #{port}
 
-            CMD ["#{domain_name}-host"]
+            CMD ["#{sidecar_dir == Settings::DEFAULT_INSTALL_DIR ? domain_name : "#{sidecar_dir}/#{domain_name}"}-host"]
           DOCKERFILE
 
           makefile_content = <<~MAKE
@@ -846,17 +875,19 @@ module Hecks
         # @param secret_sub [String] the `${...}`-ready identifier for this domain's
         #   own database secret
         # @param hecks_schema [String, nil] the Postgres schema to set, or nil for none
+        # @param db_name_ref [String, nil] an intrinsic (such as `!Ref Param`) that names the shared
+        #   database in place of `owner_db_name`, or nil to write the name itself
         # @param base [String] the marker line's own rendered indentation whitespace
         # @return [String] the rendered `ContainerDefinitions[0].Environment` entries,
         #   ending in exactly one trailing newline
-        def db_env_yaml(shared:, owner_db_name:, db_ref_id:, db_name:, secret_sub:, hecks_schema:, base:)
+        def db_env_yaml(shared:, owner_db_name:, db_ref_id:, db_name:, secret_sub:, hecks_schema:, base:, db_name_ref: nil)
           lines =
             if shared
               [
                 "- Name: DB_HOST",
                 "  Value: !Ref OwningDatabaseEndpoint",
                 "- Name: DB_NAME",
-                "  Value: #{owner_db_name}",
+                "  Value: #{db_name_ref || owner_db_name}",
                 "- Name: DB_SECRET_ARN",
                 "  Value: !Sub \"${OwningDatabaseSecretArn}\"",
               ]
