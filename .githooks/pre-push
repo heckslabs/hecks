@@ -10,6 +10,10 @@
 # core.hooksPath makes every worktree run this one file. Each check logs to its own file
 # under WORKDIR; results print in a fixed order after `wait`, every check reported even
 # if an earlier one failed.
+#
+# `codegen_drift` catches a Bluebook `given` changing with nobody rerunning `bin/project_rust`
+# (ADR 0057) — CI's own `checks_codegen_drift` only runs on `pull_request`/`merge_group`, not a
+# plain push, so this is the one local backstop.
 
 ROOT=$(git rev-parse --show-toplevel)
 WORKDIR=$(mktemp -d)
@@ -68,6 +72,7 @@ run_check engine_agreement "$ROOT/bin/check_engine_agreement" &
 run_check model_check "$ROOT/bin/model_check" &
 run_check doc_coverage "$ROOT/bin/doc_coverage" &
 run_check rubocop bundle exec rubocop -c .rubocop.yml &
+run_check codegen_drift bundle exec bin/regen_codegen_domains --check &
 run_check comment_blocks bundle exec bin/standardize_comments --check lib bin spec examples --only long_block &
 
 wait
@@ -143,6 +148,16 @@ if [ "$(exit_of rubocop)" -ne 0 ]; then
   fail=1
 fi
 
+printf '\n[pre-push] codegen drift — committed rust/src/generated/ must match a fresh regen\n\n'
+
+cat "$WORKDIR/codegen_drift.log"
+if [ "$(exit_of codegen_drift)" -ne 0 ]; then
+  printf '\n[pre-push] BLOCKED — regenerating hits a diff, so the committed Rust is stale.\n'
+  printf '           Run `bundle exec bin/regen_codegen_domains`, commit the result, or\n'
+  printf '           push with --no-verify and say why.\n\n'
+  fail=1
+fi
+
 printf '\n[pre-push] comment blocks — no run of comment lines past ADR 0075'"'"'s cap\n\n'
 
 cat "$WORKDIR/comment_blocks.log"
@@ -156,7 +171,7 @@ if [ "$fail" -ne 0 ]; then
   exit 1
 fi
 
-printf '\n[pre-push] suite green, fuzzer green, engines agree, model checks clean, every word exemplified, rubocop clean, comments in bounds.\n\n'
+printf '\n[pre-push] suite green, fuzzer green, engines agree, model checks clean, every word exemplified, rubocop clean, codegen matches source, comments in bounds.\n\n'
 
 # Attestation: a git note under refs/notes/ci, keyed by HEAD^{tree} and carrying an HMAC
 # signed with the keychain key hecks-ci-attest-key, tells CI which checks it can skip.
