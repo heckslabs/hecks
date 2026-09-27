@@ -19,8 +19,15 @@ build session. Nothing here builds; each resolved ticket lands as an ADR in `doc
   by `spec/adr_numbers_unique_spec.rb`, PR #863). The ticket's `## Answer` gists it and links it.
 - Docs rules apply to everything here: no client names, no spec counts, comments follow
   `docs/COMMENT_STYLE_GUIDE.md`.
-- Source of the items: an outside read of the repo; its claims were spot-checked locally and
-  held (gemspec ships `lib/**` only, about 55% of `lib/` lines are comments, duplicate ADR numbers).
+- Source of the items: an outside read of the repo. Its claims were spot-checked locally and
+  most held (gemspec ships `lib/**` only, about 55% of `lib/` lines are comments, duplicate ADR
+  numbers). Prep found three that did not: `group_by` drops rows on every adapter, not only
+  memory; both runtimes already accept a bare scalar for a single-field value object, so the
+  *Value-object ergonomics* premise is stale; and the commit rate is about 14 a day over the
+  last 30 days, not 25.
+- Every open decision ticket carries a `## Prep (not a decision)` section: cited facts, options
+  and a recommendation gathered read-only for the grilling session. Prep is input. A ticket
+  closes only when the maintainer decides and the answer is recorded.
 
 ## Decisions so far
 
