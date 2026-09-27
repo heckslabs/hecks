@@ -88,22 +88,35 @@ pub fn parse_body(
                 )?)
             }
             "where" => {
-                query_derive::refuse_on_target(file, last_line, "where", &gated.args.named)?;
-                wheres.extend(query_derive::where_clauses(&gated.args.named))
+                // ADR 0055: `on:` is a recognized named argument for `where` in ReadModel
+                // context (see keywords.rs), so the argument gate already routed it into
+                // `gated.args.named` alongside the real field:value pairs — filtered out here
+                // rather than misread as a where clause on a field literally named "on".
+                let target = super::named_constant(&gated.args, "on").map(naming::demodulise);
+                let field_pairs: Vec<(String, String)> = gated
+                    .args
+                    .named
+                    .iter()
+                    .filter(|(name, _)| name != "on")
+                    .cloned()
+                    .collect();
+                wheres.extend(query_derive::where_clauses(&field_pairs, target.as_deref()))
             }
             "order_by" => {
-                // The gate already refuses an undeclared `on:`; only `where` needs a check.
                 let field = super::positional_symbol(file, last_line, "order_by", &gated.args, 1)?;
                 let direction = match gated.args.positional.iter().find(|(idx, _)| *idx == 2) {
                     Some((_, text)) => text.trim().trim_start_matches(':').to_string(),
                     None => "asc".to_string(),
                 };
-                order_by = Some(ir::OrderBy { field, direction });
+                let target = super::named_constant(&gated.args, "on").map(naming::demodulise);
+                order_by = Some(ir::OrderBy { field, direction, target });
             }
             "limit" => {
                 let raw = super::positional_constant(file, last_line, "limit", &gated.args, 1)?;
+                let target = super::named_constant(&gated.args, "on").map(naming::demodulise);
                 limit = Some(ir::LimitSpec {
                     value: crate::ruby_value::render(&crate::ruby_value::read(raw)),
+                    target,
                 });
             }
             word if OPTION_WORDS.contains(&word) => {

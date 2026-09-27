@@ -71,9 +71,7 @@
             }
           ],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "SlipReference",
@@ -111,9 +109,7 @@
             }
           ],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "SlipAmount",
@@ -150,9 +146,7 @@
             }
           ],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         }
       ],
       "commands": [
@@ -173,15 +167,9 @@
               "relationship": null
             }
           ],
-          "givens": [
-
-          ],
-          "ensures": [
-
-          ],
-          "mutations": [
-
-          ],
+          "givens": [],
+          "ensures": [],
+          "mutations": [],
           "emits": [
             "FolderOpened"
           ],
@@ -215,12 +203,8 @@
               "relationship": null
             }
           ],
-          "givens": [
-
-          ],
-          "ensures": [
-
-          ],
+          "givens": [],
+          "ensures": [],
           "mutations": [
             {
               "target": "slips",
@@ -239,15 +223,9 @@
           "provenance": null
         }
       ],
-      "invariants": [
-
-      ],
-      "preconditions": [
-
-      ],
-      "projected_fields": [
-
-      ],
+      "invariants": [],
+      "preconditions": [],
+      "projected_fields": [],
       "lifecycle": null,
       "entities": [
         {
@@ -296,12 +274,8 @@
                   "relationship": null
                 }
               ],
-              "givens": [
-
-              ],
-              "ensures": [
-
-              ],
+              "givens": [],
+              "ensures": [],
               "mutations": [
                 {
                   "target": "amount",
@@ -320,45 +294,23 @@
               "provenance": null
             }
           ],
-          "queries": [
-
-          ],
-          "entities": [
-
-          ],
-          "preconditions": [
-
-          ],
-          "invariants": [
-
-          ],
+          "queries": [],
+          "entities": [],
+          "preconditions": [],
+          "invariants": [],
           "lifecycle": null
         }
       ],
-      "queries": [
-
-      ],
-      "ports": [
-
-      ],
+      "queries": [],
+      "ports": [],
       "provenance": null
     }
   ],
-  "read_models": [
-
-  ],
-  "policies": [
-
-  ],
-  "process_managers": [
-
-  ],
-  "attaches_to": [
-
-  ],
-  "provides": [
-
-  ],
+  "read_models": [],
+  "policies": [],
+  "process_managers": [],
+  "attaches_to": [],
+  "provides": [],
   "canonical_form": [
     {
       "strategy": "collapse_whitespace",
@@ -376,9 +328,7 @@
     }
   ],
   "lineage": {
-    "capable_aggregates": [
-
-    ]
+    "capable_aggregates": []
   },
   "persistence": {
     "aggregates": [
@@ -389,8 +339,6 @@
       }
     ]
   },
-  "translations": [
-
-  ],
+  "translations": [],
   "source_text": "# Stress domain: an entity command given both a missing element and an invalid argument.\n# Ruby raises InvariantViolation first, Rust answers NotFound; does that generalize?\nHecks.bluebook \"LedgerOrdering\" do\n  vision \"One aggregate, one entity, one command that takes an invariant-checked argument while addressing the entity by id — deliberately minimal, built to answer one question: does Ruby and Rust's argument-invariant-vs-entity-existence ordering disagreement generalize past LedgerEntry.Amend?\"\n\n  core\n\n  aggregate \"Folder\" do\n    description \"A folder holding slips, addressed by reference.\"\n\n    identified_by :reference\n\n    attribute :reference, FolderReference\n    attribute :slips,     list_of(Slip)\n\n    value_object \"FolderReference\" do\n      attribute :value, String, pattern: '[^ \\t\\n\\r]'\n      invariant(\"a folder is referenced\") { !value.to_s.empty? }\n    end\n\n    command \"Open\" do\n      role \"Clerk\"\n      goal \"Start a folder\"\n\n      attribute :reference, FolderReference\n\n      emits \"FolderOpened\"\n    end\n\n    command \"AddSlip\" do\n      role \"Clerk\"\n      goal \"Add a slip to the folder\"\n\n      reference_to Folder\n      attribute :reference, SlipReference\n      attribute :amount,    SlipAmount\n\n      sets :slips, append: { reference: :reference, amount: :amount }\n\n      emits \"SlipAdded\"\n    end\n\n    value_object \"SlipReference\" do\n      attribute :value, String, pattern: '[^ \\t\\n\\r]'\n      invariant(\"a slip is referenced\") { !value.to_s.empty? }\n    end\n\n    # Positive-only, so `amount.value=-1` fails it while a missing `to.entity` fails existence.\n    value_object \"SlipAmount\" do\n      attribute :value, Integer\n      invariant(\"a slip amount is positive\") { value.positive? }\n    end\n\n    entity \"Slip\" do\n      description \"One slip in the folder, with an amount that must be positive.\"\n\n      identified_by :reference\n\n      attribute :reference, SlipReference\n      attribute :amount,    SlipAmount, optional: true\n\n      # Dispatch with a missing `to.entity` and an invalid `amount.value`; diff the refusals.\n      command \"Amend\" do\n        role \"Clerk\"\n        goal \"Change what a slip is worth\"\n\n        attribute :amount, SlipAmount\n\n        sets :amount\n\n        emits \"SlipAmended\"\n      end\n    end\n  end\nend\n"
 }

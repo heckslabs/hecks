@@ -71,9 +71,7 @@
             }
           ],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "BoardNumber",
@@ -110,9 +108,7 @@
             }
           ],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "BoardLabel",
@@ -150,9 +146,7 @@
             }
           ],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "CardSequence",
@@ -189,9 +183,7 @@
             }
           ],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "CardNote",
@@ -207,13 +199,9 @@
               "relationship": null
             }
           ],
-          "invariants": [
-
-          ],
+          "invariants": [],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         }
       ],
       "commands": [
@@ -234,15 +222,9 @@
               "relationship": null
             }
           ],
-          "givens": [
-
-          ],
-          "ensures": [
-
-          ],
-          "mutations": [
-
-          ],
+          "givens": [],
+          "ensures": [],
+          "mutations": [],
           "emits": [
             "WorkspaceOpened"
           ],
@@ -266,12 +248,8 @@
               "relationship": null
             }
           ],
-          "givens": [
-
-          ],
-          "ensures": [
-
-          ],
+          "givens": [],
+          "ensures": [],
           "mutations": [
             {
               "target": "boards",
@@ -289,15 +267,9 @@
           "provenance": null
         }
       ],
-      "invariants": [
-
-      ],
-      "preconditions": [
-
-      ],
-      "projected_fields": [
-
-      ],
+      "invariants": [],
+      "preconditions": [],
+      "projected_fields": [],
       "lifecycle": null,
       "entities": [
         {
@@ -356,12 +328,8 @@
                   "relationship": null
                 }
               ],
-              "givens": [
-
-              ],
-              "ensures": [
-
-              ],
+              "givens": [],
+              "ensures": [],
               "mutations": [
                 {
                   "target": "cards",
@@ -395,12 +363,8 @@
                   "relationship": null
                 }
               ],
-              "givens": [
-
-              ],
-              "ensures": [
-
-              ],
+              "givens": [],
+              "ensures": [],
               "mutations": [
                 {
                   "target": "label",
@@ -419,9 +383,7 @@
               "provenance": null
             }
           ],
-          "queries": [
-
-          ],
+          "queries": [],
           "entities": [
             {
               "name": "Card",
@@ -469,12 +431,8 @@
                       "relationship": null
                     }
                   ],
-                  "givens": [
-
-                  ],
-                  "ensures": [
-
-                  ],
+                  "givens": [],
+                  "ensures": [],
                   "mutations": [
                     {
                       "target": "note",
@@ -493,54 +451,28 @@
                   "provenance": null
                 }
               ],
-              "queries": [
-
-              ],
-              "entities": [
-
-              ],
-              "preconditions": [
-
-              ],
-              "invariants": [
-
-              ],
+              "queries": [],
+              "entities": [],
+              "preconditions": [],
+              "invariants": [],
               "lifecycle": null
             }
           ],
-          "preconditions": [
-
-          ],
-          "invariants": [
-
-          ],
+          "preconditions": [],
+          "invariants": [],
           "lifecycle": null
         }
       ],
-      "queries": [
-
-      ],
-      "ports": [
-
-      ],
+      "queries": [],
+      "ports": [],
       "provenance": null
     }
   ],
-  "read_models": [
-
-  ],
-  "policies": [
-
-  ],
-  "process_managers": [
-
-  ],
-  "attaches_to": [
-
-  ],
-  "provides": [
-
-  ],
+  "read_models": [],
+  "policies": [],
+  "process_managers": [],
+  "attaches_to": [],
+  "provides": [],
   "canonical_form": [
     {
       "strategy": "collapse_whitespace",
@@ -558,9 +490,7 @@
     }
   ],
   "lineage": {
-    "capable_aggregates": [
-
-    ]
+    "capable_aggregates": []
   },
   "persistence": {
     "aggregates": [
@@ -577,8 +507,6 @@
     "assignments": "Governance::RoleAssignment.AssignmentsForActor",
     "assignment_aggregate": "Governance::RoleAssignment"
   },
-  "translations": [
-
-  ],
+  "translations": [],
   "source_text": "# Stress domain: entity \"Card\" nested inside entity \"Board\" inside \"Workspace\", two hops deep.\n# Pins that an invariant-failing addressing identity answers NotFound at both hops.\nHecks.bluebook \"NestedPieces\" do\n  vision \"A workspace holding boards, each holding cards — two real levels of entity nesting, stressing whether the addressing-identity-vs-existence ordering question (BUG#3) recurs at a hop this corpus has never actually reached before.\"\n\n  core\n\n  aggregate \"Workspace\" do\n    description \"A workspace holding boards; each board holds cards.\"\n\n    identified_by :reference\n\n    attribute :reference, WorkspaceReference\n    attribute :boards,    list_of(Board)\n\n    value_object \"WorkspaceReference\" do\n      attribute :value, String, pattern: '[^ \\t\\n\\r]'\n      invariant(\"a workspace is referenced\") { !value.to_s.empty? }\n    end\n\n    command \"Open\" do\n      role \"Owner\"\n      goal \"Start a workspace\"\n\n      attribute :reference, WorkspaceReference\n\n      emits \"WorkspaceOpened\"\n    end\n\n    command \"AddBoard\" do\n      role \"Owner\"\n      goal \"Add a board to the workspace\"\n\n      reference_to Workspace\n      attribute :number, BoardNumber\n\n      sets :boards, append: { number: :number }\n\n      emits \"BoardAdded\"\n    end\n\n    # Integer identity, not String: routing refuses a blank identity before coercion, so only a\n    # non-blank value like \"0\" can fail the invariant inside `element_of`.\n    value_object \"BoardNumber\" do\n      attribute :value, Integer\n      invariant(\"a board number is positive\") { value.positive? }\n    end\n\n    value_object \"BoardLabel\" do\n      attribute :value, String, pattern: '[^ \\t\\n\\r]'\n      invariant(\"a board label is not blank\") { !value.to_s.empty? }\n    end\n\n    value_object \"CardSequence\" do\n      attribute :value, Integer\n      invariant(\"a card sequence is positive\") { value.positive? }\n    end\n\n    value_object \"CardNote\" do\n      attribute :text, String\n    end\n\n    entity \"Board\" do\n      description \"One board in the workspace, holding cards.\"\n\n      identified_by :number\n\n      attribute :number, BoardNumber\n      attribute :label,  BoardLabel, optional: true\n      attribute :cards,  list_of(Card)\n\n      command \"AddCard\" do\n        role \"Owner\"\n        goal \"Add a card to the board\"\n\n        attribute :sequence, CardSequence\n\n        sets :cards, append: { sequence: :sequence }\n\n        emits \"CardAdded\"\n      end\n\n      # Hop one: a missing, invariant-failing `board.number` answers NotFound.\n      command \"Label\" do\n        role \"Owner\"\n        goal \"Label the board\"\n\n        attribute :label, BoardLabel\n\n        sets :label\n\n        emits \"BoardLabeled\"\n      end\n\n      # A piece nested inside a piece (ADR 0026): `locate_chain` walks a second hop to reach it.\n      entity \"Card\" do\n        description \"One card on the board, with a sequence that must be positive.\"\n\n        identified_by :sequence\n\n        attribute :sequence, CardSequence\n        attribute :note,     CardNote, optional: true\n\n        # Hop two: a missing, invariant-failing `card.sequence` answers NotFound.\n        command \"Annotate\" do\n          role \"Owner\"\n          goal \"Add a note to the card\"\n\n          attribute :note, CardNote\n\n          sets :note\n\n          emits \"CardAnnotated\"\n        end\n      end\n    end\n  end\nend\n"
 }

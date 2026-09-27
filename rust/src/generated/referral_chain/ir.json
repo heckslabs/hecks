@@ -61,9 +61,7 @@
             }
           ],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         }
       ],
       "commands": [
@@ -84,15 +82,9 @@
               "relationship": null
             }
           ],
-          "givens": [
-
-          ],
-          "ensures": [
-
-          ],
-          "mutations": [
-
-          ],
+          "givens": [],
+          "ensures": [],
+          "mutations": [],
           "emits": [
             "SponsorEnrolled"
           ],
@@ -104,18 +96,10 @@
           "role": "Registrar",
           "goal": "Suspend a sponsor, invalidating every chain that runs through them",
           "references": "Sponsor",
-          "attributes": [
-
-          ],
-          "givens": [
-
-          ],
-          "ensures": [
-
-          ],
-          "mutations": [
-
-          ],
+          "attributes": [],
+          "givens": [],
+          "ensures": [],
+          "mutations": [],
           "emits": [
             "SponsorSuspended"
           ],
@@ -123,15 +107,9 @@
           "provenance": null
         }
       ],
-      "invariants": [
-
-      ],
-      "preconditions": [
-
-      ],
-      "projected_fields": [
-
-      ],
+      "invariants": [],
+      "preconditions": [],
+      "projected_fields": [],
       "lifecycle": {
         "field": "standing",
         "default": "good",
@@ -143,15 +121,9 @@
           }
         ]
       },
-      "entities": [
-
-      ],
-      "queries": [
-
-      ],
-      "ports": [
-
-      ],
+      "entities": [],
+      "queries": [],
+      "ports": [],
       "provenance": null
     },
     {
@@ -219,9 +191,7 @@
             }
           ],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         }
       ],
       "commands": [
@@ -277,9 +247,7 @@
               }
             }
           ],
-          "ensures": [
-
-          ],
+          "ensures": [],
           "mutations": [
             {
               "target": "handle",
@@ -307,25 +275,13 @@
           "provenance": null
         }
       ],
-      "invariants": [
-
-      ],
-      "preconditions": [
-
-      ],
-      "projected_fields": [
-
-      ],
+      "invariants": [],
+      "preconditions": [],
+      "projected_fields": [],
       "lifecycle": null,
-      "entities": [
-
-      ],
-      "queries": [
-
-      ],
-      "ports": [
-
-      ],
+      "entities": [],
+      "queries": [],
+      "ports": [],
       "provenance": null
     },
     {
@@ -393,9 +349,7 @@
             }
           ],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "Handle",
@@ -433,9 +387,7 @@
             }
           ],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         }
       ],
       "commands": [
@@ -492,9 +444,7 @@
               }
             }
           ],
-          "ensures": [
-
-          ],
+          "ensures": [],
           "mutations": [
             {
               "target": "code",
@@ -538,12 +488,8 @@
               "relationship": null
             }
           ],
-          "givens": [
-
-          ],
-          "ensures": [
-
-          ],
+          "givens": [],
+          "ensures": [],
           "mutations": [
             {
               "target": "member",
@@ -562,26 +508,16 @@
           "provenance": null
         }
       ],
-      "invariants": [
-
-      ],
-      "preconditions": [
-
-      ],
-      "projected_fields": [
-
-      ],
+      "invariants": [],
+      "preconditions": [],
+      "projected_fields": [],
       "lifecycle": null,
-      "entities": [
-
-      ],
+      "entities": [],
       "queries": [
         {
           "name": "FromGoodSponsors",
           "description": "Referrals whose issuing member's sponsor is in good standing.",
-          "attributes": [
-
-          ],
+          "attributes": [],
           "wheres": [
             {
               "field": "member/sponsor/standing",
@@ -596,27 +532,15 @@
           "limit": null
         }
       ],
-      "ports": [
-
-      ],
+      "ports": [],
       "provenance": null
     }
   ],
-  "read_models": [
-
-  ],
-  "policies": [
-
-  ],
-  "process_managers": [
-
-  ],
-  "attaches_to": [
-
-  ],
-  "provides": [
-
-  ],
+  "read_models": [],
+  "policies": [],
+  "process_managers": [],
+  "attaches_to": [],
+  "provides": [],
   "canonical_form": [
     {
       "strategy": "collapse_whitespace",
@@ -634,9 +558,7 @@
     }
   ],
   "lineage": {
-    "capable_aggregates": [
-
-    ]
+    "capable_aggregates": []
   },
   "persistence": {
     "aggregates": [
@@ -657,8 +579,6 @@
       }
     ]
   },
-  "translations": [
-
-  ],
+  "translations": [],
   "source_text": "# Stress domain: a reference chain (Referral -> Member -> Sponsor) fuzzed on both engines.\n# Covers one- and two-hop `given` dereferences, a two-hop `where`, and settled-state references.\nHecks.bluebook \"ReferralChain\" do\n  vision \"A referral is issued by a member, who was sponsored by a sponsor — three aggregates in a reference chain, built to walk every hop the runtime's reference machinery has (a one-hop and a two-hop given, a two-hop where, and a reference re-pointed through a plain value object so only the settled-state check can catch a dangling one) on both engines at once.\"\n\n  core\n\n  aggregate \"Sponsor\" do\n    description \"Someone who vouches for members; a sponsor in good standing is what makes a referral chain valid.\"\n\n    identified_by :handle\n\n    attribute :handle, Handle\n\n    # Redeclared per aggregate: no value object is shared by name across aggregates.\n    value_object \"Handle\" do\n      attribute :value, String, pattern: '[^ \\t\\n\\r]'\n      invariant(\"a handle is not blank\") { !value.to_s.empty? }\n    end\n\n    lifecycle :standing, default: \"good\" do\n      transition \"Suspend\" => \"suspended\", from: \"good\"\n    end\n\n    command \"Enroll\" do\n      goal \"Enroll a sponsor\"\n\n      attribute :handle, Handle\n\n      emits \"SponsorEnrolled\"\n    end\n\n    # The only role-gated command, so `role+nonexistent` has a reference-carrying target.\n    command \"Suspend\", from: \"good\" do\n      role \"Registrar\"\n      goal \"Suspend a sponsor, invalidating every chain that runs through them\"\n\n      reference_to Sponsor\n\n      emits \"SponsorSuspended\"\n    end\n  end\n\n  aggregate \"Member\" do\n    description \"Someone a sponsor vouched for; joins under exactly one sponsor.\"\n\n    identified_by :handle\n\n    attribute :handle, Handle\n    reference_to Sponsor\n\n    value_object \"Handle\" do\n      attribute :value, String, pattern: '[^ \\t\\n\\r]'\n      invariant(\"a handle is not blank\") { !value.to_s.empty? }\n    end\n\n    command \"Join\" do\n      goal \"Join under a sponsor\"\n\n      reference_to Sponsor\n      attribute :handle, Handle\n\n      given(\"the sponsor is in good standing\") { sponsor.standing == \"good\" }\n\n      sets :handle\n      sets :sponsor\n\n      emits \"MemberJoined\"\n    end\n  end\n\n  aggregate \"Referral\" do\n    description \"A referral a member issues; only valid while the member's own sponsor stands in good standing.\"\n\n    identified_by :code\n\n    attribute :code, Code\n    reference_to Member\n\n    value_object \"Code\" do\n      attribute :value, String, pattern: '[^ \\t\\n\\r]'\n      invariant(\"a code is not blank\") { !value.to_s.empty? }\n    end\n\n    value_object \"Handle\" do\n      attribute :value, String, pattern: '[^ \\t\\n\\r]'\n      invariant(\"a handle is not blank\") { !value.to_s.empty? }\n    end\n\n    command \"Issue\" do\n      goal \"Issue a referral on behalf of a member\"\n\n      reference_to Member\n      attribute :code, Code\n\n      # Two hops: `member` hydrates, then its own `sponsor` (`dereference` recursion).\n      given(\"the member's sponsor is in good standing\") { member.sponsor.standing == \"good\" }\n\n      sets :code\n      sets :member\n\n      emits \"ReferralIssued\"\n    end\n\n    # `member` is a plain `Handle` here, so only Ruby's `resolve_state_references` can catch\n    # a dangling one; Rust ported just the command-level check (ADR 0037 finding 5).\n    command \"Reassign\" do\n      goal \"Re-point a referral at a different member, by handle\"\n\n      reference_to Referral\n      attribute :member, Handle\n\n      sets :member\n\n      emits \"ReferralReassigned\"\n    end\n\n    # Two-hop where: real in Ruby, a structural skip in Rust, so the diff harness drops it.\n    query \"FromGoodSponsors\" do\n      description \"Referrals whose issuing member's sponsor is in good standing.\"\n      where(:\"member/sponsor/standing\" => \"good\")\n      order_by :code\n    end\n  end\nend\n"
 }

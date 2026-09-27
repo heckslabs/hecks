@@ -49,13 +49,9 @@
               "relationship": null
             }
           ],
-          "invariants": [
-
-          ],
+          "invariants": [],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "WidgetStatus",
@@ -71,9 +67,7 @@
               "relationship": null
             }
           ],
-          "invariants": [
-
-          ],
+          "invariants": [],
           "closed_set": true,
           "members": [
             [
@@ -109,12 +103,8 @@
               "relationship": null
             }
           ],
-          "givens": [
-
-          ],
-          "ensures": [
-
-          ],
+          "givens": [],
+          "ensures": [],
           "mutations": [
             {
               "target": "name",
@@ -146,9 +136,7 @@
           "role": null,
           "goal": "Retire a widget — once; a retired widget cannot retire again",
           "references": "Widget",
-          "attributes": [
-
-          ],
+          "attributes": [],
           "givens": [
             {
               "description": "only an available widget may retire",
@@ -174,9 +162,7 @@
               }
             }
           ],
-          "ensures": [
-
-          ],
+          "ensures": [],
           "mutations": [
             {
               "target": "status",
@@ -195,26 +181,16 @@
           "provenance": null
         }
       ],
-      "invariants": [
-
-      ],
-      "preconditions": [
-
-      ],
-      "projected_fields": [
-
-      ],
+      "invariants": [],
+      "preconditions": [],
+      "projected_fields": [],
       "lifecycle": null,
-      "entities": [
-
-      ],
+      "entities": [],
       "queries": [
         {
           "name": "Available",
           "description": "Widgets still available — the vendored package's own smallest read model.",
-          "attributes": [
-
-          ],
+          "attributes": [],
           "wheres": [
             {
               "field": "status",
@@ -226,27 +202,15 @@
           "limit": null
         }
       ],
-      "ports": [
-
-      ],
+      "ports": [],
       "provenance": null
     }
   ],
-  "read_models": [
-
-  ],
-  "policies": [
-
-  ],
-  "process_managers": [
-
-  ],
-  "attaches_to": [
-
-  ],
-  "provides": [
-
-  ],
+  "read_models": [],
+  "policies": [],
+  "process_managers": [],
+  "attaches_to": [],
+  "provides": [],
   "canonical_form": [
     {
       "strategy": "collapse_whitespace",

@@ -109,13 +109,9 @@
               "relationship": null
             }
           ],
-          "invariants": [
-
-          ],
+          "invariants": [],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "Motto",
@@ -131,13 +127,9 @@
               "relationship": null
             }
           ],
-          "invariants": [
-
-          ],
+          "invariants": [],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "Mood",
@@ -153,9 +145,7 @@
               "relationship": null
             }
           ],
-          "invariants": [
-
-          ],
+          "invariants": [],
           "closed_set": true,
           "members": [
             [
@@ -186,9 +176,7 @@
               "relationship": null
             }
           ],
-          "invariants": [
-
-          ],
+          "invariants": [],
           "closed_set": true,
           "members": [
             [
@@ -219,9 +207,7 @@
               "relationship": null
             }
           ],
-          "invariants": [
-
-          ],
+          "invariants": [],
           "closed_set": true,
           "members": [
             [
@@ -258,13 +244,9 @@
               "relationship": null
             }
           ],
-          "invariants": [
-
-          ],
+          "invariants": [],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "SeatNumber",
@@ -280,13 +262,9 @@
               "relationship": null
             }
           ],
-          "invariants": [
-
-          ],
+          "invariants": [],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "Age",
@@ -302,13 +280,9 @@
               "relationship": null
             }
           ],
-          "invariants": [
-
-          ],
+          "invariants": [],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "Row",
@@ -324,9 +298,7 @@
               "relationship": null
             }
           ],
-          "invariants": [
-
-          ],
+          "invariants": [],
           "closed_set": true,
           "members": [
             [
@@ -367,13 +339,9 @@
               "relationship": null
             }
           ],
-          "invariants": [
-
-          ],
+          "invariants": [],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "Assignment",
@@ -399,13 +367,9 @@
               "relationship": null
             }
           ],
-          "invariants": [
-
-          ],
+          "invariants": [],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         }
       ],
       "commands": [
@@ -426,12 +390,8 @@
               "relationship": null
             }
           ],
-          "givens": [
-
-          ],
-          "ensures": [
-
-          ],
+          "givens": [],
+          "ensures": [],
           "mutations": [
             {
               "target": "name",
@@ -493,12 +453,8 @@
               "relationship": null
             }
           ],
-          "givens": [
-
-          ],
-          "ensures": [
-
-          ],
+          "givens": [],
+          "ensures": [],
           "mutations": [
             {
               "target": "last_marked",
@@ -533,15 +489,9 @@
               "relationship": null
             }
           ],
-          "givens": [
-
-          ],
-          "ensures": [
-
-          ],
-          "mutations": [
-
-          ],
+          "givens": [],
+          "ensures": [],
+          "mutations": [],
           "emits": [
             "MarkNoticed"
           ],
@@ -565,12 +515,8 @@
               "relationship": null
             }
           ],
-          "givens": [
-
-          ],
-          "ensures": [
-
-          ],
+          "givens": [],
+          "ensures": [],
           "mutations": [
             {
               "target": "standing",
@@ -655,9 +601,7 @@
               }
             }
           ],
-          "ensures": [
-
-          ],
+          "ensures": [],
           "mutations": [
             {
               "target": "seats",
@@ -792,9 +736,7 @@
               }
             }
           ],
-          "ensures": [
-
-          ],
+          "ensures": [],
           "mutations": [
             {
               "target": "crew",
@@ -1107,9 +1049,7 @@
               }
             }
           ],
-          "ensures": [
-
-          ],
+          "ensures": [],
           "mutations": [
             {
               "target": "assignments",
@@ -1153,12 +1093,8 @@
               "relationship": null
             }
           ],
-          "givens": [
-
-          ],
-          "ensures": [
-
-          ],
+          "givens": [],
+          "ensures": [],
           "mutations": [
             {
               "target": "Member.Retire",
@@ -1169,22 +1105,14 @@
               }
             }
           ],
-          "emits": [
-
-          ],
+          "emits": [],
           "from": null,
           "provenance": null
         }
       ],
-      "invariants": [
-
-      ],
-      "preconditions": [
-
-      ],
-      "projected_fields": [
-
-      ],
+      "invariants": [],
+      "preconditions": [],
+      "projected_fields": [],
       "lifecycle": null,
       "entities": [
         {
@@ -1383,9 +1311,7 @@
                   }
                 }
               ],
-              "mutations": [
-
-              ],
+              "mutations": [],
               "emits": [
                 "MemberRetired"
               ],
@@ -1393,18 +1319,10 @@
               "provenance": null
             }
           ],
-          "queries": [
-
-          ],
-          "entities": [
-
-          ],
-          "preconditions": [
-
-          ],
-          "invariants": [
-
-          ],
+          "queries": [],
+          "entities": [],
+          "preconditions": [],
+          "invariants": [],
           "lifecycle": {
             "field": "status",
             "default": "active",
@@ -1418,18 +1336,12 @@
           }
         }
       ],
-      "queries": [
-
-      ],
-      "ports": [
-
-      ],
+      "queries": [],
+      "ports": [],
       "provenance": null
     }
   ],
-  "read_models": [
-
-  ],
+  "read_models": [],
   "policies": [
     {
       "name": "OnSeatAssignedMark",
@@ -1455,9 +1367,7 @@
       "expect_undelivered": false,
       "where": null,
       "for_each": null,
-      "with_spec": [
-
-      ],
+      "with_spec": [],
       "where_ast": null
     },
     {
@@ -1495,15 +1405,9 @@
       }
     }
   ],
-  "process_managers": [
-
-  ],
-  "attaches_to": [
-
-  ],
-  "provides": [
-
-  ],
+  "process_managers": [],
+  "attaches_to": [],
+  "provides": [],
   "canonical_form": [
     {
       "strategy": "collapse_whitespace",
@@ -1537,8 +1441,6 @@
       }
     ]
   },
-  "translations": [
-
-  ],
+  "translations": [],
   "source_text": "Hecks.bluebook \"Roster\" do\n  vision \"A crew roster: seats added one at a time, members enlisted, each seated once — the smallest domain whose every rule is a question asked of a LIST.\"\n  supporting\n\n  # Smallest example of the enumeration operators (`.none?`/`.any?`/`.all?`/`.find`) over\n  # value-object, entity and reference lists, including a nested block; the Rust\n  # conformance corpus (roster.json) holds the kernel to Ruby's behavior on it.\n  aggregate \"Roster\" do\n    description \"One roster: its seats, its crew, and who sits where.\"\n\n    attribute :name,        RosterName\n    attribute :motto,       Motto\n    attribute :mood,        Mood\n    attribute :standing,    Standing\n    # Optional: unknown until `Mark` sets it.\n    attribute :last_marked, SeatNumber, optional: true\n    attribute :seats,       list_of(Seat)\n    attribute :crew,        list_of(Member)\n    attribute :assignments, list_of(Assignment)\n\n    identified_by :name\n\n    value_object(\"RosterName\") { attribute :value, String }\n    # Scalar literals set into single-field value objects: the runtime rewraps a bare\n    # literal into the sole field (`sets :motto, to: \"all hands\"`, `rank: \"hand\"`).\n    value_object(\"Motto\") { attribute :value, String }\n\n    value_object \"Mood\" do\n      attribute :value, String, one_of: [\"open\", \"busy\"]\n    end\n\n    value_object \"Rank\" do\n      attribute :value, String, one_of: [\"hand\", \"officer\"]\n    end\n\n    # `Honor` sets `standing` from a `Rank`: every Rank member is a Standing member.\n    value_object \"Standing\" do\n      attribute :value, String, one_of: [\"none\", \"hand\", \"officer\"]\n    end\n    value_object(\"MemberId\")   { attribute :value, String }\n    value_object(\"SeatNumber\") { attribute :value, Integer }\n    value_object(\"Age\")        { attribute :value, Integer }\n\n    value_object \"Row\" do\n      attribute :value, String, one_of: [\"front\", \"back\"]\n    end\n\n    value_object \"Seat\" do\n      attribute :number, SeatNumber\n      attribute :row,    Row\n    end\n\n    value_object \"Assignment\" do\n      attribute :member, MemberId\n      attribute :number, SeatNumber\n    end\n\n    entity \"Member\" do\n      description \"One enlisted member — an entity, so the crew list's elements are entity records, not value objects.\"\n\n      attribute :id,   MemberId\n      attribute :age,  Age\n      attribute :rank, Rank\n\n      identified_by :id\n\n      lifecycle :status, default: \"active\" do\n        transition \"Retire\" => \"retired\", from: \"active\"\n      end\n\n      # Target of `Roster.Retire` below. The given reads `parent` before the change; the\n      # ensures read it after, so it must already carry the mutated element.\n      command \"Retire\" do\n        goal \"Leave the crew — unless seated in the front row, and never as the last one serving\"\n\n        # Names the entity's own identity as an optional argument; not an identity\n        # source, since the element is already addressed.\n        attribute :id, MemberId, optional: true\n\n        given(\"a front-row holder may not retire\") do\n          parent.assignments.none? { |a| a.member.value == id.value && parent.seats.any? { |s| s.number.value == a.number.value && s.row.value == \"front\" } }\n        end\n\n        ensures(\"someone still serves\") { parent.crew.any? { |m| m.status == \"active\" } }\n\n        emits MemberRetired\n      end\n    end\n\n    command \"Open\" do\n      goal \"Start an empty roster\"\n\n      attribute :name, RosterName\n\n      # :name is the aggregate's identity.\n      sets :name\n      sets :motto,    to: \"all hands\"\n      sets :mood,     to: \"open\"\n      sets :standing, to: \"none\"\n\n      emits RosterOpened\n    end\n\n    # Two reaction shapes: `Mark` takes an argument named `to`, which a policy projection\n    # hands it as a fact. `Notice` is reached by a policy with no projection, so the\n    # forward lifts the receiver into `to` and the payload's own `to` is not a fact.\n    command \"Mark\" do\n      goal \"Remember the last seat handed out\"\n\n      reference_to Roster\n      attribute :to, SeatNumber\n\n      sets :last_marked, to: :to\n\n      emits SeatMarked\n    end\n\n    command \"Notice\" do\n      goal \"Take note that a seat was marked — nothing to record\"\n\n      reference_to Roster\n      attribute :to, SeatNumber, optional: true\n\n      emits MarkNoticed\n    end\n\n    command \"Honor\" do\n      goal \"Record the roster's standing as one member's rank\"\n\n      reference_to Roster\n      attribute :rank, Rank\n\n      sets :standing, to: :rank\n\n      emits RosterHonored\n    end\n\n    command \"AddSeat\" do\n      goal \"Add a numbered seat in the front or back row — numbers never repeat\"\n\n      reference_to Roster\n      attribute :number, SeatNumber\n      attribute :row,    Row\n\n      given(\"seat numbers are unique\") { seats.none? { |s| s.number.value == number.value } }\n\n      sets :seats, append: { number: :number, row: :row }\n\n      emits SeatAdded\n    end\n\n    command \"Enlist\" do\n      goal \"Enlist a member while a seat is still free for them — nobody enlists twice\"\n\n      reference_to Roster\n      attribute :id,  MemberId\n      attribute :age, Age\n\n      given(\"nobody enlists twice\") { crew.none? { |m| m.id.value == id.value } }\n      # A block inside a block, the inner one reading the outer one's parameter.\n      given(\"an open seat remains\") { seats.any? { |s| assignments.none? { |a| a.number.value == s.number.value } } }\n\n      sets :crew, append: { id: :id, age: :age, rank: \"hand\" }\n\n      emits MemberEnlisted\n    end\n\n    command \"Assign\" do\n      goal \"Seat an enlisted member in an existing, free seat — once; the front row is for members of age\"\n\n      reference_to Roster\n      attribute :member, MemberId\n      attribute :number, SeatNumber\n\n      given(\"the member is enlisted\")       { crew.any? { |m| m.id.value == member.value } }\n      given(\"the seat exists\")              { seats.any? { |s| s.number.value == number.value } }\n      given(\"the seat is free\")             { assignments.none? { |a| a.number.value == number.value } }\n      given(\"the member sits nowhere else\") { assignments.none? { |a| a.member.value == member.value } }\n      # `.find` projected through a path, OR'd with an `.all?` implication over the crew.\n      given(\"a front-row seat takes a member of age\") do\n        seats.find { |s| s.number.value == number.value }.row.value == \"back\" ||\n          crew.all? { |m| m.id.value != member.value || m.age.value >= 21 }\n      end\n\n      sets :assignments, append: { member: :member, number: :number }\n      sets :mood, to: \"busy\"\n\n      emits SeatAssigned\n    end\n\n    # The door: `delegates_to` hands the same dispatch to one member's Retire, atomically,\n    # so its refusal and event are this command's. `with:` maps door args to target args.\n    command \"Retire\" do\n      goal \"Retire one member, on the caller's behalf\"\n\n      reference_to Roster\n      attribute :id, MemberId\n\n      delegates_to \"Member.Retire\", with: { id: :id }\n    end\n  end\n\n  policy \"OnSeatAssignedMark\" do\n    on Roster::SeatAssigned\n    trigger Roster::Mark, with: { to: :number }\n  end\n\n  policy \"OnSeatMarkedNotice\" do\n    on Roster::SeatMarked\n    trigger Roster::Notice\n  end\n\n  # A `where` gates the reaction on the payload; `with:` here carries a literal.\n  policy \"OnSeatAssignedHonorFront\" do\n    on Roster::SeatAssigned\n    where { number.value == 1 }\n    trigger Roster::Honor, with: { rank: \"officer\" }\n  end\nend\n"
 }

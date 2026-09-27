@@ -91,9 +91,7 @@
             }
           ],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "CustomerStanding",
@@ -131,9 +129,7 @@
             }
           ],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "PersonName",
@@ -200,9 +196,7 @@
             }
           ],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "EmailAddress",
@@ -218,13 +212,9 @@
               "relationship": null
             }
           ],
-          "invariants": [
-
-          ],
+          "invariants": [],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         }
       ],
       "commands": [
@@ -265,12 +255,8 @@
               "relationship": null
             }
           ],
-          "givens": [
-
-          ],
-          "ensures": [
-
-          ],
+          "givens": [],
+          "ensures": [],
           "mutations": [
             {
               "target": "reference",
@@ -323,12 +309,8 @@
               "relationship": null
             }
           ],
-          "givens": [
-
-          ],
-          "ensures": [
-
-          ],
+          "givens": [],
+          "ensures": [],
           "mutations": [
             {
               "target": "standing",
@@ -351,15 +333,9 @@
           "role": "Compliance officer",
           "goal": "Let a cleared customer transact again",
           "references": "Customer",
-          "attributes": [
-
-          ],
-          "givens": [
-
-          ],
-          "ensures": [
-
-          ],
+          "attributes": [],
+          "givens": [],
+          "ensures": [],
           "mutations": [
             {
               "target": "standing",
@@ -384,18 +360,10 @@
           "role": "Branch clerk",
           "goal": "End the relationship",
           "references": "Customer",
-          "attributes": [
-
-          ],
-          "givens": [
-
-          ],
-          "ensures": [
-
-          ],
-          "mutations": [
-
-          ],
+          "attributes": [],
+          "givens": [],
+          "ensures": [],
+          "mutations": [],
           "emits": [
             "CustomerClosed"
           ],
@@ -406,15 +374,9 @@
           "provenance": null
         }
       ],
-      "invariants": [
-
-      ],
-      "preconditions": [
-
-      ],
-      "projected_fields": [
-
-      ],
+      "invariants": [],
+      "preconditions": [],
+      "projected_fields": [],
       "lifecycle": {
         "field": "status",
         "default": "active",
@@ -441,16 +403,12 @@
           }
         ]
       },
-      "entities": [
-
-      ],
+      "entities": [],
       "queries": [
         {
           "name": "InGoodStanding",
           "description": "The everyday customer roll — active, and nothing outstanding against them.",
-          "attributes": [
-
-          ],
+          "attributes": [],
           "wheres": [
             {
               "field": "status",
@@ -472,9 +430,7 @@
         {
           "name": "Suspended",
           "description": "The compliance queue, newest concern first.",
-          "attributes": [
-
-          ],
+          "attributes": [],
           "wheres": [
             {
               "field": "status",
@@ -493,9 +449,7 @@
         {
           "name": "NotGoodStanding",
           "description": "Everyone who is not in the everyday roll — suspended, under review, or anything else that is not simply \"good\".",
-          "attributes": [
-
-          ],
+          "attributes": [],
           "wheres": [
             {
               "field": "standing",
@@ -510,9 +464,7 @@
           "limit": null
         }
       ],
-      "ports": [
-
-      ],
+      "ports": [],
       "provenance": null
     },
     {
@@ -640,9 +592,7 @@
             }
           ],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "DailyLimit",
@@ -682,9 +632,7 @@
             }
           ],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "LedgerSequence",
@@ -721,9 +669,7 @@
             }
           ],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "LedgerDirection",
@@ -739,9 +685,7 @@
               "relationship": null
             }
           ],
-          "invariants": [
-
-          ],
+          "invariants": [],
           "closed_set": true,
           "members": [
             [
@@ -813,9 +757,7 @@
             }
           ],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "PositiveMoney",
@@ -890,9 +832,7 @@
             }
           ],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "AccountKind",
@@ -908,9 +848,7 @@
               "relationship": null
             }
           ],
-          "invariants": [
-
-          ],
+          "invariants": [],
           "closed_set": true,
           "members": [
             [
@@ -969,9 +907,7 @@
             }
           ],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         }
       ],
       "commands": [
@@ -1047,9 +983,7 @@
               }
             }
           ],
-          "ensures": [
-
-          ],
+          "ensures": [],
           "mutations": [
             {
               "target": "customer",
@@ -1145,9 +1079,7 @@
               }
             }
           ],
-          "ensures": [
-
-          ],
+          "ensures": [],
           "mutations": [
             {
               "target": "balance",
@@ -1387,9 +1319,7 @@
           "role": "Compliance officer",
           "goal": "Stop an account moving while something is investigated",
           "references": "Account",
-          "attributes": [
-
-          ],
+          "attributes": [],
           "givens": [
             {
               "description": "customer is not closed",
@@ -1414,12 +1344,8 @@
               }
             }
           ],
-          "ensures": [
-
-          ],
-          "mutations": [
-
-          ],
+          "ensures": [],
+          "mutations": [],
           "emits": [
             "AccountFrozen"
           ],
@@ -1431,9 +1357,7 @@
           "role": "Compliance officer",
           "goal": "Release a cleared account",
           "references": "Account",
-          "attributes": [
-
-          ],
+          "attributes": [],
           "givens": [
             {
               "description": "customer is active",
@@ -1458,12 +1382,8 @@
               }
             }
           ],
-          "ensures": [
-
-          ],
-          "mutations": [
-
-          ],
+          "ensures": [],
+          "mutations": [],
           "emits": [
             "AccountUnfrozen"
           ],
@@ -1475,9 +1395,7 @@
           "role": "Branch clerk",
           "goal": "Close an account that has been emptied",
           "references": "Account",
-          "attributes": [
-
-          ],
+          "attributes": [],
           "givens": [
             {
               "description": "customer is not closed",
@@ -1521,12 +1439,8 @@
               }
             }
           ],
-          "ensures": [
-
-          ],
-          "mutations": [
-
-          ],
+          "ensures": [],
+          "mutations": [],
           "emits": [
             "AccountClosed"
           ],
@@ -1613,9 +1527,7 @@
               }
             }
           ],
-          "ensures": [
-
-          ],
+          "ensures": [],
           "mutations": [
             {
               "target": "balance",
@@ -1709,9 +1621,7 @@
               }
             }
           ],
-          "ensures": [
-
-          ],
+          "ensures": [],
           "mutations": [
             {
               "target": "FeeApplied",
@@ -1789,9 +1699,7 @@
               }
             }
           ],
-          "ensures": [
-
-          ],
+          "ensures": [],
           "mutations": [
             {
               "target": "balance",
@@ -1911,9 +1819,7 @@
               }
             }
           ],
-          "ensures": [
-
-          ],
+          "ensures": [],
           "mutations": [
             {
               "target": "balance",
@@ -2225,9 +2131,7 @@
                   }
                 }
               ],
-              "ensures": [
-
-              ],
+              "ensures": [],
               "mutations": [
                 {
                   "target": "amount",
@@ -2341,9 +2245,7 @@
                   }
                 }
               ],
-              "ensures": [
-
-              ],
+              "ensures": [],
               "mutations": [
                 {
                   "target": "narrative",
@@ -2366,9 +2268,7 @@
             {
               "name": "Reversed",
               "description": "Entries that were undone — the audit trail nobody wants to need.",
-              "attributes": [
-
-              ],
+              "attributes": [],
               "wheres": [
                 {
                   "field": "state",
@@ -2380,9 +2280,7 @@
               "limit": null
             }
           ],
-          "entities": [
-
-          ],
+          "entities": [],
           "preconditions": [
             {
               "description": "entry is posted",
@@ -2453,9 +2351,7 @@
               }
             }
           ],
-          "invariants": [
-
-          ],
+          "invariants": [],
           "lifecycle": {
             "field": "state",
             "default": "posted",
@@ -2478,9 +2374,7 @@
         {
           "name": "Open",
           "description": "Accounts that can transact today.",
-          "attributes": [
-
-          ],
+          "attributes": [],
           "wheres": [
             {
               "field": "status",
@@ -2611,9 +2505,7 @@
         {
           "name": "Reachable",
           "description": "Accounts that still exist as far as a caller is concerned — anything short of closed.",
-          "attributes": [
-
-          ],
+          "attributes": [],
           "wheres": [
             {
               "field": "status",
@@ -2630,9 +2522,7 @@
         {
           "name": "OpenForSuspendedCustomers",
           "description": "Open accounts whose customer has since been suspended — live money movement nobody should be approving right now.",
-          "attributes": [
-
-          ],
+          "attributes": [],
           "wheres": [
             {
               "field": "status",
@@ -2685,9 +2575,7 @@
           "limit": null
         }
       ],
-      "ports": [
-
-      ],
+      "ports": [],
       "provenance": {
         "source": "HecksCanonical",
         "source_id": "aggregate:account",
@@ -2769,9 +2657,7 @@
             }
           ],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "AccountNumber",
@@ -2809,9 +2695,7 @@
             }
           ],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         }
       ],
       "commands": [
@@ -2877,9 +2761,7 @@
               }
             }
           ],
-          "ensures": [
-
-          ],
+          "ensures": [],
           "mutations": [
             {
               "target": "customer",
@@ -2920,9 +2802,7 @@
           "role": "Compliance officer",
           "goal": "Pass a customer's identity and screening checks",
           "references": "OnboardingCase",
-          "attributes": [
-
-          ],
+          "attributes": [],
           "givens": [
             {
               "description": "customer is active",
@@ -2947,12 +2827,8 @@
               }
             }
           ],
-          "ensures": [
-
-          ],
-          "mutations": [
-
-          ],
+          "ensures": [],
+          "mutations": [],
           "emits": [
             "OnboardingCleared"
           ],
@@ -2964,9 +2840,7 @@
           "role": "Compliance officer",
           "goal": "Refuse a customer who does not clear screening — no account was ever opened, so nothing is undone",
           "references": "OnboardingCase",
-          "attributes": [
-
-          ],
+          "attributes": [],
           "givens": [
             {
               "description": "customer is active",
@@ -2991,12 +2865,8 @@
               }
             }
           ],
-          "ensures": [
-
-          ],
-          "mutations": [
-
-          ],
+          "ensures": [],
+          "mutations": [],
           "emits": [
             "OnboardingDeclined"
           ],
@@ -3004,9 +2874,7 @@
           "provenance": null
         }
       ],
-      "invariants": [
-
-      ],
+      "invariants": [],
       "preconditions": [
         {
           "description": "case is screening",
@@ -3076,16 +2944,12 @@
           }
         ]
       },
-      "entities": [
-
-      ],
+      "entities": [],
       "queries": [
         {
           "name": "Screening",
           "description": "Cases still waiting on a compliance decision.",
-          "attributes": [
-
-          ],
+          "attributes": [],
           "wheres": [
             {
               "field": "status",
@@ -3100,9 +2964,7 @@
           "limit": null
         }
       ],
-      "ports": [
-
-      ],
+      "ports": [],
       "provenance": null
     },
     {
@@ -3200,9 +3062,7 @@
             }
           ],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "CardNickname",
@@ -3218,13 +3078,9 @@
               "relationship": null
             }
           ],
-          "invariants": [
-
-          ],
+          "invariants": [],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "DailyFee",
@@ -3265,9 +3121,7 @@
             }
           ],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "WithdrawalSequence",
@@ -3304,9 +3158,7 @@
             }
           ],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "WithdrawalAmount",
@@ -3343,9 +3195,7 @@
             }
           ],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "Narrative",
@@ -3383,9 +3233,7 @@
             }
           ],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         }
       ],
       "commands": [
@@ -3475,9 +3323,7 @@
               }
             }
           ],
-          "ensures": [
-
-          ],
+          "ensures": [],
           "mutations": [
             {
               "target": "account",
@@ -3554,9 +3400,7 @@
               }
             }
           ],
-          "ensures": [
-
-          ],
+          "ensures": [],
           "mutations": [
             {
               "target": "nickname",
@@ -3650,9 +3494,7 @@
               }
             }
           ],
-          "ensures": [
-
-          ],
+          "ensures": [],
           "mutations": [
             {
               "target": "withdrawals",
@@ -3675,9 +3517,7 @@
           "role": "Customer",
           "goal": "Start using a card",
           "references": "ATMCard",
-          "attributes": [
-
-          ],
+          "attributes": [],
           "givens": [
             {
               "description": "customer is active",
@@ -3702,12 +3542,8 @@
               }
             }
           ],
-          "ensures": [
-
-          ],
-          "mutations": [
-
-          ],
+          "ensures": [],
+          "mutations": [],
           "emits": [
             "ATMCardActivated"
           ],
@@ -3719,9 +3555,7 @@
           "role": "Back office",
           "goal": "Take a card out of service",
           "references": "ATMCard",
-          "attributes": [
-
-          ],
+          "attributes": [],
           "givens": [
             {
               "description": "customer is active",
@@ -3746,12 +3580,8 @@
               }
             }
           ],
-          "ensures": [
-
-          ],
-          "mutations": [
-
-          ],
+          "ensures": [],
+          "mutations": [],
           "emits": [
             "ATMCardRetired"
           ],
@@ -3762,9 +3592,7 @@
           "provenance": null
         }
       ],
-      "invariants": [
-
-      ],
+      "invariants": [],
       "preconditions": [
         {
           "description": "card is issued or active",
@@ -4015,9 +3843,7 @@
                   }
                 }
               ],
-              "ensures": [
-
-              ],
+              "ensures": [],
               "mutations": [
                 {
                   "target": "narrative",
@@ -4040,9 +3866,7 @@
             {
               "name": "Recent",
               "description": "The first two withdrawals still standing, whatever else was taken.",
-              "attributes": [
-
-              ],
+              "attributes": [],
               "wheres": [
                 {
                   "field": "state",
@@ -4056,15 +3880,9 @@
               }
             }
           ],
-          "entities": [
-
-          ],
-          "preconditions": [
-
-          ],
-          "invariants": [
-
-          ],
+          "entities": [],
+          "preconditions": [],
+          "invariants": [],
           "lifecycle": {
             "field": "state",
             "default": "taken",
@@ -4082,9 +3900,7 @@
         {
           "name": "Active",
           "description": "Live cards in nickname order, unnamed ones last — real nicknames sort among themselves first.",
-          "attributes": [
-
-          ],
+          "attributes": [],
           "wheres": [
             {
               "field": "status",
@@ -4104,9 +3920,7 @@
         {
           "name": "ByFee",
           "description": "Live cards by what they cost to hold, cheapest first — a fee is a Float, so the order is numeric and not alphabetical.",
-          "attributes": [
-
-          ],
+          "attributes": [],
           "wheres": [
             {
               "field": "status",
@@ -4126,9 +3940,7 @@
           }
         }
       ],
-      "ports": [
-
-      ],
+      "ports": [],
       "provenance": null
     },
     {
@@ -4214,13 +4026,9 @@
               "relationship": null
             }
           ],
-          "invariants": [
-
-          ],
+          "invariants": [],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "PaymentAmount",
@@ -4257,9 +4065,7 @@
             }
           ],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "MerchantName",
@@ -4297,9 +4103,7 @@
             }
           ],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "Tag",
@@ -4337,9 +4141,7 @@
             }
           ],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         }
       ],
       "commands": [
@@ -4449,9 +4251,7 @@
               }
             }
           ],
-          "ensures": [
-
-          ],
+          "ensures": [],
           "mutations": [
             {
               "target": "account",
@@ -4510,9 +4310,7 @@
           "role": "System",
           "goal": "Turn an authorization into an actual charge",
           "references": "CardPayment",
-          "attributes": [
-
-          ],
+          "attributes": [],
           "givens": [
             {
               "description": "customer is active",
@@ -4559,12 +4357,8 @@
               }
             }
           ],
-          "ensures": [
-
-          ],
-          "mutations": [
-
-          ],
+          "ensures": [],
+          "mutations": [],
           "emits": [
             "CardCaptured"
           ],
@@ -4576,9 +4370,7 @@
           "role": "System",
           "goal": "Cancel an authorization before it settles",
           "references": "CardPayment",
-          "attributes": [
-
-          ],
+          "attributes": [],
           "givens": [
             {
               "description": "customer is active",
@@ -4625,12 +4417,8 @@
               }
             }
           ],
-          "ensures": [
-
-          ],
-          "mutations": [
-
-          ],
+          "ensures": [],
+          "mutations": [],
           "emits": [
             "CardVoided"
           ],
@@ -4642,9 +4430,7 @@
           "role": "System",
           "goal": "Give the money back after a charge settled",
           "references": "CardPayment",
-          "attributes": [
-
-          ],
+          "attributes": [],
           "givens": [
             {
               "description": "customer is active",
@@ -4691,12 +4477,8 @@
               }
             }
           ],
-          "ensures": [
-
-          ],
-          "mutations": [
-
-          ],
+          "ensures": [],
+          "mutations": [],
           "emits": [
             "CardRefunded"
           ],
@@ -4708,9 +4490,7 @@
           "role": "System",
           "goal": "Undo a captured charge with no customer dispute involved",
           "references": "CardPayment",
-          "attributes": [
-
-          ],
+          "attributes": [],
           "givens": [
             {
               "description": "customer is active",
@@ -4757,12 +4537,8 @@
               }
             }
           ],
-          "ensures": [
-
-          ],
-          "mutations": [
-
-          ],
+          "ensures": [],
+          "mutations": [],
           "emits": [
             "CardReversed"
           ],
@@ -4833,9 +4609,7 @@
               }
             }
           ],
-          "ensures": [
-
-          ],
+          "ensures": [],
           "mutations": [
             {
               "target": "disputed_by",
@@ -4861,9 +4635,7 @@
           "role": "Compliance officer",
           "goal": "Uphold a customer's dispute and claw the charge back",
           "references": "CardPayment",
-          "attributes": [
-
-          ],
+          "attributes": [],
           "givens": [
             {
               "description": "customer is active",
@@ -4910,12 +4682,8 @@
               }
             }
           ],
-          "ensures": [
-
-          ],
-          "mutations": [
-
-          ],
+          "ensures": [],
+          "mutations": [],
           "emits": [
             "CardChargedBack"
           ],
@@ -4927,9 +4695,7 @@
           "role": "Compliance officer",
           "goal": "Uphold the charge and close a customer's dispute",
           "references": "CardPayment",
-          "attributes": [
-
-          ],
+          "attributes": [],
           "givens": [
             {
               "description": "customer is active",
@@ -4976,12 +4742,8 @@
               }
             }
           ],
-          "ensures": [
-
-          ],
-          "mutations": [
-
-          ],
+          "ensures": [],
+          "mutations": [],
           "emits": [
             "CardDisputeRejected"
           ],
@@ -4989,9 +4751,7 @@
           "provenance": null
         }
       ],
-      "invariants": [
-
-      ],
+      "invariants": [],
       "preconditions": [
         {
           "description": "payment is disputed",
@@ -5162,16 +4922,12 @@
           }
         ]
       },
-      "entities": [
-
-      ],
+      "entities": [],
       "queries": [
         {
           "name": "Pending",
           "description": "Authorized charges not yet captured, voided, or otherwise resolved.",
-          "attributes": [
-
-          ],
+          "attributes": [],
           "wheres": [
             {
               "field": "status",
@@ -5185,9 +4941,7 @@
         {
           "name": "Disputed",
           "description": "Charges currently under a customer's dispute, awaiting a compliance decision.",
-          "attributes": [
-
-          ],
+          "attributes": [],
           "wheres": [
             {
               "field": "status",
@@ -5201,9 +4955,7 @@
         {
           "name": "Flagged",
           "description": "Charges carrying a risk tag, for the fraud queue.",
-          "attributes": [
-
-          ],
+          "attributes": [],
           "wheres": [
             {
               "field": "tags",
@@ -5215,9 +4967,7 @@
           "limit": null
         }
       ],
-      "ports": [
-
-      ],
+      "ports": [],
       "provenance": null
     },
     {
@@ -5328,9 +5078,7 @@
             }
           ],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "BoxNumber",
@@ -5367,9 +5115,7 @@
             }
           ],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "VisitSequence",
@@ -5406,9 +5152,7 @@
             }
           ],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "VisitDate",
@@ -5446,9 +5190,7 @@
             }
           ],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "VisitNote",
@@ -5464,13 +5206,9 @@
               "relationship": null
             }
           ],
-          "invariants": [
-
-          ],
+          "invariants": [],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "KeySerial",
@@ -5508,9 +5246,7 @@
             }
           ],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "Size",
@@ -5526,9 +5262,7 @@
               "relationship": null
             }
           ],
-          "invariants": [
-
-          ],
+          "invariants": [],
           "closed_set": true,
           "members": [
             [
@@ -5625,9 +5359,7 @@
               }
             }
           ],
-          "ensures": [
-
-          ],
+          "ensures": [],
           "mutations": [
             {
               "target": "customer",
@@ -5677,9 +5409,7 @@
           "role": "Customer",
           "goal": "Give the box back and take the keys off the account",
           "references": "SafeDepositBox",
-          "attributes": [
-
-          ],
+          "attributes": [],
           "givens": [
             {
               "description": "customer is active",
@@ -5704,12 +5434,8 @@
               }
             }
           ],
-          "ensures": [
-
-          ],
-          "mutations": [
-
-          ],
+          "ensures": [],
+          "mutations": [],
           "emits": [
             "BoxSurrendered",
             "KeyReturnDue"
@@ -5778,9 +5504,7 @@
               }
             }
           ],
-          "ensures": [
-
-          ],
+          "ensures": [],
           "mutations": [
             {
               "target": "visits",
@@ -5840,9 +5564,7 @@
               }
             }
           ],
-          "ensures": [
-
-          ],
+          "ensures": [],
           "mutations": [
             {
               "target": "keys",
@@ -5860,9 +5582,7 @@
           "provenance": null
         }
       ],
-      "invariants": [
-
-      ],
+      "invariants": [],
       "preconditions": [
         {
           "description": "customer is active",
@@ -6016,9 +5736,7 @@
                   }
                 }
               ],
-              "ensures": [
-
-              ],
+              "ensures": [],
               "mutations": [
                 {
                   "target": "note",
@@ -6041,9 +5759,7 @@
             {
               "name": "Recent",
               "description": "The last few visits, whatever the box has seen.",
-              "attributes": [
-
-              ],
+              "attributes": [],
               "wheres": [
                 {
                   "field": "state",
@@ -6057,9 +5773,7 @@
               }
             }
           ],
-          "entities": [
-
-          ],
+          "entities": [],
           "preconditions": [
             {
               "description": "customer is active",
@@ -6238,12 +5952,8 @@
                   }
                 }
               ],
-              "ensures": [
-
-              ],
-              "mutations": [
-
-              ],
+              "ensures": [],
+              "mutations": [],
               "emits": [
                 "KeyReturned"
               ],
@@ -6251,18 +5961,10 @@
               "provenance": null
             }
           ],
-          "queries": [
-
-          ],
-          "entities": [
-
-          ],
-          "preconditions": [
-
-          ],
-          "invariants": [
-
-          ],
+          "queries": [],
+          "entities": [],
+          "preconditions": [],
+          "invariants": [],
           "lifecycle": {
             "field": "status",
             "default": "issued",
@@ -6280,9 +5982,7 @@
         {
           "name": "Rented",
           "description": "Boxes currently assigned to a customer, for the annual access audit.",
-          "attributes": [
-
-          ],
+          "attributes": [],
           "wheres": [
             {
               "field": "status",
@@ -6301,9 +6001,7 @@
           }
         }
       ],
-      "ports": [
-
-      ],
+      "ports": [],
       "provenance": null
     },
     {
@@ -6412,9 +6110,7 @@
             }
           ],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "StatementAmount",
@@ -6430,13 +6126,9 @@
               "relationship": null
             }
           ],
-          "invariants": [
-
-          ],
+          "invariants": [],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "StatementDate",
@@ -6474,9 +6166,7 @@
             }
           ],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "StatementFrequency",
@@ -6512,9 +6202,7 @@
               "relationship": null
             }
           ],
-          "invariants": [
-
-          ],
+          "invariants": [],
           "closed_set": true,
           "members": [
             [
@@ -6679,9 +6367,7 @@
               }
             }
           ],
-          "ensures": [
-
-          ],
+          "ensures": [],
           "mutations": [
             {
               "target": "account",
@@ -6745,25 +6431,13 @@
           "provenance": null
         }
       ],
-      "invariants": [
-
-      ],
-      "preconditions": [
-
-      ],
-      "projected_fields": [
-
-      ],
+      "invariants": [],
+      "preconditions": [],
+      "projected_fields": [],
       "lifecycle": null,
-      "entities": [
-
-      ],
-      "queries": [
-
-      ],
-      "ports": [
-
-      ],
+      "entities": [],
+      "queries": [],
+      "ports": [],
       "provenance": null
     },
     {
@@ -6861,9 +6535,7 @@
             }
           ],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "TransferMoney",
@@ -6900,9 +6572,7 @@
             }
           ],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "Narrative",
@@ -6940,9 +6610,7 @@
             }
           ],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         }
       ],
       "commands": [
@@ -7108,9 +6776,7 @@
               }
             }
           ],
-          "ensures": [
-
-          ],
+          "ensures": [],
           "mutations": [
             {
               "target": "amount",
@@ -7169,9 +6835,7 @@
           "role": "System",
           "goal": "Record that the source account has given up the money",
           "references": "Transfer",
-          "attributes": [
-
-          ],
+          "attributes": [],
           "givens": [
             {
               "description": "source customer is active",
@@ -7218,12 +6882,8 @@
               }
             }
           ],
-          "ensures": [
-
-          ],
-          "mutations": [
-
-          ],
+          "ensures": [],
+          "mutations": [],
           "emits": [
             "TransferDebited"
           ],
@@ -7235,9 +6895,7 @@
           "role": "System",
           "goal": "Record that the destination has received it",
           "references": "Transfer",
-          "attributes": [
-
-          ],
+          "attributes": [],
           "givens": [
             {
               "description": "destination customer is active",
@@ -7284,12 +6942,8 @@
               }
             }
           ],
-          "ensures": [
-
-          ],
-          "mutations": [
-
-          ],
+          "ensures": [],
+          "mutations": [],
           "emits": [
             "TransferSettled"
           ],
@@ -7301,9 +6955,7 @@
           "role": "System",
           "goal": "Record that the destination credit committed",
           "references": "Transfer",
-          "attributes": [
-
-          ],
+          "attributes": [],
           "givens": [
             {
               "description": "destination customer is active",
@@ -7350,12 +7002,8 @@
               }
             }
           ],
-          "ensures": [
-
-          ],
-          "mutations": [
-
-          ],
+          "ensures": [],
+          "mutations": [],
           "emits": [
             "TransferCredited"
           ],
@@ -7367,9 +7015,7 @@
           "role": "System",
           "goal": "Put the money back when the credit could not be made",
           "references": "Transfer",
-          "attributes": [
-
-          ],
+          "attributes": [],
           "givens": [
             {
               "description": "source customer is active",
@@ -7416,12 +7062,8 @@
               }
             }
           ],
-          "ensures": [
-
-          ],
-          "mutations": [
-
-          ],
+          "ensures": [],
+          "mutations": [],
           "emits": [
             "TransferReversed"
           ],
@@ -7433,9 +7075,7 @@
           "role": "System",
           "goal": "Refuse a transfer before any money moved",
           "references": "Transfer",
-          "attributes": [
-
-          ],
+          "attributes": [],
           "givens": [
             {
               "description": "source customer is active",
@@ -7482,12 +7122,8 @@
               }
             }
           ],
-          "ensures": [
-
-          ],
-          "mutations": [
-
-          ],
+          "ensures": [],
+          "mutations": [],
           "emits": [
             "TransferRejected"
           ],
@@ -7495,9 +7131,7 @@
           "provenance": null
         }
       ],
-      "invariants": [
-
-      ],
+      "invariants": [],
       "preconditions": [
         {
           "description": "transfer is debited",
@@ -7685,16 +7319,12 @@
           }
         ]
       },
-      "entities": [
-
-      ],
+      "entities": [],
       "queries": [
         {
           "name": "InFlight",
           "description": "Transfers that have left one account and not arrived at the other. The list that must always empty.",
-          "attributes": [
-
-          ],
+          "attributes": [],
           "wheres": [
             {
               "field": "status",
@@ -7709,9 +7339,7 @@
           "limit": null
         }
       ],
-      "ports": [
-
-      ],
+      "ports": [],
       "provenance": null
     },
     {
@@ -7787,13 +7415,9 @@
               "relationship": null
             }
           ],
-          "invariants": [
-
-          ],
+          "invariants": [],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "MovementDirection",
@@ -7809,13 +7433,9 @@
               "relationship": null
             }
           ],
-          "invariants": [
-
-          ],
+          "invariants": [],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "ExternalAmount",
@@ -7852,9 +7472,7 @@
             }
           ],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "BeneficiaryName",
@@ -7892,9 +7510,7 @@
             }
           ],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         }
       ],
       "commands": [
@@ -8004,9 +7620,7 @@
               }
             }
           ],
-          "ensures": [
-
-          ],
+          "ensures": [],
           "mutations": [
             {
               "target": "account",
@@ -8065,9 +7679,7 @@
           "role": "System",
           "goal": "Release the transfer to the external network",
           "references": "ExternalTransfer",
-          "attributes": [
-
-          ],
+          "attributes": [],
           "givens": [
             {
               "description": "customer is active",
@@ -8114,12 +7726,8 @@
               }
             }
           ],
-          "ensures": [
-
-          ],
-          "mutations": [
-
-          ],
+          "ensures": [],
+          "mutations": [],
           "emits": [
             "ExternalTransferSent"
           ],
@@ -8131,9 +7739,7 @@
           "role": "Customer",
           "goal": "Ask the external network to stop a transfer already sent",
           "references": "ExternalTransfer",
-          "attributes": [
-
-          ],
+          "attributes": [],
           "givens": [
             {
               "description": "customer is active",
@@ -8180,12 +7786,8 @@
               }
             }
           ],
-          "ensures": [
-
-          ],
-          "mutations": [
-
-          ],
+          "ensures": [],
+          "mutations": [],
           "emits": [
             "ExternalTransferRecalled"
           ],
@@ -8197,9 +7799,7 @@
           "role": "System",
           "goal": "Record that the external network sent the money back",
           "references": "ExternalTransfer",
-          "attributes": [
-
-          ],
+          "attributes": [],
           "givens": [
             {
               "description": "customer is active",
@@ -8246,12 +7846,8 @@
               }
             }
           ],
-          "ensures": [
-
-          ],
-          "mutations": [
-
-          ],
+          "ensures": [],
+          "mutations": [],
           "emits": [
             "ExternalTransferReturned"
           ],
@@ -8259,9 +7855,7 @@
           "provenance": null
         }
       ],
-      "invariants": [
-
-      ],
+      "invariants": [],
       "preconditions": [
         {
           "description": "transfer is sent",
@@ -8385,16 +7979,12 @@
           }
         ]
       },
-      "entities": [
-
-      ],
+      "entities": [],
       "queries": [
         {
           "name": "Sent",
           "description": "Transfers already released to the external network, awaiting its outcome.",
-          "attributes": [
-
-          ],
+          "attributes": [],
           "wheres": [
             {
               "field": "status",
@@ -8406,9 +7996,7 @@
           "limit": null
         }
       ],
-      "ports": [
-
-      ],
+      "ports": [],
       "provenance": null
     },
     {
@@ -8504,13 +8092,9 @@
               "relationship": null
             }
           ],
-          "invariants": [
-
-          ],
+          "invariants": [],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "ScheduledAmount",
@@ -8547,9 +8131,7 @@
             }
           ],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "PaymentRecipient",
@@ -8587,9 +8169,7 @@
             }
           ],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "PaymentDueDate",
@@ -8627,9 +8207,7 @@
             }
           ],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "RetryCount",
@@ -8669,9 +8247,7 @@
             }
           ],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "RetryLimit",
@@ -8708,9 +8284,7 @@
             }
           ],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         }
       ],
       "commands": [
@@ -8820,9 +8394,7 @@
               }
             }
           ],
-          "ensures": [
-
-          ],
+          "ensures": [],
           "mutations": [
             {
               "target": "account",
@@ -8881,9 +8453,7 @@
           "role": "System",
           "goal": "Collect a payment on its due date",
           "references": "ScheduledPayment",
-          "attributes": [
-
-          ],
+          "attributes": [],
           "givens": [
             {
               "description": "customer is active",
@@ -8930,12 +8500,8 @@
               }
             }
           ],
-          "ensures": [
-
-          ],
-          "mutations": [
-
-          ],
+          "ensures": [],
+          "mutations": [],
           "emits": [
             "ScheduledPaymentExecuted"
           ],
@@ -8947,9 +8513,7 @@
           "role": "Customer",
           "goal": "Call off a payment before its due date",
           "references": "ScheduledPayment",
-          "attributes": [
-
-          ],
+          "attributes": [],
           "givens": [
             {
               "description": "customer is active",
@@ -8996,12 +8560,8 @@
               }
             }
           ],
-          "ensures": [
-
-          ],
-          "mutations": [
-
-          ],
+          "ensures": [],
+          "mutations": [],
           "emits": [
             "ScheduledPaymentCancelled"
           ],
@@ -9013,9 +8573,7 @@
           "role": "System",
           "goal": "Record that today's presentment could not be collected",
           "references": "ScheduledPayment",
-          "attributes": [
-
-          ],
+          "attributes": [],
           "givens": [
             {
               "description": "customer is active",
@@ -9062,12 +8620,8 @@
               }
             }
           ],
-          "ensures": [
-
-          ],
-          "mutations": [
-
-          ],
+          "ensures": [],
+          "mutations": [],
           "emits": [
             "ScheduledPaymentFailed"
           ],
@@ -9079,9 +8633,7 @@
           "role": "System",
           "goal": "Re-present a failed payment, up to the limit the schedule names",
           "references": "ScheduledPayment",
-          "attributes": [
-
-          ],
+          "attributes": [],
           "givens": [
             {
               "description": "customer is active",
@@ -9214,9 +8766,7 @@
           "role": "Back office",
           "goal": "Give up on a payment that could not be collected after every retry",
           "references": "ScheduledPayment",
-          "attributes": [
-
-          ],
+          "attributes": [],
           "givens": [
             {
               "description": "customer is active",
@@ -9289,12 +8839,8 @@
               }
             }
           ],
-          "ensures": [
-
-          ],
-          "mutations": [
-
-          ],
+          "ensures": [],
+          "mutations": [],
           "emits": [
             "ScheduledPaymentAbandoned"
           ],
@@ -9302,9 +8848,7 @@
           "provenance": null
         }
       ],
-      "invariants": [
-
-      ],
+      "invariants": [],
       "preconditions": [
         {
           "description": "payment is failed",
@@ -9438,16 +8982,12 @@
           }
         ]
       },
-      "entities": [
-
-      ],
+      "entities": [],
       "queries": [
         {
           "name": "Due",
           "description": "Payments still scheduled, ordered by when they're due.",
-          "attributes": [
-
-          ],
+          "attributes": [],
           "wheres": [
             {
               "field": "status",
@@ -9462,9 +9002,7 @@
           "limit": null
         }
       ],
-      "ports": [
-
-      ],
+      "ports": [],
       "provenance": null
     }
   ],
@@ -9475,9 +9013,7 @@
       "reference_name": "customer",
       "reference_target": "Customer",
       "query_name": "customer_portfolio",
-      "wheres": [
-
-      ],
+      "wheres": [],
       "order_by": null,
       "limit": null,
       "aggregate_heads": [
@@ -9517,9 +9053,7 @@
           "many": true
         }
       ],
-      "group_by": [
-
-      ]
+      "group_by": []
     },
     {
       "name": "ComplianceDashboard",
@@ -9553,9 +9087,7 @@
           "many": true
         }
       ],
-      "group_by": [
-
-      ],
+      "group_by": [],
       "offset": {
         "value": "5"
       }
@@ -9587,9 +9119,7 @@
           "many": true
         }
       ],
-      "group_by": [
-
-      ],
+      "group_by": [],
       "count": true
     },
     {
@@ -9619,9 +9149,7 @@
           "many": true
         }
       ],
-      "group_by": [
-
-      ],
+      "group_by": [],
       "median_field": "amount"
     },
     {
@@ -9630,9 +9158,7 @@
       "reference_name": null,
       "reference_target": null,
       "query_name": "accounts_by_kind",
-      "wheres": [
-
-      ],
+      "wheres": [],
       "order_by": null,
       "limit": null,
       "aggregate_heads": [
@@ -9661,9 +9187,7 @@
       "expect_undelivered": false,
       "where": null,
       "for_each": null,
-      "with_spec": [
-
-      ],
+      "with_spec": [],
       "where_ast": null
     },
     {
@@ -9674,9 +9198,7 @@
       "expect_undelivered": false,
       "where": null,
       "for_each": null,
-      "with_spec": [
-
-      ],
+      "with_spec": [],
       "where_ast": null
     },
     {
@@ -9703,9 +9225,7 @@
       "expect_undelivered": true,
       "where": null,
       "for_each": null,
-      "with_spec": [
-
-      ],
+      "with_spec": [],
       "where_ast": null
     },
     {
@@ -9716,9 +9236,7 @@
       "expect_undelivered": false,
       "where": null,
       "for_each": null,
-      "with_spec": [
-
-      ],
+      "with_spec": [],
       "where_ast": null
     },
     {
@@ -9729,9 +9247,7 @@
       "expect_undelivered": true,
       "where": null,
       "for_each": null,
-      "with_spec": [
-
-      ],
+      "with_spec": [],
       "where_ast": null
     }
   ],
@@ -9780,9 +9296,7 @@
           "event_type": "OnboardingDeclined",
           "from_state": "screening",
           "to_state": "declined",
-          "dispatches": [
-
-          ]
+          "dispatches": []
         }
       ]
     },
@@ -9983,12 +9497,8 @@
       ]
     }
   ],
-  "attaches_to": [
-
-  ],
-  "provides": [
-
-  ],
+  "attaches_to": [],
+  "provides": [],
   "canonical_form": [
     {
       "strategy": "collapse_whitespace",
@@ -10006,9 +9516,7 @@
     }
   ],
   "lineage": {
-    "capable_aggregates": [
-
-    ]
+    "capable_aggregates": []
   },
   "persistence": {
     "aggregates": [
@@ -10076,8 +9584,6 @@
     "link": "Identity::ExternalIdentifier.Link",
     "resolve": "Identity::ExternalIdentifier.ResolvedBy"
   },
-  "translations": [
-
-  ],
+  "translations": [],
   "source_text": "Hecks.bluebook \"Banking\", version: \"v1\" do\n  vision \"Customers hold accounts, accounts move money, and every movement is a transfer that can fail halfway. The domain that has to get it right twice — once in the rules, once in the recovery.\"\n  core\nend\n\nHecks.bluebook \"Banking\" do\n  read_model \"CustomerPortfolio\" do\n    description \"A customer's cross-account position, rebuilt from aggregate heads.\"\n    reference_to Customer\n    include Customer\n    include Account\n    include ATMCard\n    include Transfer\n    include CardPayment\n    include ExternalTransfer\n    include ScheduledPayment\n  end\n\n  # Rooted at an account, not a customer: holds and disputes are filed against accounts.\n  read_model \"ComplianceDashboard\" do\n    description \"One account, its own status, and any card charges disputed against it — the working set for a compliance review.\"\n    reference_to Account\n    include Account\n    include CardPayment\n\n    # The one shape seal_query_options allows with several included aggregates: where/order_by/\n    # limit apply to the single many-side collection (CardPayment).\n    where(status: \"disputed\")\n    order_by :amount, :desc\n    limit 5\n    # Second page: skip the first five, then take five (ADR 0025).\n    offset 5\n  end\n\n  # Reductions rather than rows. `count`/`median` ride the same `where`; `seal_aggregation`\n  # refuses combining either with `group_by` or with each other.\n  read_model \"DisputedPaymentCount\" do\n    description \"How many of an account's own card charges are under dispute — a single number, not the rows themselves.\"\n    reference_to Account\n    include Account\n    include CardPayment\n    where(status: \"disputed\")\n    count\n  end\n\n  read_model \"DisputedPaymentMedian\" do\n    description \"The median amount of an account's own disputed card charges.\"\n    reference_to Account\n    include Account\n    include CardPayment\n    where(status: \"disputed\")\n    median :amount\n  end\n\n  # Rootless: no `reference_to` and no id at dispatch. Two `group_by` fields so the test\n  # can tell real nesting from accidental flattening.\n  read_model \"AccountsByKind\" do\n    description \"Every account the bank holds, sorted into what kind it is, then by its own number.\"\n    include Account\n    group_by :kind, :number\n  end\n\nend\n\nHecks.bluebook \"Banking\" do\n  aggregate \"Customer\" do\n    description \"A person the bank holds a relationship with. Suspended rather than deleted — a bank forgets nothing.\"\n\n    attribute :reference, CustomerNumber\n\n    identified_by :reference\n\n    attribute :name,      PersonName\n    attribute :email,     EmailAddress\n    attribute :standing,  CustomerStanding\n\n    value_object \"CustomerNumber\" do\n      attribute :value, String, pattern: '[^ \\t\\n\\r]'\n      invariant(\"a customer reference is present\") { !value.to_s.empty? }\n    end\n\n    value_object \"CustomerStanding\" do\n      attribute :value, String, default: \"good\", pattern: '[^ \\t\\n\\r]'\n      invariant(\"a standing is named\") { !value.to_s.empty? }\n    end\n\n    value_object \"PersonName\" do\n      attribute :given,  String, pattern: '[^ \\t\\n\\r]'\n      attribute :family, String, pattern: '[^ \\t\\n\\r]'\n\n      invariant(\"a given name is present\")  { !given.to_s.empty? }\n      invariant(\"a family name is present\") { !family.to_s.empty? }\n    end\n\n    value_object \"EmailAddress\" do\n      # The pattern uses explicit ranges rather than \\S: perl classes differ between ASCII and\n      # Unicode across regex engines, and PatternSubset refuses them.\n      attribute :address, String, pattern: '^[^@ ]+@[^@ ]+\\.[^@ ]+$'\n    end\n\n    lifecycle :status, default: \"active\" do\n      transition \"Suspend\"   => \"suspended\", from: \"active\"\n      transition \"Reinstate\" => \"active\",    from: \"suspended\"\n      transition \"Close\"     => \"closed\",    from: [\"active\", \"suspended\"]\n    end\n\n    command \"Register\" do\n      role \"Branch clerk\"\n      goal \"Take on a new customer\"\n\n      sets :reference\n      sets :name\n      sets :email\n\n      emits CustomerRegistered\n    end\n\n    # `from:` gates the command on lifecycle state; the refusal wording matches the\n    # lifecycle transition's own (ADR 0025).\n    command \"Suspend\", from: \"active\" do\n      role \"Compliance officer\"\n      goal \"Stop a customer transacting while something is investigated\"\n\n      reference_to Customer\n\n      sets :standing\n\n      emits CustomerSuspended\n    end\n\n    command \"Reinstate\", from: \"suspended\" do\n      role \"Compliance officer\"\n      goal \"Let a cleared customer transact again\"\n\n      reference_to Customer\n      sets :standing, to: { value: \"good\" }\n\n      emits CustomerReinstated\n    end\n\n    command \"Close\", from: [\"active\", \"suspended\"] do\n      role \"Branch clerk\"\n      goal \"End the relationship\"\n\n      reference_to Customer\n      emits CustomerClosed\n    end\n\n    query \"InGoodStanding\" do\n      description \"The everyday customer roll — active, and nothing outstanding against them.\"\n      where(status: \"active\", standing: \"good\")\n      order_by :reference\n    end\n\n    query \"Suspended\" do\n      description \"The compliance queue, newest concern first.\"\n      where(status: \"suspended\")\n      order_by :reference, :desc\n      limit 50\n    end\n\n    query \"NotGoodStanding\" do\n      description \"Everyone who is not in the everyday roll — suspended, under review, or anything else that is not simply \\\"good\\\".\"\n      where(standing: { ne: \"good\" })\n      order_by :reference\n    end\n  end\n\nend\n\nHecks.bluebook \"Banking\" do\n  aggregate \"Account\" do\n    description \"A balance belonging to one customer, and the ledger that explains how it got there.\"\n    provenance from: { source: \"HecksCanonical\", source_id: \"aggregate:account\", source_version: \"1.0\" }\n\n    reference_to Customer\n\n    attribute :number, AccountNumber\n\n    identified_by :number\n\n    attribute :balance,      Money\n    attribute :kind,         AccountKind\n    attribute :daily_limit,  DailyLimit\n    attribute :ledger,       list_of(LedgerEntry)\n    attribute :fees_cents,   Money\n    attribute :interest_cents, Money\n\n    value_object \"AccountNumber\" do\n      attribute :value, String, pattern: '[^ \\t\\n\\r]'\n      invariant(\"an account number is present\") { !value.to_s.empty? }\n    end\n\n    value_object \"DailyLimit\" do\n      attribute :cents, Integer, default: 0\n      invariant(\"a daily limit is non-negative\") { !cents.negative? }\n    end\n\n    value_object \"LedgerSequence\" do\n      attribute :value, Integer\n      invariant(\"a ledger sequence is positive\") { value.positive? }\n    end\n\n    value_object \"LedgerDirection\" do\n      attribute :value, String, one_of: [\"credit\", \"debit\"]\n    end\n\n    value_object \"Money\" do\n      attribute :cents,    Integer, default: 0\n      attribute :currency, String,  default: \"USD\"\n\n      invariant(\"a currency is a three-letter code\") { currency.to_s.size == 3 }\n    end\n\n    value_object \"PositiveMoney\" do\n      attribute :cents,    Integer\n      attribute :currency, String, default: \"USD\"\n\n      invariant(\"an amount is positive\") { cents.positive? }\n      invariant(\"a currency is a three-letter code\")\n    end\n\n    value_object \"AccountKind\" do\n      attribute :name, String, one_of: [\"current\", \"savings\", \"reserve\"]\n    end\n\n    value_object \"Narrative\" do\n      attribute :text, String, pattern: '[^ \\t\\n\\r]'\n\n      invariant(\"a movement explains itself\") { !text.to_s.empty? }\n    end\n\n    entity \"LedgerEntry\" do\n      given(\"entry is posted\") { state == \"posted\" }\n      description \"One movement across the account, in the order it was posted.\"\n\n      attribute :sequence, LedgerSequence\n\n      identified_by :sequence\n\n      attribute :amount,    Money\n      attribute :narrative, Narrative\n      attribute :direction, LedgerDirection\n\n      # Shared by Amend and Reverse, and bare-referenced by SafeDepositBox::Visit as\n      # `declared_by: \"Account.LedgerEntry\"` (ADR 0028).\n      # `parent.customer_status`, not `parent.customer.status`: a rule may read only its own\n      # aggregate's fields, and `customer_status` is projected into Account (ADR 0025).\n      given(\"customer is active\") { parent.customer_status == \"active\" }\n      given(\"account is open\")    { parent.status == \"open\" }\n\n      lifecycle :state, default: \"posted\" do\n        transition \"Reverse\" => \"reversed\", from: \"posted\"\n        transition \"Amend\"   => \"posted\",   from: \"posted\"\n      end\n\n      command \"Amend\" do\n        role \"Back office\"\n        goal \"Correct a movement posted for the wrong amount\"\n\n        attribute :adjustment, Money\n        given(\"customer is active\")\n        given(\"account is open\")\n        given(\"entry is posted\")\n\n        given(\"an amendment leaves a non-negative amount\") { amount.cents + adjustment.cents >= 0 }\n\n        sets :amount,    increment: :adjustment\n        sets :narrative\n\n        emits LedgerEntryAmended\n      end\n\n      command \"Reverse\" do\n        role \"Back office\"\n        goal \"Undo a movement that should not have been posted\"\n\n        given(\"customer is active\")\n        given(\"account is open\")\n        given(\"entry is posted\")\n        sets :narrative\n\n        emits LedgerEntryReversed\n      end\n\n      query \"Reversed\" do\n        description \"Entries that were undone — the audit trail nobody wants to need.\"\n        where(state: \"reversed\")\n      end\n    end\n\n    # Checked after every command, before save, so every command that moves :balance is covered\n    # (ADR 0025).\n    invariant(\"the balance never goes negative\") { balance.cents >= 0 }\n\n    # A held copy of Customer's status, refreshed by a rebuild sweep (runtime/rebuild_sweep.rb).\n    # Rules may read only their own aggregate boundary, so a customer suspended a moment ago can\n    # still pass \"customer is active\" until the next sweep.\n    projects :customer_status, from: :\"customer.status\"\n\n    # Shared by every acting command on Account. `Open` does not reference it: it creates the\n    # record, so `customer` there is a command argument, not stored state. FreezeAccount and\n    # CloseAccount use \"customer is not closed\" instead. LedgerEntry reads\n    # `parent.customer_status`, a different path, so it keeps its own given.\n    given(\"customer is active\") { customer_status == \"active\" }\n\n    # Shared by the two compliance-adjacent commands, FreezeAccount and CloseAccount.\n    given(\"customer is not closed\") { customer_status != \"closed\" }\n\n    lifecycle :status, default: \"open\" do\n      transition \"FreezeAccount\" => \"frozen\", from: \"open\"\n      transition \"Unfreeze\" => \"open\",  from: \"frozen\"\n      transition \"CloseAccount\" => \"closed\", from: [\"open\", \"frozen\"]\n    end\n\n    command \"Open\" do\n      role \"Branch clerk\"\n      goal \"Give a customer somewhere to keep money\"\n\n      # Not the shared given: `customer` here is a fresh command argument, resolved\n      # synchronously, and `customer_status` does not exist until this command creates the record.\n      given(\"customer is active\") { customer.status == \"active\" }\n\n      sets :customer\n      sets :number\n      sets :kind\n      sets :daily_limit\n\n      emits AccountOpened\n    end\n\n    # `from:` names the legal lifecycle state, so it is checkable against the state machine.\n    command \"Credit\", from: \"open\" do\n      role \"Teller\"\n      goal \"Put money in\"\n\n      reference_to Account\n      attribute :amount,    PositiveMoney\n\n      given(\"customer is active\")\n      sets :balance, increment: :amount\n      sets :ledger,  append: { amount: :amount, narrative: :narrative, direction: { value: \"credit\" } }\n\n      emits AccountCredited\n    end\n\n    command \"Debit\", from: \"open\" do\n      role \"Teller\"\n      goal \"Take money out, if it is there to take\"\n\n      reference_to Account\n      attribute :amount,    PositiveMoney\n\n      given(\"customer is active\")\n      given(\"the balance covers it\")     { balance.cents >= amount.cents }\n      given(\"the daily limit allows it\") { daily_limit.cents >= amount.cents }\n\n      sets :balance, decrement: :amount\n      sets :ledger,  append: { amount: :amount, narrative: :narrative, direction: { value: \"debit\" } }\n\n      # The aggregate invariant above covers \"the balance never goes negative\".\n      ensures(\"the balance fell by exactly the amount\") { old.balance.cents == balance.cents + amount.cents }\n      ensures(\"a ledger entry was posted\") { ledger.size == old.ledger.size + 1 }\n\n      emits AccountDebited\n    end\n\n    command \"FreezeAccount\", from: \"open\" do\n      role \"Compliance officer\"\n      goal \"Stop an account moving while something is investigated\"\n\n      reference_to Account\n      # \"customer is not closed\", not \"customer is active\": FreezeAccountsOnSuspension fires\n      # because a customer was just suspended, so an active-only guard could never pass.\n      # No `standing` attribute is needed: the policy projects with `with: { account: :account }`.\n      given(\"customer is not closed\")\n      # Bare event constant, matched by ReviewOnFreeze's `on Account::AccountFrozen`.\n      emits AccountFrozen\n    end\n\n    command \"Unfreeze\", from: \"frozen\" do\n      role \"Compliance officer\"\n      goal \"Release a cleared account\"\n\n      reference_to Account\n      given(\"customer is active\")\n      emits AccountUnfrozen\n    end\n\n    command \"CloseAccount\", from: [\"open\", \"frozen\"] do\n      role \"Branch clerk\"\n      goal \"Close an account that has been emptied\"\n\n      reference_to Account\n      given(\"customer is not closed\")\n\n      given(\"an account closes empty\") { balance.cents.zero? }\n\n      emits AccountClosed\n    end\n\n    command \"ApplyFee\", from: \"open\" do\n      role \"System\"\n      goal \"Charge the account a fee\"\n\n      reference_to Account\n      attribute :amount, PositiveMoney\n      attribute :narrative, Narrative\n      given(\"customer is active\")\n      given(\"the balance covers a fee\") { balance.cents >= amount.cents }\n      sets :balance, decrement: :amount\n      sets :fees_cents, increment: :amount\n      emits FeeApplied\n    end\n\n    command \"CorrectFee\", from: \"open\" do\n      role \"Back office\"\n      goal \"Reverse a fee that was applied in error\"\n\n      reference_to Account\n      attribute :amount, PositiveMoney\n      # `corrects` checks that a fee was actually applied (`NothingToCorrect`).\n      corrects \"FeeApplied\", reason: \"a fee was applied in error and is being reversed\"\n      given(\"customer is active\")\n      given(\"a correction cannot exceed collected fees\") { fees_cents.cents >= amount.cents }\n      sets :balance, increment: :amount\n      sets :fees_cents, decrement: :amount\n      emits FeeCorrected\n    end\n\n    command \"AccrueInterest\", from: \"open\" do\n      role \"System\"\n      goal \"Credit the account with interest earned\"\n\n      reference_to Account\n      attribute :amount, PositiveMoney\n      given(\"customer is active\")\n      sets :balance, increment: :amount\n      sets :interest_cents, increment: :amount\n      emits InterestAccrued\n    end\n\n    command \"CorrectInterest\", from: \"open\" do\n      role \"Back office\"\n      goal \"Reverse interest that was accrued in error\"\n\n      reference_to Account\n      attribute :amount, PositiveMoney\n      given(\"customer is active\")\n      given(\"a correction cannot exceed accrued interest\") { interest_cents.cents >= amount.cents }\n      given(\"the balance covers an interest correction\") { balance.cents >= amount.cents }\n      sets :balance, decrement: :amount\n      sets :interest_cents, decrement: :amount\n      emits InterestCorrected\n    end\n\n    query \"Open\" do\n      description \"Accounts that can transact today.\"\n      where(status: \"open\")\n      order_by :number\n    end\n\n    query \"Overdrawn\" do\n      description \"Accounts below a floor the caller supplies — the morning risk report.\"\n      attribute :floor, Money\n      where(balance: { lt: :floor })\n      order_by :balance\n      limit 100\n    end\n\n    query \"HighBalance\" do\n      description \"Accounts holding at least a floor the caller supplies — the private-banking referral list.\"\n      attribute :floor, Money\n      where(balance: { gte: :floor })\n      order_by :balance, :desc\n    end\n\n    query \"StrictlyAbove\" do\n      description \"Accounts holding MORE than a floor the caller supplies — the referral list without the accounts sitting exactly on the line.\"\n      attribute :floor, Money\n      where(balance: { gt: :floor })\n      order_by :balance, :desc\n    end\n\n    query \"AtMost\" do\n      description \"Accounts holding no more than a cap the caller supplies — the small-balance closure candidates.\"\n      attribute :cap, Money\n      where(balance: { lte: :cap })\n      order_by :balance\n    end\n\n    query \"Reachable\" do\n      description \"Accounts that still exist as far as a caller is concerned — anything short of closed.\"\n      where(status: { in: \"open,frozen\" })\n      order_by :number\n    end\n\n    # Dotted where: `customer/status` hops through the reference and checks the target's field.\n    query \"OpenForSuspendedCustomers\" do\n      description \"Open accounts whose customer has since been suspended — live money movement nobody should be approving right now.\"\n      where(status: \"open\")\n      where(:\"customer/status\" => \"suspended\")\n      order_by :number\n    end\n\n    # The for_each target for FreezeAccountsOnSuspension. Scoped to one customer, unlike the\n    # dashboard query above, so a suspension does not refire other customers' accounts.\n    # `reference` is the key CustomerSuspended's payload carries, not a `customer_id` foreign key.\n    query \"OpenForCustomer\" do\n      description \"One customer's own open accounts — the for_each target that freezes every one of them on suspension, not just whichever the event payload happened to carry.\"\n      # Plain String, not Customer's CustomerNumber: query attribute types are never coerced\n      # (`QueryInterpreter#resolve_query_value`), and a VO from another aggregate cannot be fuzzed.\n      attribute :reference, String\n      where(customer: :reference, status: \"open\")\n      order_by :number\n    end\n\n    policy \"ReviewOnFreeze\" do\n      # Bare event constant, matching FreezeAccount's `emits AccountFrozen`.\n      on      Account::AccountFrozen\n      trigger AccountFreezeReview::Open\n      across  \"Compliance\"\n    end\n  end\n\n  # One suspension freezes every open account the customer holds.\n  #\n  # `for_each_key` is resolved at codegen through `Behaviour::Command#addressing_key_for`,\n  # never re-derived in the kernel: `account` for a self-referencing command, `account_id`\n  # for one merely holding a reference. `with:` sends only the row, so FreezeAccount need not\n  # declare a `standing` it never reads.\n  #\n  # The parser does not yet build `where` on a policy (it is a block, not a positional text).\n  policy \"FreezeAccountsOnSuspension\" do\n    on       Customer::CustomerSuspended\n    for_each \"Account.OpenForCustomer\"\n    # `account` is the key the fan-out merges per row; naming it keeps `standing` off the payload.\n    trigger  Account::FreezeAccount, with: { account: :account }\n  end\n\n  # Notifications does not exist on purpose: this exercises the undelivered-reaction path\n  # (spec/runtime/policy_spec.rb). ModelCheck holds the expectation and fails if it goes stale.\n  policy \"NotifyOnClosure\" do\n    on      Account::AccountClosed\n    trigger Notifications::Send\n    across  \"Notifications\", expect_undelivered: true\n  end\n\nend\n\nHecks.bluebook \"Banking\" do\n  aggregate \"OnboardingCase\" do\n    given(\"case is screening\") { status == \"screening\" }\n    # Shared given; see SafeDepositBox for why `declared_by:` is required.\n    given(\"customer is active\", declared_by: Account)\n    description \"The KYC check a newly registered customer clears before an account exists for them — screened once, and if it does not clear there is nothing to undo, because nothing was ever opened.\"\n\n    # Mints a bare `customer` attribute, no `_id` suffix (ADR 0025).\n    reference_to Customer\n    # Must match Account's projected field name: the shared given reads `customer_status`.\n    projects :customer_status, from: :\"customer.status\"\n\n    attribute :reference, OnboardingReference\n\n    identified_by :reference\n\n    attribute :account_number, AccountNumber\n\n    value_object \"OnboardingReference\" do\n      attribute :value, String, pattern: '[^ \\t\\n\\r]'\n      invariant(\"an onboarding case is referenced\") { !value.to_s.empty? }\n    end\n\n    value_object \"AccountNumber\" do\n      attribute :value, String, pattern: '[^ \\t\\n\\r]'\n      invariant(\"an account number is present\") { !value.to_s.empty? }\n    end\n\n    lifecycle :status, default: \"screening\" do\n      transition \"Clear\"   => \"cleared\",  from: \"screening\"\n      transition \"Decline\" => \"declined\", from: \"screening\"\n    end\n\n    command \"Open\" do\n      role \"Branch clerk\"\n      goal \"Open a KYC case for a newly registered customer, naming the account it will become\"\n\n      # Own given: `customer` is a fresh command argument, not yet stored state.\n      given(\"customer is active\") { customer.status == \"active\" }\n\n      sets :customer\n      sets :reference\n      sets :account_number\n\n      emits OnboardingOpened\n    end\n\n    command \"Clear\", from: \"screening\" do\n      role \"Compliance officer\"\n      goal \"Pass a customer's identity and screening checks\"\n\n      reference_to OnboardingCase\n      given(\"customer is active\")\n\n      emits OnboardingCleared\n    end\n\n    command \"Decline\", from: \"screening\" do\n      role \"Compliance officer\"\n      goal \"Refuse a customer who does not clear screening — no account was ever opened, so nothing is undone\"\n\n      reference_to OnboardingCase\n      given(\"customer is active\")\n\n      emits OnboardingDeclined\n    end\n\n    query \"Screening\" do\n      description \"Cases still waiting on a compliance decision.\"\n      where(status: \"screening\")\n      order_by :reference\n    end\n  end\n\n  # A saga with no compensating leg: a declined KYC case opened no account\n  # and moved no money, so there is nothing to undo.\n  process_manager \"Onboarding\" do\n    correlates_by :\"reference.value\"\n    starts_on OnboardingCase::OnboardingOpened\n    ends_on   Account::AccountOpened\n\n    transition OnboardingCase::OnboardingCleared => \"cleared\", from: \"screening\" do\n      # Kind and limit are the bank's default terms; later changes go through Account.\n      dispatch Account::Open, with: {\n        customer:    :customer,\n        number:      :account_number,\n        kind:        { name: \"current\" },\n        daily_limit: { cents: 0 }\n      }\n    end\n\n    # No dispatch: nothing was created to undo.\n    transition OnboardingCase::OnboardingDeclined => \"declined\", from: \"screening\"\n  end\nend\n\nHecks.bluebook \"Banking\" do\n  aggregate \"ATMCard\" do\n    given(\"card is issued or active\") { [\"issued\", \"active\"].include?(status) }\n    # Acting commands read projected fields, not dot-paths (ADR 0025); `Issue`\n    # keeps dot-paths because `account` is a fresh argument there, not stored state.\n    given(\"account is open\") { account_status == \"open\" }\n    given(\"customer is active\") { account_customer_status == \"active\" }\n    description \"A card issued against an account, and the cash taken with it.\"\n\n    reference_to Account\n    projects :account_status,          from: :\"account.status\"\n    projects :account_customer_status, from: :\"account.customer_status\"\n\n    attribute :serial, CardSerial\n\n    identified_by :serial\n\n    # Optional: a card handed over the same day often has no nickname yet, and\n    # the `Active` query's `nulls` ordering relies on true absence.\n    attribute :nickname,    CardNickname, optional: true\n    attribute :daily_fee,   DailyFee\n    attribute :withdrawals, list_of(Withdrawal)\n\n    value_object \"CardSerial\" do\n      attribute :value, String, pattern: '[^ \\t\\n\\r]'\n      invariant(\"a card serial is present\") { !value.to_s.empty? }\n    end\n\n    value_object \"CardNickname\" do\n      attribute :value, String\n    end\n\n    value_object \"DailyFee\" do\n      attribute :amount, Float, default: 0.0\n      invariant(\"a daily fee is non-negative\") { amount >= 0 }\n    end\n\n    value_object \"WithdrawalSequence\" do\n      attribute :value, Integer\n      invariant(\"a withdrawal sequence is positive\") { value.positive? }\n    end\n\n    value_object \"WithdrawalAmount\" do\n      attribute :cents, Integer\n      invariant(\"a withdrawal amount is positive\") { cents.positive? }\n    end\n\n    value_object \"Narrative\" do\n      attribute :text, String, pattern: '[^ \\t\\n\\r]'\n\n      invariant(\"a withdrawal explains itself\") { !text.to_s.empty? }\n    end\n\n    entity \"Withdrawal\" do\n      description \"One handful of cash, in the order it was taken.\"\n\n      attribute :sequence, WithdrawalSequence\n\n      identified_by :sequence\n\n      attribute :cents,     WithdrawalAmount\n      attribute :narrative, Narrative\n\n      lifecycle :state, default: \"taken\" do\n        transition \"Dispute\" => \"disputed\", from: \"taken\"\n      end\n\n      command \"Dispute\", from: \"taken\" do\n        role \"Customer\"\n        goal \"Challenge a withdrawal that was not mine\"\n\n        # Reads ATMCard's projected fields, already part of `parent.state` (ADR 0025).\n        given(\"customer is active\") { parent.account_customer_status == \"active\" }\n        given(\"account is open\") { parent.account_status == \"open\" }\n        # Must read `parent.status`: Withdrawal's own lifecycle field is `:state`,\n        # so a bare `status` would never refuse disputes on a retired card.\n        given(\"card is not retired\") { parent.status != \"retired\" }\n        sets :narrative\n\n        emits WithdrawalDisputed\n      end\n\n      query \"Recent\" do\n        description \"The first two withdrawals still standing, whatever else was taken.\"\n        where(state: \"taken\")\n        limit 2\n      end\n    end\n\n    lifecycle :status, default: \"issued\" do\n      transition \"Activate\" => \"active\",  from: \"issued\"\n      transition \"Retire\"   => \"retired\", from: [\"issued\", \"active\"]\n    end\n\n    command \"Issue\" do\n      role \"Branch clerk\"\n      goal \"Put a card in a customer's hand\"\n\n      # Own givens: `account` is a fresh command argument, while the projected\n      # fields the shared givens read are not stored until this command runs.\n      given(\"customer is active\") { account.customer.status == \"active\" }\n      given(\"account is open\") { account.status == \"open\" }\n\n      sets :account\n      sets :serial\n      sets :daily_fee\n\n      emits ATMCardIssued\n    end\n\n    # `Rename`/`Withdraw` have no matching transition, so `from:` is their only\n    # state guard. `Activate`/`Retire` repeat their transition's check so the\n    # command signature states the state it needs.\n    command \"Rename\", from: [\"issued\", \"active\"] do\n      role \"Customer\"\n      goal \"Name a card so it is recognisable\"\n\n      reference_to ATMCard\n      attribute :nickname, CardNickname\n      given(\"customer is active\")\n      sets :nickname\n\n      emits ATMCardRenamed\n    end\n\n    command \"Withdraw\", from: \"active\" do\n      role \"Customer\"\n      goal \"Take cash out at a machine\"\n\n      reference_to ATMCard\n      given(\"customer is active\")\n      given(\"account is open\")\n      # Narrower than Rename/Retire on purpose: an issued card must be activated first.\n\n      sets :withdrawals, append: { cents: :cents, narrative: :narrative }\n\n      emits CashWithdrawn\n    end\n\n    command \"Activate\", from: \"issued\" do\n      role \"Customer\"\n      goal \"Start using a card\"\n\n      reference_to ATMCard\n      given(\"customer is active\")\n      emits ATMCardActivated\n    end\n\n    command \"Retire\", from: [\"issued\", \"active\"] do\n      role \"Back office\"\n      goal \"Take a card out of service\"\n\n      reference_to ATMCard\n      given(\"customer is active\")\n      emits ATMCardRetired\n    end\n\n    # `nulls :last` puts unnamed cards after every named one, explicitly.\n    query \"Active\" do\n      description \"Live cards in nickname order, unnamed ones last — real nicknames sort among themselves first.\"\n      where(status: \"active\")\n      order_by :nickname\n      nulls :last\n    end\n\n    # `offset 1` skips the cheapest card, then `limit 3` takes the next three.\n    query \"ByFee\" do\n      description \"Live cards by what they cost to hold, cheapest first — a fee is a Float, so the order is numeric and not alphabetical.\"\n      where(status: \"active\")\n      order_by :daily_fee\n      limit 3\n      offset 1\n    end\n  end\n\n  aggregate \"CardPayment\" do\n    given(\"payment is disputed\") { status == \"disputed\" }\n    given(\"payment is captured\") { status == \"captured\" }\n    given(\"payment is authorized\") { status == \"authorized\" }\n    # Shared with ATMCard; `declared_by:` is required because Account's\n    # \"customer is active\" is a different canonical.\n    given(\"account is open\", declared_by: ATMCard)\n    given(\"customer is active\", declared_by: ATMCard)\n    description \"A card authorisation that either settles, is voided before settlement, or becomes a post-settlement dispute.\"\n\n    reference_to Account\n    # Same names as ATMCard's projected fields: the shared givens read them by name.\n    projects :account_status,          from: :\"account.status\"\n    projects :account_customer_status, from: :\"account.customer_status\"\n    # Optional: nil until `Dispute` sets it, and an undisputed payment must still save.\n    reference_to Customer, as: :disputed_by, optional: true\n    attribute :authorisation, AuthorisationCode\n\n    identified_by :authorisation\n    attribute :amount,   PaymentAmount\n\n    value_object \"AuthorisationCode\" do\n      attribute :value, String, pattern: '[^ \\t\\n\\r]'\n    end\n    attribute :merchant, MerchantName\n\n    value_object \"PaymentAmount\" do\n      attribute :cents, Integer\n      invariant(\"a payment amount is positive\") { cents.positive? }\n    end\n\n    value_object \"MerchantName\" do\n      attribute :value, String, pattern: '[^ \\t\\n\\r]'\n      invariant(\"a merchant name is present\") { !value.to_s.empty? }\n    end\n\n    # Free-form risk tags, not a closed set: the risk desk adds tags before the model names them.\n    attribute :tags, list_of(Tag)\n\n    value_object \"Tag\" do\n      attribute :value, String, pattern: '[^ \\t\\n\\r]'\n      invariant(\"a tag is not the empty string\") { !value.to_s.empty? }\n    end\n\n    lifecycle :status, default: \"authorized\" do\n      transition \"Capture\" => \"captured\", from: \"authorized\"\n      transition \"Void\" => \"voided\", from: \"authorized\"\n      transition \"Refund\" => \"refunded\", from: \"captured\"\n      transition \"Reverse\" => \"reversed\", from: \"captured\"\n      transition \"Dispute\" => \"disputed\", from: [\"captured\", \"refunded\"]\n      transition \"Chargeback\" => \"charged_back\", from: \"disputed\"\n      transition \"RejectDispute\" => \"captured\", from: \"disputed\"\n    end\n\n    command \"Authorize\" do\n      # Role-less on purpose: diagrams_spec and oidc_projection_spec depend on\n      # Banking having one unguarded command, and this is it.\n      goal \"Put a hold on funds for a purchase\"\n      attribute :authorisation, AuthorisationCode\n      attribute :tags, list_of(Tag), optional: true\n      # Own givens: `account` is a fresh command argument; see ATMCard.Issue.\n      given(\"customer is active\") { account.customer.status == \"active\" }\n      given(\"account is open\") { account.status == \"open\" }\n      sets :account\n      sets :amount\n      sets :merchant\n      sets :tags\n      sets :authorisation\n      emits CardAuthorized\n    end\n\n    command \"Capture\", from: \"authorized\" do\n      role \"System\"\n      goal \"Turn an authorization into an actual charge\"\n\n      reference_to CardPayment\n      given(\"customer is active\")\n      given(\"account is open\")\n      emits CardCaptured\n    end\n\n    command \"Void\", from: \"authorized\" do\n      role \"System\"\n      goal \"Cancel an authorization before it settles\"\n\n      reference_to CardPayment\n      given(\"customer is active\")\n      given(\"account is open\")\n      emits CardVoided\n    end\n\n    command \"Refund\", from: \"captured\" do\n      role \"System\"\n      goal \"Give the money back after a charge settled\"\n\n      reference_to CardPayment\n      given(\"customer is active\")\n      given(\"account is open\")\n      emits CardRefunded\n    end\n\n    command \"Reverse\", from: \"captured\" do\n      role \"System\"\n      goal \"Undo a captured charge with no customer dispute involved\"\n\n      reference_to CardPayment\n      given(\"customer is active\")\n      given(\"account is open\")\n      emits CardReversed\n    end\n\n    command \"Dispute\", from: [\"captured\", \"refunded\"] do\n      role \"Customer\"\n      goal \"Challenge a payment that already settled\"\n\n      # Carries both a self reference and a cross-aggregate one: on a joint account\n      # the disputant is not derivable from the payment. The owner match keeps\n      # Dispute non-creating; Customer becomes a Reference attribute.\n      reference_to CardPayment\n      reference_to Customer, as: :disputed_by\n      given(\"account is open\")\n      given(\"customer is active\") { disputed_by.status == \"active\" }\n\n      sets :disputed_by\n\n      emits CardDisputed\n    end\n\n    command \"Chargeback\", from: \"disputed\" do\n      role \"Compliance officer\"\n      goal \"Uphold a customer's dispute and claw the charge back\"\n\n      reference_to CardPayment\n      given(\"customer is active\")\n      given(\"account is open\")\n      emits CardChargedBack\n    end\n\n    command \"RejectDispute\", from: \"disputed\" do\n      role \"Compliance officer\"\n      goal \"Uphold the charge and close a customer's dispute\"\n\n      reference_to CardPayment\n      given(\"customer is active\")\n      given(\"account is open\")\n      emits CardDisputeRejected\n    end\n\n    query \"Pending\" do\n      description \"Authorized charges not yet captured, voided, or otherwise resolved.\"\n      where(status: \"authorized\")\n    end\n\n    query \"Disputed\" do\n      description \"Charges currently under a customer's dispute, awaiting a compliance decision.\"\n      where(status: \"disputed\")\n    end\n\n    query \"Flagged\" do\n      description \"Charges carrying a risk tag, for the fraud queue.\"\n      where(tags: { contains: \"high_risk\" })\n    end\n  end\n\nend\n\nHecks.bluebook \"Banking\" do\n  aggregate \"SafeDepositBox\" do\n    # Shared with Account (deposit_accounts.bluebook): both hold a direct\n    # `reference_to Customer`. `declared_by:` disambiguates ATMCard's different given.\n    given(\"customer is active\", declared_by: Account)\n    description \"A steel box in the vault, held under one customer's name and opened only against the branch and number stamped on its face.\"\n\n    belongs_to Customer\n\n    # Same local copy Account declares; each aggregate projects independently (ADR 0025).\n    projects :customer_status, from: :\"customer.status\"\n\n    # Box numbers repeat across branches, so identity is composite: branch and number.\n    attribute :branch_code, BranchCode\n    attribute :box_number,  BoxNumber\n\n    identified_by :branch_code, :box_number\n    # Inline `one_of` as an attribute type synthesises the \"Size\" value object.\n    attribute :size,   one_of(\"small\", \"medium\", \"large\"), default: { value: \"small\" }\n    attribute :visits, list_of(Visit)\n    attribute :keys,   list_of(KeyIssuance)\n\n    value_object \"BranchCode\" do\n      attribute :value, String, pattern: '[^ \\t\\n\\r]'\n      invariant(\"a branch is coded\") { !value.to_s.empty? }\n    end\n\n    value_object \"BoxNumber\" do\n      attribute :value, Integer\n      invariant(\"a box is numbered from one\") { value.positive? }\n    end\n\n    value_object \"VisitSequence\" do\n      attribute :value, Integer\n      invariant(\"a visit sequence is positive\") { value.positive? }\n    end\n\n    value_object \"VisitDate\" do\n      attribute :value, String, pattern: '[^ \\t\\n\\r]'\n      invariant(\"a visit names its date\") { !value.to_s.empty? }\n    end\n\n    value_object \"VisitNote\" do\n      attribute :text, String\n    end\n\n    value_object \"KeySerial\" do\n      attribute :value, String, pattern: '[^ \\t\\n\\r]'\n      invariant(\"a key is serialed\") { !value.to_s.empty? }\n    end\n\n    # Composite identity under a composite head: a box may open twice in one day.\n    entity \"Visit\" do\n      description \"One opening of the box, in the order it happened that day.\"\n\n      attribute :date,     VisitDate\n      attribute :sequence, VisitSequence\n\n      identified_by :date, :sequence\n      # Optional: most openings are routine.\n      attribute :note,     VisitNote, optional: true\n\n      # Lives here, not on VisitNote: a value object invariant never runs for an\n      # absent optional field, so only the owner can tell absent from empty.\n      invariant(\"a written note is not blank\") { !note || !note.text.to_s.empty? }\n\n      # Shared with Account::LedgerEntry: both read `parent.customer_status` (ADR 0025).\n      # Cannot reuse the aggregate-level given, whose path is `customer_status`,\n      # not `parent.customer_status`.\n      given(\"customer is active\")\n      given(\"box is rented\") { parent.status == \"rented\" }\n\n      lifecycle :state, default: \"logged\" do\n        transition \"Annotate\" => \"logged\", from: \"logged\"\n      end\n\n      command \"Annotate\", from: \"logged\" do\n        role \"Vault officer\"\n        goal \"Note something unusual about a visit after the fact\"\n\n        attribute :note,     VisitNote\n        given(\"customer is active\")\n        given(\"box is rented\")\n\n        sets :note\n\n        emits VisitAnnotated\n      end\n\n      query \"Recent\" do\n        description \"The last few visits, whatever the box has seen.\"\n        where(state: \"logged\")\n        limit 5\n      end\n    end\n\n    # Identified by a single field where Visit uses two, so runtimes must pick the named entity.\n    entity \"KeyIssuance\" do\n      description \"One key cut for the box, held by whoever last signed for it.\"\n\n      attribute :serial, KeySerial\n\n      identified_by :serial\n\n      lifecycle :status, default: \"issued\" do\n        transition \"Return\" => \"returned\", from: \"issued\"\n      end\n\n      command \"Return\" do\n        role \"Vault officer\"\n        goal \"Take a key back when a holder is done with it\"\n\n        attribute :serial, KeySerial\n        # Shared with Visit through the aggregate's cross-entity given pool.\n        given(\"customer is active\")\n        given(\"box is rented\")\n\n        emits KeyReturned\n      end\n    end\n\n    lifecycle :status, default: \"vacant\" do\n      transition \"Rent\"      => \"rented\", from: \"vacant\"\n      transition \"Surrender\" => \"vacant\", from: \"rented\"\n    end\n\n    # `LogVisit`/`IssueKey` have no matching transition, so `from:` is their only state guard.\n    command \"Rent\", from: \"vacant\" do\n      role \"Branch clerk\"\n      goal \"Assign the box to a customer\"\n\n      attribute :branch_code, BranchCode\n      attribute :box_number,  BoxNumber\n      attribute :size,        Size\n      # Own given: `customer` is a fresh argument and `customer_status` is not\n      # seeded until the box is saved; see Account.Open.\n      given(\"customer is active\") { customer.status == \"active\" }\n\n      sets :customer\n      sets :branch_code\n      sets :box_number\n      sets :size\n\n      emits BoxRented\n    end\n\n    command \"Surrender\", from: \"rented\" do\n      role \"Customer\"\n      goal \"Give the box back and take the keys off the account\"\n\n      reference_to SafeDepositBox\n\n      given(\"customer is active\")\n\n      # Two facts from one act: the surrender, and the keys still outstanding.\n      emits BoxSurrendered\n      emits KeyReturnDue\n    end\n\n    command \"LogVisit\", from: \"rented\" do\n      role \"Vault officer\"\n      goal \"Record that the box was opened\"\n\n      reference_to SafeDepositBox\n\n      given(\"customer is active\")\n\n      sets :visits, append: { date: :date, sequence: :sequence, note: :note }\n\n      emits BoxOpened\n    end\n\n    command \"IssueKey\", from: \"rented\" do\n      role \"Vault officer\"\n      goal \"Cut a key for the box\"\n\n      reference_to SafeDepositBox\n      given(\"customer is active\")\n\n      sets :keys, append: { serial: :serial }\n\n      emits KeyIssued\n    end\n\n    query \"Rented\" do\n      description \"Boxes currently assigned to a customer, for the annual access audit.\"\n      where(status: \"rented\")\n      order_by :branch_code\n      # Vault records are read only against the caller's own branch.\n      authorize :vault_access, tenant: :branch_code\n    end\n  end\n\n  # One policy per fact Surrender announces.\n  policy \"ReviewOnBoxSurrender\" do\n    on      SafeDepositBox::BoxSurrendered\n    trigger BoxSurrenderReview::Open\n    across  \"Compliance\"\n  end\n\n  policy \"FlagKeyReturn\" do\n    on      SafeDepositBox::KeyReturnDue\n    trigger Notifications::Send\n    # Undelivered on purpose; see NotifyOnClosure in deposit_accounts.bluebook.\n    across  \"Notifications\", expect_undelivered: true\n  end\n\nend\n\nHecks.bluebook \"Banking\" do\n  aggregate \"Statement\" do\n    description \"A snapshot of one account's activity over one period, generated once and never revised.\"\n\n    reference_to Account\n    attribute :period,          StatementPeriod\n    attribute :opening_balance, StatementAmount\n    attribute :closing_balance, StatementAmount\n    attribute :generated_on,    StatementDate\n    attribute :frequency,       StatementFrequency\n\n    # Composite identity whose first part is a reference: `account` is already a\n    # scalar id (ADR 0025), so there is no value object to unwrap.\n    identified_by :account, :period\n\n    value_object \"StatementPeriod\" do\n      attribute :value, String, pattern: '[^ \\t\\n\\r]'\n      invariant(\"a statement names its period\") { !value.to_s.empty? }\n    end\n\n    value_object \"StatementAmount\" do\n      attribute :cents, Integer\n    end\n\n    value_object \"StatementDate\" do\n      attribute :value, String, pattern: '[^ \\t\\n\\r]'\n      invariant(\"a statement is dated\") { !value.to_s.empty? }\n    end\n\n    # A closed set with several fields per member, so `one_of:` does not fit.\n    # Admission validates only the discriminant (`cadence`); callers state every field.\n    value_object \"StatementFrequency\" do\n      attribute :cadence,          String\n      attribute :retention_months, Integer\n      attribute :paper_fee_cents,  Integer\n\n      member cadence: \"monthly\",   retention_months: 84,  paper_fee_cents: 0\n      member cadence: \"quarterly\", retention_months: 120, paper_fee_cents: 0\n      member cadence: \"annual\",    retention_months: 240, paper_fee_cents: 500\n    end\n\n    command \"Generate\" do\n      role \"System\"\n      goal \"Close out one period's activity into a permanent record\"\n\n      attribute :period,          StatementPeriod\n      attribute :opening_balance, StatementAmount\n      attribute :closing_balance, StatementAmount\n      attribute :generated_on,    StatementDate\n      attribute :frequency,       StatementFrequency\n      # Own givens: `account` is a fresh command argument, and nothing here populates\n      # the projected field that ATMCard's shared givens read.\n      given(\"customer is active\") { account.customer.status == \"active\" }\n      given(\"account is open\") { account.status == \"open\" }\n\n      sets :account\n      # Bare `sets` imports the matching attribute; omitting one leaves it nil on the record.\n      sets :period\n      sets :opening_balance\n      sets :closing_balance\n      sets :generated_on\n      sets :frequency\n\n      emits StatementGenerated\n    end\n  end\n\nend\n\nHecks.bluebook \"Banking\" do\n  aggregate \"Transfer\" do\n    given(\"transfer is debited\") { status == \"debited\" }\n    # Shared givens for the acting commands read projected fields; `Request` keeps dot-path copies\n    # because its `source`/`destination` are fresh arguments, not stored state.\n    given(\"destination account is open\") { destination_account_status == \"open\" }\n    given(\"destination customer is active\") { destination_customer_status == \"active\" }\n    given(\"transfer is requested\") { status == \"requested\" }\n    given(\"source account is open\") { source_account_status == \"open\" }\n    given(\"source customer is active\") { source_customer_status == \"active\" }\n    description \"Money leaving one account for another. Two movements that must both happen, or neither.\"\n\n    reference_to Account, as: :source\n    reference_to Account, as: :destination\n\n    # `source` and `destination` both reference Account; each projects its own copies, read through\n    # the local reference name rather than the target type.\n    projects :source_account_status,       from: :\"source.status\"\n    projects :source_customer_status,      from: :\"source.customer_status\"\n    projects :destination_account_status,  from: :\"destination.status\"\n    projects :destination_customer_status, from: :\"destination.customer_status\"\n\n    attribute :reference, TransferReference\n\n    identified_by :reference\n\n    attribute :amount,    TransferMoney\n\n    value_object \"TransferReference\" do\n      attribute :value, String, pattern: '[^ \\t\\n\\r]'\n      invariant(\"a transfer is referenced\") { !value.to_s.empty? }\n    end\n    attribute :narrative, Narrative\n\n    value_object \"TransferMoney\" do\n      attribute :cents, Integer\n      invariant(\"a transfer amount is positive\") { cents.positive? }\n    end\n\n    value_object \"Narrative\" do\n      attribute :text, String, pattern: '[^ \\t\\n\\r]'\n\n      invariant(\"a transfer explains itself\") { !text.to_s.empty? }\n    end\n\n    lifecycle :status, default: \"requested\" do\n      transition \"Debited\"  => \"debited\",   from: \"requested\"\n      transition \"Credited\" => \"credited\",  from: \"debited\"\n      transition \"Settle\"   => \"settled\",   from: \"credited\"\n      transition \"Reverse\"  => \"reversed\",  from: \"debited\"\n      transition \"Reject\"   => \"rejected\",  from: \"requested\"\n    end\n\n    command \"Request\" do\n      role \"Customer\"\n      goal \"Send money to another account\"\n\n      attribute :reference,   TransferReference\n\n      # Fresh command arguments, so these read the dot-path directly; the shared givens above read\n      # projected fields that exist only after this command creates the record.\n      given(\"source customer is active\") { source.customer.status == \"active\" }\n      given(\"source account is open\") { source.status == \"open\" }\n      # `.empty?`, not `.to_s.empty?`: a valid reference dereferences to a Hash,\n      # which `.to_s` cannot render.\n      given(\"a transfer names its source\")  { !source.empty? }\n      given(\"a transfer goes somewhere\")    { !destination.empty? }\n      given(\"a transfer moves BETWEEN accounts\") { source != destination }\n\n      sets :amount\n      sets :narrative\n      sets :source\n      sets :destination\n      sets :reference\n\n      emits TransferRequested\n    end\n\n    # Each `from:` below matches a `transition` above.\n    command \"Debited\", from: \"requested\" do\n      role \"System\"\n      goal \"Record that the source account has given up the money\"\n\n      reference_to Transfer\n      given(\"source customer is active\")\n      given(\"source account is open\")\n      emits TransferDebited\n    end\n\n    command \"Settle\", from: \"credited\" do\n      role \"System\"\n      goal \"Record that the destination has received it\"\n\n      reference_to Transfer\n      given(\"destination customer is active\")\n      given(\"destination account is open\")\n      emits TransferSettled\n    end\n\n    command \"Credited\", from: \"debited\" do\n      role \"System\"\n      goal \"Record that the destination credit committed\"\n\n      reference_to Transfer\n      given(\"destination customer is active\")\n      given(\"destination account is open\")\n      emits TransferCredited\n    end\n\n    command \"Reverse\", from: \"debited\" do\n      role \"System\"\n      goal \"Put the money back when the credit could not be made\"\n\n      reference_to Transfer\n      given(\"source customer is active\")\n      given(\"source account is open\")\n      emits TransferReversed\n    end\n\n    command \"Reject\", from: \"requested\" do\n      role \"System\"\n      goal \"Refuse a transfer before any money moved\"\n\n      reference_to Transfer\n      given(\"source customer is active\")\n      given(\"source account is open\")\n      emits TransferRejected\n    end\n\n    query \"InFlight\" do\n      description \"Transfers that have left one account and not arrived at the other. The list that must always empty.\"\n      where(status: \"debited\")\n      order_by :status\n    end\n  end\n\n  aggregate \"ExternalTransfer\" do\n    given(\"transfer is sent\") { status == \"sent\" }\n    # Declared by ATMCard; see `CardPayment`.\n    given(\"account is open\", declared_by: ATMCard)\n    given(\"customer is active\", declared_by: ATMCard)\n    # Unambiguous chapter-wide, so no `declared_by:` is needed.\n    given(\"transfer is requested\")\n    description \"A transfer sent beyond the bank, where a recall is an instruction and a return is the external network's outcome.\"\n\n    reference_to Account\n    # Same names ATMCard's projected fields use.\n    projects :account_status,          from: :\"account.status\"\n    projects :account_customer_status, from: :\"account.customer_status\"\n    attribute :end_to_end, EndToEndReference\n\n    identified_by :end_to_end\n    attribute :amount,      ExternalAmount\n    attribute :beneficiary, BeneficiaryName\n    # The ledger's direction set, declared once on Account and named here rather than restated.\n    attribute :direction,   MovementDirection, admits: \"Account::LedgerDirection\"\n\n    value_object \"EndToEndReference\" do\n      attribute :value, String, pattern: '[^ \\t\\n\\r]'\n    end\n\n    # The type is local; the set of values belongs to Account, which `admits` names.\n    value_object \"MovementDirection\" do\n      attribute :value, String\n    end\n\n    value_object \"ExternalAmount\" do\n      attribute :cents, Integer\n      invariant(\"an external transfer amount is positive\") { cents.positive? }\n    end\n\n    value_object \"BeneficiaryName\" do\n      attribute :value, String, pattern: '[^ \\t\\n\\r]'\n      invariant(\"a beneficiary name is present\") { !value.to_s.empty? }\n    end\n\n    lifecycle :status, default: \"requested\" do\n      transition \"SendTransfer\" => \"sent\", from: \"requested\"\n      transition \"Recall\" => \"recalled\", from: \"sent\"\n      transition \"Return\" => \"returned\", from: \"sent\"\n    end\n\n    command \"Request\" do\n      role \"Customer\"\n      goal \"Send money to an account outside the bank\"\n\n      attribute :end_to_end, EndToEndReference\n      # `account` is a fresh command argument, so these read it directly.\n      given(\"customer is active\") { account.customer.status == \"active\" }\n      given(\"account is open\") { account.status == \"open\" }\n      sets :account\n      sets :amount\n      sets :beneficiary\n      sets :direction\n      sets :end_to_end\n      emits ExternalTransferRequested\n    end\n\n    # Each `from:` below matches a `transition` above.\n    command \"SendTransfer\", from: \"requested\" do\n      role \"System\"\n      goal \"Release the transfer to the external network\"\n\n      reference_to ExternalTransfer\n      given(\"customer is active\")\n      given(\"account is open\")\n      emits ExternalTransferSent\n    end\n\n    command \"Recall\", from: \"sent\" do\n      role \"Customer\"\n      goal \"Ask the external network to stop a transfer already sent\"\n\n      reference_to ExternalTransfer\n      given(\"customer is active\")\n      given(\"account is open\")\n      emits ExternalTransferRecalled\n    end\n\n    command \"Return\", from: \"sent\" do\n      role \"System\"\n      goal \"Record that the external network sent the money back\"\n\n      reference_to ExternalTransfer\n      given(\"customer is active\")\n      given(\"account is open\")\n      emits ExternalTransferReturned\n    end\n\n    query \"Sent\" do\n      description \"Transfers already released to the external network, awaiting its outcome.\"\n      where(status: \"sent\")\n    end\n  end\n\n  aggregate \"ScheduledPayment\" do\n    given(\"payment is failed\") { status == \"failed\" }\n    given(\"payment is scheduled\") { status == \"scheduled\" }\n    # Declared by ATMCard; see `CardPayment`.\n    given(\"account is open\", declared_by: ATMCard)\n    given(\"customer is active\", declared_by: ATMCard)\n    description \"An instruction held for a future date, which may execute once or be cancelled before it does.\"\n\n    reference_to Account\n    # Same names ATMCard's projected fields use.\n    projects :account_status,          from: :\"account.status\"\n    projects :account_customer_status, from: :\"account.customer_status\"\n    attribute :amount,    ScheduledAmount\n    attribute :instruction, InstructionReference\n\n    identified_by :instruction\n\n    attribute :recipient, PaymentRecipient\n    attribute :due_on,    PaymentDueDate\n    attribute :attempts,     RetryCount\n    attribute :max_attempts, RetryLimit\n\n    value_object \"InstructionReference\" do\n      attribute :value, String, pattern: '[^ \\t\\n\\r]'\n    end\n\n    value_object \"ScheduledAmount\" do\n      attribute :cents, Integer\n      invariant(\"a scheduled payment amount is positive\") { cents.positive? }\n    end\n\n    value_object \"PaymentRecipient\" do\n      attribute :value, String, pattern: '[^ \\t\\n\\r]'\n      invariant(\"a payment recipient is present\") { !value.to_s.empty? }\n    end\n\n    value_object \"PaymentDueDate\" do\n      attribute :value, String, pattern: '[^ \\t\\n\\r]'\n      invariant(\"a payment due date is present\") { !value.to_s.empty? }\n    end\n\n    value_object \"RetryCount\" do\n      attribute :value, Integer, default: 0\n      invariant(\"a retry count is non-negative\") { !value.negative? }\n    end\n\n    value_object \"RetryLimit\" do\n      attribute :value, Integer, default: 3\n      invariant(\"a retry limit is positive\") { value.positive? }\n    end\n\n    lifecycle :status, default: \"scheduled\" do\n      transition \"Execute\" => \"executed\",  from: \"scheduled\"\n      transition \"Cancel\"  => \"cancelled\", from: \"scheduled\"\n      transition \"Fail\"    => \"failed\",    from: \"scheduled\"\n      transition \"Retry\"   => \"failed\",    from: \"failed\"\n      transition \"Abandon\" => \"abandoned\", from: \"failed\"\n    end\n\n    command \"Schedule\" do\n      role \"Customer\"\n      goal \"Set up a payment to collect on a future date\"\n\n      attribute :instruction, InstructionReference\n      # `account` is a fresh command argument, so these read it directly.\n      given(\"customer is active\") { account.customer.status == \"active\" }\n      given(\"account is open\") { account.status == \"open\" }\n      sets :account\n      sets :amount\n      sets :recipient\n      sets :due_on\n      sets :instruction\n      emits PaymentScheduled\n    end\n\n    # Each `from:` below matches a `transition` above.\n    command \"Execute\", from: \"scheduled\" do\n      role \"System\"\n      goal \"Collect a payment on its due date\"\n\n      reference_to ScheduledPayment\n      given(\"customer is active\")\n      given(\"account is open\")\n      emits ScheduledPaymentExecuted\n    end\n\n    command \"Cancel\", from: \"scheduled\" do\n      role \"Customer\"\n      goal \"Call off a payment before its due date\"\n\n      reference_to ScheduledPayment\n      given(\"customer is active\")\n      given(\"account is open\")\n      emits ScheduledPaymentCancelled\n    end\n\n    command \"Fail\", from: \"scheduled\" do\n      role \"System\"\n      goal \"Record that today's presentment could not be collected\"\n\n      reference_to ScheduledPayment\n      given(\"customer is active\")\n      given(\"account is open\")\n\n      emits ScheduledPaymentFailed\n    end\n\n    # Self-triggering on purpose: a re-presentment against an account still short of\n    # funds fails again, and `RetryOnPaymentFailure` re-enters this command.\n    # `max_attempts` is the bound, ordinarily inside the runtime's reaction-depth ceiling.\n    #\n    # Mutating, not creating: the reaction re-dispatches against the same record, and\n    # a second creation would raise AlreadyExists.\n    command \"Retry\", from: \"failed\" do\n      role \"System\"\n      goal \"Re-present a failed payment, up to the limit the schedule names\"\n\n      reference_to ScheduledPayment\n      given(\"customer is active\")\n      given(\"account is open\")\n\n      given(\"a retry is still allowed\") { attempts.value < max_attempts.value }\n\n      sets :attempts, increment: { value: 1 }\n\n      ensures(\"a retry never lowers the attempt count\") { attempts.value == old.attempts.value + 1 }\n\n      emits ScheduledPaymentFailed\n    end\n\n    command \"Abandon\", from: \"failed\" do\n      role \"Back office\"\n      goal \"Give up on a payment that could not be collected after every retry\"\n\n      reference_to ScheduledPayment\n      given(\"customer is active\")\n      given(\"account is open\")\n\n      given(\"every retry is exhausted\") { attempts.value >= max_attempts.value }\n\n      emits ScheduledPaymentAbandoned\n    end\n\n    query \"Due\" do\n      description \"Payments still scheduled, ordered by when they're due.\"\n      where(status: \"scheduled\")\n      order_by :due_on\n    end\n\n    policy \"RetryOnPaymentFailure\" do\n      on      ScheduledPayment::ScheduledPaymentFailed\n      trigger ScheduledPayment::Retry\n    end\n  end\n\n  process_manager \"Settlement\" do\n    # `reference` is the field Transfer.Request sets and `identified_by` derives the id from.\n    correlates_by :\"reference.value\"\n    starts_on Transfer::TransferRequested\n    ends_on   Transfer::TransferSettled\n\n    # Same `transition` vocabulary as `lifecycle`; states are implied by each `from:` and target.\n    transition Transfer::TransferRequested => \"requested\", from: \"requested\" do\n      # Debit never declared :destination; the credit leg reads it from the saga's\n      # memory of the opening payload. `reference:` carries the correlation forward\n      # (Account.Debit does not reference Transfer).\n      #\n      # `compensates` derives per-dispatch compensation from this declaration, so a\n      # refused credit undoes the debit.\n      dispatch Account::Debit, with: { number: :source, amount: :amount, narrative: { text: \"transfer out\" }, reference: :reference } do\n        compensates Account::Credit, with: { number: :source, amount: :amount, narrative: { text: \"transfer reversed\" } }\n      end\n    end\n\n    transition Account::AccountDebited => \"awaiting_credit\", from: \"requested\" do\n      # `transfer:` is Transfer.Debited's own reference key, addressing the record; the\n      # value is the correlation. No `compensates` on Credit: it is the leg most likely\n      # to refuse, and a leg that never completed has nothing to undo.\n      dispatch Transfer::Debited, with: { transfer: :reference }\n      dispatch Account::Credit, with: { number: :destination, amount: :amount, narrative: { text: \"transfer in\" }, reference: :reference }\n    end\n\n    transition Account::AccountCredited => \"awaiting_credit\", from: \"awaiting_credit\" do\n      dispatch Transfer::Credited, with: { transfer: :reference }\n    end\n\n    transition Transfer::TransferCredited => \"settled\", from: \"awaiting_credit\" do\n      dispatch Transfer::Settle, with: { transfer: :reference }\n    end\n\n    # Hand-written, not `compensates`: it marks the transfer itself reversed on any refusal,\n    # whichever leg declined.\n    transition :refused => \"reversed\", from: \"awaiting_credit\" do\n      dispatch Transfer::Reverse, with: { transfer: :reference }\n    end\n  end\n\n  # Correlates on a different key over the external event stream, pointed at the network leg.\n  # Keyed on the scalar `end_to_end.value`, not the value object, whose rendering is ambiguous.\n  process_manager \"ExternalSettlement\" do\n    correlates_by :\"end_to_end.value\"\n    starts_on ExternalTransfer::ExternalTransferRequested\n    ends_on   ExternalTransfer::ExternalTransferSent\n\n    transition ExternalTransfer::ExternalTransferRequested => \"requested\", from: \"requested\" do\n      dispatch ExternalTransfer::SendTransfer, with: { end_to_end: :end_to_end }\n    end\n\n    # The compensating leg: a refusal arms the return instead of leaving the request stranded.\n    transition :refused => \"returned\", from: \"requested\" do\n      dispatch ExternalTransfer::Return, with: { end_to_end: :end_to_end }\n    end\n  end\n\nend\n"
 }

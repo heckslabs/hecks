@@ -18,11 +18,6 @@ module RustProjection
       extra = read_model.keys.map(&:to_sym) - READ_MODEL_BARE_KEYS
       return read_model_options_skip_reason(extra) if extra.any?
 
-      # ADR 0055 lets an `on:` target a specific many-side head, but this
-      # generator still assumes the first many-side head is the eligible one
-      # (`read_model_filtered_head_as`), so more than one with options is refused.
-      return multi_target_options_skip_reason if multi_target_options?(read_model)
-
       # Checked before the root lookup below: a rootless, group_by'd read
       # model has no reference_target, and reporting that as "no matching
       # aggregate head" would be misleading instead of the real reason.
@@ -62,77 +57,109 @@ module RustProjection
         "neither is read by the in-memory interpreter path this kernel matches")
     end
 
-    # True when more than one many-side head has where/order_by/limit/offset
-    # declared — ADR 0055 permits it via `on:`, but this generator has no
-    # per-head codegen yet, so that combination is refused rather than risked.
-    def multi_target_options?(read_model)
-      many = read_model[:aggregate_heads].count { |head| head[:many] }
-      return false if many <= 1
-
-      Array(read_model[:wheres]).any? || read_model[:order_by] || read_model[:limit] || read_model[:offset]
+    # The many-side heads a where/order_by/offset/limit's own `on:` (or, for an
+    # untargeted option, the sole many-side head) could possibly name — every
+    # many-side head this read model declares.
+    def read_model_many_heads(read_model)
+      read_model[:aggregate_heads].select { |head| head[:many] }
     end
 
-    def multi_target_options_skip_reason
-      skip("multi_target_options", "declares where/order_by/limit/offset with more than one many-side included aggregate — " \
-        "ADR 0055's own `on:` lets Ruby's interpreter apply each option to a specific many-side " \
-        "head, but this generator still trusts \"the first many-side head is the eligible one\" " \
-        "(read_model_filtered_head_as) and has no per-head codegen yet — not generated yet, " \
-        "refused rather than risk applying an option to the wrong head")
+    # Whether one declared option (its own `:target`, or nil when untargeted)
+    # applies to `head`. `target` names the included aggregate by TYPE (ADR
+    # 0055), not by its `as:` alias; nil only ever means "the sole many-side
+    # head" — `ReadModelBuilder#seal_query_options` refuses an untargeted
+    # option whenever a read model declares more than one, so an untargeted
+    # option reaching codegen at all is proof there's exactly one to mean.
+    def option_target_matches_head?(target, head, many_heads)
+      return many_heads.size == 1 && many_heads.first[:as].to_s == head[:as].to_s if target.nil?
+
+      target.to_s == head[:aggregate].to_s
     end
 
-    def read_model_filtered_head_as(read_model)
-      declared = Array(read_model[:wheres]).any? || read_model[:order_by] || read_model[:limit] ||
-                 read_model[:offset] || read_model.dig(:authorization, :tenant)
-      return nil unless declared
-
-      read_model[:aggregate_heads].find { |head| head[:many] }&.fetch(:as)
+    # Whether `head` has at least one declared where/order_by/offset/limit
+    # (or, for the sole many-side head only, a declared `authorize ...,
+    # tenant:` — `on:` doesn't extend to `tenant:`, a deliberate ADR 0055
+    # scope limit) targeting it.
+    def read_model_option_targets_head?(read_model, head, many_heads)
+      Array(read_model[:wheres]).any? { |w| option_target_matches_head?(w[:target], head, many_heads) } ||
+        (read_model[:order_by] && option_target_matches_head?(read_model[:order_by][:target], head, many_heads)) ||
+        (read_model[:limit] && option_target_matches_head?(read_model[:limit][:target], head, many_heads)) ||
+        (read_model[:offset] && option_target_matches_head?(read_model[:offset][:target], head, many_heads)) ||
+        (read_model.dig(:authorization, :tenant) && many_heads.size == 1 && many_heads.first[:as].to_s == head[:as].to_s)
     end
 
-    # Checks the eligible head's own where/order_by/limit for generability
+    # Every many-side head this read model declares options for, in
+    # aggregate_heads' own declared order (stable regardless of where in the
+    # block a `where`/`order_by`/`on:` appears) — one entry when there's a
+    # single many-side head (the pre-ADR-0055 shape), more than one only when
+    # `on:` targets several.
+    def read_model_filtered_heads(read_model)
+      many_heads = read_model_many_heads(read_model)
+      many_heads.select { |head| read_model_option_targets_head?(read_model, head, many_heads) }
+    end
+
+    # One targeted head's own where/order_by/offset/limit, pulled out of the
+    # read model's full declared set. `authorization` carries `read_model`'s
+    # own declared authorization only for the sole many-side head (`on:`
+    # doesn't extend to `tenant:`), nil for every other targeted head.
+    def read_model_head_query(read_model, head, many_heads)
+      {
+        wheres: Array(read_model[:wheres]).select { |w| option_target_matches_head?(w[:target], head, many_heads) },
+        order_by: read_model[:order_by] && option_target_matches_head?(read_model[:order_by][:target], head, many_heads) ? read_model[:order_by] : nil,
+        limit: read_model[:limit] && option_target_matches_head?(read_model[:limit][:target], head, many_heads) ? read_model[:limit] : nil,
+        offset: read_model[:offset] && option_target_matches_head?(read_model[:offset][:target], head, many_heads) ? read_model[:offset] : nil,
+        authorization: many_heads.size == 1 && many_heads.first[:as].to_s == head[:as].to_s ? read_model[:authorization] : nil,
+      }
+    end
+
+    # Checks every targeted head's own where/order_by/limit for generability
     # against ITS aggregate (not the read model's root); nil means clean.
     def read_model_options_content_skip_reason(read_model, aggregates_by_name)
-      eligible_as = read_model_filtered_head_as(read_model)
-      return nil unless eligible_as
+      many_heads = read_model_many_heads(read_model)
 
-      head = read_model[:aggregate_heads].find { |h| h[:as].to_s == eligible_as.to_s }
-      aggregate = aggregates_by_name[head[:aggregate]]
-      return entity_head_skip_reason(head[:aggregate], "filtered head", "filter, order or authorize") unless aggregate
+      read_model_filtered_heads(read_model).each do |head|
+        aggregate = aggregates_by_name[head[:aggregate]]
+        return entity_head_skip_reason(head[:aggregate], "filtered head", "filter, order or authorize") unless aggregate
 
-      value_objects_by_name = aggregate[:value_objects].to_h { |vo| [vo[:name], vo] }
+        value_objects_by_name = aggregate[:value_objects].to_h { |vo| [vo[:name], vo] }
+        head_query = read_model_head_query(read_model, head, many_heads)
+        head_label = "head #{head[:aggregate]} (as #{head[:as]})"
 
-      Array(read_model[:wheres]).each do |where|
-        field = where[:field].to_s
-        hop = query_hop_plan(aggregate, field, aggregates_by_name)
-        if hop.nil? && field.include?("/")
-          return skip("reference_hop_where", "eligible head #{head[:aggregate]}'s own where clause on #{field.inspect} hops through a " \
-                 "reference this generator can't resolve yet (more than one hop, the head isn't a real " \
-                 "reference attribute, or the target aggregate isn't declared in this domain) — not generated yet")
+        head_query[:wheres].each do |where|
+          field = where[:field].to_s
+          hop = query_hop_plan(aggregate, field, aggregates_by_name)
+          if hop.nil? && field.include?("/")
+            return skip("reference_hop_where", "#{head_label}'s own where clause on #{field.inspect} hops through a " \
+                   "reference this generator can't resolve yet (more than one hop, the head isn't a real " \
+                   "reference attribute, or the target aggregate isn't declared in this domain) — not generated yet")
+          end
+
+          if hop
+            target_value_objects_by_name = hop[:target][:value_objects].to_h { |vo| [vo[:name], vo] }
+            reason = query_where_skip_reason(where.merge(field: hop[:inner_field]), hop[:target], target_value_objects_by_name)
+            return reskip(reason, "#{head_label}'s own hop through #{hop[:via_field]} to " \
+                   "#{hop[:target_aggregate]}'s own #{reason}") if reason
+            next
+          end
+
+          reason = query_where_skip_reason(where, aggregate, value_objects_by_name)
+          return reskip(reason, "#{head_label}'s own #{reason}") if reason
         end
 
-        if hop
-          target_value_objects_by_name = hop[:target][:value_objects].to_h { |vo| [vo[:name], vo] }
-          reason = query_where_skip_reason(where.merge(field: hop[:inner_field]), hop[:target], target_value_objects_by_name)
-          return reskip(reason, "eligible head #{head[:aggregate]}'s own hop through #{hop[:via_field]} to " \
-                 "#{hop[:target_aggregate]}'s own #{reason}") if reason
-          next
-        end
+        auth_reason = declared_authorization_skip_reason(head_query[:authorization], aggregate, value_objects_by_name)
+        return auth_reason if auth_reason
 
-        reason = query_where_skip_reason(where, aggregate, value_objects_by_name)
-        return reskip(reason, "eligible head #{head[:aggregate]}'s own #{reason}") if reason
+        order_reason = declared_order_by_skip_reason(head_query[:order_by], aggregate, value_objects_by_name)
+        return order_reason if order_reason
+
+        offset_reason = declared_offset_skip_reason(head_query[:offset])
+        return offset_reason if offset_reason
+
+        limit_reason = declared_limit_skip_reason(head_query[:limit])
+        return limit_reason if limit_reason
       end
 
-      # Reused from queries.rb; checks the eligible head's own aggregate.
-      auth_reason = declared_authorization_skip_reason(read_model[:authorization], aggregate, value_objects_by_name)
-      return auth_reason if auth_reason
-
-      # Defined in queries.rb; the field checks aren't read-model-specific.
-      order_reason = declared_order_by_skip_reason(read_model[:order_by], aggregate, value_objects_by_name)
-      return order_reason if order_reason
-
-      offset_reason = declared_offset_skip_reason(read_model[:offset])
-      return offset_reason if offset_reason
-
-      declared_limit_skip_reason(read_model[:limit])
+      nil
     end
 
     # `median_field`'s own eligibility, checked after where/order_by/limit
@@ -295,47 +322,71 @@ module RustProjection
     # emit_read_model_limit and swaps only the spelled type name.
     def emit_read_model_offset(offset) = emit_read_model_limit(offset).sub("read_model::ReadModelLimit::", "read_model::ReadModelOffset::")
 
+    # One targeted head's own where/order_by/offset/limit, compiled to plain
+    # data for `emit_filtered_head`. Hop wheres need a different wire shape
+    # (ReferenceHopCondition) than local ones, so they're split out here
+    # rather than reused wholesale; every clause has already been confirmed
+    # resolvable or generable by read_model_options_content_skip_reason.
+    def filtered_head_def(domain_name, read_model, head, many_heads, aggregates_by_name)
+      aggregate = aggregates_by_name[head[:aggregate]]
+      head_query = read_model_head_query(read_model, head, many_heads)
+      local_wheres, hop_wheres = head_query[:wheres].partition { |w| query_hop_plan(aggregate, w[:field].to_s, aggregates_by_name).nil? }
+      conditions_source = head_query.merge(wheres: local_wheres)
+
+      {
+        as_name: head[:as].to_s,
+        conditions: head_query[:authorization] ? query_conditions_with_authorization(conditions_source) : query_conditions(conditions_source),
+        reference_hop_conditions: read_model_hop_conditions(domain_name, hop_wheres, aggregate, aggregates_by_name),
+        order_by: head_query[:order_by] ? emit_read_model_order_by(head_query[:order_by], read_model[:null_semantics]) : nil,
+        offset: head_query[:offset] ? emit_read_model_offset(head_query[:offset]) : nil,
+        limit: head_query[:limit] ? emit_read_model_limit(head_query[:limit]) : nil,
+      }
+    end
+
     # Compiles a whole declared read model to plain data for
     # `emit_read_model_def`. `verb` uses the read model's declared name
     # ("Domain.Name"), the same convention queries.rb picks for a named
     # query — `kernel/cli.rs` tells the two shapes apart by the "::" that
     # only a Domain::Aggregate.Name query verb has before the first ".".
     #
-    # `filtered_head`/`conditions`/`order_by`/`limit` are populated only when
-    # `read_model_filtered_head_as` names an eligible head; skip_reason above
-    # already refused anything whose content wasn't generable.
+    # `filtered_heads` holds one entry per head `read_model_filtered_heads`
+    # names; skip_reason above already refused anything whose content wasn't
+    # generable. `authorization` (the `ReadModelDef`-level tenant-arg check)
+    # only ever applies to a single many-side head — `on:` doesn't extend to
+    # `tenant:` (ADR 0055's own scope limit).
     def read_model_def(domain_name, read_model, aggregates_by_name)
       heads = read_model[:aggregate_heads].map do |head|
         is_root = head[:aggregate].to_s == read_model[:reference_target].to_s
         emit_read_model_head(domain_name, head, is_root, aggregates_by_name)
       end
 
-      eligible_as = read_model_filtered_head_as(read_model)
-      group_by_fields = Array(read_model[:group_by]).map { |row| row[:field].to_s }
-      group_by_fn_name = group_by_fields.any? ? "group_by_#{read_model[:name].to_s.downcase}" : nil
-
-      # Hop wheres need a different wire shape (ReferenceHopCondition) than
-      # local ones, so they're split out below rather than reused wholesale;
-      # every clause here is already confirmed resolvable or generable.
-      eligible_aggregate = eligible_as && aggregates_by_name[read_model[:aggregate_heads].find { |h| h[:as].to_s == eligible_as.to_s }[:aggregate]]
-      local_wheres, hop_wheres = eligible_as ? Array(read_model[:wheres]).partition { |w| query_hop_plan(eligible_aggregate, w[:field].to_s, aggregates_by_name).nil? } : [[], []]
+      many_heads = read_model_many_heads(read_model)
+      filtered_heads = read_model_filtered_heads(read_model).map { |head| filtered_head_def(domain_name, read_model, head, many_heads, aggregates_by_name) }
+      sole_head_as = many_heads.size == 1 ? many_heads.first[:as] : nil
+      group_by_fn_name, group_by_fn_body = read_model_group_by_fn(read_model, aggregates_by_name)
 
       {
         verb: "#{domain_name}.#{read_model[:name]}",
         reference_name: read_model[:reference_name] ? read_model[:reference_name].to_s : nil,
         heads: heads,
-        filtered_head: eligible_as&.to_s,
-        conditions: eligible_as ? query_conditions_with_authorization(read_model.merge(wheres: local_wheres)) : [],
-        reference_hop_conditions: eligible_as ? read_model_hop_conditions(domain_name, hop_wheres, eligible_aggregate, aggregates_by_name) : [],
-        order_by: eligible_as && read_model[:order_by] ? emit_read_model_order_by(read_model[:order_by], read_model[:null_semantics]) : nil,
-        offset: eligible_as && read_model[:offset] ? emit_read_model_offset(read_model[:offset]) : nil,
-        limit: eligible_as && read_model[:limit] ? emit_read_model_limit(read_model[:limit]) : nil,
-        authorization: eligible_as ? emit_query_authorization(read_model[:name], read_model[:authorization]) : nil,
+        filtered_heads: filtered_heads,
+        authorization: sole_head_as ? emit_query_authorization(read_model[:name], read_model[:authorization]) : nil,
         group_by_fn: group_by_fn_name,
-        group_by_fn_body: group_by_fn_name ? emit_group_by_transform(group_by_fn_name, read_model[:name].to_s, aggregates_by_name[read_model[:aggregate_heads].first[:aggregate]], group_by_fields) : nil,
+        group_by_fn_body: group_by_fn_body,
         count: !!read_model[:count],
         median_field: read_model[:median_field] ? read_model[:median_field].to_s : nil,
       }
+    end
+
+    # The generated group_by transform fn's name and body, or `[nil, nil]` when this read model
+    # declares no `group_by` at all. Split out of `read_model_def` to keep its own complexity down.
+    def read_model_group_by_fn(read_model, aggregates_by_name)
+      group_by_fields = Array(read_model[:group_by]).map { |row| row[:field].to_s }
+      return [nil, nil] if group_by_fields.empty?
+
+      fn_name = "group_by_#{read_model[:name].to_s.downcase}"
+      root_aggregate = aggregates_by_name[read_model[:aggregate_heads].first[:aggregate]]
+      [fn_name, emit_group_by_transform(fn_name, read_model[:name].to_s, root_aggregate, group_by_fields)]
     end
 
     # Generates the group_by transform fn by name, since the kernel's own
@@ -429,14 +480,26 @@ module RustProjection
       "match #{expr} { crate::kernel::Json::Object(fields) => crate::kernel::Json::Object(fields.into_iter().map(|(k, v)| { let new_v = match k.as_str() { #{inner_arms} _ => v }; (k, new_v) }).collect()), other => other }"
     end
 
+    # One `FilteredHead` entry, always emitted as a single line — matching
+    # the codebase's own established idiom for every OTHER leaf struct
+    # (ReadModelHead, ReferenceField, ReferenceHopCondition, QueryCondition
+    # are all single-line too; only the top-level ReadModelDef/QueryDef get
+    # pretty multi-line formatting with their arrays broken across lines).
+    def emit_filtered_head(filtered_head_def)
+      conditions = filtered_head_def[:conditions].map { |c| emit_query_condition(c) }.join(" ")
+      reference_hop_conditions = filtered_head_def[:reference_hop_conditions].map { |h| emit_reference_hop_condition(h) }.join(" ")
+      order_by = filtered_head_def[:order_by] ? "Some(#{filtered_head_def[:order_by]})" : "None"
+      offset = filtered_head_def[:offset] ? "Some(#{filtered_head_def[:offset]})" : "None"
+      limit = filtered_head_def[:limit] ? "Some(#{filtered_head_def[:limit]})" : "None"
+
+      "crate::kernel::read_model::FilteredHead { as_name: #{filtered_head_def[:as_name].inspect}, " \
+        "conditions: &[#{conditions}], reference_hop_conditions: &[#{reference_hop_conditions}], " \
+        "order_by: #{order_by}, offset: #{offset}, limit: #{limit} },"
+    end
+
     def emit_read_model_def(read_model_def)
       heads = read_model_def[:heads].map { |head| "        #{head}," }.join("\n")
-      conditions = read_model_def[:conditions].map { |c| "        #{emit_query_condition(c)}" }.join("\n")
-      reference_hop_conditions = read_model_def[:reference_hop_conditions].map { |h| "        #{emit_reference_hop_condition(h)}" }.join("\n")
-      filtered_head = read_model_def[:filtered_head] ? "Some(#{read_model_def[:filtered_head].inspect})" : "None"
-      order_by = read_model_def[:order_by] ? "Some(#{read_model_def[:order_by]})" : "None"
-      offset = read_model_def[:offset] ? "Some(#{read_model_def[:offset]})" : "None"
-      limit = read_model_def[:limit] ? "Some(#{read_model_def[:limit]})" : "None"
+      filtered_heads = read_model_def[:filtered_heads].map { |fh| "        #{emit_filtered_head(fh)}" }.join("\n")
       authorization = read_model_def[:authorization] ? "Some(#{read_model_def[:authorization]})" : "None"
       reference_name = read_model_def[:reference_name] ? "Some(#{read_model_def[:reference_name].inspect})" : "None"
       group_by = read_model_def[:group_by_fn] ? "Some(#{read_model_def[:group_by_fn]})" : "None"
@@ -450,16 +513,9 @@ module RustProjection
             heads: &[
         #{heads}
             ],
-            filtered_head: #{filtered_head},
-            conditions: &[
-        #{conditions}
+            filtered_heads: &[
+        #{filtered_heads}
             ],
-            reference_hop_conditions: &[
-        #{reference_hop_conditions}
-            ],
-            order_by: #{order_by},
-            offset: #{offset},
-            limit: #{limit},
             authorization: #{authorization},
             group_by: #{group_by},
             count: #{count},
@@ -486,27 +542,9 @@ module RustProjection
                   ],
               },
           ],
-          filtered_head: Some("tmpl_as_name"),
-          conditions: &[
-              crate::kernel::QueryCondition {
-                  field: "tmpl_field",
-                  comparator: crate::kernel::query_comparators::QueryComparator::Eq,
-                  value: crate::kernel::QueryConditionValue::Literal("tmpl_literal"),
-              },
+          filtered_heads: &[
+              crate::kernel::read_model::FilteredHead { as_name: "tmpl_as_name", conditions: &[crate::kernel::QueryCondition { field: "tmpl_field", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Literal("tmpl_literal") },], reference_hop_conditions: &[crate::kernel::read_model::ReferenceHopCondition { via_field: "tmpl_via_field", target_aggregate: "tmpl_target_aggregate", through: &[crate::kernel::read_model::HopStep { via_field: "tmpl_via_field", target_aggregate: "tmpl_target_aggregate" }], inner_field: "tmpl_inner_field", inner_comparator: crate::kernel::query_comparators::QueryComparator::Eq, inner_value: crate::kernel::QueryConditionValue::Literal("tmpl_literal") },], order_by: Some(crate::kernel::read_model::ReadModelOrderBy { field: "tmpl_order_field", descending: true, nulls: crate::kernel::query_ordering::NullsMode::Last }), offset: Some(crate::kernel::read_model::ReadModelOffset::Literal(1)), limit: Some(crate::kernel::read_model::ReadModelLimit::Literal(5)) },
           ],
-          reference_hop_conditions: &[
-              crate::kernel::read_model::ReferenceHopCondition {
-                  via_field: "tmpl_via_field",
-                  target_aggregate: "tmpl_target_aggregate",
-                  through: &[crate::kernel::read_model::HopStep { via_field: "tmpl_via_field", target_aggregate: "tmpl_target_aggregate" }],
-                  inner_field: "tmpl_inner_field",
-                  inner_comparator: crate::kernel::query_comparators::QueryComparator::Eq,
-                  inner_value: crate::kernel::QueryConditionValue::Literal("tmpl_literal"),
-              },
-          ],
-          order_by: Some(crate::kernel::read_model::ReadModelOrderBy { field: "tmpl_order_field", descending: true, nulls: crate::kernel::query_ordering::NullsMode::Last }),
-          offset: Some(crate::kernel::read_model::ReadModelOffset::Literal(1)),
-          limit: Some(crate::kernel::read_model::ReadModelLimit::Literal(5)),
           authorization: Some(crate::kernel::named_query::TenantAuth { query_name: "tmpl_query_name", tenant_field: "tmpl_tenant_field", policy: "tmpl_policy" }),
           group_by: None,
           count: false,

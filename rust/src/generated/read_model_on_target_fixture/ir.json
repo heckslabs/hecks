@@ -1,0 +1,601 @@
+{
+  "ir_version": 1,
+  "name": "ReadModelOnTargetFixture",
+  "version": null,
+  "vision": "The smallest domain where a read model's several many-side heads each need their own where/order_by/limit/offset, not one shared across all of them.",
+  "classification": "core",
+  "formerly_known_as": null,
+  "aggregates": [
+    {
+      "name": "Board",
+      "description": "A board holding cards and notes, addressed by its own reference.",
+      "identified_by": [
+        "reference.value"
+      ],
+      "attributes": [
+        {
+          "name": "reference",
+          "type": "BoardReference",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        }
+      ],
+      "value_objects": [
+        {
+          "name": "BoardReference",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": "[^ \\t\\n\\r]",
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "a board is referenced",
+              "canonical": "!value.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "value"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          ],
+          "closed_set": false,
+          "members": []
+        }
+      ],
+      "commands": [
+        {
+          "name": "Open",
+          "role": "Organizer",
+          "goal": "Start an empty board",
+          "references": null,
+          "attributes": [
+            {
+              "name": "reference",
+              "type": "BoardReference",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [],
+          "ensures": [],
+          "mutations": [
+            {
+              "target": "reference",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "reference"
+              }
+            }
+          ],
+          "emits": [
+            "BoardOpened"
+          ],
+          "from": null,
+          "provenance": null
+        }
+      ],
+      "invariants": [],
+      "preconditions": [],
+      "projected_fields": [],
+      "lifecycle": null,
+      "entities": [],
+      "queries": [],
+      "ports": [],
+      "provenance": null
+    },
+    {
+      "name": "Card",
+      "description": "One card pinned to a board, with a status and a position.",
+      "identified_by": [
+        "reference.value"
+      ],
+      "attributes": [
+        {
+          "name": "board",
+          "type": "Reference<Board>",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": "reference_to"
+        },
+        {
+          "name": "reference",
+          "type": "CardReference",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
+          "name": "position",
+          "type": "CardPosition",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        }
+      ],
+      "value_objects": [
+        {
+          "name": "CardReference",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": "[^ \\t\\n\\r]",
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "a card is referenced",
+              "canonical": "!value.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "value"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          ],
+          "closed_set": false,
+          "members": []
+        },
+        {
+          "name": "CardPosition",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "Integer",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "a card position is not negative",
+              "canonical": "value >= 0",
+              "ast": {
+                "op": "compare",
+                "cmp": {
+                  "less_than": true,
+                  "equal": false,
+                  "negated": true
+                },
+                "left": {
+                  "op": "lookup",
+                  "path": [
+                    "value"
+                  ]
+                },
+                "right": {
+                  "op": "int",
+                  "value": 0
+                }
+              }
+            }
+          ],
+          "closed_set": false,
+          "members": []
+        }
+      ],
+      "commands": [
+        {
+          "name": "Pin",
+          "role": "Organizer",
+          "goal": "Pin a fresh card onto a board, at a position",
+          "references": null,
+          "attributes": [
+            {
+              "name": "reference",
+              "type": "CardReference",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "position",
+              "type": "CardPosition",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "board",
+              "type": "Reference<Board>",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": "reference_to"
+            }
+          ],
+          "givens": [],
+          "ensures": [],
+          "mutations": [
+            {
+              "target": "board",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "board"
+              }
+            },
+            {
+              "target": "reference",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "reference"
+              }
+            },
+            {
+              "target": "position",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "position"
+              }
+            }
+          ],
+          "emits": [
+            "CardPinned"
+          ],
+          "from": null,
+          "provenance": null
+        },
+        {
+          "name": "Close",
+          "role": "Organizer",
+          "goal": "Mark a card done",
+          "references": "Card",
+          "attributes": [],
+          "givens": [],
+          "ensures": [],
+          "mutations": [],
+          "emits": [
+            "CardClosed"
+          ],
+          "from": "open",
+          "provenance": null
+        }
+      ],
+      "invariants": [],
+      "preconditions": [],
+      "projected_fields": [],
+      "lifecycle": {
+        "field": "status",
+        "default": "open",
+        "transitions": [
+          {
+            "command": "Close",
+            "to_state": "done",
+            "from_state": "open"
+          }
+        ]
+      },
+      "entities": [],
+      "queries": [],
+      "ports": [],
+      "provenance": null
+    },
+    {
+      "name": "Note",
+      "description": "One sticky note attached to a board, flagged or not.",
+      "identified_by": [
+        "reference.value"
+      ],
+      "attributes": [
+        {
+          "name": "board",
+          "type": "Reference<Board>",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": "reference_to"
+        },
+        {
+          "name": "reference",
+          "type": "NoteReference",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        }
+      ],
+      "value_objects": [
+        {
+          "name": "NoteReference",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": "[^ \\t\\n\\r]",
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "a note is referenced",
+              "canonical": "!value.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "value"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          ],
+          "closed_set": false,
+          "members": []
+        }
+      ],
+      "commands": [
+        {
+          "name": "Stick",
+          "role": "Organizer",
+          "goal": "Stick a fresh note onto a board",
+          "references": null,
+          "attributes": [
+            {
+              "name": "reference",
+              "type": "NoteReference",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "board",
+              "type": "Reference<Board>",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": "reference_to"
+            }
+          ],
+          "givens": [],
+          "ensures": [],
+          "mutations": [
+            {
+              "target": "board",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "board"
+              }
+            },
+            {
+              "target": "reference",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "reference"
+              }
+            }
+          ],
+          "emits": [
+            "NoteStuck"
+          ],
+          "from": null,
+          "provenance": null
+        },
+        {
+          "name": "Flag",
+          "role": "Organizer",
+          "goal": "Flag a note for follow-up",
+          "references": "Note",
+          "attributes": [],
+          "givens": [],
+          "ensures": [],
+          "mutations": [],
+          "emits": [
+            "NoteFlagged"
+          ],
+          "from": "clear",
+          "provenance": null
+        }
+      ],
+      "invariants": [],
+      "preconditions": [],
+      "projected_fields": [],
+      "lifecycle": {
+        "field": "flag",
+        "default": "clear",
+        "transitions": [
+          {
+            "command": "Flag",
+            "to_state": "flagged",
+            "from_state": "clear"
+          }
+        ]
+      },
+      "entities": [],
+      "queries": [],
+      "ports": [],
+      "provenance": null
+    }
+  ],
+  "read_models": [
+    {
+      "name": "BoardOverview",
+      "description": "A board, its own open cards ordered by position and capped at two, and its own flagged notes, one page in — each many-side collection filtered/ordered/paged independently.",
+      "reference_name": "board",
+      "reference_target": "Board",
+      "query_name": "board_overview",
+      "wheres": [
+        {
+          "field": "status",
+          "op": "eq",
+          "value": "\"open\"",
+          "target": "Card"
+        },
+        {
+          "field": "flag",
+          "op": "eq",
+          "value": "\"flagged\"",
+          "target": "Note"
+        }
+      ],
+      "order_by": {
+        "field": "position",
+        "direction": "asc",
+        "target": "Card"
+      },
+      "limit": {
+        "value": "2",
+        "target": "Card"
+      },
+      "aggregate_heads": [
+        {
+          "aggregate": "Board",
+          "as": "board",
+          "many": false
+        },
+        {
+          "aggregate": "Card",
+          "as": "cards",
+          "many": true
+        },
+        {
+          "aggregate": "Note",
+          "as": "notes",
+          "many": true
+        }
+      ],
+      "group_by": [],
+      "offset": {
+        "value": "1",
+        "target": "Note"
+      }
+    }
+  ],
+  "policies": [],
+  "process_managers": [],
+  "attaches_to": [],
+  "provides": [],
+  "canonical_form": [
+    {
+      "strategy": "collapse_whitespace",
+      "source_token": "",
+      "replacement": "",
+      "boundary": "none",
+      "position": "1"
+    },
+    {
+      "strategy": "replace",
+      "source_token": ".length",
+      "replacement": ".size",
+      "boundary": "word",
+      "position": "2"
+    }
+  ],
+  "lineage": {
+    "capable_aggregates": []
+  },
+  "persistence": {
+    "aggregates": [
+      {
+        "name": "Board",
+        "storage_name": "board",
+        "adapter": "Memory"
+      },
+      {
+        "name": "Card",
+        "storage_name": "card",
+        "adapter": "Memory"
+      },
+      {
+        "name": "Note",
+        "storage_name": "note",
+        "adapter": "Memory"
+      }
+    ]
+  },
+  "translations": [],
+  "source_text": "# Smallest domain reaching ADR 0055's `on:` codegen path: a read model with TWO many-side\n# heads, each independently filtered/ordered/paged by its own on:-targeted where/order_by/\n# limit/offset — the shape rust/project/read_models.rb's `multi_target_options` used to refuse\n# outright. Round-tripped by spec/rust_conformance_spec.rb.\nHecks.bluebook \"ReadModelOnTargetFixture\" do\n  vision \"The smallest domain where a read model's several many-side heads each need their own where/order_by/limit/offset, not one shared across all of them.\"\n\n  core\n\n  aggregate \"Board\" do\n    description \"A board holding cards and notes, addressed by its own reference.\"\n\n    identified_by :reference\n    attribute :reference, BoardReference\n\n    value_object \"BoardReference\" do\n      attribute :value, String, pattern: '[^ \\t\\n\\r]'\n      invariant(\"a board is referenced\") { !value.to_s.empty? }\n    end\n\n    command \"Open\" do\n      role \"Organizer\"\n      goal \"Start an empty board\"\n\n      attribute :reference, BoardReference\n      sets :reference\n\n      emits \"BoardOpened\"\n    end\n  end\n\n  aggregate \"Card\" do\n    description \"One card pinned to a board, with a status and a position.\"\n\n    reference_to Board\n    attribute :reference, CardReference\n    attribute :position, CardPosition\n\n    identified_by :reference\n\n    lifecycle :status, default: \"open\" do\n      transition \"Close\" => \"done\", from: \"open\"\n    end\n\n    value_object \"CardReference\" do\n      attribute :value, String, pattern: '[^ \\t\\n\\r]'\n      invariant(\"a card is referenced\") { !value.to_s.empty? }\n    end\n\n    value_object \"CardPosition\" do\n      attribute :value, Integer\n      invariant(\"a card position is not negative\") { value >= 0 }\n    end\n\n    command \"Pin\" do\n      role \"Organizer\"\n      goal \"Pin a fresh card onto a board, at a position\"\n\n      sets :board\n      attribute :reference, CardReference\n      sets :reference\n      attribute :position, CardPosition\n      sets :position\n\n      emits \"CardPinned\"\n    end\n\n    command \"Close\", from: \"open\" do\n      role \"Organizer\"\n      goal \"Mark a card done\"\n\n      reference_to Card\n\n      emits \"CardClosed\"\n    end\n  end\n\n  aggregate \"Note\" do\n    description \"One sticky note attached to a board, flagged or not.\"\n\n    reference_to Board\n    attribute :reference, NoteReference\n\n    identified_by :reference\n\n    lifecycle :flag, default: \"clear\" do\n      transition \"Flag\" => \"flagged\", from: \"clear\"\n    end\n\n    value_object \"NoteReference\" do\n      attribute :value, String, pattern: '[^ \\t\\n\\r]'\n      invariant(\"a note is referenced\") { !value.to_s.empty? }\n    end\n\n    command \"Stick\" do\n      role \"Organizer\"\n      goal \"Stick a fresh note onto a board\"\n\n      sets :board\n      attribute :reference, NoteReference\n      sets :reference\n\n      emits \"NoteStuck\"\n    end\n\n    command \"Flag\", from: \"clear\" do\n      role \"Organizer\"\n      goal \"Flag a note for follow-up\"\n\n      reference_to Note\n\n      emits \"NoteFlagged\"\n    end\n  end\n\n  # Two many-side heads (Card, Note), each with its own on:-targeted where/order_by/limit/\n  # offset — the shape a single shared filter can't express (ADR 0055).\n  read_model \"BoardOverview\" do\n    description \"A board, its own open cards ordered by position and capped at two, and its own flagged notes, one page in — each many-side collection filtered/ordered/paged independently.\"\n    reference_to Board\n    include Board\n    include Card, as: :cards\n    include Note, as: :notes\n\n    where(status: \"open\", on: Card)\n    order_by :position, on: Card\n    limit 2, on: Card\n\n    where(flag: \"flagged\", on: Note)\n    offset 1, on: Note\n  end\nend\n"
+}

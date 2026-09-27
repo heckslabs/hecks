@@ -94,17 +94,22 @@ R1–R4.
 ## Queries and read models in Rust
 
 Named/declared aggregate queries and `read_model` ("report") execution
-in Rust cover a real, proven subset — not "no Rust path at all": a
-wheres-only, single-aggregate field-comparator query (plus its own
-`order_by`/`limit` on a plain field) and a bare read model declaring no
-`where`/`order_by`/`limit`/`offset`/`freshness`/`authorization`/
-`index_hints` execute for real and match Ruby byte-for-byte
-(`Banking.CustomerPortfolio`, one of the pinned fixtures). A query or
-read model outside that shape — `Banking.ComplianceDashboard`'s
-`freshness`/`index_hints`, `Banking::Account.OpenForSuspendedCustomers`,
-`Banking::ATMCard.ByFee` — refuses with an explicit "is not generated
-for this domain" error in Rust instead of running; both sides are
-documented, allowlisted gaps (`rust/project/queries.rb`,
+in Rust cover a real, proven subset — not "no Rust path at all," and
+wider than a single-field, single-aggregate query: a `where` that hops
+through one reference (`Banking::Account.OpenForSuspendedCustomers`),
+an `order_by`/`limit`/`offset` on a plain field
+(`Banking::ATMCard.ByFee`), and a read model whose one many-side head
+carries `where`/`order_by`/`limit`/`offset` — including ADR 0055's
+`on:` naming which of *several* many-side heads each option applies to
+(`Banking.ComplianceDashboard`) — all execute for real and match Ruby
+byte-for-byte; as of this writing every read model and query in the
+real corpus generates and runs (`bin/rust_coverage --check-allowlist`
+finds no allowlisted gap left to justify). A query or read model this
+generator genuinely can't compile — a multi-hop reference chain, a
+where clause on a field whose kind can't be resolved from the exported
+IR, `cursor`/`consistency`/`inspection` — refuses with an explicit "is
+not generated for this domain" error in Rust instead of running; both
+sides are documented, allowlisted gaps (`rust/project/queries.rb`,
 `rust/project/read_models.rb`, `bin/rust_coverage`'s own allowlist), not
 silent wrong answers.
 
