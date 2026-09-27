@@ -46,15 +46,17 @@ use crate::dispatch;
 use crate::journal::LineageConfig;
 use crate::lambda_client::{AwsLambdaInvoker, LambdaInvoker};
 use crate::log;
+use crate::rate_limit::{self, RateLimits, Verdict};
 use crate::web;
 use axum::body::Bytes;
-use axum::extract::State;
+use axum::extract::{ConnectInfo, State};
 use axum::http::{HeaderMap, HeaderName, HeaderValue, Method, StatusCode, Uri};
 use axum::response::{IntoResponse, Response};
 use axum::routing::{any, get};
 use axum::Router;
 use lambda_runtime::Error;
 use serde_json::Value;
+use std::net::SocketAddr;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -135,6 +137,7 @@ pub struct ServerState {
     pub wasm_path: Arc<PathBuf>,
     pub lineage_config: Arc<LineageConfig>,
     pub invoker: Arc<AwsLambdaInvoker>,
+    pub limits: Arc<RateLimits>,
 }
 
 /// The document `GET /version` serves: which era the host booted on, the
@@ -199,7 +202,8 @@ pub async fn serve(state: ServerState, version: Value) -> Result<(), Error> {
     let phase = log::phase_with("serve_start", serde_json::json!({ "port": port }));
     let listener = tokio::net::TcpListener::bind(("0.0.0.0", port)).await?;
     phase.end();
-    axum::serve(listener, app).await?;
+    // The connect info is the TCP peer, which `rate_limit` needs to tell a visitor from a proxy.
+    axum::serve(listener, app.into_make_service_with_connect_info::<SocketAddr>()).await?;
     Ok(())
 }
 
@@ -212,11 +216,18 @@ async fn health() -> StatusCode {
 /// Runs one request and writes its access-log line — method, path (never
 /// the query string: it can carry OAuth codes and tokens), status and
 /// duration.
-async fn dispatch_route(State(state): State<ServerState>, method: Method, uri: Uri, headers: HeaderMap, body: Bytes) -> Response {
+async fn dispatch_route(
+    State(state): State<ServerState>,
+    ConnectInfo(peer): ConnectInfo<SocketAddr>,
+    method: Method,
+    uri: Uri,
+    headers: HeaderMap,
+    body: Bytes,
+) -> Response {
     let started = std::time::Instant::now();
     let path = uri.path().to_string();
     let verb = method.as_str().to_string();
-    let response = route_request(state, method, uri, headers, body).await;
+    let response = route_request(state, peer, method, uri, headers, body).await;
     let status = response.status().as_u16();
     let fields = serde_json::json!({
         "method": verb, "path": path, "status": status, "ms": started.elapsed().as_millis() as u64,
@@ -229,13 +240,36 @@ async fn dispatch_route(State(state): State<ServerState>, method: Method, uri: U
     response
 }
 
-async fn route_request(state: ServerState, method: Method, uri: Uri, headers: HeaderMap, body: Bytes) -> Response {
+async fn route_request(state: ServerState, peer: SocketAddr, method: Method, uri: Uri, headers: HeaderMap, body: Bytes) -> Response {
+    let envelope = match admit(&state.limits, peer, &method, &uri, &headers, &body) {
+        Ok(envelope) => envelope,
+        Err(refusal) => return *refusal,
+    };
+
+    match dispatch_body(envelope, &state.client, &state.wasm_path, &state.lineage_config, state.invoker.as_ref()).await {
+        Ok(value) => value_to_response(value),
+        Err(e) => {
+            log::error("dispatch_failed", serde_json::json!({ "error": format!("{e}") }));
+            (StatusCode::INTERNAL_SERVER_ERROR, axum::Json(serde_json::json!({ "error": format!("{e}") }))).into_response()
+        }
+    }
+}
+
+/// Turns a raw HTTP request into the envelope `dispatch_body` takes, or
+/// into the response that ends it before dispatch: a `400` for a body that
+/// is not JSON, a `429` for a caller over a public route's rate limit.
+///
+/// The limit is read off the envelope, not the raw request line, so a body
+/// that already carries the Function-URL shape counts against the route it
+/// names. The caller is identified from the real connection and headers
+/// (`rate_limit`'s own header has the trust rules), never from the body.
+fn admit(limits: &RateLimits, peer: SocketAddr, method: &Method, uri: &Uri, headers: &HeaderMap, body: &Bytes) -> Result<Value, Box<Response>> {
     let parsed: Value = if body.is_empty() {
         serde_json::json!({})
     } else {
-        match serde_json::from_slice(&body) {
+        match serde_json::from_slice(body) {
             Ok(value) => value,
-            Err(e) => return (StatusCode::BAD_REQUEST, format!("invalid JSON body: {e}")).into_response(),
+            Err(e) => return Err(Box::new((StatusCode::BAD_REQUEST, format!("invalid JSON body: {e}")).into_response())),
         }
     };
 
@@ -257,16 +291,23 @@ async fn route_request(state: ServerState, method: Method, uri: Uri, headers: He
     let envelope = if is_internal_dispatch_shape(&parsed) {
         parsed
     } else {
-        synthesize_function_url_envelope(&method, &uri, &headers, &body)
+        synthesize_function_url_envelope(method, uri, headers, body)
     };
 
-    match dispatch_body(envelope, &state.client, &state.wasm_path, &state.lineage_config, state.invoker.as_ref()).await {
-        Ok(value) => value_to_response(value),
-        Err(e) => {
-            log::error("dispatch_failed", serde_json::json!({ "error": format!("{e}") }));
-            (StatusCode::INTERNAL_SERVER_ERROR, axum::Json(serde_json::json!({ "error": format!("{e}") }))).into_response()
+    if let Some((route_method, route_path)) = envelope_route(&envelope) {
+        if let Verdict::Limited { retry_after_secs } = limits.check(route_method, route_path, headers, Some(peer.ip())) {
+            return Err(Box::new(rate_limit::too_many_requests(retry_after_secs)));
         }
     }
+    Ok(envelope)
+}
+
+/// The method and path a Function-URL-shaped envelope names, or `None` for
+/// the verb and read shapes, which carry no route.
+fn envelope_route(envelope: &Value) -> Option<(&str, &str)> {
+    let method = envelope.get("requestContext")?.get("http")?.get("method")?.as_str()?;
+    let path = envelope.get("rawPath")?.as_str()?;
+    Some((method, path))
 }
 
 /// Whether `value` already matches one of `dispatch_body`'s own three
@@ -459,6 +500,129 @@ mod tests {
         let addr = serve_version(sample_version()).await;
         let response = reqwest::Client::new().post(format!("http://{addr}/version")).send().await.unwrap();
         assert_eq!(response.status(), 405);
+    }
+
+    fn limits_from(pairs: &[(&str, &str)]) -> Arc<RateLimits> {
+        let map: std::collections::HashMap<String, String> = pairs.iter().map(|(k, v)| (k.to_string(), v.to_string())).collect();
+        Arc::new(RateLimits::new(crate::rate_limit::Config::from_lookup(|name| map.get(name).cloned()).0))
+    }
+
+    async fn gate_only(
+        State(limits): State<Arc<RateLimits>>,
+        ConnectInfo(peer): ConnectInfo<SocketAddr>,
+        method: Method,
+        uri: Uri,
+        headers: HeaderMap,
+        body: Bytes,
+    ) -> Response {
+        match admit(&limits, peer, &method, &uri, &headers, &body) {
+            Ok(_) => (StatusCode::OK, "admitted").into_response(),
+            Err(refusal) => *refusal,
+        }
+    }
+
+    // A disposable server on an ephemeral port: the real `admit` gate reading the real connection
+    // peer, with an acknowledgement standing in for dispatch, which needs Postgres and wasm.
+    async fn gated_server(limits: Arc<RateLimits>) -> SocketAddr {
+        let listener = tokio::net::TcpListener::bind(("127.0.0.1", 0)).await.unwrap();
+        let addr = listener.local_addr().unwrap();
+        let app = Router::new().fallback(any(gate_only)).with_state(limits);
+        tokio::spawn(async move { axum::serve(listener, app.into_make_service_with_connect_info::<SocketAddr>()).await });
+        addr
+    }
+
+    async fn post(addr: SocketAddr, path: &str, forwarded_for: Option<&str>, body: &str) -> reqwest::Response {
+        let mut request = reqwest::Client::new().post(format!("http://{addr}{path}")).body(body.to_string());
+        if let Some(forwarded_for) = forwarded_for {
+            request = request.header("x-forwarded-for", forwarded_for);
+        }
+        request.send().await.unwrap()
+    }
+
+    const SUBSCRIBE: &str = "/newsletter/subscribers";
+
+    #[tokio::test]
+    async fn a_burst_on_a_public_write_route_gets_429_with_retry_after_and_a_json_error() {
+        let addr = gated_server(limits_from(&[("HECKS_RATE_LIMIT_SUBSCRIBE", "3")])).await;
+        for attempt in 1..=3 {
+            assert_eq!(post(addr, SUBSCRIBE, None, r#"{"email":"a@example.com"}"#).await.status(), 200, "request {attempt}");
+        }
+
+        let refused = post(addr, SUBSCRIBE, None, r#"{"email":"a@example.com"}"#).await;
+        assert_eq!(refused.status(), 429);
+        let retry_after: u64 = refused.headers()["retry-after"].to_str().unwrap().parse().unwrap();
+        assert!((1..=3600).contains(&retry_after), "got {retry_after}");
+        assert!(refused.headers()["content-type"].to_str().unwrap().starts_with("application/json"));
+        let body: Value = refused.json().await.unwrap();
+        assert_eq!(body, serde_json::json!({ "error": "too many requests, please try again later" }));
+    }
+
+    #[tokio::test]
+    async fn registrations_are_limited_apart_from_subscribes() {
+        let addr = gated_server(limits_from(&[("HECKS_RATE_LIMIT_SUBSCRIBE", "1"), ("HECKS_RATE_LIMIT_REGISTER", "2")])).await;
+        assert_eq!(post(addr, SUBSCRIBE, None, "{}").await.status(), 200);
+        assert_eq!(post(addr, SUBSCRIBE, None, "{}").await.status(), 429);
+
+        assert_eq!(post(addr, "/registrations", None, "{}").await.status(), 200, "subscribe being spent leaves register alone");
+        assert_eq!(post(addr, "/registrations", None, "{}").await.status(), 200);
+        assert_eq!(post(addr, "/registrations", None, "{}").await.status(), 429);
+    }
+
+    #[tokio::test]
+    async fn reads_and_other_routes_are_never_limited() {
+        let addr = gated_server(limits_from(&[("HECKS_RATE_LIMIT_SUBSCRIBE", "1"), ("HECKS_RATE_LIMIT_REGISTER", "1")])).await;
+        let client = reqwest::Client::new();
+        for _ in 0..5 {
+            assert_eq!(client.get(format!("http://{addr}{SUBSCRIBE}")).send().await.unwrap().status(), 200);
+            assert_eq!(client.get(format!("http://{addr}/registrations/REG-1")).send().await.unwrap().status(), 200);
+            assert_eq!(post(addr, "/webhooks/stripe", None, "{}").await.status(), 200);
+            assert_eq!(post(addr, "/members", None, "{}").await.status(), 200);
+        }
+    }
+
+    #[tokio::test]
+    async fn a_spoofed_forwarded_header_does_not_buy_a_fresh_allowance() {
+        // The test client is the peer at 127.0.0.1 and nothing trusts it, so every header is
+        // typed by the caller and the count stays with the connection.
+        let addr = gated_server(limits_from(&[("HECKS_RATE_LIMIT_SUBSCRIBE", "1")])).await;
+        assert_eq!(post(addr, SUBSCRIBE, Some("1.1.1.1"), "{}").await.status(), 200);
+        for spoof in ["2.2.2.2", "3.3.3.3", "4.4.4.4, 5.5.5.5"] {
+            assert_eq!(post(addr, SUBSCRIBE, Some(spoof), "{}").await.status(), 429, "{spoof}");
+        }
+    }
+
+    #[tokio::test]
+    async fn behind_a_trusted_proxy_each_visitor_has_their_own_allowance() {
+        let addr = gated_server(limits_from(&[("HECKS_RATE_LIMIT_SUBSCRIBE", "1"), ("HECKS_TRUSTED_PROXIES", "127.0.0.1")])).await;
+        assert_eq!(post(addr, SUBSCRIBE, Some("1.1.1.1, 203.0.113.7"), "{}").await.status(), 200);
+        assert_eq!(post(addr, SUBSCRIBE, Some("2.2.2.2, 203.0.113.7"), "{}").await.status(), 429, "same visitor, new typed entry");
+        assert_eq!(post(addr, SUBSCRIBE, Some("2.2.2.2, 198.51.100.4"), "{}").await.status(), 200, "a different visitor");
+    }
+
+    #[tokio::test]
+    async fn a_body_that_carries_the_function_url_shape_counts_against_the_route_it_names() {
+        let addr = gated_server(limits_from(&[("HECKS_RATE_LIMIT_REGISTER", "1")])).await;
+        let envelope = r#"{"requestContext":{"http":{"method":"POST"}},"rawPath":"/registrations","body":"{}"}"#;
+        assert_eq!(post(addr, "/anything", None, envelope).await.status(), 200);
+        assert_eq!(post(addr, "/anything", None, envelope).await.status(), 429);
+        assert_eq!(post(addr, "/registrations", None, "{}").await.status(), 429, "the same budget as the real path");
+    }
+
+    #[tokio::test]
+    async fn a_body_that_is_not_json_is_a_400_and_costs_no_allowance() {
+        let addr = gated_server(limits_from(&[("HECKS_RATE_LIMIT_SUBSCRIBE", "1")])).await;
+        for _ in 0..3 {
+            assert_eq!(post(addr, SUBSCRIBE, None, "not json").await.status(), 400);
+        }
+        assert_eq!(post(addr, SUBSCRIBE, None, "{}").await.status(), 200);
+    }
+
+    #[tokio::test]
+    async fn turning_the_limits_off_lets_every_request_through() {
+        let addr = gated_server(limits_from(&[("HECKS_RATE_LIMIT", "off"), ("HECKS_RATE_LIMIT_SUBSCRIBE", "1")])).await;
+        for _ in 0..10 {
+            assert_eq!(post(addr, SUBSCRIBE, None, "{}").await.status(), 200);
+        }
     }
 
     #[test]
