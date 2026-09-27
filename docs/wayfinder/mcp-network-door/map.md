@@ -27,6 +27,9 @@ and [ADR 0072](../../decisions/0072-the-mcp-door-token-waits-for-a-real-need-and
 
 ## Decisions so far
 
+- [Where principals live](tickets/01-where-principals-live.md) — each domain's own Governance; no separate identity provider. [ADR 0076](../../decisions/0076-the-network-door-is-a-separate-service-and-principals-live-in-each-domains-governance.md).
+- [Transport, and where the door runs](tickets/02-transport-and-where-it-runs.md) — partly decided, still open: it is a separate service ([ADR 0076](../../decisions/0076-the-network-door-is-a-separate-service-and-principals-live-in-each-domains-governance.md)); transport and TLS are not decided.
+
 ## Not yet specified
 
 - Rollout: how the first network door is exposed and to whom, once the design is decided.

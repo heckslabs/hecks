@@ -1,6 +1,6 @@
 ---
 type: grilling
-status: open
+status: closed
 blocked_by: []
 claimed_by:
 ---
@@ -17,3 +17,8 @@ serves a domain whose Governance has never heard of the principal. This is the o
 ADR 0062 that everything else here waits on.
 
 ## Answer
+
+Decided 2026-09-27: each domain's own Governance. A principal is a role assignment inside a
+domain, as `actor_id` already works; a domain with no assignment for the principal refuses.
+There is no separate identity provider. Recorded in
+[ADR 0076](../../../decisions/0076-the-network-door-is-a-separate-service-and-principals-live-in-each-domains-governance.md).
