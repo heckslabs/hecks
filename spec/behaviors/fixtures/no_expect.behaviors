@@ -1,5 +1,4 @@
-# A test with no `expect` at all used to pass vacuously whenever
-# dispatch didn't raise — build-time validation refuses this instead.
+# A test with no `expect` would pass vacuously; build-time validation refuses it.
 Hecks.behaviors "NoExpect" do
   vision "A test asserting nothing should refuse to build, not pass."
   loads "../../../examples/pizzas/bluebook/pizzas.bluebook", "../../../examples/pizzas/pizzas_behaviors.hecksagon"

@@ -14,10 +14,8 @@ require_relative "../../runtime/instance"
 
 module Hecks
   module Adapters
-    # The SQLite store: one table per aggregate head, an append-only entry
-    # table beside it. The DDL lives in sqlite/schema_builder.rb, the
-    # column codec in sqlite/codec.rb, and the query compilation is the
-    # shared SqlQueryBuilder — this file supplies only SQLite's dialect.
+    # The SQLite store: one table per aggregate head, an append-only entry table beside it.
+    # Supplies SQLite's dialect to the shared SqlQueryBuilder.
     class Sqlite
       include SqlQueryBuilder
       include SchemaBuilder
@@ -44,18 +42,13 @@ module Hecks
       # @raise [LoadError] if the `sqlite3` gem is not installed
       # @raise [SQLite3::Exception] if the file cannot be opened or a table cannot be created
       def initialize(aggregate:, settings: {}, root: nil)
-        # **Lazy, on purpose** — a domain that never wires Sqlite should never
-        # need the gem installed. `require "hecks"` alone must not
-        # force a database client library nobody asked for.
+        # Lazy so a domain that never wires Sqlite does not need the gem installed.
         require "sqlite3"
 
         @aggregate = aggregate
         @path      = resolve_path(settings, root)
-        # The optional saga-persistence capability's own scoping column
-        # (§2/§4) — falls back to the aggregate's own name for a
-        # directly-instantiated adapter (specs), same fallback shape
-        # Postgres's own @domain already uses.
-        @domain    = (
+        # Scopes saga rows; falls back to the aggregate's name for a directly built adapter.
+        @domain = (
           if settings.key?(:domain)
             settings[:domain]
           elsif settings.key?("domain")
@@ -68,8 +61,7 @@ module Hecks
         FileUtils.mkdir_p(File.dirname(@path))
         @db = SQLite3::Database.new(@path)
         @db.results_as_hash = true
-        # The append is the recovery commit point. Keep SQLite's fsync policy
-        # explicit instead of inheriting a process-wide pragma choice.
+        # The append is the recovery commit point, so the fsync policy is explicit.
         @db.execute("PRAGMA synchronous = FULL")
 
         create_aggregate_table!
@@ -79,14 +71,13 @@ module Hecks
         create_event_table!
         create_saga_table!
         create_outbox_table!
+        create_checkpoint_table!
       end
 
       # Runs the block inside one SQLite transaction, joining an already-open one.
       #
-      # **Re-entrant on purpose** — `atomic_put` opens its own transaction
-      # and `Interpreting#run_dispatch_order` opens one around the whole
-      # save+emit pair; SQLite3 refuses a BEGIN inside a BEGIN, so the
-      # inner call joins the outer one instead. Same shape Postgres uses.
+      # Re-entrant because `atomic_put` and `Interpreting#run_dispatch_order` both open one,
+      # and SQLite3 refuses a BEGIN inside a BEGIN.
       #
       # @yield the writes to commit together; an exception raised inside rolls the
       #   outermost transaction back
@@ -117,9 +108,7 @@ module Hecks
 
       # Lists every stored record, ordered by id unless an ordering attribute is given.
       #
-      # order_by is a runtime value — see postgres.rb's own all for the
-      # full reasoning; whitelisted the identical way before it ever
-      # reaches order_expression.
+      # order_by is a runtime value, so it is checked against the aggregate before use.
       #
       # @param order_by [String, Symbol, nil] attribute (or dotted value-object path) to sort
       #   by; nil orders by id alone
@@ -154,21 +143,21 @@ module Hecks
 
       # Inserts one journal row, outside any transaction of its own.
       #
+      # Stamps the row's assigned `sequence` onto `entry` in place, so a `project` call right
+      # after (same object, same transaction) can advance the checkpoint with no extra query.
+      #
       # @param entry [Ports::Persistence::Entry] the save or delete to journal; `state` is
       #   encoded through the state codec and `mirrors` stored as JSON, or NULL when nil
-      # @return [Ports::Persistence::Entry] the same `entry`
+      # @return [Ports::Persistence::Entry] the same `entry`, `sequence` now set
       # @raise [SQLite3::Exception] if the insert fails
       def append(entry)
         @db.execute(
           "INSERT INTO #{quoted_entry_table} (aggregate_id, operation, state, mirrors) VALUES (?, ?, ?, ?)",
-          # `mirrors` (unlike `state`) is a nullable column — an absent
-          # mirrors hash must bind a real SQL NULL, not the four-character
-          # JSON text `"null"` (`JSON.generate(nil)`), or a future `IS NULL`
-          # check against it would never match. Same guard `postgres_era.rb`
-          # already uses for its own journal's `mirrors` column.
+          # `mirrors` is nullable: an absent hash must bind SQL NULL, not the JSON text "null".
           [entry.id, entry.operation, JSON.generate(Ports::Persistence::StateCodec.encode(@aggregate, entry.state)),
            entry.mirrors && JSON.generate(entry.mirrors)]
         )
+        entry.sequence = @db.last_insert_row_id
         entry
       end
 
@@ -179,6 +168,7 @@ module Hecks
       #   for a delete, the `DELETE` statement's empty result rows
       # @raise [SQLite3::Exception] if the statement fails
       def project(entry)
+        advance_checkpoint!(entry.sequence) if entry.sequence
         return @db.execute("DELETE FROM #{quoted_table} WHERE id = ?", [entry.id]) if entry.delete?
 
         instance = Runtime::Instance.new(aggregate: @aggregate, id: entry.id, state: entry.state)
@@ -201,15 +191,65 @@ module Hecks
       # @raise [SQLite3::Exception] if the statement fails
       # @raise [JSON::ParserError] if a stored `state` or `mirrors` value is not valid JSON
       def entries
-        @db.execute("SELECT aggregate_id, operation, state, mirrors FROM #{quoted_entry_table} ORDER BY sequence").map do |row|
-          state = JSON.parse(row["state"])
-          Ports::Persistence::Entry.new(
-            operation: row["operation"] || "save",
-            id:        row["aggregate_id"],
-            state:     Ports::Persistence::StateCodec.decode(@aggregate, state),
-            mirrors:   row["mirrors"] && JSON.parse(row["mirrors"])
-          )
-        end
+        entries_matching(
+          "SELECT aggregate_id, operation, state, mirrors, sequence FROM #{quoted_entry_table} ORDER BY sequence"
+        )
+      end
+
+      # Reads only the journal rows past a given `sequence`, for `AppendOnly#recover!` to replay
+      # after a checkpoint instead of the whole journal.
+      #
+      # @param sequence [Integer] the highest `sequence` already projected; rows at or below it
+      #   are skipped
+      # @return [Array<Ports::Persistence::Entry>] the journalled entries past `sequence`, in
+      #   append order, decoded exactly as `entries` decodes them; `[]` when none are newer
+      # @raise [SQLite3::Exception] if the statement fails
+      # @raise [JSON::ParserError] if a stored `state` or `mirrors` value is not valid JSON
+      def entries_since(sequence)
+        entries_matching(
+          "SELECT aggregate_id, operation, state, mirrors, sequence FROM #{quoted_entry_table} " \
+          "WHERE sequence > ? ORDER BY sequence",
+          [sequence]
+        )
+      end
+
+      # Reads the highest journal `sequence` this table has already had projected into it.
+      #
+      # @return [Integer] `0` when the table has never been checkpointed (a fresh table, or one
+      #   from before this bookkeeping existed) — `entries_since(0)` then reads the whole journal,
+      #   matching `entries`' own full replay
+      # @raise [SQLite3::Exception] if the statement fails
+      def checkpoint
+        @db.get_first_value("SELECT last_sequence FROM hecks_checkpoints WHERE aggregate_table = ?", [table]).to_i
+      end
+
+      # Reads the highest journal `sequence` compaction has already deleted from this table.
+      #
+      # @return [Integer] `0` when nothing has ever been compacted
+      # @raise [SQLite3::Exception] if the statement fails
+      def compacted_through
+        @db.get_first_value("SELECT compacted_through FROM hecks_checkpoints WHERE aggregate_table = ?", [table]).to_i
+      end
+
+      # Deletes every journal row at or before `through` and records it, so a `:strict`
+      # projection catch-up can tell whether it still has the history it needs.
+      #
+      # Never moves `compacted_through` backwards, and never touches the aggregate's own
+      # table — only the journal, which a `:refresh` projection rebuild never needs.
+      #
+      # @param through [Integer] the highest `sequence` to delete
+      # @return [Integer] the number of journal rows deleted
+      # @raise [SQLite3::Exception] if a statement fails
+      def compact_entries!(through:)
+        @db.execute("DELETE FROM #{quoted_entry_table} WHERE sequence <= ?", [through])
+        removed = @db.changes
+        @db.execute(
+          "INSERT INTO hecks_checkpoints (aggregate_table, compacted_through) VALUES (?, ?) " \
+          "ON CONFLICT (aggregate_table) DO UPDATE SET " \
+          "compacted_through = MAX(compacted_through, excluded.compacted_through)",
+          [table, through]
+        )
+        removed
       end
 
       # Deletes every row of the aggregate's table and its journal; events, saga rows and
@@ -238,9 +278,7 @@ module Hecks
 
       # Stores an entry and reports whether it inserted, replaced or conflicted.
       #
-      # The outcome lookup, journal append and snapshot replacement share one
-      # SQLite transaction. The runtime performs no preliminary find; this
-      # adapter-native operation owns both concurrency and outcome reporting.
+      # The outcome lookup, journal append and snapshot replacement share one transaction.
       #
       # @param entry [Ports::Persistence::Entry] the save to store
       # @param insert_only [Boolean] when true, an existing row is left untouched
@@ -305,16 +343,33 @@ module Hecks
         end
       end
 
+      # Reads back one record's recorded events, oldest first — pushed down as a `WHERE`
+      # clause (`hecks_events_aggregate_id_idx`) instead of filtering `#events`'s whole-table
+      # read, since a `corrects` command's history lookup only ever needs this one record.
+      #
+      # @param aggregate [String] the `"domain::AggregateName"` key events are stored under
+      # @param id [String, Object] the record's identity, matched as `id.to_s`
+      # @return [Array<Runtime::Event>] the record's stored events; `[]` when it has none
+      # @raise [SQLite3::Exception] if the statement fails
+      def events_for(aggregate:, id:)
+        @db.execute(
+          "SELECT * FROM events WHERE aggregate = ? AND aggregate_id = ? ORDER BY id",
+          [aggregate, id.to_s]
+        ).map do |row|
+          Runtime::Event.new(
+            name:        row["name"],
+            aggregate:   row["aggregate"],
+            id:          row["aggregate_id"],
+            payload:     JSON.parse(row["payload"], symbolize_names: true),
+            occurred_at: row["occurred_at"]
+          )
+        end
+      end
+
       # Inserts new outbox rows as pending, skipping any whose `delivery_id` already exists.
       #
-      # The outbox — see `Runtime::Outbox`. Rows land in the same
-      # database as this aggregate (the only way the enqueue shares the
-      # save's transaction), keyed by the aggregate's storage name so an
-      # adapter instance only ever reads back its own rows even when
-      # several aggregates share one file. `INSERT OR IGNORE` on the
-      # unique delivery_id makes a re-enqueue of the same (event,
-      # consumer) a no-op; `outbox_claim`'s `WHERE status = 'pending'`
-      # is the compare-and-set that lets exactly one relay win a row.
+      # Rows share this aggregate's database so the enqueue joins the save's transaction, and
+      # are keyed by storage name so aggregates sharing a file read back only their own.
       #
       # @param rows [Array<Runtime::Outbox::Row>] rows to enqueue; each accepted row has its
       #   `id` and `status` assigned in place. `row.aggregate` is stored as given
@@ -389,19 +444,6 @@ module Hecks
       # Replaces one saga instance's checkpoint, keyed by domain, process manager and
       # correlation.
       #
-      # ── the optional saga-persistence capability (§2) — reuses the
-      # DDL every SQLite-backed aggregate table already lives beside
-      # (`create_saga_table!`, `Sqlite::SchemaBuilder`, shared with D1).
-      # SQLite's `resolve_path` defaults to one `.db` file per
-      # aggregate unless a domain shares one `database` setting across
-      # its aggregates — since saga persistence resolves through
-      # whichever adapter instance backs the domain's first aggregate
-      # (`Registry#saga_persistence`), this table ends up living inside
-      # that one aggregate's own file by default. Correct and durable
-      # either way; a domain that wants an obviously-named saga store
-      # already gets one by sharing `database` across its aggregates,
-      # the recommended, common case.
-      #
       # @param process_manager [String, Symbol] the process manager's name
       # @param correlation [String, Object] the instance's correlation value, stored as
       #   `correlation.to_s`
@@ -462,7 +504,31 @@ module Hecks
 
       private
 
-      # ── SqlQueryBuilder's dialect hooks ─────────────────────────────
+      # Shared decode step for `entries`/`entries_since` — runs a query already selecting
+      # `aggregate_id, operation, state, mirrors, sequence` and builds one Entry per row.
+      def entries_matching(sql, binds = [])
+        @db.execute(sql, binds).map do |row|
+          state = JSON.parse(row["state"])
+          Ports::Persistence::Entry.new(
+            operation: row["operation"] || "save",
+            id:        row["aggregate_id"],
+            state:     Ports::Persistence::StateCodec.decode(@aggregate, state),
+            mirrors:   row["mirrors"] && JSON.parse(row["mirrors"]),
+            sequence:  row["sequence"].to_i
+          )
+        end
+      end
+
+      # Advances this table's checkpoint to `sequence`, never backwards — two overlapping
+      # `project` calls for out-of-order entries must not let an older sequence win.
+      def advance_checkpoint!(sequence)
+        @db.execute(
+          "INSERT INTO hecks_checkpoints (aggregate_table, last_sequence) VALUES (?, ?) " \
+          "ON CONFLICT (aggregate_table) DO UPDATE SET " \
+          "last_sequence = MAX(last_sequence, excluded.last_sequence)",
+          [table, sequence]
+        )
+      end
 
       def outbox_row(row)
         Runtime::Outbox::Row.new(
@@ -499,8 +565,7 @@ module Hecks
         "json_extract(#{quote_ident(name)}, '#{json_path}')"
       end
 
-      # SQLite has no bare OFFSET — LIMIT -1 is its own documented
-      # unbounded spelling, exactly for this case.
+      # SQLite has no bare OFFSET; LIMIT -1 is its unbounded spelling.
       def unbounded_limit = " LIMIT -1"
 
       def order_clause(order_by, policy)
@@ -510,8 +575,6 @@ module Hecks
       def execute_query(sql, binds)
         @db.execute(sql, binds).map { |row| Runtime::Instance.new(aggregate: @aggregate, id: row["id"], state: decode(row)) }
       end
-
-      # ── the rest of the dialect ─────────────────────────────────────
 
       def quote_ident(name)
         %("#{name.to_s.gsub('"', '""')}")

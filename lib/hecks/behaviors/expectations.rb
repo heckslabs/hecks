@@ -5,45 +5,11 @@ require_relative "../runtime/value"
 require_relative "../runtime/reaction_invocation"
 require_relative "../ports/persistence/binding_policy"
 
-# Hecks::Behaviors::Expectations
-#
-# ## What it does
-#
-# One test case, start to finish: take the suite's own runtime (booted
-# once for exactly what its `loads` names, reset to nothing between
-# tests — `runtime_for`), replay `setup` dispatches, dispatch (or query)
-# the command under test, check `expect`. Split out of
-# runner.rb the same way the file-count/sweep concern is split from a
-# single test's own execution.
-#
-# ## Deviations from a prior port
-#
-# Two deliberate deviations from a prior port of this same idea (read
-# before writing this, not reinvented):
-#
-# 1. A `setup` refusal and a refusal from the command under test are
-#    caught in separate rescue scopes. The prior port wrapped the whole
-#    test body — setups included — in one `rescue *REFUSAL_CLASSES`, so a
-#    broken setup could spuriously satisfy `expect refused: "..."` if its
-#    own refusal happened to match the expected substring. Here, any
-#    domain refusal during `setup` is unconditionally an error — the
-#    example never got to the situation it claims to test.
-#
-# 2. `emits:` is read off a `registry.event_log` diff around the tested
-#    dispatch, not off `Result#events` alone. `Result#events` only holds
-#    the events the outermost dispatch announced; a policy's own cascade
-#    reenters through the same `Dispatcher#dispatch` (`PolicyInterpreter
-#    #deliver` → `door.reenter` → `dispatch`), and every dispatch's
-#    events — outer and reentrant alike — land in the one shared
-#    `registry.event_log`, in order (`CommandRules::Emission#emit`,
-#    `PortOperationInterpreter#emit`/`#call`). Diffing that log's length
-#    before/after the tested dispatch is the one read that actually sees
-#    a cascade — this DSL has no `kind: :cascade` because cascades are
-#    always on and `emits:` is expected to see them.
+# Runs one behaviors test case: replays its setup dispatches, dispatches (or
+# queries) the command under test, and checks the result against `expect`.
 module Hecks
   module Behaviors
-    # See this file's own header above for what this module does and the
-    # two deliberate deviations from the prior port it's built from.
+    # Runs one behaviors test case: replays its setup, dispatches the command, checks `expect`.
     module Expectations
       module_function
 
@@ -66,6 +32,8 @@ module Hecks
 
         current_setup = nil
         begin
+          # Caught separately from the tested command's own refusal, so a broken
+          # setup can't spuriously satisfy `expect refused: "..."` by coincidence.
           test.setups.each do |setup|
             current_setup = setup
             dispatch_command(runtime, qualify(setup.command, nil, bluebooks, kind: :command), setup.args)
@@ -79,20 +47,9 @@ module Hecks
         error_result(test, "#{e.class}: #{e.message}")
       end
 
-      # One boot per suite, not per test. The isolation a test needs is a
-      # runtime with nothing in it — and a boot of the same files gives
-      # exactly that back for the price of `Registry#reset_runtime_state!`
-      # instead of ~2s of loading, verifying and era-checking the same
-      # bluebook again (chess: 76 behaviours, 155s of which was booting
-      # `chess.bluebook` 76 times). Keyed by the suite's own `loads` and
-      # their mtimes, so an edited bluebook boots fresh on the next test
-      # rather than running against a stale one — the property a watch
-      # loop or a long rspec session actually relies on. `runtime:` lets
-      # a caller that already holds a booted runtime (a spec, a REPL)
-      # hand it in; it is reset the same way.
-      # Not frozen — a real cache, mutated below (`RUNTIMES[key] ||=
-      # boot_and_guard(files)`) and by #reset!. False positive for
-      # Style/MutableConstant.
+      # Cached per suite, keyed by `loads`' file paths and mtimes, so a boot is
+      # reused across tests but an edited bluebook boots fresh on the next one.
+      # Mutated in place (`RUNTIMES[key] ||= boot_and_guard(files)`, and #reset!).
       # rubocop:disable-next Style/MutableConstant
       RUNTIMES      = {}
       RUNTIMES_LOCK = Mutex.new
@@ -115,16 +72,8 @@ module Hecks
         end
       end
 
-      # `reset_runtime_state!` only drops repository objects between
-      # tests (registry.rb) — sufficient isolation for `Memory`, whose
-      # `@records` is a plain per-instance ivar, so a fresh object really
-      # is a fresh store. Against anything else (Sqlite, Postgres) the
-      # rows themselves stay put: tests leak into each other, and a
-      # suite booted against a domain's real hecksagon writes to a real
-      # database. Refusing that wiring here, at boot, is the same shape
-      # of guard `BindingPolicy` already applies to a missing bind — the
-      # project's identity is refusing bad wiring up front, not
-      # discovering it mid-suite.
+      # Refuses at boot when any aggregate binds to a non-Memory adapter —
+      # `reset_runtime_state!` only resets Memory's own per-instance store.
       #
       # @param files [Array<String>] absolute paths to the bluebook/hecksagon/world
       #   files to boot
@@ -209,17 +158,8 @@ module Hecks
         check_ok(test) || check_fields(test, settled_state(runtime, verb, result)) || pass_result(test)
       end
 
-      # A field expectation reads the aggregate as it stands once the
-      # dispatch and its whole cascade have run — the same "cascades are
-      # always on" reading `emits:` already commits to. `Result#state` is
-      # the wrong source for that: it snapshots the instance the outer
-      # dispatch saved, and a policy's own reentrant dispatch (a ply
-      # advancing off a Moved event, a move count bumping) hydrates and
-      # saves a fresh record afterward — so a field the cascade wrote
-      # read back stale (found live: `expect move_count: 1` got 0 while
-      # `emits:` saw MoveCountBumped in the same test). The repository
-      # holds the settled record; read it back by the id the dispatch
-      # itself answered with.
+      # Reads the aggregate back from the repository, not `Result#state` — a
+      # policy's own reentrant dispatch can re-save the record afterward.
       #
       # @param runtime [Runtime::Dispatcher, Runtime::RemoteDispatcher] the suite's
       #   booted runtime
@@ -241,44 +181,15 @@ module Hecks
         record ? record.state : (result.state || {})
       end
 
-      # A behaviors test writes a dispatch the way the guide's own chess
-      # examples do — receiver identity and command facts side by side
-      # (`label: "g", id: "wn", to: { file: 2, rank: 2 }`) — and since
-      # #335 the dispatcher's own `to:` keyword is the routing envelope,
-      # so forwarding those kwargs loose collides the moment a domain
-      # declares a command fact named `to` (chess does: every Move's own
-      # destination). Found live: every such test failed with "to: does
-      # not recognize file, rank" while this guide promised the spelling
-      # works. `ReactionInvocation.build` is #335's own seam for turning
-      # mixed facts into the strict envelope — identities lifted into
-      # `to:`, declared facts into `with:` — so a behaviors dispatch now
-      # goes through the exact same separation a policy's projection
-      # does. A verb that names a port operation (checked explicitly,
-      # below — "Pizzas::Order.PaymentGateway.Receive") keeps the loose
-      # passthrough instead: its own input already spells the port
-      # form's `to:`/`with:`, which the dispatcher's port branch reads
-      # directly, and `ReactionInvocation.build`'s explicit envelope
-      # expects a command's own declared attributes at the top level,
-      # not a port operation's already-wrapped `to:`/`with:` shape.
+      # Splits a mixed dispatch (receiver identity plus declared facts, e.g.
+      # `to: { file: 2, rank: 2 }`) into the dispatcher's strict `to:`/`with:` envelope.
       #
-      # Checks for a port operation directly rather than leaning on
-      # `resolve_target` to raise `UnknownVerb` for one — a refusal that held
-      # only so long as nothing else ever asked it to resolve a port-operation
-      # verb. Now that a `policy` can legitimately `trigger` a port operation
-      # (`ReactionInvocation#resolve_target`'s own port-operation branch),
-      # that raise does not happen, so this checks directly instead.
-      #
-      # @param runtime [Runtime::Dispatcher, Runtime::RemoteDispatcher] the suite's
-      #   booted runtime
+      # @param runtime [Runtime::Dispatcher, Runtime::RemoteDispatcher] the suite's booted runtime
       # @param verb [String] the command's dotted FQN, or a port operation's
-      # @param args [Hash{Symbol => Object}] the command's (or setup's) facts, mixing
-      #   receiver identity and declared arguments
-      # @return [Runtime::Dispatcher::Result, Runtime::RemoteDispatcher::Result] the
-      #   dispatch's own result
-      # @raise [Runtime::UnknownVerb] if `verb` is not fully qualified or names an
-      #   undeclared domain, aggregate, command, entity or port operation
-      # @raise [StandardError] any class in `Runtime::DOMAIN_REFUSALS` when the
-      #   domain refuses the call
+      # @param args [Hash{Symbol => Object}] the facts, mixing identity and declared arguments
+      # @return [Runtime::Dispatcher::Result, Runtime::RemoteDispatcher::Result] the dispatch result
+      # @raise [Runtime::UnknownVerb] if `verb` names an undeclared construct
+      # @raise [StandardError] any `Runtime::DOMAIN_REFUSALS` class, when the domain refuses
       def dispatch_command(runtime, verb, args)
         return runtime.dispatch_flat(verb, args) if port_operation?(runtime, verb)
 
@@ -297,10 +208,8 @@ module Hecks
         end
       end
 
-      # The same "Head.Rest" shape `Dispatcher#dispatch` and
-      # `ReactionInvocation#resolve_target` both already check — a bare
-      # domain/aggregate lookup plus a port-name lookup, no command
-      # resolution needed since all this asks is whether one exists.
+      # The same "Head.Rest" split `Dispatcher#dispatch` already uses — just a
+      # domain/aggregate and port-name lookup, no command resolution needed.
       #
       # @param runtime [Runtime::Dispatcher, Runtime::RemoteDispatcher] the suite's
       #   booted runtime
@@ -358,12 +267,8 @@ module Hecks
         test.expect.keys.any? { |key| !SPECIAL_KEYS.include?(key) }
       end
 
-      # A field expectation on a query names one row's shape, so it only
-      # makes sense once the query has settled on exactly one — the same
-      # reason `expect status: "sold"` on a multi-row answer would be
-      # ambiguous about which row it's describing. `check_fields` itself
-      # stays row-shaped (it already is, for `run_command`'s settled
-      # state); this picks which row it reads.
+      # A field expectation on a query only makes sense once it has settled on
+      # exactly one row; this picks that row (or fails naming the row count).
       #
       # @param test [Behaviors::TestCase] the test case, for the fail message
       # @param rows [Array<Hash>, Hash] the query's own result
@@ -437,12 +342,8 @@ module Hecks
         fail_result(test, "expected refused: #{expected.inspect}, got #{msg.inspect}")
       end
 
-      # The real corpus this DSL is proven against writes VO-typed
-      # `expect` values both ways — bare (`expect kind: "bishop"`) and
-      # wrapped (`expect kind: { value: "bishop" }`). A live record's
-      # field always comes back as a `Hecks::Runtime::Value`;
-      # normalizing both sides to the same bare-scalar-or-plain-hash
-      # shape is the one comparison that accepts either spelling.
+      # Normalizes both `expect` spellings (bare or `{value: ...}`) and a live
+      # `Hecks::Runtime::Value` field to the same bare-scalar-or-plain-hash shape.
       #
       # @param value [Object] a stored field's value, or an `expect` value to compare
       #   it against
@@ -455,13 +356,8 @@ module Hecks
         value
       end
 
-      # A bare `tests`/`setup` command name carries no domain — `loads`
-      # can name more than one bluebook, so resolution searches every
-      # aggregate across every bluebook the suite booted for the one that
-      # actually declares the command. `on:` (when given, only ever on
-      # the tested command — `setup` never receives it, see the DSL
-      # contract) narrows the search to one aggregate by name instead of
-      # searching all of them.
+      # Searches every aggregate of every bluebook the suite booted for the one
+      # declaring `command`; `on:` narrows the search to one aggregate by name.
       #
       # @param command [String, Symbol] a bare verb, or an already-dotted FQN
       # @param on_aggregate [String, Symbol, nil] the aggregate to search, or nil to
@@ -478,11 +374,8 @@ module Hecks
         disambiguate_qualified_name(candidates, command, kind, bluebooks)
       end
 
-      # Finds every aggregate that could be what a bare command/query name refers to.
-      #
-      # **The search** — every (bluebook, aggregate) pair that declares a
-      # command/query named `command`, narrowed to `on_aggregate` by name
-      # when given.
+      # Finds every (bluebook, aggregate) pair that declares a command/query
+      # named `command`, narrowed to `on_aggregate` by name when given.
       #
       # @param command [String, Symbol] the bare verb to search for
       # @param on_aggregate [String, Symbol, nil] the aggregate to search, or nil to
@@ -502,11 +395,8 @@ module Hecks
         pairs.select { |_, agg| agg.public_send(members).any? { |m| m.hecks_name == command.to_s } }
       end
 
-      # Resolves a search's candidates to exactly one dotted FQN, or refuses.
-      #
-      # **The report** — zero candidates and more-than-one candidates both
-      # refuse (with a different message); exactly one resolves to its
-      # dotted FQN.
+      # Resolves a search's candidates to exactly one dotted FQN; zero or more
+      # than one both refuse, each with a different message.
       #
       # @param candidates [Array<Array(Bluebook::Chapter, Bluebook::Aggregate)>] the
       #   matching (chapter, aggregate) pairs found by `qualify_candidates`

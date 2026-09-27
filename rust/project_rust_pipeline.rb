@@ -3,67 +3,8 @@ require "fileutils"
 require "open3"
 require "tmpdir"
 
-# STAGE 8 (`/Users/christopheryoung/.claude/plans/sequential-petting-whale.md`)
-# — the OPT-IN, all-Rust equivalent of `bin/project_rust`'s own default
-# body: `hecks-parse resolve`/`hecks-parse chapter` for parsing,
-# `hecks-codegen full` for codegen (aggregate files + registry.rs +
-# mod.rs + merged.rs, per chapter), zero `Kernel.load` of any DOMAIN
-# bluebook anywhere in this file. Selected ONLY when BOTH
-# `HECKS_PARSER=rust` and `HECKS_CODEGEN=rust` are set — see
-# `bin/project_rust`'s own header on why the two are paired rather than
-# independently toggleable, and why this is opt-in rather than the new
-# default (a deliberate, documented DEVIATION from the plan's own Stage
-# 8 text: other concurrent sessions in this repo call `bin/project_rust`
-# for unrelated work today, and flipping its default risks silently
-# breaking them the moment anything about this new path is even
-# slightly off in a case the corpus doesn't cover yet).
-#
-# WHAT THIS FILE IS ALLOWED TO DO IN PLAIN RUBY, and why none of it
-# violates "zero Kernel.load of any domain bluebook": reading a file's
-# own `Hecks.bluebook "Name"` header line via `File.foreach` + regex
-# (`header_chapter_name`, below) is TEXT SCANNING, not DSL execution —
-# the exact same technique `spec/parser_parity_spec.rb`'s own
-# `chapter_name_of` already uses, established precedent in this repo,
-# not a shortcut invented here. Calling `Hecks::Framework.members`
-# is a plain `Dir.glob` + naming lookup (`lib/hecks/framework.rb`'s
-# own body) — no `Kernel.load` of anything. Reading
-# `Hecks::Bluebook::MetaValidator::GRAMMAR_FILES` is the already-discovered,
-# sorted folder contents. NONE of these boot, `instance_eval`, or otherwise
-# execute a `.bluebook`/`.hecksagon` file's own DSL body — that only
-# ever happens inside `hecks-parse`, a separate OS process, in Rust.
-#
-# THE `lineage` KEY, closed (was a named, deliberate gap; fixed below).
-# The DEFAULT path's own `ir.json` sidecar carries a
-# `lineage.capable_aggregates` list (`bin/project_rust`'s own
-# `target_ir[:lineage] = ... Exporter.lineage(target_registry,
-# target_domain_name)`), used ONLY by
-# `rust/host/src/ir.rs::lineage_capable_aggregates` at RUNTIME (which
-# aggregates get read/written through the era-partitioned lineage
-# journal instead of the plain in-memory Store). `Exporter.lineage`
-# itself (read it) needs exactly ONE fact per aggregate: which adapter
-# NAME its sole authoritative `persisted_by` bind names
-# (`Ports::Persistence::BindingPolicy.resolve`) — not the FULL open
-# adapter-bind vocabulary (`deployed_to`, `uses_framework`, `role:`
-# variants, `projected_by`, settings blocks). `derive_lineage`, below,
-# gets that one fact the SAME way `header_chapter_name` already gets a
-# chapter name — PLAIN TEXT SCANNING for one specific, narrow shape
-# (`<Ns>::<Aggregate>.persisted_by("Adapter")`, no `role:`), never
-# `Kernel.load`ing or interpreting the `.hecksagon` DSL as a whole. This
-# does NOT reopen ADR 0023's own permanent open-vocabulary escape for
-# `.hecksagon` adapter binds in the PARSER (`parse::hecksagon` still
-# shape-matches and drops everything, unchanged) — it's a second, small,
-# independent text scan living in THIS orchestration layer, the same
-# tier `derive_append_optionals` already occupies, feeding one narrow,
-# specific fact into a sidecar that needs it. Which adapters actually
-# ARE lineage-capable is read the same way, off
-# `lib/hecks/adapters/driven/*.rb`'s own `lineage_capable?`
-# declarations — never hand-listed, so a second capable adapter needs no
-# change here.
-#
-# `manifest.json` (the coverage manifest `bin/rust_coverage` reads) is
-# written per directory by `hecks-codegen full` itself
-# (rust/codegen/src/manifest.rs), held byte-identical to
-# `domain_generator.rb`'s own by spec/codegen_manifest_parity_spec.rb.
+# Opt-in, all-Rust equivalent of bin/project_rust's default path, selected
+# when HECKS_PARSER=rust and HECKS_CODEGEN=rust; never boots a bluebook DSL.
 module RustProjectPipeline
   ROOT = File.expand_path("..", __dir__).freeze
   PARSER_DIR = File.join(ROOT, "rust/parser").freeze
@@ -77,10 +18,8 @@ module RustProjectPipeline
     ensure_binaries_built!
 
     target_mod_name = File.basename(domain)
-    # SAME GUARD, SAME REASON as bin/project_rust's own default path (R5) —
-    # `target_mod_name` becomes a directory name, a bare Rust module
-    # identifier, and a Cargo feature name below; see
-    # `RustProjection::Projector.valid_domain_mod_name?`'s own header.
+    # Becomes a directory name, Rust module identifier, and Cargo feature
+    # name below (see Projector.valid_domain_mod_name?).
     unless RustProjection::Projector.valid_domain_mod_name?(target_mod_name)
       abort "bin/project_rust (Rust path): domain name #{target_mod_name.inspect} (from #{domain.inspect}) can't be " \
             "used as-is — it has to double as a Rust module identifier and a Cargo feature name, and this one is " \
@@ -105,18 +44,12 @@ module RustProjectPipeline
 
     target_files = target_bluebooks + [hecksagon_path].compact
     target_ir_text = derive_append_optionals(run_capture!(PARSER_BIN, "chapter", "--chapter", target_chapter_name, *target_files))
-    # ONLY the target — the DEFAULT path's own `target_ir[:lineage] = ...`
-    # (bin/project_rust) never sets this on a framework chapter's own
-    # sidecar either; confirmed no lineage difference on identity/
-    # governance's own ir.json when this pipeline was first verified.
+    # Only the target gets a lineage sidecar — matches the default path,
+    # which never sets one on a framework chapter either.
     target_ir_text = derive_lineage(target_ir_text, hecksagon_path, sibling_world_path(domain, target_mod_name))
 
-    # EVERY OTHER CHAPTER `uses_framework` NAMES — same real chapters
-    # `bin/project_rust`'s own default path pulls in via
-    # `Framework.load!`'s side effect, resolved here through the SAME
-    # `Hecks::Framework.members` lookup that method itself calls,
-    # never re-derived by hand. A framework member has no `.hecksagon`
-    # of its own (`Framework.load!`'s own header) — just its `.bluebook`.
+    # Mirrors bin/project_rust's own Framework.load! resolution. A framework
+    # member has no .hecksagon of its own, only its .bluebook.
     chapters = uses_framework_names.map do |fw_name|
       fw_path = Hecks::Framework.members.fetch(fw_name) do
         abort "bin/project_rust (Rust path): uses_framework #{fw_name.inspect} names no known framework member — known: #{Hecks::Framework.members.keys.sort.join(', ')}"
@@ -133,17 +66,9 @@ module RustProjectPipeline
       }
     end
 
-    # EVERY VENDORED PACKAGE `uses_embryonaut_bluebook` NAMES — same real
-    # packages the DEFAULT path's own `EmbryonautBluebook.load!` pulls in
-    # (`lib/hecks/embryonaut_bluebook.rb`), resolved here the SAME way
-    # that module resolves them: every `.bluebook` file directly under
-    # `<domain>/vendor/embryonaut_bluebooks/<name>/bluebook/`, sorted
-    # (that module's own header — "a plain alphabetical sort already
-    # gives the right order"). A vendored package has no `.hecksagon` of
-    # its own either (same restriction Framework draws, same reason —
-    # that module's own header) — just its `.bluebook` file(s), possibly
-    # more than one reopening the same chapter, exactly like the
-    # target's own `target_bluebooks` above.
+    # Mirrors EmbryonautBluebook.load!: every .bluebook file directly under
+    # vendor/embryonaut_bluebooks/<name>/bluebook/, sorted. A vendored
+    # package has no .hecksagon of its own either, just its .bluebook(s).
     chapters += uses_embryonaut_bluebook_names.map do |pkg_name|
       pkg_dir = File.join(domain, "vendor", "embryonaut_bluebooks", pkg_name.to_s, "bluebook")
       pkg_files = Dir.glob(File.join(pkg_dir, "*.bluebook")).sort
@@ -160,29 +85,17 @@ module RustProjectPipeline
       pkg_bluebooks = pkg_files.select { |path| header_chapter_name(path) == pkg_chapter_name }
       pkg_ir_text = derive_append_optionals(run_capture!(PARSER_BIN, "chapter", "--chapter", pkg_chapter_name, *pkg_bluebooks))
       {
-        # SAME DERIVATION as the DEFAULT path's own generated module name
-        # (`bin/project_rust`'s `chapter_name.downcase`, off the DECLARED
-        # chapter name) — not `pkg_name.to_s.downcase` off the raw
-        # argument, which diverges from it the moment a package name
-        # contains an underscore (`Naming.pascal("my_widget").downcase !=
-        # "my_widget".downcase`). `expected_chapter_name` above already IS
-        # that declared chapter name (`pkg_chapter_name` is asserted equal
-        # to it just above), so reusing it here keeps both pipelines
-        # writing to the same output directory for the same package.
+        # Derived from the declared chapter name, not pkg_name.downcase
+        # directly — the two diverge once a package name has an underscore.
         mod_name:     expected_chapter_name.downcase,
         source_label: "#{domain} (uses_embryonaut_bluebook #{pkg_name.inspect})",
         ir_text:      pkg_ir_text
       }
     end
 
-    # NO SILENT COLLISION between a `uses_framework`- and a
-    # `uses_embryonaut_bluebook`-derived entry — the DEFAULT path
-    # (`bin/project_rust`) is immune for free, since it iterates
-    # `target_registry.bluebooks.keys`, a Hash that cannot hold a literal
-    # duplicate key; this opt-in path builds `chapters` as a plain Array
-    # via two separate `map`s, so nothing else stops two entries sharing
-    # one `mod_name` from silently overwriting each other's sidecars in
-    # `write_sidecars!` below.
+    # Framework- and embryonaut_bluebook-derived chapters can collide on
+    # mod_name (chapters here is a plain Array, not a Hash), so guard
+    # explicitly against two entries overwriting each other's sidecars.
     chapters.group_by { |c| c[:mod_name] }.each_value do |group|
       next if group.size == 1
 
@@ -191,20 +104,15 @@ module RustProjectPipeline
             "of them"
     end
 
-    # THE SELF-HOSTED LANGUAGE, COMPILED IN TOO — same nine files, same
-    # declared order, same "Bluebook" chapter name `bin/project_rust`'s
-    # own default path reads off `MetaValidator.grammar_registry`
-    # (real Ruby boot there; here it's the SAME constant array of file
-    # PATHS, read without booting anything).
+    # The self-hosted grammar's own "Bluebook" chapter, read without
+    # booting anything.
     meta_files = Hecks::Bluebook::MetaValidator::GRAMMAR_FILES
     meta_ir_text = derive_append_optionals(run_capture!(PARSER_BIN, "chapter", "--chapter", "Bluebook", *meta_files))
 
     out_root = File.expand_path("../rust/src/generated", __dir__)
     FileUtils.mkdir_p(out_root)
-    # SCOPED clearing — identical reasoning to the default path's own
-    # (rust/project_rust's own comment, unchanged there): multiple
-    # domains coexist on disk, so only THIS run's own directories are
-    # wiped first.
+    # Only this run's own directories are cleared — other domains coexist
+    # on disk.
     FileUtils.rm_rf(File.join(out_root, "meta"))
     FileUtils.rm_rf(File.join(out_root, "active"))
     FileUtils.rm_rf(File.join(out_root, target_mod_name))
@@ -235,30 +143,8 @@ module RustProjectPipeline
     sync_mod_and_cargo!(out_root, target_mod_name)
   end
 
-  # `RustProjection::Projector.mark_append_optional_fields!` — a REAL,
-  # necessary derivation `rust/codegen` deliberately did NOT port
-  # (`mutations.rs`'s own header, `spec/codegen_parity_spec.rb`'s own
-  # header: "every real corpus field that pass would touch already
-  # declares `optional: true` directly ... so the mutating pass is a
-  # no-op"). That claim is true ONLY inside that spec's own comparison —
-  # it builds its `ir.json` fixture by calling Ruby's
-  # `DomainGenerator.call` FIRST (which mutates the `ir` Hash it was
-  # handed IN PLACE) and only THEN serializes that SAME, now-mutated
-  # Hash to the `ir.json` it feeds `hecks-codegen` — so the spec never
-  # actually exercises `hecks-codegen` against genuinely pre-derivation
-  # input. THIS pipeline does, for real (`hecks-parse`'s own `ir.json`
-  # has never been touched by anything Ruby): confirmed live, the
-  # self-hosted grammar's own META chapter (a real `append` mutation fed
-  # by a caller-omittable command argument) DOES need this derivation —
-  # several `.rs` files differed from the default path's own output
-  # before this method was added. Applying the EXISTING, already-tested
-  # Ruby function to the ALREADY-PARSED JSON (never re-booting or
-  # re-interpreting any `.bluebook`/`.hecksagon` DSL — this is a plain
-  # data transform over a Hash, the same `RustProjection::Projector`
-  # code `rust/project/domain_generator.rb` itself already calls) closes
-  # the gap without needing a mutation API inside `rust/codegen`'s own
-  # read-only `Json` type (`json.rs`'s own header on why that's a
-  # bigger, separate change).
+  # Applies the same append-optional-field derivation domain_generator.rb
+  # applies in Ruby — hecks-parse's own ir.json has not had it applied yet.
   def derive_append_optionals(ir_text)
     ir = JSON.parse(ir_text, symbolize_names: true)
     ir[:aggregates].each do |aggregate|
@@ -268,19 +154,7 @@ module RustProjectPipeline
     JSON.pretty_generate(ir)
   end
 
-  # `Exporter.lineage`'s own Rust-path equivalent — same output shape
-  # (`{capable_aggregates: [{name:, storage_name:}]}`), same underlying
-  # question (`Runtime::EraCheck.adapter_for` + `.lineage_capable?`), but
-  # answered from TEXT rather than a live `Runtime::Registry` boot: which
-  # adapter each aggregate's own sole `persisted_by` bind names, checked
-  # against which adapters actually declare `lineage_capable? = true`.
-  # `nil` hecksagon (no `.hecksagon` file at all) means every aggregate is
-  # unbound — `BindingPolicy.default_binding`'s own "Memory" answer, never
-  # lineage-capable, so `capable_aggregates` is simply empty; matches the
-  # DEFAULT path's own behavior for a hecksagon-less domain without this
-  # file needing to special-case it. An aggregate the hecksagon leaves
-  # unbound takes the `default_adapter` the target chapter's own `.world`
-  # declares instead of "Memory" — `BindingPolicy.resolve`'s own order.
+  # Text-based equivalent of Exporter.lineage — no Runtime::Registry boot.
   def derive_lineage(ir_text, hecksagon_path, world_path = nil)
     ir = JSON.parse(ir_text, symbolize_names: true)
     binds = hecksagon_path ? persistence_binds(hecksagon_path) : {}
@@ -298,18 +172,7 @@ module RustProjectPipeline
     JSON.pretty_generate(ir)
   end
 
-  # PLAIN TEXT SCANNING — the same technique `header_chapter_name` already
-  # uses, narrowed to ONE specific shape: `<Ns>::<Aggregate>.persisted_by
-  # ("Adapter")`, the ONLY bind `BindingPolicy.resolve` treats as
-  # AUTHORITATIVE (`bind.role.nil? || bind.role.empty?` — `binding_proxy.rb`'s
-  # own `method_missing` is what actually builds a `role:` bind, and every
-  # real corpus `persisted_by` call is role-less, so excluding any line
-  # that also carries `role:` is enough to stay faithful to "sole
-  # authoritative bind" without a real Ruby parse). `Naming.demodulise`'s
-  # own job (`Bind#aggregate_name`, `hexagon.rb`) — stripping everything
-  # up to the LAST `::` — is exactly what this regex's own `(\w+)` right
-  # before `.persisted_by` already captures, so no separate demodulise
-  # step is needed here.
+  # Matches only role-less persisted_by binds — the sole authoritative kind.
   def persistence_binds(hecksagon_path)
     text = File.read(hecksagon_path)
     binds = {}
@@ -329,14 +192,9 @@ module RustProjectPipeline
     path if File.exist?(path)
   end
 
-  # `default_adapter "Adapter"` inside the `Hecks.world "<chapter>"` block —
-  # the same narrow text scan `persistence_binds` is, for the one world word
-  # that changes which adapter an unbound aggregate resolves to. A `.world`
-  # file may hold several worlds (one per chapter), so only lines after the
-  # target chapter's own `Hecks.world` opener count; a later
-  # `default_adapter` in the same block wins, as it does in the Ruby
-  # builder. `rust/build/src/lineage_pass.rs::default_adapter_name` is the
-  # line-for-line Rust twin.
+  # A .world file may hold several worlds (one per chapter) — only lines
+  # inside the target chapter's own Hecks.world block count, and the last
+  # default_adapter there wins, matching the Ruby builder.
   def default_adapter_name(world_path, chapter)
     in_target_world = false
     found = nil
@@ -350,12 +208,8 @@ module RustProjectPipeline
     found
   end
 
-  # Which adapters actually carry eras — read off their own source, the
-  # same "structural fact about a file, not domain DSL execution"
-  # precedent `header_chapter_name`/`Hecks::Framework.members`
-  # already establish, so a second lineage-capable adapter arriving needs
-  # no change here (matches `EraCheck.lineage_capable?`'s own "the
-  # capability is asked of the adapter, never of its name" design).
+  # Read off adapter source directly, so a new lineage-capable adapter
+  # needs no change here.
   def lineage_capable_adapter_names
     Dir[File.join(ROOT, "lib/hecks/adapters/driven/*.rb")].filter_map do |path|
       text = File.read(path)
@@ -365,25 +219,14 @@ module RustProjectPipeline
     end.compact
   end
 
-  # The declared chapter name off a `.bluebook` file's own header line —
-  # PLAIN TEXT SCANNING, the same technique
-  # `spec/parser_parity_spec.rb::chapter_name_of` already uses (this
-  # file's own header explains why that's not "booting a domain").
+  # The declared chapter name off a .bluebook file's own header line.
   def header_chapter_name(path)
     line = File.foreach(path).find { |l| l =~ /\A\s*Hecks\.bluebook\s+"([^"]+)"/ }
     (line && Regexp.last_match(1)) or abort "bin/project_rust (Rust path): #{path} has no 'Hecks.bluebook \"Name\"' header"
   end
 
-  # `ir.json` (the EXACT bytes `hecks-parse chapter` already emitted —
-  # never re-serialized) and `metadata.rs` (the SAME `pub const IR_JSON:
-  # &str = ...;` shape `domain_generator.rb` writes, built with Ruby's
-  # own `String#inspect` against that same exact text — byte-identical
-  # to the default path's own metadata.rs for any domain whose ir.json
-  # doesn't carry a `lineage` key difference, see this file's own
-  # header). Deliberately NOT built inside `hecks-codegen` — re-parsing
-  # and re-pretty-printing JSON there would risk a NON-byte-exact
-  # reformat for no reason, when the exact bytes this pipeline already
-  # captured from `hecks-parse` are sitting right here.
+  # Writes ir.json byte-identical to hecks-parse's own output — never
+  # reparsed or reformatted, to avoid a non-byte-exact diff for no reason.
   def write_sidecars!(mod_dir, ir_text, source_label)
     FileUtils.mkdir_p(mod_dir)
 
@@ -422,13 +265,9 @@ module RustProjectPipeline
     ok or abort "bin/project_rust (Rust path): #{cmd.join(' ')} failed"
   end
 
-  # IDENTICAL BOOKKEEPING to `bin/project_rust`'s own default-path tail
-  # (root `mod.rs` + `Cargo.toml` feature sync) — deliberately
-  # DUPLICATED here rather than extracted into a shared method: the
-  # default path's own body must stay provably byte-for-byte untouched
-  # by this stage (see this stage's own verification requirements), so
-  # this is a faithful re-implementation of that tail for the opt-in
-  # path, not a refactor of the original.
+  # Duplicates bin/project_rust's own default-path tail (root mod.rs +
+  # Cargo.toml feature sync) rather than extracting a shared method, so
+  # the default path's own body stays byte-for-byte untouched.
   def sync_mod_and_cargo!(out_root, target_mod_name)
     all_dirs = Dir.children(out_root).select { |name| File.directory?(File.join(out_root, name)) }.sort
     domains = all_dirs.select { |name| File.exist?(File.join(out_root, name, "merged.rs")) }
@@ -523,10 +362,9 @@ module RustProjectPipeline
 
       TOML
     end
-    # SCOPED TO THE `[features]` TABLE ONLY (R5) — see bin/project_rust's own
-    # identical comment; checking `name = ` against the WHOLE file false-
-    # positives against `[package]`/`[lib]`/`[[bin]]` keys that share a word
-    # with a domain name (`version`, `edition`, `name`, `path`, ...).
+    # Scoped to the [features] table only — checking against the whole
+    # file false-positives against [package]/[lib] keys sharing a word
+    # with a domain name (version, edition, name, path, ...).
     features_table = cargo_toml[/^\[features\](?:\n(?!\[).*)*$/] || ""
     domains.each do |name|
       next if features_table =~ /^#{Regexp.escape(name)}\s*=/

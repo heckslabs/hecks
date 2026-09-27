@@ -2,13 +2,8 @@ require "hecks"
 require "hecks/ports/persistence/plugins/era"
 require_relative "support/qa_sweep_all_fixture"
 
-# `bin/qa_sweep --all` / single-target — claim races and modes. One of
-# seven sibling files split out of the original `qa_sweep_all_spec.rb`
-# (Phase 2 of the CI speed effort — see `spec/qa_sweep_all_lifecycle_
-# spec.rb`'s own header and `spec/support/qa_sweep_all_fixture.rb` for
-# the full context). This file proves the claim race a real concurrent
-# `Target.Claim` resolves, and the `--modes` override on a single-target
-# sweep. Own throwaway database: `hecks_qa_sweep_all_claims_spec`.
+# `bin/qa_sweep --all` / single-target: claim races and the `--modes` override.
+# Own throwaway database: `hecks_qa_sweep_all_claims_spec`.
 RSpec.describe "bin/qa_sweep --all", :io do
   include_context "with a qa_sweep_all fixture", "hecks_qa_sweep_all_claims_spec"
 
@@ -36,12 +31,7 @@ RSpec.describe "bin/qa_sweep --all", :io do
     expect(outcomes.map { |o| o[:output] }).to contain_exactly("claimed", "refused")
   end
 
-  # **Modes are data** — `bin/qa_sweep` prints the one rule's answer
-  # (`enabled ∩ eligible`, `Hecks::Fuzzing::TargetCapabilities`) on its
-  # own `resolved modes:` line, and `--modes` overrides the enabled set
-  # for one run. The fixture target binds Heki and has no Cargo feature,
-  # so its capabilities are exactly `sqlite` — the ruby_only seat, with
-  # self-consistency folded in, and nothing else.
+  # The fixture target's only capability is `sqlite`, so `--modes` yields just the ruby_only seat.
   it "prints the resolved modes and capabilities, and honours --modes as the enabled set" do
     identify_targets!("modes_one" => @target_domain_relpath)
 

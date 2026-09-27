@@ -1,15 +1,9 @@
 require "spec_helper"
 
 RSpec.describe Hecks::Facade::JsonDoor do
-  # `described_class` reads exactly as `Hecks::Facade::JsonDoor`
-  # throughout this file — no separate alias needed.
   let(:json_door) { described_class }
 
-  # `boot_in_memory` (spec_helper.rb, `InMemoryDomain`) is the shared
-  # Memory-adapter boot every spec in this suite already reaches for —
-  # Pizzas::Order, rebound to Memory rather than a real adapter, matching
-  # this codebase's standing preference that specs boot against Memory and
-  # reserve real-adapter specs for testing that adapter itself.
+  # Pizzas::Order booted against Memory via `boot_in_memory`.
   def order(_dispatcher)
     Pizzas::Order.create_pizza!(
       name:  { value: "Margherita" },
@@ -47,11 +41,8 @@ RSpec.describe Hecks::Facade::JsonDoor do
     end
 
     it "raises Runtime::NotFound when the aggregate declares no creating command" do
-      # A real corpus aggregate always has exactly one (the meta-domain
-      # itself checks for it at boot) — so the "none" branch is proven
-      # against a minimal stand-in shaped the same way `AggregateDoor`
-      # shapes the real thing (`klass.ir.commands`, each answering
-      # `creates?`), not a mock of Hecks's own classes.
+      # Every corpus aggregate has a creating command, so the "none" branch
+      # needs a minimal stand-in shaped like `klass.ir.commands` (each answering `creates?`).
       non_creating_command = Struct.new(:hecks_name) { def creates? = false }.new("Rename")
       ir = Struct.new(:hecks_name, :commands).new("Widget", [non_creating_command])
       klass = Struct.new(:ir).new(ir)
@@ -76,13 +67,8 @@ RSpec.describe Hecks::Facade::JsonDoor do
     end
 
     it "raises Runtime::NotFound for the creating command, which a Handle can never dispatch" do
-      # `klass.commands` (AggregateDoor's own door-level list) includes the
-      # creating command; a `Handle` in hand only ever defines singleton
-      # methods for non-creating verbs (`Handle#define_verb_methods`). A
-      # caller that got "create_pizza!" past this gate would go on to hit
-      # a raw NoMethodError from `handle.public_send("create_pizza!")`
-      # instead of the clean 404 this method exists to give — this pins
-      # the gate refusing it here instead.
+      # A Handle only defines methods for non-creating verbs, so letting "create_pizza!"
+      # through would surface a raw NoMethodError instead of the clean 404.
       boot_in_memory
 
       expect { json_door.validate_command!(Pizzas::Order, "create_pizza!") }
@@ -141,9 +127,7 @@ RSpec.describe Hecks::Facade::JsonDoor do
         customer_name: nil,
         status:        "available"
       )
-      # Not just equal in value — nothing left is still a Runtime::Value,
-      # two levels down (Order -> Pizza -> Price), which `#eq` alone
-      # wouldn't catch since Runtime::Value defines `==` by content.
+      # `eq` alone misses a leftover Runtime::Value, which compares equal by content.
       expect(result[:pizza][:price_cents]).to be_a(Hash)
       expect(result[:pizza][:price_cents]).not_to be_a(Hecks::Runtime::Value)
     end

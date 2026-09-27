@@ -18,27 +18,18 @@ Hecks.bluebook "Hecksagon" do
       invariant("a verb is named") { !value.to_s.empty? }
     end
 
-    # SAME CLOSED SET port.bluebook's own "Port" aggregate declares —
-    # kept as its own local value object rather than shared cross-
-    # chapter, the same way PortVerb already is here.
+    # Same closed set as port.bluebook's Port, kept local rather than shared across chapters.
     value_object "PortSignal" do
       attribute :value, String, one_of: ["reply", "effect"]
     end
 
-    # `answers` — DomainPortBuilder's own twin of PortBuilder#answers
-    # (port.bluebook's "Port" aggregate, same shape), added once a real
-    # `.port` file migrated to parse through this builder (the repoint
-    # `lib/hecks.rb#port`'s own comment describes) used the word
-    # (`extraction.port`'s own `answers :canonical`). Local, not shared
-    # cross-chapter, same reasoning as PortSignal just above.
+    # Twin of port.bluebook's PortAnswer, kept local for the same reason as PortSignal.
     value_object "PortAnswer" do
       attribute :value, String
       invariant("an answer names a real method") { !value.to_s.empty? }
     end
 
-    # HOW DOMAINPORT IS SPELLED. These rows live with the concept
-    # they describe; SyntaxBoot discovers every aggregate-local seed table.
-    # Contexts represented here: DomainPort.
+    # Keyword rows for DomainPort; SyntaxBoot discovers every aggregate-local seed table.
     value_object "KeywordSeed" do
       attribute :word,          String
       attribute :context,       String, admits: "Syntax::Context"
@@ -84,13 +75,7 @@ Hecks.bluebook "Hecksagon" do
       member keyword: "signal",          context: "DomainPort", at: "1", named: "", kind: "symbol", required: "true", fills: "signal"
       member keyword: "answers",         context: "DomainPort", at: "1", named: "", kind: "symbol", required: "true", fills: "answers"
 
-      # THE RECEIVING AGGREGATE — PortOperationBuilder's own `reference_to`
-      # (inside the block) is refused (#335); this is the sanctioned
-      # replacement, named directly on the word that opens the block
-      # rather than a statement inside it. `kind: "constant"`, matching
-      # `reference_to`'s own first positional argument
-      # (port_operation.bluebook) — same bareword-constant resolution,
-      # just moved.
+      # The receiving aggregate is named on the opening word (`to:`), not by `reference_to` inside.
       member keyword: "operation",       context: "DomainPort", at: "", named: "to", kind: "constant", required: "false", fills: "to"
       member keyword: "tells",           context: "DomainPort", at: "", named: "to", kind: "constant", required: "false", fills: "to"
       member keyword: "asks",            context: "DomainPort", at: "", named: "to", kind: "constant", required: "false", fills: "to"

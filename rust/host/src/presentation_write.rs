@@ -1,48 +1,5 @@
-// **The console's own presentation config, written** — the Rust-native
-// counterpart to the console app's `web/presentation_config.rb`
-// `.save!`, serving `PUT /api/presentation`.
-//
-// It is the same two halves that file has, in the same order, for the
-// same reason:
-//
-//   1. `validate` — pure Ruby-side checking, ported rule for rule and
-//      message for message, run against the live domain IR before a
-//      single command is dispatched. This is what keeps `save!`'s own
-//      "refuses cleanly, writes nothing" contract: the common mistake
-//      (a tone that isn't one of five, a column naming a field the
-//      aggregate doesn't declare) never starts a partial multi-command
-//      write. It cannot move into ConsoleSettings' own commands —
-//      those have no way to see another domain's schema, which is
-//      exactly what every check here is against.
-//
-//   2. `save` — real dispatches of real `ConsoleSettings::*` commands
-//      through this host's own kernel, so the chapter's own invariants
-//      do run: `tone` is a `one_of` the generated kernel enforces
-//      ("Tone admits \"good\", \"warn\", ... — got \"nope\""), and a
-//      state that was never `Declare`d refuses with `NotFound` rather
-//      than being written behind the aggregate's back.
-//
-// What changed since `api.rs` refused this with 501. That refusal's
-// premise was "this host has no ConsoleSettings kernel to dispatch
-// through: its `.wasm` is the consuming domain's, and ConsoleSettings
-// has never been compiled into it." The second half was already false
-// when it was written, and is checkable: `uses_framework
-// "ConsoleSettings"` in a consuming app's `.hecksagon` pulls that
-// chapter into the same registry `bin/project_rust` generates from, and
-// `merged.rs` folds its three aggregates into the one `Store` the
-// single `.wasm` carries — the same mechanism that puts Governance and
-// Identity in there. Strings from the real deployed artifact confirm
-// it (`ConsoleSettings::StateStyle`, `Tone admits ...`), and
-// `spec/fixtures/rust_host/checkout_fixture` now attaches the chapter
-// the same way so CI builds a kernel with it in every run.
-//
-// A domain whose kernel genuinely has no such chapter still gets the
-// old 501, unchanged, and it is asked rather than assumed: `presentation
-// ::kernel_rows` runs this chapter's own `ConsoleSettings.Styles` read
-// model as a query, and a kernel that has never heard of it answers
-// with no query result at all. That is the same "resolve late, refuse
-// loudly" rule presentation_config.rb's own header claims — never a
-// guess from an environment variable or a file name.
+// The Rust-native counterpart to `web/presentation_config.rb`'s `.save!`, serving
+// `PUT /api/presentation`: validates against the live domain IR, then dispatches real commands.
 
 use crate::dispatch;
 use crate::lambda_client::LambdaInvoker;
@@ -55,36 +12,26 @@ use std::path::Path;
 use tokio::sync::Mutex;
 use tokio_postgres::Client;
 
-/// The five tones the console's own CSS supports. Kept here as well as
-/// in the chapter's own `one_of` for the reason `presentation_config
-/// .rb`'s own copy gives: this check runs first, before any dispatch,
-/// so the common mistake refuses without a partial write ever starting.
+// Duplicates the chapter's own `one_of` so this refuses before any dispatch starts.
 const VALID_TONES: &[&str] = &["good", "warn", "danger", "muted", "accent"];
 const VALID_DISPLAYS: &[&str] = &["simple", "prose", "bullet", "mono", "rows"];
 const VALID_FORMATS: &[&str] = &["date", "percent"];
 const VALID_FOLDS: &[&str] = &["count", "money_sum"];
 const VALID_SORTS: &[&str] = &["asc", "desc"];
 
-/// What a save can answer with other than "saved". Each variant maps to
-/// exactly one of the Ruby engine's own responses — `api.rs` does that
-/// mapping, so this module never mentions a status code.
+// What a save can answer with other than "saved". `api.rs` maps each variant to a status code,
+// so this module never mentions one.
 pub(crate) enum SaveRefusal {
-    /// This host's kernel carries no ConsoleSettings chapter. The 501
-    /// `api.rs` has always returned, unchanged.
+    // This host's kernel carries no ConsoleSettings chapter.
     NoKernel,
-    /// `PresentationConfig::Malformed` — `app.rb`'s own `halt 422,
-    /// json({error: "Malformed", message: e.message})`.
+    // `PresentationConfig::Malformed` — `app.rb`'s own 422.
     Malformed(String),
-    /// A real domain refusal from the kernel, carried whole so
-    /// `api::domain_refusal` can read its own `kind`/`error` out of it
-    /// the same way every other dispatching route does.
+    // A real domain refusal from the kernel, carried whole for `api::domain_refusal`.
     Domain(Value),
     Internal(String),
 }
 
-/// `PresentationConfig.save!` then `.load` — app.rb's `put
-/// "/api/presentation"` returns the reloaded config, never the
-/// submitted one, so a caller sees exactly what was stored.
+// Returns the reloaded config, never the submitted one, so a caller sees what was stored.
 pub(crate) async fn save(
     domain_ir: &Value,
     submitted: &Value,
@@ -93,10 +40,8 @@ pub(crate) async fn save(
     lineage: &LineageConfig,
     invoker: &dyn LambdaInvoker,
 ) -> Result<Value, SaveRefusal> {
-    // Asked before validated, deliberately. A host with no such chapter
-    // cannot honour this request at all, and saying so is more useful
-    // than first reporting whichever rule the submitted config happens
-    // to break in a runtime that could never have stored it anyway.
+    // Asked before validated: a host with no such chapter cannot honour this request at all,
+    // regardless of which rule the submitted config would otherwise break.
     let existing = match presentation::kernel_rows(client, wasm_path).await {
         Ok(Some(rows)) => rows,
         Ok(None) => return Err(SaveRefusal::NoKernel),
@@ -113,10 +58,8 @@ pub(crate) async fn save(
     presentation::load(client, wasm_path, lineage).await.map_err(|e| SaveRefusal::Internal(format!("{e:#}")))
 }
 
-/// `config["states"] || {}` — a missing or null section is the empty
-/// one, and a section that isn't an object at all is treated the same
-/// way rather than erroring: `validate` has already run every real
-/// check against the same value.
+// A missing, null, or non-object section is the empty one rather than an error: `validate` has
+// already run every real check against the same value.
 fn section<'a>(config: &'a Value, key: &str) -> &'a Value {
     const EMPTY: &Value = &Value::Null;
     config.get(key).filter(|v| v.is_object()).unwrap_or(EMPTY)
@@ -126,26 +69,14 @@ fn entries(value: &Value) -> Vec<(&String, &Value)> {
     value.as_object().map(|map| map.iter().collect()).unwrap_or_default()
 }
 
-/// `Array(...)` — a null, a missing key, or anything that isn't a list
-/// is the empty list.
+// A null, a missing key, or anything that isn't a list is the empty list.
 fn list(value: Option<&Value>) -> &[Value] {
     value.and_then(|v| v.as_array()).map(|a| a.as_slice()).unwrap_or(&[])
 }
 
-// ---- writing --------------------------------------------------------
-//
-// Not diffed against what is already stored — every present field is
-// re-dispatched on every save, even to an unchanged value, exactly as
-// `PresentationConfig.save!` does (some event-log churn on a no-op
-// save, accepted there for simplicity and matched here so the two
-// engines produce the same history for the same request).
-//
-// **Known limitation, inherited on purpose**: a field that was set and is
-// later omitted is not cleared — every `Set*` command requires a real
-// value and the chapter declares no `Clear*`. The Ruby engine has the
-// same gap and documents it; diverging here would make the two engines
-// disagree about what a second save means.
-
+// Every present field is re-dispatched on every save, even to an unchanged value, so the two
+// engines produce the same history for the same request. A field once set and later omitted is
+// never cleared: the chapter declares no `Clear*` command.
 struct Writer<'a> {
     client: &'a Mutex<Client>,
     wasm_path: &'a Path,
@@ -154,8 +85,7 @@ struct Writer<'a> {
 }
 
 impl Writer<'_> {
-    /// A creating command — facts only, no identity to route to, the
-    /// same `handle_facts` envelope `POST /api/:coll` already uses.
+    // A creating command — facts only, no identity to route to.
     async fn declare(&mut self, verb: &str, facts: Value) -> Result<(), SaveRefusal> {
         let outcome = dispatch::handle_facts(self.client, self.wasm_path, verb, facts, None, self.lineage, self.invoker)
             .await
@@ -163,13 +93,8 @@ impl Writer<'_> {
         self.accepted(outcome)
     }
 
-    /// A command acting on an existing row — routed by that row's own
-    /// identity, the same `handle_routed` envelope `POST /api/:coll/:id/:command`
-    /// uses. `id` is the aggregate's own identity string: "Agg:state"
-    /// for StateStyle's composite `identified_by :agg, :state`, the
-    /// aggregate name for Collection, the literal "overview" for the
-    /// singleton — each one exactly what `PresentationConfig` passes as
-    /// `id:` today.
+    // A command acting on an existing row, routed by that row's own identity: "Agg:state" for
+    // StateStyle, the aggregate name for Collection, "overview" for the singleton.
     async fn route(&mut self, verb: &str, id: &str, facts: Value) -> Result<(), SaveRefusal> {
         let outcome =
             dispatch::handle_routed(self.client, self.wasm_path, verb, json!(id), facts, None, self.lineage, self.invoker)
@@ -178,10 +103,8 @@ impl Writer<'_> {
         self.accepted(outcome)
     }
 
-    /// A refusal stops the whole save where it happened — the same
-    /// "several independent dispatches, not one atomic write" risk
-    /// `PresentationConfig.save!` documents. `validate` above is what
-    /// makes this rare rather than routine.
+    // A refusal stops the whole save where it happened: several independent dispatches, not one
+    // atomic write. `validate` above is what makes this rare rather than routine.
     fn accepted(&self, outcome: dispatch::Outcome) -> Result<(), SaveRefusal> {
         if outcome.accepted {
             Ok(())
@@ -206,9 +129,7 @@ impl Writer<'_> {
                 if let Some(tone) = present(entry.get("tone")) {
                     self.route("ConsoleSettings::StateStyle.SetTone", &id, json!({"tone": {"value": tone}})).await?;
                 }
-                // `entry.key?("attention")` — an explicit `false` is a
-                // real answer to store, which is why this asks whether
-                // the key is there rather than whether it is truthy.
+                // Key presence, not truthiness: an explicit `false` is a real answer to store.
                 if let Some(attention) = entry.get("attention") {
                     let flag = if attention.as_bool() == Some(true) { "true" } else { "false" };
                     self.route("ConsoleSettings::StateStyle.SetAttention", &id, json!({"attention": {"value": flag}}))
@@ -253,10 +174,8 @@ impl Writer<'_> {
                 self.write_identity(agg, identity).await?;
             }
 
-            // Always dispatched, even for an absent list — a `Replace*`
-            // with nothing in it is the real, meaningful "none
-            // configured", the same way it is in Ruby, and is how a
-            // column removed from the config actually goes away.
+            // Always dispatched, even for an absent list: an empty `Replace*` is the meaningful
+            // "none configured", and is how a column removed from the config goes away.
             self.route(
                 "ConsoleSettings::Collection.ReplaceColumns",
                 agg,
@@ -318,9 +237,7 @@ impl Writer<'_> {
         self.route("ConsoleSettings::Collection.SetIdentity", agg, Value::Object(facts)).await
     }
 
-    /// **The one row** — `Declare`d once, on whichever save first reaches
-    /// here, then `ReplaceStats` whole on every save after, including
-    /// an empty list: "no stats configured" is a real answer.
+    // The one row: `Declare`d once, then `ReplaceStats` whole on every save, even an empty list.
     async fn write_overview(&mut self, overview: &Value, existing: &KernelRows) -> Result<(), SaveRefusal> {
         if existing.overview.is_empty() {
             self.declare("ConsoleSettings::Overview.Declare", json!({"key": {"value": "overview"}})).await?;
@@ -334,16 +251,8 @@ impl Writer<'_> {
     }
 }
 
-// ---- the extra_json passthrough, write side -------------------------
-//
-// Every KNOWN_*_KEYS list below names what this chapter models
-// individually; whatever a real entry carries beyond that is
-// subtracted out here and round-tripped through an `extra_json` field,
-// which `presentation.rs`'s own `merge_extra` reads back. The two lists
-// are deliberately the same constants Ruby keeps, in the same order, so
-// the read side and the write side can never drift on what counts as
-// "known".
-
+// Whatever a real entry carries beyond its KNOWN_*_KEYS is round-tripped through `extra_json`,
+// read back by `presentation.rs`'s `merge_extra`. Order matches Ruby's own constants exactly.
 const KNOWN_STATE_KEYS: &[&str] = &["tone", "attention"];
 const KNOWN_COLLECTION_KEYS: &[&str] = &[
     "label",
@@ -375,10 +284,8 @@ fn extra_fields(entry: &Value, known: &[&str]) -> Map<String, Value> {
     extra
 }
 
-/// Ruby truthiness for a config field: a missing key and an explicit
-/// null are both "not given". `false` is not filtered here — the one
-/// field that can legitimately be `false` (`attention`) is read by key
-/// presence, above, never through this.
+// A missing key and an explicit null are both "not given". `false` is never filtered here;
+// `attention`, the one field that can legitimately be `false`, is read by key presence instead.
 fn present(value: Option<&Value>) -> Option<&Value> {
     value.filter(|v| !v.is_null())
 }
@@ -387,15 +294,12 @@ fn columns_for_dispatch(columns: Option<&Value>) -> Vec<Value> {
     list(columns)
         .iter()
         .map(|column| {
-            // A column is either a bare field name or a descriptor
-            // hash — the same two shapes `validate_collection!` reads,
-            // and `presentation.yml` really did carry both.
+            // A column is either a bare field name or a descriptor hash — both shapes
+            // `validate_collection!` reads.
             let Some(object) = column.as_object() else { return json!({ "field": column }) };
             let mut row = Map::new();
             row.insert("field".to_string(), object.get("field").cloned().unwrap_or(Value::Null));
-            // "true"/"false" as strings — `Column#sortable` is a String
-            // attribute, see console_settings.bluebook's own comment on
-            // why no bluebook attribute here is a real boolean.
+            // "true"/"false" as strings: `Column#sortable` is a String attribute, not a boolean.
             if let Some(sortable) = object.get("sortable") {
                 row.insert("sortable".to_string(), json!(ruby_to_s(sortable)));
             }
@@ -433,10 +337,7 @@ fn detail_fields_for_dispatch(detail_fields: Option<&Value>) -> Vec<Value> {
         .collect()
 }
 
-/// Flattened to one row per (field, column) pair — see
-/// console_settings.bluebook's own comment on why a rows-field's
-/// sub-column filter is a separate list on the root rather than nested
-/// inside `DetailField`. `presentation.rs` groups it back by field.
+// Flattened to one row per (field, column) pair; `presentation.rs` groups it back by field.
 fn detail_field_columns_for_dispatch(detail_fields: Option<&Value>) -> Vec<Value> {
     let mut rows = Vec::new();
     for field in list(detail_fields) {
@@ -466,10 +367,8 @@ fn preconditions_for_dispatch(preconditions: Option<&Value>) -> Vec<Value> {
         .collect()
 }
 
-/// `field_formats` is a map in the config (`{field => format}`) and a
-/// list of `{field, format}` rows in the chapter — the same reshaping
-/// `presentation.rs`'s own `reshape_field_formats` undoes on the way
-/// out.
+// A config map (`{field => format}`) becomes a list of `{field, format}` rows; `presentation.rs`
+// undoes the reshape on the way out.
 fn field_formats_for_dispatch(field_formats: Option<&Value>) -> Vec<Value> {
     field_formats
         .and_then(|v| v.as_object())
@@ -490,10 +389,8 @@ fn stats_for_dispatch(stats: Option<&Value>) -> Vec<Value> {
             if let Some(field) = present(stat.get("field")) {
                 row.insert("field".to_string(), field.clone());
             }
-            // The stat's own recursive `where:` clause, serialized —
-            // hecks has no attribute type for "arbitrary nested map",
-            // so this is verified-then-opaque storage. `validate_where`
-            // below has already walked the real structure.
+            // Verified-then-opaque storage: hecks has no attribute type for an arbitrary nested
+            // map, and `validate_where` below has already walked the real structure.
             if let Some(clause) = present(stat.get("where")) {
                 row.insert("where_json".to_string(), json!(clause.to_string()));
             }
@@ -502,9 +399,7 @@ fn stats_for_dispatch(stats: Option<&Value>) -> Vec<Value> {
         .collect()
 }
 
-/// Ruby's `#to_s` for the values that reach a String-typed field here:
-/// a JSON string keeps its own characters (never `"\"true\""`), and
-/// anything else prints the way Ruby prints it.
+// Ruby's `#to_s`: a JSON string keeps its own characters (never `"\"true\""`).
 fn ruby_to_s(value: &Value) -> String {
     match value {
         Value::String(text) => text.clone(),
@@ -513,20 +408,12 @@ fn ruby_to_s(value: &Value) -> String {
     }
 }
 
-// ---- validation — presentation_config.rb, rule for rule -------------
-//
-// Every message below is `PresentationConfig`'s own, word for word:
-// this route has to refuse the way the Ruby engine refuses, or a
-// console that switched runtimes would start explaining the same
-// mistake differently. The tests at the bottom of this file pin the
-// wording against the strings in that file.
-
+// Every message below matches `PresentationConfig`'s own wording exactly, pinned by the tests
+// at the bottom of this file, so a console that switched runtimes explains a mistake the same way.
 type Refusal = Result<(), String>;
 
-/// `PresentationConfig.validate!` — the whole submitted config against
-/// the live domain, in the order Ruby checks it (states, then the
-/// both-directions completeness check, then collections, then the
-/// overview, then the one deliberate scope boundary).
+// Checks in the order Ruby does: states, the both-directions completeness check, collections,
+// the overview, then the one deliberate scope boundary.
 pub(crate) fn validate(config: &Value, domain_ir: &Value) -> Refusal {
     let aggregates = ui_schema::aggregates(domain_ir);
     let states = section(config, "states");
@@ -543,10 +430,8 @@ pub(crate) fn validate(config: &Value, domain_ir: &Value) -> Refusal {
     refuse_unsupported_yet(collections)
 }
 
-/// A collection's own `after_create` is validated in full above (its
-/// shape-checking never depended on storage), but there is nowhere to
-/// persist it yet — refusing here means a caller who tries loses
-/// nothing silently. A real, deliberate scope boundary, not a bug.
+// `after_create` is validated in full above but has nowhere to persist yet; refusing here means
+// a caller who tries loses nothing silently. A deliberate scope boundary, not a bug.
 fn refuse_unsupported_yet(collections: &Value) -> Refusal {
     for (agg_name, entry) in entries(collections) {
         if present(entry.get("after_create")).is_some() {
@@ -576,9 +461,8 @@ fn validate_states(agg_name: &str, per_state: &Value, aggregates: &[&Value]) -> 
     Ok(())
 }
 
-/// **Both directions, deliberately**. Checking only that `states` never
-/// names a state the domain doesn't have would still let a real state
-/// go quietly unstyled forever. This closes that half.
+// Both directions: checking only that `states` never names an unreal state would still let a
+// real state go quietly unstyled forever.
 fn missing_state_entries(states: &Value, aggregates: &[&Value]) -> Refusal {
     let mut missing = Vec::new();
     for aggregate in aggregates {
@@ -655,10 +539,8 @@ fn validate_collection(agg_name: &str, entry: &Value, aggregates: &[&Value], dom
     Ok(())
 }
 
-/// Looser than state validation on purpose — a column names an
-/// attribute (or `"__state__"`, the status pill) rather than a value
-/// the console's own CSS has to know how to render, so the check is
-/// "does this aggregate actually declare it", not a closed vocabulary.
+// Looser than state validation: a column names an attribute (or `"__state__"`), so the check is
+// "does this aggregate declare it", not a closed vocabulary.
 fn validate_columns(agg_name: &str, aggregate: &Value, columns: Option<&Value>) -> Refusal {
     for column in list(columns) {
         let key = column.get("field").filter(|_| column.is_object()).unwrap_or(column);
@@ -698,10 +580,8 @@ fn attribute_names(aggregate: &Value) -> String {
     ui_schema::array(aggregate, "attributes").iter().map(ui_schema::attr_name).collect::<Vec<_>>().join(", ")
 }
 
-/// A precondition names a reference field on this aggregate and a state
-/// its target must already be in. Caught here first if the field it
-/// names isn't a real reference at all, since that would otherwise fail
-/// silently — the check would simply never fire.
+// A non-reference field is caught here first, since otherwise the state check below would
+// simply never fire.
 fn validate_precondition(agg_name: &str, aggregate: &Value, rule: &Value, aggregates: &[&Value]) -> Refusal {
     let Some(field) = present(rule.get("field")) else {
         return Err(format!("{agg_name} has a precondition with no field named"));
@@ -732,10 +612,8 @@ fn validate_precondition(agg_name: &str, aggregate: &Value, rule: &Value, aggreg
     ))
 }
 
-/// `field_formats` is keyed by attribute name, not path — a nested
-/// compound field (a Member's `vesting.commencement_date`) is found
-/// this way too, since `ui_schema` threads the same map down through
-/// every level of recursion.
+// Keyed by attribute name, not path: a nested compound field is found the same way, since
+// `ui_schema` threads the same map down through every level of recursion.
 fn validate_field_formats(agg_name: &str, aggregate: &Value, formats: Option<&Value>) -> Refusal {
     let Some(map) = formats.and_then(|v| v.as_object()) else { return Ok(()) };
     for (field_name, format) in map {
@@ -765,9 +643,7 @@ fn nested_attribute(aggregate: &Value, field_name: &str) -> bool {
     })
 }
 
-/// An identity rule names one of this aggregate's own attributes (never
-/// a reference — there is nothing to derive from another aggregate's
-/// identity) and how to fill it without asking.
+// Never a reference: there is nothing to derive from another aggregate's identity.
 fn validate_identity(agg_name: &str, aggregate: &Value, rule: &Value) -> Refusal {
     let Some(field) = present(rule.get("field")) else {
         return Err(format!("{agg_name} has an identity rule with no field named"));
@@ -841,9 +717,7 @@ fn validate_detail_fields(agg_name: &str, aggregate: &Value, entries_value: Opti
     Ok(())
 }
 
-/// Which of a `list_of(entity)` field's own rows to show, by the
-/// entity's own lifecycle — only meaningful for an entity-backed rows
-/// field (a value object has no lifecycle at all).
+// Only meaningful for an entity-backed rows field: a value object has no lifecycle at all.
 fn validate_row_state_filter(
     agg_name: &str,
     aggregate: &Value,
@@ -870,11 +744,8 @@ fn validate_row_state_filter(
     ))
 }
 
-/// Which of a `list_of` field's own sub-columns to show — checked
-/// against whichever rows-shape this field actually holds, a value
-/// object or a piece. A `columns:` on a field that is neither is a
-/// config mistake this catches by refusing rather than silently doing
-/// nothing.
+// A `columns:` on a field that is neither a value object nor an entity is a config mistake
+// this catches by refusing rather than silently doing nothing.
 fn validate_row_columns(agg_name: &str, aggregate: &Value, key: &str, attribute: &Value, columns: &Value) -> Refusal {
     let type_name = ui_schema::type_of(attribute).to_string();
     let rows_source = ui_schema::find_value_object(aggregate, &type_name)
@@ -901,9 +772,8 @@ fn validate_row_columns(agg_name: &str, aggregate: &Value, key: &str, attribute:
     Ok(())
 }
 
-/// `list_query` names one of this aggregate's own declared queries.
-/// No-arg only: a query needing its own arguments has nowhere in a
-/// generic table view to get one from.
+// No-arg only: a query needing its own arguments has nowhere in a generic table view to get
+// one from.
 fn validate_list_query(agg_name: &str, aggregate: &Value, query_name: &Value) -> Refusal {
     let name = ruby_to_s(query_name);
     let Some(query) = find_query(aggregate, &name) else {
@@ -924,12 +794,8 @@ fn find_query<'a>(owner: &'a Value, name: &str) -> Option<&'a Value> {
     ui_schema::array(owner, "queries").iter().find(|q| q.get("name").and_then(|v| v.as_str()) == Some(name))
 }
 
-/// A creating command that isn't the whole story — `after_create` names
-/// a follow-up verb and how to fill its arguments. Checked against the
-/// target command's own declared attributes; the one thing this cannot
-/// check is whether a `$field` exists on the source aggregate, since
-/// every one of its own attributes is fair game — a real gap, and the
-/// same one Ruby names.
+// Cannot check whether a `$field` exists on the source aggregate, since every one of its own
+// attributes is fair game — a real gap, and the same one Ruby has.
 fn validate_after_create(agg_name: &str, after_create: &Value, aggregates: &[&Value], domain_ir: &Value) -> Refusal {
     let Some(dispatch_to) = present(after_create.get("dispatch")) else {
         return Err(format!("{agg_name}'s after_create names no dispatch"));
@@ -1032,9 +898,8 @@ fn validate_after_create_arg_spec(
     Ok(())
 }
 
-/// `collection` names a real, actual collection key — the one `key:`
-/// config can override — since a stat sits above any one aggregate the
-/// same way a table does.
+// `collection` names a collection key, the one `key:` config can override, since a stat sits
+// above any one aggregate the same way a table does.
 fn validate_overview(overview: &Value, aggregates: &[&Value], config: &Value) -> Refusal {
     let by_key: Vec<(String, &Value)> =
         aggregates.iter().map(|a| (ui_schema::collection_key(a, config), *a)).collect();
@@ -1071,12 +936,8 @@ fn validate_stat(stat: &Value, by_key: &[(String, &Value)]) -> Refusal {
     validate_where(stat.get("where").unwrap_or(&Value::Null), aggregate, by_key, &label)
 }
 
-/// Recurses through the same shape index.html's own `matchesWhere`
-/// reads at evaluation time: `not:` wraps another whole where clause,
-/// `has_related`/`not_has_related` is a cross-collection existence
-/// check, and every other key is read as `state` (a normalized alias
-/// for whatever this collection's own lifecycle field is really called)
-/// or as a literal attribute name.
+// Recurses through the same shape index.html's `matchesWhere` reads at evaluation time: `not:`
+// wraps another whole clause, and `has_related`/`not_has_related` is checked below.
 fn validate_where(clause: &Value, aggregate: &Value, by_key: &[(String, &Value)], label: &Value) -> Refusal {
     let Some(object) = clause.as_object() else { return Ok(()) };
     if let Some(negated) = object.get("not") {
@@ -1116,9 +977,7 @@ fn validate_where(clause: &Value, aggregate: &Value, by_key: &[(String, &Value)]
     Ok(())
 }
 
-/// Spelled `field:`, not `on:` — YAML 1.1 reads a bare `on:` as the
-/// boolean `true`, so the config key deliberately isn't one a person
-/// would type unquoted and get silently wrong.
+// Spelled `field:`, not `on:` — YAML 1.1 reads a bare `on:` as the boolean `true`.
 fn validate_has_related(spec: &Value, aggregate: &Value, by_key: &[(String, &Value)], label: &Value) -> Refusal {
     let Some(target_key) = present(spec.get("collection")) else {
         return Err(format!("overview stat {}'s has_related names no collection", inspect(label)));
@@ -1155,11 +1014,8 @@ fn validate_has_related(spec: &Value, aggregate: &Value, by_key: &[(String, &Val
     ))
 }
 
-/// Ruby's `#inspect`, for the values a presentation config can hold.
-/// The refusal messages this module reproduces embed it directly
-/// (`#{tone.inspect}`), so a Rust-shaped `Some("warn")` or a bare
-/// `warn` would be a visible divergence in the one place the two
-/// engines are supposed to read identically.
+// Ruby's `#inspect`: the refusal messages this module reproduces embed it directly, so any
+// other spelling would be a visible divergence.
 fn inspect(value: &Value) -> String {
     match value {
         Value::Null => "nil".to_string(),
@@ -1181,11 +1037,8 @@ fn inspect(value: &Value) -> String {
 mod tests {
     use super::*;
 
-    /// A domain with two aggregates, one of them lifecycle-less, a
-    /// reference, a rows-shaped value-object field and a no-arg query
-    /// — enough shape for every rule above to have something real to
-    /// check against, the same way `api.rs`'s own `domain()` fixture
-    /// does for its routes.
+    // Enough shape for every rule above to have something real to check against: a
+    // lifecycle-less aggregate, a reference, a rows-shaped field, and a no-arg query.
     fn domain() -> Value {
         json!({
             "name": "Console",
@@ -1228,8 +1081,7 @@ mod tests {
         })
     }
 
-    /// The smallest config this domain accepts — every real state
-    /// styled, which `missing_state_entries` requires of every save.
+    // The smallest config this domain accepts: every real state styled.
     fn complete() -> Value {
         json!({"states": {"Event": {"open": {}, "closed": {}}}})
     }
@@ -1527,8 +1379,6 @@ mod tests {
             "where": {"has_related": {"collection": "persons", "field": "email", "equals": "slug"}}}]});
         assert!(validate(&config, &domain()).is_ok());
     }
-
-    // ---- the dispatch shapes ----------------------------------------
 
     #[test]
     fn a_bare_column_name_and_a_descriptor_both_dispatch_as_a_row() {

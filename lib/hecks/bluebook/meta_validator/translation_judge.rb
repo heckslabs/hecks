@@ -1,24 +1,8 @@
 module Hecks
   module Bluebook
     module MetaValidator
-      # Offers a built translation (a `translations/*.bluebook` edge,
-      # `Hecks.data_translation`'s own real, established file convention —
-      # there is no separate `.translation` extension) to the language
-      # that describes translations.
-      #
-      # A sibling of a bluebook again, the same shape PortJudge/
-      # AdapterJudge already are — its own file, its own door, judged
-      # through its own self-hosted language (translation.bluebook)
-      # rather than left as plain Ruby structs nothing checks. Walks the
-      # whole built translation in one pass — the top-level Declare/
-      # Retire commands, then every nested aggregate's own Declare plus
-      # one Add* command per rule it carries — the same "one judge, every
-      # nested record" shape WorldJudge already gives Wiring. Field names
-      # throughout read lib/hecks/bluebook/translation.rb's own real
-      # struct/class definitions directly, not the DSL builder's own
-      # local parameter names (`move(old_path, to:)`'s `old_path` reads
-      # back as the struct's own `from`). Whole-project table-
-      # unification survey, item #13's remaining builders.
+      # Offers a built translation (a `translations/*.bluebook` edge) to the language that
+      # describes translations. Field names follow the `Translation` structs, not the DSL builder.
       class TranslationJudge
         attr_reader :refusals
 
@@ -36,18 +20,8 @@ module Hecks
 
         def args(pairs) = pairs.compact
 
-        # `Runtime::AlreadyExists` is rescued here but not by World/Port/
-        # Adapter's own sibling judges — found live, not by inspection.
-        # Those three each judge a single aggregate per build (Port/Adapter)
-        # or a Hash keyed by verb (World's own settings, deduped by
-        # construction), so a duplicate-identity Declare can never reach
-        # their own runtime. `TranslationBuilder#aggregate` appends every
-        # block to a plain Array (`@aggregates << builder.build`) with no
-        # dedup — two `aggregate "Account" do ... end` blocks in the same
-        # translation are syntactically legal and reach here for real.
-        # Left unrescued, the second Declare's `AlreadyExists` would crash
-        # straight through `call_translation` instead of becoming a clean
-        # refusal — confirmed via direct dispatch.
+        # Rescues `AlreadyExists` too: `TranslationBuilder#aggregate` does not dedup, so two
+        # same-named aggregate blocks reach here and must become a refusal, not a crash.
         def offer(label)
           yield
         rescue Runtime::GivenNotMet, Runtime::InvariantViolation, Runtime::TypeMismatch,
@@ -66,14 +40,7 @@ module Hecks
           send_to("Translation::Translation.Declare", t.domain,
                   with: { domain: v(t.domain), from: v(t.from), to: v(t.to) })
 
-          # `id:`, computed the same way — `Naming.identity([domain, from,
-          # to])` — Translation's own identity is composite
-          # (`identified_by :domain, :from, :to`), the same reason
-          # `Wiring.Set`'s own self-reference dispatch (world.bluebook,
-          # `WorldJudge#judge_wiring`) needs a computed `id:` rather than
-          # a bare field value — a single-field identity (TranslationAggregate's
-          # own `name`) is the one case where the bare value itself is the
-          # id, confirmed live via direct dispatch testing, not assumed.
+          # Translation's identity is composite, so `id:` must be computed, not a bare field.
           translation_id = Naming.identity([t.domain, t.from, t.to])
           Array(t.retired).each do |name|
             send_to("Translation::Translation.Retire", t.domain, to:   translation_id,
@@ -83,11 +50,8 @@ module Hecks
           Array(t.aggregates).each { |aggregate| judge_aggregate(t, aggregate) }
         end
 
-        # One Declare, then one AddX pass per rule collection the aggregate
-        # carries — each pass is independent of the others (they mutate
-        # different fields), so each is its own private method below; only
-        # Declare-before-any-Add is order-sensitive, and that order is
-        # preserved here.
+        # Declares the aggregate, then adds each rule collection. Only Declare-before-Add is
+        # order-sensitive.
         def judge_aggregate(translation, aggregate)
           name = aggregate.name
           declare_aggregate(translation, aggregate, name)

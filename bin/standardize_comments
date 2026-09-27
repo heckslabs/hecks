@@ -1,35 +1,15 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
-# Checks Ruby comments against docs/COMMENT_STYLE_GUIDE.md.
-#
-# ## Modes
+# Checks Ruby comments against docs/COMMENT_STYLE_GUIDE.md, and fixes the
+# mechanical categories.
 #
 #   bin/standardize_comments --report lib/hecks   # summary tables (default)
-#   bin/standardize_comments --check  lib/hecks   # one line per violation, exit 1 if any
-#   bin/standardize_comments --fix    lib/hecks   # rewrite the mechanical categories
-#   bin/standardize_comments --write-baseline lib/hecks   # record today's long blocks
+#   bin/standardize_comments --check  lib/hecks   # exit 1 on any violation
+#   bin/standardize_comments --fix    lib/hecks   # rewrite mechanical categories
 #
-# `--only all_caps,long_line` narrows any mode to the named categories and
-# `--json` swaps the report for machine-readable output.
-#
-# ## What `--fix` touches
-#
-# Only `all_caps` and `long_line` are mechanical. Every other category needs
-# someone to read the code, so the fixer leaves it alone. A fix is written
-# only when the file's non-comment token stream is unchanged afterwards.
-#
-# ## Long blocks and the baseline
-#
-# `long_block` flags a run of more than `MAX_BLOCK` consecutive comment lines.
-# The blocks that already exceed it are listed in
-# `.standardize_comments_baseline.json`, so only a new block, or a baselined
-# block that has grown, fails. See docs/COMMENT_STYLE_GUIDE.md, section 6.
-#
-# ## CI
-#
-# CI runs `bin/standardize_comments --check lib/hecks` as a gate
-# (.github/workflows/ci-checks.yml, job `checks_static`).
+# A fix is written only when it leaves the file's non-comment tokens unchanged.
+# CI runs `--check lib/hecks` as a gate (.github/workflows/ci-checks.yml).
 
 require "English"
 require "json"
@@ -44,9 +24,8 @@ module CommentStyle
   MAX_HEADING_WORDS = 6
 
   # A run of comment lines longer than this is a `long_block`, unless the baseline holds it.
-  # The threshold is provisional: ADR 0069 leaves it open, and 50 is the smallest of the
-  # values its ticket floated.
-  MAX_BLOCK = 50
+  # ADR 0075 ticket 01 sets this value, amending ADR 0069's provisional 50.
+  MAX_BLOCK = 12
 
   # Longest anchor kept in a block's baseline key.
   MAX_ANCHOR = 80
@@ -81,6 +60,7 @@ module CommentStyle
     SAM SAVEPOINT SDK SELECT SHA SME SQL SSH SSL SSM SW STDERR STDIN STDOUT TCP TLA TLS TOCTOU TODO TTL UID UL
     URI URL UTC UTF UUID VO WASM XML YAML
     ACL ALB BC GNU OAC WAF
+    CLOUDFRONT ECS HSM KMS
   ].to_set.freeze
 
   # Names whose correct spelling is neither all-caps nor all-lowercase.
@@ -166,14 +146,13 @@ module CommentStyle
   CODE_NOISE = %i[on_comment on_sp on_nl on_ignored_nl].freeze
 
   Violation = Struct.new(:path, :line, :category, :message)
-  MethodDef = Struct.new(:name, :line, :params, :visibility, :raises, :block_param)
+  MethodDef = Struct.new(:name, :line, :params, :visibility, :raises, :block_param, :type_fqn)
   TypeDef = Struct.new(:fqn, :line, :namespace_only)
   Comment = Struct.new(:line, :col, :text, :full_line)
   Block = Struct.new(:line, :lines, :key)
 
-  # Decides whether a capitalised token is an English word being shouted.
-  # Anything else (an initialism, an identifier, a product name) keeps its
-  # capitals and is reported for a person to look at.
+  # Decides whether a capitalised token is an English word being shouted;
+  # anything else keeps its capitals and is reported for a person to look at.
   module Dictionary
     WORDS = "/usr/share/dict/words"
 
@@ -202,8 +181,6 @@ module CommentStyle
     module_function
 
     # Loads and memoizes the system word list, once per process.
-    #
-    # @return [Set<String>, nil] lower-case word list, or nil when this machine has none
     def words
       return @words if defined?(@words)
 
@@ -211,9 +188,7 @@ module CommentStyle
     end
 
     # Checks a capitalized token against the word list, stripped and stemmed.
-    #
-    # @param word [String] a token, in any case, possibly a contraction
-    # @return [Boolean] true for an English word, and always true with no word list to consult
+    # Always true when this machine has no word list to consult.
     def english?(word)
       return true unless words
 
@@ -228,8 +203,6 @@ module CommentStyle
   end
 
   # Class and module names defined under `lib/`, keyed by their shouted form.
-  #
-  # @return [Hash{String => String}] such as `"POSTGRESERA" => "PostgresEra"`
   def self.class_names
     @class_names ||= Dir["lib/**/*.rb"].each_with_object({}) do |file, names|
       File.read(file).scan(/^\s*(?:class|module)\s+([A-Z]\w*)/) do |(name)|
@@ -239,39 +212,38 @@ module CommentStyle
   end
 
   # Lexes `source` and drops every comment and whitespace token.
-  #
-  # @param source [String] Ruby source
-  # @return [Array<String>] every token that is not a comment or whitespace
   def self.code_tokens(source)
     Ripper.lex(source).reject { |token| CODE_NOISE.include?(token[1]) }.map { |token| token[2] }
   end
 
+  # Bare class/module names on Hecks's documented public surface (ADR 0075 ticket 01):
+  # an operator or a client calls these directly. The DSL itself (`aggregate`,
+  # `command`, `query`, ...) is invoked through the `Hecks.bluebook` block, not by
+  # naming a builder class, so its builder classes stay off this list.
+  #
+  # A method's structural checks (tags, `undocumented_method`) apply only when its
+  # innermost enclosing type's own name is here; everything else is internal and
+  # needs no doc unless it carries a real why.
+  PUBLIC_SURFACE = Set["Storehouse"].freeze
+
+  def self.public_surface
+    PUBLIC_SURFACE
+  end
+
   # The checked-in list of comment blocks already over `MAX_BLOCK` lines.
   #
-  # A block is identified by its file and a key: the text of its first line, with a
-  # `#2`, `#3` suffix when the same text opens several blocks in one file. That key
-  # survives edits above the block, which a line number would not. A block is
-  # tolerated while its length does not exceed the length recorded here; a longer one,
-  # or one with no entry, is a `long_block` violation.
+  # Keyed by first-line text, not line number, so edits above a block don't break its key.
   module Baseline
     PATH = File.expand_path("../.standardize_comments_baseline.json", __dir__)
 
     module_function
 
     # Reads the baseline from disk.
-    #
-    # @param path [String] the baseline file
-    # @return [Hash{String => Hash{String => Integer}}] file path to block key to length,
-    #   empty when there is no baseline file
     def load(path = PATH)
       File.exist?(path) ? JSON.parse(File.read(path)) : {}
     end
 
     # Writes a baseline in a stable order, so a rewrite shows only real changes in a diff.
-    #
-    # @param blocks [Hash{String => Hash{String => Integer}}] file path to block key to length
-    # @param path [String] the baseline file
-    # @return [void]
     def dump(blocks, path = PATH)
       sorted = blocks.sort.to_h { |file, keys| [file, keys.sort.to_h] }
       File.write(path, "#{JSON.pretty_generate(sorted)}\n")
@@ -282,8 +254,6 @@ module CommentStyle
   class SourceFile
     attr_reader :path, :lines, :comments
 
-    # @param path [String] file to lint
-    # @param source [String, nil] contents, read from `path` when nil
     def initialize(path, source = nil)
       @path = path
       @source = source || File.read(path)
@@ -295,10 +265,6 @@ module CommentStyle
     end
 
     # Finds every place this file departs from the style guide.
-    #
-    # @param only [Array<String>, nil] categories to keep, all when nil
-    # @param baseline [Hash{String => Hash{String => Integer}}] the long blocks to tolerate
-    # @return [Array<Violation>]
     def violations(only: nil, baseline: {})
       return [] if generated?
 
@@ -308,8 +274,6 @@ module CommentStyle
     end
 
     # Finds every run of consecutive full-line comments longer than `MAX_BLOCK`.
-    #
-    # @return [Array<Block>] each block's first line, length and baseline key
     def long_blocks
       return [] if generated?
 
@@ -318,11 +282,7 @@ module CommentStyle
       runs.select { |run| run.size > MAX_BLOCK }.map { |run| Block.new(run.first.line, run.size, block_key(run, seen)) }
     end
 
-    # Rewrites the mechanical categories.
-    #
-    # @param only [Array<String>, nil] categories to fix, every fixable one when nil
-    # @return [String] the fixed source, or the original when nothing changed
-    # @raise [RuntimeError] if the rewrite would alter a non-comment token
+    # Rewrites the mechanical categories; raises rather than write a change that alters code.
     def fixed(only: nil)
       return @source if generated?
 
@@ -337,32 +297,23 @@ module CommentStyle
     end
 
     # Parses this file's structure once and caches it.
-    #
-    # @return [Array<TypeDef>] every class and module opened in this file
     def types
       test_file? || generated? ? [] : structure.last
     end
 
     # A generated file's comments belong to its generator, and its
     # `GENERATED ... DO NOT EDIT` banner is a convention tools recognise.
-    #
-    # @return [Boolean]
     def generated?
       @lines.first(8).join.match?(/\bgenerated\b.*?\bdo not edit\b/im)
     end
 
     # Helpers defined inside a spec are test scaffolding, not API, so the
     # doc-tag categories skip them. The prose categories still apply.
-    #
-    # @return [Boolean]
     def test_file?
       path.end_with?("_spec.rb")
     end
 
-    # Answers whether a `class`/`module` has its own doc comment.
-    #
-    # @param type [TypeDef]
-    # @return [Boolean] whether a comment block sits directly above the definition
+    # A `class`/`module` is documented only if a comment block sits directly above it.
     def documented?(type)
       !doc_above(type.line).empty?
     end
@@ -463,7 +414,6 @@ module CommentStyle
       [Violation.new(path, comment.line, "long_line", "#{length} characters")]
     end
 
-    # @return [Array<Array(Integer, String, String)>] offset, word, replacement
     def caps_words(comment)
       masked = mask(comment)
       matches = []
@@ -628,8 +578,6 @@ module CommentStyle
 
     # An all-caps run that opens a paragraph and stops at a dash or a full stop
     # is that paragraph's heading, so it becomes bold rather than plain text.
-    #
-    # @return [Array(Integer, Integer), nil] start and end offsets of the run
     def heading_run(comment, found)
       masked = mask(comment)
       return unless found.size >= 2 && paragraph_start?(comment, masked, found.first[0])
@@ -698,6 +646,7 @@ module CommentStyle
 
     def method_violations(method)
       return [] unless method.visibility == :public
+      return [] unless CommentStyle.public_surface.include?(method.type_fqn.to_s.split("::").last)
 
       doc = doc_above(method.line).join("\n")
       if doc.empty?
@@ -774,7 +723,6 @@ module CommentStyle
 
     attr_reader :methods, :types
 
-    # @return [void]
     def initialize
       @methods = []
       @types = []
@@ -782,10 +730,6 @@ module CommentStyle
     end
 
     # Visits one Ripper node, recording any method or type it defines.
-    #
-    # @param node [Array, Object] Ripper s-expression node
-    # @param scope [Scope] enclosing lexical scope
-    # @return [void]
     def walk(node, scope)
       return unless node.is_a?(Array)
 
@@ -793,8 +737,8 @@ module CommentStyle
       when :class then open_type(node[1], node[3], scope)
       when :module then open_type(node[1], node[2], scope)
       when :sclass then walk_body(node[2], Scope.new(scope.nesting, :public))
-      when :def then record(node[1], node[2], node[3], scope.visibility)
-      when :defs then record(node[3], node[4], node[5], :public)
+      when :def then record(node[1], node[2], node[3], scope.visibility, scope.nesting)
+      when :defs then record(node[3], node[4], node[5], :public, scope.nesting)
       when :vcall, :var_ref then switch_visibility(node, scope)
       when :command, :method_add_arg then visibility_call?(node, scope) || walk_children(node, scope)
       else walk_children(node, scope)
@@ -852,8 +796,8 @@ module CommentStyle
         next unless argument.is_a?(Array)
 
         case argument[0]
-        when :def then record(argument[1], argument[2], argument[3], :private)
-        when :defs then record(argument[3], argument[4], argument[5], :private)
+        when :def then record(argument[1], argument[2], argument[3], :private, scope.nesting)
+        when :defs then record(argument[3], argument[4], argument[5], :private, scope.nesting)
         when :symbol_literal, :dyna_symbol
           @private_names << argument.flatten.grep(String).last
         else walk(argument, scope)
@@ -862,9 +806,10 @@ module CommentStyle
       true
     end
 
-    def record(name_node, params, body, visibility)
+    def record(name_node, params, body, visibility, nesting)
       names, block = parameter_names(params)
-      @methods << MethodDef.new(name_node[1], name_node[2][0], names, visibility, raises?(body), block)
+      @methods << MethodDef.new(name_node[1], name_node[2][0], names, visibility, raises?(body), block,
+                                nesting.join("::"))
     end
 
     def parameter_names(params)
@@ -1009,6 +954,7 @@ module CommentStyle
     def undocumented_types(sources)
       openings = sources.flat_map { |s| s.types.reject(&:namespace_only).map { |t| [s, t] } }
       openings.group_by { |_, type| type.fqn }.filter_map do |fqn, group|
+        next unless CommentStyle.public_surface.include?(fqn.to_s.split("::").last)
         next if group.any? { |source, type| source.documented?(type) }
 
         source, type = group.first
@@ -1018,9 +964,6 @@ module CommentStyle
   end
 
   # Builds the CLI's option parser, filling `options` as flags are seen.
-  #
-  # @param options [Hash] mutated in place as each flag is parsed
-  # @return [OptionParser]
   def self.option_parser(options)
     OptionParser.new do |opts|
       opts.banner = "Usage: bin/standardize_comments [--report|--check|--fix] [--only a,b] PATH..."
@@ -1041,10 +984,6 @@ module CommentStyle
   end
 
   # Prints `--report`, `--check`, or `--json` output for a finished run.
-  #
-  # @param run [Run] the run whose violations to render
-  # @param options [Hash] parsed CLI options (`:mode`, `:json`, `:top`)
-  # @return [Integer] process exit status
   def self.render(run, options)
     found = run.violations
     if options[:json]
@@ -1058,9 +997,6 @@ module CommentStyle
   end
 
   # The CLI entry point: parses `argv` and runs the requested mode.
-  #
-  # @param argv [Array<String>]
-  # @return [Integer] process exit status
   def self.main(argv)
     options = { mode: :report, top: 20 }
     parser = option_parser(options)
@@ -1079,9 +1015,6 @@ module CommentStyle
   end
 
   # Rewrites the baseline file from the blocks over `MAX_BLOCK` lines that `run` finds.
-  #
-  # @param run [Run] the run whose files to record
-  # @return [Integer] process exit status
   def self.write_baseline(run)
     held = run.long_block_baseline
     Baseline.dump(held)
@@ -1090,9 +1023,6 @@ module CommentStyle
   end
 
   # Prints `--code-unchanged`'s verdict.
-  #
-  # @param changed [Array<String>] paths `Run#code_changed_since` flagged
-  # @return [Integer] process exit status
   def self.report_code_changes(changed)
     changed.each { |path| puts "#{path}: code changed, not just comments" }
     puts "code unchanged" if changed.empty?

@@ -1,33 +1,12 @@
-//! Assembles the "prelude" section of a per-aggregate generated `.rs`
-//! file — everything `rust/project/domain_generator.rb#call` writes for
-//! one aggregate before its commands loop starts: the file header, every
-//! value object (+ its JSON/closed-set codec), every entity (+ its JSON
-//! codec and, when routable, `extract_id`/`extract_wants`/
-//! `self_identity`), the aggregate record itself (+ its JSON codec, the
-//! `ToJson` trait bridge, and its own `extract_id` when routable).
-//!
-//! This is the real, verifiable byte-exact target for Stage 7's scoped
-//! slice: commands/mutations/queries/read_models/reactions/ports/
-//! registry (rust/project/{commands,mutations,queries,read_models,
-//! reactions,ports,registry,bridging}.rb) are not ported this stage (see
-//! the stage report), so a whole aggregate `.rs` file can't be
-//! reconstructed yet — but this prelude is a real, substantial,
-//! contiguous prefix of that file, assembled by literally replicating
-//! `domain_generator.rb`'s own `f.puts` call sequence up to (not
-//! including) `aggregate[:commands].each`, so it byte-matches the
-//! corresponding prefix of the real generated file directly.
-//!
-//! `f.puts` semantics matter for the exact byte output: Ruby's `puts`
-//! appends a trailing "\n" only if the string doesn't already end in one
-//! — `puts_str`/`puts_blank` below mirror that exactly, since several
-//! `emit_*` functions already carry their own trailing "\n" (see their
-//! own header comments) and several don't.
+//! The prelude of a per-aggregate generated `.rs` file: everything
+//! `domain_generator.rb` writes before the commands loop, byte for byte.
 
 use crate::exemplar::Exemplar;
 use crate::json::Json;
 use crate::{json_codec, types};
 use std::collections::HashMap;
 
+// Mirrors Ruby's `puts`: appends "\n" only when the string does not already end in one.
 fn puts_str(out: &mut String, s: &str) {
     out.push_str(s);
     if !s.ends_with('\n') {
@@ -50,10 +29,8 @@ fn lifecycle_extra_field(node: &Json) -> Vec<(String, String)> {
     }
 }
 
-/// One aggregate's own prelude text, or `None` when
-/// `unsupported_attribute_types` says `domain_generator.rb` would skip
-/// this aggregate entirely (no `.rs` file at all — matching that absence
-/// exactly, not emitting a partial one).
+/// One aggregate's prelude text, or `None` when the aggregate has unsupported attribute
+/// types and no `.rs` file is generated for it.
 pub fn aggregate_prelude(exemplar: &Exemplar, ir: &Json, aggregate: &Json, source_label: &str) -> Option<String> {
     let value_objects = aggregate.get("value_objects").map(Json::each).unwrap_or(&[]);
     let value_objects_by_name: HashMap<String, &Json> = value_objects.iter().map(|vo| (vo.get("name").and_then(Json::as_str).unwrap_or("").to_string(), vo)).collect();
@@ -105,8 +82,6 @@ pub fn aggregate_prelude(exemplar: &Exemplar, ir: &Json, aggregate: &Json, sourc
         if json_codec::extract_id_supported(entity) {
             puts_str(&mut out, &json_codec::emit_extract_id(exemplar, entity));
             puts_blank(&mut out);
-            // BUG#140 — see `rust/project/domain_generator.rb`'s own
-            // identical comment (`json_codec::emit_extract_id_lenient`).
             puts_str(&mut out, &json_codec::emit_extract_id_lenient(exemplar, entity));
             puts_blank(&mut out);
             puts_str(&mut out, &json_codec::emit_extract_wants(exemplar, entity));

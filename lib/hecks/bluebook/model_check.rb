@@ -3,151 +3,36 @@ require_relative "model_check/client_profile"
 
 module Hecks
   module Bluebook
-    # Lightweight formal methods over the IR — the same family as TLA+/
-    # Alloy/P: every lifecycle is a declared finite state machine and
-    # every process manager a declared protocol, and both are already
-    # data, not code, so they can be model-checked rather than merely
-    # executed. Static analysis only — no bluebook boots twice, no
-    # runtime is touched — over what meta_validator/judge.rb and the
-    # builders' own `validate!` methods leave uncovered (an undeclared
-    # transition target, a dispatch to nowhere, a compensation nothing
-    # can ever reach).
-    #
-    # **The rare property this rests on**: the model is the implementation.
-    # A checker over TLA+ verifies a spec a human keeps in sync with
-    # code by hand ; this verifies the same IR the runtime dispatches
-    # against, so there is no second copy to drift.
+    # Static formal checks over the assembled bluebook IR: lifecycles as state
+    # machines, process managers as protocols, checked as data without booting a runtime.
     module ModelCheck
       Finding = Struct.new(:kind, :severity, :subject, :message, keyword_init: true) do
         def to_s = "#{severity.to_s.upcase.ljust(7)} #{kind.to_s.ljust(20)} #{subject}  —  #{message}"
       end
 
-      # **A finding shipped, not silenced** — the coverage-gate idiom, empty
-      # allowlists enforced both directions (spec/model_check_spec.rb holds
-      # this exact table: an error the checker reports and this does not
-      # name is a regression, an entry the checker does not report is
-      # stale and must be deleted). bin/model_check reads this same
-      # constant, so the tool and the spec can never drift apart.
-      #
-      # "banking"/ExternalSettlement — found on the first real run:
-      # ExternalSettlement declares `ends_on "ExternalTransferSent"`, and
-      # ExternalTransfer.Send genuinely emits it — the event is real, and
-      # the aggregate reaches "sent" (its own, separate lifecycle) — but
-      # the saga's protocol has no `on "ExternalTransferSent"` handler, so
-      # its own `state "sent"` is unreachable through the chain the
-      # checker walks, and the saga's own bookkeeping (saga_log, ends_on)
-      # never closes it. Real domain activity is unaffected; the saga's
-      # own tracking of it is not. Left named rather than redesigning a
-      # corpus fixture that is not this checker's to redesign.
-      # S7, ADR 0025 — an ExternalSettlement finding once lived here as an
-      # allowlist entry and is gone now, not just quieted: its "sent" state
-      # was a `state "x"` line never named by any handler's own from:/to:, a
-      # pure declaration-drift artifact. States are derived from the
-      # transitions that name them now (ProcessManagerBuilder#derived_
-      # states), so a state nothing ever transitions into or out of does
-      # not exist to be unreachable — the finding that entry allowlisted
-      # cannot occur, by construction.
-      #
-      # "banking"/NotifyOnClosure, FlagKeyReturn — gone from here, moved
-      # to banking. `across "Notifications"` names a domain that does not
-      # exist anywhere in this repo, deliberately (it exercises the
-      # undelivered-reaction runtime path — `spec/runtime/policy_spec.rb`,
-      # "records a reaction it cannot deliver rather than swallowing it").
-      # That expectation is now declared on the two policies themselves —
-      # `across "Notifications", expect_undelivered: true` — and
-      # `expected_undelivered_findings` below holds it in both directions:
-      # the unknown-target and unacknowledged-relationship findings are
-      # expected, and a declaration whose target turns out reachable is a
-      # `stale_undelivered_expectation` error. A domain's own allowance
-      # lives in its own source, never in a core table keyed by its name.
-      #
-      # Pinned empty (spec/model_check_spec.rb), the way `bin/fuzz`'s
-      # `KNOWN_FUZZ_FINDINGS` is: a finding a domain means to keep belongs
-      # in that domain's own declaration.
-      ALLOWED_FINDINGS = {
-        # QualityControl was the first domain in this corpus to trigger an
-        # `asks`/`tells` port operation from a `policy`, and once carried
-        # two entries here for it — both gone now, not just quieted:
-        #
-        # `deaf_policy` (ClearOnPass, RefuseOnFail, RecordTheIssue,
-        # RecordTheRefusal) went first: `emitted_events` below now reads an
-        # outbound operation's `.answers`/`.refuses` the same way it already
-        # read a command's `.emits`, so `Clearance.SuitePassed`/`SuiteFailed`
-        # and `Ticket.IssueFiled`/`IssueFilingRefused` enter the known-emits
-        # set for real — the same fix `bin/qa_pr_check`'s own move to
-        # dispatching through the CI port (rather than `Clearance::Passed`/
-        # `Failed` directly) needed to make these two policies actually fire.
-        #
-        # `unknown_trigger` (FileWhenSubmitted, AskOnceMore) — BUG#23 — was
-        # never actually a `Naming`/`PolicyBuilder` defect, confirmed by
-        # tracing the real dispatch path rather than trusting a stale
-        # comment that once sat here: `Naming.command_ref`'s bare-constant
-        # rewrite does leave `trigger Ticket::IssueTracker::File` (aggregate,
-        # port, operation) as "Ticket::IssueTracker.File", a leftover `::`
-        # past the aggregate — but `PolicyInterpreter#deliver` re-qualifies
-        # every trigger with this domain's own name before dispatch
-        # ("QualityControl::Ticket::IssueTracker.File"), and `Naming.
-        # split_verb` already folds that reintroduced `::` into the
-        # dot-joined tail correctly (the same fix `ReactionInvocation#
-        # resolve_target` already carries) — confirmed live: a real
-        # dispatch through `Ticket.Submit` fires
-        # `IssueFiled`/`TicketFiled` exactly as declared. The actual gap was
-        # entirely in this checker: `verbs_of` never enumerated a port
-        # operation as a triggerable verb at all, and `policy_findings`
-        # compared raw strings instead of `Naming.split_verb` triples the
-        # way `handler_findings`'s own `unknown_dispatch` check already does
-        # (BUG#6). Fixed with `port_verbs_of`/`triggerable_verbs`, scoped
-        # entirely to this file — no change to `Naming` or `PolicyBuilder`
-        # was needed or made.
-      }.freeze
+      # Findings a domain deliberately allows, enforced in both directions by
+      # spec/model_check_spec.rb: an error this checker reports but isn't listed
+      # here is a regression; an entry listed but never reported is stale. Pinned
+      # empty — a domain's own allowance belongs on its own declaration. (ADR 0025)
+      ALLOWED_FINDINGS = {}.freeze
 
       # The profiles `call` accepts; `nil` is the default, unprofiled run.
       PROFILES = %i[client].freeze
 
       module_function
 
-      # Runs every static model check over `bluebook` and returns what it
-      # finds.
-      #
-      # `hecksagon:`/`known_domains:` — both optional, both `nil`-safe
-      # (every existing caller with no sibling hecksagon, or checking one
-      # domain in isolation, behaves exactly as before). `hecksagon` is
-      # this bluebook's own sibling wiring file, if the caller loaded one
-      # (see `emitted_events`'s own comment on why a caller that didn't
-      # simply finds none, correctly). `known_domains` is the caller's
-      # own corpus-wide view — every bluebook/hecksagon name it has
-      # booted anywhere, across every domain it has looked at, not just
-      # this one — used only to catch a typo'd `across`/`uses_framework`
-      # target; see `cross_domain_policy_findings`'s own comment for why
-      # this can only ever be a corpus-scoped heuristic, never a general
-      # correctness guarantee.
-      #
-      # `rust_target:`/`strict:` — both default false, both only change the
-      # severity of `rust_reserved_name` findings (see
-      # `rust_reserved_name_findings`); every other finding is unaffected.
+      # Runs every static model check over `bluebook` and returns what it finds.
       #
       # @param bluebook [Bluebook::Chapter] the assembled chapter to check
-      # @param hecksagon [Bluebook::Hecksagon, nil] this bluebook's own
-      #   sibling wiring file, if the caller loaded one
-      # @param known_domains [Set<String>, nil] every bluebook/hecksagon
-      #   name the caller has booted anywhere in this corpus scan
-      # @param global_emitted_events [Set<String>, nil] every bare event
-      #   name any domain the caller has booted this run emits — lets a
-      #   same-domain-target policy (e.g. one built by `translates`)
-      #   reacting to a genuinely foreign event avoid a false `deaf_policy`
-      #   finding; `nil` (every pre-existing call site) keeps today's
-      #   single-domain-only check
-      # @param rust_target [Boolean] whether this domain has a real Rust
-      #   target, raising `rust_reserved_name` findings to error
-      # @param strict [Boolean] whether to raise every `rust_reserved_name`
-      #   finding to error regardless of `rust_target`
-      # @param profile [Symbol, nil] `:client` adds `ClientProfile`'s error
-      #   findings for constructs known to answer wrongly without refusing;
-      #   `nil` (the default) adds nothing and leaves every other finding as
-      #   it was
-      # @return [Array<Finding>] every finding this bluebook triggers,
-      #   across its lifecycles, sagas, policies, and Rust-reserved names
-      # @raise [ArgumentError] if `profile` is neither `nil` nor `:client`
+      # @param hecksagon [Bluebook::Hecksagon, nil] this bluebook's own sibling wiring
+      #   file, if the caller loaded one
+      # @param known_domains [Set<String>, nil] every bluebook/hecksagon name booted
+      #   anywhere in this corpus scan, checked to catch a typo'd across/uses_framework target
+      # @param global_emitted_events [Set<String>, nil] every event emitted anywhere in
+      #   the corpus, checked as a fallback so a translates reaction isn't flagged deaf
+      # @param profile [Symbol, nil] :client adds ClientProfile's error findings
+      # @return [Array<Finding>] every finding this bluebook triggers
+      # @raise [ArgumentError] if profile is neither nil nor :client
       def call(bluebook, hecksagon: nil, known_domains: nil, global_emitted_events: nil, rust_target: false, strict: false,
                profile: nil)
         unless profile.nil? || PROFILES.include?(profile)
@@ -170,41 +55,16 @@ module Hecks
         findings
       end
 
-      # ── Rust reserved names ───────────────────────────────────────────
+      # Flags an aggregate or domain name that collides with a Rust keyword or reserved
+      # Cargo key — both become bare module identifiers with no `r#` escape hatch.
       #
-      # A name that becomes a bare Rust module identifier with no `r#`
-      # escape hatch: an aggregate (`pub mod <name.downcase>;` plus its
-      # `<name.downcase>.rs` file) and a domain (`pub mod <name>;` and a
-      # Cargo `[features]` key). Field names are not checked — both
-      # generators already raw-escape those (`rust_ident_field`).
-      #
-      # The words come from the `RustReservedWord`/`CargoReservedName`
-      # vocabularies, the same tables `rust/project/naming.rb` and
-      # hecks-codegen's generated `reserved_names.rs` read. Both Rust
-      # generators refuse through this check (`Projector.
-      # reserved_name_refusal`, and its hecks-codegen port in `naming.rs`).
-      #
-      # Severity: a domain that only ever runs in Ruby is fine with an
-      # aggregate named `Match`, so this warns by default. It is an error
-      # when the caller says the domain has a Rust target (`rust_target:` —
-      # `bin/model_check` reads it off the domain's Cargo feature, the
-      # generators always pass it) or asks for strictness (`strict:`,
-      # `bin/model_check --strict`).
-      #
-      # The module-name transform is `downcase`, the one both generators
-      # apply to an aggregate name and to an attached chapter's name.
-      #
-      # @param domain_name [String, Symbol, nil] the domain's own name, or
-      #   `nil` to skip the domain-level check
-      # @param aggregate_names [Array<String, Symbol>] every aggregate name
-      #   to check
-      # @param rust_target [Boolean] whether this domain has a real Rust
-      #   target, raising severity to error
-      # @param strict [Boolean] whether to raise severity to error
-      #   regardless of `rust_target`
-      # @return [Array<Finding>] one `:rust_reserved_name` finding per
-      #   aggregate or domain name that collides with a Rust or Cargo
-      #   reserved word
+      # @param domain_name [String, Symbol, nil] the domain's own name, or nil to skip
+      #   the domain-level check
+      # @param aggregate_names [Array<String, Symbol>] every aggregate name to check
+      # @param rust_target [Boolean] raises severity to error when this domain has a
+      #   real Rust target
+      # @param strict [Boolean] raises severity to error regardless of rust_target
+      # @return [Array<Finding>] one :rust_reserved_name finding per colliding name
       def rust_reserved_name_findings(domain_name: nil, aggregate_names: [], rust_target: false, strict: false)
         severity = rust_target || strict ? :error : :warning
         keywords = Hecks::Vocabulary.fetch("RustReservedWord")
@@ -221,17 +81,7 @@ module Hecks
         findings
       end
 
-      # Checks the domain's own module/Cargo-feature name, one level up
-      # from `rust_reserved_name_findings`'s own per-aggregate check.
-      #
-      # @param domain_name [String, Symbol] the domain's own name
-      # @param keywords [Array<String>] the admitted `RustReservedWord`
-      #   vocabulary rows
-      # @param severity [Symbol] the finding severity to use, `:error` or
-      #   `:warning`
-      # @return [Array<Finding>] a single-element array holding a
-      #   `:rust_reserved_name` finding, or `[]` if `domain_name` collides
-      #   with no reserved word or Cargo key
+      # The domain-level half of rust_reserved_name_findings — same tables, one name.
       def domain_reserved_name_findings(domain_name, keywords, severity)
         module_name = rust_module_name(domain_name)
         table = if keywords.include?(module_name)
@@ -246,27 +96,10 @@ module Hecks
                               "rename the domain")]
       end
 
-      # Derives the Rust module identifier both generators derive from a
-      # name.
-      #
-      # @param name [String, Symbol] an aggregate or domain name
-      # @return [String] the Rust module identifier both generators derive
-      #   from `name`
       def rust_module_name(name) = name.to_s.downcase
 
-      # ── lifecycles (aggregate and entity — a piece may declare one too) ──
-
-      # Runs every lifecycle-shaped model check for one declaring
-      # construct's own lifecycle, if it has one.
-      #
-      # @param aggregate [Bluebook::Aggregate] the root aggregate `declaring`
-      #   belongs to
-      # @param declaring [Bluebook::Aggregate, Bluebook::Entity] the
-      #   construct whose own lifecycle to check — `aggregate` itself, or
-      #   one of its entities
-      # @return [Array<Finding>] `[]` if `declaring` has no lifecycle;
-      #   otherwise every `unknown_command`/`unreachable_state`/
-      #   `dead_transition`/`stuck_state` finding its lifecycle triggers
+      # Runs every lifecycle-shaped check for one declaring construct — the aggregate
+      # itself, or one of its entities — if it declares a lifecycle at all.
       def lifecycle_findings(aggregate, declaring)
         lifecycle = declaring.lifecycle
         return [] unless lifecycle
@@ -285,15 +118,7 @@ module Hecks
         findings
       end
 
-      # Finds every declared state a lifecycle's own reachability walk
-      # never reaches.
-      #
-      # @param lifecycle [Bluebook::Lifecycle] the lifecycle being checked
-      # @param full [Array<String>] every state `full_states` declares
-      # @param reached [Set<String>] every state `reachable_states` reaches
-      # @param subject [String] the finding's own subject label
-      # @return [Array<Finding>] one `:unreachable_state` finding per
-      #   declared state that `reached` does not cover
+      # Finds every declared state the lifecycle's own reachability walk never reaches.
       def unreachable_state_findings(lifecycle, full, reached, subject)
         (full - reached.to_a).map do |state|
           Finding.new(kind: :unreachable_state, severity: :error, subject: subject,
@@ -302,13 +127,7 @@ module Hecks
         end
       end
 
-      # Finds every constrained transition that can never fire.
-      #
-      # @param lifecycle [Bluebook::Lifecycle] the lifecycle being checked
-      # @param reached [Set<String>] every state `reachable_states` reaches
-      # @param subject [String] the finding's own subject label
-      # @return [Array<Finding>] one `:dead_transition` finding per
-      #   constrained transition whose `from:` states are all unreached
+      # Finds every constrained transition whose from: states are all unreached.
       def dead_transition_findings(lifecycle, reached, subject)
         lifecycle.transitions.filter_map do |command, transition|
           next unless transition.constrained?
@@ -320,14 +139,8 @@ module Hecks
         end
       end
 
-      # Finds every reached state with no transition ever leaving it.
-      #
-      # @param lifecycle [Bluebook::Lifecycle] the lifecycle being checked
-      # @param reached [Set<String>] every state `reachable_states` reaches
-      # @param subject [String] the finding's own subject label
-      # @return [Array<Finding>] one `:stuck_state` finding per reached,
-      #   non-exempt state with no transition ever leaving it (skipped
-      #   entirely when any transition is unconstrained)
+      # Finds every reached state with no transition ever leaving it, unless any
+      # transition in this lifecycle is unconstrained.
       def stuck_state_findings(lifecycle, reached, subject)
         any_unconstrained = lifecycle.transitions.any? { |_, t| !t.constrained? }
         (reached - terminal_exempt(lifecycle)).filter_map do |state|
@@ -340,15 +153,7 @@ module Hecks
         end
       end
 
-      # Finds every transition named after a command this construct does
-      # not declare.
-      #
-      # @param lifecycle [Bluebook::Lifecycle] the lifecycle being checked
-      # @param commands [Array<String>] every command name the declaring
-      #   construct actually declares
-      # @param subject [String] the finding's own subject label
-      # @return [Array<Finding>] one `:unknown_command` finding per
-      #   transition named after a command `commands` does not list
+      # Finds every transition named after a command the construct doesn't declare.
       def unknown_transition_commands(lifecycle, commands, subject)
         lifecycle.transitions.filter_map do |command, _transition|
           next if commands.include?(command)
@@ -358,14 +163,11 @@ module Hecks
         end
       end
 
-      # default, every declared target, and every declared from — a
-      # from-only state (declared nowhere as a target) is real and is
-      # exactly the hole `Lifecycle#states` leaves: it answers default
-      # plus targets only.
+      # Every state `lifecycle` declares in any role — default, target, or from,
+      # unique.
       #
       # @param lifecycle [Bluebook::Lifecycle] the lifecycle being checked
-      # @return [Array<String>] every state `lifecycle` declares, in any
-      #   role (default, target, or from), unique
+      # @return [Array<String>] every state lifecycle declares, unique
       def full_states(lifecycle)
         (
           [lifecycle.default] +
@@ -374,21 +176,14 @@ module Hecks
         ).uniq
       end
 
-      # Least fixpoint from the default state: an unconstrained
-      # transition always fires, from wherever the machine is ; a
-      # constrained one fires once any of its named sources is reached.
-      #
-      # @param lifecycle [Bluebook::Lifecycle] the lifecycle being checked
-      # @return [Set<String>] every state reachable from `lifecycle`'s own
-      #   default state
+      # Least fixpoint from the default state: an unconstrained transition always
+      # fires; a constrained one fires once any of its named sources is reached.
       def reachable_states(lifecycle)
         reached = Set.new([lifecycle.default])
         loop do
           grown = false
-          # `transitions` is an Array of [from, transition]-shaped entries
-          # (Lifecycle#transitions), not a Hash — Style/HashEachMethods'
-          # `each_value` rewrite assumed otherwise from the block shape
-          # alone. False positive.
+          # `transitions` is an Array of [from, transition] pairs, not a Hash, so
+          # Style/HashEachMethods' each_value rewrite is a false positive here.
           # rubocop:disable-next Style/HashEachMethods
           lifecycle.transitions.each do |_, transition|
             next if reached.include?(transition.target)
@@ -402,26 +197,10 @@ module Hecks
         reached
       end
 
-      # A state with no outgoing declared path at all is exempt from the
-      # stuck-state warning for a different reason than "it fires an
-      # unconstrained transition" — the default state of a lifecycle
-      # with only constrained transitions is legitimately allowed to sit
-      # forever, since nothing about *entering* it via default implies
-      # anything must eventually move it, unlike a state a transition
-      # explicitly delivered somewhere.
-      #
-      # Scoped to `default` alone, and only when the lifecycle actually
-      # declares real transitions elsewhere: an empty lifecycle (no
-      # transitions at all) doesn't get this exemption — that's not "a
-      # machine whose entry point deliberately awaits external action,"
-      # it's much more likely a lifecycle nobody finished wiring, and
-      # should still warn (see spec/fixtures/model_check/lifecycle_
-      # findings.bluebook's own Widget::Part, which stays warned on
-      # purpose).
-      #
-      # @param lifecycle [Bluebook::Lifecycle] the lifecycle being checked
-      # @return [Array<String>] `[lifecycle.default]` when it is exempt from
-      #   the stuck-state warning, `[]` otherwise
+      # Exempts only the lifecycle's own default state, and only when the lifecycle
+      # declares real transitions elsewhere: entering default implies nothing about
+      # ever leaving it, unlike a state some transition explicitly delivered to. An
+      # empty lifecycle still warns — that reads as unfinished wiring, not a deliberate rest.
       def terminal_exempt(lifecycle)
         return [] if lifecycle.transitions.empty?
 
@@ -429,24 +208,12 @@ module Hecks
         outgoing_sources.include?(lifecycle.default) ? [] : [lifecycle.default]
       end
 
-      # ── process managers / sagas ──────────────────────────────────────
-
-      # Runs every saga-shaped model check for one process manager.
-      #
-      # @param bluebook [Bluebook::Chapter] the assembled chapter
-      #   `process_manager` belongs to
-      # @param process_manager [Bluebook::ProcessManager] the process
-      #   manager to check
-      # @return [Array<Finding>] every `deaf_trigger`/`unreachable_pm_state`/
-      #   `deaf_handler`/`unknown_dispatch`/`unarmed_compensation`/
-      #   `dead_compensation` finding this process manager triggers
+      # Runs every saga-shaped check for one process manager.
       def saga_findings(bluebook, process_manager)
         emitted = emitted_events(bluebook)
-        # (domain, aggregate, command) triples, not raw strings — see
-        # `handler_findings`'s own comment on the dispatch side for why:
-        # `Naming.split_verb` is what makes an entity verb's two legitimate
-        # spellings (`Naming.command_ref`'s own `::`-then-`.` rewrite vs.
-        # `verbs_of`'s own all-`.` one) compare equal.
+        # Parsed as (domain, aggregate, command) triples via Naming.split_verb, not
+        # compared as raw strings — that's what makes an entity verb's two legitimate
+        # spellings compare equal (see handler_findings' unknown_dispatch check).
         verbs   = verbs_of(bluebook).map { |verb| Naming.split_verb(verb) }
         reached = pm_reachable_states(process_manager, emitted)
 
@@ -460,15 +227,7 @@ module Hecks
         findings
       end
 
-      # Finds every declared `starts_on`/`ends_on` event this domain never
-      # emits.
-      #
-      # @param process_manager [Bluebook::ProcessManager] the process
-      #   manager being checked
-      # @param emitted [Array<String>] every bare event name this domain
-      #   actually emits
-      # @return [Array<Finding>] one `:deaf_trigger` finding per declared
-      #   `starts_on`/`ends_on` event this domain never emits
+      # Finds every declared starts_on/ends_on event this domain never emits.
       def deaf_trigger_findings(process_manager, emitted)
         [process_manager.starts_on, process_manager.ends_on].compact.filter_map do |event|
           next if emitted.include?(bare(event))
@@ -480,13 +239,6 @@ module Hecks
       end
 
       # Finds every declared state no handler chain ever reaches.
-      #
-      # @param process_manager [Bluebook::ProcessManager] the process
-      #   manager being checked
-      # @param reached [Set<String>] every state `pm_reachable_states`
-      #   reaches
-      # @return [Array<Finding>] one `:unreachable_pm_state` finding per
-      #   declared state that `reached` does not cover
       def unreachable_pm_state_findings(process_manager, reached)
         (Array(process_manager.states) - reached.to_a).map do |state|
           Finding.new(kind: :unreachable_pm_state, severity: :error, subject: process_manager.name,
@@ -495,33 +247,12 @@ module Hecks
         end
       end
 
-      # One handler's own findings — deaf_handler, unknown_dispatch (one
-      # per dispatch), and unarmed_compensation (one per compensating
-      # dispatch), pulled out of saga_findings' own handler loop; each
-      # check reads only this handler plus the domain-wide emitted/verbs
-      # sets saga_findings already resolved once, no state shared between
-      # handlers.
-      #
-      # @param bluebook [Bluebook::Chapter] the assembled chapter
-      #   `process_manager` belongs to
-      # @param process_manager [Bluebook::ProcessManager] the process
-      #   manager `handler` belongs to
-      # @param emitted [Array<String>] every bare event name this domain
-      #   actually emits
-      # @param verbs [Array<Array(String, String, String)>] every command
-      #   this domain declares, parsed as `Naming.split_verb`
-      #   `[domain, aggregate, command]` triples
-      # @param handler [Bluebook::ProcessManagerHandler] the handler to
-      #   check
-      # @return [Array<Finding>] every `deaf_handler`/`unknown_dispatch`/
-      #   `unarmed_compensation` finding this handler triggers
+      # One handler's own deaf_handler/unknown_dispatch/unarmed_compensation findings.
       def handler_findings(bluebook, process_manager, emitted, verbs, handler)
         findings = []
 
-        # The compensating leg answers `REFUSED`, a synthetic trigger no
-        # command ever emits by name (`ProcessManager::REFUSED`) — not
-        # a deaf handler, the one handler this domain's own events can
-        # never satisfy on purpose.
+        # The compensating leg answers `REFUSED`, a synthetic trigger no command
+        # ever emits by name — deliberately exempt from the deaf-handler check.
         if handler.event_type != ProcessManager::REFUSED && !emitted.include?(bare(handler.event_type))
           findings << Finding.new(kind: :deaf_handler, severity: :error, subject: process_manager.name,
                                   message: "a handler answers #{handler.event_type.inspect}, which no command " \
@@ -529,37 +260,9 @@ module Hecks
         end
 
         handler.dispatches.each do |dispatch|
-          # **Always this domain** — same fix, same reason, as `SagaInterpreter
-          # #qualified` (BUG#6). Guessing instead — reading a dispatch whose
-          # own `command_name` still carries a leftover `::` after `Naming.
-          # command_ref`'s own rewrite as "already qualified" and leaving it
-          # alone — would hit the exact same string-shape ambiguity that
-          # `SagaInterpreter#qualified`'s own comment explains at length
-          # (a same-domain entity command reference and a genuinely
-          # cross-domain one are textually indistinguishable after that
-          # rewrite). Confirmed against the entire corpus, same as that
-          # fix: no saga anywhere ever dispatches genuinely cross-domain,
-          # so this checker qualifies exactly the way the runtime
-          # actually dispatches — unconditionally against `bluebook.name`
-          # — instead of maintaining its own, independently-wrong copy of
-          # the same guess.
-          #
-          # Compared as a triple, not a string — `Naming.command_ref`'s
-          # own rewrite of an entity reference (`Manifest::Slot::Fill`)
-          # collapses to "Manifest::Slot.Fill" (`::` between aggregate and
-          # entity, `.` before the command); `verbs_of`'s own entity
-          # spelling, below, joins aggregate/entity/command all with `.`
-          # instead (matching `fuzzing/sequence_generator/catalog.rb`'s own
-          # independent convention, its comment's own "the same spelling"
-          # claim). Both are legitimate, and `Naming.split_verb` already
-          # parses either to the identical (domain, aggregate, command)
-          # triple (its own comment: "past the already-resolved domain
-          # boundary, any leftover `::` is unambiguous... folding it into
-          # the dot-joined tail") — the same reading `ReactionInvocation.
-          # resolve_target` relies on at runtime. A bare string `include?`
-          # would falsely flag every entity dispatch as unknown_dispatch
-          # even once correctly domain-qualified, comparing two spellings
-          # of the same verb as though they were different ones.
+          # Always qualified against this domain's own name (no saga dispatches
+          # cross-domain) and compared as a parsed triple, not a string, so an
+          # entity verb's two legitimate spellings compare equal.
           qualified = Naming.split_verb("#{bluebook.name}::#{dispatch.command_name}")
           next if verbs.include?(qualified)
 
@@ -569,14 +272,9 @@ module Hecks
                                            "checker's scope, same as CommandRules#resolve_references")
         end
 
-        # A `compensates` declared with nowhere to ever fire — the exact
-        # shape of the real bug this whole feature closes ("the
-        # reversal was written and never armed"), caught at build/
-        # model-check time instead of discovered in production. No
-        # handler anywhere answers `REFUSED` (`process_manager.saga?` false) means
-        # `SagaInterpreter#unwind` never runs for this process
-        # manager at all, so a declared `compensates` is structurally
-        # unreachable — not a warning about style, a dead declaration.
+        # No handler anywhere answers `REFUSED` means SagaInterpreter#unwind never
+        # runs for this process manager, so a declared compensates is structurally
+        # unreachable — a dead declaration, not a style warning.
         if !process_manager.saga? && handler.dispatches.any?(&:compensates)
           handler.dispatches.select(&:compensates).each do |dispatch|
             findings << Finding.new(kind: :unarmed_compensation, severity: :error, subject: process_manager.name,
@@ -589,16 +287,7 @@ module Hecks
         findings
       end
 
-      # Checks whether a saga's own compensation leaves an unreachable
-      # state.
-      #
-      # @param process_manager [Bluebook::ProcessManager] the process
-      #   manager being checked
-      # @param reached [Set<String>] every state `pm_reachable_states`
-      #   reaches
-      # @return [Array<Finding>] a single-element array holding a
-      #   `:dead_compensation` finding, or `[]` if `process_manager` has no
-      #   saga or its own compensation leaves a reached state
+      # Checks whether a saga's own compensation leaves an unreachable state.
       def dead_compensation_findings(process_manager, reached)
         return [] unless process_manager.saga? && !reached.include?(process_manager.saga.from_state)
 
@@ -607,22 +296,10 @@ module Hecks
                               "handler chain ever reaches — a refusal here can never fire it")]
       end
 
-      # A handler edge is only usable in the closure if it can actually
-      # fire — `REFUSED` always can (it is a compensation trigger, not an
-      # event), and any other handler needs its event genuinely emitted.
-      # Without this, a deaf handler's declared from_state -> to_state
-      # pair reads as connected even though nothing can ever traverse
-      # it, which would hide exactly the states this walk exists to
-      # catch (a state only "reachable" through a handler that itself
-      # never fires).
-      #
-      # @param process_manager [Bluebook::ProcessManager] the process
-      #   manager being checked
-      # @param emitted [Array<String>] every bare event name this domain
-      #   actually emits
-      # @return [Set<String>] every state reachable from
-      #   `process_manager`'s own first declared state, through handlers
-      #   that can actually fire
+      # Only a handler that can actually fire extends the closure — `REFUSED` always
+      # can (it's a compensation trigger, not an event); any other handler needs its
+      # event genuinely emitted. Otherwise a deaf handler's edge would read as
+      # connected even though nothing can ever traverse it.
       def pm_reachable_states(process_manager, emitted)
         return Set.new if Array(process_manager.states).empty?
 
@@ -642,80 +319,25 @@ module Hecks
         reached
       end
 
-      # ── policies ───────────────────────────────────────────────────────
-
       # Runs every same-domain policy check, or defers to
-      # `cross_domain_policy_findings` for a policy that targets another
-      # domain.
-      #
-      # @param bluebook [Bluebook::Chapter] the assembled chapter `policy`
-      #   belongs to
-      # @param policy [Bluebook::Policy] the policy to check
-      # @param hecksagon [Bluebook::Hecksagon, nil] this bluebook's own
-      #   sibling wiring file, if the caller loaded one
-      # @param known_domains [Set<String>, nil] every bluebook/hecksagon
-      #   name the caller has booted anywhere in this corpus scan
-      # @param global_emitted_events [Set<String>, nil] every event name emitted anywhere in the
-      #   corpus, consulted only as a fallback for a `translates` reaction; nil when the caller
-      #   has no cross-domain set to offer
-      # @return [Array<Finding>] every `deaf_policy`/`unknown_trigger`
-      #   finding this policy triggers, or `cross_domain_policy_findings`'s
-      #   own return for a cross-domain policy
+      # cross_domain_policy_findings for a cross-domain policy.
       def policy_findings(bluebook, policy, hecksagon, known_domains, global_emitted_events = nil)
         return cross_domain_policy_findings(policy, hecksagon, known_domains) if policy.target_domain
 
         emitted = emitted_events(bluebook)
         findings = []
 
-        # `policy.event_name` (Naming.unqualified) — not `bare`, which only
-        # strips a "::" domain qualifier. An aggregate-scoped policy's
-        # `on_event` carries a "." aggregate qualifier instead (PolicyBuilder
-        # stores whatever was typed, verbatim — see `on "Account.
-        # AccountFrozen"`), and `bare` left it untouched, silently comparing
-        # "Account.AccountFrozen" against a list of bare emitted names that
-        # can never contain it. Latent until now : banking's one aggregate-
-        # scoped same-domain policy check would have caught it, but its only
-        # prior aggregate-scoped policy (ReviewOnFreeze) is also cross-domain
-        # (`across "Compliance"`), which exits this method one line above
-        # before the mismatch is ever reached.
-        # `global_emitted_events` — a `translates` (hecksagon-level)
-        # reaction is built as the exact same same-domain-target `Policy`
-        # an ordinary `policy` block is (no `target_domain`, so it never
-        # reaches `cross_domain_policy_findings` above), but its whole
-        # point is to react to a foreign domain's own event — this
-        # domain's own `emitted_events(bluebook)` was never going to
-        # contain it. Checked only as a fallback, after the local check
-        # already failed, so a real same-domain typo still gets flagged
-        # exactly as before whenever the caller has no cross-domain set
-        # to offer (nil — every existing call site, unchanged) or the
-        # event genuinely isn't emitted anywhere this run examined.
+        # `policy.event_name`, not `bare` — an aggregate-scoped on_event carries a
+        # "." qualifier bare doesn't strip. `global_emitted_events` is a fallback for
+        # a translates reaction, whose whole point is reacting to a foreign event.
         unless emitted.include?(policy.event_name) || global_emitted_events&.include?(policy.event_name)
           findings << Finding.new(kind: :deaf_policy, severity: :error, subject: policy.name,
                                   message: "on #{policy.on_event.inspect}, which no command in this domain emits")
         end
 
-        # `trigger` is spelled "Aggregate.Command" (or "Entity.Command" one
-        # level down), completed to an FQN by PolicyInterpreter#deliver as
-        # "#{domain}::#{trigger_command}" — the same join `verbs_of` builds
-        # independently, so the two spellings have to be compared as FQNs.
-        #
-        # Compared as a triple, not a string — `handler_findings`'s own
-        # `unknown_dispatch` check (BUG#6) already applies this fix for a
-        # saga's dispatch; a policy's `trigger` needed the identical one. A
-        # policy triggering an `asks`/`tells` port operation (`Aggregate::
-        # Port::Operation`, three colon-joined segments — `Naming.command_ref`'s
-        # bare-constant rewrite turns this into "Aggregate::Port.Operation",
-        # a leftover `::` past the aggregate) is a real, working dispatch —
-        # `PolicyInterpreter#deliver` qualifies it with this domain's own
-        # name before `Naming.split_verb` ever sees it, and `split_verb`
-        # already folds that leftover `::` into the dot-joined tail
-        # correctly (fixed for `ReactionInvocation#resolve_target`, PR
-        # #520) — but this check compared raw strings against `verbs_of`,
-        # which never enumerated port operations at all, so it reported
-        # every port-operation trigger as unknown regardless. `triggerable_
-        # verbs` now includes both, and both sides are parsed through
-        # `Naming.split_verb` before comparing, the same reading
-        # `resolve_target` relies on at runtime.
+        # Completed to the same FQN verbs_of builds, then compared as a parsed
+        # triple — not a string — so a port-operation trigger's spelling matches
+        # the same way an entity command's does (see handler_findings above).
         qualified = Naming.split_verb("#{bluebook.name}::#{policy.trigger_command}")
         unless qualified && triggerable_verbs(bluebook).include?(qualified)
           findings << Finding.new(kind: :unknown_trigger, severity: :error, subject: policy.name,
@@ -726,35 +348,9 @@ module Hecks
         findings
       end
 
-      # ── cross-domain policies (Context Mapping) ───────────────────────
-      #
-      # `uses_framework "X"` already is a Shared Kernel relationship — it
-      # merges X's own bluebook into this registry, no boundary. A cross-
-      # domain `policy ... across: "X"` already is a Customer/Supplier
-      # relationship — it dispatches into X over real cross-Lambda RPC in
-      # the Rust host (`rust/host/src/lambda_client.rs`). Neither is a new
-      # word; this makes the choice between them checked instead of a
-      # prose comment nobody enforces (`examples/banking/bluebook/
-      # banking.hecksagon`'s own hand-written note explaining why
-      # Compliance is reached via `across`, never `uses_framework`).
-      #
-      # No new keyword anywhere — ADR 0025 principle 1 ("one idea, one
-      # spelling") refuses a `relationship:`/`as:` argument that would
-      # just restate, as a string, the fact the chosen keyword (
-      # `uses_framework` vs `across`) already states completely. The
-      # DDD vocabulary (Shared Kernel, Customer/Supplier) lives here, in
-      # the finding's own name and this comment, and in prose docs — not
-      # in the grammar.
-      #
-      # @param policy [Bluebook::Policy] the cross-domain policy to check
-      # @param hecksagon [Bluebook::Hecksagon, nil] this bluebook's own
-      #   sibling wiring file, if the caller loaded one
-      # @param known_domains [Set<String>, nil] every bluebook/hecksagon
-      #   name the caller has booted anywhere in this corpus scan
-      # @return [Array<Finding>] `expected_undelivered_findings`'s own
-      #   return for a policy declared `expect_undelivered`; otherwise every
-      #   `contradictory_relationship`/`unacknowledged_relationship`/
-      #   `unknown_target_domain` finding this policy triggers
+      # `uses_framework` is a Shared Kernel relationship (X merges in, no boundary);
+      # `across` is Customer/Supplier (real cross-Lambda RPC). This checks the choice
+      # between them instead of leaving it as an unenforced comment. (ADR 0025)
       def cross_domain_policy_findings(policy, hecksagon, known_domains)
         return expected_undelivered_findings(policy, hecksagon, known_domains) if policy.expect_undelivered
         # No sibling hecksagon loaded — nothing to check a relationship against.
@@ -764,12 +360,9 @@ module Hecks
         findings = []
 
         if hecksagon.framework_members.include?(target)
-          # Shared kernel and customer/supplier are mutually exclusive
-          # claims about the same target — `uses_framework` means "X is
-          # loaded in-process, right here"; `across` means "X is a
-          # separate deployment, reached only by RPC." Declaring both is
-          # either a pointless RPC to a domain already local, or a
-          # `uses_framework` that isn't really doing what its name says.
+          # Shared Kernel and Customer/Supplier are mutually exclusive claims about
+          # the same target — declaring both means either a pointless RPC to a
+          # domain already local, or a uses_framework that isn't doing its job.
           findings << Finding.new(kind: :contradictory_relationship, severity: :error, subject: policy.name,
                                   message: "across #{target.inspect} dispatches over RPC (Customer/Supplier), " \
                                            "but this hecksagon also uses_framework #{target.inspect} (Shared " \
@@ -777,11 +370,8 @@ module Hecks
                                            "relationship declarations contradict each other for the same " \
                                            "target domain")
         elsif hecksagon.subscriptions.none? { |subscribed| Naming.qualifier(subscribed) == target }
-          # This is what finally gives `subscribe` real teeth — checked
-          # here, at model-check time, still never routed at runtime
-          # (nothing dispatches off a `subscribe` line; see hecksagon.md's
-          # own "checked, not routed" section). ADR 0025 names `subscribe`
-          # by number as failing the corpus-use bar; this is the real use.
+          # Checked here at model-check time; subscribe itself is never routed at
+          # runtime (see hecksagon.md's own "checked, not routed" section).
           findings << Finding.new(kind: :unacknowledged_relationship, severity: :error, subject: policy.name,
                                   message: "across #{target.inspect} declares a Customer/Supplier " \
                                            "relationship, but nothing in this hecksagon records the " \
@@ -790,17 +380,9 @@ module Hecks
                                            "attach it in-process instead")
         end
 
-        # **Typo detection, deliberately weaker** — `known_domains` can only
-        # ever be a monorepo-scoped heuristic: a real external hecks
-        # consumer's own domain (this repo's own embryonaut client-
-        # shaped case) lives in a genuinely separate repository this
-        # corpus scan can never see, so a target this check cannot find
-        # is "unknown to THIS corpus," never proof of a typo. A target
-        # undefined by design (the corpus's own "Notifications", used
-        # deliberately to exercise the undelivered-reaction runtime path)
-        # declares so on its own policy — `expect_undelivered: true`,
-        # checked by `expected_undelivered_findings` — rather than being
-        # named in a core allowlist.
+        # A heuristic, not proof: an external hecks consumer's own domain lives in a
+        # repo this corpus scan can't see, so "unknown here" isn't necessarily a typo.
+        # A domain undefined on purpose declares so via expect_undelivered instead.
         if known_domains && !known_domains.include?(target)
           findings << Finding.new(kind: :unknown_target_domain, severity: :error, subject: policy.name,
                                   message: "across #{target.inspect} names a domain nowhere in the corpus " \
@@ -812,25 +394,10 @@ module Hecks
         findings
       end
 
-      # A declared undelivered target, held to its declaration. The two
-      # findings an unreachable `across` target raises (unknown target,
-      # unacknowledged relationship) are what the policy declared it
-      # expects, so they are not raised. What is raised is the declaration
-      # going stale: the target is a domain this corpus actually booted,
-      # or the sibling hecksagon attaches or subscribes to it — either way
-      # the reaction can be delivered, and the declaration is now a lie.
-      # `known_domains` is nil for a single-target run, which can then only
-      # check the hecksagon half.
-      #
-      # @param policy [Bluebook::Policy] the `expect_undelivered` policy to
-      #   check
-      # @param hecksagon [Bluebook::Hecksagon, nil] this bluebook's own
-      #   sibling wiring file, if the caller loaded one
-      # @param known_domains [Set<String>, nil] every bluebook/hecksagon
-      #   name the caller has booted anywhere in this corpus scan
-      # @return [Array<Finding>] a single-element array holding a
-      #   `:stale_undelivered_expectation` finding, or `[]` if the target
-      #   remains genuinely unreachable
+      # Holds an expect_undelivered declaration to its word: the two findings an
+      # unreachable target would otherwise raise are suppressed (that's the point of
+      # the declaration), but if the target turns out reachable after all, the stale
+      # declaration itself is now the error.
       def expected_undelivered_findings(policy, hecksagon, known_domains)
         target  = policy.target_domain
         reached = []
@@ -849,33 +416,12 @@ module Hecks
                               "what reaches #{target}")]
       end
 
-      # ── shared enumeration ────────────────────────────────────────────
-
-      # A port operation emits too — the primary/driving port an adapter
-      # outside the bluebook calls through (see hecksagon_builder.rb) is a
-      # second, real source of events, alongside a command's own `emits`.
-      # Ports attach to the aggregate/bluebook from the sibling `.hecksagon`
-      # file, not this one — a caller that boots only the `.bluebook` (as
-      # the fixtures under spec/fixtures/model_check/ do, having no
-      # hecksagon at all) simply finds none, which is correct : nothing
-      # can be deaf to an event that isn't even wired up yet.
+      # Every bare event name this domain's commands and port operations emit,
+      # answer, or refuse — an outbound `asks` port operation has no `.emits`.
       #
-      # An outbound operation (`asks`) emits through a different door — it
-      # declares no `.emits` at all (`PortOperationBuilder#refuse_wrong_
-      # words!` refuses one that tries), naming its two real endings
-      # `.answers`/`.refuses` instead (`PortOperation#initialize`). Reading
-      # only `.emits` left every `asks`'s own two events invisible to this
-      # method — real, live events a policy genuinely reacts to
-      # (`Clearance.SuitePassed`/`SuiteFailed`, `Ticket.IssueFiled`/
-      # `IssueFilingRefused`), reported as `deaf_policy` findings until this
-      # read both. `.compact` because an inbound operation's `.answers`/
-      # `.refuses` are always nil (there is no channel back to tell), which
-      # would otherwise seed every emitted-events set with a stray nil.
-      #
-      # @param bluebook [Bluebook::Chapter] the assembled chapter to
-      #   enumerate
-      # @return [Array<String>] every bare event name this domain's
-      #   commands and port operations emit, answer, or refuse, unique
+      # @param bluebook [Bluebook::Chapter] the assembled chapter to enumerate
+      # @return [Array<String>] every bare event name emitted, answered, or refused
+      #   across this domain, unique
       def emitted_events(bluebook)
         aggregate_emits = bluebook.aggregates.flat_map do |aggregate|
           aggregate.commands.map(&:emits) +
@@ -887,32 +433,14 @@ module Hecks
         (aggregate_emits + chapter_emits).flatten.compact.uniq
       end
 
-      # One operation, either of its own sources of events — an inbound
-      # `tells` names its own via `.emits`; an outbound `asks` has none
-      # (`PortOperationBuilder#refuse_wrong_words!` refuses one that
-      # tries) and names its two real endings `.answers`/`.refuses`
-      # instead. Pulled out of `emitted_events` above purely to keep that
-      # method's own branching low enough to read at a glance — every
-      # port, aggregate-owned or chapter-level, asks this the same way.
-      #
-      # @param ports [Array<Bluebook::DomainPort>] the ports to enumerate
-      # @return [Array<String, nil>] every event name each operation emits,
-      #   answers, or refuses; `nil` entries included (compacted by the
-      #   caller)
+      # One port's own emitted/answered/refused event names — an inbound operation's
+      # answers/refuses are always nil, compacted by the caller.
       def port_operation_events(ports)
         ports.flat_map { |port| port.operations.flat_map { |op| [*op.emits, op.answers, op.refuses] } }
       end
 
-      # Fully-qualified, the same spelling DispatchSpec#command_name
-      # carries and fuzzing/sequence_generator/catalog.rb builds
-      # independently for the same reason: a saga dispatch and a fuzzer
-      # step both have to name a verb the same way the door does.
-      #
-      # @param bluebook [Bluebook::Chapter] the assembled chapter to
-      #   enumerate
-      # @return [Array<String>] every command's own fully-qualified verb,
-      #   `"Domain::Aggregate.Command"` or
-      #   `"Domain::Aggregate.Entity.Command"`
+      # Every command's own fully-qualified verb: "Domain::Aggregate.Command" or
+      # "Domain::Aggregate.Entity.Command".
       def verbs_of(bluebook)
         bluebook.aggregates.flat_map do |aggregate|
           verbs = aggregate.commands.map { |command| "#{bluebook.name}::#{aggregate.hecks_name}.#{command.hecks_name}" }
@@ -924,20 +452,9 @@ module Hecks
         end
       end
 
-      # An aggregate-owned port operation is a triggerable verb too —
-      # `ReactionInvocation#resolve_target`'s own port-operation branch
-      # resolves one by the exact same two-segment tail shape ("Aggregate::
-      # Port.Operation", the aggregate then the port then the operation,
-      # dot-joined past the domain) an entity command uses, checked first,
-      # same order `Dispatcher#dispatch` already resolves a live verb in.
-      # Only an aggregate's own ports (`aggregate.ports`) are in scope here
-      # — a policy's `trigger` always names one aggregate, never a chapter-
-      # level port with no owner to address through.
-      #
-      # @param bluebook [Bluebook::Chapter] the assembled chapter to
-      #   enumerate
-      # @return [Array<String>] every aggregate-owned port operation's own
-      #   fully-qualified verb, `"Domain::Aggregate.Port.Operation"`
+      # Every aggregate-owned port operation's own fully-qualified verb — only an
+      # aggregate's own ports are in scope; a policy trigger never names a
+      # chapter-level port directly.
       def port_verbs_of(bluebook)
         bluebook.aggregates.flat_map do |aggregate|
           aggregate.ports.flat_map do |port|
@@ -948,27 +465,13 @@ module Hecks
         end
       end
 
-      # Every triggerable verb, as a triple — `verbs_of` (ordinary/entity
-      # commands) plus `port_verbs_of` (port operations), each parsed
-      # through `Naming.split_verb` so a caller never has to compare two
-      # spellings of the same verb as strings (see `policy_findings`'s own
-      # `unknown_trigger` check for why that comparison has to happen this
-      # way, not as `include?` on a raw string).
-      #
-      # @param bluebook [Bluebook::Chapter] the assembled chapter to
-      #   enumerate
-      # @return [Set<Array(String, String, String)>] every triggerable
-      #   verb, parsed as `Naming.split_verb` `[domain, aggregate,
-      #   command]` triples
+      # Every triggerable verb — ordinary/entity commands plus port operations —
+      # parsed through Naming.split_verb so callers never compare raw spellings.
       def triggerable_verbs(bluebook)
         (verbs_of(bluebook) + port_verbs_of(bluebook)).to_set { |verb| Naming.split_verb(verb) }
       end
 
       # Strips a domain qualifier off an event name.
-      #
-      # @param event [String, Symbol] an event name, qualified
-      #   (`"Domain::Event"`) or bare
-      # @return [String] `event`'s own bare name, past the last `::`
       def bare(event) = event.to_s.split("::").last
     end
   end

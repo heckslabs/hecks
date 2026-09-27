@@ -1,21 +1,9 @@
 require "spec_helper"
 require "tempfile"
 
-# M17 (docs/audits/2026-08-10-main-bug-audit.md,
-# docs/audits/2026-08-11-bug-triage.md) — a composite identity
-# (`identified_by :row, :column`, more than one head) has no single
-# `identified_by` for `Instance#materialize_identity!` to fall back to
-# `:id` for (`Behaviour::Identified#derive_identity` sets it nil the
-# moment there's more than one head). `refuse_unknown_arguments`
-# (`command_interpreter/argument_gate.rb`) already treats every
-# identity head as an implicit "addressing" argument, legal on any
-# command whether or not that command redeclares it as its own
-# attribute — so a creating command can legitimately receive `row`/
-# `column` in its payload (enough for `Identity.of` to derive the
-# record's id) without ever declaring them as command attributes or
-# `sets`-ing them into state. Left unhandled, that would leave both heads
-# persisted as `nil`: the record would be correctly addressed but would
-# not know its own name.
+# A composite identity has no single head for `Instance#materialize_identity!` to fall back on.
+# A creating command may receive the heads as addressing arguments without declaring or `sets`-ing
+# them; they must still be materialized, or the record is addressed but persists them as nil.
 RSpec.describe Hecks::Runtime::Instance do
   def boot(source, hecksagon_name, &binds)
     file = Tempfile.new(["instance-composite-identity-", ".bluebook"])

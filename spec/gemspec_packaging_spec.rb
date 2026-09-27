@@ -3,12 +3,9 @@ require "fileutils"
 require "open3"
 require "tmpdir"
 
-# What 1.5.0 shipped without Compliance at all — nothing here names
-# Compliance, or any other framework member, by hand. Both checks below
-# walk the SAME glob-derived sources `Hecks::Framework.members` and
-# `hecks.gemspec` already use, so a future framework member (or any
-# other file added under lib/) is covered automatically; nothing needs
-# adding to a list when one is.
+# Both checks below walk the same glob-derived sources `Hecks::Framework.members`
+# and `hecks.gemspec` already use, so a new framework member is covered without
+# adding it to a list here.
 RSpec.describe "gem packaging" do
   let(:root) { File.expand_path("..", __dir__) }
   let(:gemspec) { Gem::Specification.load(File.join(root, "hecks.gemspec")) }
@@ -36,9 +33,8 @@ RSpec.describe "gem packaging" do
     expect(symlinked).to be_empty, message
   end
 
-  # ADR 0066: the gem ships a `hecks` command and leaves the repository-only
-  # tooling out. Each path here is named by hand, independently of the
-  # gemspec's own pattern, so a pattern that stops matching fails here.
+  # ADR 0066: the gem ships only exe/hecks; repository-only tooling stays out.
+  # Paths here are named by hand, independent of the gemspec's own pattern.
   describe "the `hecks` command and the repository-only tooling" do
     let(:dev_tooling) do
       ["lib/hecks/fuzzing/", "lib/hecks/fuzzing.rb", "lib/hecks/bench/", "lib/hecks/bench.rb",
@@ -61,10 +57,9 @@ RSpec.describe "gem packaging" do
       expect(shipped).to be_empty, "repository-only tooling in the packaged gem: #{shipped.join(', ')}"
     end
 
-    # Copies exactly the packaged files into a directory of their own and loads
-    # them there in a fresh Ruby without Bundler, so a file `require "hecks"` or
-    # the command needs that the package leaves out fails as a `LoadError`, and a
-    # hecks file found anywhere but the copy is reported.
+    # Copies only the packaged files into a scratch dir and loads them there
+    # without Bundler, so a require the package omits fails as a LoadError
+    # instead of quietly succeeding via this repo's own lib/ on $LOAD_PATH.
     it "loads the framework and every subcommand from the packaged files alone", :io do
       Dir.mktmpdir("hecks-package") do |tmp|
         dir = File.realpath(tmp)

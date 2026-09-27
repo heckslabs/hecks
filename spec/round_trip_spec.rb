@@ -1,23 +1,7 @@
 require "spec_helper"
 
-# The self-hosting claim, stated as a test.
-#
-# `bluebook.bluebook` opens with it: "loading a domain becomes dispatching commands
-# into this meta-domain ; the IR it stores must equal the IR the DSL builder
-# produces." The judge dispatches a bluebook in. Reconstruction reads it back out.
-# This compares the two, and there is no longer any difference to explain.
-#
-# It began as pizzas exact and banking eight short, with the eight named as an exact
-# classified set — an entity's own commands, queries and lifecycle, a non-string
-# default, a literal with structure. Each turned out to be either a field the
-# language had no room for or a value stored as text that forgot its own type. All
-# four members now come back byte for byte.
-#
-# The fixtures are here on purpose. Banking has no aggregate attribute carrying a
-# default, so `Field#default` would have been legal and unexercised — the exact
-# pattern this project keeps finding — and till declares
-# `attribute :balance, Money, default: { cents: 0 }`, which exercises both the field
-# and the object-literal encoding at once.
+# Self-hosting claim: the judge dispatches a bluebook into the meta-domain, Reconstruction
+# reads it back, and the result must equal the IR the DSL builder produces.
 RSpec.describe "a bluebook dispatched in and read back out" do
   ROUND_TRIP_CORPUS = {
     "Pizzas"   => "examples/pizzas/bluebook/pizzas.bluebook",
@@ -39,9 +23,7 @@ RSpec.describe "a bluebook dispatched in and read back out" do
     registry
   end
 
-  # Dispatch it in and keep the records — the only difference between judging a
-  # bluebook and holding one, rather than `Judge.allocate` and four
-  # `instance_variable_set` calls, which would throw the judge's runtime away.
+  # Dispatches the bluebook in and returns the reconstruction plus the judge's refusals.
   def read_back(bluebook)
     judge = Hecks::Bluebook::MetaValidator::Judge.new(bluebook)
 
@@ -49,18 +31,8 @@ RSpec.describe "a bluebook dispatched in and read back out" do
      judge.refusals]
   end
 
-  # Nothing is sorted any more, and that is the claim getting stronger.
-  #
-  # Canonicalising the presentation axis on both sides — which position
-  # a command occupies in its aggregate's list — would be needed if `Reconstruction`
-  # read the chapter through the whole-bluebook read model, since a read model sorts
-  # by id on purpose, forcing the comparison to sort too and say so out loud.
-  #
-  # The reconstruction reads level by level through `DeclaredIn` now, which
-  # preserves declaration order, so both sides are compared exactly as written. The
-  # IR is a contract field for field and index for index, and this says index for
-  # index without a caveat. Which is what a reconstruction has to manage before it
-  # can be the source rather than a check: consumers read the order out of the file.
+  # Deliberately does not sort: Reconstruction reads through `DeclaredIn`, which preserves
+  # declaration order, so both sides are compared index for index as written.
   def canonical(node)
     case node
     when Hash then node.to_h { |key, value| [key, canonical(value)] }
@@ -75,15 +47,8 @@ RSpec.describe "a bluebook dispatched in and read back out" do
     return [] if source == back
 
     if source.is_a?(Hash) && back.is_a?(Hash)
-      # Source keys only, so the language is allowed to hold more than `to_h`
-      # spells. It was `source.keys | back.keys`, which reads as symmetry and is
-      # actually a claim nobody needs: `to_h` is a projection for consumers,
-      # and the language is the source. What must hold is that everything the
-      # contract spells comes back identically — a field the language stops holding
-      # still shows up here as a source key with nothing behind it, and a field
-      # removed from the contract is what spec/golden/ir is for. A read model's
-      # filters are held and on the wire now (`ReadModel#to_h`, 2026-08-11);
-      # which head declared a policy is held but still not on the wire.
+      # Source keys only: the language may hold more than `to_h` spells, but everything
+      # the contract spells must come back identically. Contract removals are spec/golden/ir's job.
       source.keys.flat_map { |key| differences(source[key], back[key], "#{path}.#{key}") }
     elsif source.is_a?(Array) && back.is_a?(Array) && source.size == back.size
       source.each_with_index.flat_map { |element, i| differences(element, back[i], "#{path}[#{i}]") }
@@ -92,16 +57,8 @@ RSpec.describe "a bluebook dispatched in and read back out" do
     end
   end
 
-  # `ports` (Aggregate#to_h) is the one field this test's own header
-  # says is allowed to fail this way and doesn't, yet: hecksagon-level
-  # `port`/`operation` declarations have no self-hosted grammar
-  # representation at all (no meta-domain aggregate, no `Reconstruction`
-  # reading, no `port`/`operation` DSL in the language chapter itself) —
-  # a real, separate, deliberately-deferred epic (rust/project/ports.rb's
-  # own header), not a silently-accepted gap. Stripped here, loudly, by
-  # name, rather than either failing every fixture in this corpus or
-  # quietly relaxing `differences`' own "source keys only" contract for
-  # everything else it still holds to byte-for-byte.
+  # Hecksagon-level `port`/`operation` declarations have no self-hosted grammar
+  # representation yet, so `ports` is stripped by name rather than relaxing `differences`.
   def strip_ports(node)
     case node
     when Hash then node.except(:ports).transform_values { |v| strip_ports(v) }
@@ -110,23 +67,8 @@ RSpec.describe "a bluebook dispatched in and read back out" do
     end
   end
 
-  # `ast` (`ValueObject#to_h`'s own `invariants:` — Expression::AstJson's
-  # JSON-serializable rendering of the same `canonical` text right beside
-  # it) is purely derived, not independent information: it is 100%
-  # deterministically re-computable from `canonical` alone
-  # (`AstJson.emit_predicate(rule.canonical)`), with no separate fact for
-  # the self-hosted meta-domain to have stored and re-answered — the
-  # same relationship a checksum has to the text it was computed from.
-  # The self-hosted grammar's own `Rule` (command.bluebook — what an
-  # invariant/given/ensures canonical text dispatches into) has no field
-  # for it and does not need one: `canonical` itself already survives
-  # this round trip byte for byte, so re-deriving `ast` from the
-  # reconstructed `canonical` (which `Invariant#to_h`'s own lambda always
-  # does, live, for any `Invariant` regardless of which path built it)
-  # is already exactly as correct as this test proving the meta-domain
-  # stored `ast` as its own separate fact would be. Stripped here, by
-  # name, the identical idiom `strip_ports` uses just above for the
-  # other kind of key this round trip cannot compare.
+  # `ast` is derived from `canonical` (`AstJson.emit_predicate`), which round-trips
+  # byte for byte, so the meta-domain stores no separate fact for it; stripped by name.
   def strip_invariant_ast(node)
     case node
     when Hash then node.except(:ast, :where_ast).transform_values { |v| strip_invariant_ast(v) }
@@ -150,9 +92,8 @@ RSpec.describe "a bluebook dispatched in and read back out" do
   end
 
   it "compares every part of the IR the builder produces, not a convenient subset" do
-    # The comparison slices the source by the reconstruction's own keys, so a key it
-    # simply never attempted would vanish from the test rather than fail it. This
-    # names what is compared, so dropping one is a failure and not a silence.
+    # The comparison slices the source by the reconstruction's keys, so a key it never
+    # attempted would vanish silently; naming them here makes dropping one a failure.
     back, = read_back(load_corpus(ROUND_TRIP_CORPUS["Banking"]).bluebook("Banking"))
 
     expect(back.keys).to eq(%i[name version vision classification formerly_known_as attaches_to provides aggregates read_models
@@ -161,38 +102,10 @@ RSpec.describe "a bluebook dispatched in and read back out" do
     expect(Hecks::Bluebook::Chapter.instance_method(:to_h).owner).to be_truthy
   end
 
-  # The structural half of "comes back exactly as the builder made it" —
-  # that test's own comparison slices the builder's `to_h` down to
-  # `back`'s own keys (`bluebook.to_h.slice(*back.keys)`), by design
-  # ("the language is allowed to hold MORE than `to_h` spells"). That
-  # means a key `Reconstruction#aggregate`/`#entity` never asks for at
-  # all is invisible to that comparison, not a failure — both sides
-  # silently agree not to discuss it. Real, confirmed history, not a
-  # hypothetical: `aggregate(row)` (`meta_validator/reconstruction.rb`)
-  # is hand-typed — unlike `command`/`value_object`/`query`, which read
-  # generically through `Assembly::Contracts`'s own data-driven
-  # `declaration()` — and once silently dropped `invariants`/
-  # `preconditions` for exactly this reason (S10/S12): the judge
-  # correctly dispatched them, Reconstruction just never asked. `entity
-  # (row)` is the same hand-typed shape, one level down, and repeated
-  # the identical gap for `preconditions` this session (ADR 0028) —
-  # found by re-deriving the fix from memory of the Aggregate bug, not
-  # by a gate catching it fresh. This is that gate: checked
-  # structurally, against `ir_spec` (what the real Ruby class declares
-  # it emits), so a dropped key fails here regardless of whether any
-  # fixture's own content happens to populate that field — the round-
-  # trip test above only catches a value mismatch, never an absent key.
-  #
-  # Scoped to the two constructs actually hand-typed today. A construct
-  # read through `Assembly::Contracts`'s generic path isn't structurally
-  # immune to the same class of bug, but its `fields:` hash is data a
-  # reviewer diffs directly against `ir_spec`, not free-hand Ruby a
-  # silent `return` can quietly under-populate — a materially different
-  # risk shape, out of scope here.
-  # `:ports` is the one named exception, matching `strip_ports`'s own
-  # comment just above: hecksagon-level `port`/`operation` declarations
-  # have no self-hosted grammar representation at all — a real,
-  # deliberately-deferred epic, not a gap this check exists to catch.
+  # The round-trip comparison cannot see a key that `Reconstruction#aggregate`/`#entity`
+  # never asks for, since both sides omit it. Those two are hand-typed (other constructs
+  # read through `Assembly::Contracts`), so this checks their rows against `ir_spec`.
+  # `:ports` is the known exception (see `strip_ports`).
   RECONSTRUCTION_KNOWN_GAPS = %i[ports].freeze
 
   it "hand-typed reconstruction methods return every key their construct's own IR declares" do
@@ -213,10 +126,6 @@ RSpec.describe "a bluebook dispatched in and read back out" do
   end
 
   it "carries a chapter's version, which banking pins for real" do
-    # The language grew `version` so a graph assembled purely from these
-    # records would stop losing it. Banking pins one for real
-    # (`Hecks.bluebook "Banking", version: "v1"`) — a scratch fixture used
-    # to prove this before banking declared one itself; no longer needed.
     back, refusals = read_back(load_corpus(ROUND_TRIP_CORPUS["Banking"]).bluebook("Banking"))
 
     expect(refusals).to be_empty
@@ -230,7 +139,7 @@ RSpec.describe "a bluebook dispatched in and read back out" do
   end
 
   it "exercises an aggregate attribute that carries a default" do
-    # Banking has none, so without this `Field#default` would round-trip vacuously.
+    # Banking declares no attribute default, so `Field#default` would round-trip vacuously.
     till = load_corpus(ROUND_TRIP_CORPUS["TillRoom"]).bluebook("TillRoom")
 
     expect(till.aggregate("Till").attribute(:balance).default).to eq(cents: 0)

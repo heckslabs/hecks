@@ -1,18 +1,9 @@
 module Hecks
   module Bluebook
     class Assembly
-      # One way to build a construct, for every construct.
+      # Builds any construct from its declared row by reading its `Assembly.contract`.
       #
-      # Not a method per category — `value_object(row)`, `command(row)`,
-      # `policy(row)`, each gathering the same keywords the contract already
-      # names. This reads the contract instead, so adding a field to the
-      # language and forgetting to assemble it is caught by the coverage gate
-      # rather than by nobody.
-      #
-      # `make` is the only branch, and it is a real one: a construct that became a
-      # class is `.declare`d, an instance is `.new`ed. That is the boundary
-      # `Query` sits on, and it is a fact about Ruby rather than about the
-      # domain.
+      # A construct that is a class is `.declare`d; an instance is `.new`ed.
       module Build
         module_function
 
@@ -42,8 +33,7 @@ module Hecks
           contract.holder or raise ArgumentError, "#{contract} holds nothing that can be built"
         end
 
-        # A reader is a Marks method, a list of them, or one of three spellings that
-        # need no decoding at all.
+        # Reads one value through a contract reader.
         #
         # @param reader [Symbol, Array, nil] the contract field's reader: `:plain`,
         #   `:identity`, `:flag`, `[:each, marks_method]`, `[:option, name]`, or a bare
@@ -56,8 +46,7 @@ module Hecks
           when :identity then value&.to_sym
           when :flag     then value ? true : false
           when Array
-            # [:each, reader] maps a list ; [:option, name] reads one named option,
-            # which needs its name as well as its value.
+            # `[:option, name]` needs its name as well as its value.
             if reader.first == :each
               Array(value).map { |held| Marks.public_send(reader.last, held) }
             else

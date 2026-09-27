@@ -1,9 +1,6 @@
 require "hecks"
 
-# A local boot, not `boot_in_memory` — that helper is Pizzas-specific by
-# design (spec_helper.rb's own comment). Same shape, Governance's own
-# bluebook/hecksagon, Memory regardless of what a real deployment would
-# bind — the established rule for specs (see feedback memory on this).
+# A local boot rather than `boot_in_memory`, which is Pizzas-specific; Memory-persisted.
 RSpec.describe "Governance" do
   def boot
     registry = Hecks::Runtime::Registry.new
@@ -68,29 +65,15 @@ RSpec.describe "Governance" do
     expect(rows.map { |row| row[:id] }).to eq(["u-1:Teller:2026-01-01"])
   end
 
-  # QualityControl BUG#2 — the pizzas fuzz sweep (seed 20) found the
-  # compiled Rust conformance binary refusing this exact query
-  # TypeMismatch while Ruby answered with an empty row set: `actor_id`
-  # is a declared, non-optional value-object attribute (IdentityId), and
-  # C3.7 (docs/semantics/bluebook-semantics.md) says a named query's
-  # declared value-object arguments are built — nil-checked — the same
-  # way a command argument's own is. QueryInterpreter#normalize_args
-  # never passed `argument: true` through to Value.for_attribute, so
-  # the nil never reached Value::Coercion#nil_argument's own raise.
+  # Regression: a nil value-object query argument must raise TypeMismatch like a command
+  # argument does (C3.7, docs/semantics/bluebook-semantics.md), not return an empty row set.
   it "refuses AssignmentsForActor's actor_id offered as nil, exactly as a command argument would" do
     expect { runtime.query("Governance::RoleAssignment.AssignmentsForActor", actor_id: nil) }
       .to raise_error(Hecks::Runtime::TypeMismatch, /IdentityId\.value expects String, got nil/)
   end
 
-  # The C3.8 carve-out this fix must not touch: a bare-scalar query
-  # argument (Allowed's `from_role`/`to_role` are value objects too, so
-  # this only distinguishes via `checked_vo?`'s own guard — asserted
-  # directly since no bare-scalar-typed query argument exists in this
-  # bluebook to exercise end to end) stays untyped at the query door.
-  # Asserted structurally rather than behaviorally: `checked_vo?` is
-  # private on QueryInterpreter, called here through `send` purely to
-  # pin the guard's own boolean, not to reach for a private method as
-  # an ordinary public assertion.
+  # C3.8 carve-out: a bare-scalar query argument stays untyped. No such argument exists in this
+  # bluebook, so the private `checked_vo?` guard is pinned directly through `send`.
   it "checked_vo? only ever fires for a nil, non-optional, value-object-typed query attribute" do
     interpreter = Hecks::Runtime::QueryInterpreter.new(runtime.registry)
     aggregate = runtime.registry.bluebook("Governance").aggregate("RoleAssignment")
@@ -115,14 +98,8 @@ RSpec.describe "Governance" do
     expect(result.instance.state[:ends_at]).to be_nil
   end
 
-  # M25 — `starts_at` is part of the identity for the same reason it is
-  # for RoleAssignment (see the aggregate's own header comment): without
-  # it, `identified_by :from_role, :to_role` alone made a revoked pair
-  # permanently occupied — `Grant` is a creating command, so a repeat
-  # grant of the identical pair collided with its own (now-revoked)
-  # record as `AlreadyExists`, forever. This is the regression test for
-  # that fix: revoke a pair, then grant it again — the second grant must
-  # succeed as a genuinely new record, not be refused.
+  # Regression: `starts_at` is part of the identity, so re-granting a revoked pair creates a new
+  # record instead of colliding as `AlreadyExists`.
   it "grants a previously-revoked pair again, as a distinct record — the pair is not an absorbing state" do
     first = grant(starts_at: "2026-01-01")
     runtime.dispatch_flat("Governance::RoleTransition.Revoke", id: first.instance.id, ends_at: { value: "2026-05-31" })

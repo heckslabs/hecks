@@ -3,25 +3,9 @@ require "json"
 require "open3"
 require_relative "support/rust_conformance_helpers"
 
-# qa/stress_domains/referral_chain — see its own NOTES.md and the header
-# comment on referral_chain.bluebook for why this domain exists: a
-# three-aggregate `reference_to` chain (Referral -> Member -> Sponsor,
-# angle-2 in the QA ledger) walking every hop the runtime's reference
-# machinery has — a one-hop and a two-hop `given` through a fresh
-# argument, a two-hop `where`, and a reference re-pointed through a
-# plain value object so only a settled-state reference check can catch a
-# dangling one.
-#
-# These pin the Ruby side's answers — the reference the differential
-# harness compares Rust against. `Referral.Reassign`'s own example used
-# to be the one Rust disagreed with on the first real run (NOTES.md,
-# "What this domain found") — QualityControl BUG#26 / ADR 0037 Finding 5,
-# reopened by this domain and closed by `rust/project/domain_generator.rb
-# #state_reference_checks` (mirrored in `rust/codegen/src/domain_
-# generator.rs`): a revalued reference redeclared under a plain value
-# object is now checked at the router, against the aggregate's own
-# `Reference<X>` attribute, the same pre-dispatch shape `reference_checks`
-# already used for an ordinary `reference_to` command argument.
+# qa/stress_domains/referral_chain: a Referral -> Member -> Sponsor `reference_to` chain that
+# exercises one- and two-hop `given`, a two-hop `where`, and a reference re-pointed through a
+# plain value object. These pin the Ruby answers the differential harness compares Rust against.
 RSpec.describe "ReferralChain" do
   include RustConformanceHelpers
 
@@ -88,8 +72,7 @@ RSpec.describe "ReferralChain" do
   end
 
   # **The two-hop where** — `member/sponsor/standing`, walked by
-  # `QuerySpecification::HopPath`; Rust structurally refuses this query,
-  # so Ruby's own answer here is the only one the practice has.
+  # `QuerySpecification::HopPath`; Rust refuses this query, so only Ruby answers it.
   it "answers the two-hop where by the sponsor two references away, not by anything the referral itself stores" do
     runtime
     chain!(sponsor: "good", member: "gm")
@@ -102,13 +85,8 @@ RSpec.describe "ReferralChain" do
     expect(codes).to eq(["from-good"])
   end
 
-  # **The ADR 0037 finding 5 shape** — `Reassign` redeclares `member` under a
-  # plain `Handle`, so the command-level reference check on the command's
-  # own attribute sees nothing to check (it isn't `reference?`-true); a
-  # second, aggregate-level check (`state_reference_checks`, domain_
-  # generator.rb — Rust's own port of this shape) asks whether the value
-  # actually names a real Member, resolved against the aggregate's own
-  # `Reference<Member>` attribute of the same name instead.
+  # `Reassign` redeclares `member` under a plain `Handle`, so only the aggregate-level
+  # settled-state reference check can see a dangling value.
   it "re-points a referral at an existing member through a plain handle" do
     runtime
     chain!
@@ -129,23 +107,10 @@ RSpec.describe "ReferralChain" do
     expect(ReferralChain::Referral.find("r1")[:member]).to eq("m1")
   end
 
-  # BUG#26 (QualityControl ledger) / ADR 0037 finding 5, reopened — the
-  # Rust side of the example just above. Before `rust/project/domain_
-  # generator.rb#state_reference_checks` (mirrored in `rust/codegen/src/
-  # domain_generator.rs`), the compiled conformance binary accepted this
-  # exact sequence, emitted `ReferralReassigned`, and stored `member:
-  # "ghost"` as a dangling reference — confirmed live, reproduced via
-  # `Hecks::Fuzzing::SequenceGenerator.generate("qa/stress_domains/
-  # referral_chain", seed: 2, steps: 25, adversarial: 0.3)`, replayed
-  # through `Hecks::Fuzzing::Replay` against the compiled binary. Both
-  # engines now refuse `NotFound`, byte-for-byte on the refusal kind
-  # (C8.2 — prose is not the contract), and both leave the referral's own
-  # `member` field untouched.
+  # The Rust side of the example above: the compiled binary must refuse `NotFound` and leave
+  # `member` untouched, not store a dangling reference (ADR 0037).
   #
-  # `io: true` — a real `cargo build --features referral_chain`, same as
-  # every other spec doing genuine Rust I/O (rust_conformance_spec.rb,
-  # rust_conformance_fuzz_spec.rb); excluded locally by default
-  # (spec_helper.rb), always run in CI.
+  # `io: true` — builds the referral_chain feature with cargo; excluded locally, run in CI.
   it "refuses to re-point a referral at a handle naming no member on the compiled Rust conformance binary too", :io do
     rust_dir = File.join(InMemoryDomain::ROOT, "rust")
     binary = build_rust_for("referral_chain", rust_dir)
@@ -170,20 +135,8 @@ RSpec.describe "ReferralChain" do
     expect(referral["member"]).to eq("m1"), "Rust must not persist a dangling member reference"
   end
 
-  # Bug#<N> (QualityControl ledger) — the dry-run twin of the real-dispatch
-  # example just above, and where the practice's own differential fuzzer
-  # (SW-referral_chain-1789342724, seed 1) actually caught this: Dispatcher
-  # #dry_run?'s own comment promises "if this were dispatched right now,
-  # would it succeed" — but `CommandInterpreter#step_save` returns before
-  # ever calling `resolve_state_references` when `ctx.dry_run` is set, so
-  # this is the one check real dispatch performs that a dry run would
-  # otherwise silently skip. Left unguarded, `dry_run?` would answer `true`
-  # for a `Reassign` naming no real Member — disagreeing with the real dispatch one line
-  # below it, which has always correctly refused. The compiled Rust
-  # conformance binary already refused this shape on both paths (its
-  # `state_reference_checks` runs at the router, unconditionally, so it
-  # never had Ruby's dry-run-specific gap) — this is what the sweep
-  # reported as a Ruby/Rust `dry_runs` divergence.
+  # Dispatcher#dry_run? must refuse a dangling member like a real dispatch does:
+  # `CommandInterpreter#step_save` returns before `resolve_state_references` on a dry run.
   it "answers dry_run? the same way a real dispatch would — a dangling member is refused, not accepted" do
     runtime
     chain!

@@ -2,24 +2,8 @@ require "hecks"
 require "hecks/fuzzing/isolated_boot"
 require "time"
 
-# **The real, shipped wiring** — not a hand-composed registry. Banking's own
-# `.hecksagon` declares `uses_framework "Governance"` (see
-# examples/banking/bluebook/banking.hecksagon), so a plain `Hecks.boot`
-# already attaches Governance to the same registry ; `GovernanceAuthorization`
-# needs no bridge to a second runtime, just a dispatch against records
-# already sitting in the store it is handed. `Fuzzing::IsolatedBoot` is
-# what every other spec touching a Heki-backed example already uses to
-# avoid writing into the real examples/banking/data/ files — it copies the
-# domain to a tmpdir and rebinds every persistence there to Memory ;
-# Governance's own hecksagon is Memory already and lives outside the
-# copied tree entirely (`Framework.load!` always reaches its real path),
-# so nothing about attaching it needs isolating twice.
-#
-# Covers both halves the port answers: `holds_role?` (RoleAssignment) and
-# `authorized_as?` (RoleTransition) — the latter proved end to end as an
-# `act_as` flow through the port, the same shape `act_as_spec.rb` proves
-# by querying Governance directly (two separate registries, for
-# RoleTransition's own reasons — see that file's own header).
+# Runs against the shipped wiring: Banking's `uses_framework "Governance"` attaches it on boot.
+# `IsolatedBoot` rebinds persistence to Memory so examples/banking/data/ stays untouched.
 RSpec.describe Hecks::Adapters::GovernanceAuthorization do
   def runtime
     Hecks::Fuzzing::IsolatedBoot.call("examples/banking") { |copy| return Hecks.boot(copy) }
@@ -169,11 +153,8 @@ RSpec.describe Hecks::Adapters::GovernanceAuthorization do
     )
     expect(allowed).to be(false)
 
-    # Never reached in a real app — no `as_caller`, no dispatch. Proved
-    # here by dispatching unauthenticated (no caller bound at all), which
-    # `CommandRules::Authorization` itself would let through since a role
-    # check is inert with no ambient caller — the port's "no" is what has
-    # to stop the app from ever getting here, not the runtime.
+    # No `as_caller` and no dispatch: with no ambient caller the runtime's role check is inert,
+    # so it is the port's "no" that must stop the app before it gets here.
     expect(business.registry.repository("Banking", business.registry.bluebook("Banking").aggregate("Customer"))
       .find(customer.instance.id).state[:standing][:value]).to eq("good")
   end
@@ -239,9 +220,7 @@ RSpec.describe Hecks::Adapters::GovernanceAuthorization do
       end
       expect(suspended.events.map(&:name)).to eq(["CustomerSuspended"])
 
-      # Restored. Still inside the outer as_caller, no nested block in the
-      # way — "Branch clerk" is authorized for Register, so this only
-      # succeeds if the role actually went back.
+      # Restored: "Branch clerk" may Register, so this succeeds only if the role went back.
       registered = register_customer(business, reference: "C-2")
       expect(registered.events.map(&:name)).to eq(["CustomerRegistered"])
     end

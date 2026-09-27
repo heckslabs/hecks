@@ -4,85 +4,23 @@ require "rack"
 
 module Hecks
   module Adapters
-    # **The driving side** — code an outside caller reaches in through,
-    # rather than code the domain reaches out through. Every existing
-    # file under `adapters/driven/` is the latter: a store or reader a
-    # `persisted_by`/`port` binding resolves to, called by this
-    # framework's own runtime. Nothing under this repository has ever
-    # been the mirror image before — code that receives a request from
-    # the outside world and turns it into a dispatch — so this is the
-    # first entry, and the directory itself is new.
+    # Driving adapters: code an outside caller reaches in through.
     module Driving
-      # **A GitHub webhook receiver, transport only** — the same split
-      # `Hecks::Adapters::GithubChecks` (qa/adapters/github_checks.rb,
-      # this class's own pull-side sibling) already draws for itself:
-      # this file owns proving a request really came from GitHub and
-      # unwrapping GitHub's own webhook envelope (`X-GitHub-Event`, the
-      # JSON body, GitHub's own automatic `ping` check) — never which
-      # commands to dispatch about what it finds inside. That is exactly
-      # as domain-specific as `GithubChecks#run` turning `check-runs`
-      # JSON into green-or-raise, and lives exactly where that class's
-      # own header explains such logic belongs: outside this library,
-      # in `qa/adapters/github_ci_webhook.rb`, the subclass of this file
-      # that actually knows what a `QualityControl::Clearance` is.
+      # A GitHub webhook receiver, transport only: a rack app that verifies the signature.
+      # A subclass implements `#handle_event(event, action, payload)` returning `[status, body]`.
       #
-      # ## A plain rack app
-      #
-      # A plain rack app (`#call(env)`) — no Sinatra, no Rails — the same
-      # shape `Hecks::Forms::App` (lib/hecks/forms/app.rb) already
-      # established for the one other HTTP-facing surface this library
-      # ships. `rack` is a lazy Gemfile dependency for exactly the reason
-      # that file's own header gives: this file is never required by
-      # `require "hecks"` (nothing under `adapters.rb`'s own eager
-      # `adapters/driven` load names it — see that file's own header),
-      # so a project that never mounts a driving adapter never needs
-      # `rack` installed, the same "opt in by requiring the file at all"
-      # contract `hecks/forms.rb` already has for `Forms::App`.
-      #
-      # ## Subclass responsibility
-      #
-      # Implement `#handle_event(event, action,
-      # payload)`, returning `[http_status, response_body_hash]`. Called
-      # only after the signature has verified and the body has parsed as
-      # JSON — a subclass never has to re-check either. `event` is
-      # GitHub's own `X-GitHub-Event` header value ("check_suite",
-      # "check_run", "pull_request", ...); `action` is the payload's own
-      # top-level `"action"` field when it has one (GitHub's webhooks
-      # nearly all carry one — "completed", "requested", "opened", ...)
-      # and nil when it does not. `ping` — GitHub's own automatic
-      # connectivity check, sent once when a webhook is first saved in
-      # repository settings — is answered here and never reaches a
-      # subclass at all; there is nothing domain-specific to decide
-      # about it.
+      # Not required by `require "hecks"`, so `rack` stays an opt-in dependency.
       class GithubWebhook
-        # **Refused, loudly** — the same shape a domain refusal already takes
-        # everywhere else in this codebase (`Runtime::DOMAIN_REFUSALS`,
-        # `Forms::App`'s own `{error:, message:}` JSON body for a bad
-        # command). A request that cannot prove it came from GitHub gets
-        # a real 401 and a named reason, never a silent 200 that would
-        # let a forged "CI passed" payload regress nothing while looking
-        # exactly like success in a log nobody re-reads.
+        # Raised for a request that cannot prove it came from GitHub; answered with a 401.
         class InvalidSignature < StandardError; end
 
-        # **The body did not even parse** — distinct from a signature refusal:
-        # this body genuinely came from whoever signed it (checked
-        # first, before parsing ever runs — see `#call`), and simply
-        # is not JSON. Still refused, never guessed at.
+        # Raised when a correctly signed body is not JSON; answered with a 400.
         class MalformedPayload < StandardError; end
 
         SIGNATURE_HEADER = "HTTP_X_HUB_SIGNATURE_256".freeze
         EVENT_HEADER     = "HTTP_X_GITHUB_EVENT".freeze
 
-        # `secret:` has no default, on purpose — the same rule
-        # `GoogleAuthentication`'s own header states for its own
-        # `ENV.fetch`, restated here because the consequence is worse for
-        # a webhook: an unverified signature check is not "half
-        # configured", it is no verification at all, silently accepting
-        # anything claiming to be GitHub. A caller passes the real
-        # secret explicitly — from `ENV.fetch("GITHUB_WEBHOOK_SECRET")`
-        # or wherever it keeps one — rather than this class reaching into
-        # the environment itself and hiding that requirement inside a
-        # default.
+        # `secret:` has no default: a missing secret would silently disable verification.
         # @param secret [String] the shared webhook secret (e.g. `ENV.fetch
         #   ("GITHUB_WEBHOOK_SECRET")`), checked against each request's `X-Hub-Signature-256`
         # @raise [ArgumentError] if `secret` is nil or empty
@@ -120,13 +58,7 @@ module Hecks
 
         private
 
-        # Constant-time compare, not `==`. A byte-by-byte `==` returns
-        # the moment it finds the first mismatching byte, so how long
-        # that took leaks how many leading bytes of a forged signature
-        # were already right to anyone timing the response — GitHub's
-        # own webhook documentation calls this out by name and recommends
-        # exactly the constant-time compare `Rack::Utils.secure_compare`
-        # already gives for free, reused rather than hand-rolled.
+        # Constant-time compare: `==` leaks how many leading bytes of a forged signature matched.
         def verify_signature!(request, body)
           header = request.get_header(SIGNATURE_HEADER)
           raise InvalidSignature, "missing #{SIGNATURE_HEADER.sub('HTTP_', '').tr('_', '-')} header" if header.to_s.empty?

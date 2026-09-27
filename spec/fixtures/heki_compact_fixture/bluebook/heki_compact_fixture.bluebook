@@ -1,8 +1,5 @@
-# A DEDICATED FIXTURE for bin/heki_compact's own spec — one tiny
-# aggregate, Heki-persisted, with no `projected_by` binding at all, so
-# compaction is genuinely safe against it (contrast examples/banking,
-# used by the SAME spec to prove the refusal path against a real
-# `persisted_by("Heki")` + `projected_by("SqliteProjection")` pairing).
+# Fixture for bin/heki_compact's spec: a Heki-persisted aggregate with no `projected_by`,
+# so compaction is safe (examples/banking covers the refusal path).
 Hecks.bluebook "HekiCompactFixture" do
   vision "One small aggregate worth compacting a journal over."
   core

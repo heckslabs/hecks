@@ -1,49 +1,25 @@
 #!/usr/bin/env ruby
 
-# The expression machinery's tables, projected from the grammar chapter's
-# admitted set and checked in, so the evaluator and the canonical form read
-# the domain rather than restating it. Regenerate with:
+# Projects the expression machinery's operator and normalisation tables from the grammar
+# chapter into lib/hecks/bluebook/expression/projection.json.
 #
 #   bin/expression_projection            # rewrites the file in place
 #   bin/expression_projection --stdout   # prints instead (the spec's diff mode)
 #
-# Writes its own file, never `>` — this generator's output is the file
-# the framework reads at require time, and a shell redirection truncates
-# that file before Ruby ever boots: the empty file kills the require and
-# the run dies with nothing written. Measured, not assumed — the first
-# regeneration attempt did exactly that. So the default mode boots off
-# the checked-in table, derives the fresh one from the domain (never
-# from what it just read), and replaces the file atomically.
+# Never redirect with `>`: the shell truncates the file the framework requires at boot, so
+# the run dies with nothing written. The default mode replaces the file atomically.
 #
-# One guard stands where a wedge was found. The chapter's own
-# `status != "retired"` givens evaluate through the very operator table
-# being projected — a projection missing a self-bearing operator cannot
-# even boot the chapter to fix itself. So this script refuses to write a
-# projection whose admitted set drops an operator the language's own
-# predicates evaluate through (Grammar.self_bearing_operators names each
-# one with a usage site).
-#
-# This script carries no separate repair path for a checked-in file broken
-# beyond self-repair — with one runtime, the file's own git history is
-# simpler ground truth than rebuilding it from elsewhere would be, so
-# `git checkout -- lib/hecks/bluebook/expression/projection.json` restores
-# the last-known-good version directly.
-#
-# Operators carry the vocabulary's comparison algebra (the domain owns
-# which and in what order; Vocabulary::Comparison owns what it computes);
-# normalisations are the admitted rules in position order. The machinery
-# refuses to load without the file, which is the point — a table nobody
-# regenerates is a table the Admit gates never saw.
+# Refuses to write a projection that drops a self-bearing operator, one the chapter's own
+# `status != "retired"` givens evaluate through, since that would wedge every later boot.
+# Recover a broken file with `git checkout -- lib/hecks/bluebook/expression/projection.json`.
 
 require "json"
 require "tempfile"
 
 TARGET = File.expand_path("../lib/hecks/bluebook/expression/projection.json", __dir__)
 
-# Writes `content` to `TARGET` atomically, via a same-directory tempfile and a rename, so a
-# reader never observes a partially-written projection file.
+# Replaces `TARGET` via a same-directory tempfile and rename, so readers never see a partial file.
 #
-# @param content [String] the serialized projection document to write
 # @return [void]
 def write_atomically(content)
   Tempfile.create("projection", File.dirname(TARGET)) do |tmp|
@@ -76,10 +52,7 @@ operators = Hecks::Grammar.admitted_operators(dispatcher).map do |op|
             compares_equal: declared[:compares_equal], negated: declared[:negated])
 end
 
-# **The self-bearing refusal** — see the header. A projection that drops an
-# operator the language's own predicates evaluate through would wedge
-# every future boot; refuse to write it, naming each operator and where
-# the language stands on it.
+# Refuse to write a projection that would wedge every future boot; name each dropped operator.
 admitted = operators.map { |row| row[:symbol] }
 stranded = Hecks::Grammar.self_bearing_operators.except(*admitted)
 unless stranded.empty?

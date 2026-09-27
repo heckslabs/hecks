@@ -2,22 +2,13 @@ require_relative "word_gate"
 module Hecks
   module Bluebook
     module DSL
-      # A generic keyword-call sink for one bind's own settings block (e.g.
-      # `persisted_by "Heki" do dir :default end`) — every method call made
-      # on it inside the block is recorded verbatim by name, with no fixed
-      # vocabulary of its own; `WorldBuilder#record_binding` reads `#to_h`
-      # back out.
+      # Records every keyword call made inside a bind's settings block, by name, with
+      # no fixed vocabulary of its own.
       class SettingsCollector
-        # Starts with no settings recorded.
         def initialize = @values = {}
 
-        # A call with a block records the block's own settings as a nested Hash, so a bind can
-        # group settings (`preview do ... end`); a call without one records its argument.
-        #
-        # @param key [Symbol] the setting's name, recorded verbatim
-        # @param args [Array] the setting's value: one argument is kept as is, several as an array
-        # @param block [Proc, nil] a nested settings block, evaluated on a fresh collector
-        # @return [Object] the value recorded under `key`
+        # A call with a block records its own settings as a nested Hash; a bare call
+        # keeps a single argument as is, several as an array.
         def method_missing(key, *args, &block)
           @values[key.to_sym] =
             if block
@@ -34,30 +25,15 @@ module Hecks
         def to_h = @values
       end
 
-      # The aggregate-qualified mirror (#143) — a `.world` file's own
-      # `Pizzas::Order.charged_by("Stripe") do ... end` visually mirrors the
-      # same bind line the sibling `.hecksagon` file already writes
-      # (`HecksagonBuilder`'s own `BindingProxy`), but `IR::World#for_verb`/
-      # `#for_binding` key purely by verb and adapter name — the aggregate
-      # qualifier is never read back out, it exists only for that visual
-      # mirroring. So unlike `BindingProxy`, nothing here needs to hold onto
-      # the resolved constant chain at all: every verb call, qualified or
-      # not, has to land in the exact same `@settings` write path
-      # (`WorldBuilder#record_binding`).
+      # Stands in for a bare aggregate constant inside a `.world` block, so a bind line
+      # can visually mirror its sibling `.hecksagon` spelling; the qualifier is never read back out.
       class WorldConstProxy
-        # Mints the stand-in module a bare domain constant resolves to inside a `.world` block.
-        #
-        # @param builder [Bluebook::DSL::WorldBuilder] the builder every verb called through the
-        #   module's proxies records its settings on
-        # @return [Module] an anonymous module whose `const_missing` answers a `WorldConstProxy`,
-        #   whatever aggregate name follows `::`
         def self.namespace(builder)
           Module.new do
             define_singleton_method(:const_missing) { |_aggregate| WorldConstProxy.new(builder) }
           end
         end
 
-        # @param builder [Bluebook::DSL::WorldBuilder] the builder verb calls are recorded on
         def initialize(builder) = @builder = builder
 
         def method_missing(verb, *args, **kwargs, &block) = @builder.record_binding(verb, args, kwargs, block)
@@ -65,76 +41,36 @@ module Hecks
         def respond_to_missing?(_name, _include_private = false) = true
       end
 
-      # Parses a `.world` file's top-level DSL block into a `World` — a
-      # domain's own `realm`/`latest` version markers plus its adapter bind
-      # settings, one entry per `verb("Adapter") do ... end` call (whether
-      # written bare or aggregate-qualified through `WorldConstProxy`'s
-      # visual mirror of a sibling `.hecksagon` file's own bind).
+      # Parses a `.world` file's top-level DSL block into a `World` — a domain's own
+      # `realm`/`latest` markers plus its adapter bind settings.
       class WorldBuilder
         GRAMMAR_CONTEXT = "World".freeze
 
         include WordGate
 
-        # @param domain [String] name of the domain whose world this is
         def initialize(domain)
           @domain   = domain
           @settings = {}
         end
 
-        # Names the realm this world belongs to, such as `"Examples"` or `"QA"`.
-        #
-        # `realm_impl`/`latest_impl` answer the `realm`/`latest` words
-        # through the table's `calls:` column — item #13's full
-        # metaprogrammed dispatch (slice 5). Neither bootstrap-reachable
-        # (checked directly). Reached through `WordGate`'s
-        # `word_gate_dispatch`, called explicitly below since
-        # `WorldBuilder`'s own class-level `method_missing` (the
-        # open-verb catch-all beneath this) always wins over the
-        # module's — see `word_gate.rb`'s own header for the full
-        # mechanism.
-        #
-        # @param value [String, Symbol] the realm's name; blankness is judged by the world
-        #   language at `build`, not here
-        # @return [String] the realm as stored
+        # Reached through `WordGate`'s `word_gate_dispatch`, called explicitly since this
+        # class's own `method_missing` would otherwise always win over the module's.
         def realm_impl(value)
           @realm = required(value, "realm")
         end
 
-        # Names the bluebook version this world treats as latest, which `ProjectRegister` compares
-        # with the bluebook's own declared `version`.
-        #
-        # @param value [String, Symbol, Numeric] the version marker; blankness is judged by the
-        #   world language at `build`, not here
-        # @return [String] the version as stored
+        # `ProjectRegister` compares this against the bluebook's own declared `version`.
         def latest_impl(value)
           @latest = required(value, "latest version")
         end
 
-        # Names the connection every chapter's database-taking persistence adapter uses
-        # unless that chapter's own world settings name one.
-        #
-        # Answers the `default_database` word through the table's `calls:` column, the
-        # same way `realm_impl` does. A chapter's own
-        # `persisted_by("Adapter") { database ... }` still wins for that adapter.
-        #
-        # @param value [String] the connection, such as a database URL; blankness is
-        #   judged by the world language at `build`, not here
-        # @return [String] the connection as stored
+        # A chapter's own `persisted_by("Adapter") { database ... }` still wins for that adapter.
         def default_database_impl(value)
           @default_database = required(value, "default database")
         end
 
-        # Names the persistence adapter every aggregate binds to unless its own chapter's
-        # hecksagon binds it.
-        #
-        # Answers the `default_adapter` word through the table's `calls:` column, the same
-        # way `realm_impl` does. Sits between an explicit bind and the framework's
-        # in-memory fallback; whether the adapter really is a persistence adapter is
-        # judged at boot, where adapters are known.
-        #
-        # @param value [String, Symbol] the adapter's declared name, such as `"PostgresEra"`;
-        #   blankness is judged by the world language at `build`, not here
-        # @return [String] the adapter name as stored
+        # Sits between an explicit bind and the framework's in-memory fallback; whether the
+        # adapter really is a persistence adapter is judged at boot, where adapters are known.
         def default_adapter_impl(value)
           @default_adapter = required(value, "default adapter")
         end
@@ -148,20 +84,8 @@ module Hecks
 
         def respond_to_missing?(_name, _include_private = false) = true
 
-        # Records one bind's settings under both its verb and its `verb:adapter` key.
-        #
-        # A method of its own, apart from `method_missing` (#143), so
-        # `WorldConstProxy`'s own aggregate-qualified verb calls
-        # (`Pizzas::Order.charged_by(...)`) write into the exact same
-        # place the bare top-level spelling (`charged_by(...)`) already
-        # does — one write path, two spellings.
-        #
-        # @param verb [Symbol, String] the bind verb, such as `:persisted_by`
-        # @param args [Array<Object>] the call's positional arguments; the first names the adapter
-        # @param kwargs [Hash{Symbol => Object}] settings given inline as keyword arguments
-        # @param block [Proc, nil] a settings block, evaluated against a `SettingsCollector`
-        # @return [Hash{Symbol => Object}] the settings just recorded: `:adapter` (a String),
-        #   then the keyword arguments, then the block's settings, later ones winning
+        # A method of its own, apart from `method_missing`, so `WorldConstProxy`'s
+        # aggregate-qualified verb calls write into the same place the bare spelling does.
         def record_binding(verb, args, kwargs, block)
           collector = SettingsCollector.new
           collector.instance_eval(&block) if block
@@ -170,11 +94,6 @@ module Hecks
           @settings["#{verb}:#{args.first.to_s.downcase}"] = value
         end
 
-        # Assembles the realm, version marker and bind settings, judged by the world language.
-        #
-        # @return [Bluebook::World] the world, returned once the language accepts it
-        # @raise [Bluebook::DSL::Malformed] if the world language refuses the declaration, such
-        #   as a blank `realm`
         def build
           MetaValidator.call_world(
             World.new(domain: @domain, realm: @realm, latest: @latest, settings: @settings,
@@ -182,19 +101,8 @@ module Hecks
           )
         end
 
-        # Evaluates a `Hecks.world` block against a fresh builder and returns the world it declared.
-        #
-        # `ConstShim`'s resolver, the same bridge `HecksagonBuilder`/
-        # `BluebookBuilder` already wrap their own `instance_eval` in
-        # (#143) — without it, `Pizzas::Order.charged_by(...)` raises
-        # `NameError: uninitialized constant Pizzas` for every `.world`
-        # file using the aggregate-qualified mirror form, since a bare
-        # `Pizzas` has no real constant to resolve to.
-        #
-        # @param domain [String] name of the domain whose world this is
-        # @yield the world body, evaluated with the builder as `self`; may be omitted
-        # @return [Bluebook::World] the judged world
-        # @raise [Bluebook::DSL::Malformed] if the world language refuses the declaration
+        # Wraps `instance_eval` in `ConstShim`'s resolver: without it, an aggregate-qualified
+        # verb call raises `NameError`, since the bare constant has nothing to resolve to.
         def self.build(domain, &block)
           builder  = new(domain)
           resolver = ->(_domain) { WorldConstProxy.namespace(builder) }
@@ -205,7 +113,7 @@ module Hecks
         private
 
         def required(value, _label)
-          # moved to the language: Realm / Latest invariants, in world.bluebook
+          # Validation lives in the world language (world.bluebook), not here.
           value.to_s
         end
       end

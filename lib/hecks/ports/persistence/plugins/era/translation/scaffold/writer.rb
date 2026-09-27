@@ -3,16 +3,10 @@ require "fileutils"
 module Hecks
   module Translation
     module Scaffold
-      # Put the rendered edge on disk, regenerating in place when a file
-      # for the same shape pair already exists.
+      # Writes the rendered edge to disk, reusing the file for the same shape pair if present.
       module Writer
-        # Renders an edge and writes it under `directory/translations`, regenerating in
-        # place when a file for the same shape pair already exists.
-        #
-        # The edge file, regenerated in place when one for the same shape
-        # pair already exists (matched textually — an unresolved file
-        # cannot be loaded to ask, that being the whole point of
-        # unresolved).
+        # Renders an edge and writes it under `directory/translations`.
+        # An existing file is matched textually because an unresolved file cannot be loaded.
         #
         # @param directory [String] the domain's root directory
         # @param edge [Scaffold::Edge] the edge to render and write

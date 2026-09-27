@@ -1,52 +1,16 @@
-//! A text-only outline of a `.bluebook`/`.hecksagon` buffer — every
-//! named top-level construct (`aggregate "Order" do` ... `end`), nested
-//! by `do`/`end` depth, with the line range each spans. Backs both
-//! `textDocument/documentSymbol` and `textDocument/definition`
-//! (`main.rs` resolves a bare identifier by searching outlines for a
-//! symbol of that name).
-//!
-//! Deliberately not sourced from `hecks-parse`'s own IR, unlike
-//! `diagnostics.rs`: `rust/parser/src/ir.rs` carries no source line for
-//! any construct (confirmed — there is no `line` field anywhere in it),
-//! so there is nothing to navigate to even when a parse fully succeeds.
-//! And a parse often doesn't fully succeed yet — Stage 1 stubs return
-//! `not_yet_implemented` for whole construct kinds
-//! (`rust/parser/src/main.rs::COVERED_PAIRS`'s own header), which would
-//! leave `documentSymbol` empty for most of the real corpus if it only
-//! ever ran after a clean parse. This scans the buffer directly instead
-//! — line-based, no dependency on `hecks-parse` succeeding at all — at
-//! the cost of being a second, unverified idea of the grammar rather
-//! than a projection of `syntax.bluebook` the way `rust/parser`'s own
-//! `keywords.rs` is (see that file's header, and `rust/lsp/README.md`'s
-//! own note on this trade-off). The eight keywords below are read
-//! straight off `syntax.bluebook`'s own `Bluebook`/`Aggregate` argument
-//! lists, not guessed, and kept to exactly the constructs worth jumping
-//! to — this is an outline, not a parser.
-//!
-//! The grammar's own regularity is what makes this safe: `rust/parser`'s
-//! own lexer refuses any line that isn't one of a small fixed set of
-//! shapes (`lex.rs::classify` — no bare Ruby expressions, no `if`, no
-//! local assignment ever admitted), so a real, well-formed `.bluebook`
-//! file only ever opens a block with a line ending in `do` and closes it
-//! with a line that is bare `end` — no one-line `do ... end`, no
-//! `do |args|` block parameters anywhere in the real corpus (confirmed:
-//! `grep -n 'do |' examples/**/*.bluebook` finds none). A do/end depth
-//! counter is a much shakier idea in general Ruby; it's a reasonably
-//! safe one here.
-//!
-//! A buffer mid-edit can have unbalanced `do`/`end` — the one real
-//! failure mode: a stack that never pops (later symbols nest under a
-//! long-since-should-have-closed one) or pops early. Self-corrects the
-//! next time depth balances out; never panics either way.
+//! A line-based outline of a `.bluebook`/`.hecksagon` buffer, nested by `do`/`end` depth.
+//! Scanned directly rather than from the IR, which carries no lines and may not parse yet.
 
+/// One named construct with the 1-indexed line range it spans.
 pub struct Symbol {
     pub name: String,
     pub kind: Kind,
-    pub start_line: usize, // 1-indexed, the declaring line itself
-    pub end_line: usize,   // 1-indexed, the line holding this block's own closing `end`
+    pub start_line: usize, // 1-indexed declaring line
+    pub end_line: usize,   // 1-indexed line of the closing `end`
     pub children: Vec<Symbol>,
 }
 
+/// The construct keywords the outline recognizes.
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum Kind {
     Aggregate,
@@ -70,12 +34,7 @@ const CONSTRUCTS: &[(&str, Kind)] = &[
     ("read_model", Kind::ReadModel),
 ];
 
-/// Kinds a `reference_to`/`belongs_to` bare identifier can legally name
-/// — the only symbols `main.rs`'s `find_definition` resolves against.
-/// `command`/`query`/`policy`/`process_manager`/`read_model` names are
-/// never referenced by a bare constant elsewhere in the corpus the way
-/// a type name is, so they're left out of definition lookup (they still
-/// appear in `documentSymbol`'s full outline).
+/// Whether a bare identifier can name this kind; only these are definition targets.
 pub fn is_reference_target(kind: Kind) -> bool {
     matches!(kind, Kind::Aggregate | Kind::Entity | Kind::ValueObject)
 }
@@ -143,11 +102,7 @@ fn opens_construct(trimmed: &str) -> Option<(String, Kind)> {
     None
 }
 
-/// Depth-first search for a symbol named exactly `name` among `symbols`
-/// and their descendants — `reference_to`/`belongs_to` targets are
-/// looked up by bare name regardless of nesting depth (the language
-/// names one idea one way, ADR 0025: a type name is unique across the
-/// chapter it's declared in, not just within its immediate parent).
+/// Depth-first search for a reference target named `name`, at any nesting depth (ADR 0025).
 pub fn find_by_name<'a>(symbols: &'a [Symbol], name: &str) -> Option<&'a Symbol> {
     for symbol in symbols {
         if symbol.name == name && is_reference_target(symbol.kind) {
@@ -203,8 +158,7 @@ end
     fn a_nested_do_end_block_does_not_split_its_parent() {
         let roots = outline(PIZZAS);
         let create_pizza = &roots[0].children[1];
-        // The `given ... do ... end` block inside CreatePizza must not
-        // close CreatePizza's own block early.
+        // The nested `given ... do ... end` must not close CreatePizza early.
         assert_eq!(create_pizza.end_line, 11);
     }
 

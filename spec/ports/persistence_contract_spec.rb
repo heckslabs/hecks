@@ -4,26 +4,8 @@ require "hecks/ports/persistence/plugins/era"
 require_relative "../support/persistence_legacy_fixture"
 require_relative "../support/postgres_probe"
 
-# One round-trip contract, every persistence adapter (Phase 2, Track A,
-# PR A3). Since A3 every adapter writes through
-# `Ports::Persistence::StateCodec.encode` and reads through `decode`, so
-# they must all agree on exactly what a saved record reads back as —
-# head and journal alike. The examples below are shared, verbatim, by
-# Memory, Heki, Sqlite, D1 (over a real in-memory SQLite, the stand-in
-# spec/adapters/driven/d1_spec.rb uses), Postgres and PostgresEra.
-#
-# The shapes, from `examples/banking` (PersistenceLegacyFixture::SEEDS):
-# Account — nested multi-field value objects (Money), a list of entities
-# each holding its own nested value objects plus its own lifecycle field
-# (`ledger`), a reference (`customer`), the lifecycle field (`status`), a
-# seeded projected field (`customer_status`). CardPayment — a list of
-# value objects (`tags`), a required and a nil optional reference, and a
-# never-seeded projected field (`account_customer_status`).
-#
-# Every adapter here is guarded exactly as `RepositoryFactory.build`
-# guards it (`CodecBoundary.guard!`) and driven through `AppendOnly`, so a
-# contract pass also proves no adapter builds an `Instance` from state the
-# codec has not decoded.
+# One round-trip contract every persistence adapter must satisfy: saved
+# state reads back exactly as `StateCodec` encoded it, head and journal alike.
 RSpec.describe "persistence adapter contract (state codec round trip)" do
   def fixture = PersistenceLegacyFixture
 
@@ -84,10 +66,8 @@ RSpec.describe "persistence adapter contract (state codec round trip)" do
         let(:record) { live(name) }
         let(:repository) { repository_for(aggregate) }
 
-        # The save goes inside the capture: Memory builds its record's
-        # Instance when it projects, not when it is read, so the last
-        # construction is the projected copy there and the read's decode
-        # everywhere else.
+        # The save must happen inside the capture: Memory projects (builds
+        # its Instance) on save, unlike every other adapter's decode-on-read.
         def read_after_save(&read)
           decoded_state do
             repository.save(record)
@@ -235,13 +215,11 @@ RSpec.describe "persistence adapter contract (state codec round trip)" do
     end
   end
 
-  # ── the enforcement: RepositoryFactory.build guards every adapter ─────
-
   describe "RepositoryFactory.build's codec boundary" do
     let(:aggregate) { fixture.aggregate("Account") }
 
-    # An adapter that "forgets" the codec: symbolizes one level by hand, the
-    # way Heki and every journal reader once did.
+    # An adapter that "forgets" the codec: symbolizes one level by hand
+    # instead of decoding through StateCodec.
     let(:forgetful_class) do
       Class.new(Hecks::Adapters::Memory) do
         def find(id)
@@ -290,9 +268,8 @@ RSpec.describe "persistence adapter contract (state codec round trip)" do
       end.not_to raise_error
     end
 
-    # Nested string keys under a declared value object: undecoded to the
-    # boundary, still accepted by hydration's own input door. A string
-    # top-level key is refused everywhere since A4 (Value.hydrate).
+    # Nested string keys under a declared value object still pass through
+    # hydration undecoded; only a string top-level key is refused there.
     def undecoded_nested = { status: "open", balance: { "cents" => 1, "currency" => "USD" } }
 
     it "does nothing to an Instance built outside any adapter call" do
@@ -302,6 +279,63 @@ RSpec.describe "persistence adapter contract (state codec round trip)" do
     it "refuses a string top-level key at hydration, inside or outside any adapter call" do
       expect { Hecks::Runtime::Instance.new(aggregate: aggregate, id: "A", state: { "status" => "open" }) }
         .to raise_error(Hecks::Runtime::WiringError, /non-Symbol keys \["status"\].*StateCodec\.decode/)
+    end
+  end
+
+  describe "RepositoryFactory.build's recover! skip for :atomic_append" do
+    let(:aggregate) { fixture.aggregate("Account") }
+    let(:seeded_entry) { Hecks::Ports::Persistence::Entry.new(operation: "save", id: "A", state: canonical("Account")) }
+
+    # `store`/`journal` live outside the adapter instance, so two separate `.new`s (one per
+    # simulated boot) share the same underlying data — the way a real Sqlite file or Postgres
+    # database persists across process restarts, unlike Memory.
+    def durable_adapter_class(atomic_append:, store:, journal:)
+      Class.new do
+        attr_reader :aggregate
+
+        define_method(:initialize) { |aggregate:, settings: {}, root: nil| @aggregate = aggregate }
+        define_method(:persistence_capabilities) { atomic_append ? [:atomic_append] : [] }
+        define_method(:append) do |entry|
+          journal << entry
+          entry
+        end
+        define_method(:entries) { journal.dup }
+        define_method(:project) do |entry|
+          entry.delete? ? store.delete(entry.id) : store[entry.id] = entry.state
+          entry
+        end
+        define_method(:find) do |id|
+          state = store[id]
+          state && Hecks::Runtime::Instance.new(aggregate: @aggregate, id: id, state: state)
+        end
+        define_method(:all) do
+          store.map { |id, state| Hecks::Runtime::Instance.new(aggregate: @aggregate, id: id, state: state) }
+        end
+        define_method(:count) { store.size }
+      end
+    end
+
+    def boot(adapter_class)
+      registry = instance_double(Hecks::Runtime::Registry, root: nil, resolved_eras: {}, superseded_eras: {}).tap do |double|
+        allow(double).to receive_messages(check_verb: nil, binding_settings: {}, check_settings: nil,
+                                          adapter_class: adapter_class)
+      end
+      bind = Hecks::Bluebook::Bind.new(aggregate: "Account", verb: "persisted_by", adapter: "Durable")
+      Hecks::Ports::Persistence::RepositoryFactory.build(registry, "Banking", aggregate, bind, recover: true)
+    end
+
+    it "leaves a journaled-but-unprojected entry unrecovered when the adapter declares :atomic_append" do
+      adapter_class = durable_adapter_class(atomic_append: true, store: {}, journal: [])
+      boot(adapter_class).adapter.append(seeded_entry) # simulates a crash: journaled, unprojected
+
+      expect(boot(adapter_class).find("A")).to be_nil
+    end
+
+    it "still recovers a journaled-but-unprojected entry when the adapter does not declare :atomic_append" do
+      adapter_class = durable_adapter_class(atomic_append: false, store: {}, journal: [])
+      boot(adapter_class).adapter.append(seeded_entry)
+
+      expect(boot(adapter_class).find("A")).not_to be_nil
     end
   end
 end

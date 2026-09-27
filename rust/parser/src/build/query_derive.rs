@@ -1,27 +1,10 @@
-//! Mirrors a query's `where` comparator splitting — `where(balance: {gte:
-//! 100}, status: "open")` is two `WhereClause`s from one line
-//! (`PairsShape::elements` — each pair independently becomes a new
-//! compound, appended to `wheres`), and a bare value (`status: "open"`)
-//! implies the `eq` comparator rather than spelling it. Also covers
-//! `sets`' four named forms choosing `Mutation#op` (`Argument#selects`,
-//! format `"op=increment"` etc.) — the analogous "which named argument
-//! fired chooses a value for another field" derivation on the Command
-//! side, grouped here rather than in a separate module since both read
-//! the same `selects` column.
+//! Derives `WhereClause`s from a query's `where` arguments, splitting `{gte: 100}` comparators
+//! and defaulting a bare value to `eq`.
 
 use crate::ir;
 use crate::ruby_value;
 
-/// `QuerySpecification::Common::DSL#where`'s `split_comparator` —
-/// `where(status: "available")` implies `eq` (the bare value itself is
-/// the operand); `where(:"pizza.price_cents.cents" => { lt: :ceiling })`
-/// names the comparator explicitly, one `{comparator: operand}` pair.
-/// `pairs` here is already the (field, raw-value-text) list
-/// `parse::mod`'s own `argument_gate_named_pairs` extracted (both the
-/// `identifier: value` and the hash-rocket `:"a.b" => value` spellings
-/// already folded into one shape by that point) — each becomes its own
-/// `WhereClause`, exactly the "one line, several compounds" shape
-/// `where(balance: {gte: 100}, status: "open")` needs.
+/// Splits each `(field, raw-value)` pair into a `WhereClause`; a bare value implies `eq`.
 pub fn where_clauses(pairs: &[(String, String)]) -> Vec<ir::WhereClause> {
     pairs
         .iter()
@@ -38,27 +21,10 @@ pub fn where_clauses(pairs: &[(String, String)]) -> Vec<ir::WhereClause> {
         .collect()
 }
 
-/// `where`/`order_by`/`limit`/`offset` are gaining an `on:` target kwarg
-/// on the Ruby side (ADR 0055, `docs/decisions/0055-read-model-on-target-
-/// for-where-order-by-limit-offset.md` — shipped Ruby-only; naming which
-/// many-side `include` an option applies to, once a read model declares
-/// more than one) — deliberately not yet ported here (that ADR's own item
-/// 3: this parser has no concept of `on:` at all yet).
+/// Refuses `on:` on `where`, which is not ported yet (ADR 0055).
 ///
-/// Only `where` actually needs this check. `order_by`/`limit`/`offset`
-/// each have a fixed, declared argument schema (`ArgumentRow`s per
-/// `(word, context)`), so `validate_named` (`parse/mod.rs`) already
-/// refuses an undeclared `on:` upstream, before either construct's own
-/// `parse_body` match arm ever runs — confirmed live ("'order_by' takes
-/// no 'on:' argument", etc.), so adding this check there too would be
-/// dead code. `where`'s own pairs-splitting (above) is structurally
-/// exempt from that per-name schema check — it has to accept an
-/// arbitrary field name as a named argument, that's the whole point of
-/// `where(any_field: value)` — so nothing upstream stops `on: Character`
-/// from silently misparsing as a second where-clause comparing a field
-/// literally named "on". Exactly the "failed open" shape `diag.rs`'s own
-/// header names as the one thing this crate never allows — refusing
-/// cleanly here instead, until the real port lands.
+/// `where` accepts arbitrary field names as named arguments, so an `on:` target would otherwise
+/// misparse as a comparison on a field called "on"; the other words refuse it by schema.
 pub fn refuse_on_target(
     file: &str,
     line: usize,

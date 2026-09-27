@@ -1,12 +1,5 @@
-# MEMORY, NOT `pizzas.hecksagon`'s OWN POSTGRESERA BIND — a `.behaviors`
-# example boots a fresh runtime per test (Hecks::Behaviors's own
-# design), so it wants an adapter with no real database to reach at all.
-# `pizzas.hecksagon` binds `PostgresEra` against `pizzas.world`'s real
-# connection string, which is right for the actual deployed domain and
-# wrong for a throwaway per-test boot — so `pizzas.behaviors` `loads`
-# THIS sibling hecksagon instead of the real one, the same Memory
-# override `spec_helper.rb`'s own `boot_in_memory` uses for the exact
-# same reason.
+# Memory-bound sibling of pizzas.hecksagon: `pizzas.behaviors` boots a fresh runtime per
+# test, so it loads this instead of the PostgresEra bind.
 Hecks.hecksagon "Pizzas" do
   uses_framework "Governance"
   Pizzas::Order.persisted_by("Memory")

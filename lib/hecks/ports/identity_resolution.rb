@@ -2,16 +2,8 @@ require_relative "../runtime/registry"
 
 module Hecks
   module Ports
-    # An authenticated (issuer, subject) pair, resolved to the id of a stable
-    # `Identity` — the other half of the same symmetry `Authorization`
-    # already has for Governance: one adapter registry-wide answers this
-    # port, resolved the same zero/one/many way, so an application never
-    # has to name `Identity` directly to ask "who is this."
-    #
-    # Answers `nil` for a pair nothing has linked — the caller decides
-    # what that means (refuse, prompt to register, whatever), the same
-    # way `Authorization#holds_role?` answering `false` decides nothing
-    # on its own.
+    # Resolves an authenticated (issuer, subject) pair to a stable identity id.
+    # One adapter registry-wide answers this port.
     module IdentityResolution
       NAME = "identity_resolution".freeze
 

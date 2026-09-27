@@ -1,46 +1,5 @@
-// **The HTTP server, for AWS Fargate** — `HECKS_SERVE_MODE=1` (main.rs's
-// own top-of-`main` check) runs this instead of `lambda_runtime::run`,
-// so a domain deployed via `deployed_to("AwsFargate")` (fargate.rb)
-// answers the plain HTTP its generated ALB/target group already expects,
-// rather than hanging forever waiting for a Lambda Runtime API that
-// doesn't exist in a container. Every boot step above main.rs's own
-// mode check (secrets, Postgres/TLS connect, schema setup, IR load, the
-// era-minting/lineage sequence) is unchanged and shared by both modes —
-// this module only replaces how a request *arrives*.
-//
-// `dispatch_body` below is the exact per-invocation logic
-// `lambda_runtime::run`'s own `service_fn` closure used to inline
-// (web::render first, then `{"read"}`, then verb/role/to/with/args) —
-// factored out so neither caller repeats it: the Lambda closure now
-// just unwraps its `LambdaEvent` and calls this; the axum fallback
-// route below reads the request body and calls the identical function.
-// One generator, read from what a request actually carries, not two
-// hand-maintained copies of the same dispatch decision tree.
-//
-// **Concurrency** — this server can genuinely receive overlapping
-// requests (that's the whole point: fast sidecar-to-sidecar networking
-// inside one ECS task, awsvpc-shared `localhost`). `dispatch_body` takes
-// the identical `&Mutex<Client>` `dispatch::handle`/`dispatch::read`
-// already required before this file existed — see dispatch.rs's own
-// comment on `handle`'s locking, which already anticipated exactly this
-// ("if this process is ever invoked concurrently in-process ... nothing
-// in this crate depends on [one-event-at-a-time] staying true"). That
-// mutex already serializes every write-path call (`handle`) end to end,
-// including the wasm execution nested inside it, onto the one Postgres
-// connection this process holds; concurrent requests queue for it
-// rather than corrupting anything. `dispatch::read`/`dispatch::query`
-// hold it only for two lightweight snapshot queries before dropping it
-// to run wasm, which is safe to do genuinely concurrently — wasmtime's
-// `Engine`/`Module` are `Arc`-wrapped and documented safe to instantiate
-// from many threads at once (wasm_runner.rs's own cache), each call
-// getting a fresh `Store`. No new locking was added for Fargate: the
-// existing one already covers the one thing that needed it (never
-// interleaving statements on a single shared connection), and a
-// connection-pool-based upgrade to true DB-level parallelism is a
-// separate, larger change to every call site that takes `&Mutex<Client>`
-// today (auth.rs, api.rs, web.rs, checkout.rs, journal.rs, mint.rs,
-// approval.rs, dispatch.rs itself) — left as a follow-up, not bundled
-// here.
+//! HTTP server for AWS Fargate (`HECKS_SERVE_MODE=1`): the axum fallback route below shares
+//! `dispatch_body` with the Lambda custom-runtime path, so neither repeats the other's logic.
 
 use crate::dispatch;
 use crate::journal::LineageConfig;
@@ -63,20 +22,8 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 use tokio_postgres::Client;
 
-/// The whole per-request dispatch decision, shared verbatim between the
-/// Lambda custom-runtime path (main.rs's own `service_fn` closure) and
-/// the axum fallback route below. `body` is already-parsed JSON, shaped
-/// one of three ways, checked in this order:
-///
-/// 1. A Function-URL/API-Gateway-v2 HTTP event
-///    (`requestContext.http`/`rawPath` present) — the public web UI,
-///    resolved by `web::render` and returned as its own
-///    `{"statusCode", "headers", "body", ...}` envelope.
-/// 2. `{"read": true}` — the kernel's own current-state read, no verb.
-/// 3. Otherwise, a command: `verb` plus one of `to`/`with` (routed),
-///    `with` alone (facts-only), or legacy `args` — the same shape a
-///    single entry of the kernel's own `{"steps": [...]}` array already
-///    has.
+/// The per-request dispatch decision, shared between the Lambda custom-runtime path and the
+/// axum fallback route below. `body` is already-parsed JSON in one of three shapes.
 pub async fn dispatch_body(
     body: Value,
     client: &Mutex<Client>,
@@ -89,10 +36,8 @@ pub async fn dispatch_body(
     }
 
     if body.get("read").and_then(|v| v.as_bool()) == Some(true) {
-        // `{e:#}` — see main.rs's own prior comment on this exact
-        // mapping: a bare `tokio_postgres` error's Display is the
-        // uninformative literal "db error"; anyhow's alternate Display
-        // walks `source()` to the real message underneath it.
+        // `{e:#}`: anyhow's alternate Display walks `source()` to the real message,
+        // where a bare `tokio_postgres` error's Display is just "db error".
         let result = dispatch::read(client, wasm_path).await.map_err(|e| format!("{e:#}"))?;
         return Ok(result);
     }
@@ -128,10 +73,8 @@ pub async fn dispatch_body(
     Ok(outcome.result)
 }
 
-/// Everything `dispatch_body` needs, `Arc`-shared with axum's own
-/// per-request handler cloning — the identical set main.rs already
-/// builds once at boot and clones into every Lambda invocation's own
-/// closure.
+/// Everything `dispatch_body` needs, `Arc`-shared for axum's per-request handler cloning.
+/// `client`'s mutex serializes every write onto the one Postgres connection this process holds.
 #[derive(Clone)]
 pub struct ServerState {
     pub client: Arc<Mutex<Client>>,
@@ -141,59 +84,22 @@ pub struct ServerState {
     pub limits: Arc<RateLimits>,
 }
 
-/// The document `GET /version` serves: which era the host booted on, the
-/// fingerprint of the IR it runs, and which build it is. All three are
-/// fixed for the life of the process, so this is built once at boot.
-///
-/// - `era` — the storage-shape label (`storage_shape::mint_label`), the
-///   same six-character id `mint::mint_era` stores as the era's label
-///   and `mint::decide_boot_action` matches held eras against. Whichever
-///   branch the boot gate took, the era the host runs on carries this
-///   label.
-/// - `ir_hash` — the full storage-shape hash (`storage_shape::mint_hash`)
-///   the label is the prefix of.
-/// - `build` — `HECKS_BUILD` when set and non-empty, else the crate
-///   version.
-///
-/// Carries no secrets: every value is derived from the IR or the build.
+/// The document `GET /version` serves: era, IR hash, and build — all fixed for the life of
+/// the process, so this is built once at boot. Carries no secrets.
 pub fn version_body(era: &str, ir_hash: &str, build_env: Option<&str>) -> Value {
     let build = build_env.filter(|v| !v.is_empty()).unwrap_or(env!("CARGO_PKG_VERSION"));
     serde_json::json!({ "era": era, "ir_hash": ir_hash, "build": build })
 }
 
-/// `GET /version` as its own router, merged ahead of the dispatch
-/// fallback in `serve`. A matched route never reaches `dispatch_route`, so
-/// the request goes through no `auth_gate` and no Postgres mutex, wasmtime
-/// or journal read: it answers a clone of the document built at boot.
+/// `GET /version` as its own router, merged ahead of the dispatch fallback: a matched
+/// request answers a clone of the boot-time document, never touching auth or dispatch.
 pub fn version_router(body: Value) -> Router {
     let body = Arc::new(body);
     Router::new().route("/version", get(move || std::future::ready(axum::Json(body.as_ref().clone()))))
 }
 
-/// Compiles the domain's wasm module (`warm_wasm`), then binds
-/// `0.0.0.0:$PORT` (`PORT`, matching `fargate.rb`'s own generated
-/// container `Environment` — falls back to 8080, the same default
-/// `deployed_to("AwsFargate")`'s own `port` setting uses, purely for
-/// convenience running this outside a real deploy) and serves forever.
-/// Nothing is listening until the compile is done, so the health check
-/// reports a host that can answer.
-///
-/// Three routes: `GET /version` (see `version_router`) reports the era
-/// and build without touching dispatch. `GET /` is a bare, dispatch-free
-/// `200 OK` — the ALB health check `fargate.rb` already targets at this exact path/port,
-/// answered without touching the Postgres mutex or wasmtime at all, so
-/// a backlog of real dispatch requests never delays it. Everything else
-/// (any other path, or any other method on `/`) goes through
-/// `dispatch_body` — see this module's own header for why the
-/// translation into JSON is a plain "parse the request body" rather
-/// than reconstructing a Function-URL event: this is the same wire
-/// shape `Adapters::Lambda::Client#dispatch` (Ruby) already sends over
-/// `lambda:InvokeFunction`, so a sidecar container in a future shared
-/// ECS task can send this Fargate-hosted domain the identical payload
-/// over plain `localhost` HTTP instead, unchanged. A caller that does
-/// send a full Function-URL-shaped body (`requestContext.http` present)
-/// still reaches the web UI through `dispatch_body`'s own first check —
-/// nothing here has to special-case that path.
+/// Compiles the domain's wasm module, then binds `$PORT` (falls back to 8080) and serves
+/// forever. Nothing listens until the compile finishes, so the health check never lies.
 pub async fn serve(state: ServerState, version: Value) -> Result<(), Error> {
     let port: u16 = std::env::var("PORT").ok().and_then(|v| v.parse().ok()).unwrap_or(8080);
 
@@ -205,9 +111,8 @@ pub async fn serve(state: ServerState, version: Value) -> Result<(), Error> {
     serve_on(listener, state, version).await
 }
 
-/// The router and serve loop over an already-bound `listener`: the part of
-/// `serve` that answers requests, split out so a test can run the real
-/// service on an ephemeral port.
+/// The router and serve loop over an already-bound `listener`, split out so a test can
+/// run the real service on an ephemeral port.
 async fn serve_on(listener: tokio::net::TcpListener, state: ServerState, version: Value) -> Result<(), Error> {
     let app = Router::new()
         .route("/", get(health))
@@ -220,13 +125,8 @@ async fn serve_on(listener: tokio::net::TcpListener, state: ServerState, version
     Ok(())
 }
 
-/// Compiles the domain's wasm module before the host listens, so a
-/// request that arrives right after boot finds it ready instead of
-/// waiting out a compile that can outlast the caller's own timeout
-/// (`wasm_runner::warm` has the whole story). A module that will not
-/// compile is logged, not fatal: the host still boots as it did before
-/// this step existed, and every request that needs the module reports
-/// the same error it would have.
+/// Compiles the domain's wasm module before the host listens, so a request right after
+/// boot finds it ready. A module that fails to compile is logged, not fatal.
 async fn warm_wasm(wasm_path: &Arc<PathBuf>) {
     let phase = log::phase("wasm_warm");
     let path = Arc::clone(wasm_path);
@@ -239,15 +139,13 @@ async fn warm_wasm(wasm_path: &Arc<PathBuf>) {
     }
 }
 
-/// The ALB health check — cheap and fast on purpose, no dispatch logic
-/// behind it at all (this module's own header has the full reasoning).
+/// The ALB health check — no dispatch logic behind it, so a request backlog never delays it.
 async fn health() -> StatusCode {
     StatusCode::OK
 }
 
-/// Runs one request and writes its access-log line — method, path (never
-/// the query string: it can carry OAuth codes and tokens), status and
-/// duration.
+/// Runs one request and logs it: method, path (never the query string, which can carry
+/// OAuth codes/tokens), status, and duration.
 async fn dispatch_route(
     State(state): State<ServerState>,
     ConnectInfo(peer): ConnectInfo<SocketAddr>,
@@ -287,14 +185,8 @@ async fn route_request(state: ServerState, peer: SocketAddr, method: Method, uri
     }
 }
 
-/// Turns a raw HTTP request into the envelope `dispatch_body` takes, or
-/// into the response that ends it before dispatch: a `400` for a body that
-/// is not JSON, a `429` for a caller over a public route's rate limit.
-///
-/// The limit is read off the envelope, not the raw request line, so a body
-/// that already carries the Function-URL shape counts against the route it
-/// names. The caller is identified from the real connection and headers
-/// (`rate_limit`'s own header has the trust rules), never from the body.
+/// Turns a raw HTTP request into `dispatch_body`'s envelope, or into the response that ends
+/// it first: a `400` for non-JSON, a `429` for a caller over a public route's rate limit.
 fn admit(limits: &RateLimits, peer: SocketAddr, method: &Method, uri: &Uri, headers: &HeaderMap, body: &Bytes) -> Result<Value, Box<Response>> {
     let parsed: Value = if body.is_empty() {
         serde_json::json!({})
@@ -305,26 +197,13 @@ fn admit(limits: &RateLimits, peer: SocketAddr, method: &Method, uri: &Uri, head
         }
     };
 
-    // A real HTTP client — a browser through the ALB, or the site's own
-    // server-to-server checkout call — gets none of a Lambda Function
-    // URL's automatic wrapping into `{"requestContext": {"http": ...},
-    // "rawPath", ...}`: that translation is API Gateway's own job,
-    // upstream of `lambda_runtime::run`, and nothing stands in for it
-    // here. Anything that ISN'T already one of `dispatch_body`'s own
-    // three recognized shapes (checked by `is_internal_dispatch_shape`
-    // below) synthesizes that same envelope from the real request this
-    // handler actually received, so `web::render`/`checkout_route` see
-    // the identical shape they already do behind a real Function URL.
-    // A body that already matches one of the three shapes — the
-    // sidecar-to-sidecar internal RPC protocol this module's own header
-    // documents — passes through unchanged when a same-host peer sent it.
-    // The internal shapes carry a caller's own claim of who it is (`role`)
-    // and reach the kernel with no session check, so a body is read as one
-    // only from a peer on the same host: the sidecar the shared task runs
-    // beside this container. Anyone else — the load balancer's traffic,
-    // which is the public internet — has the same body turned into an
-    // ordinary request for the path it actually hit, and answered by the
-    // web layer's own routes and gate.
+    // A real HTTP client (browser via the ALB, or a server-to-server call) carries none of a
+    // Function URL's automatic wrapping, so anything not already one of `dispatch_body`'s
+    // three recognized shapes gets that envelope synthesized from the real request instead.
+    // The internal shapes carry a caller's own claim of `role` with no session check, so
+    // they're honored only from a peer on this host (the task's own sidecar); everyone
+    // else — the load balancer, i.e. the public internet — gets an ordinary request
+    // envelope for the path it actually hit.
     let envelope = if trusts_internal_dispatch(peer) && is_internal_dispatch_shape(&parsed) {
         parsed
     } else {
@@ -347,11 +226,8 @@ fn envelope_route(envelope: &Value) -> Option<(&str, &str)> {
     Some((method, path))
 }
 
-/// Whether a body from `peer` may be read as the internal dispatch protocol
-/// rather than as the request it arrived in. Only a peer on this host may:
-/// the sidecar container in the same task reaches this one over loopback,
-/// and the load balancer, and through it the public internet, does not. An
-/// IPv4 address mapped into IPv6 counts as the IPv4 address it wraps.
+/// Whether `peer` is on this host (loopback) — the only caller trusted with the internal
+/// dispatch protocol. An IPv4 address mapped into IPv6 counts as the IPv4 it wraps.
 fn trusts_internal_dispatch(peer: SocketAddr) -> bool {
     match peer.ip() {
         std::net::IpAddr::V4(addr) => addr.is_loopback(),
@@ -359,21 +235,14 @@ fn trusts_internal_dispatch(peer: SocketAddr) -> bool {
     }
 }
 
-/// Whether `value` already matches one of `dispatch_body`'s own three
-/// recognized shapes (its own doc comment has the full list) — a
-/// Function-URL/API-Gateway-v2 event, `{"read": true}`, or a verb
-/// command. Anything else (including a bare `{}`, which today only
-/// ever produces `"event missing \"verb\""`) is real REST traffic that
-/// needs `synthesize_function_url_envelope` instead.
+/// Whether `value` already matches one of `dispatch_body`'s recognized shapes; anything
+/// else (including a bare `{}`) is real REST traffic needing `synthesize_function_url_envelope`.
 fn is_internal_dispatch_shape(value: &Value) -> bool {
     value.get("requestContext").is_some() || value.get("read").is_some() || value.get("verb").is_some()
 }
 
-/// Rebuilds the exact envelope shape a real Lambda Function URL
-/// invocation already produces automatically (the one `web::render`'s
-/// own header documents reading), from the raw axum request parts —
-/// see `dispatch_route`'s own comment on why this only runs for a body
-/// that isn't already the internal dispatch protocol.
+/// Rebuilds the envelope shape a real Lambda Function URL invocation already produces
+/// automatically, from the raw axum request parts.
 fn synthesize_function_url_envelope(method: &Method, uri: &Uri, headers: &HeaderMap, body: &Bytes) -> Value {
     let mut header_map = serde_json::Map::new();
     for (name, value) in headers.iter() {
@@ -392,19 +261,8 @@ fn synthesize_function_url_envelope(method: &Method, uri: &Uri, headers: &Header
     })
 }
 
-/// Translates `dispatch_body`'s own JSON result into a real HTTP
-/// response. Two distinct shapes reach here, disambiguated by whether a
-/// top-level `"statusCode"` key exists at all — no ordinary dispatch
-/// outcome (the kernel's own `{"instances","events","refusals",...}`,
-/// or a read's identical shape) ever has one:
-///
-/// - **Present**: `web::render`'s own Function-URL response envelope
-///   (`respond`/`redirect` in web.rs) — unwrapped into a genuine status
-///   code, headers, and body, the one translation step left after
-///   removing the AWS-specific envelope Lambda Function URLs require.
-/// - **Absent**: a raw dispatch/read outcome, wrapped as `200 OK` JSON
-///   verbatim — the exact payload a direct `lambda:InvokeFunction`
-///   caller already receives today, now also reachable over plain HTTP.
+/// Translates `dispatch_body`'s JSON result into a real HTTP response: `web::render`'s
+/// Function-URL envelope when `statusCode` is present, else the raw outcome as `200` JSON.
 fn value_to_response(value: Value) -> Response {
     let Some(status_code) = value.get("statusCode").and_then(|v| v.as_u64()) else {
         return (StatusCode::OK, axum::Json(value)).into_response();
@@ -420,11 +278,8 @@ fn value_to_response(value: Value) -> Response {
             }
         }
     }
-    // Function-URL response's own `cookies` — a bare array of raw
-    // "name=value; ..." Set-Cookie strings (web.rs's own
-    // `redirect_with_cookie`), not folded into `headers` above; each
-    // becomes its own `Set-Cookie` header the way a real Function URL
-    // invocation already turns this same array into.
+    // The Function-URL response's `cookies` array (raw "name=value; ..." strings) becomes
+    // its own `Set-Cookie` header per entry, the way a real Function URL invocation does.
     if let Some(cookies) = value.get("cookies").and_then(|c| c.as_array()) {
         for cookie in cookies {
             if let Some(cookie) = cookie.as_str() {
@@ -531,10 +386,8 @@ mod tests {
         }
     }
 
-    // The exact case that was silently broken before this fix: a real
-    // REST client's plain POST, with no Function-URL wrapping at all —
-    // this must synthesize the same shape `web::render`/`checkout_route`
-    // already read behind a real Function URL, not error out on a
+    // Pins a real REST client's plain POST, with no Function-URL wrapping: it must
+    // synthesize the same shape `web::render`/`checkout_route` read, not error on a
     // missing "verb".
     #[test]
     fn synthesizes_a_function_url_envelope_from_a_real_rest_request() {
@@ -731,9 +584,8 @@ mod tests {
         }
     }
 
-    // The real service on an ephemeral port — the same router, connect info and dispatch the host
-    // serves, over a scratch Postgres and a cold copy of the checkout fixture's wasm, so the first
-    // request is a real compile. Returns the address and the wasm path it serves.
+    // The real service on an ephemeral port, over a scratch Postgres and a cold copy of the
+    // checkout fixture's wasm, so the first request is a real compile.
     async fn fixture_host(database: &str, copy_name: &str) -> (SocketAddr, Arc<PathBuf>) {
         let client = crate::dispatch::tests::scratch_db(database).await;
         crate::dispatch::tests::provision_lineage(&*client.lock().await, "CheckoutFixture", 1, &["Event"]).await;

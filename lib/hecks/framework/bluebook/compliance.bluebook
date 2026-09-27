@@ -2,46 +2,16 @@ Hecks.bluebook "Compliance" do
   vision "Something elsewhere already acted to contain a risk; this domain tracks the human review that decides what happens next."
   supporting
 
-  # LIVES HERE (lib/hecks/framework/bluebook/), NOT under some
-  # domain's own examples/ directory, but that's a statement about
-  # SOURCE SHARING, not about how it's consumed — unlike Governance/
-  # Identity (which every real attaching domain only ever wants IN-
-  # PROCESS), Compliance genuinely supports BOTH modes from the same
-  # source: a domain that wants Review handled locally can
-  # `uses_framework "Compliance"` exactly like those two; a domain that
-  # wants it as a real, separately-deployed service — Banking's own
-  # choice, examples/compliance/ — reaches it through `across
-  # "Compliance"` on a policy instead, genuine cross-Lambda delivery.
-  # Nothing about this bluebook's own declarations changes between the
-  # two; only whether the CONSUMER merges it in or deploys it apart.
+  # Supports both modes from one source: `uses_framework "Compliance"` merges it in-process,
+  # or a separately deployed service is reached with `across "Compliance"` on a policy.
+  # examples/compliance/bluebook/compliance.bluebook symlinks here, since a symlink pointing
+  # outside lib/ does not survive `gem build`.
   #
-  # examples/compliance/bluebook/compliance.bluebook is a SYMLINK back
-  # to this file (not the other way around, as it briefly was in
-  # 1.5.0) — a symlink pointing outside lib/ never survives `gem
-  # build` (RubyGems drops it, warning "not supported on all
-  # platforms"), so the real content has to live in the tree the
-  # gemspec actually packages.
+  # Contain first, investigate second: the containing action (a freeze, a box surrender) has
+  # already happened elsewhere. This domain is told the fact and records the review after it.
   #
-  # CONTAIN FIRST, INVESTIGATE SECOND — the real pattern this domain
-  # exists for. Banking's own "Compliance officer" role already acts
-  # directly and synchronously in three places (Customer.Suspend/
-  # Reinstate, Account.Freeze/Unfreeze, OnboardingCase.Clear/Decline) —
-  # this domain is deliberately NOT a fourth. By the time either
-  # aggregate below is opened, the containing action (a freeze, a box
-  # surrender) has ALREADY happened, unilaterally, elsewhere; this
-  # domain never asks permission, it is TOLD a fact and gives the same
-  # officer a place to record what they decided about it afterward.
-  #
-  # TWO AGGREGATES, NOT ONE — found live, designing this: Banking's own
-  # `ReviewOnFreeze`/`ReviewOnBoxSurrender` policies forward their
-  # triggering event's payload VERBATIM (neither declares a `with:`
-  # projection, which policies have gained since), and the two events
-  # carry genuinely different fields (`AccountFrozen`: `number`;
-  # `BoxSurrendered`: `branch_code` + `box_number`). One shared
-  # aggregate would need an artificial union of both shapes — and while
-  # `with:` could now reshape either side into it, that would be
-  # inventing a sameness the domain does not have. Two small aggregates,
-  # each identified by its own subject's own natural key, need neither.
+  # One aggregate per triggering event: the events carry different fields, so a shared
+  # aggregate would need an artificial union of the shapes.
 
   aggregate "AccountFreezeReview" do
     description "The compliance review a frozen account gets, opened the moment Banking::Account.Freeze already happened."
@@ -60,12 +30,8 @@ Hecks.bluebook "Compliance" do
       transition "Escalate" => "escalated", from: "open"
     end
 
-    # SYSTEM-TRIGGERED, matching `AccountFrozen`'s own payload shape
-    # field for field — `Banking::Account.AccountFrozen`'s `number` is
-    # the ONLY field this ever receives (ReviewOnFreeze's own `on
-    # "Account.AccountFrozen"`), so this declares exactly that and
-    # nothing more; an unrecognized field would refuse at the JSON
-    # boundary rather than silently drop it.
+    # System-triggered. Takes only `number`, the one field `AccountFrozen` carries; an
+    # unrecognized field is refused at the JSON boundary rather than dropped.
     command "Open" do
       role "System"
       goal "Register that a frozen account needs compliance review"
@@ -117,9 +83,7 @@ Hecks.bluebook "Compliance" do
       transition "Escalate" => "escalated", from: "open"
     end
 
-    # Matches `BoxSurrendered`'s own payload field for field
-    # (`ReviewOnBoxSurrender`'s own `on SafeDepositBox::BoxSurrendered`) — the same
-    # discipline `AccountFreezeReview.Open` holds itself to, above.
+    # Takes exactly the fields `BoxSurrendered` carries, as `AccountFreezeReview.Open` does.
     command "Open" do
       role "System"
       goal "Register that a surrendered box needs compliance review"
@@ -149,18 +113,9 @@ Hecks.bluebook "Compliance" do
     end
   end
 
-  # A THIRD SHAPE, NOT A UNION OF THE OTHER TWO — the same restraint the
-  # header above holds Banking's own two events to. `Privacy::Marking`'s
-  # own `Marked` event carries `domain`/`attribute_path`, matching
-  # neither `AccountFrozen` (`number`) nor `BoxSurrendered`
-  # (`branch_code`/`box_number`), so this gets its own aggregate rather
-  # than an artificial union.
-  #
-  # REACHED VIA `translates`, NOT a `policy` this bluebook declares —
-  # which foreign domain's event a consumer conforms to is a wiring
-  # decision (see `HecksagonBuilder#translates`'s own header), so the
-  # reaction lives in whichever `.hecksagon` attaches both Privacy and
-  # Compliance, not here.
+  # A third shape, not a union of the other two: `Privacy::Marking`'s `Marked` event carries
+  # `domain`/`attribute_path`. Reached via `translates` in whichever `.hecksagon` attaches
+  # both Privacy and Compliance, since which foreign event to conform to is wiring.
   aggregate "PrivacyReview" do
     description "The compliance review a newly marked sensitive field gets, opened the moment Privacy::Marking.Mark already happened."
 
@@ -184,12 +139,8 @@ Hecks.bluebook "Compliance" do
       transition "Escalate" => "escalated", from: "open"
     end
 
-    # SYSTEM-TRIGGERED, matching only `Privacy::Marking`'s own identity
-    # fields — the `translates` block that reacts to `Marked` forwards
-    # just `domain`/`attribute_path`, the same restraint
-    # `AccountFreezeReview.Open`/`BoxSurrenderReview.Open` already hold
-    # themselves to above; `category`/`readable_by` stay on the
-    # marking itself, not duplicated here.
+    # System-triggered. Takes only `Marking`'s identity fields; `category`/`readable_by` stay
+    # on the marking.
     command "Open" do
       role "System"
       goal "Register that a newly marked sensitive field needs compliance review"

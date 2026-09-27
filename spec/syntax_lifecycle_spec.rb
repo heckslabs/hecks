@@ -1,23 +1,7 @@
 require "spec_helper"
 
-# Every word of the bluebook surface now stands somewhere in its own
-# life — the same proposed → admitted → retired shape the expression
-# grammar's operators carry, plus `deprecated` (still read, on its way
-# out). A row defaults to admitted, so the syntax table stays a table of
-# words; only a word entering or leaving the language spells its status.
-#
-# (Constants here carry unique names on purpose: a constant assigned
-# inside an RSpec.describe block lands at top level — the block captures
-# its file's lexical scope — so a keywords here silently replaced
-# syntax_conformance_spec's stringified keywords for every file loaded
-# after it. Found as an order-dependent NoMethodError two files away.)
-#
-# What makes the status load-bearing rather than decorative is the
-# projection rule this file pins: a proposed or retired word reaches no
-# generated parser table, so to every projected reader such a word simply
-# does not exist — the operator rule, applied at the syntax layer. The
-# language also declares its own version now, on the chapter itself,
-# bumped when the admitted surface changes.
+# Every syntax word has a status (proposed, admitted, deprecated, retired); a proposed or
+# retired word reaches no generated parser table.
 RSpec.describe "the syntax lifecycle" do
   def self.judged_meta = Hecks::Bluebook::MetaValidator.grammar_registry.bluebook("Bluebook")
 
@@ -28,22 +12,16 @@ RSpec.describe "the syntax lifecycle" do
   end
 
   WORD_STATUSES = rows("Status").map { |row| row[:name] }
-  # S14, ADR 0026 — Keyword/Argument are genuine entities of Syntax now,
-  # dispatched through a real lifecycle rather than merely declared —
-  # `SyntaxBoot.call` reads them back post-dispatch, same shape `rows`
-  # above still produces for Status (an ordinary closed set, unaffected).
+  # Keyword and Argument are dispatched entities; `SyntaxBoot.call` reads them back post-dispatch.
+  # Constant names are unique: one assigned in a describe block lands at top level and would
+  # clobber syntax_conformance_spec's keywords.
   SYNTAX_TABLE  = Hecks::Bluebook::MetaValidator::SyntaxBoot.call
   WORD_ROWS     = SYNTAX_TABLE[:keywords]
   ARGUMENT_ROWS = SYNTAX_TABLE[:arguments]
   DECLARED_LANGUAGE_VERSION = judged_meta.version
 
-  # An absent status reads as admitted — the same convention hecks_eras
-  # uses for a column grown after rows existed (canon_form NULL reads as
-  # an implicit 1). Spelling `status: "admitted"` on 197 rows would bury
-  # the table in ceremony, and applying the attribute default to member
-  # rows before export would hand the golden IR a field the source never
-  # spells — a drift from the declared text bought for nothing. Only a
-  # word entering or leaving the language spells its status.
+  # An absent status reads as admitted, like a grown column in hecks_eras; spelling it on every row
+  # would bury the table and hand the golden IR a field the source never spells.
   def self.status_of(row) = row[:status].to_s.empty? ? "admitted" : row[:status].to_s
   def status_of(row)      = self.class.status_of(row)
 
@@ -58,14 +36,6 @@ RSpec.describe "the syntax lifecycle" do
                                "status #{row[:status].inspect}, which the language does not admit"
     end
   end
-
-  # ("Nothing mid-transition" was pinned here once — an empty-set gate on
-  # any non-admitted row. bin/evolve made it wrong: a proposal must be able
-  # to land green. Its job passed to syntax_conformance_spec's lifecycle
-  # directions — a proposed word must be unanswered by its builder, a
-  # retired one must be unanswered again, and a live word is held to the
-  # builder exactly as before. The suite still names every transition; it
-  # just no longer forbids being in one.)
 
   it "declares the language's own version" do
     expect(DECLARED_LANGUAGE_VERSION).to eq("1")

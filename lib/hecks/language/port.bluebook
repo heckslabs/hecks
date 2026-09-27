@@ -25,14 +25,8 @@ Hecks.bluebook "Port" do
       attribute :value, String, one_of: ["reply", "effect"]
     end
 
-    # THE METHOD CONTRACT — what an adapter must actually `respond_to?`
-    # for a dispatch through this door to reach it, as opposed to `verb`
-    # and `signal`, which only ever describe the door itself. Optional
-    # the same way `verb` is (a port declared with none is exactly
-    # today's pre-existing behavior, unchecked past `verify!`'s existing
-    # gates), and a plain list of method names rather than a richer
-    # shape — the same restraint `AdapterField` already takes for
-    # `field`/`secret`.
+    # The method contract: what an adapter must `respond_to?` for a dispatch through this door.
+    # A port that declares none is unchecked beyond `verify!`.
     value_object "PortAnswer" do
       attribute :value, String
       invariant("an answer names a real method") { !value.to_s.empty? }
@@ -43,12 +37,7 @@ Hecks.bluebook "Port" do
       goal "Open a resource door a domain's own aggregates may call by verb"
 
       attribute :name,   PortName
-      # OPTIONAL — real, pre-existing PortBuilder behavior (spec/dsl_spec
-      # .rb's own "signal says whether the domain gets a value back..."
-      # builds a port with only `signal`, never calling `verb` at all;
-      # `def verb(value)` has no default, unlike `signal`'s `:reply`).
-      # Same asymmetry world.bluebook's own Declare command already has
-      # for `realm`/`latest`.
+      # Optional: a port may declare only `signal`; `verb` has no default, unlike `signal`.
       attribute :verb,   PortVerb, optional: true
       attribute :signal, PortSignal
 
@@ -71,9 +60,7 @@ Hecks.bluebook "Port" do
       emits "PortAnswerAdded"
     end
 
-    # HOW PORT IS SPELLED. These rows live with the concept
-    # they describe; SyntaxBoot discovers every aggregate-local seed table.
-    # Contexts represented here: File, Port.
+    # Keyword rows for File and Port; SyntaxBoot discovers every aggregate-local seed table.
     value_object "KeywordSeed" do
       attribute :word,          String
       attribute :context,       String, admits: "Syntax::Context"

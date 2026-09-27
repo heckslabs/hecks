@@ -1,33 +1,8 @@
-// Exemplar — real, `cargo test`-checked Rust proving every shape
-// bin/project_rust's generators (rust/project/*.rb) can produce is valid,
-// idiomatic Rust before any Ruby ever runs. `rust/project/exemplar.rb`
-// reads this tree at codegen time, slicing out shapes fenced with
-// `// TMPL:<id> BEGIN` / `// TMPL:<id> END` markers and substituting real
-// domain names for the `Tmpl`/`tmpl_`/`TMPL_` placeholder vocabulary this
-// tree uses throughout.
+// Compile-checked Rust for every shape rust/project/*.rb emits; exemplar.rb slices the fenced
+// `// TMPL:<id> BEGIN` / `END` regions and substitutes real names for the `tmpl_` vocabulary.
 //
-// Every marked shape sits inside a real, complete, compiling item —
-// usually a small `tmpl_*_host` function that exists only to give the
-// fenced fragment real types to operate on (an `args`/`store`/`record`
-// with the right shape). The host functions are never called; `mod.rs`'s
-// `#![allow(dead_code, ...)]` is what lets that stand without warnings.
-// Only the fenced text inside `TMPL:` markers is ever extracted — the
-// hosts are scaffolding, not shapes in their own right.
-//
-// Never compiled into a release/Lambda/WASM artifact: `#[cfg(test)] pub
-// mod exemplar;` in `lib.rs` is the only place this tree is referenced.
-// `cargo test --lib` is what proves it compiles — plain `mod` inclusion
-// forces full type-checking with no `#[test]` fn required for that.
-//
-// The axes a shape varies along are not invented here. `lib/hecks/
-// language/bluebook/shape.bluebook`'s own `ShapeField` value object
-// (`name`/`type`/`list`/`optional`/`pattern`/`default`/`admits`) is
-// where this language already names, once, every dimension a real
-// attribute's shape can vary along — the same four (list, optional,
-// pattern, admits) this tree's `types`/`fielded`/`json`/`mutations`
-// shapes branch on. A shape file's own header points back at the
-// specific `ShapeField` attribute it corresponds to rather than
-// re-deriving that vocabulary as if it were new here.
+// `tmpl_*_host` functions only give fenced fragments real types and are never called, hence
+// the allow below. Built under `#[cfg(test)]` only, never into a release artifact.
 #![allow(dead_code, unused_variables)]
 
 pub mod commands;

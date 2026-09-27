@@ -2,35 +2,8 @@ require "hecks"
 require "hecks/ports/persistence/plugins/era"
 require_relative "../../support/postgres_probe"
 
-# ADR 0036's own fix, proven live. `postgres_concurrent_dispatch_spec.rb`
-# (this same directory) demonstrates the analogous gap for plain
-# `Postgres` and is deliberately left unfixed there (CAS/retry is a
-# separate, larger design). For `PostgresEra`, ADR 0036 traced the gap
-# to `run_dispatch_order_with_isolation` (runtime/interpreting.rb): a
-# repository not advertising `:optimistic_concurrency` falls back to
-# `Runtime::AggregateLock`, an in-process Ruby `Mutex` — correct for
-# Heki/Memory (confirmed process-local), invisible the moment
-# `rust/host` dispatches against the same `PostgresEra`-bound tables
-# from a separate OS process. The fix: `PostgresEra` now advertises
-# `:cross_process_lock` and exposes `with_write_lock`, which holds a
-# real `pg_advisory_xact_lock` for the whole dispatch order (hydrate
-# through save), not just around the final write.
-#
-# Why real `Process.fork`, not `Thread.new` (unlike
-# postgres_concurrent_dispatch_spec.rb's own plain-Postgres version) —
-# `Runtime::AggregateLock` is a process-wide registry (aggregate_lock.rb's
-# own header: "two `Runtime.boot` calls get two entirely separate adapter
-# instances... only possibly other threads within this one process").
-# Two threads in one process already share that same in-process registry
-# and would be fully — and misleadingly — serialized by it even without
-# this fix: confirmed directly while building this spec, the identical
-# scenario run as two Threads instead of two forked processes deadlocks
-# the instant the fix is reverted, because the second racer never even
-# reaches `PostgresEra#lock_writes!` (blocked earlier, on the in-process
-# Mutex, which two threads do share). Only two real, separate OS
-# processes — each with its own empty `AggregateLock` registry, the
-# exact shape a Ruby process and `rust/host` take in production — can
-# actually exercise the cross-process gap this fix closes.
+# Two forked processes dispatching against one PostgresEra aggregate are serialized by its
+# cross-process advisory lock (ADR 0036). Forks, not threads: threads share `AggregateLock`.
 RSpec.describe "concurrent dispatch against one PostgresEra-backed aggregate", :io do
   ERA_CONCURRENCY_DATABASE = "hecks_postgres_era_concurrency_spec".freeze
 
@@ -56,8 +29,7 @@ RSpec.describe "concurrent dispatch against one PostgresEra-backed aggregate", :
     scrub.close
   end
 
-  # Same minimal fixture shape as postgres_concurrent_dispatch_spec.rb's
-  # own Account, bound to PostgresEra instead of plain Postgres.
+  # Same Account fixture as postgres_concurrent_dispatch_spec.rb, bound to PostgresEra.
   # rubocop:disable-next Metrics/AbcSize
   # rubocop:disable-next Metrics/MethodLength
   def boot
@@ -134,16 +106,9 @@ RSpec.describe "concurrent dispatch against one PostgresEra-backed aggregate", :
     dispatcher.registry.repository("EraConcurrencyGap", aggregate)
   end
 
-  # Gates the first caller of the adapter's own private `lock_writes!`
-  # (reachable via `define_singleton_method` despite the visibility),
-  # pausing it once it genuinely holds the real advisory lock.
-  # `gated_once` matters here specifically because `with_write_lock`
-  # takes this same lock once for the whole dispatch, and `append`
-  # harmlessly re-takes it once more inside its own transaction (see
-  # `postgres_era.rb`'s own comment) — only the first call is the one
-  # under test. `on_entry`/`on_paused` fire synchronously, in-process,
-  # so a forked caller can relay them across a real pipe back to the
-  # parent (an in-process Queue does not cross a fork boundary).
+  # Pauses the adapter's first `lock_writes!` call once it holds the advisory lock. Only the
+  # first call is gated because `append` re-takes the lock inside its own transaction.
+  # Callbacks are relayed over pipes, since an in-process Queue does not cross a fork.
   def gate_first_lock(adapter, on_entry:, on_paused:, wait_for_resume:)
     gated_once = false
     original = adapter.method(:lock_writes!)
@@ -159,11 +124,8 @@ RSpec.describe "concurrent dispatch against one PostgresEra-backed aggregate", :
     end
   end
 
-  # One forked racer: boots its own Dispatcher (its own real PG
-  # connection, its own empty AggregateLock registry — see the file
-  # header), gates its first `lock_writes!` call per `gate_opts`,
-  # dispatches the same Debit every racer dispatches, and reports which
-  # outcome it got back down `outcome_write` labeled by `label`.
+  # One forked racer: boots its own Dispatcher, gates its first `lock_writes!` per `gate_opts`,
+  # dispatches the shared Debit, and writes "label:outcome" to `outcome_write`.
   def fork_debit_racer(label, outcome_write, close:, **gate_opts)
     fork do
       close.each(&:close)
@@ -202,10 +164,7 @@ RSpec.describe "concurrent dispatch against one PostgresEra-backed aggregate", :
       wait_for_resume: -> { resume_read.read(1) }
     )
 
-    # Don't fork the second racer until the first genuinely holds the
-    # real lock — otherwise which racer reaches `lock_writes!` first is
-    # a startup-order race the test cannot control, and the "blocked"
-    # assertion below would sometimes observe nothing worth proving.
+    # Fork the second racer only once the first holds the lock, or arrival order is a race.
     raise "first process never signalled paused" unless paused_read.wait_readable(10)
 
     paused_read.read(1)
@@ -222,15 +181,8 @@ RSpec.describe "concurrent dispatch against one PostgresEra-backed aggregate", :
 
     raise "second process never even entered lock_writes!" unless entered_read.wait_readable(10)
 
-    # **The assertion this spec exists for**: resume the first racer now,
-    # letting it finish its whole dispatch (hydrate through commit)
-    # while the second is already past `lock_writes!`. Before ADR
-    # 0036's fix, `PostgresEra` fell back to `Runtime::AggregateLock`,
-    # an in-process `Mutex` invisible to this second, separate OS
-    # process — both racers would have hydrated unlocked and raced for
-    # the write, and this assertion is what catches that: exactly one
-    # of the two real processes is admitted, the other correctly
-    # refused against the first's now-committed balance.
+    # Resume the first racer while the second waits on the lock: exactly one may be admitted,
+    # the other refused against the committed balance.
     resume_write.write("go")
     resume_write.close
 
@@ -247,11 +199,7 @@ RSpec.describe "concurrent dispatch against one PostgresEra-backed aggregate", :
 
     verify = boot
     account = account_repository(verify).find("a")
-    # **The second symptom**: a $10,000 account can never honor two $6,000
-    # debits. Without real cross-process serialization, the persisted
-    # balance would reflect only whichever commit landed last, while
-    # both debits were journaled as succeeded — the exact corruption
-    # postgres_concurrent_dispatch_spec.rb documents for plain Postgres.
+    # A $10,000 account cannot honor two $6,000 debits; a lost update would persist only one.
     expect(account[:balance].to_h[:cents]).to eq(4_000)
   end
 end

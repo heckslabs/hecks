@@ -6,20 +6,8 @@ require "open3"
 require "fileutils"
 require "pathname"
 
-# `bin/qa_sweep`'s `concurrency` mode, proven against the real thing —
-# same discipline `spec/qa_sweep_era_boundary_spec.rb` (read that file's
-# own header first) already established: a real `bin/qa_sweep`
-# subprocess against a real, disposable Postgres-backed fixture ledger,
-# sweeping a real, disposable, PostgresEra-bound fixture target — never
-# the real `hecks_quality_control` ledger, never a real corpus domain.
-#
-# The mechanism itself (the real fork, the real cross-process lock, the
-# sequential oracle) is already proven in `spec/fuzzing/concurrent_
-# dispatch_spec.rb`, against hand-picked step lists — this file only
-# needs to prove the wiring: the mode resolves as its own seat, is its
-# own Check per seed, stays off the ordinary sweep, and — since this
-# mode is expensive enough to be its own dial — respects `--modes
-# concurrency` explicitly.
+# `bin/qa_sweep`'s `concurrency` mode against a real subprocess and disposable fixtures; the
+# lock mechanics live in `spec/fuzzing/concurrent_dispatch_spec.rb`, so this proves only wiring.
 RSpec.describe "bin/qa_sweep concurrency", :io do
   QA_SWEEP_CONCURRENCY_LEDGER_DATABASE = "hecks_qa_sweep_concurrency_spec".freeze
   QA_SWEEP_CONCURRENCY_TARGET_DATABASE = "hecks_qa_sweep_concurrency_target_spec".freeze
@@ -57,10 +45,7 @@ RSpec.describe "bin/qa_sweep concurrency", :io do
     end
   RUBY
 
-  # The same smallest domain `spec/fuzzing/concurrent_dispatch_spec.rb`'s
-  # own fixture uses (that file's own comment: the smallest domain
-  # already proven to exercise the real cross-process lock) — reused
-  # rather than re-derived, as a real QA target this time.
+  # Same smallest domain as `spec/fuzzing/concurrent_dispatch_spec.rb`, which uses the real lock.
   CONCURRENCY_TARGET_BLUEBOOK = <<~RUBY.freeze
     Hecks.bluebook "QaSweepConcurrencyFixtureTarget" do
       vision "A trivially well-behaved sweep target, authored only to prove bin/qa_sweep's concurrency mode reaches a real PostgresEra-bound domain, never this repository's own live, actively-changing QA corpus."
@@ -140,8 +125,8 @@ RSpec.describe "bin/qa_sweep concurrency", :io do
     RUBY
     File.write(File.join(@fixture_dir, "governance.world"), InMemoryDomain.governance_postgres_era_world(url))
 
-    # Prefixed `qa-sweep-cc-target-`, not the mode's own name — see
-    # `qa_sweep_era_boundary_spec.rb`'s identical comment for why.
+    # Not named after the mode: the basename is printed on every line, so a mode-name prefix
+    # would make stdout greps pass whether or not the mode ran.
     @target_domain_dir = Dir.mktmpdir("qa-sweep-cc-target-", InMemoryDomain::ROOT)
     File.write(File.join(@target_domain_dir, "fixture.bluebook"), CONCURRENCY_TARGET_BLUEBOOK)
     File.write(File.join(@target_domain_dir, "fixture.hecksagon"), CONCURRENCY_TARGET_HECKSAGON)
@@ -215,10 +200,7 @@ RSpec.describe "bin/qa_sweep concurrency", :io do
     expect(subjects).to include(a_string_starting_with("[concurrency]"))
   end
 
-  # `CONCURRENCY_SEED_CAP` — the same clamp-down discipline
-  # `PERSISTENCE_PARITY_SEED_CAP` already has, proven the same way that
-  # dial's own coverage is: ask for more than the cap, get exactly the
-  # cap, with the note printed saying so.
+  # Asking for more seeds than the cap yields exactly the cap, with a note saying so.
   it "clamps --seeds down to QualityControlDials::CONCURRENCY_SEED_CAP" do
     identify_target!("concurrency-cap", @target_domain_relpath)
 

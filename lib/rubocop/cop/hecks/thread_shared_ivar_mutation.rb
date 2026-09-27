@@ -1,65 +1,15 @@
 module RuboCop
   module Cop
     module Hecks
-      # Flags plain `@ivar` mutation inside a class this codebase already
-      # knows is a thread-shared singleton — one `Dispatcher`/`Registry`
-      # instance lives for the life of a boot and is dispatched through
-      # from every thread of a Puma worker pool (or any other multi-
-      # threaded host), so a plain instance variable on either class is
-      # shared, mutable state with no per-thread or mutex-guarded
-      # isolation at all.
-      #
-      # ## The bug this follows up on
-      #
-      # This is the mechanical follow-up to a real bug already fixed here
-      # (see `dispatcher.rb`'s own `#reenter` comment, and
-      # `spec/runtime/dispatcher_spec.rb`): a plain `@reaction_depth` ivar on
-      # `Dispatcher` let two threads' concurrent top-level
-      # dispatches corrupt each other's view of "how deep into a
-      # reaction cascade am I". The fix moved that one ivar to
-      # `Thread.current[:hecks_reaction_depth]`. This cop exists so the
-      # next plain ivar someone adds to either class gets flagged before
-      # it becomes the next instance of the same bug, rather than after.
-      #
-      # ## Scoped narrowly on purpose
-      #
-      # By class name
-      # (`Hecks::Runtime::Dispatcher`/`Hecks::Runtime::Registry`), not by
-      # blanket-flagging every ivar mutation in the codebase. Most classes
-      # in this codebase are not shared across threads (a fresh value
-      # object per call, a builder used once at boot) and ivar mutation
-      # there is completely ordinary Ruby with no hazard behind it at
-      # all — flagging it everywhere would be noise nobody trusts, the
-      # same reasoning `.rubocop.yml`'s own header gives for every other
-      # cop in this repo.
-      #
-      # ## What counts as "plain"
-      #
-      # `@ivar = ...`, `@ivar ||= ...`, `@ivar +=
-      # ...`, `@ivar << ...`, `@ivar[k] = v`. `initialize` is exempt — an
-      # ivar being set up for the first time, before any other thread can
-      # possibly hold a reference to this object, is not the hazard (see
-      # `Registry#initialize`'s own `@saga_mutex = Mutex.new`, which this
-      # cop must not flag). `Thread.current[...]`-backed state and a
-      # `Mutex`-guarded critical section are exactly the two idioms this
-      # codebase has already established for this — see `Dispatcher
-      # #reenter` and `Registry#saga_mutex` respectively — so the message
-      # points at both rather than inventing a third.
+      # Flags plain `@ivar` mutation inside the thread-shared `Dispatcher` and `Registry` classes.
+      # `initialize` is exempt; use `Thread.current[...]` or a `Mutex` elsewhere.
       #
       # @example
       #   # bad
-      #   class Dispatcher
-      #     def reenter(verb)
-      #       @reaction_depth = @reaction_depth.to_i + 1
-      #     end
-      #   end
+      #   @reaction_depth = @reaction_depth.to_i + 1
       #
       #   # good
-      #   class Dispatcher
-      #     def reenter(verb)
-      #       Thread.current[:hecks_reaction_depth] = Thread.current[:hecks_reaction_depth].to_i + 1
-      #     end
-      #   end
+      #   Thread.current[:hecks_reaction_depth] = Thread.current[:hecks_reaction_depth].to_i + 1
       class ThreadSharedIvarMutation < Base
         MSG = "`%<ivar>s` is a plain instance variable mutated outside `initialize` on " \
               "%<klass>s, which is shared across every thread dispatching through it " \
@@ -73,59 +23,33 @@ module RuboCop
 
         RESTRICT_ON_SEND = [:<<, :[]=].freeze
 
-        # Flags a plain `@ivar = ...` assignment inside a thread-shared class.
-        #
-        # @param node [RuboCop::AST::IvasgnNode] the ivar-assignment node being visited
-        # @return [void]
         def on_ivasgn(node)
-          # A plain `@x = 1` parses as `(ivasgn :@x (int 1))` — two
-          # children. The commissioner also visits the bare `(ivasgn :@x)`
-          # node nested one level inside an `op_asgn`/`or_asgn` (`@x += 1`,
-          # `@x ||= 1`) as its own `ivasgn` node with only one child — that
-          # one is handled by `on_op_asgn`/`on_or_asgn` below instead, so
-          # it's skipped here to avoid double-reporting the same mutation.
+          # Skips the bare one-child `ivasgn` nested in `op_asgn`/`or_asgn`; those handlers
+          # report it, so this avoids a double offense.
           return unless node.children.size == 2
 
           check(node, node.children.first)
         end
 
-        # Flags a plain `@ivar += ...` (or similar) compound assignment inside a
-        # thread-shared class.
-        #
-        # @param node [RuboCop::AST::OpAsgnNode] the compound-assignment node being visited
-        # @return [void]
         def on_op_asgn(node)
-          # `@x += 1` parses as `(op_asgn (ivasgn :@x) :+ (int 1))` — the
-          # target is an `ivasgn` node carrying just the name (no value
-          # child, unlike a plain `@x = 1`), not an `ivar` node.
+          # The target of `@x += 1` is a value-less `ivasgn` node, not an `ivar`.
           ivar_node = node.children.first
           return unless ivar_node.is_a?(RuboCop::AST::Node) && ivar_node.ivasgn_type?
 
           check(node, ivar_node.children.first)
         end
 
-        # Flags a plain `@ivar ||= ...` assignment inside a thread-shared class.
-        #
-        # @param node [RuboCop::AST::OrAsgnNode] the `||=` assignment node being visited
-        # @return [void]
         def on_or_asgn(node)
           on_op_asgn(node)
         end
 
-        # Flags a plain `@ivar << ...` or `@ivar[k] = v` mutation inside a thread-shared
-        # class.
-        #
-        # @param node [RuboCop::AST::SendNode] the `<<` or `[]=` send node being visited
-        # @return [void]
         def on_send(node)
           return unless RESTRICT_ON_SEND.include?(node.method_name)
 
           receiver = node.receiver
           return unless receiver
 
-          # `@ivar << x` — the receiver is the ivar.
-          # `@ivar[k] = v` — the receiver is a `send(@ivar, :[], k)`, whose
-          # own receiver is the ivar (`node.receiver.receiver`).
+          # `@ivar << x` has the ivar as receiver; `@ivar[k] = v` has it one `send` deeper.
           ivar_node = if receiver.ivar_type?
                         receiver
                       elsif receiver.send_type? && receiver.receiver&.ivar_type?
@@ -149,14 +73,7 @@ module RuboCop
           !!enclosing_class_name(node)&.then { |name| THREAD_SHARED_CLASSES.include?(name) }
         end
 
-        # Walks outward to the nearest enclosing `class` node and returns
-        # its own short name (`Dispatcher`, not the fully-qualified
-        # `Hecks::Runtime::Dispatcher`) — good enough to match this repo's
-        # own one-class-per-file layout without needing full namespace
-        # resolution, and avoids a false negative on `class Dispatcher`
-        # bodies that reopen the class from inside the `Hecks::Runtime`
-        # module (this repo's actual style) as much as one written as
-        # `class Hecks::Runtime::Dispatcher`.
+        # Uses the short class name so both nested and `Hecks::Runtime::Dispatcher` styles match.
         def enclosing_class_name(node)
           klass = node.each_ancestor(:class).first
           return nil unless klass
@@ -165,13 +82,7 @@ module RuboCop
           const_node.const_name.to_s.split("::").last
         end
 
-        # `initialize` is where an ivar is set up for the first time —
-        # before this object has been handed to a caller at all, so no
-        # other thread can hold a reference to mutate concurrently with
-        # it. Also exempts `initialize` methods defined on an object
-        # reopened via `class << self` or nested module — `each_ancestor`
-        # naturally stops at the nearest enclosing `def`, matching Ruby's
-        # own method-scoping.
+        # An ivar set in `initialize` cannot yet be shared with another thread.
         def inside_initialize?(node)
           def_node = node.each_ancestor(:def, :defs).first
           return false unless def_node

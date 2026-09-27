@@ -4,7 +4,7 @@ Hecks.bluebook "Bluebook" do
 
     reference_to Bluebook
 
-    # THE CHAPTER IT IS IN, AND ITS NAME.
+    # The chapter it belongs to, and its name.
     identified_by :bluebook, :name
 
     attribute :name,             ReadModelName
@@ -13,26 +13,23 @@ Hecks.bluebook "Bluebook" do
     attribute :reference_name,   ReadModelText
     attribute :reference_target, ReadModelText
     attribute :aggregate_heads,  list_of(Head)
-    # The same open map a query carries — see Query's AskOption. A read model
-    # inherits every specification option an ask has, so it holds them the same way.
+    # The same open map a query carries (see Query's AskOption).
     attribute :options,          list_of(ProjectionOption)
-    # WHICH of the eligible head's own fields to nest its rows under, in
-    # declared order. Rows, not a single value object with N fields — an
-    # arbitrary NUMBER of fields, the same reason `aggregate_heads`/
-    # `options` are lists rather than fixed attributes.
+    # Fields whose values nest the eligible head's rows, in declared order; a list because the
+    # number of fields is open.
     attribute :group_by,         list_of(GroupByField)
-    # `count`/`median_field` are the OTHER two reductions a read model
-    # may declare over its one eligible head, siblings of `group_by`
-    # rather than of `options` — same permissive `ReadModelText` shape,
-    # and the same UNmarked-optional spelling `reference_name`/
-    # `reference_target` already use just above (permissiveness lives
-    # in `ReadModelText`'s own lack of an invariant, not in an
-    # `optional:` flag this chapter's aggregate-level attributes never
-    # carry) — "true"/"" for `count`, a field name or "" for
-    # `median_field`, both legitimately absent on a read model that
-    # declares neither.
+    # The other reductions over the one eligible head; empty when none is declared
+    # (ADR 0078 — a read model reports one shape, so at most one is ever set).
     attribute :count,            ReadModelText, optional: true
     attribute :median_field,     ReadModelText, optional: true
+    attribute :sum_field,        ReadModelText, optional: true
+    attribute :avg_field,        ReadModelText, optional: true
+    attribute :min_field,        ReadModelText, optional: true
+    attribute :max_field,        ReadModelText, optional: true
+    attribute :percentile_field, ReadModelText, optional: true
+    attribute :percentile_at,    ReadModelText, optional: true
+    attribute :any_field,        ReadModelText, optional: true
+    attribute :all_field,        ReadModelText, optional: true
 
     value_object "ReadModelName" do
       attribute :value, String
@@ -40,8 +37,7 @@ Hecks.bluebook "Bluebook" do
     end
 
     value_object "ReadModelText" do
-      # deliberately permissive : query_name / ref_name / ref_target are
-      # legitimately empty on a read model that has not named them yet
+      # Deliberately permissive: query_name and the reference fields may be legitimately empty.
       attribute :value, String
     end
 
@@ -60,7 +56,7 @@ Hecks.bluebook "Bluebook" do
       attribute :option, String
       attribute :key,    String
       attribute :value,  String
-      # optional: not every projection option carries an `at` (C3.7)
+      # Only some options carry an `at`.
       attribute :at,     String, optional: true
     end
 
@@ -69,14 +65,8 @@ Hecks.bluebook "Bluebook" do
       invariant("a group_by field is named") { !field.to_s.empty? }
     end
 
-    # The way back: everything DECLARED IN the chapter above. The parent
-    # reference IS the query.
-    # WHERE IT SITS AMONG ITS SIBLINGS. Declaration order is a FACT ABOUT THE
-    # SOURCE — the IR is a contract read straight from this file,
-    # field for field AND INDEX FOR INDEX. So the language HOLDS it, instead of
-    # inheriting it from whatever order a store happens to iterate: an ask that
-    # does not say how it is ordered is answered in identity order, which is
-    # right for every other ask and fatal for the one that is the SOURCE.
+    # Declaration order among siblings. The IR is read index for index, so the language
+    # holds it rather than inheriting whatever order a store iterates.
     value_object "Position" do
       attribute :value, Integer
     end
@@ -96,10 +86,7 @@ Hecks.bluebook "Bluebook" do
       attribute :name,             ReadModelName
       attribute :description,      ProjectionPurpose, optional: true
       attribute :query_name,       ReadModelText
-      # Both optional now — a ROOTLESS read model (no `reference_to`
-      # declared at all) has neither. Permanently empty, not "not yet
-      # set" — see Gather's own comment below for why that distinction
-      # matters.
+      # Optional: a rootless read model (no `reference_to`) permanently has neither (see Gather).
       attribute :reference_name,   ReadModelText, optional: true
       attribute :reference_target, ReadModelText, optional: true
 
@@ -118,26 +105,14 @@ Hecks.bluebook "Bluebook" do
       role "Language"
       goal "Attach one aggregate head to the read model"
 
-      # A HEAD IS THE AGGREGATE IT NAMES. There is no head with nothing gathered:
-      # `add_aggregate_head` is only ever reached from an `include Target`,
-      # so the builder cannot produce one
-      # without it — the field is a plain
-      # required, non-empty name. `as` and
-      # `many` are both DERIVED from it when the author does not spell them, which
-      # is the clearest statement that it is the part that cannot be missing.
+      # A head is the aggregate it names; add_aggregate_head is only reached from `include Target`.
+      # `as` and `many` are derived from it when the author does not spell them.
       attribute :aggregate, ReadModelText
       attribute :as,        ReadModelText
       attribute :many,      ReadModelText
 
-      # NOT "reference_target must already be set" anymore — reference_target
-      # is fixed forever at Declare time (nothing ever changes it later), so
-      # that rule was really "this read model must have SOME reference, ever"
-      # — exactly the constraint a ROOTLESS read model (bulk, no root,
-      # `group_by`'s own real use) deliberately doesn't meet, permanently,
-      # on purpose, not by omission. Removed rather than relaxed: there is
-      # no runtime fact left here that distinguishes "forgot to declare a
-      # reference" from "declared rootless on purpose" — both look
-      # identical (`reference_target` empty) by the time Gather is judged.
+      # No "reference_target must be set" given: a rootless read model (bulk, group_by) permanently
+      # lacks one, which is indistinguishable from forgetting to declare it.
 
       sets :aggregate_heads, append: { aggregate: :aggregate, as: :as, many: :many }
 
@@ -157,14 +132,8 @@ Hecks.bluebook "Bluebook" do
       emits GroupByFieldAdded
     end
 
-    # `count`/`median` are LATE-SET scalars, the same shape `Lifecycle`'s
-    # own `state_field`/`state_start` already are on `Aggregate`
-    # (aggregate.bluebook) — a command carrying its own value and a bare
-    # `sets field, to: field` copying it onto the record, rather
-    # than an `append:` (they are not lists, and there is only ever one
-    # of each). `count`/`median_field` are declared here, not folded
-    # into `Declare`, for the same reason `GroupBy` is its own command
-    # above: neither is known until the DSL body runs past `include`.
+    # count and median are late-set scalars, like Lifecycle's state_field: one value each, copied
+    # by `sets`, and unknown until the DSL body runs past `include`.
     command "Count" do
       role "Language"
       goal "Mark the read model as a bare row count over its one eligible collection"
@@ -187,13 +156,91 @@ Hecks.bluebook "Bluebook" do
       emits MedianFieldSet
     end
 
+    command "Sum" do
+      role "Language"
+      goal "Mark the read model as the total of one numeric field across its one eligible collection"
+
+      given("a sum field is named") { !sum_field.value.to_s.empty? }
+
+      sets :sum_field
+
+      emits SumFieldSet
+    end
+
+    command "Avg" do
+      role "Language"
+      goal "Mark the read model as the mean of one numeric field across its one eligible collection"
+
+      given("an avg field is named") { !avg_field.value.to_s.empty? }
+
+      sets :avg_field
+
+      emits AvgFieldSet
+    end
+
+    command "Min" do
+      role "Language"
+      goal "Mark the read model as the smallest value of one numeric field across its one eligible collection"
+
+      given("a min field is named") { !min_field.value.to_s.empty? }
+
+      sets :min_field
+
+      emits MinFieldSet
+    end
+
+    command "Max" do
+      role "Language"
+      goal "Mark the read model as the largest value of one numeric field across its one eligible collection"
+
+      given("a max field is named") { !max_field.value.to_s.empty? }
+
+      sets :max_field
+
+      emits MaxFieldSet
+    end
+
+    command "Percentile" do
+      role "Language"
+      goal "Mark the read model as one interpolated rank of one numeric field across its one eligible collection"
+
+      given("a percentile field is named") { !percentile_field.value.to_s.empty? }
+
+      sets :percentile_field
+      sets :percentile_at
+
+      emits PercentileFieldSet
+    end
+
+    command "Any" do
+      role "Language"
+      goal "Mark the read model as whether any row's boolean field is true across its one eligible collection"
+
+      given("an any field is named") { !any_field.value.to_s.empty? }
+
+      sets :any_field
+
+      emits AnyFieldSet
+    end
+
+    command "All" do
+      role "Language"
+      goal "Mark the read model as whether every row's boolean field is true across its one eligible collection"
+
+      given("an all field is named") { !all_field.value.to_s.empty? }
+
+      sets :all_field
+
+      emits AllFieldSet
+    end
+
     command "Option" do
       role "Language"
       goal "Attach one part of one specification option to the read model"
 
       attribute :option, ReadModelText
       attribute :key,    ReadModelText
-      # Same reading as Query.Option above — an option key may stand alone.
+      # Same reading as Query.Option: an option key may stand alone.
       attribute :value,  ReadModelText, optional: true
       attribute :at,     ReadModelText, optional: true
 
@@ -204,9 +251,7 @@ Hecks.bluebook "Bluebook" do
       emits OptionAttached
     end
 
-    # HOW READMODEL IS SPELLED. These rows live with the concept
-    # they describe; SyntaxBoot discovers every aggregate-local seed table.
-    # Contexts represented here: ReadModel.
+    # Keyword and argument rows for read models; SyntaxBoot discovers every aggregate-local table.
     value_object "KeywordSeed" do
       attribute :word,          String
       attribute :context,       String, admits: "Syntax::Context"
@@ -225,6 +270,13 @@ Hecks.bluebook "Bluebook" do
       member word: "group_by",        context: "ReadModel", body: "none", inner: "", opens: "", fills: "group_by", calls: "group_by_impl"
       member word: "count",           context: "ReadModel", body: "none", inner: "", opens: "", fills: "count"
       member word: "median",          context: "ReadModel", body: "none", inner: "", opens: "", fills: "median_field"
+      member word: "sum",             context: "ReadModel", body: "none", inner: "", opens: "", fills: "sum_field"
+      member word: "avg",             context: "ReadModel", body: "none", inner: "", opens: "", fills: "avg_field"
+      member word: "min",             context: "ReadModel", body: "none", inner: "", opens: "", fills: "min_field"
+      member word: "max",             context: "ReadModel", body: "none", inner: "", opens: "", fills: "max_field"
+      member word: "percentile",      context: "ReadModel", body: "none", inner: "", opens: "", fills: "percentile_field", calls: "percentile_impl"
+      member word: "any",             context: "ReadModel", body: "none", inner: "", opens: "", fills: "any_field"
+      member word: "all",             context: "ReadModel", body: "none", inner: "", opens: "", fills: "all_field"
       member word: "where",           context: "ReadModel", body: "none", inner: "", opens: "", fills: "options", calls: "where_impl"
       member word: "order_by",        context: "ReadModel", body: "none", inner: "", opens: "", fills: "options", calls: "order_by_impl"
       member word: "authorize",       context: "ReadModel", body: "none", inner: "", opens: "", fills: "options", calls: "authorize_impl"
@@ -256,6 +308,14 @@ Hecks.bluebook "Bluebook" do
       member keyword: "include",         context: "ReadModel", at: "",  named: "as",      kind: "symbol",   required: "false", fills: "as"
       member keyword: "group_by",        context: "ReadModel", at: "1", named: "",        kind: "symbol",   required: "true",  fills: "group_by", variadic: "true"
       member keyword: "median",          context: "ReadModel", at: "1", named: "",        kind: "symbol",   required: "true",  fills: "median_field"
+      member keyword: "sum",             context: "ReadModel", at: "1", named: "",        kind: "symbol",   required: "true",  fills: "sum_field"
+      member keyword: "avg",             context: "ReadModel", at: "1", named: "",        kind: "symbol",   required: "true",  fills: "avg_field"
+      member keyword: "min",             context: "ReadModel", at: "1", named: "",        kind: "symbol",   required: "true",  fills: "min_field"
+      member keyword: "max",             context: "ReadModel", at: "1", named: "",        kind: "symbol",   required: "true",  fills: "max_field"
+      member keyword: "percentile",      context: "ReadModel", at: "1", named: "",        kind: "symbol",   required: "true",  fills: "percentile_field"
+      member keyword: "percentile",      context: "ReadModel", at: "",  named: "at",      kind: "number",   required: "true",  fills: "percentile_at"
+      member keyword: "any",             context: "ReadModel", at: "1", named: "",        kind: "symbol",   required: "true",  fills: "any_field"
+      member keyword: "all",             context: "ReadModel", at: "1", named: "",        kind: "symbol",   required: "true",  fills: "all_field"
       member keyword: "where",           context: "ReadModel", at: "1", named: "",        kind: "pairs",    required: "true",  fills: ""
       member keyword: "order_by",        context: "ReadModel", at: "1", named: "",        kind: "symbol",   required: "true",  fills: "field"
       member keyword: "order_by",        context: "ReadModel", at: "2", named: "",        kind: "symbol",   required: "false", fills: "direction"

@@ -2,12 +2,8 @@ require "spec_helper"
 require "open3"
 require "rbconfig"
 
-# **The runtime's scratch files stay out of the gem.** The syntax-boot cache
-# and the Storehouse audit log are written on a normal run, so their home
-# cannot be `<gem root>/tmp`: an installed gem's directory is read-only.
-# `Hecks::CacheDir` picks the XDG cache directory, `~/.cache`, or a private
-# directory under the system temp directory, and these examples pin the order,
-# the privacy check, and that a real process writes nothing under the gem.
+# An installed gem's directory can be read-only, so scratch files (the syntax-boot
+# cache, the Storehouse log) live under `~/.cache` or a private tmp dir instead.
 RSpec.describe Hecks::CacheDir do
   let(:scratch) { Dir.mktmpdir("hecks-cache-dir-spec") }
   let(:gem_root) { File.expand_path("..", __dir__) }
@@ -72,8 +68,8 @@ RSpec.describe Hecks::CacheDir do
     end
   end
 
-  # One real process, so the constants-at-load-time and the gem-relative
-  # `__dir__` paths that used to decide this are exercised for real.
+  # A real process, so the load-time constants and gem-relative `__dir__`
+  # paths that decide this are exercised for real.
   describe "a real process" do
     let(:script) do
       <<~RUBY

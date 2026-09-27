@@ -1,11 +1,8 @@
 require "spec_helper"
 require "time"
 
-# Without a check at dispatch time, `role` would be pure decoration —
-# declared, stored, read by nothing. This holds the fix: opt-in on both sides
-# (no caller bound, or a command with no declared role, both dispatch exactly
-# as they would with no role at all), and a real refusal once a caller states
-# a role and it doesn't match.
+# Role checks at dispatch: opt-in on both sides (no caller bound, or no declared role,
+# dispatches as if there were no role), refused once a caller states a role that does not match.
 RSpec.describe "role-based command rejections" do
   def build(&block)
     registry = Hecks::Runtime::Registry.new
@@ -113,13 +110,8 @@ RSpec.describe "role-based command rejections" do
     expect(Order.find("o1").events.map(&:name)).to include("OrderPrepared")
   end
 
-  # **The real check** — once Governance is attached (every hecksagon above
-  # now carries `uses_framework "Governance"`, the new declare-time
-  # requirement), a caller who also names who they are is checked
-  # against a real `RoleAssignment`, not the string they happened to
-  # type. `role:` and `actor_id:` disagreeing is the case that proves
-  # identity wins: a caller cannot talk its way past a role it was never
-  # granted just by typing the right word.
+  # With Governance attached, a caller who also names `actor_id` is checked against a real
+  # `RoleAssignment`; `role:` and `actor_id:` disagreeing proves identity wins over the string.
   describe "an identified caller, checked against a real Governance grant" do
     def grant(runtime, actor_id:, role_name:)
       runtime.dispatch_flat("Governance::RoleAssignment.Assign",
@@ -158,9 +150,7 @@ RSpec.describe "role-based command rejections" do
       end.to raise_error(Hecks::Runtime::Unauthorized)
     end
 
-    # `as_of` — opt-in on top of `actor_id`, same shape: unbound, the
-    # pre-existing behavior (a future-dated `starts_at` authorizes
-    # immediately); bound, the real check.
+    # `as_of` is opt-in on top of `actor_id`: unbound, a future `starts_at` authorizes at once.
     describe "as_of — a bound assignment's own starts_at" do
       it "dispatches unchanged when as_of is not bound, even for a not-yet-started assignment" do
         runtime = build(&CAFETERIA_DOMAIN)
@@ -196,9 +186,7 @@ RSpec.describe "role-based command rejections" do
       end
     end
 
-    # `scope` — the same opt-in shape again: unbound authorizes against
-    # any live assignment for the role, everywhere ; bound, only against
-    # an assignment granted for that exact scope.
+    # `scope` is opt-in too: unbound matches any live role assignment; bound, only that scope.
     describe "scope — a bound assignment's own scope" do
       def grant_scoped(runtime, actor_id:, role_name:, scope:)
         runtime.dispatch_flat("Governance::RoleAssignment.Assign",

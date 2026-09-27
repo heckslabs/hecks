@@ -1,20 +1,8 @@
 require "spec_helper"
 require "hecks/grammar"
 
-# `bin/project_kernel_capabilities` generates `rust/src/kernel/
-# attribute_shapes/mod.rs` and `rust/src/kernel/expression_operators/
-# mod.rs` from two live Ruby ground truths — `Coercion::SHAPES` and
-# `Grammar.admitted_operators`'s own `category` field — but nothing held
-# the checked-in generated files to those ground truths the way
-# spec/vocabulary_conformance_spec.rb holds other tables to their own
-# live constants. Item #8, whole-project table-unification survey:
-# confirmed current (zero drift) when investigated, but the investigation
-# itself found no automated gate — exactly the same shape item #2's real,
-# 39-vs-42-entry refusal-wording drift went unnoticed for. This closes
-# that gap the same way: read the checked-in file's own `pub mod <name>;`
-# roster (the one line per capability this generator's own `emit_mod`
-# writes, in Ruby's own current order) and hold it to the live Ruby
-# table, both directions.
+# Holds the generated kernel/attribute_shapes and kernel/expression_operators mod.rs
+# rosters to `Coercion::SHAPES` and `Grammar.admitted_operators`, both directions.
 RSpec.describe "kernel capability tables (bin/project_kernel_capabilities)" do
   def self.pub_mod_names(path)
     File.readlines(File.join(InMemoryDomain::ROOT, path))
@@ -37,11 +25,8 @@ RSpec.describe "kernel capability tables (bin/project_kernel_capabilities)" do
                                        "Grammar.admitted_operators — run bin/project_kernel_capabilities"
   end
 
-  # A generated mod.rs is dead weight without a hand-written file for
-  # each `pub mod` line to resolve — the same "unresolved module" gate
-  # this generator's own header describes bin/rust_kernel_coverage
-  # checking mechanically, held here too so this spec alone (without
-  # needing a Rust toolchain) already catches the cheap half of it.
+  # A `pub mod` line with no hand-written file is an unresolved module; this catches
+  # that without a Rust toolchain.
   it "has a hand-written file for every attribute shape it names" do
     missing = ATTRIBUTE_SHAPE_NAMES.reject { |name| File.exist?(File.join(InMemoryDomain::ROOT, "rust/src/kernel/attribute_shapes/#{name}.rs")) }
     expect(missing).to be_empty, "attribute_shapes/mod.rs names #{missing.inspect} with no matching hand-written file"

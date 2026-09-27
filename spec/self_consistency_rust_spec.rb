@@ -3,33 +3,16 @@ require "hecks/fuzzing"
 require "hecks/fuzzing/self_consistency"
 require_relative "support/rust_conformance_helpers"
 
-# The Rust-side half of `Hecks::Fuzzing::SelfConsistency` — `check_rust_
-# rehydration`/`check_rust_idempotency`, the compiled binary's own
-# `"seed"` door (`kernel/cli.rs`'s own header; `Hecks::Fuzzing::
-# SelfConsistency`'s own file header explains the mechanism in full).
-# Proven two ways, matching this practice's existing "found something"
-# fixture pattern (`spec/support/qa_sweep_all_fixture.rb`'s own fixture crate):
-#
-#   - against a real compiled domain binary (pizzas), both checks stay
-#     clean — `Store::from_seed`/`Store::instances` really are inverses
-#     for a well-behaved binary;
-#   - against `spec/fixtures/self_consistency_rust_fixture/` (a small,
-#     hand-maintained crate whose own header explains the deliberate
-#     bug), both checks fire — proving they actually can, not just that
-#     they stay quiet.
+# The Rust-side half of `Hecks::Fuzzing::SelfConsistency` (rehydration and idempotency checks
+# against the binary's `"seed"` door). Both checks stay clean on a real binary and fire on the
+# deliberately buggy `spec/fixtures/self_consistency_rust_fixture/` crate.
 class Differ
   include RustConformanceHelpers
 end
 
 RSpec.describe "Hecks::Fuzzing::SelfConsistency (Rust side)", :io do
-  # Prefixed, not the bare name every other spec file also reaches for —
-  # `spec/load_hygiene_spec.rb`'s own "lets no two spec files disagree
-  # about a top-level constant" check flags any name two files both
-  # assign, `PIZZAS`/`BANKING`/`RUST_DIR`/`ROOT` included (an
-  # `RSpec.describe` block is not a real namespace — every constant
-  # assigned inside one lands on `Object`, at any nesting depth), whether
-  # or not the two definitions happen to agree. `spec/fuzzing/adversary_
-  # spec.rb`'s own `ADVERSARY_BANKING` rename is the exact precedent.
+  # Prefixed: constants assigned in a describe block land on `Object`, and
+  # `spec/load_hygiene_spec.rb` flags any name two spec files both assign.
   SELF_CONSISTENCY_RUST_PIZZAS = File.join(InMemoryDomain::ROOT, "examples/pizzas")
   SELF_CONSISTENCY_BANKING           = File.join(InMemoryDomain::ROOT, "examples/banking")
   SELF_CONSISTENCY_RUST_DIR          = File.join(InMemoryDomain::ROOT, "rust")
@@ -45,31 +28,16 @@ RSpec.describe "Hecks::Fuzzing::SelfConsistency (Rust side)", :io do
     stdout, status = Open3.capture2(binary, stdin_data: JSON.generate({ "steps" => steps }))
     expect(status).to be_success
 
-    # Not `strip_emitted_flags!`ed — that mutation is for the Ruby-vs-Rust
-    # differential comparison only (Ruby has no such field to agree with).
-    # The self-consistency seed needs the wire-real `"instances"` `Store::
-    # instances()` actually produced, `emitted_*` bookkeeping included:
-    # `Store::from_seed` refuses a seed missing one, found live against
-    # `examples/banking` while this integration was being written
-    # (`bin/qa_sweep`'s own `diff_ruby_vs_rust` carries the same fix, with
-    # the fuller story in its own comment there).
+    # Not `strip_emitted_flags!`ed: the seed needs the `emitted_*` bookkeeping fields
+    # `Store::instances()` produced, and `Store::from_seed` refuses a seed missing one.
     live = JSON.parse(stdout)["instances"]
 
     expect(Hecks::Fuzzing::SelfConsistency.check_rust_rehydration(binary, differ, live)).to be_empty
     expect(Hecks::Fuzzing::SelfConsistency.check_rust_idempotency(binary, differ, live)).to be_empty
   end
 
-  # The regression `bin/qa_sweep`'s own `rust_live_instances` comment
-  # names directly — `Banking::Account`'s `corrects` reaction (docs/
-  # decisions/0049) gives its own generated `Store` an `emitted_fee_
-  # applied` bookkeeping field that `banking`'s `pizzas`-only sibling
-  # example never exercises. `Store::from_seed` requires it present —
-  # seeding with a copy that had `strip_emitted_flags!` applied (the
-  # differential comparison's own mutation) refused outright with
-  # "Account.emitted_fee_applied: missing from JSON args," live, the
-  # first time this integration ran against a real domain with a
-  # `corrects` reaction rather than only `pizzas` (which has none). Proves
-  # the fix, not just the mechanism `pizzas` alone already covers above.
+  # Pins the `emitted_*` regression: banking's `corrects` reaction adds `emitted_fee_applied`,
+  # which `Store::from_seed` requires and pizzas (no `corrects`) never exercises.
   it "stays clean against a real compiled domain binary with an emitted_* bookkeeping field (banking)" do
     binary = differ.build_rust_for("banking", SELF_CONSISTENCY_RUST_DIR)
     skip "banking Rust feature not declared in rust/Cargo.toml" unless binary

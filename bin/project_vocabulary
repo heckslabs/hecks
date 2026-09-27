@@ -1,12 +1,6 @@
 #!/usr/bin/env ruby
 
-# Projects the language's own closed sets into lib/hecks/vocabulary.rb.
-#
-# A one-line wrapper over the projector registry, deliberately — the four
-# tools that came before this one (bin/project_parser_table, bin/reference,
-# bin/expression_projection, and this script's own first draft) each
-# invented their own call shape for "canonical IR in, artifact out". This
-# one asks the registry.
+# Projects the language's closed sets into lib/hecks/vocabulary.rb via the projector registry.
 #
 #   bin/project_vocabulary
 

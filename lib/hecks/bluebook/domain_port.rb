@@ -2,17 +2,9 @@ require_relative "behaviour/domain_port"
 
 module Hecks
   module Bluebook
-    # The primary/driving half of hexagonal architecture (Cockburn) — called
-    # by an adapter living outside the bluebook entirely, never by the
-    # domain calling out. That is already `Hecks.port` (persistence,
-    # projection, extraction, loading) plus `Ports::*` : the secondary/
-    # driven half, unchanged by this.
+    # One operation on a driving port: an external call turned into an event in this domain.
     #
-    # An operation carries no `given`/`ensures`/`then_set` — a port is the
-    # anti-corruption boundary that turns an external call into a fact in
-    # this domain's own vocabulary, not a second place business rules live.
-    # Those stay on whatever command a `policy` triggers in reaction to the
-    # event an operation emits.
+    # Carries no `given`/`ensures`/`then_set`; those stay on the command a `policy` triggers.
     class PortOperation
       include Hecks::IR
       include Behaviour::PortOperation
@@ -21,31 +13,17 @@ module Hecks
 
       attr_reader :hecks_name, :attributes, :emits, :direction, :answers, :refuses, :to
 
-      # Two directions through one door.
-      #
-      # `:inbound` is what this class has always been — `tells`, spelled
-      # `operation` before it had a twin: an external fact arriving, turned
-      # into this domain's own event. It emits and that is all; there is no
-      # channel back to whoever called.
-      #
-      # `:outbound` is `asks` — the domain wanting something from outside
-      # and having to live with either answer. It names both: `answers` for
-      # what the adapter came back with, `refuses` for what it said instead.
-      # Naming only the happy one would put the failure somewhere the model
-      # cannot see, which is the whole reason a boundary is worth modelling.
+      # `:inbound` (`tells`) is an external fact arriving as an event; it emits and nothing more.
+      # `:outbound` (`asks`) is the domain wanting something from outside, naming both
+      # `answers` and `refuses` so the failure is visible to the model.
       #
       # @param name [String, Symbol] the operation's declared name
-      # @param attributes [Array<Bluebook::Attribute>] the operation's declared payload
-      #   fields
-      # @param emits [Array<String>] the events an inbound operation declares it records
-      # @param direction [Symbol, String] `:inbound` for a `tells`/`operation`, `:outbound`
-      #   for an `asks`
-      # @param answers [String, nil] an outbound operation's declared event for what the
-      #   adapter came back with
-      # @param refuses [String, nil] an outbound operation's declared event for what the
-      #   adapter said instead
-      # @param to [String, nil] the aggregate this operation routes to, or `nil` if it
-      #   declares no routing target
+      # @param attributes [Array<Bluebook::Attribute>] the declared payload fields
+      # @param emits [Array<String>] the events an inbound operation records
+      # @param direction [Symbol, String] `:inbound` or `:outbound`
+      # @param answers [String, nil] an outbound operation's event for the adapter's answer
+      # @param refuses [String, nil] an outbound operation's event for the adapter's refusal
+      # @param to [String, nil] the aggregate this operation routes to, if any
       def initialize(name:, attributes: [], emits: [], direction: :inbound, answers: nil, refuses: nil, to: nil)
         @hecks_name = name.to_s
         @attributes = attributes
@@ -67,31 +45,8 @@ module Hecks
       # @return [Boolean] whether this operation is a `tells`/`operation`
       def inbound?  = @direction == :inbound
 
-      # No root reference of its own — unlike a command, every attribute
-      # equally describes the payload, including whichever one identifies
-      # the record its emitted event belongs to. Kept only so
-      # CommandInterpreter::ArgumentGate's `reference_key` can ask for it
-      # without learning this isn't a command.
-
-      # `direction`/`answers`/`refuses` are deliberately outside `emits_ir`'s
-      # declared shape and added here only for an outbound operation — an
-      # ordinary inbound one (`tells`, still spelled `operation` everywhere
-      # in the existing corpus) keeps the exact prior IR shape, byte for
-      # byte. Pizzas' `PaymentGateway` port is inbound-only and is checked
-      # against `hecks-parse`'s own Rust output for byte-identity
-      # (parser_parity_spec.rb) — the Rust side has no notion of `asks` yet,
-      # so an unconditional new key here would break that parity for a
-      # domain that never asked for the feature. Only a chapter that
-      # actually declares `asks` (this extraction's own QualityControl
-      # ledger, not yet in any Rust-parity corpus) pays for it.
-      # `to` — same "deliberately outside emits_ir, merged in only when
-      # present" treatment as direction/answers/refuses just above, and
-      # for the identical reason: an operation still spelled the old way
-      # (`reference_to` inside the block, shadow-parsing only — see
-      # reference_to_impl's own comment) or one that simply hasn't
-      # migrated yet keeps the exact prior IR shape, byte for byte,
-      # instead of an unconditional new key breaking parser_parity_spec
-      # for every domain that never touched this.
+      # `direction`/`answers`/`refuses`/`to` are merged in only when set: the Rust parser
+      # emits none of them, so an unconditional key would break parser_parity_spec.
       #
       # @return [Hash] the declared emission, plus `direction`/`answers`/`refuses` for an
       #   outbound operation and `to` when a routing target is declared
@@ -103,11 +58,7 @@ module Hecks
       end
     end
 
-    # A named group of operations an aggregate (or, later, a chapter)
-    # exposes to whatever adapter calls in — the contract that today lives
-    # only as a bare `verb`/`signal` pair in a standalone `.port` file.
-    # Superseding those is the goal ; for now they keep working untouched,
-    # and this is additive.
+    # A named group of operations an aggregate exposes to whatever adapter calls in.
     class DomainPort
       include Hecks::IR
       include Behaviour::DomainPort

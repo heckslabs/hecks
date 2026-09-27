@@ -1,16 +1,6 @@
 #!/usr/bin/env ruby
-# Used ONLY by rust/host's own RLS-refusal test (journal.rs's
-# `a_stale_era_write_is_refused_by_postgres_rls_not_this_crate`) — mints
-# a REAL era 2 via Ruby's own LineageManager against a scratch Postgres
-# database, leaving era 1 superseded and a non-superuser app role fenced
-# to era 2. That's the exact real-world condition
-# `append_lineage_mutation`'s own claim needs to hold against: staleness
-# is refused by Postgres's OWN RLS row policy, not by anything this
-# crate checks itself. Mirrors
-# spec/adapters/driven/postgres_era/lineage_spec.rb's own
-# "fences a deployment's app role" setup (LINEAGE_OWNER/LINEAGE_ROLE
-# pattern, load_registry/check!/hash_of helpers) almost verbatim rather
-# than reinventing it — only the db/role names are parameterized.
+# Mints a real era 2 in a scratch database, fencing a non-superuser app role to it.
+# Used by rust/host's journal.rs RLS-refusal test; mirrors postgres_era/lineage_spec.rb.
 #
 # usage: mint_stale_era.rb <db_name> <owner_role> <app_role>
 
@@ -29,11 +19,7 @@ admin = PG.connect(dbname: "postgres")
 admin.exec("DROP DATABASE IF EXISTS #{db_name} WITH (FORCE)")
 admin.exec("CREATE DATABASE #{db_name}")
 admin.exec("DROP ROLE IF EXISTS #{owner_role}")
-# Plain CREATE ROLE ... LOGIN — no SUPERUSER, no BYPASSRLS, matching
-# lineage_spec.rb's own reasoning: either attribute makes FORCE ROW
-# LEVEL SECURITY a no-op, the same way it already is for a superuser
-# dev connection, and the whole point of this fixture is to prove the
-# fence against a role it can actually constrain.
+# No SUPERUSER or BYPASSRLS: either makes FORCE ROW LEVEL SECURITY a no-op.
 admin.exec("CREATE ROLE #{owner_role} LOGIN")
 admin.exec("DROP ROLE IF EXISTS #{app_role}")
 admin.exec("CREATE ROLE #{app_role} LOGIN")
@@ -48,9 +34,7 @@ grant.close
 
 owner_url = "postgres://#{owner_role}@localhost/#{db_name}"
 
-# Minimal shape drift: renaming one attribute is enough to change
-# StorageShape.project's output and trigger a real mint — nothing about
-# this test needs a richer domain than that.
+# Renaming one attribute is enough to change the storage shape and trigger a mint.
 v1 = <<~BLUEBOOK
   Hecks.bluebook "Ledger" do
     aggregate "Account" do
@@ -87,8 +71,7 @@ v2 = <<~BLUEBOOK
   end
 BLUEBOOK
 
-# ── the proven helpers from lineage_spec.rb, unchanged apart from
-# taking owner_url as an argument instead of a shared constant ──
+# Helpers from lineage_spec.rb, taking owner_url as an argument.
 
 def load_registry(source, translation_source: nil)
   registry = Hecks::Runtime::Registry.new

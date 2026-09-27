@@ -8,33 +8,35 @@ require_relative "../query_specification/field_path"
 
 module Hecks
   module Runtime
-    # Interprets one declared `read_model`: resolves each of its
-    # `include`d heads (root first, then the rest in dependency order),
-    # matches non-root heads to already-projected rows by reference
-    # field, and applies group_by/count/median reduction where declared.
-    # Prefers a native SQLite escape hatch (#query_read_model) when the
-    # model is simple enough for one; otherwise runs the whole join
-    # in-process against loaded records.
+    # Interprets one declared `read_model`: resolves its `include`d heads and applies any
+    # `group_by` or reduction (`REDUCTION_WORD`), preferring a native SQLite path when it can.
     class ReadModelInterpreter
+      # The word each non-`count` reduction ivar reads back as in a refusal message.
+      REDUCTION_WORD = {
+        median_field: "median", sum_field: "sum", avg_field: "avg", min_field: "min",
+        max_field: "max", percentile_field: "percentile", any_field: "any", all_field: "all"
+      }.freeze
+
+      # `sum`/`avg` refuse a Float field (ADR 0078): summing floats cannot be made to agree,
+      # byte for byte, between Ruby and Rust, so v1 admits only the Integer case.
+      INTEGER_ONLY_REDUCTIONS = %i[sum_field avg_field].freeze
+      BOOLEAN_REDUCTIONS = %i[any_field all_field].freeze
+
       # @param registry [Runtime::Registry] the booted registry whose repositories
       #   this interpreter reads
       def initialize(registry) = @registry = registry
 
       # Runs one declared read model and returns its projected rows.
-      #
       # @param domain [String, Symbol] the domain the read model is declared in
       # @param model [Bluebook::ReadModel] the read model to run
-      # @param args [Hash{Symbol => Object}] the query's declared arguments
-      # @return [Array<Hash>] a one-element Array holding a Hash of head name to
-      #   projected rows (or a single row, for a non-`:many` head)
-      # @raise [Runtime::TypeMismatch] if the reference argument is offered as a whole
-      #   object rather than a plain identity, or a `median` field is not numeric
+      # @param args [Hash] the query's declared arguments
+      # @return [Array<Hash>] a one-element array of head name => projected rows
+      # @raise [Runtime::TypeMismatch] if a reference is a whole object
       # @raise [Runtime::NotFound] if the reference argument names no record
       # @raise [KeyError] if a rooted read model is asked without its reference argument
-      # @raise [ArgumentError] if `group_by` or `median` names a field its target
-      #   aggregate does not declare
-      # @raise [Runtime::InvariantViolation] if two rows reach the same full `group_by`
-      #   key path and that path does not cover the grouped aggregate's whole identity
+      # @raise [ArgumentError] if `group_by` or a reduction names an undeclared field, or one
+      #   of the wrong type
+      # @raise [Runtime::InvariantViolation] if two rows collide on a full `group_by` key
       # @raise [Runtime::WiringError] if the aggregate's repository cannot be resolved
       def call(domain, model, args)
         project(domain, model, args)
@@ -42,15 +44,8 @@ module Hecks
 
       private
 
-      # Root-first, then the SQLite escape hatch, then the join loop —
-      # each step's own comment names a real, already-shipped bug the
-      # current order fixes (the reference/TenantScope refusal ordering
-      # above, the root-first head processing below). Splitting this
-      # into smaller methods would scatter that ordering across method
-      # boundaries where a future editor could silently break it, and
-      # would force threading `rootless`/`reference_id`/`eligible`/
-      # `projected`/`rows_by_as` between the pieces as parameters and
-      # return values.
+      # Splitting this into smaller methods would scatter the root-first/SQLite/join
+      # ordering across boundaries where a future editor could silently break it.
       # rubocop:disable-next Metrics/AbcSize
       # rubocop:disable-next Metrics/CyclomaticComplexity
       # rubocop:disable-next Metrics/MethodLength
@@ -58,32 +53,19 @@ module Hecks
       def project(domain, model, args)
         bluebook = @registry.bluebook(domain)
         rootless = model.reference_target.nil?
-        # Before the adapter early-return below, so the SQLite path inherits it.
-        # Without this a stale caller passing a wrapped reference gets a
-        # path-dependent answer — an adapter could quietly open the wrapped
-        # reference while the in-process path reads it whole and finds nothing.
-        # Refused up front, identically on every path. Nothing to refuse for
-        # a rootless model — there's no reference argument to have offered
-        # wrong at all.
+        # Refused before the adapter early-return, so both paths refuse identically
+        # rather than one silently opening a wrapped reference the other reads whole.
         refuse_object_reference(model, args) unless rootless
         reference_id = reference(args.fetch(model.reference_name)) unless rootless
-        # Computed off the original model, before TenantScope wraps it — the
-        # "which head(s) do options apply to" question is about what the
-        # bluebook author declared, not about the synthetic tenant clause
-        # the wrapper adds underneath. Plural (ADR 0055) — `on:` lets more
-        # than one many-side head be eligible at once.
+        # Computed off the original model, before TenantScope wraps it, so this
+        # reflects what the bluebook author declared, not the synthetic tenant
+        # clause added underneath (ADR 0055; `on:` allows more than one head).
         eligible = model.filtered_head_names
         model = TenantScope.apply(model, args)
-        # A rootless, `group_by`-declared, or `count`/`median`-declared
-        # model skips the SQLite native escape hatch entirely (there is
-        # no root aggregate to look up a repository for when rootless,
-        # and `query_read_model` knows nothing about grouping or
-        # reducing) — always runs the in-process loop below instead.
-        # Correct everywhere ; not SQL-pushed-down for a SQLite-backed
-        # aggregate yet, a real, named limit, not a silent one — the
-        # same one `group_by` already accepted, extended here rather
-        # than narrowed.
-        unless rootless || model.group_by.any? || model.count? || model.median_field
+        # A rootless model, or one declaring `group_by` or any reduction, always runs
+        # the in-process loop below — none of those are pushed down into
+        # `query_read_model`, a known limit, not a silent one.
+        unless rootless || model.group_by.any? || model.reducing?
           repository = @registry.read_repository(domain, bluebook.aggregate(model.reference_target))
           if repository.respond_to?(:query_read_model) && repository.adapter.respond_to?(:query_read_model)
             return repository.query_read_model(domain, model, args,
@@ -91,22 +73,9 @@ module Hecks
           end
         end
 
-        # **Root first, always** — regardless of `include` order in the
-        # bluebook. `read_model_builder.rb`'s own `include` is
-        # documented "Order-independent" (the `:many` flag is resolved
-        # at build time, once `@reference_target` is known), but that
-        # promise is not kept without this: running heads in
-        # their literal declared order and matching each "many" head
-        # against whatever was already in `projected` would leave it
-        # empty, the very first time through, if a many-side head happened
-        # to be declared before the root. A real, live bug (not a guess):
-        # `include Promotion` before `include Item` on a read model
-        # whose root is Item silently returned an empty array for
-        # Promotion — no error, just a wrong, too-small answer — while
-        # the reverse order worked purely by accident. `partition`,
-        # not `sort_by`: Ruby's `sort_by` is not guaranteed stable,
-        # and correctness here must not depend on it being so by
-        # chance on the current MRI build.
+        # Root heads run first regardless of declared `include` order — a many-side
+        # head declared before its root would otherwise match against an empty
+        # `projected`. `partition`, not `sort_by`, which is not guaranteed stable.
         root_heads, other_heads = model.aggregate_heads.partition { |head| head[:aggregate] == model.reference_target }
         projected = []
         rows_by_as = {}
@@ -114,20 +83,9 @@ module Hecks
           rows = if head[:aggregate] == model.reference_target
                    [fetch(bluebook, domain, head[:aggregate], reference_id)]
                  elsif rootless
-                   # No root to FK-match against — a rootless model reads
-                   # each of its own heads whole, independently. Multiple
-                   # heads on one rootless model are never cross-joined
-                   # against each other, and there is no DSL to declare
-                   # one if you wanted to — `ReadModelBuilder#include_impl`
-                   # takes only `type`/`as:` (checked directly, not
-                   # assumed), and `group_by` groups this bulk read's own
-                   # output, it names no predicate between two heads.
-                   # Building a cross-join here would mean choosing a join
-                   # semantics (equality on which fields?) nobody has
-                   # declared — a real, deliberate scope limit pending a
-                   # future `include ..., joins: ...`-shaped grammar
-                   # addition (with its own Rust mirror), not a gap this
-                   # interpreter can quietly grow into on its own.
+                   # A rootless model has no root to FK-match against, so each head
+                   # reads independently; there is no DSL for cross-joining rootless
+                   # heads together, a deliberate scope limit, not a gap to grow into.
                    records(bluebook, domain, head[:aggregate])
                  else
                    matching(records(bluebook, domain, head[:aggregate])) do |record|
@@ -142,9 +100,8 @@ module Hecks
           projected << { aggregate: head[:aggregate], rows: rows }
           rows_by_as[head[:as]] = head[:many] ? rows : rows.first
         end
-        # Declared order preserved in the output — only the
-        # computation above needed reordering, not what a caller sees
-        # back.
+        # Declared order is preserved in the output — only the computation above
+        # needed reordering.
         heads = model.aggregate_heads.to_h { |head| [head[:as], rows_by_as[head[:as]]] }
         grouped_head = group_by_target(model, bluebook)
         reduced_head = aggregation_target(model, bluebook)
@@ -155,7 +112,7 @@ module Hecks
                     elsif reduced_head && as == reduced_head[:as] && model.count?
                       value.length
                     elsif reduced_head && as == reduced_head[:as]
-                      median(value, model.median_field)
+                      reduce(model, value)
                     elsif value.is_a?(Array)
                       value.map { |record| Value.materialize(row(record)) }
                     else
@@ -164,34 +121,8 @@ module Hecks
         end]
       end
 
-      # **The root-first fix's own fix** — root-first alone only reaches one
-      # level: it guarantees the root is in `projected` before any other
-      # head is matched, but a chain of non-root heads (a head that
-      # references another non-root head, not the root) is still
-      # matched against whatever declaration order happened to put in
-      # `projected` so far. `include Coupon` before `include Promotion`
-      # on a read model rooted at Item, where Coupon references
-      # Promotion (which references Item), silently returned an empty
-      # `coupons` array — Coupon's match ran while `projected` held only
-      # Item, one level short of what it needed.
-      #
-      # Fixed the same way root-first was: not by asking bluebook authors
-      # to declare `include` in dependency order (the same promise
-      # `read_model_builder.rb` already makes and this file is the one
-      # place obligated to keep), but by topologically sorting the
-      # non-root heads on their own declared reference fields before
-      # this method's runtime matching ever runs — Kahn's algorithm,
-      # picking ready heads in declared order at each step so declaring
-      # order still governs whenever there is no dependency to break a
-      # tie. This generalizes root-first (a chain of length 1) to a
-      # chain of any depth, and to a head depending on more than one
-      # other head at once (not just a straight chain).
-      #
-      # A cycle among non-root heads (A references B which references A)
-      # has no valid topological order at all — falls back to the
-      # remaining heads' declared order rather than looping forever, the
-      # same "whichever runs first finds nothing" behaviour this method
-      # had for every non-root head before root-first existed.
+      # Topologically sorts non-root heads by their declared reference fields
+      # (Kahn's algorithm); a cycle falls back to declared order rather than looping.
       def order_other_heads(bluebook, root_heads, other_heads)
         resolved = root_heads.map { |head| head[:aggregate] }
         remaining = other_heads.dup
@@ -211,25 +142,8 @@ module Hecks
         ordered
       end
 
-      # Which other declared (non-root) heads a head's own aggregate
-      # holds a reference field toward — the same relationship this
-      # file's runtime matching checks record-by-record, asked here
-      # statically, once, to order heads before any record is read.
-      #
-      # `head[:aggregate]` names whatever `include` was given — and
-      # `include` accepts a nested entity (Member, nested under
-      # ValueObject ; Handler and Dispatch, nested under ProcessManager
-      # — bluebook.bluebook's own `WholeBluebook` read model includes
-      # all three) just as readily as a top-level aggregate.
-      # `bluebook.aggregate` only ever finds the latter
-      # (Behaviour::Chapter#aggregate searches `@aggregates`, which
-      # holds no entities), so it returns nil for an entity-headed
-      # include — a real case, not a malformed one. `records`, below,
-      # already treats that nil as "no rows of its own to fetch" ;
-      # a head with no rows of its own has nothing to check for a
-      # reference field either, so it depends on nothing here, the
-      # same as it always silently read empty before this file's
-      # topological sort existed.
+      # Which other declared heads a head's own aggregate holds a reference field
+      # toward; an entity-headed include resolves no aggregate and so depends on nothing.
       def depends_on(bluebook, head, other_heads)
         aggregate = bluebook.aggregate(head[:aggregate])
         return [] unless aggregate
@@ -239,11 +153,8 @@ module Hecks
                    .map { |other| other[:aggregate] }
       end
 
-      # `group_by`'s own declared fields, checked against the one
-      # many-side head they apply to (`seal_group_by` already refuses
-      # zero or several) — resolved here, once, rather than re-derived
-      # per row. Raises loudly on a typo'd field name rather than
-      # silently grouping every row into one bucket keyed `nil`.
+      # Resolves `group_by`'s target head and validates its fields once, raising on
+      # a typo'd field name rather than silently grouping every row under `nil`.
       def group_by_target(model, bluebook)
         return nil unless model.group_by.any?
 
@@ -251,16 +162,9 @@ module Hecks
         aggregate = bluebook.aggregate(target[:aggregate])
         model.group_by_fields.each do |field|
           next if aggregate.attribute(field)
-          # The lifecycle field is a field, and refusing it here was a drift
-          # between two halves of the same language: `where(status: "logged")`
-          # has always been legal on the same aggregate, because a lifecycle
-          # state is stored on the record like anything else — it is simply
-          # declared by `lifecycle :status` rather than by `attribute`.
-          #
-          # It is also the grouping anybody actually wants. "How are we doing"
-          # over a bug ledger is the count per status, and a report that could
-          # group by every field except that one could not answer the question
-          # reports exist for.
+          # A lifecycle field is a real field too — it's stored on the record like
+          # any attribute, just declared via `lifecycle :status`, and it's usually
+          # exactly the field a report wants to group by.
           next if aggregate.lifecycle && aggregate.lifecycle.field.to_sym == field.to_sym
 
           raise ArgumentError,
@@ -270,25 +174,14 @@ module Hecks
         target
       end
 
-      # The read model whose `group_by` leaves must each hold one row, or nil
-      # when its key path covers the grouped aggregate's whole identity and so
-      # cannot collide (ADR 0061, decision D1). Decided from the declaration,
-      # never from the rows.
+      # Whether `group_by` leaves must hold one row, decided from the declaration
+      # alone (ADR 0061 D1): nil when the key path already covers the identity.
       def collision_check(model, bluebook, grouped_head)
         model.groups_by_identity?(bluebook.aggregate(grouped_head[:aggregate])) ? nil : model
       end
 
-      # One level of nesting per field, in `group_by`'s own declared
-      # order — the leaf is the row with every grouped field removed
-      # (already spent, as the keys that reached it). A leaf holds one row:
-      # when `checked` names a read model and two rows reach the same full
-      # key path, this refuses rather than keep one of them (ADR 0061,
-      # decision D1). An array-of-rows leaf would change the output shape
-      # of every shipped `group_by`, so it is not offered here.
-      #
-      # Groups are walked in first-occurrence order and depth first, so the
-      # collision reported is the first one reached; the Rust kernel's
-      # `read_model::nest` walks in the same order.
+      # Nests one level per `group_by` field; a leaf holding more than one row
+      # is a `group_by` collision (ADR 0061 D1), refused rather than picking one.
       def nest(rows, fields, checked, reached = [])
         field, *rest = fields
         rows.group_by { |row| row[field] }.to_h do |key, group|
@@ -311,55 +204,83 @@ module Hecks
                                          key: path.map { |field, value| "#{field} = #{value}" }.join(", "))
       end
 
-      # `count`/`median`'s own declared target — the same single
-      # many-side head `group_by_target` resolves, for the same reason
-      # (`seal_aggregation` already refuses zero or several many-side
-      # heads, and refuses count/median declared alongside group_by, so
-      # there is exactly one to name whenever this is asked at all).
-      # Raises loudly on a `median` field that doesn't exist, or exists
-      # but isn't numeric, rather than silently comparing garbage or
-      # averaging strings.
+      # Resolves a reduction's single many-side head, raising on a field that doesn't
+      # exist or has the wrong type rather than comparing garbage.
       def aggregation_target(model, bluebook)
-        return nil unless model.count? || model.median_field
+        return nil unless model.reducing?
 
         target = model.aggregate_heads.find { |head| head[:many] }
-        return target unless model.median_field
+        return target if model.count?
 
+        ivar, word = REDUCTION_WORD.find { |name, _| model.public_send(name) }
+        field = model.public_send(ivar)
         aggregate = bluebook.aggregate(target[:aggregate])
-        attribute = aggregate.attribute(model.median_field)
+        attribute = aggregate.attribute(field)
         unless attribute
           raise ArgumentError,
-                "#{model.name}'s median names #{model.median_field.inspect}, but #{target[:aggregate]} " \
+                "#{model.name}'s #{word} names #{field.inspect}, but #{target[:aggregate]} " \
                 "declares no such attribute (it declares #{aggregate.attributes.map(&:name).join(', ')})"
         end
-        unless QuerySpecification::FieldPath.numeric?(attribute, []) { |type| aggregate.value_object(type) }
-          raise ArgumentError,
-                "#{model.name}'s median names #{model.median_field.inspect} on #{target[:aggregate]}, " \
-                "which is not numeric — median needs a numeric field (a bare number, or a " \
-                "value object carrying one)"
-        end
+        validate_reduction_type!(model, word, field, target[:aggregate], aggregate, attribute, ivar)
         target
       end
 
-      # **The standard definition**. An odd count's median is its one true
-      # middle value, sorted ; an even count's median is the average of
-      # its two middle values — the common convention (as opposed to,
-      # say, always taking the lower of the two), and the one this
-      # session's own task named explicitly as the deliberate choice.
-      # An empty collection has no median: nil, not zero, so a caller
-      # cannot mistake "nothing to average" for "the values averaged to
-      # zero". Reuses `Ports::Query::InMemory`'s own field reading
-      # (`FieldPath.dig` + `comparable`) — the same unwrap `where`/
-      # `order_by` already give a value-object-carrying field, so
-      # `median :daily_limit` on a `DailyLimit{cents}` field reads the
-      # same scalar an `order_by :daily_limit` comparison already would.
-      def median(rows, field)
-        values = rows.map { |record| Ports::Query::InMemory.comparable(QuerySpecification::FieldPath.dig(row(record), field)) }
-                     .compact.sort
+      # @raise [ArgumentError] if `attribute` does not have the type `ivar`'s reduction needs
+      def validate_reduction_type!(model, word, field, aggregate_name, aggregate, attribute, ivar)
+        wrap = ->(type) { aggregate.value_object(type) }
+        ok = if BOOLEAN_REDUCTIONS.include?(ivar)
+               QuerySpecification::FieldPath.boolean?(attribute, [], &wrap)
+             elsif INTEGER_ONLY_REDUCTIONS.include?(ivar)
+               QuerySpecification::FieldPath.integer?(attribute, [], &wrap)
+             else
+               QuerySpecification::FieldPath.numeric?(attribute, [], &wrap)
+             end
+        return if ok
+
+        kind = BOOLEAN_REDUCTIONS.include?(ivar) ? "boolean" : "numeric"
+        raise ArgumentError,
+              "#{model.name}'s #{word} names #{field.inspect} on #{aggregate_name}, " \
+              "which is not #{kind} — #{word} needs a #{kind == 'boolean' ? 'true/false' : 'numeric'} field"
+      end
+
+      # Dispatches to the one reduction `model` declares, over the eligible collection's own
+      # `comparable`-mapped values (or raw booleans for `any`/`all`) — the interpretation of
+      # `Runtime::ReadModelInterpreter#project`'s `reduced_head` branch.
+      def reduce(model, rows)
+        return boolean_values(rows, model.any_field).any? if model.any_field
+        return boolean_values(rows, model.all_field).all? if model.all_field
+        return numeric_values(rows, model.sum_field).sum if model.sum_field
+        return average(numeric_values(rows, model.avg_field)) if model.avg_field
+        return numeric_values(rows, model.min_field).min if model.min_field
+        return numeric_values(rows, model.max_field).max if model.max_field
+        return percentile(numeric_values(rows, model.percentile_field), model.percentile_at) if model.percentile_field
+
+        percentile(numeric_values(rows, model.median_field), 0.5)
+      end
+
+      # Shared by every reduction: `comparable` unwraps a value-object-wrapped field down to
+      # its sole member (numeric or boolean alike) exactly as `where`/`order_by` already read
+      # it, so `flagged: { value: true }` reduces on the boolean, not the ever-truthy Hash.
+      def reduction_values(rows, field)
+        # `compact`, not `filter_map`: a stored `false` is a real value, not an absent one.
+        rows.map { |record| Ports::Query::InMemory.comparable(QuerySpecification::FieldPath.dig(row(record), field)) }.compact
+      end
+      alias numeric_values reduction_values
+      alias boolean_values reduction_values
+
+      # `nil` on no rows: a rate of nothing is undefined, not zero.
+      def average(values) = values.empty? ? nil : values.sum.to_f / values.length
+
+      # The value at one interpolated rank (`0.0`..`1.0`); `at: 0.5` is the standard median
+      # (middle value when odd, average of the two middle values when even). `nil` on no rows.
+      def percentile(values, at)
         return nil if values.empty?
 
-        middle = values.length / 2
-        values.length.odd? ? values[middle] : (values[middle - 1] + values[middle]) / 2.0
+        sorted = values.sort
+        position = at * (sorted.length - 1)
+        lower = position.floor
+        fraction = position - lower
+        fraction.zero? ? sorted[lower] : sorted[lower] + (fraction * (sorted[lower + 1] - sorted[lower]))
       end
 
       def fetch(bluebook, domain, aggregate_name, id)
@@ -373,20 +294,8 @@ module Hecks
         aggregate ? @registry.read_repository(domain, aggregate).all : []
       end
 
-      # A stored reference holds the target's id inside the reference
-      # attribute's own declared shape, so reading it is reading that shape —
-      # a different thing from the identity unwrap that was removed. An
-      # identity is declared as a path and followed (Runtime::Identity) ; a
-      # reference has no path of its own, and `Value.scalar` refuses a
-      # composite rather than guessing which field was meant.
-      #
-      # Storing the scalar itself would remove this reading altogether. That
-      # is a change to how references are stored, not to how identities are
-      # declared, so it is not made here.
-      # An ask names itself where a command would name itself, and says the
-      # same thing about the same shape. `Value.refuse_object_reference` is
-      # not reused because it speaks of a command and its attribute ; a read
-      # model has a query name and one declared reference.
+      # A reference has no path of its own (unlike an identity), so `Value.scalar`
+      # refuses a composite rather than guessing which field was meant.
       def refuse_object_reference(model, args)
         offered = args.fetch(model.reference_name, nil)
         return unless offered.is_a?(Hash) || offered.is_a?(Value)

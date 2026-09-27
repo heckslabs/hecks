@@ -4,28 +4,18 @@ Hecks.bluebook "Bluebook" do
 
     reference_to Aggregate
 
-    # THE AGGREGATE IT IS IN, AND ITS NAME. Note this is the identity of the RECORD
-    # describing a piece, which is a different thing from the identity that piece
-    # itself declares (`identified_by`, the list below).
+    # The identity of the record describing a piece, not the identity the piece declares.
     identified_by :aggregate, :name
 
     attribute :owner,         EntityText
     attribute :name,          EntityName
     attribute :description,   EntityName
-    # SEVERAL PATHS, joined — a piece spells an identity exactly as a head does,
-    # which is the whole point of it being its own root.
+    # Several paths, joined, exactly as a head spells an identity.
     attribute :identified_by, list_of(IdentityPath)
     attribute :attributes,    list_of(PieceField)
-    # ADR 0028 — A PRECONDITION SHARED ACROSS THIS PIECE'S OWN COMMANDS,
-    # DECLARED ONCE — the SAME Rule shape Aggregate's own `preconditions`
-    # already carries (that file's own comment on why it's declared
-    # again here rather than shared: a value object is aggregate-scoped
-    # in this self-hosting domain).
+    # A precondition shared across this piece's commands, declared once (ADR 0028).
     attribute :preconditions, list_of(Rule)
-    # A PIECE'S OWN SHAPE RULE — the SAME Rule shape, checked (round 7)
-    # against EVERY INSTANCE this piece's own aggregate holds, not the
-    # aggregate's own flat state — `ValueObject#invariants`'s own
-    # relationship to ITS OWN instances, one construct over.
+    # The piece's own shape rule, checked against every instance its aggregate holds.
     attribute :invariants,    list_of(Rule)
     attribute :state_field, EntityText, optional: true
     attribute :state_start, EntityText, optional: true
@@ -40,17 +30,13 @@ Hecks.bluebook "Bluebook" do
       attribute :value, String
     end
 
-    # See Aggregate's own "Rule" value object — the identical shape,
-    # declared again here rather than shared (that file's own comment
-    # on why).
+    # Same shape as Aggregate's "Rule"; a value object is aggregate-scoped, so it is repeated.
     value_object "Rule" do
       attribute :description, String
       attribute :canonical,   String
     end
 
-    # A piece's identity is made of parts the same way a head's is, so it holds
-    # the same shape. Declared here rather than shared because a value object
-    # belongs to the aggregate that uses it.
+    # Declared here, not shared: a value object belongs to the aggregate that uses it.
     value_object "IdentityPath" do
       attribute :value, String
     end
@@ -61,9 +47,9 @@ Hecks.bluebook "Bluebook" do
       attribute :list,    String
       attribute :optional, String, optional: true
       attribute :pattern,  String, optional: true
-      # optional: a declaration with no default has none (C3.7 — a value object's fields arrive or it refuses)
+      # A declaration with no default has none.
       attribute :default, String, optional: true
-      # The closed set this value must belong to — see Aggregate::Field.
+      # The closed set this value must belong to (see Aggregate::Field).
       attribute :admits, String, optional: true
       attribute :relationship, String, optional: true
     end
@@ -74,14 +60,7 @@ Hecks.bluebook "Bluebook" do
       attribute :to_state,   String
     end
 
-    # The way back: everything DECLARED IN the aggregate above. The parent
-    # reference IS the query.
-    # WHERE IT SITS AMONG ITS SIBLINGS. Declaration order is a FACT ABOUT THE
-    # SOURCE — the IR is a contract read straight from this file,
-    # field for field AND INDEX FOR INDEX. So the language HOLDS it, instead of
-    # inheriting it from whatever order a store happens to iterate: an ask that
-    # does not say how it is ordered is answered in identity order, which is
-    # right for every other ask and fatal for the one that is the SOURCE.
+    # Declaration order is a fact about the source, so the language holds it, not the store.
     value_object "Position" do
       attribute :value, Integer
     end
@@ -111,27 +90,15 @@ Hecks.bluebook "Bluebook" do
       emits PieceDeclared
     end
 
-    # ONE PART OF THE PIECE'S IDENTITY, attached exactly as an aggregate's is.
-    #
-    # A PIECE MUST SAY WHAT IT IS KNOWN BY — the rule, where the language keeps
-    # its rules. An entity is an element with an identity of ITS OWN ; that is
-    # the whole difference between a piece and a value object, so a command
-    # acting on one must be able to say which one. Undeclared, every reader
-    # has to invent its own answer — fall through to nothing, or assume
-    # `id` — and inventions agree only because every entity in the corpus happened
-    # to declare it: a divergence the
-    # declaration was masking. Requiring it removes the default there was to
-    # disagree about. That requirement now sits on Seal, where a whole-document
-    # rule belongs ; what stays here is the shape of each part.
+    # One part of the piece's identity, attached as an aggregate's is. A piece must say what
+    # it is known by, so readers need not guess a default; Seal holds the whole-document check.
     command "Identify" do
       role "Language"
       goal "Attach one part of the entity's identity"
 
       attribute :path, IdentityPath
 
-      # See Aggregate.Identify, where the same rule is written out in full —
-      # the builder resolves the real shape (dotted-unwrap, reference, or
-      # bare scalar) before a part ever reaches here.
+      # See Aggregate.Identify; the builder resolves the real shape before a part reaches here.
       given("an identity part names something") { !path.value.to_s.empty? }
 
       sets :identified_by, append: { value: :path }
@@ -142,8 +109,7 @@ Hecks.bluebook "Bluebook" do
       role "Language"
       goal "Close an entity — the checks that need every declaration present"
 
-      # A piece gets the whole-document shape a head has, for the same reason :
-      # "it said SOMETHING" cannot be asked while the parts are still arriving.
+      # The whole-document check waits for Seal: "it said something" cannot be asked earlier.
 
       given("an entity says what it is known by") { !identified_by.empty? }
 
@@ -154,14 +120,8 @@ Hecks.bluebook "Bluebook" do
       role "Language"
       goal "Attach one attribute to the entity"
 
-      # THE TYPE IS A REFERENCE TO THE VALUE OBJECT IT NAMES — the same rule
-      # Aggregate.Attribute enforces one construct over (see that command's own
-      # comment). An entity declares no value objects of its own (Entity never
-      # answers `value_object` — entity.rb's own comment says why); its
-      # attributes read the SAME pool its enclosing aggregate declares, so this
-      # still resolves as a reference, not free text. An entity attribute naming
-      # an undeclared value object failed to fail: `type` rode as plain text, so
-      # reference resolution never ran and a typo'd or invented type boots clean.
+      # The type is a reference to the value object it names. An entity declares none itself,
+      # so it reads the enclosing aggregate's pool; otherwise a typo'd type would boot clean.
       reference_to ValueObject, as: :type
       attribute :name,    EntityText
       attribute :list,    EntityText
@@ -176,18 +136,8 @@ Hecks.bluebook "Bluebook" do
       emits PieceAttributeAttached
     end
 
-    # An attribute that points at ANOTHER AGGREGATE'S HEAD — the SAME
-    # construct Aggregate.Reference is, one level down (see that
-    # command's own comment for why the type cannot be text): `belongs_to`/
-    # `has_one`/`has_many`/`reference_to` are declared on an entity by the
-    # same DSL (`EntityBuilder`/`AttributeCollector`) an aggregate uses,
-    # and a real fixture already exercises it (`spec/relationship_
-    # declaration_spec.rb`'s "uses the same relationship declarations on
-    # an entity", `docs/reference/entity.md`). Without this verb such an
-    # attribute fell to the SAME `Attribute` verb above, which reads
-    # `type` as a value-object reference — so a cross-aggregate reference
-    # declared on a piece failed reference resolution against the wrong
-    # pool the moment entity attributes started being checked at all.
+    # An attribute pointing at another aggregate's head, as Aggregate.Reference is one level up.
+    # Without its own verb, `Attribute` would resolve the type against the wrong pool.
     command "Reference" do
       role "Language"
       goal "Attach an attribute that points at another aggregate's head"
@@ -206,17 +156,8 @@ Hecks.bluebook "Bluebook" do
       emits PieceReferenceAttached
     end
 
-    # An attribute whose type names a PIECE NESTED INSIDE THIS ONE — the
-    # SAME construct Aggregate.Holds is, one level down (see that
-    # command's own comment): `attribute :dispatches, list_of(Dispatch)`
-    # inside `entity "Handler"` (S17, ADR 0026's own two-level chain) is
-    # exactly `Account#ledger` one level further in. Without this verb
-    # such an attribute fell to the SAME `Attribute` verb above, which
-    # reads `type` as a value-object reference — so a piece nested inside
-    # a piece failed reference resolution against the wrong pool the
-    # moment entity attributes started being checked at all (found live:
-    # the meta-grammar's own `Handler.dispatches` naming `Dispatch`,
-    # nested inside Handler itself).
+    # An attribute whose type is a piece nested in this one, as Aggregate.Holds is one level up.
+    # Without its own verb, reference resolution would check the type against the wrong pool.
     command "Holds" do
       role "Language"
       goal "Attach an attribute whose type is a piece nested inside this one"
@@ -236,10 +177,7 @@ Hecks.bluebook "Bluebook" do
     end
 
 
-    # A PRECONDITION SHARED ACROSS THIS PIECE'S OWN COMMANDS, DECLARED
-    # ONCE (ADR 0028) — see Aggregate.Precondition, the identical shape
-    # one level down: the piece's own named `given`, referenced back by
-    # one of its own commands rather than re-typed.
+    # A precondition shared across this piece's commands, declared once (ADR 0028).
     command "Precondition" do
       role "Language"
       goal "Declare one precondition this piece's own commands can reference by name"
@@ -255,10 +193,7 @@ Hecks.bluebook "Bluebook" do
       emits PiecePreconditionAttached
     end
 
-    # A PIECE'S OWN SHAPE RULE, DECLARED ONCE (round 7) — see
-    # Aggregate.Invariant, the identical shape one level down: checked
-    # against every instance of this piece, not this ONE aggregate's
-    # own flat state.
+    # A piece's own shape rule, checked against every instance of the piece.
     command "Invariant" do
       role "Language"
       goal "Attach one shape rule this piece's own instances must hold"
@@ -298,9 +233,7 @@ Hecks.bluebook "Bluebook" do
       emits PieceTransitionAttached
     end
 
-    # HOW ENTITY IS SPELLED. These rows live with the concept
-    # they describe; SyntaxBoot discovers every aggregate-local seed table.
-    # Contexts represented here: Entity.
+    # Keyword rows for this chapter; SyntaxBoot discovers aggregate-local seed tables.
     value_object "KeywordSeed" do
       attribute :word,          String
       attribute :context,       String, admits: "Syntax::Context"
@@ -350,14 +283,8 @@ Hecks.bluebook "Bluebook" do
 
       member keyword: "description",     context: "Entity", at: "1", named: "",         kind: "text",     required: "true",  fills: "description", coerce: "false"
       member keyword: "given",           context: "Entity", at: "1", named: "",         kind: "text",     required: "true",  fills: "description"
-      # PLAIN TEXT, not `kind: "constant"` — unlike `Aggregate`'s own
-      # `declared_by:` (which names a real aggregate constant), a piece
-      # has no first-class, independently-addressable reference anywhere
-      # in this language. "AggregateName.EntityName" ships as a string,
-      # the same way `admits:` shipped textual before its own
-      # constant-bridge existed — see `EntityBuilder#given_impl`'s own
-      # comment for why this is a deliberate, not temporary-by-oversight,
-      # divergence.
+      # Plain text, not a constant: a piece has no independently addressable reference, so
+      # "AggregateName.EntityName" ships as a string (see `EntityBuilder#given_impl`).
       member keyword: "given",           context: "Entity", at: "",  named: "declared_by", kind: "text",     required: "false", fills: "declared_by"
       member keyword: "invariant",       context: "Entity", at: "1", named: "",         kind: "text",     required: "true",  fills: "description"
       member keyword: "identified_by",   context: "Entity", at: "1", named: "",         kind: "symbol",   required: "false", fills: "identified_by", variadic: "true", minimum: "2"

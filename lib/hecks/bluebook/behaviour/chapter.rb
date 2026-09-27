@@ -3,22 +3,15 @@ require_relative "traits"
 module Hecks
   module Bluebook
     module Behaviour
-      # **What a chapter does**. The declared half is the roll-call of what a
-      # bluebook holds; these are the finders over it, plus `verbs` — the
-      # chapter's own list of every dispatchable name, which is derived
-      # from the aggregates rather than declared anywhere.
+      # What a chapter does. The declared half is the roll-call of what a
+      # bluebook holds; these are the finders over it, plus `verbs`.
       module Chapter
         include Owns
 
-        # The hook the generated constructor calls. Three things a
-        # declaration does not state: that a chapter is the root of the
-        # owner chain (nothing declares it, it is what having no owner
-        # means), the ports table — which a `.hecksagon` fills later, so
-        # the bluebook cannot declare it — and stamping its own children,
-        # the same act an Aggregate performs one level down.
+        # Marks this chapter the root of the owner chain, attaches the ports
+        # table (filled later by a `.hecksagon`), and stamps ownership.
         #
-        # @return [Bluebook::Chapter] self, once root marking, the ports table and ownership
-        #   stamping are all set up
+        # @return [Bluebook::Chapter] self
         def settle
           @hecks_root    = true
           @ports         = []
@@ -47,11 +40,7 @@ module Hecks
         #   by that name
         def port(named)       = @ports_by_name[named.to_s]
 
-        # What this chapter declared it provides — `{ key => local verb }`
-        # for one capability, or nil when it declares none. Read by
-        # everything that resolves a capability's provider from what a
-        # chapter declares, rather than from the chapter's own name
-        # (`Registry#authorization_provider_for`).
+        # What this chapter declared it provides for one capability.
         #
         # @param capability [String, Symbol] the capability's name, such as
         #   `Bluebook::Capabilities::AUTHORIZATION`
@@ -80,9 +69,8 @@ module Hecks
           local && "#{name}::#{local}"
         end
 
-        # A port is declared in the hecksagon, not the bluebook — so it
-        # attaches after the chapter already exists, the same way an
-        # aggregate's own ports do.
+        # A port attaches after the chapter already exists, once its
+        # hecksagon is built — the same way an aggregate's own ports do.
         #
         # @param port [Bluebook::DomainPort] the operations-shaped port to attach
         # @return [void]
@@ -91,15 +79,9 @@ module Hecks
           @ports_by_name[port.name] = port
         end
 
-        # A translated reaction is also declared in the hecksagon —
-        # `HecksagonBuilder#translates` builds an ordinary `Policy` (same
-        # shape, same `PolicyInterpreter` runtime, as one written inside a
-        # `policy` block in this chapter's own `.bluebook`) and attaches it
-        # here, after the chapter already exists, the same reasoning
-        # `add_port` gives one method up. Kept out of the bluebook itself
-        # on purpose: which foreign domain's event this chapter reacts to
-        # is a wiring/context-mapping decision, not a fact the domain
-        # states about its own model.
+        # A translated reaction also attaches after the chapter already
+        # exists: which foreign domain's event it reacts to is a wiring
+        # decision, not a fact the domain states about its own model.
         #
         # @param policy [Bluebook::Policy] the translated reaction to attach
         # @return [Array<Bluebook::Policy>] this chapter's policies, with `policy` appended
@@ -108,19 +90,9 @@ module Hecks
         end
 
         # Every dispatchable name this chapter answers to, spelled exactly
-        # as Dispatcher#dispatch takes it. Derived from the aggregates,
-        # never declared — which is why Projections::OIDC can hold its own
-        # scope list equal to this and have that mean something.
-        #
-        # Recurses into entities, not just an aggregate's own direct
-        # commands — `Dispatcher#dispatch` already routes a dotted
-        # `Domain::Aggregate.Entity.Command` verb to `EntityInterpreter`
-        # (a command_name with a "." in it), so a verb this method left
-        # out was never "not a verb," only one this list forgot to name.
-        # Ported from the same recursive shape `spec/judge_coverage_spec.rb`
-        # already proved out for the meta-domain's own grammar (S17, ADR
-        # 0026) — entities nest arbitrarily deep (`Dispatch`, inside
-        # `Handler`), so one flat level isn't enough.
+        # as `Dispatcher#dispatch` takes it. Derived from the aggregates,
+        # never declared, and recurses into entities since a command can be
+        # nested arbitrarily deep.
         #
         # @return [Array<String>] every command verb reachable on this chapter, spelled
         #   `"Domain::Aggregate.command"` or, nested, `"Domain::Aggregate.Entity.command"`

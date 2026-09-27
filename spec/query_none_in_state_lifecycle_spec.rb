@@ -1,24 +1,8 @@
 require "spec_helper"
 require "tempfile"
 
-# The shape the other `query_none_in_state_*_spec.rb` files don't cover —
-# every one of them (growth, aggregate_level_growth, heki) declares its
-# target aggregate's state as a plain `attribute :state, ...`, never a
-# real `lifecycle :field, ...`. Most aggregates in this codebase (and
-# every aggregate `none_in_state` was actually written to answer
-# questions about) use `lifecycle :status` instead, which is a real state
-# machine, not a bare attribute — and hardcoding `record.state[:state]`
-# in `Comparison#none_in_state?` would silently read `nil` off any
-# lifecycle-backed record no matter what it actually held (`comparable
-# (nil) != state` is true unconditionally, so `none_in_state` would answer
-# "not excluded" for every row, always). Found chasing
-# `QualityControl::Bug::AwaitingClearance` against `QualityControl::
-# Clearance` (`lifecycle :status`) in a since-superseded PR; kept here,
-# independent of that domain, so the fix stays covered on its own merits.
-#
-# `meta_validation: false` -- same reason `query_none_in_state_growth_spec.rb`
-# gives: what's under test is the comparator/interpreter pair, not the
-# self-hosted grammar's own admission of the word.
+# none_in_state against a `lifecycle :status` target, not a plain `state` attribute.
+# meta_validation is off so the comparator/interpreter pair is tested, not grammar admission.
 RSpec.describe "none_in_state against a lifecycle-backed target" do
   def boot(source, hecksagon_name, &binds)
     file = Tempfile.new(["anti-join-lifecycle-", ".bluebook"])
@@ -122,16 +106,12 @@ RSpec.describe "none_in_state against a lifecycle-backed target" do
     runtime.dispatch_flat("AntiJoinLifecycle::Board.Open", id: { value: "b1" })
     runtime.dispatch_flat("AntiJoinLifecycle::Board.Assign", id: "b1", claim_id: "c1")
     runtime.dispatch_flat("AntiJoinLifecycle::Board.Assign", id: "b1", claim_id: "c2")
-    # A claim that was never filed at all -- "no record in that state" reads
-    # the same as "a record, but not in that state" -- same as the growth spec.
     runtime.dispatch_flat("AntiJoinLifecycle::Board.Assign", id: "b1", claim_id: "nonexistent")
 
     rows = runtime.query("AntiJoinLifecycle::Board.Assignment.Unclaimed")
 
-    # A bare `record.state[:state]` read would return `nil` for every row
-    # (this target has no `:state` attribute at all, only `:status` via
-    # `lifecycle`), so `c1` -- genuinely still "held" -- would be
-    # wrongly included alongside `c2` and `nonexistent`.
+    # The target has no `:state` attribute, only `:status` via `lifecycle`; a bare
+    # `record.state[:state]` read would wrongly include c1 (still held).
     expect(rows.map { |row| row[:claim_id] }).to contain_exactly("c2", "nonexistent")
   end
 end

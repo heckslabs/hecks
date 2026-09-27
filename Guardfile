@@ -43,6 +43,13 @@ guard :rspec, cmd: "bundle exec rspec" do
   watch(rspec.spec_support) { rspec.spec_dir }
   watch(rspec.spec_files)
 
-  ruby = dsl.ruby
-  dsl.watch_spec_files_for(ruby.lib_files)
+  # guard-rspec's own `dsl.watch_spec_files_for(dsl.ruby.lib_files)` only
+  # strips `lib/`, guessing `spec/hecks/<name>_spec.rb` — this project
+  # drops `lib/hecks/` entirely, at `spec/<name>_spec.rb`. Covers a
+  # top-level lib/hecks/*.rb file only: most of spec/ is organized by
+  # behavior rather than mirroring lib/hecks/'s own subdirectories, so
+  # no regex maps a nested file (lib/hecks/adapters/**, .../behaviors/**,
+  # .../bluebook/**, and similar) to its spec one-to-one; touch the spec
+  # file itself to rerun one of those.
+  watch(%r{^lib/hecks/([^/]+)\.rb$}) { |m| "spec/#{m[1]}_spec.rb" }
 end

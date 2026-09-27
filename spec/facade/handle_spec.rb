@@ -30,19 +30,9 @@ RSpec.describe Hecks::Facade::Handle do
     Hecks::Runtime::Loader.bind_runtime(Hecks::Runtime::Dispatcher.new(registry))
   end
 
-  # A non-creating verb whose snake-cased name collides with a real
-  # Object/Kernel method (`Freeze` -> `freeze`, `Send` -> `send`) would
-  # otherwise be silently swallowed by the Kernel method rather than
-  # dispatched — no error, no refusal, the transition just never happens.
-  #
-  # The fixture is deliberate, not a convenience. Banking is not the
-  # subject here (`Account.Freeze`, `ExternalTransfer.Send` were the only
-  # two colliding verbs in the whole corpus, and both are renamed now) —
-  # domain vocabulary should not be chosen by what Ruby happens to have
-  # taken. That leaves nothing shipped to prove this with, and the
-  # protection is for somebody else's domain now : anyone is still free to
-  # name a command `Freeze`, so the guard has to keep being tested. A
-  # chapter that exists only to collide is the honest way to do that.
+  # A verb whose snake-cased name collides with an Object/Kernel method (`Freeze`,
+  # `Send`) must dispatch, not be swallowed by the Kernel method. No shipped chapter
+  # collides, so this chapter exists only to.
   def boot_collider
     registry = Hecks::Runtime::Registry.new
 
@@ -72,8 +62,7 @@ RSpec.describe Hecks::Facade::Handle do
             emits "VaultBuilt"
           end
 
-          # Every one of these snake-cases onto a real Object/Kernel
-          # method, which is the entire point.
+          # Each snake-cases onto a real Object/Kernel method.
           command("Freeze") do
             reference_to Vault
             emits "VaultFrozen"
@@ -105,13 +94,11 @@ RSpec.describe Hecks::Facade::Handle do
     vault.freeze!
 
     expect(vault.status).to eq("frozen")
-    # Not actually Kernel-frozen — the domain verb ran, the object did not
-    # become immutable.
+    # The domain verb ran; the object is not Kernel-frozen.
     expect(vault.frozen?).to be(false)
     expect(vault.events.map(&:name)).to include("VaultFrozen")
 
-    # `send` is the sharper case: Kernel#send takes a method name and would
-    # happily invoke something else entirely rather than refuse.
+    # `send` is the sharper case: Kernel#send would invoke another method.
     vault.send!
 
     expect(vault.status).to eq("sent")
@@ -123,23 +110,14 @@ RSpec.describe Hecks::Facade::Handle do
 
     vault = Collider::Vault.build!(tag: { value: "v2" })
     vault.freeze!
-    # A truly Kernel-frozen object would raise FrozenError the moment `run`
-    # tried to reassign @state.
+    # A Kernel-frozen object would raise FrozenError when `run` reassigns @state.
     vault.thaw!
 
     expect(vault.status).to eq("open")
   end
 
-  # Addressing every non-creating verb with `{ @ir.identified_by => @id }`
-  # would break `Handle#run` — `identified_by` is nil the moment an
-  # identity is composite, so this would build `{ nil => @id }`, and
-  # dispatch's own argument gate would crash on `nil.to_sym` reading the
-  # args back (worse still on a zero-attribute command like `Surrender`,
-  # where that stray nil key would be the only thing in the payload).
-  # `SafeDepositBox`'s
-  # `branch_code`/`box_number` identity is banking's one composite head,
-  # so it is what proves door sugar addresses a multi-part identity, not
-  # just a single one.
+  # `identified_by` is nil for a composite identity, so addressing by it would build
+  # `{ nil => @id }`. SafeDepositBox is the corpus's one composite-identity head.
   it "dispatches non-creating verbs on a composite-identity aggregate" do
     boot_banking_in_memory
 
@@ -154,26 +132,13 @@ RSpec.describe Hecks::Facade::Handle do
     box.issue_key!(serial: { value: "K1" })
     expect(box[:keys].size).to eq(1)
 
-    # Zero declared attributes — the identity payload is the entire args
-    # hash, so a stray `nil` key had nowhere to hide.
+    # Zero declared attributes: the identity payload is the whole args hash.
     box.surrender!
     expect(box.status).to eq("vacant")
   end
 
-  # `to_h` as `{ id: @id }.merge(@state)` would merge `@state` last,
-  # so an aggregate free to declare its own attribute literally named `id`
-  # (real corpus now: BurningManPrep's `Item`, `attribute :id, ItemId`,
-  # `identified_by :id`) would have that attribute's own wrapped value
-  # object silently clobber the correctly-unwrapped bare `@id`. The
-  # JSON door's own `/api/:coll` listing is the caller that would actually
-  # hit this: every record's own `id` key would come back `{value: "..."}`
-  # instead of a bare string, which would collapse an entire collection's
-  # own client-side id-keyed cache down to one entry (every wrapped-hash
-  # key stringifies the same way).
-  # Its own one-off inline chapter (not shared with `boot_banking_in_memory`/
-  # `boot_collider` above) — `Thingy::Thing` exists only to declare an
-  # attribute literally named `id`, which is the whole point of the example
-  # below, so this stays a separate boot rather than a variant of either.
+  # An attribute literally named `id` must not clobber the bare identity in `to_h`
+  # with its wrapped value. `Thingy::Thing` exists only to declare one.
   def boot_thingy
     registry = Hecks::Runtime::Registry.new
     source = <<~BLUEBOOK
@@ -230,9 +195,7 @@ RSpec.describe Hecks::Facade::Handle do
     expect(thing.id).to eq("t1")
     expect(thing.to_h[:id]).to eq("t1")
 
-    # Scope check: this fix is about `:id` specifically clobbering itself,
-    # not a general re-unwrap of every field — an ordinary declared
-    # attribute stays exactly what it always was, a `Runtime::Value`.
+    # Only `:id` is unwrapped; other attributes stay a `Runtime::Value`.
     expect(thing.to_h[:name]).to be_a(Hecks::Runtime::Value)
     expect(thing.to_h[:name].to_h).to eq({ value: "goggles" })
   end

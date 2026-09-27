@@ -1,37 +1,8 @@
 #!/usr/bin/env ruby
 
-# Every live word ships with a visible running example, or this refuses.
-# That is a narrower guarantee than "a declaration nothing runs cannot
-# disagree with the runtime it describes" — this checks presence of an
-# example per word, not that every prose claim in that word's section is
-# itself something the example asserts. A section can carry a real
-# fence and still say something the fence never checks: a `# =>` marker
-# can assert what an expression returns, but it cannot assert a system
-# property — "isolated per test," "never appears in any console view,"
-# "the whole suite passes" are prose claims with no fence shape at all.
-# Closing that gap is a periodic manual claim-audit's job, not this
-# script's — this one only ever answers "is there an example," never
-# "does every sentence near it hold."
-#
-# Two gates over docs/implemented/reference/, both derived from the language's own
-# Syntax chapter rather than a list somebody maintains:
-#
-#   documented   — the word's section carries hand-written prose, not the
-#                  TODO sentinel
-#   exemplified  — that prose carries a fence the doctest harness runs
-#                  (```ruby, ```ruby bluebook, ```ruby boot). A `ruby
-#                  skip` fence is display-only and a hidden
-#                  `<!-- doctest:boot -->` block is setup, so neither
-#                  counts: an example a reader cannot see is not one.
-#
-# This answers presence. That the examples pass is spec/reference_
-# doctest_spec.rb's question, and the two together are the real claim:
-# every word has an example, and every example runs.
-#
-# Lives in the pre-push hook beside bin/model_check, for the same reason
-# that one does — a coverage miss reported as its own sentence is a
-# thing you can act on, where the same miss buried in a suite of 1500
-# examples is noise.
+# Refuses unless every live word in docs/implemented/reference/ has prose and a running example.
+# Checks that an example exists; spec/reference_doctest_spec.rb checks that it passes.
+# `ruby skip` fences and hidden `<!-- doctest:boot -->` blocks do not count as examples.
 
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
 require "hecks"
@@ -42,16 +13,9 @@ directory = File.join(File.expand_path("..", __dir__), "docs/implemented/referen
 undocumented  = Hecks::Doc::Reference.undocumented(directory)
 unexemplified = Hecks::Doc::Reference.unexemplified(directory)
 
-# Reported separately, because they are different repairs: an
-# undocumented word needs somebody to write about it, an unexemplified
-# one needs somebody to prove it. A word with neither shows up in both
-# lists on purpose — you owe it both.
+# Prints one gap section; a word missing both kinds is listed twice, one repair each.
 #
-# @param words [Array<String>] live vocabulary words missing this kind of coverage
-# @param owed [String] phrase describing what each listed word lacks, printed after
-#   "carries"/"carry"
-# @return [Boolean] true if `words` was empty and nothing was printed, false once a
-#   gap section was printed
+# @return [Boolean] true if `words` was empty and nothing was printed
 def report(words, owed)
   return true if words.empty?
 

@@ -3,32 +3,10 @@ require_relative "qa_ledger_fixture"
 require "pathname"
 require "tmpdir"
 
-# **The `bin/qa_tick` fixture, shared** — split out of one `qa_tick_spec.rb`
-# (2026-09-18, following the same reasoning
-# `spec/support/qa_sweep_all_fixture.rb`'s own header already spells
-# out): the file's own 4 examples took 128s together, each a real
-# subprocess spawning `bin/qa_pr_check`, `bin/qa_sweep --all`, and
-# `bin/qa_generated_domains` as its own nested subprocesses — a floor no
-# matrix size could split further since `parallel_rspec` balances at
-# file granularity. Splitting the fixture out here and the 4 examples
-# across their own small files (each `include_context "with a qa_tick
-# fixture", <unique database name>`) lets the shard balancer actually
-# spread this file's own work instead of being stuck with one 128s lump.
-#
-# **Parameterized by database name, not hardcoded** — same per-file-unique-
-# resource-name discipline `qa_sweep_all_fixture.rb`'s own header
-# requires, for the identical reason: `parallel_rspec` runs different
-# files as genuinely concurrent OS processes, so two files sharing one
-# ledger database name would race each other's own `CREATE DATABASE`/
-# `DROP SCHEMA CASCADE`. `QaLedgerFixture::Ledger#stand_up!`/`#tear_down!`
-# are cheap (a tmpdir, a couple of small file writes, one `CREATE
-# DATABASE`) relative to the real subprocess-boot cost each example pays
-# regardless of how many share a file, so paying that setup once per
-# split file instead of once per 4 examples is a good trade.
+# Shared fixture for the `bin/qa_tick` specs; pass a per-file unique database name.
+# Files run as concurrent processes, so a shared name would race on create/drop.
 RSpec.shared_context "with a qa_tick fixture" do |database_name|
-  # The same trivially well-behaved target `spec/support/qa_sweep_all_fixture.rb`
-  # sweeps — read that file's `FIXTURE_TARGET_BLUEBOOK` comment for why a
-  # real corpus domain would make a "clean" example flaky.
+  # The trivial target from qa_sweep_all_fixture.rb, so "clean" examples avoid the live corpus.
   TICK_TARGET_BLUEBOOK = <<~RUBY.freeze
     Hecks.bluebook "QaTickFixtureTarget" do
       vision "A trivially well-behaved sweep target, authored only so this spec's own 'clean' examples never depend on this repository's own live, actively-changing QA corpus."
@@ -109,33 +87,18 @@ RSpec.shared_context "with a qa_tick fixture" do |database_name|
     FileUtils.remove_entry(@origin) if @origin
   end
 
-  # Runs `git` inside the throwaway `@repo` checkout, as the fixture's own
-  # committer identity.
-  #
-  # @param args [Array<String>] the `git` subcommand and its arguments
-  # @return [Boolean] true once the command exits successfully
-  # @raise [RuntimeError] if the command exits with a non-zero status
+  # Runs `git` in the throwaway `@repo` checkout.
   def git(*args)
     system("git", "-c", "user.name=spec", "-c", "user.email=spec@example.com", *args, chdir: @repo,
            out: File::NULL, err: File::NULL) or raise "git #{args.join(' ')} failed"
   end
 
-  # `QA_GENERATED_DOMAINS_PER_TICK=0` — the generated-domains step runs
-  # from the real checkout's dials, which a throwaway tick must not spend
-  # minutes generating and building against; zero is its own "off" path.
-  #
-  # @return [Array(String, String, Process::Status)] `bin/qa_tick`'s
-  #   captured stdout, stderr and exit status
+  # Zero generated domains per tick: a throwaway tick must not spend minutes building them.
   def tick
     @ledger.run("qa_tick", env: { "QA_REPO_DIR" => @repo, "QA_GENERATED_DOMAINS_PER_TICK" => "0" })
   end
 
-  # Boots the fixture ledger in-process, briefly, purely to write `Target`
-  # rows down.
-  #
-  # @param targets [Hash{String => String}] target reference to its domain's
-  #   path, relative to `InMemoryDomain::ROOT`
-  # @return [void]
+  # Boots the fixture ledger in-process only to write `Target` rows.
   def identify!(targets)
     @ledger.boot
     targets.each do |reference, path|

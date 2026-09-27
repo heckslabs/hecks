@@ -2,12 +2,8 @@ require_relative "html"
 
 module Hecks
   module Forms
-    # The one HTML shell every page in this app renders inside — nav,
-    # typography, form/table/badge styles, all inline (no CDN, no build
-    # step: this ships inside the `hecks` gem, and a project that
-    # embeds it gets one dependency-free response per request). Themed via
-    # `prefers-color-scheme` alone; nothing here reads a cookie or a query
-    # param for it, so it is never wrong for the browser rendering it.
+    # The HTML shell every page renders inside, with styles and script inline.
+    # Themed by `prefers-color-scheme` alone.
     module Page
       # Wraps one page's own body HTML in the shared shell: doctype, head, nav, footer,
       # inline styles and script.
@@ -146,9 +142,7 @@ module Hecks
         .actions { display: flex; flex-wrap: wrap; gap: .5rem; margin: .6rem 0 1.4rem; }
       CSS
 
-      # Decorative only — every form here already works with JS disabled
-      # (plain `<form method=post>`/`method=get`), matching this repo's own
-      # "no ERB, nothing scripted" bar for the domain layer itself.
+      # Decorative only; every form works with JS disabled.
       SCRIPT = <<~JS.freeze
         document.addEventListener("click", (event) => {
           const button = event.target.closest("[data-copy]");

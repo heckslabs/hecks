@@ -49,6 +49,14 @@ crate::kernel::read_model::ReadModelDef {
     group_by: None,
     count: false,
     median_field: None,
+    sum_field: None,
+    avg_field: None,
+    min_field: None,
+    max_field: None,
+    percentile_field: None,
+    percentile_at: None,
+    any_field: None,
+    all_field: None,
 },
 ];
 // TMPL:read_model_table END

@@ -6,38 +6,12 @@ require "open3"
 require "fileutils"
 require "pathname"
 
-# `bin/qa_sweep`'s `adapter_parity_sqlite` mode, proven against the real
-# thing — same discipline `spec/qa_sweep_persistence_parity_spec.rb`
-# (read that file's own header first) already established: a real
-# `bin/qa_sweep` subprocess against a real, disposable Postgres-backed
-# fixture ledger, never the real `hecks_quality_control` ledger itself.
-#
-# The swept target, unlike that file's own, needs no PostgresEra binding
-# at all — that is the entire point of this mode. `sqlite` is a
-# capability every domain has (`Hecks::Fuzzing::TargetCapabilities.infer`
-# always includes it, proven in `spec/fuzzing/target_capabilities_spec.rb`),
-# and this mode's own pair (`Hecks::Fuzzing::PersistenceParity.diff(left:
-# :memory, right: :sqlite)`, `QualityControlDials::ADAPTER_PARITY_PAIRS`)
-# needs no disposable database or schema lifecycle the way `persistence_
-# parity`'s Memory-vs-PostgresEra pair does — see that module's own
-# header. So unlike `persistence_parity`, this mode is not a deferred
-# mode (`TargetCapabilities::DEFERRED_MODES` does not name it) and is
-# not a wave of its own: it folds straight into the ordinary per-seed
-# loop, on any target, the moment `QualityControlDials::MODES[
-# :adapter_parity_sqlite]` (or `--modes`) turns it on — proven here on
-# the plainest possible target, a Memory-bound one with no PostgresEra
-# binding in sight.
+# `bin/qa_sweep`'s `adapter_parity_sqlite` mode, run as a real subprocess over a fixture ledger.
+# Needs no PostgresEra binding: every domain has the `sqlite` capability.
 RSpec.describe "bin/qa_sweep adapter_parity_sqlite", :io do
   QA_SWEEP_ADAPTER_PARITY_SQLITE_DATABASE = "hecks_qa_sweep_adapter_parity_sqlite_spec".freeze
 
-  # Line-for-line `spec/support/qa_sweep_all_fixture.rb`'s own `FIXTURE_HECKSAGON`,
-  # renamed — see that file's own comment (and `spec/fuzzing/
-  # persistence_parity_spec.rb`'s own, longer one) on why every spec file
-  # that boots a throwaway `QualityControl` ledger must give its own
-  # top-level fixture constants a name no other spec file also uses:
-  # `CONST = value` inside an `RSpec.describe do ... end` block assigns
-  # at the block's own lexical (top-level) scope, so two files reusing
-  # the same bare name silently overwrite each other's fixture text.
+  # Copy of the shared fixture; top-level constants need a name no other spec file uses.
   LEDGER_HECKSAGON_FOR_ADAPTER_PARITY_SQLITE_SPEC = <<~RUBY.freeze
     Hecks.hecksagon "QualityControl" do
       uses_framework "Governance"
@@ -71,11 +45,7 @@ RSpec.describe "bin/qa_sweep adapter_parity_sqlite", :io do
     end
   RUBY
 
-  # The same trivial widget `spec/support/qa_sweep_all_fixture.rb`'s own
-  # `FIXTURE_TARGET_BLUEBOOK` uses, renamed — bound to `Memory` (not
-  # `PostgresEra`, not even `Heki`) to make the point as plainly as
-  # possible: this mode reaches a target that declares nothing about
-  # PostgresEra at all.
+  # Same widget as the shared fixture, bound to Memory to show no PostgresEra binding is needed.
   ADAPTER_PARITY_SQLITE_TARGET_BLUEBOOK = <<~RUBY.freeze
     Hecks.bluebook "QaSweepAdapterParitySqliteFixtureTarget" do
       vision "A trivially well-behaved sweep target, authored only to prove bin/qa_sweep's adapter_parity_sqlite mode reaches an ordinary, non-PostgresEra-bound domain, never this repository's own live, actively-changing QA corpus."
@@ -142,18 +112,9 @@ RSpec.describe "bin/qa_sweep adapter_parity_sqlite", :io do
     RUBY
     File.write(File.join(@fixture_dir, "governance.world"), InMemoryDomain.governance_postgres_era_world(url))
 
-    # Living inside the real repo `ROOT`, exactly `spec/qa_sweep_all_spec
-    # .rb`'s own reasoning — `bin/qa_sweep` resolves a `Target`'s own
-    # `path` as `File.join(ROOT, target_path)` against the real
-    # repository root.
-    # Prefixed `qa-sweep-aps-target-`, deliberately not the mode's own
-    # full name — `Target.path`'s own basename becomes the fuzzed
-    # `feature`/domain string `bin/qa_sweep` prints on every line, and a
-    # prefix that itself spells out "adapter_parity_sqlite" would make
-    # every assertion below that checks for the mode name accidentally
-    # true regardless of whether the mode actually ran (found live while
-    # writing this spec: a temp-dir prefix that embedded the full mode
-    # name made "stays off" pass for the wrong reason).
+    # Inside the repo ROOT because `bin/qa_sweep` resolves a target `path` against it.
+    # The prefix omits the mode name: the basename is printed, and a full name would make the
+    # mode-name assertions pass whether or not the mode ran.
     @target_domain_dir = Dir.mktmpdir("qa-sweep-aps-target-", InMemoryDomain::ROOT)
     File.write(File.join(@target_domain_dir, "fixture.bluebook"), ADAPTER_PARITY_SQLITE_TARGET_BLUEBOOK)
     File.write(File.join(@target_domain_dir, "fixture.hecksagon"), ADAPTER_PARITY_SQLITE_TARGET_HECKSAGON)
@@ -211,13 +172,8 @@ RSpec.describe "bin/qa_sweep adapter_parity_sqlite", :io do
     expect(stdout).to include("seed 1: held (ruby_only, adapter_parity_sqlite)")
     expect(stdout).to include("clean — sqlite-parity concluded and released.")
 
-    # **The ledger's own record** — `check_for`'s `[mode]`-prefixed subject
-    # (bin/qa_sweep's own `MODE_EXPECTATIONS`/`check_for`) is what
-    # actually distinguishes this axis from `ruby_only` in the durable
-    # ledger, not merely in this process's own stdout; proven here by
-    # booting the same fixture ledger this sweep just wrote to and
-    # reading its own `Sweep` record back — the only sweep this fresh,
-    # per-example schema has ever held.
+    # `check_for`'s `[mode]`-prefixed subject tells this axis from `ruby_only` in the ledger,
+    # so read the `Sweep` record back instead of trusting stdout.
     Hecks.boot(@fixture_dir)
     sweep = QualityControl::Sweep.all.first
     expect(sweep).not_to be_nil

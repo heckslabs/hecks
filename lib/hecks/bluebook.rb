@@ -1,36 +1,19 @@
-# Hecks::Bluebook
-#
-# Everything a .bluebook file becomes on its way to running: the expression
-# language (expression/), the model itself (the chapter class plus
-# everything it declares), the assembly that turns
-# declarations back into that graph (assembly.rb + assembly/), the authoring
-# DSL (dsl/), and the meta-validator that judges a chapter against the
-# language's own grammar (meta_validator.rb + meta_validator/).
-#
-# The require order below matters: expression and IR load first (pure
-# declarations), assembly's collaborators load before its face, and the DSL
-# loads before the meta-validator that its builders call at build time.
+# Everything a .bluebook file becomes on its way to running: expression language, model,
+# assembly, authoring DSL and meta-validator.
 
 module Hecks
-  # Declared as a class, not a module — `Hecks::Bluebook` is a
-  # chapter (bluebook/chapter.rb carries its body). Everything a chapter
-  # declares nests under it, as do the ways to build one (`DSL`) and to
-  # judge one (`MetaValidator`). Reopening this anywhere must say `class`.
+  # `Hecks::Bluebook` is a class defined in bluebook/chapter.rb; reopen it with `class`.
   module Bluebook
   end
 end
 
-# What the chapter's own files lean on at class-body level (`extend
-# Construct`, the assembly's QuerySpecification marks) — required here
-# because those files' contents are frozen and cannot say so themselves.
+# Required here because the chapter's frozen files lean on these at class-body level.
+# Load order: expression and IR first, assembly's collaborators before its face, DSL last.
 require_relative "construct"
 require_relative "literal"
 require_relative "query_specification"
 
 require_relative "bluebook/expression"
-# **The model itself** — the chapter class's own body first, then everything
-# a chapter declares. Order matters only for reading: each is a bag of
-# declarations with no load-time cross-references.
 require_relative "bluebook/chapter"
 require_relative "bluebook/reference"
 require_relative "bluebook/attribute"

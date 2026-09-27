@@ -5,65 +5,29 @@ module Hecks
   module Adapters
     class PostgresEra
       module LineageManager
-        # The boot-time resolution: which era is this checkout? First
-        # boot holds era 1; a quiet reboot changes nothing; a
-        # held-but-superseded shape boots read-only-toward-the-fence; an
-        # unheld shape goes to the minter.
+        # Boot-time era resolution: first boot holds era 1, a quiet reboot changes nothing,
+        # a superseded shape boots read-only, an unheld shape goes to the minter.
         module EraResolver
           # rubocop:disable Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/PerceivedComplexity
-          # Resolves which era this boot is and records it on the registry, holding era 1
-          # on a first boot and minting the next era when the shape is one no era holds.
+          # Resolves which era this boot is and records it on the registry.
           #
-          # A single order-dependent dispatch over a closed set of four
-          # boot scenarios (first boot / quiet reboot / held-but-superseded
-          # / unheld-shape-goes-to-minter), each already explained by its
-          # own comment above, all sharing one `db` connection closed in
-          # `ensure`. Splitting the branches into separate methods would
-          # turn each `return` (which exits `check!`, closing `db`) into a
-          # sentinel value threaded back up, obscuring the mutual
-          # exclusivity that is the method's whole point.
-          #
-          # @param registry [Runtime::Registry] the booting registry; `resolved_eras` gets
-          #   this domain's ordinal on every path but a first boot (where the adapter
-          #   self-resolves to era 1), and `superseded_eras` gets the newest ordinal when
-          #   this checkout's shape is held but superseded
-          # @param bluebook [Bluebook::Chapter] the domain being booted
-          # @param current_text [String] the domain's bluebook source as it stands on disk,
-          #   held verbatim as the new era's text on a first boot or a mint
-          # @param settings [Hash{Symbol, String => Object}] the world's persistence settings
-          #   for this binding; `database` is required, `schema`, `role` (a Postgres role to
-          #   grant this era's privileges to) and `allow_superuser` are honored
-          # @param directory [String, nil] the domain's bluebook directory, where
-          #   `HECKS_SCAFFOLD=1` writes a translation edge; nil disables scaffolding
-          # @return [Integer, nil] the ordinal of the era this boot minted, or nil when it
-          #   minted nothing (first boot, quiet reboot, or a held-but-superseded shape)
-          # @raise [Runtime::WiringError] if the database cannot be reached, the connection
-          #   is a superuser or has BYPASSRLS without `allow_superuser`, a declared
-          #   `formerly_known_as` rename cannot be applied, a held text fails its integrity
-          #   check, or the shape is unheld and `mint!` refuses
-          # @raise [Bluebook::DSL::Malformed] if a held era's text parses under neither the
-          #   current nor the legacy grammar
+          # @return [Integer, nil] the ordinal minted, or nil when this boot minted nothing
+          # @raise [Runtime::WiringError] if the connection is refused, a held text fails its
+          #   integrity check, or the shape is unheld and `mint!` refuses
           def check!(registry:, bluebook:, current_text:, settings:, directory: nil)
             db = PostgresEra.connect_for(bluebook.name, settings)
             lineage = Lineage.new(db, bluebook.name, formerly_known_as: bluebook.formerly_known_as)
-            # First, before ensure_base! provisions or verifies anything —
-            # the one point every PostgresEra boot passes through, and the
-            # earliest at which the connection's own role is known. See
-            # check_fence_applies!'s own header (BUG#24) for why a
-            # superuser connection refuses here by default.
+            # First, before ensure_base!: the earliest point the connection's role is known,
+            # so a superuser connection refuses here by default.
             lineage.check_fence_applies!(allow_superuser: PostgresEra.setting(settings, :allow_superuser, default: false))
             lineage.ensure_base!
-            # Both spellings honored, key? first — never `||`, which cannot
-            # tell a genuinely stored `false` apart from an absent key (see
-            # PostgresEra.setting's own comment for the full reasoning).
+            # key? first, never `||`: a stored `false` must not read as an absent key.
             role = settings.key?(:role) ? settings[:role] : settings["role"]
 
             held = lineage.eras
             if held.empty?
               lineage.hold_first!(current_text, projection: Runtime::StorageShape.project(bluebook))
               bluebook.aggregates.each { |aggregate| lineage.ensure_first_head!(aggregate.storage_name) }
-              # hold_first! already established era 1 as current for
-              # every role; this one just needs its own privileges.
               lineage.grant_role!(role, aggregates: bluebook.aggregates, era: 1) if role
               return
             end
@@ -71,15 +35,8 @@ module Hecks
             current_shape = Runtime::StorageShape.project(bluebook)
             shapes = held.map { |era| [era, Runtime::StorageShape.project(shadow(era[:held_text]))] }
             if bluebook.formerly_known_as
-              # A held era's shape is re-derived from its own frozen
-              # historical text (shadow(era[:held_text])), so its "name"
-              # is permanently the old one — the frozen text is authentic
-              # record ("this domain really was called that, at the
-              # time") and must never be rewritten. Only the in-memory
-              # shape used for this comparison is normalized, and only
-              # where it exactly matches the declared old name, so an
-              # unrelated domain that happens to shape-match some other
-              # domain's history still shows up as a real mismatch.
+              # Held text is frozen record and keeps the prior name; only the in-memory shape is
+              # normalized, and only on an exact match with the declared prior name.
               shapes = shapes.map do |era, shape|
                 [era, shape["name"] == bluebook.formerly_known_as ? shape.merge("name" => bluebook.name) : shape]
               end
@@ -88,8 +45,6 @@ module Hecks
             latest, latest_shape = shapes.last
             if latest_shape == current_shape
               bluebook.aggregates.each { |aggregate| lineage.ensure_first_head!(aggregate.storage_name) } if latest[:ordinal] == 1
-              # A quiet reboot changes no era, so there is nothing to
-              # advance — only this role's own privileges, if it is new.
               lineage.grant_role!(role, aggregates: bluebook.aggregates, era: latest[:ordinal]) if role
               registry.resolved_eras[bluebook.name] = latest[:ordinal]
               return
@@ -97,24 +52,11 @@ module Hecks
 
             matched, = shapes.find { |_, shape| shape == current_shape }
             if matched
-              # A held-but-superseded era — an old checkout still running.
-              # It may keep booting and reading (PostgresEra is the one
-              # adapter that recognizes this rather than refusing), but it
-              # may not keep writing: the shared era fence was already
-              # advanced past this ordinal by whichever mint superseded
-              # it, and nothing here may roll that back. Granting only
-              # this role's privileges, never advance_era!, is what keeps
-              # that true — see advance_era!'s own warning against being
-              # called with a superseded ordinal.
+              # A superseded era (an old checkout) may read but not write: never advance_era!
+              # here, since the fence is already past this ordinal.
               lineage.grant_role!(role, aggregates: bluebook.aggregates, era: matched[:ordinal]) if role
               registry.resolved_eras[bluebook.name] = matched[:ordinal]
-              # ...and the boot remembers that it is superseded, not only
-              # which era it is: `RepositoryFactory.build` hands this to
-              # the adapter as `superseded_by:`, and `PostgresEra#append`
-              # refuses on it before issuing the INSERT. That is the
-              # in-process half of "may not keep writing" — the half that
-              # holds even for a connection the RLS fence cannot bite
-              # (a superuser under allow_superuser; BUG#24).
+              # The adapter refuses appends on this, even where the RLS fence cannot bind.
               registry.superseded_eras[bluebook.name] = latest[:ordinal]
               return
             end

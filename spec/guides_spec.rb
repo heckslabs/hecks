@@ -1,34 +1,18 @@
 require "spec_helper"
-# ADR 0033 — schema-evolution.md's own runnable examples bind PostgresEra
-# and exercise bin/scaffold_translation; the era persistence plugin isn't
-# core-loaded anymore, so doctests need it explicitly, same as any other
-# consumer.
+# PostgresEra is not core-loaded; schema-evolution.md's examples need it explicitly.
 require "hecks/ports/persistence/plugins/era"
 require_relative "support/doctest"
 require_relative "support/doctest_names"
 
-# Every guide's examples run — see spec/support/doctest.rb for the fence
-# and marker vocabulary. One example per guide, and now a guide with no
-# executable blocks fails rather than passing trivially (see the
-# vacuous-pass guard inside the `it` below) — coverage is still counted
-# per document, not per fence, so a guide that runs one example still
-# counts the same as one that runs twenty-seven, but zero is no longer
-# on the table. A guide whose first line carries the postgres pragma
-# skips cleanly when no local Postgres answers.
+# Every guide's examples run (fence vocabulary: spec/support/doctest.rb). Coverage is per document;
+# a guide whose first line carries the postgres pragma skips when no local Postgres answers.
 RSpec.describe "the guides" do
-  # The name gate covers the guides and the DSL reference together, since
-  # both install into the same global namespace — it lives in
-  # spec/support/doctest_names.rb and is asserted once, here.
+  # Guides and the DSL reference install into one global namespace, so names are gated together.
   it "gives every document its own domain names" do
     expect(DoctestNames.collisions).to be_empty, DoctestNames.collisions.join("\n")
   end
 
-  # docs/*.md sits outside the doctest gate on purpose — see
-  # DoctestNames::UNGATED_STATUS_DOCS's own header for why status/
-  # planning prose doesn't belong in `guides`. This is what keeps that
-  # a decision rather than a glob accident: a new top-level file nobody
-  # has sorted yet fails here, by name, instead of silently joining the
-  # exempt set.
+  # docs/*.md is outside the doctest gate on purpose; an unsorted new top-level file fails by name.
   it "never grows the ungated top-level docs by accident" do
     unaccounted = DoctestNames.unaccounted_top_level_docs
     expect(unaccounted).to be_empty,
@@ -38,22 +22,12 @@ RSpec.describe "the guides" do
   end
 
   DoctestNames.guides.each do |path|
-    # Parsed here, at collection-build time, not inside the `it` — a
-    # guide's postgres pragma has to be known before the example runs,
-    # so it can carry as `io: true` and get excluded locally by default
-    # the same as every other real-Postgres spec.
+    # Parsed at collection time so the postgres pragma can set `io: true` before the example runs.
     guide = Doctest.parse(path)
 
     it "#{File.basename(path)} says nothing its examples cannot back", io: guide.postgres do
-      # **The vacuous-pass guard** — this module's own top comment would
-      # otherwise read "a guide with no executable blocks passes trivially" as a
-      # known, accepted limitation; language-versioning.md sat at zero
-      # fences for exactly that reason until this line existed. A `ruby
-      # skip` fence still doesn't count (Doctest.parse never adds it to
-      # `blocks`), so this refuses the same non-example a reader already
-      # can't trust: a guide's assertions above earn a real fence, or
-      # the guide fails here rather than passing by having nothing to
-      # run at all.
+      # Vacuous-pass guard: a guide with no executable fence (`ruby skip` doesn't count) fails
+      # instead of passing with nothing to run.
       expect(guide.blocks).not_to be_empty,
                                   "#{File.basename(path)} has no executable ```ruby fence — it currently proves nothing " \
                                   "it claims; give it at least one real example (a ```ruby skip fence is display-only " \

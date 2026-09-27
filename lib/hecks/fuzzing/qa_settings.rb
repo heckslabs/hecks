@@ -2,37 +2,13 @@ require "yaml"
 
 module Hecks
   module Fuzzing
-    # Reads `qa/settings.yml` — the hecks_qa practice's own dials, now
-    # data in a file rather than Ruby constant literals. The why of each
-    # dial (what it does, who reads it) stays exactly one place: the
-    # comments on `QualityControlDials` in `qa/bluebook/quality_control.
-    # bluebook`, which now sources every value from an instance of this
-    # class instead of writing it inline. This class is only the loading
-    # and the validation — no dial policy lives here.
+    # Loads and validates `qa/settings.yml`, the hecks_qa dials.
     #
-    # **Fails loud, not quiet** — the whole practice's own opening line
-    # ("the enemy is the quiet divergence") applies to its own settings
-    # file too: a missing key, an extra key nothing recognises, or a
-    # value of the wrong shape all raise immediately, at load time
-    # (which is bluebook-load time, i.e. `Hecks.boot`), naming exactly
-    # what's wrong — never a `nil` dial silently reaching a script that
-    # assumes a number.
-    #
-    # **Plain data in, frozen data out**. `.load` parses the YAML with
-    # `Psych.safe_load_file` (no custom tags, no arbitrary Ruby objects)
-    # and hands back an instance whose accessors are the exact values a
-    # human wrote in the file — a `Hash`/`Array` for the nested dials,
-    # never a second, richer wrapper type nothing else in this practice
-    # expects.
+    # Fails loud: a missing key, unknown key or wrong-typed value raises at load time.
+    # The meaning of each dial is documented on `QualityControlDials` in the bluebook.
     class QaSettings
-      # One entry per dial this class knows about: the accessor name
-      # (matching `qa/settings.yml`'s own key, and `QualityControlDials`'
-      # constant name snake_cased) mapped to the class (or classes) a
-      # valid value must be an instance of. `TrueClass`/`FalseClass`
-      # both name a boolean dial — Ruby has no single class both `true`
-      # and `false` share. `Numeric` admits both an Integer and a Float
-      # for a fraction dial (`0` and `0.0` are both a human plausibly
-      # types for "off").
+      # Accessor name to the class (or classes) a valid value must be an instance of.
+      # Booleans list both TrueClass and FalseClass; Numeric admits `0` as well as `0.0`.
       EXPECTED_TYPES = {
         cadence_seconds:              Integer,
         pr_cap_per_day:               Integer,
@@ -65,21 +41,8 @@ module Hecks
 
       attr_reader(*EXPECTED_TYPES.keys)
 
-      # **The real file, always** — resolved off this file's own `__dir__`
-      # (lib/hecks/fuzzing/), never off the caller's. `QualityControlDials`
-      # is defined inside `qa/bluebook/quality_control.bluebook`, and that
-      # exact directory gets copied to a tmpdir for every isolated/replayed
-      # boot (`Hecks::Fuzzing::IsolatedBoot#copy_dereferencing` copies only
-      # `qa/bluebook`'s own contents, never its parent `qa/`) — a path
-      # resolved from the bluebook's own `__dir__` would silently point at
-      # a copy with no `settings.yml` beside it at all. `qa/settings.yml`
-      # is read-only, human-edited data with no lifecycle (see this class's
-      # own header) — there is no isolation reason to ever read a copy of
-      # it, real boot or fuzzed one, so every caller gets the one real file
-      # by default. `qa_settings_spec.rb` passes its own fixture paths
-      # explicitly instead, the same way every other test in this practice
-      # that needs a non-default dial passes one in rather than mutating
-      # global state.
+      # The one real file, resolved from this file's `__dir__` rather than the bluebook's:
+      # IsolatedBoot copies only `qa/bluebook`, so a bluebook-relative path would miss it.
       DEFAULT_PATH = File.expand_path("../../../qa/settings.yml", __dir__)
 
       class << self
@@ -138,12 +101,7 @@ module Hecks
 
       private
 
-      # `left:`/`right:` name adapters `IsolatedBoot` case-matches by
-      # symbol (`case adapter when :memory ...`), and YAML has no way to
-      # spell a bare Ruby Symbol as a mapping value — only
-      # `symbolize_names:` turns a key into one. So `adapter_parity_
-      # pairs` is the one dial that needs a coercion step after the
-      # type check above, rather than every dial growing one.
+      # YAML cannot spell a Symbol value, and IsolatedBoot case-matches adapters by symbol.
       def symbolize_adapter_parity_pairs!(path)
         @adapter_parity_pairs = @adapter_parity_pairs.to_h do |mode, pair|
           unless pair.is_a?(Hash) && pair.key?(:left) && pair.key?(:right)

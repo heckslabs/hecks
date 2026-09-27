@@ -1,8 +1,5 @@
-//! Port of `rust/project/types.rb` — `emit_check_invariants`,
-//! `emit_closed_set_table`, `emit_value_object`, `emit_entity`,
-//! `emit_record`, `unsupported_attribute_types`. Mirrors the Ruby source
-//! directly; read that file's own header comments for the "why" behind
-//! each shape.
+//! Type emitters ported from `rust/project/types.rb`: records, entities, value objects and
+//! closed-set tables.
 
 use crate::exemplar::Exemplar;
 use crate::fielded;
@@ -15,16 +12,8 @@ pub fn emit_check_invariants(exemplar: &Exemplar, vo: &Json, value_objects_by_na
     let type_name = vo.get("name").and_then(Json::as_str).unwrap_or("").to_string();
     let invariants = vo.get("invariants").map(Json::each).unwrap_or(&[]);
 
-    // Mirrors `types.rb`'s own `<<~RUST.rstrip` heredoc exactly, including
-    // its dedent margin — the raw Ruby source's own `{`/closing `}` sit at
-    // the heredoc's own minimum indentation, so the squiggly-heredoc
-    // dedent leaves this block flush left (the `{`/`}` at column 0, not
-    // re-indented to match its embedding context) — found live, byte-
-    // diffing against Ruby's real output: a "nicely re-indented" version
-    // (this function's own first draft) was a real, confirmed mismatch.
-    // Order is Ruby's own — see types.rb's `emit_check_invariants`: nested
-    // value objects first, then this one's own `admits`/`pattern`, its
-    // invariants last (C3.7).
+    // The block is flush left to match the Ruby heredoc's dedent; re-indenting it mismatches.
+    // Order: nested value objects, then `admits`/`pattern`, then invariants.
     let mut body: Vec<String> = Vec::new();
     let attributes = vo.get("attributes").map(Json::each).unwrap_or(&[]);
 
@@ -132,8 +121,7 @@ pub fn emit_closed_set_table(exemplar: &Exemplar, vo: &Json) -> String {
     format!("{struct_part}\n\npub const {}: &[{name}] = &[\n{}\n];", naming::screaming_snake(vo.get("name").and_then(Json::as_str).unwrap_or("")), member_literals.join("\n"))
 }
 
-/// Ruby's `"".to_i`/`"abc".to_i` — leading-numeric-prefix parse,
-/// defaulting to 0 for anything that doesn't start with a valid integer.
+/// Ruby's `String#to_i`: parses a leading integer prefix, 0 when there is none.
 fn ruby_to_i(s: &str) -> i64 {
     let trimmed = s.trim_start();
     let mut end = 0;
@@ -151,7 +139,7 @@ fn ruby_to_i(s: &str) -> i64 {
     trimmed[..end].parse().unwrap_or(0)
 }
 
-/// Ruby's `"".to_f`/`"abc".to_f` — same leading-prefix idea, for a float.
+/// Ruby's `String#to_f`: parses a leading float prefix, 0.0 when there is none.
 fn ruby_to_f(s: &str) -> f64 {
     let trimmed = s.trim_start();
     let mut end = 0;
@@ -225,7 +213,7 @@ pub fn emit_value_object(exemplar: &Exemplar, vo: &Json, value_objects_by_name: 
     format!("{struct_part}\n\n{fielded_part}\n\n{invariants_part}")
 }
 
-/// `unsupported_attribute_types(aggregate, value_objects_by_name)`.
+/// Attribute type names on `aggregate` that have no Rust mapping.
 pub fn unsupported_attribute_types(aggregate: &Json, value_objects_by_name: &HashMap<String, &Json>) -> Vec<String> {
     let entity_names: Vec<&str> = aggregate.get("entities").map(Json::each).unwrap_or(&[]).iter().map(|e| e.get("name").and_then(Json::as_str).unwrap_or("")).collect();
     let mut seen = Vec::new();
@@ -298,8 +286,7 @@ pub fn emit_record(exemplar: &Exemplar, aggregate: &Json, value_objects_by_name:
     format!("{struct_part}\n\n{fielded_part}")
 }
 
-/// Port of `rust/project/types.rb#projected_field_pseudo_attributes` —
-/// see that method's own header for the full reasoning (S12, ADR 0025).
+/// Port of `rust/project/types.rb#projected_field_pseudo_attributes` (ADR 0025).
 pub fn projected_field_pseudo_attributes(aggregate: &Json) -> Vec<Json> {
     aggregate
         .get("projected_fields")
@@ -318,12 +305,8 @@ pub fn projected_field_pseudo_attributes(aggregate: &Json) -> Vec<Json> {
         .collect()
 }
 
-/// Port of `rust/project/domain_generator.rb`'s own `record_for_struct`
-/// merge (`aggregate.merge(attributes: ...)`) — a shallow-copied `Json`
-/// object with `"attributes"` replaced by the original list plus
-/// `projected_field_pseudo_attributes`, so `emit_record`/
-/// `emit_fielded_record` (both read `aggregate.get("attributes")`
-/// internally) see the merge without either signature changing.
+/// Copy of `aggregate` whose `attributes` also list the projected-field pseudo-attributes, so
+/// `emit_record` and `emit_fielded_record` see them (`domain_generator.rb#record_for_struct`).
 pub fn with_projected_field_pseudo_attributes(aggregate: &Json) -> Json {
     let mut attributes: Vec<Json> = aggregate.get("attributes").map(Json::each).unwrap_or(&[]).to_vec();
     attributes.extend(projected_field_pseudo_attributes(aggregate));

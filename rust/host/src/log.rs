@@ -1,16 +1,5 @@
-// Structured logging for the host: one JSON object per line on stdout.
-//
-// On Fargate the task definition's `awslogs` driver ships whatever a
-// container writes to stdout/stderr to CloudWatch Logs, so this module
-// needs no AWS client and no configuration — printing a line is the
-// whole integration. One JSON object per line (not free text) is what
-// lets CloudWatch Logs Insights filter on fields, e.g.
-// `filter msg = "command" and accepted = 0`. CloudWatch stamps each
-// event on ingestion, so lines carry no timestamp of their own.
-//
-// Callers must never put secrets, cookies, query strings or command
-// facts into `fields` — log identifiers (verb, role, path, status), not
-// payloads.
+// Structured logging: one JSON object per line on stdout, shipped by the `awslogs` driver.
+// Never put secrets, cookies, query strings or command facts in `fields`; log identifiers only.
 
 use serde_json::{json, Map, Value};
 use std::io::Write;
@@ -25,13 +14,8 @@ pub fn error(msg: &str, fields: Value) {
     emit("error", msg, fields);
 }
 
-/// A boot phase in flight. Logs `boot_phase` with `event: "start"` when it
-/// begins and `event: "end"` with `elapsed_ms` when it finishes, so a hang shows
-/// as a start line with no end line after it. A phase that fails simply never
-/// logs its end (the error itself is what the process reports).
-///
-/// `fields` are identifiers only (an aggregate's storage name, an era number),
-/// never data, and are repeated on both lines.
+/// A boot phase in flight: logs `boot_phase` start and end lines, so a hang shows as a start
+/// with no end. A failed phase never logs its end.
 pub struct Phase {
     name: &'static str,
     fields: Value,

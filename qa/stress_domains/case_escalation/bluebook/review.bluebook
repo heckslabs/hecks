@@ -1,26 +1,5 @@
-# THE SECOND CHAPTER — a genuinely separate domain, "VendorCompliance",
-# reached ONLY through case_escalation.bluebook's own `across
-# "VendorCompliance"` policy (see that file's own header). Loaded into
-# the SAME registry as CaseEscalation because both files sit in this one
-# stress domain's own `bluebook/` directory (`Adapters::Folder#
-# load_domain` globs every `*.bluebook` file there) — not because
-# anything here is a "framework" (`uses_framework`) member; a real
-# multi-Lambda deployment would give this its own `.world`/`.hecksagon`
-# the way examples/compliance has, but this domain exists to be fuzzed
-# in-process, not deployed.
-#
-# NOT WIRED INTO RUST — see case_escalation.bluebook's own header;
-# `bin/project_rust` reads exactly `case_escalation.bluebook`, so this
-# chapter is Ruby-only.
-#
-# THE MULTI-HEAD READ MODEL OVER AN `across` TARGET, FOR THE FIRST TIME —
-# `ReviewBoard` composes Review + Note, the same two-head shape
-# `examples/banking/bluebook/customer_and_compliance_views.bluebook`'s
-# own `ComplianceDashboard` already proves (Account + CardPayment), but
-# never before over a chapter reached only by a cross-domain policy —
-# every real `across` target in the corpus (examples/compliance) is read
-# back through ITS OWN read models, never fuzzed in the same run as the
-# policy that reaches it (see case_escalation.bluebook's own header).
+# Second chapter of the CaseEscalation stress domain, reached only through its `across` policy.
+# Loaded into the same registry for in-process fuzzing; Ruby-only, not compiled to Rust.
 Hecks.bluebook "VendorCompliance" do
   vision "One compliance review opened per vendor once one of its invoices is amended, with notes a compliance officer attaches — and a read model gathering a review together with its own notes, over a chapter reached only by another domain's cross-domain policy."
 
@@ -39,11 +18,7 @@ Hecks.bluebook "VendorCompliance" do
       invariant("a handle is not blank") { !value.to_s.empty? }
     end
 
-    # REDECLARED, NOT SHARED — same corpus convention as every other
-    # value object here; this chapter never sees CaseEscalation's own
-    # InvoiceReference type, only the plain string
-    # `CaseEscalation::Invoice::AmendCharge`'s own `reference_to Invoice`
-    # resolves to and that its emitted event's payload carries.
+    # Redeclared locally: this chapter only sees the plain string from the event payload.
     value_object "InvoiceReference" do
       attribute :value, String, pattern: '[^ \t\n\r]'
       invariant("an invoice reference is not blank") { !value.to_s.empty? }
@@ -53,21 +28,8 @@ Hecks.bluebook "VendorCompliance" do
       transition "Close" => "closed", from: "open"
     end
 
-    # THE TRIGGERED COMMAND — receives the RAW event payload
-    # `CaseEscalation::Invoice::ChargeAmended` carries, key for key, no
-    # `with_spec` (`trigger_args`, lib/hecks/runtime/policy_interpreter.rb:
-    # 252, forwards `event.payload` as-is). That payload turned out to
-    # carry BOTH `vendor` (what `AmendCharge` `sets`) AND `invoice` (the
-    # command's own `reference_to Invoice`, resolved and folded into the
-    # emitted event's own args — confirmed live, not assumed: the first
-    # draft of this command declared `vendor` alone and every dispatch
-    # of this policy failed to deliver, `reactions:` recording "Open
-    # does not declare invoice — it takes vendor", DOMAIN_REFUSALS-
-    # rescued and silently non-fatal to AmendCharge itself. Declaring
-    # both is this domain's own fix, not a runtime bug: `policy_
-    # interpreter.rb`'s own header already documents forwarding the
-    # payload verbatim, unfiltered, and a policy with no `with_spec`
-    # takes on the FULL shape of whatever it reacts to.
+    # The policy has no with_spec, so the command must declare every key of the
+    # ChargeAmended payload (both vendor and invoice) or the dispatch is refused.
     command "Open" do
       goal "Open a compliance review against a vendor"
 

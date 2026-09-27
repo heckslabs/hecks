@@ -1,22 +1,12 @@
 #!/usr/bin/env ruby
 
-# Projects every domain's OIDC client/scope manifest into `<domain>/oidc.json`
-# — the artifact half of §11, `Hecks::Projections::OIDC`, made
-# producible outside a spec run.
+# Projects each domain's OIDC client/scope manifest (Hecks::Projections::OIDC) into `oidc.json`.
 #
 #   bin/project_oidc                    # every domain in this checkout
 #   bin/project_oidc examples/banking   # just this one
 #
-# `bundler/setup`, unlike every sibling `bin/project_*` — those emit
-# hand-formatted Ruby source, this one is the first to write its artifact
-# through bare `JSON.pretty_generate` (`Projector.write`'s own default
-# path). Confirmed live: an empty array pretty-prints as `[]` under the
-# `json` gem this Gemfile.lock pins (2.7.2) but `[\n\n]` under the
-# newest one RubyGems would otherwise hand an un-bundled `ruby` — a real
-# diff `spec/oidc_manifest_spec.rb` would report as drift depending on
-# nothing but which gem happened to resolve. Pinning here is what makes
-# "run this script" and "what the spec expects" the same claim regardless
-# of how either gets invoked.
+# `bundler/setup` pins the `json` gem: newer releases pretty-print an empty array as `[\n\n]`,
+# a diff spec/oidc_manifest_spec.rb would report as drift.
 
 require "bundler/setup"
 
@@ -27,11 +17,7 @@ require "hecks"
 ROOT   = File.expand_path("..", __dir__)
 FOLDER = Hecks::Adapters::Folder.new
 
-# The same discovery `bin/project_cli` already uses — every `.hecksagon` in
-# the checkout names a domain root, `rust/`, `deploy/`, `tmp/` and
-# `coverage/` are never domains.
-#
-# @return [Array<String>] every domain's path relative to the repo root, sorted
+# Every `.hecksagon` names a domain root; rust/, deploy/, tmp/ and coverage/ are never domains.
 def domains
   Dir.glob(File.join(ROOT, "**/*.hecksagon"))
      .map { |path| FOLDER.domain_root(File.dirname(path)) }

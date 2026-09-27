@@ -1,9 +1,5 @@
-//! Port of the `lib/hecks/naming.rb` functions this crate's ported
-//! scope actually needs — `Naming.snake` (used by `emit_extract_id`'s own
-//! `reference_key`), plus `Naming.demodulise`/`Naming.reference_key`
-//! (needed by `json_codec.rb#command_argument_allowlist`, Stage 7's
-//! command-codegen slice). Not the whole file: nothing else in this
-//! crate's ported scope calls into `Hecks::Naming`.
+//! Port of the subset of `lib/hecks/naming.rb` that codegen calls:
+//! `snake`, `demodulise` and `reference_key`.
 
 /// `type.to_s.split("::").last.to_s`
 pub fn demodulise(type_name: &str) -> String {
@@ -15,12 +11,10 @@ pub fn reference_key(type_name: &str) -> String {
     snake(&demodulise(type_name))
 }
 
-/// `text.gsub(/([A-Z]+)([A-Z][a-z])/, '\1_\2').gsub(/([a-z\d])([A-Z])/,
-/// '\1_\2').downcase` — the two sequential gsubs collapse to one combined
-/// rule for a single forward pass: insert `_` before an uppercase letter
-/// when the previous character is lowercase/digit (rule 2), or the
-/// previous character is uppercase and the next character is lowercase
-/// (rule 1 — the "acronym, then a new word starts" case).
+/// CamelCase to snake_case, matching Ruby's two-gsub `Naming.snake` in a single pass.
+///
+/// Inserts `_` before an uppercase letter that follows a lowercase letter or digit, or that
+/// ends an acronym (uppercase before, lowercase after).
 pub fn snake(text: &str) -> String {
     let chars: Vec<char> = text.chars().collect();
     let mut out = String::new();

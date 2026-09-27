@@ -2,12 +2,8 @@ require "hecks"
 require "hecks/ports/persistence/plugins/era"
 require_relative "../../support/postgres_probe"
 
-# Runs only when a Postgres server is reachable (any local default
-# install will do). CI and pre-push provide one:
-# a local instance or `docker run postgres` — this spec manages its own
-# scratch database and needs no configuration at all. The reachability
-# probe itself lives in support/postgres_probe.rb, shared by every
-# Postgres spec — see that file for why.
+# Runs only when a Postgres server is reachable (`support/postgres_probe.rb`); manages its own
+# scratch database.
 RSpec.describe Hecks::Adapters::PostgresEra, :io do
   SPEC_DB = "hecks_adapter_spec".freeze
 
@@ -47,6 +43,10 @@ RSpec.describe Hecks::Adapters::PostgresEra, :io do
     built
   end
 
+  it "declares :atomic_append — append already commits the snapshot inside its own transaction" do
+    expect(adapter.persistence_capabilities).to include(:atomic_append)
+  end
+
   it "refuses a binding that declares no database" do
     expect { described_class.new(aggregate: aggregate, settings: {}) }
       .to raise_error(Hecks::Runtime::WiringError, /declares no "database"/)
@@ -70,20 +70,13 @@ RSpec.describe Hecks::Adapters::PostgresEra, :io do
   it "round-trips a list of value objects through jsonb" do
     adapter.save(instance("p1", toppings: [{ name: "Basil", amount: 3 }]))
 
-    # ADR 0047/0055 — real Value instances now, same as found.name/found.pizza above.
     toppings = adapter.find("p1").toppings
     expect(toppings).to all(be_a(Hecks::Runtime::Value))
     expect(toppings.map(&:to_h)).to eq([{ name: "Basil", amount: 3 }])
   end
 
-  # RepositoryFactory#build always merges `era: registry.resolved_eras[domain]`
-  # into settings — genuinely present, not absent, holding plain `nil` for any
-  # domain the era boot gate hasn't resolved yet. `PostgresEra.setting`'s
-  # presence-over-truthiness discipline (correct for :role, where a stored
-  # `false` is real) would return that stored `nil` verbatim instead of
-  # falling back to `@lineage.current_era` — @era would go nil, era.to_i (field_
-  # cache.rb) would coerce it to 0, and every self-healing table would mint at
-  # "era 0" instead of era 1, breaking the very first boot of a fresh domain.
+  # The factory merges `era: nil` for a domain the boot gate has not resolved; `setting` must
+  # fall back to `@lineage.current_era`, or a fresh domain's first boot mints at era 0.
   it "resolves era 1 (not nil, not 0) when settings carry an explicit era: nil, the RepositoryFactory#build shape" do
     described_class.new(aggregate: aggregate, settings: { database: SPEC_DB, era: nil })
 
@@ -91,27 +84,13 @@ RSpec.describe Hecks::Adapters::PostgresEra, :io do
     tables = conn.exec("SELECT tablename FROM pg_tables WHERE schemaname = 'public'").map { |row| row["tablename"] }
     conn.close
 
-    # domain-qualified (docs/decisions/0059) — `aggregate` (top of this
-    # file) has no explicit `domain:` setting, so it defaults to its own
-    # owning chapter's name, "Pizzas".
+    # Domain-qualified (ADR 0059); defaults to the owning chapter, "Pizzas".
     expect(tables).to include("pizzas_order_head_snapshot_1")
     expect(tables).not_to include("pizzas_order_head_snapshot_0", "pizzas_order_head_snapshot_")
   end
 
-  # ensure_base! (provisioning.rb) runs on every boot, not only the first —
-  # a domain's Nth reboot re-provisions the same base unconditionally. Two
-  # of its statements carry no existence guard of their own (install_
-  # transforms!'s six create or replace FUNCTIONs; the journal's REVOKE
-  # UPDATE, DELETE FROM public), unlike the RLS ALTER TABLE calls in the
-  # same method, which read current state first for exactly this reason
-  # ("Postgres does not skip the lock just because the statement would be
-  # a no-op"). Two real sessions reissuing either would otherwise race
-  # Postgres's own catalog MVCC into `PG::InternalError: tuple concurrently
-  # updated`; `install_transforms!` instead serializes under its own
-  # `pg_advisory_xact_lock`, and the REVOKE is skipped once
-  # `has_table_privilege(...)` shows public already lacks the privilege.
-  # Real threads, real separate PG connections (each `described_class.new`
-  # opens its own) — not a synthetic simulation.
+  # `ensure_base!` runs on every boot; concurrent reissue of its unguarded statements would
+  # raise `tuple concurrently updated`. Uses real threads, each on its own connection.
   it "boots the same already-provisioned domain from many concurrent connections without a catalog race" do
     # establishes the base once
     described_class.new(aggregate: aggregate, settings: { database: SPEC_DB })
@@ -166,6 +145,26 @@ RSpec.describe Hecks::Adapters::PostgresEra, :io do
     adapter.record_event(event)
 
     expect(adapter.events.map { |item| [item.name, item.id, item.payload] })
+      .to eq([["PizzaPurchased", "p1", { customer: "c1" }]])
+  end
+
+  it "reads back only one record's events, not the whole shared table" do
+    adapter.record_event(Hecks::Runtime::Event.new(
+                           name: "PizzaPurchased", aggregate: "Pizza", id: "p1",
+                           payload: { customer: "c1" }, occurred_at: "2026-01-01T00:00:00Z"
+                         ))
+    adapter.record_event(Hecks::Runtime::Event.new(
+                           name: "PizzaPurchased", aggregate: "Pizza", id: "p2",
+                           payload: { customer: "c2" }, occurred_at: "2026-01-01T00:00:01Z"
+                         ))
+    adapter.record_event(Hecks::Runtime::Event.new(
+                           name: "OrderPlaced", aggregate: "Order", id: "p1",
+                           payload: { total: 12 }, occurred_at: "2026-01-01T00:00:02Z"
+                         ))
+
+    found = adapter.events_for(aggregate: "Pizza", id: "p1")
+
+    expect(found.map { |item| [item.name, item.id, item.payload] })
       .to eq([["PizzaPurchased", "p1", { customer: "c1" }]])
   end
 
@@ -280,18 +279,8 @@ status: "sold"))
         .to raise_error(ArgumentError, 'PostgresEra query adapter does not support "between"')
     end
 
-    # Adversarial, not incidental: today's only caller compiles field
-    # names from the bluebook's own declared schema, but jsonb_path has
-    # no way to know that, and its old form — a hand-rolled '{a,b}'
-    # array-literal string with zero escaping — trusted a field name to
-    # never contain a quote. It can: a crafted field name closed the
-    # string early and turned the remainder into live SQL. This is not
-    # a hypothetical — the exact payload below made a
-    # where(secret: "public") clause return a row with a different
-    # secret value, tautologically bypassing the filter, before
-    # jsonb_path was rewritten to build the array from individually
-    # escaped literals (array[...], the same technique lineage.rb's
-    # path_literal already used for translation-rule paths).
+    # A field name containing a quote must not close the jsonb path literal into live SQL,
+    # which would bypass a `where(secret: "public")` filter.
     it "a crafted field name cannot break out of the compiled jsonb path" do
       adapter.save(instance("secret", status: "TOPSECRET"))
 
@@ -299,8 +288,7 @@ status: "sold"))
       clause = Struct.new(:field, :op, :value).new(injected_field, "eq", "available")
       declared = Struct.new(:wheres, :order_by, :limit, :offset, :null_semantics).new([clause], nil, nil, nil, nil)
 
-      # neither an error nor a bypass — a field this malformed simply
-      # cannot match anything, which is the correct, boring outcome
+      # a malformed field matches nothing
       expect(adapter.query(declared, {})).to eq([])
     end
 
@@ -312,10 +300,7 @@ status: "sold"))
       expect(adapter.query(declared, {})).to eq([])
     end
 
-    # eq and lt were the only operators ever exercised against PostgresEra —
-    # the rest of the comparator matrix was tested only against Memory
-    # (spec/query_comparators_spec.rb). One real adapter should prove
-    # the other five compile and answer correctly too.
+    # One real adapter proves the remaining comparators compile and answer correctly.
     def where(clause_field, oper, clause_value, order: nil, limit: nil, offset: nil)
       declared = Struct.new(:wheres, :order_by, :limit, :offset, :null_semantics).new(
         [Struct.new(:field, :op, :value).new(clause_field, oper, clause_value)],
@@ -330,38 +315,14 @@ status: "sold"))
       expect(where("pizza.price_cents.cents", "lte", 1200)).to eq(%w[p1 p3])
     end
 
-    # NOTE: on semantics, not just mechanics: `contains` on a plain scalar
-    # field means substring everywhere now — the reference (in-memory)
-    # interpreter's `contains?` (query_interpreter.rb) reads the same way,
-    # rather than as CSV/list membership even for a scalar, which would
-    # have agreed with this SQL substring search only by coincidence on a
-    # comma-free field. See
-    # spec/adapters/query_agreement_spec.rb's "carries a comma" case for
-    # the cross-engine proof. This test verifies only that PostgresEra's own
-    # compilation (a value-object member would also need query_value's
-    # hash-unwrapping to resolve a string, which it does not: it only
-    # extracts a numeric member and returns nil otherwise) executes
-    # correctly.
+    # `contains` on a scalar field is a substring match, as in the in-memory interpreter
+    # (see query_agreement_spec.rb's "carries a comma" case).
     it "compiles contains as a literal SQL substring match on a plain scalar field" do
       expect(where("status", "contains", "avail")).to eq(%w[p1 p2])
     end
 
-    # eq / ne / in / empty-in on the lifecycle field and NULLS FIRST/LAST
-    # ordering are proven against PostgresEra alongside every other engine
-    # in spec/adapters/query_agreement_spec.rb ("compiles eq/ne/in on the
-    # lifecycle field", "compiles an empty in-list as matching nothing",
-    # "places nulls first/last when asked") — not repeated here.
-
-    # `pizza.price_cents.cents` (the live Pizzas domain's own numeric field)
-    # is a value object nested two levels deep, and `numeric_field?`
-    # (postgres_era.rb) only ever inspects the first nested segment — it was
-    # never built to recurse. A dotted path that deep still compiles a
-    # correct jsonb extraction (arbitrary depth), but the numeric cast is
-    # skipped, so ordering falls back to lexicographic text — wrong for any
-    # values of differing digit width. Rather than growing the query
-    # compiler to recurse (a real, separate change), these two cases are
-    # proven here against a fixture shaped the way pushdown numeric
-    # comparison actually supports today: one level of value-object nesting.
+    # `numeric_field?` inspects only the first nested segment, so a value object nested two
+    # levels deep loses its numeric cast and orders as text; these cases use one level.
     describe "ordering through a value object nested exactly one level deep" do
       NUMERIC_PUSHDOWN_SOURCE = <<~BLUEBOOK.freeze
         Hecks.bluebook "NumericPushdown" do
@@ -429,16 +390,8 @@ status: "sold"))
     end
   end
 
-  # `reference_to` (the only spelling now — `has_one`/`belongs_to`/
-  # `has_many` were sugar over it and are gone; see aggregate_builder.rb)
-  # compiles to a scalar Reference<T> attribute, stored as a bare id
-  # (never wrapped — Runtime::Value refuses a reference arriving as a
-  # hash). No fixture anywhere declared one before this, and none was
-  # exercised against PostgresEra: `where` on such a field compiled to
-  # `state #>> '{field,value}'`, digging for a nested "value" key that a
-  # bare scalar never has, and silently matched nothing. Falsified
-  # before trusting it: reverting the fix in query_expression reproduces
-  # the empty result exactly.
+  # `reference_to` compiles to a scalar Reference<T> stored as a bare id; `where` on it must
+  # not dig for a nested "value" key.
   describe "a reference_to reference field, queried through PostgresEra" do
     REFS_SOURCE = <<~BLUEBOOK.freeze
       Hecks.bluebook "Refs" do
@@ -502,8 +455,7 @@ status: "sold"))
                         ))
 
       db = PG.connect(dbname: SPEC_DB)
-      # domain-qualified (docs/decisions/0059) — `refs_adapter` (above)
-      # sets domain: "Refs" explicitly.
+      # Domain-qualified (ADR 0059); `refs_adapter` sets domain: "Refs".
       raw = JSON.parse(db.exec("SELECT state FROM refs_ticket_head WHERE id = 't1'")[0]["state"])
       db.close
       expect(raw["team"]).to eq("team-a")
@@ -523,11 +475,7 @@ status: "sold"))
       expect(refs_adapter.query(declared, {}).map(&:id)).to eq(["t1"])
     end
 
-    # A plural-named reference (`reference_to Invoice, as: :invoices`) is
-    # what most invites the "list_of a reference" misreading the name
-    # suggests — proven wrong at the DSL level already
-    # (aggregate_builder.rb), but never before against a real save/query
-    # round trip through any adapter.
+    # A plural-named reference is still a scalar reference, not a `list_of`.
     it "a plural-named reference_to still mints a scalar reference, queryable the same way" do
       expect(ticket.attribute(:invoices).reference?).to be(true)
       expect(ticket.attribute(:invoices).list?).to be(false)

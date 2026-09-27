@@ -6,17 +6,15 @@ require_relative "../ports/persistence/plugins/era"
 module Hecks
   module CLI
     # The command behind `bin/ir` and `hecks ir`: a booted domain's IR as JSON, the
-    # same `to_h` the golden specs pin and `StorageShape` hashes into an era, for
-    # reading rather than asserting on.
+    # same `to_h` the golden specs pin and `StorageShape` hashes into an era.
     module Ir
       module_function
 
       # Prints the IR `argv` asks for.
       #
-      # `--meta` prints the language's own IR, the chapters under
-      # `lib/hecks/language/bluebook/` merged into one. It is reached through
+      # `--meta` prints the language's own IR, reached through
       # `Bluebook::MetaValidator.grammar_registry`, the real boot sequence, so it
-      # cannot drift from what `MetaValidator` itself loads.
+      # can't drift from what `MetaValidator` loads.
       #
       # @param argv [Array<String>] a domain path and `--translations`, or `--meta`
       # @param program [String] the name the usage message calls this command by

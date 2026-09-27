@@ -2,22 +2,13 @@ require "hecks"
 require "hecks/ports/persistence/plugins/era"
 require_relative "support/qa_sweep_all_fixture"
 
-# `bin/qa_sweep --all` — the pool draining fast children. Split out of
-# `qa_sweep_all_concurrency_spec.rb`, which was the slowest file in the
-# Postgres shards (165s for two examples) and so the floor under any shard's
-# wall-clock: a shard cannot finish sooner than its longest single file.
-# This file's own throwaway database is `hecks_qa_sweep_all_pool_drain_spec`,
-# unique so it never races a sibling file's scratch resources.
+# `bin/qa_sweep --all`: the pool draining fast children.
+# Own throwaway database `hecks_qa_sweep_all_pool_drain_spec`, so it never races a sibling file.
 RSpec.describe "bin/qa_sweep --all", :io do
   include_context "with a qa_sweep_all fixture", "hecks_qa_sweep_all_pool_drain_spec"
 
-  # The failure mode that prompted the pool bound example's own comment
-  # (qa_sweep_all_concurrency_spec.rb), exercised directly — not just the
-  # happy path where children happen to take a couple of seconds each.
-  # Every target here finishes about as fast as a real OS process can, so
-  # several children exit within the same `Process.wait2(-1)` polling
-  # window inside `run_pool` (bin/qa_sweep) — the exact "a spawned child
-  # exits very early/fast" shape a bounded pool's bookkeeping has to survive.
+  # Every target finishes almost instantly, so several children exit within the same
+  # `Process.wait2(-1)` window inside `run_pool`, which the pool's bookkeeping must survive.
   it "drains a pool of near-instantly-exiting children without stalling" do
     Hecks.boot(@fixture_dir)
     max_parallel = QualityControlDials::SWEEP_MAX_PARALLEL

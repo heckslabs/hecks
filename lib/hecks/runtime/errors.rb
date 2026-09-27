@@ -7,38 +7,27 @@ module Hecks
   # everything downstream of a `.bluebook`/`.hecksagon`/`.world` declaration.
   # See `lib/hecks/runtime.rb` for the module's own facade and boot entry points.
   module Runtime
+    # A dispatched verb names no aggregate, entity or command.
     class UnknownVerb < StandardError; end
+    # A settled record failed a command's `ensures`.
     class EnsuresNotMet < StandardError; end
 
-    # `detail` — the failing comparison's own resolved operands, "left: X,
-    # right: Y" — set only when the given's top-level shape is a bare
-    # comparison (`Evaluator.comparison_detail`'s own comment has the full
-    # scoping); nil otherwise. Deliberately not folded into `#message`:
-    # that string is pinned byte-for-byte across this corpus's own specs
-    # (`raise_error(GivenNotMet, "...")`, command_rules_spec.rb and every
-    # domain that vendors this gem) as contract, so changing its shape by
-    # default would be a breaking change for every one of them. Riding on
-    # `#detailed_message` instead (Ruby 3.2+, what irb/a Rails console's
-    # own unhandled-exception banner already calls to show more than
-    # `#message`) means the detail actually reaches a human staring at a
-    # live refusal, without moving the string anything else asserts on.
+    # A command's `given` refused. `detail` holds the failing comparison's resolved operands
+    # ("left: X, right: Y") when the given is a bare comparison, else nil.
+    #
+    # `detail` rides on `#detailed_message`; `#message` stays byte-for-byte, as specs pin it.
     class GivenNotMet < StandardError
       attr_reader :detail
 
-      # @param message [String, nil] the refusal text, pinned byte-for-byte across specs
-      # @param detail [String, nil] the failing comparison's resolved operands ("left: X,
-      #   right: Y"), or nil when the given's top-level shape is not a bare comparison
+      # @param message [String, nil] the refusal text
+      # @param detail [String, nil] the failing comparison's resolved operands, if any
       def initialize(message = nil, detail: nil)
         super(message)
         @detail = detail
       end
 
-      # Renders `message` with `detail` appended, for a human reading an unhandled refusal.
+      # Overrides Ruby's own error formatting to append the refusal's detail.
       #
-      # @param highlight [Boolean] unused; accepted for compatibility with `Exception#
-      #   detailed_message`'s own signature
-      # @param opts [Hash] unused; accepted for compatibility with `Exception#
-      #   detailed_message`'s own signature
       # @return [String] `message`, with `" (#{detail})"` appended when `detail` is present
       def detailed_message(highlight: false, **opts)
         base = super
@@ -46,117 +35,45 @@ module Hecks
       end
     end
 
+    # A command addressed a record that does not exist.
     class NotFound < StandardError; end
+    # A command is not admissible from the record's current lifecycle state.
     class LifecycleRefused < StandardError; end
+    # An argument carries the wrong kind of value for its declared type.
     class TypeMismatch < StandardError; end
-    # An argument the command does not declare. Sibling of TypeMismatch : that one
-    # is the right name carrying the wrong thing, this one is a name the command
-    # never had. Both are the payload gate refusing before any rule runs.
+    # An argument the command does not declare.
     class UnknownArgument < StandardError; end
-    # The third of the trio, and the one that was missing : a name the command does
-    # declare, absent. TypeMismatch is the right name carrying the wrong thing,
-    # UnknownArgument a name that was never declared, AbsentArgument a declared name
-    # that never arrived. Between them they say a command takes exactly the
-    # arguments it declares — no others, and all of them.
+    # An argument the command declares but the call omitted.
     class AbsentArgument < StandardError; end
-    # A creating command whose derived identity already names a record. The
-    # record it would have overwritten stands ; the dispatch that tried to
-    # mint a second one over it is what refuses.
+    # A creating command whose derived identity already names a record.
     class AlreadyExists < StandardError; end
-    # A declared, non-optional attribute a record predates — added since
-    # it was written, with no default: to fill it and no translation
-    # declaring what an old record should read there. `GuardState`
-    # (command_rules/admissibility.rb) is the one place this is raised: a
-    # `given`/`ensures`/`invariant` that reads the field would otherwise
-    # evaluate against a value nobody wrote, which is the same silent-
-    # wrong-answer class as an unpopulated projection reading "not
-    # active" (ADR 0025, "Added attributes and absence"). An optional
-    # attribute in the same spot reads nil instead — that is what
-    # optional means, and this refusal is deliberately narrower than the
-    # nil-read it sits beside, not a replacement for it.
+    # A required attribute the stored record predates, with no default or translation to fill it.
+    # Raised only by `GuardState`; an optional attribute reads nil instead (ADR 0025).
     class AttributeAbsent < StandardError; end
-    # The same silent-wrong-answer class as above, one line up — a
-    # `projects` field (S12, ADR 0025) this record predates, or that no
-    # rebuild sweep has populated yet, read by a `given`/`ensures`/
-    # `invariant` as though it carried a real value. `GuardState` is
-    # the one place this is raised, the same way AttributeAbsent is —
-    # a declared field the record does not yet carry, distinguished
-    # from that one only in why: an ordinary attribute is absent
-    # because nobody backfilled it, a projected field is absent
-    # because nobody has swept it yet.
+    # A `projects` field the record predates or no rebuild sweep has populated yet.
+    # Raised by `GuardState`.
     class ProjectionAbsent < StandardError; end
-    # A query or read model declares `authorize policy, tenant: :field` and
-    # the caller did not pass that field — the one half of `authorize` this
-    # runtime can enforce without a caller-identity system: the boundary
-    # itself, not whether the caller actually holds `policy`. See
-    # Runtime::TenantScope.
+    # A query or read model declares `authorize policy, tenant: :field` and the caller omitted it.
     class Unauthorized < StandardError; end
-    # `corrects` names a past event this record must have already emitted
-    # (CommandBuilder#corrects_impl's own comment) — a fact the expression
-    # evaluator cannot check (it is not a predicate over the record's own
-    # fields, it is "did this exact record ever announce this"), so it is
-    # raised structurally, the same way AlreadyExists/NotFound are, rather
-    # than being expressible as an ordinary `given`. Raised by
-    # `CommandRules::Admissibility#enforce_correction_target`.
+    # A `corrects` command whose target event this record never emitted.
+    # Raised by `CommandRules::Admissibility#enforce_correction_target`.
     class NothingToCorrect < StandardError; end
 
-    # A runtime fault, not a domain refusal — deliberately absent from
-    # `DOMAIN_REFUSALS` below and from `vocabulary.bluebook`'s own
-    # `DomainRefusal` list. Raised when an optimistic-concurrency CAS write
-    # (`AppendOnly#save`'s `expected_version:`) finds the stored version has
-    # moved since this instance was read — someone else's write committed
-    # in between. `CommandInterpreter#call`/`EntityInterpreter#call` catch
-    # this themselves and retry the whole dispatch from a fresh hydrate, so
-    # `enforce_givens` re-evaluates against the now-current state; a caller
-    # only ever sees this escape when every retry is exhausted under
-    # sustained contention — an operational condition (many concurrent
-    # writers hammering one aggregate), not a business rule a domain author
-    # declared. See docs/decisions/ (concurrency-control ADR).
+    # A CAS write (`expected_version:`) found the stored version moved since the read.
+    # A runtime fault, not a domain refusal: the interpreters retry, so it escapes only under
+    # sustained contention.
     class StaleWrite < StandardError; end
 
-    # A Lambda-routed domain's own refusal (rust/host, `Runtime::
-    # RemoteDispatcher`), carrying Rust's own refusal text verbatim —
-    # not yet mapped back to the specific matching class above
-    # (GivenNotMet vs. EnsuresNotMet vs. ...), a real, known,
-    # documented gap: the WASM projector's own event/refusal-wording
-    # parity work (ADR 0021) makes the text match Ruby's, but nothing
-    # yet parses that text back into a typed Ruby exception the way a
-    # local dispatch already raises one directly. Callers that only
-    # need "the domain said no" (not which specific rule) are
-    # unaffected; callers pattern-matching a specific refusal class
-    # against a Lambda-routed domain are the ones this gap would bite.
+    # A Lambda-routed domain's refusal (`Runtime::RemoteDispatcher`), with Rust's text verbatim.
+    # It is not mapped back to a specific class such as GivenNotMet.
     class RemoteRefusal < StandardError; end
 
-    # The domain saying no — the errors a reaction may legitimately meet and
-    # record as an undelivered outcome. A policy whose target refuses is a fact
-    # about the domain ; the originating command still stands.
+    # The refusals that are the domain saying no, which a reaction records as undelivered.
+    # Anything else is a runtime defect and must propagate rather than read as a refusal.
     #
-    # Everything else is a defect : a NoMethodError in an interpreter, a
-    # NameError from a missing constant, a TypeError from a bad assumption. A
-    # blanket `rescue StandardError` would fold both into one line —
-    # `delivered: false, reason: "..."` — making a crash in the runtime
-    # indistinguishable from a rule doing its job, reading as normal
-    # operation in the log.
-    #
-    # UnknownVerb is one of these, and deliberately : a cross-domain policy
-    # (`across "Notifications"`) fires in deployments where that domain is not
-    # loaded, and recording the undelivered reaction rather than raising is the
-    # design — spec/policy_spec states it in so many words, "records a reaction
-    # it cannot deliver rather than swallowing it".
-    # InvariantViolation belongs here and was missing. A value object refusing
-    # its own rule is the domain saying no as plainly as a given is — but the
-    # class is declared over in value.rb and never made the list, so the policy
-    # and saga interpreters, which rescue exactly these, would let it propagate
-    # as though the runtime had broken. A reaction whose target violates an
-    # invariant is declined, not crashed. Found by spec/domain_refusal_spec on
-    # its first run : every corpus refusal must be a class named here, and 23
-    # of banking's were InvariantViolation.
-    # The names come from the language, the classes from this module.
-    # `DomainRefusal` declares which refusals are the domain's own —
-    # a rule the caller broke — as against a runtime fault. Resolving
-    # each name here means a refusal declared but never defined fails
-    # at load with a NameError, rather than being quietly absent from
-    # a list nothing re-checks.
+    # UnknownVerb is included on purpose: a cross-domain policy fires where its target domain is
+    # not loaded. InvariantViolation is included too, so a value object's refusal is declined.
+    # Names come from the language; resolving them here fails at load if one is undefined.
     DOMAIN_REFUSALS = Hecks::Vocabulary.fetch("DomainRefusal").map { |name| const_get(name) }.freeze
   end
 end

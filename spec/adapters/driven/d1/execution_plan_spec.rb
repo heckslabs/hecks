@@ -76,22 +76,10 @@ RSpec.describe "D1 execution-plan capabilities" do
     end
   end
 
-  # `real_sqlite_batch_connection` runs each statement against a genuine
-  # SQLite3::Database, inside `@db.transaction`, in the same order — the
-  # local proxy for what Connection#batch's own comment says D1 already
-  # guarantees server-side ("statements execute in order and a failure
-  # rolls the entire sequence back"). `fake_batch_connection` above only
-  # proves the Ruby side issues one batch and no separate `execute`; this
-  # proves the SQL itself is valid and the `WHERE NOT EXISTS` gating
-  # genuinely blocks both writes when the row already exists — not just
-  # that the code compiles. A real multi-threaded concurrency test (the
-  # shape `postgres_atomic_put_spec.rb` uses) is not attempted here: two
-  # Ruby threads sharing one SQLite3::Database connection are not a
-  # faithful stand-in for D1's own server-side concurrent-batch handling,
-  # and would test SQLite3-gem thread-safety more than the SQL's own
-  # correctness. What actually closed the gap — moving the check inside
-  # the same atomic batch instead of a separate round trip — is exactly
-  # what this test exercises.
+  # Runs each statement in a real SQLite3::Database inside a transaction, in order: the local
+  # stand-in for D1's server-side batch atomicity. Shows the SQL is valid and that the
+  # `WHERE NOT EXISTS` gating blocks both writes. No threaded race test: two threads on one
+  # SQLite3 connection would test the gem's thread-safety, not D1's batch handling.
   def real_sqlite_batch_connection
     db = SQLite3::Database.new(":memory:")
     db.results_as_hash = true
@@ -135,10 +123,8 @@ RSpec.describe "D1 execution-plan capabilities" do
     expect(adapter.entries.size).to eq(1)
     expect(adapter.find("sku-1").state[:label].to_h).to eq(value: "First")
 
-    # **The row already exists** — both gated writes must be genuine no-ops,
-    # not merely "the method returns :conflicted while quietly still
-    # writing," which is precisely the shape the old separate-round-trip
-    # check could not rule out under a real race.
+    # The row already exists: both gated writes must be real no-ops, not a `:conflicted`
+    # return that still writes.
     expect(repository.atomic_put(second, insert_only: true).status).to eq(:conflicted)
     expect(adapter.entries.size).to eq(1)
     expect(adapter.find("sku-1").state[:label].to_h).to eq(value: "First")
@@ -204,9 +190,7 @@ RSpec.describe "D1 execution-plan capabilities" do
     expect(connection.get_first_row('SELECT mirrors FROM "item_entries" WHERE mirrors IS NULL')).not_to be_nil
   end
 
-  # One HTTP round trip mocked once, asked two questions about that same
-  # call — the request it actually sent and the rows it parsed back out.
-  # Splitting would re-pay the Net::HTTP/double setup for no real gain.
+  # One mocked HTTP round trip, asserted twice: the request sent and the rows parsed back.
   # rubocop:disable-next RSpec/ExampleLength
   it "encodes the connection batch as one REST request and returns each statement's rows in order" do
     connection = Hecks::Adapters::D1::Connection.new(

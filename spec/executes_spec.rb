@@ -1,22 +1,7 @@
 require "spec_helper"
 
-# The language does not only judge a bluebook — it holds one, and gives it back.
-#
-# `bluebook.bluebook`'s own vision says "loading a domain becomes dispatching
-# commands into this meta-domain ; the IR it stores must equal the IR the DSL
-# builder produces." Only the first half was true. The judge dispatched every
-# declaration in, collected refusals, and threw the records away — which is all
-# judging needs, and exactly why the language could only validate.
-#
-# The reason was structural and slightly absurd: the meta-domain declared twelve
-# categories and thirty-four verbs and not one query. It was write-only. A store
-# you cannot read cannot be the source of anything.
-#
-# So the way back is declared, on the aggregates themselves, and read through
-# their own front doors rather than by reaching into a repository. This spec is
-# the first slice of it: the chapter and its aggregates come back out. The
-# remaining categories, and equality with the builder's whole `to_h`, are the arc
-# this opens — not a claim it already makes.
+# The meta-domain holds a bluebook and reads it back through its own queries.
+# Covers the chapter and its aggregates, not yet equality with the builder's `to_h`.
 RSpec.describe "the language holds a bluebook, and gives it back" do
   def pizzas
     @pizzas ||= begin
@@ -32,20 +17,9 @@ RSpec.describe "the language holds a bluebook, and gives it back" do
     end
   end
 
-  # Dispatch a real bluebook into the meta-domain and keep the runtime, which is
-  # the only difference between judging and holding.
-  #
-  # `pizzas` referenced first, on purpose. It loads Pizzas through the normal
-  # `MetaValidator.call` path, which judges (and so dispatches a
-  # `Bluebook.Declare` for "Pizzas") into `grammar_registry`'s own shared
-  # repositories — the same registry `fresh_runtime` wraps, not a copy.
-  # Resetting repositories after that means the manual `judge!` below dispatches
-  # its own `Bluebook.Declare` into a clean store ; resetting before meant the
-  # two declarations collided, and the collision guard (added once creating a
-  # command twice was refused rather than silently overwritten) is what turned
-  # a harmless double-write into a real failure — this was always two
-  # declarations of the same record, just invisible until refusing the second
-  # one became the honest behaviour.
+  # Dispatches a real bluebook into the meta-domain and keeps the runtime.
+  # `pizzas` must load first: loading judges into the shared grammar_registry, and
+  # `fresh_runtime` then resets it so the manual `judge!` declares into a clean store.
   def held
     @held ||= begin
       pizzas
@@ -90,9 +64,6 @@ RSpec.describe "the language holds a bluebook, and gives it back" do
   end
 
   it "hands back the whole bluebook in one read" do
-    # The twelve DeclaredIn queries can walk the tree a level at a time, and a
-    # caller stitching twelve reads together is a caller reimplementing this. The
-    # language already knows how to say "gather these heads around that spine".
     rows = runtime.query("Bluebook.whole_bluebook", bluebook: "Pizzas")
     whole = rows.first
 
@@ -106,11 +77,8 @@ RSpec.describe "the language holds a bluebook, and gives it back" do
   end
 
   it "keeps declaration order when read a level at a time" do
-    # The IR is a contract field for field and index for index, so the order a
-    # bluebook declares its commands in is a fact about the source. `DeclaredIn`
-    # preserves it.
-    # "Pizzas:Order" — the Aggregate-within-Bluebook record's own derived id
-    # (bluebook:name.value), not the real "Pizzas::Order" Ruby constant path.
+    # "Pizzas:Order" is the record's derived id (bluebook:name.value), not the
+    # "Pizzas::Order" constant path.
     rows = runtime.query("Bluebook::Command.DeclaredIn", aggregate: { value: "Pizzas:Order" })
 
     expect(rows.map { |row| text(row[:name]) })
@@ -118,12 +86,8 @@ RSpec.describe "the language holds a bluebook, and gives it back" do
   end
 
   it "keeps the order that changes behaviour" do
-    # Not all order is equal, and only one kind has to survive a round trip.
-    #
-    # **Behaviour-bearing**: mutations are applied in sequence, so a sets reading a
-    # field an earlier one wrote depends on the order; a lifecycle takes the first
-    # transition that matches; a compensation credits the source before reversing
-    # the transfer. Reorder any of those and the domain does something else.
+    # Behaviour-bearing order must survive a round trip: mutations apply in sequence,
+    # a lifecycle takes the first matching transition, a compensation credits first.
     whole    = runtime.query("Bluebook.whole_bluebook", bluebook: "Pizzas").first
     purchase = whole[:commands].find { |c| text(c[:name]) == "Purchase" }
     source   = pizzas.aggregate("Order").command("Purchase")
@@ -134,16 +98,8 @@ RSpec.describe "the language holds a bluebook, and gives it back" do
   end
 
   it "normalises the order that does not" do
-    # **Presentation only**: which order an aggregate's commands happen to be listed
-    # in. Nothing looks a command up by position — find_command is by name — so
-    # ReadModelInterpreter#matching ending `.sort_by(&:id)` is not a loss, it is a
-    # canonical form. And it is the right call: no hand-written store can be
-    # trusted to iterate stably, so a read model returning store order would
-    # make its answers depend on storage accident rather than declaration.
-    #
-    # Which means the byte-for-byte proof compares with the head lists sorted on
-    # both sides. That is not a weakening of the claim — it is the claim stated on
-    # the axis the machine actually reads.
+    # Command listing order is presentation only (lookup is by name), and stores do
+    # not iterate stably, so head lists are compared sorted.
     whole    = runtime.query("Bluebook.whole_bluebook", bluebook: "Pizzas").first
     declared = pizzas.aggregate("Order").commands.map(&:hecks_name)
 
@@ -151,11 +107,6 @@ RSpec.describe "the language holds a bluebook, and gives it back" do
   end
 
   it "names a gathered collection the way English does" do
-    # These four came back as `querys`, `entitys`, `policys` and `dispatchs`,
-    # because the name was derived with snake(target) + "s" — and every
-    # cross-check was green, consistently wrong being indistinguishable from
-    # right. The pluraliser now lives in one place, carrying the
-    # three real rules.
     expect(Hecks::Naming.plural("query")).to eq("queries")
     expect(Hecks::Naming.plural("entity")).to eq("entities")
     expect(Hecks::Naming.plural("policy")).to eq("policies")
@@ -180,7 +131,7 @@ RSpec.describe "the language holds a bluebook, and gives it back" do
     end
   end
 
-  # `banking` referenced first — same reason as `held`'s own comment above.
+  # `banking` loads first, for the same reason as in `held`.
   def held_account_attributes
     @held_account_attributes ||= begin
       banking
@@ -204,13 +155,8 @@ RSpec.describe "the language holds a bluebook, and gives it back" do
   end
 
   it "holds an attribute as the ID of whatever its type names" do
-    # All three kinds resolve as references, so "the type is declared" costs no
-    # predicate at all — the rule is a consequence of the model, which is the trick
-    # the language already used for value objects and now uses for all of them.
-    # One separator now, everywhere a head's id is stored — the internal
-    # identity join, not the real Ruby "::" constant path (that spelling
-    # survives only in the wire format, "Reference<Customer>", produced on the
-    # way back out ; see the next test).
+    # Ids join with ":", not the "::" constant path; "::" survives only in the wire
+    # format ("Reference<Customer>"), produced on the way out (see the next test).
     held = held_account_attributes
 
     expect(held["number"]).to eq("Banking:Account:AccountNumber") # a value object
@@ -219,9 +165,7 @@ RSpec.describe "the language holds a bluebook, and gives it back" do
   end
 
   it "re-encodes a reference into the type the IR spells" do
-    # `Reference<Customer>` is an encoding. The meta-domain holds the head, and the
-    # spelling is derived on the way out — in Readings, the one place that knows the
-    # IR's shape differs from the language's.
+    # The meta-domain holds the head; Readings derives the `Reference<Customer>` spelling.
     reader = Object.new.extend(Hecks::Bluebook::MetaValidator::Readings)
 
     expect(reader.reference_type("Banking::Customer")).to eq("Reference<Customer>")
@@ -230,10 +174,8 @@ RSpec.describe "the language holds a bluebook, and gives it back" do
   end
 
   it "reads through the aggregate's own query, not a repository" do
-    # Persistence is an adapter below the aggregate. If the way back reached into
-    # a repository it would bypass the rules, the authorisation and the shape that
-    # every writer goes through — and the read side would drift from the write
-    # side exactly as independently hand-kept tables always do.
+    # Reading a repository directly would bypass the rules and authorisation every
+    # writer goes through.
     expect(Hecks::Bluebook::MetaValidator.grammar_registry
              .bluebook("Bluebook").aggregates
              .flat_map { |a| a.queries.map { |q| "#{a.name}.#{q.name}" } })

@@ -3,31 +3,13 @@ require "hecks/ports/persistence/plugins/era"
 require_relative "../../../support/postgres_probe"
 require_relative "../../../support/fenced_owner"
 
-# examples/directory is the corpus's own real `rekey` (and `compute`)
-# example — the exact `identified_by :name` -> `identified_by :email`
-# story docs/implemented/guides/schema-evolution.md's rekey section
-# already describes, landed for real instead of only in a spec fixture
-# (lineage_spec.rb's own Roster/Person test proves the mechanism works,
-# but invents both eras and the edge inline — none of it lives in
-# examples/, so word_coverage_spec.rb's own corpus scan has never once
-# seen a real `rekey` declaration). This spec loads era 2's bluebook
-# and the translation edge straight off disk — the same files a real
-# checkout ships — and mints them against a real Postgres, seeded with
-# several distinct historical records, not one hand-picked name: a
-# `backfill` default could only ever be right for at most one of them,
-# which is exactly why the committed edge uses `compute` instead (see
-# the edge file's own comment). Runs only when a Postgres server is
-# reachable — the shared probe in support/postgres_probe.rb, like every
-# other Postgres spec here.
+# Mints examples/directory's committed rekey edge against a real Postgres, seeded with
+# several distinct records (a `backfill` default could fit at most one, hence `compute`).
 RSpec.describe "the Directory example's real rekey edge (examples/directory)", :io do
   DIRECTORY_DB = "hecks_directory_rekey_spec".freeze
   DOMAIN_ROOT = File.expand_path("../../../../examples/directory", __dir__).freeze
 
-  # Era 1, held the first time this domain ever booted against a real
-  # Postgres — never committed (data/eras/ is gitignored, same as
-  # pizzas' own era 1). Kept here, inline, as the historical record it
-  # actually is; directory.bluebook and its translation edge below are
-  # read from the real committed files, not reinvented for this spec.
+  # Era 1 is never committed (data/eras/ is gitignored), so it lives inline here.
   ERA_1_SOURCE = <<~BLUEBOOK.freeze
     Hecks.bluebook "Directory" do
       aggregate "Member" do
@@ -55,9 +37,7 @@ RSpec.describe "the Directory example's real rekey edge (examples/directory)", :
     admin.exec("DROP DATABASE IF EXISTS #{DIRECTORY_DB} WITH (FORCE)")
     admin.exec("CREATE DATABASE #{DIRECTORY_DB}")
     admin.close
-    # every check! below connects as a non-superuser owner — the ambient
-    # dev/CI user is a superuser, which PostgresEra refuses to boot as
-    # (BUG#24; see support/fenced_owner.rb)
+    # PostgresEra refuses to boot as a superuser; see support/fenced_owner.rb
     FencedOwner.own!(DIRECTORY_DB)
   end
 
@@ -97,12 +77,8 @@ RSpec.describe "the Directory example's real rekey edge (examples/directory)", :
     Hecks::Adapters::PostgresEra.new(aggregate: member, settings: { database: DIRECTORY_DB, domain: "Directory" })
   end
 
-  # One end-to-end scenario: seed several distinct historical records,
-  # prove the mint refuses the rekey without a human approval, approve
-  # it, mint, then check every record resolved under its new identity
-  # and the raw journal stayed untouched. Splitting would either re-pay
-  # the real-Postgres seed/mint setup or separate the approval gate
-  # from the multi-row proof it exists to establish.
+  # One scenario: splitting would re-pay the real-Postgres seed/mint setup or
+  # separate the approval gate from the multi-row proof.
   # rubocop:disable-next RSpec/ExampleLength
   it "mints the committed edge — a real compute+rekey pair, agreeing on more than one row" do
     registry = check!(ERA_1_SOURCE)
@@ -120,9 +96,7 @@ RSpec.describe "the Directory example's real rekey edge (examples/directory)", :
                    ))
     end
 
-    # a rekey (like compute) is exempt from every per-record mechanical
-    # check but one — Layer 3's human-approved sample is the only other
-    # verification, so the mint refuses non-interactively without it
+    # a rekey is exempt from per-record checks, so the mint refuses without human approval
     expect { check!(ERA_2_SOURCE, translation_source: EDGE_SOURCE) }.to raise_error(
       Hecks::Runtime::WiringError, /this edge carries a compute or rekey rule/
     )
@@ -151,8 +125,7 @@ RSpec.describe "the Directory example's real rekey edge (examples/directory)", :
       expect(head.find(original_name)).to be_nil
     end
 
-    # the raw journal never rewrites — every row is still keyed by the
-    # name it was actually saved under
+    # the raw journal is never rewritten
     db = PG.connect(dbname: DIRECTORY_DB)
     raw = db.exec("SELECT aggregate_id FROM hecks_journal_directory ORDER BY aggregate_id").map { |r| r["aggregate_id"] }
     db.close

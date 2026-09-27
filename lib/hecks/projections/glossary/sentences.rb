@@ -5,22 +5,9 @@ require_relative "sensitivity"
 module Hecks
   module Projections
     module Glossary
-      # Every sentence the glossary says, and the rule each one obeys.
-      #
-      # Authored text is verbatim: an aggregate's `description`, a
-      # command's `goal`, a query's `description`, an invariant's own
-      # words. Derived text is mechanical, from one declared fact, in a
-      # shape a reader outside engineering would say — "Recorded after
-      # Freeze account", "Made up of an amount (a whole number) and a
-      # currency (text)". Nothing is paraphrased and nothing is guessed:
-      # a fact with no honest plain phrasing gets no sentence (the
-      # `DocsProjector` rule — a wrong sentence is worse than none).
-      #
-      # Cross-references come only from declared structure (a command's
-      # `emits:`, a policy's `on`/`trigger`), resolved through the
-      # document's `Index`; free prose is never searched for words to
-      # link. A reference the chapter does not declare (a cross-domain
-      # command) is spoken as plain words.
+      # Every sentence the glossary says. Authored text is verbatim; derived text is built
+      # mechanically from one declared fact, and a fact with no plain phrasing gets none.
+      # Links come only from declared structure, never from searching prose.
       module Sentences
         TYPE_WORDS = {
           "Integer" => "a whole number", "Float" => "a number", "String" => "text",
@@ -29,13 +16,6 @@ module Hecks
 
         module_function
 
-        # The paragraphs under a term's headword — the definition first,
-        # then, when the term carries rules, one "Always true: …" line.
-        #
-        # @param entry [Glossary::Entry] the term to render
-        # @param index [Glossary::Index] the document's link index
-        # @return [Array<String>] one or more paragraphs, compacted of any that
-        #   have nothing to say (such as an entity with no lifecycle)
         def paragraphs(entry, index)
           facts = entry.facts
           case entry.kind
@@ -51,56 +31,24 @@ module Hecks
           end.compact
         end
 
-        # An aggregate's lede or an entity's entry: what it is, then the
-        # states it can be in.
-        #
-        # @param holder [Bluebook::Aggregate, Bluebook::Entity] the holder to describe
-        # @return [Array<String>] `holder`'s description, then its lifecycle sentence;
-        #   either or both may be absent
         def holder_paragraphs(holder)
           [holder.description, holder.lifecycle && lifecycle_sentence(holder.lifecycle)].compact
         end
 
-        # Describes a lifecycle's starting state and every state it can reach.
-        #
-        # @param lifecycle [Bluebook::Lifecycle] the state machine to describe
-        # @return [String] what state it starts in and every state it can reach
         def lifecycle_sentence(lifecycle)
           states = ([lifecycle.default] + lifecycle.transitions.map { |_name, transition| transition.target }).uniq
           "Starts out #{spoken(lifecycle.default)}. " \
             "Can be #{Naming.to_sentence_list(states.map { |state| spoken(state) }, conj: 'or')}."
         end
 
-        # A state name is spelled `awaiting_credit`; said, it is "awaiting credit".
-        #
-        # @param state [String, Symbol] a state name
-        # @return [String] `state` with underscores turned to spaces
         def spoken(state) = state.to_s.tr("_", " ")
 
-        # Renders a value object's definition, and its rules if it has any.
-        #
-        # @param value_object [Bluebook::ValueObject] the value object to describe
-        # @param index [Glossary::Index] the document's link index
-        # @param within [String, nil] the value object's own holder's name, for
-        #   resolving a nested value object's own type link
-        # @param sensitive [Hash{String => Hash{Symbol => String}}] each marked field's
-        #   name, mapped to its marking (as `Sensitivity.for_value_object` builds)
-        # @return [Array<String>] the value object's definition sentence, then its
-        #   "Always true: …" rules line; the rules line is absent when it has none
         def value_object_paragraphs(value_object, index, within, sensitive = {})
           rules = value_object.invariants.map { |invariant| Statements.invariant_statement(invariant) }
           [value_object_sentence(value_object, index, within, sensitive), rules_line(rules)].compact
         end
 
-        # A one-field object whose field is just "value" is its type —
-        # "Text.", "A whole number." — the field name would add nothing.
-        #
-        # @param value_object [Bluebook::ValueObject] the value object to describe
-        # @param index [Glossary::Index] the document's link index
-        # @param within [String, nil] the value object's own holder's name
-        # @param sensitive [Hash{String => Hash{Symbol => String}}] each marked field's
-        #   name, mapped to its marking
-        # @return [String] the value object's definition sentence
+        # A one-field object whose field is just "value" reads as its type ("Text.").
         def value_object_sentence(value_object, index, within, sensitive = {})
           return closed_set_sentence(value_object.members) if value_object.closed_set?
           return "A marker with no details of its own." if value_object.attributes.empty?
@@ -114,41 +62,20 @@ module Hecks
           "Made up of #{Naming.to_sentence_list(fields)}."
         end
 
-        # "amount (a whole number)" — the field as the author named it,
-        # then what kind of thing goes in it, then the tag of any marking
-        # that flags it sensitive: "medications (text, PHI)".
-        #
-        # @param field [Bluebook::Attribute] the field to describe
-        # @param index [Glossary::Index] the document's link index
-        # @param within [String, nil] the field's own holder's name
-        # @param marking [Hash{Symbol => String}, nil] the marking that flags `field`
-        #   sensitive, if any
-        # @return [String] the field's name, spoken, with its type (and tag) in parentheses
+        # "amount (a whole number)", or "medications (text, PHI)" when marked sensitive.
         def field_phrase(field, index, within, marking = nil)
           detail = [type_words(field, index, within), (Sensitivity.tag(marking) if marking)].compact.join(", ")
           "#{Naming.words(field.name).downcase} (#{detail})"
         end
 
-        # Describes one field's type in plain words.
-        #
-        # @param field [Bluebook::Attribute] the field to describe
-        # @param index [Glossary::Index] the document's link index
-        # @param within [String, nil] the field's own holder's name
-        # @return [String] the field's type in plain words, or a link to its value
-        #   object's own headword; "a list of …" when the field is a list
         def type_words(field, index, within)
           type  = field.type.to_s
           inner = TYPE_WORDS[type] || index.link(:value_object, type, within: within)
           field.list? ? "a list of #{inner}" : inner
         end
 
-        # A closed set's rows — a one-field set is its values; a set
-        # whose rows carry more (StatementFrequency's cadence plus a
-        # retention and a fee) leads with the first field and keeps the
-        # rest beside it, so no row loses what makes it distinct.
-        #
-        # @param members [Array<Hash{Symbol => Object}>] the closed set's member rows
-        # @return [String] "One of: …" (multi-field rows) or "One of …" (single-field)
+        # A multi-field row leads with its first field and keeps the rest beside it,
+        # so no row loses what makes it distinct.
         def closed_set_sentence(members)
           if members.first && members.first.size > 1
             rows = members.map do |row|
@@ -161,14 +88,7 @@ module Hecks
           end
         end
 
-        # "Always true: an amount is positive; a currency is a three-letter
-        # code." — the rules as their author wrote them, kept out of the
-        # definition sentence (a rule hidden inside a definition is a rule
-        # a reader misses).
-        #
-        # @param rules [Array<String>] rendered invariant sentences
-        # @return [String, nil] "Always true: …" joining every rule, or nil if
-        #   `rules` is empty
+        # Kept apart from the definition sentence, where a reader would miss a rule.
         def rules_line(rules)
           return nil if rules.empty?
 
@@ -176,11 +96,6 @@ module Hecks
           "Always true: #{clauses.join('; ')}."
         end
 
-        # Describes a command's goal and who does it.
-        #
-        # @param command [Bluebook::Command] the command to describe
-        # @return [String, nil] the command's goal and/or its role sentence, or nil
-        #   if it declares neither
         def command_sentence(command)
           parts = []
           parts << with_period(command.goal) if command.goal
@@ -188,14 +103,6 @@ module Hecks
           parts.empty? ? nil : parts.join(" ")
         end
 
-        # Describes when an event is recorded and what it prompts.
-        #
-        # @param facts [Hash{Symbol => Object}] an `:event`-kind entry's facts:
-        #   `:raised_by` (`Array<Array(Bluebook::Aggregate, Bluebook::Command)>`) and
-        #   `:policies` (`Array<Bluebook::Policy>`)
-        # @param index [Glossary::Index] the document's link index
-        # @return [String] which commands record the event, and, when any policy
-        #   reacts to it, which ones it prompts
         def event_sentence(facts, index)
           raisers = command_links(facts[:raised_by], index)
           sentence = "Recorded after #{Naming.to_sentence_list(raisers, conj: 'or')}."
@@ -204,14 +111,8 @@ module Hecks
           sentence
         end
 
-        # "When Customer suspended happens, Account is asked to Freeze
-        # account, once for each row of Open for customer." — a
-        # cross-domain trigger (`across "Compliance"`) is spoken as words
-        # with the domain named, since nothing here to link to exists.
-        #
-        # @param policy [Bluebook::Policy] the policy to describe
-        # @param index [Glossary::Index] the document's link index
-        # @return [String] when the policy fires and what it asks for
+        # A cross-domain trigger (`across "Compliance"`) is spoken as words with the
+        # domain named, since there is nothing here to link to.
         def policy_sentence(policy, index)
           holder, command = split_trigger(policy.trigger_command)
           asked = if policy.target_domain
@@ -228,13 +129,6 @@ module Hecks
           "#{sentence}."
         end
 
-        # Describes when a saga begins and ends, and its states along the way.
-        #
-        # @param shape [Hash{Symbol => Object}] a process manager's `to_h`, read for
-        #   `:starts_on`, `:ends_on`, and `:states`
-        # @param index [Glossary::Index] the document's link index
-        # @return [String] when the saga begins and ends, and, when it declares any,
-        #   the states it can be in along the way
         def saga_sentence(shape, index)
           sentence = "Begins when #{index.link(:event, bare(shape[:starts_on]))} happens " \
                      "and ends when #{index.link(:event, bare(shape[:ends_on]))} happens."
@@ -243,29 +137,14 @@ module Hecks
           sentence
         end
 
-        # A noun list, deliberately — "Responsible for Credit and Debit",
-        # never "Can credit and debit": banking's System role raises
-        # `Debited` and `Credited`, and "can … debited" is a wrong
-        # sentence. The headwords are already what people say.
-        #
-        # @param issues [Array<Array(Bluebook::Aggregate, Bluebook::Command)>] the
-        #   role's own `[holder, command]` pairs
-        # @param index [Glossary::Index] the document's link index
-        # @return [String] "Responsible for …", naming every command
+        # A noun list, not "Can credit and debit": a role that raises `Debited` would
+        # read "can … debited", which is wrong.
         def role_sentence(issues, index)
           "Responsible for #{Naming.to_sentence_list(command_links(issues, index))}."
         end
 
-        # The same word for two different things gets its holder beside it
-        # — a role responsible for CardPayment's Reverse and Transfer's
-        # Reverse is responsible for "Reverse (card payment)" and
-        # "Reverse (transfer)", not for "Reverse" twice.
-        #
-        # @param issues [Array<Array(Bluebook::Aggregate, Bluebook::Command)>] each
-        #   `[holder, command]` pair to link
-        # @param index [Glossary::Index] the document's link index
-        # @return [Array<String>] one Markdown link per distinct `[holder, command]`
-        #   pair, qualified with the holder's name when the command name repeats
+        # A command name shared by two holders gets its holder beside it:
+        # "Reverse (card payment)" and "Reverse (transfer)", not "Reverse" twice.
         def command_links(issues, index)
           issues = issues.uniq { |holder, command| [holder.hecks_name, command.hecks_name] }
           repeated = issues.map { |_holder, command| command.hecks_name }.tally.select { |_name, count| count > 1 }
@@ -277,41 +156,17 @@ module Hecks
           end
         end
 
-        # ── small carpentry ─────────────────────────────────────────────
-
-        # Splits a dotted `Holder.command` trigger into its two parts.
-        #
-        # @param dotted [String, Symbol] a `"Holder.command"` reference
-        # @return [Array(String, String)] `[holder, command]`
         def split_trigger(dotted)
           holder, _dot, command = dotted.to_s.rpartition(".")
           [holder, command]
         end
 
-        # Strips a dotted name down to its last segment.
-        #
-        # @param qualified [String, Symbol] a dotted or bare name, such as
-        #   `"Handler.Dispatch"` or `"Freeze"`
-        # @return [String] the name after the last `.`, or the whole name if it has none
         def bare(qualified) = qualified.to_s.split(".").last
 
-        # Ensures text ends in sentence-ending punctuation.
-        #
-        # @param text [String, Symbol, nil] the text to punctuate
-        # @return [String] `text`, stripped, with a trailing `.` added if it has no
-        #   sentence-ending punctuation already
         def with_period(text) = text.to_s.strip.end_with?(".", "!", "?") ? text.to_s.strip : "#{text.to_s.strip}."
 
-        # Lowercases a leading capital letter.
-        #
-        # @param text [String] the text to adjust
-        # @return [String] `text` with a leading uppercase letter lowercased
         def lower_first(text) = text.sub(/\A[[:upper:]]/, &:downcase)
 
-        # Uppercases a leading lowercase letter.
-        #
-        # @param text [String] the text to adjust
-        # @return [String] `text` with a leading lowercase letter uppercased
         def upper_first(text) = text.sub(/\A[[:lower:]]/, &:upcase)
       end
     end

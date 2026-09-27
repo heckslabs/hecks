@@ -5,18 +5,10 @@ require_relative "git"
 module Hecks
   module Release
     class Runner
-      # The checks that run before a release does anything: the tools are
-      # installed, the checkout is a clean, current `main`, the gem and the
-      # JavaScript client agree on a version, and the changelog names it.
-      #
-      # Every refusal says what to do about it.
+      # The checks that run before a release does anything: tools installed, a
+      # clean current `main`, matching versions, and a changelog entry.
       class Preflight
-        # What the checks learned about the release.
-        #
-        # @!attribute [r] version
-        #   @return [String] the version `lib/hecks/version.rb` declares
-        # @!attribute [r] sha
-        #   @return [String] the commit `HEAD` points at, which is also `origin/main`
+        # What the checks learned; `sha` is also `origin/main`, enforced by check_current.
         Facts = Struct.new(:version, :sha, keyword_init: true)
 
         INSTALL_HINTS = {
@@ -29,10 +21,6 @@ module Hecks
         VERSION_LINE = /^\s*VERSION\s*=\s*"(?<version>[^"]+)"/
         CLIENT_PACKAGE = "packages/hecks-client/package.json".freeze
 
-        # @param root [String] the repository root
-        # @param commands [#capture] runs the tool probes
-        # @param git [Git] the repository the release is cut from
-        # @param tools [Array<String>] the executables the release needs on PATH
         def initialize(root:, commands:, git:, tools:)
           @root = root
           @commands = commands
@@ -40,10 +28,7 @@ module Hecks
           @tools = tools
         end
 
-        # Runs every check.
-        #
-        # @return [Facts] the version and commit the release is cut from
-        # @raise [Refusal] on the first check that fails, naming the fix
+        # Runs every check; the first refusal stops it.
         def check!
           check_tools
           check_branch

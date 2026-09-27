@@ -1,9 +1,4 @@
-# THE LIVE WIRING — Memory-backed, on purpose: this domain exists to be
-# fuzzed (bin/fuzz, bin/qa_sweep), not to persist anything real between
-# runs, matching every OTHER stress domain and every command declaring
-# `role` (Governance needs attaching for the role check to mean anything,
-# the same sibling shape pizzas.hecksagon/banking.hecksagon and
-# spec/ledger_ordering_spec.rb's own inline hecksagon all use).
+# Memory-backed: fuzzed, not persisted; Governance is attached so `role` checks apply.
 Hecks.hecksagon "NestedPieces" do
   uses_framework "Governance"
 

@@ -1,28 +1,10 @@
-// Implements the Ruby grammar's "comparison" expression-operator category
-// (projection.json: `>=`, `<=`, `<`, `>`, `==`, `!=` — six symbols) —
-// `Evaluator::Operator`/`Evaluator.apply`/`.less_than`/`.equal?`
-// (evaluator.rb), read directly: six comparison symbols reduced to two
-// primitives (`less_than`, `equal`) OR'd together, negated per operator,
-// rather than one code path per symbol. `Comparison` is that primitive
-// pair plus the negation flag — the exact structural mirror of Ruby's
-// `Operator` struct, minus the `symbol` field itself (nothing here ever
-// needs to print which of the six symbols produced a given `Comparison`,
-// only what it computes).
-//
-// `sign_test.rs` reuses `apply`/`Comparison` from here rather than
-// re-deriving the same primitives a second time — the identical reuse
-// `Resolver.sign_test_node`'s own `Evaluator::OPERATORS.find` performs on
-// the Ruby side (a sign test is sugar for comparing against literal 0
-// through this same algebra, not a separate one).
-//
-// `expr.rs`'s `category_of` guarantees `interpret` below is only ever
-// called with `Compare` — see `logical.rs`'s header for why the trailing
-// arm is a router-bug guard, not a real refusal path.
+//! `>=`, `<=`, `<`, `>`, `==`, `!=` (`Evaluator.apply`), reduced to two primitives plus negation.
 
 use crate::kernel::attribute_shapes::scalar;
 use crate::kernel::expr::{eval_error, interpret as eval, EvalContext, Expr, Value};
 use crate::kernel::Refusal;
 
+/// The comparison algebra: `less_than` and `equal` OR'd together, negated when `negated`.
 #[derive(Debug, Clone, Copy)]
 pub struct Comparison {
     pub less_than: bool,
@@ -40,11 +22,7 @@ pub fn interpret(expr: &Expr, ctx: &EvalContext) -> Result<Value, Refusal> {
     Ok(Value::Bool(apply(op, &l, &r)?))
 }
 
-/// The algebra itself, on values already resolved — mirrors
-/// `Evaluator.apply` exactly: or the two primitives together, negate if
-/// the operator says to. Public so `sign_test.rs` can apply the same
-/// primitives against the literal 0 rather than re-deriving
-/// positive?/negative?/zero? by hand a second time.
+/// Applies `op` to resolved values; `sign_test.rs` reuses it against the literal 0.
 pub fn apply(op: &Comparison, lhs: &Value, rhs: &Value) -> Result<bool, Refusal> {
     let lt = op.less_than && less_than(lhs, rhs)?;
     let eq = op.equal && values_equal(lhs, rhs);
@@ -61,10 +39,7 @@ fn less_than(lhs: &Value, rhs: &Value) -> Result<bool, Refusal> {
     }
 }
 
-/// `pub(crate)`, not private — `membership.rs`'s own `Value::Array`
-/// haystack arm reuses this same numeric-coerced equality (`Evaluator#
-/// includes?`'s own `Array` branch: `found.any? { |item| equal?(item,
-/// wanted) }`) rather than re-deriving it a second time.
+/// `pub(crate)` so `membership.rs` reuses the numeric-coerced equality for array haystacks.
 pub(crate) fn values_equal(lhs: &Value, rhs: &Value) -> bool {
     match (scalar::numeric(lhs), scalar::numeric(rhs)) {
         (Some(l), Some(r)) => l == r,

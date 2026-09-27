@@ -2,26 +2,12 @@ require "spec_helper"
 require "stringio"
 
 # A construct is a record with an owner chain, and what points at one is an edge.
-#
-# The chain is IR objects end to end : the chapter (Bluebook) owns its
-# aggregates, an aggregate owns its commands, value objects, entities and asks,
-# and `hecks_fqn` is computed by walking owners — the same spelling
-# `MetaValidator::Judge#identify` mints, so a construct and the language's
-# record of that construct need no translation between them.
-#
-# `reference_to Customer` is an `Reference`, which resolves to the target's
-# Aggregate through the chapter's own declared heads — scoped by
-# construction, lazy on purpose (the target may be declared lower in the file).
-#
-# Three aggregates in banking each declare their own `Narrative`; the owner
-# chain is what keeps them three distinguishable facts.
+# `hecks_fqn` is computed by walking owners, the spelling `MetaValidator::Judge#identify` mints.
 RSpec.describe "a construct's identity" do
   CONSTRUCT_PIZZAS  = InMemoryDomain::PIZZAS_BLUEBOOK
   CONSTRUCT_BANKING = InMemoryDomain::BANKING_BLUEBOOK_DIR
 
-  # The house pattern — load into a fresh registry against the Memory adapter, so
-  # no example touches a data directory. `Hecks.boot` on a real example domain
-  # would bind Heki and write to disk.
+  # Loads into a fresh registry on the Memory adapter so no example touches a data directory.
   def boot(bluebook)
     registry = Hecks::Runtime::Registry.new
 
@@ -37,12 +23,7 @@ RSpec.describe "a construct's identity" do
     end
   end
 
-  # Booted once per file, not per example — every `it` below only reads the
-  # IR back out (see the file's header: the one real `.dispatch` in this
-  # file always raises `NotFound` before anything persists), so nothing an
-  # earlier example does can leak into a later one. `before(:context)`'s
-  # ivars are copied onto every example instance, so `pizzas`/`banking`
-  # still read as a plain per-example accessor below.
+  # Booted once per file: every `it` only reads the IR back, so no example can leak into another.
   before(:context) do
     @pizzas  = boot(CONSTRUCT_PIZZAS)
     @banking = boot(CONSTRUCT_BANKING)
@@ -64,10 +45,8 @@ RSpec.describe "a construct's identity" do
     end
 
     it "spells a value object the way the meta-domain already ids one" do
-      # `MetaValidator::Judge#identify` mints "#{parent_id}.#{name}" for every
-      # category below an aggregate. Same string, reached by walking the IR's
-      # own owners — so a construct and the language's record of that construct
-      # need no translation between them.
+      # `MetaValidator::Judge#identify` mints "#{parent_id}.#{name}" for every category below an
+      # aggregate; walking the owner chain must spell the same string.
       expect(pizza.value_object("Price").hecks_fqn).to eq("Pizzas::Order.Price")
     end
 
@@ -102,29 +81,13 @@ RSpec.describe "a construct's identity" do
       end
     end
 
-    # **The gate that was missing**. `resolve_references` skips a nil target — a
-    # cross-domain reference may legitimately not be loaded — so a `resolve` that
-    # answered nil for everything would leave the whole suite green while the one
-    # guarantee an aggregate reference is for quietly stopped holding. Which is
-    # precisely how it came to be declared fourteen times and enforced nowhere.
+    # `resolve_references` skips a nil target (a cross-domain one may be unloaded), so a
+    # `resolve` that answered nil for everything would leave the suite green.
     it "resolves every reference in banking to a head in its own chapter" do
       found = references_in(banking, "Banking")
 
-      # Now 22, not 21 — Wave 7's reference-decluttering targeted every
-      # creating command that redundantly spelled `reference_to <target>`
-      # itself, but `SafeDepositBox.Rent` had a different bug the same
-      # sweep didn't catch: it redeclared `attribute :customer,
-      # CustomerNumber` — Customer's own identity value object, not a
-      # reference — which shadowed the aggregate's own `belongs_to
-      # Customer` (a real `Reference`) with an incompatible type. Not a
-      # redundant declaration, a wrong one: `references_in` counts the
-      # compiled shape, and `Rent`'s own `customer` attribute never
-      # compiled to a reference at all, so it was silently absent from
-      # this count — harmless until a `given("customer is active")` guard
-      # (issue #278) tried to dereference it and was refused for every
-      # customer, active or not. Fixed the same way Wave 7 fixed the
-      # other nine: removed the redundant/wrong attribute redeclaration,
-      # letting `sets :customer` import the aggregate's own Reference-
+      # 22 compiled references; SafeDepositBox.Rent's `customer` counts only because
+      # `sets :customer` imports the aggregate's own Reference-
       # typed attribute instead of shadowing it. `21 + 1 = 22`.
       expect(found.size).to eq(22)
       found.each do |owner, attribute|
@@ -139,9 +102,6 @@ RSpec.describe "a construct's identity" do
 
     it "still refuses a reference that points at nothing" do
       expect do
-        # `number:` was written twice — the first a copy of the customer id — and
-        # Ruby warned on every run while silently keeping the second. What this
-        # test is about is the customer pointing at nothing, not the number.
         banking.dispatch_flat("Banking::Account.Open", customer:    "nobody-registered-this",
                                                        number:      { value: "ACC-1" },
                                                        kind:        { name: "current" },
@@ -186,15 +146,8 @@ RSpec.describe "a construct's identity" do
       expect(add_topping.to_h[:name]).to eq("AddTopping")
     end
 
-    # Why commands are not nested as constants, pinned so it is not "tidied up".
-    #
-    # A command and a value object may share a name inside one aggregate, and the
-    # language does it six times on purpose: the command `Argument` is the verb
-    # that appends to the `arguments` list whose element type is the value object
-    # `Argument`, and `Plan` reads exactly that pairing to build the walk. So
-    # `Bluebook::Command::Argument` cannot be both, and `hecks_fqn` is not unique
-    # either — identity is (kind, FQN). The judge's ids collide the same way and
-    # get away with it because each category has its own repository.
+    # Commands are not nested as constants: a command and a value object may share a name inside
+    # one aggregate (the language does it six times), so identity is (kind, FQN).
     it "shares its name with a value object, which is why it is not a constant" do
       meta     = Hecks::Bluebook::MetaValidator.grammar_registry.bluebook("Bluebook")
       command  = meta.aggregate("Command")
@@ -203,17 +156,14 @@ RSpec.describe "a construct's identity" do
 
       expect(verb).not_to be(shape)
       expect(verb.hecks_name).to eq(shape.hecks_name)
-      # The same identity string for two different constructs — so the constant
-      # tree cannot be the index for a kind-ambiguous name.
+      # The same identity string for two constructs: the constant tree cannot index it.
       expect(shape.hecks_fqn).to eq("Bluebook::Command.Argument")
       expect(command.value_object("Argument")).to be(shape)
     end
 
     it "refuses to state an identity it was never given" do
-      # Nothing in the corpus is in this state any more — the owner chain reaches
-      # every command. But a construct built by hand, or one a future builder
-      # forgets to stamp, must go red rather than answer a bare name that looks
-      # right.
+      # A construct built by hand, or one a builder forgets to stamp, must go red rather than
+      # answer a bare name.
       orphan = Hecks::Bluebook::Command.declare(name: "Unstamped")
 
       expect(orphan.hecks_owner).to be_nil
@@ -231,9 +181,7 @@ RSpec.describe "a construct's identity" do
     end
 
     it "answers hecks_name from every construct, crossed over or not" do
-      # The universal question. If one of these stops answering, the consumers that
-      # cannot tell a class from an IR object — `Instance.new(aggregate: entity)`,
-      # `CommandRules#admissible_transition(declaring, …)` — start reading nil.
+      # If one stops answering, consumers that cannot tell a class from an IR object read nil.
       bank    = banking.registry.bluebook("Banking")
       account = bank.aggregate("Account")
 
@@ -246,13 +194,8 @@ RSpec.describe "a construct's identity" do
       end
     end
 
-    # Why `Registry` keeps a chapter table, pinned so it is not "optimised" away.
-    #
-    # The door installs at top level, where the names are not ours — so
-    # `Namespace.install` warns and keeps the existing constant, and the
-    # chapter's door is never reachable that way. The registry's own table is
-    # the index the runtime trusts ; a domain is entered by name exactly once,
-    # and everything below it is traversal through the IR.
+    # The registry keeps a chapter table because the top-level door cannot install over names
+    # Ruby already owns: `Namespace.install` warns and keeps the existing constant.
     it "cannot be indexed by Ruby's constants, because top-level names are not ours" do
       registry = Hecks::Runtime::Registry.new
 
@@ -271,8 +214,7 @@ RSpec.describe "a construct's identity" do
             end
           end
         end
-        # Installation happens at bind, not at load — the door is a per-boot
-        # projection, and this is the moment it meets Ruby's own `Set`.
+        # Installation happens at bind, not at load.
         Hecks::Runtime::Loader.bind_runtime(Hecks::Runtime::Dispatcher.new(registry))
       end.to output(/Set is already defined — leaving it alone/).to_stderr
 
@@ -298,21 +240,21 @@ RSpec.describe "a construct's identity" do
       # them would name the wrong owner.
       expect(bank.read_models.map(&:hecks_fqn)).to eq(
         ["Banking.CustomerPortfolio", "Banking.ComplianceDashboard", "Banking.DisputedPaymentCount",
-         "Banking.DisputedPaymentMedian", "Banking.AccountsByKind"]
+         "Banking.DisputedPaymentMedian", "Banking.DisputedPaymentTotal", "Banking.DisputedPaymentAverage",
+         "Banking.DisputedPaymentSmallest", "Banking.DisputedPaymentLargest", "Banking.DisputedPaymentP95",
+         "Banking.AccountsByKind"]
       )
     end
 
     it "keeps the name it always had, because only a class had a rival answer" do
-      # `Class#name` is what forced a second word for a construct's own name. An
-      # instance has no such conflict, so a query answers both, identically.
+      # `Class#name` forced a second word for a construct's name; an instance answers both.
       ask = bank.aggregate("Account").queries.first
 
       expect(ask.name).to eq(ask.hecks_name)
     end
 
     it "keeps every option its specification superclass carries" do
-      # This is why an ask is not hoisted onto a metaclass: its whole body is
-      # inherited instance methods that the runtime and the SQLite adapter read.
+      # An ask's body is inherited instance methods that the runtime and SQLite adapter read.
       ask = bank.aggregate("Account").query("Overdrawn")
 
       %i[wheres order_by limit offset cursor
@@ -322,9 +264,8 @@ RSpec.describe "a construct's identity" do
     end
 
     it "collides with a command of the same name, in a real domain this time" do
-      # The kind-ambiguity finding is not a quirk of the language describing
-      # itself: banking declares both a command and a query called Open on
-      # Account, so "Banking::Account.Open" names two constructs here too.
+      # banking declares both a command and a query called Open on Account, so the kind
+      # ambiguity is not a quirk of the language describing itself.
       account = bank.aggregate("Account")
 
       expect(account.command("Open").hecks_fqn).to eq("Banking::Account.Open")
@@ -345,11 +286,8 @@ RSpec.describe "a construct's identity" do
     end
 
     it "has its verbs act on the PIECE, not on nothing" do
-      # An element is addressed through its parent, so an entity's command never
-      # self-references and `creates?` answers true for all of them. Reading
-      # `acts_on` off that alone would claim `Amend` brings a ledger entry into
-      # being — three of banking's commands, saying so with nothing to contradict
-      # them.
+      # An element is addressed through its parent, so an entity's command never self-references
+      # and `creates?` is true; `acts_on` must still name the piece.
       amend = ledger_entry.command("Amend")
 
       expect(amend.creates?).to be(true)
@@ -357,18 +295,15 @@ RSpec.describe "a construct's identity" do
     end
 
     it "stays structurally interchangeable with an aggregate" do
-      # The runtime builds `Instance.new(aggregate: entity)` and `CommandRules`
-      # takes either as `declaring`, so a piece answers the same questions a head
-      # does.
+      # The runtime builds `Instance.new(aggregate: entity)`, so a piece answers a head's
+      # questions.
       %i[hecks_name attributes attribute identified_by lifecycle commands queries].each do |message|
         expect(ledger_entry).to respond_to(message), "an entity must answer #{message} like an aggregate"
       end
     end
 
     it "keeps NOT answering value_object, which is how a piece is told from a head" do
-      # `Value.for_attribute` sniffs for this method to decide whether it is
-      # holding a head. An entity that grew one would silently start coercing its
-      # fields as though it declared value objects.
+      # `Value.for_attribute` sniffs for this method to tell a head from a piece.
       expect(ledger_entry).not_to respond_to(:value_object)
       expect(account).to respond_to(:value_object)
     end

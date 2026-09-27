@@ -1,24 +1,10 @@
 require "spec_helper"
 require "tempfile"
 
-# `QueryInterpreter#call`/`#reference_call` build every returned row as
-# `{ id: record.id }.merge(record.state)` (or `r.state` for `Instance` —
-# the `interpret`/`reference_interpret` in-memory paths). Merging `state`
-# last let a declared attribute literally named `id` (real corpus now:
-# BurningManPrep's `Item`, `attribute :id, ItemId`) clobber the correctly
-# bare `record.id` with that attribute's own wrapped value object — the
-# exact bug `Facade::Handle#to_h` already had (see handle_spec.rb), just
-# one layer over: a query's own rows never go through `Handle` at all,
-# so fixing `to_h` alone didn't cover this path. Found live: BurningManPrep's
-# own "Everywhere" query (`Item.Everywhere`) fed a table whose every row's
-# `id` came back `{value: "..."}`, collapsing the frontend's id-keyed
-# lookup down to one entry.
+# Query rows are `{ id: record.id }.merge(state)`; a declared attribute named `id`
+# (BurningManPrep's Item) must not clobber the bare identity with its value object.
 RSpec.describe "a query's own rows keep a declared :id attribute from clobbering the bare identity" do
-  # A declarative bluebook fixture (as a heredoc, evaluated via
-  # Kernel.eval) plus the registry wiring to boot it — one coherent setup
-  # for this file's regression case, not several unrelated steps.
-  # Splitting it would only scatter the fixture source from the wiring
-  # that loads it.
+  # Fixture source and its registry wiring stay together in one setup.
   # rubocop:disable-next Metrics/MethodLength
   def boot
     registry = Hecks::Runtime::Registry.new
@@ -85,13 +71,8 @@ RSpec.describe "a query's own rows keep a declared :id attribute from clobbering
     expect(rows.first[:name]).to be_a(Hecks::Runtime::Value)
   end
 
-  # S2 (docs/audits/2026-08-10-main-bug-audit.md) — `#cell`, the entity
-  # sub-list row-identity reader that tiebreaks `order_by` on a
-  # composite piece, reads only `row[key.to_sym]` — no fallback to
-  # `row[key.to_s]`. A fallback via `||` would fall through to the
-  # (usually absent) string spelling on a genuinely-stored `false`
-  # symbol-keyed value, answering `nil` instead of the real, held value;
-  # rows are decoded, symbol-keyed state, so a stored false reads as false.
+  # `#cell` reads only `row[key.to_sym]`; an `||` fallback to the string key
+  # would turn a stored `false` into nil.
   describe "#cell" do
     it "reads a stored false the same way it reads any other value" do
       interpreter = Hecks::Runtime::QueryInterpreter.new(nil)

@@ -1,9 +1,7 @@
 require "hecks"
 require_relative "../../support/postgres_probe"
 
-# Runs only when a Postgres server is reachable (any local default
-# install will do) — same reachability gate every real-Postgres spec in
-# this repo already uses (support/postgres_probe.rb).
+# Runs only when a Postgres server is reachable (`support/postgres_probe.rb`).
 RSpec.describe Hecks::Adapters::Postgres, :io do
   PLAIN_POSTGRES_SPEC_DB = "hecks_postgres_spec".freeze
 
@@ -66,10 +64,8 @@ RSpec.describe Hecks::Adapters::Postgres, :io do
     db.close
 
     expect(columns["id"]).to eq("text")
-    # `status` is the lifecycle field — a plain text column, not jsonb.
+    # `status` is a plain text column; the value objects and `toppings` are jsonb.
     expect(columns["status"]).to eq("text")
-    # `name`, `pizza`, `customer_name` are value objects; `toppings` is a
-    # list — all four are real jsonb columns, never JSON-in-text.
     expect(columns["name"]).to eq("jsonb")
     expect(columns["pizza"]).to eq("jsonb")
     expect(columns["customer_name"]).to eq("jsonb")
@@ -89,7 +85,6 @@ RSpec.describe Hecks::Adapters::Postgres, :io do
   it "round-trips a list of value objects through its jsonb column" do
     adapter.save(instance("p1", toppings: [{ name: "Basil", amount: 3 }]))
 
-    # ADR 0047/0055 — real Value instances now, same as found.name/found.pizza above.
     toppings = adapter.find("p1").toppings
     expect(toppings).to all(be_a(Hecks::Runtime::Value))
     expect(toppings.map(&:to_h)).to eq([{ name: "Basil", amount: 3 }])
@@ -162,6 +157,35 @@ RSpec.describe Hecks::Adapters::Postgres, :io do
       .to eq([["PizzaPurchased", "p1", { customer: "c1" }]])
   end
 
+  it "reads back only one record's events, not the whole shared table" do
+    adapter.record_event(Hecks::Runtime::Event.new(
+                           name: "PizzaPurchased", aggregate: "Pizza", id: "p1",
+                           payload: { customer: "c1" }, occurred_at: "2026-01-01T00:00:00Z"
+                         ))
+    adapter.record_event(Hecks::Runtime::Event.new(
+                           name: "PizzaPurchased", aggregate: "Pizza", id: "p2",
+                           payload: { customer: "c2" }, occurred_at: "2026-01-01T00:00:01Z"
+                         ))
+    adapter.record_event(Hecks::Runtime::Event.new(
+                           name: "OrderPlaced", aggregate: "Order", id: "p1",
+                           payload: { total: 12 }, occurred_at: "2026-01-01T00:00:02Z"
+                         ))
+
+    found = adapter.events_for(aggregate: "Pizza", id: "p1")
+
+    expect(found.map { |item| [item.name, item.id, item.payload] })
+      .to eq([["PizzaPurchased", "p1", { customer: "c1" }]])
+  end
+
+  it "indexes the shared events table by aggregate and aggregate_id" do
+    adapter
+    db = PG.connect(dbname: PLAIN_POSTGRES_SPEC_DB)
+    indexes = indexes_on(db, "events")
+    db.close
+
+    expect(indexes).to include("hecks_events_aggregate_id_idx")
+  end
+
   it "self-heals its own connection after the backend is killed out from under it, instead of staying dead forever" do
     adapter.save(instance("p1", name: { value: "Margherita" }, status: "sold"))
     victim_pid = adapter.instance_variable_get(:@db).backend_pid
@@ -170,14 +194,9 @@ RSpec.describe Hecks::Adapters::Postgres, :io do
     admin.exec_params("SELECT pg_terminate_backend($1)", [victim_pid])
     admin.close
 
-    # **The current call still raises** — `pg_exec`/`pg_exec_params`'s own
-    # comment explains why a lost-in-flight write is never silently
-    # retried here.
+    # The current call still raises; a lost in-flight write is never silently retried.
     expect { adapter.find("p1") }.to raise_error(PG::ConnectionBad)
-    # But the connection itself healed — a caller that dispatches again
-    # (a saga's own StaleWrite retry, an ordinary next request) is not
-    # stuck behind a permanently-broken handle the way chaos-testing
-    # found this adapter before this test existed.
+    # But the connection healed, so the next dispatch is not stuck on a broken handle.
     expect(adapter.find("p1").status).to eq("sold")
   end
 
@@ -203,10 +222,8 @@ RSpec.describe Hecks::Adapters::Postgres, :io do
   it "heals an existing table that predates one of the aggregate's own attributes" do
     adapter # create the table at today's shape
     db = PG.connect(dbname: PLAIN_POSTGRES_SPEC_DB)
-    # Simulate a table committed before `customer_name` was added to the
-    # bluebook — `CREATE TABLE IF NOT EXISTS` alone would leave it
-    # missing forever (chaos-tested against a real rename/add: boot
-    # passed, the first `project` died `PG::UndefinedColumn`).
+    # A table committed before `customer_name` was added: `CREATE TABLE IF NOT EXISTS` alone
+    # would leave the column missing.
     db.exec('ALTER TABLE "order" DROP COLUMN customer_name')
     db.close
 
@@ -217,6 +234,87 @@ RSpec.describe Hecks::Adapters::Postgres, :io do
     expect(reopened.find("p1").customer_name.value).to eq("Chris")
   end
 
+  describe "the replay checkpoint (bounds AppendOnly#recover!'s replay to what a restart missed)" do
+    it "advances with every project, so entries_since(checkpoint) is empty right after a write" do
+      adapter.save(instance("p1", status: "available"))
+
+      expect(adapter.entries_since(adapter.checkpoint)).to eq([])
+    end
+
+    it "starts at zero for a table that has never been checkpointed" do
+      expect(adapter.checkpoint).to eq(0)
+    end
+
+    it "lets entries_since skip everything at or before a given sequence" do
+      adapter.save(instance("p1", status: "available"))
+      first_checkpoint = adapter.checkpoint
+      adapter.save(instance("p2", status: "available"))
+
+      expect(adapter.entries_since(first_checkpoint).map(&:id)).to eq(["p2"])
+    end
+
+    it "keeps AppendOnly#recover! from bumping hecks_version when nothing is behind the checkpoint" do
+      repository = Hecks::Ports::Persistence::AppendOnly.new(adapter)
+      repository.save(instance("p1", status: "available"))
+      version_before = repository.find("p1").version
+
+      repository.recover!
+
+      expect(repository.find("p1").version).to eq(version_before)
+    end
+
+    it "still catches up a real gap: an entry journaled without being projected is picked up" do
+      entry = Hecks::Ports::Persistence::Entry.new(operation: "save", id: "p1", state: { status: "available" })
+      adapter.append(entry)
+      expect(adapter.find("p1")).to be_nil
+
+      Hecks::Ports::Persistence::AppendOnly.new(adapter).recover!
+
+      expect(adapter.find("p1").status).to eq("available")
+    end
+  end
+
+  describe "compact_entries! (deletes old journal rows a :refresh projection no longer needs)" do
+    it "starts at zero when nothing has ever been compacted" do
+      expect(adapter.compacted_through).to eq(0)
+    end
+
+    it "deletes rows at or before through and reports how many, leaving the aggregate table untouched" do
+      adapter.save(instance("p1", status: "available"))
+      adapter.save(instance("p2", status: "available"))
+      through = adapter.checkpoint
+
+      removed = adapter.compact_entries!(through: through)
+
+      expect(removed).to eq(2)
+      expect(adapter.entries).to eq([])
+      expect(adapter.find("p1").status).to eq("available")
+      expect(adapter.compacted_through).to eq(through)
+    end
+
+    it "leaves rows after through in the journal" do
+      adapter.save(instance("p1", status: "available"))
+      first = adapter.checkpoint
+      adapter.save(instance("p2", status: "available"))
+
+      adapter.compact_entries!(through: first)
+
+      expect(adapter.entries.map(&:id)).to eq(["p2"])
+    end
+
+    it "never moves compacted_through backwards" do
+      adapter.save(instance("p1", status: "available"))
+      adapter.compact_entries!(through: adapter.checkpoint)
+      adapter.save(instance("p2", status: "available"))
+      high_water = adapter.checkpoint
+
+      adapter.compact_entries!(through: high_water)
+      adapter.compact_entries!(through: 0)
+
+      expect(adapter.compacted_through).to eq(high_water)
+    end
+  end
+
   describe "a declared `where`/`order_by` query" do
     it "pushes `CostingLessThan` (a two-level jsonb-nested numeric path) down to SQL, correctly ordered" do
       adapter.save(instance("cheap", name: { value: "Bare" }, pizza: { price_cents: { cents: 300 }, size: { value: "small" } }))
@@ -224,19 +322,13 @@ RSpec.describe Hecks::Adapters::Postgres, :io do
       adapter.save(instance("pricey", name:  { value: "Loaded" },
                                       pizza: { price_cents: { cents: 1500 }, size: { value: "small" } }))
 
-      # Filters on the two-level nested `pizza.price_cents.cents` path,
-      # orders (ascending) by the declared query's own `order_by :name` —
-      # "Bare" < "Basic" alphabetically, so "cheap" sorts before "mid"
-      # even though it is also the cheaper of the two.
+      # Orders ascending by `order_by :name`: "Bare" < "Basic", so "cheap" sorts before "mid".
       declared = aggregate.query("CostingLessThan")
       expect(adapter.query(declared, { ceiling: { cents: 1000 } }).map(&:id)).to eq(%w[cheap mid])
     end
 
     it "orders a jsonb-nested numeric member NUMERICALLY, not lexicographically" do
-      # "900" sorts after "1200" as text ("9" > "1"); a real ::numeric
-      # cast is what keeps 900 correctly ahead of 1200. Exactly the bug
-      # PostgresEra's own numeric_field? comment describes — proven here
-      # against a jsonb-extracted member, where the cast is still needed.
+      # As text "900" sorts after "1200"; the ::numeric cast keeps 900 ahead.
       adapter.save(instance("a", name: { value: "A" }, pizza: { price_cents: { cents: 900 }, size: { value: "small" } }))
       adapter.save(instance("b", name: { value: "B" }, pizza: { price_cents: { cents: 1200 }, size: { value: "small" } }))
       adapter.save(instance("c", name: { value: "C" }, pizza: { price_cents: { cents: 300 }, size: { value: "small" } }))
@@ -282,12 +374,8 @@ RSpec.describe Hecks::Adapters::Postgres, :io do
   end
 
   describe "a `contains` query over a list attribute — no index, still correct" do
-    # `toppings` (list_of Topping, two fields) has no single scalar member
-    # to compare against `contains` at all — the same refusal
-    # `list_member` gives every dialect (see sql_query_builder.rb). A
-    # single-field value object is what `contains` on a list actually
-    # answers, so this builds one directly, the same way
-    # query_agreement_spec.rb builds its own throwaway fixture.
+    # `toppings` has no single scalar member for `contains`, so this builds a single-field
+    # value object directly, as query_agreement_spec.rb does.
     def build_tagged_aggregate
       Hecks::Bluebook::DSL::ConstShim.with(->(const) { const }) do
         Hecks::Bluebook::DSL::AggregateBuilder.new("Widget").tap do |builder|

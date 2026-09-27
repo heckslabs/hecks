@@ -6,21 +6,9 @@ Hecks.bluebook "Expression" do
   aggregate "Operator" do
     description "One admitted operation — its symbol, its precedence, and how it reads in every target that must evaluate it."
 
-    # WHAT IS NOT HERE, on purpose. The outer grammar
-    # has two rules that are not operators: parenthesization (a structural
-    # strip-and-recurse, no symbol of its own) and the bare-leaf fallback
-    # (whatever matches nothing else falls through to the inner grammar).
-    # Its inner grammar has three more: integer/float/string/bool/nil/
-    # array literals and the dotted-lookup fallback are TERMINAL
-    # productions — they recognize text, they do not combine operands,
-    # and they have nothing meaningful to render per target (a literal's
-    # spelling does not differ between targets the way an operation's
-    # might — `rust/src/kernel/expr.rs`'s own `Expr::Array` is a LEAF
-    # there too, for the identical reason, not routed through
-    # `OperatorCategory`).
-    # Forcing them into this shape would stretch `renderings` and the
-    # Arity invariant past what they mean. They stay declared only in
-    # prose — named here rather than silently left out.
+    # Not operators, so not declared here: parenthesization, the bare-leaf fallback,
+    # and the terminal literals and dotted lookup. They recognize text rather than
+    # combine operands, and a literal reads the same in every target.
     identified_by :symbol
 
     attribute :symbol,     OperatorSymbol
@@ -54,47 +42,34 @@ Hecks.bluebook "Expression" do
 
     value_object "Arity" do
       attribute :value, Integer
-      # WRITTEN ACROSS LINES ON PURPOSE, and this is the only predicate in the
-      # corpus that is. A CONTINUATION line is where extraction used to break:
-      # a naive line join reads `value > 0 && && value <= 3` — a different
-      # canonical form for the same source, waiting for the first multi-line
-      # rule anyone wrote. Every predicate here was kept on one line to dodge
-      # that. The join is continuation-aware now, so this case holds the fix:
-      # if it regresses, the canonical text of THIS invariant changes and the
-      # golden IR goes red.
+      # Written across lines on purpose: it pins continuation-aware line joining in
+      # extraction. If that regresses, this invariant's canonical text changes and
+      # the golden IR goes red.
       invariant("an operator takes one, two or three operands") do
         value > 0 &&
           value <= 3
       end
     end
 
-    # OUTER checks a leaf against `.include?`/comparators/`!` before falling
-    # through to INNER's arithmetic/dotted-lookup grammar — two stacked
-    # grammars. Which one an operator belongs
-    # to is not derivable from its symbol alone (`+` reads like it could be
-    # either), so it is its own column rather than inferred.
+    # The outer grammar checks `.include?`, comparators and `!` before falling through
+    # to the inner arithmetic and dotted-lookup grammar. The symbol alone does not say
+    # which one an operator belongs to, so it is its own column.
     value_object "Grammar" do
       attribute :value, String
       invariant("an operator belongs to one of the two stacked grammars") { !value.to_s.empty? }
     end
 
-    # HOW the check recognizes this operator's text, not WHERE it binds
-    # (that's precedence) or WHEN it's tried (that's position). Four shapes
-    # cover every admitted operator: split at a top-level occurrence
-    # (`||`, comparators), strip a leading marker (`!`), strip a trailing
-    # suffix (`.empty?`), or match a call-with-argument pattern
-    # (`.include?(needle)`).
+    # How the check recognizes an operator's text: split at a top-level occurrence
+    # (`||`), strip a leading marker (`!`) or trailing suffix (`.empty?`), or match a
+    # call pattern (`.include?(needle)`).
     value_object "Strategy" do
       attribute :value, String
       invariant("an operator names how its check recognizes it") { !value.to_s.empty? }
     end
 
-    # THE WITHIN-GRAMMAR CHECK ORDER — what precedence alone cannot say,
-    # since the six comparators all share one precedence tier and something
-    # still has to break the tie (grammar.md: `>=` before `<=` before `<`
-    # before `>` before `==` before `!=`, so `<` splitting does not fire
-    # inside `>=`). Scoped per `grammar`, mirroring Normalisation's own
-    # Position column below — each grammar starts its own count at 1.
+    # The check order within a grammar, counted from 1 per grammar. It breaks the tie
+    # precedence cannot: the six comparators share a tier, and `>=` must be tried
+    # before `>` so a split on `>` does not fire inside `>=`.
     value_object "Position" do
       attribute :value, Integer
       invariant("an operator sits somewhere in its grammar's check order") { value > 0 }

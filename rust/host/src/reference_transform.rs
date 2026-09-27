@@ -1,54 +1,10 @@
-// Layer 2's reference implementation — a direct, function-for-function
-// port of `Ports::Persistence::Lineage#translate` (lib/hecks/ports/
-// persistence/lineage.rb), the pure, portable interpreter over the five
-// portable rule kinds an edge can declare: rename, move, convert, drop,
-// backfill. `compute`/`rekey` have no reference here (their SQL is
-// their only implementation, same as Ruby's own header says of itself);
-// `retype` moves nothing (no stored value carries a type name) and is
-// never consulted by this transform either, matching Ruby exactly.
-//
-// This is what `crate::mint`'s Layer-2 audit gate diffs the compiled
-// SQL's own output against, at mint time — the cross-execution
-// equivalence proof `Translation::Audit::LayerTwo`'s own header names:
-// the compiled SQL produced `after`; this transform produces `expected`
-// over the same `before`; they must agree byte-for-byte on every path a
-// compute doesn't own.
-//
-// Reads the raw edge-aggregate JSON straight out of `ir.json`'s
-// `translations` key (`Exporter.translation_aggregate`'s own exported
-// shape) — deliberately not `mint::EdgeAggregate`, which only carries
-// the pre-compiled SQL string this module exists to check independently
-// of.
-//
-// Three subtleties ported exactly, found by reading `lineage.rb` line by
-// line rather than assumed from its own header:
-//   1. Rule order is load-bearing: renames -> moves -> converts -> drops
-//      -> backfills last, and a backfill only fills a gap nothing
-//      already answered (never overwrites a value that made it across).
-//   2. `extract` (pulling a dotted member out of a nested value object)
-//      deletes the now-empty parent key too, once its own last member is
-//      gone — a lingering `{}` where the top key sat is not what
-//      Ruby's own output looks like.
-//   3. `insert` (landing a value at a dotted destination) hard-refuses,
-//      the identical wording the SQL half (`hecks_tr_insert`) raises,
-//      when the destination's top segment already holds a non-object
-//      value — moving into it would silently discard that value. A
-//      `convert` whose raw value has no entry in its `values:` table
-//      refuses the same hard way. Both must abort the whole mint (an
-//      `Err`, not a soft violation string), exactly like Ruby's own
-//      `apply_convert`/`insert` raising `Runtime::WiringError` rather
-//      than returning something `layer_two!` could collect and continue
-//      past.
+//! Reference port of `Lineage#translate` (rename, move, convert, drop, backfill).
+//! `crate::mint`'s Layer-2 audit gate diffs this against the compiled SQL at mint time.
 
 use serde_json::{Map, Value};
 
-/// The reference translation of one record's state, under one edge's
-/// declared rules for one aggregate — `edge_aggregate_raw` is the raw
-/// JSON object `Exporter.translation_aggregate` exports (renames/moves/
-/// converts/drops/backfills; computes/rekeys/retypes are read by nobody
-/// here, matching Ruby exactly). `state` must be a JSON object; anything
-/// else is a caller bug, not a translation failure — hence the bail
-/// rather than a violation string.
+/// Applies one edge's rename/move/convert/drop/backfill rules to `state`.
+/// `state` must be a JSON object; anything else is a caller bug, not a translation failure.
 pub fn translate(edge_aggregate_raw: &Value, state: &Value) -> anyhow::Result<Value> {
     let Value::Object(source) = state else {
         anyhow::bail!("reference_transform::translate given a non-object state: {state}");
@@ -90,19 +46,9 @@ pub fn translate(edge_aggregate_raw: &Value, state: &Value) -> anyhow::Result<Va
         }
     }
 
-    // Last, and only where nothing already answered — see this file's
-    // own header on why this order is load-bearing. Dotted-path aware,
-    // same as every other rule above (and `Lineage#apply_backfill`'s own
-    // identical fix): a bare top-level `contains_key`/`insert` pair is
-    // only correct for a brand-new top-level attribute. A value object
-    // gaining new required members with no source at all (a client site's
-    // Attendee redesign, commit 4326dcd) needs `top.member` to actually
-    // reach inside an existing container, the same way `extract`/
-    // `insert` already do for drop/move/convert — found live: this
-    // reference port silently treated `"attendee.first_name"` as a
-    // literal, never-matching top-level key, so Layer 2 saw the compiled
-    // SQL's (correct) nested insert as a divergence from this (wrong)
-    // reference output on every backfilled path.
+    // Runs last, after renames/moves/converts/drops, and only fills a gap nothing
+    // already answered — dotted-path aware like the rules above, matching
+    // `Lineage#apply_backfill`.
     if let Some(backfills) = edge_aggregate_raw.get("backfills").and_then(Value::as_array) {
         for bf in backfills {
             let Some(name) = bf.get("name").and_then(Value::as_str) else { continue };
@@ -121,9 +67,8 @@ pub fn translate(edge_aggregate_raw: &Value, state: &Value) -> anyhow::Result<Va
     Ok(Value::Object(state))
 }
 
-/// A dotted path's first segment is always a top-level key; a second
-/// segment (at most one — `lineage.rb`'s own `split(".", 2)`) reaches
-/// into a value-object member.
+/// Splits a dotted path into its top-level key and optional nested member
+/// (`Lineage`'s own `split(".", 2)`; at most one member deep).
 fn split_path(path: &str) -> (&str, Option<&str>) {
     match path.split_once('.') {
         Some((top, member)) => (top, Some(member)),
@@ -131,12 +76,8 @@ fn split_path(path: &str) -> (&str, Option<&str>) {
     }
 }
 
-/// Pulls `top[.member]` out of `state` — `Lineage#extract`, read
-/// directly. Deletes the nested member and, if that empties the parent
-/// object, the parent key too; deletes the bare top-level key outright
-/// when there's no member. `None` means the path wasn't present at all
-/// (not an error — callers no-op on this, matching `return unless
-/// present`).
+/// Removes `top[.member]` from `state`, dropping the now-empty parent key too.
+/// `None` means the path was already absent — not an error; callers no-op on it.
 fn extract(state: &mut Map<String, Value>, top: &str, member: Option<&str>) -> Option<Value> {
     match member {
         None => state.remove(top),
@@ -151,10 +92,8 @@ fn extract(state: &mut Map<String, Value>, top: &str, member: Option<&str>) -> O
     }
 }
 
-/// Lands `value` at `top[.member]` — `Lineage#insert`, read directly.
-/// Hard-refuses (matching the SQL half's own `hecks_tr_insert` wording)
-/// when the destination's top segment already holds a non-object value:
-/// nesting into it would silently discard that value.
+/// Inserts `value` at `top[.member]`. Refuses when `top` already holds a
+/// non-object value, since nesting into it would silently discard that value.
 fn insert(state: &mut Map<String, Value>, top: &str, member: Option<&str>, value: Value, rule: &str) -> anyhow::Result<()> {
     let Some(member) = member else {
         state.insert(top.to_string(), value);
@@ -181,12 +120,8 @@ fn apply_move(state: &mut Map<String, Value>, from: &str, to: &str) -> anyhow::R
     insert(state, new_top, new_member, value, &format!("move {from} to: {to}"))
 }
 
-/// A convert is a move whose value has nothing in common with its
-/// replacement — the same path machinery, plus a lookup table (`values`,
-/// an array of `[key, value]` pairs — never a JSON object, since a raw
-/// stored value's own type isn't necessarily a string). A raw value with
-/// no matching entry refuses loudly, the same `Runtime::WiringError`
-/// shape Ruby's own `apply_convert` raises.
+/// A move whose value is looked up in `values` (`[key, value]` pairs, not a
+/// JSON object, since a raw value's type may not be a string); an unmapped value refuses.
 fn apply_convert(state: &mut Map<String, Value>, from: &str, to: &str, values: &[Value]) -> anyhow::Result<()> {
     let (old_top, old_member) = split_path(from);
     let (new_top, new_member) = split_path(to);

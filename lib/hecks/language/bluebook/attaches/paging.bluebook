@@ -3,16 +3,8 @@ Hecks.bluebook "Paging" do
   generic
   attaches_to "Query", "ReadModel"
 
-  # A PLACE TO HOLD ROWS, AND NOTHING ELSE — the same shape `Vocabulary`
-  # (vocabulary.bluebook) already is: no commands, because nothing ever
-  # dispatches this aggregate for real. `SyntaxBoot`'s own generic
-  # discovery reads `KeywordSeed`/`ArgumentSeed`'s rows straight off the
-  # declared IR, the exact way it already reads the core's own — and
-  # dispatches them through the CORE's `Bluebook::Syntax.Keyword`/
-  # `.Argument` verbs, which is why these rows need no entity, no
-  # lifecycle, no creating command of their own here: the verb they ride
-  # already exists, and a second copy of it would be the core's own
-  # machinery duplicated for no reason.
+  # Holds grammar rows only, like `Vocabulary`: SyntaxBoot reads them off the declared IR and
+  # dispatches them through the core's `Syntax.Keyword`/`.Argument` verbs, so no commands here.
   aggregate "Syntax" do
     description "The rows this sub-language contributes to the core's own grammar table."
     identified_by PagingSyntaxName, as: :name
@@ -23,11 +15,7 @@ Hecks.bluebook "Paging" do
       invariant("a syntax table is named") { !value.to_s.empty? }
     end
 
-    # THE SAME EIGHT ROWS syntax.bluebook held directly until now — moved,
-    # not rewritten. `limit`/`offset`/`cursor`/`nulls`, on both `Query`
-    # and `ReadModel`. See syntax.bluebook's own comment at the old site
-    # for why `limit` fills a dedicated field while the other three land
-    # on the open `options` map.
+    # `limit` fills a dedicated field on Query; the other three land on the open `options` map.
     value_object "KeywordSeed" do
       attribute :word,    String
       attribute :context, String

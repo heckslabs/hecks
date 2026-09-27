@@ -9,16 +9,8 @@ Hecks.bluebook "Banking" do
     attribute :generated_on,    StatementDate
     attribute :frequency,       StatementFrequency
 
-    # A COMPOSITE IDENTITY WHOSE FIRST PART IS A REFERENCE, not a
-    # value-object field — SafeDepositBox's own composite identity
-    # unwraps two single-field value objects (branch_code, box_number);
-    # this is the other real shape the language allows.
-    # `AttributeCollector#resolve_identity_field!` reads each field's
-    # OWN declared type to decide how to reach it: `account` here is
-    # `reference_to Account`'s own minted attribute (bare, no `_id` —
-    # ADR 0025), already a scalar id, so it resolves bare — no value
-    # object to open, the same way `Runtime::Identity.from` resolves
-    # any identity head that IS a declared attribute directly.
+    # Composite identity whose first part is a reference: `account` is already a
+    # scalar id (ADR 0025), so there is no value object to unwrap.
     identified_by :account, :period
 
     value_object "StatementPeriod" do
@@ -35,17 +27,8 @@ Hecks.bluebook "Banking" do
       invariant("a statement is dated") { !value.to_s.empty? }
     end
 
-    # A CLOSED SET WITH MORE THAN ONE FIELD PER MEMBER — ordinary, public
-    # bare `member` lines (Vocabulary::Comparison in the self-hosted
-    # grammar uses the identical shape), not a self-hosted-grammar
-    # exclusive. A single-field set gets the shorter `one_of:` keyword
-    # instead (LedgerDirection/AccountKind in `deposit_accounts.bluebook`) — this one can't,
-    # since a member row needs to name every field, not just one.
-    # `admit_member` (Runtime::Value::Admission) only
-    # ever validates the DISCRIMINANT field a caller offers (`cadence`
-    # here) against the members table — it does not fill the other
-    # fields in for you, so a command dispatching this always states
-    # every field, the same as `AddTopping`'s own append fields do.
+    # A closed set with several fields per member, so `one_of:` does not fit.
+    # Admission validates only the discriminant (`cadence`); callers state every field.
     value_object "StatementFrequency" do
       attribute :cadence,          String
       attribute :retention_months, Integer
@@ -65,24 +48,13 @@ Hecks.bluebook "Banking" do
       attribute :closing_balance, StatementAmount
       attribute :generated_on,    StatementDate
       attribute :frequency,       StatementFrequency
-      # OWN GIVENS (S12, ADR 0025) — `account` is `Generate`'s own
-      # fresh command argument (part of this composite-identity
-      # creating command); no longer shared with ATMCard's declaration
-      # since ATMCard's acting commands now read a projected field
-      # nothing here would ever populate — `Generate` is Statement's
-      # only command, always dispatched with a fresh `account`.
+      # Own givens: `account` is a fresh command argument, and nothing here populates
+      # the projected field that ATMCard's shared givens read.
       given("customer is active") { account.customer.status == "active" }
       given("account is open") { account.status == "open" }
 
       sets :account
-      # Wave 8 fix — these five were already declared, required command
-      # attributes (identical to the aggregate's own, above) but never
-      # actually written anywhere: `Generate` silently dropped every one
-      # of them, leaving a Statement whose own period/balances/date/
-      # frequency were always nil on the record, no matter what the
-      # caller sent. Bare shorthand — each imports the already-matching
-      # attribute one line up, `resolve_bare_set!`'s own comment has the
-      # mechanism.
+      # Bare `sets` imports the matching attribute; omitting one leaves it nil on the record.
       sets :period
       sets :opening_balance
       sets :closing_balance

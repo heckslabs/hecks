@@ -1,6 +1,4 @@
-//! Port of `rust/project/queries.rb` — read that file's own header
-//! comments in full for what this deliberately does and does not cover;
-//! this mirrors its algorithm directly, function for function.
+//! Port of `rust/project/queries.rb`, mirrored function for function.
 
 use crate::exemplar::Exemplar;
 use crate::json::Json;
@@ -20,9 +18,8 @@ pub enum FieldKind {
     Unknown,
 }
 
-/// The declared attribute (or synthetic lifecycle field) `field`'s head
-/// segment names on `aggregate`, walked through nested value objects for
-/// any segments after it.
+/// Classifies `field`: its head names an attribute or the lifecycle field, and any
+/// later segments walk nested value objects.
 pub fn query_field_kind(aggregate: &Json, field: &str, value_objects_by_name: &HashMap<String, &Json>) -> FieldKind {
     let mut segments = field.split('.');
     let head = segments.next().unwrap_or("");
@@ -85,7 +82,91 @@ fn query_vo_collapse_kind(vo: &Json, value_objects_by_name: &HashMap<String, &Js
     FieldKind::Other
 }
 
-/// One where clause's own eligibility.
+/// Whether a field (or dotted path) reduces specifically to a `TrueClass`/`FalseClass` —
+/// `any`/`all` need this, distinct from `query_field_kind`'s coarser `Other` bucket (ADR 0078).
+pub fn query_field_boolean(aggregate: &Json, field: &str, value_objects_by_name: &HashMap<String, &Json>) -> bool {
+    let mut segments = field.split('.');
+    let head = segments.next().unwrap_or("");
+    let rest: Vec<&str> = segments.collect();
+
+    let attrs = aggregate.get("attributes").map(Json::each).unwrap_or(&[]);
+    let Some(attr) = attrs.iter().find(|a| crate::attr::name(a) == head) else { return false };
+    if crate::attr::list(attr) {
+        return false;
+    }
+    query_type_boolean(crate::attr::type_name(attr), &rest, value_objects_by_name)
+}
+
+fn query_type_boolean(type_name: &str, segments: &[&str], value_objects_by_name: &HashMap<String, &Json>) -> bool {
+    if segments.is_empty() {
+        if matches!(type_name, "TrueClass" | "FalseClass") {
+            return true;
+        }
+        if naming::reference_type(type_name) {
+            return false;
+        }
+        let Some(vo) = value_objects_by_name.get(type_name) else { return false };
+        let attrs = vo.get("attributes").map(Json::each).unwrap_or(&[]);
+        if attrs.len() == 1 {
+            return query_type_boolean(crate::attr::type_name(&attrs[0]), &[], value_objects_by_name);
+        }
+        false
+    } else {
+        let Some(vo) = value_objects_by_name.get(type_name) else { return false };
+        let attrs = vo.get("attributes").map(Json::each).unwrap_or(&[]);
+        let Some(member) = attrs.iter().find(|a| crate::attr::name(a) == segments[0]) else { return false };
+        if crate::attr::list(member) {
+            return false;
+        }
+        query_type_boolean(crate::attr::type_name(member), &segments[1..], value_objects_by_name)
+    }
+}
+
+/// The winning member's own type name for a numeric field ("the sole numeric member wins",
+/// mirroring `query_vo_collapse_kind`) — "Integer" or "Float" distinctly, where
+/// `query_field_kind`'s own `Number` collapses both. `sum`/`avg` need the distinction
+/// (ADR 0078).
+pub fn query_field_numeric_type(aggregate: &Json, field: &str, value_objects_by_name: &HashMap<String, &Json>) -> Option<String> {
+    let mut segments = field.split('.');
+    let head = segments.next().unwrap_or("");
+    let rest: Vec<&str> = segments.collect();
+
+    let attrs = aggregate.get("attributes").map(Json::each).unwrap_or(&[]);
+    let attr = attrs.iter().find(|a| crate::attr::name(a) == head)?;
+    if crate::attr::list(attr) {
+        return None;
+    }
+    query_type_numeric_type(crate::attr::type_name(attr), &rest, value_objects_by_name)
+}
+
+fn query_type_numeric_type(type_name: &str, segments: &[&str], value_objects_by_name: &HashMap<String, &Json>) -> Option<String> {
+    if segments.is_empty() {
+        if matches!(type_name, "Integer" | "Float") {
+            return Some(type_name.to_string());
+        }
+        if naming::reference_type(type_name) {
+            return None;
+        }
+        let vo = value_objects_by_name.get(type_name)?;
+        let attrs = vo.get("attributes").map(Json::each).unwrap_or(&[]);
+        if let Some(numeric_member) = attrs.iter().find(|a| matches!(crate::attr::type_name(a), "Integer" | "Float")) {
+            return Some(crate::attr::type_name(numeric_member).to_string());
+        }
+        if attrs.len() == 1 {
+            return query_type_numeric_type(crate::attr::type_name(&attrs[0]), &[], value_objects_by_name);
+        }
+        None
+    } else {
+        let vo = value_objects_by_name.get(type_name)?;
+        let attrs = vo.get("attributes").map(Json::each).unwrap_or(&[]);
+        let member = attrs.iter().find(|a| crate::attr::name(a) == segments[0])?;
+        if crate::attr::list(member) {
+            return None;
+        }
+        query_type_numeric_type(crate::attr::type_name(member), &segments[1..], value_objects_by_name)
+    }
+}
+
 pub fn query_where_skip_reason(where_clause: &Json, aggregate: &Json, value_objects_by_name: &HashMap<String, &Json>) -> Option<SkipReason> {
     let field = where_clause.get("field").map(Json::to_s).unwrap_or_default();
     let kind = query_field_kind(aggregate, &field, value_objects_by_name);
@@ -160,9 +241,7 @@ fn kind_name(kind: FieldKind) -> &'static str {
     }
 }
 
-/// Port of `queries.rb#query_hop_plan` — a single `/` hop through a
-/// Reference-typed attribute to an aggregate this domain declares, or
-/// `None`.
+/// A `/` hop chain through Reference-typed attributes to aggregates this domain declares.
 pub struct HopPlan<'a> {
     pub via_field: String,
     pub target_aggregate: String,
@@ -172,7 +251,7 @@ pub struct HopPlan<'a> {
     pub inner_field: String,
 }
 
-/// `queries.rb#HOP_CHAIN_LIMIT` — `HopPath::MAX_HOPS`.
+// Matches `HopPath::MAX_HOPS`.
 const HOP_CHAIN_LIMIT: usize = 8;
 
 pub fn query_hop_plan<'a>(aggregate: &'a Json, field: &str, aggregates_by_name: &HashMap<String, &'a Json>) -> Option<HopPlan<'a>> {
@@ -219,7 +298,6 @@ pub fn value_objects_of(aggregate: &Json) -> HashMap<String, &Json> {
         .collect()
 }
 
-/// A whole declared query's own eligibility.
 pub fn query_skip_reason(query: &Json, aggregate: &Json, value_objects_by_name: &HashMap<String, &Json>, aggregates_by_name: &HashMap<String, &Json>) -> Option<SkipReason> {
     let extra_keys = ["cursor", "consistency", "freshness", "inspection"];
     let extras: Vec<&str> = extra_keys.iter().filter(|k| query.get(k).is_some()).copied().collect();
@@ -230,22 +308,15 @@ pub fn query_skip_reason(query: &Json, aggregate: &Json, value_objects_by_name: 
         return Some(skip("index_hints", "declares use_index, out of scope for the same reason the extras above are"));
     }
 
-    // An empty `wheres` list is only a real "nothing to compile" — a
-    // declared `authorize policy, tenant: :field` synthesizes its own
-    // where clause at codegen time (`query_conditions_with_authorization`
-    // below), so a query with no ordinary where clause but a real tenant
-    // gate still has a real reason to generate: the tenant-scoping check
-    // is the query's whole logic. Checking for a declared tenant here,
-    // before the empty-wheres refusal, is what lets that query through;
-    // `declared_authorization_skip_reason` below still runs afterward
-    // either way, to validate the tenant field itself is generable.
+    // A declared tenant synthesizes its own where clause (`query_conditions_with_authorization`),
+    // so a query with no ordinary wheres but a tenant gate is still generable. The tenant
+    // field itself is validated afterward by `declared_authorization_skip_reason`.
     let declared_tenant = query.get("authorization").and_then(|a| a.get("tenant")).is_some();
     let wheres = query.get("wheres").map(Json::each).unwrap_or(&[]);
     if wheres.is_empty() && !declared_tenant {
         return Some(skip("no_wheres", "declares no where clauses at all — nothing for filter_entries to bake in"));
     }
 
-    // A single hop is generated — `queries.rb#query_skip_reason`'s own comment.
     for where_clause in wheres {
         let field = where_clause.get("field").map(Json::to_s).unwrap_or_default();
         if let Some(plan) = query_hop_plan(aggregate, &field, aggregates_by_name) {
@@ -303,11 +374,7 @@ pub fn declared_limit_skip_reason(limit: Option<&Json>) -> Option<SkipReason> {
     Some(skip("limit", format!("declares limit {} — not a literal integer or a caller-bound Symbol arg, so this generator can't compile a real limit count from it", naming::ruby_inspect_string(&raw))))
 }
 
-/// `offset`'s own content check — same shape as `declared_limit_skip_
-/// reason` just above (see `rust/project/queries.rb`'s own
-/// `declared_offset_skip_reason` for the full reasoning); kept a
-/// separately-named function for the same reason that file's does — so
-/// the reason string names "offset", not "limit".
+// Same check as `declared_limit_skip_reason`, kept separate so the reason names "offset".
 pub fn declared_offset_skip_reason(offset: Option<&Json>) -> Option<SkipReason> {
     let offset = offset?;
     let raw = offset.get("value").map(Json::to_s).unwrap_or_default();
@@ -323,14 +390,8 @@ fn is_plain_integer(raw: &str) -> bool {
     !s.is_empty() && s.bytes().all(|b| b.is_ascii_digit())
 }
 
-/// Same reasoning as `rust/project/queries.rb`'s own `declared_
-/// authorization_skip_reason`: `AuthorizationSpec#to_h` is `{policy:,
-/// tenant:}`; a `nil` tenant is a genuine no-op in Ruby (`Runtime::
-/// TenantScope.apply`'s own `return declared unless tenant`), never
-/// disqualifying. A real tenant needs the same field-validity check any
-/// other where-clause field gets — constructed as the exact synthetic
-/// arg-bound where shape and run through `query_where_skip_reason`
-/// wholesale, rather than duplicating that check.
+// A `nil` tenant is a no-op, never disqualifying. A real tenant is checked by running a
+// synthetic arg-bound where through `query_where_skip_reason`.
 pub fn declared_authorization_skip_reason(authorization: Option<&Json>, aggregate: &Json, value_objects_by_name: &HashMap<String, &Json>) -> Option<SkipReason> {
     let tenant = authorization.and_then(|a| a.get("tenant")).map(Json::to_s)?;
     let synthetic_where = Json::Object(vec![
@@ -350,10 +411,8 @@ pub fn emit_query_order_by(order_by: &Json, null_semantics: Option<&Json>) -> St
     )
 }
 
-/// Same reasoning as `rust/project/queries.rb`'s own `null_semantics_
-/// variant`: `nulls(mode)` accepts anything, unvalidated, so an
-/// unrecognized mode falls back to `Native`, matching `NullPolicy.order`'s
-/// own `else` arm exactly rather than needing a refusal case.
+// `nulls(mode)` is unvalidated, so an unrecognized mode falls back to `Native`
+// like `NullPolicy.order`'s `else` arm.
 pub fn null_semantics_variant(null_semantics: Option<&Json>) -> &'static str {
     let mode = null_semantics.and_then(|ns| ns.get("mode")).map(Json::to_s).unwrap_or_default();
     match mode.as_str() {
@@ -371,13 +430,8 @@ pub fn emit_query_limit(limit: &Json) -> String {
     format!("crate::kernel::query_ordering::Limit::Literal({})", ruby_to_i(&raw))
 }
 
-/// `crate::kernel::query_ordering::Offset` is `pub type Offset = Limit`
-/// (see that module's own doc comment); `Limit::Literal(1)` and
-/// `Offset::Literal(1)` construct the identical value, but a human
-/// reading a generated `offset:` field seeing `Limit::Literal(...)` would
-/// reasonably read that as a bug — same reasoning, same fix, as
-/// `rust/project/queries.rb`'s own `emit_query_offset`: reuse
-/// `emit_query_limit`'s computation, swap only the spelled type name.
+// `Offset` aliases `Limit`; only the spelled type name is swapped so a generated
+// `offset:` field does not read as a `Limit`.
 pub fn emit_query_offset(offset: &Json) -> String {
     emit_query_limit(offset).replace("query_ordering::Limit::", "query_ordering::Offset::")
 }
@@ -406,8 +460,7 @@ pub struct Condition {
     pub literal: Option<Literal>,
 }
 
-/// `query_skip_reason` already returned `nil` for this query — every where
-/// clause is either Symbol-valued (an `arg:`) or a safely-typed literal.
+// Assumes `query_skip_reason` already accepted the query.
 pub fn query_conditions(query: &Json) -> Vec<Condition> {
     let wheres = query.get("wheres").map(Json::each).unwrap_or(&[]);
     wheres.iter().map(condition_for).collect()
@@ -424,8 +477,7 @@ fn condition_for(w: &Json) -> Condition {
     }
 }
 
-/// One single-hop where clause, compiled — `condition.field` is the hop's
-/// inner field. Port of `read_models.rb#read_model_hop_conditions`' row.
+/// One hop where clause, compiled; `condition.field` is the hop's inner field.
 pub struct HopCondition {
     pub via_field: String,
     pub target_aggregate: String,
@@ -434,7 +486,6 @@ pub struct HopCondition {
     pub condition: Condition,
 }
 
-/// Port of `queries.rb#query_conditions_and_hops`.
 pub fn query_conditions_and_hops(domain_name: &str, query: &Json, aggregate: &Json, aggregates_by_name: &HashMap<String, &Json>) -> (Vec<Condition>, Vec<HopCondition>) {
     let mut local = Vec::new();
     let mut hops = Vec::new();
@@ -451,8 +502,7 @@ pub fn query_conditions_and_hops(domain_name: &str, query: &Json, aggregate: &Js
     (local, hops)
 }
 
-/// Port of `read_models.rb#read_model_hop_conditions` — `hop_wheres` were
-/// already confirmed to be resolvable hops by the skip check.
+// Assumes the skip check already confirmed every `hop_wheres` entry resolves.
 pub fn read_model_hop_conditions(domain_name: &str, hop_wheres: &[&Json], aggregate: &Json, aggregates_by_name: &HashMap<String, &Json>) -> Vec<HopCondition> {
     hop_wheres
         .iter()
@@ -470,7 +520,6 @@ fn hop_condition(domain_name: &str, plan: HopPlan<'_>, w: &Json) -> HopCondition
     HopCondition { via_field: plan.via_field, target_aggregate: format!("{domain_name}::{}", plan.target_aggregate), through, condition }
 }
 
-/// Port of `read_models.rb#emit_reference_hop_condition`.
 pub fn emit_reference_hop_condition(hop: &HopCondition) -> String {
     let through = hop
         .through
@@ -488,10 +537,7 @@ pub fn emit_reference_hop_condition(hop: &HopCondition) -> String {
     )
 }
 
-/// `Runtime::TenantScope.apply`'s own synthetic clause, ported at codegen
-/// time — see `rust/project/queries.rb`'s own `query_conditions_with_
-/// authorization` for the full reasoning (including why this is
-/// deliberately not folded into `query_conditions` itself).
+// Adds `Runtime::TenantScope.apply`'s synthetic tenant clause at codegen time.
 pub fn query_conditions_with_authorization(query: &Json) -> Vec<Condition> {
     let mut conditions = query_conditions(query);
     if let Some(tenant) = query.get("authorization").and_then(|a| a.get("tenant")).map(Json::to_s) {
@@ -500,16 +546,8 @@ pub fn query_conditions_with_authorization(query: &Json) -> Vec<Condition> {
     conditions
 }
 
-/// `TenantAuth`'s own compiled form — `None` unless a real tenant is
-/// declared (see `declared_authorization_skip_reason`'s own comment).
-/// `policy` — item 2.6 of the equivalence-gap plan, ported from `rust/
-/// project/queries.rb`'s own identical `emit_query_authorization`:
-/// carried on the wire but not enforced (that method's own header has
-/// the full reasoning — Ruby's own `TenantScope.apply` doesn't check it
-/// either, a documented, deliberate gap pending real identity
-/// infrastructure, not something this generator invents enforcement for
-/// on its own). `.to_s` on a possibly-absent `policy` key answers `""`
-/// the same way Ruby's own `authorization[:policy].to_s` does for `nil`.
+// `None` unless a tenant is declared. `policy` is carried on the wire but not enforced,
+// matching Ruby's `TenantScope.apply`; an absent policy becomes `""`.
 pub fn emit_query_authorization(query_name: &str, authorization: Option<&Json>) -> Option<String> {
     let tenant = authorization.and_then(|a| a.get("tenant")).map(Json::to_s)?;
     let policy = authorization.and_then(|a| a.get("policy")).map(Json::to_s).unwrap_or_default();
@@ -521,18 +559,9 @@ pub fn emit_query_authorization(query_name: &str, authorization: Option<&Json>) 
     ))
 }
 
-// `Vocabulary::QueryComparator` itself declares nine names (`none_in_state`
-// was added later — vocabulary.bluebook's own comment calls it "a vendored
-// addition"). `rust/src/kernel/query_comparators.rs` does have a
-// `QueryComparator::NoneInState` variant now, but this list still leaves
-// it out on purpose, matching `queries.rb`'s `QUERY_COMPARATOR_VARIANTS`:
-// no generated call site can hand it a cross-domain search list yet, so
-// generating it would answer every row `true` instead of a real anti-join
-// (`query_where_skip_reason`'s `where_none_in_state` refusal has the full
-// reason). `query_where_skip_reason` (above) checks this before a
-// query reaches `query_comparator_variant` below, so the `panic!` there
-// stays the "should be unreachable" backstop it always was, not the
-// primary gate.
+// `none_in_state` is left out on purpose: no generated call site can supply its
+// cross-domain search list, so it would answer every row `true`. `query_where_skip_reason`
+// checks this first, making the `panic!` in `query_comparator_variant` a backstop.
 fn known_query_comparator(op: &str) -> bool {
     matches!(op, "eq" | "ne" | "gt" | "gte" | "lt" | "lte" | "in" | "contains")
 }
@@ -551,17 +580,9 @@ fn query_comparator_variant(op: &str) -> &'static str {
     }
 }
 
-/// `condition[:literal].inspect` — Ruby's own generic `Object#inspect`,
-/// called on whatever `Literal.read` returned. Used for the `Literal`
-/// (string/bool/nil/symbol/hash/array) branch only — `emit_query_
-/// condition_value` (below) intercepts `Int`/`Float` before this
-/// function ever runs, emitting `QueryConditionValue::NumericLiteral`
-/// instead. That split avoids a real landmine: a bare, unquoted
-/// Integer/Float `.inspect` embedded where `QueryConditionValue::Literal`
-/// expects a `&str` would be a compile error the moment
-/// `query_where_skip_reason` ever let a numeric-kind field's literal
-/// through, so numeric literals get their own properly-typed variant
-/// instead, mirroring `rust/project/queries.rb`'s own identical fix.
+// Ruby's `Object#inspect` for a `Literal`. Numbers never reach here: an unquoted number
+// where `QueryConditionValue::Literal` expects a `&str` would not compile, so
+// `emit_query_condition_value` emits `NumericLiteral` for them.
 fn literal_inspect(lit: &Literal) -> String {
     match lit {
         Literal::Str(s) => naming::ruby_inspect_string(s),
@@ -575,8 +596,7 @@ fn literal_inspect(lit: &Literal) -> String {
     }
 }
 
-/// `Float#inspect` — always carries a decimal point, same rule as
-/// `Json::to_s`'s own `format_number`.
+/// `Float#inspect`: always carries a decimal point.
 fn ruby_float_inspect(n: f64) -> String {
     let text = format!("{n}");
     if text.contains('.') || text.contains('e') || text.contains('E') {
@@ -591,12 +611,7 @@ pub fn emit_query_condition_value(condition: &Condition) -> String {
         Some(arg) => format!("crate::kernel::QueryConditionValue::Arg({})", naming::ruby_inspect_string(arg)),
         None => {
             let lit = condition.literal.as_ref().unwrap();
-            // `query_where_skip_reason` only lets a bare Integer/Float
-            // literal reach here once the target field is already proven
-            // numeric-kind -- the literal's own variant is sufficient to
-            // pick the emitted `QueryConditionValue`, no need to
-            // re-derive kind a second time (mirrors
-            // rust/project/queries.rb's own identical reasoning).
+            // The skip check already proved a numeric literal targets a numeric field.
             match lit {
                 Literal::Int(n) => format!("crate::kernel::QueryConditionValue::NumericLiteral({})", ruby_float_inspect(*n as f64)),
                 Literal::Float(n) => format!("crate::kernel::QueryConditionValue::NumericLiteral({})", ruby_float_inspect(*n)),
@@ -621,14 +636,12 @@ pub struct QueryDef {
     pub offset: Option<String>,
     pub limit: Option<String>,
     pub authorization: Option<String>,
-    /// The chapter's `provides "authorization", assignments:` names this
-    /// query — see `emit_authorization_assignments`.
+    /// True when the chapter's `provides "authorization", assignments:` names this query.
     pub assignments: bool,
     /// `Some` for a declared entity query — emitted into `ENTITY_QUERIES`.
     pub entity: Option<EntityScope>,
 }
 
-/// Port of `queries.rb#provided_assignments`.
 pub fn provided_assignments(ir: &Json) -> Option<String> {
     ir.get("provides")
         .map(Json::each)
@@ -642,7 +655,6 @@ pub fn provided_assignments(ir: &Json) -> Option<String> {
         .map(str::to_string)
 }
 
-/// Port of `queries.rb#emit_authorization_assignments`.
 pub fn emit_authorization_assignments(query_defs: &[QueryDef]) -> String {
     let value = match query_defs.iter().find(|q| q.assignments) {
         Some(q) => format!("Some({})", naming::ruby_inspect_string(&q.verb)),
@@ -653,14 +665,12 @@ pub fn emit_authorization_assignments(query_defs: &[QueryDef]) -> String {
     )
 }
 
-/// Port of `queries.rb`'s `query_def[:entity]`.
 pub struct EntityScope {
     pub list_field: String,
     pub parent_key: String,
     pub identity_keys: Vec<String>,
 }
 
-/// Port of `queries.rb#emit_entity_query_table`.
 pub fn emit_entity_query_table(entity_defs: &[&QueryDef]) -> String {
     let rows: String = entity_defs.iter().map(|q| format!("{}\n", emit_entity_query_def(q))).collect();
     format!(
@@ -688,7 +698,6 @@ fn emit_entity_query_def(query_def: &QueryDef) -> String {
     )
 }
 
-/// Port of `queries.rb#entity_query_skip_reason`.
 pub fn entity_query_skip_reason(query: &Json, entity: &Json, holds_list: bool, value_objects_by_name: &HashMap<String, &Json>) -> Option<SkipReason> {
     let entity_name = entity.get("name").map(Json::to_s).unwrap_or_default();
     if !holds_list {
@@ -740,9 +749,7 @@ pub fn emit_query_table(exemplar: &Exemplar, query_defs: &[QueryDef]) -> String 
     )
 }
 
-/// Port of `queries.rb#query_arg_checks` — C3.7 for a named query's own
-/// value-object arguments (ADR 0037 finding 4): one `if let` per typed
-/// argument, built and invariant-checked, then dropped.
+// One `if let` per value-object argument: built and invariant-checked, then dropped (ADR 0037).
 pub fn query_arg_checks(query: &Json, mod_path: &str, value_objects_by_name: &HashMap<String, &Json>) -> Vec<String> {
     query
         .get("attributes")
@@ -762,8 +769,7 @@ pub fn query_arg_checks(query: &Json, mod_path: &str, value_objects_by_name: &Ha
         .collect()
 }
 
-/// Port of `queries.rb#emit_query_arg_check_table` — the gate
-/// `kernel/cli.rs` runs before `named_query::run`.
+// The gate `kernel/cli.rs` runs before `named_query::run`.
 pub fn emit_query_arg_check_table(query_defs: &[QueryDef]) -> String {
     let arms: Vec<String> = query_defs
         .iter()

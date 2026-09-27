@@ -1,18 +1,5 @@
-// Implements the Ruby grammar's "text" expression-operator category
-// (projection.json: `.split`, `.start_with?`, `.end_with?` — three
-// symbols, three interpreter nodes sharing one category, the same
-// `sized.rs`-style grouping precedent: different node shapes, one
-// category, because all three ask a question of a string specifically)
-// — `Resolver::Split`/`::StartsWith`/`::EndsWith` (resolver.rb's
-// `split_value`/`starts_with?`/`ends_with?`), read directly. String-only,
-// same reasoning the Ruby resolver's own comments give: every corpus
-// usage found splits or checks the ends of a real String field, never a
-// coerced non-string.
-//
-// `expr.rs`'s `category_of` guarantees `interpret` below is only ever
-// called with `Split`/`StartsWith`/`EndsWith` — see `logical.rs`'s
-// header for why the trailing arm is a router-bug guard, not a real
-// refusal path.
+//! The "text" expression-operator category: `.split`, `.start_with?`, `.end_with?`.
+//! String receivers only; `expr.rs` routes only these three nodes here.
 
 use crate::kernel::expr::{eval_error, interpret as eval, EvalContext, Expr, Value};
 use crate::kernel::Refusal;
@@ -21,14 +8,7 @@ pub fn interpret(expr: &Expr, ctx: &EvalContext) -> Result<Value, Refusal> {
     match expr {
         Expr::Split { receiver, separator } => {
             let text = require_str(&eval(receiver, ctx)?, "split")?;
-            // Ruby's `String#split(sep)` with a non-empty literal
-            // separator never returns a trailing empty element the way
-            // a raw byte-split naively would for `"a::".split("::")`
-            // (`["a", ""]` in a naive split vs. Ruby's own `["a"]`) —
-            // `Vec<&str>::split` matches Rust's own semantics, not
-            // Ruby's, for that trailing-empty case, so trailing empties
-            // are trimmed the same way Ruby's own `split` (limit
-            // defaulted, not `-1`) already does.
+            // Ruby's `"a::".split("::")` is `["a"]`; Rust's split keeps the trailing "".
             let mut parts: Vec<&str> = text.split(separator.as_str()).collect();
             while parts.last() == Some(&"") {
                 parts.pop();

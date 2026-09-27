@@ -1,26 +1,7 @@
 require "spec_helper"
 
-# BUG#32 (QualityControl ledger) — `remove:` was only ever implemented for
-# value-object-typed list arguments (`spec/mutation_remove_growth_spec.rb`'s
-# `RemoveDependency`, `spec/runtime/entity_list_mutations_spec.rb`'s
-# `RemoveTag`/`RemoveTagFromBoard`); an entity-typed list's own `remove:`
-# was a silent no-op — `Hecks::Runtime::Value::Coercion#hydrate_entity_list`
-# had no `value.is_a?(Array)` guard for the single-target shape `remove:`
-# offers, unlike its value-object sibling `#hydrate_value_object_list`, so
-# a scalar removal target (an entity's own identity value) got wrapped
-# into a one-element Array instead of coerced, and `element == value` then
-# compared a stored entity Hash against that Array, which can never match.
-# `qa/stress_domains/corrections`'s own `Ledger.Void` (`sets :entries,
-# remove: :sequence`) found this live, by hand — this is the dedicated
-# runtime regression coverage for the fix, an inline domain so it stays
-# independent of that stress domain's own, separately-tracked findings.
-#
-# An entity is matched by identity here, never whole-value equality (an
-# entity must never answer `.value_object` — `Entity`'s own header
-# comment) — see `EntityElement.list_element_match?`'s own comment for
-# the full reasoning, and `Coercion#hydrate_entity_identity`'s for how
-# the offered scalar gets coerced against the right field's type before
-# either match site ever compares it.
+# `remove:` on an entity-typed list matches the element by identity, coercing a scalar target
+# (Ledger.Void, `sets :entries, remove: :sequence`); an inline domain keeps it self-contained.
 RSpec.describe "remove: on an entity-typed list" do
   ENTITY_LIST_REMOVE_SOURCE = <<~BLUEBOOK.freeze
     Hecks.bluebook "EntityListRemove" do
@@ -171,13 +152,8 @@ RSpec.describe "remove: on an entity-typed list" do
     expect(entries.map { |e| e[:sequence].value }).to eq([1])
   end
 
-  # GUARANTEED_BY_CONSTRUCTION (lib/hecks/fuzzing/properties.rb) — an
-  # auto-minted entity identity is "one past the highest HELD"
-  # (`MutationApplier#next_identity`), not `size + 1`, precisely so a
-  # freed identity is safe to reuse once the list has genuinely shrunk.
-  # This is the first real coverage of that shrink-then-remint sequence
-  # actually happening (BUG#32's own fix is what makes the list shrink
-  # at all).
+  # GUARANTEED_BY_CONSTRUCTION (lib/hecks/fuzzing/properties.rb): an auto-minted identity is one
+  # past the highest held (`MutationApplier#next_identity`), so a freed identity is safe to reuse.
   it "reuses a freed identity on the next auto-mint (one past the highest HELD, not size + 1)" do
     dispatcher = boot
     dispatcher.dispatch_flat("EntityListRemove::Ledger.Open", reference: { value: "l3" })

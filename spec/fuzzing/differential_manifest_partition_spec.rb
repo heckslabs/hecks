@@ -5,10 +5,8 @@ require "fileutils"
 require "hecks/fuzzing"
 require "hecks/fuzzing/differential"
 
-# `Differential.manifest_partition` — the one place a Ruby/Rust query
-# divergence may be tolerated, and only for a verb a manifest.json declares
-# not generated. A synthetic manifest: the real banking one this would
-# otherwise read declares no gaps.
+# `Differential.manifest_partition`: the one place a Ruby/Rust query divergence is tolerated,
+# only for a verb manifest.json declares not generated. Uses a synthetic manifest with a gap.
 RSpec.describe Hecks::Fuzzing::Differential, ".manifest_partition" do
   around do |example|
     Dir.mktmpdir do |root|
@@ -41,8 +39,7 @@ RSpec.describe Hecks::Fuzzing::Differential, ".manifest_partition" do
     expect(kept[:skipped]).to eq(Set[declared])
   end
 
-  # The whole point of Phase 4: the old filter dropped this row because its
-  # error contained "is not generated for this domain". Undeclared, it stays.
+  # Pins that a row is never dropped on Rust's "is not generated" wording alone.
   it "keeps an undeclared refusal even when it carries Rust's not-generated wording" do
     undeclared = { "verb" => "Banking::ATMCard.ByFee", "kind" => "TypeMismatch",
                    "error" => "named/declared query \"Banking::ATMCard.ByFee\" is not generated for this domain" }

@@ -1,18 +1,7 @@
 require "hecks"
 
-# §2's demonstration: a caller acting under one role, temporarily assuming
-# another to dispatch a command that role does not itself hold — checked
-# against Governance's `RoleTransition`, then scoped with
-# `Hecks.as_caller`. Two separate registries, on purpose: Governance's
-# own, and Pizzas' — checking authority and dispatching a business command
-# are two independent steps an application already coordinates in plain
-# Ruby, so nothing here composes them into one registry.
-#
-# No change to CommandInterpreter, Dispatcher, or CommandRules::Authorization
-# backs this — `Caller.as` already scopes a role to a nested dispatch and
-# restores it after, via ordinary Ruby `ensure`, and `refuse_role_mismatch`
-# already does nothing when no caller is bound. This spec is the proof: the
-# pattern composes out of primitives that already exist.
+# A role temporarily acting as another: Governance's `RoleTransition` says whether it may,
+# `Hecks.as_caller` scopes it. Two registries, since the check and the dispatch are separate steps.
 RSpec.describe "act_as — a role acting as another, checked against Governance" do
   def governance_runtime
     registry = Hecks::Runtime::Registry.new
@@ -59,12 +48,8 @@ RSpec.describe "act_as — a role acting as another, checked against Governance"
   let(:governance) { governance_runtime }
   let(:pizzas) { pizzas_runtime }
 
-  # The application-level check. Not library code — the same reasoning
-  # `Ports::IdentityGeneration`'s own spec demonstrates a real dispatch
-  # against, rather than inventing facade machinery for a pattern that
-  # composes out of what already exists. `Allowed` returns the record
-  # whether granted or revoked (see governance.bluebook's own comment on
-  # the query) — the caller reads `ends_at`, same as `AssignmentsForActor`.
+  # The application-level check, not library code. `Allowed` returns granted and revoked
+  # records alike, so a nil `ends_at` is what marks a live grant.
   def transition_granted?(from:, to:)
     rows = governance.query(
       "Governance::RoleTransition.Allowed",
@@ -90,9 +75,8 @@ RSpec.describe "act_as — a role acting as another, checked against Governance"
 
     created = nil
     Hecks.as_caller(role: "Customer") do
-      # `CreatePizza` needs "Chef" — the outer caller is "Customer" and does
-      # not hold it. The nested `as_caller` is what makes this dispatch
-      # authorized at all.
+      # `CreatePizza` needs "Chef"; the outer caller is "Customer", so only the nested
+      # `as_caller` authorizes this dispatch.
       created = Hecks.as_caller(role: "Chef") do
         business.dispatch_flat("Pizzas::Order.CreatePizza", name: { value: "Margherita" }, **PIZZA_ARGS)
       end
@@ -103,10 +87,7 @@ RSpec.describe "act_as — a role acting as another, checked against Governance"
         )
       end
 
-      # Restored. `Caller.current` is "Customer" again the moment the
-      # nested block returns — proved by dispatching a "Customer"-only
-      # command right here, still inside the outer as_caller, with no
-      # nested block in the way.
+      # Restored: a "Customer"-only command dispatches here, outside the nested block.
       purchased = business.dispatch_flat(
         "Pizzas::Order.Purchase", id: created.instance.id,
         customer_name: { value: "Dana" }, amount: { cents: 1200 }
@@ -116,10 +97,8 @@ RSpec.describe "act_as — a role acting as another, checked against Governance"
     end
   end
 
-  # The guarded call an application actually makes: check Governance, and
-  # only reach the nested dispatch if it says yes. `dispatched` records
-  # whether the block ran at all, so the refusal path can prove the
-  # dispatch was never attempted — not merely that it would have failed.
+  # The guarded call an application makes. `dispatched` records whether the block ran, so the
+  # refusal test can show the dispatch was never attempted.
   def act_as(from:, to:, dispatched:)
     raise "not authorized: #{from} may not act as #{to}" unless transition_granted?(from: from, to: to)
 

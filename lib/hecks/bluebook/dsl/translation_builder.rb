@@ -2,12 +2,8 @@ require_relative "word_gate"
 module Hecks
   module Bluebook
     module DSL
-      # Parses an `aggregate "Name" do ... end` block inside a `.translation`
-      # file into a `TranslationAggregate` — the per-aggregate rules
-      # (`rename`/`move`/`convert`/`retype`/`compute`/`rekey`/`backfill`/
-      # `drop`) that carry one era's stored data forward to the next, plus
-      # `unresolved` markers the scaffold writes wherever it cannot decide a
-      # rule for itself.
+      # Parses an `aggregate "Name" do ... end` block in a `.translation` file into a
+      # `TranslationAggregate`: the rules that carry one era's stored data to the next.
       class TranslationAggregateBuilder
         GRAMMAR_CONTEXT = "TranslationAggregate".freeze
 
@@ -32,17 +28,6 @@ module Hecks
         end
 
         # Declares a field rename with no other change: same path, new name.
-        #
-        # Answers the `rename` word (and, via the same table rows, its
-        # siblings `move`/`convert`/`retype`/`compute`/`rekey`/`backfill`
-        # below) through the table's `calls:` column — item #13's full
-        # metaprogrammed dispatch (slice 4c). Each is carried in
-        # `GenericDispatch::BOOTSTRAP_CALLS_FALLBACK` like every other
-        # `calls:`-routed word, but none of their rows are ever consulted
-        # during real bootstrap: `translation.bluebook` describes its own
-        # structure with aggregate/entity/attribute, never with these —
-        # they're words for real, user-authored `.translation` files
-        # only, loaded after the grammar table already exists.
         #
         # @param old_name [Symbol, String] the field's name in the held era
         # @param to [Symbol, String] the field's name in the destination era
@@ -72,12 +57,8 @@ module Hecks
         # Declares an exhaustive value-to-value mapping for a field with nothing structural in
         # common with its replacement.
         #
-        # A value with nothing structural in common with its replacement
-        # — declared as an exhaustive table, not computed, so every value
-        # that can appear in old data has a named destination. Paths
-        # follow `move`'s convention: dotted reaches a value-object member.
-        #
-        # @param old_path [String, Symbol] the field's path in the held era
+        # @param old_path [String, Symbol] the field's path in the held era; dotted reaches a
+        #   value-object member
         # @param to [String, Symbol] the field's path in the destination era
         # @param values [Hash] every old value mapped to its destination value
         # @return [Array<Bluebook::TranslationConvert>] every convert declared so far, this one
@@ -92,20 +73,13 @@ module Hecks
           @converts << TranslationConvert.new(old_path.to_s, to.to_s, values)
         end
 
-        # `drop` — item #13's full metaprogrammed dispatch, slice 2
-        # (whole-project table-unification survey): a declared,
-        # deliberate acknowledgment that an attribute's data does not
-        # survive the rename — the honest alternative to letting it
-        # vanish because nothing named it. A blank-guarded, kind-driven
-        # coerce-and-append with nothing else, now executed by
-        # `GenericDispatch`.
+        # `drop` (attribute data that does not survive the rename) is dispatched directly off
+        # the grammar table by `GenericDispatch`; no method answers it here.
 
         # Declares that a type's name changed while its member structure stayed the same.
         #
-        # A value object's or entity's own type name changed, member
-        # structure unchanged. The stored data never carries the type
-        # name, so nothing moves — this declares that the pair of names
-        # means the same shape, which is what lets the era diff accept it.
+        # Nothing moves: stored data never carries the type name, so this only tells the era
+        # diff that the two names mean the same shape.
         #
         # @param old_type [String, Symbol] the type's name in the held era
         # @param to [String, Symbol] the type's name in the destination era
@@ -121,10 +95,8 @@ module Hecks
 
         # Declares a field computed by a hand-written Postgres SQL expression.
         #
-        # A computed transform whose only implementation is the SQL
-        # expression itself — Postgres-only by construction. The scaffold
-        # never proposes one; a human writes it, and the audit's
-        # human-sampled review is its only verification.
+        # The scaffold never proposes one; a human writes it, and human-sampled review is
+        # its only verification.
         #
         # @param old_path [String, Symbol] the source field's path in the held era
         # @param to [String, Symbol] the field's path in the destination era
@@ -143,14 +115,8 @@ module Hecks
         # Declares a hand-written Postgres SQL expression that recomputes the aggregate's own
         # identity.
         #
-        # The aggregate's own identity, changing what it's computed from —
-        # not a field crossing a boundary (`move`), not a value's own
-        # transform (`compute`): the record's key. No path arguments,
-        # unlike every rule above — nothing is consumed from or moved into
-        # `state`, only what identifies the record is recomputed. Same
-        # SQL-only, Postgres-only, human-reviewed-sample-is-the-only-
-        # verification shape `compute` already has, and for the same
-        # reason: there is nothing in-process to check this against.
+        # No path arguments, unlike the rules above: only the record's key is recomputed, not
+        # state moved into it. Verified the same human-reviewed-only way as `compute`.
         #
         # @param sql [String] the Postgres SQL expression computing the destination identity
         # @return [Array<Bluebook::TranslationRekey>] every rekey declared so far, this one last
@@ -164,17 +130,8 @@ module Hecks
         # Declares a newly added, required attribute and the default existing records read
         # until a real value is written.
         #
-        # A newly added, required attribute — the addition-side sibling of
-        # `drop`. Nothing to rename, move, or convert from, since old data
-        # never held this field at all; `default` is what an existing
-        # record reads until the next command against it writes a real
-        # value. Adapter-agnostic, unlike `compute` — applied the same
-        # in-process way rename/move/drop already are
-        # (`Lineage#translate`), because there is nothing to compute here,
-        # only a value to declare. This is what
-        # `EraGuard.refuse_unsafe_addition!` asks for when a non-optional
-        # attribute with no default: could leave an existing record with
-        # the field genuinely absent.
+        # What `EraGuard.refuse_unsafe_addition!` requires before a non-optional attribute
+        # with no default can boot.
         #
         # @param name [String, Symbol] the new attribute's name
         # @param default [Object] the value an existing record reads until it is written for real
@@ -190,22 +147,6 @@ module Hecks
 
         # Always refuses to boot: marks a field the scaffold could not decide a rule for.
         #
-        # The scaffold writes this where it cannot decide; a file carrying
-        # one can only boot into this refusal — never a guess.
-        #
-        # Answers the `unresolved` word through the table's `calls:`
-        # column — item #13's full metaprogrammed
-        # dispatch (slice 4). Builds its own message with real branching
-        # (empty vs. named candidates, a special :identity case), not a
-        # fixed string a boolean `refuses:` flag could express. Carried in
-        # `GenericDispatch::BOOTSTRAP_CALLS_FALLBACK` like every other
-        # `calls:`-routed word, but that row is never consulted during
-        # real bootstrap (checked directly, not assumed):
-        # translation.bluebook (loaded during bootstrap, to describe the
-        # translation DSL itself) never writes `unresolved` — that word is
-        # only ever used by real, user-authored `.translation` files,
-        # loaded well after the grammar table already exists.
-        #
         # @param name [String, Symbol] the unresolved field's name, or `:identity` for an
         #   unresolved identity change
         # @param candidates [Array<String, Symbol>] paths the scaffold considered but could not
@@ -216,14 +157,8 @@ module Hecks
           raise Malformed, unresolved_message(name, candidates)
         end
 
-        # `method_missing`/`respond_to_missing?` answer off the self-hosted
-        # grammar table (via the `include`d `WordGate`, above), giving a
-        # richer, table-driven "must be rename, move, convert, ..." refusal
-        # on a genuinely undefined call than a hand-typed list could —
-        # the exact "hardcoded legal-word list" this whole arc's item #13
-        # exists to close. A word admitted
-        # elsewhere in the grammar but not in this context still gets that
-        # richer refusal.
+        # `method_missing`/`respond_to_missing?` (via the included `WordGate`) give a
+        # table-driven refusal naming the legal words, rather than a hand-typed list.
 
         # Assembles the declared rules into a `TranslationAggregate`.
         #
@@ -265,11 +200,8 @@ module Hecks
         end
       end
 
-      # Parses a whole `.translation` file into a `Translation` — the
-      # domain's own `from:`/`to:` era pair, its list of `aggregate`
-      # translation blocks (each built by `TranslationAggregateBuilder`
-      # above), and any `retired` aggregates that do not exist in the
-      # destination era.
+      # Parses a whole `.translation` file into a `Translation`: the domain's `from:`/`to:`
+      # era pair, its `aggregate` blocks, and any `retired` aggregates.
       class TranslationBuilder
         GRAMMAR_CONTEXT = "Translation".freeze
 
@@ -291,43 +223,25 @@ module Hecks
           @retired    = []
         end
 
-        # Declares one aggregate's own translation rules.
-        #
-        # Answers the `aggregate` word through the table's `calls:`
-        # column — item #13's full metaprogrammed
-        # dispatch (slice 4c). Not bootstrap-reachable — this "Translation"
-        # -context `aggregate` (opens a TranslationAggregateBuilder) is a
-        # different (context, word) pair than "Bluebook"-context
-        # `aggregate` (the one translation.bluebook itself is described
-        # with), so it never describes the language's own
-        # translation chapter.
+        # Declares one aggregate's own translation rules; a distinct (context, word) pair
+        # from "Bluebook"-context `aggregate`, despite sharing the word.
         #
         # @param name [String, Symbol] the aggregate's name in the destination era
         # @param was [String, Symbol, nil] the aggregate's earlier name, when renamed
-        # @yield the aggregate's own translation body, evaluated against a
-        #   `TranslationAggregateBuilder`
-        # @return [Array<Bluebook::TranslationAggregate>] every aggregate translation declared
-        #   so far, this one last
-        # @raise [Bluebook::DSL::Malformed] if `name` is empty, or any rule in the body fails
-        #   its own checks
+        # @yield the translation body, evaluated against a `TranslationAggregateBuilder`
+        # @return [Array<Bluebook::TranslationAggregate>] every declared so far, this one last
+        # @raise [Bluebook::DSL::Malformed] if `name` is empty, or a body rule fails its own checks
         def aggregate_impl(name, was: nil, &block)
           builder = TranslationAggregateBuilder.new(name, was: was)
           builder.instance_eval(&block) if block
           @aggregates << builder.build
         end
 
-        # `retired` (an aggregate that is gone outright, not renamed — the
-        # deliberate alternative to a bogus `was:` claim on an unrelated
-        # aggregate, the same shape `TranslationAggregateBuilder#drop` is)
-        # is executed straight off the grammar table by `GenericDispatch` —
-        # item #13's full metaprogrammed dispatch, slice 2 (whole-project
-        # table-unification survey) — so no hand-written method answers it here.
+        # `retired` (an aggregate gone outright, not renamed) is dispatched straight off the
+        # grammar table by `GenericDispatch`; no method answers it here.
 
-        # `method_missing`/`respond_to_missing?` answer off the self-hosted
-        # grammar table (via the `include`d `WordGate`, above, the same
-        # mechanism `TranslationAggregateBuilder`'s own comment describes
-        # one level up) instead of a hand-typed "it declares aggregate
-        # blocks and retired aggregates" message.
+        # `method_missing`/`respond_to_missing?` (via the included `WordGate`) give the same
+        # table-driven refusal `TranslationAggregateBuilder` uses.
 
         # Assembles the declared era pair, aggregates and retirements, judged by the translation
         # language.

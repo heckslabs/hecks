@@ -2,45 +2,24 @@ require "hecks/vocabulary"
 require "hecks/bluebook/model_check"
 
 module RustProjection
+  # Domain-to-Rust codegen support: type mapping, reserved-name checks, and
+  # literal escaping shared by the Rust code generator.
   module Projector
     module_function
 
-    # `TrueClass`/`FalseClass`, not a single "Boolean" — Ruby has no
-    # unified boolean class, so a bluebook attribute meaning "true or
-    # false" is declared with one or the other verbatim (this DSL never
-    # requires a value to actually match its own declared class —
-    # `false` is a legal value for an attribute typed `TrueClass`, the
-    # same way it already is for Ruby's own `case/when TrueClass`).
-    # Missing here until a client site's own `Attendee.news_signup`/
-    # `previous_sessions`/`first_time` (`attribute :x, TrueClass`) —
-    # confirmed live, `pub news_signup: TrueClass` emitted verbatim into
-    # generated Rust and refusing to compile — because no domain in this
-    # repo's own corpus had ever declared a bare boolean attribute
-    # before; `query_scalar_or_vo_kind` (queries.rb) and `Synthesizer`
-    # already special-case both names for their own purposes, this table
-    # just never gained the matching entry.
+    # Ruby has no single Boolean class, so a boolean attribute is declared
+    # TrueClass or FalseClass; both keys must map here.
     SCALAR = { "String" => "String", "Integer" => "i64", "Float" => "f64",
                    "TrueClass" => "bool", "FalseClass" => "bool" }.freeze
     SCALAR_KIND = { "String" => :string, "Integer" => :int, "Float" => :float,
                      "TrueClass" => :bool, "FalseClass" => :bool }.freeze
 
-    # `Reference<X>` is not a scalar per the IR's own vocabulary, but it
-    # behaves like one for codegen purposes: aggregates-and-value-objects.md's
-    # "Pointing at another aggregate" section is explicit that a reference
-    # "is a bare id — a String — not a nested object." So a reference is
-    # represented as a plain `String`, the same as any other id, at the
-    # STRUCT-FIELD level. `resolve_references` (Ruby's own existence check —
-    # `command_rules/references.rb`, read directly) is now generated too,
-    # but at the registry level (`reactions.rb`'s `reference_check`,
-    # `registry.rb`'s own emit), which is where Ruby's own version reaches
-    # through `@registry.repository(domain, target)` — not here, and not by
-    # changing this field's Rust type.
+    # A `Reference<X>` is represented as a plain `String` at the
+    # struct-field level — it's a bare id, not a nested object (see
+    # aggregates-and-value-objects.md's "Pointing at another aggregate").
     def reference_type?(type_name) = type_name.to_s.start_with?("Reference<")
 
-    # `X` out of `Reference<X>` — the target aggregate's own bare name, the
-    # same string `command_rules/references.rb#referenced_aggregate` reaches
-    # via `attribute.type.resolve.name`. `nil` for anything that isn't a
-    # reference type at all, same shape as `reference_type?`.
+    # Returns nil when `type_name` isn't a `Reference<...>` at all.
     def reference_target(type_name)
       match = type_name.to_s.match(/\AReference<(.+)>\z/)
       match && match[1]
@@ -61,44 +40,28 @@ module RustProjection
     def rust_ident(name) = name.to_s.gsub(/[^A-Za-z0-9]/, "")
     def dispatch_fn_name(cmd) = cmd.gsub(/(?<=.)([A-Z])/, '_\1').downcase
 
-    # Two different jobs a field name does in generated code, and they must
-    # NOT share one function: as a STRING LITERAL (a `Fielded::field` match
-    # arm's key, a payload map key) the plain name is correct Rust — `"type"`
-    # IS the string a caller passes to look a field up by name. As an
-    # IDENTIFIER (a struct field, `self.X`/`args.X`/`record.X`) a name that
-    # collides with a Rust keyword is a syntax error unless raw-escaped —
-    # found live: the self-hosted grammar's own `Attribute`/`Argument`
-    # aggregates declare a field literally named `type`, because that is
-    # what it is.
+    # A field name plays two different roles in generated code: a
+    # string-literal match-arm/payload key (plain text) and a struct-field
+    # identifier (must be raw-escaped when it collides with a Rust
+    # keyword) — kept as separate functions so escaping only ever applies
+    # to the identifier role.
     #
-    # Declared once, as the `RustReservedWord` vocabulary (language/bluebook/
-    # vocabulary.bluebook) — the same table bin/project_reserved_names
-    # projects into hecks-codegen's `reserved_names.rs`.
+    # Declared once as the `RustReservedWord` vocabulary;
+    # `bin/project_reserved_names` projects the same table into
+    # hecks-codegen's `reserved_names.rs`.
     RUST_KEYWORDS = Hecks::Vocabulary.fetch("RustReservedWord")
 
-    # A DOMAIN'S OWN NAME (`File.basename(domain)`, `bin/project_rust`) has
-    # to double as THREE things at once: a directory name, a bare Rust
-    # module identifier (`pub mod #{name};` — module names get no raw-
-    # identifier `r#name` escape hatch the way struct FIELDS do via
-    # `rust_ident_field`), and a Cargo `[features]` key. `RUST_KEYWORDS`
-    # above rules out the second; this list rules out the third — every
-    # key that already appears elsewhere in `rust/Cargo.toml` outside
-    # `[features]` (`[package]`'s `name`/`version`/`edition`/etc., `[lib]`/
-    # `[[bin]]`'s `name`/`path`) plus `default`, which Cargo itself
-    # reserves for the auto-enabled feature set. `bin/project_rust`'s own
-    # feature-sync regex used to search the WHOLE Cargo.toml text for
-    # `/^name\s*=/` (now scoped to `[features]` only — see its own
-    # comment), so a domain named one of these used to silently never
-    # get its own feature line while still being set as `default`,
-    # producing a Cargo.toml that referenced an undeclared feature.
-    # Declared once, as the `CargoReservedName` vocabulary.
+    # A domain's own name doubles as a directory, a bare Rust module
+    # identifier (module names get no raw-identifier escape hatch), and a
+    # Cargo `[features]` key. This list rules out the third: every key
+    # already used elsewhere in `rust/Cargo.toml` outside `[features]`,
+    # plus `default`, which Cargo itself reserves for the auto-enabled
+    # feature set.
+    #
+    # Declared once as the `CargoReservedName` vocabulary.
     CARGO_RESERVED_DOMAIN_NAMES = Hecks::Vocabulary.fetch("CargoReservedName")
 
-    # TRUE exactly when `name` is safe to use, unescaped, as all three of
-    # the above at once. Plain lowercase-identifier shape (no leading
-    # digit, no `-`, not empty) rules out landmine class 1 (an outright
-    # Rust syntax error); the reserved-word half (class 2, a legal
-    # identifier that collides with something load-bearing) is
+    # Checks identifier shape locally; delegates the reserved-word half to
     # `ModelCheck.rust_reserved_name_findings`, the one shared check.
     def valid_domain_mod_name?(name)
       str = name.to_s
@@ -106,25 +69,17 @@ module RustProjection
         Hecks::Bluebook::ModelCheck.rust_reserved_name_findings(domain_name: str).empty?
     end
 
-    # BUG#124 — an aggregate's name becomes, downcased, a per-aggregate
-    # `<name>.rs` file and a `pub mod <name>;` line in the domain's `mod.rs`.
-    # This is only the identifier-SHAPE half (a PascalCase name always
-    # passes; "2Crate"/"My-App"/"" do not). Whether the downcased name is a
-    # Rust keyword is `ModelCheck.rust_reserved_name_findings`' job — see
-    # `reserved_name_refusal`, below, which asks both. An aggregate name
-    # never doubles as a Cargo feature key, so `CargoReservedName` does not
-    # apply to it.
+    # Identifier-shape check only (a PascalCase name always passes); whether
+    # the downcased name is a Rust keyword is `reserved_name_refusal`'s job,
+    # below. An aggregate name never doubles as a Cargo feature key.
     def legal_aggregate_mod_identifier?(name)
       name.to_s.downcase.match?(/\A[a-z_][a-z0-9_]*\z/)
     end
 
-    # THE GENERATOR'S REFUSAL — `nil` when every name is usable, else the
-    # message `DomainGenerator.call` raises. hecks-codegen's
-    # `naming::reserved_name_refusal` returns the identical string for the
-    # identical input (rust/codegen/src/naming.rs), so either generator
-    # refuses a keyword-named aggregate (BUG#124) or domain the same way.
-    # Always Rust-targeted — generating Rust IS the Rust target — so the
-    # shared check's findings here are errors, never warnings.
+    # Returns nil when every name is usable, else the message
+    # `DomainGenerator.call` raises. Must return the identical string as
+    # hecks-codegen's `naming::reserved_name_refusal`
+    # (rust/codegen/src/naming.rs) for the same input.
     def reserved_name_refusal(source_label, mod_name, aggregate_names)
       names = aggregate_names.map(&:to_s)
       reserved = Hecks::Bluebook::ModelCheck.rust_reserved_name_findings(aggregate_names: names, rust_target: true)
@@ -143,21 +98,9 @@ module RustProjection
         "Rust keyword (RustReservedWord), or is a reserved Cargo.toml key (CargoReservedName). Rename the domain."
     end
 
-    # THE SUBSET OF `RUST_KEYWORDS` A RAW IDENTIFIER (`r#name`) CANNOT
-    # RESCUE AT ALL — per the Rust reference's own RAW_IDENTIFIER
-    # grammar, `r#crate`/`r#self`/`r#super`/`r#Self` are not merely
-    # wrong in some positions, they are not valid raw-identifier SYNTAX,
-    # full stop, in any position. `rust_ident_field`, below, escapes
-    # every OTHER `RUST_KEYWORDS` entry (`type` -> `r#type`, `fn` ->
-    # `r#fn`, ...) correctly — this list is what it must refuse instead
-    # of silently emitting broken source for. Not currently reachable
-    # from any real corpus field name (verified: no attribute in
-    # examples/ or qa/stress_domains/ is named any of these), but the
-    # SAME landmine class as BUG#124's aggregate-name collision, at the
-    # struct-field site rather than the module-name site — worth closing
-    # now that the mechanism is already being extended, rather than
-    # leaving a second copy of the same gap for the next generated
-    # domain to find live.
+    # `r#crate`/`r#self`/`r#super`/`r#Self` are not valid raw-identifier
+    # syntax in Rust at all, so these four can't be escaped the way
+    # `rust_ident_field` escapes every other `RUST_KEYWORDS` entry.
     RUST_UNESCAPABLE_KEYWORDS = %w[crate self super Self].freeze
 
     def rust_field(name) = name.to_s
@@ -173,26 +116,10 @@ module RustProjection
       RUST_KEYWORDS.include?(field) ? "r##{field}" : field
     end
 
-    # A closed-set member's value is business text, not a pre-sanitized Rust
-    # identifier — splitting on `_`/whitespace alone was enough for every
-    # value pizzas/banking ever declared ("small", "large", "open"...), but
-    # the self-hosted grammar's own Vocabulary chapter has closed sets whose
-    # members are glob patterns ("*.port", "Translations/*.bluebook") —
-    # `.capitalize` leaves `*`/`.`/`/` untouched, so the OLD version emitted
-    # `Translations/*.bluebook` as a literal enum variant line, and Rust's
-    # lexer read the embedded `/*` as an unterminated block comment. Split on
-    # ANY run of non-alphanumeric characters instead, so every character that
-    # isn't a valid identifier constituent is a word boundary, not preserved
-    # text.
-    #
-    # `Self` IS THE ONE CAPITALIZED RUST KEYWORD, so it is the one variant
-    # capitalizing can produce that Rust refuses — and both `self` and `Self`
-    # capitalize to it, which also collided (vocabulary.bluebook's
-    # `RustReservedWord` lists both, and `meta` stopped compiling). A member
-    # that lands on `Self` is named by its own spelling instead: `SelfType`
-    # when it was written capitalized, `SelfValue` when it wasn't. Every
-    # other member's variant is unchanged; the wire text is always the raw
-    # value, never the variant.
+    # Splits on any run of non-alphanumeric characters, since closed-set
+    # members can be glob patterns like `*.port`. `Self`, the one
+    # capitalized Rust keyword, is renamed by original casing (SelfType/
+    # SelfValue) so two different values can't collide into it.
     def closed_set_variant(row)
       _, value = row.first
       variant = value.to_s.split(/[^A-Za-z0-9]+/).reject(&:empty?).map(&:capitalize).join
@@ -214,46 +141,18 @@ module RustProjection
       end
     end
 
-    # TRUE for anything `fielded.rb`'s three "is this attribute a nested
-    # value object" sites can safely emit `Field::Nested(&self.x)` for —
-    # every ordinary (non-closed-set) VO always could; a single-field
-    # CLOSED SET (an enum, `emit_closed_set_enum`) now can too, once it
-    # carries its own `Fielded` impl (`emit_closed_set_fielded_impl`,
-    # below) answering "value" the same way any other single-field VO's
-    # own generated `Fielded` impl already does. FALSE for a MULTI-FIELD
-    # closed set (`emit_closed_set_table` — Syntax::Keyword, Argument):
-    # genuinely no `Fielded` impl exists or is proven needed for that
-    # shape (json_codec.rb's own `emit_closed_set_codec` header: "nothing
-    # in either example domain looks one up generically or passes one as
-    # a command argument") — `Field::Nested` would fail to compile
-    # against it, and nothing in the corpus has ever needed it to.
-    #
-    # FOUND LIVE, a real, previously-invisible gap: no domain ever
-    # declared a `given`/expression referencing a closed-set-typed
-    # attribute before a client site's vendored embryonaut_bluebooks/
-    # payments (`Payment::Succeed`'s own "the processor matches..."
-    # given, over `processor: Processor` and `reported_processor:
-    # Processor`, both `one_of:` closed sets) — found live, a reaction-
-    # triggered Payment::Succeed refusing with "cannot resolve
-    # \"processor\" — no such attribute or argument" even though the
-    # aggregate held a real, rehydrated `processor` value the whole time.
+    # True when `vo` can emit `Field::Nested(&self.x)`: any ordinary value
+    # object, or a single-field closed set (which has its own `Fielded`
+    # impl). False for a multi-field closed set, which has no `Fielded`
+    # impl to emit against.
     def fielded_capable_nested?(vo)
       !vo[:closed_set] || vo[:attributes].size == 1
     end
 
-    # THE `Fielded` IMPL A SINGLE-FIELD CLOSED SET NEVER GOT —
-    # `emit_value_object`'s own single-field-closed-set branch (types.rb)
-    # used to return early with JUST the bare enum (`emit_closed_set_
-    # enum`), matching neither `emit_fielded_flat`'s shape (it has no
-    # `attributes` to iterate, being a tag, not a struct) nor needing one
-    # before `fielded_capable_nested?` above started asking. Answers
-    # "value" — the SAME single field every other closed-set codec
-    # already treats it as (`emit_closed_set_codec`'s own `to_json`:
-    # `Json::obj(vec![("value", ...)])`) — with the identical match this
-    # enum's own `to_json` already builds, reproduced here rather than
-    # shared via a common helper method (lower-risk: purely additive,
-    # touches nothing about the enum's own EXISTING to_json/from_json
-    # generation or any other caller of it).
+    # `Fielded` impl for a single-field closed set: answers "value" as its
+    # one field, matching the same arms the enum's own generated `to_json`
+    # already builds (reproduced here rather than shared, so it never
+    # touches the enum's existing to_json/from_json generation).
     def emit_closed_set_fielded_impl(vo)
       name = rust_ident(vo[:name])
       arms = vo[:members].map do |row|
@@ -283,30 +182,10 @@ module RustProjection
       end
     end
 
-    # RUST STRING LITERAL ESCAPING (R5) — free-form bluebook text (a
-    # `given`/`ensures`/invariant description, a `then_set ... to:`
-    # literal, a closed-set member's raw value, the domain's whole IR
-    # embedded verbatim as `IR_JSON`) has to become a Rust string literal
-    # somewhere in generated code. Ruby's own `String#inspect` LOOKS like
-    # it does this job — it already backslash-escapes `"`/`\`/newlines/
-    # tabs — but it escapes for RUBY'S OWN benefit, not Rust's:
-    # verified live —
-    #
-    #   "cost #{"#"}{x}".inspect  => "\"cost \\\#{x}\""   (Ruby needs \# so
-    #                                the re-read literal doesn't interpolate)
-    #   "\x01".inspect            => "\"\\u0001\""        (Ruby's own \uXXXX,
-    #                                no braces)
-    #
-    # Neither `\#` nor a brace-less `\uXXXX` is a legal Rust escape — Rust
-    # has no `\#` escape at all, and requires `\u{XXXX}` — so a
-    # description containing a literal `#{`/`#@` or a raw control
-    # character produces generated Rust that fails to compile (the exact
-    # R5 landmine). This escapes only what RUST's own string-literal
-    # grammar actually needs — backslash, double-quote, and control
-    # characters (`\n`/`\r`/`\t` where they have a short escape, braced
-    # `\u{XX}` otherwise) — and leaves everything else, including a
-    # literal `#{`/`#@` (meaningless in Rust — it has no string
-    # interpolation), untouched.
+    # Ruby's String#inspect escapes for Ruby's own read-back (e.g. a
+    # brace-less `\uXXXX`), which isn't valid Rust syntax. This escapes
+    # only what Rust's string-literal grammar needs: backslash,
+    # double-quote, and control characters.
     def rust_string_literal(str)
       escaped = str.to_s.each_char.map do |ch|
         case ch

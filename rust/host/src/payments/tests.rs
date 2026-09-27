@@ -1,9 +1,5 @@
-// Route-level tests for payments.rs and the checkout/webhook behavior that
-// depends on the tenant's connection. Real Postgres and the compiled
-// checkout_fixture wasm (which carries a trimmed PaymentConnection), no
-// external network: every Stripe call goes to a recording server on 127.0.0.1
-// that answers like Stripe, so the requests the host really sent (bearer key,
-// form fields) can be asserted on.
+// Route-level tests for payments.rs, run against real Postgres and the compiled
+// checkout_fixture wasm; every Stripe call goes to a local recording server, not the network.
 
 use super::keystore::MemoryStore;
 use super::*;
@@ -31,8 +27,6 @@ const OWNER: &str = "owner@example.com";
 const ADMIN: &str = "admin@example.com";
 const OPERATOR: &str = "operator@example.com";
 const DISABLED_OWNER: &str = "gone@example.com";
-
-// ---- a recording Stripe --------------------------------------------------
 
 #[derive(Clone, Debug)]
 struct Recorded {
@@ -137,8 +131,6 @@ async fn answer(State(state): State<Arc<FakeState>>, request: axum::extract::Req
     };
     (status, axum::Json(reply)).into_response()
 }
-
-// ---- a tenant: Postgres, the wasm, and a membership --------------------------
 
 struct Tenant {
     client: Mutex<Client>,
@@ -355,8 +347,6 @@ fn expired(reference: &str) -> Value {
     json!({"type": "checkout.session.expired", "data": {"object": {"id": "cs_test_1", "metadata": {"registration_id": reference}}}})
 }
 
-// ---- access: who may see and do what ----------------------------------------
-
 #[tokio::test]
 async fn every_route_refuses_a_missing_session_with_a_json_401_and_touches_nothing() {
     let t = tenant("hecks_pay_test_401").await;
@@ -382,7 +372,7 @@ async fn a_tampered_or_disabled_session_is_a_401_not_an_owner() {
     let response = route("GET", "/payments/connection", "", &cookies, SESSION_SECRET, &t.domain_ir, &t.platform, &t.client, &t.wasm, &t.config, &NeverInvoker).await.unwrap();
     assert_eq!(response["statusCode"], 401);
 
-    // An Owner who has since been disabled: the cookie is still validly signed.
+    // An Owner disabled after the cookie was signed: the signature is still valid.
     let (status, _) = t.call("GET", "/payments/connection", json!({}), Some(DISABLED_OWNER)).await;
     assert_eq!(status, 401);
     let (status, _) = t.call("POST", "/payments/connection/direct", json!({"mode": "test"}), Some(DISABLED_OWNER)).await;
@@ -449,8 +439,6 @@ async fn an_admin_granted_owner_passes_the_payments_gate_and_keeps_the_admin_gat
     assert!(auth::caller_is_admin(&t.client, &t.domain_ir, ADMIN).await.unwrap());
 }
 
-// ---- connecting -------------------------------------------------------------
-
 #[tokio::test]
 async fn the_status_route_reports_not_connected_and_which_modes_have_keys() {
     let t = tenant("hecks_pay_test_status_empty").await;
@@ -467,8 +455,6 @@ async fn the_status_route_reports_not_connected_and_which_modes_have_keys() {
     let (_, body) = bare.call("GET", "/payments/connection", json!({}), Some(OWNER)).await;
     assert_eq!(body["direct_modes"], json!([]));
 }
-
-// ---- enabling, disconnecting, reconnecting ------------------------------------
 
 #[tokio::test]
 async fn enable_needs_a_connection_and_follows_the_lifecycle() {
@@ -523,8 +509,6 @@ async fn disconnecting_while_payments_are_enabled_pauses_them() {
     t.connect().await;
     assert_eq!(t.status().await, "enabled", "reconnecting a paused connection resumes it");
 }
-
-// ---- checkout -------------------------------------------------------------------
 
 #[tokio::test]
 async fn checkout_stays_on_the_mock_until_payments_are_enabled() {
@@ -613,8 +597,6 @@ async fn a_stripe_refusal_answers_502_and_leaves_no_payment_or_registration_behi
     assert_eq!(instances_for(&read, "Payments::Payment#").len(), 1);
     assert_eq!(instances_for(&read, "CheckoutFixture::Registration#").len(), 1);
 }
-
-// ---- capacity: a full event refuses, an unpaid checkout holds a seat -------------
 
 fn unix_secs() -> i64 {
     std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs() as i64
@@ -858,8 +840,6 @@ async fn only_a_mock_payment_can_be_settled_by_hand() {
     assert_eq!(t.payment_status(&mock_ref).await, "succeeded");
 }
 
-// ---- webhooks -------------------------------------------------------------------
-
 #[tokio::test]
 async fn an_event_naming_an_account_is_acknowledged_and_ignored() {
     let t = tenant("hecks_pay_test_webhook_other").await;
@@ -901,8 +881,6 @@ async fn an_event_verified_only_by_the_public_mock_secret_is_refused_for_a_real_
     assert_eq!(t.payment_status(&reference).await, "pending", "a forged completion must not settle a real payment");
 }
 
-// ---- pure decisions ---------------------------------------------------------------
-
 #[test]
 fn checkout_plan_is_decided_from_the_connection_lifecycle() {
     let platform = PlatformConfig { direct_test_key: "sk_test_own".to_string(), direct_test_publishable_key: "pk_test_own".to_string(), ..test_platform() };
@@ -935,8 +913,6 @@ fn checkout_plan_is_decided_from_the_connection_lifecycle() {
     assert_eq!(platform.direct_modes(), vec!["test"]);
     assert!(secret_only.direct_modes().is_empty());
 }
-
-// ---- the business's own Stripe account --------------------------------
 
 #[tokio::test]
 async fn using_the_own_account_needs_an_owner_a_mode_and_configured_keys() {
@@ -1073,8 +1049,6 @@ async fn the_own_account_settles_from_account_less_events() {
     assert_eq!(t.webhook(completed(&reference)).await, 200);
     assert_eq!(t.payment_status(&reference).await, "succeeded");
 }
-
-// ---- keys pasted into the Payments page and saved ----------------------------------
 
 // None of the fake secrets may appear in `text`.
 fn assert_no_secret_in(text: &str) {
@@ -1247,7 +1221,7 @@ async fn saving_again_replaces_the_webhook_and_the_keys_without_disturbing_the_c
     assert_eq!(body["status"], "enabled", "the connection stays as it was");
     assert_no_secret_in(&body.to_string());
 
-    // The first save's webhook was removed (with the first key), then a new one made (with the second).
+    // The first save's webhook was removed (with the first key), a new one made (with the second).
     let removed = t.fake.requests_to("/v1/webhook_endpoints/we_1");
     assert_eq!(removed.len(), 1);
     assert_eq!((removed[0].method.as_str(), removed[0].header("authorization")), ("DELETE", Some(format!("Bearer {SAVED_KEY}").as_str())));
@@ -1309,7 +1283,7 @@ async fn the_public_mock_secret_is_refused_whenever_a_real_credential_is_configu
     assert_eq!(t.webhook_signed_with(mock, completed("ref-2")).await, 400, "the mock secret does not verify");
     assert_eq!(t.webhook_signed_with("whsec_SAVED_1", completed("ref-2")).await, 200);
 
-    // Saved keys with no saved signing secret at all: refused outright, not trusted on the mock secret.
+    // No saved signing secret at all: refused outright, not trusted on the mock secret.
     let raw = t.raw.as_ref().unwrap();
     let mut document = t.saved_document();
     document["test"]["webhook_secret"] = json!("");

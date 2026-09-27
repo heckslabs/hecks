@@ -6,21 +6,8 @@ require "open3"
 require "fileutils"
 require "pathname"
 
-# `bin/qa_sweep`'s `era_boundary` mode, proven against the real thing —
-# same discipline `spec/qa_sweep_adapter_parity_sqlite_spec.rb` (read
-# that file's own header first) already established: a real `bin/qa_sweep`
-# subprocess against a real, disposable Postgres-backed fixture ledger,
-# sweeping a real, disposable, PostgresEra-bound fixture target — never
-# the real `hecks_quality_control` ledger, never a real corpus domain.
-#
-# **Seedless, unlike every sibling mode spec** — `era_boundary` never
-# generates a sequence (`Hecks::Fuzzing::EraBoundary`'s own header, and
-# `bin/qa_sweep`'s own `SEEDLESS_MODES`), so this spec proves the mode
-# resolves, runs exactly once per sweep regardless of `--seeds`, and
-# reports clean on a target that has never diverged — the finding-side
-# arithmetic itself (a real post-cut write actually surfacing) is already
-# proven, at the module level, in `spec/fuzzing/era_boundary_spec.rb`;
-# this file only needs to prove the wiring reaches it.
+# `bin/qa_sweep`'s `era_boundary` mode against a real subprocess and disposable fixtures. Seedless:
+# it runs once per sweep regardless of `--seeds`.
 RSpec.describe "bin/qa_sweep era_boundary", :io do
   QA_SWEEP_ERA_BOUNDARY_LEDGER_DATABASE = "hecks_qa_sweep_era_boundary_spec".freeze
   QA_SWEEP_ERA_BOUNDARY_TARGET_DATABASE = "hecks_qa_sweep_era_boundary_target_spec".freeze
@@ -58,15 +45,8 @@ RSpec.describe "bin/qa_sweep era_boundary", :io do
     end
   RUBY
 
-  # A real PostgresEra-bound target, with a real `translations/` file —
-  # `MODE_REQUIREMENTS[:era_boundary]` (target_capabilities.rb) gates
-  # eligibility on both capabilities, so this fixture needs one of each:
-  # the binding, and a `translations/*.bluebook` file present on disk
-  # (its own content never matters to `Hecks::Fuzzing::EraBoundary` — that
-  # module only ever reads `hecks_eras`/the journal directly, never the
-  # translation edge itself — confirmed live while writing this spec: a
-  # harmless self-rename edge with fabricated era-hash labels that never
-  # match anything real loads and boots without complaint).
+  # `MODE_REQUIREMENTS[:era_boundary]` gates eligibility on a PostgresEra binding and a
+  # `translations/*.bluebook` file; the file's content is never read by the mode.
   ERA_BOUNDARY_TARGET_BLUEBOOK = <<~RUBY.freeze
     Hecks.bluebook "QaSweepEraBoundaryFixtureTarget" do
       vision "A trivially well-behaved sweep target, authored only to prove bin/qa_sweep's era_boundary mode reaches a real PostgresEra-bound domain, never this repository's own live, actively-changing QA corpus."
@@ -100,11 +80,8 @@ RSpec.describe "bin/qa_sweep era_boundary", :io do
     end
   RUBY
 
-  # `allow_superuser true` — the same opt-in `examples/directory.world`
-  # itself uses, not the fenced `QaLedgerRole` dance the ledger fixture
-  # needs: this target's own real database is disposable and owned
-  # outright by whatever role runs this spec, and `era_boundary` never
-  # exercises the write-fence at all (it only ever reads).
+  # `allow_superuser true` because the target database is disposable and `era_boundary` only reads,
+  # so the write-fence setup the ledger fixture needs is unnecessary.
   def era_boundary_target_world
     <<~RUBY
       Hecks.world "QaSweepEraBoundaryFixtureTarget" do
@@ -143,12 +120,8 @@ RSpec.describe "bin/qa_sweep era_boundary", :io do
     RUBY
     File.write(File.join(@fixture_dir, "governance.world"), InMemoryDomain.governance_postgres_era_world(url))
 
-    # Prefixed `qa-sweep-eb-target-`, not the mode's own name — the exact
-    # same reason `qa_sweep_adapter_parity_sqlite_spec.rb`'s own comment
-    # gives: `Target.path`'s basename becomes the fuzzed `feature` string
-    # bin/qa_sweep prints on every line, and a prefix spelling out
-    # "era_boundary" would make an assertion that greps stdout for that
-    # name accidentally true regardless of whether the mode actually ran.
+    # Not named after the mode: the basename is printed on every line, so a mode-name prefix
+    # would make stdout greps pass whether or not the mode ran.
     @target_domain_dir = Dir.mktmpdir("qa-sweep-eb-target-", InMemoryDomain::ROOT)
     File.write(File.join(@target_domain_dir, "fixture.bluebook"), ERA_BOUNDARY_TARGET_BLUEBOOK)
     File.write(File.join(@target_domain_dir, "fixture.hecksagon"), ERA_BOUNDARY_TARGET_HECKSAGON)
@@ -214,7 +187,7 @@ RSpec.describe "bin/qa_sweep era_boundary", :io do
 
     expect(status.exitstatus).to eq(0), "expected a clean sweep, got:\nSTDOUT:\n#{stdout}\nSTDERR:\n#{stderr}"
     expect(stdout).to include("resolved modes: era_boundary (capabilities=postgres_era,sqlite,translations)")
-    # Seedless — no "seed N: held" line at all, unlike every other mode.
+    # Seedless: no "seed N: held" line.
     expect(stdout).not_to match(/seed \d+:/)
     expect(stdout).to include("era boundary: no ancestor era holds an unmerged write")
     expect(stdout).to include("clean — era-boundary concluded and released.")

@@ -159,6 +159,26 @@ RSpec.describe Hecks::Adapters::Sqlite do
       .to eq([["PizzaPurchased", "p1", { customer: "c1" }]])
   end
 
+  it "reads back only one record's events, not the whole shared table" do
+    adapter.record_event(Hecks::Runtime::Event.new(
+                           name: "PizzaPurchased", aggregate: "Pizza", id: "p1",
+                           payload: { customer: "c1" }, occurred_at: "2026-01-01T00:00:00Z"
+                         ))
+    adapter.record_event(Hecks::Runtime::Event.new(
+                           name: "PizzaPurchased", aggregate: "Pizza", id: "p2",
+                           payload: { customer: "c2" }, occurred_at: "2026-01-01T00:00:01Z"
+                         ))
+    adapter.record_event(Hecks::Runtime::Event.new(
+                           name: "OrderPlaced", aggregate: "Order", id: "p1",
+                           payload: { total: 12 }, occurred_at: "2026-01-01T00:00:02Z"
+                         ))
+
+    found = adapter.events_for(aggregate: "Pizza", id: "p1")
+
+    expect(found.map { |item| [item.name, item.id, item.payload] })
+      .to eq([["PizzaPurchased", "p1", { customer: "c1" }]])
+  end
+
   it "upgrades an entry table created before operation and mirror columns" do
     path = File.join(@dir, "legacy.db")
     described_class.new(aggregate: aggregate, settings: { database: "legacy.db" }, root: @dir)
@@ -181,6 +201,77 @@ RSpec.describe Hecks::Adapters::Sqlite do
     )
 
     expect(reopened.find("p1").status).to eq("sold")
+  end
+
+  describe "the replay checkpoint (bounds AppendOnly#recover!'s replay to what a restart missed)" do
+    it "advances with every project, so entries_since(checkpoint) is empty right after a write" do
+      adapter.save(instance("p1", status: "available"))
+
+      expect(adapter.entries_since(adapter.checkpoint)).to eq([])
+    end
+
+    it "starts at zero for a table that has never been checkpointed" do
+      expect(adapter.checkpoint).to eq(0)
+    end
+
+    it "lets entries_since skip everything at or before a given sequence" do
+      adapter.save(instance("p1", status: "available"))
+      first_checkpoint = adapter.checkpoint
+      adapter.save(instance("p2", status: "available"))
+
+      expect(adapter.entries_since(first_checkpoint).map(&:id)).to eq(["p2"])
+    end
+
+    it "still catches up a real gap: an entry journaled without being projected is picked up" do
+      entry = Hecks::Ports::Persistence::Entry.new(operation: "save", id: "p1", state: { status: "available" })
+      adapter.append(entry)
+      expect(adapter.find("p1")).to be_nil
+
+      Hecks::Ports::Persistence::AppendOnly.new(adapter).recover!
+
+      expect(adapter.find("p1").status).to eq("available")
+    end
+  end
+
+  describe "compact_entries! (deletes old journal rows a :refresh projection no longer needs)" do
+    it "starts at zero when nothing has ever been compacted" do
+      expect(adapter.compacted_through).to eq(0)
+    end
+
+    it "deletes rows at or before through and reports how many, leaving the aggregate table untouched" do
+      adapter.save(instance("p1", status: "available"))
+      adapter.save(instance("p2", status: "available"))
+      through = adapter.checkpoint
+
+      removed = adapter.compact_entries!(through: through)
+
+      expect(removed).to eq(2)
+      expect(adapter.entries).to eq([])
+      expect(adapter.find("p1").status).to eq("available")
+      expect(adapter.compacted_through).to eq(through)
+    end
+
+    it "leaves rows after through in the journal" do
+      adapter.save(instance("p1", status: "available"))
+      first = adapter.checkpoint
+      adapter.save(instance("p2", status: "available"))
+
+      adapter.compact_entries!(through: first)
+
+      expect(adapter.entries.map(&:id)).to eq(["p2"])
+    end
+
+    it "never moves compacted_through backwards" do
+      adapter.save(instance("p1", status: "available"))
+      adapter.compact_entries!(through: adapter.checkpoint)
+      adapter.save(instance("p2", status: "available"))
+      high_water = adapter.checkpoint
+
+      adapter.compact_entries!(through: high_water)
+      adapter.compact_entries!(through: 0)
+
+      expect(adapter.compacted_through).to eq(high_water)
+    end
   end
 
   describe "the optional saga-persistence capability (§2/§3/§4)" do

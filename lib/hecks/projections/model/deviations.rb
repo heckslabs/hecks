@@ -1,48 +1,33 @@
 module Hecks
   module Projections
     module Model
-      # How the model's shape differs from the language's, and why.
-      #
-      # Every construct's `emits_ir` restates what the grammar declares —
-      # and the two legitimately differ, in seven ways. These lived only
-      # as prose in Ruby comments until spec/model_shape_conformance_spec
-      # made them checkable; they live here so the generator and the gate
-      # read one source rather than two that must agree.
-      #
-      # A reason is carried beside each entry because the generated file
-      # will carry it: a deviation is exactly the kind of thing whose
-      # explanation must survive regeneration, and the only way it can is
-      # to be emitted rather than typed into the output.
+      # How the model's shape legitimately differs from the language's, and why.
+      # The generator and spec/model_shape_conformance_spec read these tables.
       module Deviations
-        # What the model holds that the grammar declares elsewhere: the
-        # containment edges, stated in syntax.bluebook's Keyword rows as
-        # `context` -> `opens`.
+        # Fields the model holds that the grammar declares as containment edges
+        # (syntax.bluebook's Keyword rows, `context` -> `opens`).
         CONTAINED = {
           "Bluebook"       => %i[aggregates read_models policies process_managers],
           "Aggregate"      => %i[commands entities queries value_objects],
-          # S17, ADR 0026 — an entity may nest further entities now
-          # (`Dispatch`, inside `Handler`) — same containment edge as
-          # Aggregate's own `entities`, one level down.
+          # An entity may nest further entities (`Dispatch` inside `Handler`) (ADR 0026).
           "Entity"         => %i[commands entities queries],
           "ValueObject"    => %i[members],
           "ProcessManager" => %i[handlers]
         }.freeze
 
-        # One model field gathered from several declared ones —
-        # contracts.rb's own `[:folded, ...]` shape, as the pair it is.
+        # One model field gathered from several declared ones.
         FOLDED = {
           "Aggregate" => { lifecycle: %i[state_field state_start transitions] },
           "Entity"    => { lifecycle: %i[state_field state_start transitions] },
           "Query"     => { order_by: %i[order_field order_way] }
         }.freeze
 
-        # The inverse of a fold, and it had no name at all: one declared
-        # field opening into several the model holds apart.
+        # The inverse of a fold: one declared field opening into several model fields.
         UNPACKED = {
           "ReadModel" => { options: %i[wheres order_by limit] }
         }.freeze
 
-        # Model-only, each for its own reason rather than by oversight.
+        # Model-only fields, each with its reason.
         COMPUTED = {
           "Bluebook"    => { ir_version:     "the EMISSION's own version, not the domain's",
                              canonical_form: "the normalisation table every reader needs beside the IR" },
@@ -51,9 +36,7 @@ module Hecks
           "Policy"      => { where_ast:      "the structured form of `where`, derived from the same text at emission" }
         }.freeze
 
-        # **Declared, and deliberately not emitted**. The category that had no
-        # home anywhere before — each of these was a comment and nothing
-        # more.
+        # Declared but deliberately not emitted, each with its reason.
         OFF_THE_WIRE = {
           "Policy"      => { aggregate: "the wire format is a pinned contract, and it does not carry " \
                                         "where a policy was written before the builder hoisted it" },
@@ -62,24 +45,16 @@ module Hecks
           "ValueObject" => { rows: "the language's name for a closed set's members; emitted as `members`" }
         }.freeze
 
-        # Emitted by `to_h`'s own merge rather than by `emits_ir` — the
-        # two constructs whose shape is genuinely not fixed, because the
-        # query specification layer grew options after them.
+        # Fields emitted by `to_h`'s own merge rather than `emits_ir`, for constructs
+        # whose shape is not fixed.
         DYNAMIC_TAIL = {
           "Query"     => %i[options],
-          "ReadModel" => %i[options group_by aggregate_heads count median_field]
+          "ReadModel" => %i[options group_by aggregate_heads count median_field sum_field avg_field
+                            min_field max_field percentile_field percentile_at any_field all_field]
         }.freeze
 
         module_function
 
-        # The grammar is relational — a Command points up at its
-        # Aggregate — where the model composes. An explicit `as:` still
-        # keeps its `_id` (Command's own `entity_id`, kept as data); the
-        # parent link itself mints bare now (ADR 0025) — `aggregate` or
-        # `bluebook`, whichever this category's creating command declares
-        # first. Entity spells its own (separate, non-colliding) text twin
-        # of the parent link `owner`. Not restated here: the one list is
-        # `Assembly::PARENT_POINTERS`, which the assembly gate reads too.
         # Tells whether `field` is a parent pointer, minted bare rather than
         # declared like an ordinary field.
         #
@@ -88,16 +63,14 @@ module Hecks
         #   or any name ending `_id`)
         def parent_ref?(field) = Hecks::Bluebook::Assembly.parent_pointer?(field)
 
-        # The judge's own fields, never the model's — read off the
-        # category's contract (`derived: { position: :walk }`), not restated.
+        # The judge's own fields, read off the category's contract (`derived: {...: :walk}`).
         #
         # @param name [String] the construct's name, an `Assembly::CONTRACTS` key
         # @return [Array<Symbol>] fields the assembly judge derives by walking, for this construct
         # @raise [KeyError] if `name` has no assembly contract
         def judge_only(name) = Hecks::Bluebook::Assembly.contract(name).walked
 
-        # The tables that carry a reason answer with names only when the
-        # caller wants the set rather than the explanations.
+        # The names in `OFF_THE_WIRE`, without the reasons.
         #
         # @param name [String] the construct's name, an `OFF_THE_WIRE` key
         # @return [Array<Symbol>] fields declared but deliberately not emitted for `name`;

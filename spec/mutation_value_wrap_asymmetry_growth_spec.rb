@@ -1,24 +1,10 @@
 require "spec_helper"
 require "tempfile"
 
-# Real dispatch coverage for the Value-wrap asymmetry bug fix across
-# increment/decrement/multiply: #apply wrapping `amount` into a Value
-# whenever the target attribute existed, without checking whether `current`
-# (the field's own existing value) was also wrapped, would break on a
-# phantom-created field -- a VO-typed attribute with no declared default,
-# genuinely nil until first touched -- where `current` comes back as a raw,
-# unwrapped 0, so the
-# two sides of the same arithmetic call would disagree on Value-ness and
-# the primitive path would refuse a correctly-typed number as a type
-# mismatch the caller never made.
+# Pins increment/decrement/multiply on a phantom field (VO-typed, no default, nil until first
+# touched), where the current value is a raw 0 and the amount must not be Value-wrapped alone.
 #
-# Uses a literal amount (`increment: 1`, not `increment: :amount`)
-# deliberately: a Symbol source naming a command argument arrives already
-# Value-wrapped by normalize_args/coerce_declared_arguments (a separate,
-# earlier coercion pass, unaffected by this fix either way), so it can
-# never reproduce the asymmetry this fix addresses. A literal source is
-# what stays genuinely raw all the way to #apply, which is the shape that
-# actually surfaces the bug.
+# Amounts are literals: a Symbol source arrives already wrapped and cannot reproduce the bug.
 RSpec.describe "mutation Value-wrap asymmetry fix" do
   def boot(source, hecksagon_name, &binds)
     file = Tempfile.new(["mutation-value-wrap-asymmetry-growth-", ".bluebook"])
@@ -45,8 +31,7 @@ RSpec.describe "mutation Value-wrap asymmetry fix" do
     file&.close!
   end
 
-  # `count` is declared with no default: -- a phantom field, genuinely
-  # nil until the first mutation ever touches it.
+  # `count` has no default, so it is a phantom field until first touched.
   MUTATION_VALUE_WRAP_SOURCE = <<~BLUEBOOK.freeze
     Hecks.bluebook "MutationValueWrapGrowth" do
       aggregate "Breaker" do
@@ -121,9 +106,7 @@ RSpec.describe "mutation Value-wrap asymmetry fix" do
     runtime.dispatch_flat("MutationValueWrapGrowth::Breaker.Scale", id: "b3")
 
     breaker = repository_for(runtime).find("b3")
-    # current starts at the raw, unwrapped 0 (never touched) -- 0 * 5 stays 0,
-    # so this confirms the phantom path completes without raising, not that
-    # zero times anything is a meaningful business result.
+    # 0 * 5 stays 0: this pins that the phantom path completes without raising.
     expect(breaker[:count][:value]).to eq(0)
   end
 end

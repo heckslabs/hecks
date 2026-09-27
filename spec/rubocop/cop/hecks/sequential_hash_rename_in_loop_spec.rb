@@ -1,38 +1,21 @@
 require "rubocop"
-# Not "rubocop/rspec/support" — see fallback_hash_lookup_spec.rb's identical
-# comment: that file's top-level `RSpec.configure { config.include CopHelper;
-# ... }` installs CopHelper's `registry` method onto every example group the
-# instant it's required, which collided with unrelated specs elsewhere in
-# this suite that define their own `registry`. Requiring the two mixins
-# directly and including them only in this describe block keeps this cop's
-# specs fully working without leaking anything globally.
+# Not "rubocop/rspec/support": its global include of CopHelper collides with other specs'
+# own `registry`.
 require "rubocop/rspec/cop_helper"
 require "rubocop/rspec/expect_offense"
 require_relative "../../../../lib/rubocop/cop/hecks/sequential_hash_rename_in_loop"
 
-# `RuboCop::RSpec::ExpectOffense`/`CopHelper` need RSpec required first — see
-# `CopHelper`'s own `extend RSpec::SharedContext`, which blows up with an
-# uninitialized-constant `NameError` if `rspec` (pulled in by `spec_helper`
-# already, transitively, but named explicitly here since this spec would
-# still make sense run in isolation) hasn't defined it yet.
+# CopHelper extends RSpec::SharedContext, so RSpec must be loaded first.
 RSpec.describe RuboCop::Cop::Hecks::SequentialHashRenameInLoop do
   include CopHelper
   include RuboCop::RSpec::ExpectOffense
 
   subject(:cop) { described_class.new(config) }
 
-  # See `spec/rubocop/cop/hecks/thread_shared_ivar_mutation_spec.rb` for why
-  # this is turned off: without it every expectation below would also need
-  # to restate the `Hecks/SequentialHashRenameInLoop: ` badge
-  # `MessageAnnotator` prepends by default.
+  # Off so offense messages match the cop's MSG without the cop-name badge.
   let(:config) { RuboCop::Config.new("AllCops" => { "DisplayCopNames" => false }) }
 
-  # The exact shape M27 shipped with — `apply_renames` did this,
-  # one rule at a time, until it was fixed (see the cop's own header and
-  # `lib/hecks/ports/persistence/plugins/era/lineage.rb`'s own comment on
-  # `apply_renames`). Reconstructed here as a fixture, not by reverting the
-  # real (already-fixed) method — this spec proves the cop would have
-  # caught the bug, not that the bug still exists.
+  # Fixture rebuilding the buggy `apply_renames` shape, so the cop is proven to catch it.
   it "flags the old buggy shape: one rename at a time against the same hash inside .each" do
     expect_offense(<<~RUBY)
       def apply_renames(state, renames)

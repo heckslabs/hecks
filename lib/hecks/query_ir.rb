@@ -4,23 +4,13 @@ require_relative "projections/model"
 require_relative "fuzzing/properties"
 
 module Hecks
-  # The shared core behind `bin/query_ir` (a text CLI) and
-  # `bin/hecks_query_ir_mcp` (an MCP server exposing the same two
-  # queries as tools) — one implementation, two front ends, the same
-  # reason `Hecks::Codemod` exists once rather than per-script.
-  # Every method here returns structured data (Hashes/Arrays/Structs),
-  # never formatted text — formatting is each front end's own job.
+  # Shared core of `bin/query_ir` and `bin/hecks_query_ir_mcp`.
+  # Returns structured data; formatting belongs to each front end.
   module QueryIR
     Codemod    = Hecks::Codemod
     Deviations = Hecks::Projections::Model::Deviations
 
-    # The same mapping spec/model_shape_conformance_spec.rb's own
-    # MODEL_CONSTRUCTS holds — kept here rather than shared from the
-    # spec (a spec file is not a library other code should require),
-    # matching Deviations' own doc comment: "the generator and the gate
-    # read one source" — Deviations is that one source; this table is
-    # small and genuinely construct-list bookkeeping, not a rule that
-    # can drift silently the way a Deviations entry could.
+    # Mirrors the conformance spec's MODEL_CONSTRUCTS; kept here because a spec is not a library.
     CONSTRUCTS = {
       "Bluebook"       => Hecks::Bluebook::Chapter,
       "Aggregate"      => Hecks::Bluebook::Aggregate,
@@ -47,12 +37,8 @@ module Hecks
                                     .bluebook("Bluebook").aggregate(name).attributes.map(&:name)
     end
 
-    # The real structural diff between what a Ruby IR class emits
-    # (Class.ir_spec.keys) and what the self-hosted meta-domain declares
-    # for it — the same comparison spec/model_shape_conformance_spec.rb
-    # makes, reusing its own Deviations data so this can never silently
-    # drift from what that gate actually checks.
-    #
+    # The structural diff between what a Ruby IR class emits (`ir_spec.keys`) and what the
+    # self-hosted meta-domain declares, using the `Deviations` data the conformance spec reads.
     # @param name [String] a `CONSTRUCTS` key, such as `"Aggregate"`
     # @return [Hash{Symbol => Object}] `:name`, `:declared`, `:emitted`, plus
     #   `:missing_from_ruby` and `:unaccounted_in_ruby` — each an `Array<Symbol>`
@@ -91,26 +77,10 @@ module Hecks
       targets.map { |name| construct_diff(name) }
     end
 
-    # Every given/ensures/invariant declaration reachable from a booted
-    # registry, walked recursively — every owner's own `.preconditions`/
-    # `.invariants` (block-declared rules), every value object's own
-    # `.invariants`, and every command's own `.givens`/`.ensures`
-    # (`.givens` too, not just `.ensures` — a command's own local
-    # `given("x") { block }` not yet hoisted to its owner, round 4's own
-    # starting shape, would otherwise be invisible).
+    # Every given/ensures/invariant reachable from a booted registry, walked recursively.
     #
-    # Not keyed by object identity (a real, hard-won correction — see
-    # the comment on `duplicates`' own dedup below for why: a bare
-    # `given("x")` reference and its owner's own block declaration are
-    # the same Ruby object at DSL build time, but `MetaValidator.call`
-    # (S14 — every bluebook is judged by dispatching its own IR into the
-    # self-hosted grammar, then reconstructed via `Assembly.call` from
-    # flat rows) rebuilds the whole graph fresh from there. By the time
-    # any caller reads `chapter.aggregates`, every given/invariant is
-    # already a distinct object, whether it was block-declared or
-    # bare-referenced — object identity carries no signal past that
-    # point, for any construct, not just this one).
-    #
+    # Object identity carries no signal: `MetaValidator.call` rebuilds the graph from flat rows,
+    # so a bare `given("x")` reference and its block declaration are distinct objects by then.
     # @param registry [Runtime::Registry] the booted registry to walk
     # @param chapter_name [String, nil] one chapter to walk, every booted chapter when nil
     # @return [Array<Rule>]
@@ -132,12 +102,7 @@ module Hecks
       rules
     end
 
-    # The recursive walk `collect_rules` drives — pulled out of that method
-    # (pure extraction, identical traversal and Rule shapes) as its own
-    # named, self-recursive method rather than a lambda closing over the
-    # same locals. `rules` is the one piece of state every call shares —
-    # threaded as a parameter and mutated in place, the same accumulator
-    # role the lambda's own closure played.
+    # Recursive walk behind `collect_rules`; appends to `rules` in place.
     def walk_construct_rules(construct, path, rules)
       (construct.respond_to?(:preconditions) ? construct.preconditions : []).each do |rule|
         rules << Rule.new(kind: "given", description: rule.description, canonical: rule.canonical,
@@ -165,17 +130,8 @@ module Hecks
     end
     private_class_method :walk_construct_rules
 
-    # A rule's owner — the construct path a "(declared)" location names
-    # directly, or (for a command-level `.givens`/`.ensures` entry) the
-    # path with its trailing `.CommandName` segment stripped. Two rules
-    # sharing an owner are the same declaration read twice (an owner's
-    # own precondition, and a command under it referencing that
-    # precondition by name) — not two independent ones.
-    #
-    # Public, not a `duplicates`-only internal — `bin/codemod_hoist_
-    # local_givens` reads it directly to group `collect_rules`' own
-    # output by owner itself, the same reading `duplicates`' own
-    # `declaration_count` makes.
+    # A rule's owner: the path a "(declared)" location names, or a command-level location
+    # with its trailing `.CommandName` stripped.
     #
     # @param location [String] a `Rule#location`
     # @return [String] the owning construct's path, with `" (declared)"` or a trailing
@@ -186,31 +142,10 @@ module Hecks
       location.rpartition(".").first
     end
 
-    # Grouped by (kind, description, canonical), not canonical text
-    # alone — a generic one-liner like `!value.to_s.empty?` legitimately
-    # recurs dozens of times for unrelated fields; the real signal is
-    # the same rule (same description, same predicate), which is also
-    # exactly what the given/invariant reference mechanism itself
-    # resolves on.
+    # Groups rules by (kind, description, canonical) and reports groups with more than one
+    # real declaration, counted by owner rather than object identity (see `collect_rules`).
     #
-    # Deduped by owner, not object identity (`collect_rules`' own
-    # comment has the full story — identity is gone by the time this
-    # reads the registry). Within a group, every command-level rule
-    # whose owner already has its own "(declared)" entry in the same
-    # group is just that declaration read again through a reference —
-    # `Account.Open`/`Account.Credit`/etc. all naming `Account`'s own
-    # `given("customer is active")` count as Account's one declaration,
-    # not nine. A command-level rule with no matching owner declaration
-    # (a local, not-yet-hoisted `given("x") { block }`) counts as its
-    # own standalone declaration — two different commands independently
-    # writing the identical local predicate is two declarations, a real
-    # hoisting opportunity. A group is reported only when it adds up to
-    # more than one real declaration this way.
-    #
-    # `domains: []` means "the self-hosted meta-domain only" — pass real
-    # domain directories explicitly to include them, or `nil` (the
-    # default) for meta-domain plus every real example.
-    #
+    # `domains: []` scans the self-hosted meta-domain only; `nil` adds every real example.
     # @param domains [Array<String>, nil] domain root directories to scan; every real
     #   example (`Codemod::EXAMPLE_ROOTS`) when nil, none beyond the meta-domain when `[]`
     # @param include_meta [Boolean] whether to also scan the self-hosted meta-domain
@@ -238,57 +173,12 @@ module Hecks
       end
     end
 
-    # `given` only (not `invariant`/`ensures`) also covers cross-entity
-    # coverage — one piece's own entity-level declaration, shared with
-    # any other piece nested under the same root aggregate (real corpus
-    # this closes: SafeDepositBox's own `Visit`/`KeyIssuance`, two
-    # different pieces on one head). A rule owned by a nested entity
-    # (its own owner path has more than one segment) is covered when
-    # some "(declared)" entry exists anywhere under that same root
-    # aggregate — not just under its own exact owner — matching the
-    # DSL's own pool, threaded unchanged through an aggregate's whole
-    # entity tree (`AggregateBuilder#entity`'s own comment).
+    # A rule owned by a nested entity is also covered by a "(declared)" entry anywhere under the
+    # same root aggregate, matching the DSL's shared given pool.
     #
-    # A known, accepted gap this does not (and structurally cannot)
-    # close: chapter-wide given sharing (`AggregateBuilder#given`'s own
-    # bare form, `docs/implemented/resolution-rules/chapter-given.md`) — `Account`,
-    # `SafeDepositBox`, and `OnboardingCase` each still show as their
-    # own "(declared)" owner here even after `SafeDepositBox`/
-    # `OnboardingCase` were converted to bare chapter-wide references,
-    # because a referenced given still write-throughs into its own
-    # aggregate's `@named_givens` — the same reason `collect_rules`'
-    # own top comment already gives for why object identity carries no
-    # signal past a bluebook's own build: the exported IR cannot tell
-    # "I declared this myself" apart from "I referenced someone else's
-    # declaration," because by the time anything reads `chapter.
-    # aggregates`, both look identical. Closing this would mean reading
-    # source text (bare `given(desc)` vs. block `given(desc) { ... }`),
-    # not the built IR this query is deliberately built on — a
-    # different, source-level tool, not a fix to this one. Treat a
-    # still-flagged group naming multiple aggregates as "verify by
-    # hand whether this is already a chapter-wide reference before
-    # assuming it's fresh duplication," not as an automatic signal
-    # either way.
-    #
-    # The identical gap, one level down: chapter-wide entity-scoped
-    # sharing (`EntityBuilder#given`'s own bare form,
-    # `docs/implemented/resolution-rules/chapter-entity-given.md`) hits this same wall for
-    # the same structural reason — `SafeDepositBox.Visit` still shows
-    # as its own "(declared)" owner here even after becoming a bare
-    # reference to `Account.LedgerEntry`'s declaration, because a piece
-    # resolving a chapter-wide reference still write-throughs the
-    # resolved `Given` into its own `@named_givens` (so its own
-    # commands can read it back locally without a second hop). This is
-    # not a new limitation this feature introduces — it is the exact
-    # same IR-cannot-distinguish-declared-from-referenced fact, one
-    # scope wider. `bin/query_ir duplicates` confirms this directly:
-    # `Account.LedgerEntry (declared)` and `SafeDepositBox.Visit
-    # (declared)` both appear under the same `given: "customer is
-    # active"` group — verify by hand, same as the aggregate-level
-    # case above, before assuming a group naming two pieces under
-    # different aggregates is fresh duplication rather than an already-
-    # resolved chapter-wide reference.
-    #
+    # Known gap: a bare chapter-wide `given(desc)` reference still shows as its own "(declared)"
+    # owner, because the built IR cannot tell a reference from a declaration. Verify a flagged
+    # group by hand before treating it as fresh duplication.
     # @param rules [Array<Rule>] one duplicate-key group's own rules
     # @return [Integer] how many of `rules` are real, independent declarations
     def declaration_count(rules)
@@ -309,10 +199,8 @@ module Hecks
     end
     private_class_method :declaration_count
 
-    # Shared text formatting — both `bin/query_ir` (a text CLI) and
-    # `bin/hecks_query_ir_mcp` (an MCP tool result, itself a text
-    # block) want the identical human-readable rendering; only the
-    # outer framing differs (plain stdout vs. a JSON-RPC content array).
+    # Renders `constructs` output as text, shared by `bin/query_ir` and `bin/hecks_query_ir_mcp`.
+    #
     # @param diffs [Array<Hash>] `constructs`' own output
     # @return [String] the human-readable rendering
     def format_constructs(diffs)
@@ -336,31 +224,14 @@ module Hecks
       end.join("\n\n")
     end
 
-    # **One hand-typed construct-name per reconstruction method** — the only
-    # two `MetaValidator::Reconstruction` methods not driven generically
-    # through `Assembly::Contracts`' own table (its own header explains
-    # why: `aggregate(row)`/`entity(row)` predate the table and were
-    # never migrated). `impact_preview`'s own touchpoint 4 is checked
-    # only for these two — every other construct is read generically, so
-    # asking "does Command's own reconstruction method mention this
-    # field" is a question with no method to check.
+    # The two `MetaValidator::Reconstruction` methods written by hand rather than driven by
+    # `Assembly::Contracts`; `impact_preview` checks touchpoint 4 only for these.
     RECONSTRUCTION_METHODS = { "Aggregate" => :aggregate, "Entity" => :entity }.freeze
 
-    # The six touchpoints `.claude/skills/bluebook-construct-creator/
-    # SKILL.md` walks in prose, checked structurally instead of by hand
-    # — for a construct/field pair not yet fully propagated (typically
-    # mid-round, deciding what's left), or as a sanity check before the
-    # final gate sweep of a round already believed done. Every check
-    # here is best-effort and advisory, not a gate: a `false` does not
-    # always mean "not yet done" (a field can be legitimately exempt —
-    # `Deviations`' own named categories, `GUARANTEED_BY_CONSTRUCTION`,
-    # or `META_DOMAIN_KNOWN_GAPS`, the last of which lives in
-    # spec/fuzzing/meta_domain_coverage_spec.rb, a spec file this
-    # module deliberately never requires — see `CONSTRUCTS`' own
-    # comment on the same principle). Read the touchpoint's own
-    # existing gate (`model_shape_conformance_spec.rb`,
-    # `assembly_spec.rb`, `meta_domain_coverage_spec.rb`) before trusting
-    # a `false` here as a real gap.
+    # Checks the six touchpoints of `.claude/skills/bluebook-construct-creator/SKILL.md` for a
+    # construct/field pair. Advisory, not a gate: a `false` can be a legitimate exemption
+    # (`Deviations`, `GUARANTEED_BY_CONSTRUCTION`, or the spec-only `META_DOMAIN_KNOWN_GAPS`).
+    #
     # @param name [String] a `CONSTRUCTS` key, such as `"Aggregate"`
     # @param field [String, Symbol] the declared field to check propagation for
     # @return [Hash{Symbol => Object}] `:name`, `:field`, and `:touchpoints` — an
@@ -400,15 +271,7 @@ module Hecks
     end
     private_class_method :contract_consumes?
 
-    # `Method#source_location` finds where the hand-typed method starts;
-    # the method's own body ends at the next line indented no deeper
-    # than its own `def` — the same boundary Ruby itself uses, read back
-    # textually because there is no live AST here, only a file to grep a
-    # slice of. `nil` (not `false`) for every other construct — this
-    # touchpoint genuinely does not apply to them (`RECONSTRUCTION_
-    # METHODS` only names the two hand-typed methods), and collapsing
-    # "does not apply" into "not done" would misreport a construct that
-    # was never supposed to have this touchpoint at all.
+    # nil, not false, for constructs without a hand-typed method: the touchpoint does not apply.
     def reconstruction_reads?(name, field)
       method_name = RECONSTRUCTION_METHODS[name]
       # rubocop:disable-next Style/ReturnNilInPredicateMethodDefinition -- nil vs

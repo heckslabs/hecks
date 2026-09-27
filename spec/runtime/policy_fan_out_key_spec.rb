@@ -1,31 +1,8 @@
 require "spec_helper"
 
-# The name a fan-out's row ID arrives under.
-#
-# `spec/runtime/policy_spec.rb` already covers `for_each` end to end and
-# asserts delivery — and passed for a reason that was not the rule. Its
-# `Fanout::Account` is `identified_by :account_id` over an
-# `attribute :account_id`, so the row id merged as `account_id:` matched
-# the aggregate's own identity head directly and never needed the
-# reference key at all. Every aggregate in the real corpus names its
-# identity something else (`Account` is `identified_by AccountNumber,
-# as: :number`), so the same policy shape refused there with
-# `UnknownArgument` naming a key the command could not take, and the
-# refusal was recorded per row in the reaction log rather than raised
-# anywhere a caller would look.
-#
-# So this fixture deliberately does not name its identity after itself.
-# It is the difference between the two spellings, isolated:
-#
-#   trigger acts on the fanned aggregate -> bare `chit:`
-#   trigger stores it as a reference     -> `chit_id:`
+# A fan-out's row id arrives as a bare `chit:` when the trigger acts on the fanned aggregate,
+# and as `chit_id:` when the trigger stores it as a reference.
 RSpec.describe "a for_each policy's row id" do
-  # One DSL-declared fixture domain (three aggregates plus the one policy
-  # under test), not branchy logic — its length and ABC score come from
-  # declaring the domain shape both examples below share, per the class
-  # comment above explaining why `Chit`'s identity is deliberately not
-  # named `chit`. Splitting the bluebook block across helper methods would
-  # fragment one coherent domain declaration for no readability gain.
   # rubocop:disable-next Metrics/AbcSize, Metrics/MethodLength
   def boot_keys
     registry = Hecks::Runtime::Registry.new
@@ -38,9 +15,8 @@ RSpec.describe "a for_each policy's row id" do
 
       Hecks.bluebook "FanKey" do
         aggregate "Chit" do
-          # Not `chit_id` — that is the whole point. An identity head
-          # spelled after the aggregate would mask the reference key by
-          # answering to the suffixed name itself.
+          # Not `chit_id`: an identity named after the aggregate would answer to the
+          # suffixed key itself and mask the reference key under test.
           identified_by :serial
           attribute :serial, Serial
           attribute :holder, Holder
@@ -49,10 +25,8 @@ RSpec.describe "a for_each policy's row id" do
           value_object("Serial")    { attribute :value, String }
           value_object("Holder")    { attribute :value, String }
           value_object("ChitState") { attribute :value, String }
-          # A policy forwards the triggering event's whole payload, so a
-          # trigger has to be able to take every field the event carries
-          # — `Void` declaring nothing for `alarm:` is the ordinary
-          # UnknownArgument refusal, not the key bug under test here.
+          # A policy forwards the event's whole payload, so `Void` must declare `alarm:`
+          # or the delivery is refused as UnknownArgument for an unrelated reason.
           value_object("AlarmRef")  { attribute :value, String }
 
           command "Issue" do
@@ -79,8 +53,7 @@ RSpec.describe "a for_each policy's row id" do
           end
         end
 
-        # A second aggregate that stores a chit rather than being one —
-        # the foreign-reference half of the same rule.
+        # Stores a chit rather than being one: the foreign-reference half.
         aggregate "Audit" do
           identified_by :note
           attribute :note, Note
@@ -158,8 +131,7 @@ RSpec.describe "a for_each policy's row id" do
 
     runtime.dispatch_flat("FanKey::Alarm.Raise", alarm: { value: "al-1" }, holder: { value: "h1" })
 
-    # The refusal this asserts the absence of is the exact one the bug
-    # produced: `Void does not declare chit_id — it takes `.
+    # Pins against the refusal `Void does not declare chit_id — it takes `.
     reasons = runtime.reactions.filter_map { |row| row[:reason] }
     expect(reasons).to be_empty
   end

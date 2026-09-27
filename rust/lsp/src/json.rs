@@ -1,26 +1,5 @@
-//! A minimal, dependency-free JSON value — parse incoming JSON-RPC
-//! requests, build outgoing responses/notifications. Vendored from the
-//! same design as `rust/build/src/json.rs` (itself vendored from
-//! `rust/parser/src/emit.rs`'s algorithm) rather than shared via a
-//! library — this crate's own Cargo.toml explains why: the plan that
-//! set up `rust/parser`/`rust/build`/`rust/codegen` as sibling,
-//! subprocess-only, dependency-free crates explicitly rejected
-//! restructuring any of them into a shared lib crate the others could
-//! depend on, and that reasoning applies here too.
-//!
-//! Two differences from `rust/build/src/json.rs`'s own copy, both
-//! because this crate's job is different (speaking JSON-RPC, not
-//! round-tripping `ir.json` byte-for-byte):
-//!   - `write` is compact (no newlines/indentation) — an LSP message's
-//!     `Content-Length` header must match its body's exact byte count,
-//!     and there is no spec or client expectation to pretty-print here,
-//!     unlike `emit.rs`'s deliberate byte-exact match against
-//!     `JSON.pretty_generate`.
-//!   - `Number` is `i64`, not raw text — every number this crate reads
-//!     or writes is a JSON-RPC id or an LSP line/character position, all
-//!     integers this crate genuinely computes with (unlike
-//!     `rust/build/src/json.rs`'s `ir_version`, which is only ever
-//!     round-tripped, never read).
+//! A minimal, dependency-free JSON value for reading and writing JSON-RPC messages.
+//! `write` is compact and `Number` is `i64`, since only ids and positions pass through.
 
 use std::fmt::Write as _;
 
@@ -31,10 +10,7 @@ pub enum Json {
     Number(i64),
     String(String),
     Array(Vec<Json>),
-    /// Insertion-ordered pairs — an LSP message's field order is never
-    /// meaningful, but a `Vec` is simpler than a `HashMap` for the small
-    /// fixed-shape objects this crate builds and reads, and matches the
-    /// sibling vendored copies' own choice.
+    /// Insertion-ordered pairs.
     Object(Vec<(String, Json)>),
 }
 
@@ -303,10 +279,7 @@ impl<'a> Parser<'a> {
         while matches!(self.peek(), Some(c) if c.is_ascii_digit()) {
             self.pos += 1;
         }
-        // Fractional/exponent parts are consumed (so a well-formed LSP
-        // message never fails to parse) but truncated away by the i64
-        // cast below — no real message this crate reads or writes
-        // (ids, line/character positions) is ever non-integral.
+        // Fraction and exponent are consumed but dropped: ids and positions are integers.
         if self.peek() == Some(b'.') {
             self.pos += 1;
             while matches!(self.peek(), Some(c) if c.is_ascii_digit()) {

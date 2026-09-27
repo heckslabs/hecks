@@ -10,9 +10,7 @@ RSpec.describe Hecks::Forms::App do
   BANKING_BLUEBOOK = InMemoryDomain::BANKING_BLUEBOOK_DIR unless defined?(BANKING_BLUEBOOK)
   FORMS_BLUEBOOK = File.join(InMemoryDomain::ROOT, "lib/hecks/forms/examples/banking_console.bluebook")
 
-  # The same rebind spec/facade/handle_spec.rb already uses —
-  # [[feedback_specs_prefer_memory_adapter]] — banking.hecksagon itself
-  # binds "Heki", a real store no spec should need.
+  # Rebinds persistence to memory: banking.hecksagon binds "Heki", a real store.
   def app
     @app ||= begin
       registry = Hecks::Runtime::Registry.new
@@ -93,13 +91,11 @@ RSpec.describe Hecks::Forms::App do
       post "/Banking/Customer/Register.html", "reference.value" => "", "name.given" => "Ada",
                                                 "name.family" => "Lovelace", "email.address" => "ada@example.com"
       expect(last_response.status).to eq(422)
-      # CustomerNumber carries a `pattern:` (the whitespace-only sweep) as
-      # well as its "a customer reference is present" invariant — attribute
-      # coercion runs before invariants, so a blank reference is refused as
-      # a TypeMismatch, not an InvariantViolation.
+      # Attribute coercion runs before invariants, so a blank reference fails
+      # CustomerNumber's `pattern:` as a TypeMismatch, not an InvariantViolation.
       expect(last_response.body).to include("TypeMismatch")
       expect(last_response.body).to include("CustomerNumber.value must match")
-      # sticky — the value the caller actually typed survives the re-render
+      # sticky: the typed value survives the re-render
       expect(last_response.body).to include('value="Ada"')
     end
 
@@ -150,18 +146,9 @@ RSpec.describe Hecks::Forms::App do
     end
   end
 
-  # L10 (docs/audits/2026-08-10-main-bug-audit.md) — `run_query`'s own
-  # rescue clause listed every domain refusal plus ArgumentError/TypeError,
-  # but not `JSON::ParserError` — the one error a malformed line in a
-  # list-of-value-object query parameter actually raises
-  # (`Params.extract_list`'s own JSON fallback for a multi-attribute list
-  # element; a single-attribute VO like Banking's own `Tag`/`CustomerNumber`
-  # unwraps to a plain scalar and never hits that branch at all). Both
-  # command submission paths already rescue it (`submit_command`,
-  # `command_json`); this was the same defect on the query side. No
-  # Banking fixture query happens to take a list-of-multi-attribute-VO
-  # parameter, so this spins up a tiny dedicated domain rather than
-  # bending a shared fixture other specs also depend on.
+  # Pins that `run_query` rescues JSON::ParserError from a malformed line in a
+  # multi-attribute value-object list parameter (`Params.extract_list`).
+  # No Banking query takes one, so this builds a small dedicated domain.
   describe "a query with a list-of-value-object parameter" do
     def app
       @app ||= begin
@@ -237,14 +224,8 @@ RSpec.describe Hecks::Forms::App do
     end
   end
 
-  # L11 (docs/audits/2026-08-10-main-bug-audit.md) — a record's own id is
-  # free-form (S3) and can collide with a command/query name on its own
-  # aggregate ("Close" is one of Customer's own command names). Checking
-  # the verb first (the old order) meant such a record's own detail page
-  # could never be reached again — a GET always resolved to the
-  # command/query instead. POST never views a record at all
-  # (`record_route` only ever answers GET), so command submission for a
-  # different record must stay unaffected.
+  # A free-form record id can equal a command name ("Close"); GET must resolve
+  # to the record first. POST never views a record, so commands stay unaffected.
   describe "a record whose id collides with a command/query name" do
     def register_named(id)
       post "/Banking/Customer/Register.html", "reference.value" => id, "name.given" => "Ada",
@@ -256,7 +237,7 @@ RSpec.describe Hecks::Forms::App do
 
       get "/Banking/Customer/Close.html"
       expect(last_response.status).to eq(200)
-      # the record's state, not a command form
+      # record state, not a command form
       expect(last_response.body).to include("status: active")
       expect(last_response.body).not_to include("<form")
     end
@@ -302,11 +283,8 @@ RSpec.describe Hecks::Forms::App do
     end
   end
 
-  # H12 — CustomerNumber's own `pattern:` is `[^ \t\n\r]` (just "no
-  # whitespace"), so a dot is a perfectly legal identity value — an email
-  # `identified_by { email.address }` or any decimal-ish reference would hit
-  # this same way. `reference.value=c.1` is the audit's own live repro
-  # (docs/audits/2026-08-10-main-bug-audit.md, H12).
+  # CustomerNumber's `pattern:` only forbids whitespace, so a dotted id such as
+  # `c.1` is legal and must not be mistaken for a format extension.
   describe "a record id containing a dot" do
     def register_dotted
       post "/Banking/Customer/Register.html", "reference.value" => "c.1", "name.given" => "Ada",
@@ -349,10 +327,8 @@ RSpec.describe Hecks::Forms::App do
     end
   end
 
-  # L12 — the id is HTML-escaped everywhere it's rendered, but a raw `&`,
-  # `+`, `?`, or `#` in an href/query-string position still corrupts the
-  # link (a stray `&` smuggles a second query parameter, `#` truncates the
-  # path at a fragment, etc). CustomerNumber's pattern permits all four.
+  # HTML-escaping is not enough: a raw `&`, `+`, `?` or `#` in an href still
+  # corrupts the link, and CustomerNumber's pattern permits all four.
   describe "a record id containing URL-syntax characters" do
     MALICIOUS_ID = "a&b+c?d#e".freeze
 
@@ -361,15 +337,9 @@ RSpec.describe Hecks::Forms::App do
                                                 "name.family" => "Lovelace", "email.address" => "ada@example.com"
     end
 
-    # Rack::Test's own `get(path)` parses `path` as a URI string before it
-    # ever reaches the app — a raw "?"/"#" in it is parsed as Rack::Test's
-    # own query/fragment separator, not delivered to us at all, and a
-    # percent-encoded path is left percent-encoded in PATH_INFO instead of
-    # decoded. Neither matches a real deployment: every real Rack server
-    # decodes percent-escapes into PATH_INFO before the app ever sees it
-    # (that decode step is what a browser navigating our own rendered href
-    # actually triggers). Setting PATH_INFO directly bypasses Rack::Test's
-    # URI parsing and hands the app exactly what production would.
+    # `get(path)` parses "?"/"#" as query/fragment and leaves percent-escapes
+    # encoded, unlike a real Rack server, which decodes them into PATH_INFO.
+    # Setting PATH_INFO directly hands the app what production would.
     def get_with_raw_path_info(path)
       get "/", {}, "PATH_INFO" => path
     end
@@ -385,10 +355,9 @@ RSpec.describe Hecks::Forms::App do
       get "/Banking/Customer.html"
       expect(last_response.status).to eq(200)
       expect(last_response.body).to include("href=\"/Banking/Customer/#{URI.encode_www_form_component(MALICIOUS_ID)}.html\"")
-      # link text is the raw id, HTML-escaped (not percent-encoded) —
-      # readable, and the & doesn't get interpreted as an entity start
+      # link text is HTML-escaped, not percent-encoded
       expect(last_response.body).to include(Hecks::Forms::Escape.html(MALICIOUS_ID))
-      # the raw id must never appear unescaped/unencoded
+      # the raw id must never appear unescaped
       expect(last_response.body).not_to include(%(>#{MALICIOUS_ID}<))
     end
 

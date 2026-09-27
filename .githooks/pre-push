@@ -1,86 +1,19 @@
 #!/bin/sh
 #
-# pre-push — the suite and the static checks must pass before anything
-# leaves this machine.
+# pre-push — runs the suite and static checks concurrently; a red check blocks the push.
+# Rust conformance specs need a toolchain and build time, so CI runs them, not this hook.
 #
-# Used to run `bin/parity` here specifically: two runtimes, three domains,
-# four stages, ~40s, deliberately kept OUT of the fast rspec loop that runs
-# constantly. That FIRST comparison mechanism is retired for good
-# (docs/implemented/rust-experiment.md is itself a historical record now — read its own
-# top banner before citing it as current) — but Rust was restarted days
-# later and is very much alive, deployed live, with its own real
-# differential harness (spec/rust_conformance_spec.rb, spec/codegen_parity
-# _spec.rb, spec/parser_parity_spec.rb). Those stay OUT of this fast local
-# hook on purpose, same reasoning the `io: true` comment below gives for
-# query_agreement_spec.rb's own narrower exception — they want a Rust
-# toolchain and real build time neither belongs in a ~40s local push gate,
-# so CI runs them instead (`.github/workflows/*.yml`). What's true locally
-# is: the RUBY suite plus the static model checker (unreachable lifecycle
-# states, dead transitions, saga states no handler chain reaches — facts
-# the runtime itself never checks at dispatch time) is the "whole truth"
-# check FOR RUBY; Rust's own truth is CI's job, not this hook's.
-#
-# `codegen_drift` (below) is the one Rust-adjacent exception — per ADR
-# 0057, a Bluebook `given` can change with nobody rerunning
-# `bin/project_rust`, leaving committed `rust/src/generated/` silently
-# behind its own source. CI's own `checks_codegen_drift` job skips a
-# plain `push` event and only runs on `pull_request`/`merge_group`, so
-# today that drift reaches GitHub before anything catches it. Needs no
-# Rust toolchain — `bin/regen_codegen_domains` is pure Ruby codegen plus
-# a `git diff`, ~13-14s measured standalone — so it fits this hook's
-# budget unlike the toolchain-heavy specs above.
-#
-# Install:  git config core.hooksPath .githooks   (relative — see below)
+# Install:  git config core.hooksPath .githooks
 # Bypass:   git push --no-verify   (say why — a red suite is a real answer)
 #
-# ROOT is resolved via `git rev-parse --show-toplevel`, NOT `dirname "$0"`.
-# core.hooksPath is repo-shared config (not per-worktree), so if it's ever
-# set to an ABSOLUTE path, every worktree's push would invoke this exact
-# same file — and `dirname "$0"` would then resolve to wherever THAT file
-# lives (one specific checkout) instead of the worktree actually doing the
-# push, silently testing the wrong tree. `git rev-parse --show-toplevel`
-# reflects the invoking worktree's own root regardless of how hooksPath is
-# configured, so this stays correct even if that drifts again.
+# ROOT comes from `git rev-parse --show-toplevel`, not `dirname "$0"`, since an absolute
+# core.hooksPath makes every worktree run this one file. Each check logs to its own file
+# under WORKDIR; results print in a fixed order after `wait`, every check reported even
+# if an earlier one failed.
 #
-# THE 8 CHECKS BELOW RUN CONCURRENTLY, NOT IN SERIES — the CI-speed
-# effort's own "stop running independent things one after another"
-# principle, applied here for the first time to something that runs on a
-# developer's own machine rather than in GitHub Actions. Measured serial
-# baseline (warm caches): ~70s total for the original 7 (parallel_rspec
-# 30.9s + spec/fuzzing 28.1s + query_agreement_spec 4.5s +
-# check_engine_agreement 0.2s + model_check 3.0s + doc_coverage 1.8s +
-# rubocop 1.1s), plus `codegen_drift`'s own ~13-14s measured standalone —
-# ~83-84s serially. None of the 8 reads another's output or depends on
-# another's result — each is already an independent invocation today,
-# just historically run one after another for no reason stronger than
-# "that's how the script was written."
-#
-# REAL MEASURED WIN IS ~25-30%, NOT THE 2X A NAIVE "JUST BACKGROUND
-# EVERY CHECK" READING OF THAT PRINCIPLE WOULD PREDICT — found by timing
-# each of the original 7 individually under real contention on a 12-core
-# machine, not assumed from the aggregate. `parallel_rspec` and
-# `spec/fuzzing` are both genuinely CPU-heavy; naively running all 7 concurrently at
-# `parallel_rspec`'s own default worker count (`available CPUs`) starved
-# `spec/fuzzing` badly enough (28.1s → 66s in one measured run) that
-# total wall-clock came out THE SAME OR WORSE than the old serial script.
-# See `RSPEC_WORKERS` below for the fix (capping `parallel_rspec` to half
-# the machine's cores) that actually delivered a real, measured ~52s.
-#
-# Each check's own stdout/stderr is captured to its own file under a
-# scratch dir (same "buffer per worker, print in a fixed order once
-# everyone's done" pattern `bin/qa_sweep`'s own child-output capture
-# already uses) rather than streamed live — eight processes writing to
-# one terminal at once would interleave into something unreadable. `wait`
-# blocks until every one of the 8 has actually finished; the exit code of
-# each is read back from its own file (not from `wait`'s own exit status,
-# which reflects a backgrounded shell FUNCTION's return, not necessarily
-# the wrapped command's — the file is the one number this script actually
-# trusts) and checked explicitly, one at a time, in the SAME fixed order
-# and with the SAME per-check "[pre-push] ..." header and "BLOCKED — ..."
-# wording the old serial script used — a push blocked on two failures
-# reports both, not just whichever happened to be checked first, because
-# every one of the 8 gets its own `if` check below regardless of whether
-# an earlier one already failed.
+# `codegen_drift` catches a Bluebook `given` changing with nobody rerunning `bin/project_rust`
+# (ADR 0057) — CI's own `checks_codegen_drift` only runs on `pull_request`/`merge_group`, not a
+# plain push, so this is the one local backstop.
 
 ROOT=$(git rev-parse --show-toplevel)
 WORKDIR=$(mktemp -d)
@@ -88,30 +21,8 @@ trap 'rm -rf "$WORKDIR"' EXIT
 
 cd "$ROOT"
 
-# TAG-ONLY PUSHES SKIP THE SUITE — a tag introduces no new code; every
-# commit it names either already went through this exact hook on
-# whatever branch push actually landed it, or reached `main` through a
-# merge CI itself gated. Re-running the full ~70s local suite on every
-# release tag (`bin/release_gem`'s own prerequisite) added nothing but
-# wait — the content was already checked and cannot change underneath
-# an existing tag.
-#
-# STDIN, NOT $1/$2 — pre-push's positional args are the remote name and
-# URL; which refs are actually moving arrives one line per ref on
-# stdin, `<local-ref> <local-oid> <remote-ref> <remote-oid>`. This hook
-# never read it before this — confirmed by grep, every push, tag
-# included, paid the full suite unconditionally, so `git push origin
-# v1.4.0` and `git push origin main` cost the identical ~70s.
-#
-# ONLY SKIP IF *EVERY* PUSHED REF IS A TAG WHOSE COMMIT IS ALREADY
-# REACHABLE FROM SOME REMOTE-TRACKING BRANCH — not "any tag push",
-# which would let an unverified commit ride in disguised as a tag.
-# `git branch -r --contains <sha>` answers "did a branch push already
-# carry this exact commit past this same hook (or CI)"; a push mixing
-# a tag with a branch, or tagging a commit no remote branch has ever
-# carried, falls through to the full suite below exactly as before —
-# a false negative here just means paying for a suite run that turns
-# out to be redundant, never the reverse.
+# Tag-only pushes skip the suite when every pushed ref is a tag on a commit already reachable
+# from a remote-tracking branch. Pushed refs arrive on stdin, not in $1/$2.
 TAG_SKIP_INELIGIBLE="$WORKDIR/tag_skip_ineligible"
 PUSHED_REFS=$(cat)
 if [ -n "$PUSHED_REFS" ]; then
@@ -133,13 +44,8 @@ if [ -n "$PUSHED_REFS" ]; then
   fi
 fi
 
-# Runs one check in the background, capturing its combined output to
-# "$WORKDIR/<id>.log" and its exit code to "$WORKDIR/<id>.exit". The
-# whole function call is what gets backgrounded by the caller (`&`); this
-# function itself always returns 0 so a failing check never trips an
-# unrelated `set -e` in some future edit of this file — the REAL exit
-# code lives in the `.exit` file, which is what every check below
-# actually reads.
+# Runs one check in the background: output to $WORKDIR/<id>.log, exit code to <id>.exit.
+# Always returns 0 so a failing check cannot trip a `set -e`.
 run_check() {
   id="$1"
   shift
@@ -151,20 +57,8 @@ exit_of() {
   cat "$WORKDIR/$1.exit" 2>/dev/null || echo 1
 }
 
-# `parallel_rspec` DELIBERATELY CAPPED TO HALF THE MACHINE'S CORES, NOT
-# LEFT AT ITS OWN DEFAULT (`available CPUs`) — found live on a 12-core
-# machine, not guessed: at its default worker count, `parallel_rspec`
-# alone already saturates every core, so running it concurrently with
-# spec/fuzzing (the other genuinely CPU-heavy step here) starved fuzzing
-# badly enough that total wall-clock came out THE SAME OR WORSE than the
-# old fully-serial script (~70s either way) — confirmed by timing each of
-# the 7 checks individually under contention, not assumed from the
-# aggregate. Capping to half the core count measured ~26% faster
-# end-to-end on that same machine (~70s → ~52s) — rspec itself takes
-# longer (fewer of its own workers), but that cost is smaller than the
-# contention it was inflicting on fuzzing at full width. Computed at
-# runtime, not hardcoded to "6", so this adapts to whatever machine
-# actually runs the hook rather than assuming this one's core count.
+# parallel_rspec is capped to half the cores: at full width it starves spec/fuzzing and the
+# concurrent run is no faster than serial.
 CPU_COUNT=$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4)
 RSPEC_WORKERS=$((CPU_COUNT / 2))
 if [ "$RSPEC_WORKERS" -lt 1 ]; then
@@ -179,6 +73,7 @@ run_check model_check "$ROOT/bin/model_check" &
 run_check doc_coverage "$ROOT/bin/doc_coverage" &
 run_check rubocop bundle exec rubocop -c .rubocop.yml &
 run_check codegen_drift bundle exec bin/regen_codegen_domains --check &
+run_check comment_blocks bundle exec bin/standardize_comments --check lib bin spec examples --only long_block &
 
 wait
 
@@ -194,16 +89,8 @@ fi
 
 printf '\n[pre-push] spec/fuzzing — excluded from the parallel run above like any other local rspec\n\n'
 
-# CLOSES A REAL GAP, found rather than assumed: `parallel_rspec spec`
-# above sets no CI and passes no --tag, so it excludes spec/fuzzing
-# (`fuzzing: true`, spec_helper.rb) the exact same way it excludes
-# `io: true` — .githooks/post-commit covers every ordinary commit, but
-# a commit made with --no-verify, or one whose post-commit run was
-# skipped (SKIP_POST_COMMIT_FUZZING=1), would otherwise reach a push
-# having never run it at all. Re-included here explicitly, the same
-# `--tag <excluded-tag>` override the io step below already uses —
-# ~18-20s on its own (properties_spec.rb's own live-generated-history
-# replays are most of that), the one real cost of closing this gap.
+# `parallel_rspec spec` excludes spec/fuzzing, so it is re-run here for commits made with
+# --no-verify or SKIP_POST_COMMIT_FUZZING=1.
 cat "$WORKDIR/fuzzing.log"
 if [ "$(exit_of fuzzing)" -ne 0 ]; then
   printf '\n[pre-push] BLOCKED — spec/fuzzing is red.\n'
@@ -213,21 +100,8 @@ fi
 
 printf '\n[pre-push] adapter agreement — one declared query, every engine, same answer\n\n'
 
-# WHY THIS ONE io SPEC AND NOT THE REST. `io: true` is excluded from the
-# ordinary loop (spec_helper.rb) and included when CI=true — but that tag
-# also covers the Rust conformance build, the deploy-contract specs and
-# the build pipeline, which want a toolchain and real cloud resources and
-# have no business in a ~40s pre-push. This one is different on both
-# counts: it runs in about five seconds, and it DEGRADES rather than
-# skipping — PostgresProbe means Memory-vs-Sqlite agreement still runs,
-# and still means something, on a machine with no local Postgres.
-#
-# It earns the slot because of what it catches. Four query bugs have now
-# shipped where two engines answered the same declared query differently
-# — `ne:` with an empty string, array `in:`, `ne:` against a null field,
-# and `in` on a numeric field. Every one of them is invisible to a
-# self-consistent adapter spec: each engine looked fine alone. Catching
-# that on push to GitHub rather than before is catching it a day late.
+# Only this io spec runs here: it takes ~5s and falls back to Memory-vs-Sqlite agreement
+# without a local Postgres. The other io specs need a toolchain or cloud resources.
 cat "$WORKDIR/query_agreement.log"
 if [ "$(exit_of query_agreement)" -ne 0 ]; then
   printf '\n[pre-push] BLOCKED — the engines disagree about a declared query.\n'
@@ -284,49 +158,26 @@ if [ "$(exit_of codegen_drift)" -ne 0 ]; then
   fail=1
 fi
 
+printf '\n[pre-push] comment blocks — no run of comment lines past ADR 0075'"'"'s cap\n\n'
+
+cat "$WORKDIR/comment_blocks.log"
+if [ "$(exit_of comment_blocks)" -ne 0 ]; then
+  printf '\n[pre-push] BLOCKED — a comment block ran past the cap (bin/standardize_comments --only long_block).\n'
+  printf '           Shorten it, or push with --no-verify and say why.\n\n'
+  fail=1
+fi
+
 if [ "$fail" -ne 0 ]; then
   exit 1
 fi
 
-printf '\n[pre-push] suite green, fuzzer green, engines agree, model checks clean, every word exemplified, rubocop clean, codegen matches source.\n\n'
+printf '\n[pre-push] suite green, fuzzer green, engines agree, model checks clean, every word exemplified, rubocop clean, codegen matches source, comments in bounds.\n\n'
 
-# ATTESTATION — Phase 7 of the CI speed effort ("let the pre-push hook
-# prove its work"): everything above this line just verified, on THIS
-# machine, exactly the work CI's own `rspec_shard` and four of
-# `checks_static`'s five steps (model_check, engine_agreement,
-# doc_coverage, rubocop — NOT lint_deploy_recipes, which this hook never
-# runs) redo from scratch on every push. A git note under refs/notes/ci,
-# keyed by `HEAD^{tree}` (a TREE object note, not a commit note — see
-# .github/actions/check-attestation's own header for why that's the part
-# that lets this survive into a merge_group run whose commit didn't exist
-# yet when this note was written), carries an HMAC over the tree hash and
-# the exact check names above, signed with a secret that lives ONLY in
-# this machine's own keychain and as the matching GitHub Actions secret
-# (HECKS_CI_ATTEST_KEY) — nowhere else, same trust boundary a solo repo
-# already extends to its own laptop. CI re-derives the same HMAC and
-# skips only the checks named here; it never trusts the note's own claim
-# without recomputing it.
+# Attestation: a git note under refs/notes/ci, keyed by HEAD^{tree} and carrying an HMAC
+# signed with the keychain key hecks-ci-attest-key, tells CI which checks it can skip.
+# Best-effort: a missing key or a failed notes push never blocks the push.
 #
-# BEST-EFFORT, NEVER BLOCKING — everything below is wrapped so a missing
-# keychain entry (a fresh clone, a non-macOS machine, `security` not on
-# PATH) or a failed `git push` of the notes ref (no write access, offline)
-# degrades to "no attestation note travels with this push," not a blocked
-# push. The checks above already gated correctness; this only ever adds a
-# speed optimization CI is free to ignore.
-#
-# `--no-verify` ON THE NOTES PUSH IS LOAD-BEARING, NOT DEFENSIVE — found
-# by actually running this, not guessed: `git push` of ANY ref invokes
-# pre-push again, this same file included, since core.hooksPath applies
-# to every push regardless of what's being pushed. Without `--no-verify`
-# here, pushing refs/notes/ci re-entered this entire script (the full
-# rspec suite included) a second time before the outer push of the actual
-# branch could proceed — confirmed live: a real push took two full local
-# suite runs instead of one until this flag was added. The inner
-# recursive call's own attestation step would in turn try to push
-# refs/notes/ci YET AGAIN; that this only cost one extra run rather than
-# recursing without bound was incidental (the second push found the ref
-# already up to date at origin and skipped invoking the hook a third
-# time) — not a guarantee worth relying on.
+# The notes push needs --no-verify: otherwise it re-enters this hook and reruns the suite.
 ATTEST_KEY=$(security find-generic-password -a "$(whoami)" -s hecks-ci-attest-key -w 2>/dev/null || true)
 
 if [ -n "$ATTEST_KEY" ]; then

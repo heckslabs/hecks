@@ -1,13 +1,7 @@
 require "spec_helper"
 
-# Real coverage for issue #143: a `.world` file's own aggregate-qualified
-# bind mirror (`Pizzas::Order.charged_by("Stripe") do ... end` — the same
-# visual shape `.hecksagon` files already write, since `.world`/`.hecksagon`
-# are meant to mirror each other line for line) raised
-# `NameError: uninitialized constant Pizzas` — `WorldBuilder`, unlike
-# `HecksagonBuilder`/`BluebookBuilder`, never wrapped its own
-# `instance_eval` in `ConstShim`, so a bareword aggregate name had no real
-# constant to resolve to.
+# A `.world` aggregate-qualified bind (`Pizzas::Order.charged_by("Stripe") do ... end`) must
+# resolve the bareword aggregate name; WorldBuilder wraps instance_eval in ConstShim like siblings.
 RSpec.describe "WorldBuilder aggregate-qualified bind mirror" do
   def build_world(&block) = Hecks::Bluebook::DSL::WorldBuilder.build("AggregateQualifiedGrowth", &block)
 

@@ -6,11 +6,7 @@ module Hecks
   module Ports
     module Persistence
       # Translates a journal entry written under an old shape into the one
-      # the current bluebook declares — a renamed attribute, a renamed
-      # aggregate, or a field crossing a value-object boundary. Applied
-      # wherever entries are read, so replay derives the current head from
-      # history that was never rewritten — the port owns the meaning,
-      # adapters stay oblivious.
+      # the current bluebook declares; replay derives the head from unrewritten history.
       class Lineage
         # `ancestor_name` is the declared name a rename came from (matches
         # the held bluebook's own aggregate names); `ancestor_storage_name`
@@ -24,8 +20,8 @@ module Hecks
         #   searched, in declaration order
         # @param domain [String, Symbol] name of the domain the aggregate belongs to
         # @param aggregate [Bluebook::Aggregate] the aggregate as currently declared
-        # @return [Ports::Persistence::Lineage, nil] the rules of the first translation for `domain`
-        #   that names the aggregate; nil when none does
+        # @return [Ports::Persistence::Lineage, nil] the first translation for `domain` naming
+        #   the aggregate; nil when none does
         def self.for(registry, domain, aggregate)
           translation = registry.translations.find do |candidate|
             candidate.domain == domain.to_s && candidate.for_aggregate(aggregate.name)
@@ -37,9 +33,8 @@ module Hecks
 
         # Builds the rules one declared translation edge carries for one aggregate.
         #
-        # One specific edge's rules for one aggregate — what the mint
-        # path uses, where `for` would happily answer with whichever
-        # edge in the registry mentioned the aggregate first.
+        # Unlike `for`, this uses one specific edge, not whichever edge in
+        # the registry mentions the aggregate first — what the mint path needs.
         #
         # @param declared [Bluebook::TranslationAggregate, nil] the edge's entry for the
         #   aggregate, as `Bluebook::Translation#for_aggregate` returns it; nil when the edge
@@ -60,24 +55,16 @@ module Hecks
               ancestor_name: ancestor_name, ancestor_storage_name: ancestor_storage_name)
         end
 
-        # @param renames [Hash{Symbol => Symbol}] old top-level attribute name to new name
-        # @param moves [Array<Bluebook::TranslationMove>] fields crossing a value-object
-        #   boundary, each a `from`/`to` pair of bare or dotted paths
-        # @param converts [Array<Bluebook::TranslationConvert>] moves whose value is replaced
-        #   through an exhaustive `values` lookup table
-        # @param drops [Array<Symbol>] bare or dotted paths whose data is deliberately discarded
-        # @param retypes [Array<Bluebook::TranslationRetype>] value-object or entity type names
-        #   declared to mean the same shape
-        # @param computes [Array<Bluebook::TranslationCompute>] SQL-only rules, never applied
-        #   in process
-        # @param rekeys [Array<Bluebook::TranslationRekey>] SQL-only identity rewrites; only
-        #   the first is read
-        # @param backfills [Array<Bluebook::TranslationBackfill>] defaults for new top-level
-        #   attributes an old entry lacks
-        # @param ancestor_name [String, nil] the aggregate's declared name before the edge;
-        #   nil unless the edge renames the aggregate itself
-        # @param ancestor_storage_name [String, nil] snake_case storage name of
-        #   `ancestor_name`; nil unless the edge renames the aggregate itself
+        # @param renames [Hash{Symbol => Symbol}] old attribute name to new name
+        # @param moves [Array<Bluebook::TranslationMove>] from/to paths across a value object
+        # @param converts [Array<Bluebook::TranslationConvert>] moves mapped through a values table
+        # @param drops [Array<Symbol>] bare or dotted paths whose data is discarded
+        # @param retypes [Array<Bluebook::TranslationRetype>] type names meaning the same shape
+        # @param computes [Array<Bluebook::TranslationCompute>] SQL-only rules, never applied here
+        # @param rekeys [Array<Bluebook::TranslationRekey>] SQL rewrites; only the first is read
+        # @param backfills [Array<Bluebook::TranslationBackfill>] defaults for a new attribute
+        # @param ancestor_name [String, nil] the aggregate's name before the edge, if renamed
+        # @param ancestor_storage_name [String, nil] snake_case storage name of ancestor_name
         def initialize(renames, moves = [], converts = [], drops = [], retypes: [], computes: [], rekeys: [],
                        backfills: [], ancestor_name: nil, ancestor_storage_name: nil)
           @renames = renames
@@ -94,54 +81,39 @@ module Hecks
 
         # Reports whether any rule in this edge is a compute.
         #
-        # Compute is the one rule kind with no in-process implementation at
-        # all. An aggregate carrying one refuses to boot anywhere but
-        # Postgres, per-rule and by name, before the general drift
-        # machinery says anything vaguer.
+        # Compute has no in-process implementation; an aggregate carrying
+        # one refuses to boot anywhere but Postgres.
         #
         # @return [Boolean] true when the edge declares at least one compute rule
         def computes? = !@computes.empty?
 
         # Reports whether this edge rewrites the aggregate's identity.
         #
-        # The single source of truth for "does this edge rekey this
-        # aggregate" — every consumer (coverage_check.rb's identity gate,
-        # minter.rb's approval gate, layer_two.rb's audit, head_compiler.rb's
-        # SQL compilation) asks this, never re-derives it from `declared`
-        # independently. One accessor to change if what a rekey rule means
-        # ever needs to change, not four call sites in four files.
+        # The single source of truth for this; other call sites ask here
+        # rather than re-deriving it from `declared` themselves.
         #
         # @return [Boolean] true when the edge declares at least one rekey rule
         def rekey? = !@rekeys.empty?
 
         # Returns the SQL expression the edge's first rekey rule declares.
         #
-        # The rekey's own SQL — first-and-only rule, same one-per-aggregate
-        # assumption `compute` makes about its own list where it matters
-        # (an edge with more than one is a DSL-level decision, not
-        # something this reader arbitrates).
+        # Only the first rule is read, the same one-per-aggregate assumption
+        # `compute` makes; more than one is a DSL-level decision to arbitrate elsewhere.
         #
         # @return [String, nil] the first rekey rule's SQL; nil when the edge declares no rekey
         def rekey_sql = @rekeys.first&.sql
 
         # Rewrites one journal entry's state from the held shape into the current one.
         #
-        # The reference semantics for the five portable rule kinds —
-        # rename, move, convert, drop, and the aggregate-level `was:`.
-        # `retype` moves nothing (stored state never carries a type name)
-        # and `compute` is deliberately not applied here: its SQL is its
-        # only implementation, so this transform neither imitates nor
-        # checks it — the source field passes through untouched, and the
-        # audit verifies compute output against the matview alone.
+        # The reference semantics for rename, move, convert, drop, and the aggregate-level `was:`.
+        # `compute` is not applied here — its SQL is the only implementation, audited separately.
         #
-        # @param entry [Ports::Persistence::Entry] the entry as stored: `state` has Symbol
-        #   top-level keys and String keys inside a nested value-object Hash
-        # @return [Ports::Persistence::Entry] a new entry with a deep-copied, translated state
-        #   and the same `operation`, `id` and `mirrors`; `entry` itself, untouched, when it
-        #   is not a save or carries no state
-        # @raise [Runtime::WiringError] if a convert meets a value missing from its `values`
-        #   table, or a move or convert would nest under a destination already holding a
-        #   non-Hash value
+        # @param entry [Ports::Persistence::Entry] the entry as stored, with Symbol
+        #   top-level keys and String keys nested in a value-object Hash
+        # @return [Ports::Persistence::Entry] a new entry with translated state and the same
+        #   `operation`, `id` and `mirrors`; `entry` itself when it is not a save or has no state
+        # @raise [Runtime::WiringError] if a convert value is missing from its `values` table, or a
+        #   move/convert would nest under a destination already holding a non-Hash value
         def translate(entry)
           return entry unless entry.save? && entry.state
 
@@ -153,45 +125,18 @@ module Hecks
           @moves.each { |move| apply_move(state, move) }
           @converts.each { |convert| apply_convert(state, convert) }
           @drops.each { |name| apply_drop(state, name) }
-          # Last, and only where nothing already answered — a backfill
-          # fills the gap a rename/move/convert left untouched, never
-          # overwrites a value that already made it across. Dotted-path
-          # aware, same as `apply_drop` above (`apply_backfill`'s own
-          # header) — a bare name was the only shape this ever needed
-          # until a value object gained new required members with zero
-          # source data of their own (found live: a client site's Attendee
-          # redesign, commit 4326dcd).
+          # Only fills a gap nothing else already filled; dotted-path aware, like apply_drop.
           @backfills.each { |backfill| apply_backfill(state, backfill) }
           Entry.new(operation: entry.operation, id: entry.id, state: state, mirrors: entry.mirrors)
         end
 
         # Reports whether some rule accounts for a held path that vanished or changed type.
         #
-        # Whether this translation names `path` as an old key it accounts
-        # for — the rename, move, or convert it came from, or an explicit
-        # drop. `path` is a bare name ("cost") or a dotted value-object
-        # member ("price.currency"); a rule covering the whole top-level
-        # attribute (a rename, a top-level move/convert/drop) also covers
-        # anything nested under it, since the whole value travels or goes
-        # away together. This is what catches a field — or a value object's
-        # own member — that vanished (or silently changed type) without
-        # anything explaining it, even when some other field is covered.
+        # A rule covering a whole top-level attribute also covers anything nested
+        # under it; `backfills` only matches a whole name, since a backfill adds an
+        # attribute that is new outright, never a path that existed and moved.
         #
-        # `backfills` matches on the whole name only, never a dotted
-        # prefix — a backfill names a top-level attribute that is new
-        # outright (nothing to be a prefix of on the held side), unlike
-        # every rule above it, which explains a path that existed and
-        # moved, converted, or vanished.
-        #
-        # One `||` chain over a closed, fixed set of rule kinds (renames,
-        # moves, converts, drops, computes, backfills) — the same six this
-        # file's other methods enumerate. Splitting each disjunct into its
-        # own predicate would scatter one question ("does any rule explain
-        # this path") across six same-shaped methods with nothing else to
-        # do.
-        #
-        # @param path [String, Symbol] a bare attribute name or a dotted value-object member
-        #   path on the held side
+        # @param path [String, Symbol] a bare attribute name or a dotted value-object member path
         # @return [Boolean] true when a rename, move, convert, drop or compute names the path or
         #   its top-level attribute as its source, or a backfill names the top-level attribute
         # rubocop:disable-next Metrics/CyclomaticComplexity
@@ -210,32 +155,11 @@ module Hecks
 
         # Reports whether some rule gives an existing record a value at a new attribute.
         #
-        # The destination-side twin of `explains?` above, which only ever
-        # asks about a rule's source. `unsafe_additions` asks a different
-        # question — not "was this vanished path accounted for" but "does
-        # an existing record end up with a value here" — and a move or
-        # convert whose `to:` lands a old field inside a brand-new
-        # top-level attribute (`weight` becoming `contents.weight` when
-        # `Contents` did not exist before) fills that attribute for an
-        # existing record exactly as a `backfill` would, even though
-        # nothing named `contents` explains any vanished path. `compute`
-        # counts on the same terms `explains?` already grants it
-        # elsewhere in this file — Postgres-only and audited, not
-        # actually applied by this method, the same gap the vanish side
-        # already lives with.
+        # The destination-side twin of `explains?`, which checks a rule's source; this checks
+        # `@renames.value?` too, since a bare rename fills the destination unconditionally,
+        # the same way a backfill would.
         #
-        # `@renames.value?` belongs here too: a bare
-        # `rename :cost, to: :amount` is the plainest possible covering
-        # rule there is (`translate` above applies it unconditionally, no
-        # lookup table, no per-record ambiguity — simpler than a move or
-        # convert), and without it `unsafe_additions` reports the new name
-        # as an unexplained required addition on every rename-only edge,
-        # the single most common translation shape there is. `explains?`
-        # checks the source side (`@renames.key?`); this is the symmetric
-        # destination-side check.
-        #
-        # @param path [String, Symbol] the name of a top-level attribute new in the current
-        #   shape
+        # @param path [String, Symbol] the name of a top-level attribute new in the current shape
         # @return [Boolean] true when a rename, move, convert or compute lands a value in that
         #   attribute, or a backfill names it
         def fills?(path)
@@ -250,15 +174,11 @@ module Hecks
 
         # Reports whether a declared retype pairs two type names as the same shape.
         #
-        # A retype covers a value object or entity whose own name changed
-        # with its members intact. Nothing in the stored data carries the
-        # type name, so this never moves a value; it only satisfies the
-        # era diff's literal type-name comparison.
+        # Nothing in the stored data carries a type name, so this never moves a value;
+        # it only satisfies the era diff's literal type-name comparison.
         #
-        # @param held_type [String, Bluebook::Reference] the type the held era declares,
-        #   compared by its `to_s`
-        # @param current_type [String, Bluebook::Reference] the type declared now, compared by
-        #   its `to_s`
+        # @param held_type [String, Bluebook::Reference] the type the held era declares
+        # @param current_type [String, Bluebook::Reference] the type declared now
         # @return [Boolean] true when some retype rule runs from `held_type` to `current_type`
         def retype?(held_type, current_type)
           @retypes.any? { |retype| retype.from == held_type.to_s && retype.to == current_type.to_s }
@@ -274,30 +194,14 @@ module Hecks
           end
         end
 
-        # M27 (docs/audits/2026-08-10-main-bug-audit.md,
-        # docs/audits/2026-08-11-bug-triage.md) — simultaneous, not
-        # sequential: `state[new] = state.delete(old)` per rename, run
-        # one rule at a time against the same hash it was reading from,
-        # loses data the instant one rule's destination is another
-        # rule's source. Applied sequentially, a swap (`rename :a, to: :b`
-        # alongside `rename :b, to: :a`) on `{a: 1, b: 2}` produces
-        # `{a: 1}` — the first rule writes `b: 1` over the real `b: 2`
-        # before the second rule ever gets a chance to read it, and the
-        # value the whole edge is supposed to preserve (2, moved to
-        # `:a`) is gone. The standard fix: snapshot every rule's old
-        # key and value from `state` first, then remove every old key
-        # and only then write every new key — a rename never reads a
-        # key this same pass has already written to, so a swap or a
-        # longer chain applies as one permutation, not a sequence of
-        # edits each stepping on the last.
+        # Snapshots every rename's old key/value before writing any new key, so a
+        # swap (:a<->:b) applies as one permutation instead of losing data when one
+        # rule's destination is another's source.
         def apply_renames(state, renames)
           snapshot = renames.filter_map { |old_name, new_name| [old_name, new_name, state[old_name]] if state.key?(old_name) }
           snapshot.each { |old_name, _new_name, _value| state.delete(old_name) }
-          # Not combinable (Style/CombinableLoops is disabled repo-wide, see
-          # .rubocop.yml, for exactly this reason): a swap (:a<->:b) needs
-          # every delete done before any write, or the first rename's write
-          # becomes the second rename's delete target — see this method's
-          # own comment above.
+          # Not combinable: every delete must finish before any write, or a swap's
+          # first write becomes its second delete target.
           snapshot.each { |_old_name, new_name, value| state[new_name] = value }
         end
 
@@ -317,18 +221,7 @@ module Hecks
           end
         end
 
-        # Applies one backfill, dotted-path aware — `apply_drop`'s own
-        # mirror on the addition side. A bare name sets a plain top-level
-        # key, unchanged from before; a dotted name (`"attendee.
-        # first_name"`) reaches into an existing value-object member the
-        # same way `apply_drop`/`hecks_tr_insert` (rule_compiler.rb's own
-        # SQL-compiled twin, kept in step with this) already do — creating
-        # the container Hash if an old record somehow lacks it entirely,
-        # never overwriting a value already there at either level.
-        #
-        # @param state [Hash] the entry's own state Hash, mutated in place
-        # @param backfill [Bluebook::TranslationBackfill] the backfill rule to apply
-        # @return [void]
+        # Dotted-path aware; must stay in step with `hecks_tr_insert` in rule_compiler.rb.
         def apply_backfill(state, backfill)
           name = backfill.name.to_s
           top, member = name.split(".", 2)
@@ -342,17 +235,8 @@ module Hecks
           end
         end
 
-        # A dotted path's first segment is a top-level (symbol) key; a
-        # second segment reaches into a value-object member by its string
-        # key — the spelling a raw stored row carries. Translation runs on
-        # raw rows, before the state codec decodes anything (PR A3): its
-        # only caller (`Translation::Audit::LayerTwo`) feeds it
-        # head-snapshot rows straight out of `JSON.parse`, and the
-        # PostgresEra head applies the same rules in SQL before
-        # `PostgresEra#decode` ever sees the jsonb. Decode is always the
-        # last step, so an undeclared (retired) member this rule has to
-        # read is still exactly as it was written, and never something an
-        # adapter's `entries` — decoded, deep-symbol — would be fed here.
+        # Runs on raw rows, before the state codec decodes anything — decode is
+        # always the last step, so this never sees an adapter's deep-symbolized entry.
         def apply_move(state, move)
           old_top, old_member = move.from.split(".", 2)
           new_top, new_member = move.to.split(".", 2)
@@ -364,9 +248,8 @@ module Hecks
           insert(state, new_top.to_sym, new_member, value, rule: "move #{move.from} to: #{move.to}")
         end
 
-        # A convert is a move whose value has nothing in common with its
-        # replacement — the same path machinery, plus a lookup. A value
-        # with no entry in the table refuses loudly rather than carry an
+        # A convert is a move whose value has nothing in common with its replacement.
+        # A value missing from the lookup table refuses loudly rather than carry an
         # unrecognized value silently into the new era.
         def apply_convert(state, convert)
           old_top, old_member = convert.from.split(".", 2)
@@ -397,18 +280,9 @@ module Hecks
           [value, true]
         end
 
-        # Adversarial finding, not a hypothetical: a destination whose
-        # top segment already holds a value — most commonly a reference,
-        # stored as a bare scalar id — must not be nested under when a
-        # dotted destination needs it (`state[top] ||= {}` alone only
-        # guards nil/false, so a truthy non-Hash sails straight through
-        # to `state[top][member] =`, i.e. `"team-1"["detail"] =`, which
-        # is String#[]=  and raises an unrelated-looking IndexError).
-        # Whether it crashes or silently replaces the value, that is a
-        # `drop` that never declared itself — the one thing this language
-        # exists to make explicit (see apply_convert's own refusal above,
-        # the same shape). Refuse by name instead, on both sides: the SQL
-        # half (hecks_tr_insert) raises the identical wording.
+        # A destination already holding a non-Hash value (e.g. a bare reference id)
+        # must not be silently nested under — that would be an undeclared drop. The
+        # SQL half (`hecks_tr_insert`) refuses with identical wording.
         def insert(state, top, member, value, rule:)
           return state[top] = value unless member
 

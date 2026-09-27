@@ -2,14 +2,8 @@ require_relative "../projector"
 
 module Hecks
   module Projections
-    # The Rust parser's keyword table, projected from the chapter's own
-    # Syntax aggregate — "the parser's grammar knowledge is derived from
-    # hecks's self-description, not hand-typed a second time", which
-    # is the anti-drift idea the whole Rust-parser plan rests on.
-    #
-    # A registered target now, rather than a module living inside its own
-    # bin/ script. It was already a projection in everything but call
-    # shape; this only stops it being a fifth way of spelling one.
+    # The Rust parser's keyword table, projected from the chapter's own Syntax aggregate,
+    # so the parser's grammar knowledge is derived rather than hand-typed a second time.
     module ParserTable
       extend Projector::Target
       projects_as :parser_table, declares: "Syntax"
@@ -27,10 +21,8 @@ module Hecks
 
       module_function
 
-      # The chapter is handed over, not reached for — reaching for the grammar
-      # registry directly would pin the projection to one chapter, the language's
-      # own, and the projector protocol already hands over the chapter as an
-      # argument, at no cost.
+      # The chapter's `Syntax` aggregate. Taken from the argument, not the grammar registry,
+      # so the projection is not pinned to the language's own chapter.
       #
       # @param bluebook [Bluebook::Chapter] the chapter to read the Syntax aggregate
       #   from
@@ -38,10 +30,7 @@ module Hecks
       #   it declares none
       def syntax(bluebook) = bluebook.aggregate("Syntax")
 
-      # Every cell as text — exactly spec/syntax_conformance_spec.rb's own
-      # `rows` helper, reused rather than re-derived: a member's fields decode
-      # back through typed literal decoding on the way out of reconstruction,
-      # and this reads it back as what was written.
+      # Every cell as text, as spec/syntax_conformance_spec.rb's `rows` helper reads it.
       #
       # @param bluebook [Bluebook::Chapter] the chapter to read from
       # @param name [String] the closed-set value object's name, such as `"Context"`
@@ -63,10 +52,8 @@ module Hecks
       ARGUMENT_FIELDS = %i[keyword context at named kind required fills selects
                            pair_key_fills pair_value_fills pairs_shape status variadic minimum].freeze
 
-      # A Rust string literal for one field's value — every field here is
-      # plain ASCII (a word, a context name, a digit, "true"/"false"), so this
-      # only has to be safe against the two characters Rust string literals
-      # themselves reserve.
+      # A Rust string literal for one field's value. Fields are plain ASCII, so only
+      # the backslash and double quote need escaping.
       #
       # @param value [Object] the field value to render; stringified before escaping
       # @return [String] a quoted Rust string literal
@@ -100,14 +87,8 @@ module Hecks
         "pub static #{name}: &[&str] = &[\n#{lines.join("\n")}\n];\n"
       end
 
-      # S14, ADR 0026 — Keyword/Argument are genuine entities of Syntax
-      # now, dispatched (not merely declared) so their own `status`
-      # really is a lifecycle. `SyntaxBoot.call` reads the still-static
-      # seed rows (`KeywordSeed`/`ArgumentSeed`), dispatches each one
-      # through the real admission/lifecycle door, and hands back rows in
-      # the same shape `rows` reads for every other closed set here —
-      # symbol keys, string values, `status` included — so nothing else
-      # in this file needs to change.
+      # Renders the whole Rust source. Keyword and Argument rows come from `SyntaxBoot.call`,
+      # which dispatches the seed rows so `status` is a real lifecycle (ADR 0026).
       #
       # @param bluebook [Bluebook::Chapter] the chapter to project
       # @return [String] the rendered `KEYWORDS`/`ARGUMENTS`/closed-set Rust source

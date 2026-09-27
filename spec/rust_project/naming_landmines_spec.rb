@@ -3,20 +3,9 @@ require "open3"
 require "tmpdir"
 require_relative "../../rust/project/naming"
 
-# R5 (docs/audits/2026-08-11-bug-triage.md) -- the "latent codegen
-# landmines" half of the finding: bin/project_rust's domain-name
-# handling and .inspect-based description embedding could silently
-# produce Rust source that fails to compile, for two independent
-# reasons this file tests directly (fast, no `cargo build` needed to
-# prove the string-level fix is right -- the io-tagged spec alongside
-# this one, domain_feature_exclusivity_spec.rb, additionally proves
-# the real end-to-end build).
-#
-# Reserved-word collisions (a domain or aggregate module name that is a
-# Rust keyword or a reserved Cargo.toml key, BUG#124) are the shared
-# `Hecks::Bluebook::ModelCheck.rust_reserved_name_findings` check now, and
-# are pinned by spec/model_check_spec.rb's "Rust reserved names" table.
-# This file keeps only the identifier-shape and escaping rules.
+# String-level tests for bin/project_rust's domain-name handling and string-literal escaping;
+# domain_feature_exclusivity_spec.rb covers the real build. Reserved-word collisions are pinned
+# by spec/model_check_spec.rb ("Rust reserved names").
 RSpec.describe RustProjection::Projector do
   describe ".valid_domain_mod_name?" do
     it "accepts ordinary lowercase domain names" do
@@ -57,12 +46,7 @@ RSpec.describe RustProjection::Projector do
       expect(described_class.rust_ident_field("code")).to eq("code")
     end
 
-    # The same landmine class as BUG#124's aggregate-name collision, at
-    # the struct-field site: crate/self/super/Self cannot be rescued by
-    # a raw identifier at all (not a matter of position) -- per the Rust
-    # reference's own RAW_IDENTIFIER grammar, `r#crate` etc. are not
-    # valid raw-identifier syntax, full stop. Refuse loudly rather than
-    # silently emit that broken syntax.
+    # crate/self/super/Self are not valid raw identifiers (`r#crate`), so refuse loudly.
     it "refuses to raw-escape crate/self/super/Self -- no raw identifier rescues them" do
       %w[crate self super Self].each do |field|
         expect { described_class.rust_ident_field(field) }.to raise_error(/cannot be rescued by a raw identifier/)
@@ -73,12 +57,8 @@ RSpec.describe RustProjection::Projector do
   describe ".rust_string_literal" do
     let(:hash_char) { "#" }
 
-    # Ruby's own String#inspect escapes a literal #{ / #@ as \#{ / \#@
-    # (Ruby-source-safety escaping -- meaningful only when the inspected
-    # text is later re-read as a Ruby double-quoted string) and a
-    # control character as bare \uXXXX (Ruby's own escape, missing
-    # Rust's required braces). Neither is a legal Rust escape.
-    # rust_string_literal must do neither.
+    # String#inspect escapes #{ / #@ (Ruby-only) and emits bare \uXXXX without Rust's braces;
+    # neither is a legal Rust escape, so rust_string_literal must do neither.
     it "leaves a literal hash-brace / hash-at untouched -- Rust has no interpolation syntax to escape" do
       source = "cost must be over #{hash_char}{threshold}"
       described = described_class.rust_string_literal(source)
@@ -106,11 +86,7 @@ RSpec.describe RustProjection::Projector do
       expect(described_class.rust_string_literal(plain)).to eq(plain.inspect)
     end
 
-    # The real proof, not just a string comparison -- feed rustc the
-    # exact landmine inputs (a literal #{, #@, and a control character)
-    # run through the real function, and confirm the resulting .rs file
-    # actually compiles. io: true -- a real rustc subprocess, same
-    # convention as every other spec doing real, uncontrolled I/O.
+    # Feeds rustc the landmine inputs and confirms the source compiles; `io: true` for rustc.
     it "produces Rust source that actually compiles, for every landmine input at once", :io do
       landmine = "cost must be over #{hash_char}{threshold}, ivar #{hash_char}@foo, control:#{1.chr}:end, quote\"and\\slash"
       literal = described_class.rust_string_literal(landmine)

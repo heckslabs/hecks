@@ -1,13 +1,7 @@
 require "spec_helper"
 
-# Every where-clause comparator the language declares (Vocabulary::QueryComparator)
-# and the DSL admits (QuerySpecification::Common::COMPARATORS), exercised at
-# least once — now against the real banking bluebook rather than a synthetic
-# fixture invented to hold this alone. gt/gte/lt/lte/ne/in/contains were
-# silently treated as `eq` in both Runtime::QueryInterpreter#holds? and
-# Ports::Query::InMemory#holds? until a fixture caught it; banking's own
-# Account.{Overdrawn,HighBalance,StrictlyAbove,AtMost}, Customer.NotGoodStanding,
-# Account.Reachable and CardPayment.Flagged now carry that coverage instead.
+# Every where-clause comparator the language declares (Vocabulary::QueryComparator) is exercised
+# at least once against the real banking bluebook.
 RSpec.describe "where-clause comparators, exercised on the real banking bluebook" do
   BANKING_BLUEBOOK = InMemoryDomain::BANKING_BLUEBOOK_DIR unless defined?(BANKING_BLUEBOOK)
 
@@ -27,17 +21,12 @@ RSpec.describe "where-clause comparators, exercised on the real banking bluebook
     runtime.dispatch_flat("Banking::Customer.Register", reference: { value: "c1" },
                      name: { given: "A", family: "One" }, email: { address: "a@example.com" })
 
-    # **A second customer, holding nothing**. The suspension below is here to
-    # give the standing query something to find, and `FreezeAccounts
-    # OnSuspension` now really does freeze every open account a suspended
-    # customer holds — so suspending c1 would empty the account-comparator
-    # tests of their subject matter. c2 owns none, so the standing test
-    # and the balance tests stop standing on each other.
+    # c2 holds no accounts: `FreezeAccountsOnSuspension` freezes every open account of a suspended
+    # customer, so suspending c1 would empty the account-comparator tests.
     runtime.dispatch_flat("Banking::Customer.Register", reference: { value: "c2" },
                      name: { given: "B", family: "Two" }, email: { address: "b@example.com" })
 
-    # a(300), b(500), c(1000, later frozen), d(0, later closed) — the four
-    # corners a floor/cap comparator family needs: strictly below, exactly at,
+    # a(300), b(500), c(1000, later frozen), d(0, later closed): strictly below, exactly at,
     # strictly above, and the zero balance closure requires.
     [["a", 300], ["b", 500], ["c", 1000], ["d", 0]].each do |number, cents|
       runtime.dispatch_flat("Banking::Account.Open", customer: "c1", number: { value: number },
@@ -61,9 +50,7 @@ RSpec.describe "where-clause comparators, exercised on the real banking bluebook
     runtime
   end
 
-  # Seeded once per file, not per example — every `it` below only queries
-  # afterward (`seed` is the only place anything is dispatched), so the
-  # same seeded runtime is safe to share.
+  # Seeded once per file: every example only queries, so the runtime is safe to share.
   before(:context) { @runtime = seed(boot) }
 
   let(:runtime) { @runtime }

@@ -4,20 +4,8 @@ require_relative "scaffold/writer"
 
 module Hecks
   module Translation
-    # The scaffold writes translations; humans resolve ambiguity. It
-    # diffs the held era's storage-shape projection against the current
-    # one (scaffold/differ.rb) and writes the edge file
-    # (scaffold/renderer.rb, scaffold/writer.rb): confident rules inline
-    # (unique signature pairs → rename/move, aggregate renames → `was:`,
-    # type renames with identical members → retype, aggregates gone
-    # without a successor → retired), ambiguities as parse-refusing
-    # `unresolved` constructs — never comments, so an unresolved file can
-    # only boot into a refusal, never a guess. It never proposes a
-    # `compute` (a computation takes domain judgment no mechanical diff
-    # can infer) — an empty-candidate `unresolved` is what points the
-    # author there. It never proposes a `drop` either: data loss is a
-    # decision, not a default. Re-running regenerates the file, matched
-    # by shape pair.
+    # Diffs the held era's storage shape against the current one and writes the edge file.
+    # Ambiguities become parse-refusing `unresolved` constructs; it never proposes compute or drop.
     module Scaffold
       Edge = Struct.new(:domain, :from, :to, :ordinal, :label, :aggregates, :retired, keyword_init: true)
       ScaffoldedAggregate = Struct.new(:name, :was, :rules, keyword_init: true)

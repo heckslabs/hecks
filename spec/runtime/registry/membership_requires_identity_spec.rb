@@ -1,11 +1,7 @@
 require "spec_helper"
 
-# rust/host Google sign-in reads ir.json's membership + identity keys
-# together. A domain that attaches Membership without Identity used to
-# boot and deploy, then fail live with google_unlinked after a successful
-# handshake. The gate is mechanical: verify! refuses the pair, so
-# project_rust (same registry) cannot emit an IR rust/host would accept
-# half-wired.
+# rust/host sign-in needs both the membership and identity keys, so verify! refuses
+# Membership without Identity before project_rust can emit a half-wired IR.
 RSpec.describe "membership requires identity" do
   def registry_with_membership(also_identity: false)
     registry = Hecks::Runtime::Registry.new

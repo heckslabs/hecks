@@ -4,17 +4,8 @@ module Hecks
   module Projections
     module Deploy
       module TemplateDiff
-        # Reads a CloudFormation template in YAML into plain Ruby data.
-        #
-        # CloudFormation's short forms (`!Ref Name`, `!GetAtt A.B`, `!Sub "..."`)
-        # are YAML tags that a stock loader refuses or drops. This loader walks
-        # the parsed document and turns each into the long form CloudFormation
-        # itself reads (`{"Ref" => "Name"}`, `{"Fn::GetAtt" => ["A", "B"]}`), so
-        # a template written with short forms and one written with long forms
-        # load to the same data. Comments and key order do not survive loading,
-        # which is what a comparison of two templates wants.
-        #
-        # Nothing here evaluates a template or contacts AWS.
+        # Reads a CloudFormation template in YAML into plain Ruby data, converting
+        # short-form intrinsics (`!Ref`, `!GetAtt`, `!Sub`) into their long form.
         module Loader
           module_function
 

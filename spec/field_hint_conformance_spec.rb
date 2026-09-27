@@ -1,12 +1,7 @@
 require "spec_helper"
 
-# Vocabulary::FieldHint (language/bluebook/vocabulary.bluebook) is the one
-# table FieldShape's EMAIL_HINT/URL_HINT/TEL_HINT/TEXTAREA_HINT read
-# (lib/hecks/forms/field_shape.rb builds them off the generated rows), and
-# bin/project_field_hints writes rust/host/src/field_hints.rs from the same
-# rows — so there is no hand copy left to hold equal. What stays here is
-# the one fact text_field hard-codes about the declaration: which Field
-# attribute each hint resolves to.
+# Vocabulary::FieldHint is the single source for FieldShape's hints; the only fact
+# text_field hard-codes is which Field attribute each hint resolves to.
 RSpec.describe "the declared field hints" do
   def self.meta = Hecks::Bluebook::MetaValidator.grammar_registry.bluebook("Bluebook")
 

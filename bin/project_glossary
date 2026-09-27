@@ -1,17 +1,14 @@
 #!/usr/bin/env ruby
 
-# Projects a booted domain's own declaration into its Ubiquitous
-# Language glossary — the document every domain carries with it, for
-# the whole team (Projections::Glossary's own header has the DDD
-# framing). Two files, one source: `glossary.md`, and `html/index.html`
-# rendered from that Markdown, written into the domain's own folder:
+# Projects a booted domain into its Ubiquitous Language glossary: `glossary.md` plus
+# `html/index.html` rendered from it, written into the domain's own `glossary/` folder.
 #
 #   bin/project_glossary <domain-path> <ChapterName>
 #   bin/project_glossary examples/banking Banking
 #   bin/project_glossary qa QualityControl
 #   # => examples/banking/glossary/glossary.md
 #   #    examples/banking/glossary/html/index.html
-#
+
 # A field the deployment marks sensitive (`has_phi(readable_by:)` in the
 # domain's `.hecksagon`) is tagged in the glossary with its category.
 #

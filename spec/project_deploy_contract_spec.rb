@@ -3,31 +3,13 @@ require "fileutils"
 require "open3"
 require "yaml"
 
-# bin/project_deploy's own STACK_OUTPUTS/BASTION_PARAMETERS tables (its
-# header explains why they're plain Ruby data, not a bluebook aggregate:
-# this is the generator's own internal consistency, never touched by a
-# human's input, checked once at generation time — not the kind of
-# externally-supplied fact given/invariant exists for). This spec
-# doesn't test those tables directly — bin/project_deploy is a script,
-# not a library, and there's nothing to require — it tests the thing
-# that actually matters: that the three generated files still agree
-# with each other, parsed back out of real output, not re-derived from
-# the same table that could just as easily be wrong in the same way in
-# all three places at once.
+# Checks that the generated template.yaml, bastion.yaml and Makefile agree with each other,
+# parsed back out of real bin/project_deploy output rather than re-derived from its tables.
 RSpec.describe "bin/project_deploy's stack<->bastion structural contract, in its own generated output", :io do
   CONTRACT_FIXTURE_BASENAME = "project_deploy_contract_spec_fixture".freeze
 
-  # Mirrors spec/deploy_bluebook_spec.rb's own fixture helper —
-  # bin/project_deploy always writes to <repo_root>/deploy/<basename>
-  # regardless of where the source domain lives, so the basename here
-  # is deliberately unique and the generated directory is removed
-  # after every run.
-  #
-  # Generated once, in `before(:context)`, and shared across every `it`
-  # below — the three examples read three different facts out of the
-  # identical fixture output, so re-running the real `bin/project_deploy`
-  # subprocess (a fresh Ruby process booting the whole framework) once
-  # per example was pure duplication, not three different checks.
+  # bin/project_deploy always writes to <repo_root>/deploy/<basename>, so the basename is
+  # unique. Generated once and shared by every example.
   before(:context) do
     root = File.expand_path("..", __dir__)
     @generated_dir = File.join(root, "deploy", CONTRACT_FIXTURE_BASENAME)
@@ -76,19 +58,8 @@ RSpec.describe "bin/project_deploy's stack<->bastion structural contract, in its
 
   after(:context) { FileUtils.rm_rf(@generated_dir) }
 
-  # bin/project_deploy assembles template.yaml/bastion.yaml through
-  # heredocs and `#{}` interpolation -- nothing else in this file (or in
-  # bin/project_deploy itself) ever parses the result back as YAML, so a
-  # string-interpolation mistake that breaks YAML syntax is otherwise
-  # only caught by an actual `sam deploy` failing against real AWS. Two
-  # such bugs were already caught exactly that way: a non-ASCII em-dash
-  # inside a GroupDescription string, and a generated password
-  # containing "@" producing "found character '@' that cannot start any
-  # token" (now excluded via ExcludeCharacters). CloudFormation's own
-  # short-form intrinsic tags (!Sub, !Ref, !GetAtt, ...) parse fine as
-  # plain untyped scalars under YAML.safe_load -- this doesn't need to
-  # understand CloudFormation, only to confirm the interpolation
-  # produced a well-formed YAML document at all.
+  # Interpolation mistakes that break YAML syntax would otherwise surface only in a real
+  # `sam deploy`. Short-form tags (!Sub, !Ref) parse as plain scalars under safe_load.
   it "produces syntactically valid YAML for every generated CloudFormation template" do
     expect { YAML.safe_load(@files[:template], aliases: true) }.not_to raise_error
     expect { YAML.safe_load(@files[:bastion], aliases: true) }.not_to raise_error

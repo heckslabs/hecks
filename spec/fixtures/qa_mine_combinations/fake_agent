@@ -1,11 +1,7 @@
 #!/usr/bin/env ruby
 
-# A stand-in for `claude -p` in spec/qa_mine_combinations_spec.rb. Reads the
-# prompt on stdin, finds the output directory in it, and writes candidates
-# the way FAKE_AGENT_MODE says:
-#   valid   — one bluebook that boots
-#   repair  — one that does not boot; fixed when the prompt is a repair round
-#   silent  — nothing at all
+# Stand-in for `claude -p` in spec/qa_mine_combinations_spec.rb. FAKE_AGENT_MODE picks
+# valid (boots), repair (does not boot until a repair round), or silent (writes nothing).
 
 require "fileutils"
 

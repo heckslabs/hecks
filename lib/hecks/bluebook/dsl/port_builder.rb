@@ -38,12 +38,8 @@ module Hecks
 
         # Declares one method an adapter bound to this port must respond to.
         #
-        # **The method contract** — the fact a `.port` file's `verb`/`signal`
-        # never carried: what an adapter must actually respond to for a
-        # dispatch to reach it without a bare `NoMethodError`. Declared the
-        # same repeatable way `AdapterBuilder#field`/`#secret` already are,
-        # so `verify!` can check it with `respond_to?` at boot instead of
-        # the runtime discovering it live.
+        # Repeatable, like `AdapterBuilder#field`; `verify!` checks each name with `respond_to?`
+        # at boot so a dispatch never meets a bare `NoMethodError`.
         #
         # @param name [Symbol, String] the method name, such as `:ask`
         # @return [Array<Symbol>] every method declared so far, this one last

@@ -5,37 +5,21 @@ require_relative "../refusal_wording"
 module Hecks
   module Runtime
     class CommandInterpreter
-      # The payload gate: a command takes the arguments it declares — all of
-      # them, and no others.
+      # The payload gate: a command takes the arguments it declares, all of them and no others.
       module ArgumentGate
         private
 
-        # Without this check, anything else would ride along in the payload
-        # untouched — normalize_args walks only the declared attributes, so
-        # a name the command never had is simply never looked at, and a
-        # misspelled argument would do nothing, in silence.
+        # Refuses any argument the command does not declare.
+        # Addressing keys (`id`, the aggregate's identity heads, the reference key)
+        # and saga correlation keys are allowed through.
         #
-        # The keys that are legitimately not attributes are the ones that address
-        # the aggregate rather than describe it : `id`, whatever the aggregate is
-        # identified by, and the reference key of the root a command reaches
-        # through. Refusing those would refuse every dispatch there is.
-        #
-        # `extra_identity_heads:` — EntityInterpreter's own callers only. An
-        # entity dispatch addresses not just the root aggregate but every
-        # entity along the chain it walks to reach the piece the command
-        # actually belongs to (`Handler.Dispatch.Bind` is two hops), and each
-        # hop's own `identity_heads` is addressing the same way the root's
-        # are — `element_of` (entity_element.rb) reads them straight out of
-        # `args` to find the element, never as a fact the command itself
-        # declares. `[]` for a plain aggregate/port-operation dispatch, which
-        # has no chain to add.
+        # `extra_identity_heads:` carries the identity heads of each entity hop an entity
+        # dispatch walks; `[]` for a plain aggregate or port-operation dispatch.
         def refuse_unknown_arguments(domain, aggregate, command, args, extra_identity_heads: [])
           addressing = [:id, *aggregate.identity_heads, *extra_identity_heads, reference_key(command)] +
                        correlation_keys(domain)
           known      = (command.attributes.map(&:name) + addressing).compact.map(&:to_sym)
-          # Sorted. Payload order is whatever the caller happened to write, and
-          # refusal wording is contract — pinned byte-for-byte by the corpus, so
-          # it cannot depend on hash iteration order.
+          # Sorted: refusal wording is pinned byte-for-byte, so it cannot follow payload order.
           unknown = (args.keys.map(&:to_sym) - known).sort
           return if unknown.empty?
 
@@ -45,46 +29,18 @@ module Hecks
                                            declared: declared_names(command))
         end
 
-        # And it takes all of them. The other half of the same sentence, missing
-        # until fuzz went looking : a name the command never declared was refused,
-        # while a name it did declare could simply be left out.
+        # Refuses a declared, non-optional argument that is missing. Without it a missing
+        # argument surfaces later as a misleading coercion error about a mistake the caller
+        # did not make.
         #
-        # Refusing `Customer.Register` for a missing `name` needs to be
-        # deliberate, not an accident with a lie for a message. Without this
-        # check, `then_set :name, to: :name` finds nothing to resolve, passes
-        # the literal symbol on, and coercion reports `name is a PersonName —
-        # pass its fields as an object`, which describes a mistake the caller
-        # did not make. The real mistake — an argument simply missing — is
-        # never the one named unless this refuses it on purpose.
-        #
-        # No command attribute anywhere in the corpus carries a default — checked,
-        # all eight chapters, zero — so there is no optional argument for this to
-        # step on. Every declared attribute is a fact the command needs.
-        #
-        # `aggregate:` — present only for a port operation. An aggregate
-        # command's own self-address never reaches this list at all
-        # (`CommandBuilder#reference_to`'s bare self-reference mints no
-        # attribute to be absent) — but `PortOperationBuilder#reference_to`
-        # always mints one (this file's own header on `PortOperation`: "no
-        # creates?/acts_on distinction to protect"), because an operation had
-        # no other way to say which record it addressed before `to:` existed.
-        # `to:` is that way now (`Dispatcher#port_invocation` promotes the
-        # identity attribute's own value out of the payload and into
-        # routing) — which leaves the attribute still declared, still
-        # non-optional, and never present in `args` at all: without this
-        # exemption, every operation with an identity attribute would refuse
-        # its own well-formed calls, dispatched exactly the way `to:`
-        # intends. Exempted here on the same terms an aggregate command's
-        # self-address always was — an address, not a fact the operation
-        # still needs handed back.
+        # `aggregate:` is set only for a port operation, whose identity attribute is
+        # promoted into routing by `to:` and so never appears in `args`; it is exempted.
         def refuse_absent_arguments(command, args, aggregate: nil)
           given    = args.keys.map(&:to_sym)
           exempt   = aggregate && command.respond_to?(:identity_attribute) &&
                      command.identity_attribute(aggregate.hecks_name)&.name
           required = command.attributes.reject(&:optional?).map { |attribute| attribute.name.to_sym } - [exempt]
-          # Sorted, for the same reason the unknown list is : refusal wording is
-          # contract, and a pinned wording cannot depend on the order a set
-          # difference happens to be computed in.
+          # Sorted, for the same reason as the unknown list.
           absent = (required - given).sort
           return if absent.empty?
 
@@ -94,29 +50,11 @@ module Hecks
                                            declared: declared_names(command))
         end
 
-        # A command that declares nothing still has to say so. `Account
-        # .Freeze` is `reference_to Account` and no attributes at all, so
-        # `{declared}` rendered empty and the sentence trailed off mid-
-        # clause : "Freeze does not declare standing — it takes ". Read
-        # against a real refusal that shape is worse than unhelpful — it
-        # looks like the message itself is broken, right where a caller
-        # is already trying to work out what went wrong.
-        #
-        # Only the empty case changes. Every command that declares even
-        # one attribute renders exactly as it did before, because refusal
-        # wording is contract and pinned byte-for-byte by the corpus (see
-        # `refuse_unknown_arguments`' own note on sorting for why).
+        # An empty list must still read as a sentence; only the empty case is worded differently.
         def declared_names(command) = command.attributes.map(&:name)
 
-        # What a process manager correlates by is routing, not description. A saga
-        # threads its correlation key through every leg it dispatches so the event
-        # each leg emits carries it and the next step can be correlated — so the key
-        # arrives on commands that never declare it, and legitimately.
-        #
-        # This is the weakest part of the gate. Correlation is the saga's business,
-        # and the better shape is for the saga to stamp its own key onto the event
-        # it caused rather than smuggle it through the command's payload. Until it
-        # does, refusing the key here would break every saga in the corpus.
+        # A saga threads its correlation key through every leg's payload, so the key arrives on
+        # commands that never declare it. Refusing it would break every saga.
         def correlation_keys(domain)
           Array(@registry.bluebook(domain)&.process_managers)
             .filter_map { |saga| saga.correlates_by && saga.correlation_head }

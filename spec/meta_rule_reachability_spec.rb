@@ -1,65 +1,24 @@
 require "spec_helper"
 require "hecks/query_ir"
 
-# Every declared given/invariant/ensures rule must be seen refusing — not
-# just the verb it hangs off.
-#
-# spec/judge_coverage_spec.rb proves every declared verb is offered to the
-# judge. That is necessary but not sufficient: offering a verb only opens
-# the door a rule sits behind, and its own header names three prior escapes
-# where a declaration nobody exercised sat underneath a green guard —
-# unreachable rules, unjudged categories, a coverage guard that checked
-# `*.Declare` and missed `Command.Argument`/`ValueObject.Field` entirely.
-# Each time, the fix moved the grain finer. This is one grain finer again:
-# a verb can be dispatched into constantly while the specific rule attached
-# to it never once sees the input that would make it refuse.
-#
-# spec/meta_rules_spec.rb is this codebase's own answer to that, and its own
-# header states the standard plainly: "Every rule here must be seen
-# refusing." What that file does not do is prove its own coverage is
-# complete — it proves the rules someone remembered to write a refusing
-# example for. This gate reads every given/invariant/ensures the meta-domain
-# actually declares straight off the grammar (`Hecks::QueryIR.collect_rules`
-# — the same enumeration `spec/fuzzing/meta_domain_coverage_spec.rb` already
-# uses one level over, for attribute rather than rule coverage) and requires
-# each one to be either proven firing somewhere in the suite, cited by
-# file:line, or named as an honest KNOWN_GAP — the same
-# claim-or-name-the-gap discipline that file already established.
-#
-# This is not a clean gate today. As of this writing: 62 declared rules, 14
-# proven, 48 open gaps. That number is not a target to defend down to zero
-# in one sitting — it is the actual current size of the claim "a bluebook
-# that violates an invariant refuses to boot," made visible and trackable
-# instead of assumed. Closing a gap means either writing the refusing
-# example (preferred — add it to spec/meta_rules_spec.rb and move the entry
-# from META_RULE_KNOWN_GAPS to META_RULE_PROVEN below) or discovering the
-# declaration is unreachable/dead (a fifth instance of this project's own
-# characteristic defect, and worth its own fix).
+# Every declared given/invariant/ensures rule must be seen refusing, not just its verb.
+# spec/judge_coverage_spec.rb proves each verb is offered; spec/meta_rules_spec.rb proves the
+# rules someone wrote a refusing example for. This gate enumerates every rule the meta-domain
+# declares (Hecks::QueryIR.collect_rules) and requires each to be cited as proven or named as a
+# known gap. To close a gap, add a refusing example to spec/meta_rules_spec.rb and move the
+# entry from META_RULE_KNOWN_GAPS to META_RULE_PROVEN.
 RSpec.describe "reachability of the meta-domain's own given/invariant/ensures rules" do
-  # Every rule the language declares, read straight off the grammar — never
-  # hand-copied, so a new given/invariant lands here the next run with no
-  # second list to update. Keyed on [kind, location, description] exactly as
-  # QueryIR.collect_rules reports it, the same identity the fuzz coverage
-  # gate uses for "Construct#attribute" strings, one level over.
+  # Every rule the language declares, read off the grammar so a new rule lands here with no
+  # second list to update. Keyed on [kind, location, description] as collect_rules reports it.
   ALL_META_RULES = Hecks::QueryIR.collect_rules(
     Hecks::Bluebook::MetaValidator.grammar_registry, "Bluebook"
   ).map { |r| [r.kind, r.location, r.description] }.freeze
 
-  # Proven — cited by file:line, held to the same "seen failing" standard
-  # spec/fuzzing/properties_spec.rb already holds every fuzzer property to.
-  # A citation names the example that dispatches bad input at this declared
-  # site and watches this rule (not a different one with similar wording —
-  # `spec/meta_rules_spec.rb:126-132`'s "op admits Vocabulary::MutationOp"
-  # invariant is real and proven but is not any of these 62; it is a
-  # closed-set coercion, declared as `admits:`, not a given/invariant).
+  # Each citation names the example (file:line) that dispatches bad input at this declared site
+  # and watches this rule refuse.
   #
-  # `Layout/HashAlignment`'s repo-wide `table` style (.rubocop.yml) would
-  # force every value below onto the same column — matching the widest
-  # key across both tables — which leaves a citation/reason string almost
-  # no room to wrap under Layout/LineLength's own 130-column limit.
-  # Disabled for exactly these two hash literals, re-enabled the moment
-  # they close; every other hash in this file (and the rest of the repo)
-  # still holds to `table` alignment.
+  # The repo-wide `table` HashAlignment style leaves long strings no room under LineLength,
+  # so it is off for exactly these two hash literals.
   # rubocop:disable Layout/HashAlignment
   META_RULE_PROVEN = {
     ["given", "Aggregate.Identify", "an identity part names something"]                      =>
@@ -93,12 +52,7 @@ RSpec.describe "reachability of the meta-domain's own given/invariant/ensures ru
         "spec/meta_rules_spec.rb:273-282 (ValueObject.Member.Pair with key: \"\")"
   }.freeze
 
-  # **Honest, itemized gaps** — a declared rule this session did not prove
-  # firing, with a real reason rather than a placeholder. Several are the
-  # same generic presence-on-a-Rule pair ("a rule says what it means" / "a
-  # rule survives extraction") declared redundantly at multiple owners —
-  # META_RULE_PROVEN already proves that content fires at Command.Rule;
-  # what is open here is that this site ever dispatches a bad rule to it.
+  # Declared rules not yet proven firing, each with its reason.
   META_RULE_KNOWN_GAPS = {
     ["given", "Aggregate.Seal", "an aggregate says what it is known by"]                              =>
         "meta_rules_spec.rb only proves the positive path (\"seals an aggregate that is fully declared\", L293-297) — no " \
@@ -171,6 +125,20 @@ RSpec.describe "reachability of the meta-domain's own given/invariant/ensures ru
         "no spec dispatches ReadModel.GroupBy with a blank field name",
     ["given", "ReadModel.Median", "a median field is named"]                                          =>
         "no spec dispatches ReadModel.Median with a blank field name",
+    ["given", "ReadModel.Sum", "a sum field is named"]                                                =>
+        "no spec dispatches ReadModel.Sum with a blank field name",
+    ["given", "ReadModel.Avg", "an avg field is named"]                                               =>
+        "no spec dispatches ReadModel.Avg with a blank field name",
+    ["given", "ReadModel.Min", "a min field is named"]                                                =>
+        "no spec dispatches ReadModel.Min with a blank field name",
+    ["given", "ReadModel.Max", "a max field is named"]                                                =>
+        "no spec dispatches ReadModel.Max with a blank field name",
+    ["given", "ReadModel.Percentile", "a percentile field is named"]                                  =>
+        "no spec dispatches ReadModel.Percentile with a blank field name",
+    ["given", "ReadModel.Any", "an any field is named"]                                               =>
+        "no spec dispatches ReadModel.Any with a blank field name",
+    ["given", "ReadModel.All", "an all field is named"]                                               =>
+        "no spec dispatches ReadModel.All with a blank field name",
     ["given", "ReadModel.Option", "an option is named"]                                               =>
         "no spec dispatches ReadModel.Option with a blank option name",
     ["invariant", "ReadModel::ReadModelName (declared)", "a read model is named"]                     =>

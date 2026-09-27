@@ -1,8 +1,6 @@
 require "spec_helper"
 
-# A status document that points at a file or heading that no longer exists is a claim
-# nobody can check. Every relative markdown link, and every in-page `#anchor`, in the
-# documents that state what works today must resolve.
+# Every relative markdown link and in-page `#anchor` in the status documents must resolve.
 RSpec.describe "status document links" do
   let(:root) { File.expand_path("..", __dir__) }
 

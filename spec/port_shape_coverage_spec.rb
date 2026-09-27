@@ -1,26 +1,9 @@
 require "spec_helper"
 
-# A port generator learns by example, and the examples are only as good
-# as what they cover. Every real gap `bin/project_rust` hit while
-# building the Rust port turned out to be a shape neither example
-# domain exercised: composite identity that's actually dispatchable
-# (SafeDepositBox's is blocked by entities), a multi-field closed set,
-# a bare-but-declared identity component. Each one was a real Ruby
-# mechanism, already correct, that simply hadn't been walked before.
-#
-# This is the gate against that happening again, silently. It reads
-# Banking's own exported IR and checks it against the list of
-# structural shapes a second runtime has to handle differently —
-# not every DSL keyword (`spec/syntax_conformance_spec.rb` already
-# holds those to the language), but every shape of IR a port's
-# generator branches on. Both directions matter, the same as
-# `ModelCheck::ALLOWED_FINDINGS`: a shape Banking stops exercising
-# is a regression; a shape found missing has to be added to Banking,
-# or named here as a deliberate, accepted gap — never silently absent.
+# Banking's exported IR must exercise every structural shape a port generator branches on.
+# A shape Banking stops exercising is a regression; add a missing one to Banking.
 RSpec.describe "the shapes a port generator needs Banking to exercise" do
-  # Booted once per file, not per example — every example here only reads
-  # the exported IR back out (`ir`, `all_value_objects`, `all_attributes`
-  # below), nothing dispatches a command, so a shared registry is safe.
+  # Booted once per file: examples only read the exported IR, so a shared registry is safe.
   before(:context) do
     registry = Hecks::Runtime::Registry.new
     Hecks.with_registry(registry) do
@@ -57,15 +40,8 @@ RSpec.describe "the shapes a port generator needs Banking to exercise" do
   end
 
   it "declares a composite identity with a BARE component that IS a declared attribute" do
-    # The shape Statement.account_id is — not dotted into a value object,
-    # resolved the same way Runtime::Identity.from resolves any identity
-    # head that's a real attribute: read directly, no walk. The other bare
-    # shape (a component that isn't a declared attribute at all —
-    # `owner_id`, language/bluebook/behavior.bluebook's own polymorphic
-    # parent-tracking) is real but deliberately not required of Banking:
-    # nothing in a business domain plausibly needs "this identity
-    # component means whichever of two types declared it," the exact
-    # reason the self-hosted grammar needed it in the first place.
+    # The shape of Statement.account_id: read directly, no walk. The other bare shape
+    # (a component that is no declared attribute, like `owner_id`) is not required of Banking.
     bare_declared = ir[:aggregates].any? do |agg|
       agg[:identified_by].to_a.size > 1 && agg[:identified_by].any? do |path|
         !path.include?(".") && agg[:attributes].any? { |a| a[:name].to_s == path }
@@ -75,11 +51,7 @@ RSpec.describe "the shapes a port generator needs Banking to exercise" do
   end
 
   it "declares a closed set with more than one field per member" do
-    # Ordinary, public DSL syntax (`one_of do member field: x, ... end` —
-    # Vocabulary::Comparison in the self-hosted grammar uses the exact
-    # same form), not a self-hosted-grammar exclusive. A generator that
-    # only ever saw Size/AccountKind-shaped single-field closed sets has
-    # no reason to expect a member to carry more than one field.
+    # A generator that only saw single-field closed sets has no reason to expect more.
     multi_field = all_value_objects.select { |vo| vo[:closed_set] }.any? { |vo| vo[:attributes].size > 1 }
     expect(multi_field).to be(true)
   end

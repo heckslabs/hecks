@@ -71,20 +71,14 @@ RSpec.describe Hecks::Fuzzing::ValueGenerator do
     end
   end
 
-  # BUG#35 (QualityControl QA ledger, `lease-clock-json-precision`) — a
-  # clock/count-shaped Integer field is capped away from the Bignum edge
-  # case so it stops firing the already-catalogued `Json::Num`/f64
-  # precision-loss class on a new site every time a new such field is
-  # authored (see this module's own `CLOCK_OR_COUNT_NAME_PATTERN` and
-  # `SAFE_INTEGER_EDGE_CASES` comments for the full reasoning).
+  # Clock/count-shaped Integer fields are capped below 2**53 so they never hit f64 precision loss.
   describe "clock/count value-range cap" do
     it "never produces a value past f64's exact-integer ceiling (2**53) for a clock-shaped name" do
       random = Random.new(11)
       values = Array.new(500) { described_class.integer_value(random, name: "LeaseInstant value") }
 
       expect(values.all? { |v| v.abs < (1 << 53) }).to be(true)
-      # Still reaches the ordinary edge cases the narrower pool keeps —
-      # capping is not the same as starving edge-case coverage entirely.
+      # The narrower pool still reaches the ordinary edge cases.
       expect(values).to include(0, -1)
     end
 

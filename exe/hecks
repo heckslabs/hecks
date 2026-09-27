@@ -1,12 +1,10 @@
 #!/usr/bin/env ruby
 
-# The `hecks` command the gem installs: run, read, check and serve a domain you
-# supply. `hecks` with no arguments lists the subcommands; `hecks <command> --help`
-# prints one's usage. The router is `Hecks::CLI` (lib/hecks/cli.rb).
-#
-# The gem's own `lib` goes first on the load path, as it does for the `bin/`
-# scripts, so this file also runs straight from a checkout.
+# The `hecks` command the gem installs: run, read, check and serve a domain.
+# Routes to `Hecks::CLI` (lib/hecks/cli.rb); run with no arguments to list subcommands.
 
+# The gem's own `lib` goes first, as for every `bin/` script, so this also
+# runs straight from a checkout.
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
 require "hecks/cli"
 
