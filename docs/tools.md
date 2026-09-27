@@ -12,6 +12,7 @@ print a usage line on a missing argument).
 | `bin/behaviors` | Runs `.behaviors` files — hand-curated examples of how to use a domain, in domain vocabulary — and reports pass/fail/error per test. bin/... |
 | `bin/canonicalise` | Sorts a JSON document's object keys, recursively — key order is not semantics, so a diff a human reads should not have to notice it moved. |
 | `bin/check_engine_agreement` | THE SHAPE OF BUG THIS GUARDS AGAINST: `Ports::Query::InMemory` (the path a Memory- or Heki-backed aggregate query actually runs) and `RunT... |
+| `bin/check_era` | Checks the era a running host reports at `GET /version` against an allow-list file, after a roll: one era id per line, exit 0 when listed, 1 when not, 3 when the host cannot be reached. See [wiring](implemented/guides/wiring.md#hosting-scripts-for-awsfargate). |
 | `bin/codemod_hoist_local_givens` | A CODEMOD, not an agent — for the corpus duplication `bin/query_ir duplicates` surfaces directly: two or more commands under the SAME own... |
 | `bin/codemod_implicit_append_fields` | A CODEMOD, not an agent — for the class of redundancy `CommandBuilder#resolve_append_fields!` (lib/hecks/bluebook/dsl/ command_builder.rb... |
 | `bin/console` | Boots a domain (pizzas by default) and drops into IRB with its door installed — the fastest way to dispatch a real command by hand. bin/c... |

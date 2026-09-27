@@ -306,6 +306,37 @@ the projector inventory) to generate a self-contained SAM template,
 build Makefile, and bastion config — its own VPC and RDS Postgres
 instance, no secret typed anywhere.
 
+### Hosting scripts for `AwsFargate`
+
+A `deployed_to("AwsFargate")` block that sets `hosting_scripts true`
+also gets the scripts an operator runs after the stack exists, in the
+same directory as the template. A block without it generates exactly
+what it did before.
+
+```ruby skip
+deployed_to("AwsFargate") do
+  region "us-east-1"
+  hosting_scripts true
+  hecks_release "2.5.1"       # required: the Hecks release the image is built from
+  smoke_repo "owner/name"     # GitHub repository holding the smoke workflow
+  smoke_workflow "smoke.yml"
+  expected_eras ["199b08"]
+end
+```
+
+| File | What it does |
+| --- | --- |
+| `deploy-service.sh` | Pushes a local image under a fresh tag, swaps one container's image in the active task definition, and syncs that container's CloudFormation `*ImageTag` parameter, checking that no other parameter changed |
+| `smoke-after-deploy.sh` | Waits for the roll to settle, then dispatches the smoke workflow and reports the result |
+| `hosting.mk` | Included by the `Makefile`: pins the Hecks release (`HECKS_ROOT` is a cached checkout of its tag) and adds `deploy-service`, `smoke-after-deploy` and `check-era` |
+| `expected-era` | The eras `bin/check_era` accepts from a host's `GET /version` |
+
+The settings, with their defaults, are documented on
+`Hecks::Projections::Deploy::Scripts`. `bin/check_era <url> expected-era`
+compares the era a running host reports with that file and exits 1 when it
+is not listed. The scripts never read the stack template, so a container,
+ECR repository or parameter name set here has to match it.
+
 ## Writing your own port or adapter
 
 Everything above reached for a port and an adapter the library already
