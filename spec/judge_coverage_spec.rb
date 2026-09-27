@@ -26,7 +26,9 @@ RSpec.describe "the judge's coverage of the language" do
     # here so that verb counts as offered.
     @grammar = Hecks::Bluebook::MetaValidator.grammar_registry.bluebook("Bluebook")
     # `Entity.Reference` is real DSL surface no corpus member nests inside a piece,
-    # so a small fixture (as in relationship_declaration_spec) exercises it.
+    # so a small fixture (as in relationship_declaration_spec) exercises it; `any`/`all`
+    # (ADR 0078) join it here for the same reason — no real corpus aggregate has a bare
+    # boolean field yet.
     @relationships = Hecks::Bluebook::DSL::BluebookBuilder.build("EntityRelationshipCoverage") do
       aggregate "Target" do
         identified_by { attribute :number, String }
@@ -34,12 +36,27 @@ RSpec.describe "the judge's coverage of the language" do
 
       aggregate "Holder" do
         identified_by { attribute :number, String }
+        attribute :flagged, HolderFlag, optional: true
+
+        value_object "HolderFlag" do
+          attribute :value, TrueClass
+        end
 
         entity "Piece" do
           identified_by { attribute :sequence, Integer }
 
           belongs_to Target
         end
+      end
+
+      read_model "HoldersFlagged" do
+        include Holder
+        any :flagged
+      end
+
+      read_model "HoldersAllFlagged" do
+        include Holder
+        all :flagged
       end
     end
   end

@@ -65,6 +65,7 @@ module Hecks
           ["ReadModel", "reference_to"] => :reference_to_impl,
           ["ReadModel", "include"] => :include_impl,
           ["ReadModel", "group_by"] => :group_by_impl,
+          ["ReadModel", "percentile"] => :percentile_impl,
           ["ReadModel", "where"] => :where_impl,
           ["ReadModel", "order_by"] => :order_by_impl,
           ["ReadModel", "authorize"] => :authorize_impl,

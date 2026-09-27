@@ -240,7 +240,9 @@ RSpec.describe "a construct's identity" do
       # them would name the wrong owner.
       expect(bank.read_models.map(&:hecks_fqn)).to eq(
         ["Banking.CustomerPortfolio", "Banking.ComplianceDashboard", "Banking.DisputedPaymentCount",
-         "Banking.DisputedPaymentMedian", "Banking.AccountsByKind"]
+         "Banking.DisputedPaymentMedian", "Banking.DisputedPaymentTotal", "Banking.DisputedPaymentAverage",
+         "Banking.DisputedPaymentSmallest", "Banking.DisputedPaymentLargest", "Banking.DisputedPaymentP95",
+         "Banking.AccountsByKind"]
       )
     end
 

@@ -275,6 +275,14 @@ module Hecks
             # the `reads:` entry below is for Reconstruction (stringified row).
             count:            [:count,            :plain],
             median_field:     [:median_field,     :plain],
+            sum_field:        [:sum_field,        :plain],
+            avg_field:        [:avg_field,        :plain],
+            min_field:        [:min_field,        :plain],
+            max_field:        [:max_field,        :plain],
+            percentile_field: [:percentile_field, :plain],
+            percentile_at:    [:percentile_at,    :plain],
+            any_field:        [:any_field,        :plain],
+            all_field:        [:all_field,        :plain],
             # A read model inherits every option an ask has, so it reads them the
             # same way — see Query.
             wheres:           [:wheres,           [:each, :where_clause]],
@@ -295,7 +303,10 @@ module Hecks
                   # `count` needs boolean coercion (stringified on the wire);
                   # `median_field` needs none — the default reader already
                   # matches `to_h`'s String-or-nil.
-                  count: :read_model_count },
+                  count: :read_model_count,
+                  # `percentile_at` needs Float coercion; every other reduction field
+                  # is a Symbol-like name the default text reader already matches.
+                  percentile_at: :read_model_percentile_at },
           derived: {
             position:   :walk,
             query_name: [:computed, :query_name],
