@@ -7,6 +7,8 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+## [2.6.0] - 2026-09-26
+
 **`bin/model_check --profile client` refuses three constructs that answer wrongly
 without refusing.** A `group_by` that does not cover its aggregate's whole
 identity (rows sharing a key path are silently reduced to the first, on every
