@@ -144,7 +144,7 @@ runtime.registry.bluebook("Governance").aggregates.map(&:hecks_name).sort  # => 
 
 One level further out than `uses_framework`: not a member shipped inside hecks's own `lib/`, but a separate, independently-versioned package (`embryonaut_bluebooks`) vendored into the *consuming project's own checkout* — `<registry.root>/vendor/embryonaut_bluebooks/<name>/bluebook/`, resolved from the real registry's own root rather than a fixed constant, since there is no fixed answer until a real project (and its root) exists. Loads every `.bluebook` file the package declares, sorted, so a package spanning several files that reopen the same chapter loads in a stable order. Persistence is NOT part of what this loads, the same restriction `uses_framework` already draws — a consuming project declares its own separate `Hecks.hecksagon` block to bind the vendored aggregates' real storage.
 
-Real, external use: a client project's domain (a hecks-based payments/booking service, not part of this repository) vendors `embryonaut_bluebooks/payments` this way — `uses_embryonaut_bluebook "payments"` attaches a `Payment` aggregate with a full settle/refund/dispute lifecycle, shared across every project that needs one, rather than reimplemented per project.
+Real, external use: the domain of a client project (a hecks-based payments/booking service, not part of this repository) vendors `embryonaut_bluebooks/payments` this way — `uses_embryonaut_bluebook "payments"` attaches a `Payment` aggregate with a full settle/refund/dispute lifecycle, shared across every project that needs one, rather than reimplemented per project.
 
 Outside a real, rooted project — the doctest registry above, say — there is nowhere to vendor from, and it refuses rather than silently finding nothing:
 
@@ -162,7 +162,7 @@ bundle exec ruby -rhecks -e 'exit Hecks::EmbryonautBluebook::VendorCli.run(ARGV)
 
 The argument is `<package>[@<ref>]`. Without a ref it takes the newest `<package>-v*` release tag; with `1.2.0` (or the tag name `payments-v1.2.0`) it takes that release; any other ref is a bare commit-ish. `--from` defaults to `$EMBRYONAUT_BLUEBOOKS_SRC` and `--root` (the consuming project) to the current directory. From Ruby, `Hecks::EmbryonautBluebook.vendor!(name, from:, root:, ref:)` does the same and returns what changed; the command line is a thin wrapper over it, and the exit status is 0 when the package was vendored, 1 when it was refused and 2 for a usage error.
 
-What lands is the package's top-level `bluebook/*.bluebook` files and nothing else: a `.hecksagon`, `.port` or `.adapter` is a wiring decision for whoever deploys, never part of the package. The whole package directory is replaced, so a file the registry dropped does not linger, and nothing on disk changes when a pin is refused or its files do not load.
+What lands is the top-level `bluebook/*.bluebook` files of the package and nothing else: a `.hecksagon`, `.port` or `.adapter` is a wiring decision for whoever deploys, never part of the package. The whole package directory is replaced, so a file the registry dropped does not linger, and nothing on disk changes when a pin is refused or its files do not load.
 
 ```text
 vendor/embryonaut_bluebooks/payments/
@@ -172,14 +172,14 @@ vendor/embryonaut_bluebooks/payments/
     payments.bluebook
 ```
 
-`VENDORED_COMMIT` is written for every pin, so `git -C <registry> show <commit>:payments/bluebook` reproduces the vendored files. `bluebook.lock` is written only for a release pin, as `key: value` lines: `package`, `version`, `tag`, `commit`, `digest` (the sha256 over the `<sha256>  <name>` line of every `*.bluebook` file, sorted by name, which the registry's own `bin/bluebook_digest` prints for the same release), then one `shape: <Domain> <label>` line per domain. The label is the one `bin/shape` prints, the first characters of the hash PostgresEra names an era with.
+`VENDORED_COMMIT` is written for every pin, so `git -C <registry> show <commit>:payments/bluebook` reproduces the vendored files. `bluebook.lock` is written only for a release pin, as `key: value` lines: `package`, `version`, `tag`, `commit`, `digest` (the sha256 over the `<sha256>  <name>` line of every `*.bluebook` file, sorted by name, which `bin/bluebook_digest` in the registry prints for the same release), then one `shape: <Domain> <label>` line per domain. The label is the one `bin/shape` prints, the first characters of the hash PostgresEra names an era with.
 
 A release pin also carries two refusals, because a production project binds `PostgresEra`:
 
 - a version lower than the vendored one is refused unless `ALLOW_DOWNGRADE=1` is in the environment;
 - a change to the storage shape that raises the version by less than a minor is refused, so a new era shows in the version number and not only in a hash. The message names the shape before and after.
 
-A release must also be a real one: the tag's own `<package>/bluebook.yml` has to say the version the tag names. A bare commit-ish pins that commit and writes only the marker, with no lock and neither check. The command's last line reports the shape either way: unchanged (no new era on the next deploy), changed (the next deploy mints one, so write its translation edge first), or nothing earlier to compare with.
+A release must also be a real one: the `<package>/bluebook.yml` at the tag has to say the version the tag names. A bare commit-ish pins that commit and writes only the marker, with no lock and neither check. The last line of the command reports the shape either way: unchanged (no new era on the next deploy), changed (the next deploy mints one, so write its translation edge first), or nothing earlier to compare with.
 
 A domain that binds `PostgresEra` needs no `require "hecks/ports/persistence/plugins/era"` of its own: `Hecks.boot` resolves every adapter a hecksagon binds before it collects the boot gates, which loads the era plugin and registers its gates. Requiring the plugin by hand is only for a program that wants translation support without binding `PostgresEra`.
 
