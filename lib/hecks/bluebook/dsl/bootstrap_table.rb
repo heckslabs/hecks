@@ -82,6 +82,8 @@ module Hecks
           ["Type", "one_of"] => :one_of_impl,
           ["World", "realm"] => :realm_impl,
           ["World", "latest"] => :latest_impl,
+          ["World", "default_database"] => :default_database_impl,
+          ["World", "default_adapter"] => :default_adapter_impl,
           ["DomainPort", "operation"] => :tells_impl,
           ["DomainPort", "tells"] => :tells_impl,
           ["DomainPort", "asks"] => :asks_impl,
