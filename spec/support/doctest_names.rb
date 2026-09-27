@@ -70,6 +70,12 @@ module DoctestNames
   # `unaccounted_top_level_docs`, rather than driftable-by-accident the
   # moment somebody adds a seventeenth file here without ever deciding
   # whether it belongs in `guides` instead.
+  #
+  # `running-a-rules-service.md` is here for a different reason than the
+  # planning documents: it is a procedure whose steps are shell, Rust and
+  # cloud commands, so a ruby fence would prove nothing about them. Each
+  # step states whether it was run ("verified here" or "not verified
+  # here"), which is the honest form of the same gap.
   UNGATED_STATUS_DOCS = %w[
     1.0-readiness.md
     adoption-readiness.md
@@ -87,6 +93,7 @@ module DoctestNames
     query-dsl.md
     rails-integration.md
     rubocop-custom-cops.md
+    running-a-rules-service.md
     rust-handwritten-refactor-slices.md
     tools.md
     value-object-identity-and-relationships-plan.md
