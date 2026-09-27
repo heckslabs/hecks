@@ -14,7 +14,7 @@ now a record of *why*, not a live worklist._
 
 | # | What | What happened |
 | --- | --- | --- |
-| [#145](https://github.com/chrisyoung/hecks/issues/145) | driving-adapter grammar + raw-adapter bug fix | Deliberate future work, per this repo's own survey doc (`docs/hecks-survey-what-we-wish-we-had.md`) — initially left open on purpose as a tracked marker, then closed on explicit follow-up request. If this becomes active work later, file fresh rather than reopening. |
+| [#145](https://github.com/chrisyoung/hecks/issues/145) | driving-adapter grammar + raw-adapter bug fix | Deliberate future work, per this repo's own survey doc (`docs/archive/hecks-survey-what-we-wish-we-had.md`) — initially left open on purpose as a tracked marker, then closed on explicit follow-up request. If this becomes active work later, file fresh rather than reopening. |
 
 ## What got closed, and why (grouped by decision)
 

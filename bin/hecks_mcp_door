@@ -1,7 +1,7 @@
 #!/usr/bin/env ruby
 
 # An MCP door onto the storehouse bus — one MCP server for every booted
-# domain, not one per command. `docs/hecks-survey-what-we-wish-we-had.md`
+# domain, not one per command. `docs/archive/hecks-survey-what-we-wish-we-had.md`
 # and `docs/future-features.md`'s own "if we build three" #1 pick,
 # extended past the original six tools with the rest of that same
 # survey's ranked wishlist: `dispatch` (with `dry_run`/`steps`/`source`),

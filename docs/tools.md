@@ -23,7 +23,7 @@ print a usage line on a missing argument).
 | `bin/follow` | Live-tails a domain's own persisted event log — the declared `emits` every command reports, durably recorded (not `registry.event_log`, w... |
 | `bin/fuzz` | Generates random-but-valid command/query sequences from a domain's own IR (Hecks::Fuzzing::SequenceGenerator) and checks each one the way... |
 | `bin/generate` | Prints one randomly generated, valid dispatch sequence for a domain — the same generator bin/fuzz drives, exposed standalone so a sequenc... |
-| `bin/hecks_mcp_door` | AN MCP DOOR ONTO THE STOREHOUSE BUS — one MCP server for EVERY booted domain, not one per command. `docs/hecks-survey-what-we-wish-we-had... |
+| `bin/hecks_mcp_door` | An MCP door onto the storehouse bus — one MCP server for every booted domain, not one per command. `docs/archive/hecks-survey-what-we-wis... |
 | `bin/hecks_query_ir_mcp` | AN MCP SERVER exposing Hecks::QueryIR's two queries as tools, so a coding agent calls them directly instead of shelling out to `bin/query... |
 | `bin/history` | Prints every journal entry a domain's append-only adapters hold, as JSON — the full write history, not just the current head. bin/history... |
 | `bin/ir` | Prints a booted domain's IR as JSON — the same `to_h` the golden specs pin and StorageShape hashes into an era, for reading rather than a... |
