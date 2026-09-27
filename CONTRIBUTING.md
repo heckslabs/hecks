@@ -225,15 +225,55 @@ an issue first — see the templates under `.github/ISSUE_TEMPLATE/`.
    (`npm version X.Y.Z --no-git-tag-version` in `packages/hecks-client`,
    which also updates its lockfile); `spec/hecks_client_version_spec.rb`
    fails until it matches.
-2. Once that PR merges to `main`, tag the merge commit
-   (`git tag -a vX.Y.Z <sha>`) and push the tag.
-3. Run `bin/release_gem` to build and push to rubygems.org. It refuses
-   to run while `packages/hecks-client` is at another version than the
-   gem. It pulls the push API key from 1Password (`op run`, Touch
-   ID-gated) rather than a credentials file on disk — see the script's
-   header comment for one-time setup.
-4. Publish the client from its own directory: `npm publish --access
-   public` in `packages/hecks-client` (its `prepack` step builds it).
-   `bin/release_gem` does not do this. The `hecks` npm organization
-   exists; the first publish is still to come, and until then the
-   package's README describes installing from the release tag.
+2. Once that PR merges to `main`, check out `main`, pull, and run
+   `bin/release --dry-run` to see every check and build pass with nothing
+   tagged or published. Then run `bin/release`. It refuses unless the
+   checkout is a clean `main` equal to `origin/main`, the gem and
+   `packages/hecks-client` are at one version, and `CHANGELOG.md` has a
+   heading for it. It asks RubyGems and npm what is already published and
+   skips that, so if a run stops partway, run it again. In order, it:
+   - creates the annotated tag `vX.Y.Z` on the merge commit and pushes it;
+   - runs `bin/release_gem` to build the gem and push it to rubygems.org;
+   - waits for CI to publish `@hecks/client`. Pushing the tag starts
+     `.github/workflows/publish-client.yml`, which publishes the package
+     with npm trusted publishing (no token, no code). `bin/release` says
+     so, then checks npm every 15 seconds for up to 10 minutes and reports
+     success, or the timeout with the run to look at
+     (`gh run list --workflow publish-client.yml`). `--no-wait` skips the
+     wait.
+
+   It asks before the tag and before publishing the gem (`--yes` answers
+   for you). `--gem-only` skips the npm step; `--npm-only` skips the gem,
+   so on its own it just waits for CI's publish again (use it after
+   re-running the workflow with `gh workflow run publish-client.yml -f
+   tag=vX.Y.Z`).
+
+   The gem's push key comes from 1Password (`op run`, Touch ID-gated;
+   `release/gem_push.env`), and its one-time setup is in the header of
+   `bin/release_gem`.
+
+   One-time setup for CI publishing, by an owner of the `@hecks` scope on
+   npmjs.com, possible only once the package exists: package
+   `@hecks/client` > Settings > Trusted Publisher > GitHub Actions >
+   organization or user `heckslabs`, repository `hecks`, workflow filename
+   `publish-client.yml`, environment blank.
+
+   `--npm-local` is the fallback, and how the first publish is made
+   (before a trusted publisher can exist): it publishes `@hecks/client`
+   from this machine with a token from 1Password instead of leaving it to
+   CI (with `--npm-only` it publishes only the package). The token is the
+   "publish token" field on the "npmjs.com" item in the Hecks vault, next
+   to the "RubyGems API Key" item (`release/npm_publish.env` names the
+   vault, item and field, and can be edited). It must be a granular token
+   scoped Read and write to the `@hecks` scope with "Bypass two-factor
+   authentication" enabled, and short-lived: the account's second factor
+   is a passkey, so a token that requires a one-time code cannot publish
+   (npm answers `EOTP`). The header of `bin/release` has the setup. The
+   publish passes `--auth-type=web` as an interactive fallback: if npm
+   does ask for a passkey or security key, it prints an approval link and
+   waits.
+
+   Manual fallback, if `bin/release` cannot be used: tag the merge commit
+   (`git tag -a vX.Y.Z <sha>` and push it, which starts the CI publish),
+   run `bin/release_gem`, and if CI cannot publish, run
+   `npm publish --access public` in `packages/hecks-client`.
