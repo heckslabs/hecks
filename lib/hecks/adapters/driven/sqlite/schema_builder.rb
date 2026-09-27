@@ -25,6 +25,10 @@ module Hecks
               occurred_at  TEXT
             )
           SQL
+          # Backs #events_for's per-record lookup (a `corrects` command's history read).
+          @db.execute(
+            "CREATE INDEX IF NOT EXISTS hecks_events_aggregate_id_idx ON events (aggregate, aggregate_id)"
+          )
         end
 
         def create_entry_table!
