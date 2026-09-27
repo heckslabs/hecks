@@ -72,6 +72,34 @@ prep's own estimates. Each item is its own build session and PR.
 7. **Only when triggered.** The MCP per-tool allowlist when multi-agent use is near, and the
    token design when a network door is ([ADR 0072](../../decisions/0072-the-mcp-door-token-waits-for-a-real-need-and-a-tool-allowlist-comes-first.md)).
 
+## Build status
+
+Each item is its own draft PR, built in an isolated worktree and pushed through the pre-push
+gate. None is merged yet. PR numbers are the GitHub pull requests on `heckslabs/hecks`.
+
+| Order item | ADR | PR |
+| --- | --- | --- |
+| ADR-number lint, adoption-readiness banner | (this map's step 1) | #863 |
+| The ten decisions as ADRs | 0065 to 0074 | #867 |
+| Release promise, review process, `group_by` note, bare-scalar sweep, release steps | 0067, 0068, 0074 | #869 |
+| Dotted-source `compute` fix | 0065 decision 1 | #870 |
+| `group_by` refusal on both runtimes (the seal-time stopgap was not built) | 0065 decision 2, 0061 D1 | #871 |
+| Doc banners, stale-version scan, `docs/archive/` | 0070 | #872 |
+| Cache and log out of the gem directory | 0066 step 1 | #873 |
+| Comment linter: history phrases, CI gate, `long_block` | 0069 | #874 |
+| Deploy path and operator auth guide | 0071 | #875 |
+| `hecks` executable, dev tooling out of the package | 0066 step 2 | #876 |
+| Memory-default console, README rewrite | 0073 | #879 |
+| `v2.5.0` tag and the GitHub Releases page | 0068 | done directly: the tag and a release for every tag from 1.0.1 to 2.7.0 |
+
+Found while building, outside the ADRs: the host ran a command or a read from any outside
+caller's body on the Fargate shape. That is fixed in #878, with a CHANGELOG entry; it is the
+one to review first.
+
+Still open, and not something a build session can finish: merging the PRs; finding an outside
+team for ADR 0071's exit test; and the two triggers in ADR 0072 (when multi-agent use is near,
+and when a network door is wanted).
+
 ## Not yet specified
 
 - Whether the UL, onboarding, ISO traceability and OIDC-provider work is cut outright rather than deferred, after the adoption exit test.
