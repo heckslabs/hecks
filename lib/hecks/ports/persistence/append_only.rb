@@ -75,6 +75,17 @@ module Hecks
         #   undecoded (`CodecBoundary.check_entries!`)
         def entries = @adapter.entries
 
+        # Reads how far this repository's journal has been compacted, when the adapter tracks
+        # that (Postgres, Sqlite).
+        #
+        # @return [Integer] the highest journal `sequence` already deleted by compaction; 0 for
+        #   an adapter that tracks no such thing, or nothing compacted yet
+        def compacted_through
+          return 0 unless @adapter.respond_to?(:compacted_through)
+
+          @adapter.compacted_through
+        end
+
         # Lists the optional persistence behaviours the adapter advertises.
         #
         # @return [Array<Symbol>] frozen capability names such as `:atomic_put`,

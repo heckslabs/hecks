@@ -110,6 +110,16 @@ module Hecks
               last_sequence   INTEGER NOT NULL DEFAULT 0
             )
           SQL
+          ensure_checkpoint_compacted_through_column!
+        end
+
+        # CREATE TABLE IF NOT EXISTS never adds a column to an existing table, so this healing
+        # step matches ensure_entry_operation_column!'s own for the entry table.
+        def ensure_checkpoint_compacted_through_column!
+          columns = @db.execute("PRAGMA table_info(hecks_checkpoints)").map { |row| row["name"] }
+          return if columns.include?("compacted_through")
+
+          @db.execute("ALTER TABLE hecks_checkpoints ADD COLUMN compacted_through INTEGER NOT NULL DEFAULT 0")
         end
 
         def sql_type(attr)
