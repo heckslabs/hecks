@@ -1831,16 +1831,9 @@ crate::kernel::read_model::ReadModelDef {
         crate::kernel::read_model::ReadModelHead { aggregate: "Banking::Account", as_name: "account", many: false, is_root: true, reference_fields: &[] },
         crate::kernel::read_model::ReadModelHead { aggregate: "Banking::CardPayment", as_name: "card_payments", many: true, is_root: false, reference_fields: &[crate::kernel::read_model::ReferenceField { target_aggregate: "Banking::Account", field: "account" }, crate::kernel::read_model::ReferenceField { target_aggregate: "Banking::Customer", field: "disputed_by" }] },
     ],
-    filtered_head: Some("card_payments"),
-    conditions: &[
-        crate::kernel::QueryCondition { field: "status", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Literal("disputed") },
+    filtered_heads: &[
+        crate::kernel::read_model::FilteredHead { as_name: "card_payments", conditions: &[crate::kernel::QueryCondition { field: "status", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Literal("disputed") },], reference_hop_conditions: &[], order_by: None, offset: None, limit: None },
     ],
-    reference_hop_conditions: &[
-
-    ],
-    order_by: None,
-    offset: None,
-    limit: None,
     authorization: None,
     group_by: None,
     count: false,
@@ -1861,16 +1854,9 @@ crate::kernel::read_model::ReadModelDef {
         crate::kernel::read_model::ReadModelHead { aggregate: "Banking::Account", as_name: "account", many: false, is_root: true, reference_fields: &[] },
         crate::kernel::read_model::ReadModelHead { aggregate: "Banking::CardPayment", as_name: "card_payments", many: true, is_root: false, reference_fields: &[crate::kernel::read_model::ReferenceField { target_aggregate: "Banking::Account", field: "account" }, crate::kernel::read_model::ReferenceField { target_aggregate: "Banking::Customer", field: "disputed_by" }] },
     ],
-    filtered_head: Some("card_payments"),
-    conditions: &[
-        crate::kernel::QueryCondition { field: "status", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Literal("disputed") },
+    filtered_heads: &[
+        crate::kernel::read_model::FilteredHead { as_name: "card_payments", conditions: &[crate::kernel::QueryCondition { field: "status", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Literal("disputed") },], reference_hop_conditions: &[], order_by: None, offset: None, limit: None },
     ],
-    reference_hop_conditions: &[
-
-    ],
-    order_by: None,
-    offset: None,
-    limit: None,
     authorization: None,
     group_by: None,
     count: false,
@@ -1891,16 +1877,9 @@ crate::kernel::read_model::ReadModelDef {
         crate::kernel::read_model::ReadModelHead { aggregate: "Banking::Account", as_name: "account", many: false, is_root: true, reference_fields: &[] },
         crate::kernel::read_model::ReadModelHead { aggregate: "Banking::CardPayment", as_name: "card_payments", many: true, is_root: false, reference_fields: &[crate::kernel::read_model::ReferenceField { target_aggregate: "Banking::Account", field: "account" }, crate::kernel::read_model::ReferenceField { target_aggregate: "Banking::Customer", field: "disputed_by" }] },
     ],
-    filtered_head: Some("card_payments"),
-    conditions: &[
-        crate::kernel::QueryCondition { field: "status", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Literal("disputed") },
+    filtered_heads: &[
+        crate::kernel::read_model::FilteredHead { as_name: "card_payments", conditions: &[crate::kernel::QueryCondition { field: "status", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Literal("disputed") },], reference_hop_conditions: &[], order_by: None, offset: None, limit: None },
     ],
-    reference_hop_conditions: &[
-
-    ],
-    order_by: None,
-    offset: None,
-    limit: None,
     authorization: None,
     group_by: None,
     count: false,
@@ -1921,16 +1900,9 @@ crate::kernel::read_model::ReadModelDef {
         crate::kernel::read_model::ReadModelHead { aggregate: "Banking::Account", as_name: "account", many: false, is_root: true, reference_fields: &[] },
         crate::kernel::read_model::ReadModelHead { aggregate: "Banking::CardPayment", as_name: "card_payments", many: true, is_root: false, reference_fields: &[crate::kernel::read_model::ReferenceField { target_aggregate: "Banking::Account", field: "account" }, crate::kernel::read_model::ReferenceField { target_aggregate: "Banking::Customer", field: "disputed_by" }] },
     ],
-    filtered_head: Some("card_payments"),
-    conditions: &[
-        crate::kernel::QueryCondition { field: "status", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Literal("disputed") },
+    filtered_heads: &[
+        crate::kernel::read_model::FilteredHead { as_name: "card_payments", conditions: &[crate::kernel::QueryCondition { field: "status", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Literal("disputed") },], reference_hop_conditions: &[], order_by: None, offset: None, limit: None },
     ],
-    reference_hop_conditions: &[
-
-    ],
-    order_by: None,
-    offset: None,
-    limit: None,
     authorization: None,
     group_by: None,
     count: false,
@@ -1951,16 +1923,9 @@ crate::kernel::read_model::ReadModelDef {
         crate::kernel::read_model::ReadModelHead { aggregate: "Banking::Account", as_name: "account", many: false, is_root: true, reference_fields: &[] },
         crate::kernel::read_model::ReadModelHead { aggregate: "Banking::CardPayment", as_name: "card_payments", many: true, is_root: false, reference_fields: &[crate::kernel::read_model::ReferenceField { target_aggregate: "Banking::Account", field: "account" }, crate::kernel::read_model::ReferenceField { target_aggregate: "Banking::Customer", field: "disputed_by" }] },
     ],
-    filtered_head: Some("card_payments"),
-    conditions: &[
-        crate::kernel::QueryCondition { field: "status", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Literal("disputed") },
+    filtered_heads: &[
+        crate::kernel::read_model::FilteredHead { as_name: "card_payments", conditions: &[crate::kernel::QueryCondition { field: "status", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Literal("disputed") },], reference_hop_conditions: &[], order_by: None, offset: None, limit: None },
     ],
-    reference_hop_conditions: &[
-
-    ],
-    order_by: None,
-    offset: None,
-    limit: None,
     authorization: None,
     group_by: None,
     count: false,
