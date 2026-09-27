@@ -41,16 +41,8 @@ module Hecks
       #   Defaults to the Hecks repository.
       # - `hecks_cache_dir` is where release checkouts are kept, a Make expression.
       #   Defaults to `$(HOME)/.cache/hecks`.
-      # - `ecs_cluster` and `ecs_service` name the cluster and service. Both default to
-      #   the stack name, which is what the generated template names them.
-      # - `containers` lists the container names `deploy-service.sh` accepts. Defaults
-      #   to the domain's own name.
-      # - `ecr_repositories` maps a container to its ECR repository, as
-      #   `"web" => "repository"`. Defaults to the domain name for a single container,
-      #   else `<domain>-<container>`.
-      # - `image_tag_parameters` maps a container to the CloudFormation parameter holding
-      #   its image tag. Defaults to `ImageTag` for a single container, else
-      #   `<Container>ImageTag`.
+      # - `ecs_cluster` and `ecs_service` name the cluster and service. They default to the
+      #   names the generated template gives them: the stack name, or the `names` override.
       # - `smoke_repo` is the GitHub `owner/name` holding the smoke workflow, and
       #   `smoke_workflow` its file name. With neither set, `REPO` and `WORKFLOW` must
       #   come from the environment.
@@ -60,8 +52,15 @@ module Hecks
       # - `public_url` is the host URL `make check-era` requests. Without it, `URL` must
       #   be passed to `make`.
       #
-      # Container names and the ECR, cluster and parameter names must match the
-      # stack template; the scripts do not read the template.
+      # ## Names come from the template
+      #
+      # The containers, their ECR repositories and their image-tag parameters are not
+      # settings of the scripts. `deploy-service.sh` accepts exactly the containers the
+      # template's `Fargate::Containers::Layout` holds (the domain container, then each
+      # entry of the world's `containers`), and for each one pushes to the repository and
+      # syncs the parameter that layout names: the values the template renders. Rename them
+      # with `domain_container` and `containers` (see `Fargate`), and the scripts, and the
+      # `Makefile`'s `deploy`, follow.
       module Scripts
         SCRIPT_DIR = File.join(__dir__, "scripts").freeze
 
@@ -72,16 +71,17 @@ module Hecks
         # @param files [Hash{String => String}] the Fargate target's own files, keyed by path
         # @param deploy_settings [Hash{Symbol => Object}] the world's `deployed_to("AwsFargate")`
         #   settings
-        # @param infra_name [String] the domain's AWS-facing name
+        # @param plan [Fargate::Settings::Plan] the template generator's resolved settings, the
+        #   source of every container, repository and parameter name
         # @param stack_name [String] the CloudFormation stack name
         # @param region [String] the validated AWS region
         # @return [Hash{String => String}] `files` itself when the domain has not opted in, else
         #   a copy with the scripts added and the `Makefile` including `hosting.mk`
         # @raise [ArgumentError] if a hosting setting is missing or invalid; see `Settings`
-        def extend_files(files, deploy_settings:, infra_name:, stack_name:, region:)
+        def extend_files(files, deploy_settings:, plan:, stack_name:, region:)
           return files unless deploy_settings[:hosting_scripts] == true
 
-          settings = Settings.new(deploy_settings: deploy_settings, infra_name: infra_name,
+          settings = Settings.new(deploy_settings: deploy_settings, plan: plan,
                                   stack_name: stack_name, region: region)
           files.merge(
             "Makefile"              => "#{files.fetch('Makefile')}\ninclude hosting.mk\n",
@@ -130,7 +130,7 @@ module Hecks
         def hosting_mk(settings)
           render("hosting.mk.tmpl", "RELEASE" => settings.hecks_release, "SOURCE" => settings.hecks_source,
                                     "CACHE_DIR" => settings.hecks_cache_dir, "URL" => settings.public_url.to_s,
-                                    "SERVICE" => settings.containers.first)
+                                    "SERVICE" => settings.containers.first.name)
         end
 
         def stack_constants(settings)
@@ -141,13 +141,13 @@ module Hecks
         end
 
         def services_block(settings)
-          arms = settings.containers.map do |name|
-            repository = Shellwords.escape(settings.repository_for(name))
-            parameter = Shellwords.escape(settings.image_tag_parameter_for(name))
-            "    #{Shellwords.escape(name)}) ECR_REPOSITORY=#{repository}; CFN_PARAM_KEY=#{parameter} ;;"
+          arms = settings.containers.map do |container|
+            repository = Shellwords.escape(container.repository_name)
+            parameter = Shellwords.escape(container.tag_parameter)
+            "    #{Shellwords.escape(container.name)}) ECR_REPOSITORY=#{repository}; CFN_PARAM_KEY=#{parameter} ;;"
           end
           <<~BASH.chomp
-            SERVICES='#{settings.containers.join(' ')}'
+            SERVICES='#{settings.containers.map(&:name).join(' ')}'
 
             # Sets ECR_REPOSITORY and CFN_PARAM_KEY for one service, or exits.
             resolve_service() {
