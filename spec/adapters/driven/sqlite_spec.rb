@@ -203,6 +203,36 @@ RSpec.describe Hecks::Adapters::Sqlite do
     expect(reopened.find("p1").status).to eq("sold")
   end
 
+  describe "the replay checkpoint (bounds AppendOnly#recover!'s replay to what a restart missed)" do
+    it "advances with every project, so entries_since(checkpoint) is empty right after a write" do
+      adapter.save(instance("p1", status: "available"))
+
+      expect(adapter.entries_since(adapter.checkpoint)).to eq([])
+    end
+
+    it "starts at zero for a table that has never been checkpointed" do
+      expect(adapter.checkpoint).to eq(0)
+    end
+
+    it "lets entries_since skip everything at or before a given sequence" do
+      adapter.save(instance("p1", status: "available"))
+      first_checkpoint = adapter.checkpoint
+      adapter.save(instance("p2", status: "available"))
+
+      expect(adapter.entries_since(first_checkpoint).map(&:id)).to eq(["p2"])
+    end
+
+    it "still catches up a real gap: an entry journaled without being projected is picked up" do
+      entry = Hecks::Ports::Persistence::Entry.new(operation: "save", id: "p1", state: { status: "available" })
+      adapter.append(entry)
+      expect(adapter.find("p1")).to be_nil
+
+      Hecks::Ports::Persistence::AppendOnly.new(adapter).recover!
+
+      expect(adapter.find("p1").status).to eq("available")
+    end
+  end
+
   describe "the optional saga-persistence capability (§2/§3/§4)" do
     it "saves a saga instance and reads it back through each_saga" do
       adapter.save_saga(process_manager: "Onboarding", correlation: "c1",

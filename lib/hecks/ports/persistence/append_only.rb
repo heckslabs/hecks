@@ -6,7 +6,12 @@ module Hecks
     module Persistence
       # `mirrors` is durable replication intent.  It is part of the same
       # append as the authoritative state, never a second outbox store.
-      Entry = Struct.new(:operation, :id, :state, :mirrors, keyword_init: true) do
+      #
+      # `sequence` is the journal position an adapter assigned this entry
+      # (set by `append` on a live write, or by `entries`/`entries_since` on
+      # a replayed one); nil for an adapter that assigns none. It rides
+      # along so `project` can advance a checkpoint without a second lookup.
+      Entry = Struct.new(:operation, :id, :state, :mirrors, :sequence, keyword_init: true) do
         # Tells a projecting adapter that this entry writes a record.
         #
         # @return [Boolean] true when `operation` is the String `"save"`
@@ -119,15 +124,24 @@ module Hecks
           events&.select { |event| event.aggregate == aggregate && event.id.to_s == id.to_s }
         end
 
-        # Replays the whole journal through `project` to rebuild the projected records.
+        # Replays unprojected journal entries through `project` to rebuild the projected records.
         #
-        # An append is durable before a projection is attempted. Replaying the
-        # log restores a snapshot/table after a crash in that small window.
+        # An append is durable before a projection is attempted; replaying restores a
+        # snapshot/table after a crash in that small window. Postgres and Sqlite keep their
+        # projected table in the same transaction as the journal append, so they never fall
+        # behind it — each tracks how far it has replayed (`checkpoint`) and only re-walks
+        # entries past that point (`entries_since`), bounded by activity since the last boot,
+        # not total history. An adapter without that pair (Memory, Heki, D1, PostgresEra,
+        # RemoteRuntime) is unaffected: it still replays every entry.
         #
         # @return [Persistence::AppendOnly] self, so a factory can build and recover in one
         #   expression
         def recover!
-          entries.each { |entry| project(entry) }
+          if @adapter.respond_to?(:checkpoint) && @adapter.respond_to?(:entries_since)
+            @adapter.entries_since(@adapter.checkpoint).each { |entry| project(entry) }
+          else
+            entries.each { |entry| project(entry) }
+          end
           self
         end
 
