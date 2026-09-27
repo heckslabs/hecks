@@ -72,7 +72,7 @@ module Hecks
         # That's invisible to anything that virtualizes the filesystem at
         # the Ruby level instead of the OS level (e.g. tebako's memfs,
         # which presses a hecks-based app into a single executable —
-        # see domain/README.md's "Deploying" section in lifeadelics for
+        # see domain/README.md's "Deploying" section in a client site's domain for
         # why that matters). ::Prism.parse(File.read(file)) parses the
         # exact same bytes, just read through Ruby's File.read first,
         # which those tools do intercept.

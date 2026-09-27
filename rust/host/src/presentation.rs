@@ -1,5 +1,5 @@
 // **The console's own presentation config, read** — the Rust-native
-// counterpart to embryonaut_console's `web/presentation_config.rb`
+// counterpart to the console app's `web/presentation_config.rb`
 // `.load`, returning the identical nested JSON shape that file has
 // always returned (`{"states" => {...}, "collections" => {...},
 // "overview" => {...}}`), so `ui_schema.rs`, the `/api/*` routes and
@@ -11,7 +11,7 @@
 // chapter: StateStyle, Collection, Overview), dispatched through real
 // commands, but it is not in `hecks_lambda_journal`. The consuming
 // app pins it, permanently and deliberately, to the Ruby "Postgres"
-// adapter — embryonautfoundersapp.hecksagon's own comment says why in
+// adapter — that app's own `.hecksagon` comment says why in
 // full: with `HECKS_LAMBDA_ROUTING=true` every other chapter routes
 // through the dispatch Lambda (this crate's own flat journal), and
 // ConsoleSettings followed it there once, into a store no Ruby-side
@@ -46,7 +46,7 @@
 //
 // 2. Ruby's own Postgres tables, when it does not. A console app can
 //    still pin this chapter to Ruby's "Postgres" adapter — which
-//    embryonautfoundersapp did, permanently and deliberately, after
+//    a client site did, permanently and deliberately, after
 //    routing it through the dispatch Lambda once landed it in a store
 //    no Ruby-side migration had ever populated and the console read
 //    back "no presentation entry for" every real state at once. Those
@@ -230,7 +230,7 @@ pub fn reshape(states: &[Value], collections: &[Value], overview: &[Value]) -> V
 /// them answering the same two columns (`id`, `state` jsonb), which is
 /// the only part this module actually depends on.
 ///
-///   1. `embryonaut_founders_app_state_style_head` — where this host's
+///   1. `sample_app_state_style_head` — where this host's
 ///      own lineage writes land for an attached chapter. `dispatch`
 ///      qualifies a mutation by `config.domain`, the host's domain,
 ///      never by the chapter the aggregate came from, so a
@@ -529,9 +529,9 @@ mod tests {
     #[test]
     fn head_view_candidates_cover_every_relation_a_runtime_has_written_these_rows_to() {
         assert_eq!(
-            head_view_candidates("EmbryonautFoundersApp", "state_style"),
+            head_view_candidates("SampleApp", "state_style"),
             vec![
-                "embryonaut_founders_app_state_style_head".to_string(),
+                "sample_app_state_style_head".to_string(),
                 "console_settings_state_style_head".to_string(),
                 "state_style_head".to_string(),
                 "state_style".to_string()

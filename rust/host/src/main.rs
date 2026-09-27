@@ -255,7 +255,7 @@ async fn main() -> Result<(), Error> {
     // needed created this way (their own schemas were already created
     // by `make mint-era`'s Ruby-side tunnel boot before their Lambda's
     // own first real invocation ever ran) — found live deploying
-    // lifeadelics, the first Shared-mode domain whose Lambda genuinely
+    // a client site, the first Shared-mode domain whose Lambda genuinely
     // raced a still-nonexistent schema: `SET search_path` to a schema
     // that doesn't exist yet succeeds in Postgres (search_path accepts
     // any name), so the first real failure only surfaced one step
@@ -366,7 +366,7 @@ async fn main() -> Result<(), Error> {
             // this crate only ever did it while minting, so a host that
             // matched an existing era's label wrote its first mutation
             // into a head-snapshot table nobody had created. Found live
-            // on embryonautfoundersapp, whose era 2 was minted by Ruby
+            // on a client site, whose era 2 was minted by Ruby
             // under the pre-ADR-0059 unqualified names: every
             // domain-qualified snapshot in that database stopped at era
             // 1, and no write of any kind could succeed.

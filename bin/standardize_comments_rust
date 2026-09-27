@@ -76,7 +76,7 @@ module RustCommentStyle
   RUST_ACRONYMS = %w[EOF RAII RHS SQS DLQ JIT LSP NFA DFA CR].to_set.freeze
 
   RUST_PROPER_NOUNS = {
-    "EMBRYONAUT" => "Embryonaut", "LIFEADELICS" => "LifeAdelics"
+    "EMBRYONAUT" => "Embryonaut"
   }.freeze
 
   RUST_EXTRA_WORDS = %w[

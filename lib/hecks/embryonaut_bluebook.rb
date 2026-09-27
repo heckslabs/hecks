@@ -13,10 +13,10 @@ module Hecks
   #
   # This module and its `uses_embryonaut_bluebook`
   # DSL word (hecksagon_builder.rb) were built on a prior commit of this
-  # repo (933d1dd), vendored out to a real consumer (lifeadelics/domain,
+  # repo (933d1dd), vendored out to a real consumer (a client site's domain,
   # for embryonaut_bluebooks/payments), and then lost from this repo's own
   # reachable history — a hard reset or rebase left no branch containing
-  # that commit. The lifeadelics vendor snapshot (a `git archive` of that
+  # that commit. The consumer's vendor snapshot (a `git archive` of that
   # commit, committed into their repo) was the only surviving copy; this
   # file is ported forward from it, checked against current `main`'s own
   # conventions rather than copied wholesale, since the two trees had

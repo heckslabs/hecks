@@ -599,12 +599,12 @@ async fn table_exists<C: GenericClient>(client: &C, name: &str) -> anyhow::Resul
 /// `mint_era`); the third outcome, `BootDecision::UseExisting` — adopt
 /// an era somebody else already minted — provisioned nothing.
 ///
-/// Found live. embryonautfoundersapp's storehouse holds eras 1 and 2
+/// Found live. A client site's storehouse holds eras 1 and 2
 /// for the domain, with era 2 minted by Ruby under the pre-ADR-0059
 /// unqualified names; every domain-qualified head snapshot in it stops
 /// at era 1. This host booted, matched era 2's label, adopted it, and
 /// the first write it ever attempted died on
-/// `relation "embryonaut_founders_app_state_style_head_snapshot_2"
+/// `relation "sample_app_state_style_head_snapshot_2"
 /// does not exist` — surfaced to the caller as the bare string
 /// "db error", because nothing on the way out said which statement or
 /// which relation (see `journal::append_lineage_mutation`, now fixed
@@ -1394,11 +1394,11 @@ mod tests {
         client
     }
 
-    /// **The real outage, reproduced**. embryonautfoundersapp's storehouse
+    /// **The real outage, reproduced**. A client site's storehouse
     /// holds an era 2 that Ruby minted, so every domain-qualified head
     /// snapshot in it stops at era 1. This host matched era 2's label,
     /// adopted it, and its first write died on `relation
-    /// "embryonaut_founders_app_state_style_head_snapshot_2" does not
+    /// "sample_app_state_style_head_snapshot_2" does not
     /// exist`.
     #[tokio::test]
     async fn adopting_an_era_someone_else_minted_provisions_the_head_snapshots_it_is_missing() {
@@ -1407,24 +1407,24 @@ mod tests {
         // leaves behind for this crate's own domain-qualified naming.
         super::adopt_head_snapshots(
             &guard,
-            "EmbryonautFoundersApp",
+            "SampleApp",
             &[super::Aggregate { name: "StateStyle".to_string(), storage_name: "state_style".to_string() }],
             1,
         )
         .await
         .expect("era 1 exists, as Ruby left it");
 
-        let missing = super::head_snapshot("EmbryonautFoundersApp", "state_style", 2);
+        let missing = super::head_snapshot("SampleApp", "state_style", 2);
         assert!(!super::table_exists(&guard, &missing).await.expect("a lookup"), "era 2 starts absent");
 
         let aggregates =
             vec![super::Aggregate { name: "StateStyle".to_string(), storage_name: "state_style".to_string() }];
-        super::adopt_head_snapshots(&guard, "EmbryonautFoundersApp", &aggregates, 2).await.expect("adopts");
+        super::adopt_head_snapshots(&guard, "SampleApp", &aggregates, 2).await.expect("adopts");
 
         assert!(super::table_exists(&guard, &missing).await.expect("a lookup"), "era 2 is provisioned now");
 
         // Idempotent — every boot runs it, the same way Ruby's does.
-        super::adopt_head_snapshots(&guard, "EmbryonautFoundersApp", &aggregates, 2).await.expect("adopts again");
+        super::adopt_head_snapshots(&guard, "SampleApp", &aggregates, 2).await.expect("adopts again");
     }
 
     /// The columns are Ruby's, so a table this crate creates is one a

@@ -257,7 +257,7 @@ module Hecks
       # entry into a real `Privacy::Marking.Mark` once a dispatcher exists.
       #
       # @param domain [String] the marked attribute's own aggregate FQN, e.g.
-      #   `"Lifeadelics::Registration"`
+      #   `"Site::Registration"`
       # @param attribute_path [String] the dotted path within that aggregate, e.g.
       #   `"attendee.medications"`
       # @param category [String] the marking's own sensitivity category, e.g. `"phi"`
@@ -593,7 +593,7 @@ module Hecks
       #   concatenated, `base` then `overlay`
       def merge_hecksagons(base, overlay)
         # Same-name blocks concatenate regardless of which file they came
-        # from (`lifeadelics.hecksagon`, `context_map.hecksagon`, an
+        # from (`site.hecksagon`, `context_map.hecksagon`, an
         # environment overlay). Order-independent: list facts uniq, so
         # loading context_map before or after the domain file is the same
         # merged hecksagon. Binds stay concatenated (BindingPolicy still

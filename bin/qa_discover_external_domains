@@ -41,29 +41,27 @@
 # `foo` and that carries `foo/bluebook/foo.bluebook` at its own top
 # matches the identical way `examples/pizzas/bluebook/pizzas.bluebook`
 # does one level down — there is no special-casing needed, and none
-# exists. Verified against two real siblings, not just fixtures:
-# `~/Projects/playaprep` is one domain at its own root
-# (`playaprep/bluebook/playaprep.bluebook`) and is reported as
-# `playaprep/playaprep`; `~/Projects/embryonautfoundersapp` has the same
-# root shape (`bluebook/embryonautfoundersapp.bluebook`, beside sibling
+# exists. Verified against two real siblings, not just fixtures: one
+# sibling is a single domain at its own root
+# (`<repo>/bluebook/<repo>.bluebook`) and is reported as `<repo>/<repo>`;
+# another has the same root shape (beside sibling
 # `adapters/`/`translations/` dirs the walk correctly never descends
 # into — the `next if child == "bluebook"` guard below) but is correctly
 # not reported, because its `Gemfile` depends on `hecksagain` (vendored,
 # aliased `Hecks = Hecksagain` for DSL readability), never on the real
 # `hecks` gem — same exclusion `near_miss_repo` in this script's own
 # fixtures exists to pin, just at depth 0 instead of depth 1
-# (`spec/fixtures/.../near_miss_root_shaped_repo`). If
-# `embryonautfoundersapp`'s in-progress `use-hecks-gem` migration branch
-# (seen live in its own `.claude/worktrees/use-hecks-gem`, not yet on
-# its `main`) ever lands — real `gem "hecks", "~> 1.3"` in its Gemfile —
-# this script starts reporting it with no code change at all.
+# (`spec/fixtures/.../near_miss_root_shaped_repo`). If that sibling's
+# in-progress migration branch to the real gem ever lands — real
+# `gem "hecks", "~> 1.3"` in its Gemfile — this script starts reporting it
+# with no code change at all.
 #
 # **The second guard**: does the project actually depend on `hecks`. A
 # `*.bluebook` file living in some unrelated project that happens to
 # share this naming accident is not a hecks domain. `hecks.gemspec`
 # names this gem "hecks" (`spec.name = "hecks"`); a real dependent
 # either vendors it (`gem "hecks", path: "vendor/hecks"`, exactly
-# `hecks_playground`'s own `Gemfile`) or pins a published/git version —
+# a large sibling's own `Gemfile`) or pins a published/git version —
 # either way, a line in `Gemfile` or a `specs:` entry in `Gemfile.lock`
 # names it. Checked before the recursive shape walk (cheap, two file
 # reads) so a project with no `hecks` dependency at all is skipped
@@ -75,10 +73,9 @@
 # candidate: a project that is one domain, `<repo>/bluebook/<repo>.
 # bluebook` at its own top). This repo's two conventions span depth 2
 # (`examples/pizzas`) and depth 3 (`qa/stress_domains/corrections`),
-# which sets the default. Checked for real against `~/Projects/
-# hecks_playground` (a large, real hecks dependent): unbounded recursion
-# finds ~100 shape matches, because every aggregate inside its
-# `hecks_playground_conception/aggregates/framework/*` tree individually
+# which sets the default. Checked for real against a large sibling that
+# depends on hecks: unbounded recursion finds ~100 shape matches, because
+# every aggregate inside its `aggregates/framework/*` tree individually
 # satisfies `<name>/bluebook/<name>.bluebook` — they are framework
 # chapters of one much larger domain, not standalone targets, and
 # reporting all of them would bury the handful that actually are behind
@@ -125,7 +122,7 @@ DEFAULT_MAX_DEPTH = 3
 # vendored/installed dependency trees (a project vendoring `hecks`
 # itself would otherwise re-surface every one of this repo's own
 # `examples/*`/`qa/stress_domains/*` as a "new" external candidate — see
-# `hecks_playground/vendor/hecks`), and this practice's own worktree
+# a sibling's `vendor/hecks`), and this practice's own worktree
 # scratch space (`.claude/worktrees/…`, which duplicates whatever the
 # sibling repo's real tree already contains).
 SKIP_DIR_BASENAMES = %w[.git .hg .svn vendor node_modules .bundle tmp log coverage .yardoc .ruby-lsp .parked
@@ -147,11 +144,11 @@ end
 # project pinning a published or `git:`-sourced `hecks` has no `gem
 # "hecks"` guarantee in a stray comment line, but always gets a `specs:`
 # entry once `bundle install` has run. Matched with a word boundary so
-# "hecksagain" (a real, unrelated gem this same ecosystem has — see
-# `hecks_playground`'s own vendored `hecksagain`) and "hecks_playground"
-# itself never false-positive: `\bhecks\b` cannot match inside either,
-# there is no boundary between "hecks" and the character right after it
-# in "hecksagain"/"hecks_playground".
+# "hecksagain" (a real, unrelated gem this same ecosystem has — a sibling
+# vendors its own copy) and a name like "hecks_site" itself never
+# false-positive: `\bhecks\b` cannot match inside either, there is no
+# boundary between "hecks" and the character right after it in
+# "hecksagain"/"hecks_site".
 GEMFILE_PATTERN      = /gem\s*\(?\s*["']hecks["']/
 GEMFILE_LOCK_PATTERN = /^\s+hecks\s+\(/
 

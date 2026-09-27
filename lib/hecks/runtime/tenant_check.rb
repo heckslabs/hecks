@@ -38,7 +38,7 @@ module Hecks
     # search_path` — proven for real, not assumed, by
     # tenant_isolation_spec.rb. Plain Postgres (no schema story) and D1
     # (no schema-equivalent at all — see world.bluebook's own comment on
-    # the lifeadelics D1 tradeoff) answer false, or don't answer at all,
+    # the D1 tradeoff) answer false, or don't answer at all,
     # which this module treats identically to false.
     module TenantCheck
       module_function

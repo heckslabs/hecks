@@ -1039,10 +1039,10 @@ module Hecks
                     # matching this stack's own name), a question `infra_name`
                     # answers and a domain's own business identity does not.
                     # Real, live, and confirmed the hard way: this was still
-                    # wired to `declared_domain_name` when EmbryonautFoundersApp
+                    # wired to `declared_domain_name` when a client app
                     # first deployed, and WebFunction immediately threw
                     # `ResourceNotFoundException: Function not found:
-                    # hecks-embryonautfoundersapp` on every read AND on the
+                    # hecks-<domain>` on every read AND on the
                     # Google OAuth callback itself — a real signed-in user hit
                     # this within minutes of the deploy that introduced it.
                     DOMAIN_NAME: #{infra_name}
@@ -1317,7 +1317,7 @@ bastion_yaml = shared ? nil : Shared.bastion_yaml(
               # aggregates with no snapshot table at all -- it only provisions the
               # ONE bluebook it's called with (era_resolver.rb's own `bluebook.
               # aggregates.each`), never the whole registry. Found live minting
-              # lifeadelics' own era: `Payments::Payment.Initiate` refused with
+              # a client site's own era: `Payments::Payment.Initiate` refused with
               # "relation \\"payment_head_snapshot_1\\" does not exist" the first
               # time this domain's own checkout route ran for real. The automated
               # (non-Shared) recipe below now does this correctly for every OTHER
@@ -1722,7 +1722,7 @@ bastion_yaml = shared ? nil : Shared.bastion_yaml(
           # `shared` are collected together here rather than spelled as an
           # if/elsif/else, the same shape `Parameters:` above holds to: the
           # two are independent facts about a domain, not alternatives, and
-          # lifeadelics is both — an elsif shape would silently drop the
+          # a client site can be both — an elsif shape would silently drop the
           # Owning* overrides whenever OAuth is also present. Caught live
           # the first time a Shared-mode domain with real Google OAuth
           # actually ran `make deploy`: `sam deploy` refused

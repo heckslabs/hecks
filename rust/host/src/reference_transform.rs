@@ -95,7 +95,7 @@ pub fn translate(edge_aggregate_raw: &Value, state: &Value) -> anyhow::Result<Va
     // same as every other rule above (and `Lineage#apply_backfill`'s own
     // identical fix): a bare top-level `contains_key`/`insert` pair is
     // only correct for a brand-new top-level attribute. A value object
-    // gaining new required members with no source at all (lifeadelics'
+    // gaining new required members with no source at all (a client site's
     // Attendee redesign, commit 4326dcd) needs `top.member` to actually
     // reach inside an existing container, the same way `extract`/
     // `insert` already do for drop/move/convert — found live: this

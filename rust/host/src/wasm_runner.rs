@@ -77,10 +77,10 @@ impl StdoutStream for StepsOut {
 // the same path, forever. Found live, in this crate's own `cargo test`:
 // one test binary genuinely dispatches against two different domains'
 // `.wasm` files in the same process (dispatch.rs's own banking.wasm
-// fixtures alongside web.rs's lifeadelics.wasm ones, run concurrently
+// fixtures alongside web.rs's own site wasm ones, run concurrently
 // by cargo test's own thread pool) — whichever path happened to compile
 // first silently won for every subsequent call regardless of its own
-// `wasm_path` argument, so a banking dispatch got lifeadelics' compiled
+// `wasm_path` argument, so a banking dispatch got a client site's compiled
 // module back and refused every real Banking verb as "unknown command."
 // `Engine`/`Module` are both cheap-`Clone` (wasmtime's own docs: each
 // wraps an `Arc` internally), so caching owned clones per path costs
