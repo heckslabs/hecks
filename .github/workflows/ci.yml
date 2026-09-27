@@ -88,6 +88,58 @@ jobs:
     secrets:
       HECKS_CI_ATTEST_KEY: ${{ secrets.HECKS_CI_ATTEST_KEY }}
 
+  # Writes the same kind of attestation note .githooks/pre-push writes locally (Phase 7),
+  # but for THIS run's own checked-out tree, right after a green pull_request run. When the
+  # merge queue's merge onto main turns out to be a no-op (main hasn't moved since this run),
+  # that tree is byte-identical to what merge_group checks out, so ci_attestation_rspec and
+  # checks_static find this note and skip re-running rspec_shard/checks_static — see
+  # .github/actions/check-attestation's own header for why a tree-hash note survives into a
+  # commit that didn't exist yet when it was written. Without this job, only a developer's own
+  # local pre-push run ever wrote a note, and CI's own checked-out tree (a synthetic test-merge,
+  # not the developer's raw branch) essentially never matched it.
+  #
+  # Gated on both lineages this note names being green; `needs.rspec_impl`/`needs.checks_impl`
+  # already treat a valid attested skip as success, so this also fires (harmlessly re-signing
+  # the same tree) when the tree was already attested. A fork PR gets no HECKS_CI_ATTEST_KEY,
+  # so the write step no-ops there, same as the local hook without a keychain entry.
+  ci_attest_write:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+
+    needs: [rspec_impl, checks_impl]
+    # `!= 'push'` alone would also fire on merge_group, where re-signing the queue's own
+    # tree helps nothing (nothing re-checks it against itself); `== 'pull_request'` is the
+    # real gate, `!= 'push'` alongside it is spec/ci_summary_jobs_spec.rb's own pinned shape
+    # for "this job takes no runner on a push to main".
+    if: github.event_name != 'push' && github.event_name == 'pull_request' && needs.rspec_impl.result == 'success' && needs.checks_impl.result == 'success'
+
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Write and push a CI-verified attestation note for this tree
+        env:
+          HMAC_KEY: ${{ secrets.HECKS_CI_ATTEST_KEY }}
+        run: |
+          if [ -z "$HMAC_KEY" ]; then
+            echo "[ci_attest_write] no attestation secret on this run (fork PR) — skipping" >&2
+            exit 0
+          fi
+
+          tree=$(git rev-parse HEAD^{tree})
+          checks="doc_coverage,engine_agreement,model_check,rspec,rubocop"
+          hmac=$(printf '%s:%s' "$tree" "$checks" | openssl dgst -sha256 -hmac "$HMAC_KEY" -r | awk '{print $1}')
+          note="checks=$checks"$'\n'"hmac=$hmac"
+
+          # A notes commit needs an author; the runner carries none by default. Scoped to
+          # this one command (`-c`), not the repo config, since nothing else here commits.
+          git fetch origin refs/notes/ci:refs/notes/ci || true
+          git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+            notes --ref=ci add -f -m "$note" "$tree"
+          git push origin refs/notes/ci
+
   # Aggregator that keeps `rspec_postgres_io` the required-status-check name; the work is in
   # ci-postgres-io.yml.
   rspec_postgres_io:
