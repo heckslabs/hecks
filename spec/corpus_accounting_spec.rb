@@ -10,7 +10,8 @@ RSpec.describe Hecks::Corpus do
   ROUTE_CHECKS = %i[named_in gitignored gap].freeze
 
   def self.committed
-    @committed ||= IO.popen(%w[git ls-files], chdir: Hecks::Corpus::ROOT, &:read).split("\n").freeze
+    listing = IO.popen(Hecks::Vendoring::GitEnvironment.clean, %w[git ls-files], chdir: Hecks::Corpus::ROOT, &:read)
+    @committed ||= listing.split("\n").freeze
   end
 
   def committed = self.class.committed

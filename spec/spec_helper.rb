@@ -11,6 +11,12 @@ end
 require "hecks"
 require_relative "support/ci_skip_backstop"
 
+# A push runs the pre-push hook with GIT_DIR and friends exported, and every
+# `git` the suite starts inherits them. Specs build scratch repositories and
+# commit into them; with those variables set the commits land in the pushing
+# repository instead. Start each suite process without them.
+Hecks::Vendoring::GitEnvironment.scrub!
+
 # Shared paths and boot helpers for specs that boot a real, in-memory registry
 # rather than loading a fixture domain from disk piecemeal.
 module InMemoryDomain

@@ -1,5 +1,6 @@
 require "fileutils"
 require "tmpdir"
+require_relative "vendoring/git_environment"
 require_relative "vendoring/git_source"
 
 module Hecks

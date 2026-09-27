@@ -1,5 +1,6 @@
 require "open3"
 require "tmpdir"
+require_relative "git_environment"
 
 module Hecks
   module Vendoring
@@ -8,7 +9,9 @@ module Hecks
     #
     # Everything here names a commit and reads what that commit holds, so a
     # shared checkout with uncommitted edits, or a different branch checked
-    # out, cannot leak into what gets vendored.
+    # out, cannot leak into what gets vendored. Every command runs under
+    # {GitEnvironment.clean}, so a `GIT_DIR` inherited from a hook cannot
+    # redirect it to some other repository.
     class GitSource
       # @param path [String] a directory that is a git repository (or a
       #   worktree of one)
@@ -88,10 +91,10 @@ module Hecks
 
       private
 
-      def git(*) = Open3.capture3("git", "-C", @path, *)
+      def git(*) = Open3.capture3(GitEnvironment.clean, "git", "-C", @path, *)
 
       def run!(label, *command)
-        _out, err, status = Open3.capture3(*command)
+        _out, err, status = Open3.capture3(GitEnvironment.clean, *command)
         raise Error, "#{label} failed: #{err.lines.first.to_s.strip}" unless status.success?
       end
     end
