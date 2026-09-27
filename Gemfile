@@ -74,4 +74,18 @@ group :development, :test do
   # matching specs on save. Not wired into CI or the pre-push hook.
   gem "guard", "~> 2.19", require: false
   gem "guard-rspec", "~> 4.7", require: false
+
+  # Local-only: lets Guard raise a system notification (Terminal
+  # Notifier on macOS, libnotify on Linux) when a run finishes.
+  # Notiffany already tries several backends in turn and skips
+  # whichever one isn't installed, so both gems are safe to list
+  # together on a machine that only has one available.
+  install_if -> { RUBY_PLATFORM.include?("darwin") } do
+    gem "terminal-notifier", "~> 2.0", require: false
+    gem "terminal-notifier-guard", "~> 1.7", require: false
+  end
+
+  install_if -> { RUBY_PLATFORM.include?("linux") } do
+    gem "libnotify", "~> 0.9", require: false
+  end
 end
