@@ -7,6 +7,8 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+## [2.8.0] - 2026-09-27
+
 **Security: the Fargate host no longer runs a command or a read from an outside caller's body.**
 A POST to any path the load balancer forwards, carrying `{"verb": ..., "role": ...}`
 or `{"read": true}`, was read as the internal dispatch protocol and reached the kernel
