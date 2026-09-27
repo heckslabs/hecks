@@ -84,14 +84,23 @@ module Hecks
         end
 
         # Reads the durable event history a `corrects` mutation is judged
-        # against (C9.2), falling back to the in-process log when needed.
+        # against (C9.2), scoped to the one record being corrected so a
+        # durable adapter need not load every aggregate's events to check
+        # one; falls back to the in-process log when needed.
         #
         # @param domain [String, Symbol] the domain `aggregate` belongs to
         # @param aggregate [Bluebook::Aggregate] the aggregate whose repository is read
-        # @return [Array<Runtime::Event>] the aggregate's recorded events, or the
+        # @param event_key [String] the `"domain::AggregateName"` key events are stored under
+        # @param id [String, Object] the record's identity being corrected
+        # @return [Array<Runtime::Event>] the record's recorded events, or the
         #   registry's in-process log as a fallback
-        def correction_history(domain, aggregate)
-          @registry.repository(domain, aggregate).events || @registry.event_log
+        def correction_history(domain, aggregate, event_key, id)
+          repository_events = @registry.repository(domain, aggregate).events_for(aggregate: event_key, id: id)
+          return repository_events if repository_events
+
+          # The in-process log holds every domain's events, so the fallback
+          # scopes it the same way a durable adapter's own query would.
+          @registry.event_log.select { |event| event.aggregate == event_key && event.id.to_s == id.to_s }
         end
 
         # Locates each `:corrects` mutation's already-emitted target event
@@ -114,9 +123,10 @@ module Hecks
             event_key  = "#{domain}::#{aggregate.hecks_name}"
             event_name = mutation.target.to_s
             # Most recent match wins if this record emitted the same event
-            # more than once.
-            corrected = correction_history(domain, aggregate).reverse.find do |event|
-              event.name == event_name && event.aggregate == event_key && event.id.to_s == instance.id.to_s
+            # more than once; aggregate and id are already scoped by
+            # correction_history, so only the event name is filtered here.
+            corrected = correction_history(domain, aggregate, event_key, instance.id).reverse.find do |event|
+              event.name == event_name
             end
 
             unless corrected
