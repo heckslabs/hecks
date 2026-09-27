@@ -30,6 +30,7 @@ mod mint;
 mod payments;
 mod presentation;
 mod presentation_write;
+mod rate_limit;
 mod reference_transform;
 mod reference_validate;
 mod resend;
@@ -499,7 +500,8 @@ async fn main() -> Result<(), Error> {
             serde_json::json!({ "mode": "serve", "domain": &lineage_config.domain, "era": &my_label, "boot_ms": boot_started.elapsed().as_millis() as u64 }),
         );
         let version = server::version_body(&my_label, &my_hash, std::env::var("HECKS_BUILD").ok().as_deref());
-        let state = server::ServerState { client, wasm_path, lineage_config, invoker };
+        let limits = Arc::new(rate_limit::RateLimits::from_env());
+        let state = server::ServerState { client, wasm_path, lineage_config, invoker, limits };
         return server::serve(state, version).await;
     }
 
