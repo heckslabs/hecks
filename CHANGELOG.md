@@ -7,6 +7,8 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+## [2.7.0] - 2026-09-27
+
 **The Rust host rate-limits public writes, on by default.** `POST /registrations`
 and `POST /newsletter/subscribers` are limited per client address (10 subscribes
 and 15 registrations an hour by default) and answer 429 with `Retry-After` past

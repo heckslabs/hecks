@@ -46,7 +46,7 @@ So does every other `ruby`-fenced example in this README and in
 [the guides](docs/implemented/guides/); `spec/guides_spec.rb` is the
 harness.
 
-**Status:** Current release: `2.6.0`. See [Project status](#project-status)
+**Status:** Current release: `2.7.0`. See [Project status](#project-status)
 for what the stability promise made at `1.0.0` covers and what it explicitly
 doesn't yet.
 
@@ -568,7 +568,7 @@ arguing for.
 
 ## Project status
 
-Current release: `2.6.0`. [`docs/1.0-readiness.md`](docs/1.0-readiness.md)
+Current release: `2.7.0`. [`docs/1.0-readiness.md`](docs/1.0-readiness.md)
 states plainly what the stability promise made at `1.0.0` covers — the DSL and runtime API in
 [the DSL reference](docs/implemented/reference/index.md) won't change in
 a breaking way without a major-version bump — and what it explicitly
