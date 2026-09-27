@@ -1204,6 +1204,36 @@ RSpec.describe "QualityControl" do
     end
   end
 
+  # Not a lifecycle move, so it must reach a chapter whatever `bin/qa_sweep` currently has it
+  # doing: a stale path is exactly as wrong while a claim or a suspension is in progress.
+  describe "relocating a chapter" do
+    it "refuses without a path" do
+      target = a_target
+
+      expect { target.relocate! }.to raise_error(Hecks::Runtime::AbsentArgument, /path/)
+    end
+
+    it "corrects a stale path and leaves status untouched" do
+      target = a_target("banking", "../../../../embryonaut_platform/.claude/worktrees/gone/bluebook")
+
+      relocated = target.relocate!(path: { value: "examples/banking" })
+
+      expect(relocated.path.to_h).to eq(value: "examples/banking")
+      expect(relocated.status).to eq("waiting")
+    end
+
+    it "reaches a chapter that is currently held, mid-sweep" do
+      target = a_target
+      target.claim!(held_by: { value: "qa_sweep" }, now: { value: 1_000 })
+
+      relocated = target.relocate!(path: { value: "examples/pizzas" })
+
+      expect(relocated.path.to_h).to eq(value: "examples/pizzas")
+      expect(relocated.status).to eq("held")
+      expect(relocated.held_by.to_h).to eq(value: "qa_sweep")
+    end
+  end
+
   describe "capabilities" do
     def released_with(reference, path, capabilities)
       target = a_target(reference, path)
