@@ -19,11 +19,11 @@ module Hecks
       # Who may sign in, and with what role — rust/host's Google-OAuth
       # provision/member_rows resolve this instead of an env var naming
       # the aggregate (HECKS_MEMBERSHIP_AGGREGATE). Same declared-
-      # not-named shape AUTHORIZATION already is for Governance.
+      # not-named shape `AUTHORIZATION` already is for Governance.
       MEMBERSHIP = "membership".freeze
       # A stable organizational identity, independent of how it was
       # authenticated — recognised by declaration, not the literal name
-      # "Identity". Same declared-not-named shape AUTHORIZATION already
+      # "Identity". Same declared-not-named shape `AUTHORIZATION` already
       # is. rust/host does not build this chapter's payloads; any field
       # mapping lives on the consuming hecksagon's `translates` ACL.
       IDENTITY = "identity".freeze

@@ -273,24 +273,27 @@ module Hecks
         # oracle cannot drift from what "the group key" means without the
         # interpreter drifting the identical way.
         #
+        # A group_by leaf holds one row (ADR 0061, decision D1). Whether two
+        # eligible rows share a full key path is recomputed here from the
+        # rows themselves, independently of any nesting: when they do and the
+        # key path does not cover the aggregate's identity, the ask must have
+        # refused, and an answer is the finding; when none do, the answer must
+        # equal `nest_rows`.
+        #
         # Real target: AccountsByKind (`group_by :kind, :number`,
         # rootless — always generator-eligible with `{}` args).
         # Same closed eligibility-guard chain as aggregation_matches_
         # recompute just above (see its own comment) — group_by in place
         # of count/median, nest_rows in place of recompute_median.
-        # rubocop:disable-next Metrics/CyclomaticComplexity
-        # rubocop:disable-next Metrics/PerceivedComplexity
         #
         # @param history [Hash] a replayed history as returned by `Replay.call`
-        # @return [true, String] true if every eligible group_by report answer matches
-        #   an independent recompute; otherwise a semicolon-joined message naming each
-        #   offending query
+        # @return [true, String] true if every group_by report refused exactly when two
+        #   eligible rows share a key path and otherwise matches an independent recompute;
+        #   otherwise a semicolon-joined message naming each offending query
         def group_by_matches_recompute(history)
           bluebook = history.fetch(:bluebook)
 
           offenders = history.fetch(:queries).filter_map do |asked|
-            next if asked[:error]
-
             domain, name = asked[:query].to_s.split(".", 2)
             next unless name && domain == bluebook.name
 
@@ -300,34 +303,83 @@ module Hecks
             grouped_head = model.aggregate_heads.find { |head| head[:many] }
             next unless grouped_head
 
-            rows = eligible_rows(bluebook, asked.fetch(:instances_at), domain, model, grouped_head, asked[:args] || {})
-            materialized = rows.map { |state| Runtime::Value.materialize_unwrapped(state) }
-            expected = nest_rows(materialized, model.group_by_fields)
-            actual = asked[:rows]&.first&.dig(grouped_head[:as])
-            next if actual == expected
-
-            "#{asked[:query]} #{asked[:args].inspect} answered a #{grouped_head[:as]} grouping that disagrees " \
-              "with independently nesting group_by #{model.group_by_fields.inspect} over #{rows.length} " \
-              "eligible row(s)"
+            group_by_offense(bluebook, asked, model, grouped_head)
           end
 
           offenders.empty? || offenders.join("; ")
         end
 
-        # `ReadModelInterpreter#nest`, byte for byte: one level of nesting
-        # per `group_by` field in declared order, leaf is the row with
-        # every grouped field stripped (already spent, as the keys that
-        # reached it).
-        # @param rows [Array<Hash>] materialized, symbol-keyed rows to nest
+        # Judges one `group_by` ask against the rows it was eligible to see:
+        # refused exactly when two of them share a checked key path, and
+        # otherwise nested exactly as `nest_rows` nests them.
+        #
+        # @param bluebook [Bluebook::Chapter] the bluebook the read model belongs to
+        # @param asked [Hash] one `history[:queries]` entry, carrying `:instances_at`
+        # @param model [Bluebook::ReadModel] the `group_by` read model asked
+        # @param grouped_head [Hash{Symbol => Object}] the model's one many-side head
+        # @return [String, nil] the offense, or nil when the ask agrees with the recompute
+        def group_by_offense(bluebook, asked, model, grouped_head)
+          rows = eligible_rows(bluebook, asked.fetch(:instances_at), bluebook.name, model, grouped_head, asked[:args] || {})
+          materialized = rows.map { |state| Runtime::Value.materialize_unwrapped(state) }
+          shared = shared_key_paths(materialized, model.group_by_fields)
+          checked = !model.groups_by_identity?(bluebook.aggregate(grouped_head[:aggregate]))
+          return collision_offense(asked, model.group_by_fields, shared.length, checked) if shared.any?
+          return nil if asked[:error]
+          return nil if asked[:rows]&.first&.dig(grouped_head[:as]) == nest_rows(materialized, model.group_by_fields)
+
+          "#{asked[:query]} #{asked[:args].inspect} answered a #{grouped_head[:as]} grouping that disagrees " \
+            "with independently nesting group_by #{model.group_by_fields.inspect} over #{rows.length} " \
+            "eligible row(s)"
+        end
+
+        # Judges an ask whose eligible rows share at least one full key path:
+        # a checked key path must have refused, and an identity-covering one
+        # cannot be shared by rows that hold their identity.
+        #
+        # @param asked [Hash] one `history[:queries]` entry (`:query`, `:args`, `:error`)
+        # @param fields [Array<Symbol>] the read model's `group_by` fields
+        # @param shared [Integer] how many key paths more than one eligible row reaches
+        # @param checked [Boolean] false when the key path covers the grouped aggregate's identity
+        # @return [String, nil] the offense, or nil when a checked ask refused
+        def collision_offense(asked, fields, shared, checked)
+          return nil if checked && asked[:error]
+
+          "#{asked[:query]} #{asked[:args].inspect} #{checked ? 'answered' : 'reached'}, but #{shared} key " \
+            "path(s) of group_by #{fields.inspect} are shared by more than one eligible row, " \
+            "#{checked ? 'so the ask must refuse' : 'though they cover the identity'}"
+        end
+
+        # Every full `group_by` key path more than one row reaches, found by
+        # tallying each row's tuple of grouped values, with no nesting at all.
+        #
+        # @param rows [Array<Hash>] materialized, symbol-keyed rows
+        # @param fields [Array<Symbol>] the `group_by` fields, in declared order
+        # @return [Array<Array>] each shared key path's values, in `fields` order;
+        #   `[]` when every row's key path is its own
+        def shared_key_paths(rows, fields)
+          rows.map { |row| fields.map { |field| row[field] } }.tally.select { |_, count| count > 1 }.keys
+        end
+
+        # One level of nesting per `group_by` field in declared order; the
+        # leaf is the row with every grouped field stripped (already spent,
+        # as the keys that reached it). Called only when no key path is
+        # shared, so each leaf's group holds exactly one row; a second row
+        # raises rather than being picked over.
+        # @param rows [Array<Hash>] materialized, symbol-keyed rows to nest, no two
+        #   sharing a full key path
         # @param fields [Array<Symbol>] the `group_by` fields, in declared order
         # @return [Hash] one level of nesting per field, in order; the leaf under
-        #   each key path is the first row in that group with every grouped field
-        #   stripped
+        #   each key path is that path's one row with every grouped field stripped
+        # @raise [ArgumentError] if two rows share a full key path, which
+        #   `shared_key_paths` rules out before this is called
         def nest_rows(rows, fields)
           field, *rest = fields
           rows.group_by { |row| row[field] }.transform_values do |group|
             stripped = group.map { |row| row.reject { |key, _| key == field } }
-            rest.empty? ? stripped.first : nest_rows(stripped, rest)
+            next nest_rows(stripped, rest) unless rest.empty?
+            raise ArgumentError, "nest_rows reached a key path #{stripped.length} rows share" unless stripped.length == 1
+
+            stripped[0]
           end
         end
 

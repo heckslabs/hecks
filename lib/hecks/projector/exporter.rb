@@ -263,10 +263,10 @@ module Hecks
       # nothing this domain attaches provides payment_connection.
       # @param registry [Runtime::Registry] the booted registry `domain_name` is loaded in
       # @param domain_name [String] the domain to export the payment-connection binding for
-      # @return [Hash{Symbol => String, nil}] `:provider` (name), one qualified verb per contract key
-      #   (`:connect`, `:reconnect`, `:disconnect`, `:suspend`, `:resume`, `:enable`, `:disable`) and
-      #   `:aggregate` (`:connect`'s own leading qualified aggregate name); `{}` if nothing this
-      #   domain attaches provides payment_connection
+      # @return [Hash{Symbol => String, nil}] `:provider` (name), one qualified verb per
+      #   contract key (`:connect`, `:reconnect`, `:disconnect`, `:suspend`, `:resume`,
+      #   `:enable`, `:disable`) and `:aggregate` (`:connect`'s own leading qualified
+      #   aggregate name); `{}` if nothing this domain attaches provides payment_connection
       def payment_connection(registry, domain_name)
         provider = registry.payment_connection_provider_for(domain_name)
         return {} unless provider

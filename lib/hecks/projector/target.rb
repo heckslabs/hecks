@@ -59,7 +59,7 @@ module Hecks
       # rather than as a `raise` in the projection's own body, so the
       # requirement is stated instead of written as behaviour. The
       # registry refuses before the projection runs, so the projection
-      # itself no longer carries a guard about its own admission.
+      # itself carries no guard about its own admission.
       # `emits:` says what kind of artifact comes back.
       #
       # `:artifact` (the default) is one thing — a Hash, or a String.

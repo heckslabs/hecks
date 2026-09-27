@@ -21,8 +21,8 @@ module Hecks
       module Specializer
         module_function
 
-        # S17, ADR 0026 — `Handler` is a genuine entity now, nested under
-        # `ProcessManager`, so `.aggregate` alone no longer finds it —
+        # S17, ADR 0026 — `Handler` is a genuine entity, nested under
+        # `ProcessManager`, so `.aggregate` alone does not find it —
         # it hangs off some aggregate's own `.entities` instead
         # (searched recursively, the same reason `Value::Coercion#find_
         # entity` does: a nested entity, like `Dispatch` inside

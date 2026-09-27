@@ -17,60 +17,10 @@
 # reasoning as `bin/docs`: a misspelled aggregate refuses by name instead of
 # quietly answering with nothing.
 
+# The logic is `Hecks::CLI::Document` (lib/hecks/cli/document.rb), which
+# `hecks narrate` also runs.
+
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
-require "hecks"
+require "hecks/cli/document"
 
-ROOT = File.expand_path("..", __dir__)
-
-IGNORED = %r{\A(rust|deploy|tmp|coverage)/}
-
-# Lists every directory in this checkout that `Hecks.boot` would accept as a domain root,
-# for the no-argument usage listing and for suggesting names when a path fails to resolve.
-# Same derivation as `bin/docs`'s `domains` — see there for why it walks for `.hecksagon`
-# files rather than a hand-maintained list.
-#
-# @return [Array<String>] each bootable domain's path relative to the repository root,
-#   deduplicated and sorted
-def domains
-  Dir.glob(File.join(ROOT, "**/*.hecksagon"))
-     .map    { |path| File.basename(File.dirname(path)) == "bluebook" ? File.dirname(path, 2) : File.dirname(path) }
-     .map    { |path| path.delete_prefix("#{ROOT}/") }
-     .grep_v(IGNORED)
-     .uniq.sort
-end
-
-here = Hecks::Adapters::Folder.new.domain_root
-
-path, aggregate =
-  if ARGV.empty?              then [here, nil]
-  elsif ARGV.length > 1       then [ARGV[0], ARGV[1]]
-  elsif File.directory?(ARGV[0]) then [ARGV[0], nil]
-  else [here, ARGV[0]]
-  end
-
-unless path
-  warn "usage: bin/narrate [domain-path] [aggregate]"
-  warn ""
-  warn "No bluebook here — #{Dir.pwd} is not inside a domain. Name one:"
-  domains.each { |candidate| warn "  #{candidate}" }
-  exit 1
-end
-
-begin
-  runtime = Hecks.boot(path, install_facade: false)
-rescue StandardError => e
-  abort "cannot read #{path}: #{e.message.lines.first.strip}"
-end
-
-bluebook = runtime.registry.bluebooks.values.first
-abort "#{path} loaded no bluebook" unless bluebook
-
-begin
-  puts Hecks::Projector.call(
-    :narrate,
-    bluebook: bluebook,
-    options:  aggregate ? { aggregate: aggregate } : {}
-  )
-rescue Hecks::Runtime::NotFound => e
-  abort e.message
-end
+Hecks::CLI::Document.call(ARGV, projection: :narrate, program: "bin/narrate", root: File.expand_path("..", __dir__))

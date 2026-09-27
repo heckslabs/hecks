@@ -32,7 +32,7 @@ module Hecks
             default:      decode_literal(text(field[:default])),
             # Read back the same way `list` is — both are booleans about the
             # attribute, held as text, and dropping either would rebuild a
-            # bluebook that no longer says what it said.
+            # bluebook that says something other than what was written.
             optional:     text(field[:optional]).to_s == "true",
             pattern:      presence(text(field[:pattern])),
             # The round trip is the only way in. The grammar registry keeps the

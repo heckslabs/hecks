@@ -1,5 +1,14 @@
 # hecks survey: what it has that hecks doesn't
 
+> **Editor's note.** This survey uses the word "hecks" for two different projects, and
+> the body was not rewritten to separate them. Wherever a sentence describes the
+> organism, its daemons, its `hecks_conception/` bluebooks, its private fork or the
+> Storehouse binary, "hecks" means the older, larger sibling project that was read.
+> Wherever it describes the language, the runtime or the gem, "hecks" means this
+> project. Read "the sibling project" for the first sense and "this project" for the
+> second. The survey is a dated snapshot and lives in `docs/archive/` under the rule in
+> [the archive README](README.md).
+
 **Status: survey, 2026-08-17.** A thorough read of `~/Projects/hecks` (the
 older, larger sibling that now depends on hecks via its Gemfile) to answer
 one question: *what does it have that we wish we had — especially Storehouse?*

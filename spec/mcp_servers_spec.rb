@@ -143,6 +143,108 @@ RSpec.describe "the stdio MCP servers" do
     end
   end
 
+  # Reader mode (ADR 0072 decision 2): a spawner narrows the door to reader tools over the
+  # domains it names. It limits reach and identifies no one.
+  describe "bin/hecks_mcp_door in reader mode" do
+    let(:sandbox_root) { Dir.mktmpdir("hecks-mcp-door-reader") }
+    let(:domain)       { memory_pizzas_under(sandbox_root) }
+    let(:marker)       { File.join(sandbox_root, "unnamed-domain-loaded") }
+    let(:reader_env) do
+      { "HECKS_STOREHOUSE_ROOT" => sandbox_root, "HECKS_DOOR_TOOLS" => "readers", "HECKS_DOOR_DOMAINS" => domain }
+    end
+
+    after { FileUtils.rm_rf(sandbox_root) }
+
+    def results_of(run) = run[:responses].to_h { |response| [response["id"], response["result"]] }
+
+    def payload(result) = JSON.parse(result["content"].first["text"])
+
+    # A domain under the root whose hecksagon writes `marker` when it is loaded.
+    def unnamed_domain
+      FileUtils.mkdir_p(File.join(sandbox_root, "unnamed"))
+      File.write(File.join(sandbox_root, "unnamed", "unnamed.hecksagon"), "File.write(#{marker.inspect}, 'ran')\n")
+      "unnamed"
+    end
+
+    it "answers catalog, describe and state for a named domain, lists only reader tools, and says so on stderr" do
+      run = run_over_pipes(
+        door,
+        [{ jsonrpc: "2.0", id: 1, method: "tools/list" },
+         tool_call(2, "catalog", { domain: domain }),
+         tool_call(3, "describe", { domain: domain }),
+         tool_call(4, "state", { domain: domain, aggregate: "Order", summary: "spec" })],
+        env: reader_env
+      )
+      results = results_of(run)
+
+      expect(results[1]["tools"].map { |tool| tool["name"] }).to match_array(Hecks::McpDoorScope::READER_TOOLS)
+      expect([2, 3, 4].map { |id| results[id]["isError"] }).to all(be false)
+      expect(payload(results[2])["aggregates"].map { |aggregate| aggregate["name"] }).to include("Order")
+      expect(payload(results[4])["count"]).to eq(0)
+      expect(run[:err]).to include("Reader mode (HECKS_DOOR_TOOLS=readers)", "identifies no one")
+      expect(run[:err]).not_to include("anyone who can write to stdin can run it")
+    end
+
+    it "refuses dispatch, a dry run and behaviors, naming the mode" do
+      results = results_of(run_over_pipes(
+                             door,
+                             [tool_call(1, "dispatch", { domain: domain, command: "create_pizza", summary: "spec",
+                                                         role: "Chef", args: {} }),
+                              tool_call(2, "dispatch", { domain: domain, command: "create_pizza", summary: "spec",
+                                                         role: "Chef", args: {}, dry_run: true }),
+                              tool_call(3, "behaviors", { target: File.join(sandbox_root, domain) })],
+                             env: reader_env
+                           ))
+
+      [1, 2, 3].each do |id|
+        expect(results[id]["isError"]).to be true
+        expect(payload(results[id])["error"]).to include("reader mode (HECKS_DOOR_TOOLS=readers)")
+      end
+    end
+
+    it "refuses a domain it was not given before loading any of its Ruby" do
+      other   = unnamed_domain
+      results = results_of(run_over_pipes(
+                             door,
+                             [tool_call(1, "catalog", { domain: other }),
+                              tool_call(2, "validate", { domain: other }),
+                              tool_call(3, "state", { domain: other, aggregate: "Order", summary: "spec" })],
+                             env: reader_env
+                           ))
+
+      [1, 2, 3].each do |id|
+        expect(results[id]["isError"]).to be true
+        expect(payload(results[id])["error"]).to include("is refused", "reader mode")
+      end
+      expect(File).not_to exist(marker)
+    end
+
+    it "loads that same domain on an unrestricted door, which is what the refusal above prevents" do
+      other = unnamed_domain
+      run_over_pipes(door, [tool_call(1, "catalog", { domain: other })],
+                     env: { "HECKS_STOREHOUSE_ROOT" => sandbox_root })
+
+      expect(File).to exist(marker)
+    end
+
+    {
+      "an unknown mode"                 => { "HECKS_DOOR_TOOLS" => "all", "HECKS_DOOR_DOMAINS" => "pizzas" },
+      "reader mode with no domains"     => { "HECKS_DOOR_TOOLS" => "readers" },
+      "domains without reader mode"     => { "HECKS_DOOR_DOMAINS" => "pizzas" },
+      "an unknown HECKS_DOOR_ name"     => { "HECKS_DOOR_TOKEN" => "x" },
+      "a named domain outside the root" => { "HECKS_DOOR_TOOLS" => "readers", "HECKS_DOOR_DOMAINS" => "/tmp/elsewhere" }
+    }.each do |label, settings|
+      it "refuses to start on #{label}, before answering anything" do
+        result = run_over_pipes(door, [initialize_request],
+                                env: { "HECKS_STOREHOUSE_ROOT" => sandbox_root }.merge(settings))
+
+        expect(result[:status].exitstatus).to eq(Hecks::McpDoorScope::EXIT_STATUS)
+        expect(result[:err]).to include("refusing to start")
+        expect(result[:out]).to be_empty
+      end
+    end
+  end
+
   describe "bin/hecks_query_ir_mcp" do
     it "refuses a domains directory outside the project root rather than loading Ruby from it" do
       outside = Dir.mktmpdir("hecks-mcp-outside")

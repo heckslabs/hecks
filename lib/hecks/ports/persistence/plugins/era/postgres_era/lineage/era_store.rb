@@ -24,7 +24,7 @@ module Hecks
           #   the domain holds none; keys are `:ordinal` (Integer), `:hash` and `:label` (String,
           #   nil until `mint_name!` names the era), `:held_text` (String) and `:watermark`
           #   (Integer journal ordinal the era was cut at, nil for era 1)
-          # @raise [Runtime::WiringError] if a held text no longer matches its stored digest
+          # @raise [Runtime::WiringError] if a held text does not match its stored digest
           def eras
             @db.exec_params(
               "SELECT ordinal, hash, label, held_text, watermark, held_digest, held_projection::text " \
@@ -153,7 +153,7 @@ module Hecks
           # Reports the ordinal of the newest era the domain holds.
           #
           # @return [Integer] the highest held ordinal, or 1 when no era is held yet
-          # @raise [Runtime::WiringError] if a held text no longer matches its stored digest
+          # @raise [Runtime::WiringError] if a held text does not match its stored digest
           def current_era
             held = eras
             held.empty? ? 1 : held.last[:ordinal]

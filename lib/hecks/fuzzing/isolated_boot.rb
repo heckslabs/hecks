@@ -166,8 +166,8 @@ module Hecks
               # A transient sibling (an adapter's atomic-write `.tmp.<pid>`
               # file, caught mid-rename by the glob above) can vanish
               # between listing and copy — under parallel_r-spec two
-              # workers share the real example tree. A file that no longer
-              # exists was never part of the state this copy needs.
+              # workers share the real example tree. A file that is
+              # gone was never part of the state this copy needs.
             end
           end
         end

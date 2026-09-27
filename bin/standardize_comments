@@ -8,6 +8,7 @@
 #   bin/standardize_comments --report lib/hecks   # summary tables (default)
 #   bin/standardize_comments --check  lib/hecks   # one line per violation, exit 1 if any
 #   bin/standardize_comments --fix    lib/hecks   # rewrite the mechanical categories
+#   bin/standardize_comments --write-baseline lib/hecks   # record today's long blocks
 #
 # `--only all_caps,long_line` narrows any mode to the named categories and
 # `--json` swaps the report for machine-readable output.
@@ -18,7 +19,17 @@
 # someone to read the code, so the fixer leaves it alone. A fix is written
 # only when the file's non-comment token stream is unchanged afterwards.
 #
-# This script is not a CI gate. Nothing runs it automatically.
+# ## Long blocks and the baseline
+#
+# `long_block` flags a run of more than `MAX_BLOCK` consecutive comment lines.
+# The blocks that already exceed it are listed in
+# `.standardize_comments_baseline.json`, so only a new block, or a baselined
+# block that has grown, fails. See docs/COMMENT_STYLE_GUIDE.md, section 6.
+#
+# ## CI
+#
+# CI runs `bin/standardize_comments --check lib/hecks` as a gate
+# (.github/workflows/ci-checks.yml, job `checks_static`).
 
 require "English"
 require "json"
@@ -31,6 +42,14 @@ module CommentStyle
   MAX_LINE = 100
   LONG_CLASS_DOC = 25
   MAX_HEADING_WORDS = 6
+
+  # A run of comment lines longer than this is a `long_block`, unless the baseline holds it.
+  # The threshold is provisional: ADR 0069 leaves it open, and 50 is the smallest of the
+  # values its ticket floated.
+  MAX_BLOCK = 50
+
+  # Longest anchor kept in a block's baseline key.
+  MAX_ANCHOR = 80
 
   CATEGORIES = {
     "undocumented_method"    => "public method has no doc comment",
@@ -45,7 +64,8 @@ module CommentStyle
     "bare_constant"          => "capitalised word names something in this file's code: backtick or lowercase it",
     "unknown_capitals"       => "capitalised token is not an English word: backtick it or list it as an acronym",
     "design_history"         => "narrates design history instead of citing an ADR",
-    "long_line"              => "comment line exceeds #{MAX_LINE} characters"
+    "long_line"              => "comment line exceeds #{MAX_LINE} characters",
+    "long_block"             => "comment block exceeds #{MAX_BLOCK} lines and is new or has grown past its baseline"
   }.freeze
 
   FIXABLE = %w[all_caps long_bold long_line].freeze
@@ -60,6 +80,7 @@ module CommentStyle
     PATCH PG PID PK PM POSIX POST PR PRAGMA PRD PUT QA QC RAM RBAC README REPL REST RLS RNG RPC RUBYOPT
     SAM SAVEPOINT SDK SELECT SHA SME SQL SSH SSL SSM SW STDERR STDIN STDOUT TCP TLA TLS TOCTOU TODO TTL UID UL
     URI URL UTC UTF UUID VO WASM XML YAML
+    ACL ALB BC GNU OAC WAF
   ].to_set.freeze
 
   # Names whose correct spelling is neither all-caps nor all-lowercase.
@@ -119,7 +140,8 @@ module CommentStyle
     /\b(?:was|were|been|got) renamed\b/i, /\brenamed from\b/i, /\bhas since\b/i,
     /\bbefore (?:this|the) (?:change|fix|refactor|split|rename|pr|commit|patch)\b/i, /\bBefore this, /,
     /\ban? earlier (?:version|revision|draft|pass)\b/i, /\bwhen this was (?:written|added)\b/i,
-    /\b(?:in|since|by|after|before|until) (?:PR )?\#\d{2,}/i, /\bPR \#?\d{2,}\b/
+    /\b(?:in|since|by|after|before|until) (?:PR )?\#\d{2,}/i, /\bPR \#?\d{2,}\b/,
+    /\bno longer\b/i, /\bany more\b/i, /\banymore\b/i
   ].freeze
 
   DIRECTIVE = /\A#\s*(?:rubocop:|frozen_string_literal:|encoding:|coding:|shareable_constant|typed:|!)/
@@ -147,6 +169,7 @@ module CommentStyle
   MethodDef = Struct.new(:name, :line, :params, :visibility, :raises, :block_param)
   TypeDef = Struct.new(:fqn, :line, :namespace_only)
   Comment = Struct.new(:line, :col, :text, :full_line)
+  Block = Struct.new(:line, :lines, :key)
 
   # Decides whether a capitalised token is an English word being shouted.
   # Anything else (an initialism, an identifier, a product name) keeps its
@@ -223,6 +246,38 @@ module CommentStyle
     Ripper.lex(source).reject { |token| CODE_NOISE.include?(token[1]) }.map { |token| token[2] }
   end
 
+  # The checked-in list of comment blocks already over `MAX_BLOCK` lines.
+  #
+  # A block is identified by its file and a key: the text of its first line, with a
+  # `#2`, `#3` suffix when the same text opens several blocks in one file. That key
+  # survives edits above the block, which a line number would not. A block is
+  # tolerated while its length does not exceed the length recorded here; a longer one,
+  # or one with no entry, is a `long_block` violation.
+  module Baseline
+    PATH = File.expand_path("../.standardize_comments_baseline.json", __dir__)
+
+    module_function
+
+    # Reads the baseline from disk.
+    #
+    # @param path [String] the baseline file
+    # @return [Hash{String => Hash{String => Integer}}] file path to block key to length,
+    #   empty when there is no baseline file
+    def load(path = PATH)
+      File.exist?(path) ? JSON.parse(File.read(path)) : {}
+    end
+
+    # Writes a baseline in a stable order, so a rewrite shows only real changes in a diff.
+    #
+    # @param blocks [Hash{String => Hash{String => Integer}}] file path to block key to length
+    # @param path [String] the baseline file
+    # @return [void]
+    def dump(blocks, path = PATH)
+      sorted = blocks.sort.to_h { |file, keys| [file, keys.sort.to_h] }
+      File.write(path, "#{JSON.pretty_generate(sorted)}\n")
+    end
+  end
+
   # One parsed source file and the violations found in it.
   class SourceFile
     attr_reader :path, :lines, :comments
@@ -242,13 +297,25 @@ module CommentStyle
     # Finds every place this file departs from the style guide.
     #
     # @param only [Array<String>, nil] categories to keep, all when nil
+    # @param baseline [Hash{String => Hash{String => Integer}}] the long blocks to tolerate
     # @return [Array<Violation>]
-    def violations(only: nil)
+    def violations(only: nil, baseline: {})
       return [] if generated?
 
-      found = text_violations + (test_file? ? [] : structure_violations)
+      found = text_violations + (test_file? ? [] : structure_violations) + long_block_violations(baseline)
       found = found.select { |v| only.include?(v.category) } if only
       found.sort_by { |v| [v.line, v.category] }
+    end
+
+    # Finds every run of consecutive full-line comments longer than `MAX_BLOCK`.
+    #
+    # @return [Array<Block>] each block's first line, length and baseline key
+    def long_blocks
+      return [] if generated?
+
+      seen = Hash.new(0)
+      runs = @comments.select(&:full_line).slice_when { |above, below| below.line != above.line + 1 }
+      runs.select { |run| run.size > MAX_BLOCK }.map { |run| Block.new(run.first.line, run.size, block_key(run, seen)) }
     end
 
     # Rewrites the mechanical categories.
@@ -301,6 +368,27 @@ module CommentStyle
     end
 
     private
+
+    # The text of a block's first line, without its `#`, is its key. A second block opened by
+    # the same text in this file gets a `#2` suffix, and so on.
+    def block_key(run, seen)
+      text = run.first.text.sub(/\A#+\s*/, "").strip[0, MAX_ANCHOR]
+      text = "(empty)" if text.empty?
+      seen[text] += 1
+      seen[text] == 1 ? text : "#{text} ##{seen[text]}"
+    end
+
+    # A block fails when it has no baseline entry, or has grown past the length recorded there.
+    def long_block_violations(baseline)
+      held = baseline.fetch(path.delete_prefix("./"), {})
+      long_blocks.filter_map do |block|
+        allowed = held[block.key]
+        next if allowed && block.lines <= allowed
+
+        detail = allowed ? "baselined at #{allowed}" : "over #{MAX_BLOCK}"
+        Violation.new(path, block.line, "long_block", "#{block.lines} lines, #{detail}: #{block.key}")
+      end
+    end
 
     def lex_comments
       Ripper.lex(@source).filter_map do |(line, col), type, text, _|
@@ -812,9 +900,21 @@ module CommentStyle
   class Run
     # @param paths [Array<String>] files or directories
     # @param only [Array<String>, nil] categories to keep
-    def initialize(paths, only: nil)
+    # @param baseline [Hash{String => Hash{String => Integer}}] the long blocks to tolerate
+    def initialize(paths, only: nil, baseline: Baseline.load)
       @files = paths.flat_map { |p| File.directory?(p) ? ruby_files(p) : [p] }.sort.uniq
       @only = only
+      @baseline = baseline
+    end
+
+    # Every block over `MAX_BLOCK` lines in these files, in the baseline's own shape.
+    #
+    # @return [Hash{String => Hash{String => Integer}}] file path to block key to length
+    def long_block_baseline
+      @files.each_with_object({}) do |path, held|
+        blocks = SourceFile.new(path).long_blocks
+        held[path.delete_prefix("./")] = blocks.to_h { |block| [block.key, block.lines] } if blocks.any?
+      end
     end
 
     # Files whose code differs from `ref`, comments and whitespace aside.
@@ -826,6 +926,7 @@ module CommentStyle
         before = IO.popen(["git", "show", "#{ref}:#{path}"], err: File::NULL, &:read)
         next false unless $CHILD_STATUS.success?
 
+        before = before.force_encoding(Encoding::UTF_8)
         CommentStyle.code_tokens(before) != CommentStyle.code_tokens(File.read(path))
       end
     end
@@ -836,7 +937,8 @@ module CommentStyle
     def violations
       @violations ||= begin
         sources = @files.map { |path| SourceFile.new(path) }
-        found = sources.flat_map { |source| source.violations(only: @only) } + undocumented_types(sources)
+        found = sources.flat_map { |source| source.violations(only: @only, baseline: @baseline) } +
+                undocumented_types(sources)
         @only ? found.select { |v| @only.include?(v.category) } : found
       end
     end
@@ -925,6 +1027,9 @@ module CommentStyle
       opts.on("--report", "summary tables (default)") { options[:mode] = :report }
       opts.on("--check", "list every violation, exit 1 if any") { options[:mode] = :check }
       opts.on("--fix", "rewrite fixable categories: #{FIXABLE.join(', ')}") { options[:mode] = :fix }
+      opts.on("--write-baseline", "record every block over #{MAX_BLOCK} lines as tolerated") do
+        options[:mode] = :write_baseline
+      end
       opts.on("--only LIST", Array, "limit to: #{CATEGORIES.keys.join(', ')}") { |list| options[:only] = list }
       opts.on("--code-unchanged REF", "exit 1 if any file's code (not comments) differs from REF") do |ref|
         options[:mode] = :code_unchanged
@@ -967,9 +1072,21 @@ module CommentStyle
     run = Run.new(paths, only: options[:only])
     case options[:mode]
     when :fix then puts("rewrote #{run.fix!} files") || 0
+    when :write_baseline then write_baseline(run)
     when :code_unchanged then report_code_changes(run.code_changed_since(options[:ref]))
     else render(run, options)
     end
+  end
+
+  # Rewrites the baseline file from the blocks over `MAX_BLOCK` lines that `run` finds.
+  #
+  # @param run [Run] the run whose files to record
+  # @return [Integer] process exit status
+  def self.write_baseline(run)
+    held = run.long_block_baseline
+    Baseline.dump(held)
+    puts "recorded #{held.values.sum(&:size)} blocks in #{held.size} files at #{Baseline::PATH}"
+    0
   end
 
   # Prints `--code-unchanged`'s verdict.

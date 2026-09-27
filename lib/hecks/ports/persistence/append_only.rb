@@ -308,7 +308,7 @@ module Hecks
         #
         # @param id [Integer] the row id assigned by `outbox_enqueue`
         # @return [Boolean] true when this call claimed the row; false when it is missing or
-        #   no longer pending
+        #   not pending
         def outbox_claim(id) = @adapter.outbox_claim(id)
 
         # Records the final status of a claimed outbox row.

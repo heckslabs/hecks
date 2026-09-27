@@ -227,6 +227,19 @@ jobs:
       - name: lint generated deploy recipes
         run: bundle exec bin/lint_deploy_recipes
 
+      # THE COMMENT LINTER AS A GATE (ADR 0069) — CLAUDE.md asks for this
+      # run before comment work is called done, and nothing made it
+      # happen. Checks every comment under lib/hecks against
+      # docs/COMMENT_STYLE_GUIDE.md: YARD tags, no all-caps emphasis, no
+      # design history, lines under 100 characters, and no comment block
+      # over 50 lines unless .standardize_comments_baseline.json already
+      # holds it at that length. Reads only committed source, so it belongs
+      # here rather than in `rspec`. CI only, like `lint generated deploy
+      # recipes` above, so it carries no attestation `if:` and .githooks/
+      # pre-push does not run it.
+      - name: comment style
+        run: bundle exec bin/standardize_comments --check lib/hecks
+
       # DOC COVERAGE, ALSO HERE NOW, NOT ONLY IN .githooks/pre-push (this
       # one carries a Phase 7 `if:` — the two below in `checks_codegen_
       # drift` don't, since that job's attestation coverage is narrower;

@@ -1,0 +1,104 @@
+require_relative "../../hecks"
+
+module Hecks
+  module CLI
+    # The command behind `bin/docs`, `bin/narrate`, `hecks docs` and `hecks narrate`:
+    # one domain's document, projected from its own bluebook, to stdout.
+    #
+    # `:docs` answers the usage document a console's `<Domain>.docs` prints; `:narrate`
+    # answers the same chapter read back in English, for the subject-matter expert
+    # (`Projector::NarrateProjector`). Nothing is written for the caller: redirect it,
+    # so the caller decides where a generated file lands and git decides whether it
+    # drifted.
+    #
+    # ## Every failure is a sentence
+    #
+    # A misspelled aggregate refuses by name rather than printing nothing and exiting
+    # 0. A caller cannot tell an empty document from an empty domain, so this refuses
+    # instead and names what is actually there.
+    #
+    # ## Standing in a domain is enough
+    #
+    # `Adapters::Folder#domain_root` walks up for the nearest `.hecksagon`, which makes
+    # the first argument ambiguous. The rule: a directory is a domain, anything else
+    # is an aggregate name, and the two-argument form says which is which.
+    module Document
+      # Build output and other trees under a root that hold no domain a caller means.
+      # Matched against the path relative to the root, because a substring test
+      # against an absolute path tests wherever somebody happened to clone.
+      IGNORED = %r{\A(rust|deploy|tmp|coverage)/}
+
+      module_function
+
+      # Prints `projection` for the domain and optional aggregate `argv` names.
+      #
+      # @param argv [Array<String>] an optional domain directory, then an optional
+      #   aggregate name
+      # @param projection [Symbol] `:docs` or `:narrate`
+      # @param program [String] the name the usage message calls this command by
+      # @param root [String] the directory whose domains are listed when no domain
+      #   is found
+      # @return [void]
+      # @raise [SystemExit] when no domain is found, it cannot boot, it loads no
+      #   bluebook, or the aggregate does not exist
+      def call(argv, projection:, program:, root:)
+        here = Adapters::Folder.new.domain_root
+        path, aggregate = target(argv, here)
+        refuse_without_domain(program, root) unless path
+
+        begin
+          runtime = Hecks.boot(path, install_facade: false)
+        rescue StandardError => e
+          abort "cannot read #{path}: #{e.message.lines.first.strip}"
+        end
+
+        # The domain's own chapter, not a framework member it attached: insertion
+        # order, the same distinction `Runtime::Loader.dispatcher_for` draws.
+        bluebook = runtime.registry.bluebooks.values.first
+        abort "#{path} loaded no bluebook" unless bluebook
+
+        begin
+          puts Projector.call(projection, bluebook: bluebook, options: aggregate ? { aggregate: aggregate } : {})
+        rescue Runtime::NotFound => e
+          abort e.message
+        end
+      end
+
+      # Lists every directory under `root` that `Hecks.boot` would accept.
+      #
+      # Found by their wiring, not their chapters: a `.hecksagon` is what says "this
+      # is a domain, and here is how its aggregates are stored", while most
+      # `.bluebook` files (era translations, the language's own grammar,
+      # `spec/fixtures`) are not domains anybody boots.
+      #
+      # @param root [String] the directory to search under
+      # @return [Array<String>] domain directory paths relative to `root`,
+      #   deduplicated and sorted
+      def domains(root)
+        Dir.glob(File.join(root, "**/*.hecksagon"))
+           .map    { |path| File.basename(File.dirname(path)) == "bluebook" ? File.dirname(path, 2) : File.dirname(path) }
+           .map    { |path| path.delete_prefix("#{root}/") }
+           .grep_v(IGNORED)
+           .uniq.sort
+      end
+
+      # @api private
+      def target(argv, here)
+        if argv.empty?              then [here, nil]
+        elsif argv.length > 1       then [argv[0], argv[1]]
+        elsif File.directory?(argv[0]) then [argv[0], nil]
+        else [here, argv[0]]
+        end
+      end
+
+      # @api private
+      def refuse_without_domain(program, root)
+        warn "usage: #{program} [domain-path] [aggregate]"
+        warn ""
+        warn "No bluebook here — #{Dir.pwd} is not inside a domain. Name one:"
+        domains(root).each { |candidate| warn "  #{candidate}" }
+        exit 1
+      end
+    end
+  end
+end

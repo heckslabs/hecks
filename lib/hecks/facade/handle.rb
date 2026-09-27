@@ -142,14 +142,14 @@ module Hecks
       # privacy.bluebook): a marking's presence is what makes a read
       # redacted, not a separate flag this class carries itself.
       #
-      # ALWAYS THE STRONG CHECK, never the weak string-only fallback
+      # Always the strong check, never the weak string-only fallback
       # `CommandRules::Authorization#refuse_role_mismatch` allows an
       # unidentified caller — a read gate gone wrong is a leak, not a
       # refused command, so an ambient caller with no `actor_id` (or no
       # caller at all) is masked here, full stop, rather than waved
       # through the way a self-asserted `role` string is for a command.
       #
-      # ONE LEVEL OF NESTING ONLY — `attendee.medications` masks inside
+      # One level of nesting only — `attendee.medications` masks inside
       # the returned `Runtime::Value` via its own `#with`; a marking two
       # levels deep is not supported and is left unmasked rather than
       # silently mishandled, since nothing in this corpus needs it yet.

@@ -1,5 +1,11 @@
 # HECKS Architecture & Implementation Guide
 
+> **Status: dated roadmap, last reconciled 2026-08-07.** This is a plan, not a record
+> of what is built. Phases it marks as new or research may have shipped, changed shape
+> or never started since. It stays in `docs/` because the README and CONTRIBUTING link
+> it as the roadmap. For the current state read the README's "Project status" section,
+> the commit history, `docs/implemented/` and `future-features.md`.
+
 > This document is the canonical engineering specification for Hecks.
 > It combines architectural invariants, execution model, implementation guidance,
 > and the feature roadmap into a single reference intended for humans and coding agents.

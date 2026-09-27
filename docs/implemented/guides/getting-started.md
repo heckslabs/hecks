@@ -15,7 +15,7 @@ read can be checked.
 
 ## What you need
 
-hecks is published as the `hecks` gem (currently 1.0.2), but the
+hecks is published as the `hecks` gem, but the
 repository itself is still the primary way to work with it — clone it
 and the repository is the tool:
 
@@ -28,7 +28,7 @@ bin/console          # boots the pizzas example this guide walks through
 
 `examples/pizzas` wires `PostgresEra`, so this needs a reachable local
 Postgres. If one isn't running yet, use `bin/console examples/banking`
-instead — it boots against the in-memory adapter, no server needed. See
+instead — it is bound to the Heki file adapter, no server needed. See
 [Schema evolution](schema-evolution.md) for when Postgres earns its
 place.
 

@@ -228,7 +228,7 @@ module Hecks
       #   the dispatch's own result
       # @return [Hash{Symbol => Object}] the settled record's current state, read
       #   back from the repository; `result.state` (or `{}`) when the result has no
-      #   id or the repository no longer has that aggregate/record
+      #   id or the repository does not have that aggregate/record
       def settled_state(runtime, verb, result)
         return result.state || {} unless result.respond_to?(:id) && result.id
 
@@ -266,7 +266,7 @@ module Hecks
       # only so long as nothing else ever asked it to resolve a port-operation
       # verb. Now that a `policy` can legitimately `trigger` a port operation
       # (`ReactionInvocation#resolve_target`'s own port-operation branch),
-      # that raise no longer happens, so this checks directly instead.
+      # that raise does not happen, so this checks directly instead.
       #
       # @param runtime [Runtime::Dispatcher, Runtime::RemoteDispatcher] the suite's
       #   booted runtime

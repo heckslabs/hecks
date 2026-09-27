@@ -1131,6 +1131,83 @@ RSpec.describe "a rootless read model's own group_by" do
     )
   end
 
+  # ADR 0061, decision D1: a group_by leaf holds one row. Two rows reaching
+  # the same full key path refuse at dispatch; a key path covering the
+  # grouped aggregate's whole identity is accepted from the declaration.
+  describe "a key path two rows share" do
+    def boot_colliding
+      registry = Hecks::Runtime::Registry.new
+      Hecks.with_registry(registry) do
+        Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
+        Kernel.load(InMemoryDomain::EXTRACTION_PORT)
+        Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
+        Kernel.load(InMemoryDomain::PRISM_ADAPTER)
+        Hecks.bluebook("Collide") do
+          vision "x"
+          generic
+
+          aggregate "Sprocket" do
+            identified_by :ref
+            attribute :ref,   Ref
+            attribute :group, Ref
+            value_object "Ref" do
+              attribute :value, String
+            end
+            command "Declare" do
+              attribute :ref,   Ref
+              attribute :group, Ref
+              sets :ref
+              sets :group
+            end
+          end
+
+          read_model "ByGroup" do
+            include Sprocket
+
+            group_by :group
+          end
+
+          read_model "ByGroupAndRef" do
+            include Sprocket
+
+            group_by :group, :ref
+          end
+        end
+        Hecks.hecksagon("Collide") { Collide::Sprocket.persisted_by("Memory") }
+      end
+      registry.verify!
+      runtime = Hecks::Runtime::Loader.bind_runtime(Hecks::Runtime::Dispatcher.new(registry))
+      Collide::Sprocket.declare!(ref: { value: "w1" }, group: { value: "g1" })
+      Collide::Sprocket.declare!(ref: { value: "w2" }, group: { value: "g1" })
+      Collide::Sprocket.declare!(ref: { value: "w3" }, group: { value: "g2" })
+      runtime
+    end
+
+    it "refuses, naming the read model, the key path and the colliding ids" do
+      runtime = boot_colliding
+
+      expect { runtime.query("Collide.by_group") }.to raise_error(
+        Hecks::Runtime::InvariantViolation,
+        'ByGroup groups by group, but rows "w1", "w2" share group = g1 — a group_by leaf holds one row; ' \
+        "add a field that tells them apart"
+      )
+    end
+
+    it "answers when the key path covers the grouped aggregate's identity" do
+      grouped = boot_colliding.query("Collide.by_group_and_ref").first[:sprockets]
+
+      expect(grouped).to eq("g1" => { "w1" => { id: "w1" }, "w2" => { id: "w2" } }, "g2" => { "w3" => { id: "w3" } })
+    end
+
+    it "accepts an identity-covering key path from the declaration alone" do
+      bluebook = boot_colliding.registry.bluebook("Collide")
+      sprocket = bluebook.aggregate("Sprocket")
+
+      expect(bluebook.read_model("ByGroupAndRef").groups_by_identity?(sprocket)).to be(true)
+      expect(bluebook.read_model("ByGroup").groups_by_identity?(sprocket)).to be(false)
+    end
+  end
+
   it "refuses group_by naming a field the aggregate doesn't declare" do
     runtime = build
     open_accounts(runtime)

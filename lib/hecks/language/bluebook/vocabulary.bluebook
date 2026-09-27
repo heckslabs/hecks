@@ -339,6 +339,12 @@ Hecks.bluebook "Bluebook" do
       member refusal: "InvariantViolation", site: "undeclared_set",
              template: "{name} admits {admits}, which this chapter does not declare — a closed set is named " \
                        "Aggregate::SetName, and it must be one the bluebook actually holds"
+      # ADR 0061 decision D1: a group_by leaf holds one row, so two rows
+      # reaching the same full key path refuse at dispatch rather than one
+      # of them being dropped.
+      member refusal: "InvariantViolation", site: "group_by_collision",
+             template: "{read_model} groups by {fields}, but rows {ids} share {key} — a group_by " \
+                       "leaf holds one row; add a field that tells them apart"
       member refusal: "Unauthorized", site: "tenant_required",
              template: "{query} declares authorize with tenant: {field} — pass {field}: to name which " \
                        "{field} this ask is scoped to"
@@ -619,6 +625,16 @@ Hecks.bluebook "Bluebook" do
       member refusal: "InvariantViolation", site: "undeclared_set", argument: "name",
              shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: ""
       member refusal: "InvariantViolation", site: "undeclared_set", argument: "admits",
+             shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: ""
+      member refusal: "InvariantViolation", site: "group_by_collision", argument: "read_model",
+             shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: ""
+      member refusal: "InvariantViolation", site: "group_by_collision", argument: "fields",
+             shape: "list", quoting: "none", separator: ", ", sorted: "false", when_empty: ""
+      member refusal: "InvariantViolation", site: "group_by_collision", argument: "ids",
+             shape: "list", quoting: "inspect", separator: ", ", sorted: "true", when_empty: ""
+      # "field = value" per key-path level, joined with ", " by the caller:
+      # each value is its own `to_s`, the same text the nested Hash keys it by.
+      member refusal: "InvariantViolation", site: "group_by_collision", argument: "key",
              shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: ""
       member refusal: "Unauthorized", site: "tenant_required", argument: "query",
              shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: ""

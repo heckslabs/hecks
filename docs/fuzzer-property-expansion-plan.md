@@ -1,5 +1,8 @@
 # Fuzzer property expansion: five gaps, scoped and ordered
 
+> **Status: plan, written 2026-08-15.** The gaps and their order are as found that day.
+> Some may be closed since; `META_DOMAIN_KNOWN_GAPS` and the commit history are current.
+
 Five research passes over `META_DOMAIN_KNOWN_GAPS` (`spec/fuzzing/meta_domain_coverage_spec.rb`),
 each reading the real enforcement code, the real generator, the real corpus, and — for two of
 them — running a live probe against a real domain rather than reasoning from the code alone. This

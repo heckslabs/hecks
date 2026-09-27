@@ -148,7 +148,7 @@ module Hecks
           # `stack_name` at all. They diverge on purpose for a domain whose
           # declared identity (`Hecks.bluebook`, hence `world.domain`, hence
           # `.world`'s own filename — `domain_name` above, needed just to find
-          # that file) no longer matches its live AWS stack's own name: a
+          # that file) does not match its live AWS stack's own name: a
           # CloudFormation stack cannot be renamed in place, and this domain's
           # logical ids are already load-bearing on a real RDS instance other
           # domains borrow from in Shared mode (see `owner_stack_name` below) —
@@ -1246,7 +1246,7 @@ module Hecks
             template_yaml = template_yaml.sub(
               /^        - LambdaInvokePolicy:\n            FunctionName: !Ref #{Regexp.escape(logical_id)}\n/, ""
             )
-            # Outputs — no `#{logical_id}Url` exists any more for `FunctionUrl` to
+            # Outputs — no `#{logical_id}Url` exists for `FunctionUrl` to
             # `!GetAtt`; WebFunction's own URL becomes the stack's one and only
             # "FunctionUrl" (never "WebFunctionUrl" — that name is reserved for
             # the two-URL case, a domain that also has a #{logical_id} of its
@@ -2287,7 +2287,7 @@ bastion_yaml = shared ? nil : Shared.bastion_yaml(
           reindent = ->(text) { text.each_line.map { |line| line.strip.empty? ? line : "  #{line}" }.join }
 
           # Not pre-reindented (unlike the return value as a whole, below) — each
-          # is spliced back into the still-being-dedented RESOURCES heredoc via
+          # is spliced back into the still-being-dedented `RESOURCES` heredoc via
           # `#{...}`, which the outer `reindent.call` already shifts by 2
           # spaces once; reindenting here too would double it.
           origin_access_control = use_oac ? <<~OAC : ""

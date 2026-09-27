@@ -1,0 +1,12 @@
+{
+  "domain": "spec/fixtures/rust_project/group_by_collision_fixture",
+  "note": "ADR 0061 decision D1 — a group_by leaf holds one row. `PartsByBin` groups by `bin` alone: it answers while each bin holds one part, then refuses InvariantViolation/group_by_collision once p1 and p2 share bin b1, naming the read model, the key path and both ids, rather than keeping p1 and dropping p2 without a word. `PartsByBinAndRef` covers Part's identity and answers the same data in full. Ruby and Rust must agree on the refusal byte for byte.",
+  "steps": [
+    {"verb": "GroupByCollisionFixture::Part.Stock", "args": {"ref": {"value": "p1"}, "bin": {"label": "b1"}}},
+    {"query": "GroupByCollisionFixture.PartsByBin"},
+    {"verb": "GroupByCollisionFixture::Part.Stock", "args": {"ref": {"value": "p2"}, "bin": {"label": "b1"}}},
+    {"verb": "GroupByCollisionFixture::Part.Stock", "args": {"ref": {"value": "p3"}, "bin": {"label": "b2"}}},
+    {"query": "GroupByCollisionFixture.PartsByBin"},
+    {"query": "GroupByCollisionFixture.PartsByBinAndRef"}
+  ]
+}

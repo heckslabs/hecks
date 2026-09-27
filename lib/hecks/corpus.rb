@@ -25,12 +25,12 @@ module Hecks
       example:   "examples/*",
       stress:    "qa/stress_domains/*",
       semantics: "spec/corpus/semantics/domains/*",
-      # A PACKAGE VENDORED VIA `uses_embryonaut_bluebook` — same real
+      # A package vendored via `uses_embryonaut_bluebook` — same real
       # mechanism `uses_framework` is (`lib/hecks/embryonaut_bluebook.rb`'s
       # own header: "same shape as Framework"), one level further out: not
-      # a chapter shipped inside THIS gem's own `lib/hecks/framework/
+      # a chapter shipped inside this gem's own `lib/hecks/framework/
       # bluebook/` (the `:framework` FILE_KIND, below), but a directory
-      # nested inside the CONSUMING example's own checkout
+      # nested inside the consuming example's own checkout
       # (`<domain>/vendor/embryonaut_bluebooks/<name>/bluebook/`,
       # EmbryonautBluebook.load!'s own resolution path) — hence its own
       # DIRECTORY_KIND rather than reuse of `:framework`'s shape. First
@@ -424,10 +424,18 @@ module Hecks
       Naming.pascal(stem).downcase
     end
 
+    # Names the framework chapters Rust carries as modules, beside its domains' own bluebooks.
+    #
+    # @param root [String] repository root to search under
+    # @return [Array<String>] generated module names for the `:framework` corpus members
     def rust_framework_chapters(root: ROOT)
       rust_side_chapters(:framework, root: root)
     end
 
+    # Names the vendored chapters Rust carries as modules, beside its domains' own bluebooks.
+    #
+    # @param root [String] repository root to search under
+    # @return [Array<String>] generated module names for the `:vendored` corpus members
     def rust_vendored_chapters(root: ROOT)
       rust_side_chapters(:vendored, root: root)
     end
@@ -448,7 +456,7 @@ module Hecks
         .select { |name| modules.include?(name) && !generated?(name, root: root) }
     end
 
-    # THE REGENERATION ORDER the drift check runs. Sorted by path, so
+    # The regeneration order the drift check runs. Sorted by path, so
     # which domain runs last — and so wins Cargo's `default`, mod.rs's cfg
     # comments and the shared framework modules' attribution stamp — is a
     # fact of the sorted list, not a hand-picked order: today that is

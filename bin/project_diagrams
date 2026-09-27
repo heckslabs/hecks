@@ -15,27 +15,10 @@
 #   bin/project_diagrams <domain-path> <ChapterName>
 #   bin/project_diagrams examples/pizzas Pizzas
 
+# The logic is `Hecks::CLI::ProjectDiagrams` (lib/hecks/cli/project_diagrams.rb), which
+# `hecks project_diagrams` also runs.
+
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
+require "hecks/cli/project_diagrams"
 
-require "hecks"
-require "fileutils"
-
-domain_path  = ARGV[0] or abort "usage: bin/project_diagrams <domain-path> <ChapterName>"
-chapter_name = ARGV[1] or abort "usage: bin/project_diagrams <domain-path> <ChapterName>"
-
-runtime   = Hecks.boot(File.expand_path(domain_path, Dir.pwd))
-chapter   = runtime.registry.bluebook(chapter_name)
-hecksagon = runtime.registry.hecksagon(chapter_name)
-directory = File.expand_path("../docs/generated/diagrams/#{Hecks::Naming.snake(chapter_name)}", __dir__)
-
-written = Hecks::Projector.write(
-  Hecks::Projector.call(:diagrams, bluebook: chapter, options: { hecksagon: hecksagon }),
-  directory, as: :files
-)
-
-if written.empty?
-  puts "#{chapter_name} declares no lifecycle, relationship, or dispatch to project yet"
-else
-  puts "wrote #{written.size} diagram(s) to #{directory}:"
-  written.each { |path| puts "  #{path}" }
-end
+Hecks::CLI::ProjectDiagrams.call(ARGV, program: "bin/project_diagrams", root: File.expand_path("..", __dir__))

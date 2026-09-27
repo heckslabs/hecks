@@ -165,7 +165,7 @@ module Hecks
           end
 
           door.define_singleton_method(:method_missing) do |verb, *args, **kwargs, &block|
-            # A BARE CALL starts a Privacy marking chain — see
+            # A bare call starts a Privacy marking chain — see
             # `Bluebook::DSL::BindingProxy#method_missing`'s own header;
             # this is the same mechanism, reached when the constant is
             # already a real, installed door (a second boot in-process)

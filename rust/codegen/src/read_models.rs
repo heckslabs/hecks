@@ -413,7 +413,7 @@ pub fn read_model_def(domain_name: &str, read_model: &Json, aggregates_by_name: 
         let fn_name = format!("group_by_{}", read_model_name.to_lowercase());
         let aggregate_name = heads_json.first().and_then(|h| h.get("aggregate")).map(Json::to_s).unwrap_or_default();
         let aggregate = aggregates_by_name[&aggregate_name];
-        (Some(fn_name.clone()), Some(emit_group_by_transform(&fn_name, aggregate, &group_by_fields)))
+        (Some(fn_name.clone()), Some(emit_group_by_transform(&fn_name, &read_model_name, aggregate, &group_by_fields)))
     } else {
         (None, None)
     };
@@ -512,7 +512,7 @@ pub fn emit_read_model_def(rmd: &ReadModelDef) -> String {
 /// excluding any other Phase 10 capability's own synthetic fields, like
 /// `corrects`'s `emitted_*` flags — and recursively unwrap
 /// single-attribute value objects).
-fn emit_group_by_transform(fn_name: &str, aggregate: &Json, group_by_fields: &[String]) -> String {
+fn emit_group_by_transform(fn_name: &str, read_model_name: &str, aggregate: &Json, group_by_fields: &[String]) -> String {
     let value_objects: Vec<&Json> = aggregate.get("value_objects").map(Json::each).unwrap_or(&[]).iter().collect();
     let value_objects_by_name: HashMap<String, &Json> = value_objects.iter().map(|vo| (vo.get("name").map(Json::to_s).unwrap_or_default(), *vo)).collect();
     let lifecycle_field = aggregate.get("lifecycle").and_then(|l| l.get("field")).map(Json::to_s);
@@ -536,10 +536,29 @@ fn emit_group_by_transform(fn_name: &str, aggregate: &Json, group_by_fields: &[S
     let arms = arms.join("\n                    ");
 
     let fields_literal = format!("&[{}]", group_by_fields.iter().map(|f| format!("{f:?}")).collect::<Vec<_>>().join(", "));
+    let leaf_check = group_by_leaf_check(read_model_name, aggregate, group_by_fields);
 
     format!(
-        "pub fn {fn_name}(rows: Vec<(String, crate::kernel::Json)>) -> crate::kernel::Json {{\n    let unwrapped: Vec<crate::kernel::Json> = rows\n        .into_iter()\n        .map(|(id, record)| {{\n            let wrapped = crate::kernel::repository::row_json(id, record);\n            match wrapped {{\n                crate::kernel::Json::Object(fields) => crate::kernel::Json::Object(\n                    fields\n                        .into_iter()\n                        .filter(|(k, _)| {keep_cond})\n                        .map(|(k, v)| {{\n                            let new_v = match k.as_str() {{\n            {arms}\n                                _ => v,\n                            }};\n                            (k, new_v)\n                        }})\n                        .collect(),\n                ),\n                other => other,\n            }}\n        }})\n        .collect();\n    crate::kernel::read_model::nest(unwrapped, {fields_literal})\n}}"
+        "pub fn {fn_name}(rows: Vec<(String, crate::kernel::Json)>) -> Result<crate::kernel::Json, crate::kernel::Refusal> {{\n    let unwrapped: Vec<crate::kernel::Json> = rows\n        .into_iter()\n        .map(|(id, record)| {{\n            let wrapped = crate::kernel::repository::row_json(id, record);\n            match wrapped {{\n                crate::kernel::Json::Object(fields) => crate::kernel::Json::Object(\n                    fields\n                        .into_iter()\n                        .filter(|(k, _)| {keep_cond})\n                        .map(|(k, v)| {{\n                            let new_v = match k.as_str() {{\n            {arms}\n                                _ => v,\n                            }};\n                            (k, new_v)\n                        }})\n                        .collect(),\n                ),\n                other => other,\n            }}\n        }})\n        .collect();\n    crate::kernel::read_model::nest(unwrapped, {fields_literal}, {leaf_check})\n}}"
     )
+}
+
+/// Port of `rust/project/read_models.rb`'s own `group_by_leaf_check`: a key
+/// path naming every identity head of the grouped aggregate cannot collide,
+/// so its leaves go unchecked; any other refuses a second row (ADR 0061,
+/// decision D1). `identified_by` in the IR holds the identity paths.
+fn group_by_leaf_check(read_model_name: &str, aggregate: &Json, group_by_fields: &[String]) -> String {
+    let mut identity: Vec<String> = Vec::new();
+    for path in aggregate.get("identified_by").map(Json::each).unwrap_or(&[]) {
+        let head = path.to_s().split('.').next().unwrap_or_default().to_string();
+        if !identity.contains(&head) {
+            identity.push(head);
+        }
+    }
+    if !identity.is_empty() && identity.iter().all(|head| group_by_fields.contains(head)) {
+        return "crate::kernel::read_model::LeafCheck::IdentityCovered".to_string();
+    }
+    format!("crate::kernel::read_model::LeafCheck::RefuseCollision({})", crate::naming::ruby_inspect_string(read_model_name))
 }
 
 /// Port of `rust/project/read_models.rb`'s own `unwrap_json_expr` —

@@ -107,7 +107,7 @@ module Hecks
           # --approve` and bound to what was actually reviewed: this
           # edge's parsed content, and the journal as it stood when the
           # samples were read. A journal that has advanced past the
-          # review invalidates it — the approved samples no longer cover
+          # review invalidates it — the approved samples do not cover
           # the data.
           #
           # @param bluebook [Bluebook::Chapter] the domain, named in the refusal

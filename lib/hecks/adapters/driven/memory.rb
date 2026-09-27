@@ -217,7 +217,7 @@ module Hecks
       #
       # @param id [Integer] the row id `outbox_enqueue` assigned
       # @return [Boolean] true when the row was pending and is now claimed; false when it is
-      #   unknown or no longer pending
+      #   unknown or not pending
       def outbox_claim(id) # rubocop:disable Naming/PredicateMethod
         row = @outbox.find { |held| held.id == id }
         return false unless row&.pending?

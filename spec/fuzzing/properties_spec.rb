@@ -31,6 +31,8 @@ RSpec.describe "Hecks::Fuzzing::Properties" do
   # unresolvable because `command_for_verb` only ever consulted whichever
   # bluebook happened to load first.
   PROPERTIES_GRAMMAR = File.join(ROOT_DIR, "lib/hecks/grammar")
+  # The one domain whose `group_by` can collide (ADR 0061, decision D1).
+  PROPERTIES_GROUP_BY_COLLISION = File.join(ROOT_DIR, "spec/fixtures/rust_project/group_by_collision_fixture")
 
   # `adapter:` only ever changes which repository the replayed steps run
   # against (IsolatedBoot's own rebind) — sequence generation itself stays
@@ -109,6 +111,16 @@ RSpec.describe "Hecks::Fuzzing::Properties" do
 
     def bluebooks_for(domain)
       Hecks::Fuzzing::Replay.call(domain, [])[:bluebooks]
+    end
+
+    # Two parts in bin b1, one in b2 — bare strings, as the AccountsByKind
+    # examples below supply theirs.
+    def colliding_parts
+      {
+        "GroupByCollisionFixture::Part#p1" => { bin: "b1", ref: "p1" },
+        "GroupByCollisionFixture::Part#p2" => { bin: "b1", ref: "p2" },
+        "GroupByCollisionFixture::Part#p3" => { bin: "b2", ref: "p3" }
+      }
     end
 
     it "lifecycle_values_are_declared names an instance holding an undeclared state" do
@@ -810,6 +822,36 @@ RSpec.describe "Hecks::Fuzzing::Properties" do
                                "current" => { "a1" => { daily_limit: { cents: 0 }, id: "a1" } },
                                "savings" => { "a2" => { daily_limit: { cents: 0 }, id: "a2" } }
                              } }] }] }
+
+      expect(Hecks::Fuzzing::Properties.group_by_matches_recompute(history)).to be(true)
+    end
+
+    # ADR 0061, decision D1: a group_by leaf holds one row. `PartsByBin`
+    # groups by `bin` alone, so two parts in one bin must refuse; the oracle
+    # finds the shared key path from the rows, never from a nesting.
+    it "group_by_matches_recompute names an answer given where two eligible rows share a key path" do
+      history = { bluebook: bluebook_for(PROPERTIES_GROUP_BY_COLLISION),
+                  queries:  [{ query: "GroupByCollisionFixture.PartsByBin", args: {}, instances_at: colliding_parts,
+                             rows: [{ parts: { "b1" => { ref: "p1", id: "p1" } } }] }] }
+
+      result = Hecks::Fuzzing::Properties.group_by_matches_recompute(history)
+      expect(result).to be_a(String)
+      expect(result).to include("GroupByCollisionFixture.PartsByBin").and include("so the ask must refuse")
+    end
+
+    it "group_by_matches_recompute passes a refusal where two eligible rows share a key path" do
+      history = { bluebook: bluebook_for(PROPERTIES_GROUP_BY_COLLISION),
+                  queries:  [{ query: "GroupByCollisionFixture.PartsByBin", args: {}, instances_at: colliding_parts,
+                             rows: nil, error: "PartsByBin groups by bin, but rows ..." }] }
+
+      expect(Hecks::Fuzzing::Properties.group_by_matches_recompute(history)).to be(true)
+    end
+
+    it "group_by_matches_recompute expects an answer when the key path covers the identity" do
+      history = { bluebook: bluebook_for(PROPERTIES_GROUP_BY_COLLISION),
+                  queries:  [{ query: "GroupByCollisionFixture.PartsByBinAndRef", args: {}, instances_at: colliding_parts,
+                             rows: [{ parts: { "b1" => { "p1" => { id: "p1" }, "p2" => { id: "p2" } },
+                                               "b2" => { "p3" => { id: "p3" } } } }] }] }
 
       expect(Hecks::Fuzzing::Properties.group_by_matches_recompute(history)).to be(true)
     end

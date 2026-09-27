@@ -13,6 +13,11 @@ module Hecks
 
         # A call with a block records the block's own settings as a nested Hash, so a bind can
         # group settings (`preview do ... end`); a call without one records its argument.
+        #
+        # @param key [Symbol] the setting's name, recorded verbatim
+        # @param args [Array] the setting's value: one argument is kept as is, several as an array
+        # @param block [Proc, nil] a nested settings block, evaluated on a fresh collector
+        # @return [Object] the value recorded under `key`
         def method_missing(key, *args, &block)
           @values[key.to_sym] =
             if block

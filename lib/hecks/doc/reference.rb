@@ -12,7 +12,7 @@ module Hecks
     #
     # Regenerate with bin/reference. A new word arrives with a TODO
     # sentinel; the coverage gate refuses to let an admitted word ship
-    # undocumented; prose for a word the language no longer declares is
+    # undocumented; prose for a word the language does not declare is
     # a hard error naming its orphans — deleting someone's writing is a
     # human's decision.
     module Reference
@@ -124,7 +124,7 @@ module Hecks
       # @return [Hash{String => String}] every page's filename (plus `"index.md"`)
       #   mapped to its freshly rendered Markdown content
       # @raise [RuntimeError] if a committed page carries prose for a word the
-      #   language no longer declares in that context
+      #   language does not declare in that context
       def pages(directory)
         contexts.each_with_object({}) do |context, pages|
           path = File.join(directory, page_name(context))
@@ -347,7 +347,7 @@ module Hecks
       #   created if it does not exist
       # @return [void]
       # @raise [RuntimeError] if a committed page carries prose for a word the
-      #   language no longer declares in that context
+      #   language does not declare in that context
       def write!(directory)
         FileUtils.mkdir_p(directory)
         pages(directory).each do |name, content|

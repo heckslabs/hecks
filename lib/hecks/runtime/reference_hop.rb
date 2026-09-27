@@ -45,7 +45,7 @@ module Hecks
       #   Options, Hecks::Runtime::ReferenceHop::Folded] `declared` unchanged when it has no
       #   hop clauses; otherwise a `Folded` wrapper whose `#wheres` replaces each hop clause
       #   with its folded `in` clause
-      # @raise [Runtime::WiringError] if a hop's target no longer resolves (see `fold`)
+      # @raise [Runtime::WiringError] if a hop's target does not resolve (see `fold`)
       def apply(declared, args, registry:, domain:, aggregate:)
         hopped, local = declared.wheres.partition { |clause| QuerySpecification::HopPath.hop_head?(clause.field, aggregate.attributes) }
         return declared if hopped.empty?
@@ -65,7 +65,7 @@ module Hecks
       # @param aggregate [Bluebook::Aggregate] the aggregate `clause` is declared against
       # @return [QuerySpecification::Common::WhereClause] a synthetic `in` clause on the hop
       #   attribute's name, whose value is every id the inner clause admits on the target
-      # @raise [Runtime::WiringError] if the hop's target aggregate no longer resolves
+      # @raise [Runtime::WiringError] if the hop's target aggregate does not resolve
       def fold(clause, args, registry:, domain:, aggregate:)
         step = QuerySpecification::HopPath.next_hop(clause.field, aggregate.attributes)
         hop, rest = step
@@ -74,7 +74,7 @@ module Hecks
         # this exact clause before the domain ever booted. Held anyway:
         # an unresolvable target folding silently to "matches
         # everything" is precisely the failure shape this whole feature
-        # exists to close, and a hop that can no longer resolve (a
+        # exists to close, and a hop that cannot resolve (a
         # target aggregate unloaded after boot, say) is a real fact
         # worth a real error, not a query that quietly stops filtering.
         unless hop&.target
@@ -106,7 +106,7 @@ module Hecks
       # @param registry [Runtime::Registry] the booted registry to resolve `target`'s
       #   repository from
       # @return [Array<String>] every distinct id the inner clause(s) admit on `target`
-      # @raise [Runtime::WiringError] if a hop nested inside `wheres` no longer resolves
+      # @raise [Runtime::WiringError] if a hop nested inside `wheres` does not resolve
       def matching_ids(domain, target, wheres, args, registry:)
         spec       = apply(QuerySpecification::Common::Options.new(wheres: wheres), args,
                            registry: registry, domain: domain, aggregate: target)

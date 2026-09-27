@@ -4,7 +4,9 @@ The standard for comments in this repository's Ruby: `lib/`, `bin/`, `spec/`
 and `examples/`. `bin/standardize_comments` checks the parts of it a machine
 can check. The rest is a checklist for whoever reads the diff.
 
-Nothing enforces this in CI. `bin/standardize_comments` is run by hand.
+CI runs `bin/standardize_comments --check lib/hecks` as a gate, so a comment that breaks a
+rule the linter checks fails the build. The parts of this guide the linter cannot check are
+still the reviewer's.
 
 ## 1. Public methods carry YARD tags
 
@@ -105,8 +107,12 @@ needs narrating, it needs a better name or an extracted method.
 
 Comments describe the system as it is. The linter flags "used to", "was
 originally", "previously", "formerly", "historically", "renamed from",
-"before this change", "an earlier version", "has since", and pull request
-numbers.
+"before this change", "an earlier version", "has since", "no longer", "any more",
+"anymore", and pull request numbers.
+
+The last three also read as ordinary present-tense statements ("a file that no longer
+exists"). The linter cannot tell the two apart, so reword the line rather than leaving it
+flagged: "a file that does not exist".
 
 Rewrite the comment in the present tense and keep the reason, which is the
 valuable part:
@@ -147,12 +153,49 @@ goes in backticks (`` `NAME` ``); the linter reports a bare one as
 
 Wrap at a word boundary. Do not break inside a backtick span or a URL.
 
+## 7. Comment blocks stay short
+
+A run of more than 50 consecutive comment lines is a `long_block`. The linter fails a
+new one, and fails an old one that grows. Put the rationale in an ADR under
+`docs/decisions/` and cite it, or split the block into comments that sit next to the
+code each one explains. The threshold is the named constant `MAX_BLOCK` in
+`bin/standardize_comments`, and 50 is provisional: ADR 0069 leaves the number open.
+
+The blocks that already exceed it are listed in `.standardize_comments_baseline.json`, so
+that only new and grown blocks fail. The file maps a path to its long blocks, and each
+block to its length:
+
+```json
+{
+  "lib/hecks/runtime/example.rb": {
+    "Runs one dispatch from the first guard to the last event.": 62
+  }
+}
+```
+
+- **A block** is a run of consecutive full-line comments. A blank line, or
+  a line of code, ends it. A comment trailing code is not part of one.
+- **Its key** is the text of its first line without the `#`, cut at 80 characters, so it
+  survives edits above the block, which a line number would not. A second block opened by
+  the same text in the same file is `text #2`, then `#3`, and so on.
+- **It has grown** when its length exceeds the baselined length. A block with no entry is
+  new and fails at any length over the threshold. A block at or under its baselined length
+  passes, so trimming needs no baseline change to be accepted.
+- **Editing a block's first line** renames it, so it counts as new. Reword the first line
+  and rewrite the baseline in the same change, or keep the line.
+
+Rewrite the baseline over the gated tree with
+`bin/standardize_comments --write-baseline lib/hecks`, and commit the result. A trimmed
+block should leave the file. A block that must be longer is a deliberate baseline change,
+which the diff shows to the reviewer.
+
 ## Checking a tree
 
 ```
 bin/standardize_comments --report lib/hecks             # summary tables
 bin/standardize_comments --check  lib/hecks             # one line per violation
 bin/standardize_comments --fix    lib/hecks             # all_caps and long_line only
+bin/standardize_comments --write-baseline lib/hecks     # rewrite the long-block baseline
 bin/standardize_comments --code-unchanged main lib      # prove an edit was comment-only
 ```
 

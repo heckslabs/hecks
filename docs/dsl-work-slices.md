@@ -1,5 +1,8 @@
 # DSL work slices
 
+> **Status: plan, written 2026-08-14.** Slices may have landed or been reshaped since;
+> the two ADRs and the commit history say what shipped.
+
 The work decided in [ADR 0025](decisions/0025-the-dsl-names-one-idea-one-way-and-a-word-earns-its-place-by-being-used.md) and [ADR 0026](decisions/0026-the-language-uses-everything-it-declares-and-what-it-does-not-use-is-a-sub-language.md), re-cut from a sequence into slices that can be worked in parallel by separate agents.
 
 Both ADRs sequence for one worker, with the prerequisites front-loaded. That ordering is still correct about *dependencies*, but it says nothing about *collisions*, which is what actually decides whether two agents can run at once.

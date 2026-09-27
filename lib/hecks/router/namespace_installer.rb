@@ -140,7 +140,7 @@ module Hecks
                        .each do |(aggregate, verb), candidates|
           # Bounded chapters wrap in their own module (`Domain::Aggregate`)
           # so two BCs can both declare `Person` without colliding on
-          # Object::Person. Folder-spread files of the SAME chapter still
+          # Object::Person. Folder-spread files of the same chapter still
           # get the shortcut — they are not BCs.
           next if bounded_chapter?(candidates)
 

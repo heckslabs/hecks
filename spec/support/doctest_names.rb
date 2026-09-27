@@ -78,7 +78,6 @@ module DoctestNames
   # here"), which is the honest form of the same gap.
   UNGATED_STATUS_DOCS = %w[
     1.0-readiness.md
-    adoption-readiness.md
     architecture-map.md
     benchmarks.md
     command-form-and-query-form-bluebook.md
@@ -89,7 +88,6 @@ module DoctestNames
     future-features.md
     fuzzer-property-expansion-plan.md
     HECKS_IMPLEMENTATION_PLAN.md
-    hecks-survey-what-we-wish-we-had.md
     query-dsl.md
     rails-integration.md
     rubocop-custom-cops.md

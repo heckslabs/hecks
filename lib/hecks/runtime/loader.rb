@@ -177,7 +177,7 @@ module Hecks
       # (conservative — see `SagaPersistence#rehydrate_sagas!`'s own
       # comment).
       #
-      # ADR 0033 — this loader no longer names `EraCheck`, or any other
+      # ADR 0033 — this loader does not name `EraCheck`, or any other
       # era-specific class, at all. Every loaded persistence plugin
       # (`Ports::Persistence.each_plugin` — nothing here if nothing was
       # ever `require`d, or brought in by a bound adapter, see

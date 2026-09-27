@@ -120,23 +120,29 @@ module Hecks
 
       # A compute is the one rule whose SQL is its only implementation
       # — evaluated exclusively inside the compiled head, never
-      # in-process. The old field is exposed under its own name (as
-      # text, exactly as the author's expression expects to cast it).
+      # in-process. The source is read as a path through
+      # `hecks_tr_extract`, bare or a dotted value-object member alike,
+      # the same way the destination goes through `path_literal`. The
+      # source's value is exposed to the author's SQL as text under a
+      # column named by the source exactly as declared (`price_cents`,
+      # or `"price.cents"` for a dotted member), and the whole record
+      # stays readable as `__s`.
       #
       # @param expression [String] the SQL expression built so far by `compile_rules`, read as
       #   `__s` inside the compute's own SQL
       # @param compute [Bluebook::TranslationCompute] the declared compute rule
       # @return [String] `expression` wrapped so the compute's field lands at its declared
-      #   destination when the source field is present, unchanged otherwise
+      #   destination when the source path is present, unchanged otherwise
       def compile_compute(expression, compute)
         from = compute.from.to_s
         to = compute.to.to_s
-        "(SELECT CASE WHEN __s ? #{text_literal(from)} THEN " \
-          "hecks_tr_insert(__s - #{text_literal(from)}, #{path_literal(to)}, to_jsonb((#{compute.sql})), " \
+        "(SELECT CASE WHEN (__x).present THEN " \
+          "hecks_tr_insert((__x).remaining, #{path_literal(to)}, to_jsonb((#{compute.sql})), " \
           "#{text_literal("compute #{from} to: #{to}")}) " \
           "ELSE __s END " \
           "FROM (SELECT (#{expression}) AS __s) __outer, " \
-          "LATERAL (SELECT (__s ->> #{text_literal(from)}) AS #{quote(from)}) __fields)"
+          "LATERAL (SELECT hecks_tr_extract(__s, #{path_literal(from)}) AS __x) __extract, " \
+          "LATERAL (SELECT (__s #>> #{path_literal(from)}) AS #{quote(from)}) __fields)"
       end
 
       # A newly added, required attribute with no source at all — the

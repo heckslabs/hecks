@@ -8,7 +8,7 @@ module Hecks
       # already shipped) only checks a word's admissibility; this module
       # executes the safe, mechanical subset of what a word actually
       # does, read live off the same self-hosted grammar table — so a
-      # builder method for one of these words no longer needs to be
+      # builder method for one of these words need not be
       # hand-written at all. Called from `WordGate#method_missing`'s own
       # "admitted here, no builder method for it yet" branch, so it only
       # ever sees a word whose (context, word) pair the grammar already

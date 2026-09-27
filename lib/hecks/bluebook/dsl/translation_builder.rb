@@ -268,7 +268,7 @@ module Hecks
       # Parses a whole `.translation` file into a `Translation` — the
       # domain's own `from:`/`to:` era pair, its list of `aggregate`
       # translation blocks (each built by `TranslationAggregateBuilder`
-      # above), and any `retired` aggregates that no longer exist in the
+      # above), and any `retired` aggregates that do not exist in the
       # destination era.
       class TranslationBuilder
         GRAMMAR_CONTEXT = "Translation".freeze

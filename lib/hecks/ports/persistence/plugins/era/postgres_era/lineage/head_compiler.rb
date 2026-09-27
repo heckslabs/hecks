@@ -553,7 +553,7 @@ module Hecks
           # `full:` forces a rebuild from the raw journal. The tail-merge
           # needs it: it moves every watermark to the new tip, so every
           # ancestor matview's cut goes stale in the same statement, and
-          # layering on one would carry a cut that no longer exists.
+          # layering on one would carry a cut that does not exist.
           #
           # The live half reads the snapshot table, not `WHERE era = era AND
           # aggregate = name` over the raw journal — that would be a

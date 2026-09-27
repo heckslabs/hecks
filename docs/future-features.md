@@ -1,5 +1,8 @@
 # Unbuilt
 
+> **Status: snapshot, compiled 2026-08-18.** Items may have shipped since. Read it as a
+> list of what was unbuilt that day, not as the current backlog.
+
 Every planned, proposed, and not-yet-built feature collected across hecks's implementation plan, PRDs, work-slice plans, decision records, guides, and bug audits — with the shipped and the live left out.
 
 **Sources:** 20+ docs across `docs/`, `docs/prds/`, `docs/decisions/`, `docs/guides/`, `docs/audits/` (as of the 2026-08-18 `docs/` split into `docs/implemented/` vs. active work — see that split for what's now shipped).
@@ -28,7 +31,7 @@ The clearest signal in the whole tree is the survey's own closing pick — an ex
 
 ## Wishlist survey
 
-`docs/hecks-survey-what-we-wish-we-had.md` — a 2026-08-17 read of the sibling `hecks` project asking one question: what does it have — especially "Storehouse" — that hecks wishes it had.
+`docs/archive/hecks-survey-what-we-wish-we-had.md` — a 2026-08-17 read of the sibling `hecks` project asking one question: what does it have — especially "Storehouse" — that hecks wishes it had.
 
 ### Storehouse, ranked
 
@@ -200,7 +203,7 @@ Only the ADRs with genuine unbuilt content, per their own status marker — pure
 
 - ~~**H3**~~ — era-migrated deletes now write a real tombstone row (`operation='delete'`) instead of a bare `DELETE`; the head view reads `operation`, not a hardcoded `'save'`. Live-verified against real Postgres 2026-08-27. Regression specs, real Postgres: `spec/adapters/driven/postgres_era/lineage_spec.rb` (one mint) and `spec/adapters/driven/postgres_era/migration_data_safety_spec.rb` (a delete made in era 2 survives the mint of era 3, and a delete made in era 3 of a record two eras old).
 - ~~**H4**~~ — `rekeys`/`backfills` are now folded into the approval digest (`lib/hecks/projector/exporter.rb`); editing a rekey's SQL post-approval now invalidates the approval, as it must. Verified 2026-08-27. `spec/exporter_spec.rb` pins the digest for rekeys and backfills with no database; `migration_data_safety_spec.rb` pins the mint itself against real Postgres: an edited rekey SQL or backfill default refuses the mint and mints no era, and the edge that was approved still mints.
-- ~~**H5**~~ — `strip_compute_paths` (`layer_two.rb`) now deletes only the exact dotted member a `compute` touches, not its whole parent attribute. Verified 2026-08-27. Pinned in `spec/ports/persistence/plugins/era/translation/audit/layer_two_spec.rb` with hand-built rows, and in `migration_data_safety_spec.rb` with the rows a real compiled head produces: a dotted-destination compute mints with its sibling member intact, and a compiled edge that loses the sibling is refused. **Still open, found while writing that spec:** a compute whose *source* is a dotted member (`compute "price.cents", to: ...`) never fires. `compile_compute` tests `__s ? 'price.cents'`, a top-level key of that literal name, so the mint succeeds and the record is served with its old, unconverted value. It is a `pending` example in `migration_data_safety_spec.rb` and turns red the day it is fixed.
+- ~~**H5**~~ — `strip_compute_paths` (`layer_two.rb`) now deletes only the exact dotted member a `compute` touches, not its whole parent attribute. Verified 2026-08-27. Pinned in `spec/ports/persistence/plugins/era/translation/audit/layer_two_spec.rb` with hand-built rows, and in `migration_data_safety_spec.rb` with the rows a real compiled head produces: a dotted-destination compute mints with its sibling member intact, and a compiled edge that loses the sibling is refused. A compute whose *source* is a dotted member (`compute "price.cents", to: ...`), found never firing while writing that spec, is fixed: `compile_compute` reads the source as a path through `hecks_tr_extract`, and `migration_data_safety_spec.rb` mints one against real Postgres.
 
 These run in CI: the `rspec_postgres_io_parallel` shards provision Postgres (`.github/actions/postgres`), `PostgresProbe` raises under `CI` instead of skipping an unreachable server, and `bin/rspec_io_parallel_files --check` fails a PR that adds an `io: true` spec without listing it in `.github/postgres_io_spec_files.txt`.
 

@@ -135,6 +135,14 @@ bin/doc_coverage                          # every live DSL word ships with a run
 bin/run examples/banking spec/corpus/banking.json   # the refusals someone already decided must hold
 ```
 
+`bin/run` and `bin/model_check` are also subcommands of the gem's
+`hecks` command, along with `docs`, `narrate`, `ir`, `stores`,
+`smoke_test`, `project_diagrams`, `project_cli` and `mcp`
+(`bin/hecks_mcp_door`). Those `bin/` scripts are thin wrappers over
+`lib/hecks/cli/`, so a change to one goes there. The fuzzing, bench,
+corpus, codemod, query IR, grammar evolve and doc reference tooling is
+repository-only and left out of the packaged gem (`hecks.gemspec`).
+
 `spec/ir_golden_spec.rb` freezes the builder's `to_h` output per corpus
 member. If your change is a deliberate shape change (not a bug), you
 regenerate it explicitly and read the diff before trusting it — it's a

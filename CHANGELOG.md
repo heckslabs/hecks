@@ -24,6 +24,69 @@ host, or invoke the Lambda directly. A Lambda deployment is unaffected, since it
 the internal protocol only through an IAM-authenticated invoke. Existing Fargate
 deployments pick this up only when they move to a host built with this release.
 
+**A PostgresEra `compute` whose source is a dotted member now fires.** The
+compiled SQL tested for the source with `__s ? 'price.cents'`, a top-level key of
+that literal name, so the rule never matched, the mint succeeded and the record
+kept its old value. `Translation::RuleCompiler.compile_compute` now reads the
+source as a path through `hecks_tr_extract`, the way the destination already went
+through `path_literal`. The author's SQL still sees the whole record as `__s` and
+the source's value as text under a column named by the source as declared
+(`"price.cents"` for a dotted one), so SQL written for an undotted source is
+unchanged. The pending example in `migration_data_safety_spec.rb` now passes, and
+the client profile's `client_dotted_compute_source` rule is removed with its
+probe; `bin/model_check` no longer loads `translations/` under the profile and
+`ModelCheck.call` no longer takes `translations:`, since that rule was their only
+reader. **Behavior change for migrated records:** a mint over an edge with a
+dotted-source `compute` now converts the member instead of carrying the old value
+through. The Rust host runs the same compiled SQL from the domain's exported
+`ir.json`, so it picks the fix up once that IR is exported again with this
+release.
+
+**A `group_by` refuses two rows on one key path instead of dropping one.** A
+read model's `group_by` leaf holds one row, and when two rows reached the same
+full key path the Ruby interpreter and the generated Rust runtime both kept the
+first and silently dropped the rest. Both now refuse the ask with
+`InvariantViolation`, in one shared wording (`group_by_collision`) that names the
+read model, its `group_by`, the colliding ids and the key path; a new
+cross-runtime fixture holds Ruby and Rust to the same refusal byte for byte. A
+key path that names every identity field of the grouped aggregate cannot
+collide and is accepted from the declaration without a check, which covers every
+`group_by` in the corpus. The fuzz oracle recomputes shared key paths from the
+rows and expects the refusal, and the `client_group_by_row_drop` rule of
+`bin/model_check --profile client` is gone with the bug it guarded (ADR 0061,
+decision D1; ADR 0065, decision 2). **Behavior change:** a read model grouped by
+a key its data does not keep unique answered with a subset before; it now
+refuses from the first request after a second row reaches a key path.
+
+**The syntax-boot cache and the Storehouse audit log no longer write into the gem's
+directory.** Both lived under `<gem root>/tmp`, which is read-only on an installed
+gem, so the cache silently switched off and the log silently stopped appending.
+They now live under `Hecks::CacheDir`: `$XDG_CACHE_HOME/hecks`, else
+`~/.cache/hecks`, else `<system temp dir>/hecks-<uid>`, each used only if it is
+owned by the current user and writable by nobody else (the cache is read back with
+`Marshal.load`), with a private per-process directory as the last resort.
+`Storehouse::LOG_ROOT` and `SyntaxBoot::CACHE_DIR` are replaced by
+`Storehouse.log_root` and `SyntaxBoot.cache_dir`, resolved on first use.
+`HECKS_SYNTAX_BOOT_CACHE=off` and `HECKS_STOREHOUSE_ROOT` (the boot confinement
+root, unrelated) are unchanged. Files an earlier version left under `<gem root>/tmp`
+are orphaned and can be deleted. This is step 1 of ADR 0066.
+
+**`bin/hecks_mcp_door` has a reader mode.** Whoever spawns the door can set
+`HECKS_DOOR_TOOLS=readers` and `HECKS_DOOR_DOMAINS=<dir>[:<dir>...]` (ADR 0072,
+decision 2). A reader door serves only `query`, `events`, `state`, `catalog`,
+`describe`, `validate`, `domains`, `history` and `follow`, lists only those in
+`tools/list`, and refuses `dispatch` (with `dry_run` and `steps`), `behaviors`
+and any other tool with an answer that names the mode. A call's `domain:` must
+resolve to one of the named directories, and is checked before anything boots,
+so no other domain's Ruby is loaded. The startup warning says when the door is
+in reader mode. The door refuses to start on an unknown `HECKS_DOOR_*` name, a
+mode other than `readers`, reader mode without domains, domains without reader
+mode, or a named domain outside the boot root. With neither variable set the
+door behaves exactly as before. This limits what one spawned agent can reach;
+it identifies no one, adds no token or secret, and is not authentication. The
+settings sit outside `HECKS_MCP_*`, which the stdio guard keeps for the
+transport alone (ADR 0062). The logic is `Hecks::McpDoorScope`.
+
 **`bin/release` performs the whole release, and CI publishes `@hecks/client`.**
 After the release PR merges, one command tags the merge commit and publishes the
 gem through `bin/release_gem`. Pushing the tag starts the new

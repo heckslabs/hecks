@@ -1,5 +1,8 @@
 # Rust hand-written surface — module refactor slice plan
 
+> **Status: plan, written 2026-08-14.** File sizes and line references below are from
+> that day. Slices may have landed since; the commit history is current.
+
 Trigger: `rust/parser/src/parse/mod.rs` had grown to 1196 lines. Investigating it surfaced the
 same shape of problem (big hand-written files with real internal seams, organized the old
 `foo/mod.rs` way) across the rest of the hand-written Rust surface — `rust/parser/`, `rust/src/`,

@@ -15,7 +15,7 @@ print a usage line on a missing argument).
 | `bin/check_era` | Checks the era a running host reports at `GET /version` against an allow-list file, after a roll: one era id per line, exit 0 when listed, 1 when not, 3 when the host cannot be reached. See [wiring](implemented/guides/wiring.md#hosting-scripts-for-awsfargate). |
 | `bin/codemod_hoist_local_givens` | A CODEMOD, not an agent — for the corpus duplication `bin/query_ir duplicates` surfaces directly: two or more commands under the SAME own... |
 | `bin/codemod_implicit_append_fields` | A CODEMOD, not an agent — for the class of redundancy `CommandBuilder#resolve_append_fields!` (lib/hecks/bluebook/dsl/ command_builder.rb... |
-| `bin/console` | Boots a domain (pizzas by default) and drops into IRB with its door installed — the fastest way to dispatch a real command by hand. bin/c... |
+| `bin/console` | Boots a domain (pizzas on the in-memory adapter by default) and drops into IRB with its door installed, the fastest way to dispatch a real command by hand. bin/c... |
 | `bin/doc_coverage` | EVERY LIVE WORD SHIPS WITH A RUNNING EXAMPLE, or this refuses. Prose is a declaration, and a declaration nothing runs cannot disagree wit... |
 | `bin/docs` | A domain's usage document, projected from its own bluebook. bin/docs # list every domain in this checkout bin/docs examples/banking # the... |
 | `bin/evolve` | The language-change convention, made executable. Adding a word to the bluebook surface has always been a many-file walk — syntax row, Rub... |
@@ -23,7 +23,7 @@ print a usage line on a missing argument).
 | `bin/follow` | Live-tails a domain's own persisted event log — the declared `emits` every command reports, durably recorded (not `registry.event_log`, w... |
 | `bin/fuzz` | Generates random-but-valid command/query sequences from a domain's own IR (Hecks::Fuzzing::SequenceGenerator) and checks each one the way... |
 | `bin/generate` | Prints one randomly generated, valid dispatch sequence for a domain — the same generator bin/fuzz drives, exposed standalone so a sequenc... |
-| `bin/hecks_mcp_door` | AN MCP DOOR ONTO THE STOREHOUSE BUS — one MCP server for EVERY booted domain, not one per command. `docs/hecks-survey-what-we-wish-we-had... |
+| `bin/hecks_mcp_door` | An MCP door onto the storehouse bus — one MCP server for every booted domain, not one per command. `docs/archive/hecks-survey-what-we-wis... |
 | `bin/hecks_query_ir_mcp` | AN MCP SERVER exposing Hecks::QueryIR's two queries as tools, so a coding agent calls them directly instead of shelling out to `bin/query... |
 | `bin/history` | Prints every journal entry a domain's append-only adapters hold, as JSON — the full write history, not just the current head. bin/history... |
 | `bin/ir` | Prints a booted domain's IR as JSON — the same `to_h` the golden specs pin and StorageShape hashes into an era, for reading rather than a... |

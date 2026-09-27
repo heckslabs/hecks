@@ -123,7 +123,7 @@ module Hecks
       #
       # The domain's own directory first, matched by name — a real app's
       # directory may hold more than one file once `uses_framework`
-      # exists, so ".first" alone can no longer be trusted, the exact
+      # exists, so ".first" alone cannot be trusted, the exact
       # way it silently wasn't the day this was found: three domains
       # booted together, one real source text read once (the domain's
       # own, ".first"'d), and every other domain's era-1 held that text

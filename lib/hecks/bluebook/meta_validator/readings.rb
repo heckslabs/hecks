@@ -364,7 +364,7 @@ module Hecks
           # same way Shapes#provenance reads it back.
           return encode_literal(node.provenance) if field == :provenance
 
-          # `identified_by` is no longer a field of any declaration — it is a list,
+          # `identified_by` is not a field of any declaration — it is a list,
           # filled by Identify one part at a time, so it is read through `identity_rows`
           # like every other list rather than special-cased here. What this branch
           # existed to protect is now structural : a path cannot come back as its head,

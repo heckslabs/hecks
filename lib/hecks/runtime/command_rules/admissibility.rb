@@ -163,7 +163,7 @@ module Hecks
         def enforce_givens(subject, command, args, domain:, declaring: nil, parent: nil, correction: {})
           state = GuardState.new(subject)
           # A rule may only read within its own aggregate boundary (S12,
-          # ADR 0025) — `subject`'s own stored references are no longer
+          # ADR 0025) — `subject`'s own stored references are not
           # dereferenced here at all: a `projects :customer_status, from:
           # :"customer.status"` field is just `subject`'s own
           # field, a regular stored attribute, already present in
@@ -375,7 +375,7 @@ module Hecks
         def enforce_ensures(subject, command, args, old:, domain:, parent: nil, correction: {})
           state = GuardState.new(subject)
           # S12, ADR 0025 — same boundary reasoning as enforce_givens
-          # above: `subject`'s own stored references are no longer
+          # above: `subject`'s own stored references are not
           # dereferenced here; a `projects`-maintained field is already
           # part of `state`. `command`/`args` still dereferences — a
           # fresh reference-typed argument stays in bounds.
