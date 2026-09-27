@@ -13,9 +13,10 @@ module Hecks
       # environment; the file never contains the token and is deleted afterwards.
       # The package's `prepack` builds `dist/`.
       #
-      # npm's second factor is a security key or passkey approved in the browser,
-      # so the publish runs with `--auth-type=web` and its output is not captured:
-      # npm prints an approval link straight to the terminal and waits for it.
+      # The token is a granular one that bypasses two-factor authentication, because
+      # the account's second factor is a passkey. As a fallback the publish runs with
+      # `--auth-type=web` and its output is not captured, so if npm does ask for an
+      # approval it prints the link straight to the terminal and waits for it.
       class NpmPublisher
         PACKAGE_DIR = "packages/hecks-client".freeze
         ENV_FILE = "release/npm_publish.env".freeze

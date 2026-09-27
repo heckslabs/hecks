@@ -233,18 +233,21 @@ an issue first — see the templates under `.github/ISSUE_TEMPLATE/`.
    It asks before the tag and before publishing (`--yes` answers for you;
    `--gem-only` and `--npm-only` narrow it). Both pushes pull their
    credentials from 1Password (`op run`, Touch ID-gated) rather than a
-   file on disk: the npm token is the "publish token" field on the "npmmjs"
-   login item in the Hecks vault, next to the "RubyGems API Key" item
-   (`release/npm_publish.env` names the vault, item and field, and can be
-   edited; `release/gem_push.env` does the same for the RubyGems key). The
-   one-time setup is in the header comments of `bin/release` (npm) and
-   `bin/release_gem` (RubyGems). npm's second factor is a security key or
-   passkey approved in the browser, so the npm step is interactive: it prints
-   an approval link and waits. It cannot be fully unattended; that needs npm
-   trusted publishing from CI, which is not set up yet. The `hecks` npm
-   organization exists; until
-   the first publish, the package's README describes installing from the
-   release tag.
+file on disk: the npm token is the "publish token" field on the
+"npmjs.com" item in the Hecks vault, next to the "RubyGems API Key" item
+(`release/npm_publish.env` names the vault, item and field, and can be
+edited; `release/gem_push.env` does the same for the RubyGems key). The
+one-time setup is in the header comments of `bin/release` (npm) and
+`bin/release_gem` (RubyGems). The npm token must be a granular token
+scoped Read and write to the `@hecks` scope with "Bypass two-factor
+authentication" enabled: the account's second factor is a passkey, so a
+token that requires a one-time code cannot publish (npm answers EOTP).
+The publish passes `--auth-type=web` as an interactive fallback: if npm
+does ask for a passkey or security key, it prints an approval link and
+waits. Publishing from CI without a prompt needs npm trusted publishing,
+which is not set up yet. The `hecks` npm organization exists; until the
+first publish, the package's README describes installing from the
+release tag.
 
    Manual fallback, if `bin/release` cannot be used: tag the merge commit
    (`git tag -a vX.Y.Z <sha>` and push it), run `bin/release_gem`, then

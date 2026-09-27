@@ -297,15 +297,18 @@ npm version <version> --no-git-tag-version   # also updates package-lock.json
 ```
 
 `bin/release` publishes the package after the gem, from this directory, with a
-publish token held in 1Password: the "publish token" field on the "npmmjs"
-login item in the Hecks vault (`release/npm_publish.env` names the vault, item
-and field, and can be edited; the one-time setup is in the header of
+publish token held in 1Password: the "publish token" field on the "npmjs.com"
+item in the Hecks vault (`release/npm_publish.env` names the vault, item and
+field, and can be edited; the one-time setup is in the header of
 `bin/release`). It skips a version npm already has, so `bin/release --npm-only`
-finishes a release whose gem step already succeeded. npm's second factor is a
-security key or passkey approved in the browser, so this step is interactive:
-npm prints an approval link, you open it and approve, and the step continues. It
-cannot be fully unattended; that needs npm trusted publishing from CI, which is
-not set up yet. To publish by hand instead (`prepack` builds `dist/` first):
+finishes a release whose gem step already succeeded. The token must be a
+granular token scoped Read and write to the `@hecks` scope with "Bypass
+two-factor authentication" enabled: the account's second factor is a passkey,
+so a token that requires a one-time code cannot publish (npm answers EOTP).
+The publish passes `--auth-type=web` as an interactive fallback: if npm does
+ask for a passkey or security key, it prints an approval link and waits.
+Publishing from CI without a prompt needs npm trusted publishing, which is not
+set up yet. To publish by hand instead (`prepack` builds `dist/` first):
 
 ```sh
 npm publish --access public

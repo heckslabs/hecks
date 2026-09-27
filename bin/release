@@ -34,23 +34,25 @@
 # One-time setup, outside this script. The gem side is described in
 # bin/release_gem; the npm side is:
 #   - npmjs.com > Access Tokens > Generate New Token > Granular Access Token,
-#     with "Read and write" on packages under the @hecks scope
-#   - that token stored as a concealed field named "publish token" on the npm
-#     login item ("npmmjs") in the Hecks vault, next to the "RubyGems API Key"
-#     item; release/npm_publish.env references it as
-#     op://Hecks/npmmjs/publish token, and the vault, item or field can be
+#     scoped Read and write to the @hecks scope, on an account with
+#     two-factor authentication enabled, with "Bypass two-factor
+#     authentication" enabled: the account's second factor is a passkey (no
+#     authenticator-app codes exist), so a token that requires a one-time
+#     code cannot publish; npm answers `EOTP`
+#   - that token stored as a concealed field named "publish token" on the
+#     "npmjs.com" item (the npm account login) in the Hecks vault, next to the
+#     "RubyGems API Key" item; release/npm_publish.env references it as
+#     op://Hecks/npmjs.com/publish token, and the vault, item or field can be
 #     edited there
-#   - the token must belong to an account with two-factor authentication
-#     enabled, and be scoped Read and write to the @hecks scope
 # The login's username and password alone cannot publish; the token field is
 # what `op run` hands to npm.
 #
-# The npm step is interactive. npm's second factor is a security key or
-# passkey approved in the browser: `npm publish --auth-type=web` prints an
-# approval link, you open it and tap your key, and the step continues. Its
-# output is not captured, so the link shows in the terminal. That means this
-# step cannot run fully unattended; that needs npm trusted publishing from CI,
-# which is not set up yet.
+# The publish also passes `npm publish --auth-type=web` and its output is not
+# captured. If npm does ask for a second factor (a passkey or security key
+# approved in the browser), it prints an approval link to the terminal, you
+# open it and approve, and the step continues; that is the interactive
+# fallback, and it cannot run unattended. Publishing from CI without any
+# prompt needs npm trusted publishing, which is not set up yet.
 #
 # `op run` resolves release/npm_publish.env into `npm publish`'s environment
 # only (Touch ID-gated), npm expands the token in a throwaway user config that

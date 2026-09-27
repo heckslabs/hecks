@@ -16,10 +16,11 @@ changelog has a heading for it. It asks RubyGems and npm what is already
 published and skips that, so a run that stopped between the gem and the package
 is finished by running it again (or `bin/release --npm-only`). `--dry-run` runs
 every check and build without tagging, pushing or publishing, `--gem-only` and
-`--npm-only` narrow it, and `--yes` answers its confirmations. npm's second
-factor is a security key or passkey approved in the browser, so the npm step
-prints an approval link and waits for you; fully unattended publishing needs npm
-trusted publishing from CI, which is not set up. The logic is
+`--npm-only` narrow it, and `--yes` answers its confirmations. The npm step
+needs a granular token that bypasses two-factor authentication, since the
+account's second factor is a passkey; if npm asks for one anyway it prints an
+approval link and waits. Publishing from CI without a prompt needs npm trusted
+publishing, which is not set up. The logic is
 `Hecks::Release::Runner`; `bin/release_gem` still works alone.
 
 ## [2.7.0] - 2026-09-27
