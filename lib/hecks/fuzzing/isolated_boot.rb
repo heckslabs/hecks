@@ -303,6 +303,7 @@ module Hecks
             end
           WORLD
         end
+        write_unbound_chapter_worlds!(copy)
       end
 
       # Admin connection lives outside the tmp copy entirely — same as
@@ -455,6 +456,7 @@ module Hecks
             end
           WORLD
         end
+        write_unbound_chapter_worlds!(copy)
       end
 
       # Replaces every `.world` in the copy with one that declares only `default_adapter`,
@@ -473,6 +475,34 @@ module Hecks
               default_adapter "#{adapter_name}"
             end
           WORLD
+        end
+      end
+
+      # Gives every chapter no hecksagon names a world of its own that falls back to Memory.
+      #
+      # A chapter with a bluebook and no hecksagon block (the framework's Privacy) has no
+      # bind, and the worlds `write_worlds!` wrote declare a `default_adapter` that needs a
+      # `database`: left alone, the chapter resolves that adapter through the project's
+      # world with no connection and the boot refuses (`WiringError ... needs a database
+      # connection`). It persisted through Memory before those worlds carried a
+      # `default_adapter`, and a chapter's own world's default wins over the project's, so
+      # this keeps it there.
+      #
+      # @param copy [String] the isolated copy's root directory
+      # @return [void]
+      def write_unbound_chapter_worlds!(copy)
+        named = Dir.glob(File.join(copy, "**", "*.hecksagon")).flat_map do |path|
+          File.read(path).scan(/Hecks\.hecksagon\s+"([^"]+)"/).flatten
+        end
+        bluebooks = Dir.glob(File.join(copy, "**", "*.bluebook")).group_by { |path| File.dirname(path) }
+        bluebooks.each do |dir, files|
+          unbound = files.flat_map { |path| File.read(path).scan(/Hecks\.bluebook[\s(]+"([^"]+)"/).flatten }
+                         .uniq - named
+          named.concat(unbound)
+          next if unbound.empty?
+
+          worlds = unbound.map { |name| %(Hecks.world "#{name}" do\n  default_adapter "Memory"\nend\n) }
+          File.write(File.join(dir, "hecks_fuzz_unbound.world"), worlds.join("\n"))
         end
       end
 
