@@ -116,6 +116,20 @@ RSpec.describe "bin/qa_discover_external_domains" do
     expect(out_shallow).not_to include("qualifying_sibling/widgets")
   end
 
+  it "finds a monorepo's hecks-dependent domain even though the sibling's own root carries no " \
+     "Gemfile at all — the dependency is declared in a nested app directory's own Gemfile " \
+     "(the real ~/Projects/lifeadelics/lifeadelics shape)" do
+    out, err, status = run_discover
+
+    expect(status.exitstatus).to eq(0), "stdout:\n#{out}\nstderr:\n#{err}"
+    expect(out).to include("monorepo_sibling/app")
+    expect(out).to include(File.join(DISCOVER_EXTERNAL_DOMAINS_FIXTURES, "monorepo_sibling/app"))
+    expect(out).to include("bin/run qa/bluebook identify reference=monorepo_sibling/app " \
+                           "path=#{File.join(DISCOVER_EXTERNAL_DOMAINS_FIXTURES, 'monorepo_sibling/app')}")
+    skipped_line = out[/^no hecks dependency, skipped:.*$/]
+    expect(skipped_line.to_s).not_to include("monorepo_sibling")
+  end
+
   it "exits 1 with usage on an unknown flag" do
     _out, err, status = Open3.capture3("bundle", "exec", "ruby",
                                        File.join(InMemoryDomain::ROOT, "bin/qa_discover_external_domains"),

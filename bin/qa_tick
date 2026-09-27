@@ -123,18 +123,85 @@ def run_step(path, *argv)
   [output, status.exitstatus]
 end
 
+# A target's own per-seed "seed N: held (...)" line is the only thing this script ever drops from
+# what it prints — and only where it falls outside a `FOUND SOMETHING`/`OPERATIONAL ERRORS` block.
+# Those two block types are a dispatched subagent's entire input for "On a finding"/"read the
+# actual message(s)" (see the skill), so they are never touched here; the unabridged text is
+# always in the log file this tick writes regardless of what stdout shows.
+HELD_SEED_LINE = /^  seed \d+: held \(.*\)$/
+
+def collapse_held_lines(text)
+  text.gsub(/(?:#{HELD_SEED_LINE}\n)+/) do |run|
+    count = run.lines.size
+    "  (#{count} held seed(s) suppressed here — none surprised; full detail in the tick's log file)\n"
+  end
+end
+
+# `bin/qa_sweep --all`'s consolidated report is the one step whose bulk section can get large
+# enough to put a relay at risk of truncation (a widened `clean_streak` means hundreds of "seed N:
+# held" lines can precede either a real finding or an unrelated operational error). Everything from
+# the first `OPERATIONAL ERRORS`/`FOUND SOMETHING` header through the end of the last such block is
+# copied verbatim — never summarized, never trimmed. `QA_SWEEP_TRACE` output, when present, is
+# routine per-phase timing with no finding in it, so it is left out of stdout (still in the log).
+def condense_sweep_output(raw)
+  errors_at = raw.index(/^OPERATIONAL ERRORS \(/)
+  found_at  = raw.index(/^FOUND SOMETHING \(/)
+  trace_at  = raw.index(/^QA_SWEEP_TRACE output /)
+  protect_from = [errors_at, found_at].compact.min
+
+  return collapse_held_lines(raw) if protect_from.nil?
+
+  protect_to = trace_at || raw.length
+  before     = collapse_held_lines(raw[0...protect_from])
+  protected_block = raw[protect_from...protect_to]
+  after =
+    if trace_at
+      "\n(bin/qa_sweep's QA_SWEEP_TRACE output omitted here — routine per-phase timing, not a " \
+        "finding; the full record is in the tick's log file)\n"
+    else
+      ""
+    end
+
+  "#{before}#{protected_block}#{after}"
+end
+
+def write_tick_log!(pr_check_output, sweep_output, generated_output)
+  dir = File.join(ROOT, "tmp/qa-tick-logs")
+  FileUtils.mkdir_p(dir)
+  path = File.join(dir, "#{Time.now.strftime('%Y%m%d-%H%M%S')}-#{Process.pid}.log")
+  File.write(path, <<~LOG)
+    #{'=' * 72}
+    bin/qa_pr_check -- full raw output
+    #{'=' * 72}
+    #{pr_check_output}
+
+    #{'=' * 72}
+    bin/qa_sweep --all -- full raw output
+    #{'=' * 72}
+    #{sweep_output}
+
+    #{'=' * 72}
+    bin/qa_generated_domains --from-dials -- full raw output
+    #{'=' * 72}
+    #{generated_output}
+  LOG
+  path
+end
+
 banner "bin/qa_pr_check"
 pr_check_output, pr_check_exit = run_step(File.join(ROOT, "bin/qa_pr_check"))
 puts pr_check_output
 
 banner "bin/qa_sweep --all"
 sweep_output, sweep_exit = run_step(File.join(ROOT, "bin/qa_sweep"), "--all")
-puts sweep_output
+puts condense_sweep_output(sweep_output)
 reclaimed = sweep_output.scan(/^reclaimed stale hold: (\S+)/).flatten
 
 banner "bin/qa_generated_domains --from-dials"
 generated_output, generated_exit = run_step(File.join(ROOT, "bin/qa_generated_domains"), "--from-dials")
 puts generated_output
+
+log_path = write_tick_log!(pr_check_output, sweep_output, generated_output)
 
 def verdict(code)
   case code
@@ -159,4 +226,5 @@ tick_exit =
   else EXIT_ERROR
   end
 puts "tick: #{verdict(tick_exit)} (exit #{tick_exit})"
+puts "full raw output (all three steps, unabridged): #{log_path}"
 exit tick_exit
