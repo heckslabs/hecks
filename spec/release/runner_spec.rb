@@ -269,7 +269,7 @@ RSpec.describe Hecks::Release::Runner do
       call = commands.runs.find { |c| c.argv.first(2) == %w[op run] }
       expect(call.argv).to eq(
         ["op", "run", "--env-file=#{File.join(root, 'release/npm_publish.env')}", "--",
-         "npm", "publish", "--access", "public", "--userconfig", seen[:path]]
+         "npm", "publish", "--access", "public", "--auth-type=web", "--userconfig", seen[:path]]
       )
       expect(call.chdir).to eq(File.join(root, "packages/hecks-client"))
       expect(seen[:content]).to eq("//registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}\n")
@@ -284,6 +284,27 @@ RSpec.describe Hecks::Release::Runner do
 
       expect(release(yes: true, npm_only: true)).to eq(1)
       expect(File.exist?(path)).to be(false)
+    end
+
+    it "uses npm's web authentication and does not capture the publish output, so the approval link shows" do
+      release(yes: true, npm_only: true)
+
+      publish = commands.runs.find { |c| c.argv.first(2) == %w[op run] }
+      expect(publish.argv).to include("--auth-type=web")
+      captured = commands.calls.select { |c| c.kind == :capture }.map(&:argv)
+      expect(captured.none? { |argv| argv.include?("publish") || argv.include?("run") }).to be(true)
+    end
+
+    it "says before publishing that npm will print an approval link and the step waits" do
+      printed_before_publish = nil
+      commands.on_run("op", "run") { printed_before_publish = out.string.dup }
+
+      release(yes: true, npm_only: true)
+
+      expect(printed_before_publish).to include(
+        "npm will print an approval link; open it and approve with your security key or passkey. " \
+        "This step waits for you."
+      )
     end
 
     it "prints the exact resume command when npm fails after the gem is published" do

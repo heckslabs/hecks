@@ -238,7 +238,11 @@ an issue first — see the templates under `.github/ISSUE_TEMPLATE/`.
    (`release/npm_publish.env` names the vault, item and field, and can be
    edited; `release/gem_push.env` does the same for the RubyGems key). The
    one-time setup is in the header comments of `bin/release` (npm) and
-   `bin/release_gem` (RubyGems). The `hecks` npm organization exists; until
+   `bin/release_gem` (RubyGems). npm's second factor is a security key or
+   passkey approved in the browser, so the npm step is interactive: it prints
+   an approval link and waits. It cannot be fully unattended; that needs npm
+   trusted publishing from CI, which is not set up yet. The `hecks` npm
+   organization exists; until
    the first publish, the package's README describes installing from the
    release tag.
 

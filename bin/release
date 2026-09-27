@@ -40,13 +40,17 @@
 #     item; release/npm_publish.env references it as
 #     op://Hecks/npmmjs/publish token, and the vault, item or field can be
 #     edited there
-#   - npm is restricting tokens that bypass two-factor authentication (account
-#     changes from August 2026, direct publishing from January 2027), so the
-#     durable setup is a token that requires a one-time code: give the login
-#     item an authenticator secret and uncomment the NPM_CONFIG_OTP line in
-#     release/npm_publish.env
+#   - the token must belong to an account with two-factor authentication
+#     enabled, and be scoped Read and write to the @hecks scope
 # The login's username and password alone cannot publish; the token field is
 # what `op run` hands to npm.
+#
+# The npm step is interactive. npm's second factor is a security key or
+# passkey approved in the browser: `npm publish --auth-type=web` prints an
+# approval link, you open it and tap your key, and the step continues. Its
+# output is not captured, so the link shows in the terminal. That means this
+# step cannot run fully unattended; that needs npm trusted publishing from CI,
+# which is not set up yet.
 #
 # `op run` resolves release/npm_publish.env into `npm publish`'s environment
 # only (Touch ID-gated), npm expands the token in a throwaway user config that

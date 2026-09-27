@@ -12,9 +12,15 @@ module Hecks
       # throwaway user config holds a placeholder that npm expands from that
       # environment; the file never contains the token and is deleted afterwards.
       # The package's `prepack` builds `dist/`.
+      #
+      # npm's second factor is a security key or passkey approved in the browser,
+      # so the publish runs with `--auth-type=web` and its output is not captured:
+      # npm prints an approval link straight to the terminal and waits for it.
       class NpmPublisher
         PACKAGE_DIR = "packages/hecks-client".freeze
         ENV_FILE = "release/npm_publish.env".freeze
+        APPROVAL_NOTICE = "npm will print an approval link; open it and approve with your security key or passkey. " \
+                          "This step waits for you.".freeze
         USERCONFIG_LINE = "//registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}".freeze
 
         # @param root [String] the repository root
@@ -39,6 +45,7 @@ module Hecks
             @commands.run!("npm", "publish", "--dry-run", "--access", "public", chdir: package_dir)
           else
             @console.say("Publishing @hecks/client #{version} to npm (1Password will prompt for Touch ID)...")
+            @console.say(APPROVAL_NOTICE)
             publish_with_token
           end
         end
@@ -60,7 +67,7 @@ module Hecks
           with_userconfig do |userconfig|
             @commands.run!(
               "op", "run", "--env-file=#{File.join(@root, ENV_FILE)}", "--",
-              "npm", "publish", "--access", "public", "--userconfig", userconfig,
+              "npm", "publish", "--access", "public", "--auth-type=web", "--userconfig", userconfig,
               chdir: package_dir
             )
           end
