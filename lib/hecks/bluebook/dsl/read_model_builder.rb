@@ -126,6 +126,28 @@ module Hecks
           @group_by = fields.map { |field| { field: field.to_sym } }
         end
 
+        # `sum`/`avg`/`min`/`max`/`any`/`all` need no method of their own: each is one
+        # required positional symbol, the same shape as `median`, which `GenericDispatch`
+        # already handles generically off the grammar table (ADR 0078).
+
+        # The field's value at one interpolated rank (`0.0`..`1.0`) across the eligible
+        # many-side head's own rows; `median` is the fixed `at: 0.5` case (ADR 0078). Takes
+        # a named argument alongside its field, which is outside `GenericDispatch`'s
+        # one-positional-argument shape, so it needs a method of its own.
+        #
+        # @param field [Symbol] the eligible many-side head's own numeric field
+        # @param at [Float] the rank to interpolate, `0.0` (the minimum) through `1.0` (the maximum)
+        # @return [void]
+        # @raise [ArgumentError] if `at` is not a `Float` in `0.0..1.0`
+        def percentile_impl(field, at:)
+          unless at.is_a?(Float) && (0.0..1.0).cover?(at)
+            raise ArgumentError, "percentile's at: must be a Float between 0.0 and 1.0 (given #{at.inspect})"
+          end
+
+          @percentile_field = field.to_sym
+          @percentile_at = at
+        end
+
         # Assembles the declared references, includes and clauses into a `ReadModel`, after
         # validating them.
         #
@@ -133,9 +155,9 @@ module Hecks
         # Zero includes and no reference is refused.
         # @return [Bluebook::ReadModel] the built read model
         # @raise [Bluebook::DSL::Malformed] if neither `reference_to` nor any `include` is
-        #   declared, if `where`/`order_by`/`limit`/`offset`/`group_by`/`count`/`median` name an
+        #   declared, if `where`/`order_by`/`limit`/`offset`/`group_by` or a reduction name an
         #   `on:` that isn't a many-side include or are left untargeted with more than one
-        #   many-side head, if `count` and `median` are both declared or combined with
+        #   many-side head, if more than one reduction is declared or one is combined with
         #   `group_by`, or if `cursor` is declared
         def build
           if !@reference_target && Array(@includes).empty?
@@ -156,7 +178,10 @@ module Hecks
                         cursor: @cursor,
                         authorization: @authorization, null_semantics: @null_semantics,
                         inspection: @inspection, group_by: @group_by || [],
-                        count: @count, median_field: @median_field)
+                        count: @count, median_field: @median_field,
+                        sum_field: @sum_field, avg_field: @avg_field, min_field: @min_field,
+                        max_field: @max_field, percentile_field: @percentile_field,
+                        percentile_at: @percentile_at, any_field: @any_field, all_field: @all_field)
         end
 
         # Evaluates a `read_model` block against a fresh builder and returns what it built.
@@ -226,28 +251,30 @@ module Hecks
                 "own rows; name which one by including only it"
         end
 
-        # `count`/`median` need exactly one many-side head, cannot be declared together, and
-        # cannot combine with `group_by`: a read model reports one shape.
+        # Every reduction (`Behaviour::ReadModel::REDUCTION_FIELDS`) needs exactly one
+        # many-side head, cannot be declared alongside another, and cannot combine with
+        # `group_by`: a read model reports one shape.
         def seal_aggregation
-          return unless @count || @median_field
+          declared = Behaviour::ReadModel::REDUCTION_FIELDS
+                     .select { |ivar, _| instance_variable_get(:"@#{ivar}") }.values
+          return if declared.empty?
 
-          if @count && @median_field
-            raise Malformed,
-                  "#{@name} declares both count and median — a read model reports " \
-                  "one shape; choose one"
-          end
           if @group_by&.any?
             raise Malformed,
-                  "#{@name} declares count/median together with group_by — a read " \
+                  "#{@name} declares #{declared.join('/')} together with group_by — a read " \
                   "model reports one shape; choose one"
+          end
+          if declared.size > 1
+            joiner = declared.size == 2 ? "both #{declared.join(' and ')}" : declared.join(", ")
+            raise Malformed, "#{@name} declares #{joiner} — a read model reports one shape; choose one"
           end
 
           many = Array(@aggregate_heads).count { |head| head[:many] }
           return if many == 1
 
           raise Malformed,
-                "#{@name} declares count/median but includes #{many} many-side " \
-                "aggregates, not exactly one — count/median reduce a single " \
+                "#{@name} declares #{declared.first} but includes #{many} many-side " \
+                "aggregates, not exactly one — #{declared.first} reduces a single " \
                 "collection's own rows; name which one by including only it"
         end
 

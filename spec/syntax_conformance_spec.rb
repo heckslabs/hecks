@@ -163,6 +163,7 @@ RSpec.describe "the declared syntax" do
       offset_impl:        "QuerySpecification::Common::DSL's own real implementation, called by GenericDispatch's calls:",
       include_impl:       "ReadModelBuilder's own real implementation, called by GenericDispatch's calls:",
       group_by_impl:      "ReadModelBuilder's own real implementation, called by GenericDispatch's calls:",
+      percentile_impl:    "ReadModelBuilder's own real implementation, called by GenericDispatch's calls:",
       transition_impl:    "the owning builder's own real implementation, called by GenericDispatch's calls:",
       starts_on_impl:     "ProcessManagerBuilder's own real implementation, called by GenericDispatch's calls:",
       ends_on_impl:       "ProcessManagerBuilder's own real implementation, called by GenericDispatch's calls:",

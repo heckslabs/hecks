@@ -18,9 +18,18 @@ Hecks.bluebook "Bluebook" do
     # Fields whose values nest the eligible head's rows, in declared order; a list because the
     # number of fields is open.
     attribute :group_by,         list_of(GroupByField)
-    # The other two reductions over the one eligible head; empty when neither is declared.
+    # The other reductions over the one eligible head; empty when none is declared
+    # (ADR 0078 — a read model reports one shape, so at most one is ever set).
     attribute :count,            ReadModelText, optional: true
     attribute :median_field,     ReadModelText, optional: true
+    attribute :sum_field,        ReadModelText, optional: true
+    attribute :avg_field,        ReadModelText, optional: true
+    attribute :min_field,        ReadModelText, optional: true
+    attribute :max_field,        ReadModelText, optional: true
+    attribute :percentile_field, ReadModelText, optional: true
+    attribute :percentile_at,    ReadModelText, optional: true
+    attribute :any_field,        ReadModelText, optional: true
+    attribute :all_field,        ReadModelText, optional: true
 
     value_object "ReadModelName" do
       attribute :value, String
@@ -147,6 +156,84 @@ Hecks.bluebook "Bluebook" do
       emits MedianFieldSet
     end
 
+    command "Sum" do
+      role "Language"
+      goal "Mark the read model as the total of one numeric field across its one eligible collection"
+
+      given("a sum field is named") { !sum_field.value.to_s.empty? }
+
+      sets :sum_field
+
+      emits SumFieldSet
+    end
+
+    command "Avg" do
+      role "Language"
+      goal "Mark the read model as the mean of one numeric field across its one eligible collection"
+
+      given("an avg field is named") { !avg_field.value.to_s.empty? }
+
+      sets :avg_field
+
+      emits AvgFieldSet
+    end
+
+    command "Min" do
+      role "Language"
+      goal "Mark the read model as the smallest value of one numeric field across its one eligible collection"
+
+      given("a min field is named") { !min_field.value.to_s.empty? }
+
+      sets :min_field
+
+      emits MinFieldSet
+    end
+
+    command "Max" do
+      role "Language"
+      goal "Mark the read model as the largest value of one numeric field across its one eligible collection"
+
+      given("a max field is named") { !max_field.value.to_s.empty? }
+
+      sets :max_field
+
+      emits MaxFieldSet
+    end
+
+    command "Percentile" do
+      role "Language"
+      goal "Mark the read model as one interpolated rank of one numeric field across its one eligible collection"
+
+      given("a percentile field is named") { !percentile_field.value.to_s.empty? }
+
+      sets :percentile_field
+      sets :percentile_at
+
+      emits PercentileFieldSet
+    end
+
+    command "Any" do
+      role "Language"
+      goal "Mark the read model as whether any row's boolean field is true across its one eligible collection"
+
+      given("an any field is named") { !any_field.value.to_s.empty? }
+
+      sets :any_field
+
+      emits AnyFieldSet
+    end
+
+    command "All" do
+      role "Language"
+      goal "Mark the read model as whether every row's boolean field is true across its one eligible collection"
+
+      given("an all field is named") { !all_field.value.to_s.empty? }
+
+      sets :all_field
+
+      emits AllFieldSet
+    end
+
     command "Option" do
       role "Language"
       goal "Attach one part of one specification option to the read model"
@@ -183,6 +270,13 @@ Hecks.bluebook "Bluebook" do
       member word: "group_by",        context: "ReadModel", body: "none", inner: "", opens: "", fills: "group_by", calls: "group_by_impl"
       member word: "count",           context: "ReadModel", body: "none", inner: "", opens: "", fills: "count"
       member word: "median",          context: "ReadModel", body: "none", inner: "", opens: "", fills: "median_field"
+      member word: "sum",             context: "ReadModel", body: "none", inner: "", opens: "", fills: "sum_field"
+      member word: "avg",             context: "ReadModel", body: "none", inner: "", opens: "", fills: "avg_field"
+      member word: "min",             context: "ReadModel", body: "none", inner: "", opens: "", fills: "min_field"
+      member word: "max",             context: "ReadModel", body: "none", inner: "", opens: "", fills: "max_field"
+      member word: "percentile",      context: "ReadModel", body: "none", inner: "", opens: "", fills: "percentile_field", calls: "percentile_impl"
+      member word: "any",             context: "ReadModel", body: "none", inner: "", opens: "", fills: "any_field"
+      member word: "all",             context: "ReadModel", body: "none", inner: "", opens: "", fills: "all_field"
       member word: "where",           context: "ReadModel", body: "none", inner: "", opens: "", fills: "options", calls: "where_impl"
       member word: "order_by",        context: "ReadModel", body: "none", inner: "", opens: "", fills: "options", calls: "order_by_impl"
       member word: "authorize",       context: "ReadModel", body: "none", inner: "", opens: "", fills: "options", calls: "authorize_impl"
@@ -214,6 +308,14 @@ Hecks.bluebook "Bluebook" do
       member keyword: "include",         context: "ReadModel", at: "",  named: "as",      kind: "symbol",   required: "false", fills: "as"
       member keyword: "group_by",        context: "ReadModel", at: "1", named: "",        kind: "symbol",   required: "true",  fills: "group_by", variadic: "true"
       member keyword: "median",          context: "ReadModel", at: "1", named: "",        kind: "symbol",   required: "true",  fills: "median_field"
+      member keyword: "sum",             context: "ReadModel", at: "1", named: "",        kind: "symbol",   required: "true",  fills: "sum_field"
+      member keyword: "avg",             context: "ReadModel", at: "1", named: "",        kind: "symbol",   required: "true",  fills: "avg_field"
+      member keyword: "min",             context: "ReadModel", at: "1", named: "",        kind: "symbol",   required: "true",  fills: "min_field"
+      member keyword: "max",             context: "ReadModel", at: "1", named: "",        kind: "symbol",   required: "true",  fills: "max_field"
+      member keyword: "percentile",      context: "ReadModel", at: "1", named: "",        kind: "symbol",   required: "true",  fills: "percentile_field"
+      member keyword: "percentile",      context: "ReadModel", at: "",  named: "at",      kind: "number",   required: "true",  fills: "percentile_at"
+      member keyword: "any",             context: "ReadModel", at: "1", named: "",        kind: "symbol",   required: "true",  fills: "any_field"
+      member keyword: "all",             context: "ReadModel", at: "1", named: "",        kind: "symbol",   required: "true",  fills: "all_field"
       member keyword: "where",           context: "ReadModel", at: "1", named: "",        kind: "pairs",    required: "true",  fills: ""
       member keyword: "order_by",        context: "ReadModel", at: "1", named: "",        kind: "symbol",   required: "true",  fills: "field"
       member keyword: "order_by",        context: "ReadModel", at: "2", named: "",        kind: "symbol",   required: "false", fills: "direction"

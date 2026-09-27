@@ -85,6 +85,22 @@ pub struct ReadModelDef {
     pub count: bool,
     /// `median :field` — the declared numeric field's median across the one `many`-side head.
     pub median_field: Option<&'static str>,
+    /// `sum :field` — the declared Integer field's total (ADR 0078).
+    pub sum_field: Option<&'static str>,
+    /// `avg :field` — the declared Integer field's mean (ADR 0078).
+    pub avg_field: Option<&'static str>,
+    /// `min :field` — the declared numeric field's smallest value (ADR 0078).
+    pub min_field: Option<&'static str>,
+    /// `max :field` — the declared numeric field's largest value (ADR 0078).
+    pub max_field: Option<&'static str>,
+    /// `percentile :field, at:` — the declared numeric field's value at one interpolated
+    /// rank; `median` is the fixed `at: 0.5` case (ADR 0078).
+    pub percentile_field: Option<&'static str>,
+    pub percentile_at: Option<f64>,
+    /// `any :field` — whether any row's declared boolean field is `true` (ADR 0078).
+    pub any_field: Option<&'static str>,
+    /// `all :field` — whether every row's declared boolean field is `true` (ADR 0078).
+    pub all_field: Option<&'static str>,
 }
 
 /// Whether a `group_by` leaf is checked for a second row — decided once, by the generator, from
@@ -153,11 +169,13 @@ fn leaf(group: Vec<Json>, all_fields: &[&str], check: LeafCheck, path: &[(&str, 
     ))
 }
 
-/// The declared field's median across `rows`. An odd count returns the true middle value
-/// unconverted; an even count averages the two middle values as a `Json::Float` (matching
-/// Ruby's forced float division). An empty collection is `Json::Null`, not zero, so a caller
-/// cannot mistake "nothing to average" for "averaged to zero".
-fn median(rows: &[(String, Json)], field: &'static str) -> Json {
+/// The declared field's value at one interpolated rank (`at`, `0.0`..`1.0`) across `rows` —
+/// linear interpolation between the two closest ranks, matching SQL's `PERCENTILE_CONT`
+/// (ADR 0078). Landing exactly on a rank returns that value unconverted; interpolating
+/// between two returns a `Json::Float` (matching Ruby's forced float division). An empty
+/// collection is `Json::Null`, not zero, so a caller cannot mistake "nothing to average" for
+/// "averaged to zero".
+fn percentile(rows: &[(String, Json)], field: &'static str, at: f64) -> Json {
     let mut values: Vec<Json> = rows
         .iter()
         .filter_map(|(_, row)| row.get(field))
@@ -169,12 +187,83 @@ fn median(rows: &[(String, Json)], field: &'static str) -> Json {
     }
     values.sort_by(|a, b| query_comparators::as_f64(a).partial_cmp(&query_comparators::as_f64(b)).unwrap_or(std::cmp::Ordering::Equal));
 
-    let middle = values.len() / 2;
-    if values.len() % 2 == 1 {
-        values[middle].clone()
+    let position = at * (values.len() - 1) as f64;
+    let lower = position.floor() as usize;
+    let fraction = position - lower as f64;
+    if fraction == 0.0 {
+        values[lower].clone()
     } else {
-        Json::Float((query_comparators::as_f64(&values[middle - 1]) + query_comparators::as_f64(&values[middle])) / 2.0)
+        let lo = query_comparators::as_f64(&values[lower]);
+        let hi = query_comparators::as_f64(&values[lower + 1]);
+        Json::Float(lo + fraction * (hi - lo))
     }
+}
+
+/// The standard median: the fixed `at: 0.5` case of `percentile` (ADR 0078) — the middle
+/// value when odd, the average of the two middle values when even.
+fn median(rows: &[(String, Json)], field: &'static str) -> Json {
+    percentile(rows, field, 0.5)
+}
+
+/// The total of the declared Integer field across `rows`; `0`, not `Json::Null`, on no rows —
+/// "no disputes" means zero exposure, where `median`/`min`/`max` have no answer to give
+/// (ADR 0078). Always `Json::Num`, never `Json::Float`: `sum` admits only an Integer field.
+fn sum(rows: &[(String, Json)], field: &'static str) -> Json {
+    let total = rows
+        .iter()
+        .filter_map(|(_, row)| row.get(field))
+        .map(query_comparators::comparable)
+        .filter(|value| !matches!(value, Json::Null))
+        .fold(0.0, |acc, value| acc + query_comparators::as_f64(&value));
+    Json::Num(total)
+}
+
+/// The mean of the declared Integer field across `rows`; `Json::Null` on no rows — a rate of
+/// nothing is undefined, not zero (ADR 0078). `sum / count` as a plain `f64` division: both
+/// operands are exact integers within 2^53 (`sum`'s own overflow refusal), so IEEE 754's
+/// correctly-rounded division agrees bit for bit with Ruby's own `sum.to_f / count.to_f`.
+fn avg(rows: &[(String, Json)], field: &'static str) -> Json {
+    let values: Vec<f64> = rows
+        .iter()
+        .filter_map(|(_, row)| row.get(field))
+        .map(query_comparators::comparable)
+        .filter(|value| !matches!(value, Json::Null))
+        .map(|value| query_comparators::as_f64(&value))
+        .collect();
+    if values.is_empty() {
+        return Json::Null;
+    }
+    Json::Float(values.iter().sum::<f64>() / values.len() as f64)
+}
+
+/// The smallest (`want_max: false`) or largest (`true`) declared field value across `rows`,
+/// its own `Json` variant preserved (an Integer field stays `Num`, a Float field stays
+/// `Float`); `Json::Null` on no rows.
+fn extreme(rows: &[(String, Json)], field: &'static str, want_max: bool) -> Json {
+    let mut values: Vec<Json> = rows
+        .iter()
+        .filter_map(|(_, row)| row.get(field))
+        .map(query_comparators::comparable)
+        .filter(|value| !matches!(value, Json::Null))
+        .collect();
+    if values.is_empty() {
+        return Json::Null;
+    }
+    values.sort_by(|a, b| query_comparators::as_f64(a).partial_cmp(&query_comparators::as_f64(b)).unwrap_or(std::cmp::Ordering::Equal));
+    if want_max { values.pop().expect("checked non-empty above") } else { values.remove(0) }
+}
+
+/// Whether any (`want_all: false`) or every (`true`) row's declared boolean field is `true`
+/// across `rows` — the ordinary OR-identity/AND-identity vacuous-truth reading on no rows
+/// (`any` of nothing is `false`, `all` of nothing is `true`; ADR 0078).
+fn boolean_reduce(rows: &[(String, Json)], field: &'static str, want_all: bool) -> Json {
+    let values: Vec<bool> = rows
+        .iter()
+        .filter_map(|(_, row)| row.get(field))
+        .map(|value| query_comparators::comparable(value))
+        .filter_map(|value| value.as_bool())
+        .collect();
+    Json::Bool(if want_all { values.iter().all(|v| *v) } else { values.iter().any(|v| *v) })
 }
 
 /// The lookup a read-model ask (a bare "Domain.Name" string, no "::") dispatches through — a
@@ -250,6 +339,14 @@ mod snake_alias_tests {
             group_by: None,
             count: false,
             median_field: None,
+            sum_field: None,
+            avg_field: None,
+            min_field: None,
+            max_field: None,
+            percentile_field: None,
+            percentile_at: None,
+            any_field: None,
+            all_field: None,
         }];
 
         assert!(find(&table, "Banking.CustomerPortfolio").is_some());
@@ -385,6 +482,14 @@ mod reference_hop_tests {
             group_by: None,
             count: false,
             median_field: None,
+            sum_field: None,
+            avg_field: None,
+            min_field: None,
+            max_field: None,
+            percentile_field: None,
+            percentile_at: None,
+            any_field: None,
+            all_field: None,
         }
     }
 
@@ -643,6 +748,24 @@ pub fn run(store: &impl AggregateScan, def: &ReadModelDef, args: &Json) -> Resul
             Json::Num(rows.len() as f64)
         } else if many && def.median_field.is_some() {
             median(&rows, def.median_field.expect("checked by the branch guard"))
+        } else if many && def.sum_field.is_some() {
+            sum(&rows, def.sum_field.expect("checked by the branch guard"))
+        } else if many && def.avg_field.is_some() {
+            avg(&rows, def.avg_field.expect("checked by the branch guard"))
+        } else if many && def.min_field.is_some() {
+            extreme(&rows, def.min_field.expect("checked by the branch guard"), false)
+        } else if many && def.max_field.is_some() {
+            extreme(&rows, def.max_field.expect("checked by the branch guard"), true)
+        } else if many && def.percentile_field.is_some() {
+            percentile(
+                &rows,
+                def.percentile_field.expect("checked by the branch guard"),
+                def.percentile_at.expect("percentile_field implies percentile_at"),
+            )
+        } else if many && def.any_field.is_some() {
+            boolean_reduce(&rows, def.any_field.expect("checked by the branch guard"), false)
+        } else if many && def.all_field.is_some() {
+            boolean_reduce(&rows, def.all_field.expect("checked by the branch guard"), true)
         } else if many {
             Json::Array(rows.into_iter().map(|(id, record)| repository::row_json(id, record)).collect())
         } else {

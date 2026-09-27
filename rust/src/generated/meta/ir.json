@@ -16095,6 +16095,86 @@
           "relationship": null
         },
         {
+          "name": "sum_field",
+          "type": "ReadModelText",
+          "list": false,
+          "default": null,
+          "optional": true,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
+          "name": "avg_field",
+          "type": "ReadModelText",
+          "list": false,
+          "default": null,
+          "optional": true,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
+          "name": "min_field",
+          "type": "ReadModelText",
+          "list": false,
+          "default": null,
+          "optional": true,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
+          "name": "max_field",
+          "type": "ReadModelText",
+          "list": false,
+          "default": null,
+          "optional": true,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
+          "name": "percentile_field",
+          "type": "ReadModelText",
+          "list": false,
+          "default": null,
+          "optional": true,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
+          "name": "percentile_at",
+          "type": "ReadModelText",
+          "list": false,
+          "default": null,
+          "optional": true,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
+          "name": "any_field",
+          "type": "ReadModelText",
+          "list": false,
+          "default": null,
+          "optional": true,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
+          "name": "all_field",
+          "type": "ReadModelText",
+          "list": false,
+          "default": null,
+          "optional": true,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
           "name": "position",
           "type": "Position",
           "list": false,
@@ -16644,6 +16724,192 @@
             [
               [
                 "word",
+                "sum"
+              ],
+              [
+                "context",
+                "ReadModel"
+              ],
+              [
+                "body",
+                "none"
+              ],
+              [
+                "inner",
+                ""
+              ],
+              [
+                "opens",
+                ""
+              ],
+              [
+                "fills",
+                "sum_field"
+              ]
+            ],
+            [
+              [
+                "word",
+                "avg"
+              ],
+              [
+                "context",
+                "ReadModel"
+              ],
+              [
+                "body",
+                "none"
+              ],
+              [
+                "inner",
+                ""
+              ],
+              [
+                "opens",
+                ""
+              ],
+              [
+                "fills",
+                "avg_field"
+              ]
+            ],
+            [
+              [
+                "word",
+                "min"
+              ],
+              [
+                "context",
+                "ReadModel"
+              ],
+              [
+                "body",
+                "none"
+              ],
+              [
+                "inner",
+                ""
+              ],
+              [
+                "opens",
+                ""
+              ],
+              [
+                "fills",
+                "min_field"
+              ]
+            ],
+            [
+              [
+                "word",
+                "max"
+              ],
+              [
+                "context",
+                "ReadModel"
+              ],
+              [
+                "body",
+                "none"
+              ],
+              [
+                "inner",
+                ""
+              ],
+              [
+                "opens",
+                ""
+              ],
+              [
+                "fills",
+                "max_field"
+              ]
+            ],
+            [
+              [
+                "word",
+                "percentile"
+              ],
+              [
+                "context",
+                "ReadModel"
+              ],
+              [
+                "body",
+                "none"
+              ],
+              [
+                "inner",
+                ""
+              ],
+              [
+                "opens",
+                ""
+              ],
+              [
+                "fills",
+                "percentile_field"
+              ],
+              [
+                "calls",
+                "percentile_impl"
+              ]
+            ],
+            [
+              [
+                "word",
+                "any"
+              ],
+              [
+                "context",
+                "ReadModel"
+              ],
+              [
+                "body",
+                "none"
+              ],
+              [
+                "inner",
+                ""
+              ],
+              [
+                "opens",
+                ""
+              ],
+              [
+                "fills",
+                "any_field"
+              ]
+            ],
+            [
+              [
+                "word",
+                "all"
+              ],
+              [
+                "context",
+                "ReadModel"
+              ],
+              [
+                "body",
+                "none"
+              ],
+              [
+                "inner",
+                ""
+              ],
+              [
+                "opens",
+                ""
+              ],
+              [
+                "fills",
+                "all_field"
+              ]
+            ],
+            [
+              [
+                "word",
                 "where"
               ],
               [
@@ -17134,6 +17400,246 @@
               [
                 "fills",
                 "median_field"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "sum"
+              ],
+              [
+                "context",
+                "ReadModel"
+              ],
+              [
+                "at",
+                1
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "symbol"
+              ],
+              [
+                "required",
+                true
+              ],
+              [
+                "fills",
+                "sum_field"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "avg"
+              ],
+              [
+                "context",
+                "ReadModel"
+              ],
+              [
+                "at",
+                1
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "symbol"
+              ],
+              [
+                "required",
+                true
+              ],
+              [
+                "fills",
+                "avg_field"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "min"
+              ],
+              [
+                "context",
+                "ReadModel"
+              ],
+              [
+                "at",
+                1
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "symbol"
+              ],
+              [
+                "required",
+                true
+              ],
+              [
+                "fills",
+                "min_field"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "max"
+              ],
+              [
+                "context",
+                "ReadModel"
+              ],
+              [
+                "at",
+                1
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "symbol"
+              ],
+              [
+                "required",
+                true
+              ],
+              [
+                "fills",
+                "max_field"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "percentile"
+              ],
+              [
+                "context",
+                "ReadModel"
+              ],
+              [
+                "at",
+                1
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "symbol"
+              ],
+              [
+                "required",
+                true
+              ],
+              [
+                "fills",
+                "percentile_field"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "percentile"
+              ],
+              [
+                "context",
+                "ReadModel"
+              ],
+              [
+                "at",
+                ""
+              ],
+              [
+                "named",
+                "at"
+              ],
+              [
+                "kind",
+                "number"
+              ],
+              [
+                "required",
+                true
+              ],
+              [
+                "fills",
+                "percentile_at"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "any"
+              ],
+              [
+                "context",
+                "ReadModel"
+              ],
+              [
+                "at",
+                1
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "symbol"
+              ],
+              [
+                "required",
+                true
+              ],
+              [
+                "fills",
+                "any_field"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "all"
+              ],
+              [
+                "context",
+                "ReadModel"
+              ],
+              [
+                "at",
+                1
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "symbol"
+              ],
+              [
+                "required",
+                true
+              ],
+              [
+                "fills",
+                "all_field"
               ]
             ],
             [
@@ -17688,6 +18194,438 @@
           ],
           "emits": [
             "MedianFieldSet"
+          ],
+          "from": null,
+          "provenance": null
+        },
+        {
+          "name": "Sum",
+          "role": "Language",
+          "goal": "Mark the read model as the total of one numeric field across its one eligible collection",
+          "references": null,
+          "attributes": [
+            {
+              "name": "sum_field",
+              "type": "ReadModelText",
+              "list": false,
+              "default": null,
+              "optional": true,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [
+            {
+              "description": "a sum field is named",
+              "canonical": "!sum_field.value.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "sum_field",
+                        "value"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          ],
+          "ensures": [
+
+          ],
+          "mutations": [
+            {
+              "target": "sum_field",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "sum_field"
+              }
+            }
+          ],
+          "emits": [
+            "SumFieldSet"
+          ],
+          "from": null,
+          "provenance": null
+        },
+        {
+          "name": "Avg",
+          "role": "Language",
+          "goal": "Mark the read model as the mean of one numeric field across its one eligible collection",
+          "references": null,
+          "attributes": [
+            {
+              "name": "avg_field",
+              "type": "ReadModelText",
+              "list": false,
+              "default": null,
+              "optional": true,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [
+            {
+              "description": "an avg field is named",
+              "canonical": "!avg_field.value.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "avg_field",
+                        "value"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          ],
+          "ensures": [
+
+          ],
+          "mutations": [
+            {
+              "target": "avg_field",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "avg_field"
+              }
+            }
+          ],
+          "emits": [
+            "AvgFieldSet"
+          ],
+          "from": null,
+          "provenance": null
+        },
+        {
+          "name": "Min",
+          "role": "Language",
+          "goal": "Mark the read model as the smallest value of one numeric field across its one eligible collection",
+          "references": null,
+          "attributes": [
+            {
+              "name": "min_field",
+              "type": "ReadModelText",
+              "list": false,
+              "default": null,
+              "optional": true,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [
+            {
+              "description": "a min field is named",
+              "canonical": "!min_field.value.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "min_field",
+                        "value"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          ],
+          "ensures": [
+
+          ],
+          "mutations": [
+            {
+              "target": "min_field",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "min_field"
+              }
+            }
+          ],
+          "emits": [
+            "MinFieldSet"
+          ],
+          "from": null,
+          "provenance": null
+        },
+        {
+          "name": "Max",
+          "role": "Language",
+          "goal": "Mark the read model as the largest value of one numeric field across its one eligible collection",
+          "references": null,
+          "attributes": [
+            {
+              "name": "max_field",
+              "type": "ReadModelText",
+              "list": false,
+              "default": null,
+              "optional": true,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [
+            {
+              "description": "a max field is named",
+              "canonical": "!max_field.value.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "max_field",
+                        "value"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          ],
+          "ensures": [
+
+          ],
+          "mutations": [
+            {
+              "target": "max_field",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "max_field"
+              }
+            }
+          ],
+          "emits": [
+            "MaxFieldSet"
+          ],
+          "from": null,
+          "provenance": null
+        },
+        {
+          "name": "Percentile",
+          "role": "Language",
+          "goal": "Mark the read model as one interpolated rank of one numeric field across its one eligible collection",
+          "references": null,
+          "attributes": [
+            {
+              "name": "percentile_field",
+              "type": "ReadModelText",
+              "list": false,
+              "default": null,
+              "optional": true,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "percentile_at",
+              "type": "ReadModelText",
+              "list": false,
+              "default": null,
+              "optional": true,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [
+            {
+              "description": "a percentile field is named",
+              "canonical": "!percentile_field.value.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "percentile_field",
+                        "value"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          ],
+          "ensures": [
+
+          ],
+          "mutations": [
+            {
+              "target": "percentile_field",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "percentile_field"
+              }
+            },
+            {
+              "target": "percentile_at",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "percentile_at"
+              }
+            }
+          ],
+          "emits": [
+            "PercentileFieldSet"
+          ],
+          "from": null,
+          "provenance": null
+        },
+        {
+          "name": "Any",
+          "role": "Language",
+          "goal": "Mark the read model as whether any row's boolean field is true across its one eligible collection",
+          "references": null,
+          "attributes": [
+            {
+              "name": "any_field",
+              "type": "ReadModelText",
+              "list": false,
+              "default": null,
+              "optional": true,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [
+            {
+              "description": "an any field is named",
+              "canonical": "!any_field.value.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "any_field",
+                        "value"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          ],
+          "ensures": [
+
+          ],
+          "mutations": [
+            {
+              "target": "any_field",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "any_field"
+              }
+            }
+          ],
+          "emits": [
+            "AnyFieldSet"
+          ],
+          "from": null,
+          "provenance": null
+        },
+        {
+          "name": "All",
+          "role": "Language",
+          "goal": "Mark the read model as whether every row's boolean field is true across its one eligible collection",
+          "references": null,
+          "attributes": [
+            {
+              "name": "all_field",
+              "type": "ReadModelText",
+              "list": false,
+              "default": null,
+              "optional": true,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [
+            {
+              "description": "an all field is named",
+              "canonical": "!all_field.value.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "all_field",
+                        "value"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          ],
+          "ensures": [
+
+          ],
+          "mutations": [
+            {
+              "target": "all_field",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "all_field"
+              }
+            }
+          ],
+          "emits": [
+            "AllFieldSet"
           ],
           "from": null,
           "provenance": null
