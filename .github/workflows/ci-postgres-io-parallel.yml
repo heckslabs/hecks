@@ -5,6 +5,9 @@ name: CI postgres io parallel (reusable)
 
 on:
   workflow_call:
+    secrets:
+      HECKS_CI_ATTEST_KEY:
+        required: false
 
 # The spec files this workflow never runs — the Rust-building and shared-
 # hecks_pizzas files other jobs own. One copy, read by the shards' committed
@@ -82,6 +85,27 @@ jobs:
             echo "touched=false" >> "$GITHUB_OUTPUT"
           fi
 
+  # Same detector-plus-gated-job shape as ci-rspec.yml's own ci_attestation_rspec — see
+  # ci-rust-parser.yml's identical addition for the full comment. Layers on top of, not in
+  # place of, postgres_io_relevant_changed's own path gate: the shard job below skips when
+  # EITHER says it can — the path is unrelated to this file's tree hash, and vice versa.
+  ci_attestation_postgres_io_parallel:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    if: github.event_name != 'push'
+
+    outputs:
+      attested: ${{ steps.attest.outputs.attested }}
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/check-attestation
+        id: attest
+        with:
+          checks: rspec_postgres_io_parallel
+          hmac-key: ${{ secrets.HECKS_CI_ATTEST_KEY }}
+
   # Proves the shards' committed file list is current with one dry run per CI run. A spec
   # gaining its first `:io` example without a list refresh fails here, by name.
   postgres_io_file_list:
@@ -114,11 +138,15 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 25
 
-    needs: postgres_io_relevant_changed
+    needs: [postgres_io_relevant_changed, ci_attestation_postgres_io_parallel]
 
-    # Same skip gate as the detector. Not on `push`: that run only fed a runtime-log cache
-    # the committed baseline replaced; cache-warm.yml warms the caches that need main's scope.
-    if: github.event_name != 'push' && needs.postgres_io_relevant_changed.outputs.touched == 'true'
+    # Same skip gate as the detector, plus attestation: skip when the path gate says nothing
+    # relevant changed, OR the tree was already proven. Not on `push`: that run only fed a
+    # runtime-log cache the committed baseline replaced; cache-warm.yml warms the caches that
+    # need main's scope.
+    if: >-
+      always() && github.event_name != 'push' && needs.postgres_io_relevant_changed.outputs.touched == 'true' &&
+      (needs.ci_attestation_postgres_io_parallel.result != 'success' || needs.ci_attestation_postgres_io_parallel.outputs.attested != 'true')
 
     strategy:
       # A regression in one shard should not cancel the others.
