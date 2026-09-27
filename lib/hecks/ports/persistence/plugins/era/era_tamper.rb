@@ -5,7 +5,7 @@ require_relative "storage_shape"
 
 module Hecks
   module Runtime
-    # The refusal wording for a held era whose digest no longer matches its
+    # The refusal wording for a held era whose digest does not match its
     # frozen text — the digest mismatch alone is what detects tampering (a
     # plain SHA256 comparison over raw bytes, unrelated to any of this);
     # this only supplies the wording once that's already fired.
@@ -28,7 +28,7 @@ module Hecks
     module EraTamper
       module_function
 
-      # Words the boot refusal for a held era text whose digest no longer matches.
+      # Words the boot refusal for a held era text whose digest does not match.
       #
       # @param domain [String] name of the domain whose era was edited
       # @param ordinal [Integer] the edited era's ordinal in `hecks_eras`

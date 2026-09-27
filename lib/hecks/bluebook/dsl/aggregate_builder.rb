@@ -198,7 +198,7 @@ module Hecks
         # never `[]`). Wave 6 (identity-and-relationships arc) un-deprecates
         # all three for real: a relationship word now retains the author's
         # domain concept in IR — still stored as one or more target
-        # identities, but no longer collapsed to a bare `reference_to`
+        # identities, but not collapsed to a bare `reference_to`
         # during assembly. `MetaValidator.shadow_parsing?` still routes to
         # `legacy_has_many`/`legacy_has_one` so frozen era text written
         # under the old (lying/collapsing) meaning still parses the way it
@@ -511,7 +511,7 @@ module Hecks
         # are this construct's own refusal wording, not shared, since
         # `declared_by:` only exists here so far. Unresolved (no
         # candidate yet, or `declared_by:` naming an aggregate that
-        # hasn't declared it yet) is no longer a fourth branch that
+        # hasn't declared it yet) is not a fourth branch that
         # raises here — see `#pending_chapter_given`, below, for why:
         # a chapter split across files can genuinely reference a
         # precondition a later file declares, and "not found among

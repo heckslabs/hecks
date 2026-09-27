@@ -147,8 +147,8 @@ module Hecks
                   .find { |rule| rule.description == description }
         end
 
-        # **Which construct uses which primitive** — no longer a Ruby-only
-        # Hash (that was this constant's own shape, one round ago): the
+        # **Which construct uses which primitive** — not a Ruby-only
+        # Hash, because the
         # user's own correction — "my goal is that if they read the same
         # table they behave identically" — means a table only Ruby ever
         # reads cannot deliver that, no matter how faithfully it is
@@ -172,7 +172,7 @@ module Hecks
         # after `grammar_registry` is fully built and memoized, so reads
         # the real table, every time, no exception.
         #
-        # No longer kept in sync by hand — the same `resolves_via`/
+        # Not kept in sync by hand — the same `resolves_via`/
         # `disambiguator` columns, projected ahead of time into the
         # committed lib/hecks/bluebook/dsl/bootstrap_table.rb
         # (bin/project_bootstrap_table, pinned by spec/bootstrap_table_spec.rb).

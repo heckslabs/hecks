@@ -1,0 +1,134 @@
+{
+  "lib/hecks/adapters/driven/memory.rb": {
+    "The language's own bootstrap saves its self-description quadratically": 68
+  },
+  "lib/hecks/bluebook/dsl/aggregate_builder.rb": {
+    "Declares a rule this aggregate's own commands must satisfy, or references one a": 62
+  },
+  "lib/hecks/bluebook/dsl/attribute_collector.rb": {
+    "Declares one field on the owning construct, with its type and, optionally, a def": 64
+  },
+  "lib/hecks/bluebook/dsl/command_builder.rb": {
+    "Declares a synchronous, atomic delegation of this command's own dispatch to one": 79,
+    "Declares that this command amends a past event, rather than rewriting it.": 53,
+    "`sets` is the word; `then_set` is the spelling every existing": 70
+  },
+  "lib/hecks/bluebook/dsl/entity_builder.rb": {
+    "A precondition shared across this piece's own commands, declared": 68
+  },
+  "lib/hecks/bluebook/dsl/generic_dispatch.rb": {
+    "Item #13's full metaprogrammed dispatch — slices 1-2 of 4, whole-": 118
+  },
+  "lib/hecks/bluebook/dsl/read_model_builder.rb": {
+    "`on:` (ADR 0055) — overrides of `QuerySpecification::Common::DSL`'s": 57
+  },
+  "lib/hecks/bluebook/dsl/word_gate.rb": {
+    "The Ruby-side `word_gate` (`rust/parser/src/parse/mod.rs`'s own,": 87
+  },
+  "lib/hecks/bluebook/expression/ast_json.rb": {
+    "Walks the real Evaluator/Resolver AST (the same objects a live": 54
+  },
+  "lib/hecks/bluebook/expression/resolver.rb": {
+    "Found live via the type-directed bounded-exhaustive expression": 52,
+    "Unwraps a single-field value object to its own scalar, so": 58
+  },
+  "lib/hecks/bluebook/meta_validator/syntax_boot.rb": {
+    "Cross-process persistence for the same ~1s-per-build work `call`": 52
+  },
+  "lib/hecks/codemod.rb": {
+    "Shared machinery for a codemod that migrates real `.bluebook` source.": 55
+  },
+  "lib/hecks/embryonaut_bluebook.rb": {
+    "A vendored, external bluebook.": 71
+  },
+  "lib/hecks/fuzzing/bounded_exhaustive_expressions.rb": {
+    "Phase 7 (equivalence-gap plan) — the one place in this codebase a": 53
+  },
+  "lib/hecks/fuzzing/concurrent_dispatch.rb": {
+    "**A generated sequence, raced for real** — `spec/adapters/driven/": 57
+  },
+  "lib/hecks/fuzzing/isolated_boot.rb": {
+    "A fresh, in-process adapter for every ephemeral boot.": 57,
+    "The shared rewrite — factored out of `rebind_to_memory!` when": 53
+  },
+  "lib/hecks/fuzzing/persistence_parity.rb": {
+    "## The second differential axis": 60
+  },
+  "lib/hecks/fuzzing/properties/dispatch_and_mutations.rb": {
+    "Closes Command#mutations — the last of the five, and the": 83,
+    "`EntityElement#appended_to_element`'s own field-mapping half,": 59,
+    "`EntityElement#apply_to_element`'s own `:set` branch (entity_": 58
+  },
+  "lib/hecks/fuzzing/properties/guards.rb": {
+    "Angle-8's own write-side half. `authorize_scopes_or_refuses`": 58
+  },
+  "lib/hecks/fuzzing/properties/outbox.rb": {
+    "The transactional outbox's own contract (`Runtime::Outbox`, that": 60
+  },
+  "lib/hecks/fuzzing/self_consistency.rb": {
+    "**A second comparison axis** — every other check this practice runs is": 64,
+    "Check 5 — redelivery idempotency of the checkpoint-then-load path.": 72
+  },
+  "lib/hecks/ports/persistence/plugins/era/era_guard.rb": {
+    "Parses held source into its own IR, in a scratch registry so a past": 60
+  },
+  "lib/hecks/ports/persistence/plugins/era/postgres_era/lineage.rb": {
+    "The lineage topology inside one Postgres database: one journal": 80
+  },
+  "lib/hecks/ports/persistence/plugins/era/postgres_era/lineage/head_compiler.rb": {
+    "Builds one aggregate's head for a minted era: the ancestor matview, its": 51,
+    "Builds the ancestor-tail SQL for era N by applying only the last edge to": 64
+  },
+  "lib/hecks/ports/persistence/state_codec.rb": {
+    "One spelling of an aggregate's state across the store boundary": 52
+  },
+  "lib/hecks/projections/deploy/fargate.rb": {
+    "The AWS Fargate deploy target. An export": 103
+  },
+  "lib/hecks/projections/deploy/preview.rb": {
+    "Per-branch preview stacks for a `deployed_to(\"AwsFargate\")` domain: one": 67
+  },
+  "lib/hecks/projections/deploy/scripts.rb": {
+    "The hosting scripts an AWS Fargate deploy ships beside its template:": 57
+  },
+  "lib/hecks/projections/diagrams.rb": {
+    "A domain's own shape, projected as Mermaid diagrams — the same": 76,
+    "Renders one holder's own commands (and what each writes) and queries": 53
+  },
+  "lib/hecks/projector.rb": {
+    "A named registry of \"canonical IR in, external artifact out\" tools —": 56
+  },
+  "lib/hecks/projector/target.rb": {
+    "Registering at declaration time means `require`ing a target is": 61
+  },
+  "lib/hecks/query_ir.rb": {
+    "`given` only (not `invariant`/`ensures`) also covers cross-entity": 53
+  },
+  "lib/hecks/runtime/command_interpreter.rb": {
+    "Wave 8 (equivalence-gap plan, item 1.6) — not done, and this": 55
+  },
+  "lib/hecks/runtime/command_rules/admissibility.rb": {
+    "`domain:` is only needed to dereference a reference-typed field": 61
+  },
+  "lib/hecks/runtime/command_rules/arithmetic.rb": {
+    "Reads what a mutation's source means: an argument's value for a Symbol, the lite": 54
+  },
+  "lib/hecks/runtime/entity_element.rb": {
+    "Refuses a caller-supplied or composite identity that already names an": 53,
+    "S17, ADR 0026 — `:append`/`:remove`/`:multiply`/`:clamp`, an": 59
+  },
+  "lib/hecks/runtime/entity_interpreter.rb": {
+    "BUG#30 — the entity-level half of `CommandInterpreter#step_enforce_": 55
+  },
+  "lib/hecks/runtime/outbox.rb": {
+    "**The transactional outbox** — the durable hand-off between \"a command": 68
+  },
+  "lib/hecks/runtime/value/coercion.rb": {
+    "A reference is an ID, so anything else is not one.": 59,
+    "The four `SHAPES` above, in the order this method actually checks": 54,
+    "`build`'s own recursive twin of `for_attribute`'s single-level": 53
+  },
+  "lib/hecks/storehouse.rb": {
+    "**The bus, not a door** — `docs/hecks-survey-what-we-wish-we-had.md` and": 79
+  }
+}

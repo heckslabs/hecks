@@ -85,7 +85,7 @@ module Hecks
       # never edited out from under it), but wrong for anything that
       # legitimately reloads an edited file in-process: a stale cached
       # tree reports a `given`/`ensures` block at its old line number,
-      # which no longer matches the freshly re-executed file's own
+      # which does not match the freshly re-executed file's own
       # `block.source_location` — surfacing as "did not survive
       # extraction" on a perfectly valid file. Built for real building
       # `Hecks::Codemod` (lib/hecks/codemod.rb), which needs exactly this

@@ -302,7 +302,7 @@ module Hecks
         end
 
         # Entity-owned categories have no top-level aggregate for the runtime
-        # to route a bare verb into any more — `Member`'s own "Pair" reaches
+        # to route a bare verb into — `Member`'s own "Pair" reaches
         # the runtime as `ValueObject.Member.Pair`, and a nested one
         # (`Dispatch`, inside `Handler`) reaches it as `ProcessManager.
         # Handler.Dispatch.Bind` — the dotted shape `EntityInterpreter#call`
@@ -567,8 +567,8 @@ module Hecks
         #   Reference  its type is Reference<X>, another aggregate's head
         #   Holds      its type names an entity this aggregate declares
         #
-        # Nothing is skipped any more. Reference and Holds did not exist, so the
-        # walk dropped both kinds and the meta-domain silently did not contain
+        # Nothing is skipped. Without Reference and Holds the walk would drop
+        # both kinds and the meta-domain would silently not contain
         # Account#customer_id or Account#ledger.
         # Each alternate carries its own map, read from the language. Borrowing the
         # primary's map dispatched `type:` where Reference declares `points_at:`,

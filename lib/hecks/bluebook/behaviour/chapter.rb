@@ -91,15 +91,18 @@ module Hecks
           @ports_by_name[port.name] = port
         end
 
-        # A TRANSLATED REACTION IS ALSO DECLARED IN THE HECKSAGON —
+        # A translated reaction is also declared in the hecksagon —
         # `HecksagonBuilder#translates` builds an ordinary `Policy` (same
         # shape, same `PolicyInterpreter` runtime, as one written inside a
         # `policy` block in this chapter's own `.bluebook`) and attaches it
         # here, after the chapter already exists, the same reasoning
         # `add_port` gives one method up. Kept out of the bluebook itself
-        # on purpose: which FOREIGN domain's event this chapter reacts to
+        # on purpose: which foreign domain's event this chapter reacts to
         # is a wiring/context-mapping decision, not a fact the domain
         # states about its own model.
+        #
+        # @param policy [Bluebook::Policy] the translated reaction to attach
+        # @return [Array<Bluebook::Policy>] this chapter's policies, with `policy` appended
         def add_policy(policy)
           @policies << policy
         end

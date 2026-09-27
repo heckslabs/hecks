@@ -77,7 +77,7 @@ module Hecks
         end
 
         def method_missing(verb, *args, **kwargs, &block)
-          # A BARE CALL — no args, no kwargs, no block — starts (or
+          # **A bare call** — no args, no kwargs, no block — starts (or
           # continues, on `AttributePath` itself below) a Privacy
           # marking chain: `Registration.attendee.medications.has_phi(
           # readable_by: "Privacy officer")`. No existing real
@@ -115,10 +115,15 @@ module Hecks
           @path = path
         end
 
+        # Records a `has_<category>` marking, or extends the attribute path by one segment.
+        #
         # @param verb [Symbol] `has_<category>` to record the marking and end the chain;
         #   any other bare name to extend the path one segment further
         # @param readable_by [String] required only for a `has_<category>` call — the
         #   Governance role a read must hold to see this field unredacted
+        # @param args [Array] must be empty; a positional argument is refused
+        # @param kwargs [Hash] must be empty; any keyword but `readable_by:` is refused
+        # @param block [Proc, nil] must be absent; a block is refused
         # @return [Bluebook::DSL::AttributePath, nil] a longer chain for a plain segment;
         #   `nil` (nothing further to chain) for a `has_<category>` call
         # @raise [Malformed] if a `has_<category>` call omits `readable_by:`, or any call

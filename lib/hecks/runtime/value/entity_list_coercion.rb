@@ -27,7 +27,7 @@ module Hecks
         # because coercion has to resolve value objects, and only the
         # root answers `.value_object` at all (Entity's own header
         # comment: an entity must not answer to it, or `Value.
-        # for_attribute` could no longer tell a piece from a head). So
+        # for_attribute` could not tell a piece from a head). So
         # a nested entity — Dispatch, inside Handler — is not a direct
         # child of the root the way Handler itself is, and a plain
         # `aggregate.entities.find` stops one level short of it.

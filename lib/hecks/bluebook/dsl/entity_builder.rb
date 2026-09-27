@@ -243,7 +243,7 @@ module Hecks
         # since ADR 0028, `command` only queues a descriptor and actually
         # builds at `#drain_pending!` time, well after this whole block
         # (including every `given` in it) has already run, so textual
-        # order within the block no longer actually matters here; named
+        # order within the block does not actually matter here; named
         # for the reader anyway, since `given`'s own resolution logic
         # (`CommandBuilder#reference_named_given`) still reads whatever
         # `@named_givens` holds at the command's own build time, not by

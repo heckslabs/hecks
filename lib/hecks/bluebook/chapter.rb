@@ -4,7 +4,7 @@ require_relative "../ir"
 
 module Hecks
   module Bluebook
-    # The chapter, and no longer the namespace it lives in.
+    # The chapter, which is not the namespace it lives in.
     #
     # `Hecks::Bluebook` was briefly a class, because dropping the
     # old `IR::` segment would otherwise have produced

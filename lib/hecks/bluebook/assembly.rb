@@ -31,7 +31,7 @@ module Hecks
     # ## What stays hand-written
     #
     # The containment — which construct holds which — stays hand-written; it is
-    # not a field table. The runtime surface is no longer built here at all — the
+    # not a field table. The runtime surface is not built here at all — the
     # door is a per-boot projection, facade/surface.rb.
     class Assembly
       # Builds the graph the runtime runs from one chapter's declared hash.

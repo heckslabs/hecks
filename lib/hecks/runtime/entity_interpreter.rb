@@ -251,7 +251,7 @@ module Hecks
 
       def step_hydrate_parent(ctx)
         # `ctx.repository` is resolved once, in `#call`, before the
-        # isolation decision — not here any more.
+        # isolation decision — not here.
         ctx.instance = step(:hydrate_parent) do
           parent(ctx.repository, ctx.aggregate, ctx.entity_name, ctx.command_name, ctx.args, ctx.route)
         end

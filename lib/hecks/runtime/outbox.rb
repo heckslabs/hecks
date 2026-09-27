@@ -398,7 +398,7 @@ module Hecks
             # A DOMAIN_REFUSAL never reaches here — PolicyInterpreter and
             # SagaInterpreter both rescue it as a recorded, undelivered
             # reaction. Anything that does reach here is a defect in the
-            # relay's own path (a consumer that no longer exists, an
+            # relay's own path (a consumer that does not exist, an
             # adapter that raised outside the interpreters' own rescue).
             repository.outbox_settle(row.id, status: "failed", error: "#{e.class}: #{e.message}")
             row.status = "failed"

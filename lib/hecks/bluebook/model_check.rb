@@ -25,7 +25,7 @@ module Hecks
       # **A finding shipped, not silenced** — the coverage-gate idiom, empty
       # allowlists enforced both directions (spec/model_check_spec.rb holds
       # this exact table: an error the checker reports and this does not
-      # name is a regression, an entry the checker no longer reports is
+      # name is a regression, an entry the checker does not report is
       # stale and must be deleted). bin/model_check reads this same
       # constant, so the tool and the spec can never drift apart.
       #
@@ -44,9 +44,9 @@ module Hecks
       # was a `state "x"` line never named by any handler's own from:/to:, a
       # pure declaration-drift artifact. States are derived from the
       # transitions that name them now (ProcessManagerBuilder#derived_
-      # states), so a state nothing ever transitions into or out of no
-      # longer exists to be unreachable — the finding that entry allowlisted
-      # cannot occur any more, by construction.
+      # states), so a state nothing ever transitions into or out of does
+      # not exist to be unreachable — the finding that entry allowlisted
+      # cannot occur, by construction.
       #
       # "banking"/NotifyOnClosure, FlagKeyReturn — gone from here, moved
       # to banking. `across "Notifications"` names a domain that does not
@@ -655,6 +655,9 @@ module Hecks
       #   sibling wiring file, if the caller loaded one
       # @param known_domains [Set<String>, nil] every bluebook/hecksagon
       #   name the caller has booted anywhere in this corpus scan
+      # @param global_emitted_events [Set<String>, nil] every event name emitted anywhere in the
+      #   corpus, consulted only as a fallback for a `translates` reaction; nil when the caller
+      #   has no cross-domain set to offer
       # @return [Array<Finding>] every `deaf_policy`/`unknown_trigger`
       #   finding this policy triggers, or `cross_domain_policy_findings`'s
       #   own return for a cross-domain policy
@@ -676,12 +679,12 @@ module Hecks
         # (`across "Compliance"`), which exits this method one line above
         # before the mismatch is ever reached.
         # `global_emitted_events` — a `translates` (hecksagon-level)
-        # reaction is BUILT as the exact same same-domain-target `Policy`
+        # reaction is built as the exact same same-domain-target `Policy`
         # an ordinary `policy` block is (no `target_domain`, so it never
         # reaches `cross_domain_policy_findings` above), but its whole
-        # point is to react to a FOREIGN domain's own event — this
+        # point is to react to a foreign domain's own event — this
         # domain's own `emitted_events(bluebook)` was never going to
-        # contain it. Checked only as a FALLBACK, after the local check
+        # contain it. Checked only as a fallback, after the local check
         # already failed, so a real same-domain typo still gets flagged
         # exactly as before whenever the caller has no cross-domain set
         # to offer (nil — every existing call site, unchanged) or the
