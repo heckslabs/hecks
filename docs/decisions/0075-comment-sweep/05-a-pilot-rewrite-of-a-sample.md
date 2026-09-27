@@ -1,7 +1,7 @@
 # 05: A pilot rewrite of a sample
 
 **Status:** In progress · **Type:** prototype (HITL) · **Blocked by:** none · **Claimed by:** the owner's Claude session, 2026-09-26
-**Map:** [0065 comment sweep](../0065-comment-sweep-map.md)
+**Map:** [0075 comment sweep](../0075-comment-sweep-map.md)
 
 ## Question
 

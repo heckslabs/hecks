@@ -1,7 +1,7 @@
 # 02: The public surface list
 
 **Status:** Open · **Type:** grilling (HITL), with a research subagent to inventory first · **Blocked by:** none · **Claimed by:** unclaimed
-**Map:** [0065 comment sweep](../0065-comment-sweep-map.md)
+**Map:** [0075 comment sweep](../0075-comment-sweep-map.md)
 
 ## Question
 

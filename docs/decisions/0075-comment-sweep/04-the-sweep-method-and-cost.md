@@ -1,7 +1,7 @@
 # 04: The sweep method and cost
 
 **Status:** Open · **Type:** grilling (HITL) · **Blocked by:** 02, 03, 05 · **Claimed by:** unclaimed
-**Map:** [0065 comment sweep](../0065-comment-sweep-map.md)
+**Map:** [0075 comment sweep](../0075-comment-sweep-map.md)
 
 ## Question
 

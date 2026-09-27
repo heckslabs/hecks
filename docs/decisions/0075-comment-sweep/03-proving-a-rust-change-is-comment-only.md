@@ -1,7 +1,7 @@
 # 03: Proving a Rust change is comment-only
 
 **Status:** Open · **Type:** prototype (HITL) · **Blocked by:** none · **Claimed by:** unclaimed
-**Map:** [0065 comment sweep](../0065-comment-sweep-map.md)
+**Map:** [0075 comment sweep](../0075-comment-sweep-map.md)
 
 ## Question
 
