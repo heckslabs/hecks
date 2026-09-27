@@ -97,7 +97,7 @@ class RegistryRepo
   # @return [String] standard output
   # @raise [RuntimeError] if the command exits non-zero
   def git(*args)
-    out, err, status = Open3.capture3("git", "-C", path, *args)
+    out, err, status = Open3.capture3(Hecks::Vendoring::GitEnvironment.clean, "git", "-C", path, *args)
     raise "git #{args.first} failed: #{err}" unless status.success?
 
     out
