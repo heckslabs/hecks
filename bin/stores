@@ -5,41 +5,10 @@
 #
 #   bin/stores <domain>
 
+# The logic is `Hecks::CLI::Stores` (lib/hecks/cli/stores.rb), which
+# `hecks stores` also runs.
+
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
+require "hecks/cli/stores"
 
-require "hecks"
-require "json"
-
-domain = ARGV.fetch(0)
-unless Dir.exist?(domain)
-  warn "bin/stores: no such domain #{domain.inspect}"
-  exit 1
-end
-
-runtime = Hecks.boot(domain)
-registry = runtime.registry
-
-# Reads one aggregate's current records as plain JSON-ready hashes, ordered by id.
-#
-# @param repository [Ports::Persistence::AppendOnly] the aggregate's repository
-# @return [Array<Hash{String => Object}>] one hash per stored `Runtime::Instance`, sorted
-#   by id; `[]` when the aggregate has no records
-def records(repository)
-  repository.all.sort_by(&:id).map { |instance| JSON.parse(JSON.generate(instance.to_h)) }
-end
-
-# Shapes one aggregate's dump for the top-level `stores` JSON document.
-#
-# @param repository [Ports::Persistence::AppendOnly] the aggregate's repository
-# @return [Hash{String => Object}] `"authoritative"` mapped to `records(repository)`
-def data_for(repository)
-  { "authoritative" => records(repository) }
-end
-
-stores = registry.bluebooks.each_with_object({}) do |(name, bluebook), all|
-  bluebook.aggregates.each do |aggregate|
-    all[aggregate.storage_name] = data_for(registry.repository(name, aggregate))
-  end
-end
-
-puts JSON.generate(stores)
+Hecks::CLI::Stores.call(ARGV, program: "bin/stores")
