@@ -321,6 +321,22 @@ Hecks.bluebook "QualityControl" do
       emits "TargetRestored"
     end
 
+    # Not a lifecycle move, and reachable whatever the chapter's status: a recorded path can go
+    # stale (a worktree removed, a project relocated) at any point in the rotation, and fixing it
+    # should not have to wait on whatever status a stale claim or a pending sweep happens to leave
+    # the chapter in.
+    command "Relocate" do
+      role "QA engineer"
+      goal "Correct where a chapter's own domain actually lives, once its recorded path stops resolving"
+
+      reference_to Target
+      attribute :path, TargetPath
+
+      sets :path
+
+      emits "TargetRelocated"
+    end
+
     # Ordered by `last_swept` alone: `order_by` sorts one stored field, and the yield-weighted
     # blend needs `now`. `RotationPriority.pick` weights these rows in Ruby.
     query "Rotation" do
