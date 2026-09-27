@@ -1,5 +1,8 @@
 # Unbuilt
 
+> **Status: snapshot, compiled 2026-08-18.** Items may have shipped since. Read it as a
+> list of what was unbuilt that day, not as the current backlog.
+
 Every planned, proposed, and not-yet-built feature collected across hecks's implementation plan, PRDs, work-slice plans, decision records, guides, and bug audits — with the shipped and the live left out.
 
 **Sources:** 20+ docs across `docs/`, `docs/prds/`, `docs/decisions/`, `docs/guides/`, `docs/audits/` (as of the 2026-08-18 `docs/` split into `docs/implemented/` vs. active work — see that split for what's now shipped).
@@ -28,7 +31,7 @@ The clearest signal in the whole tree is the survey's own closing pick — an ex
 
 ## Wishlist survey
 
-`docs/hecks-survey-what-we-wish-we-had.md` — a 2026-08-17 read of the sibling `hecks` project asking one question: what does it have — especially "Storehouse" — that hecks wishes it had.
+`docs/archive/hecks-survey-what-we-wish-we-had.md` — a 2026-08-17 read of the sibling `hecks` project asking one question: what does it have — especially "Storehouse" — that hecks wishes it had.
 
 ### Storehouse, ranked
 

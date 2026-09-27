@@ -8,7 +8,7 @@ require_relative "projector"
 require_relative "runtime/errors"
 
 module Hecks
-  # **The bus, not a door** — `docs/hecks-survey-what-we-wish-we-had.md` and
+  # **The bus, not a door** — `docs/archive/hecks-survey-what-we-wish-we-had.md` and
   # `docs/future-features.md` both name the sibling project's own
   # "Storehouse" the single highest-priority gap this repo had: "no
   # per-command tool... the bluebook is the contract, the [door] just
@@ -90,7 +90,7 @@ module Hecks
   module Storehouse
     module_function
 
-    # The same closed set `docs/hecks-survey-what-we-wish-we-had.md`'s
+    # The same closed set `docs/archive/hecks-survey-what-we-wish-we-had.md`'s
     # `SourceTag` names — who dispatched, not what. Optional: a caller
     # that omits it gets `source: nil` recorded, honestly, rather than a
     # guessed default.
