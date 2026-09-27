@@ -1,0 +1,2 @@
+checks=doc_coverage,engine_agreement,model_check,rspec,rubocop,rspec_rust_io,rspec_rust_parser,rspec_rust_codegen,rspec_rust_host
+hmac=498347bd9602abcbf90bbd0d92c507d88ec5d93d8fcd79270e6b64f193f0c2ef
