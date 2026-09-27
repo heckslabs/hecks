@@ -180,7 +180,8 @@ module Hecks
       # ADR 0033 — this loader no longer names `EraCheck`, or any other
       # era-specific class, at all. Every loaded persistence plugin
       # (`Ports::Persistence.each_plugin` — nothing here if nothing was
-      # ever `require`d) is asked to contribute its own `:pre_verify`/
+      # ever `require`d, or brought in by a bound adapter, see
+      # `load_bound_adapters!`) is asked to contribute its own `:pre_verify`/
       # `:post_verify` gates generically; `:saga_rehydration` is the one
       # gate core still registers directly, because ADR 0031 already
       # proved it's not era-specific.
@@ -193,6 +194,7 @@ module Hecks
       #   a wiring problem
       def self.run_boot_gates!(registry, directory)
         gates = BootGates.new
+        load_bound_adapters!(registry)
         Ports::Persistence.each_plugin { |plugin| plugin.contribute_boot_gates(registry, gates) }
         check_compute_rules_backstop!(registry)
 
@@ -203,6 +205,28 @@ module Hecks
           registry.saga_domains.any? { |domain| registry.saga_persistence(domain) != Ports::Persistence::NULL_SAGA_STORE }
         gates.run!(:post_verify, registry, directory)
         gates
+      end
+
+      # Resolves the Ruby implementation of every adapter a hecksagon binds.
+      #
+      # An adapter whose implementation loads on first mention (`PostgresEra`,
+      # through the era plugin) registers its persistence plugin as a side effect
+      # of that load. Resolving here, before the gates are collected, is what makes
+      # a domain that declares `persisted_by "PostgresEra"` boot with the plugin
+      # loaded and its era gates registered, without the app requiring the plugin
+      # itself. An adapter with no Ruby implementation is left for `verify!`, which
+      # refuses it with the bind it came from.
+      #
+      # @param registry [Runtime::Registry] the registry mid-boot, whose hecksagons name the binds
+      # @return [void]
+      def self.load_bound_adapters!(registry)
+        registry.hecksagons.each_value do |hexagon|
+          hexagon.binds.each do |bind|
+            registry.adapter_class(bind.adapter)
+          rescue WiringError
+            next
+          end
+        end
       end
 
       # The one piece of the old, era-owned `check_compute_rules!` core

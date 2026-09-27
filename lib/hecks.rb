@@ -34,6 +34,7 @@ require_relative "hecks/storehouse"
 require_relative "hecks/mcp_stdio_guard"
 require_relative "hecks/framework"
 require_relative "hecks/corpus"
+require_relative "hecks/vendoring"
 require_relative "hecks/embryonaut_bluebook"
 
 # The root namespace and public facade of the whole DSL/runtime: `Hecks.boot`/

@@ -17,6 +17,10 @@ require_relative "persistence/remote_runtime"
 require_relative "persistence/null_saga_store"
 require_relative "persistence/state_codec"
 
+# Loaded on first mention: nothing about a domain's own boot needs the dump
+# tooling, and it wants the optional `pg` gem.
+Hecks::Ports::Persistence.autoload(:PostgresDump, File.join(__dir__, "persistence/postgres_dump"))
+
 module Hecks
   module Ports
     # Reopened once `BindingPolicy`/`RepositoryFactory` (required above) are
