@@ -25,9 +25,10 @@ npm scope:
 npm install @hecks/client
 ```
 
-Until the scope is confirmed, install from a release tag of the repository
-instead (the package lives in `packages/hecks-client`, so use a tool that can
-install from a subdirectory, or a tarball built with `npm pack`):
+The `hecks` organization exists on npm, but no version is published yet. Until
+the first publish, install from a release tag of the repository instead (the
+package lives in `packages/hecks-client`, so use a tool that can install from a
+subdirectory, or a tarball built with `npm pack`):
 
 ```sh
 git clone --branch v<version> https://github.com/heckslabs/hecks.git
@@ -296,8 +297,10 @@ npm version <version> --no-git-tag-version   # also updates package-lock.json
 ```
 
 `bin/release_gem` publishes the gem only. Publish the package from this
-directory once the gem is out, and only once the `@hecks` npm scope is
-confirmed (until then the tag install above is the way to consume it):
+directory once the gem is out (until the first publish, the tag install above is
+the way to consume it). npm is restricting tokens that bypass two-factor
+authentication, so publish from an account that can answer the prompt or set up
+trusted publishing, rather than relying on a long-lived token:
 
 ```sh
 npm publish --access public   # `prepack` builds dist/ first

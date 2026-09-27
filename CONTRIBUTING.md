@@ -226,6 +226,6 @@ an issue first — see the templates under `.github/ISSUE_TEMPLATE/`.
    header comment for one-time setup.
 4. Publish the client from its own directory: `npm publish --access
    public` in `packages/hecks-client` (its `prepack` step builds it).
-   `bin/release_gem` does not do this. Until the `@hecks` npm scope is
-   confirmed, skip this step; the package's README describes installing
-   from the release tag instead.
+   `bin/release_gem` does not do this. The `hecks` npm organization
+   exists; the first publish is still to come, and until then the
+   package's README describes installing from the release tag.
