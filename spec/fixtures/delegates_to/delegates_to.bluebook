@@ -33,6 +33,10 @@ Hecks.bluebook "DelegatesTo" do
       attribute :value, Integer, default: 0
     end
 
+    value_object "RelabelReason" do
+      attribute :value, String
+    end
+
     command "OpenBoard" do
       goal "Start a fresh, empty board"
 
@@ -75,6 +79,19 @@ Hecks.bluebook "DelegatesTo" do
       delegates_to "Piece.Move", with: { id: :id, to: :to }
     end
 
+    # `with:` maps `id` and `destination` onto Piece.Relabel, but deliberately never mentions
+    # `reason` — pinning that a delegated dispatch still refuses the target command's own
+    # absent required argument the same way a direct dispatch would.
+    command "RelabelPiece" do
+      goal "Relabel a specific piece, on the caller's behalf"
+
+      reference_to Board
+      attribute :id,          PieceId
+      attribute :destination, Square
+
+      delegates_to "Piece.Relabel", with: { id: :id, destination: :destination }
+    end
+
     entity "Piece" do
       description "One piece. Its own Move is the real rule; MovePiece above is only the door a caller uses to reach it."
 
@@ -93,6 +110,19 @@ Hecks.bluebook "DelegatesTo" do
         sets :square, to: :to
 
         emits "PieceMoved"
+      end
+
+      # `reason` is required and never named by `RelabelPiece`'s `with:` — a direct dispatch
+      # of `Piece.Relabel` omitting it must refuse, and so must a dispatch of `RelabelPiece`.
+      command "Relabel" do
+        goal "Move to a new square and record why, for testing the delegation argument gate"
+
+        attribute :destination, Square
+        attribute :reason,      RelabelReason
+
+        sets :square, to: :destination
+
+        emits "PieceRelabeled"
       end
     end
   end
