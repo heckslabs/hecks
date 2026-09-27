@@ -59,6 +59,7 @@ print a usage line on a missing argument).
 | `bin/rust_kernel_coverage` | THE MECHANICAL, COMMENT-TAG-FREE HALF OF THE GUARANTEE. bin/project_kernel_capabilities generates the ENUM half — the compiler already re... |
 | `bin/scaffold_translation` | The scaffold writes translations; humans resolve ambiguity. Diffs the held era against the current bluebook and writes the edge file: con... |
 | `bin/shape` | The storage-shape projection of one bluebook file, as JSON — the exact form StorageShape.mint_hash hashes to name an era, printed so a bu... |
+| `bin/smoke_http` | Signed-webhook and idempotency checks against any running HTTP service. Delivers one payload to a webhook route the way a sender would, a... |
 | `bin/smoke_test` | BOOTS A REAL DOMAIN AND ACTUALLY DISPATCHES AGAINST IT — the sibling `bin/model_check` never had. That tool proves a bluebook is STRUCTUR... |
 | `bin/statements` | Prints a booted domain's own declared facts as plain English sentences — the projection itself is Projections::Statements (see its own he... |
 | `bin/stores` | Prints every aggregate's current records, as JSON — the head, not the journal (bin/history prints the full write history instead). bin/st... |
