@@ -145,15 +145,11 @@ module Hecks
       #   findings for constructs known to answer wrongly without refusing;
       #   `nil` (the default) adds nothing and leaves every other finding as
       #   it was
-      # @param translations [Array<Bluebook::Translation>] the data
-      #   translations declared for this chapter's domain, read only by the
-      #   `:client` profile — they live on the registry, not the chapter, so
-      #   the caller supplies them the way it supplies `hecksagon`
       # @return [Array<Finding>] every finding this bluebook triggers,
       #   across its lifecycles, sagas, policies, and Rust-reserved names
       # @raise [ArgumentError] if `profile` is neither `nil` nor `:client`
       def call(bluebook, hecksagon: nil, known_domains: nil, global_emitted_events: nil, rust_target: false, strict: false,
-               profile: nil, translations: [])
+               profile: nil)
         unless profile.nil? || PROFILES.include?(profile)
           raise ArgumentError, "unknown profile #{profile.inspect} (known: #{PROFILES.inspect})"
         end
@@ -170,7 +166,7 @@ module Hecks
         findings.concat(rust_reserved_name_findings(domain_name: bluebook.name,
                                                     aggregate_names: bluebook.aggregates.map(&:hecks_name),
                                                     rust_target: rust_target, strict: strict))
-        findings.concat(ClientProfile.call(bluebook, hecksagon: hecksagon, translations: translations)) if profile == :client
+        findings.concat(ClientProfile.call(bluebook, hecksagon: hecksagon)) if profile == :client
         findings
       end
 

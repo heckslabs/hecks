@@ -432,17 +432,9 @@ RSpec.describe "PostgresEra migration data safety", :io do
 
     DATA_SAFETY_DOTTED_ONE = DATA_SAFETY_PRICING_TWO.sub("attribute :cents, Float", "attribute :cents, Integer").freeze
 
-    # A compute whose source is the dotted member itself. The compiled SQL tests for the source
-    # with `__s ? 'price.cents'`, which asks for a top-level key of that literal name, so it
-    # never fires and the record is served with the old, unconverted value.
-    #
-    # `bin/model_check --profile client` refuses this construct until it is fixed
-    # (`ModelCheck::ClientProfile#dotted_compute_findings`). When this example stops
-    # pending, `spec/model_check_client_profile_spec.rb` fails too; delete that rule
-    # and its probe in the same change.
+    # A compute whose source is the dotted member itself: the compiled SQL reads the source as a
+    # path, so it fires and converts the member while keeping its sibling.
     it "applies the SQL of a compute whose source is a dotted member" do
-      pending "open: compile_compute never fires for a dotted source, so the value is carried through unchanged"
-
       registry = check!(DATA_SAFETY_DOTTED_ONE)
       head_for(registry, "Quote", "Pricing").save(
         instance_of(registry, "Quote", "q1", sku: { "value" => "q1" }, price: { "cents" => 1250, "currency" => "USD" })
