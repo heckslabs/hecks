@@ -88,7 +88,7 @@ module Hecks
       # @return [Boolean] true when every domain passes
       def check_domains(domain_args, options)
         booted = domain_args.map do |domain_arg|
-          [File.basename(domain_arg.chomp("/")), boot(bluebook_dir(domain_arg.chomp("/")) || domain_arg, options)]
+          [File.basename(domain_arg.chomp("/")), boot(bluebook_dir(domain_arg.chomp("/")) || domain_arg)]
         end
         examine_all(booted, options)
       end
@@ -105,7 +105,7 @@ module Hecks
       def check_corpus(root, options)
         require_relative "../corpus"
         targets = Corpus.model_check_members(root: root).map { |member| [member.stem, Corpus.source_of(member)] }
-        booted = targets.map { |name, source| [name, boot(source, options)] }
+        booted = targets.map { |name, source| [name, boot(source)] }
         ok = examine_all(booted, options)
         examine_language(options) && ok
       end
@@ -120,17 +120,16 @@ module Hecks
       #
       # @param source [String] a directory to boot (every bluebook within), or a
       #   single `.bluebook` file path
-      # @param options [Options] the run's configuration
       # @return [Runtime::Registry] the registry populated with the booted bluebooks
-      def boot(source, options)
+      def boot(source)
         root = File.directory?(source) ? File.dirname(source) : nil
         registry = Runtime::Registry.new(root: root)
-        Hecks.with_registry(registry) { load_source(source, options) }
+        Hecks.with_registry(registry) { load_source(source) }
         registry
       end
 
       # @api private
-      def load_source(source, options)
+      def load_source(source)
         Kernel.load(File.join(HECKS_DIR, "ports/persistence.port"))
         Kernel.load(File.join(HECKS_DIR, "ports/extraction.port"))
         Kernel.load(File.join(HECKS_DIR, "adapters/driven/memory.adapter"))
