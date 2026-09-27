@@ -38,15 +38,15 @@ RSpec.describe "the model checker" do
       Kernel.load(InMemoryDomain::PRISM_ADAPTER)
       load_bluebook_files(bluebook)
 
-      # **The sibling hecksagon, if one exists** — see bin/model_check's own
+      # **The sibling hecksagon(s), if any** — see bin/model_check's own
       # copy of this comment. Fixtures under spec/fixtures/model_check/
       # have none, so this is a no-op for every test but the real corpus.
-      hecksagon = if File.directory?(bluebook)
-                    Dir.glob(File.join(bluebook, "*.hecksagon")).min
-                  else
-                    bluebook.sub(/\.bluebook\z/, ".hecksagon")
-                  end
-      Kernel.load(hecksagon) if hecksagon && File.exist?(hecksagon)
+      hecksagons = if File.directory?(bluebook)
+                     Dir.glob(File.join(bluebook, "*.hecksagon"))
+                   else
+                     [bluebook.sub(/\.bluebook\z/, ".hecksagon")]
+                   end
+      hecksagons.each { |hecksagon| Kernel.load(hecksagon) if File.exist?(hecksagon) }
     end
     registry
   end
