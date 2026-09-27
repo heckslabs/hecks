@@ -39,7 +39,7 @@ module Hecks
         @event_log    = []
         @reaction_log = []
         @saga_log = []
-        # A DECLARATIVE FACT, NOT YET A DISPATCHED ONE — `AggregateDoor#
+        # A declarative fact, not yet a dispatched one — `AggregateDoor#
         # mark_sensitive` (called from a `.hecksagon` file, the same way
         # `port`/`persisted_by` already are) appends here at
         # hecksagon-build time; `Runtime::Loader.boot`'s own post-dispatcher
@@ -162,19 +162,23 @@ module Hecks
       # @return [Bluebook::Chapter] `item`, unchanged
       def add_bluebook(item) = @bluebooks[item.name] = item
 
-      # PROVENANCE, SIDE-CHANNEL — which real `.bluebook` file(s)
+      # Provenance, side-channel — which real `.bluebook` file(s)
       # contributed to a chapter name, never part of the exported IR (a
       # boot-time loading fact, not a domain fact) and never Rust-mirrored
       # (the same "additive, Ruby-only" shape `@translations` above already
-      # is). Legitimate accumulation (several files declaring the SAME
+      # is). Legitimate accumulation (several files declaring the same
       # chapter name on purpose — `lib/hecks/language/bluebook/*.bluebook`
       # all open `Hecks.bluebook "Bluebook"`) pushes more than one path
       # here too; that alone is not a problem. What this exists to let
       # `refuse_cross_package_bluebook_merge!` (registry/verification.rb)
-      # catch is TWO UNRELATED PACKAGES accumulating into the same name by
+      # catch is two unrelated packages accumulating into the same name by
       # coincidence — a stale vendored fork's own copy of a real gem's
       # chapter, still reachable on the load path, silently merging its
       # aggregates into the real one via this exact accumulation mechanism.
+      #
+      # @param name [String, Symbol] the chapter name the file contributed to
+      # @param path [String] the `.bluebook` file that declared it
+      # @return [Array<String>] every path recorded for that chapter, `path` last
       def record_bluebook_source(name, path)
         (@bluebook_sources[name.to_s] ||= []) << path
       end

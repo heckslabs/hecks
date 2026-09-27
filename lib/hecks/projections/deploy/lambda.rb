@@ -2287,7 +2287,7 @@ bastion_yaml = shared ? nil : Shared.bastion_yaml(
           reindent = ->(text) { text.each_line.map { |line| line.strip.empty? ? line : "  #{line}" }.join }
 
           # Not pre-reindented (unlike the return value as a whole, below) — each
-          # is spliced back into the still-being-dedented RESOURCES heredoc via
+          # is spliced back into the still-being-dedented `RESOURCES` heredoc via
           # `#{...}`, which the outer `reindent.call` already shifts by 2
           # spaces once; reindenting here too would double it.
           origin_access_control = use_oac ? <<~OAC : ""

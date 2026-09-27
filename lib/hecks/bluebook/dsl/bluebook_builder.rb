@@ -431,9 +431,9 @@ module Hecks
         #   manager's own structural check fails
         def self.build(name, version: nil, &block)
           registry = Hecks.current_registry
-          # WHICH FILE CALLED `Hecks.bluebook`, recorded for
+          # Which file called `Hecks.bluebook`, recorded for
           # `Registry#record_bluebook_source` — two frames up: this
-          # method's own caller is `Hecks.bluebook` (hecks.rb), and ITS
+          # method's own caller is `Hecks.bluebook` (hecks.rb), and its
           # caller is the real `.bluebook` file's own top-level call site.
           caller_location = caller_locations(2, 1)&.first
           registry&.record_bluebook_source(name, caller_location&.path)

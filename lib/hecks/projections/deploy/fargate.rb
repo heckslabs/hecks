@@ -324,7 +324,7 @@ module Hecks
           # Built outside the template heredoc so Layout/HeredocIndentation
           # cannot re-indent YAML that must match SessionSecretRead / env.
           # First interpolated line sits at the `\#{...}` column; later lines
-          # get that same left pad (lambda.rb's own OAUTHPOLICY pattern).
+          # get that same left pad (lambda.rb's own `OAUTHPOLICY` pattern).
           oauth_task_policy_yaml = google_oauth_present ? <<~OAUTHPOLICY.rstrip : ""
             - PolicyName: GoogleOauthSecretRead
               PolicyDocument:
