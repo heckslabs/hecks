@@ -152,6 +152,37 @@ Outside a real, rooted project — the doctest registry above, say — there is 
 Hecks.hecksagon("Widgets") { uses_embryonaut_bluebook "payments" }  # ~> WiringError: needs a registry with a root to vendor from
 ```
 
+### Vendoring a package
+
+One command puts a package in that directory, pinned to a release or a commit of the registry repository (`embryonaut_bluebooks`), which the command reads from a local checkout. In this repository it is `bin/vendor_bluebook`; the gem ships `lib/` only, so a consuming project runs the same command through its own bundle:
+
+```sh
+bundle exec ruby -rhecks -e 'exit Hecks::EmbryonautBluebook::VendorCli.run(ARGV)' payments@1.2.0 --from ../embryonaut_bluebooks
+```
+
+The argument is `<package>[@<ref>]`. Without a ref it takes the newest `<package>-v*` release tag; with `1.2.0` (or the tag name `payments-v1.2.0`) it takes that release; any other ref is a bare commit-ish. `--from` defaults to `$EMBRYONAUT_BLUEBOOKS_SRC` and `--root` (the consuming project) to the current directory. From Ruby, `Hecks::EmbryonautBluebook.vendor!(name, from:, root:, ref:)` does the same and returns what changed; the command line is a thin wrapper over it, and the exit status is 0 when the package was vendored, 1 when it was refused and 2 for a usage error.
+
+What lands is the package's top-level `bluebook/*.bluebook` files and nothing else: a `.hecksagon`, `.port` or `.adapter` is a wiring decision for whoever deploys, never part of the package. The whole package directory is replaced, so a file the registry dropped does not linger, and nothing on disk changes when a pin is refused or its files do not load.
+
+```text
+vendor/embryonaut_bluebooks/payments/
+  VENDORED_COMMIT     the full 40-character commit id and a newline
+  bluebook.lock       release pins only: package, version, tag, commit, digest, shape
+  bluebook/
+    payments.bluebook
+```
+
+`VENDORED_COMMIT` is written for every pin, so `git -C <registry> show <commit>:payments/bluebook` reproduces the vendored files. `bluebook.lock` is written only for a release pin, as `key: value` lines: `package`, `version`, `tag`, `commit`, `digest` (the sha256 over the `<sha256>  <name>` line of every `*.bluebook` file, sorted by name, which the registry's own `bin/bluebook_digest` prints for the same release), then one `shape: <Domain> <label>` line per domain. The label is the one `bin/shape` prints, the first characters of the hash PostgresEra names an era with.
+
+A release pin also carries two refusals, because a production project binds `PostgresEra`:
+
+- a version lower than the vendored one is refused unless `ALLOW_DOWNGRADE=1` is in the environment;
+- a change to the storage shape that raises the version by less than a minor is refused, so a new era shows in the version number and not only in a hash. The message names the shape before and after.
+
+A release must also be a real one: the tag's own `<package>/bluebook.yml` has to say the version the tag names. A bare commit-ish pins that commit and writes only the marker, with no lock and neither check. The command's last line reports the shape either way: unchanged (no new era on the next deploy), changed (the next deploy mints one, so write its translation edge first), or nothing earlier to compare with.
+
+A domain that binds `PostgresEra` needs no `require "hecks/ports/persistence/plugins/era"` of its own: `Hecks.boot` resolves every adapter a hecksagon binds before it collects the boot gates, which loads the era plugin and registers its gates. Requiring the plugin by hand is only for a program that wants translation support without binding `PostgresEra`.
+
 ## port
 
 <!-- generated:begin word=port -->

@@ -30,10 +30,14 @@ instead (the package lives in `packages/hecks-client`, so use a tool that can
 install from a subdirectory, or a tarball built with `npm pack`):
 
 ```sh
-git clone --branch v2.5.1 https://github.com/heckslabs/hecks.git
+git clone --branch v<version> https://github.com/heckslabs/hecks.git
 cd hecks/packages/hecks-client && npm ci && npm pack
-npm install ./hecks-client-2.5.1.tgz
+npm install ./hecks-client-<version>.tgz
 ```
+
+`<version>` is a release of the gem, such as `2.6.0`: the package carries the
+same version as the `hecks` gem it was released with, so pick the one matching
+the host you talk to.
 
 The package is ESM and ships its type declarations.
 
@@ -105,6 +109,15 @@ Standalone readers, importable without a client:
 Types and errors: `Answer` (`{ instances?, refusals?, error? }`), `Refusal`
 (`{ kind, error }`), `ClientOptions`, `Command<T>`, `DomainRefusal` (has
 `kind`), `DomainUnavailable`.
+
+The other exports, by the section that describes them: `createResilientFetch`,
+`ResilientFetchError` and the types `ResilientFetch`, `ResilientFetchConfig`,
+`ResilientRequest`; `PaymentsConnection`, `pastedKeys`, `savedMessage` and the
+types `PaymentConnectionState`, `PaymentMode`, `PaymentStatus`,
+`PaymentsConnectionOptions`, `PaymentsResult`, `FormFields`, `PastedKeys`;
+`verifyAccountToken`, `accountFromCookieHeader`, `cookieValue`,
+`accountToken`, `resolveAccountCookieName`, `DEFAULT_ACCOUNT_COOKIE` and the
+types `AccountClaims`, `Clock`, `CookieVerifyOptions`, `VerifyOptions`.
 
 ### Why `apply` judges by state
 
@@ -270,5 +283,25 @@ run `HECKS_SERVICE_URL=http://127.0.0.1:<port> npm run test:contract`. Add
 routes (it started with `HECKS_CHECKOUT_DOMAIN` naming its domain) to check the
 `PaymentsConnection` 401 as well; the workflow leaves it off.
 
+## Releasing
+
 The package version equals `Hecks::VERSION` and is released together with the
-gem; `spec/hecks_client_version_spec.rb` fails when they differ.
+gem; `spec/hecks_client_version_spec.rb` fails when they differ, and
+`bin/release_gem` refuses to push the gem while they do. When
+`lib/hecks/version.rb` changes, bump the package in the same change:
+
+```sh
+cd packages/hecks-client
+npm version <version> --no-git-tag-version   # also updates package-lock.json
+```
+
+`bin/release_gem` publishes the gem only. Publish the package from this
+directory once the gem is out, and only once the `@hecks` npm scope is
+confirmed (until then the tag install above is the way to consume it):
+
+```sh
+npm publish --access public   # `prepack` builds dist/ first
+```
+
+The steps as a whole are under "Releasing" in the repository's
+`CONTRIBUTING.md`.
