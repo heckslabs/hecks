@@ -346,15 +346,15 @@ pub fn payments_provider(domain_ir: &Value) -> Option<PaymentsProvider> {
 /// `provides "registrations"` (the key is omitted entirely).
 #[derive(Debug, Clone, PartialEq)]
 pub struct RegistrationsProvider {
-    /// Chapter name, e.g. `Lifeadelics`.
+    /// Chapter name, e.g. `Studio`.
     pub provider: String,
-    /// Qualified schedule command, e.g. `Lifeadelics::Event.Schedule`.
+    /// Qualified schedule command, e.g. `Studio::Event.Schedule`.
     pub schedule: String,
-    /// Qualified request command, e.g. `Lifeadelics::Registration.Request`.
+    /// Qualified request command, e.g. `Studio::Registration.Request`.
     pub request: String,
-    /// Qualified event aggregate, e.g. `Lifeadelics::Event`.
+    /// Qualified event aggregate, e.g. `Studio::Event`.
     pub event_aggregate: String,
-    /// Qualified registration aggregate, e.g. `Lifeadelics::Registration`.
+    /// Qualified registration aggregate, e.g. `Studio::Registration`.
     pub registration_aggregate: String,
 }
 
@@ -374,13 +374,13 @@ impl RegistrationsProvider {
     }
 
     /// The prefix every event's key in a `dispatch::read` `instances` map
-    /// starts with, e.g. `Lifeadelics::Event#`.
+    /// starts with, e.g. `Studio::Event#`.
     pub fn event_prefix(&self) -> String {
         format!("{}#", self.event_aggregate)
     }
 
     /// The prefix every registration's key starts with, e.g.
-    /// `Lifeadelics::Registration#`.
+    /// `Studio::Registration#`.
     pub fn registration_prefix(&self) -> String {
         format!("{}#", self.registration_aggregate)
     }
@@ -431,7 +431,7 @@ pub enum ConnectionVerb {
 /// attaches declares `provides "payment_connection"`.
 #[derive(Debug, Clone, PartialEq)]
 pub struct PaymentConnectionProvider {
-    /// Chapter name, e.g. `Lifeadelics`.
+    /// Chapter name, e.g. `Studio`.
     pub provider: String,
     pub connect: String,
     pub reconnect: String,
@@ -440,7 +440,7 @@ pub struct PaymentConnectionProvider {
     pub resume: String,
     pub enable: String,
     pub disable: String,
-    /// Qualified connection aggregate, e.g. `Lifeadelics::PaymentConnection`.
+    /// Qualified connection aggregate, e.g. `Studio::PaymentConnection`.
     pub aggregate: String,
 }
 
@@ -464,7 +464,7 @@ impl PaymentConnectionProvider {
     }
 
     /// The prefix every connection's key in a `dispatch::read` `instances`
-    /// map starts with, e.g. `Lifeadelics::PaymentConnection#`.
+    /// map starts with, e.g. `Studio::PaymentConnection#`.
     pub fn instance_prefix(&self) -> String {
         format!("{}#", self.aggregate)
     }

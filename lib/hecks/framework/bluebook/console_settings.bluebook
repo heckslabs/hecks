@@ -1,5 +1,5 @@
 Hecks.bluebook "ConsoleSettings" do
-  vision "A generic admin console's own curated UI facts — nav, columns, state tones, which rows a detail panel shows — as real dispatched data instead of a hand-rewritten YAML file. A UI opinion the DOMAIN it's pointed at has no way to answer, never a business record; see embryonaut_console's own presentation_config.rb for the fuller story."
+  vision "A generic admin console's own curated UI facts — nav, columns, state tones, which rows a detail panel shows — as real dispatched data instead of a hand-rewritten YAML file. A UI opinion the DOMAIN it's pointed at has no way to answer, never a business record; see the console app's own presentation_config.rb for the fuller story."
   supporting
 
   # A FRAMEWORK MEMBER LIKE IDENTITY/GOVERNANCE — attach with
@@ -7,7 +7,7 @@ Hecks.bluebook "ConsoleSettings" do
   # `.hecksagon`, plus a `Hecks.hecksagon "ConsoleSettings" do ... end`
   # persistence binding (Heki is the common case — a small, local,
   # per-app settings store, no shared database needed). This used to
-  # boot in a SECOND, independent registry (embryonaut_console's own
+  # boot in a SECOND, independent registry (the console app's own
   # console_settings_domain.rb) specifically so no consuming app needed
   # any change at all — that property is real and now given up on
   # purpose, in favor of the one binding mechanism every other
@@ -30,7 +30,7 @@ Hecks.bluebook "ConsoleSettings" do
   # (Overview, below) and every `extra_json`/`identity_extra_json`
   # field throughout this chapter were BOTH originally scoped out on an
   # "confirmed unused in any real presentation.yml" basis that turned
-  # out to be checked against the wrong file — embryonaut_console's own
+  # out to be checked against the wrong file — the console app's own
   # fixture, never this app's actual, live one. Migrating the real file
   # found both very much in use.
 

@@ -28,6 +28,19 @@ end
 
 require_relative "../lib/hecks/version"
 
+# The JavaScript client (@hecks/client, packages/hecks-client) is released
+# with the gem and carries the same version. Bump it whenever
+# lib/hecks/version.rb changes (`npm version <version> --no-git-tag-version`
+# in packages/hecks-client); spec/hecks_client_version_spec.rb pins the same
+# rule. This script publishes the gem only; the package is published from its
+# own directory with `npm publish --access public`.
+require "json"
+client_version = JSON.parse(File.read(File.join(ROOT_DIR, "packages/hecks-client/package.json"))).fetch("version")
+unless client_version == Hecks::VERSION
+  warn "packages/hecks-client is at #{client_version} but Hecks::VERSION is #{Hecks::VERSION}; bump the package first."
+  exit 1
+end
+
 gem_file = "hecks-#{Hecks::VERSION}.gem"
 
 puts "Building #{gem_file}..."

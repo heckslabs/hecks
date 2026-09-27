@@ -553,7 +553,7 @@ mod lookup_tests {
 
     // Shaped like a generated value object with one required boolean
     // attribute and one optional one — `previous_sessions`/`first_time`
-    // on lifeadelics's real `Attendee`, the exact live shape
+    // on a client site's real `Attendee`, the exact live shape
     // `!previous_sessions.nil?` names (`composite::step`'s own header
     // has the full reasoning).
     struct Attendee {

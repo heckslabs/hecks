@@ -78,7 +78,7 @@ RSpec.describe Hecks::Fuzzing::IsolatedBoot do
     it "carries only the packages a hecksagon names" do
       Dir.mktmpdir do |root|
         domain = project(root, uses: %w[widgets], vendored: %w[widgets gadgets])
-        write(root, "vendor/embryonaut_console/keep_out.txt", "not a bluebook package")
+        write(root, "vendor/other_project/keep_out.txt", "not a bluebook package")
 
         vendor = described_class.call(domain) do |copy|
           Dir.glob(File.join(File.dirname(copy), "vendor", "*", "*")).map { |path| path.split("vendor/").last }
@@ -186,6 +186,86 @@ RSpec.describe Hecks::Fuzzing::IsolatedBoot do
     end
   end
 
+  # A chapter with a bluebook and no hecksagon block (the framework's Privacy) has no bind.
+  # The Postgres-mode worlds declare a `default_adapter` that needs a `database`, so such a
+  # chapter gets a world of its own that falls back to Memory, as it did before those worlds
+  # carried a `default_adapter`.
+  describe ".write_unbound_chapter_worlds!" do
+    def unbound_worlds(copy, dir)
+      text = File.read(File.join(copy, dir, "hecks_fuzz_unbound.world"))
+      text.scan(/Hecks\.world "([^"]+)" do\n  default_adapter "Memory"/).flatten
+    end
+
+    it "gives a chapter no hecksagon names a Memory world" do
+      Dir.mktmpdir do |copy|
+        write(copy, "bluebook/main.hecksagon", %(Hecks.hecksagon "Main" do\nend\n))
+        write(copy, "bluebook/main.bluebook", %(Hecks.bluebook "Main" do\nend\n))
+        write(copy, "bluebook/extra.bluebook", %(Hecks.bluebook "Extra" do\nend\n))
+
+        described_class.write_unbound_chapter_worlds!(copy)
+
+        expect(unbound_worlds(copy, "bluebook")).to eq(["Extra"])
+      end
+    end
+
+    it "writes nothing where every chapter is named by a hecksagon" do
+      Dir.mktmpdir do |copy|
+        write(copy, "bluebook/main.hecksagon", %(Hecks.hecksagon "Main" do\nend\n))
+        write(copy, "bluebook/main.bluebook", %(Hecks.bluebook "Main" do\nend\n))
+
+        described_class.write_unbound_chapter_worlds!(copy)
+
+        expect(Dir.glob(File.join(copy, "**", "*.world"))).to be_empty
+      end
+    end
+
+    it "declares a chapter of the same name in two directories once" do
+      Dir.mktmpdir do |copy|
+        write(copy, "a/lone.bluebook", %(Hecks.bluebook "Lone" do\nend\n))
+        write(copy, "b/lone.bluebook", %(Hecks.bluebook "Lone" do\nend\n))
+
+        described_class.write_unbound_chapter_worlds!(copy)
+
+        expect(Dir.glob(File.join(copy, "**", "*.world")).size).to eq(1)
+      end
+    end
+  end
+
+  # A domain can bind its aggregates only through its world's `default_adapter`, its
+  # hecksagon declaring no `persisted_by` at all. The copy drops that world, so it must
+  # bring a `default_adapter` of its own or the unbound aggregate raises a WiringError at
+  # the first dispatch (BindingPolicy reads the world through `Registry#default_adapter_for`).
+  describe ".call, for a domain bound only by its world's default_adapter" do
+    def default_adapter_project(root)
+      write(root, "bluebook/consumer.hecksagon", <<~HECKSAGON)
+        Hecks.hecksagon "Widgets" do
+          uses_embryonaut_bluebook "widgets"
+          uses_framework "Governance"
+        end
+      HECKSAGON
+      write(root, "bluebook/consumer.world", %(Hecks.world "Widgets" do\n  default_adapter "PostgresEra"\nend\n))
+      write(root, "bluebook/context_map.hecksagon", InMemoryDomain::GOVERNANCE_MEMORY_HECKSAGON)
+      write(root, "vendor/embryonaut_bluebooks/widgets/bluebook/widgets.bluebook", WIDGETS_BLUEBOOK)
+      File.join(root, "bluebook")
+    end
+
+    def bind_adapter_in_copy(root, adapter)
+      described_class.call(default_adapter_project(root), adapter: adapter) do |copy|
+        registry = Hecks.boot(copy, install_facade: false).registry
+        aggregate = registry.bluebook("Widgets").aggregates.find { |a| a.hecks_name == "Widget" }
+        Hecks::Ports::Persistence::BindingPolicy.resolve(registry, "Widgets", aggregate).adapter
+      end
+    end
+
+    it "binds the unbound aggregate to Memory in a :memory copy" do
+      Dir.mktmpdir { |root| expect(bind_adapter_in_copy(root, :memory)).to eq("Memory") }
+    end
+
+    it "binds the unbound aggregate to SqlitePersistence in a :sqlite copy" do
+      Dir.mktmpdir { |root| expect(bind_adapter_in_copy(root, :sqlite)).to eq("SqlitePersistence") }
+    end
+  end
+
   # The `qa` domain keeps Governance in `context_map.hecksagon` and QualityControl in
   # `quality_control.hecksagon`, side by side; every Postgres-bound boot of it needs a
   # `database` for both. Real Postgres, because the refusal this guards is raised when the
@@ -197,6 +277,23 @@ RSpec.describe Hecks::Fuzzing::IsolatedBoot do
       qa = File.join(InMemoryDomain::ROOT, "qa")
       expect do
         described_class.call(qa, adapter: :postgres) { |copy| Hecks.boot(copy, install_facade: false) }
+      end.not_to raise_error
+    end
+  end
+
+  # The framework directory's Privacy chapter has no hecksagon block, so its aggregates
+  # bind through the world's `default_adapter`; the copy must give that chapter the same
+  # scratch database and schema as every hecksagon-bound one.
+  describe ".call with adapter: :postgres, for a chapter no hecksagon binds", :io do
+    it "opens a repository for the framework's Privacy aggregates" do
+      skip "no reachable Postgres — start one to run this spec" unless PostgresProbe.available?
+
+      framework = File.join(InMemoryDomain::ROOT, "lib/hecks/framework")
+      expect do
+        described_class.call(framework, adapter: :postgres) do |copy|
+          registry = Hecks.boot(copy, install_facade: false).registry
+          registry.bluebook("Privacy").aggregates.each { |aggregate| registry.repository("Privacy", aggregate) }
+        end
       end.not_to raise_error
     end
   end

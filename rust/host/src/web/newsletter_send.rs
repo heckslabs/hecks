@@ -12,7 +12,7 @@ use tokio::sync::Mutex;
 use tokio_postgres::Client;
 
 // ---- newsletter: sending an issue ----------------------------------------
-// Ported from http_server.rb's POST /newsletter/issues/:slug/send and
+// Ported from the Ruby HTTP adapter's POST /newsletter/issues/:slug/send and
 // .../send-test, with the outbound half going through resend.rs instead of
 // the Ruby RESEND_ADAPTER. Which commands mark an issue sent and record a
 // delivery comes from the `newsletter_issues` IR key (`provides

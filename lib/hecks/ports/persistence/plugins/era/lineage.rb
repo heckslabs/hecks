@@ -159,7 +159,7 @@ module Hecks
           # aware, same as `apply_drop` above (`apply_backfill`'s own
           # header) — a bare name was the only shape this ever needed
           # until a value object gained new required members with zero
-          # source data of their own (found live: lifeadelics' Attendee
+          # source data of their own (found live: a client site's Attendee
           # redesign, commit 4326dcd).
           @backfills.each { |backfill| apply_backfill(state, backfill) }
           Entry.new(operation: entry.operation, id: entry.id, state: state, mirrors: entry.mirrors)

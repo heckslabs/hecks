@@ -194,10 +194,11 @@ async fn tenant(name: &str) -> Tenant {
     let fake = FakeStripe::start().await;
     let platform = PlatformConfig {
         site_url: "https://site.example".to_string(),
-        webhook_base_url: "https://lifeadelics.example".to_string(),
+        webhook_base_url: "https://webhooks.example.test".to_string(),
         store: None,
         stored: Arc::new(StoredDocument::default()),
         api_base: fake.base.clone(),
+        webhook_description: "Checkout Fixture website".to_string(),
         direct_test_key: DIRECT_KEY.to_string(),
         direct_live_key: String::new(),
         direct_test_publishable_key: DIRECT_PUBLISHABLE_KEY.to_string(),
@@ -298,7 +299,7 @@ impl Tenant {
     }
 
     async fn schedule_event_with_capacity(&self, slug: &str, capacity: i64) {
-        let args = json!({"slug": {"value": slug}, "name": {"value": "Yogadelics"}, "price": {"cents": 4200}, "capacity": {"value": capacity}});
+        let args = json!({"slug": {"value": slug}, "name": {"value": "Sample Studio"}, "price": {"cents": 4200}, "capacity": {"value": capacity}});
         let outcome = dispatch::handle(&self.client, &self.wasm, "CheckoutFixture::Event.Schedule", args, None, &self.config, &NeverInvoker).await.unwrap();
         assert!(outcome.accepted, "{:?}", outcome.result);
     }
@@ -1109,7 +1110,8 @@ async fn saving_keys_checks_them_creates_the_webhook_and_keeps_every_secret_out_
     assert_eq!(created[0].header("stripe-version"), Some("2026-04-22.dahlia"));
     assert_eq!(created[0].header("stripe-account"), None);
     for expected in [
-        "url=https%3A%2F%2Flifeadelics.example%2Fwebhooks%2Fstripe",
+        "url=https%3A%2F%2Fwebhooks.example.test%2Fwebhooks%2Fstripe",
+        "description=Checkout+Fixture+website",
         "enabled_events%5B0%5D=checkout.session.completed",
         "enabled_events%5B1%5D=checkout.session.expired",
         "enabled_events%5B2%5D=charge.refunded",
@@ -1394,6 +1396,24 @@ fn key_shapes_decide_the_mode_and_a_mismatch_is_refused_without_quoting_a_key() 
     for message in [keys_mode("rk_test_KEYMATERIAL", "x").unwrap_err(), keys_mode("x", "pk_test_KEYMATERIAL").unwrap_err(), keys_mode("rk_test_KEYMATERIAL", "pk_live_KEYMATERIAL").unwrap_err()] {
         assert!(!message.contains("KEYMATERIAL"), "{message}");
     }
+}
+
+#[test]
+fn the_webhook_description_is_the_configured_text_else_the_domain_name_and_website() {
+    assert_eq!(webhook_description(None, "Atelier"), "Atelier website");
+    assert_eq!(webhook_description(Some(""), "Atelier"), "Atelier website");
+    assert_eq!(webhook_description(Some("   "), "Atelier"), "Atelier website");
+    assert_eq!(webhook_description(Some("  Atelier bookings  "), "Atelier"), "Atelier bookings");
+}
+
+#[tokio::test]
+async fn the_webhook_endpoint_is_created_with_the_platform_description() {
+    let mut t = Tenant::saving("hecks_pay_test_webhook_description").await;
+    t.platform.webhook_description = "Atelier bookings".to_string();
+    assert_eq!(t.save_keys(SAVED_KEY, SAVED_PUBLISHABLE_KEY, Some(OWNER)).await.0, 200);
+    let created = t.fake.requests_to("/v1/webhook_endpoints");
+    assert_eq!(created.len(), 1);
+    assert!(created[0].body.contains("description=Atelier+bookings"), "{}", created[0].body);
 }
 
 #[test]

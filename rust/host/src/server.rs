@@ -44,17 +44,20 @@
 
 use crate::dispatch;
 use crate::journal::LineageConfig;
-use crate::lambda_client::{AwsLambdaInvoker, LambdaInvoker};
+use crate::lambda_client::LambdaInvoker;
 use crate::log;
+use crate::rate_limit::{self, RateLimits, Verdict};
+use crate::wasm_runner;
 use crate::web;
 use axum::body::Bytes;
-use axum::extract::State;
+use axum::extract::{ConnectInfo, State};
 use axum::http::{HeaderMap, HeaderName, HeaderValue, Method, StatusCode, Uri};
 use axum::response::{IntoResponse, Response};
 use axum::routing::{any, get};
 use axum::Router;
 use lambda_runtime::Error;
 use serde_json::Value;
+use std::net::SocketAddr;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -134,7 +137,8 @@ pub struct ServerState {
     pub client: Arc<Mutex<Client>>,
     pub wasm_path: Arc<PathBuf>,
     pub lineage_config: Arc<LineageConfig>,
-    pub invoker: Arc<AwsLambdaInvoker>,
+    pub invoker: Arc<dyn LambdaInvoker>,
+    pub limits: Arc<RateLimits>,
 }
 
 /// The document `GET /version` serves: which era the host booted on, the
@@ -166,10 +170,13 @@ pub fn version_router(body: Value) -> Router {
     Router::new().route("/version", get(move || std::future::ready(axum::Json(body.as_ref().clone()))))
 }
 
-/// Binds `0.0.0.0:$PORT` (`PORT`, matching `fargate.rb`'s own generated
+/// Compiles the domain's wasm module (`warm_wasm`), then binds
+/// `0.0.0.0:$PORT` (`PORT`, matching `fargate.rb`'s own generated
 /// container `Environment` — falls back to 8080, the same default
 /// `deployed_to("AwsFargate")`'s own `port` setting uses, purely for
 /// convenience running this outside a real deploy) and serves forever.
+/// Nothing is listening until the compile is done, so the health check
+/// reports a host that can answer.
 ///
 /// Three routes: `GET /version` (see `version_router`) reports the era
 /// and build without touching dispatch. `GET /` is a bare, dispatch-free
@@ -190,17 +197,46 @@ pub fn version_router(body: Value) -> Router {
 pub async fn serve(state: ServerState, version: Value) -> Result<(), Error> {
     let port: u16 = std::env::var("PORT").ok().and_then(|v| v.parse().ok()).unwrap_or(8080);
 
+    warm_wasm(&state.wasm_path).await;
+
+    let phase = log::phase_with("serve_start", serde_json::json!({ "port": port }));
+    let listener = tokio::net::TcpListener::bind(("0.0.0.0", port)).await?;
+    phase.end();
+    serve_on(listener, state, version).await
+}
+
+/// The router and serve loop over an already-bound `listener`: the part of
+/// `serve` that answers requests, split out so a test can run the real
+/// service on an ephemeral port.
+async fn serve_on(listener: tokio::net::TcpListener, state: ServerState, version: Value) -> Result<(), Error> {
     let app = Router::new()
         .route("/", get(health))
         .fallback(any(dispatch_route))
         .with_state(state)
         .merge(version_router(version));
 
-    let phase = log::phase_with("serve_start", serde_json::json!({ "port": port }));
-    let listener = tokio::net::TcpListener::bind(("0.0.0.0", port)).await?;
-    phase.end();
-    axum::serve(listener, app).await?;
+    // The connect info is the TCP peer, which `rate_limit` needs to tell a visitor from a proxy.
+    axum::serve(listener, app.into_make_service_with_connect_info::<SocketAddr>()).await?;
     Ok(())
+}
+
+/// Compiles the domain's wasm module before the host listens, so a
+/// request that arrives right after boot finds it ready instead of
+/// waiting out a compile that can outlast the caller's own timeout
+/// (`wasm_runner::warm` has the whole story). A module that will not
+/// compile is logged, not fatal: the host still boots as it did before
+/// this step existed, and every request that needs the module reports
+/// the same error it would have.
+async fn warm_wasm(wasm_path: &Arc<PathBuf>) {
+    let phase = log::phase("wasm_warm");
+    let path = Arc::clone(wasm_path);
+    match tokio::task::spawn_blocking(move || wasm_runner::warm(&path)).await {
+        Ok(Ok(())) => {
+            phase.end();
+        }
+        Ok(Err(e)) => log::error("wasm_warm_failed", serde_json::json!({ "error": format!("{e:#}") })),
+        Err(e) => log::error("wasm_warm_failed", serde_json::json!({ "error": format!("{e}") })),
+    }
 }
 
 /// The ALB health check — cheap and fast on purpose, no dispatch logic
@@ -212,11 +248,18 @@ async fn health() -> StatusCode {
 /// Runs one request and writes its access-log line — method, path (never
 /// the query string: it can carry OAuth codes and tokens), status and
 /// duration.
-async fn dispatch_route(State(state): State<ServerState>, method: Method, uri: Uri, headers: HeaderMap, body: Bytes) -> Response {
+async fn dispatch_route(
+    State(state): State<ServerState>,
+    ConnectInfo(peer): ConnectInfo<SocketAddr>,
+    method: Method,
+    uri: Uri,
+    headers: HeaderMap,
+    body: Bytes,
+) -> Response {
     let started = std::time::Instant::now();
     let path = uri.path().to_string();
     let verb = method.as_str().to_string();
-    let response = route_request(state, method, uri, headers, body).await;
+    let response = route_request(state, peer, method, uri, headers, body).await;
     let status = response.status().as_u16();
     let fields = serde_json::json!({
         "method": verb, "path": path, "status": status, "ms": started.elapsed().as_millis() as u64,
@@ -229,13 +272,36 @@ async fn dispatch_route(State(state): State<ServerState>, method: Method, uri: U
     response
 }
 
-async fn route_request(state: ServerState, method: Method, uri: Uri, headers: HeaderMap, body: Bytes) -> Response {
+async fn route_request(state: ServerState, peer: SocketAddr, method: Method, uri: Uri, headers: HeaderMap, body: Bytes) -> Response {
+    let envelope = match admit(&state.limits, peer, &method, &uri, &headers, &body) {
+        Ok(envelope) => envelope,
+        Err(refusal) => return *refusal,
+    };
+
+    match dispatch_body(envelope, &state.client, &state.wasm_path, &state.lineage_config, state.invoker.as_ref()).await {
+        Ok(value) => value_to_response(value),
+        Err(e) => {
+            log::error("dispatch_failed", serde_json::json!({ "error": format!("{e}") }));
+            (StatusCode::INTERNAL_SERVER_ERROR, axum::Json(serde_json::json!({ "error": format!("{e}") }))).into_response()
+        }
+    }
+}
+
+/// Turns a raw HTTP request into the envelope `dispatch_body` takes, or
+/// into the response that ends it before dispatch: a `400` for a body that
+/// is not JSON, a `429` for a caller over a public route's rate limit.
+///
+/// The limit is read off the envelope, not the raw request line, so a body
+/// that already carries the Function-URL shape counts against the route it
+/// names. The caller is identified from the real connection and headers
+/// (`rate_limit`'s own header has the trust rules), never from the body.
+fn admit(limits: &RateLimits, peer: SocketAddr, method: &Method, uri: &Uri, headers: &HeaderMap, body: &Bytes) -> Result<Value, Box<Response>> {
     let parsed: Value = if body.is_empty() {
         serde_json::json!({})
     } else {
-        match serde_json::from_slice(&body) {
+        match serde_json::from_slice(body) {
             Ok(value) => value,
-            Err(e) => return (StatusCode::BAD_REQUEST, format!("invalid JSON body: {e}")).into_response(),
+            Err(e) => return Err(Box::new((StatusCode::BAD_REQUEST, format!("invalid JSON body: {e}")).into_response())),
         }
     };
 
@@ -257,16 +323,23 @@ async fn route_request(state: ServerState, method: Method, uri: Uri, headers: He
     let envelope = if is_internal_dispatch_shape(&parsed) {
         parsed
     } else {
-        synthesize_function_url_envelope(&method, &uri, &headers, &body)
+        synthesize_function_url_envelope(method, uri, headers, body)
     };
 
-    match dispatch_body(envelope, &state.client, &state.wasm_path, &state.lineage_config, state.invoker.as_ref()).await {
-        Ok(value) => value_to_response(value),
-        Err(e) => {
-            log::error("dispatch_failed", serde_json::json!({ "error": format!("{e}") }));
-            (StatusCode::INTERNAL_SERVER_ERROR, axum::Json(serde_json::json!({ "error": format!("{e}") }))).into_response()
+    if let Some((route_method, route_path)) = envelope_route(&envelope) {
+        if let Verdict::Limited { retry_after_secs } = limits.check(route_method, route_path, headers, Some(peer.ip())) {
+            return Err(Box::new(rate_limit::too_many_requests(retry_after_secs)));
         }
     }
+    Ok(envelope)
+}
+
+/// The method and path a Function-URL-shaped envelope names, or `None` for
+/// the verb and read shapes, which carry no route.
+fn envelope_route(envelope: &Value) -> Option<(&str, &str)> {
+    let method = envelope.get("requestContext")?.get("http")?.get("method")?.as_str()?;
+    let path = envelope.get("rawPath")?.as_str()?;
+    Some((method, path))
 }
 
 /// Whether `value` already matches one of `dispatch_body`'s own three
@@ -459,6 +532,191 @@ mod tests {
         let addr = serve_version(sample_version()).await;
         let response = reqwest::Client::new().post(format!("http://{addr}/version")).send().await.unwrap();
         assert_eq!(response.status(), 405);
+    }
+
+    fn limits_from(pairs: &[(&str, &str)]) -> Arc<RateLimits> {
+        let map: std::collections::HashMap<String, String> = pairs.iter().map(|(k, v)| (k.to_string(), v.to_string())).collect();
+        Arc::new(RateLimits::new(crate::rate_limit::Config::from_lookup(|name| map.get(name).cloned()).0))
+    }
+
+    async fn gate_only(
+        State(limits): State<Arc<RateLimits>>,
+        ConnectInfo(peer): ConnectInfo<SocketAddr>,
+        method: Method,
+        uri: Uri,
+        headers: HeaderMap,
+        body: Bytes,
+    ) -> Response {
+        match admit(&limits, peer, &method, &uri, &headers, &body) {
+            Ok(_) => (StatusCode::OK, "admitted").into_response(),
+            Err(refusal) => *refusal,
+        }
+    }
+
+    // A disposable server on an ephemeral port: the real `admit` gate reading the real connection
+    // peer, with an acknowledgement standing in for dispatch, which needs Postgres and wasm.
+    async fn gated_server(limits: Arc<RateLimits>) -> SocketAddr {
+        let listener = tokio::net::TcpListener::bind(("127.0.0.1", 0)).await.unwrap();
+        let addr = listener.local_addr().unwrap();
+        let app = Router::new().fallback(any(gate_only)).with_state(limits);
+        tokio::spawn(async move { axum::serve(listener, app.into_make_service_with_connect_info::<SocketAddr>()).await });
+        addr
+    }
+
+    async fn post(addr: SocketAddr, path: &str, forwarded_for: Option<&str>, body: &str) -> reqwest::Response {
+        let mut request = reqwest::Client::new().post(format!("http://{addr}{path}")).body(body.to_string());
+        if let Some(forwarded_for) = forwarded_for {
+            request = request.header("x-forwarded-for", forwarded_for);
+        }
+        request.send().await.unwrap()
+    }
+
+    const SUBSCRIBE: &str = "/newsletter/subscribers";
+
+    #[tokio::test]
+    async fn a_burst_on_a_public_write_route_gets_429_with_retry_after_and_a_json_error() {
+        let addr = gated_server(limits_from(&[("HECKS_RATE_LIMIT_SUBSCRIBE", "3")])).await;
+        for attempt in 1..=3 {
+            assert_eq!(post(addr, SUBSCRIBE, None, r#"{"email":"a@example.com"}"#).await.status(), 200, "request {attempt}");
+        }
+
+        let refused = post(addr, SUBSCRIBE, None, r#"{"email":"a@example.com"}"#).await;
+        assert_eq!(refused.status(), 429);
+        let retry_after: u64 = refused.headers()["retry-after"].to_str().unwrap().parse().unwrap();
+        assert!((1..=3600).contains(&retry_after), "got {retry_after}");
+        assert!(refused.headers()["content-type"].to_str().unwrap().starts_with("application/json"));
+        let body: Value = refused.json().await.unwrap();
+        assert_eq!(body, serde_json::json!({ "error": "too many requests, please try again later" }));
+    }
+
+    #[tokio::test]
+    async fn registrations_are_limited_apart_from_subscribes() {
+        let addr = gated_server(limits_from(&[("HECKS_RATE_LIMIT_SUBSCRIBE", "1"), ("HECKS_RATE_LIMIT_REGISTER", "2")])).await;
+        assert_eq!(post(addr, SUBSCRIBE, None, "{}").await.status(), 200);
+        assert_eq!(post(addr, SUBSCRIBE, None, "{}").await.status(), 429);
+
+        assert_eq!(post(addr, "/registrations", None, "{}").await.status(), 200, "subscribe being spent leaves register alone");
+        assert_eq!(post(addr, "/registrations", None, "{}").await.status(), 200);
+        assert_eq!(post(addr, "/registrations", None, "{}").await.status(), 429);
+    }
+
+    #[tokio::test]
+    async fn reads_and_other_routes_are_never_limited() {
+        let addr = gated_server(limits_from(&[("HECKS_RATE_LIMIT_SUBSCRIBE", "1"), ("HECKS_RATE_LIMIT_REGISTER", "1")])).await;
+        let client = reqwest::Client::new();
+        for _ in 0..5 {
+            assert_eq!(client.get(format!("http://{addr}{SUBSCRIBE}")).send().await.unwrap().status(), 200);
+            assert_eq!(client.get(format!("http://{addr}/registrations/REG-1")).send().await.unwrap().status(), 200);
+            assert_eq!(post(addr, "/webhooks/stripe", None, "{}").await.status(), 200);
+            assert_eq!(post(addr, "/members", None, "{}").await.status(), 200);
+        }
+    }
+
+    #[tokio::test]
+    async fn a_spoofed_forwarded_header_does_not_buy_a_fresh_allowance() {
+        // The test client is the peer at 127.0.0.1 and nothing trusts it, so every header is
+        // typed by the caller and the count stays with the connection.
+        let addr = gated_server(limits_from(&[("HECKS_RATE_LIMIT_SUBSCRIBE", "1")])).await;
+        assert_eq!(post(addr, SUBSCRIBE, Some("1.1.1.1"), "{}").await.status(), 200);
+        for spoof in ["2.2.2.2", "3.3.3.3", "4.4.4.4, 5.5.5.5"] {
+            assert_eq!(post(addr, SUBSCRIBE, Some(spoof), "{}").await.status(), 429, "{spoof}");
+        }
+    }
+
+    #[tokio::test]
+    async fn behind_a_trusted_proxy_each_visitor_has_their_own_allowance() {
+        let addr = gated_server(limits_from(&[("HECKS_RATE_LIMIT_SUBSCRIBE", "1"), ("HECKS_TRUSTED_PROXIES", "127.0.0.1")])).await;
+        assert_eq!(post(addr, SUBSCRIBE, Some("1.1.1.1, 203.0.113.7"), "{}").await.status(), 200);
+        assert_eq!(post(addr, SUBSCRIBE, Some("2.2.2.2, 203.0.113.7"), "{}").await.status(), 429, "same visitor, new typed entry");
+        assert_eq!(post(addr, SUBSCRIBE, Some("2.2.2.2, 198.51.100.4"), "{}").await.status(), 200, "a different visitor");
+    }
+
+    #[tokio::test]
+    async fn a_body_that_carries_the_function_url_shape_counts_against_the_route_it_names() {
+        let addr = gated_server(limits_from(&[("HECKS_RATE_LIMIT_REGISTER", "1")])).await;
+        let envelope = r#"{"requestContext":{"http":{"method":"POST"}},"rawPath":"/registrations","body":"{}"}"#;
+        assert_eq!(post(addr, "/anything", None, envelope).await.status(), 200);
+        assert_eq!(post(addr, "/anything", None, envelope).await.status(), 429);
+        assert_eq!(post(addr, "/registrations", None, "{}").await.status(), 429, "the same budget as the real path");
+    }
+
+    #[tokio::test]
+    async fn a_body_that_is_not_json_is_a_400_and_costs_no_allowance() {
+        let addr = gated_server(limits_from(&[("HECKS_RATE_LIMIT_SUBSCRIBE", "1")])).await;
+        for _ in 0..3 {
+            assert_eq!(post(addr, SUBSCRIBE, None, "not json").await.status(), 400);
+        }
+        assert_eq!(post(addr, SUBSCRIBE, None, "{}").await.status(), 200);
+    }
+
+    #[tokio::test]
+    async fn turning_the_limits_off_lets_every_request_through() {
+        let addr = gated_server(limits_from(&[("HECKS_RATE_LIMIT", "off"), ("HECKS_RATE_LIMIT_SUBSCRIBE", "1")])).await;
+        for _ in 0..10 {
+            assert_eq!(post(addr, SUBSCRIBE, None, "{}").await.status(), 200);
+        }
+    }
+
+    // The real service on an ephemeral port — the same router, connect info and dispatch the host
+    // serves, over a scratch Postgres and a cold copy of the checkout fixture's wasm, so the first
+    // request is a real compile. Returns the address and the wasm path it serves.
+    async fn fixture_host(database: &str, copy_name: &str) -> (SocketAddr, Arc<PathBuf>) {
+        let client = crate::dispatch::tests::scratch_db(database).await;
+        crate::dispatch::tests::provision_lineage(&*client.lock().await, "CheckoutFixture", 1, &["Event"]).await;
+        let wasm_path = Arc::new(crate::wasm_runner::tests::cold_copy_of_fixture(copy_name));
+        let state = ServerState {
+            client: Arc::new(client),
+            wasm_path: Arc::clone(&wasm_path),
+            lineage_config: Arc::new(LineageConfig { domain: "CheckoutFixture".to_string(), era: Some(1), mirrored: None }),
+            invoker: Arc::new(crate::lambda_client::NeverInvoker),
+            limits: limits_from(&[]),
+        };
+        let listener = tokio::net::TcpListener::bind(("127.0.0.1", 0)).await.unwrap();
+        let addr = listener.local_addr().unwrap();
+        tokio::spawn(async move { serve_on(listener, state, sample_version()).await });
+        (addr, wasm_path)
+    }
+
+    // `burst` simultaneous reads, each with the protocol's own `{"read": true}` body.
+    async fn read_burst(addr: SocketAddr, burst: usize) -> Vec<(StatusCode, Value)> {
+        let requests: Vec<_> = (0..burst)
+            .map(|_| {
+                tokio::spawn(async move {
+                    let response = reqwest::Client::new().post(format!("http://{addr}/dispatch")).body(r#"{"read": true}"#).send().await.unwrap();
+                    let status = StatusCode::from_u16(response.status().as_u16()).unwrap();
+                    (status, response.json::<Value>().await.unwrap())
+                })
+            })
+            .collect();
+        let mut answers = Vec::new();
+        for request in requests {
+            answers.push(tokio::time::timeout(std::time::Duration::from_secs(120), request).await.expect("a read was never answered").unwrap());
+        }
+        answers
+    }
+
+    #[tokio::test]
+    async fn a_burst_of_reads_on_a_cold_host_is_answered_from_one_compile() {
+        let (addr, wasm_path) = fixture_host("rust_host_serve_cold_burst", "serve_cold").await;
+
+        for (status, answer) in read_burst(addr, 8).await {
+            assert_eq!(status, StatusCode::OK, "{answer}");
+            assert!(answer["instances"].is_object(), "{answer}");
+        }
+        assert_eq!(crate::wasm_runner::compile_count(&wasm_path), 1);
+    }
+
+    #[tokio::test]
+    async fn warming_before_serving_leaves_no_compile_for_the_first_read() {
+        let (addr, wasm_path) = fixture_host("rust_host_serve_warmed", "serve_warmed").await;
+        warm_wasm(&wasm_path).await;
+        assert_eq!(crate::wasm_runner::compile_count(&wasm_path), 1);
+
+        let started = std::time::Instant::now();
+        let answers = read_burst(addr, 1).await;
+        assert_eq!(answers[0].0, StatusCode::OK, "{}", answers[0].1);
+        assert_eq!(crate::wasm_runner::compile_count(&wasm_path), 1);
+        assert!(started.elapsed() < std::time::Duration::from_secs(1), "a warmed read took {:?}", started.elapsed());
     }
 
     #[test]

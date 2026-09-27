@@ -1,6 +1,6 @@
 # rust/host's checkout-route fixture (web.rs `checkout_route`,
 # `registrations_route`, `webhook_route` and their tests). Copies the
-# shape of the removed Lifeadelics domain those routes were written
+# shape of a removed client domain those routes were written
 # against, trimmed to exactly what they dispatch: Event.Schedule/Close,
 # Registration.Request and PaymentConnection here, and Payments::Payment (payments.bluebook)
 # beside it. Built into rust/dist/checkout_fixture.wasm by
@@ -150,7 +150,7 @@ Hecks.bluebook "CheckoutFixture" do
 
   # This site's link to its owner's payment-processor account (web.rs's
   # `/payments/connection/*` routes and its checkout plan). A trimmed copy of
-  # the PaymentConnection aggregate in the Lifeadelics bluebook: public facts
+  # the PaymentConnection aggregate in that client domain's bluebook: public facts
   # only, never a secret, and `enabled` is a lifecycle state rather than a
   # flag, so a disconnect while payments are on can pause registrations.
   aggregate "PaymentConnection" do

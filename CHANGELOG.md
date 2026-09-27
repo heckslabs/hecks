@@ -7,6 +7,80 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+**The Rust host rate-limits public writes, on by default.** `POST /registrations`
+and `POST /newsletter/subscribers` are limited per client address (10 subscribes
+and 15 registrations an hour by default) and answer 429 with `Retry-After` past
+the limit. The address is the TCP peer unless the request came through a trusted
+proxy, in which case `X-Forwarded-For` is walked from the right, so a typed
+leftmost entry is never used. Trust is set with `HECKS_TRUSTED_PROXIES`,
+`HECKS_TRUSTED_PROXY_HOPS`, and `HECKS_PROXY_AUTH_HEADER` with
+`HECKS_PROXY_AUTH_SECRET`; `HECKS_RATE_LIMIT=off` turns it off. **A deploy behind
+a proxy or load balancer must set the trust variables**, otherwise every visitor
+shares the proxy's bucket. The host logs `rate_limit_untrusted_proxy` when it sees
+that shape. State is per process, so the effective limit is per task.
+
+**The host's payments key store no longer has a built-in secret name.**
+`PAYMENTS_ACCOUNT_SECRET_ID` is now required on AWS when checkout is enabled, and
+the host refuses to boot without it instead of falling back to a fixed name. The
+webhook description sent to the payment processor is a new setting,
+`PAYMENTS_WEBHOOK_DESCRIPTION`, defaulting to `<HECKS_DOMAIN> website`. The host
+also serves two public seat reads, `GET /events/seats` and
+`GET /events/<slug>/seats`, returning capacity, seats taken and seats left from
+the one seat-holding table in Rust, so a site no longer needs its own copy of the
+rule.
+
+**`@hecks/client` is a JavaScript package for the host protocol.** `packages/hecks-client`
+holds `HostClient` (`read`, `dispatch`, `apply`), the answer readers `text`,
+`whole`, `optionalWhole`, `instancesOf` and `refusalOf`, a resilient fetch with
+retry and a last-good fallback, a client for the host's `/payments/connection`
+routes with the pasted-keys parser, and a verifier for the account token the host
+mints. The domain name, service URL and cookie name are parameters, and no role is
+sent unless the caller sets one. Its version tracks `Hecks::VERSION`;
+`bin/release_gem` refuses to release when they differ, and a `client-contract`
+workflow runs the package against a live host.
+
+**Vendoring, the gem-pin check, the schema dump proof and the boot fix move into
+Hecks.** `Hecks::Vendoring` and `Hecks::EmbryonautBluebook.vendor!` (command line:
+`bin/vendor_bluebook`) pin one package at a release tag or commit, write
+`VENDORED_COMMIT` and, for a release pin, `bluebook.lock`, and refuse a downgrade or
+a storage-shape change on a patch bump; the loader's error now names the command.
+`Hecks::Release::GemPin` refuses a Gemfile or lockfile that resolves Hecks from a
+path or git source and checks the version exists on the registry.
+`Hecks::Ports::Persistence::PostgresDump` dumps one schema, restores it into a
+scratch database and compares row counts, with the password kept out of argv.
+**Fixed:** `Hecks.boot` now loads the era plugin when a hecksagon binds
+`PostgresEra`. Before, a domain that did not require the plugin first booted with
+its era gates (including the superuser write-fence refusal) silently missing.
+
+**Worlds can declare `default_database` and `default_adapter`.** They apply a
+persistence adapter and a database to every aggregate and chapter that does not
+name its own, replacing the same block repeated per chapter. A chapter's own bind
+or `database` still wins, an environment overlay replaces either default, and a
+world that names neither behaves as before. `examples/compliance` uses both.
+
+**The deploy projections gain opt-in hosting tooling.** `hosting_scripts true` under
+`deployed_to("AwsFargate")` adds `deploy-service.sh`, `smoke-after-deploy.sh`, a
+`hosting.mk` that pins the Hecks release the image is built from, and an
+`expected-era` list; `bin/check_era <url> <file>` compares a host's `GET /version`
+with it. `smoke true` adds a generic smoke harness and workflow template, and
+`bin/smoke_http` checks that a receiver refuses an unsigned, mis-signed or altered
+delivery and answers a repeat idempotently. A `preview` setting generates
+`preview.yaml` and `preview.sh` for one isolated stack per branch. A block inside
+a bind's world settings is now recorded as a nested hash instead of being ignored.
+Nothing changes for a world that opts into none of them. `bin/shape <dir>` prints
+the era label of every domain in a directory.
+
+**Removed.** `deploy/banking/` and the production overlay under `examples/banking`
+are gone: that recipe describes a live stack that shares another stack's network
+and database, so it lives with that stack's owner, and `examples/banking` stays the
+generic deploy example. `bin/rust_coverage` no longer carries a fallback that
+derived a manifest from source; every generated module ships a `manifest.json`.
+
+**Client names are gone from the tree.** Comments, tests, fixtures, corpus values,
+ADRs and this file no longer name any client project; where a fixture needed a
+domain name it now uses a neutral one. Released entries below are reworded to say
+"a client site" without changing what they record.
+
 **`bin/model_check` loads every `*.hecksagon` in a domain directory, not only the
 first.** It picked the alphabetically first one, so a domain that split its
 wiring across files (a context map beside its own) was checked against part of
@@ -319,9 +393,9 @@ blocked; a mock registration has no expiry and holds its seat until settled.
 **The host's account cookie name is configurable, and its default changed.**
 `HECKS_SESSION_COOKIE` names the cookie (letters, digits, `_`, `-`, `.`; boot
 refuses anything else). **Behavior change for hosts:** the default is now
-`hecks_session`, not `lifeadelics_session`. A host that sets nothing logs its
-existing sessions out on upgrade; set `HECKS_SESSION_COOKIE=lifeadelics_session`
-to keep them.
+`hecks_session`, not a client-named cookie. A host that sets nothing logs its
+existing sessions out on upgrade; set `HECKS_SESSION_COOKIE` to the old cookie
+name to keep them.
 
 **The glossary tags sensitive fields.** Fields marked with
 `has_phi(readable_by:)` in a `.hecksagon` now read `medications (text, PHI)` and
@@ -337,12 +411,12 @@ takes `--out=<dir>` to write a recipe beside the client, and
 `--environment=<name>` to load `<domain>/bluebook/environments/<name>.world`
 over the base world (a missing overlay aborts). `examples/banking`'s base world
 is now generic; its live stack names moved to
-`environments/production.world`. Removed: `deploy/lifeadelics/`, the committed
-`rust/src/generated/{embryonaut,lifeadelics,membership,newsletter,privacy}/`
-snapshots, the `embryonaut` and `lifeadelics` Cargo features, and the corpus
+`environments/production.world`. Removed: a client's committed deploy directory, the committed
+`rust/src/generated/` snapshots of the client and vendored-chapter domains, the
+per-client Cargo features, and the corpus
 machinery that only accounted for external domains (`Corpus`'s `:external`
 check kind and vendored-chapter helpers). A client's own build regenerates its
-Rust with `bin/project_wasm`, which does not need them. `web/lifeadelics.rs` is
+Rust with `bin/project_wasm`, which does not need them. The client-named web module is
 now `web/registrations.rs`.
 
 **QA tooling.** The ledger's Governance chapter has a world, so
@@ -411,7 +485,7 @@ without that key serves no send route.
 **rust/host sends the newsletter.** `POST /newsletter/issues/:slug/send` marks
 the issue sent and mails every confirmed subscriber; `.../send-test` mails one
 address without touching the issue. Both need a signed-in Admin or Owner
-(`lifeadelics_session` cookie). Email goes through Resend (`resend.rs`) with
+(the host's session cookie). Email goes through Resend (`resend.rs`) with
 `RESEND_API_KEY` and `RESEND_FROM`; `RESEND_MOCK=1` logs instead of sending.
 A deploy can name the key's Secrets Manager secret instead (`RESEND_SECRET_ID`,
 `{"api_key": "..."}`), fetched at cold start; if it cannot be read the host
@@ -477,7 +551,7 @@ otherwise. No shipped capability uses the kind yet.
 **rust/host.** Added `GET /members` (JSON) and the Stripe Connect payment
 connection routes. The accounts, newsletter and checkout/registration glue
 moved out of `web.rs` into `web/accounts.rs`, `web/newsletter.rs` and
-`web/lifeadelics.rs`, with no behavior change.
+a client-named web module, with no behavior change.
 
 ## [2.0.0] - 2026-09-22
 
@@ -678,9 +752,9 @@ into) with Postgres's own null placement.
 `UiSchema.build` ported to Rust, rule for rule: one live domain IR plus
 the presentation config in, the same nav / columns / detail fields /
 field shapes / lifecycle transitions / create forms document
-embryonaut_console has always served out. Verified differentially, not
+the client's console has always served out. Verified differentially, not
 just by unit test — the Rust document is BYTE-IDENTICAL to the Ruby
-engine's for the real Embryonaut domain, both with its real 8KB
+engine's for a real client domain, both with its real 8KB
 presentation config and with none at all. That diff found the one real
 disagreement in the port (Ruby's `String#split` drops trailing empty
 segments and Rust's does not, which showed up as `"  State  "` where
@@ -696,7 +770,7 @@ engine does; an authenticated one fell through to this host's own
 `/<Domain>/<aggregate>` router and came back `404 no domain "api"
 loaded`. The refusal contract matched and the success contract didn't.
 `/api/me` now answers the same signed-in member hash
-(`email`/`name`/`identity_id`/`role`) embryonaut_console's own
+(`email`/`name`/`identity_id`/`role`) the console's own
 `session[:member]` carries, and `/api/presentation` the same nested
 config `PresentationConfig.load` returns — read from the `ConsoleSettings`
 chapter's own Postgres head views (`state_style_head`,
@@ -1198,8 +1272,7 @@ forward as this release's own history.
 
 - README rewritten for adoption; the Quickstart-blocking bug it exposed,
   and a license gap, both fixed.
-- Removed client-specific deploy artifacts (`embryonaut`,
-  `lifeadelics*`) that had been tracked alongside the public example
+- Removed client-specific deploy artifacts that had been tracked alongside the public example
   domains.
 
 ### Docs

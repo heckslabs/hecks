@@ -1,0 +1,41 @@
+{
+  "name": "@hecks/client",
+  "version": "2.6.0",
+  "description": "Client for the body-shaped dispatch protocol a Hecks host answers: read the domain, dispatch commands, read the answers.",
+  "license": "Apache-2.0",
+  "private": false,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/heckslabs/hecks.git",
+    "directory": "packages/hecks-client"
+  },
+  "homepage": "https://github.com/heckslabs/hecks/tree/main/packages/hecks-client",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "npm run build && node --test test/*.test.mjs",
+    "test:contract": "npm run build && node test/contract.mjs",
+    "prepack": "npm run build"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "typescript": "^5.7.3"
+  }
+}

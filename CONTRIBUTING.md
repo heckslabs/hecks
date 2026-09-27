@@ -213,10 +213,19 @@ an issue first — see the templates under `.github/ISSUE_TEMPLATE/`.
 1. Bump `VERSION` in `lib/hecks/version.rb`, update the two
    `Current release:` lines in `README.md` to match (`spec/readme_version_spec.rb`
    fails until they do), and add a `CHANGELOG.md` entry, on a branch, as
-   its own PR.
+   its own PR. Bump the JavaScript client to the same version in that PR
+   (`npm version X.Y.Z --no-git-tag-version` in `packages/hecks-client`,
+   which also updates its lockfile); `spec/hecks_client_version_spec.rb`
+   fails until it matches.
 2. Once that PR merges to `main`, tag the merge commit
    (`git tag -a vX.Y.Z <sha>`) and push the tag.
-3. Run `bin/release_gem` to build and push to rubygems.org. It pulls
-   the push API key from 1Password (`op run`, Touch ID-gated) rather
-   than a credentials file on disk — see the script's header comment
-   for one-time setup.
+3. Run `bin/release_gem` to build and push to rubygems.org. It refuses
+   to run while `packages/hecks-client` is at another version than the
+   gem. It pulls the push API key from 1Password (`op run`, Touch
+   ID-gated) rather than a credentials file on disk — see the script's
+   header comment for one-time setup.
+4. Publish the client from its own directory: `npm publish --access
+   public` in `packages/hecks-client` (its `prepack` step builds it).
+   `bin/release_gem` does not do this. The `hecks` npm organization
+   exists; the first publish is still to come, and until then the
+   package's README describes installing from the release tag.

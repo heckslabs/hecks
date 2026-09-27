@@ -78,7 +78,7 @@ module RustProjection
 
     # `TrueClass`/`FalseClass` -> `as_bool` — same addition, same reason,
     # as `naming.rb`'s own `SCALAR` table (read that comment first): a
-    # bare boolean attribute (lifeadelics' `Attendee.news_signup` et al.)
+    # bare boolean attribute (a client site's `Attendee.news_signup` et al.)
     # never had a JSON accessor to read one back out of a `Json::Bool`.
     SCALAR_JSON_ACCESSOR = { "String" => "as_str", "Integer" => "as_i64", "Float" => "as_f64",
                              "TrueClass" => "as_bool", "FalseClass" => "as_bool" }.freeze

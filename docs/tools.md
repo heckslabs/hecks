@@ -12,6 +12,7 @@ print a usage line on a missing argument).
 | `bin/behaviors` | Runs `.behaviors` files — hand-curated examples of how to use a domain, in domain vocabulary — and reports pass/fail/error per test. bin/... |
 | `bin/canonicalise` | Sorts a JSON document's object keys, recursively — key order is not semantics, so a diff a human reads should not have to notice it moved. |
 | `bin/check_engine_agreement` | THE SHAPE OF BUG THIS GUARDS AGAINST: `Ports::Query::InMemory` (the path a Memory- or Heki-backed aggregate query actually runs) and `RunT... |
+| `bin/check_era` | Checks the era a running host reports at `GET /version` against an allow-list file, after a roll: one era id per line, exit 0 when listed, 1 when not, 3 when the host cannot be reached. See [wiring](implemented/guides/wiring.md#hosting-scripts-for-awsfargate). |
 | `bin/codemod_hoist_local_givens` | A CODEMOD, not an agent — for the corpus duplication `bin/query_ir duplicates` surfaces directly: two or more commands under the SAME own... |
 | `bin/codemod_implicit_append_fields` | A CODEMOD, not an agent — for the class of redundancy `CommandBuilder#resolve_append_fields!` (lib/hecks/bluebook/dsl/ command_builder.rb... |
 | `bin/console` | Boots a domain (pizzas by default) and drops into IRB with its door installed — the fastest way to dispatch a real command by hand. bin/c... |
@@ -53,14 +54,17 @@ print a usage line on a missing argument).
 | `bin/query_ir` | STRUCTURED QUERIES AGAINST THE LANGUAGE'S OWN IR — for a session working ON the language (adding a resolution rule, checking a propagatio... |
 | `bin/reattest_era` | The recovery path after a held-text integrity refusal. The digest is tamper-EVIDENCE — it catches accident and drift, not an adversary (a... |
 | `bin/reference` | Regenerates docs/implemented/reference/ from the language's own Syntax chapter — the tables from the declaration, the prose preserved fro... |
+| `bin/release_gem` | Builds the hecks gem and pushes it to rubygems.org with a 1Password-held key. Refuses first unless `packages/hecks-client` carries the same version as `Hecks::VERSION`; it publishes the gem only, and the JavaScript package is published separately. See [Releasing](../CONTRIBUTING.md#releasing). |
 | `bin/run` | Executes a step list — commands and queries, declared as JSON — and reports instances, events, refusals, reactions, sagas, and query rows... |
 | `bin/rust_conformance` | THE DIFFERENTIAL HARNESS — docs/decisions/0010-ruby-is-the-reference-implementation.md. Ruby is the oracle a second runtime is checked ag... |
 | `bin/rust_coverage` | THE COVERAGE CHECKER — a different question than bin/rust_conformance asks, deliberately, not a replacement for it. bin/rust_conformance ... |
 | `bin/rust_kernel_coverage` | THE MECHANICAL, COMMENT-TAG-FREE HALF OF THE GUARANTEE. bin/project_kernel_capabilities generates the ENUM half — the compiler already re... |
 | `bin/scaffold_translation` | The scaffold writes translations; humans resolve ambiguity. Diffs the held era against the current bluebook and writes the edge file: con... |
-| `bin/shape` | The storage-shape projection of one bluebook file, as JSON — the exact form StorageShape.mint_hash hashes to name an era, printed so a bu... |
+| `bin/shape` | The storage-shape projection of one bluebook file, as JSON — the exact form StorageShape.mint_hash hashes to name an era, printed so a bump/no-bump question can be answered by diffing two of these. Given a directory instead of a file it prints one `<Domain> <label>` line per domain declared by the `*.bluebook` files directly in it (the label PostgresEra would mint), so running it before and after a re-vendor answers "does this bump an era?" without a database. |
+| `bin/smoke_http` | Signed-webhook and idempotency checks against any running HTTP service. Delivers one payload to a webhook route the way a sender would, a... |
 | `bin/smoke_test` | BOOTS A REAL DOMAIN AND ACTUALLY DISPATCHES AGAINST IT — the sibling `bin/model_check` never had. That tool proves a bluebook is STRUCTUR... |
 | `bin/statements` | Prints a booted domain's own declared facts as plain English sentences — the projection itself is Projections::Statements (see its own he... |
 | `bin/stores` | Prints every aggregate's current records, as JSON — the head, not the journal (bin/history prints the full write history instead). bin/st... |
 | `bin/stress_concurrency_specs` | WHY A SINGLE `rspec` RUN IS NOT ENOUGH FOR THIS CLASS OF BUG: every spec below proves a thread-safety property by forcing one specific in... |
 | `bin/translation_audit` | The audit derives its assertions. Layer 1: every translated state passes the new era's types, invariants, and lifecycle. Layer 2: the com... |
+| `bin/vendor_bluebook` | Vendors one package of the bluebook registry into a consuming project, pinned to a release or a commit: `bin/vendor_bluebook payments@1.2.0 --from <registry checkout>`. Writes `vendor/embryonaut_bluebooks/<package>/bluebook/`, `VENDORED_COMMIT` and, for a release, `bluebook.lock`; refuses a downgrade and a storage-shape change that is only a patch bump, and reports whether the shape moved. The gem ships `lib/` only, so a consumer runs `Hecks::EmbryonautBluebook::VendorCli.run(ARGV)` through its own bundle. See [the reference](implemented/reference/hecksagon.md#vendoring-a-package). |

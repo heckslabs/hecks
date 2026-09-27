@@ -13,10 +13,10 @@ module Hecks
   #
   # This module and its `uses_embryonaut_bluebook`
   # DSL word (hecksagon_builder.rb) were built on a prior commit of this
-  # repo (933d1dd), vendored out to a real consumer (lifeadelics/domain,
+  # repo (933d1dd), vendored out to a real consumer (a client site's domain,
   # for embryonaut_bluebooks/payments), and then lost from this repo's own
   # reachable history — a hard reset or rebase left no branch containing
-  # that commit. The lifeadelics vendor snapshot (a `git archive` of that
+  # that commit. The consumer's vendor snapshot (a `git archive` of that
   # commit, committed into their repo) was the only surviving copy; this
   # file is ported forward from it, checked against current `main`'s own
   # conventions rather than copied wholesale, since the two trees had
@@ -64,7 +64,18 @@ module Hecks
   # => "Payments"), not a separate ledger. A vendored package's directory
   # name and its declared `Hecks.bluebook` name are the one convention
   # this reuses from Framework rather than reinventing.
+  #
+  # ## Vendoring
+  #
+  # `vendor!` is the other direction: it pins a package from a local checkout
+  # of the registry into a consuming project's own `vendor/` tree, and is the
+  # one implementation behind `bin/vendor_bluebook` (see Vendoring and Vendor).
   module EmbryonautBluebook
+    autoload :Lock, File.join(__dir__, "embryonaut_bluebook/lock")
+    autoload :Shape, File.join(__dir__, "embryonaut_bluebook/shape")
+    autoload :Vendor, File.join(__dir__, "embryonaut_bluebook/vendor")
+    autoload :VendorCli, File.join(__dir__, "embryonaut_bluebook/vendor_cli")
+
     # Loads a vendored embryonaut bluebook package's `.bluebook` files, once
     # per registry.
     #
@@ -89,10 +100,25 @@ module Hecks
       if files.empty?
         raise Runtime::WiringError,
               "no vendored embryonaut bluebook named #{name.inspect} at #{dir} — " \
-              "run bin/vendor_embryonaut_bluebooks #{name}"
+              "vendor it with bin/vendor_bluebook #{name}"
       end
 
       files.each { |file| Kernel.load(file) }
+    end
+
+    # Pins one package of the registry into a project's `vendor/` tree.
+    #
+    # @param name [String, Symbol] the package's directory name, such as `"payments"`
+    # @param from [String] path of a local checkout of the registry repository
+    # @param ref [String, nil] a release version (`"1.2.0"`), a release tag name, any
+    #   commit-ish, or nil for the newest release
+    # @param root [String] the consuming project's root
+    # @param allow_downgrade [Boolean] whether a release older than the vendored one is allowed
+    # @return [Vendor::Result] the commit, version and storage shape now vendored
+    # @raise [Vendoring::Error] if the source, release or files are unusable, or a
+    #   version-policy refusal applies (see Vendor)
+    def self.vendor!(name, from:, root:, ref: nil, allow_downgrade: false)
+      Vendor.new(name, from: from, root: root, ref: ref, allow_downgrade: allow_downgrade).call
     end
   end
 end

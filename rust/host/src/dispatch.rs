@@ -743,7 +743,7 @@ pub(crate) mod tests {
 
     /// **The live outage, pinned**. `era.is_some()` and "this aggregate has
     /// an era-shaped mirror" are different questions, and treating them
-    /// as one killed every write embryonautfoundersapp ever attempted:
+    /// as one killed every write a client site ever attempted:
     /// ADR 0034 turns the lineage subsystem on for any domain with
     /// Google auth, so `era` was `Some(2)`, while its IR declared
     /// `capable_aggregates: []`, so `mint` had provisioned no head

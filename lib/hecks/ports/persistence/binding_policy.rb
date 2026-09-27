@@ -15,6 +15,13 @@ module Hecks
         # A domain with no hecksagon gets the default in-memory bind. A domain that has one
         # must bind the aggregate exactly once without a role.
         #
+        # A `default_adapter` a world declares (`Registry#default_adapter_for` — the
+        # chapter's own world, else the project's) stands in wherever the hecksagon binds
+        # nothing for the aggregate, and replaces the in-memory fallback for a domain
+        # with no hecksagon. It is never consulted once the hecksagon binds the aggregate
+        # or declares a domain-level default of its own, so an explicit chapter decision
+        # always wins.
+        #
         # @param registry [Runtime::Registry] the registry holding the domain's hecksagon
         # @param domain [String, Symbol] name of the domain the aggregate belongs to
         # @param aggregate [Bluebook::Aggregate] the aggregate whose binding is wanted
@@ -23,10 +30,12 @@ module Hecks
         # @raise [Runtime::WiringError] if the hecksagon has no `persisted_by` bind for the
         #   aggregate, more or fewer than one bind without a role, or any bind with a role
         def resolve(registry, domain, aggregate)
-          hexagon = registry.hecksagon(domain)
-          return default_binding(aggregate) unless hexagon
+          hexagon  = registry.hecksagon(domain)
+          declared = registry.default_adapter_for(domain)
+          return default_binding(aggregate, declared || DEFAULT_ADAPTER) unless hexagon
 
           bindings = hexagon.binds_for(aggregate.hecks_name, VERB)
+          bindings = [default_binding(aggregate, declared)] if bindings.empty? && declared
           raise missing_binding(domain, aggregate) if bindings.empty?
 
           authoritative = bindings.select { |bind| bind.role.nil? || bind.role.empty? }
@@ -39,9 +48,11 @@ module Hecks
         # Builds the bind an aggregate gets when its domain declares no hecksagon.
         #
         # @param aggregate [Bluebook::Aggregate] the aggregate to bind
-        # @return [Bluebook::Bind] a roleless `persisted_by` bind to `DEFAULT_ADAPTER`
-        def default_binding(aggregate)
-          Bluebook::Bind.new(aggregate: aggregate.hecks_name, verb: VERB, adapter: DEFAULT_ADAPTER)
+        # @param adapter [String] the adapter to bind it to; the framework's in-memory
+        #   default unless a world declared one
+        # @return [Bluebook::Bind] a roleless `persisted_by` bind to `adapter`
+        def default_binding(aggregate, adapter = DEFAULT_ADAPTER)
+          Bluebook::Bind.new(aggregate: aggregate.hecks_name, verb: VERB, adapter: adapter)
         end
 
         # Builds, without raising, the error for an aggregate a hecksagon leaves unbound.

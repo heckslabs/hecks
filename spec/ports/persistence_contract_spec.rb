@@ -256,7 +256,8 @@ RSpec.describe "persistence adapter contract (state codec round trip)" do
     let(:registry) do
       adapter_class = forgetful_class
       instance_double(Hecks::Runtime::Registry, root: nil, resolved_eras: {}, superseded_eras: {}).tap do |double|
-        allow(double).to receive_messages(check_verb: nil, world: nil, check_settings: nil, adapter_class: adapter_class)
+        allow(double).to receive_messages(check_verb: nil, binding_settings: {}, check_settings: nil,
+                                          adapter_class: adapter_class)
       end
     end
 

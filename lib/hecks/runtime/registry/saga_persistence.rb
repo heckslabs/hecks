@@ -56,7 +56,13 @@ module Hecks
           end
         end
 
-        # Walks every loaded domain, repopulating `saga_instances` from
+        # Every domain whose sagas can persist somewhere: one with a hecksagon, or one a
+        # world's `default_adapter` binds though it has none.
+        #
+        # @return [Array<String>] the domain names, hecksagon domains first
+        def saga_domains = @hecksagons.keys | @bluebooks.keys.select { |domain| default_adapter_for(domain) }
+
+        # Walks every loaded domain in `saga_domains`, repopulating `saga_instances` from
         # whatever `saga_persistence(domain)` resolves to — a real store
         # for a domain whose adapter answers the capability, `each_saga`
         # yielding real rows; `NULL_SAGA_STORE`'s own `each_saga` for
@@ -79,7 +85,7 @@ module Hecks
         #
         # @return [Hecks::Runtime::Registry] self
         def rehydrate_sagas!
-          @hecksagons.each_key do |domain|
+          saga_domains.each do |domain|
             saga_persistence(domain).each_saga do |process_manager, correlation, state, memory, completed_compensations = []|
               pending = memory.delete(SAGA_PENDING_DISPATCH_KEY)
               @saga_instances[process_manager][correlation] =

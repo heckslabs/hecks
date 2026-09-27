@@ -1,5 +1,5 @@
 placeholder — a sibling file living beside a root-shaped domain's own
-entry point (embryonautfoundersapp's real bluebook/ directory carries
+entry point (a real client project's bluebook/ directory carries
 adapters/ and translations/ the same way). Deliberately NOT named
 `translations/`: a directory by that exact name under `bluebook/` is
 itself a real corpus route (`Hecks::Corpus::ROUTES`, matched by

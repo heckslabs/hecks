@@ -34,6 +34,7 @@ require_relative "hecks/storehouse"
 require_relative "hecks/mcp_stdio_guard"
 require_relative "hecks/framework"
 require_relative "hecks/corpus"
+require_relative "hecks/vendoring"
 require_relative "hecks/embryonaut_bluebook"
 
 # The root namespace and public facade of the whole DSL/runtime: `Hecks.boot`/
@@ -57,7 +58,7 @@ module Hecks
     # `environments/<name>.hecksagon` / `.world` overlay it loads —
     # see Adapters::Folder#load_domain) existed on a prior commit of
     # this repo (933d1dd), was vendored out to a real consumer
-    # (lifeadelics/domain), and was then lost from this repo's own
+    # (a client site's domain), and was then lost from this repo's own
     # history (no branch here reaches that commit). Ported forward
     # from the consumer's vendor snapshot — the only surviving copy —
     # and generalized: the original only loaded a `.hecksagon`

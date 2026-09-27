@@ -11,7 +11,7 @@ module RustProjection
     # requires a value to actually match its own declared class —
     # `false` is a legal value for an attribute typed `TrueClass`, the
     # same way it already is for Ruby's own `case/when TrueClass`).
-    # Missing here until lifeadelics' own `Attendee.news_signup`/
+    # Missing here until a client site's own `Attendee.news_signup`/
     # `previous_sessions`/`first_time` (`attribute :x, TrueClass`) —
     # confirmed live, `pub news_signup: TrueClass` emitted verbatim into
     # generated Rust and refusing to compile — because no domain in this
@@ -230,7 +230,7 @@ module RustProjection
     #
     # FOUND LIVE, a real, previously-invisible gap: no domain ever
     # declared a `given`/expression referencing a closed-set-typed
-    # attribute before lifeadelics' vendored embryonaut_bluebooks/
+    # attribute before a client site's vendored embryonaut_bluebooks/
     # payments (`Payment::Succeed`'s own "the processor matches..."
     # given, over `processor: Processor` and `reported_processor:
     # Processor`, both `one_of:` closed sets) — found live, a reaction-
