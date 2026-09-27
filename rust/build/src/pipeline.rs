@@ -74,6 +74,8 @@ pub fn run(root: &Path, domain: &str, opts: &Options) -> Result<(), String> {
     let first_bluebook = bluebook_paths.first().ok_or_else(|| format!("{} has no .bluebook files", domain_path.display()))?;
     let hecksagon_candidate = bluebook_directory.join(format!("{target_mod_name}.hecksagon"));
     let hecksagon_path = hecksagon_candidate.is_file().then_some(hecksagon_candidate);
+    let world_candidate = bluebook_directory.join(format!("{target_mod_name}.world"));
+    let world_path = world_candidate.is_file().then_some(world_candidate);
 
     let target_chapter_name = resolve::header_chapter_name(first_bluebook)?;
     let mut target_files = Vec::new();
@@ -103,7 +105,7 @@ pub fn run(root: &Path, domain: &str, opts: &Options) -> Result<(), String> {
     // chaining a live object through both passes — the same structure,
     // not an accident of this port.
     let mut target_ir = Json::parse(&target_ir_text).map_err(|e| format!("re-parsing target ir.json for lineage: {e}"))?;
-    lineage_pass::run(&mut target_ir, hecksagon_path.as_deref(), root)?;
+    lineage_pass::run(&mut target_ir, hecksagon_path.as_deref(), world_path.as_deref(), root)?;
     let target_ir_text = crate::json::write(&target_ir);
 
     // **Every other chapter `uses_framework` names** — resolved through the

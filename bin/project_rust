@@ -217,6 +217,13 @@ else
     # as before this line existed.
     Dir.glob(File.join(bluebook_directory, "*.hecksagon")).each { |file| Kernel.load(file) }
 
+    # Every .world file too — a world's `default_adapter` binds the
+    # aggregates a hecksagon leaves out (`BindingPolicy.resolve`), which
+    # `Exporter.persistence`/`lineage` ask below. Loaded after the
+    # hecksagons, as `Vocabulary`'s own "LoadOrder" has it; a domain with no
+    # `.world` file, or one declaring no default, is unchanged.
+    Dir.glob(File.join(bluebook_directory, "*.world")).each { |file| Kernel.load(file) }
+
     # Environment overlay — mirrors `Adapters::Folder#load_domain`'s own
     # `environment:` handling (folder.rb), which this hand-rolled
     # registry build never called at all. A domain that splits

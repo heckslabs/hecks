@@ -105,6 +105,35 @@ module Hecks
           @latest = required(value, "latest version")
         end
 
+        # Names the connection every chapter's database-taking persistence adapter uses
+        # unless that chapter's own world settings name one.
+        #
+        # Answers the `default_database` word through the table's `calls:` column, the
+        # same way `realm_impl` does. A chapter's own
+        # `persisted_by("Adapter") { database ... }` still wins for that adapter.
+        #
+        # @param value [String] the connection, such as a database URL; blankness is
+        #   judged by the world language at `build`, not here
+        # @return [String] the connection as stored
+        def default_database_impl(value)
+          @default_database = required(value, "default database")
+        end
+
+        # Names the persistence adapter every aggregate binds to unless its own chapter's
+        # hecksagon binds it.
+        #
+        # Answers the `default_adapter` word through the table's `calls:` column, the same
+        # way `realm_impl` does. Sits between an explicit bind and the framework's
+        # in-memory fallback; whether the adapter really is a persistence adapter is
+        # judged at boot, where adapters are known.
+        #
+        # @param value [String, Symbol] the adapter's declared name, such as `"PostgresEra"`;
+        #   blankness is judged by the world language at `build`, not here
+        # @return [String] the adapter name as stored
+        def default_adapter_impl(value)
+          @default_adapter = required(value, "default adapter")
+        end
+
         def method_missing(verb, *args, **kwargs, &block)
           result = word_gate_dispatch(verb, args, kwargs, block)
           return result unless result.equal?(WordGate::NOT_ADMITTED)
@@ -143,7 +172,8 @@ module Hecks
         #   as a blank `realm`
         def build
           MetaValidator.call_world(
-            World.new(domain: @domain, realm: @realm, latest: @latest, settings: @settings)
+            World.new(domain: @domain, realm: @realm, latest: @latest, settings: @settings,
+                      default_database: @default_database, default_adapter: @default_adapter)
           )
         end
 

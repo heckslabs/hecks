@@ -3195,6 +3195,29 @@ RSpec.describe "the DSL surface" do
       expect(registry.world("Valued").to_h).to include(realm: "Acme", latest: "v2")
     end
 
+    it "declares the database and persistence adapter every chapter defaults to" do
+      registry = in_registry do
+        Hecks.world("Valued") do
+          default_database "postgres://localhost/valued"
+          default_adapter "PostgresEra"
+        end
+      end
+
+      expect(registry.world("Valued").to_h)
+        .to include(default_database: "postgres://localhost/valued", default_adapter: "PostgresEra")
+    end
+
+    it "leaves both defaults undeclared when the world names neither" do
+      registry = in_registry { Hecks.world("Plain") { realm "Acme" } }
+
+      expect(registry.world("Plain").to_h).to include(default_database: nil, default_adapter: nil)
+    end
+
+    it "refuses a default database that says nothing" do
+      expect { in_registry { Hecks.world("Blank") { default_database "" } } }
+        .to raise_error(Hecks::Bluebook::DSL::Malformed, /default database says something/)
+    end
+
     it "any how-verb collects the values under it" do
       registry = in_registry do
         Hecks.world("Valued") do

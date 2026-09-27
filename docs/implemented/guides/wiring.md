@@ -343,6 +343,16 @@ compares the era a running host reports with that file and exits 1 when it
 is not listed. The scripts never read the stack template, so a container,
 ECR repository or parameter name set here has to match it.
 
+A project that attaches many chapters does not have to repeat that
+`persisted_by ... database` block in a world per chapter, nor a
+`persisted_by` line per aggregate in a hecksagon per chapter. The
+project's own world can say both once — `default_adapter "PostgresEra"`
+binds every aggregate no hecksagon binds, and `default_database "..."`
+supplies the `database` of every bound adapter that takes one — and a
+chapter's own bind or settings still win. `examples/compliance` does
+exactly this; the [world reference](../reference/world.md) has the
+resolution order.
+
 ## Writing your own port or adapter
 
 Everything above reached for a port and an adapter the library already
