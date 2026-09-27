@@ -56,8 +56,7 @@ module Hecks
       # @param dry_run [Boolean] validate every step without saving, emitting or enqueueing
       # @return [Array] the settled instance, events, plan, persistence outcome, and outbox rows
       # @raise [StandardError] a domain refusal (Runtime::DOMAIN_REFUSALS) when a rule refuses
-      # @raise [Runtime::StaleWrite] if concurrent writers win every retry
-      # @raise [Runtime::WiringError] if the aggregate's repository cannot be resolved
+      # @raise [Runtime::StaleWrite, Runtime::WiringError] every retry loses, or resolve fails
       def call(domain, aggregate, command, invocation, correlation = nil, dry_run: false)
         args    = invocation.to_args
         route   = invocation.target

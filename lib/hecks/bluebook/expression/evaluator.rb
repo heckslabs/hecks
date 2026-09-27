@@ -59,16 +59,14 @@ module Hecks
         # Evaluates a Given/Invariant by walking its structured `ast`, falling back to
         # parsing `canonical` when the rule has none. HECKS_EVAL=string forces the text path.
         #
-        # @param rule [Bluebook::Given, Bluebook::Invariant] the rule to
-        #   evaluate
-        # @param state [Hash{Symbol => Object}] the stored attribute values
-        #   a `Resolve`/`Compare` leaf may resolve against
-        # @param attrs [Hash{Symbol => Object}] the call's own argument
-        #   values, checked before `state`
+        # @param rule [Bluebook::Given, Bluebook::Invariant] the rule to evaluate
+        # @param state [Hash{Symbol => Object}] stored attribute values a `Resolve`/`Compare` leaf
+        #   may resolve against
+        # @param attrs [Hash{Symbol => Object}] the call's own argument values, checked
+        #   before `state`
         # @return [Boolean] whether `rule` holds
-        # @raise [EvaluationError] if `rule` resolves an unknown attribute
-        #   or argument, or applies an operation to a value of the wrong
-        #   type
+        # @raise [EvaluationError] if `rule` resolves an unknown attribute/argument, or
+        #   misapplies an operation
         def call_rule(rule, state, attrs = {})
           return call(rule.canonical, state, attrs) if ENV["HECKS_EVAL"] == "string"
 

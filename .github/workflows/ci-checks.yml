@@ -123,11 +123,14 @@ jobs:
       - name: lint generated deploy recipes
         run: bundle exec bin/lint_deploy_recipes
 
-      # The comment linter as a gate (ADR 0069): checks every comment under
-      # lib/hecks against docs/COMMENT_STYLE_GUIDE.md. CI only, like `lint
-      # generated deploy recipes` above, so .githooks/pre-push doesn't run it.
+      # The comment linter as a gate (ADR 0069, widened by ADR 0075 ticket 01): checks every
+      # comment under lib/hecks against docs/COMMENT_STYLE_GUIDE.md; the block-length cap
+      # (long_block, now 12 lines) also runs over bin/, spec/, and examples/ — the same scope
+      # .githooks/pre-push checks locally before a push.
       - name: comment style
-        run: bundle exec bin/standardize_comments --check lib/hecks
+        run: |
+          bundle exec bin/standardize_comments --check lib/hecks
+          bundle exec bin/standardize_comments --check lib bin spec examples --only long_block
 
       # Also here, not only in .githooks/pre-push: the hook is opt-in per
       # clone and bypassable with `git push --no-verify`, so a branch that

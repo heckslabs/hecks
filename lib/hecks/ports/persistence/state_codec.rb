@@ -97,17 +97,14 @@ module Hecks
         end
 
         # Decodes one Hash level, symbolizing its declared keys and recursing into their values.
+        # Key order is kept; a string key is skipped when the symbol spelling is also present.
         #
-        # Key order is kept; a string key is skipped when the same hash also holds its symbol
-        # spelling, so the symbol always wins.
-        #
-        # @param aggregate [Bluebook::Aggregate, Bluebook::Entity] the root construct, through
-        #   which nested value objects and entities resolve
-        # @param fields [Hash{Symbol => Bluebook::Attribute, nil}] the fields declared at
-        #   this level
+        # @param aggregate [Bluebook::Aggregate, Bluebook::Entity] the root construct nested
+        #   value objects and entities resolve through
+        # @param fields [Hash{Symbol => Bluebook::Attribute, nil}] the fields declared at this level
         # @param raw [Hash] the stored Hash for this level
-        # @param symbolize_undeclared [Boolean] true to symbolize undeclared keys too, as the
-        #   top level does; false to leave their spelling alone
+        # @param symbolize_undeclared [Boolean] true to symbolize undeclared keys too (the top
+        #   level does); false to leave their spelling alone
         # @return [Hash] a new Hash in `raw`'s key order
         def decode_hash(aggregate, fields, raw, symbolize_undeclared: false)
           raw.each_with_object({}) do |(key, value), out|
@@ -183,18 +180,14 @@ module Hecks
         end
 
         # Checks one Hash level for keys `decode` would respell.
+        # The mirror of `decode_hash`: an undeclared nested key keeps its own spelling.
         #
-        # The mirror of `decode_hash`: an undeclared nested key keeps whatever spelling it has,
-        # exactly as `decode` keeps it.
-        #
-        # @param aggregate [Bluebook::Aggregate, Bluebook::Entity] the root construct, through
-        #   which nested types resolve
-        # @param fields [Hash{Symbol => Bluebook::Attribute, nil}] the fields declared at
-        #   this level
+        # @param aggregate [Bluebook::Aggregate, Bluebook::Entity] the root construct nested
+        #   types resolve through
+        # @param fields [Hash{Symbol => Bluebook::Attribute, nil}] the fields declared at this level
         # @param hash [Hash] the Hash to inspect
         # @param top [Boolean] true for the top level, where every key must be a Symbol
-        # @return [Boolean] true when this level and every declared composite below it is
-        #   decoded
+        # @return [Boolean] true when this level and every declared composite below it is decoded
         def hash_decoded?(aggregate, fields, hash, top: false)
           hash.all? do |key, value|
             if key.is_a?(Symbol)

@@ -150,15 +150,14 @@ module Hecks
       nil
     end
 
-    # Issues a command, or previews it with dry_run: true — a domain refusal
-    # on a dry run is a legitimate answer (would_succeed: false), not a failure.
+    # Issues a command, or previews it with dry_run: true.
     #
     # @param runtime [Runtime::Registry] the booted domain to dispatch against
     # @param command [String, Symbol] the command name, bare or qualified
     # @param summary [String] a one-line audit summary; required
     # @param args [Hash] the command's arguments, JSON-shaped
     # @param source [String, Symbol, nil] a SOURCE_TAGS tag naming who is calling
-    # @param dry_run [Boolean] true previews without dispatching for real
+    # @param dry_run [Boolean] true previews; a false would_succeed is not a failure
     # @param role [String, Symbol, nil] the caller's bound role, or nil to run unbound
     # @param actor_id [String, nil] the caller's identity; requires role:
     # @return [Hash] :ok plus :id/:state/:events (real) or :would_succeed/:error

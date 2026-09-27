@@ -36,21 +36,18 @@ module Hecks
           source
         end
 
-        # Adds or subtracts `amount` from an attribute's current value, on a bare
-        # number or the one numeric field two value objects share.
+        # Adds or subtracts `amount`, on a bare number or the one numeric field two value
+        # objects share.
         #
         # @param current [Numeric, Runtime::Value, nil] pre-dispatch value; nil (unset) is 0
-        # @param amount [Numeric, Runtime::Value] amount to move by; combined field by field
-        #   with a value-object `current`, else unwrapped to its single numeric field
-        # @param target [Symbol, String] attribute name, used only to word a refusal
+        # @param amount [Numeric, Runtime::Value] amount to move by
+        # @param target [Symbol, String] attribute name, for refusal wording only
         # @param sign [Integer] 1 to increment, -1 to decrement
-        # @return [Numeric, Runtime::Value] a `Runtime::Value` when both sides are value
-        #   objects, otherwise a bare number the caller re-wraps
-        # @raise [Runtime::TypeMismatch] if `amount`/`current` aren't numeric, or the two
-        #   value objects share no single numeric field
+        # @return [Numeric, Runtime::Value] `Runtime::Value` if both sides are, else a bare number
+        # @raise [Runtime::TypeMismatch] if either side isn't numeric, or shares no numeric field
         # @raise [Runtime::InvariantViolation] if a value-object result breaks an invariant
-        # @raise [Bluebook::Expression::EvaluationError] if the result doesn't fit a signed
-        #   64-bit Integer, or is a non-finite Float
+        # @raise [Bluebook::Expression::EvaluationError] if the result overflows Integer, or isn't
+        #   finite
         def arithmetic(current, amount, target, sign)
           op = sign.positive? ? "increment" : "decrement"
           current ||= 0
@@ -103,20 +100,18 @@ module Hecks
                 "#{oper} overflowed: #{lhs} #{symbol} #{rhs.abs} is not a finite number"
         end
 
-        # Adds or subtracts on the one numeric field two value objects share, answering
-        # a new value object of `current`'s type.
+        # Adds or subtracts on the one numeric field two value objects share.
         #
         # @param current [Runtime::Value] the attribute's pre-dispatch value
         # @param amount [Runtime::Value] how much to move by
-        # @param target [Symbol, String] attribute name, used only to word a refusal
+        # @param target [Symbol, String] attribute name, for refusal wording only
         # @param sign [Integer] 1 to add, -1 to subtract
-        # @param oper [String] `"increment"` or `"decrement"`, for refusal/fault wording
-        # @return [Runtime::Value] a copy of `current` with the shared field replaced
-        # @raise [Runtime::TypeMismatch] if the two don't share exactly one numeric field,
-        #   or the rebuilt value object refuses the new field value
+        # @param oper [String] `"increment"`/`"decrement"`, for refusal/fault wording
+        # @return [Runtime::Value] `current`, with the shared field replaced
+        # @raise [Runtime::TypeMismatch] if the two share no numeric field, or the rebuilt refuses
         # @raise [Runtime::InvariantViolation] if the new field value breaks an invariant
-        # @raise [Bluebook::Expression::EvaluationError] if the result doesn't fit a signed
-        #   64-bit Integer, or is a non-finite Float
+        # @raise [Bluebook::Expression::EvaluationError] if the result overflows Integer, or isn't
+        #   finite
         def arithmetic_value_object(current, amount, target, sign, oper)
           current_fields = current.to_h
           amount_fields  = amount.to_h
@@ -150,20 +145,17 @@ module Hecks
             raise(WiringError, "no sign declared for mutation op #{oper.inspect} — add one before calling #sign_of")
         end
 
-        # Scales an attribute's current value by `amount`, on a bare number or on the
-        # one numeric field two value objects share.
+        # Scales an attribute's current value by `amount`, on a bare number or the one numeric
+        # field two value objects share.
         #
         # @param current [Numeric, Runtime::Value, nil] pre-dispatch value; nil (unset) is 0
-        # @param amount [Numeric, Runtime::Value] the factor; combined field by field with a
-        #   value-object `current`, else unwrapped to its single numeric field
-        # @param target [Symbol, String] attribute name, used only to word a refusal
-        # @return [Numeric, Runtime::Value] the product: a `Runtime::Value` when both sides
-        #   are value objects, otherwise a bare number the caller re-wraps
-        # @raise [Runtime::TypeMismatch] if `amount`/`current` aren't numeric, or the two
-        #   value objects share no single numeric field
+        # @param amount [Numeric, Runtime::Value] the factor
+        # @param target [Symbol, String] attribute name, for refusal wording only
+        # @return [Numeric, Runtime::Value] the product, a `Runtime::Value` when both sides are
+        # @raise [Runtime::TypeMismatch] if either side isn't numeric, or shares no numeric field
         # @raise [Runtime::InvariantViolation] if a value-object result breaks an invariant
-        # @raise [Bluebook::Expression::EvaluationError] if the product doesn't fit a signed
-        #   64-bit Integer, or is a non-finite Float
+        # @raise [Bluebook::Expression::EvaluationError] if the product overflows Integer, or isn't
+        #   finite
         def multiply(current, amount, target)
           current ||= 0
 

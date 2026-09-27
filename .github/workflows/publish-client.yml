@@ -1,21 +1,13 @@
 name: Publish @hecks/client
 
-# Publishes packages/hecks-client to npm when a release tag (`vX.Y.Z`) is
-# pushed. Uses npm trusted publishing (OIDC, `id-token: write`), so no npm
-# token is stored anywhere.
+# Publishes packages/hecks-client to npm when a release tag (`vX.Y.Z`) is pushed, via npm
+# trusted publishing (OIDC), so no npm token is stored anywhere.
 #
-# One-time setup on npmjs.com, done by an owner of the `@hecks` scope, and
-# possible only once the package exists (so the first publish is done by
-# hand, with `bin/release --npm-local`):
+# One-time setup on npmjs.com (an owner of the `@hecks` scope, once the package exists — the
+# first publish is by hand, with `bin/release --npm-local`): package @hecks/client > Settings >
+# Trusted Publisher > GitHub Actions, org heckslabs, repo hecks, workflow publish-client.yml.
 #
-#   package @hecks/client > Settings > Trusted Publisher > GitHub Actions
-#     Organization or user:  heckslabs
-#     Repository:            hecks
-#     Workflow filename:     publish-client.yml
-#     Environment:           (leave blank)
-#
-# To re-run a release: `gh workflow run publish-client.yml -f tag=vX.Y.Z`.
-# It skips a version npm already has, so a re-run is safe.
+# Re-run: `gh workflow run publish-client.yml -f tag=vX.Y.Z`; skips a version npm already has.
 
 on:
   push:

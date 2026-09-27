@@ -223,19 +223,14 @@ module Hecks
           @retired    = []
         end
 
-        # Declares one aggregate's own translation rules.
-        #
-        # A different (context, word) pair than "Bluebook"-context `aggregate` (which
-        # describes the language's own translation chapter) despite the same word.
+        # Declares one aggregate's own translation rules; a distinct (context, word) pair
+        # from "Bluebook"-context `aggregate`, despite sharing the word.
         #
         # @param name [String, Symbol] the aggregate's name in the destination era
         # @param was [String, Symbol, nil] the aggregate's earlier name, when renamed
-        # @yield the aggregate's own translation body, evaluated against a
-        #   `TranslationAggregateBuilder`
-        # @return [Array<Bluebook::TranslationAggregate>] every aggregate translation declared
-        #   so far, this one last
-        # @raise [Bluebook::DSL::Malformed] if `name` is empty, or any rule in the body fails
-        #   its own checks
+        # @yield the translation body, evaluated against a `TranslationAggregateBuilder`
+        # @return [Array<Bluebook::TranslationAggregate>] every declared so far, this one last
+        # @raise [Bluebook::DSL::Malformed] if `name` is empty, or a body rule fails its own checks
         def aggregate_impl(name, was: nil, &block)
           builder = TranslationAggregateBuilder.new(name, was: was)
           builder.instance_eval(&block) if block

@@ -14,7 +14,7 @@ RSpec.describe "the syntax lifecycle" do
   WORD_STATUSES = rows("Status").map { |row| row[:name] }
   # Keyword and Argument are dispatched entities; `SyntaxBoot.call` reads them back post-dispatch.
   # Constant names are unique: one assigned in a describe block lands at top level and would
-  # clobber syntax_conformance_spec's KEYWORDS.
+  # clobber syntax_conformance_spec's keywords.
   SYNTAX_TABLE  = Hecks::Bluebook::MetaValidator::SyntaxBoot.call
   WORD_ROWS     = SYNTAX_TABLE[:keywords]
   ARGUMENT_ROWS = SYNTAX_TABLE[:arguments]

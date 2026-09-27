@@ -15,26 +15,16 @@ module Hecks
 
       # Runs both halves of the era gate over every bluebook in a registry.
       #
-      # Each bluebook's own source, not one file read once and reused
-      # for every bluebook in the registry — true as long as a domain
-      # directory only ever held exactly one, and silently wrong the
-      # moment `uses_framework` made a second, differently-sourced
-      # bluebook (Governance, Identity — `lib/hecks/framework/bluebook/`,
-      # not the domain's own directory) share a boot with the first.
-      # Caught the hard way: three domains booted together, one real
-      # source text (the domain's own), and every other domain's era-1
-      # held that text under its own name — a shadow-parse of it later
-      # reconstructs a completely different shape, and every boot after
-      # the first refuses toward a scaffold that was never the real
-      # drift.
+      # Looks up each bluebook's own source separately: `uses_framework` can share a boot between
+      # the domain's own bluebook and a differently-sourced one, so one file read once and reused
+      # for every bluebook would attribute the wrong text.
       #
       # @param registry [Runtime::Registry] the registry being booted
-      # @param directory [String] path of the domain's own bluebook directory, searched for
-      #   each bluebook's `.bluebook` source
+      # @param directory [String] the domain's bluebook directory, searched for each source
       # @return [void]
-      # @raise [Runtime::WiringError] if a compute rule is bound to an adapter that is not
-      #   lineage-capable, a persistence binding cannot be resolved, a lineage-bound bluebook
-      #   has no findable source, or the adapter's own `era_check!` refuses the boot
+      # @raise [Runtime::WiringError] if a compute rule is bound to a non-lineage-capable adapter,
+      #   a persistence binding cannot be resolved, a lineage-bound bluebook has no findable
+      #   source, or `era_check!` refuses the boot
       def check!(registry, directory)
         check_compute_rules_for_registry!(registry)
         check_lineage!(registry, directory)
@@ -125,9 +115,8 @@ module Hecks
 
       # Picks the files to read for a bluebook no file in the domain directory declares.
       #
-      # Tries, in order: the domain's own single remaining file (unless
-      # it's already known to belong elsewhere), a framework member,
-      # then a vendored embryonaut bluebook.
+      # Tries, in order: the domain's own single remaining file, a framework member, then a
+      # vendored embryonaut bluebook.
       #
       # @param bluebook [Bluebook::Chapter] the bluebook whose source is wanted
       # @param directory [String] path of the domain's own bluebook directory
@@ -192,8 +181,7 @@ module Hecks
       # @param registry [Runtime::Registry] the registry being booted
       # @param bluebook [Bluebook::Chapter] the bluebook to check
       # @param current_text [String, nil] the bluebook's source; nil means none was found
-      # @param directory [String, nil] the domain's bluebook directory, named in the
-      #   missing-source refusal
+      # @param directory [String, nil] the domain's bluebook directory, named in the refusal
       # @return [void]
       # @raise [Runtime::WiringError] if the first aggregate's binding cannot be resolved,
       #   `current_text` is nil for a lineage-bound bluebook, or the adapter's `era_check!`

@@ -5,7 +5,7 @@ require "hecks/fuzzing/self_consistency"
 # Saga cold-rehydration and redelivery idempotency, against the waybill stress domain's
 # `Packing` process manager.
 RSpec.describe "Hecks::Fuzzing::SelfConsistency saga cold-rehydration (ANGLE-10)" do
-  # File-unique constant names: a bare NAME inside `describe` lands on Object, and
+  # File-unique constant names: a bare name inside `describe` lands on Object, and
   # load_hygiene_spec refuses collisions across spec files.
   SAGA_REHYDRATION_WAYBILL_ROOT = File.join(InMemoryDomain::ROOT, "qa/stress_domains/waybill").freeze
   SAGA_REHYDRATION_PIZZAS_ROOT  = File.join(InMemoryDomain::ROOT, "examples/pizzas").freeze

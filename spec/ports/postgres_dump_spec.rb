@@ -96,7 +96,8 @@ RSpec.describe Hecks::Ports::Persistence::PostgresDump do
       connection&.close
     end
 
-    # A fresh database with schema `site1` (events: 3 rows, registrations: 2) and an unrelated schema.
+    # A fresh database with schema `site1` (events: 3 rows, registrations: 2) and an unrelated
+    # schema.
     def seeded_url
       name = "hecks_dump_spec_#{SecureRandom.hex(4)}"
       names << name

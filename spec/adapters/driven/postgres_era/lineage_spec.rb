@@ -1114,8 +1114,8 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
     owner.close
   end
 
-  # Adversarial routing techniques against a naive check: a CTE, a function body and COPY.
-  # Postgres refuses COPY FROM outright once RLS is enabled on the target; do not relax force
+  # Adversarial routing techniques against a naive check: a CTE, a function body and copy.
+  # Postgres refuses copy from outright once RLS is enabled on the target; do not relax force
   # ROW LEVEL SECURITY without knowing that. One shared setup keeps the three cases together.
   # rubocop:disable-next RSpec/ExampleLength
   it "a fenced role cannot route an era-1 write around the fence through a CTE, a function body, or COPY" do
@@ -1555,7 +1555,7 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
 
     db = PG.connect(dbname: LINEAGE_DB)
     # The refresh is the point: a materialized tail is frozen anyway, so the cut only proves
-    # itself when the definition is re-evaluated (the header promises it holds on a full REFRESH).
+    # itself when the definition is re-evaluated (the header promises it holds on a full refresh).
     db.exec("REFRESH MATERIALIZED VIEW #{PG::Connection.quote_ident("ledger_account_lineage_3_#{l3}")}")
     head = db.exec("SELECT id, state FROM ledger_account_head ORDER BY id").values
     diverged = Hecks::Adapters::PostgresEra::Lineage.new(db, "Ledger").diverged_count(2)
