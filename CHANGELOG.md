@@ -555,7 +555,7 @@ connection routes. The accounts, newsletter and checkout/registration glue
 moved out of `web.rs` into `web/accounts.rs`, `web/newsletter.rs` and
 a client-named web module, with no behavior change.
 
-## [2.0.0] - 2026-09-22
+## [2.0.0] - 2026-09-24
 
 **Breaking: `uses_framework` / `uses_embryonaut_bluebook` load bounded
 contexts.** Framework and embryonaut_bluebooks chapters never write

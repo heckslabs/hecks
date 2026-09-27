@@ -52,22 +52,23 @@ before you assume a red suite everywhere:
   --tag io` is the one cheap enough to run by hand (see its own header
   for why it earns a slot pre-push and the rest don't).
 
-Install the pre-push hook once — it's the actual bar a change has to
+Install the pre-push hook once — it's the local bar a change has to
 clear before it leaves your machine, and matching it locally means you
-find out here instead of in CI:
+find out here instead of in CI. It is a local check, not a review; see
+[How this project is built and reviewed](#how-this-project-is-built-and-reviewed):
 
 ```sh
 git config core.hooksPath .githooks
 ```
 
-It runs, in order: the parallel suite, `spec/fuzzing`, the query-
-agreement `io` spec, `bin/model_check`, `bin/doc_coverage`, and
-`rubocop`. Bypass with `git push --no-verify` only when you mean to,
+It runs the parallel suite, `spec/fuzzing`, the query-agreement `io`
+spec, the engine-agreement check, `bin/model_check`, `bin/doc_coverage`
+and `rubocop`, concurrently, and reports the results in a fixed order. Bypass with `git push --no-verify` only when you mean to,
 and say why in the push (or the PR).
 
 ### Fast local iteration
 
-The pre-push hook above is the bar a change has to clear before it
+The pre-push hook above is the local bar a change has to clear before it
 leaves your machine — but it's not the loop you should be running on
 every edit. That loop should be scoped to what you're actually
 touching:
@@ -165,6 +166,75 @@ before you find out from CI:
 bundle exec bin/project_rust examples/banking
 cd rust && cargo build --release && cargo test --lib
 ```
+
+## How this project is built and reviewed
+
+This section separates what the repository and GitHub can show you from
+what the maintainer says. The counts are a snapshot as of 2026-09-27 and
+move with every commit.
+
+### What the repository and GitHub show
+
+- **Most commits are co-authored with an AI coding assistant.** Of 1,434
+  commits on `main`, 987 carry a `Co-Authored-By:` trailer, and 425 of the
+  425 commits in the last 30 days do, about 14 a day. Check it by counting
+  `git log --format=%h`, then again with `--grep='Co-Authored-By:' -i`,
+  and add `--since='30 days ago'` to either for the recent window.
+- **Every change lands through a pull request and the merge queue.** The
+  ruleset `merge-queue-main` is active on `main`, has no bypass actors, and
+  has a merge-queue rule and a required-status-checks rule with nine
+  checks. Branch protection on `main` lists the same nine. The queue
+  re-runs the checks against the pull request merged onto `main`'s current
+  tip (`.github/workflows/ci.yml`, header comment).
+- **GitHub does not require an approving review.** Branch protection and
+  the ruleset's pull-request rule both require zero approving reviews, and
+  branch protection requires no code-owner review. There is no CODEOWNERS
+  file. The ruleset also sets `require_extra_approval_for_unattributed_changes`;
+  the API does not show whether that setting has ever triggered.
+- **The recent merged pull requests carry no recorded reviews.** The last
+  60 merged (#803 to #865, merged 2026-09-25 to 2026-09-27) have zero
+  reviews recorded on GitHub and a single author login. Check it with
+  `gh pr list --state merged --limit 60 --json number,reviews,reviewDecision`.
+
+### What the maintainer states
+
+These four statements are the maintainer's own. Nothing in the repository
+or on GitHub enforces or records them, and they stay true only while the
+maintainer keeps doing them.
+
+1. The maintainer reads every diff before it is merged.
+2. Reviews run by an AI assistant (a code-review skill, subagents) are not
+   claimed as a review step, because nothing records them.
+3. Zero required approvals is intentional for a repository with one
+   maintainer.
+4. A pull request from an outside author gets the maintainer's personal
+   review before it is queued.
+
+### What CI proves mechanically
+
+CI proves the following about a tree, and nothing about who read it. This
+is the mechanical bar, and it is separate from the maintainer's reading
+above:
+
+- the whole suite, and the fuzzing specs;
+- the Postgres and Rust `io` specs, against real databases and a real Rust
+  build;
+- `bin/model_check`, the engine-agreement check, `bin/doc_coverage` and
+  `rubocop`;
+- the Ruby/Rust parity specs and the golden IR (`spec/codegen_parity_spec.rb`,
+  `spec/parser_parity_spec.rb`, `spec/rust_conformance_spec.rb`,
+  `spec/ir_golden_spec.rb`);
+- every `ruby`-fenced block in the README and the guides, run as a doctest
+  (`spec/guides_spec.rb`).
+
+### What the pre-push hook is and is not
+
+`.githooks/pre-push` can be bypassed with `git push --no-verify`. When it
+runs and a signing key is present in the keychain, it writes an HMAC
+attestation note keyed by the tree hash, and CI uses that note to skip the
+checks the note names. The note is evidence that someone holding the key
+ran those checks on that tree. It is not evidence that anyone reviewed the
+code.
 
 ## What a PR should include
 
