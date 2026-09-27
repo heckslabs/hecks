@@ -1,0 +1,118 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+# Performs the release once the release PR has merged: tags the merge commit,
+# publishes the gem to rubygems.org, and gets the JavaScript client
+# (@hecks/client) published to npm. The logic lives in Hecks::Release::Runner;
+# this script parses flags and calls it.
+#
+# The release PR is still hand-made (version bump, README, changelog entry, the
+# client bumped to match); see "Releasing" in CONTRIBUTING.md. After it merges:
+#
+#   git checkout main && git pull --ff-only
+#   bin/release --dry-run    # every check and build, nothing tagged or published
+#   bin/release              # tag, gem, then wait for CI to publish the client
+#
+# It refuses unless the checkout is a clean `main` equal to origin/main, the
+# gem and packages/hecks-client are at one version, and the changelog has a
+# heading for it. It asks RubyGems and npm what is already published and skips
+# that, so a run that stopped partway is finished by running it again.
+#
+# The npm step is CI-first. Pushing the tag triggers
+# .github/workflows/publish-client.yml, which publishes @hecks/client with npm
+# trusted publishing (no token, no code). After the gem is out, bin/release
+# tells you CI is publishing and polls `npm view` every 15 seconds for up to
+# 10 minutes, then reports success, or the timeout with the run to look at
+# (`gh run list --workflow publish-client.yml`). `--npm-local` publishes from
+# this machine instead: the way to make the first publish, and the fallback
+# when CI is down.
+#
+# Flags:
+#   --dry-run    run every check, `gem build` (then delete the .gem) and, with
+#                --npm-local, `npm publish --dry-run`; tag, push and publish
+#                nothing, and never call `op`
+#   --gem-only   skip the npm step
+#   --npm-only   skip the gem step: by default just wait for CI's publish of
+#                the client (re-run this after fixing or re-running CI); with
+#                --npm-local publish it from this machine
+#   --npm-local  publish @hecks/client from this machine, with a token from
+#                1Password via `op run`, instead of leaving it to CI
+#   --no-wait    do not poll npm for CI's publish; print how to check and stop
+#   --yes        answer the confirmations yes (the tag, then the publish)
+#   --help       print this usage
+#
+# Exit status: 0 done or nothing to do, 1 a check or step failed, CI's publish
+# did not arrive in time, or a confirmation was declined, 2 usage error.
+#
+# One-time setup for CI publishing, on npmjs.com, by an owner of the @hecks
+# scope, possible only once the package exists (so the first publish is
+# `bin/release --npm-local`): package @hecks/client > Settings > Trusted
+# Publisher > GitHub Actions > organization or user `heckslabs`, repository
+# `hecks`, workflow filename `publish-client.yml`, environment blank.
+#
+# One-time setup for --npm-local (the first publish and emergencies). The gem
+# side is described in bin/release_gem; the npm side is:
+#   - npmjs.com > Access Tokens > Generate New Token > Granular Access Token,
+#     scoped Read and write to the @hecks scope, on an account with
+#     two-factor authentication enabled, with "Bypass two-factor
+#     authentication" enabled: the account's second factor is a passkey (no
+#     authenticator-app codes exist), so a token that requires a one-time
+#     code cannot publish; npm answers `EOTP`. Make it short-lived.
+#   - that token stored as a concealed field named "publish token" on the
+#     "npmjs.com" item (the npm account login) in the Hecks vault, next to the
+#     "RubyGems API Key" item; release/npm_publish.env references it as
+#     op://Hecks/npmjs.com/publish token, and the vault, item or field can be
+#     edited there
+# The login's username and password alone cannot publish; the token field is
+# what `op run` hands to npm.
+#
+# The local publish also passes `npm publish --auth-type=web` and its output is
+# not captured. If npm does ask for a second factor (a passkey or security key
+# approved in the browser), it prints an approval link to the terminal, you
+# open it and approve, and the step continues; that is the interactive
+# fallback.
+#
+# `op run` resolves release/npm_publish.env into `npm publish`'s environment
+# only (Touch ID-gated), npm expands the token in a throwaway user config that
+# holds only a placeholder, and nothing secret is printed or written.
+
+$LOAD_PATH.unshift(File.expand_path("../lib", __dir__))
+
+require "optparse"
+require "hecks/release/runner"
+
+ROOT_DIR = File.expand_path("..", __dir__)
+
+flags = { dry_run: false, gem_only: false, npm_only: false, npm_local: false, no_wait: false, yes: false }
+parser = OptionParser.new do |opts|
+  opts.banner = "Usage: bin/release [--dry-run] [--gem-only | --npm-only] [--npm-local | --no-wait] [--yes]"
+  opts.separator("Tags the merged release commit, publishes the gem, and gets @hecks/client published.")
+  opts.separator("By default CI publishes the client from the tag and this waits for it.")
+  opts.on("--dry-run", "run every check and build; tag, push and publish nothing") { flags[:dry_run] = true }
+  opts.on("--gem-only", "publish the gem only") { flags[:gem_only] = true }
+  opts.on("--npm-only", "skip the gem: wait for CI's publish, or with --npm-local publish from here") do
+    flags[:npm_only] = true
+  end
+  opts.on("--npm-local", "publish @hecks/client from this machine (first publish, or CI is down)") do
+    flags[:npm_local] = true
+  end
+  opts.on("--no-wait", "do not wait for CI's publish to reach npm") { flags[:no_wait] = true }
+  opts.on("--yes", "answer the confirmations yes") { flags[:yes] = true }
+  opts.on("--help", "print this usage") do
+    puts opts
+    exit 0
+  end
+end
+
+begin
+  parser.parse!(ARGV)
+  raise OptionParser::InvalidArgument, ARGV.join(" ") unless ARGV.empty?
+
+  options = Hecks::Release::Runner::Options.new(**flags)
+rescue OptionParser::ParseError, ArgumentError => e
+  warn "bin/release: #{e.message}"
+  warn parser
+  exit 2
+end
+
+exit Hecks::Release::Runner.new(root: ROOT_DIR, options: options).call

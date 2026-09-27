@@ -20,6 +20,26 @@ owned by the current user and writable by nobody else (the cache is read back wi
 root, unrelated) are unchanged. Files an earlier version left under `<gem root>/tmp`
 are orphaned and can be deleted. This is step 1 of ADR 0066.
 
+**`bin/release` performs the whole release, and CI publishes `@hecks/client`.**
+After the release PR merges, one command tags the merge commit and publishes the
+gem through `bin/release_gem`. Pushing the tag starts the new
+`publish-client.yml` workflow, which publishes the package to npm with trusted
+publishing (no token, no one-time code, with provenance) after checking that the
+tag names the package's and the gem's version; `bin/release` waits for the
+version to appear on npm (every 15 seconds, up to 10 minutes; `--no-wait` skips
+it). It refuses unless the checkout is a clean `main` equal to `origin/main`, the
+gem and the client are at one version, and the changelog has a heading for it. It
+asks RubyGems and npm what is already published and skips that, so a run that
+stopped partway is finished by running it again. `--dry-run` runs every check and
+build without tagging, pushing or publishing, `--gem-only` and `--npm-only`
+narrow it, and `--yes` answers its confirmations. Trusted publishing is set up
+once on npmjs.com, after the package exists (package settings, Trusted
+Publisher, GitHub Actions, `heckslabs/hecks`, `publish-client.yml`); until then,
+and when CI is down, `--npm-local` publishes from the machine with a
+short-lived bypass-two-factor token from 1Password, since the account's second
+factor is a passkey. The logic is `Hecks::Release::Runner`; `bin/release_gem`
+still works alone.
+
 ## [2.7.0] - 2026-09-27
 
 **The Rust host rate-limits public writes, on by default.** `POST /registrations`

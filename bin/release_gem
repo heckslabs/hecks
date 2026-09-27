@@ -1,9 +1,11 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
-# Builds the hecks gem and pushes it to rubygems.org, pulling the
-# push-scoped API key from 1Password (vault: Hecks, item: "RubyGems API
-# Key") instead of ~/.gem/credentials on disk. `op run` resolves the
+# Builds the hecks gem and pushes it to rubygems.org. Use bin/release for the
+# whole release (it tags, runs this as the gem step, then publishes the npm
+# client); this script still works alone. The push-scoped API key comes from
+# 1Password (vault: Hecks, item: "RubyGems API Key") instead of
+# ~/.gem/credentials on disk. `op run` resolves the
 # op:// reference in release/gem_push.env into GEM_HOST_API_KEY for gem
 # push's one subprocess only — gated by Touch ID, never written to disk
 # or shell history, and gone once that process exits.
@@ -32,8 +34,7 @@ require_relative "../lib/hecks/version"
 # with the gem and carries the same version. Bump it whenever
 # lib/hecks/version.rb changes (`npm version <version> --no-git-tag-version`
 # in packages/hecks-client); spec/hecks_client_version_spec.rb pins the same
-# rule. This script publishes the gem only; the package is published from its
-# own directory with `npm publish --access public`.
+# rule. This script publishes the gem only; bin/release publishes the package.
 require "json"
 client_version = JSON.parse(File.read(File.join(ROOT_DIR, "packages/hecks-client/package.json"))).fetch("version")
 unless client_version == Hecks::VERSION
