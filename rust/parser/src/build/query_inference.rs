@@ -94,7 +94,7 @@ fn infer_queries(
             require_declared_symbol(file, owner_name, query, &limit.value)?;
         }
         if let Some(offset) = &query.options.offset {
-            require_declared_symbol(file, owner_name, query, offset)?;
+            require_declared_symbol(file, owner_name, query, &offset.value)?;
         }
     }
 
@@ -229,6 +229,7 @@ mod tests {
                     name: "Page".to_string(),
                     limit: Some(ir::LimitSpec {
                         value: ":page_size".to_string(),
+                        target: None,
                     }),
                     ..Default::default()
                 },
@@ -238,7 +239,7 @@ mod tests {
                 ir::Query {
                     name: "Page".to_string(),
                     options: ir::QueryOptions {
-                        offset: Some(":start_at".to_string()),
+                        offset: Some(ir::OffsetSpec { value: ":start_at".to_string(), target: None }),
                         ..Default::default()
                     },
                     ..Default::default()

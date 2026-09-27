@@ -5,7 +5,8 @@
 # domain was generated most recently; any other stays reachable via
 # `--no-default-features --features <name>`.
 [features]
-default = ["has_many_fixture"]
+default = ["read_model_on_target_fixture"]
+read_model_on_target_fixture = []
 group_by_collision_fixture = []
 compliance = []
 checkout_fixture = []

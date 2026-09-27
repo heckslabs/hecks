@@ -1,0 +1,132 @@
+# Smallest domain reaching ADR 0055's `on:` codegen path: a read model with TWO many-side
+# heads, each independently filtered/ordered/paged by its own on:-targeted where/order_by/
+# limit/offset — the shape rust/project/read_models.rb's `multi_target_options` used to refuse
+# outright. Round-tripped by spec/rust_conformance_spec.rb.
+Hecks.bluebook "ReadModelOnTargetFixture" do
+  vision "The smallest domain where a read model's several many-side heads each need their own where/order_by/limit/offset, not one shared across all of them."
+
+  core
+
+  aggregate "Board" do
+    description "A board holding cards and notes, addressed by its own reference."
+
+    identified_by :reference
+    attribute :reference, BoardReference
+
+    value_object "BoardReference" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+      invariant("a board is referenced") { !value.to_s.empty? }
+    end
+
+    command "Open" do
+      role "Organizer"
+      goal "Start an empty board"
+
+      attribute :reference, BoardReference
+      sets :reference
+
+      emits "BoardOpened"
+    end
+  end
+
+  aggregate "Card" do
+    description "One card pinned to a board, with a status and a position."
+
+    reference_to Board
+    attribute :reference, CardReference
+    attribute :position, CardPosition
+
+    identified_by :reference
+
+    lifecycle :status, default: "open" do
+      transition "Close" => "done", from: "open"
+    end
+
+    value_object "CardReference" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+      invariant("a card is referenced") { !value.to_s.empty? }
+    end
+
+    value_object "CardPosition" do
+      attribute :value, Integer
+      invariant("a card position is not negative") { value >= 0 }
+    end
+
+    command "Pin" do
+      role "Organizer"
+      goal "Pin a fresh card onto a board, at a position"
+
+      sets :board
+      attribute :reference, CardReference
+      sets :reference
+      attribute :position, CardPosition
+      sets :position
+
+      emits "CardPinned"
+    end
+
+    command "Close", from: "open" do
+      role "Organizer"
+      goal "Mark a card done"
+
+      reference_to Card
+
+      emits "CardClosed"
+    end
+  end
+
+  aggregate "Note" do
+    description "One sticky note attached to a board, flagged or not."
+
+    reference_to Board
+    attribute :reference, NoteReference
+
+    identified_by :reference
+
+    lifecycle :flag, default: "clear" do
+      transition "Flag" => "flagged", from: "clear"
+    end
+
+    value_object "NoteReference" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+      invariant("a note is referenced") { !value.to_s.empty? }
+    end
+
+    command "Stick" do
+      role "Organizer"
+      goal "Stick a fresh note onto a board"
+
+      sets :board
+      attribute :reference, NoteReference
+      sets :reference
+
+      emits "NoteStuck"
+    end
+
+    command "Flag", from: "clear" do
+      role "Organizer"
+      goal "Flag a note for follow-up"
+
+      reference_to Note
+
+      emits "NoteFlagged"
+    end
+  end
+
+  # Two many-side heads (Card, Note), each with its own on:-targeted where/order_by/limit/
+  # offset — the shape a single shared filter can't express (ADR 0055).
+  read_model "BoardOverview" do
+    description "A board, its own open cards ordered by position and capped at two, and its own flagged notes, one page in — each many-side collection filtered/ordered/paged independently."
+    reference_to Board
+    include Board
+    include Card, as: :cards
+    include Note, as: :notes
+
+    where(status: "open", on: Card)
+    order_by :position, on: Card
+    limit 2, on: Card
+
+    where(flag: "flagged", on: Note)
+    offset 1, on: Note
+  end
+end

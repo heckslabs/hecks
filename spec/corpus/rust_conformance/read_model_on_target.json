@@ -1,0 +1,17 @@
+{
+  "domain": "spec/fixtures/rust_project/read_model_on_target_fixture",
+  "steps": [
+    { "verb": "ReadModelOnTargetFixture::Board.Open", "args": { "reference": { "value": "b1" } } },
+    { "verb": "ReadModelOnTargetFixture::Card.Pin", "args": { "board": "b1", "reference": { "value": "c1" }, "position": { "value": 0 } } },
+    { "verb": "ReadModelOnTargetFixture::Card.Pin", "args": { "board": "b1", "reference": { "value": "c2" }, "position": { "value": 1 } } },
+    { "verb": "ReadModelOnTargetFixture::Card.Pin", "args": { "board": "b1", "reference": { "value": "c3" }, "position": { "value": 2 } } },
+    { "verb": "ReadModelOnTargetFixture::Card.Pin", "args": { "board": "b1", "reference": { "value": "c4" }, "position": { "value": 3 } } },
+    { "verb": "ReadModelOnTargetFixture::Card.Close", "args": { "reference": { "value": "c3" } } },
+    { "verb": "ReadModelOnTargetFixture::Note.Stick", "args": { "board": "b1", "reference": { "value": "n1" } } },
+    { "verb": "ReadModelOnTargetFixture::Note.Stick", "args": { "board": "b1", "reference": { "value": "n2" } } },
+    { "verb": "ReadModelOnTargetFixture::Note.Stick", "args": { "board": "b1", "reference": { "value": "n3" } } },
+    { "verb": "ReadModelOnTargetFixture::Note.Flag", "args": { "reference": { "value": "n1" } } },
+    { "verb": "ReadModelOnTargetFixture::Note.Flag", "args": { "reference": { "value": "n3" } } },
+    { "query": "ReadModelOnTargetFixture.BoardOverview", "args": { "board": "b1" } }
+  ]
+}
