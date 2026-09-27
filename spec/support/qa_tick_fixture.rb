@@ -4,7 +4,7 @@ require "pathname"
 require "tmpdir"
 
 # Shared fixture for the `bin/qa_tick` specs; pass a per-file unique database name.
-# Files run as concurrent processes, so a shared name would race on CREATE/DROP.
+# Files run as concurrent processes, so a shared name would race on create/drop.
 RSpec.shared_context "with a qa_tick fixture" do |database_name|
   # The trivial target from qa_sweep_all_fixture.rb, so "clean" examples avoid the live corpus.
   TICK_TARGET_BLUEBOOK = <<~RUBY.freeze
