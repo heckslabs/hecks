@@ -1,7 +1,13 @@
-require_relative "../doc/reference"
 require_relative "../projector"
 
 module Hecks
+  # Repository-only tooling: `Doc::Reference` reads the committed pages under
+  # `docs/`, which only a checkout has, so it loads on first use and the
+  # packaged gem leaves it out (ADR 0066).
+  module Doc
+    autoload :Reference, File.expand_path("../doc/reference", __dir__)
+  end
+
   module Projections
     # The DSL reference pages, projected from the chapter's own Syntax
     # aggregate — the tables come from the declaration, the prose is
