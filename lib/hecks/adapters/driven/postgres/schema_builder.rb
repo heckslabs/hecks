@@ -64,6 +64,9 @@ module Hecks
               last_sequence   bigint NOT NULL DEFAULT 0
             )
           SQL
+          # CREATE TABLE IF NOT EXISTS never adds a column to an existing table, so
+          # the bookkeeping column is healed on every boot, same as create_aggregate_table!.
+          @db.exec("ALTER TABLE hecks_checkpoints ADD COLUMN IF NOT EXISTS compacted_through bigint NOT NULL DEFAULT 0")
         end
 
         def create_saga_table!

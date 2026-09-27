@@ -48,19 +48,31 @@ module Hecks
 
         # Appends and projects every authoritative entry the store lacks.
         #
-        # Under `:refresh` the store is reset and rebuilt from the whole journal; under `:strict`
-        # its entries must be a prefix of the journal, and only the rest is replayed.
+        # `:refresh` never reads journal history — it rebuilds from the aggregate's own current
+        # records, which the authoritative table already holds directly, so it stays correct
+        # past a compacted journal. `:strict` verifies its own entries are a real prefix of the
+        # authoritative journal, which genuinely needs that history; it refuses rather than
+        # silently misreading a compacted journal's surviving rows as if they started at
+        # position zero.
         def catch_up!
-          entries = Queue.new(@authoritative).entries
+          return refresh! if @policy == :refresh
+
+          compacted_through = @authoritative.respond_to?(:compacted_through) ? @authoritative.compacted_through : 0
           present = @projection.entries
-          if @policy == :refresh
-            @projection.reset!
-            present = []
+          if present.length < compacted_through
+            raise Runtime::WiringError,
+                  ":strict catch-up needs journal history the authoritative store has already " \
+                  "compacted (through sequence #{compacted_through}, this projection has only " \
+                  "consumed #{present.length}) — use :refresh instead"
           end
-          unless consistent?(entries, present)
-            raise Runtime::WiringError, "projection history does not match its authoritative history" if @policy == :strict
+
+          entries = Queue.new(@authoritative).entries
+          present_tail = present.drop(compacted_through)
+          unless consistent?(entries, present_tail)
+            raise Runtime::WiringError, "projection history does not match its authoritative history"
           end
-          entries.drop(present.length).each do |entry|
+
+          entries.drop(present_tail.length).each do |entry|
             @projection.append(entry)
             @projection.project(entry)
           end
@@ -70,6 +82,18 @@ module Hecks
         def checkpoint = @projection.entries.length
 
         private
+
+        # Resets the store and rebuilds it from the aggregate's own current records — one
+        # synthetic save per live record, never a replay of deleted or superseded history.
+        def refresh!
+          @projection.reset!
+          @authoritative.all.each do |instance|
+            entry = Persistence::Entry.new(operation: "save", id: instance.id.to_s, state: instance.state.dup)
+            @projection.append(entry)
+            @projection.project(entry)
+          end
+          @projection
+        end
 
         def same_entry?(left, right) = left.operation == right.operation && left.id == right.id && left.state == right.state
 

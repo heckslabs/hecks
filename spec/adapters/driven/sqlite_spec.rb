@@ -233,6 +233,47 @@ RSpec.describe Hecks::Adapters::Sqlite do
     end
   end
 
+  describe "compact_entries! (deletes old journal rows a :refresh projection no longer needs)" do
+    it "starts at zero when nothing has ever been compacted" do
+      expect(adapter.compacted_through).to eq(0)
+    end
+
+    it "deletes rows at or before through and reports how many, leaving the aggregate table untouched" do
+      adapter.save(instance("p1", status: "available"))
+      adapter.save(instance("p2", status: "available"))
+      through = adapter.checkpoint
+
+      removed = adapter.compact_entries!(through: through)
+
+      expect(removed).to eq(2)
+      expect(adapter.entries).to eq([])
+      expect(adapter.find("p1").status).to eq("available")
+      expect(adapter.compacted_through).to eq(through)
+    end
+
+    it "leaves rows after through in the journal" do
+      adapter.save(instance("p1", status: "available"))
+      first = adapter.checkpoint
+      adapter.save(instance("p2", status: "available"))
+
+      adapter.compact_entries!(through: first)
+
+      expect(adapter.entries.map(&:id)).to eq(["p2"])
+    end
+
+    it "never moves compacted_through backwards" do
+      adapter.save(instance("p1", status: "available"))
+      adapter.compact_entries!(through: adapter.checkpoint)
+      adapter.save(instance("p2", status: "available"))
+      high_water = adapter.checkpoint
+
+      adapter.compact_entries!(through: high_water)
+      adapter.compact_entries!(through: 0)
+
+      expect(adapter.compacted_through).to eq(high_water)
+    end
+  end
+
   describe "the optional saga-persistence capability (§2/§3/§4)" do
     it "saves a saga instance and reads it back through each_saga" do
       adapter.save_saga(process_manager: "Onboarding", correlation: "c1",
