@@ -4,9 +4,9 @@ require "open3"
 require "hecks/projections/deploy/template_diff"
 
 # The AwsFargate template generator's two promises: a world that sets none of the multi-container
-# settings still renders exactly the files it always did (compared against files generated before
-# those settings existed), and a world that sets them renders one task with several containers,
-# routed by path behind one load balancer and one distribution.
+# settings renders the single-container stack (compared byte for byte against golden files), and a
+# world that sets them renders one task with several containers, routed by path behind one load
+# balancer and one distribution.
 #
 # Each world is generated once through `bin/project_deploy`, the real entry point, and read back off
 # disk. The multi-container world uses neutral names throughout.
@@ -14,10 +14,6 @@ RSpec.describe "bin/project_deploy — a multi-container deployed_to(\"AwsFargat
   FARGATE_STACK_ROOT_DIR = File.expand_path("..", __dir__)
   FARGATE_STACK_GOLDEN_DIR = File.join(__dir__, "fixtures", "deploy_fargate_golden")
   FARGATE_STACK_FIXTURE_NAME = "scratch_fixture".freeze
-  # The generator's own comments name one deployment; the golden files hold that name masked, so no
-  # fixture stores it.
-  FARGATE_STACK_MASKED_NAME = Regexp.new(%w[life adelics].join, Regexp::IGNORECASE)
-
   # Each world is generated once and shared by the examples that read it.
   module FargateStackGeneratedWorlds
     def self.fetch(key) = (@worlds ||= {})[key] ||= yield
@@ -188,8 +184,7 @@ RSpec.describe "bin/project_deploy — a multi-container deployed_to(\"AwsFargat
         expect(files.keys - ["Makefile"]).to match_array(golden_names)
         golden_names.each do |file|
           golden = File.read(File.join(FARGATE_STACK_GOLDEN_DIR, name, file))
-          expect(files[file].gsub(FARGATE_STACK_MASKED_NAME, "<client>")).to eq(golden),
-                                                                             "#{name}/#{file} differs from its golden file"
+          expect(files[file]).to eq(golden), "#{name}/#{file} differs from its golden file"
         end
       end
     end

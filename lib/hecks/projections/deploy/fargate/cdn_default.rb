@@ -30,7 +30,7 @@ module Hecks
               # dispatch commands) — are all session-cookie-driven, and
               # this generator has no way to tell which of a domain's own
               # paths would ever be safe to cache. Found live, the hard
-              # way (lifeadelics, 2026-09-21): a hand-authored CloudFront
+              # way (2026-09-21): a hand-authored CloudFront
               # stack applied the OPPOSITE default — a custom, cookie-
               # blind cache policy with a 90-120s TTL — and it served one
               # signed-in session's own response (a short-lived SSO
@@ -38,27 +38,22 @@ module Hecks
               # request within that window. A domain that DOES know one
               # of its own paths is genuinely safe to cache (a public,
               # non-personalized page) adds its own more specific
-              # CacheBehavior by hand, the same way lifeadelics's own
-              # hand-extended three-container stack already does for
-              # /_astro/*, /videos/*, and friends — never by loosening
-              # this one.
+              # CacheBehavior through the `cdn` setting's `behaviors`,
+              # never by loosening this one.
               #{distribution_id}:
                 Type: AWS::CloudFront::Distribution
                 Properties:
                   DistributionConfig:
                     Enabled: true
                     HttpVersion: http2
-                    # No ACM/custom domain here — this generator has no
-                    # notion of one (deploy.bluebook's own FargateTarget
-                    # declares no `domain` attribute for it) and CloudFront
-                    # requires an ACM cert in us-east-1 specifically to
-                    # attach a custom Aliases entry, a real cross-region
-                    # dependency this generator can't assume. CloudFront's
-                    # own default *.cloudfront.net certificate/hostname
-                    # are what Outputs.CloudFrontDomain below reports;
-                    # point a real domain's DNS at it by hand, same
-                    # "generated, extend by hand" posture this whole file
-                    # already has for anything past its own baseline.
+                    # No ACM/custom domain by default — CloudFront requires
+                    # an ACM cert in us-east-1 specifically to attach a
+                    # custom Aliases entry, a real cross-region dependency
+                    # this generator can't assume. CloudFront's own default
+                    # *.cloudfront.net certificate/hostname are what
+                    # Outputs.CloudFrontDomain below reports; the `cdn`
+                    # setting's `aliases` and `certificate_arn` attach a
+                    # real domain.
                     ViewerCertificate:
                       CloudFrontDefaultCertificate: true
                     Origins:
