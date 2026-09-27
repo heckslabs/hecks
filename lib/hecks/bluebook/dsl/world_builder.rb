@@ -11,8 +11,17 @@ module Hecks
         # Starts with no settings recorded.
         def initialize = @values = {}
 
-        def method_missing(key, *args, &)
-          @values[key.to_sym] = args.size == 1 ? args.first : args
+        # A call with a block records the block's own settings as a nested Hash, so a bind can
+        # group settings (`preview do ... end`); a call without one records its argument.
+        def method_missing(key, *args, &block)
+          @values[key.to_sym] =
+            if block
+              nested = SettingsCollector.new
+              nested.instance_eval(&block)
+              nested.to_h
+            else
+              args.size == 1 ? args.first : args
+            end
         end
 
         def respond_to_missing?(_name, _include_private = false) = true
