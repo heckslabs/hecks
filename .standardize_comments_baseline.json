@@ -39,7 +39,7 @@
     "Shared machinery for a codemod that migrates real `.bluebook` source.": 55
   },
   "lib/hecks/embryonaut_bluebook.rb": {
-    "A vendored, external bluebook.": 65
+    "A vendored, external bluebook.": 71
   },
   "lib/hecks/fuzzing/bounded_exhaustive_expressions.rb": {
     "Phase 7 (equivalence-gap plan) — the one place in this codebase a": 53
@@ -83,7 +83,13 @@
     "One spelling of an aggregate's state across the store boundary": 52
   },
   "lib/hecks/projections/deploy/fargate.rb": {
-    "The AWS Fargate deploy target. An export": 57
+    "The AWS Fargate deploy target. An export": 103
+  },
+  "lib/hecks/projections/deploy/preview.rb": {
+    "Per-branch preview stacks for a `deployed_to(\"AwsFargate\")` domain: one": 67
+  },
+  "lib/hecks/projections/deploy/scripts.rb": {
+    "The hosting scripts an AWS Fargate deploy ships beside its template:": 57
   },
   "lib/hecks/projections/diagrams.rb": {
     "A domain's own shape, projected as Mermaid diagrams — the same": 76,
