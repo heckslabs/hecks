@@ -295,12 +295,24 @@ module Hecks
         return nil unless record
 
         rules = Runtime::CommandRules.new(runtime.registry)
+        # Real dispatch normalizes args (step_normalize_args) before it ever reaches
+        # enforce_givens, coercing a bare scalar like "white" into its command's declared
+        # value-object shape. Skipping that here would hand enforce_givens the raw fuzzed
+        # shape instead, and a `given` comparing a normalized field against it would walk a
+        # path a String happens to answer (a substring lookup) rather than the refusal real
+        # dispatch raises. `send` reaches the interpreter's own private coercion (the same
+        # idiom SelfConsistency#last_advancing_event uses for `saga_correlation`) rather than
+        # reimplementing it here.
+        interpreter = Runtime::CommandInterpreter.new(runtime.registry, rules: rules)
+        normalized_args = interpreter.send(:normalize_args, aggregate, command, args)
         recomputed_kind = begin
-          rules.enforce_givens(record.dup, command, args, domain: domain_name, declaring: aggregate)
+          rules.enforce_givens(record.dup, command, normalized_args, domain: domain_name, declaring: aggregate)
 
           # A second, separate DISPATCH_ORDER step: the aggregate's own `lifecycle`
           # transition guard is a wholly different method from enforce_givens' own
           # per-command `from:` check, called only when enforce_givens didn't already refuse.
+          # It reads only the record's own lifecycle field and the command's declared
+          # transitions, never `args`, so it needs no normalized input of its own.
           rules.admissible_transition(aggregate, command, record.dup)
           nil
         rescue *GUARD_REFUSAL_CLASSES => e
