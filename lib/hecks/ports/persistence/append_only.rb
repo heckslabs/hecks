@@ -124,19 +124,15 @@ module Hecks
           events&.select { |event| event.aggregate == aggregate && event.id.to_s == id.to_s }
         end
 
-        # Replays unprojected journal entries through `project` to rebuild the projected
-        # records.
+        # Replays unprojected journal entries through `project` to rebuild the projected records.
         #
-        # An append is durable before a projection is attempted. Replaying the
-        # log restores a snapshot/table after a crash in that small window.
-        # An adapter that keeps its projected table in the same transaction
-        # as its journal append (Postgres, Sqlite) never actually falls
-        # behind it, so it tracks how far it has already replayed
-        # (`checkpoint`) and this only re-walks entries past that point
-        # (`entries_since`) — bounded by activity since the last boot, not
-        # total history. An adapter without that pair (Memory, Heki, D1,
-        # PostgresEra, RemoteRuntime) is unaffected: it still replays every
-        # entry, exactly as before.
+        # An append is durable before a projection is attempted; replaying restores a
+        # snapshot/table after a crash in that small window. Postgres and Sqlite keep their
+        # projected table in the same transaction as the journal append, so they never fall
+        # behind it — each tracks how far it has replayed (`checkpoint`) and only re-walks
+        # entries past that point (`entries_since`), bounded by activity since the last boot,
+        # not total history. An adapter without that pair (Memory, Heki, D1, PostgresEra,
+        # RemoteRuntime) is unaffected: it still replays every entry.
         #
         # @return [Persistence::AppendOnly] self, so a factory can build and recover in one
         #   expression
