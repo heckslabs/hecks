@@ -281,4 +281,61 @@ RSpec.describe "persistence adapter contract (state codec round trip)" do
         .to raise_error(Hecks::Runtime::WiringError, /non-Symbol keys \["status"\].*StateCodec\.decode/)
     end
   end
+
+  describe "RepositoryFactory.build's recover! skip for :atomic_append" do
+    let(:aggregate) { fixture.aggregate("Account") }
+    let(:seeded_entry) { Hecks::Ports::Persistence::Entry.new(operation: "save", id: "A", state: canonical("Account")) }
+
+    # `store`/`journal` live outside the adapter instance, so two separate `.new`s (one per
+    # simulated boot) share the same underlying data — the way a real Sqlite file or Postgres
+    # database persists across process restarts, unlike Memory.
+    def durable_adapter_class(atomic_append:, store:, journal:)
+      Class.new do
+        attr_reader :aggregate
+
+        define_method(:initialize) { |aggregate:, settings: {}, root: nil| @aggregate = aggregate }
+        define_method(:persistence_capabilities) { atomic_append ? [:atomic_append] : [] }
+        define_method(:append) do |entry|
+          journal << entry
+          entry
+        end
+        define_method(:entries) { journal.dup }
+        define_method(:project) do |entry|
+          entry.delete? ? store.delete(entry.id) : store[entry.id] = entry.state
+          entry
+        end
+        define_method(:find) do |id|
+          state = store[id]
+          state && Hecks::Runtime::Instance.new(aggregate: @aggregate, id: id, state: state)
+        end
+        define_method(:all) do
+          store.map { |id, state| Hecks::Runtime::Instance.new(aggregate: @aggregate, id: id, state: state) }
+        end
+        define_method(:count) { store.size }
+      end
+    end
+
+    def boot(adapter_class)
+      registry = instance_double(Hecks::Runtime::Registry, root: nil, resolved_eras: {}, superseded_eras: {}).tap do |double|
+        allow(double).to receive_messages(check_verb: nil, binding_settings: {}, check_settings: nil,
+                                          adapter_class: adapter_class)
+      end
+      bind = Hecks::Bluebook::Bind.new(aggregate: "Account", verb: "persisted_by", adapter: "Durable")
+      Hecks::Ports::Persistence::RepositoryFactory.build(registry, "Banking", aggregate, bind, recover: true)
+    end
+
+    it "leaves a journaled-but-unprojected entry unrecovered when the adapter declares :atomic_append" do
+      adapter_class = durable_adapter_class(atomic_append: true, store: {}, journal: [])
+      boot(adapter_class).adapter.append(seeded_entry) # simulates a crash: journaled, unprojected
+
+      expect(boot(adapter_class).find("A")).to be_nil
+    end
+
+    it "still recovers a journaled-but-unprojected entry when the adapter does not declare :atomic_append" do
+      adapter_class = durable_adapter_class(atomic_append: false, store: {}, journal: [])
+      boot(adapter_class).adapter.append(seeded_entry)
+
+      expect(boot(adapter_class).find("A")).not_to be_nil
+    end
+  end
 end

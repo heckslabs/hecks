@@ -26,10 +26,13 @@ module Hecks
       # Names the optional persistence capabilities this adapter implements natively.
       #
       # `:cross_process_lock` lets dispatch hold `with_write_lock` instead of the in-process
-      # mutex, which `rust/host` in another OS process cannot see (ADR 0036).
+      # mutex, which `rust/host` in another OS process cannot see (ADR 0036). `:atomic_append`
+      # tells `RepositoryFactory.build` that `append` (below) already commits the snapshot in
+      # the same transaction as the journal row, so replaying the journal through `project` on
+      # boot has nothing left to fix up.
       #
-      # @return [Array<Symbol>] always `[:atomic_put, :cross_process_lock]`
-      def persistence_capabilities = %i[atomic_put cross_process_lock]
+      # @return [Array<Symbol>] always `[:atomic_put, :cross_process_lock, :atomic_append]`
+      def persistence_capabilities = %i[atomic_put cross_process_lock atomic_append]
 
       # Declares that this adapter can act on shape drift rather than only refuse.
       #

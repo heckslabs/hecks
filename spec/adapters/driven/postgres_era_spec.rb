@@ -43,6 +43,10 @@ RSpec.describe Hecks::Adapters::PostgresEra, :io do
     built
   end
 
+  it "declares :atomic_append — append already commits the snapshot inside its own transaction" do
+    expect(adapter.persistence_capabilities).to include(:atomic_append)
+  end
+
   it "refuses a binding that declares no database" do
     expect { described_class.new(aggregate: aggregate, settings: {}) }
       .to raise_error(Hecks::Runtime::WiringError, /declares no "database"/)
