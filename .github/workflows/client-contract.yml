@@ -125,6 +125,9 @@ jobs:
         env:
           HECKS_SERVICE_URL: http://127.0.0.1:8080
           HECKS_DOMAIN: CheckoutFixture
+          # The host compiles the domain's wasm before it listens, and an
+          # unoptimized build of the host does that slowly on a small runner.
+          HECKS_CONTRACT_WAIT_SECONDS: "180"
 
       - name: Host log
         if: failure()
