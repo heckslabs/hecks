@@ -33,9 +33,7 @@ RSpec.describe Hecks::Router do
     expect(router.dispatch("Acme::Billing::Invoice.Issue", number: { value: "invoice-1" }).id).to eq("invoice-1")
   end
 
-  # Needs two real aggregates plus the read_model that includes both, then a
-  # live dispatch through each command, to prove the read model actually
-  # aggregates dispatched state — a smaller fixture couldn't show that.
+  # Needs two aggregates and a read model over both, dispatched live, to show it aggregates state.
   # rubocop:disable-next RSpec/ExampleLength
   it "routes a domain read model without pretending it is an aggregate" do
     write_domain("banking", "Banking", <<~RUBY, realm: "Realm")
@@ -91,13 +89,8 @@ number: { value: "ACC-1" }, balance: { cents: 0 } }] }
     Object.send(:remove_const, :Realm) if Object.const_defined?(:Realm, false)
   end
 
-  # **A real gap, hit live**: `install_namespace_entry` installs one method per
-  # declared verb, so an aggregate reached only through the router surface
-  # had no `.find`/`.all`/`.count` at all — the read/CRUD half of what a
-  # plain `Hecks.boot` already gives for free via `AggregateDoor`. A
-  # domain whose own commands never happen to include a lookup-by-id query
-  # (real case: a `List` aggregate, read only by id, no query of its own)
-  # had no way to read one record back through the router at all.
+  # `install_namespace_entry` installs only declared verbs, so an aggregate with no
+  # lookup-by-id query of its own needs `.find`/`.all`/`.count` from the router too.
   it "gives every aggregate .find/.all/.count on the router surface too, not just its own declared verbs" do
     write_domain("catalog", "Catalog", <<~RUBY, realm: "Realm")
       aggregate "Book" do
@@ -178,10 +171,7 @@ number: { value: "ACC-1" }, balance: { cents: 0 } }] }
     Object.send(:remove_const, :SugarRealm) if Object.const_defined?(:SugarRealm, false)
   end
 
-  # Proves both halves of the same claim — default resolves to latest, and
-  # options(version:) pins the old one — against the same two-version
-  # domain; each needs its own write_domain + boot, so splitting would
-  # re-pay that setup twice for no gain.
+  # Default resolves to latest and options(version:) pins the other, on one two-version domain.
   # rubocop:disable-next RSpec/ExampleLength
   it "keeps version selection in an aggregate options pipe, separate from payload fields" do
     write_domain("banking_v1", "Banking", <<~RUBY, version: "v1", realm: "OptionsRealm")
@@ -285,9 +275,7 @@ number: { value: "ACC-1" }, balance: { cents: 0 } }] }
 
   private
 
-  # Shared verbatim by the two examples that need a Book aggregate with a
-  # query as well as a command (dispatch-and-route, and namespace-alias
-  # installation) — dry, not a behavior difference between them.
+  # Book aggregate with a query as well as a command, shared by two examples.
   def catalog_book_with_query_bluebook
     <<~RUBY
       aggregate "Book" do

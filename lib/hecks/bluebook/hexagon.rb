@@ -4,44 +4,24 @@ require_relative "../ir"
 module Hecks
   module Bluebook
     Port = Struct.new(:name, :verb, :signal, :answers, keyword_init: true) do
-      # Says whether this port answers its verb with a return value.
-      #
-      # @return [Boolean] whether `signal` is `:reply`
       def reply?  = signal == :reply
 
-      # Says whether this port answers its verb by taking effect, with no return value.
-      #
-      # @return [Boolean] whether `signal` is `:effect`
       def effect? = signal == :effect
     end
 
     Adapter = Struct.new(:name, :port, :fields, :secrets, keyword_init: true) do
-      # Says whether this adapter declares a field, plain or secret.
-      #
-      # @param field [Symbol, String] the field to check
-      # @return [Boolean] whether `field` is one of this adapter's own `fields` or `secrets`
       def declares?(field) = all_fields.include?(field.to_sym)
 
-      # Lists every field this adapter declares, plain and secret alike.
-      #
-      # @return [Array<Symbol>] every field this adapter declares, `fields` and `secrets`
-      #   combined
       def all_fields = (fields || []) + (secrets || [])
     end
 
     Bind = Struct.new(:aggregate, :verb, :adapter, :role, keyword_init: true) do
-      # Names the aggregate this bind applies to.
-      #
-      # @return [String] this bind's aggregate name, demodulised, or `""` for a
-      #   domain-level default bind with no aggregate
+      # Empty for a domain-level default bind with no aggregate.
       def aggregate_name = Naming.demodulise(aggregate)
     end
 
-    # The built form of a `.hecksagon` file, produced by
-    # `DSL::HecksagonBuilder` — a domain's own binds (`Bind`, above),
-    # subscriptions, and attached framework/vendored members.
-    # `Behaviour::Hecksagon` supplies the bind lookups (`bind_for`/
-    # `binds_for`); this class holds only the declared data.
+    # The built form of a `.hecksagon` file, produced by `DSL::HecksagonBuilder`.
+    # `Behaviour::Hecksagon` supplies the bind lookups; this class holds the declared data.
     class Hecksagon
       include Hecks::IR
       include Behaviour::Hecksagon
@@ -88,11 +68,8 @@ module Hecks
       def bounded? = @bounded
     end
 
-    # The built form of a `.world` file, produced by `DSL::WorldBuilder` —
-    # a domain's own `realm`/`latest` version markers and its adapter bind
-    # settings (as opposed to `Hecksagon`'s own bind list, above).
-    # `Behaviour::World` supplies the settings lookups (`for_verb`/
-    # `for_binding`); this class holds only the declared data.
+    # The built form of a `.world` file, produced by `DSL::WorldBuilder`.
+    # `Behaviour::World` supplies the settings lookups; this class holds the declared data.
     class World
       include Hecks::IR
       include Behaviour::World

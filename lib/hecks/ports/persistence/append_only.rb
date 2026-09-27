@@ -18,9 +18,8 @@ module Hecks
         def delete? = operation == "delete"
       end
 
-      # Makes append-before-projection a port invariant. Adapters retain
-      # control of their durable format, but every one must accept the same
-      # entry stream and materialize current state from it.
+      # Makes append-before-projection a port invariant: adapters keep their own durable
+      # format, but must accept the same entry stream and materialize state from it.
       class AppendOnly
         attr_reader :adapter
 
@@ -96,12 +95,8 @@ module Hecks
 
         # Reads the events the adapter has durably recorded.
         #
-        # Not an endless `def events = ... if ...` — that modifier binds to
-        # the whole `def`, not just its body, so it evaluates against
-        # `@adapter` while `@adapter` is still nil (class-body time,
-        # before `initialize` ever runs) and silently skips defining the
-        # method at all. Found live: nothing in this codebase called
-        # `AppendOnly#events` before Memory got a `reset!` test that did.
+        # Written as an `if` guard, not a trailing modifier, which would evaluate against
+        # `@adapter` before `initialize` runs and silently skip defining the method.
         #
         # @return [Array<Runtime::Event>, nil] recorded events, oldest first; nil when the
         #   adapter keeps no event log
@@ -142,29 +137,15 @@ module Hecks
 
         # Journals an instance's state, projects it, and reports how the write landed.
         #
-        # Returns an `Outcome`, not a bare `Instance` — every call site
-        # (`CommandInterpreter`/`EntityInterpreter`'s own `step_save`,
-        # `RebuildSweep#refresh`) reads it that way.
-        #
-        # `expected_version:` requests optimistic-concurrency CAS — commit
-        # only if the stored record's version still matches what this
-        # instance was read at. It is `nil` both when a caller explicitly
-        # doesn't want CAS (`RebuildSweep#refresh`'s own projection-field
-        # touch-up, which has no `given` to protect) and when the instance
-        # is brand new (never read from storage, so `instance.version` is
-        # nil) — both cases fall through to the plain, unconditional
-        # `project(entry)` below, byte-for-byte today's behavior. Only an
-        # adapter that both receives a non-nil `expected_version` and
-        # declares `:optimistic_concurrency` gets CAS treatment; every
-        # other adapter/call site is unaffected.
+        # Returns an Outcome, not a bare Instance, so callers can check `:saved` vs `:stale`;
+        # `expected_version:` only triggers CAS on an adapter declaring `:optimistic_concurrency`.
         #
         # @param instance [Runtime::Instance] the record to persist; its `state` is shallow
         #   copied into the entry
         # @param expected_version [Integer, nil] the version the instance was read at, or nil
         #   for an unconditional write
-        # @return [Persistence::Outcome] status `:saved` or `:stale`; on `:saved` its `instance`
-        #   is what the adapter's `project` answered, else the instance passed in; on `:stale`
-        #   it is the instance passed in. The entry is journaled even when the result is `:stale`
+        # @return [Persistence::Outcome] status `:saved` or `:stale`; `instance` is the
+        #   adapter's projected result on `:saved`, else the instance passed in
         # @raise [Runtime::WiringError] when the adapter's `append` or `project` refuses
         def save(instance, expected_version: nil)
           entry = Entry.new(operation: "save", id: instance.id.to_s, state: instance.state.dup)
@@ -218,18 +199,7 @@ module Hecks
 
         # Records one emitted event durably, when the adapter keeps an event log.
         #
-        # Not an endless `def record_event = ... if ...` — same gotcha as
-        # `events` above, and it bit for real here: this guard evaluated
-        # against `@adapter` at class-body time (nil, always false), so
-        # `record_event` was never defined at all. `emission.rb`'s own
-        # `repository.record_event(event) if repository.respond_to?(:record_event)`
-        # therefore never fired for any adapter, ever — every declared
-        # `emits` was computed and reported in `registry.event_log` (an
-        # in-process array, gone at exit) but never durably recorded.
-        # Caught because a live tail of a domain's own persisted events
-        # found nothing to tail. `sqlite_spec.rb`/`postgres_spec.rb`/
-        # `postgres_era_spec.rb` all call `adapter.record_event` directly,
-        # bypassing this wrapper — which is exactly why no spec noticed.
+        # Written as an `if` guard, not a trailing modifier — same reason as `events` above.
         #
         # @param event [Runtime::Event] the event to record
         # @return [Object, nil] adapter-defined write result (an Array for Memory, a driver
@@ -240,17 +210,9 @@ module Hecks
 
         # Runs the block inside the adapter's transaction, or plainly when it has none.
         #
-        # One COMMIT boundary for save + emit + outbox — `Interpreting#
-        # run_dispatch_order` runs the `save` and `emit` steps inside
-        # this block, so an adapter that owns a real transaction
-        # (Sqlite, Postgres) commits the aggregate row, its journal
-        # entry, and the outbox rows together or not at all. An adapter
-        # without one just yields: Memory has nothing to roll back, and
-        # a file adapter's own `with_lock` already serialises its pair
-        # of writes. Nested calls are the adapter's problem to make
-        # re-entrant (both SQL adapters check for an open transaction
-        # first) — a reaction dispatched from inside a drain never nests
-        # here anyway, because draining happens after this block returns.
+        # One commit boundary for save + emit + outbox: an adapter with a real transaction
+        # (Sqlite, Postgres) commits the row, journal entry, and outbox rows together or
+        # not at all; Memory just yields, having nothing to roll back.
         #
         # @yield the writes to commit together; an exception raised inside rolls back an
         #   adapter-owned transaction and propagates
@@ -264,11 +226,9 @@ module Hecks
 
         # Runs the block while holding the adapter's cross-process write lock.
         #
-        # Only an adapter advertising `:cross_process_lock` (PostgresEra —
-        # see ADR 0036) implements this; `run_dispatch_order_with_isolation`
-        # (runtime/interpreting.rb) checks `capabilities` before ever
-        # calling it, so the plain `yield` fallback here only guards
-        # against a stray direct call, not the real dispatch path.
+        # Only PostgresEra advertises `:cross_process_lock` (ADR 0036); the real dispatch
+        # path checks `capabilities` first, so this `yield` fallback only guards a stray
+        # direct call.
         #
         # @yield the dispatch to run with writers serialised
         # @return [Object] adapter-defined; the block's own value when the adapter has no
@@ -279,10 +239,7 @@ module Hecks
           yield
         end
 
-        # **The outbox contract** — four optional adapter methods, probed
-        # together the way `save_saga`/`delete_saga`/`each_saga` are
-        # (`Registry::SagaPersistence`): an adapter either has an outbox
-        # or it doesn't, never half of one. See `Runtime::Outbox`.
+        # An adapter implements the whole outbox contract or none of it (see Runtime::Outbox).
         OUTBOX_METHODS = %i[outbox_enqueue outbox_claim outbox_settle outbox_rows].freeze
 
         # Reports whether the adapter implements the whole outbox contract; the answer is

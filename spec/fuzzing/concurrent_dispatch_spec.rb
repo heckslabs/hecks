@@ -4,28 +4,12 @@ require_relative "../support/postgres_probe"
 require "tmpdir"
 require "fileutils"
 
-# `Hecks::Fuzzing::ConcurrentDispatch`, proven against the same real
-# cross-process lock `spec/adapters/driven/postgres_era_concurrent_
-# dispatch_spec.rb` proves by hand — not a stand-in for it. That spec
-# gates a hand-picked pair to force one exact interleaving deterministic
-# enough to assert `%w[refused succeeded]` outright; this module has no
-# such hand-authored knowledge of an arbitrary generated race, so its own
-# design is to derive that expectation itself (the sequential oracle —
-# see its own header) rather than assert a hardcoded shape. So this file
-# proves two different things separately: the pure comparison logic
-# (`divergences_for`, no Postgres needed at all), and the full real,
-# forked, real-Postgres pipeline actually completing and agreeing with
-# its own oracle on a genuinely conflicting pair — never a broken-lock
-# case, the same reason the hand-authored spec has none either: nothing
-# here deliberately reverts ADR 0036's own fix just to prove this module
-# can fire; `divergences_for`'s own unit coverage proves that instead,
-# with synthetic outcome pairs.
+# `Hecks::Fuzzing::ConcurrentDispatch` against the real cross-process lock. Proves the pure
+# comparison (`divergences_for`, synthetic outcomes, no Postgres) and, separately, the forked
+# real-Postgres pipeline agreeing with its sequential oracle on a conflicting pair (ADR 0036).
 RSpec.describe Hecks::Fuzzing::ConcurrentDispatch do
-  # A probe that broke is not a sequence with nothing to race. Both used
-  # to answer `[]`, which `bin/qa_sweep` logs as a clean concurrency
-  # Check — so a renamed capability symbol or a wiring change could make
-  # the race silently never happen while the ledger recorded the mode as
-  # held. No Postgres here: the refusal happens before any boot.
+  # A broken probe is not a sequence with nothing to race: answering `[]` would log a clean
+  # concurrency Check while the race never ran. No Postgres: refusal happens before boot.
   describe ".check, when the cross-process-lock probe itself fails" do
     it "reports it rather than answering clean" do
       allow(described_class).to receive(:lockable_verbs).and_return([[], ["Shop::Order.Place: NoMethodError: boom"]])
@@ -92,29 +76,13 @@ RSpec.describe Hecks::Fuzzing::ConcurrentDispatch do
     end
   end
 
-  # **A real, file-based fixture** — `IsolatedBoot.call`/`copy_dereferencing`
-  # need a real directory on disk (never an in-memory registry the way
-  # some other specs in this suite set state up), the same reason
-  # `spec/fuzzing/persistence_parity_spec.rb`'s own fixture is files, not
-  # `Kernel.eval`. The same minimal shape `postgres_era_concurrent_
-  # dispatch_spec.rb`'s own `EraConcurrencyGap` fixture uses (one
-  # numbered account, `Open`/`Debit`, a `given` balance check) —
-  # deliberately reused rather than re-derived, since it is already the
-  # smallest domain proven to exercise the real cross-process lock.
+  # File-based fixture: `IsolatedBoot.call`/`copy_dereferencing` need a real directory. Same
+  # minimal shape as `EraConcurrencyGap` in `postgres_era_concurrent_dispatch_spec.rb`.
   context "with a real, disposable PostgresEra schema", :io do
     CONCURRENT_DISPATCH_SPEC_DATABASE = "hecks_concurrent_dispatch_spec".freeze
 
-    # Namespaced, not the generic `FIXTURE_BLUEBOOK`/`FIXTURE_HECKSAGON`
-    # other spec files also use — `spec/qa_sweep_persistence_parity_spec.rb`'s
-    # own comment on `spec/support/qa_sweep_all_fixture.rb`'s `FIXTURE_HECKSAGON`
-    # names the real gotcha this avoids: a bare `CONST = value` written
-    # directly inside an `RSpec.describe`/`context do ... end` block
-    # assigns at the block's own lexical scope (top-level, i.e. `Object`),
-    # never inside the dynamically-created example-group class, so two
-    # spec files that both write the same generic name are defining the
-    # same top-level constant — confirmed live: this file's own
-    # `FIXTURE_HECKSAGON` collided with `spec/support/qa_sweep_all_fixture.rb`'s own,
-    # caught by `spec/load_hygiene_spec.rb`.
+    # Namespaced: a constant assigned inside `RSpec.describe`/`context` lands on `Object`, so a
+    # generic `FIXTURE_HECKSAGON` collides with other specs (`spec/load_hygiene_spec.rb`).
     CONCURRENT_DISPATCH_FIXTURE_BLUEBOOK = <<~RUBY.freeze
       Hecks.bluebook "ConcurrentDispatchFixture" do
         vision "The smallest domain that exercises a real cross-process write lock, authored only to prove Hecks::Fuzzing::ConcurrentDispatch works — never examples/, so this spec never depends on this repository's own live corpus staying any particular shape."
@@ -202,24 +170,16 @@ RSpec.describe Hecks::Fuzzing::ConcurrentDispatch do
                                                     race_schema: "cd_race_#{tag}", reference_schema: "cd_ref_#{tag}")
     end
 
-    # The exact class `postgres_era_concurrent_dispatch_spec.rb` proves by
-    # hand, generalized — two Debits that together would overdraw the
-    # account are the race step, generated-sequence-style: `Open` is
-    # setup, the second `Debit` (the sequence's own middle command) is
-    # what gets raced. A working cross-process lock serializes them
-    # exactly the way the sequential oracle says it must, so this is
-    # clean — no divergence — and that agreement is what is under test.
+    # Two Debits that together overdraw the account: `Open` is setup, the middle command
+    # is raced. A working lock serializes them as the oracle says, so no divergence.
     it "agrees with its own sequential oracle on a genuinely conflicting pair — the real lock holds" do
       steps = [open_step("a1", 10_000), debit_step("a1", 6_000), debit_step("a1", 6_000)]
 
       expect(check(steps, "conflict")).to eq([])
     end
 
-    # **Racing index 0 itself** — no setup step at all, the bare identity-
-    # creation case `pick_race_index`'s own unit coverage names as
-    # legitimate. Two concurrent `Open`s under the same number are a
-    # genuine identity-collision race; a working lock still admits
-    # exactly one, the same shape of agreement as the Debit case above.
+    # Racing index 0: no setup step. Two concurrent `Open`s under one number collide on
+    # identity; a working lock admits exactly one.
     it "agrees with its own sequential oracle when the race step is the sequence's own first step" do
       steps = [open_step("a2", 10_000)]
 
@@ -227,31 +187,10 @@ RSpec.describe Hecks::Fuzzing::ConcurrentDispatch do
     end
   end
 
-  # BUG#142 — found by the first real sweep of the `concurrency` mode
-  # (SW-quality_control-1789768606, seed 3, race step
-  # `Governance::RoleAssignment.Assign`). `check` picked a race step
-  # whose aggregate isn't actually bound to anything shared across
-  # processes: `uses_framework "X"` only loads a framework member's
-  # shape (`hecksagon_builder.rb`'s own `uses_framework`), never its
-  # persistence — see `examples/banking/bluebook/banking.hecksagon`'s
-  # own comment on why a sibling `Hecks.hecksagon "X"` is required to
-  # bind a framework member's own aggregates to anything but the
-  # default (`Ports::Persistence::BindingPolicy.default_binding` —
-  # `"Memory"`, silently, when no hecksagon is registered under that
-  # name at all: `resolve` only raises `missing_binding` when a
-  # hecksagon exists for that domain and simply omits this aggregate).
-  # `qa/bluebook/quality_control.hecksagon` attaches `Governance` via
-  # `uses_framework` and never gives it that sibling hecksagon, so
-  # `Governance::RoleAssignment`/`RoleTransition` are Memory-backed —
-  # process-local — in the real ledger too, `concurrency` mode included.
-  # Racing a Memory-backed aggregate across two real OS processes is
-  # certain to "diverge" from the single-process sequential oracle: each
-  # racer's own boot gets its own empty Memory store, so a `creates?`
-  # command's own identity collision can never be seen by the other
-  # racer — not a broken lock, nothing to lock at all. This fixture
-  # reproduces the exact shape (a host domain attaching a framework
-  # member with no sibling hecksagon) without depending on qa/bluebook's
-  # own corpus staying any particular shape.
+  # Regression: `uses_framework "X"` loads a framework member's shape but not its persistence,
+  # so without a sibling `Hecks.hecksagon "X"` its aggregates default to Memory. Racing a
+  # Memory-backed aggregate across two processes always diverges from the oracle (each process
+  # has its own store), which is not a broken lock. This fixture reproduces that shape.
   context "with an aggregate attached via uses_framework but never given its own persistence binding", :io do
     CONCURRENT_DISPATCH_UNBOUND_SPEC_DATABASE = "hecks_concurrent_dispatch_unbound_spec".freeze
 
@@ -268,9 +207,8 @@ RSpec.describe Hecks::Fuzzing::ConcurrentDispatch do
       end
     RUBY
 
-    # 2.0: attaching Governance without this sibling refuses boot. Memory,
-    # not PostgresEra — RoleAssignment still is not shared across racers,
-    # which is the BUG#142 shape this example pins.
+    # Attaching Governance without this sibling refuses boot. Memory, not PostgresEra, so
+    # RoleAssignment stays unshared across racers, which is the shape this example pins.
     CONCURRENT_DISPATCH_UNBOUND_CONTEXT_MAP = InMemoryDomain::GOVERNANCE_MEMORY_HECKSAGON
 
     before(:all) do
@@ -302,18 +240,9 @@ RSpec.describe Hecks::Fuzzing::ConcurrentDispatch do
                     "scope" => { "value" => scope }, "starts_at" => starts_at } }
     end
 
-    # **The false positive itself** — the identical pair, dispatched
-    # sequentially with no contention (the oracle), correctly settles as
-    # `["succeeded", "refused"]`: a `creates?` command's second dispatch
-    # under the same identity is a genuine `AlreadyExists`, and that
-    # works fine within one process's own Memory store. The "concurrent"
-    # pair, raced across two real OS processes, settles as
-    # `["succeeded", "succeeded"]` — not because any write lock failed
-    # to serialize them, but because each racer process boots its own
-    # independent, empty Memory-backed `RoleAssignment` store that never
-    # shares anything with the other. `check` reports this as a
-    # `concurrency_race` today; it should never have picked this
-    # aggregate as a race candidate at all.
+    # The oracle settles this pair as `["succeeded", "refused"]` (AlreadyExists within one
+    # Memory store); raced across two processes it settles `["succeeded", "succeeded"]`
+    # because each boots its own empty store. `check` should never pick this aggregate.
     it "reports a spurious concurrency_race today — racing an aggregate with no shared persistence guarantees one" do
       steps = [assign_step("golf", "Governance administrator", "bravo", "echo")]
 

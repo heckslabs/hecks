@@ -2,21 +2,9 @@ require "spec_helper"
 require_relative "support/doctest"
 require_relative "support/doctest_names"
 
-# A ```ruby skip FENCE IS AN EXAMPLE THAT LEFT THE SUITE — shown to the
-# reader, never run (spec/support/doctest.rb), so nothing notices the day
-# it stops being true. Some are honest (a Rails controller, an adapter
-# skeleton with `...` bodies); none is checked. This ratchet keeps the
-# count from growing and makes every conversion to a real fence stick:
-#
-#   - a file over its cap fails: turn the new fence into a running one
-#     (```ruby, or ```ruby boot with a hidden doctest:boot setup);
-#   - a file under its cap fails too: lower the cap to the new count, so
-#     the fence you just converted can't quietly come back;
-#   - a file with no entry has a cap of zero.
-#
-# Scope is exactly what the doctest gate parses (DoctestNames.all: the
-# guides, README.md and the DSL reference) — a skip fence means "not run"
-# only where the rest of the file is run.
+# Ratchet on ```ruby skip fences: they are shown but never run, so nothing notices when they rot.
+# Over the cap: make the fence run. Under the cap: lower it. No entry means a cap of zero.
+# Scope is what the doctest gate parses (DoctestNames.all).
 RSpec.describe "```ruby skip fences in executable documentation" do
   SKIP_FENCE_CAPS = {
     "README.md"                                                => 5,

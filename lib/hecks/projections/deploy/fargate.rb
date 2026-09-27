@@ -8,109 +8,8 @@ require_relative "fargate/assembly"
 module Hecks
   module Projections
     module Deploy
-      # The AWS Fargate deploy target. An export
-      # (`Projector::Target#projects_as`'s own `needs_world: true`), the
-      # same shape `Lambda` is — it reads a domain's own
-      # `deployed_to("AwsFargate")` `.world` settings, not only its
-      # declaration.
-      #
-      # `bin/project_deploy` finds and boots the domain's own chapter and
-      # its `.world`/`.hecksagon` bindings, calls this through
-      # `Projector.call(:aws_fargate, bluebook:, options:, world:)`, and
-      # writes the returned tree.
-      #
-      # ## What this generates
-      #
-      # A plain CloudFormation stack — an `AWS::ECR::Repository`, an
-      # `AWS::ECS::TaskDefinition` (`RequiresCompatibilities: [FARGATE]`,
-      # `NetworkMode: awsvpc`) running one container built from the
-      # domain's own `rust/host`, an `AWS::ECS::Service` behind an
-      # Application Load Balancer fronted by an `AWS::CloudFront::
-      # Distribution` (real HTTPS, and a `DefaultCacheBehavior` pinned to
-      # Managed-CachingDisabled — see that resource's own comment for
-      # why nothing more permissive is a safe default here), and
-      # least-privilege task execution/task roles — plus the same private
-      # VPC/RDS-or-Aurora instance and temporary era-minting bastion
-      # `Lambda` generates, via `Shared`.
-      #
-      # No SAM: this is deployed with plain `aws cloudformation deploy`,
-      # never `sam deploy`, so there is no `samconfig.toml` here. A
-      # `Dockerfile` packages `rust/host`'s own compiled binary — built by
-      # the generated Makefile before `docker build` ever runs, the same
-      # "build outside the container, ship the artifact" shape a
-      # tebako-pressed Ruby binary's Dockerfile already uses.
-      #
-      # ## What this assumes, and does not build
-      #
-      # `rust/host` runs as a long-lived HTTP server on this domain's own
-      # `port` here, not as a Lambda custom-runtime process (`bootstrap`,
-      # `Lambda`'s own binary): `HECKS_SERVE_MODE: "1"` (below, in
-      # `ContainerDefinitions[0].Environment`) is `rust/host/src/main.rs`'s
-      # own top-of-`main` switch into `server.rs`'s axum-based server,
-      # which answers this stack's own `GET /` health check with a bare,
-      # dispatch-free `200` and routes every other request through the
-      # same per-invocation dispatch logic the Lambda target's `bootstrap`
-      # binary already runs — see `server.rs`'s own header for the
-      # concurrency reasoning (the boot-time Postgres client is already
-      # `Arc<Mutex<...>>`-shared, and already anticipated exactly this,
-      # per `dispatch.rs`'s own comment on `handle`'s locking).
-      #
-      # Sidecars and ARM64 are generated, not assumed: the Dockerfile
-      # COPYs `#{domain_name}.wasm`/`.ir.json` next to the host binary,
-      # the task sets `HECKS_WASM_PATH`/`HECKS_IR_PATH`, RuntimePlatform
-      # is ARM64, and the Makefile cross-compiles with
-      # aarch64-unknown-linux-gnu (plus the GNU cross-linker on macOS).
-      # A Shared-mode ALB sits in OwningPublicSubnetAId/BId — the private
-      # pair is unreachable from the internet (found live on a
-      # shared-database stack). SessionSecret is always minted: HECKS_SERVE_MODE
-      # always runs web.rs, which panics on an empty SESSION_SECRET.
-      #
-      # ## Settings beyond the baseline
-      #
-      # `region`, `cpu`, `memory`, `port`, `database`, `web`, `stack_name`, `stack_prefix`,
-      # `schema`, `desired_count`, `owner` and `owner_stack` are the baseline settings. A world
-      # that sets none of the keys below renders the single-container stack described above,
-      # unchanged. Each key is optional, checked before anything is rendered, and refused with its
-      # own name when malformed; the module named beside it holds the full shape.
-      #
-      # - `domain_container`: renames the domain container, its repository, image-tag parameter
-      #   and health path (`Containers`).
-      # - `containers`: adds containers to the same task, each with a repository, port, health
-      #   path, environment and secrets (`Containers`).
-      # - `default_container`: the container the listener forwards to when no route matches
-      #   (`Containers`).
-      # - `routes`: sends path patterns to a container through listener rules, with priorities
-      #   (`Containers`).
-      # - `logical_ids`: fixes the logical id of each resource so an existing stack's ids are
-      #   reproduced (`Settings`).
-      # - `names`: fixes the AWS name of the cluster, log group, service, load balancer, task
-      #   family, the load balancer's security group description, and the task role's database
-      #   policy name (`Settings`).
-      # - `cdn`: aliases, certificate, behaviors and cache policies, an origin secret header,
-      #   S3 origins and retention (`Cdn`).
-      # - `alerts`: a `SNS` topic, an email subscription, alarms and a synthetic check
-      #   (`Monitoring`).
-      # - `buckets`, `generated_secrets` and `session_secret`: extra S3 buckets, generated
-      #   secrets and the session secret's name (`Extras`).
-      # - `task_policies` and `execution_policies`: extra IAM policies on the task role and the
-      #   execution role (`Extras`).
-      # - `parameters` and `outputs`: extra template parameters and outputs (`Extras`).
-      # - `execute_command`: enables `aws ecs execute-command` and grants the task role its SSM
-      #   actions (`Settings`).
-      # - `health_check_grace_period`: seconds `ECS` ignores failing health checks after a task
-      #   starts (`Settings`).
-      # - `deregistration_delay`: seconds a target group drains a target (`Settings`).
-      # - `desired_count_parameter`: makes the desired count a template parameter (`Settings`).
-      # - `domain_env`: extra environment for the domain container; a name the generator sets
-      #   is replaced, and a nil value removes it (`Settings`).
-      # - `execution_role_database_grant`: false leaves the database secret out of the execution
-      #   role (`Settings`).
-      # - `install_dir` and `build_context_dir`: where the Dockerfile installs the host and its
-      #   sidecars, and where it copies them from (`Settings`).
-      # - `db_name_parameter`: for `database "Shared"`, a parameter naming the shared database
-      #   (`Settings`).
-      #
-      # Per-branch preview stacks and the deploy and smoke scripts are not generated here.
+      # The AWS Fargate deploy target for `deployed_to("AwsFargate")`: renders a
+      # CloudFormation stack (ECR, ECS, ALB, CloudFront) plus the shared VPC/RDS `Shared` builds.
       module Fargate
         extend Projector::Target
 
@@ -118,20 +17,13 @@ module Hecks
 
         module_function
 
-        # Generates `template.yaml`, `Makefile`, `Dockerfile`, and (unless
-        # this domain borrows another domain's RDS instance)
-        # `bastion.yaml` for one domain's `deployed_to("AwsFargate")`
-        # deploy target.
+        # Generates `template.yaml`, `Makefile`, `Dockerfile`, and — unless
+        # this domain borrows another domain's RDS instance — `bastion.yaml`.
         #
-        # @param bluebook [Bluebook::Behaviour::Chapter] the domain's own booted chapter;
-        #   establishes admission, see `Lambda.call`'s own comment on why generation
-        #   itself reads `options[:cross_domain_registry]` instead
-        # @param options [Hash] generation options — see `Lambda.call`'s own `@option`
-        #   tags; identical shape, this target reads the same keys
-        # @return [Hash{String => String}] `"template.yaml"`, `"Makefile"`, `"Dockerfile"`,
-        #   and — unless this domain declares `database "Shared"` — `"bastion.yaml"`
-        # @raise [ArgumentError] if the domain's own deploy settings conflict, or
-        #   `deploy.bluebook`'s own `FargateTarget.Declare` refuses them
+        # @param bluebook [Bluebook::Behaviour::Chapter] the domain's own booted chapter
+        # @param options [Hash] generation options; same shape as `Lambda.call`'s
+        # @return [Hash{String => String}] the generated file contents, keyed by filename
+        # @raise [ArgumentError] if the domain's deploy settings conflict
         def call(bluebook:, options: {})
           world                 = options.fetch(:world)
           domain                = options.fetch(:domain_dir)
@@ -145,8 +37,7 @@ module Hecks
 
           deploy_settings = world.for_verb("deployed_to")
 
-          # Same override `Lambda.call` applies, for the same reason — see
-          # that method's own comment.
+          # Same tenant override `Lambda.call` applies; see that method's comment.
           if tenant_options[:tenant]
             base_stack_name = deploy_settings[:stack_name] || domain_name
             deploy_settings = deploy_settings.merge(stack_name: "#{base_stack_name}-#{tenant_options[:tenant]}",
@@ -185,11 +76,9 @@ module Hecks
           aurora   = database == "Aurora"
           shared   = database == "Shared"
           rust_web = target.state[:web].value == "Rust"
-          # Same file-presence convention Lambda uses: `.env.local` is the
-          # domain's own gitignored secrets file; `make sync-google-oauth`
-          # (Lambda) owns the secret's lifecycle. Fargate only needs to
-          # *declare* GOOGLE_OAUTH_SECRET_ID + a redirect URI parameter —
-          # the secret itself is never a stack resource.
+          # Same `.env.local` convention `Lambda` uses; `make sync-google-oauth`
+          # owns the secret's lifecycle. Fargate only declares
+          # GOOGLE_OAUTH_SECRET_ID — the secret itself is never a stack resource.
           google_oauth_present = rust_web &&
                                  File.exist?(File.join(domain, ".env.local")) &&
                                  File.read(File.join(domain, ".env.local")).match?(/^GOOGLE_CLIENT_ID=\S/)
@@ -201,12 +90,9 @@ module Hecks
             chapter.policies.select(&:target_domain).map(&:target_domain)
           }.uniq.sort
 
-          # **The storehouse** — identical borrowing `Lambda.call` supports for
-          # `database "Shared"`; see that method's own comment for the full
-          # reasoning. `owner`/`owner_stack` stay Ruby-level `deploy_settings`
-          # reads, never validated `FargateTarget` attributes, for the same
-          # reason: which domain owns the shared instance is a deploy-time
-          # wiring fact, not a business invariant.
+          # Same "Shared" borrowing `Lambda.call` supports; see that method's
+          # comment. `owner`/`owner_stack` stay plain `deploy_settings` reads,
+          # never validated attributes — ownership is a deploy-time wiring fact.
           if shared
             owner_domain_name = deploy_settings[:owner] or raise ArgumentError, <<~MSG
               #{world_file}'s deployed_to("AwsFargate") declares database "Shared" but no owner. Add one, e.g.:
@@ -254,25 +140,14 @@ module Hecks
           secret_intrinsic  = aurora ? "!Ref #{db_id}Secret" : "!GetAtt #{db_ref_id}.MasterUserSecret.SecretArn"
           db_secret_ref     = shared ? "OwningDatabaseSecretArn" : secret_sub
 
-          # A Fargate service is reached through an Application Load
-          # Balancer sitting in a public subnet, not invoked directly the
-          # way a Lambda Function URL is — this domain always needs real
-          # internet-facing infrastructure (the `ALB`'s own ingress, and
-          # egress for an `ECR` image pull/CloudWatch Logs/Secrets Manager),
-          # unlike `Lambda`'s own NAT Gateway, which is opt-in
-          # (`google_oauth_present`) because a plain dispatch Lambda needs
-          # no internet access at all. `Shared.vpc_and_database_yaml`'s
-          # `google_oauth_present:` parameter is exactly this "does this
-          # domain need its own NAT Gateway/public subnet" question,
-          # unconditionally true here.
+          # Always true here: unlike Lambda's opt-in NAT Gateway, a Fargate task
+          # always needs internet-facing infra (ALB ingress, ECR/Logs/Secrets
+          # egress), so `Shared.vpc_and_database_yaml`'s NAT Gateway is unconditional.
           network_needs_internet = true
 
-          # Never created at all when `shared` — the compute-side security
-          # group `Shared.vpc_and_database_yaml` would otherwise declare is
-          # skipped along with the rest of this domain's own VPC (same as
-          # `Lambda.call`'s own Shared-mode `VpcConfig`); the `ECS` task and
-          # the `ALB`-ingress rule both reach through the borrowed owner's
-          # own security group instead.
+          # Never created when `shared` — this domain's own VPC (and its compute
+          # security group) is skipped entirely; the task and ALB-ingress rule
+          # reach through the borrowed owner's security group instead.
           compute_security_group_ref = shared ? "!Ref OwningSecurityGroupId" : "!Ref #{ids[:compute_prefix]}SecurityGroup"
 
           # `logical_id` stays the derived name in prose (descriptions, comments);
@@ -321,10 +196,9 @@ module Hecks
               Type: String
               Default: ""
           OAUTHPARAMS
-          # Built outside the template heredoc so Layout/HeredocIndentation
-          # cannot re-indent YAML that must match SessionSecretRead / env.
-          # First interpolated line sits at the `\#{...}` column; later lines
-          # get that same left pad (lambda.rb's own `OAUTHPOLICY` pattern).
+          # Built outside the heredoc so re-indenting the template can't shift
+          # this YAML out of sync with SessionSecretRead/env — same pattern
+          # as `Lambda`'s own `OAUTHPOLICY`.
           oauth_task_policy_yaml = google_oauth_present ? <<~OAUTHPOLICY.rstrip : ""
             - PolicyName: GoogleOauthSecretRead
               PolicyDocument:
@@ -666,25 +540,13 @@ module Hecks
               # TMPL:extra_outputs
           YAML
 
-          # Spliced in after the heredoc renders, not interpolated inside
-          # it — `Lambda.call`'s own comment on `# TMPL:cross_domain_lambda_policies`
-          # explains why: a `<<~` heredoc's own dedent is computed from its
-          # raw source, before any `#{...}` evaluates, so a multi-line
-          # value substituted in at runtime is not reindented by the
-          # enclosing heredoc a second time — hand-computing a matching
-          # prefix in advance drifts out of sync the moment anything
-          # upstream shifts this template's own baseline indentation
-          # (confirmed the hard way, writing this: the first version
-          # hardcoded the raw source column instead of the marker's own
-          # actual rendered one, and every subsequent line landed twice as
-          # deep as it should have). A plain `String#sub` after the fact,
-          # capturing the marker's own real indentation, has no such
-          # interaction with the text it replaces into.
+          # Spliced in after the heredoc renders, not interpolated inside it —
+          # `<<~` dedents from raw source before `#{...}` evaluates, so a
+          # multi-line value can't be reindented a second time by the heredoc.
           template_yaml = template_yaml.sub(/^([ \t]*)# TMPL:db_env\n/) { db_env_yaml(shared: shared, owner_db_name: owner_db_name, db_ref_id: db_ref_id, db_name: db_name, secret_sub: secret_sub, hecks_schema: hecks_schema, db_name_ref: db_name_ref, base: $1) }
-          # A multi-line block is indented by the marker's own rendered column, never a
-          # hand-computed one: the heredoc above is dedented after its interpolations
-          # evaluate, so a column counted in the source ran twelve too deep and made the
-          # Google sign-in blocks invalid YAML.
+          # Indented by the marker's own rendered column, never a hand-computed
+          # one — the heredoc dedents after interpolation, so a source-counted
+          # column lands at the wrong depth.
           template_yaml = Yaml.splice(template_yaml, "oauth_task_policy", "#{oauth_task_policy_yaml}\n")
           template_yaml = Yaml.splice(template_yaml, "oauth_task_env", "#{oauth_task_env_yaml}\n")
           template_yaml = template_yaml.sub(/^([ \t]*)# TMPL:cross_domain_fargate_policies\n/) {
@@ -877,27 +739,8 @@ module Hecks
                                       stack_name: stack_name, region: region)
         end
 
-        # Renders the container's own `DB_HOST`/`DB_NAME`/`DB_SECRET_ARN`
-        # (and, when set, `HECKS_SCHEMA`) `Environment` entries — the
-        # borrowed-owner values for a Shared-mode domain, this domain's
-        # own RDS/Aurora endpoint otherwise. See `call`'s own comment on
-        # `# TMPL:db_env` for why this is spliced in after the enclosing
-        # template renders, not interpolated inline.
-        #
-        # @param shared [Boolean] whether this domain borrows another domain's
-        #   RDS instance
-        # @param owner_db_name [String, nil] the owning domain's own database name,
-        #   used only when `shared`
-        # @param db_ref_id [String] the logical id `.Endpoint` resolves against
-        # @param db_name [String] this domain's own database identifier
-        # @param secret_sub [String] the `${...}`-ready identifier for this domain's
-        #   own database secret
-        # @param hecks_schema [String, nil] the Postgres schema to set, or nil for none
-        # @param db_name_ref [String, nil] an intrinsic (such as `!Ref Param`) that names the shared
-        #   database in place of `owner_db_name`, or nil to write the name itself
-        # @param base [String] the marker line's own rendered indentation whitespace
-        # @return [String] the rendered `ContainerDefinitions[0].Environment` entries,
-        #   ending in exactly one trailing newline
+        # Renders DB_HOST/DB_NAME/DB_SECRET_ARN — spliced in after `call`'s
+        # template heredoc renders; see its `# TMPL:db_env` comment for why.
         def db_env_yaml(shared:, owner_db_name:, db_ref_id:, db_name:, secret_sub:, hecks_schema:, base:, db_name_ref: nil)
           lines =
             if shared
@@ -924,19 +767,9 @@ module Hecks
           lines.map { |line| "#{base}#{line}" }.join("\n") + "\n"
         end
 
-        # Renders the cross-domain policy's own least-privilege invoke
-        # grant as a plain `AWS::IAM::Role` `Policies` list entry — the
-        # `PolicyName`/`PolicyDocument` shape that resource type requires,
-        # unlike the bare `{Statement: [...]}` shorthand
-        # `Shared.cross_domain_invoke_policy_yaml` renders for SAM's own
-        # `AWS::Serverless::Function.Policies` property. Not called at all
-        # when `targets` is empty — see `call`'s own `# TMPL:cross_domain_fargate_policies`
-        # splice.
-        #
-        # @param targets [Array<String>] the domain names this stack's `across:` targets
-        #   declare
-        # @param base [String] the marker line's own rendered indentation whitespace
-        # @return [String] one `Policies` list entry, ending in exactly one trailing newline
+        # Renders one `AWS::IAM::Role` `Policies` entry per cross-domain target —
+        # the shape that resource type requires, unlike the bare shorthand
+        # `Shared.cross_domain_invoke_policy_yaml` renders for SAM.
         def cross_domain_fargate_policy_yaml(targets, base)
           resources = targets.map { |target|
             "#{base}          - !Sub \"arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:hecks-#{target.downcase}\""

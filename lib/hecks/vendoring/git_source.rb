@@ -4,14 +4,8 @@ require_relative "git_environment"
 
 module Hecks
   module Vendoring
-    # A local git repository read through the `git` executable, never through
-    # its working tree.
-    #
-    # Everything here names a commit and reads what that commit holds, so a
-    # shared checkout with uncommitted edits, or a different branch checked
-    # out, cannot leak into what gets vendored. Every command runs under
-    # {GitEnvironment.clean}, so a `GIT_DIR` inherited from a hook cannot
-    # redirect it to some other repository.
+    # Reads one commit of a local git repository via the `git` executable,
+    # under {GitEnvironment.clean} so an inherited `GIT_DIR` can't redirect it.
     class GitSource
       # @param path [String] a directory that is a git repository (or a
       #   worktree of one)
@@ -57,8 +51,8 @@ module Hecks
 
       # Lists the files directly inside a directory of a commit.
       #
-      # Subdirectories are left out on purpose: a vendored package carries the
-      # top-level files of its subtree and nothing nested beneath.
+      # Subdirectories are excluded on purpose; only the subtree's own
+      # top-level files are vendored.
       #
       # @param ref [String] the commit-ish to read from
       # @param subtree [String] a repository-relative directory, such as `"payments/bluebook"`

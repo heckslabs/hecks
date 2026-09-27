@@ -1,21 +1,9 @@
 require "hecks"
 require "hecks/ports/persistence/plugins/era"
 
-# H5 (docs/audits/2026-08-10-main-bug-audit.md) — a dotted-member compute
-# (`price.cents`) exempting the whole top-level attribute (`price`) from
-# Layer 2's cross-execution equivalence gate would happen because
-# `compute_tops` collapses every compute path down to its first
-# `.`-segment before rejecting it from both sides of the comparison. A
-# migration that silently nulled or dropped a sibling member of the same
-# value object (`price.currency`, never touched by the compute at all)
-# would then produce zero violations — exactly the data loss this gate
-# exists to catch.
-#
-# These specs drive `Audit.layer_two!` directly, with plain Ruby
-# declared-rule objects and before/after hashes — no Postgres involved.
-# Layer 2 is pure in-process comparison; the SQL-execution half of a
-# compute rule is exercised separately in
-# spec/adapters/driven/postgres_era/lineage_spec.rb.
+# Pins that a dotted compute (`price.cents`) does not exempt the whole `price` attribute
+# from Layer 2's equivalence gate, which would hide a dropped `price.currency`.
+# Pure in-process comparison; no Postgres.
 RSpec.describe "Layer 2's cross-execution equivalence gate and dotted-member computes" do
   Aggregate = Struct.new(:name) unless defined?(Aggregate)
 
@@ -44,15 +32,11 @@ RSpec.describe "Layer 2's cross-execution equivalence gate and dotted-member com
     declared = declared_with_compute(from: "price.cents", to: "price.cents")
     before = { "p1" => { "price" => { "cents" => 100, "currency" => "USD" } } }
 
-    # the compute legitimately recomputes "price.cents" — that alone must
-    # not be flagged, the SQL is its only implementation
+    # recomputing "price.cents" alone must not be flagged; the SQL is its implementation
     recomputed_only = { "p1" => { "price" => { "cents" => 1, "currency" => "USD" } } }
     expect(violations_for(declared, before, recomputed_only)).to be_empty
 
-    # but a migration that silently nulls the sibling member the compute
-    # never touches is real, undeclared data loss — this is the bug: it
-    # would produce zero violations if the whole "price" top-level key
-    # were exempted along with "price.cents"
+    # a migration nulling the sibling member the compute never touches is real data loss
     sibling_nulled = { "p1" => { "price" => { "cents" => 1, "currency" => nil } } }
     violations = violations_for(declared, before, sibling_nulled)
 

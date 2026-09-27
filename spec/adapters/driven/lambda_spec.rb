@@ -1,17 +1,14 @@
 require "hecks"
 require "hecks/adapters/driven/lambda"
 
-# `Lambda#initialize`'s own settings parsing — `Client.new` is stubbed so
-# these specs never require live AWS credentials or a real function to
-# invoke; each proves the fixed `key?`-gated settings read, not the AWS
-# transport.
+# Client.new is stubbed so these specs never require live AWS credentials
+# or a real function to invoke; each checks the key?-gated settings read.
 RSpec.describe Hecks::Adapters::Lambda do
   let(:aggregate) { boot_in_memory.registry.bluebook("Pizzas").aggregate("Order") }
 
-  # `settings[:region] || settings["region"] || "us-east-1"` would coerce
-  # a genuinely stored `false` at :region into the "us-east-1" fallback —
-  # indistinguishable from :region being absent entirely — which is why
-  # `setting` reads it `key?`-gated instead.
+  # settings[:region] || settings["region"] || "us-east-1" would coerce a
+  # stored `false` into the fallback, indistinguishable from :region being
+  # absent — hence the key?-gated read.
   it "reads a `false`-valued :region setting back as itself, not the \"us-east-1\" fallback" do
     # rubocop:disable-next RSpec/StubbedMock -- the args passed to Client.new
     # are the assertion (the false/absent :region distinction); `allow`
@@ -34,12 +31,8 @@ RSpec.describe Hecks::Adapters::Lambda do
     described_class.new(aggregate: aggregate, settings: {})
   end
 
-  # A deployment whose function isn't `hecks-<domain>` — a `.world`'s own
-  # `stack_prefix`/`stack_name` can name a stack that predates a rename,
-  # and nothing downstream of that could be told about it without this
-  # pass-through. Found live: a real project deploys as `legacy-order-service`,
-  # so every Ruby-side read and dispatch for it had been invoking a
-  # function that does not exist.
+  # A .world's own stack_prefix/stack_name can name a function that predates
+  # a rename, so the setting must pass straight through unmodified.
   it "passes a :function setting straight through to the client" do
     # rubocop:disable-next RSpec/StubbedMock -- the args passed to Client.new
     # are the assertion.

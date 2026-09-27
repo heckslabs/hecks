@@ -1,14 +1,10 @@
 #!/usr/bin/env ruby
 
-# Prints a booted domain's IR as JSON — the same `to_h` the golden
-# specs pin and StorageShape hashes into an era, for reading rather
-# than asserting on.
+# Prints a booted domain's IR as JSON — the same `to_h` golden specs
+# and StorageShape pin into an era.
 #
 #   bin/ir <domain> [--translations]
 #   bin/ir --meta                     the self-hosted language's own IR
-
-# The logic is `Hecks::CLI::Ir` (lib/hecks/cli/ir.rb), which
-# `hecks ir` also runs.
 
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
 require "hecks/cli/ir"

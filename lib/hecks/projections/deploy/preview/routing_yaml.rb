@@ -5,11 +5,8 @@ module Hecks
   module Projections
     module Deploy
       module Preview
-        # The network edge of a preview stack: security groups, target groups, the
-        # load balancer, its listener rules and the service that registers the containers.
-        #
-        # A container is reachable when it is the default or owns a path. Paths are
-        # split into rules of at most five, the most a load balancer condition holds.
+        # The network edge of a preview stack: security groups, load balancer and service.
+        # Paths are sliced into rules of at most five, the most a condition holds.
         module RoutingYaml
           CLOUDFRONT_PREFIX_LIST = "pl-3b927c52".freeze
           PATHS_PER_RULE = 5
@@ -22,10 +19,6 @@ module Hecks
 
           module_function
 
-          # Renders the load balancer's security group and one ingress rule per routed container.
-          #
-          # @param settings [Settings] the resolved preview settings
-          # @return [Array<String>] the resource blocks
           def networking(settings)
             ingress = settings.containers.select(&:routed?).map do |c|
               <<~YAML.chomp
@@ -42,10 +35,6 @@ module Hecks
             [alb_security_group(settings), "#{INGRESS_NOTE}\n#{ingress.join("\n\n")}"]
           end
 
-          # Renders the load balancer's security group, open to CloudFront's prefix list only.
-          #
-          # @param settings [Settings] the resolved preview settings
-          # @return [String] the resource block
           def alb_security_group(settings)
             <<~YAML.chomp
               AlbSecurityGroup:
@@ -62,19 +51,11 @@ module Hecks
             YAML
           end
 
-          # Renders the target groups, the load balancer, its listener and the path rules.
-          #
-          # @param settings [Settings] the resolved preview settings
-          # @return [Array<String>] the resource blocks
           def load_balancing(settings)
             routed = settings.containers.select(&:routed?)
             [*routed.map { |c| target_group(c) }, alb(settings), listener(settings), *listener_rules(settings)]
           end
 
-          # Renders the target group of one routed container.
-          #
-          # @param container [Containers::Entry] the container
-          # @return [String] the resource block
           def target_group(container)
             <<~YAML.chomp
               #{container.logical}TargetGroup:
@@ -89,10 +70,6 @@ module Hecks
             YAML
           end
 
-          # Renders the internet-facing application load balancer.
-          #
-          # @param settings [Settings] the resolved preview settings
-          # @return [String] the resource block
           def alb(settings)
             <<~YAML.chomp
               Alb:
@@ -106,10 +83,7 @@ module Hecks
             YAML
           end
 
-          # Renders the port 80 listener, whose default action goes to the default container.
-          #
-          # @param settings [Settings] the resolved preview settings
-          # @return [String] the resource block
+          # The default action goes to the default container.
           def listener(settings)
             <<~YAML.chomp
               Listener:
@@ -124,11 +98,6 @@ module Hecks
             YAML
           end
 
-          # Lists the listener rules to render: a non-default container's paths, sliced to
-          # fit one condition.
-          #
-          # @param settings [Settings] the resolved preview settings
-          # @return [Array<Hash{Symbol => Object}>] entries with `:container`, `:paths` and `:id`
           def rule_specs(settings)
             settings.containers.reject(&:default).select(&:routed?).flat_map do |c|
               c.paths.each_slice(PATHS_PER_RULE).with_index.map do |slice, n|
@@ -137,19 +106,11 @@ module Hecks
             end
           end
 
-          # Renders every listener rule, with priorities counting up in tens.
-          #
-          # @param settings [Settings] the resolved preview settings
-          # @return [Array<String>] the resource blocks
+          # Priorities count up in tens.
           def listener_rules(settings)
             rule_specs(settings).each_with_index.map { |spec, i| listener_rule(spec, (i + 1) * 10) }
           end
 
-          # Renders one listener rule.
-          #
-          # @param spec [Hash{Symbol => Object}] one entry of `rule_specs`
-          # @param priority [Integer] the rule's listener priority
-          # @return [String] the resource block
           def listener_rule(spec, priority)
             <<~YAML.chomp
               #{spec[:id]}:
@@ -166,17 +127,8 @@ module Hecks
             YAML
           end
 
-          # Names one listener rule's logical id.
-          #
-          # @param container [Containers::Entry] the container the rule forwards to
-          # @param slice [Integer] the zero-based index of the rule among that container's rules
-          # @return [String] the logical id
           def rule_id(container, slice) = "ListenerRule#{container.logical}#{slice + 1}"
 
-          # Renders the service, which registers every routed container with its target group.
-          #
-          # @param settings [Settings] the resolved preview settings
-          # @return [String] the resource block
           def service(settings)
             rule_ids = rule_specs(settings).map { |spec| spec[:id] }
             <<~YAML.chomp
@@ -200,10 +152,6 @@ module Hecks
             YAML
           end
 
-          # Renders the service's load balancer registrations.
-          #
-          # @param settings [Settings] the resolved preview settings
-          # @return [String] one list entry per routed container
           def service_load_balancers(settings)
             settings.containers.select(&:routed?).map do |c|
               "- ContainerName: #{c.name}\n  ContainerPort: #{c.port}\n  TargetGroupArn: !Ref #{c.logical}TargetGroup"

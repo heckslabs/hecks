@@ -1,16 +1,5 @@
-//! Port of `lib/hecks/literal.rb`'s `Literal.read` (the exact inverse
-//! of `Literal.render`) — the "one spelling for a captured Ruby literal on
-//! the wire" this crate needs to invert wherever `rust/project/mutations.rb`
-//! /`reactions.rb`/`queries.rb` call `Hecks::Bluebook::Assembly::
-//! Marks.read`/`Hecks::Literal.read` on a Literal-rendered wire string
-//! (an append mutation's `fields` values, a process manager's `with_spec`
-//! values, a where-clause/limit's own value). Not needed for
-//! `classified_source`'s own `literal.value` — that field is embedded raw
-//! (never `Literal.render`'d), so it arrives in ir.json already JSON-native
-//! and is read via `Literal::from_json` instead, never `Literal::read`.
-//!
-//! Mirrors `literal.rb`'s own `read`/`read_hash`/`read_array`/`split_items`/
-//! `unquote`/`quoted?` directly, node for node.
+//! Port of `Literal.read` from `lib/hecks/literal.rb`, the inverse of `Literal.render`.
+//! `Literal::from_json` covers values embedded raw in ir.json, which were never rendered.
 
 use crate::json::Json;
 
@@ -20,9 +9,7 @@ pub enum Literal {
     Bool(bool),
     Int(i64),
     Float(f64),
-    /// A Symbol — the one thing a raw `Json` value can never represent
-    /// (JSON has no Symbol type); only ever produced by `read`, matching
-    /// `raw[1..].to_sym` for a leading-colon wire string.
+    /// A Symbol, which JSON cannot represent; only `read` produces one (leading-colon strings).
     Symbol(String),
     Str(String),
     Hash(Vec<(String, Literal)>),
@@ -30,10 +17,7 @@ pub enum Literal {
 }
 
 impl Literal {
-    /// `source[:value]` (classified_source's own literal branch) — embedded
-    /// raw, never `Literal.render`'d, so this converts the already-typed
-    /// `Json` value structurally, with no text re-parsing and no Symbol
-    /// case (a raw JSON value is never a Symbol).
+    /// Converts a raw `Json` value structurally, with no text parsing and no Symbol case.
     pub fn from_json(value: &Json) -> Literal {
         match value {
             Json::Null => Literal::Nil,
@@ -58,10 +42,9 @@ impl Literal {
     }
 }
 
-/// `Literal.read`/`Marks.read` — a Literal-rendered wire string, parsed
-/// back to a typed `Literal`. Tolerant of a bare word on purpose (mirrors
-/// Ruby's own comment: falls through to a plain `Str` for anything that
-/// doesn't match a more specific shape).
+/// `Literal.read`: parses a rendered wire string back to a `Literal`.
+///
+/// Anything not matching a more specific shape, including a bare word, becomes a `Str`.
 pub fn read(text: &str) -> Literal {
     let raw = text.trim();
     if raw.is_empty() || raw == "nil" {
@@ -116,9 +99,7 @@ fn is_quoted(raw: &str) -> bool {
     raw.len() >= 2 && raw.starts_with('"') && raw.ends_with('"')
 }
 
-/// `raw[1..-2].gsub(/\\(.)/) { last_match(1) }` — drop the surrounding
-/// quotes, then unescape any backslash-escaped character (any character,
-/// not just `"`/`\`, matching the Ruby regex's own generality).
+/// Drops the surrounding quotes, then unescapes any backslash-escaped character.
 fn unquote(raw: &str) -> String {
     let inner = &raw[1..raw.len() - 1];
     let mut out = String::with_capacity(inner.len());
@@ -140,10 +121,7 @@ fn read_hash(raw: &str) -> Literal {
     let pairs = split_items(inner)
         .into_iter()
         .map(|item| {
-            // `item.partition(":")` — split at the first ":" only, not
-            // quote/nesting-aware (a field name never contains one, so a
-            // plain byte search is exactly what Ruby's own `partition`
-            // does here).
+            // Splits at the first ":" only, like Ruby's `partition`; field names have none.
             match item.find(':') {
                 Some(idx) => {
                     let key = item[..idx].trim().to_string();
@@ -162,10 +140,7 @@ fn read_array(raw: &str) -> Literal {
     Literal::Array(split_items(inner).into_iter().map(|item| read(&item)).collect())
 }
 
-/// `naming.rb#literal_rhs`, ported for a `Literal` value instead of a raw
-/// `Json` — needed because a literal Hash's own per-field values (read via
-/// `read_hash`, above) are `Literal`s, not `Json`s. Same four cases, same
-/// panic on anything else.
+/// `naming.rb#literal_rhs` for a `Literal`: String/Integer/Float/Boolean, else panics.
 pub fn literal_rhs(literal: &Literal) -> String {
     match literal {
         Literal::Str(s) => format!("{}.to_string()", crate::naming::ruby_inspect_string(s)),
@@ -190,9 +165,7 @@ fn ruby_float_to_s(literal: &Literal) -> String {
     }
 }
 
-/// Split on the commas that are actually separators — never one inside a
-/// quoted string or a nested brace/bracket. Mirrors `Literal.split_items`
-/// exactly, including its own escape/quote/depth bookkeeping.
+/// Splits on commas outside quoted strings and nested braces/brackets.
 fn split_items(body: &str) -> Vec<String> {
     let mut items: Vec<String> = Vec::new();
     let mut current = String::new();

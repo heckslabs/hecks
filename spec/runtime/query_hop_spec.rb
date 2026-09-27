@@ -1,7 +1,7 @@
 require "spec_helper"
 
-# A dotted where hops through a reference — end to end, on Memory, the
-# same fixture single-hop, multi-hop, and self-referential.
+# A dotted where hops through a reference, end to end on Memory: single-hop, multi-hop and
+# self-referential.
 RSpec.describe "cross-aggregate query filtering" do
   HOP_CHAIN = File.join(InMemoryDomain::ROOT, "spec/fixtures/hop_chain.bluebook")
 
@@ -42,8 +42,7 @@ RSpec.describe "cross-aggregate query filtering" do
     runtime.dispatch_flat("HopChain::Proposal.Send", number: { value: "P-1" })
     runtime.dispatch_flat("HopChain::Proposal.Draft", engagement: "e-2", number: { value: "P-2" })
     runtime.dispatch_flat("HopChain::Proposal.Send", number: { value: "P-2" })
-    # No engagement at all — the command's own reference_to is optional
-    # precisely so this state is reachable through the door.
+    # No engagement: the command's `reference_to` is optional so this state is reachable.
     runtime.dispatch_flat("HopChain::Proposal.Draft", number: { value: "P-3" })
     runtime.dispatch_flat("HopChain::Proposal.Send", number: { value: "P-3" })
   end
@@ -69,12 +68,8 @@ RSpec.describe "cross-aggregate query filtering" do
     expect(ids("HopChain::Proposal.PricedAboveViaEngagement")).to eq(%w[P-1])
   end
 
-  # **The existential-negation case** — "not from an active client" must
-  # mean "points at a client that is churned," never "no client at
-  # all counts too." P-3 (no engagement) and P-1 (active client) both
-  # have to be excluded here, for different reasons, and neither may
-  # slip in through a comparator that quietly treats a missing
-  # reference as satisfying `ne`.
+  # "Not from an active client" means "points at a churned client", so P-3 (no engagement)
+  # and P-1 (active client) are both excluded; a nil reference must not satisfy `ne`.
   it "never lets a nil reference satisfy a negated hop clause" do
     expect(ids("HopChain::Proposal.SentButNotFromActiveClients")).to eq(%w[P-2])
   end
@@ -84,10 +79,7 @@ RSpec.describe "cross-aggregate query filtering" do
     expect(ids("HopChain::Proposal.SentButNotFromActiveClients")).not_to include("P-3")
   end
 
-  # **A self-referential chain, two hops deep** — proving the same
-  # aggregate type can appear twice in one chain without being refused
-  # as a "cycle." See spec/dsl_spec.rb for the seal-time proof that a
-  # chain revisiting a type builds cleanly; this is the runtime half.
+  # The same aggregate type may appear twice in one chain without being refused as a cycle.
   it "answers a hop chain that revisits the same aggregate type" do
     runtime.dispatch_flat("HopChain::Node.Plant", label: { value: "root" })
     runtime.dispatch_flat("HopChain::Node.Plant", parent: "root", label: { value: "child" })
@@ -96,11 +88,7 @@ RSpec.describe "cross-aggregate query filtering" do
     expect(ids("HopChain::Node.GrandparentLabelled", label: { value: "root" })).to eq(%w[grandchild])
   end
 
-  # Native (Runtime::ReferenceHop's fold) and reference (the naive
-  # per-row walk reference_call gives the fuzzer's oracle) must answer
-  # every hop query identically — the same differential proof
-  # spec/fuzzing exercises generatively, pinned here by hand for the
-  # specific cases above.
+  # The native fold (Runtime::ReferenceHop) and the naive per-row reference walk must agree.
   describe "native and reference answers agree" do
     %w[
       HopChain::Engagement.WithActiveClient

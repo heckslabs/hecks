@@ -2,62 +2,29 @@ Hecks.hecksagon "Banking" do
   uses_framework "Governance"
   uses_framework "Identity"
 
-  # Domain-level default — every aggregate below inherits both, no
-  # per-aggregate line needed. A genuine exception (like Embryonaut's
-  # `Member`) would still declare its own `Banking::Whatever.persisted_by(...)`
-  # override here; none of Banking's own aggregates need one.
+  # Domain-level default: every aggregate inherits both binds.
   persisted_by "Heki"
   projected_by "SqliteProjection"
 
-  # S13, ADR 0025 (coverage standard) — `subscribe` is declarative
-  # only (its own reference page says so plainly: nothing routes a
-  # subscribed event by itself), but the fact it names is real:
-  # Compliance really does emit this, across the same cross-Lambda
-  # boundary the two `across "Compliance"` policies below already
-  # cross, and Banking really does care when it happens. Whatever
-  # actually reacts is still one of those two `policy`s, wired the
-  # ordinary way — this line only records that the fact is expected
-  # to arrive from outside.
+  # Declarative only: records that Compliance emits this across the Lambda boundary.
+  # A policy below does the reacting (ADR 0025).
   subscribe "Compliance.AccountFreezeReviewOpened"
 end
 
-# A FRAMEWORK MEMBER BRINGS ITS OWN SHAPE, NOT ITS OWN PERSISTENCE —
-# `Framework.load!` (`uses_framework`, above) only loads the bluebook.
-# Binding `Governance::RoleAssignment` etc. INSIDE Banking's own
-# hecksagon would not work even syntactically-correctly written:
-# `Ports::Persistence::BindingPolicy.resolve` looks up
-# `registry.hecksagon(aggregate's OWN domain)`, not the domain doing the
-# binding — a persistence bind belongs in a hecksagon registered under
-# the SAME name as the aggregate's own chapter, the one invariant this
-# runtime holds everywhere else too. So this is a second, SIBLING
-# hecksagon — same shape framework/bluebook/governance.hecksagon and
-# identity.hecksagon used to be, before persistence became the
-# consumer's decision instead of the framework member's own default.
-# Memory here because this is a spec/example corpus member, not a real
-# deployment — a real app (see embryonaut's own hecksagon) binds these
-# to something durable instead.
+# Framework members bring their shape, not their persistence: a persistence bind must live
+# in a hecksagon registered under the aggregate's own domain name (BindingPolicy.resolve).
+# Memory here because this is an example corpus member; a real app binds durable storage.
 Hecks.hecksagon "Governance" do
   Governance::RoleAssignment.persisted_by("Memory")
   Governance::RoleTransition.persisted_by("Memory")
 end
 
 Hecks.hecksagon "Identity" do
-  # `Identity::Identity.Register` declares `role "Identity registrar"` —
-  # same reason this sibling attaches Governance as `Banking` and
-  # `Governance` (above) both do: a declared role is only real access
-  # control once Governance can check it against something (S8).
+  # `Register` declares a role; Governance must be attached for the role to be checked.
   uses_framework "Governance"
   Identity::Identity.persisted_by("Memory")
   Identity::ExternalIdentifier.persisted_by("Memory")
 end
 
-# COMPLIANCE IS DELIBERATELY NOT `uses_framework`'d HERE, unlike
-# Governance/Identity above — it's a genuine standalone domain (its own
-# examples/compliance/, its own deploy, its own Lambda), reached only
-# through the two `across "Compliance"` policies below (real cross-
-# domain delivery, rust/host's own lambda_client.rs). A domain that
-# wants Compliance's Review aggregates IN-PROCESS instead can still
-# `uses_framework "Compliance"` — the bluebook itself supports either
-# consumption mode (lib/hecks/framework/bluebook/compliance.
-# bluebook's own header) — Banking's own choice here is cross-Lambda,
-# on purpose, to prove that path for real.
+# Compliance is deliberately not `uses_framework`'d: it is a standalone domain reached
+# cross-Lambda through the two `across "Compliance"` policies.

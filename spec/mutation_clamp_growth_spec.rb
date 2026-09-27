@@ -1,9 +1,8 @@
 require "spec_helper"
 require "tempfile"
 
-# Real dispatch coverage for the `clamp` mutation op: bounds the current
-# value into [min, max] -- no "amount" to combine, a genuinely different
-# shape from multiply/increment/decrement (i106).
+# Real dispatch coverage for the `clamp` mutation op: bounds the current value into
+# [min, max], with no "amount" to combine.
 RSpec.describe "mutation op clamp" do
   def boot(source, hecksagon_name, &binds)
     file = Tempfile.new(["mutation-clamp-growth-", ".bluebook"])
@@ -109,14 +108,8 @@ RSpec.describe "mutation op clamp" do
     expect(organ[:strength][:value]).to eq(0.42)
   end
 
-  # The phantom-field fix (docs/fuzzer-property-expansion-plan.md
-  # summary, item 4): #arithmetic/#multiply both give a never-set
-  # numeric field `current ||= 0` — #clamp didn't, so it hit TypeMismatch
-  # on the first clamp of a field OpenBare never assigned, where
-  # increment/decrement/multiply would have silently treated the same
-  # absence as zero. Clamping 0.0 into [0.0, 1.0] leaves it at the
-  # bottom of the range, untouched — the same "in range" outcome the
-  # previous example proves for an explicitly-set 0.42.
+  # A never-set numeric field clamps as zero, like increment/decrement/multiply; clamping
+  # 0.0 into [0.0, 1.0] leaves it unchanged.
   it "treats a phantom (never-set) numeric field as zero rather than refusing TypeMismatch" do
     runtime = boot_mutation_clamp
     runtime.dispatch_flat("MutationClampGrowth::Organ.OpenBare", id: { value: "o4" })

@@ -2,23 +2,13 @@ require "hecks"
 require "hecks/ports/persistence/plugins/era"
 require_relative "../../../support/postgres_probe"
 
-# Lineage in the PostgresEra adapter: the partitioned journal, the
-# hecks_eras rows, the one-transaction mint, and the head compiled as a
-# chain of edges — old entries translated at inclusion, never rewritten.
-# Runs only when a Postgres server is reachable — the shared probe in
-# support/postgres_probe.rb, like every other Postgres spec here.
+# Lineage in the PostgresEra adapter: partitioned journal, era rows, the one-transaction mint,
+# and the head compiled as a chain of edges. Needs a reachable Postgres (see postgres_probe.rb).
 RSpec.describe "lineage in the PostgresEra adapter", :io do
   LINEAGE_DB = "hecks_lineage_spec".freeze
 
-  # The genuine table owner for this whole file — an ordinary,
-  # non-superuser role. Every check!/adapter_for/merge! call below
-  # connects as this role, not as whatever OS account runs the spec
-  # suite, because a local dev Postgres user is commonly a superuser
-  # (verified: mine is), and a superuser bypasses RLS unconditionally —
-  # force ROW LEVEL SECURITY has no lever against that at all. Without
-  # a real non-superuser owner, "the owner is now fenced too" is
-  # untestable in this environment: every assertion of it would
-  # silently pass for the wrong reason.
+  # Table owner for the whole file: a non-superuser role, since a superuser bypasses RLS and
+  # the "owner is fenced too" assertions would pass for the wrong reason.
   LINEAGE_OWNER = "hecks_lineage_owner".freeze
 
   def owner_url = "postgres://#{LINEAGE_OWNER}@localhost/#{LINEAGE_DB}"
@@ -72,9 +62,7 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
     end
   BLUEBOOK
 
-  # A third era, so the layered build has something to layer on: era 3
-  # is the first mint that can read era 2's matview instead of raw
-  # history.
+  # Era 3 is the first mint that can read era 2's matview instead of raw history.
   V3_SOURCE = <<~BLUEBOOK.freeze
     Hecks.bluebook "Ledger" do
       aggregate "Account" do
@@ -109,14 +97,8 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
     RUBY
   end
 
-  # A rekeyed sibling of V3_SOURCE, identical fields, identity moved from
-  # `kind` to a new `ref` attribute — the layered/full equivalence test
-  # below exists because `layered_chain_sql`'s own `id_column` case
-  # (Translation::RuleCompiler.id_case) is exactly the piece the ordinary
-  # V3_SOURCE edge above (a bare `rename`) never exercises: identity
-  # never changes across it, so `aggregate_id` passes through unmodified
-  # either way, layered or full, whether or not the case's own guard is
-  # right.
+  # V3 with identity moved from `kind` to `ref`: the bare-rename V3 edge never changes identity,
+  # so only this one exercises layered_chain_sql's id_column case.
   V3_REKEYED_SOURCE = <<~BLUEBOOK.freeze
     Hecks.bluebook "Ledger" do
       aggregate "Account" do
@@ -164,18 +146,13 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
     admin.exec("DROP DATABASE IF EXISTS #{LINEAGE_DB} WITH (FORCE)")
     admin.exec("CREATE DATABASE #{LINEAGE_DB}")
     admin.exec("DROP ROLE IF EXISTS #{LINEAGE_OWNER}")
-    # Plain CREATE ROLE ... LOGIN — no superuser, no BYPASSRLS. Either
-    # attribute would make force ROW LEVEL SECURITY a no-op for this
-    # role, same as it already is for the ambient dev connection.
+    # Plain LOGIN role: superuser or BYPASSRLS would make force RLS a no-op.
     admin.exec("CREATE ROLE #{LINEAGE_OWNER} LOGIN")
     admin.close
     grant = PG.connect(dbname: LINEAGE_DB)
     grant.exec("GRANT CONNECT ON DATABASE #{LINEAGE_DB} TO #{LINEAGE_OWNER}")
     grant.close
-    # the per-schema grant below is re-issued in `before do`, since that
-    # hook drops and recreates `public` before every example — a schema
-    # created via CREATE SCHEMA carries no default public privileges,
-    # so a grant made only here would be wiped before the first test ran
+    # The schema grant is re-issued in `before do`, which recreates `public` each example.
   end
 
   after(:all) do
@@ -219,8 +196,7 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
     registry
   end
 
-  # A deployment's app role: a non-owner, which is the only kind of
-  # connection the era fence can act on (the owner bypasses RLS).
+  # A deployment's app role: a non-owner, the only kind of connection the era fence acts on.
   LINEAGE_ROLE = "hecks_lineage_spec_app".freeze
 
   def reset_app_role!
@@ -302,15 +278,8 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
     expect { check!(V1_SOURCE) }.not_to raise_error
   end
 
-  # Every edit reaches the same generic wording now — shape-changing,
-  # cosmetic, or unparseable alike. Re-parsing the edited text to
-  # distinguish a cosmetic edit from a real shape change in the message
-  # would be a pure quality-of-message nicety, not a safety property (the
-  # digest mismatch alone is what refuses either way), and it is the one
-  # thing that would force a boot path to re-parse held era text — so
-  # `EraTamper.refusal` does not do it. An operator judges "did this
-  # matter" themselves, reading the still-archived original — an
-  # anomalous recovery moment already, not a normal boot path.
+  # Every edit reaches the same generic wording: telling cosmetic from shape edits would need
+  # boot to re-parse held era text, so EraTamper.refusal does not.
   it "refuses an edited hecks_eras row toward the generic wording — with the archive as recovery" do
     check!(V1_SOURCE)
     db = PG.connect(dbname: LINEAGE_DB)
@@ -318,11 +287,9 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
     generic_wording = "cannot boot Ledger: the held text of era 1 was edited after it was frozen — " \
                       "held era texts are storage facts; restore the original text, or reset the data"
 
-    # shape-changing edit
     db.exec_params("UPDATE hecks_eras SET held_text = $1 WHERE domain = 'Ledger' AND ordinal = 1", [V2_SOURCE])
     expect { check!(V1_SOURCE) }.to raise_error(Hecks::Runtime::WiringError, generic_wording)
 
-    # cosmetic edit
     db.exec_params("UPDATE hecks_eras SET held_text = $1 WHERE domain = 'Ledger' AND ordinal = 1",
                    ["# a typo fixed\n#{V1_SOURCE}"])
     expect { check!(V1_SOURCE) }.to raise_error(Hecks::Runtime::WiringError, generic_wording)
@@ -332,7 +299,6 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
     db.exec_params("UPDATE hecks_eras SET held_text = $1 WHERE domain = 'Ledger' AND ordinal = 1", [unparseable])
     expect { check!(V1_SOURCE) }.to raise_error(Hecks::Runtime::WiringError, generic_wording)
 
-    # the archive holds the original bytes; restoring them boots again
     archived = db.exec("SELECT held_text FROM hecks_era_texts WHERE domain = 'Ledger' AND ordinal = 1")
     expect(archived.ntuples).to eq(1)
     expect(archived[0]["held_text"]).to eq(V1_SOURCE)
@@ -360,7 +326,6 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
     expect(attestation["attested_at"]).not_to be_nil
     db.close
 
-    # the re-frozen text is now era 1: V2's shape boots, V1's drifts
     expect { check!(V2_SOURCE) }.not_to raise_error
   end
 
@@ -414,11 +379,8 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
     )
   end
 
-  # One mint, checked from every angle it has to hold at once — the
-  # eras table, the untouched era-1 journal row, the head answering in
-  # the new shape, and a fresh write landing in the new partition —
-  # and each assertion reads state the mint above it produced.
-  # Splitting would re-pay the mint or check only one facet at a time.
+  # One mint checked from every angle (eras table, era-1 journal row, head, new partition);
+  # splitting would re-pay the mint.
   # rubocop:disable-next RSpec/ExampleLength
   it "mints era 2 in one transaction and derives the head through the edge — old entries translated at " \
      "inclusion, never rewritten" do
@@ -436,14 +398,12 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
     expect(eras[1]["hash"]).to eq(hash_of(V2_SOURCE))
     expect(eras[1]["watermark"]).to eq("1")
 
-    # the original journal row is untouched, in the era-1 partition
     original = db.exec("SELECT era, aggregate, state FROM hecks_journal_ledger ORDER BY ordinal")
     expect(original.ntuples).to eq(1)
     expect(original[0]["era"]).to eq("1")
     expect(original[0]["aggregate"]).to eq("acct")
     expect(JSON.parse(original[0]["state"])["cost"]).to eq("cents" => 100, "currency" => "USD")
 
-    # the head answers in era-2 shape
     adapter = adapter_for(registry, "Account")
     found = adapter.find("a1")
     expect(found.amount.to_h).to eq(cents: 100)
@@ -451,7 +411,6 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
     expect(found.kind.to_h).to eq(label: "business")
     expect(found.key?(:legacy_note)).to be(false)
 
-    # a new era-2 write overlays the translated tail
     updated = Hecks::Runtime::Instance.new(
       aggregate: registry.bluebooks.values.first.aggregate("Account"), id: "a1",
       state: { amount: { "cents" => 250 }, kind: { "label" => "business" }, denomination: { "code" => "EUR" } }
@@ -459,24 +418,13 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
     adapter.save(updated)
     expect(adapter.find("a1").amount.to_h).to eq(cents: 250)
 
-    # ...and lands in the era-2 partition, leaving era 1 immutable
     partitions = db.exec("SELECT era, count(*) FROM hecks_journal_ledger GROUP BY era ORDER BY era")
     expect(partitions.map { |row| [row["era"], row["count"]] }).to eq([["1", "1"], ["2", "1"]])
     db.close
   end
 
-  # H3, docs/audits/2026-08-10-main-bug-audit.md: a bare `DELETE FROM
-  # head_snapshot` would leave no row at all behind for an id carried in
-  # from an ancestor era. `compile_head!`'s head view unions the
-  # translated ancestor matview with this era's own snapshot and picks
-  # the highest-ordinal row per id (`DISTINCT ON`) — with the current-era
-  # side left silent, the ancestor's own (still-`save`) row would win
-  # every time, so a record deleted after being carried across a mint
-  # would keep reading back forever. A delete instead writes a tombstone
-  # row (`operation: "delete"`, `state: nil`) that outranks the ancestor
-  # row by ordinal, so it wins the union honestly. Re-saves were never at
-  # risk this way (a new save row already outranks the ancestor row by
-  # ordinal) — only deletes needed the tombstone.
+  # A delete writes a tombstone row in the current era's snapshot: a bare DELETE would leave
+  # nothing to outrank the ancestor's save row in the head view's DISTINCT ON union.
   it "deleting an era-migrated record does not resurrect the ancestor era's save row" do
     write_v1_record
     from = label_of(V1_SOURCE)
@@ -492,17 +440,13 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
     expect(adapter.all.map(&:id)).not_to include("a1")
     expect(adapter.count).to eq(0)
 
-    # re-opening the adapter (a fresh boot, its own `ensure_head_snapshot!`
-    # self-heal/backfill pass) must not un-delete it either
+    # a fresh boot's ensure_head_snapshot! backfill must not un-delete it either
     reopened = adapter_for(registry, "Account")
     expect(reopened.find("a1")).to be_nil
 
     db = PG.connect(dbname: LINEAGE_DB)
-    # domain-qualified (docs/decisions/0059) — every Lineage in this file
-    # is built for domain "Ledger" unless noted otherwise.
     expect(db.exec("SELECT count(*) FROM ledger_account_head WHERE id = 'a1'")[0]["count"]).to eq("0")
-    # the tombstone itself is a real row, not an absence — this era genuinely
-    # out-ranks the ancestor's save row rather than merely lacking one
+    # the tombstone is a real row that outranks the ancestor's save row
     tombstone = db.exec("SELECT operation, state FROM ledger_account_head_snapshot_2 WHERE id = 'a1'")
     expect(tombstone.ntuples).to eq(1)
     expect(tombstone[0]["operation"]).to eq("delete")
@@ -549,22 +493,9 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
     db.close
   end
 
-  # H2, docs/audits/2026-08-10-main-bug-audit.md: every realistic mint-time
-  # refusal in this corpus turns out to be caught by the pre-mint audit
-  # (CoverageCheck#audit! — "before anything is minted, so a refusal
-  # leaves no half-born era", per its own comment), which runs before
-  # mint_era! is even called — so a DSL-level scenario like the one above
-  # can prove the audit gate works, but can't reach the transaction bug
-  # H2 actually names. This targets the mechanism directly: does
-  # `ensure_head_snapshot!` survive being called from inside an
-  # already-open transaction the way `mint_era!` actually calls it?
-  #
-  # `PG::Connection#transaction` is a bare `BEGIN`/`COMMIT` with no
-  # savepoint nesting. Called while already mid-transaction, its `COMMIT`
-  # would end that transaction the instant this one call returned — so a
-  # later `ROLLBACK` in the same logical unit of work (mint_era!'s own
-  # rescue, on whatever raises after this point) would have nothing left
-  # to roll back.
+  # Targets the mechanism directly, since the pre-mint audit catches every DSL-level refusal
+  # first. PG::Connection#transaction is a bare BEGIN/COMMIT without savepoints, so
+  # ensure_head_snapshot! run mid-transaction must not commit it, or the ROLLBACK undoes nothing.
   it "ensure_head_snapshot! does not end an already-open transaction — a later rollback still undoes it" do
     check!(V1_SOURCE)
     registry = load_registry(V1_SOURCE)
@@ -578,48 +509,25 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
       "INSERT INTO hecks_eras (domain, ordinal, hash, label, held_text, watermark, held_digest, canon_form) " \
       "VALUES ('Ledger', 99, 'placeholder-hash', 'xxxxxx', 'placeholder', 1, 'placeholder-digest', 1)"
     )
-    # The call under test — exactly what compile_head! does for each
-    # aggregate mid-mint, on the same connection, inside the transaction
-    # just opened above.
     lineage.ensure_head_snapshot!(acct.storage_name, 99)
-    # Simulates mint_era!'s own rescue clause: a later step in the same
-    # logical mint fails, so the whole thing rolls back. If the call
-    # above already ended the transaction, this `ROLLBACK` has nothing to
-    # undo, and everything above survives it.
+    # Stands in for mint_era!'s rescue: a later failure rolls the whole mint back.
     db.exec("ROLLBACK")
     db.close
 
     fresh = PG.connect(dbname: LINEAGE_DB)
     expect(fresh.exec("SELECT count(*) FROM hecks_eras WHERE domain = 'Ledger' AND ordinal = 99")[0]["count"]).to eq("0")
-    # domain-qualified (docs/decisions/0059)
     expect(fresh.exec("SELECT to_regclass('ledger_acct_head_snapshot_99') IS NULL AS gone")[0]["gone"]).to eq("t")
     fresh.close
   end
 
-  # Adversarial, not incidental: found by deliberately constructing a
-  # move destination that collides with an existing scalar (most
-  # realistically, a reference_to field — a bare id, never an
-  # object). The SQL side would otherwise silently overwrite that scalar
-  # with an empty object rather than lose the mint over it; it refuses
-  # by name instead, matching the Ruby reference transform's own refusal
-  # pinned in spec/translation_language_spec.rb.
-  # The whole scenario — an inline two-aggregate domain, a real save,
-  # and the colliding edge — exists to reproduce one specific
-  # historical bug (the shadow-parse regression the comment above
-  # documents), so trimming or splitting it risks losing the exact
-  # shape that once broke.
+  # A move destination that collides with an existing scalar (a reference_to field, a bare id)
+  # must refuse by name instead of overwriting it; mirrors spec/translation_language_spec.rb.
+  # The inline two-aggregate domain, real save and colliding edge pin the shadow-parse
+  # regression, so the shape is not split up.
   # rubocop:disable-next RSpec/ExampleLength
   it "a move whose destination collides with an existing scalar refuses the mint by name, not silently" do
-    # Bare `reference_to Team` — no `as:` — deliberately: this exact
-    # shape breaks `ensure_named!`'s own from/to edge lookup entirely if
-    # `shadow_parse` (era_guard.rb) shadow-parses every held era's text
-    # unconditionally — `default_reference_name`'s shadow-mode default
-    # mints `team_id` instead of `team` for the identical source text, a
-    # pre-ADR-0025 convention meant for genuinely old frozen text,
-    # wrongly applied here too. `shadow_parse` tries a normal parse
-    # first and falls back to shadow mode only on a genuine `Malformed`
-    # refusal (see its own comment), and this example doubles as that
-    # fix's own regression coverage.
+    # Bare `reference_to Team` (no `as:`) is deliberate: shadow_parse (era_guard.rb) must try a
+    # normal parse first, or shadow mode's default mints `team_id` and breaks the edge lookup.
     collide_v1 = <<~BLUEBOOK
       Hecks.bluebook "Collide" do
         aggregate "Acct" do
@@ -670,27 +578,13 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
     )
   end
 
-  # One scenario proving what the reconciliation machinery does with a
-  # genuinely post-cut row — the frozen tail, the old-world read, the
-  # new head's blindness to it, and diverged_count all have to be
-  # checked against the same inserted row to mean anything.
+  # A post-cut row in a superseded era: frozen tail, old-world read, head blindness and
+  # diverged_count are all checked against the same inserted row.
   # rubocop:disable-next RSpec/ExampleLength
   it "however a post-cut row lands in a superseded era, the reconciliation machinery does not lose it or leak it" do
-    # This tests what happens given such a row exists — not whether an
-    # ordinary role can create one (the fence tests already prove it
-    # cannot: "the fence is a fact about the ERA", "a role rebooting
-    # into its own now-superseded era"). A genuine, non-superuser writer
-    # racing a live mint is possible in principle — RLS is checked once,
-    # at statement execution, never re-checked at commit, so a write
-    # that executes while an era is still current can still commit
-    # after the fence moves on — but empirically that window is now the
-    # width of a few catalog statements (see "an ordinary writer is
-    # never blocked by a mint" below), not something a test can reliably
-    # steer a write into without instrumenting production code purely
-    # to slow it down for the test's convenience. So the row here is
-    # inserted directly, as the table owner — standing in for "however
-    # it got here" — and what is actually under test is everything
-    # downstream: the frozen tail, diverged_count, and merge_tail.
+    # The row is inserted as the owner, standing in for a writer racing a live mint (RLS is
+    # checked at statement time, not at commit); the fence specs show an ordinary role cannot.
+    # Under test is what follows: the frozen tail, diverged_count and merge_tail.
     write_v1_record
     from = label_of(V1_SOURCE)
     to = label_of(V2_SOURCE)
@@ -707,23 +601,15 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
       "VALUES (1, 'acct', $1, 'save', $2) RETURNING ordinal",
       ["a9", state]
     )[0]["ordinal"]
-    # ...and the era-1 snapshot table PostgresEra#append would also have
-    # written in the same transaction, a real race-condition write always
-    # going through append() rather than raw SQL the way this stand-in
-    # does — old_world.find below reads head_view, which for era 1 is
-    # this snapshot table verbatim, not a live re-derivation.
+    # ...plus the era-1 snapshot table that append would write; old_world.find reads it verbatim.
     db.exec_params(
-      # domain-qualified (docs/decisions/0059)
       "INSERT INTO ledger_acct_head_snapshot_1 (id, ordinal, state) VALUES ($1, $2, $3)",
       ["a9", ordinal, state]
     )
 
-    # the post-cut write landed in the era-1 partition...
     eras_of_a9 = db.exec("SELECT era FROM hecks_journal_ledger WHERE aggregate_id = 'a9'").map { |row| row["era"] }
     expect(eras_of_a9).to eq(["1"])
-    # ...a checkout still reading era 1 sees it (its own head view, keyed
-    # to "Acct"'s storage name, is untouched by the mint that renamed
-    # the aggregate to "Account")...
+    # ...an era-1 checkout still sees it, under the old storage name...
     old_world = Hecks::Adapters::PostgresEra.new(
       aggregate: old_registry.bluebooks.values.first.aggregate("Acct"),
       settings:  { database: owner_url, domain: "Ledger", era: 1 }
@@ -732,16 +618,12 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
     # ...the new head does not (the watermark is baked into the matview)...
     new_head = db.exec("SELECT count(*) FROM ledger_account_head WHERE id = 'a9'")[0]["count"]
     expect(new_head).to eq("0")
-    # ...and the divergence is observable
     lineage = Hecks::Adapters::PostgresEra::Lineage.new(db, "Ledger")
     expect(lineage.diverged_count(1)).to eq(1)
     db.close
   end
 
-  # A single concurrency proof requiring the seeded ancestor tail, the
-  # background writer thread, and the live mint racing it together —
-  # splitting the setup from the outcome assertions would leave
-  # neither half able to prove the non-blocking claim.
+  # One concurrency proof: the seeded ancestor tail, a background writer and a live mint race.
   # rubocop:disable-next RSpec/ExampleLength
   it "an ordinary writer is never blocked by a mint — advance_era!'s AccessExclusiveLock is held for the " \
      "commit, not the matview build" do
@@ -749,9 +631,7 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
     from = label_of(V1_SOURCE)
     to = label_of(V2_SOURCE)
 
-    # seed a real ancestor tail so compile_head!'s matview build takes
-    # measurable time — a mint over a handful of rows proves nothing
-    # about whether a slow build widens the write-blocking window
+    # a real ancestor tail makes the matview build slow enough to widen any lock window
     db = PG.connect(dbname: LINEAGE_DB)
     3_000.times do |i|
       db.exec_params(
@@ -762,13 +642,8 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
     end
     db.close
 
-    # Two different outcomes for a writer aimed at era 1, and only one
-    # of them is a bug. Lock contention (the writer waited on
-    # advance_era!'s AccessExclusiveLock and timed out) would mean the
-    # reordering failed. A row-level security refusal, once the mint has
-    # actually committed and moved the fence to era 2, is the correct
-    # and expected outcome the rest of this file already tests — this
-    # spec only needs to prove it is never the first kind.
+    # Lock contention means the reordering failed; an RLS refusal after the mint commits is
+    # expected. Only the first kind counts as a failure.
     stop = false
     ok = 0
     lock_blocked = 0
@@ -776,17 +651,8 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
     writer = Thread.new do
       w = PG.connect(owner_url)
       w.exec("SET lock_timeout = '500ms'")
-      # An aggregate name the bluebook never declares. The mint's audit
-      # iterates bluebook.aggregates ("Acct"/"Account") and compares the
-      # journal's id set for each of those, read live, twice — any
-      # writer touching one of those names interferes with that
-      # comparison for a reason unrelated to what this spec is about
-      # (see "however a post-cut row lands" above — writing a stable id
-      # under "acct" still trips Layer 2's per-id value check). A row under an
-      # undeclared name is invisible to the audit entirely, and still
-      # exercises the same table's locks: ensure_partition!/
-      # advance_era!/compile_head! operate on the whole partition, not
-      # on rows matching a particular aggregate.
+      # An aggregate name the bluebook never declares, so the mint's audit never sees these
+      # rows; the partition-level locks are still exercised.
       until stop
         begin
           w.exec("INSERT INTO hecks_journal_ledger (era, aggregate, aggregate_id, operation, state) " \
@@ -820,7 +686,6 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
     edge = edge_source(from: from, to: to)
     new_registry = check!(V2_SOURCE, translation_source: edge)
 
-    # the new world updates a1 after the cut
     new_world = Hecks::Adapters::PostgresEra.new(
       aggregate: new_registry.bluebooks.values.first.aggregate("Account"),
       settings:  { database: LINEAGE_DB, domain: "Ledger", era: 2 }
@@ -831,8 +696,6 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
                               denomination: { "code" => "USD" }, status: "open" }
                    ))
 
-    # the old world keeps running: touches a1 too (the conflict), and
-    # opens a9 (the mergeable tail)
     old_registry = check!(V1_SOURCE)
     acct = old_registry.bluebooks.values.first.aggregate("Acct")
     old_world = Hecks::Adapters::PostgresEra.new(
@@ -851,11 +714,7 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
     [new_registry, edge]
   end
 
-  # One sequential scenario — the merge refuses without a declared
-  # winner, then the same forked state is merged again with a winner
-  # named, proving the retry path picks up cleanly. Splitting would
-  # mean re-forking the worlds or losing the "same conflict, now
-  # resolved" throughline.
+  # One sequential scenario: refuse without a winner, then merge the same forked state with one.
   # rubocop:disable-next RSpec/ExampleLength
   it "tail-merge: refuses both-worlds conflicts by name, then interleaves the declared winner append-only" do
     new_registry, = fork_worlds
@@ -880,8 +739,6 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
       settings: { database: LINEAGE_DB }, winners: { "a1" => "new" }
     )
 
-    # the tail arrived, translated; the declared winner stood; the
-    # divergence is gone; and not one ancestor row changed
     head = db.exec("SELECT id, state FROM ledger_account_head ORDER BY id").to_h { |row| [row["id"], JSON.parse(row["state"])] }
     expect(head["a9"]["amount"]).to eq("cents" => 5)
     expect(head["a9"]["denomination"]).to eq("code" => "EUR")
@@ -992,11 +849,8 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
     end
   BLUEBOOK
 
-  # One long-lived edge's whole lifecycle: refuse without approval,
-  # approve, invalidate the approval by advancing the journal,
-  # re-approve, mint, then check the compiled SQL and the untouched
-  # in-process reference — each step depends on the database state the
-  # step before it left.
+  # One edge's lifecycle: refuse without approval, approve, invalidate by advancing the
+  # journal, re-approve, mint, then compare the compiled SQL to the in-process reference.
   # rubocop:disable-next RSpec/ExampleLength
   it "evaluates a compute rule exclusively inside the compiled matview — its SQL is its only implementation" do
     registry = load_registry(PRICING_V1)
@@ -1043,7 +897,6 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
       edge_digest: Hecks::Translation::Audit.edge_digest(drifted.translations.first)
     )
 
-    # ...so a journal that advances past the review invalidates it
     adapter.save(Hecks::Runtime::Instance.new(aggregate: quote, id: "q2", state: { price_cents: { "value" => 300 } }))
     expect do
       Hecks::Adapters::PostgresEra::LineageManager.check!(
@@ -1058,7 +911,6 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
       }x
     )
 
-    # a fresh review over the journal as it now stands mints
     pricing_lineage.record_approval!(
       from: from, to: to,
       edge_digest: Hecks::Translation::Audit.edge_digest(drifted.translations.first)
@@ -1070,9 +922,7 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
       current_text: PRICING_V2, settings: { database: owner_url }
     )
 
-    # the compiled matview evaluated the SQL...
     db = PG.connect(dbname: LINEAGE_DB)
-    # domain-qualified (docs/decisions/0059) — this Lineage is domain "Pricing".
     compiled = JSON.parse(db.exec("SELECT state FROM pricing_quote_lineage_2_#{to} WHERE aggregate_id = 'q1'")[0]["state"])
     db.close
     expect(compiled).to eq("price_dollars" => { "value" => 12.5 }, "sku" => { "value" => "q1" })
@@ -1085,7 +935,6 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
     entry = Hecks::Ports::Persistence::Entry.new(operation: "save", id: "q1", state: { price_cents: { "value" => 1250 } })
     expect(rules.translate(entry).state).to eq(price_cents: { "value" => 1250 })
 
-    # the head serves the computed shape
     v2_quote = drifted.bluebooks.values.first.aggregate("Quote")
     head = Hecks::Adapters::PostgresEra.new(aggregate: v2_quote, settings: { database: LINEAGE_DB, domain: "Pricing" })
     expect(head.find("q1").price_dollars.to_h).to eq(value: 12.5)
@@ -1138,10 +987,8 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
     end
   BLUEBOOK
 
-  # Same rekey-approval lifecycle as the compute-rule example above,
-  # proving the record resolves under its new id, the raw journal
-  # stays keyed to the old one, and the head serves the untouched
-  # attributes — all against the one approved mint.
+  # Same approval lifecycle as the compute example: the record resolves under its new id
+  # while the raw journal stays keyed to the old one.
   # rubocop:disable-next RSpec/ExampleLength
   it "mints an era that rekeys an aggregate's identity, with an approved rekey rule" do
     registry = load_registry(ROSTER_V1)
@@ -1201,7 +1048,6 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
     # only its new id — the raw journal row is untouched (still keyed
     # "Chris Young"), but nothing reads it directly
     db = PG.connect(dbname: LINEAGE_DB)
-    # domain-qualified (docs/decisions/0059) — this Lineage is domain "Roster".
     under_new_id = db.exec("SELECT state FROM roster_person_lineage_2_#{to} WHERE aggregate_id = 'chris@example.com'")
     under_old_id = db.exec("SELECT state FROM roster_person_lineage_2_#{to} WHERE aggregate_id = 'Chris Young'")
     raw_journal = db.exec("SELECT aggregate_id FROM hecks_journal_roster WHERE aggregate_id = 'Chris Young'")
@@ -1211,7 +1057,6 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
     expect(under_old_id.ntuples).to eq(0)
     expect(raw_journal.ntuples).to eq(1) # the immutable journal never rewrites
 
-    # the head serves the record under its new id, name/title untouched
     v2_person = drifted.bluebooks.values.first.aggregate("Person")
     head = Hecks::Adapters::PostgresEra.new(aggregate: v2_person, settings: { database: LINEAGE_DB, domain: "Roster" })
     found = head.find("chris@example.com")
@@ -1220,12 +1065,8 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
     expect(head.find("Chris Young")).to be_nil
   end
 
-  # The kind of file .rubocop.yml's own RSpec/MultipleExpectations
-  # comment already documents: one fenced role checked from every
-  # angle (boots, writes its own era, refused on the superseded one,
-  # refused on the leaf partition, still append-only, owner
-  # unaffected) against the same mint — each angle only means
-  # something read against that one fence.
+  # One fenced role checked from every angle against the same mint; each only means something
+  # read against that one fence.
   # rubocop:disable-next RSpec/ExampleLength
   it "fences a deployment's app role at the era its checkout speaks — and the fence is written through, " \
      "not read off the catalog" do
@@ -1237,9 +1078,7 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
 
     journal = "hecks_journal_ledger"
 
-    # The fenced role must be able to boot, or the fence constrains
-    # nobody: ensure_base!'s ALTER TABLE and REVOKE are owner-only, and
-    # a deployment's app role is deliberately not the owner.
+    # The fenced role must still boot; ensure_base!'s ALTER TABLE and REVOKE are owner-only.
     app = PG.connect(dbname: LINEAGE_DB, user: LINEAGE_ROLE)
     expect { Hecks::Adapters::PostgresEra::Lineage.new(app, "Ledger").ensure_base! }.not_to raise_error
     app.close
@@ -1251,25 +1090,18 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
       )
     end
 
-    # the era this checkout speaks
     expect(append.call(2)).to eq(:allowed)
 
-    # the superseded era — writing to the old schema drops the instant
-    # this mint materialized it. A per-partition GRANT cannot express
-    # this: Postgres checks INSERT on the partitioned parent for a
-    # routed insert and never consults the partition, so the old shape
-    # of this fence either blocked everything or allowed every era.
-    # This asserts the refusal by attempting the write.
+    # A per-partition GRANT cannot express this: Postgres checks INSERT on the partitioned
+    # parent for a routed insert and never consults the partition.
     expect(append.call(1)).to match(/row-level security policy/i)
 
-    # nor is a partition a back door: the role is granted on the parent
-    # only, so addressing a leaf directly gets it nowhere
+    # a partition is no back door: the role is granted on the parent only
     expect(
       as_app_role("INSERT INTO #{journal}_era_1 (era, aggregate, aggregate_id, operation, state) " \
                   "VALUES (1, 'acct', 'leaf', 'save', '{}'::jsonb)")
     ).to match(/permission denied/i)
 
-    # and the journal is still append-only to it
     expect(as_app_role("UPDATE #{journal} SET operation = 'delete'")).to match(/permission denied|row-level security/i)
     expect(as_app_role("DELETE FROM #{journal}")).to match(/permission denied|row-level security/i)
 
@@ -1282,22 +1114,9 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
     owner.close
   end
 
-  # Adversarial: not "does the plain case work" (already proven above)
-  # but "does something CLEVERER get past it." Each of these is a real
-  # technique for routing an INSERT around a naive check — a CTE hides
-  # the write inside a SELECT, a function body runs with its own
-  # apparent scope, copy is a wholly different code path from INSERT.
-  # Verified empirically before writing this: copy's outcome is not
-  # what a first attempt suggested (see the commit message) — Postgres
-  # refuses copy from outright the moment RLS is enabled on the target,
-  # a built-in protection this design gets for free, not one it
-  # implements. Recorded here so nobody "fixes" that by relaxing force
-  # ROW LEVEL SECURITY without knowing why copy behaves this way.
-  # Three distinct adversarial routing techniques against the same
-  # fenced role and mint, kept together because they are the corpus's
-  # own regression coverage for one class of bug (naive RLS-bypass
-  # attempts) — splitting would re-pay the role/mint setup three times
-  # for no new fixture.
+  # Adversarial routing techniques against a naive check: a CTE, a function body and COPY.
+  # Postgres refuses COPY FROM outright once RLS is enabled on the target; do not relax force
+  # ROW LEVEL SECURITY without knowing that. One shared setup keeps the three cases together.
   # rubocop:disable-next RSpec/ExampleLength
   it "a fenced role cannot route an era-1 write around the fence through a CTE, a function body, or COPY" do
     reset_app_role!
@@ -1333,11 +1152,8 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
     end
   end
 
-  # One timing-sensitive scenario — a mint-shaped transaction held open
-  # at the exact partition-attach point, a lock probed by name to
-  # confirm which lock is actually held, then a concurrent write proven
-  # to go through — each assertion is only meaningful given the
-  # transaction state opened above it.
+  # A mint-shaped transaction is held open at the partition-attach point, the lock is probed
+  # by name, then a concurrent write must go through.
   # rubocop:disable-next RSpec/ExampleLength
   it "an old checkout keeps writing its own era THROUGH a mint — the fork survives the window, it does not merely bracket it" do
     write_v1_record
@@ -1346,9 +1162,7 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
     check!(V2_SOURCE, translation_source: edge_source(from: l1, to: l2))
     label_of(V3_SOURCE)
 
-    # Hold a mint-shaped transaction open at exactly the point the tail
-    # materialization would run: the next era's partition is attached,
-    # nothing is committed.
+    # Hold a mint-shaped transaction open with the next era's partition attached, uncommitted.
     blocker = PG.connect(dbname: LINEAGE_DB)
     blocker.exec("BEGIN")
     Hecks::Adapters::PostgresEra::Lineage.new(blocker, "Ledger").ensure_partition!(3)
@@ -1376,7 +1190,6 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
       e.message.strip
     end
 
-    # the old checkout writes its own era straight through the mint
     expect(write.call).to eq(:allowed)
 
     blocker.exec("ROLLBACK")
@@ -1385,14 +1198,8 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
     writer.close
   end
 
-  # `PostgresEra#append` holds `pg_advisory_xact_lock(hashtext('hecks_ordinal:'
-  # || domain))` for its whole transaction now — a different key from the
-  # mint/merge lock above, so it closes ordinal-vs-commit-order only among
-  # plain writes, never against a mint. Proven by holding that same lock by
-  # hand and showing a real `adapter.save` blocks on it, then proceeds the
-  # instant it's released — the only way `nextval()` and the row it feeds
-  # can be guaranteed to happen in the same order as an unrelated
-  # concurrent write's.
+  # append holds pg_advisory_xact_lock(hashtext('hecks_ordinal:' || domain)) for its whole
+  # transaction, a different key from the mint/merge lock. Holding it by hand must block a save.
   it "serializes concurrent plain writes against EACH OTHER — ordinal order can no longer diverge from commit order" do
     registry = check!(V1_SOURCE)
     adapter  = adapter_for(registry, "Acct")
@@ -1443,22 +1250,10 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
     ).to match(/row-level security/i)
   end
 
-  # BUG#24. Every refusal this file asserts above is row-level security,
-  # and Postgres exempts a superuser (or any BYPASSRLS role) from every
-  # policy, force included — which is exactly why this file's own header
-  # connects as a non-superuser owner: on the ambient dev connection
-  # every one of those assertions would pass for the wrong reason. Found
-  # live on the QA ledger, whose `.world` named a bare database: every
-  # session connected as the machine's superuser, and an old checkout
-  # wrote its own superseded era straight through two mints — 37 rows no
-  # newer head could read, and not one warning. The boot now asks
-  # pg_roles first and refuses by default; `allow_superuser` boots anyway
-  # and says so; and a held-but-superseded checkout refuses its own
-  # writes in-process, where no role attribute can void it.
-  #
-  # The ambient connection here is whatever runs the suite — a superuser
-  # locally and on CI (`PGUSER: postgres`), verified rather than assumed:
-  # the two boot examples skip, loudly, on a machine where it is not.
+  # Postgres exempts a superuser or BYPASSRLS role from every policy, force included, so boot
+  # checks pg_roles and refuses by default; allow_superuser boots anyway and warns.
+  # The ambient connection is a superuser locally and on CI (PGUSER: postgres); the two boot
+  # examples skip when it is not.
   def ambient_role
     db = PG.connect(dbname: LINEAGE_DB)
     row = db.exec(
@@ -1517,13 +1312,8 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
     db.close
   end
 
-  # The in-process half — proven as the owner (fenced by RLS too, so the
-  # refusal asserted here has to come from the adapter, not the policy:
-  # `WiringError`, before any INSERT, not `PG::InsufficientPrivilege`).
-  # One old checkout checked from every side it has to hold at once:
-  # the boot marks itself superseded, a current-era boot does not, every
-  # write path refuses, reads still answer, and nothing landed for
-  # merge_tail to reconcile.
+  # Proven as the owner, so the refusal must come from the adapter (WiringError before any
+  # INSERT), not from the RLS policy. One old checkout is checked from every side at once.
   # rubocop:disable-next RSpec/ExampleLength
   it "a held-but-superseded checkout refuses its own writes in-process, naming the newer era — while its reads still work" do
     write_v1_record
@@ -1557,23 +1347,17 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
       .to raise_error(Hecks::Runtime::WiringError, refusal)
     expect { old_world.delete("a1") }.to raise_error(Hecks::Runtime::WiringError, refusal)
 
-    # reads keep working — the documented contract for an old checkout
     expect(old_world.find("a1").cost.to_h).to eq(cents: 100, currency: "USD")
     expect(old_world.find("a9")).to be_nil
     expect(old_world.count).to eq(1)
 
-    # and nothing reached the superseded partition
     db = PG.connect(dbname: LINEAGE_DB)
     expect(Hecks::Adapters::PostgresEra::Lineage.new(db, "Ledger").diverged_count(1)).to eq(0)
     db.close
   end
 
-  # One shared pair of roles and one mint, checked from four angles
-  # (old role writes era 1 pre-mint, new role writes what it minted,
-  # old role also writes the new era unprompted, and both are refused
-  # the superseded era) — the whole point is that all four hold
-  # against the same mint, so splitting would lose the "not about
-  # which role is asking" claim.
+  # One shared pair of roles and one mint checked from four angles; splitting would lose the
+  # claim that the outcome does not depend on which role is asking.
   # rubocop:disable-next RSpec/ExampleLength
   it "the fence is a fact about the ERA, not the role — a mint by one role cuts EVERY role off the schema it just replaced" do
     old_role = "#{LINEAGE_ROLE}_old"
@@ -1597,7 +1381,6 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
     end
     grants.close
 
-    # the old deployment boots era 1 under its own role
     check!(V1_SOURCE, role: old_role)
     write_v1_record
 
@@ -1614,32 +1397,22 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
 
     expect(writes.call(old_role, 1)).to eq(:allowed)
 
-    # the new deployment boots the drifted shape under a different role
-    # and mints era 2
     from = label_of(V1_SOURCE)
     to = label_of(V2_SOURCE)
     check!(V2_SOURCE, translation_source: edge_source(from: from, to: to), role: new_role)
 
-    # the new role writes what it just minted...
     expect(writes.call(new_role, 2)).to eq(:allowed)
 
-    # ...and so, unprompted, does the old role: the fence is a fact
-    # about the era, not about which role is asking, so any role ever
-    # granted INSERT may write whatever is current the instant it
-    # becomes current. There is no "its own era" left to keep.
+    # ...and so does the old role: any role granted INSERT may write whatever era is current.
     expect(writes.call(old_role, 2)).to eq(:allowed)
 
-    # what is gone, for either role, is the schema era 2 replaced —
-    # nobody may write era 1 once era 2 has materialized.
+    # no role may write era 1 once era 2 has materialized
     expect(writes.call(old_role, 1)).to match(/row-level security/i)
     expect(writes.call(new_role, 1)).to match(/row-level security/i)
   end
 
-  # Proves one equivalence — the layered build (reading era 2's own
-  # matview) and a from-scratch full build agree row for row — which
-  # requires minting through era 3 and running both builds against
-  # that one mint; splitting would mean minting twice or checking only
-  # one side of the equivalence.
+  # The layered build (reading era 2's matview) and a from-scratch full build must agree row
+  # for row; both run against one mint through era 3.
   # rubocop:disable-next RSpec/ExampleLength
   it "builds era 3 from era 2's matview, not from raw history — and the layered answer equals the full one" do
     write_v1_record
@@ -1648,8 +1421,6 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
     l3 = label_of(V3_SOURCE)
     check!(V2_SOURCE, translation_source: edge_source(from: l1, to: l2))
 
-    # more era-2 traffic, so the layer has both a matview and live rows
-    # of its own to fold in
     registry = load_registry(V2_SOURCE)
     account = registry.bluebooks.values.first.aggregate("Account")
     adapter = Hecks::Adapters::PostgresEra.new(aggregate: account, settings: { database: LINEAGE_DB, domain: "Ledger" })
@@ -1668,12 +1439,10 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
       "#{PG::Connection.quote_ident("ledger_account_lineage_3_#{l3}")} ORDER BY aggregate_id"
     ).values
 
-    # the definition actually used era 2's matview rather than the journal
     definition = db.exec_params("SELECT definition FROM pg_matviews WHERE matviewname = $1",
                                 ["ledger_account_lineage_3_#{l3}"])[0]["definition"]
     expect(definition).to include("ledger_account_lineage_2_#{l2}")
 
-    # ...and it agrees with the from-scratch build, row for row
     lineage = Hecks::Adapters::PostgresEra::Lineage.new(db, "Ledger")
     chain = Hecks::Adapters::PostgresEra::LineageManager.edge_chain(
       load_registry(V3_SOURCE, translation_source: edges), load_registry(V3_SOURCE).bluebooks.values.first,
@@ -1689,20 +1458,9 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
     expect(layered).not_to be_empty
   end
 
-  # The same equivalence, for a rekey specifically — `layered_chain_sql`'s
-  # own `id_column` case (Translation::RuleCompiler.id_case) is dead code
-  # the test above never exercises: `edge_source_v3`'s edge never changes
-  # identity, so `aggregate_id` passes through unmodified whether the
-  # case's own guard is right or not. This is also what closes the real
-  # gap `translated_latest`'s own header now documents: before
-  # `head_body_sql` existed, the audit's preview (`translated_latest`)
-  # never read this branch at all — a rekey reaching era 3 could show one
-  # answer at audit time and a different one once actually minted, with
-  # nothing here to catch it either way.
-  # The rekey sibling of the layered/full equivalence test above,
-  # needed because a rekey exercises the id_column case the ordinary
-  # rename edge never touches — same one-mint, two-build structure,
-  # kept together for the same reason.
+  # The same equivalence for a rekey, which reaches layered_chain_sql's id_column case
+  # (Translation::RuleCompiler.id_case) that a rename edge never does; without it a rekey could
+  # preview one answer at audit time and mint another. Same one-mint, two-build shape.
   # rubocop:disable-next RSpec/ExampleLength
   it "produces the identical id under a REKEY too — the layered build's id_column CASE agrees with the full one" do
     write_v1_record
@@ -1711,14 +1469,8 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
     l3 = label_of(V3_REKEYED_SOURCE)
     check!(V2_SOURCE, translation_source: edge_source(from: l1, to: l2))
 
-    # more era-2 traffic, so the layer has both a matview and live rows
-    # of its own to fold in — same reason the ordinary-edge test above
-    # writes a second record before minting era 3
-    # kind "personal", deliberately different from the v1 record's own
-    # "biz" -> "business" — a rekey collapses onto `kind.label`, and
-    # reusing "business" here would collide the two rows onto the same
-    # new id, tripping the audit's own count-preservation gate for a
-    # reason that has nothing to do with what this test checks.
+    # more era-2 traffic; kind "personal" avoids colliding with "business" on the same new id
+    # (a rekey collapses onto `kind.label`), which would trip the audit's count-preservation gate.
     registry = load_registry(V2_SOURCE)
     account = registry.bluebooks.values.first.aggregate("Account")
     adapter = Hecks::Adapters::PostgresEra.new(aggregate: account, settings: { database: LINEAGE_DB, domain: "Ledger" })
@@ -1732,9 +1484,7 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
     edges = "#{edge_source(from: l1, to: l2)}\n#{rekey_edge}"
     drifted = load_registry(V3_REKEYED_SOURCE, translation_source: edges)
 
-    # a rekey's only verification is the audit's human-approved sample —
-    # the mint refuses non-interactively without it, same as every other
-    # compute/rekey edge in this file
+    # a rekey's only verification is the audit's human-approved sample; the mint refuses without it
     expect do
       Hecks::Adapters::PostgresEra::LineageManager.check!(
         registry: drifted, bluebook: drifted.bluebooks.values.first,
@@ -1761,13 +1511,11 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
       "#{PG::Connection.quote_ident("ledger_account_lineage_3_#{l3}")} ORDER BY aggregate_id"
     ).values
 
-    # the definition actually used era 2's matview rather than the journal
     definition = db.exec_params("SELECT definition FROM pg_matviews WHERE matviewname = $1",
                                 ["ledger_account_lineage_3_#{l3}"])[0]["definition"]
     expect(definition).to include("ledger_account_lineage_2_#{l2}")
 
-    # ...and it agrees with the from-scratch build, row for row — ids
-    # included, the one dimension the ordinary-edge test above cannot see
+    # ...and it agrees with the from-scratch build, ids included
     lineage = Hecks::Adapters::PostgresEra::Lineage.new(db, "Ledger")
     chain = Hecks::Adapters::PostgresEra::LineageManager.edge_chain(
       load_registry(V3_REKEYED_SOURCE, translation_source: edges), load_registry(V3_REKEYED_SOURCE).bluebooks.values.first,
@@ -1793,10 +1541,8 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
     edges = "#{edge_source(from: l1, to: l2)}\n#{edge_source_v3(from: l2, to: l3)}"
     check!(V3_SOURCE, translation_source: edges)
 
-    # the fork: an old era-2 checkout keeps writing its own partition
-    # after era 3 cut its watermark. The layer beneath era 3's matview
-    # is era 2's matview — so if the cut were re-derived at query time
-    # (or forgotten in the layer), this write would leak upward.
+    # An old era-2 checkout keeps writing after era 3 cut its watermark; if the cut were
+    # re-derived at query time the write would leak upward through era 2's matview.
     stale = Hecks::Adapters::PostgresEra.new(
       aggregate: load_registry(V2_SOURCE).bluebooks.values.first.aggregate("Account"),
       settings:  { database: LINEAGE_DB, domain: "Ledger", era: 2 }
@@ -1808,20 +1554,14 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
                ))
 
     db = PG.connect(dbname: LINEAGE_DB)
-    # **The refresh is the point**. Materialization alone freezes the tail,
-    # so a post-cut write cannot leak whether or not the cut is in the
-    # definition — which makes the naive version of this test vacuous.
-    # The cut only earns its keep when the definition is re-evaluated,
-    # and the header promises it holds "even on a full REFRESH". So
-    # refresh, and hold it to that.
+    # The refresh is the point: a materialized tail is frozen anyway, so the cut only proves
+    # itself when the definition is re-evaluated (the header promises it holds on a full REFRESH).
     db.exec("REFRESH MATERIALIZED VIEW #{PG::Connection.quote_ident("ledger_account_lineage_3_#{l3}")}")
     head = db.exec("SELECT id, state FROM ledger_account_head ORDER BY id").values
     diverged = Hecks::Adapters::PostgresEra::Lineage.new(db, "Ledger").diverged_count(2)
     db.close
 
-    # the post-cut write is real and observable as divergence...
     expect(diverged).to eq(1)
-    # ...and it is not in the new world's head
     expect(head.map(&:last).join).not_to include("999")
     expect(head.map(&:last).join).not_to include("ZZZ")
   end
@@ -1829,24 +1569,8 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
   it "journal rows accept no UPDATE or DELETE from PUBLIC — immutability by privilege" do
     check!(V1_SOURCE)
     db = PG.connect(dbname: LINEAGE_DB)
-    # The real property, not a proxy for it. `provisioning.rb`'s own
-    # REVOKE is guarded (`still_public = has_table_privilege(...)`) —
-    # it only fires, and only then writes a pg_class.relacl row at
-    # all, when public already held the privilege; skipping a no-op
-    # REVOKE avoids a real concurrent-boot race (that file's own
-    # comment). On a fresh Postgres, a table's default privileges
-    # already give public nothing at all — relacl stays NULL, which
-    # in Postgres means exactly that: no explicit grants, owner-only.
-    # Asserting `relacl` is non-nil would assume the REVOKE always ran —
-    # true only in an environment where some earlier state (a template
-    # database, a prior GRANT) had already given public the privilege
-    # first. Confirmed live: relacl is nil here and has_table_privilege
-    # still correctly answers false for both — the guard's whole point
-    # (skip a REVOKE nothing needs) works exactly as designed; asserting
-    # non-nil would have been the bug. Ask Postgres's own privilege-check
-    # function directly,
-    # which is true regardless of whether relacl happens to be an
-    # explicit row or the (equally real) unwritten default.
+    # Ask Postgres directly: on a fresh database relacl stays NULL (the guarded REVOKE in
+    # provisioning.rb never fires when public holds nothing), so asserting non-nil would be wrong.
     update_allowed = db.exec("SELECT has_table_privilege('public', 'hecks_journal_ledger', 'UPDATE')")[0]["has_table_privilege"]
     delete_allowed = db.exec("SELECT has_table_privilege('public', 'hecks_journal_ledger', 'DELETE')")[0]["has_table_privilege"]
     db.close
@@ -1870,7 +1594,6 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
     )
     reference = JSON.parse(JSON.generate(rules.translate(entry).state))
 
-    # the compilation target: the matview the mint created
     db = PG.connect(dbname: LINEAGE_DB)
     matview = db.exec("SELECT matviewname FROM pg_matviews")[0]["matviewname"]
     expect(matview).to eq("ledger_account_lineage_2_#{to}")

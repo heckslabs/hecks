@@ -3,13 +3,8 @@ require_relative "../ports/persistence"
 
 module Hecks
   module Projector
-    # Registry-wide serialization to Hash/JSON: bluebook IR
-    # (`call`/`json`), era-adapter lineage-capability flags (`lineage`),
-    # and translation edges in both their digest-relevant declared shape
-    # (`translation_hash`, what ApprovalDigest hashes) and their
-    # consumer-ready compiled shape with precompiled SQL attached
-    # (`translations`/`compiled_translation_aggregate`). Read directly by
-    # bin/ir, bin/project_rust, and the translation/audit approval digest.
+    # Registry-wide serialization to Hash/JSON, for the canonical bluebook IR,
+    # binding facts, and translation edges (declared and compiled).
     module Exporter
       module_function
 
@@ -29,27 +24,10 @@ module Hecks
         JSON.pretty_generate(call(registry))
       end
 
-      # A binding fact, deliberately not folded into `call`/`bluebook.to_h`
-      # above — the canonical IR is runtime-independent by design (ADR
-      # 0001: it describes what a bluebook declares, never which adapter
-      # a deployment happens to bind it to), and "is this aggregate bound
-      # to a lineage-capable adapter" is exactly the kind of fact that
-      # answer can change per-deployment without the bluebook's own shape
-      # changing at all. Consumers that need it (bin/project_rust's own
-      # `ir.json` sidecar, rust/host's runtime era-aware seed overlay —
-      # dispatch.rs) merge this in as a separate top-level key, the same
-      # way `translations` already sits beside `call`'s output rather than
-      # inside it.
+      # Whether each aggregate is bound to a lineage-capable adapter — a per-deployment
+      # binding fact, not part of the declared IR `call` exports (ADR 0001).
+      # Empty when the era persistence plugin isn't loaded, rather than raising.
       #
-      # Reuses `Runtime::EraCheck`'s own capability predicates rather than
-      # re-deriving them — the boot-time gate and this export must never
-      # answer differently for the same aggregate.
-      #
-      # ADR 0033 — `Runtime::EraCheck` lives in the (optional) era
-      # persistence plugin now; unloaded, this answers exactly what it
-      # already answers for a domain with nothing lineage-capable bound —
-      # `capable_aggregates: []` — rather than raising on an undefined
-      # constant.
       # @param registry [Runtime::Registry] the booted registry `domain_name` is loaded in
       # @param domain_name [String] the domain to check era-adapter lineage capability for
       # @return [Hash{Symbol => Array<Hash{Symbol => String}>}] `:capable_aggregates`,
@@ -68,20 +46,9 @@ module Hecks
         { capable_aggregates: capable.map { |aggregate| { name: aggregate.name, storage_name: aggregate.storage_name } } }
       end
 
-      # A binding fact, same shape/reasoning as `lineage` above: every
-      # aggregate's declared persistence adapter name (`persisted_by`),
-      # not part of the canonical bluebook shape `call` exports (ADR
-      # 0001 — the IR describes what's declared, never which adapter a
-      # deployment binds it to). Unlike `lineage`, this needs no era
-      # plugin — `BindingPolicy` is core, always loaded — and covers
-      # every aggregate, not just lineage-capable ones: `rust/host`
-      # (`ir.rs`'s own `refuse_unsupported_persistence_adapters`) reads
-      # this to refuse loudly, at boot, against a domain bound to an
-      # adapter it has no backend for (Heki, Memory, Sqlite, D1,
-      # LocalStorage — `rust/host` understands only Postgres/PostgresEra
-      # today), rather than silently building up a second, disjoint
-      # history nothing but Rust ever reads while the real state stays
-      # wherever its own adapter actually wrote it.
+      # Every aggregate's declared persistence adapter (`persisted_by`) — a binding
+      # fact like `lineage`, not part of the declared IR `call` exports (ADR 0001).
+      #
       # @param registry [Runtime::Registry] the booted registry `domain_name` is loaded in
       # @param domain_name [String] the domain to export persistence bindings for
       # @return [Hash{Symbol => Array<Hash{Symbol => Object}>}] `:aggregates`, each a
@@ -99,13 +66,9 @@ module Hecks
         { aggregates: aggregates }
       end
 
-      # A binding fact, same shape/reasoning as `lineage`/`persistence`
-      # above: which chapter this domain's role checks resolve against
-      # (`Registry#authorization_provider_for` — the domain's own chapter
-      # or a framework member it attaches that declares `provides
-      # "authorization"`), with that chapter's declared verbs qualified.
-      # `rust/host` (auth.rs) reads this instead of naming Governance.
-      # `{}` when nothing this domain attaches provides authorization.
+      # Which chapter this domain's role checks resolve against
+      # (`Registry#authorization_provider_for`); `{}` if none does.
+      #
       # @param registry [Runtime::Registry] the booted registry `domain_name` is loaded in
       # @param domain_name [String] the domain to export the authorization binding for
       # @return [Hash{Symbol => String, nil}] `:provider` (name), `:grant`, `:assignments`
@@ -126,11 +89,9 @@ module Hecks
         }
       end
 
-      # Same seam as `authorization` — which chapter answers "who may
-      # sign in" (`Registry#membership_provider_for`), with its declared
-      # verbs qualified and the membership aggregate named off `admit`.
-      # rust/host reads this instead of HECKS_MEMBERSHIP_AGGREGATE.
-      # `{}` when nothing this domain attaches provides membership.
+      # Which chapter answers "who may sign in" (`Registry#membership_provider_for`),
+      # with the membership aggregate named off `admit`; `{}` if none does.
+      #
       # @param registry [Runtime::Registry] the booted registry `domain_name` is loaded in
       # @param domain_name [String] the domain to export the membership binding for
       # @return [Hash{Symbol => String, nil}] `:provider` (name), `:admit`, `:grant`,
@@ -151,12 +112,9 @@ module Hecks
         }
       end
 
-      # Same seam as `authorization` — which chapter answers "who is this
-      # authenticated pair" (`Registry#identity_provider_for`), with its
-      # declared verbs qualified. rust/host reads this instead of naming
-      # Identity::Identity.Register / ExternalIdentifier.Link. `{}` when
-      # nothing this domain attaches provides identity. Breaking in 2.0:
-      # Link's reference field is `identity`, never `identity_id`.
+      # Which chapter answers "who is this authenticated pair"; `{}` if none does.
+      # Breaking in 2.0: Link's reference field is `identity`, never `identity_id`.
+      #
       # @param registry [Runtime::Registry] the booted registry `domain_name` is loaded in
       # @param domain_name [String] the domain to export the identity binding for
       # @return [Hash{Symbol => String, nil}] `:provider` (name), `:register`, `:link`,
@@ -174,12 +132,9 @@ module Hecks
         }
       end
 
-      # Same seam as `membership` — which chapter answers the guest
-      # newsletter signup (`Registry#newsletter_provider_for`), with its
-      # declared verbs qualified and the subscribing aggregate named off
-      # `subscribe`. rust/host reads this instead of naming
-      # Newsletter::Subscriber.Subscribe and friends. `{}` when nothing
-      # this domain attaches provides newsletter.
+      # Which chapter answers the guest newsletter signup
+      # (`Registry#newsletter_provider_for`); `{}` if none does.
+      #
       # @param registry [Runtime::Registry] the booted registry `domain_name` is loaded in
       # @param domain_name [String] the domain to export the newsletter binding for
       # @return [Hash{Symbol => String, nil}] `:provider` (name), `:subscribe`, `:add_name`,
@@ -203,11 +158,8 @@ module Hecks
       end
 
       # Which chapter answers sending a newsletter issue
-      # (`Registry#newsletter_issues_provider_for`), with its declared verbs
-      # qualified and the issue and delivery aggregates named off them.
-      # rust/host's send route reads this instead of naming
-      # Newsletter::Issue.Send and Newsletter::Delivery.Record. `{}` when
-      # nothing this domain attaches provides newsletter_issues.
+      # (`Registry#newsletter_issues_provider_for`); `{}` if none does.
+      #
       # @param registry [Runtime::Registry] the booted registry `domain_name` is loaded in
       # @param domain_name [String] the domain to export the issue-sending binding for
       # @return [Hash{Symbol => String, nil}] `:provider` (name), `:send_issue`,
@@ -230,11 +182,9 @@ module Hecks
         }
       end
 
-      # Same seam as `newsletter` — which chapter answers scheduling sessions
-      # and taking registrations (`Registry#registrations_provider_for`), with
-      # its declared verbs qualified and the event and registration aggregates
-      # named off them. `{}` when nothing this domain attaches provides
-      # registrations.
+      # Which chapter answers scheduling sessions and taking registrations
+      # (`Registry#registrations_provider_for`); `{}` if none does.
+      #
       # @param registry [Runtime::Registry] the booted registry `domain_name` is loaded in
       # @param domain_name [String] the domain to export the registrations binding for
       # @return [Hash{Symbol => String, nil}] `:provider` (name), `:schedule`, `:request`
@@ -258,9 +208,8 @@ module Hecks
       end
 
       # Which chapter owns the payment-processor connection
-      # (`Registry#payment_connection_provider_for`), with its declared verbs
-      # qualified and the connection aggregate named off `connect`. `{}` when
-      # nothing this domain attaches provides payment_connection.
+      # (`Registry#payment_connection_provider_for`); `{}` if none does.
+      #
       # @param registry [Runtime::Registry] the booted registry `domain_name` is loaded in
       # @param domain_name [String] the domain to export the payment-connection binding for
       # @return [Hash{Symbol => String, nil}] `:provider` (name), one qualified verb per
@@ -276,12 +225,9 @@ module Hecks
         { provider: provider.name, **verbs, aggregate: verbs[:connect]&.split(".")&.first }
       end
 
-      # Same seam as `newsletter` — which chapter takes payments
-      # (`Registry#payments_provider_for`), with its declared verbs
-      # qualified and the paying aggregate named off `initiate`. rust/host
-      # reads this instead of naming Payments::Payment.Initiate and the
-      # PaymentGateway operations. `{}` when nothing this domain attaches
-      # provides payments.
+      # Which chapter takes payments (`Registry#payments_provider_for`);
+      # `{}` if none does.
+      #
       # @param registry [Runtime::Registry] the booted registry `domain_name` is loaded in
       # @param domain_name [String] the domain to export the payments binding for
       # @return [Hash{Symbol => String, nil}] `:provider` (name), `:initiate`, `:succeeded`,
@@ -302,14 +248,9 @@ module Hecks
         }
       end
 
-      # Translation IR, always as an array, with each aggregate's
-      # precompiled SQL attached (`compiled_translation_aggregate`) —
-      # this is the export a consumer embeds (`ir.json`'s `translations`
-      # key), never the bare digest-relevant shape `edge_digest` hashes
-      # (see that method's own header for why the two must stay
-      # separate). `values:` tables serialize as `[key, value]` pairs,
-      # never an object, because JSON object keys are always strings and
-      # a convert's keys are typed.
+      # Every registered translation, with each aggregate's precompiled SQL attached —
+      # `values:` serializes as `[key, value]` pairs since a convert's keys are typed.
+      #
       # @param registry [Runtime::Registry] the booted registry to export translations from
       # @return [Array<Hash>] every registered translation, as `compiled_translation_hash`
       #   builds
@@ -341,17 +282,9 @@ module Hecks
         JSON.pretty_generate(translations(registry))
       end
 
-      # The digest-relevant shape — `ApprovalDigest.edge_digest` hashes
-      # exactly this, and only this, for exactly the reason `compiled_
-      # translation_aggregate` below must never be used for that
-      # purpose: a digest bound to the compiled SQL, not just the
-      # declared rules, would invalidate an existing human approval the
-      # moment `Translation::RuleCompiler`'s own output format changed
-      # for any reason — a compiler refactor, a cosmetic SQL-formatting
-      # change — even when the declared rules an approver actually
-      # reviewed never changed at all. The approval binds to what was
-      # declared, not to what a particular compiler build happened to
-      # emit from it.
+      # The digest-relevant shape `ApprovalDigest.edge_digest` hashes — declared rules only,
+      # never the compiled SQL, so a compiler-output change can't invalidate an approval.
+      #
       # @param translation [Bluebook::Translation] the translation to digest
       # @return [Hash{Symbol => Object}] `:domain` (String), `:from`/`:to` (the era
       #   identifiers as declared), `:retired` (`Array<String>`), and `:aggregates`
@@ -386,42 +319,17 @@ module Hecks
           drops:     aggregate.drops.map(&:to_s),
           retypes:   aggregate.retypes.map { |retype| { from: retype.from, to: retype.to } },
           computes:  aggregate.computes.map { |compute| { from: compute.from, to: compute.to, sql: compute.sql } },
-          # **`rekeys`/`backfills` are digest-relevant too.** Without them, an
-          # edge carrying only a rekey (no compute) would bind its approval
-          # to nothing rekey-specific: any two rekey edges with otherwise-
-          # identical renames/moves/converts/drops/retypes/computes would
-          # produce the same digest regardless of what their `rekey sql:`
-          # actually said, letting a rekey's own SQL change without
-          # invalidating an existing approval. Same reasoning covers
-          # `backfills`.
+          # `rekeys`/`backfills` are digest-relevant too — a rekey with no compute
+          # would otherwise collide with any other, letting its SQL change silently
+          # invalidate nothing.
           rekeys:    aggregate.rekeys.map { |rekey| { sql: rekey.sql } },
           backfills: aggregate.backfills.map { |backfill| { name: backfill.name.to_s, default: backfill.default } }
         }
       end
 
-      # The export shape — `translation_aggregate`'s own digest-relevant
-      # fields, plus the precompiled SQL (`compiled_state_expression`/
-      # `compiled_id_expression`) a consumer embedding this JSON
-      # (rust/host's own boot-time mint) needs to execute the edge
-      # without compiling SQL itself. The same call head_compiler.rb's
-      # own `compile_rules(declared)`/`id_case(guard, declared)` make at
-      # mint time, run here once at build/export time instead —
-      # `Translation::RuleCompiler` is the one place this expression is
-      # built, called from both here and from head_compiler.rb's real
-      # per-mint assembly, so a consumer gets Ruby's own compiler's
-      # output verbatim, never a second, independently-authored SQL
-      # compiler that could drift from this one. `compiled_id_
-      # expression` is nil unless this edge rekeys — the bare
-      # `aggregate_id` passthrough head_compiler.rb itself falls back to
-      # for the overwhelming common case.
-      # ADR 0033 — `Translation::RuleCompiler` lives in the era plugin;
-      # unloaded, there is nothing that can compile this SQL, so this
-      # falls back to the bare declared fields (`translation_aggregate`
-      # alone) rather than raising on an undefined constant. A consumer
-      # embedding this JSON without the era plugin loaded gets the same
-      # declared-rules shape, just without precompiled SQL to execute —
-      # consistent with there being no mint/audit machinery to run it
-      # against either.
+      # `translation_aggregate`'s fields, plus precompiled SQL from the same
+      # `Translation::RuleCompiler` mint time uses (ADR 0033 governs its fallback).
+      #
       # @param aggregate [Bluebook::TranslationAggregate] the aggregate's own
       #   translation rules to compile and export
       # @return [Hash{Symbol => Object}] `translation_aggregate`'s own Hash, plus

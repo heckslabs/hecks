@@ -2,23 +2,8 @@ module RustProjection
   module Projector
     module_function
 
-    # `admits:`/`pattern:` (`attribute_collector.rb`'s own keyword args) sit
-    # on the SAME `Attribute` shape wherever `attribute()` is called —
-    # a value object's own field (`EmailAddress.address, pattern: ...`) or
-    # an aggregate/command's own usage-level attribute (`ExternalTransfer`'s
-    # `direction, MovementDirection, admits: "Account::LedgerDirection"`).
-    # Ruby checks BOTH doors (`admission.rb`'s own `check_admitted`/
-    # `check_patterns`, called from `Value.build`, and `admit_declared_set`,
-    # called from `coerce_declared_arguments`) — this file is the shared
-    # half both `types.rb` (the value-object door) and `commands.rb` (the
-    # command/entity-command-argument door) call into.
-
-    # The scalar `admitted_scalar`/`check_patterns` actually operate on —
-    # bare already if the attribute's own declared type IS the scalar
-    # (`String`), or the sole field of a single-field value object (the
-    # "one-field holder" `admission.rb`'s own comment names). `nil` for
-    # anything else (a multi-field VO, a closed-set VO with more than one
-    # discriminant) — not a shape either door can unwrap either.
+    # Scalar that `admits:`/`pattern:` checks operate on: the value itself for a `String`, or
+    # the sole field of a single-field value object. `nil` for any other shape.
     def scalar_field_expr(value_expr, attr_type, value_objects_by_name)
       return value_expr if attr_type == "String"
 
@@ -28,32 +13,15 @@ module RustProjection
       "#{value_expr}.#{rust_ident_field(vo[:attributes].first[:name])}"
     end
 
-    # An OPTIONAL attribute is `Option<T>` in the struct, not `T` — the two
-    # callers below used to hand `scalar_field_expr` the bare field
-    # (`self.description`) whether or not `attr[:optional]` held, which
-    # compiled fine for every attribute nobody had yet paired `optional:`
-    # with `admits:`/`pattern:` and broke the moment one was (a plain
-    # `Option<String>` where `pattern::matches`'s own signature wants
-    # `&str`). Ruby's own two doors (`admission.rb#admit_declared_set`,
-    # `coercion.rb#check_patterns`) both skip the check outright on `nil`
-    # — so this resolves a SCALAR EXPRESSION TO CHECK, only when the
-    # attribute is required, or a REBINDING TARGET (the source `Option`
-    # expression the caller must `if let Some(...)` around) when it's
-    # not — never both, and the caller (`wrap_if_optional`, below) is
-    # what actually decides which shape came back.
+    # An optional attribute is `Option<T>`, so the check must sit inside an `if let Some(..)`.
+    # Returns `[scalar_expr, nil]` when required, `[expr_over_binding, option_source]` when not.
     def optional_scalar_expr(value_expr, attr, value_objects_by_name)
       return [scalar_field_expr(value_expr, attr[:type], value_objects_by_name), nil] unless attr[:optional]
 
       [scalar_field_expr(OPTIONAL_BINDING, attr[:type], value_objects_by_name), value_expr]
     end
 
-    # `Some(OPTIONAL_BINDING) = &optional_source` — match ergonomics binds
-    # OPTIONAL_BINDING as a reference into the Option's own contents
-    # (`&String`/`&SomeVO`), exactly the shape `scalar_field_expr` already
-    # produces unwrapped field access against (`.field` on a VO reference
-    # derefs the same way `self.field` already did). A `None` optional
-    # field skips the check entirely, matching Ruby exactly rather than
-    # treating "not present" as "present and empty."
+    # Binds by reference into the `Option`; a `None` field skips the check, as in Ruby.
     OPTIONAL_BINDING = "__optional_value"
 
     def wrap_if_optional(check, optional_source)
@@ -62,17 +30,8 @@ module RustProjection
       "if let Some(#{OPTIONAL_BINDING}) = &#{optional_source} { #{check} }"
     end
 
-    # `admitted_members`/`chapter_of`, read directly (`admission.rb`):
-    # `"Aggregate::SetName"` resolved against the FULL domain — a closed
-    # set may be declared anywhere in the same chapter, not just the
-    # current aggregate. `aggregates_by_name` is `domain_generator.rb`'s
-    # own full-IR lookup (already built for `reference_checks`). `nil` —
-    # not generated, not refused at runtime like Ruby's own
-    # `undeclared_set` — when the target can't be resolved to an actual
-    # closed-set value object at codegen time: there is no repository to
-    # check against here, only a compile-time member table, so an
-    # unresolvable target is the same "can't honestly generate this" shape
-    # as every other skip in this generator.
+    # Members of the closed set named by `"Aggregate::SetName"`, resolved against the full domain.
+    # `nil` when the target is not a closed-set value object: codegen skips the check.
     def admitted_set_members(admits, aggregates_by_name)
       aggregate_name, set_name = admits.to_s.split("::", 2)
       aggregate = aggregates_by_name[aggregate_name]
@@ -84,17 +43,8 @@ module RustProjection
       vo[:members].map { |row| row.first[1] }
     end
 
-    # `InvariantViolation`/`admits_declared_set`. The template's own text
-    # used to be reproduced here, byte-for-byte, as a baked `prefix`
-    # (everything but the offered value, already substituted); V3 hands
-    # the four declared arguments to the site's own typed `render_args`
-    # instead, so the wording lives only in Vocabulary::RefusalTemplate
-    # and the `.inspect`-quoting and ", " join of the member list are
-    # `admitted`'s own RefusalSiteArgument row rather than this method's.
-    # The member LIST is still resolved at codegen time
-    # (`admitted_set_members`) and passed as a `&[&str]` literal; `{:?}`
-    # on the offered `&str` produces the same quoted form Ruby's own
-    # `.inspect` does for a plain string.
+    # Emits the `admits_declared_set` check. The member list is resolved at codegen time and passed
+    # as a `&[&str]` literal; the refusal wording lives only in Vocabulary::RefusalTemplate.
     def emit_admits_check(value_expr, attr, aggregates_by_name, value_objects_by_name)
       return nil unless attr[:admits]
 
@@ -115,12 +65,8 @@ module RustProjection
       wrap_if_optional(check, optional_source)
     end
 
-    # `TypeMismatch`/`pattern_mismatch`, the same way: four declared
-    # arguments handed to the site's typed `render_args`, no copy of
-    # `"{type}.{field} must match {pattern}, got {offered}"` left here.
-    # `pattern` still goes over as the raw regex SOURCE string, not
-    # re-escaped — Ruby's own template interpolates `attribute.pattern`
-    # verbatim, and `pattern`'s own row says `quoting: "none"`.
+    # Emits the `pattern_mismatch` check. The regex goes over as its raw source string, unescaped,
+    # matching Ruby's verbatim interpolation.
     def emit_pattern_check(value_expr, attr, owner_type_name, value_objects_by_name)
       return nil unless attr[:pattern]
 

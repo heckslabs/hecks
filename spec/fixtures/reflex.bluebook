@@ -29,9 +29,8 @@ Hecks.bluebook "Reflex" do
       emits "Flipped"
     end
 
-    # MUTATING, NOT CREATING — the policy this triggers re-dispatches it
-    # against the SAME light `Flip` just created, and a creating command now
-    # refuses a second creation over the same identity (see AlreadyExists).
+    # Mutating, not creating: the policy re-dispatches it against the light Flip created,
+    # and a creating command refuses a second creation over the same identity.
     command "Log" do
       role "System"
       goal "Record that the flip was noticed"
@@ -46,22 +45,9 @@ Hecks.bluebook "Reflex" do
       trigger Light::Log
     end
 
-    # THE SPECIFICATION OPTIONS, EXERCISED SOMEWHERE.
-    #
-    # The language holds every option an ask can carry — offset, nulls,
-    # authorize, inspect_query — as an open map,
-    # (`cursor` is declared syntax too, but refused unconditionally at build —
-    # see QueryBuilder#seal_cursor / ReadModelBuilder#seal_cursor — so it is
-    # never exercised here or anywhere else),
-    # and `Query.Option` is the verb that stores one. No bluebook in the corpus
-    # declared any, so the judge never offered that verb and
-    # spec/judge_coverage_spec called it decoration, correctly: a rule hanging off a
-    # verb nothing dispatches cannot fire.
-    #
-    # Here rather than in banking on purpose. Adding an option to an example would
-    # change that example's frozen IR for the sake of coverage alone. A fixture is
-    # not in the frozen corpus, so this exercises the verb without disturbing any
-    # golden.
+    # Exercises every query option (offset, nulls, authorize, inspect_query) so the
+    # Query.Option verb is dispatched somewhere. `cursor` is refused at build, so it is absent.
+    # Lives here, not in an example, because a fixture stays out of the frozen corpus goldens.
     query "Lit" do
       description "Lights that are on, most recent first, with every option a query can carry"
       where(condition: "on")
@@ -99,12 +85,8 @@ Hecks.bluebook "Reflex" do
       emits "Installed"
     end
 
-    # MUTATING, NOT CREATING — a self-triggering policy re-dispatches this
-    # with the same identity every time the reaction feeds itself, and a
-    # creating command refuses a second creation over the same identity now
-    # (see AlreadyExists). The infinite-loop guard this fixture exists to
-    # prove (`MAX_REACTION_DEPTH`) needs the SAME record ringable arbitrarily
-    # many times, which is exactly what a mutating command is for.
+    # Mutating, not creating: the MAX_REACTION_DEPTH loop guard needs the same record
+    # to be ringable repeatedly, and a creating command refuses a second creation.
     command "Ring" do
       role "Operator"
       goal "Ring the bell, which rings the bell"
@@ -145,11 +127,8 @@ Hecks.bluebook "Reflex" do
     end
   end
 
-  # A read model carrying the same options an ask does — the other half of the
-  # coverage gap. `ReadModel.Option` is declared in the language and no corpus read
-  # model exercised it, so the judge never offered it. Its filters (where, order_by,
-  # limit) are deliberately absent here — see the "Signals" read model itself for why
-  # they're covered elsewhere. See spec/orchestration_spec's gap list.
+  # A read model carrying the same options a query does, so ReadModel.Option is exercised.
+  # Its filters (where, order_by, limit) are covered elsewhere (spec/orchestration_spec).
   read_model "Signals" do
     description "Every echo gathered around a light, with the options a projection can carry"
     reference_to Light

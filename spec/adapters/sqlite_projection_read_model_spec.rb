@@ -2,24 +2,10 @@ require "spec_helper"
 require "tmpdir"
 require "tempfile"
 
-# M19 (docs/audits/2026-08-10-main-bug-audit.md,
-# docs/audits/2026-08-11-bug-triage.md) — the in-process read-model path
-# (`Runtime::ReadModelInterpreter#project`) and SQLite's own native,
-# projected-table path (`Adapters::SqliteProjection#query_read_model`)
-# diverge on two counts once a real `projected_by` binding actually
-# routes a read model through the native path (nothing in the existing
-# suite did — every other SQLite read-model spec exercises
-# SqlitePersistence alone, which has no `query_read_model` at all and so
-# always falls back to the in-process loop regardless of adapter), unless
-# both paths agree:
-#
-# - a missing root reference: in-process refuses with `NotFound`;
-#   the native path would otherwise answer a silent `{root: nil, ...}`.
-# - a chained include (a non-root head that references another
-#   included head rather than the root directly): in-process matches a
-#   head against any already-resolved source, root or not; the native
-#   path would otherwise match only against the root, so a chained head's
-#   own rows would come back empty no matter what actually existed.
+# The native SQLite projection path must agree with the in-process read-model path on:
+# - a missing root reference: `NotFound`, not a silent `{root: nil, ...}`;
+# - a chained include (a head referencing another included head, not the root): its rows
+#   must still resolve.
 RSpec.describe "Adapters::SqliteProjection#query_read_model" do
   SOURCE = <<~BLUEBOOK.freeze
     Hecks.bluebook "ChainProjectionGrowth" do
@@ -113,10 +99,7 @@ RSpec.describe "Adapters::SqliteProjection#query_read_model" do
     registry.verify!
     runtime = Hecks::Runtime::Loader.bind_runtime(Hecks::Runtime::Dispatcher.new(registry))
 
-    # A projection is only ever caught up by an explicit worker (see
-    # `Ports::Projection::Worker`'s own header: "the command-side write
-    # path never calls this method") — mirrors
-    # `spec/adapters/banking_matrix_spec.rb`'s own pattern.
+    # The command-side write path never advances a projection; only a worker does.
     %w[Root Mid Leaf].each do |name|
       aggregate = registry.bluebook("ChainProjectionGrowth").aggregate(name)
       Hecks::Ports::Projection.worker(registry, "ChainProjectionGrowth", aggregate)&.catch_up!
@@ -127,11 +110,8 @@ RSpec.describe "Adapters::SqliteProjection#query_read_model" do
     file&.close!
   end
 
-  # Confirms the spec is actually exercising SqliteProjection's own
-  # `query_read_model`, not silently falling back to the in-process
-  # loop the way every other SQLite read-model spec does (no
-  # `projected_by` binding declared there at all) — a false pass here
-  # would prove nothing about the native path this file exists to cover.
+  # Guards against a false pass: without a `projected_by` binding the read model silently
+  # falls back to the in-process loop.
   def assert_native_path!(runtime)
     root = runtime.registry.bluebook("ChainProjectionGrowth").aggregate("Root")
     repository = runtime.registry.read_repository("ChainProjectionGrowth", root)
@@ -149,8 +129,7 @@ RSpec.describe "Adapters::SqliteProjection#query_read_model" do
       ChainProjectionGrowth::Mid.make!(ref: { value: "m1" }, root: "r1")
       ChainProjectionGrowth::Leaf.make!(ref: { value: "l1" }, mid: "m1")
 
-      # A second, unrelated chain — proves the join is scoped to this
-      # root's own descendants, not "every Leaf that exists".
+      # A second, unrelated chain proves the join is scoped to this root's descendants.
       ChainProjectionGrowth::Root.make!(ref: { value: "r2" })
       ChainProjectionGrowth::Mid.make!(ref: { value: "m2" }, root: "r2")
       ChainProjectionGrowth::Leaf.make!(ref: { value: "l2" }, mid: "m2")

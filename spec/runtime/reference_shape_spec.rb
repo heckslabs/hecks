@@ -1,15 +1,7 @@
 require "spec_helper"
 
 # A reference is an ID, so an object is not one.
-#
-# Nothing coerced a reference anywhere: the value-object lookup misses
-# on "Reference<Drawer>", which is no value object's name, so the argument was
-# stored exactly as it arrived. There was nowhere it could be refused, and so
-# whatever the first caller happened to write — `{"value":"a"}` — became the
-# shape the corpus used for years.
-#
-# The refusal's wording is contract, not prose: the corpus scripts pin refusal
-# text byte for byte, so the string here is asserted exactly.
+# The refusal wording is contract (corpus scripts pin it byte for byte), so it is exact.
 RSpec.describe "a reference that arrives as an object" do
   SETTLEMENT = File.join(InMemoryDomain::ROOT, "spec/fixtures/settlement.bluebook")
 
@@ -42,10 +34,7 @@ RSpec.describe "a reference that arrives as an object" do
                        "(Drawer is known by number)")
   end
 
-  # Declaration order, not payload order. `refuse_unknown_arguments` had to sort
-  # its list because map iteration order is an accident of the store ; this one
-  # walks the command's own attributes, an array with a declared order, so the
-  # argument named first is stable without sorting.
+  # Declaration order, not payload order: the walk is over the command's own attributes.
   it "names the first reference the command declares, not the first one passed" do
     expect do
       runtime.dispatch_flat("Wire::Wire.Ask", reference: { value: "w1" }, amount: { cents: 100 },
@@ -53,9 +42,7 @@ RSpec.describe "a reference that arrives as an object" do
     end.to raise_error(Hecks::Runtime::TypeMismatch, /and source arrived as an object/)
   end
 
-  # **Without this the guard proves nothing**. A refusal on the wrapped form is only
-  # half the claim ; the other half is that the accepted form is stored as the
-  # scalar, rather than quietly re-wrapped somewhere downstream.
+  # The accepted form is stored as the scalar, not re-wrapped downstream.
   it "accepts the id, and stores it as the id" do
     runtime.dispatch_flat("Wire::Wire.Ask", reference: { value: "w1" }, amount: { cents: 100 },
                                        source: "a", destination: "b")
@@ -66,19 +53,8 @@ RSpec.describe "a reference that arrives as an object" do
     expect(wire[:destination]).to eq("b")
   end
 
-  # BUG#27 (QualityControl ledger) — found live on qa/stress_domains/
-  # referral_chain's Member.Join/Referral.Issue: a bare Boolean, Array, or
-  # `null` would otherwise sail past this refusal entirely (only Hash/Value ever
-  # matched it), get `.to_s`'d into a lookup key by `CommandRules::
-  # References#reference_key` ("true", "false", "[8, 8]"), and answer
-  # NotFound — or, for `null`, skip the lookup outright (`next if
-  # held.nil?`, command_rules/references.rb) and answer whatever the
-  # command's own `given` said instead (GivenNotMet here — "a wire moves
-  # something" never even reaches `amount`). Rust's generated `from_json`
-  # has always required a JSON string for a required reference field
-  # before anything else runs — these four pin Ruby refusing the same
-  # kind, at the same step (`normalize_args`, before `resolve_references`
-  # ever gets a value to look up), matching it.
+  # A bare Boolean, Array or null must be refused in normalize_args like Rust's from_json,
+  # not stringified into a lookup key or skipped as nil.
   describe "a non-string, non-object reference argument" do
     {
       "a bare Boolean (false)" => false,
@@ -104,17 +80,9 @@ RSpec.describe "a reference that arrives as an object" do
     end
   end
 
-  # **The other half of the judgment** — an optional command-level reference
-  # (`reference_to ..., optional: true`) still passes an explicit `null`
-  # straight through untouched: the caller genuinely may have nothing to
-  # name yet (`Improvement.Open`'s own `reference_to Angle, optional:
-  # true`, qa/bluebook/quality_control.bluebook), and BUG#27's fix is
-  # scoped to a required reference's own wrong shapes, not to this case.
+  # An optional reference still passes an explicit null through; the caller may have nothing yet.
   describe "an optional reference argument" do
-    # Not `HOP_CHAIN` — `spec/runtime/query_hop_spec.rb` already owns that
-    # top-level name for the identical fixture path, and `load_hygiene_
-    # spec.rb` refuses two spec files disagreeing about (or merely
-    # duplicating) a top-level constant.
+    # Not HOP_CHAIN: query_hop_spec.rb owns that name and load_hygiene_spec refuses duplicates.
     OPTIONAL_REFERENCE_HOP_CHAIN = File.join(InMemoryDomain::ROOT, "spec/fixtures/hop_chain.bluebook")
 
     def boot_hop_chain
@@ -147,10 +115,7 @@ RSpec.describe "a reference that arrives as an object" do
     end
   end
 
-  # An ask's reference is an ID too, and this one closes a real split rather
-  # than a hypothetical: one query path once opened a wrapped reference and
-  # answered, while another read it whole and found nothing. Only a stale caller
-  # would show it, which is exactly the kind of divergence that waits.
+  # A query's reference argument is refused like a command's, so no path reads a wrapped id.
   describe "a read model's reference argument" do
     BANKING = InMemoryDomain::BANKING_BLUEBOOK_DIR
 

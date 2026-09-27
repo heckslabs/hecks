@@ -7,13 +7,8 @@ require_relative "audit/approval_digest"
 
 module Hecks
   module Translation
-    # The audit derives its assertions; nobody hand-lists them. One file
-    # per layer beside this one: audit/layer_one.rb (the bluebook's own
-    # rules), audit/layer_two.rb (the edge against the reference
-    # transform), audit/unfed_report.rb (what nothing feeds), and
-    # audit/approval_digest.rb (the human gate's binding). Layer 3 — the
-    # before/after sample a human approves, intent not being derivable —
-    # is assembled right here in `check`.
+    # Derives the audit's assertions per layer (audit/layer_one, layer_two, unfed_report,
+    # approval_digest); Layer 3, the human-approved sample, is assembled in `check`.
     module Audit
       Verdict = Struct.new(:violations, :dropped, :unfed, :samples, keyword_init: true) do
         # Reports whether the mechanical layers found nothing to refuse.
@@ -38,14 +33,12 @@ module Hecks
       # @param aggregate [Bluebook::Aggregate] the current era's IR for the aggregate
       # @param declared [Bluebook::TranslationAggregate, nil] this edge's rules for the
       #   aggregate; nil when the edge declares none
-      # @param before [Hash{String => Hash}] the source era's latest state per record id, as
-      #   parsed JSON
-      # @param after [Hash{String => Hash}] the translated state per record id, as parsed JSON
-      # @return [Translation::Audit::Verdict] `violations` (Layer 1 and 2 messages), `dropped`
-      #   (declared drop paths as Strings), `unfed` (attribute names nothing feeds) and
-      #   `samples` (the Layer 3 before/after pairs)
+      # @param before [Hash{String => Hash}] source state per record id, as parsed JSON
+      # @param after [Hash{String => Hash}] translated state per record id, as parsed JSON
+      # @return [Translation::Audit::Verdict] Layer 1 and 2 `violations`, `dropped` paths,
+      #   `unfed` attribute names and Layer 3 `samples`
       # @raise [Runtime::WiringError] if Layer 2's reference transform cannot translate a
-      #   `before` state: a convert meets an unmapped value, or a move nests under a non-Hash
+      #   `before` state
       def check(aggregate:, declared:, before:, after:)
         violations = []
 
@@ -74,19 +67,9 @@ module Hecks
         before.keys.sort.first(SAMPLE_SIZE).map { |id| { id: id, before: before[id], after: after[id] } }
       end
 
-      # Samples both sides of a rekeying edge separately instead of pairing them by id.
+      # Samples both sides of a rekeying edge separately, each labelled by its own id.
       #
-      # A rekey changes the id itself, so `before`'s and `after`'s
-      # keyspaces share nothing — pairing by matching id (the ordinary
-      # path above) would show every `after` as nil, telling a human
-      # nothing. Nothing in-process can compute the old→new
-      # correspondence either (the rekey's SQL is its only
-      # implementation, same as compute's own). Shown side by side
-      # instead, each labelled by its own id: real records going in,
-      # real records coming out — not claimed to correspond one-to-one,
-      # but enough for the human this rule's only verification depends
-      # on to actually see real shapes and values, not a wall of null.
-      #
+      # A rekey changes the id, so pairing by id would show every `after` as nil.
       # @param before [Hash{String => Hash}] source state per old record id
       # @param after [Hash{String => Hash}] translated state per new record id
       # @return [Array<Hash{Symbol => Object}>] up to `SAMPLE_SIZE` Hashes whose `:id` ends in

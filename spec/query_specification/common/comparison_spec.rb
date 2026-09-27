@@ -1,12 +1,6 @@
 require "spec_helper"
 
-# M1, M2, M4 (docs/audits/2026-08-10-main-bug-audit.md) — all three were
-# reported against `Ports::Query::InMemory`'s own, separate comparator
-# copy, before it and `Runtime::QueryInterpreter`'s copy were unified into
-# this one shared module (see this file's own header comment). Re-verified
-# here against the current, shared implementation: all three are already
-# fixed by that unification and this file exists to pin the fix down with
-# a real regression test, not to re-fix anything.
+# Pins M1, M2 and M4 (docs/audits/2026-08-10-main-bug-audit.md) against the shared comparator.
 RSpec.describe Hecks::QuerySpecification::Common::Comparison do
   describe "M1 — ne and a nil-held row" do
     it "does NOT match ne against a nil-held field, matching SQL's <> excluding NULL" do

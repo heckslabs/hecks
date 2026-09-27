@@ -1,12 +1,7 @@
 require "tmpdir"
 
-# A chapter whose second aggregate types an attribute with a value object the
-# first aggregate declares.
-#
-# `Booking#site_reference` is typed `SiteReference`, a value object owned by
-# `ManagedSite`. Booking declares no `SiteReference` of its own, so the
-# attribute can only mean the sibling's declaration. `Booking#site` is a real
-# `reference_to`, kept alongside so a spec can tell the two apart.
+# A chapter whose Booking types an attribute with ManagedSite's `SiteReference` value object.
+# `Booking#site` is a real `reference_to`, kept so a spec can tell the two apart.
 module SiblingValueObjectDomain
   SOURCE = <<~BLUEBOOK.freeze
     Hecks.bluebook "SiblingValueObject" do
@@ -82,8 +77,6 @@ module SiblingValueObjectDomain
   BLUEBOOK
 
   # Loads the chapter into a fresh registry, ports and Memory adapter included.
-  #
-  # @return [Hecks::Bluebook::Chapter] the judged `SiblingValueObject` chapter
   def self.chapter
     registry = Hecks::Runtime::Registry.new
     Dir.mktmpdir("hecks-sibling-vo-") do |dir|

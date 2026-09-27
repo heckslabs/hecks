@@ -2,15 +2,8 @@ require "spec_helper"
 require "json"
 require "hecks/fuzzing"
 
-# The caller draw, the dry-run draw, and the late-stage precedence pairs
-# (items 2, 3 and 5 of the detection plan; angle-5) — checked against
-# real generated sequences the way `adversary_spec.rb` checks the
-# argument mutations: the seed contract holds (same seed, same script;
-# off is byte-identical and carries no metadata), every shape actually
-# appears, and each shape's fingerprint is in the step's own keys —
-# `role`/`actor_id`/`dry_run` — which is what both `Fuzzing::Replay`
-# and `kernel/cli.rs` read, so the generator's inline dispatch and both
-# replays bind the same caller.
+# The caller draw, dry-run draw and late-stage precedence pairs, on real generated sequences.
+# Each shape's fingerprint is in the step's own `role`/`actor_id`/`dry_run` keys.
 RSpec.describe Hecks::Fuzzing::SequenceGenerator do
   ROLE_BANKING = File.join(InMemoryDomain::ROOT, "examples/banking")
   ROLE_PIZZAS  = File.join(InMemoryDomain::ROOT, "examples/pizzas")
@@ -42,9 +35,8 @@ RSpec.describe Hecks::Fuzzing::SequenceGenerator do
         pair.first
       end
 
-      # Counted across seeds rather than per seed: a role-heavy sequence
-      # refuses more, reaches less state, and can land on a handful of
-      # command steps — the draws are real, not guaranteed per seed.
+      # Counted across seeds: a role-heavy sequence refuses more and reaches less state,
+      # so a draw is not guaranteed per seed.
       expect(scripts.sum { |s| s.count { |step| step.key?("role") } }).to be_positive
       expect(scripts.sum { |s| s.count { |step| step.key?("dry_run") } }).to be_positive
     end
@@ -89,12 +81,9 @@ RSpec.describe Hecks::Fuzzing::SequenceGenerator do
       steps = (1..16).flat_map do |seed|
         described_class.generate(ROLE_BANKING, seed: seed, steps: 40, adversarial: 0.3, role_draw: 1.0)
       end
-      # Only grants whose `role_name` the argument layer left alone — a
-      # `refusal_precedence`/`omit_mapped_argument` mutation can corrupt or
-      # drop it after the steer (that is exactly its job); a `caller_role`
-      # note touches no argument at all.
-      # The grant verb is whatever the loaded authorization provider
-      # declares (`provides "authorization", grant: ...`), not a constant.
+      # Only grants whose `role_name` the argument layer left alone: a
+      # `refusal_precedence`/`omit_mapped_argument` mutation can corrupt or drop it.
+      # The grant verb comes from the loaded authorization provider, not a constant.
       bluebooks   = Hecks::Fuzzing::Replay.call(ROLE_BANKING, [])[:bluebooks]
       grant_verbs = bluebooks.values.filter_map { |b| b.provided_verb("authorization", :grant) }
       expect(grant_verbs).to eq(["Governance::RoleAssignment.Assign"])
@@ -115,9 +104,8 @@ RSpec.describe Hecks::Fuzzing::SequenceGenerator do
       expect(mismatched).not_to be_empty
 
       history = Hecks::Fuzzing::Replay.call(ROLE_BANKING, mismatched)
-      # Every one refused (nothing a wrong hat dispatches ever lands), and
-      # the only refusals ahead of Unauthorized are the argument-gate
-      # stages `DISPATCH_ORDER` places before `refuse_role_mismatch`.
+      # Every one is refused; the only refusals ahead of Unauthorized are the
+      # argument-gate stages `DISPATCH_ORDER` places before `refuse_role_mismatch`.
       expect(history[:refusals].size).to eq(mismatched.size)
       expect(history[:events]).to be_empty
       kinds = history[:refusals].map { |r| r[:kind].split("::").last }.uniq
@@ -140,11 +128,8 @@ RSpec.describe Hecks::Fuzzing::SequenceGenerator do
 
       history = Hecks::Fuzzing::Replay.call(ROLE_PIZZAS, steps)
       expect(history[:dry_runs].size).to eq(dry.size)
-      # `dry_runs` itself stays exactly `{verb:, ok:, error?:}` — the same
-      # shape the compiled Rust binary's own `dry_run` answers, so
-      # `spec/rust_conformance_spec.rb`'s direct comparison against it
-      # never sees a key Rust doesn't have; `before:`/`after:` live on the
-      # separate, parallel `dry_run_traces` array instead.
+      # `dry_runs` keeps exactly the shape the Rust binary answers, so the conformance
+      # comparison sees no extra key; `before:`/`after:` live in `dry_run_traces`.
       expect(history[:dry_runs]).to all(include(:verb, :ok))
       expect(history[:dry_runs]).to all(satisfy { |e| !e.key?(:before) && !e.key?(:after) })
       expect(Hecks::Fuzzing::Properties.dry_runs_leave_no_trace(history)).to be(true)
@@ -181,17 +166,12 @@ RSpec.describe Hecks::Fuzzing::SequenceGenerator do
       end
     end
 
-    # `lifecycle+mismatch` is offered only when a transition-guarded,
-    # non-creating command is addressed — rare at `adversarial: 1.0`,
-    # where nearly every creating step is mutated into a refusal and
-    # little state exists to act on — so its applicability is pinned
-    # directly against a hand-built entry rather than left to the draw.
+    # `lifecycle+mismatch` needs a transition-guarded, non-creating command, which is rare
+    # at `adversarial: 1.0` (little state exists), so it is pinned against a hand-built entry.
     it "offers lifecycle+mismatch exactly to a transition-guarded, non-creating command with flat addressing" do
       bluebooks = Hecks::Fuzzing::Replay.call(ROLE_BANKING, [])[:bluebooks]
-      # The first guarded, non-creating command that also declares an
-      # argument to mismatch (`Transfer.Settle` is guarded but takes none,
-      # so `mismatch` has nothing to corrupt there — `lifecycle` pairs
-      # only with `mismatch` by design).
+      # Needs an argument to mismatch: `Transfer.Settle` is guarded but takes none,
+      # and `lifecycle` pairs only with `mismatch`.
       aggregate, command = bluebooks["Banking"].aggregates.flat_map { |a| a.commands.map { |c| [a, c] } }.find do |a, c|
         !c.creates? && c.from && c.attributes.reject(&:list?).any? && a.lifecycle
       end

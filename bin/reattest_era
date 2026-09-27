@@ -1,13 +1,8 @@
 #!/usr/bin/env ruby
 
-# The recovery path after a held-text integrity refusal. The digest is
-# tamper-evidence — it catches accident and drift, not an adversary
-# (anyone who can edit the text can recompute the digest beside it).
-# When it fires, the honest resolution is a human reading the text as
-# it now stands and acknowledging it, on the record — never a psql
-# update. This tool shows the text and the digests, refuses without
-# --accept, and records an attestation (old digest, new digest, when)
-# in an append-only log beside the store.
+# Re-attests an era's held text after a digest-integrity refusal, once a human has read it.
+# Refuses without --accept; each attestation (old digest, new digest, when) is logged.
+# The digest is tamper-evidence against drift, not against an adversary.
 #
 #   bin/reattest_era <domain> <era ordinal> [--accept]
 
@@ -27,7 +22,7 @@ registry = Hecks::Runtime::Registry.new(root: File.dirname(directory))
 Hecks.with_registry(registry) do
   loading.load_library
   loading.load_project(loading.shared_root(nil, directory))
-  # no translations: an unresolved edge must not block attesting a text
+  # No translations: an unresolved edge must not block attesting a text.
   loading.load_each(directory, %w[*.port *.adapter *.bluebook *.hecksagon *.world])
 end
 
@@ -54,8 +49,7 @@ if capable
   stored_projection = era[:held_projection] && JSON.parse(era[:held_projection])
   reattest = -> { lineage.reattest!(ordinal) }
 else
-  # Only a lineage-capable adapter holds era texts, so only one can
-  # have a held text whose digest went stale.
+  # Only a lineage-capable adapter holds era texts.
   abort "#{bluebook.name} is bound to #{adapter_name}, which holds no eras — " \
         "there is no frozen text to re-attest."
 end
@@ -70,8 +64,7 @@ puts "#{bluebook.name} era #{ordinal}: the held text does NOT match its recorded
 puts "  recorded: #{stored || '(none)'}"
 puts "  computed: #{computed}"
 
-# Before anything else: did the edit change the era's shape, or only
-# its text? A shape change refuses hard — no --accept passes it.
+# A shape change refuses hard; no --accept passes it.
 begin
   verdict = Hecks::Translation::Reattest.shape_guard!(
     domain: bluebook.name, ordinal: ordinal, text: text,

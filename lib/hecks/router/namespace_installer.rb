@@ -3,22 +3,13 @@ require_relative "../facade/handle"
 
 module Hecks
   class Router
-    # Installs optional Ruby syntax over an already-loaded router. FQN
-    # resolution stays in Router; this object only adapts it to constants and
-    # method calls.
+    # Installs optional Ruby syntax over an already-loaded router; FQN
+    # resolution stays in Router, this only adapts it to constants and methods.
     class NamespaceInstaller
-      # Returned by the `.options(version:)` method installed on each
-      # namespace module — forwards any command/query verb called on it
-      # to the router, pinned to this specific FQN version rather than
-      # the router's default resolution.
+      # Returned by `.options(version:)`; forwards command/query verbs to the
+      # router, pinned to this FQN version rather than the router's default.
       class OptionsProxy
-        # @param router [Router] router to dispatch resolved calls through
-        # @param realm [String, nil] realm segment of the FQN this proxy pins
-        # @param domain [String] domain segment of the FQN this proxy pins
-        # @param aggregate [String, nil] aggregate segment, or nil for a domain-level query
-        # @param options [Hash{Symbol => Object}] the `.options(...)` call's keywords; only
-        #   `:version` is accepted
-        # @raise [ArgumentError] if `options` has a key other than `:version`
+        # Only the `:version` keyword is accepted; any other key raises `ArgumentError`.
         def initialize(router:, realm:, domain:, aggregate:, options:)
           unknown = options.keys - [:version]
           raise ArgumentError, "unknown router options: #{unknown.join(', ')}" unless unknown.empty?
@@ -52,16 +43,12 @@ module Hecks
         end
       end
 
-      # @param router [Router] router whose current routes get Ruby constants and methods
       def initialize(router)
         @router = router
       end
 
-      # Installs every current-version route as a namespace constant/method,
-      # plus the aggregate `find`/`all`/`count`/`events`/`repository` door and
-      # short `Aggregate.verb` shortcuts.
-      #
-      # @return [self]
+      # Installs every current-version route as a namespace constant/method, plus
+      # the aggregate CRUD door and short `Aggregate.verb` shortcuts.
       def install!
         current_entries.each { |entry| install_namespace_entry(entry) }
         install_shortcuts!
@@ -90,18 +77,8 @@ module Hecks
         end
       end
 
-      # `.find`/`.all`/`.count`/`.events`/`.repository` — the same read/CRUD
-      # surface `Facade::Surface::AggregateDoor` gives a plain `Hecks
-      # .boot`, missing here until now: `install_namespace_entry` above
-      # installs one method per declared verb, so an aggregate with no
-      # commands or queries of its own shape (or simply never asked for
-      # a `find`-shaped query) had no way to look up one record by id
-      # through the router surface at all — real gap, hit live building
-      # a `List` aggregate meant to be read this way. Grouped by
-      # (realm, domain, aggregate) rather than installed per-verb,
-      # because unlike a command or query this is the same five methods
-      # regardless of which verb happened to trigger this aggregate's
-      # own namespace module into existing.
+      # `.find`/`.all`/`.count`/`.events`/`.repository`, matching `Hecks.boot`'s
+      # door; grouped by (realm, domain, aggregate) since the five don't vary by verb.
       def install_aggregate_doors!
         current_entries.reject { |entry| entry.fqn.aggregate.nil? }
                        .group_by { |entry| [entry.fqn.realm, entry.fqn.domain, entry.fqn.aggregate] }
@@ -138,10 +115,9 @@ module Hecks
         current_entries.reject { |entry| entry.fqn.aggregate.nil? }
                        .group_by { |entry| [entry.fqn.aggregate, entry.fqn.verb] }
                        .each do |(aggregate, verb), candidates|
-          # Bounded chapters wrap in their own module (`Domain::Aggregate`)
-          # so two BCs can both declare `Person` without colliding on
-          # Object::Person. Folder-spread files of the same chapter still
-          # get the shortcut — they are not BCs.
+          # Bounded chapters wrap in their own module (`Domain::Aggregate`) so two
+          # BCs can both declare `Person` without colliding on `Object::Person`.
+          # Folder-spread files of the same chapter aren't BCs, so they still get it.
           next if bounded_chapter?(candidates)
 
           shortcut_target(aggregate).define_singleton_method(verb) do |**args|

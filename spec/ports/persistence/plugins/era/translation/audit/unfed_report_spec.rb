@@ -1,13 +1,8 @@
 require "hecks"
 require "hecks/ports/persistence/plugins/era"
 
-# S2 (docs/audits/2026-08-10-main-bug-audit.md) — `dig_path` read
-# `node[segment] || node[segment.to_sym]`, which drops a genuinely-stored
-# `false` to `nil` (`false || …` falls through to the other key
-# spelling — here, absent). `unfed` treats a `nil` dig as "nothing fed
-# this attribute", so a boolean attribute a migration genuinely set to
-# `false` was reported as unfed and steered toward a `default:` it does
-# not need, on data that already carries a real, correct answer.
+# Pins that `dig_path` keeps a stored `false`; reading it as nil made `unfed` report
+# a boolean the migration did set as unfed.
 RSpec.describe "Audit.dig_path / .unfed — a stored false is a real, fed value" do
   describe ".dig_path" do
     it "reads a stored false leaf, string-keyed, rather than nil" do

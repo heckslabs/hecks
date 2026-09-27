@@ -23,29 +23,11 @@ RSpec.describe Hecks::QueryIR do
       expect(currency[:locations]).to contain_exactly("Account::Money (declared)", "Account::PositiveMoney (declared)")
     end
 
-    # **The trickiest part of this tool** — a rule's own object identity
-    # carries no signal by the time any caller reads the registry.
-    # `MetaValidator.call` (S14) judges every bluebook by dispatching
-    # its own IR into the self-hosted grammar, then rebuilds the whole
-    # graph fresh from flat rows (`Assembly.call`) — so a bare
-    # `given("x")` reference and its owner's own block declaration,
-    # the same Ruby object at DSL build time, are already two distinct
-    # objects by the time `collect_rules` reads them back. Verified
-    # live: `Account`'s own "customer is active" given, referenced
-    # bare by `Account.Open`/`Account.Credit`/etc., comes back as N
-    # distinct objects, not one — this dedup has to work without
-    # identity, by recognising that every one of those commands shares
-    # the same owner (`Account`), which already carries its own
-    # "(declared)" entry for it.
-    #
-    # `Account`'s "customer is active" is also not the whole story:
-    # `SafeDepositBox` and `OnboardingCase` each independently declare
-    # their own "customer is active" with the identical canonical text
-    # — three genuinely separate declarations, real corpus duplication
-    # the tool is right to surface (`bin/query_ir duplicates`'s own
-    # live output lists all three). This test scopes to `Account`
-    # alone precisely to isolate "one owner, many referencing
-    # commands" from that separate, real, cross-aggregate case.
+    # Rule object identity carries no signal: `MetaValidator.call` rebuilds the graph from flat
+    # rows, so a bare `given("x")` reference and its owner's declaration are distinct objects
+    # by the time `collect_rules` reads them. Dedup must use the shared owner (`Account`).
+    # Scoped to `Account` to isolate that from the real duplication in `SafeDepositBox` and
+    # `OnboardingCase`.
     it "does not flag a single owner's own commands referencing its declared given as N fresh duplicates" do
       raw = described_class.send(:collect_rules, Hecks::Codemod.load_bluebook(
                                                    InMemoryDomain::BANKING_BLUEBOOK_DIR
@@ -66,27 +48,14 @@ RSpec.describe Hecks::QueryIR do
           g[:locations].include?("Account (declared)")
       end
 
-      # It shows up at all (SafeDepositBox/OnboardingCase's own
-      # independent declarations make it a real group) — and, since S12
-      # (ADR 0025) has every one of them read through a local field
-      # named `customer_status` (each its own `projects`, not a shared
-      # reference), the three aggregates' independently-declared givens
-      # now carry byte-identical canonical text too, not just the same
-      # description — one bigger merged group, not three separate ones.
-      # Every location this test's own raw Account-scoped rules found
-      # is still named in it, none silently dropped just because they
-      # share an owner.
+      # SafeDepositBox/OnboardingCase declare the same given with identical canonical text, so one
+      # merged group must still name every Account-scoped location.
       expect(customer_active).not_to be_nil
       expect(account_given.map(&:location) - customer_active[:locations]).to be_empty
     end
 
-    # The negative case the corpus test above can't isolate on its own
-    # (Account's "customer is active" always shows up, because
-    # SafeDepositBox/OnboardingCase genuinely duplicate it too) —
-    # `declaration_count` (the private tally `duplicates` filters on)
-    # exercised directly: one owner's own declaration plus every
-    # command under that same owner referencing it by name is one real
-    # declaration, not N, and does not clear the ">1" bar alone.
+    # Exercises the private `declaration_count` directly: an owner's declaration plus its own
+    # commands' references is one declaration, not N.
     it "counts one owner's declaration plus its own commands' references as a single declaration" do
       rules = [
         described_class::Rule.new(kind: "given", description: "x", canonical: "x", location: "Account (declared)"),
@@ -126,11 +95,7 @@ RSpec.describe Hecks::QueryIR do
       expect(applicable).to all(include(present: false))
     end
 
-    # Reconstruction's hand-typed aggregate(row)/entity(row) are the
-    # only two — every other construct genuinely has no method for this
-    # touchpoint to ask about, so it must read `nil` ("does not apply"),
-    # never collapse into `false` ("not done yet") — those mean
-    # different things to someone reading this mid-round.
+    # A construct with no hand-typed method must read `nil` (n/a), never `false` (not done).
     it "reports Reconstruction's touchpoint as not-applicable (nil), not false, for a construct with no hand-typed method" do
       preview = described_class.impact_preview("Command", "givens")
       reconstruction = preview[:touchpoints].find { |t| t[:touchpoint] == "Reconstruction's hand-typed method reads it" }

@@ -1,12 +1,6 @@
 require "spec_helper"
 
-# `HecksagonBuilder#translates` — a cross-domain reaction wired from the
-# hecksagon (wiring file) instead of a `policy` block inside the
-# bluebook (domain model) — builds the EXACT SAME `Policy` shape a
-# bluebook's own `policy` block would (PolicyBuilder reused directly,
-# same PolicyInterpreter runtime), just from a different authoring
-# surface. See docs/implemented/reference/hecksagon.md's own
-# "translates" section for the full rationale.
+# `translates` in a hecksagon builds the same Policy a bluebook `policy` block would.
 RSpec.describe "translates, a hecksagon-level cross-domain reaction" do
   def declare_foreign
     Hecks.bluebook "TranslatesForeign" do
@@ -58,9 +52,7 @@ RSpec.describe "translates, a hecksagon-level cross-domain reaction" do
     Hecks.hecksagon "TranslatesLocal" do
       TranslatesLocal::Echo.persisted_by("Memory")
 
-      # THE WORD UNDER TEST — reacts to a foreign domain's own event,
-      # dispatched entirely from this hecksagon, never touching
-      # TranslatesLocal's own bluebook.
+      # Reacts to a foreign domain's event without touching TranslatesLocal's bluebook.
       translates "EchoOnThingFired" do
         on Thing::ThingFired
         trigger Echo::Register
@@ -113,12 +105,8 @@ RSpec.describe "translates, a hecksagon-level cross-domain reaction" do
 
     policy = registry.bluebook("TranslatesLocal").policies.find { |p| p.name == "EchoOnThingFired" }
 
-    # `Naming.qualifier` on a 3-segment "Domain::Aggregate.Event" gives
-    # "Domain::Aggregate", never matching PolicyInterpreter's own
-    # demodulised aggregate-name comparison — this is why `on` is
-    # written `Thing::ThingFired`, not `TranslatesForeign::Thing::
-    # ThingFired`. Pinned here so a future edit that re-adds the prefix
-    # fails loudly instead of silently never firing again.
+    # `on` omits the domain prefix: Naming.qualifier of a 3-segment name yields
+    # "Domain::Aggregate", which never matches PolicyInterpreter's demodulised comparison.
     expect(policy.event_qualifier).to eq("Thing")
   end
 end

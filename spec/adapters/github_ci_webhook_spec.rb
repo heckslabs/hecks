@@ -4,35 +4,16 @@ require "openssl"
 require "json"
 require_relative "../../qa/adapters/github_ci_webhook"
 
-# The push sibling of spec/adapters/github_checks_spec.rb — that file
-# proves the pull adapter's own transport (stubbing `Open3.capture3`
-# rather than shelling to a real `gh`); this proves the push adapter's
-# own transport (a signed, realistic HTTP request, posted straight at
-# `#call(env)`, rather than a real internet-facing endpoint GitHub could
-# reach — the same "cannot stand up a real endpoint in this sandbox, so
-# test the Rack app directly" trade this whole suite already makes for
-# `Hecks::Forms::App` in spec/forms/app_spec.rb).
-#
-# End to end, for real, against the actual domain — not a mock of
-# `QualityControl`. A real `Target`/`Sweep`/`Bug` is logged and fixed
-# with a real commit exactly the way `spec/quality_control_spec.rb`'s own
-# "the CI watch" examples do; the only thing synthetic here is the
-# webhook delivery itself (this sandbox cannot make GitHub send a real
-# one) — the payload shape, the signature, and the HTTP request all run
-# for real, and so does everything downstream of them: `Clearance`
-# settling, and `BugCiWatch` reacting to it.
+# Push sibling of spec/adapters/github_checks_spec.rb: posts a signed HTTP
+# request at #call(env) and runs QualityControl end to end, for real.
 RSpec.describe "GitHub CI webhook, end to end" do
   include Rack::Test::Methods
 
   SECRET = "test-webhook-secret-do-not-use-in-real-life".freeze
 
-  # Not `QC_ROOT` — that name already belongs to spec/quality_control_spec.rb,
-  # and a spec-file top-level constant lands on Object regardless of
-  # nesting depth (spec/load_hygiene_spec.rb's own "lets no two spec files
-  # disagree about a top-level constant" catches exactly this). Same
-  # value, different name, rather than adding this one to that spec's
-  # `shared_values` allowlist — this webhook spec has no other reason to
-  # be coupled to quality_control_spec.rb's own naming.
+  # Not QC_ROOT — that name belongs to spec/quality_control_spec.rb, and a
+  # spec-file top-level constant lands on Object regardless of nesting
+  # depth (spec/load_hygiene_spec.rb catches exactly this collision).
   WEBHOOK_QC_ROOT = File.join(InMemoryDomain::ROOT, "qa/bluebook").freeze
 
   module FixedClock
@@ -41,12 +22,9 @@ RSpec.describe "GitHub CI webhook, end to end" do
     def now = 1_000
   end
 
-  # Neither tracker nor CI adapter is exercised by this spec — the
-  # webhook settles a `Clearance` directly (see
-  # `Hecks::QA::ClearanceRecorder`), never asking the `CI` port at all.
-  # Both are still bound because `registry.verify!` below refuses to
-  # boot with an unbound port, the same reason
-  # `spec/quality_control_spec.rb`'s own boot binds them.
+  # The webhook settles a Clearance directly, never asking the CI port —
+  # both adapters are still bound because registry.verify! below refuses
+  # to boot with an unbound port.
   def bind_stub_adapters!
     stub_tracker = Class.new { def file(**) = {} }
     stub_ci      = Class.new { def run(**) = raise "never asked — the webhook settles directly" }
@@ -133,15 +111,8 @@ RSpec.describe "GitHub CI webhook, end to end" do
     bug.fix!(reference: { value: reference }, commit: { value: commit })
   end
 
-  # A real `check_suite` payload shape — trimmed to the fields this
-  # adapter (or a human reading a fixture) would actually look at, but
-  # every field present is a real field GitHub's own webhook payload
-  # documentation for `check_suite` describes, not an invented one:
-  # `action`, `check_suite.id`, `check_suite.head_sha`,
-  # `check_suite.status`, `check_suite.conclusion`, `check_suite.
-  # head_branch`, `check_suite.app`, plus the `repository`/`sender`
-  # envelope every GitHub webhook delivery carries regardless of event
-  # type.
+  # Trimmed to the fields this adapter looks at, but every field present is
+  # real per GitHub's own check_suite webhook payload shape, not invented.
   def check_suite_payload(sha, conclusion:, action: "completed", status: "completed")
     {
       "action"      => action,
@@ -182,8 +153,6 @@ RSpec.describe "GitHub CI webhook, end to end" do
     post "/", body, headers
   end
 
-  # ── the domain actually reacting to a real delivery ───────────────────
-
   describe "a completed check_suite that passed" do
     it "settles the exact commit green, and never touches the bug" do
       bug = a_fixed_bug(a_sweep(a_target), "e1dd034bd8340fc53aa931933cb6587288698f5")
@@ -217,15 +186,9 @@ RSpec.describe "GitHub CI webhook, end to end" do
     end
   end
 
-  # A conclusion this adapter does not special-case — GitHub's own
-  # `conclusion` enum has more members than "success" and "failure"
-  # (`neutral`, `skipped`, `cancelled`, `timed_out`, `action_required`,
-  # `stale`). Handled the same way `Hecks::Adapters::GithubChecks::
-  # PASSING` already handles them for a single check-run: `neutral`/
-  # `skipped` count as green (GitHub's own words for "ran, and chose not
-  # to fail the commit"); anything else — `cancelled` here — is treated
-  # as not cleared, failing safe rather than silently reading an
-  # ambiguous verdict as passing.
+  # GitHub's conclusion enum has more members than success/failure —
+  # neutral/skipped count as green, anything else fails safe rather than
+  # reading an ambiguous verdict as passing.
   describe "a conclusion outside plain success/failure" do
     it "treats neutral as cleared, the same as a passing check-run would be" do
       a_fixed_bug(a_sweep(a_target), "1111111")
@@ -243,8 +206,6 @@ RSpec.describe "GitHub CI webhook, end to end" do
       expect(JSON.parse(last_response.body)["status"]).to eq("red")
     end
   end
-
-  # ── refusals ────────────────────────────────────────────────────────
 
   describe "a badly-signed payload" do
     it "is refused, loudly, and dispatches nothing" do
@@ -330,8 +291,6 @@ RSpec.describe "GitHub CI webhook, end to end" do
     end
   end
 
-  # ── idempotency — GitHub redelivers ────────────────────────────────
-
   describe "the same delivery arriving twice" do
     it "settles once and answers the same way the second time, rather than raising" do
       a_fixed_bug(a_sweep(a_target), "7777777")
@@ -348,15 +307,9 @@ RSpec.describe "GitHub CI webhook, end to end" do
     end
   end
 
-  # **The generic base, on its own** — the mechanism `GithubCiWebhook` above
-  # inherits (signature verification, ping, JSON parsing) covered
-  # directly against the abstract class, so a future second driving
-  # adapter reusing it has evidence the base itself works independent
-  # of anything QualityControl-specific. Nested here rather than a
-  # second top-level `RSpec.describe`, purely to keep one example group
-  # per file (RSpec/MultipleDescribes) — `described_class` still
-  # resolves to `GithubWebhook` inside this block, not the outer
-  # string-described group.
+  # Covers GithubWebhook's own mechanism (signature verification, ping,
+  # JSON parsing) directly, independent of QualityControl. Nested rather
+  # than a second top-level describe, to keep one example group per file.
   describe Hecks::Adapters::Driving::GithubWebhook do
     it "refuses to be constructed with no secret at all" do
       expect { described_class.new(secret: "") }.to raise_error(ArgumentError, /no webhook secret/)

@@ -3,28 +3,8 @@ require "tmpdir"
 require_relative "support/postgres_probe"
 require_relative "support/fenced_owner"
 
-# **Fuzzed, not hand-picked** — tenant_isolation_spec.rb proves isolation
-# for one sequential write each; this proves it across many random,
-# interleaved writes to two live tenants at once, across many seeds.
-# Interleaving is the part sequential testing can't convincingly rule
-# out: a connection or piece of ambient state accidentally shared
-# between two boots would most plausibly show up as tenant B seeing
-# something tenant A just wrote a moment before it, not as a clean
-# before/after leak.
-#
-# Not built on Fuzzing::SequenceGenerator/Replay — both are correct and
-# heavily used for what they're for (generate-a-sequence-then-discard,
-# or replay-a-sequence-then-discard; see isolated_boot.rb's own
-# header), but neither exposes a live dispatcher after running: the
-# boot happens inside `IsolatedBoot.call { |copy| ... }` and the tmpdir
-# — and the runtime built on it — is gone the moment that block
-# returns. This property needs two dispatchers alive across the whole
-# interleaved run, then queried at the end, which is a different shape
-# from either class's own contract. Retrofitting shared, heavily-relied
-# -on fuzzer infrastructure to support a second shape was a bigger,
-# riskier change than writing this small, self-contained generator —
-# same technique (Random.new(seed), many seeds, real dispatch), a
-# fresh instance of it.
+# Interleaved random writes to two live tenants, across many seeds, must stay partitioned.
+# Shared ambient state would show as tenant B seeing what tenant A just wrote.
 RSpec.describe "multitenancy: interleaved random writes stay isolated" do
   def write(dir, relative, content)
     path = File.join(dir, relative)
@@ -91,11 +71,9 @@ RSpec.describe "multitenancy: interleaved random writes stay isolated" do
     end
   end
 
-  # A real, interleaved random run — every one of `steps` iterations
-  # flips a coin (seeded, deterministic) for which live tenant gets the
-  # next write, mints a fresh ref, dispatches it for real, and records
-  # which tenant it went to. Returns the two expected partitions so the
-  # caller can check the actual query results against them.
+  # Not built on Fuzzing::SequenceGenerator/Replay: they discard the runtime when IsolatedBoot
+  # returns, and this needs two live dispatchers queried at the end.
+  # Each step picks a tenant with a seeded coin, dispatches Make, and returns the expected refs.
   def interleave(dispatchers, seed:, steps:)
     random = Random.new(seed)
     expected = dispatchers.keys.to_h { |slug| [slug, []] }
@@ -135,10 +113,7 @@ RSpec.describe "multitenancy: interleaved random writes stay isolated" do
     end
   end
 
-  # A real scratch Postgres database, created once and torn down once
-  # (ensure) around a loop of several interleaved-write seeds — each
-  # seed reuses the same live database, so splitting per seed would
-  # mean paying a fresh create/drop database per seed for no real gain.
+  # One scratch Postgres database for all seeds; per-seed create/drop would cost more than it buys.
   # rubocop:disable-next RSpec/ExampleLength
   it "keeps two real PostgresEra tenants' interleaved writes exactly partitioned, across several seeds", :io do
     skip "no local Postgres reachable" unless PostgresProbe.available?
@@ -148,8 +123,7 @@ RSpec.describe "multitenancy: interleaved random writes stay isolated" do
     admin.exec("DROP DATABASE IF EXISTS #{db} WITH (FORCE)")
     admin.exec("CREATE DATABASE #{db}")
     admin.close
-    # every tenant boots as a non-superuser owner (BUG#24; see
-    # support/fenced_owner.rb)
+    # every tenant boots as a non-superuser owner (see support/fenced_owner.rb)
     FencedOwner.own!(db)
 
     begin

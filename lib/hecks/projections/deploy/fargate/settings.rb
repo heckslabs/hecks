@@ -12,44 +12,7 @@ module Hecks
         # Everything a `deployed_to("AwsFargate")` block can say beyond its
         # required settings, read and checked into one `Plan`.
         #
-        # A world that sets none of these keys resolves to a plan whose every
-        # value is the generator's own default: the derived logical ids and
-        # names, one container, no extra resources. That plan renders the same
-        # template the generator has always produced.
-        #
-        # ## Settings owned here
-        #
-        # - `logical_ids`: a map of role to logical id that replaces the id derived from the
-        #   stack name, so an existing stack's ids can be reproduced. The roles are `service`,
-        #   `ecr_repository`, `cluster`, `task_definition`, `execution_role`, `task_role`,
-        #   `log_group`, `target_group`, `alb`, `alb_security_group`, `listener`, `distribution`,
-        #   `session_secret`, `ingress_from_alb`, `database_prefix` and `compute_prefix`, plus
-        #   the alerting roles `Monitoring` lists. `database_prefix` and `compute_prefix` are the
-        #   prefixes of the VPC and database ids and of the compute security-group ids.
-        # - `names`: a map of role to the AWS name that replaces the derived one. The roles are
-        #   `cluster`, `log_group`, `service`, `alb` and `family`; `db_secret_policy`, the name of
-        #   the task role's database-secret policy (`DbSecretRead`); and
-        #   `alb_security_group_description`, the load balancer's security group description
-        #   (EC2 replaces the group when it changes).
-        # - `execution_role_database_grant`: false leaves the database secret out of the
-        #   execution role. The host reads that secret itself with the task role, so the
-        #   execution role needs it only when a container's `ECS` `Secrets` names it;
-        #   `execution_policies` must then hold a policy.
-        # - `execute_command`: true lets `aws ecs execute-command` open a session in a container.
-        # - `health_check_grace_period`: seconds `ECS` ignores failing load-balancer health
-        #   checks after a task starts.
-        # - `deregistration_delay`: seconds a target group drains a deregistered target.
-        # - `desired_count_parameter`: makes the service's desired count a template parameter
-        #   with this name, defaulting to `desired_count`.
-        # - `domain_env`: extra environment variables for the domain container, a map of name to
-        #   a value or intrinsic. A name the generator already sets replaces it; a `nil` value
-        #   removes it.
-        # - `install_dir`: where the Dockerfile installs the host binary and its `.wasm` and
-        #   `.ir.json` files, and where `HECKS_WASM_PATH` and `HECKS_IR_PATH` point
-        #   (`/usr/local/bin`).
-        # - `build_context_dir`: a directory prefix for the Dockerfile's `COPY` sources.
-        # - `db_name_parameter`: for `database "Shared"`, a template parameter that names the
-        #   shared database, defaulting to the owner's name.
+        # A world that sets none of these keys resolves entirely to the generator's own defaults.
         module Settings
           module_function
 
@@ -75,16 +38,7 @@ module Hecks
           NAME_ROLES = [:cluster, :log_group, :service, :alb, :family, :alb_security_group_description, :db_secret_policy].freeze
           DEFAULT_INSTALL_DIR = "/usr/local/bin".freeze
 
-          # Reads and checks every optional setting into a `Plan`.
-          #
-          # @param settings [Hash{Symbol => Object}] the world's `deployed_to("AwsFargate")`
-          #   settings
-          # @param base [Hash{Symbol => Object}] facts the generator has already resolved:
-          #   `:infra_name`,
-          #   `:logical_id`, `:db_id`, `:stack_name`, `:port`, `:desired_count` and `:shared`
-          # @return [Plan] the checked settings with every default applied
-          # @raise [ArgumentError] if any setting is malformed, or two settings contradict each
-          #   other
+          # Reads and checks every optional setting into a frozen `Plan`, applying every default.
           def resolve(settings, base)
             ids = logical_ids(settings[:logical_ids], base)
             layout = Containers.normalize(settings, infra_name: base[:infra_name], port: base[:port], ids: ids)
@@ -98,12 +52,6 @@ module Hecks
           end
 
           # Lists every template parameter the plan declares beyond the generator's own.
-          #
-          # @param plan [Plan] the resolved plan
-          # @param default_count [Integer] the service's `desired_count`, the default of its
-          #   parameter
-          # @param shared_db_name [String, nil] the owning database's name, when `database "Shared"`
-          # @return [String] flush-left parameter text separated by newlines, or empty
           def parameters_yaml(plan, default_count:, shared_db_name:)
             [
               Containers.parameters_yaml(plan.layout), Cdn.parameters_yaml(plan.cdn),

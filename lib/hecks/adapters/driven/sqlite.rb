@@ -14,10 +14,8 @@ require_relative "../../runtime/instance"
 
 module Hecks
   module Adapters
-    # The SQLite store: one table per aggregate head, an append-only entry
-    # table beside it. The DDL lives in sqlite/schema_builder.rb, the
-    # column codec in sqlite/codec.rb, and the query compilation is the
-    # shared SqlQueryBuilder — this file supplies only SQLite's dialect.
+    # The SQLite store: one table per aggregate head, an append-only entry table beside it.
+    # Supplies SQLite's dialect to the shared SqlQueryBuilder.
     class Sqlite
       include SqlQueryBuilder
       include SchemaBuilder
@@ -44,18 +42,13 @@ module Hecks
       # @raise [LoadError] if the `sqlite3` gem is not installed
       # @raise [SQLite3::Exception] if the file cannot be opened or a table cannot be created
       def initialize(aggregate:, settings: {}, root: nil)
-        # **Lazy, on purpose** — a domain that never wires Sqlite should never
-        # need the gem installed. `require "hecks"` alone must not
-        # force a database client library nobody asked for.
+        # Lazy so a domain that never wires Sqlite does not need the gem installed.
         require "sqlite3"
 
         @aggregate = aggregate
         @path      = resolve_path(settings, root)
-        # The optional saga-persistence capability's own scoping column
-        # (§2/§4) — falls back to the aggregate's own name for a
-        # directly-instantiated adapter (specs), same fallback shape
-        # Postgres's own @domain already uses.
-        @domain    = (
+        # Scopes saga rows; falls back to the aggregate's name for a directly built adapter.
+        @domain = (
           if settings.key?(:domain)
             settings[:domain]
           elsif settings.key?("domain")
@@ -68,8 +61,7 @@ module Hecks
         FileUtils.mkdir_p(File.dirname(@path))
         @db = SQLite3::Database.new(@path)
         @db.results_as_hash = true
-        # The append is the recovery commit point. Keep SQLite's fsync policy
-        # explicit instead of inheriting a process-wide pragma choice.
+        # The append is the recovery commit point, so the fsync policy is explicit.
         @db.execute("PRAGMA synchronous = FULL")
 
         create_aggregate_table!
@@ -83,10 +75,8 @@ module Hecks
 
       # Runs the block inside one SQLite transaction, joining an already-open one.
       #
-      # **Re-entrant on purpose** — `atomic_put` opens its own transaction
-      # and `Interpreting#run_dispatch_order` opens one around the whole
-      # save+emit pair; SQLite3 refuses a BEGIN inside a BEGIN, so the
-      # inner call joins the outer one instead. Same shape Postgres uses.
+      # Re-entrant because `atomic_put` and `Interpreting#run_dispatch_order` both open one,
+      # and SQLite3 refuses a BEGIN inside a BEGIN.
       #
       # @yield the writes to commit together; an exception raised inside rolls the
       #   outermost transaction back
@@ -117,9 +107,7 @@ module Hecks
 
       # Lists every stored record, ordered by id unless an ordering attribute is given.
       #
-      # order_by is a runtime value — see postgres.rb's own all for the
-      # full reasoning; whitelisted the identical way before it ever
-      # reaches order_expression.
+      # order_by is a runtime value, so it is checked against the aggregate before use.
       #
       # @param order_by [String, Symbol, nil] attribute (or dotted value-object path) to sort
       #   by; nil orders by id alone
@@ -161,11 +149,7 @@ module Hecks
       def append(entry)
         @db.execute(
           "INSERT INTO #{quoted_entry_table} (aggregate_id, operation, state, mirrors) VALUES (?, ?, ?, ?)",
-          # `mirrors` (unlike `state`) is a nullable column — an absent
-          # mirrors hash must bind a real SQL NULL, not the four-character
-          # JSON text `"null"` (`JSON.generate(nil)`), or a future `IS NULL`
-          # check against it would never match. Same guard `postgres_era.rb`
-          # already uses for its own journal's `mirrors` column.
+          # `mirrors` is nullable: an absent hash must bind SQL NULL, not the JSON text "null".
           [entry.id, entry.operation, JSON.generate(Ports::Persistence::StateCodec.encode(@aggregate, entry.state)),
            entry.mirrors && JSON.generate(entry.mirrors)]
         )
@@ -238,9 +222,7 @@ module Hecks
 
       # Stores an entry and reports whether it inserted, replaced or conflicted.
       #
-      # The outcome lookup, journal append and snapshot replacement share one
-      # SQLite transaction. The runtime performs no preliminary find; this
-      # adapter-native operation owns both concurrency and outcome reporting.
+      # The outcome lookup, journal append and snapshot replacement share one transaction.
       #
       # @param entry [Ports::Persistence::Entry] the save to store
       # @param insert_only [Boolean] when true, an existing row is left untouched
@@ -307,14 +289,8 @@ module Hecks
 
       # Inserts new outbox rows as pending, skipping any whose `delivery_id` already exists.
       #
-      # The outbox — see `Runtime::Outbox`. Rows land in the same
-      # database as this aggregate (the only way the enqueue shares the
-      # save's transaction), keyed by the aggregate's storage name so an
-      # adapter instance only ever reads back its own rows even when
-      # several aggregates share one file. `INSERT OR IGNORE` on the
-      # unique delivery_id makes a re-enqueue of the same (event,
-      # consumer) a no-op; `outbox_claim`'s `WHERE status = 'pending'`
-      # is the compare-and-set that lets exactly one relay win a row.
+      # Rows share this aggregate's database so the enqueue joins the save's transaction, and
+      # are keyed by storage name so aggregates sharing a file read back only their own.
       #
       # @param rows [Array<Runtime::Outbox::Row>] rows to enqueue; each accepted row has its
       #   `id` and `status` assigned in place. `row.aggregate` is stored as given
@@ -389,19 +365,6 @@ module Hecks
       # Replaces one saga instance's checkpoint, keyed by domain, process manager and
       # correlation.
       #
-      # ── the optional saga-persistence capability (§2) — reuses the
-      # DDL every SQLite-backed aggregate table already lives beside
-      # (`create_saga_table!`, `Sqlite::SchemaBuilder`, shared with D1).
-      # SQLite's `resolve_path` defaults to one `.db` file per
-      # aggregate unless a domain shares one `database` setting across
-      # its aggregates — since saga persistence resolves through
-      # whichever adapter instance backs the domain's first aggregate
-      # (`Registry#saga_persistence`), this table ends up living inside
-      # that one aggregate's own file by default. Correct and durable
-      # either way; a domain that wants an obviously-named saga store
-      # already gets one by sharing `database` across its aggregates,
-      # the recommended, common case.
-      #
       # @param process_manager [String, Symbol] the process manager's name
       # @param correlation [String, Object] the instance's correlation value, stored as
       #   `correlation.to_s`
@@ -462,8 +425,6 @@ module Hecks
 
       private
 
-      # ── SqlQueryBuilder's dialect hooks ─────────────────────────────
-
       def outbox_row(row)
         Runtime::Outbox::Row.new(
           id: row["id"], delivery_id: row["delivery_id"], event_uid: row["event_uid"], aggregate: row["aggregate"],
@@ -499,8 +460,7 @@ module Hecks
         "json_extract(#{quote_ident(name)}, '#{json_path}')"
       end
 
-      # SQLite has no bare OFFSET — LIMIT -1 is its own documented
-      # unbounded spelling, exactly for this case.
+      # SQLite has no bare OFFSET; LIMIT -1 is its unbounded spelling.
       def unbounded_limit = " LIMIT -1"
 
       def order_clause(order_by, policy)
@@ -510,8 +470,6 @@ module Hecks
       def execute_query(sql, binds)
         @db.execute(sql, binds).map { |row| Runtime::Instance.new(aggregate: @aggregate, id: row["id"], state: decode(row)) }
       end
-
-      # ── the rest of the dialect ─────────────────────────────────────
 
       def quote_ident(name)
         %("#{name.to_s.gsub('"', '""')}")

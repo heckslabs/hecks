@@ -1,9 +1,5 @@
-# A DEDICATED FIXTURE for `delegates_to` (CommandBuilder#delegates_to_impl's
-# own comment has the full reasoning) — proves an aggregate-level command
-# can hand its own dispatch to one nested entity command, synchronously,
-# atomically, before the mechanism is used for real in a downstream
-# project's own chess domain (the motivating need — see
-# spec/word_coverage_spec.rb's own EXEMPT entry for `delegates_to`).
+# Fixture for `delegates_to`: an aggregate-level command hands its dispatch to one
+# nested entity command, synchronously and atomically.
 Hecks.bluebook "DelegatesTo" do
   vision "A board holding pieces, and an aggregate-level MovePiece a caller dispatches instead of ever naming the entity directly."
   core
@@ -30,20 +26,9 @@ Hecks.bluebook "DelegatesTo" do
       attribute :rank, Integer
     end
 
-    # NOT TESTED FOR ITS OWN SAKE — this and `BumpMoveCount`/the policy
-    # below exist to prove a real bug found live building this fixture's
-    # own downstream consumer (a chess domain): `delegates_to`'s own
-    # `with:` maps ONLY the fields it names, so a policy reacting to the
-    # DELEGATED command's own emitted event and trying to re-locate THIS
-    # aggregate by its own identity (`name`, never named in `with: {
-    # id:, to: }`) found nothing — `reaction_log` read "no Board with
-    # name.value ...", the delivery rescued and recorded, never raised
-    # (the same shape the real bug read as "no Game with label.value
-    # ..."). Fixed at `CommandInterpreter#step_delegate_to_entity` —
-    # `target_args` now starts from a COPY of the delegating command's
-    # own already-resolved args, so ambient context the caller never had
-    # to name flows through, same as a direct entity dispatch always
-    # would.
+    # MoveCount, BumpMoveCount and the policy below pin that ambient args (such as `name`,
+    # absent from `with:`) reach the delegated entity command, so a policy can re-locate
+    # this aggregate by identity.
     value_object "MoveCount" do
       attribute :value, Integer, default: 0
     end
@@ -79,10 +64,7 @@ Hecks.bluebook "DelegatesTo" do
       emits "PiecePlaced"
     end
 
-    # THE WHOLE POINT OF THIS FIXTURE — a caller dispatches THIS, never
-    # "DelegatesTo::Board.Piece.Move" directly. `delegates_to`'s own
-    # `with:` maps this command's own `id`/`to` onto Piece.Move's own
-    # identically-named arguments.
+    # Callers dispatch this, never Piece.Move directly; `with:` maps `id`/`to` onto Piece.Move.
     command "MovePiece" do
       goal "Move a specific piece, on the caller's behalf"
 
@@ -115,10 +97,7 @@ Hecks.bluebook "DelegatesTo" do
     end
   end
 
-  # THE POLICY THAT ACTUALLY PROVES THE AMBIENT-ARGS FIX — reacts to a
-  # DELEGATED command's own emitted event and re-locates THIS aggregate
-  # by its own identity, the same shape `domain/chess`'s real
-  # `OnKnightMovedAdvancePly` is.
+  # Reacts to the delegated command's event and re-locates the Board by identity.
   policy "OnPieceMovedBumpMoveCount" do
     on "PieceMoved"
     trigger Board::BumpMoveCount

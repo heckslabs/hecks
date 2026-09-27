@@ -1,13 +1,7 @@
 module Hecks
   module Vendoring
-    # The environment a `git` subprocess needs so it resolves its repository
-    # from the directory it is pointed at, not from whoever launched Ruby.
-    #
-    # Git exports `GIT_DIR`, `GIT_INDEX_FILE` and their kin to the hooks it
-    # runs (a push from a linked worktree runs `pre-push` this way). Every
-    # `git` that a hook's process tree starts inherits them, and they outrank
-    # both `git -C` and the working directory: a command aimed at a scratch
-    # repository would read, or commit into, the repository that was pushing.
+    # The environment a `git` subprocess needs to target one repository:
+    # inherited GIT_DIR variables outrank `-C` and would redirect it elsewhere.
     module GitEnvironment
       # The variables that pin git to one repository, work tree or index.
       INHERITED = %w[

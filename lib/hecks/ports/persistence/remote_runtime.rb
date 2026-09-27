@@ -3,30 +3,8 @@ require_relative "../../runtime/registry"
 module Hecks
   module Ports
     module Persistence
-      # The other shape an adapter can be. `AppendOnly` names one shape
-      # already — something that stores bytes, locally (Postgres, SQLite,
-      # Heki) or over the network (D1), doesn't matter, the point is it
-      # does real local interpretation and has real entries to replay.
-      # This names the second, different shape: not "storage reached
-      # remotely," but the real interpreter itself living behind a call
-      # boundary — `append`/`project` don't do partial local work and
-      # then fail, they raise unconditionally, because there is no local
-      # write-ahead log to have; `entries` is always `[]` for the same
-      # reason (`AppendOnly#recover!` replaying zero entries here is a
-      # correct no-op, not a lie).
-      #
-      # `Adapters::Lambda` is the first adapter to `include` this, not
-      # the only one meant to — any future adapter for some other
-      # remote-runtime target (a different compute platform, a gRPC
-      # stub, whatever) gets this shape for free by including one module
-      # instead of re-deriving the same raise-on-write/always-empty-
-      # entries boilerplate from scratch. And because it's a real,
-      # checkable module rather than an adapter's own ad hoc
-      # implementation, a caller can ask "is this adapter a remote-
-      # runtime delegate?" as a genuine capability check
-      # (`registry.adapter_class(name) <= RemoteRuntime`,
-      # `Runtime::RemoteDispatcher`'s own use) instead of comparing
-      # adapter names by string.
+      # Adapter shape for an interpreter behind a call boundary: no local log, so writes raise.
+      # Detect it with `registry.adapter_class(name) <= RemoteRuntime`, not by adapter name.
       module RemoteRuntime
         # Refuses every local write; `project` is an alias and refuses the same way.
         #

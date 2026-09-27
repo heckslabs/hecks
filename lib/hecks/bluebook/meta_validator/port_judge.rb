@@ -1,13 +1,8 @@
 module Hecks
   module Bluebook
     module MetaValidator
-      # Offers a built .port to the language that describes ports.
-      #
-      # A port is a sibling of a bluebook, the same shape WorldJudge already
-      # is one level over — its own file, its own door, judged through its
-      # own self-hosted language (port.bluebook) rather than left as a plain
-      # Ruby struct nothing checks. Whole-project table-unification survey,
-      # item #13's remaining builders.
+      # Offers a built .port to the self-hosted port language (port.bluebook).
+      # Refusals are collected in `refusals`.
       class PortJudge
         attr_reader :refusals
 

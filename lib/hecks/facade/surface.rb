@@ -3,26 +3,13 @@ require_relative "surface/aggregate_door"
 
 module Hecks
   module Facade
-    # **The door, without the classes**.
+    # The door without classes: anonymous per-boot modules whose singleton methods
+    # dispatch by FQN, installed by `Loader.bind_runtime` and replaced whole on the next boot.
     #
-    # `Pizzas::Pizza.create_pizza!(...)` is the public surface (handover rule 3),
-    # and this is what serves it now : anonymous per-boot modules whose
-    # singleton methods close over the dispatcher and dispatch by FQN — the
-    # same shape `Router::NamespaceInstaller` proved. Nothing here is a domain
-    # class ; the IR is the only graph, and the door is a projection of it,
-    # installed by `Loader.bind_runtime` and re-installed whole on the next
-    # boot. How a chapter's module is built is surface/chapter.rb; how one
-    # aggregate's door is built is surface/aggregate_door.rb.
-    #
-    # The hexagon-binding door rides along : `Pizzas::Pizza.persisted_by("Heki")`
-    # in a `.hecksagon` file lands on the module's `method_missing`, which
-    # records an `Bind` into whatever `HecksagonBuilder.collector` is open
-    # at call time — so even a facade left over from a previous boot records
-    # into the current builder, and a chapter with no constant at all falls
-    # through to `ConstShim` → `BindingProxy`, which mints byte-identical binds.
+    # `persisted_by("Heki")` in a `.hecksagon` file lands on the module's `method_missing`,
+    # which records a `Bind` into the open `HecksagonBuilder.collector`.
     module Surface
-      # These would shadow the machinery a Handle runs on, so a field named one
-      # of them gets no reader and says so — the same warning the class door gave.
+      # Names that would shadow the machinery a Handle runs on; a field with one gets no reader.
       RESERVED = %i[id state events reload inspect to_h hash class].freeze
 
       extend Chapter
@@ -34,14 +21,12 @@ module Hecks
       # closing over `dispatcher`, so `Pizzas::Pizza` and the bare `Pizza` both open the
       # door of the boot that ran last.
       #
-      # An aggregate sharing its chapter's name gets no second constant: the chapter
-      # module already holds that name. A name that user code or the stdlib already owns
-      # is left alone with a warning (see `Namespace.install`).
+      # An aggregate sharing its chapter's name gets no second constant. A name that user
+      # code or the stdlib already owns is left alone with a warning (see `Namespace.install`).
       #
       # @param dispatcher [Runtime::Dispatcher, Runtime::RemoteDispatcher] the booted
       #   dispatcher every installed door dispatches and queries through
-      # @return [Runtime::Dispatcher, Runtime::RemoteDispatcher] the same `dispatcher`,
-      #   so a boot can return the call's result
+      # @return [Runtime::Dispatcher, Runtime::RemoteDispatcher] the same `dispatcher`
       # @raise [NameError] if a chapter or aggregate name is not a valid constant name
       def install(dispatcher)
         dispatcher.registry.bluebooks.each_value do |bluebook|

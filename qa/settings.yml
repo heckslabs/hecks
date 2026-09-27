@@ -1,24 +1,8 @@
-# THE hecks_qa PRACTICE'S OWN DIALS — THE EDITABLE SOURCE OF TRUTH.
+# Dials for the hecks_qa practice; edit values here and review the diff.
+# Meaning and rationale per key live in qa/bluebook/quality_control.bluebook; loaded by
+# Hecks::Fuzzing::QaSettings, which rejects missing, extra, or mistyped keys.
 #
-# A human changes a number here and reviews the diff, exactly like
-# editing a Ruby constant used to mean — see `qa/bluebook/
-# quality_control.bluebook`'s own header ("THE PRACTICE'S OWN DIALS")
-# for the full reasoning on why these are data at all, and each key
-# below's matching `QualityControlDials::<CONSTANT>` comment in that
-# same file for what it does, who reads it, and why its value is what
-# it is. This file does not repeat that prose — only the values live
-# here, so there is exactly one source of truth for each number and
-# exactly one source of truth for the reasoning behind it.
-#
-# Loaded by `Hecks::Fuzzing::QaSettings` (lib/hecks/fuzzing/qa_settings.rb),
-# which fails loudly on a missing, extra, or mistyped key rather than
-# letting a bad edit here reach a script as a silent `nil`.
-#
-# `automated_engineer` is deliberately NOT a key here — it stays a bare
-# Ruby literal in the bluebook itself. See that constant's own comment
-# for why: `spec/quality_control_spec.rb` pins it against the `WaivedBy`
-# invariant's own hardcoded "qa_sweep" literal, and moving it here would
-# add a second place that pin would have to reach into.
+# automated_engineer stays a literal in the bluebook: spec/quality_control_spec.rb pins it.
 
 cadence_seconds: 0
 pr_cap_per_day: 0
@@ -77,9 +61,6 @@ generated_domains_per_tick: 2
 generated_domains_rust: true
 generated_domain_seeds: 5
 
-# Construct families (manifest.json `construct`, written by rust/project's
-# generator) a sweep may skip without surprise. SHRINK-ONLY:
-# spec/fuzzing/rust_gap_manifest_spec.rb fails when a family here is not
-# declared `generated: false` by any committed manifest. Re-adding one
-# requires a committed domain that really hits it.
+# Construct families a sweep may skip. Shrink-only: spec/fuzzing/rust_gap_manifest_spec.rb fails
+# when a family here is not declared `generated: false` by a committed manifest.
 structural_refusal_boundary: []

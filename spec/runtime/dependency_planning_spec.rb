@@ -119,14 +119,8 @@ RSpec.describe Hecks::Runtime::DependencyPlanning do
     expect(defaulted_plan).to be_state_independent
   end
 
-  # `root_aggregate:` — Wave 8's own corpus audit surfaced this as a real
-  # bug, not a hypothetical one: `EntityInterpreter` calls the Analyzer
-  # with `aggregate:` set to the entity (`owner_fields` is the entity's
-  # own attribute set), but a `given`/`ensures` reading `parent.X` always
-  # means the root aggregate's own field — genuinely different owners.
-  # Real, live corpus example this ports directly:
-  # `Banking::Account.LedgerEntry.Amend`'s own `given("customer is
-  # active") { parent.customer.status == "active" }`.
+  # EntityInterpreter passes the entity as `aggregate:`, but `parent.X` in a given or
+  # ensures names the root aggregate's field, hence `root_aggregate:`.
   describe "an entity-owned command's own parent.* reads" do
     let(:status) { field(:status, String) }
     let(:narrative) { field(:narrative, String) }

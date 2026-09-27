@@ -1,10 +1,8 @@
 require "spec_helper"
 require "hecks/ports/persistence/plugins/era"
 
-# Layer 0 of the translation language's validation story: a written rule
-# means what its author intended, or refuses loudly at load. Every
-# message here is pinned byte-for-byte — refusal wording is contract,
-# so a wording drift fails the suite.
+# Layer 0 of the translation language: a written rule means what its author intended or refuses
+# loudly at load. Refusal wording is pinned byte-for-byte.
 RSpec.describe "the translation language" do
   Malformed = Hecks::Bluebook::DSL::Malformed
 
@@ -75,19 +73,11 @@ RSpec.describe "the translation language" do
       e.message
     end
 
-    # A single pinned-wording contract table (one proc => message pair per
-    # rule kind's required-field refusal), deliberately kept as one hash
-    # literal (see the HashAlignment disable below) rather than one `it`
-    # per row — splitting into ~19 examples is a much larger structural
-    # change than this pass is scoped for.
+    # One pinned-wording table, kept as a single hash literal rather than one `it` per row.
     # rubocop:disable-next RSpec/ExampleLength
     it "refuses every required-field omission with the pinned wording" do
-      # `Layout/HashAlignment`'s repo-wide `table` style (.rubocop.yml) would
-      # force every `=>` below onto the same column — matching the widest
-      # single-line proc key — leaving the closing `}` of a multi-line proc
-      # entry almost no room before Layout/LineLength's own 130-column
-      # limit. Disabled for exactly this one hash literal (a single
-      # statement, so disable-next rather than a disable/enable pair).
+      # The repo's `table` HashAlignment style would push every `=>` so far right that the
+      # multi-line procs overrun LineLength.
       # rubocop:disable-next Layout/HashAlignment
       {
         proc { aggregate("Account") { rename nil, to: :amount } } => "a rename needs a source name",
@@ -170,19 +160,14 @@ RSpec.describe "the translation language" do
     end
 
     it "refuses an unknown rule rather than skipping it" do
-      # WordGate (item #13's remaining builders) replaced the builder's
-      # own hand-written method_missing — a word admitted somewhere else
-      # in the grammar (Aggregate context) but not inside a
-      # TranslationAggregate body gets WordGate's own richer, table-
-      # driven refusal, naming this context's real legal words.
+      # A word admitted elsewhere in the grammar gets WordGate's table-driven refusal naming this
+      # context's legal words.
       expect(refusal_for { aggregate("Account") { identified_by :cost } })
         .to eq("'identified_by' is not a word TranslationAggregate admits — legal words here: backfill, " \
                "compute, convert, drop, move, rekey, rename, retype, unresolved")
 
-      # A genuine typo, admitted nowhere in the whole grammar — WordGate
-      # steps aside entirely for these (word_gate.rb's own comment), so
-      # this is Ruby's own plain NoMethodError, not a translation-level
-      # refusal `refusal_for` (which only rescues Malformed) can catch.
+      # A word admitted nowhere in the grammar is left to Ruby's NoMethodError, which `refusal_for`
+      # (Malformed only) does not rescue.
       expect { build_translation { aggregate("Account") { renmae :cost, to: :amount } } }
         .to raise_error(NoMethodError, /renmae/)
       expect { build_translation { banana "Account" } }
@@ -220,18 +205,9 @@ RSpec.describe "the translation language" do
     end
   end
 
-  # Adversarial, not incidental: found by deliberately constructing a
-  # destination that collides with an existing value, not by any
-  # example in the corpus. `state[top] ||= {}` only guards nil/false, so
-  # a destination whose top segment already held a value — most
-  # commonly a reference, stored as a bare scalar id — sailed straight
-  # through to `state[top][member] =`, i.e. `"team-1"["detail"] =` on a
-  # plain Ruby String, raising an unrelated-looking IndexError instead
-  # of the clean, named refusal every other "this would lose data
-  # silently" case in this language gets (see convert's own refusal,
-  # the identical shape). The refusal wording is pinned —
-  # this spec pins the in-memory half; spec/adapters/postgres_lineage_spec.rb
-  # pins the SQL half through a real mint.
+  # Pins a destination colliding with an existing scalar (a reference id): it must refuse by name,
+  # not raise IndexError from `"team-1"["detail"] =`. The SQL half is pinned in
+  # spec/adapters/postgres_lineage_spec.rb.
   describe "a move/convert whose destination collides with an existing non-object value" do
     it "refuses by name instead of crashing with an unrelated error" do
       translation = build_translation do
@@ -305,15 +281,7 @@ RSpec.describe "the translation language" do
       end
     BLUEBOOK
 
-    # Rewritten under ADR 0032: `EraGuard.check!`/`check_bluebook!` (the
-    # file-based `data/eras/*.bluebook` driver this once round-tripped
-    # through) is gone — it had no production caller, `PostgresEra` never
-    # used it, and it duplicated the same per-aggregate walk `CoverageCheck`
-    # already performs against its own DB-held shapes. This calls the
-    # surviving primitives directly, the same shape `CoverageCheck` does,
-    # over two in-memory registries — no file I/O, no `shadow_parse` round-
-    # trip needed, since both sources here are plain strings this test
-    # already controls (nothing historical to shadow-parse around).
+    # Calls EraGuard's primitives directly over two in-memory registries, as CoverageCheck does.
     def check_era!(source, translation_source: nil)
       held = Hecks::Runtime::Registry.new
       eval_bluebook(held, GUARDED_V1, "guarded_v1.bluebook")

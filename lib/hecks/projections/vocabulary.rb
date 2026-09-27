@@ -2,22 +2,11 @@ require_relative "../projector"
 
 module Hecks
   module Projections
-    # **The closed sets, projected** — lib/hecks/vocabulary.rb rendered
-    # from whichever chapter declares a `Vocabulary` aggregate, which in
-    # practice is the language projecting its own tables.
+    # Projects lib/hecks/vocabulary.rb from the chapter's `Vocabulary` aggregate.
     #
     #   Projector.call(:vocabulary, bluebook: <the Bluebook chapter>)
     #
-    # A projection rather than a bin/ script, and that correction is the
-    # point of it. This was first written as its own program with its own
-    # call shape, beside `bin/project_parser_table`, `bin/reference` and
-    # `bin/expression_projection` — four tools doing "canonical IR in,
-    # external artifact out" four different ways, which is the exact
-    # thing the projector registry exists to stop.
-    #
-    # Reads the chapter's judged IR, so what is written out is what the
-    # language actually holds rather than what a builder happened to
-    # produce.
+    # Reads the chapter's judged IR, so the output is what the language holds.
     module Vocabulary
       extend Projector::Target
 
@@ -38,8 +27,7 @@ module Hecks
 
       module_function
 
-      # The projector protocol. `options` is unused: a vocabulary table
-      # has nothing to vary.
+      # The projector protocol; `options` is unused.
       #
       # @param bluebook [Bluebook::Behaviour::Chapter] the chapter declaring the
       #   Vocabulary aggregate to project
@@ -47,14 +35,10 @@ module Hecks
       # @return [String] the rendered `lib/hecks/vocabulary.rb` source
       def call(bluebook:, options: {}) = render(bluebook)
 
-      # Full rows, not just the first field of each.
+      # Each closed set's full member rows, not just the first field.
       #
-      # Most vocabularies are one-field lists and the field is the term.
-      # Several are not: `Comparison` declares the algebra each operator
-      # computes with, `RefusalTemplate` an error plus its key and text.
-      # Taking the first field of those produced a list of thirty-nine
-      # duplicated error names — well-formed and meaningless. So rows are
-      # carried whole, and the terms are derived from them.
+      # Some sets carry more than a term (`Comparison`, `RefusalTemplate`); taking
+      # the first field of those yields duplicated names.
       #
       # @param bluebook [Bluebook::Behaviour::Chapter] the chapter declaring the
       #   Vocabulary aggregate to read

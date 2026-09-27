@@ -2,13 +2,8 @@ require "spec_helper"
 require "tmpdir"
 require "hecks/codemod"
 
-# The three resolution primitives `lib/hecks/bluebook/dsl/rule_
-# reference.rb` extracted from five hand-written builder methods,
-# proven behaviorally here rather than just by the real corpus
-# continuing to boot byte-identical (which it does — see this refactor's
-# own commit message) — a synthetic minimal bluebook per primitive
-# means these tests still catch a regression even if the real corpus
-# never happens to exercise a given branch again.
+# The three resolution primitives in bluebook/dsl/rule_reference.rb, each proven on a small
+# synthetic bluebook so a branch the real corpus stops exercising is still covered.
 RSpec.describe "Hecks::Bluebook::DSL::RuleReference" do
   def load(source)
     Dir.mktmpdir do |dir|

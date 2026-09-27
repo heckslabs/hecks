@@ -1,37 +1,12 @@
-//! JSON writer — matches `JSON.pretty_generate(Exporter.call(...))`
-//! byte-for-byte for the bundled `json` gem this repo actually resolves
-//! (`bundle exec ruby -e 'puts JSON::VERSION'` -> 2.7.2, confirmed live,
-//! not assumed — see the empty-array/object hazard note below).
-//!
-//! Walks `ir::Bluebook` field-by-field in Ruby's own `to_h` key order
-//! (ir.rs's own header note on why key order is significant), converting
-//! each construct to a generic `JsonValue` tree that `write` then
-//! serializes.
-//!
-//! The empty-array/object hazard, pinned for real: `JSON.pretty_generate({a:
-//! []})` under the bundled json
-//! 2.7.2 gem renders `"{\n  \"a\": [\n\n  ]\n}"` — an extra blank,
-//! unindented line between `[` and the closing `]`, confirmed by running
-//! `bundle exec ruby -e 'require "json"; print JSON.pretty_generate({a:
-//! []}).inspect'` in this repo directly (system json 2.21.2 would instead
-//! collapse to `"[]"` — a real version difference, not a guess). An empty
-//! object has no such quirk: `JSON.pretty_generate({a: {}})` renders
-//! `"{\n  \"a\": {\n  }\n}"`, exactly what the ordinary (non-empty) object
-//! writer already produces when its own loop simply runs zero times — so
-//! `write_object` needs no special case at all, only `write_array` does.
-//! Every real corpus member's IR has non-empty top-level arrays, but
-//! pizzas.bluebook's own `Order.entities`/`Order.ports`/several
-//! `invariants`/`members`/`ensures`/`givens`/`mutations` lists are empty
-//! in practice — this is exercised for real, not a theoretical case.
+//! JSON writer matching `JSON.pretty_generate(Exporter.call(...))` byte-for-byte for json 2.7.2.
+//! Walks `ir::Bluebook` in Ruby's `to_h` key order into a `JsonValue` tree for `write`.
 
 use std::fmt::Write as _;
 
 use crate::ir;
 use crate::ruby_value;
 
-/// A minimal, hand-rolled JSON value writer — no serde, matching this
-/// crate's std-only dependency discipline (see Cargo.toml's own comment on
-/// why).
+/// A minimal hand-rolled JSON value (no serde: the crate is std-only).
 #[derive(Debug, Clone)]
 pub enum JsonValue {
     Null,
@@ -65,13 +40,8 @@ pub fn write(value: &JsonValue) -> String {
     out
 }
 
-/// The pinned `Expression::CanonicalForm.table` — a fixed, non-per-domain
-/// constant (`lib/hecks/bluebook/expression/projection.json`'s own
-/// `normalisations` array, read+field-ordered exactly the way
-/// `CanonicalForm.table` itself does: `strategy, source_token,
-/// replacement, boundary, position` — `position` rendered as a string,
-/// per `rule.position.to_s` in the Ruby source), written the same for
-/// every chapter this emitter ever serializes.
+/// The pinned `Expression::CanonicalForm.table` rules from projection.json, in Ruby's field
+/// order; `position` is a string.
 fn canonical_form_table() -> JsonValue {
     JsonValue::Array(vec![
         JsonValue::Object(vec![
@@ -94,8 +64,7 @@ fn canonical_form_table() -> JsonValue {
     ])
 }
 
-/// `IR::Bluebook#to_h` (lib/hecks/bluebook/ir/bluebook.rb) — top of
-/// the construct chain, field order pinned there.
+/// `IR::Bluebook#to_h`; field order is pinned there.
 pub fn bluebook_json(bb: &ir::Bluebook) -> JsonValue {
     JsonValue::Object(vec![
         (
@@ -290,11 +259,7 @@ fn value_object_json(v: &ir::ValueObject) -> JsonValue {
     ])
 }
 
-/// `{description:, canonical:}` — the shape both `IR::Command#to_h`'s
-/// `givens:`/`ensures:` and `IR::ValueObject#to_h`'s `invariants:` use
-/// (`ir::Given`/`ir::Ensures`/`ir::Invariant` are all the same Rust type,
-/// same as the Ruby side: `command.rb`'s `Given` and `value_object.rb`'s
-/// `Invariant` are both plain `description/canonical` Structs).
+/// `{description:, canonical:}`, shared by `givens:`, `ensures:` and `invariants:`.
 fn given_json(g: &ir::Given) -> JsonValue {
     JsonValue::Object(vec![
         (
@@ -302,17 +267,12 @@ fn given_json(g: &ir::Given) -> JsonValue {
             JsonValue::opt_str(&g.description),
         ),
         ("canonical".to_string(), JsonValue::str(g.canonical.clone())),
-        // The structured form, derived from the same text — the exact
-        // tree Ruby's `AstJson.rule_row` puts beside `canonical`, and
-        // byte-compared by parser parity since the expression parser
-        // moved here from `rust/codegen`.
+        // The structured form of the same text, as `AstJson.rule_row` emits beside `canonical`.
         ("ast".to_string(), crate::expr::ast_json::emit_predicate(&g.canonical)),
     ])
 }
 
-/// `IR::Aggregate#to_h`'s own `projected_fields:` entry (S12, ADR
-/// 0025) — `{name:, reference:, remote_field:}`, all three plain
-/// Strings the same way `given_json` above spells its own two.
+/// `IR::Aggregate#to_h`'s `projected_fields:` entry: `{name:, reference:, remote_field:}`.
 fn projected_field_json(f: &ir::ProjectedField) -> JsonValue {
     JsonValue::Object(vec![
         ("name".to_string(), JsonValue::str(f.name.clone())),
@@ -359,10 +319,7 @@ fn command_json(c: &ir::Command) -> JsonValue {
     ])
 }
 
-/// `ir::CommandFrom` — see that type's own header: a plain captured
-/// value (never `Literal.render`-ed), a bare JSON string for one state or
-/// a JSON array of strings for several, `null` for a command with no
-/// `from:` guard.
+/// `ir::CommandFrom`: a bare JSON string for one state, an array for several, `null` for none.
 fn command_from_json(from: &Option<ir::CommandFrom>) -> JsonValue {
     match from {
         None => JsonValue::Null,
@@ -371,18 +328,10 @@ fn command_from_json(from: &Option<ir::CommandFrom>) -> JsonValue {
     }
 }
 
-/// `IR::Mutation#to_h` (lib/hecks/bluebook/ir/command.rb) — see
-/// `ir::MutationSource`'s own header for why an append's `fields:` and a
-/// non-append's literal `source:` are rendered two different ways.
+/// `IR::Mutation#to_h` (lib/hecks/bluebook/ir/command.rb).
 fn mutation_json(m: &ir::Mutation) -> JsonValue {
     match m {
-        // "sign": "" — append never carries a sign (only increment/
-        // decrement do), the same constant `Vocabulary::MutationOp`
-        // declares for it, but Ruby's own `Mutation#to_h` still emits
-        // the key (its `emits_ir`'s `sign:` field applies before the
-        // `op == :append` branch ever merges `fields:` in), so this
-        // does too — key order matters, the same reason every other
-        // field here does.
+        // Ruby's `Mutation#to_h` emits `sign: ""` for append too; key order is significant.
         ir::Mutation::Append { target, fields } => JsonValue::Object(vec![
             ("target".to_string(), JsonValue::str(target.clone())),
             ("op".to_string(), JsonValue::str("append")),
@@ -397,12 +346,7 @@ fn mutation_json(m: &ir::Mutation) -> JsonValue {
                 ),
             ),
         ]),
-        // `op: "delegate"` — see `ir::Mutation::Delegate`'s own header.
-        // Same shape as Append above (target/op/sign/fields, sign always
-        // "" — `Vocabulary::MutationOp`'s own "delegate" row carries no
-        // sign, the same as "append"'s), just the op string and target
-        // spelling (a dotted "Entity.Command" string, not an attribute
-        // name) differ.
+        // Same shape as Append (sign ""), but the target is a dotted "Entity.Command" string.
         ir::Mutation::Delegate { target, fields } => JsonValue::Object(vec![
             ("target".to_string(), JsonValue::str(target.clone())),
             ("op".to_string(), JsonValue::str("delegate")),
@@ -417,9 +361,7 @@ fn mutation_json(m: &ir::Mutation) -> JsonValue {
                 ),
             ),
         ]),
-        // `op: "corrects"` — see `ir::Mutation::Correction`'s own header.
-        // Same shape as Append/Delegate above, sign always "" (the same
-        // "corrects" row in `Vocabulary::MutationOp` carries no sign).
+        // Same shape as Append, with sign always "".
         ir::Mutation::Correction { target, fields } => JsonValue::Object(vec![
             ("target".to_string(), JsonValue::str(target.clone())),
             ("op".to_string(), JsonValue::str("corrects")),
@@ -466,10 +408,7 @@ fn mutation_source_json(source: &Option<ir::MutationSource>) -> JsonValue {
     }
 }
 
-/// `IR::Lifecycle#to_h` (lib/hecks/bluebook/ir/lifecycle.rb) — the
-/// `transitions:` list is already expanded (one `StateTransitionRow` per
-/// `from_state`, mirroring Ruby's own `expand`) by the time it reaches
-/// here; nothing left to fan out.
+/// `IR::Lifecycle#to_h`; `transitions:` arrives already expanded, one row per `from_state`.
 fn lifecycle_json(l: &ir::Lifecycle) -> JsonValue {
     JsonValue::Object(vec![
         ("field".to_string(), JsonValue::str(l.field.clone())),
@@ -492,13 +431,8 @@ fn lifecycle_json(l: &ir::Lifecycle) -> JsonValue {
     ])
 }
 
-/// `IR::Query#to_h` (lib/hecks/bluebook/ir/query.rb) merged with
-/// `QuerySpecification::Common::Options#extra_options_to_h` — the latter
-/// via `query_options_json`, which appends `offset`/`cursor`/
-/// `consistency`/`freshness`/`authorization`/`null_semantics`/
-/// `inspection`/`index_hints` in that fixed Ruby order, only for
-/// whichever ones this query actually declared (`ir::QueryOptions`'s own
-/// header explains why this can't be a plain sorted-keys map).
+/// `IR::Query#to_h` merged with `query_options_json`, which appends only the declared
+/// options in Ruby's fixed order.
 fn query_json(q: &ir::Query) -> JsonValue {
     let mut pairs = vec![
         ("name".to_string(), JsonValue::str(q.name.clone())),
@@ -548,16 +482,8 @@ fn limit_json(limit: &Option<ir::LimitSpec>) -> JsonValue {
         .unwrap_or(JsonValue::Null)
 }
 
-/// `QuerySpecification::Common::Options#extra_options_to_h` — shared
-/// verbatim by `query_json`/`read_model_json`, since both Ruby classes
-/// `< Options` and reject the identical set (`wheres`/`order_by`/`limit`
-/// excluded by name; `null_semantics` excluded only when it's the
-/// default `{mode: "native"}`, which `ir::QueryOptions.null_semantics`
-/// is already `None` for — see that field's own comment). Returns pairs
-/// in Ruby's own declared field order, appending only the ones actually
-/// present — an absent `Option`/empty `Vec` contributes nothing, the
-/// same as `extra_options_to_h`'s own `.reject { value.nil? || value ==
-/// [] }`.
+/// `QuerySpecification::Common::Options#extra_options_to_h`, shared by `query_json` and
+/// `read_model_json`: pairs in Ruby's field order, only for the options actually declared.
 fn query_options_json(o: &ir::QueryOptions) -> Vec<(String, JsonValue)> {
     let mut pairs = Vec::new();
     if let Some(value) = &o.offset {
@@ -598,9 +524,7 @@ fn query_options_json(o: &ir::QueryOptions) -> Vec<(String, JsonValue)> {
     pairs
 }
 
-/// `IR::Entity#to_h` (lib/hecks/bluebook/ir/entity.rb). Stage 4:
-/// real, confirmed by banking.bluebook's own `LedgerEntry`/`Withdrawal`/
-/// `Visit`/`KeyIssuance` (`parse::entity` implements them in full).
+/// `IR::Entity#to_h` (lib/hecks/bluebook/ir/entity.rb).
 fn entity_json(e: &ir::Entity) -> JsonValue {
     JsonValue::Object(vec![
         ("name".to_string(), JsonValue::str(e.name.clone())),
@@ -624,26 +548,17 @@ fn entity_json(e: &ir::Entity) -> JsonValue {
             "queries".to_string(),
             JsonValue::Array(e.queries.iter().map(query_json).collect()),
         ),
-        // S17, ADR 0026 — `entity.rb`'s own `emits_ir` now names
-        // `entities: many(:entities)`, same field an Aggregate already
-        // carries (`aggregate_json`, above) — recurses the same way.
+        // Nested entities recurse the same way an aggregate's do.
         (
             "entities".to_string(),
             JsonValue::Array(e.entities.iter().map(entity_json).collect()),
         ),
-        // ADR 0028 — `entity.rb`'s own `emits_ir` now names
-        // `preconditions`, the same shape `Aggregate.preconditions`
-        // already carries (`aggregate_json`, above) — exported for
-        // every entity, empty when unused, matching Ruby's own
-        // unconditional `preconditions.map { ... }`.
+        // Exported for every entity, empty when unused.
         (
             "preconditions".to_string(),
             JsonValue::Array(e.preconditions.iter().map(given_json).collect()),
         ),
-        // Round 7 — `entity.rb`'s own `emits_ir` now names `invariants`,
-        // the same shape `Aggregate.invariants`/`ValueObject.invariants`
-        // already carry — exported for every entity, empty when unused,
-        // matching Ruby's own unconditional `invariants.map { ... }`.
+        // Exported for every entity, empty when unused.
         (
             "invariants".to_string(),
             JsonValue::Array(e.invariants.iter().map(given_json).collect()),
@@ -658,13 +573,8 @@ fn entity_json(e: &ir::Entity) -> JsonValue {
     ])
 }
 
-/// `IR::ReadModel#to_h` (lib/hecks/bluebook/ir/read_model.rb) —
-/// `wheres`/`order_by`/`limit` spelled explicitly (the same mechanism
-/// `query_json` uses, per `read_model.rb`'s own 2026-08-11 comment on
-/// why), `aggregate_heads`/`group_by` after them, then
-/// `query_options_json` — real for `ComplianceDashboard` (banking.bluebook's
-/// own filtered/ordered/capped/fresh/indexed read model), the first real
-/// corpus member to declare any of the three.
+/// `IR::ReadModel#to_h`: `wheres`/`order_by`/`limit`, then `aggregate_heads`/`group_by`,
+/// then `query_options_json`.
 fn read_model_json(r: &ir::ReadModel) -> JsonValue {
     let mut pairs = vec![
         ("name".to_string(), JsonValue::str(r.name.clone())),
@@ -723,11 +633,7 @@ fn read_model_json(r: &ir::ReadModel) -> JsonValue {
             ),
         ),
     ];
-    // `count`/`median_field` — `group_by`'s own two siblings, pushed
-    // only when set (`IR::ReadModel#to_h`'s own conditional `reductions`
-    // merge, read_model.rb) — never a `null` key for a read model that
-    // declares neither, which is every one but banking.bluebook's own
-    // `DisputedPaymentCount`/`DisputedPaymentMedian`.
+    // `count`/`median_field` are pushed only when set, never as a `null` key.
     if r.count {
         pairs.push(("count".to_string(), JsonValue::Bool(true)));
     }
@@ -738,9 +644,7 @@ fn read_model_json(r: &ir::ReadModel) -> JsonValue {
     JsonValue::Object(pairs)
 }
 
-/// `IR::ProcessManager#to_h` (lib/hecks/bluebook/ir/process_manager.rb).
-/// Stage 4: real, confirmed by banking.bluebook's own three sagas
-/// (`Settlement`/`ExternalSettlement`/`Onboarding`).
+/// `IR::ProcessManager#to_h`.
 fn process_manager_json(pm: &ir::ProcessManager) -> JsonValue {
     JsonValue::Object(vec![
         ("name".to_string(), JsonValue::str(pm.name.clone())),
@@ -782,31 +686,10 @@ fn process_manager_handler_json(h: &ir::ProcessManagerHandler) -> JsonValue {
     ])
 }
 
-/// `IR::DispatchSpec#to_h` — `with_spec.map { |key, value| [key.to_s,
-/// IR.render_value(value)] }`, rendered as an array of `[key, value]`
-/// pairs (never a JSON object) since `IR::DispatchSpec#to_h`'s own
-/// `with_spec:` is `with_spec.map { ... }` over an Array of pairs, not a
-/// Hash — confirmed by reading `process_manager.rb` directly.
+/// `IR::DispatchSpec#to_h`: `with_spec` is an array of `[key, value]` pairs, not an object.
 ///
-/// **Key order** — `command_name`, `with_spec`, `compensates`, matching
-/// Ruby's own `emits_ir(command_name: ..., with_spec: ..., compensates:
-/// one(:compensates))` declaration order verbatim (`ir.rb`'s own "key
-/// order is the declaration order" comment). Confirmed live by running
-/// `DispatchSpec#to_h` directly rather than trusting
-/// `spec/golden/ir/*.json` — that fixture is alphabetically key-sorted
-/// by `ir_golden_spec.rb`'s own `sorted` helper for human-readable
-/// diffs ("key order is not semantics" for that check only), so it
-/// shows `command_name`/`compensates`/`with_spec` and is not the order
-/// `spec/parser_parity_spec.rb`'s byte-exact, unsorted comparison
-/// actually needs.
-///
-/// `compensates` is `null` for a dispatch with nothing to undo — `one
-/// (:compensates)`'s own nil-safe `&.to_h` — or a nested object,
-/// recursing through this same function one level in (Ruby's own
-/// `Assembly#dispatch` takes the identical one-level recursive move for
-/// the self-hosted meta-domain path; this path only ever builds it from
-/// real `dispatch ... do compensates ... end` syntax, never self-hosted
-/// reconstruction, but the shape this produces is the same either way).
+/// Key order is `command_name`, `with_spec`, `compensates` (Ruby's declaration order, not the
+/// sorted golden fixture's). `compensates` is `null` or a nested dispatch.
 fn dispatch_spec_json(d: &ir::DispatchSpec) -> JsonValue {
     JsonValue::Object(vec![
         (
@@ -834,13 +717,7 @@ fn dispatch_spec_json(d: &ir::DispatchSpec) -> JsonValue {
     ])
 }
 
-/// `Policy#to_h` (`lib/hecks/bluebook/policy.rb`, generated by
-/// `bin/project_model` from `lib/hecks/language/bluebook/
-/// reaction.bluebook`'s own `Policy` aggregate — field order here is the
-/// declaration order that file's `attribute` lines give, which is the
-/// real wire order `spec/parser_parity_spec.rb` byte-matches against,
-/// not an alphabetised one), then the computed `where_ast` last, exactly
-/// where `emits_ir` puts it.
+/// `Policy#to_h`: attribute declaration order from reaction.bluebook, then `where_ast` last.
 fn policy_json(p: &ir::Policy) -> JsonValue {
     JsonValue::Object(vec![
         ("name".to_string(), JsonValue::str(p.name.clone())),
@@ -873,11 +750,7 @@ fn policy_json(p: &ir::Policy) -> JsonValue {
                     .collect(),
             ),
         ),
-        // `Behaviour::Policy#where_ast` — the structured `where`, the
-        // same `AstJson.emit_predicate` tree every rule row's `ast`
-        // carries; `null` for an unguarded policy (empty/absent `where`),
-        // exactly as Ruby's `guarded?` decides. `hecks-codegen`'s
-        // `reactions.rs::where_fns` reads this and panicked without it.
+        // The structured `where` (`AstJson.emit_predicate`); `null` for an unguarded policy.
         (
             "where_ast".to_string(),
             match p.where_clause.as_deref() {
@@ -888,8 +761,7 @@ fn policy_json(p: &ir::Policy) -> JsonValue {
     ])
 }
 
-/// `IR::DomainPort#to_h` / `IR::PortOperation#to_h`
-/// (lib/hecks/bluebook/ir/domain_port.rb).
+/// `IR::DomainPort#to_h` / `IR::PortOperation#to_h`.
 fn domain_port_json(p: &ir::DomainPort) -> JsonValue {
     JsonValue::Object(vec![
         ("name".to_string(), JsonValue::str(p.name.clone())),
@@ -909,24 +781,15 @@ fn port_operation_json(op: &ir::PortOperation) -> JsonValue {
         ),
         ("emits".to_string(), JsonValue::strings(&op.emits)),
     ];
-    // **Merged in only when present** — same "byte-identical IR for anyone
-    // who never touched this" treatment domain_port.rb's own Ruby to_h
-    // gives `to`, for the same reason: an unconditional key here would
-    // break parser_parity_spec for every domain that never declared one.
+    // Merged in only when present, so domains that never declared one keep byte-identical IR.
     if let Some(to) = &op.to {
         fields.push(("to".to_string(), JsonValue::str(to.clone())));
     }
     JsonValue::Object(fields)
 }
 
-/// `JSON.generate`'s own native encoding of a captured Ruby value — used
-/// where the Ruby `to_h` field is the raw value itself (`Attribute
-/// #default`, a non-append `Mutation`'s literal `source:`), never through
-/// `Literal.render`. A bare Symbol has no JSON type of its own; the `json`
-/// gem's default `Symbol#to_json` calls `to_s.to_json` (the name, no
-/// colon) — not exercised anywhere in the pizzas corpus (every literal
-/// mutation source and default there is a plain String), kept correct
-/// anyway since it costs nothing extra.
+/// `JSON.generate`'s native encoding of a captured Ruby value, never `Literal.render`ed;
+/// a bare Symbol serializes as its name.
 fn ruby_value_json(value: &ruby_value::Value) -> JsonValue {
     match value {
         ruby_value::Value::Nil => JsonValue::Null,
@@ -987,12 +850,8 @@ fn write_string(out: &mut String, text: &str) {
 
 fn write_array(out: &mut String, items: &[JsonValue], depth: usize) {
     if items.is_empty() {
-        // The pinned hazard, for real — see this module's own header.
-        // `bundle exec ruby -e 'require "json"; print
-        // JSON.pretty_generate({a: []}).inspect'` in this repo prints
-        // `"{\n  \"a\": [\n\n  ]\n}"`: an extra blank, unindented line
-        // between the brackets, then the closing `]` at the array's own
-        // (non-empty-shaped) indent — not simply `"[]"`.
+        // json 2.7.2 renders an empty array as `[`, a blank unindented line, then `]`,
+        // not `[]`.
         out.push_str("[\n\n");
         indent(out, depth);
         out.push(']');
@@ -1012,10 +871,7 @@ fn write_array(out: &mut String, items: &[JsonValue], depth: usize) {
 }
 
 fn write_object(out: &mut String, pairs: &[(String, JsonValue)], depth: usize) {
-    // No special case for an empty object — see this module's own header:
-    // the ordinary loop below already produces the right bytes
-    // (`"{\n" + indent(depth) + "}"`) when it simply runs zero times, and
-    // that's exactly what the bundled json gem itself emits for `{}`.
+    // An empty object needs no special case: a zero-iteration loop already emits the right bytes.
     out.push_str("{\n");
     for (idx, (key, val)) in pairs.iter().enumerate() {
         indent(out, depth + 1);

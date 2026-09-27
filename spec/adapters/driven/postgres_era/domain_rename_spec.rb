@@ -3,11 +3,8 @@ require "hecks/ports/persistence/plugins/era"
 require_relative "../../../support/postgres_probe"
 require_relative "../../../support/fenced_owner"
 
-# `formerly_known_as` — a domain's own declared identity can change, and
-# this proves the storage layer bridges its real history under the new
-# name instead of minting a brand-new lineage from nothing. Runs only
-# when a Postgres server is reachable — the shared probe in
-# support/postgres_probe.rb, like every other Postgres spec here.
+# `formerly_known_as`: the storage layer carries a renamed domain's history forward.
+# Runs only when a Postgres server is reachable (support/postgres_probe.rb).
 RSpec.describe "domain rename (formerly_known_as) in the PostgresEra adapter", :io do
   RENAME_DB = "hecks_domain_rename_spec".freeze
   RENAME_ROLE = "hecks_domain_rename_spec_app".freeze
@@ -30,7 +27,7 @@ RSpec.describe "domain rename (formerly_known_as) in the PostgresEra adapter", :
     end
   BLUEBOOK
 
-  # Same shape as OLD_SOURCE — only the domain's own identity changed.
+  # Same shape as OLD_SOURCE; only the domain name changed.
   NEW_SOURCE = <<~BLUEBOOK.freeze
     Hecks.bluebook "NewName" do
       formerly_known_as "OldName"
@@ -51,8 +48,7 @@ RSpec.describe "domain rename (formerly_known_as) in the PostgresEra adapter", :
     end
   BLUEBOOK
 
-  # Renamed and structurally different — a new field with no counterpart
-  # in the old shape.
+  # Renamed, plus a new field with no counterpart in the old shape.
   NEW_SOURCE_CHANGED = <<~BLUEBOOK.freeze
     Hecks.bluebook "NewName" do
       formerly_known_as "OldName"
@@ -85,9 +81,7 @@ RSpec.describe "domain rename (formerly_known_as) in the PostgresEra adapter", :
     admin.exec("DROP DATABASE IF EXISTS #{RENAME_DB} WITH (FORCE)")
     admin.exec("CREATE DATABASE #{RENAME_DB}")
     admin.close
-    # every check! below connects as a non-superuser owner — the ambient
-    # dev/CI user is a superuser, which PostgresEra refuses to boot as
-    # (BUG#24; see support/fenced_owner.rb)
+    # PostgresEra refuses to boot as a superuser; see support/fenced_owner.rb
     FencedOwner.own!(RENAME_DB)
   end
 
@@ -216,8 +210,7 @@ RSpec.describe "domain rename (formerly_known_as) in the PostgresEra adapter", :
     expect(to_regclass(db, "#{journal_name('OldName')}_ordinal")).to be_nil
     expect(to_regclass(db, "#{journal_name('NewName')}_ordinal")).not_to be_nil
 
-    # the renamed sequence's nextval() default survived untouched —
-    # Postgres stores it as a regclass reference, not literal text
+    # Postgres stores the nextval() default as a regclass reference, so the rename keeps it
     db.exec_params(
       "INSERT INTO #{journal_name('NewName')} (era, aggregate, aggregate_id, operation, state) " \
       "VALUES (1, 'acct', 'a2', 'save', '{}'::jsonb)"
@@ -229,9 +222,7 @@ RSpec.describe "domain rename (formerly_known_as) in the PostgresEra adapter", :
 
   it "renames the domain column across hecks_eras, hecks_era_texts, hecks_approvals, and hecks_attestations" do
     check!(OLD_SOURCE)
-    # as the owner, the way bin/reattest_era runs it — reattest! lazily
-    # CREATEs hecks_attestations, and a table this role does not own is
-    # one the rename below could not update
+    # as the owner: reattest! lazily creates hecks_attestations, which the rename must own
     db = PG.connect(FencedOwner.url(RENAME_DB))
     lineage = Hecks::Adapters::PostgresEra::Lineage.new(db, "OldName")
     lineage.reattest!(1) # forces hecks_attestations into existence under the old name
@@ -268,9 +259,7 @@ RSpec.describe "domain rename (formerly_known_as) in the PostgresEra adapter", :
                   "VALUES (1, 'acct', 'granted-before', 'save', '{}'::jsonb)")
     ).to eq(:allowed)
 
-    # no role: passed here — grant_role! never runs on this boot, so
-    # anything the app role can still do afterward is the rename's own
-    # doing, not a fresh grant
+    # no role: passed, so grant_role! never runs; surviving access is the rename's doing
     check!(NEW_SOURCE)
 
     expect(
@@ -289,26 +278,10 @@ RSpec.describe "domain rename (formerly_known_as) in the PostgresEra adapter", :
 
     new_label = label_of(NEW_SOURCE_CHANGED)
 
-    # An edge existing isn't a rubber stamp — the second layer this
-    # example's own title promises. `:note` is new and required, with no
-    # default: of its own; an edge that names the aggregate but never
-    # backfills the field it actually added still hits mint!'s real
-    # coverage check (era_guard/shape_diff.rb#unsafe_additions, ADR 0025),
-    # not a silent pass just because some edge happens to exist.
-    #
-    # A third stage — backfilling :note for real and proving the mint
-    # then succeeds — was tried and deliberately left out: `Note` is a
-    # value object here (the only shape any real attribute in this file
-    # takes, matching the corpus's own no-primitive-envy convention — no
-    # aggregate anywhere declares a bare String/Integer directly), and a
-    # Hash-shaped `backfill :note, default: { text: "" }` reaches
-    # audit!'s Layer 2 (translation/audit/layer_two.rb) and finds a real
-    # divergence between the SQL-compiled transform and Ruby's own
-    # reference re-derivation — a genuinely separate, deeper bug in
-    # VO-typed backfill defaults specifically, never exercised by any
-    # other spec in this corpus (confirmed by grep: zero other
-    # `backfill :x, default: { ... }` usages anywhere). Worth its own,
-    # separately scoped investigation; not what this example is about.
+    # An edge that names the aggregate but never backfills the new required `:note`
+    # must still hit mint!'s coverage check (ADR 0025), not pass because an edge exists.
+    # A value-object-typed backfill default is deliberately not exercised here: it
+    # diverges between the SQL transform and the Ruby re-derivation in audit! Layer 2.
     uncovered_edge = <<~RUBY
       Hecks.data_translation("NewName", from: #{old_label.inspect}, to: #{new_label.inspect}) do
         aggregate("Acct") do

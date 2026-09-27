@@ -3,14 +3,8 @@ require "tmpdir"
 require "hecks/fuzzing/domain_generator"
 require_relative "support/qa_mine_combinations_helpers"
 
-# `bin/qa_mine_combinations` — an agent writes candidate bluebooks, the
-# script checks them through `bin/qa_generated_domains --source`. Proven as
-# a real subprocess with `--agent` pointed at a fake (spec/fixtures/
-# qa_mine_combinations/fake_agent): the agent's judgment is not what is
-# under test, the plumbing around it is. This file holds the fast half;
-# the candidate check and the repair rounds live in
-# qa_mine_combinations_check_spec.rb and qa_mine_combinations_repair_spec.rb
-# (spec/support/qa_mine_combinations_helpers.rb says why three files).
+# `bin/qa_mine_combinations` as a real subprocess with `--agent` set to a fake agent;
+# the plumbing is under test, not the agent. Check and repair rounds are in sibling specs.
 RSpec.describe "bin/qa_mine_combinations" do
   include QaMineCombinationsHelpers
 

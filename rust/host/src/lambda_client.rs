@@ -1,97 +1,29 @@
-// A direct port of `Adapters::Lambda::Client` (lib/hecks/adapters/
-// driven/lambda/client.rb) — read that file's own header first; this is
-// the same thin, single-purpose wrapper (one Lambda invoke, one JSON
-// round trip, the same "hecks-<domain>" function-name convention)
-// for the one call site orchestrate.rs's own header names: a policy whose
-// `across:` target domain isn't the one this process's own compiled
-// `.wasm` module holds. That module runs inside wasmtime's sandbox
-// (rust/host/Cargo.toml's own header, main.rs's own header) — no network,
-// structurally — so it can only match a cross-domain policy and hand back
-// a `PendingCrossDomainReaction` (kernel::cli's "cross_domain_reactions"
-// JSON output); this module is what actually delivers it, from the one
-// layer in this whole project with real AWS SDK access.
-//
-// Function name is computed from a declared string, not a path/basename —
-// unlike `Adapters::Lambda::Client`'s own constructor, which resolves its
-// own domain name from `ENV["DOMAIN_NAME"] || File.basename(registry.
-// root)` specifically because `root` is always `/var/task` inside a
-// deployed Lambda (that class's own comment: "a real, live
-// AccessDeniedException on 'hecks-task' caught this"). This module
-// has no equivalent guess to make: a cross-domain policy's target domain
-// is baked into the generated `CrossDomainPolicyRule` table at codegen
-// time, straight from its own `across "X"` declaration
-// (rust/project/reactions.rb's `emit_cross_domain_policy_table`) — never
-// derived from a path or working directory, so the whole bug class Ruby's
-// comment documents structurally cannot recur here.
-//
-// **The trait boundary** — `LambdaInvoker` — exists for exactly the reason
-// `Adapters::Lambda::Client` itself is already a thin wrapper around one
-// `Aws::Lambda::Client#invoke` call: everything this module can actually
-// prove without live AWS infrastructure (the function name computed
-// correctly, the payload shaped correctly, a domain-level refusal
-// recognized correctly and swallowed the same way a same-domain policy
-// reaction already is, a hard invoke fault propagated rather than
-// swallowed) is provable against any implementer of this trait — this
-// file's own `tests` module exercises exactly that, against a
-// hand-written mock, with no real `aws_sdk_lambda::Client` or AWS
-// credentials involved at all. `AwsLambdaInvoker`, below, is the one
-// piece of this file that cannot be exercised here: it is real AWS SDK
-// glue, structurally unverifiable without a second real domain's Lambda
-// actually deployed and invocable. Its own doc comment says so plainly.
+//! Delivers a `PendingCrossDomainReaction` to another domain's Lambda function,
+//! mirroring `Adapters::Lambda::Client`'s invoke/dispatch shape.
 
 use serde_json::Value;
 
-/// One Lambda invoke's raw outcome — `Adapters::Lambda::Client#invoke`'s
-/// own two-part answer (`response.function_error`, `response.payload.
-/// read`, parsed as JSON), carried across the trait boundary instead of
-/// an `aws_sdk_lambda`-specific response type so a mock never needs to
-/// construct one.
+// Decoupled from `aws_sdk_lambda`'s own response type so a mock never needs one.
 pub struct InvokeOutcome {
     pub body: Value,
     pub function_error: bool,
 }
 
-/// The seam a mock stands in for. `#[async_trait]`, not a native `async
-/// fn` in a trait — `dispatch::handle` is reached from `web.rs`/`auth.rs`
-/// through a long, already-deep call chain (`route` -> `command_route` ->
-/// `submit`, `auth_route` -> `grant_access`, ...) that threads `&Mutex
-/// <Client>`/`&Path`/`&LineageConfig` the same plain-reference way
-/// already; making every function in that chain generic over `L:
-/// LambdaInvoker` just to reach one call site would be a much bigger,
-/// riskier diff than adding one boxed-future crate. `&dyn LambdaInvoker`
-/// threads through exactly the same way those existing parameters do.
+// `&dyn`, not a generic — the call chain reaching this is already deep, and making
+// every function in it generic over `L: LambdaInvoker` would be a much bigger diff.
 #[async_trait::async_trait]
 pub trait LambdaInvoker: Send + Sync {
     async fn invoke(&self, function_name: &str, payload: &str) -> anyhow::Result<InvokeOutcome>;
 }
 
-/// `"hecks-#{domain.to_s.downcase}"` (Adapters::Lambda::Client's own
-/// constructor, read directly) — the identical string, same casing rule,
-/// same prefix, matching `bin/project_deploy`'s own `stack_name =
-/// "hecks-#{domain_name}"` this Ruby comment already cites. Pure and
-/// synchronous on purpose: this is the one piece of `lambda_client.rs`
-/// that needs no mock and no `async` at all to prove — see this file's
-/// own `tests` module.
+// Mirrors Ruby's `"hecks-#{domain.downcase}"` — deployed stack names depend on
+// this exact casing.
 pub fn function_name_for(domain: &str) -> String {
     format!("hecks-{}", domain.to_lowercase())
 }
 
-/// One `PendingCrossDomainReaction`, delivered — `Runtime::
-/// PolicyInterpreter#deliver`'s own `{policy:, on:, trigger:, delivered:,
-/// reason:}` record shape (policy_interpreter.rb, read directly), minus
-/// `on:` (this crate never sees the triggering event's own name, only its
-/// payload — kernel::cli's JSON output doesn't carry it, and nothing here
-/// needs it). Surfaced in `dispatch::handle`'s own result JSON as a real,
-/// visible field — never silently dropped the way a same-domain
-/// reaction's own downstream refusal already, deliberately, is
-/// (orchestrate.rs's `react_policies`: "A refusal here is swallowed").
-/// The difference that earns this its own visible record: a same-domain
-/// reaction fails inside this process, where a human reading `refusals`
-/// already has the full picture; a cross-Lambda delivery crosses a
-/// network boundary this process cannot see past on its own, so its
-/// outcome — success, target-side refusal, or (via `deliver`'s `Err`
-/// path, below) a hard invoke fault — has to be reported explicitly or
-/// nobody would ever know it happened at all.
+// Mirrors `PolicyInterpreter#deliver`'s record shape, minus `on:` — this crate
+// never sees the triggering event's own name, only its payload.
 #[derive(Debug)]
 pub struct CrossDomainDeliveryRecord {
     pub policy: String,
@@ -113,41 +45,8 @@ impl CrossDomainDeliveryRecord {
     }
 }
 
-/// Delivers one `PendingCrossDomainReaction` (as its own kernel::cli JSON
-/// shape: `{"policy", "target_domain", "target_verb", "payload"}`) — the
-/// caller (`dispatch::handle`) hands this the parsed JSON object straight
-/// off the wasm module's own output, unwrapped here rather than upstream
-/// so this function stays the one place that knows both this module's
-/// input shape and `Adapters::Lambda::Client#dispatch`'s own request
-/// shape (`{"verb": verb, "args": args}` — the same payload shape a
-/// deployed Lambda's own `main.rs` event-handling `match` already reads,
-/// this crate's own `body.get("verb")`/`body.get("args")` in `main.rs`).
-///
-/// Two kinds of "it didn't work," told apart exactly the way Ruby's own
-/// chain already tells them apart:
-///
-///   - A domain-level refusal (the target Lambda invoked cleanly, but its
-///     own `refusals` array names this verb) is not propagated as `Err` —
-///     mirrors `Runtime::PolicyInterpreter#deliver`'s own `rescue
-///     *DOMAIN_REFUSALS` (which `RemoteRefusal` — the exception
-///     `RemoteDispatcher#dispatch` raises for exactly this same
-///     condition — is a member of, per lib/hecks/runtime/errors.rb).
-///     Recorded as `delivered: false`, non-fatal: the command that
-///     triggered this reaction already committed and stays committed.
-///   - A genuine invoke fault (`function_error` — the target function
-///     doesn't exist, threw before answering, or a raw AWS SDK error —
-///     network, throttling, `AccessDeniedException`) mirrors
-///     `Adapters::Lambda::Client#invoke`'s own `raise Runtime::
-///     WiringError`, which is not a member of `DOMAIN_REFUSALS` and so
-///     flies straight out of `deliver` uncaught in Ruby too. This
-///     function does the same: returns `Err`, which `dispatch::handle`
-///     lets propagate out of the whole call — a real, visible failure of
-///     this Lambda invocation (surfaced to whatever invoked it, logged by
-///     `lambda_runtime`), never silently folded into an ordinary
-///     delivery record. It does not roll back the local command's own
-///     already-committed write — see `dispatch::handle`'s own comment on
-///     why cross-domain delivery runs after that transaction commits, not
-///     inside it.
+// A target-side refusal returns `delivered: false`; a genuine invoke fault
+// (`function_error`, or a hard `Err` from `invoke`) returns `Err` instead.
 pub async fn deliver<L: LambdaInvoker + ?Sized>(invoker: &L, reaction: &Value) -> anyhow::Result<CrossDomainDeliveryRecord> {
     let policy = reaction.get("policy").and_then(Value::as_str).unwrap_or_default().to_string();
     let target_domain = reaction.get("target_domain").and_then(Value::as_str).unwrap_or_default().to_string();
@@ -155,12 +54,8 @@ pub async fn deliver<L: LambdaInvoker + ?Sized>(invoker: &L, reaction: &Value) -
     let payload = reaction.get("payload").cloned().unwrap_or_else(|| serde_json::json!({}));
 
     let function_name = function_name_for(&target_domain);
-    // `Adapters::Lambda::Client#dispatch`'s own payload shape, verbatim —
-    // `{"verb" => verb, "args" => args}` (no `"role"` — a policy reaction
-    // is system-triggered, `Dispatcher#reenter`'s own `Caller.without`,
-    // already ported into `orchestrate.rs`'s local branch; the identical
-    // reasoning applies to the cross-domain branch, which is why no
-    // caller role is threaded through this far).
+    // No `"role"` — a policy reaction is system-triggered, the same reasoning
+    // `orchestrate.rs`'s local branch already applies via `Caller.without`.
     let request_payload = serde_json::json!({ "verb": target_verb, "args": payload }).to_string();
 
     let outcome = invoker.invoke(&function_name, &request_payload).await?;
@@ -189,25 +84,12 @@ pub async fn deliver<L: LambdaInvoker + ?Sized>(invoker: &L, reaction: &Value) -
     })
 }
 
-/// The maximum number of `deliver` attempts `deliver_with_retry` makes
-/// before giving up — small on purpose. This runs inside the same
-/// Lambda invocation that already dispatched the local command
-/// (`dispatch::handle`'s own "delivered after commit" comment), which
-/// has its own tight execution budget (Banking's own `deployed_to
-/// ("AwsLambda")` declares a 10-second `timeout` — see
-/// examples/banking/bluebook/banking.world) shared across everything this invocation still has
-/// left to do. A long retry loop would eat directly into that budget
-/// for every other cross-domain reaction still queued behind it, not
-/// just this one.
+// Kept small — shares the invoking Lambda's own tight execution-time budget
+// with every other cross-domain reaction still queued behind it.
 pub const MAX_DELIVERY_ATTEMPTS: u32 = 3;
 
-/// One exhausted `deliver_with_retry` call — everything `journal::
-/// record_dead_letter` needs to write a durable row, carried back to
-/// the caller (`dispatch.rs`) rather than written here: this file stays
-/// free of Postgres entirely (its own header: "one Lambda invoke, one
-/// JSON round trip, nothing domain-specific"), the same reasoning that
-/// already keeps `deliver` itself ignorant of where its `reaction`
-/// argument came from.
+// Carries what `journal::record_dead_letter` needs; this file stays free of
+// Postgres itself.
 #[derive(Debug)]
 pub struct DeliveryFailure {
     pub policy: String,
@@ -218,27 +100,8 @@ pub struct DeliveryFailure {
     pub attempts: u32,
 }
 
-/// `deliver`, retried — only on the `Err` path (a genuine invoke fault:
-/// network, throttling, the function doesn't exist, `AccessDenied`),
-/// never on an `Ok` result, whether that's a successful delivery or a
-/// target-side domain refusal (`delivered: false`, `Ok(...)` — a
-/// legitimate business outcome `deliver`'s own header already
-/// distinguishes from a fault; retrying it would not change what the
-/// target domain decided, only waste the attempt). Short, fixed
-/// exponential backoff between attempts (100ms, 200ms, ... — doubling,
-/// capped by `MAX_DELIVERY_ATTEMPTS` staying small) — enough to ride
-/// out a brief throttle or network blip without meaningfully eating
-/// into this invocation's own execution budget.
-///
-/// **Amazon-agnostic, deliberately** — this sits entirely above the
-/// `LambdaInvoker` trait boundary `deliver` itself already respects, so
-/// it retries whatever invoker is plugged in (`AwsLambdaInvoker` today,
-/// any future implementer of the same trait) exactly the same way; the
-/// retry loop and the eventual dead-letter record (`journal::
-/// record_dead_letter`, written by the caller off this struct's own
-/// fields) are both plain application code and a Postgres table this
-/// crate already depends on regardless of deploy target — nothing here
-/// is an AWS-native SQS/DLQ/EventBridge construct.
+// Retries only a genuine invoke fault (`Err`); a clean `Ok(delivered: false)`
+// refusal is a business outcome and is never retried.
 pub async fn deliver_with_retry<L: LambdaInvoker + ?Sized>(
     invoker: &L,
     reaction: &Value,
@@ -263,42 +126,22 @@ pub async fn deliver_with_retry<L: LambdaInvoker + ?Sized>(
         target_domain: reaction.get("target_domain").and_then(Value::as_str).unwrap_or_default().to_string(),
         target_verb: reaction.get("target_verb").and_then(Value::as_str).unwrap_or_default().to_string(),
         payload: reaction.get("payload").cloned().unwrap_or_else(|| serde_json::json!({})),
-        // `.unwrap()` — this branch is only reachable after the loop
-        // above ran MAX_DELIVERY_ATTEMPTS (>= 1) times, every one of
-        // which sets `last_error` on its own `Err` arm before falling
-        // through here; there is no path that reaches this line with
-        // `last_error` still `None`.
+        // Safe: this arm only runs after the loop above executed at least once,
+        // and every iteration's `Err` arm sets `last_error` before falling through.
         error: last_error.unwrap(),
         attempts: MAX_DELIVERY_ATTEMPTS,
     })
 }
 
-/// **The real AWS SDK adapter** — the only piece of this file `cargo test`
-/// cannot exercise, structurally: it needs a second real domain's own
-/// Lambda actually deployed under `hecks-<domain>` and reachable
-/// with real IAM credentials, neither of which this repository's own
-/// test environment has (this worktree has no live AWS access at all).
-/// Everything above this point — function-name computation, request
-/// payload shape, refusal-vs-fault classification — is proven by this
-/// file's own `tests` module against `LambdaInvoker`, generically; this
-/// struct is the thin, structurally-argued-but-unverified-here glue that
-/// makes `LambdaInvoker` real. `aws_sdk_lambda::Client::invoke`'s own
-/// documented shape (`function_error`/`payload` on the response) is what
-/// `deliver`, above, was written against — if that shape is wrong, only a
-/// real invoke against a real deployed Lambda would catch it.
+// Untestable here — needs a real deployed Lambda and live AWS credentials,
+// neither of which this repository's test environment has.
 pub struct AwsLambdaInvoker {
     client: aws_sdk_lambda::Client,
 }
 
 impl AwsLambdaInvoker {
-    /// `aws_config`'s own credential/region resolution chain — the same
-    /// one Ruby's `Aws::Lambda::Client.new(region:)` relies on implicitly
-    /// (an IAM role's own environment inside a deployed Lambda; a local
-    /// profile/environment otherwise) — nothing hand-rolled there. The
-    /// one piece built explicitly rather than accepted as either crate's
-    /// own default is the HTTP client itself — `Cargo.toml`'s own header
-    /// on this dependency explains why (either crate's own "rustls"/
-    /// `default` feature actually wires in `aws-lc-rs`, not `ring`).
+    // Explicit rustls+ring HTTP client — neither crate's own default feature
+    // actually wires in `ring` (see Cargo.toml's note on this dependency).
     pub async fn from_env() -> Self {
         let http_client = aws_smithy_http_client::Builder::new()
             .tls_provider(aws_smithy_http_client::tls::Provider::Rustls(aws_smithy_http_client::tls::rustls_provider::CryptoMode::Ring))
@@ -308,18 +151,8 @@ impl AwsLambdaInvoker {
     }
 }
 
-/// A `LambdaInvoker` that panics if ever actually called — for a caller's
-/// own tests to prove a code path that is expected to never reach a
-/// cross-domain reaction genuinely doesn't: `dispatch.rs`'s own test
-/// suite dispatches only same-domain commands, so wiring this in instead
-/// of a real invoker (or `AwsLambdaInvoker`, which would need live AWS
-/// credentials those tests don't have) is itself a small, honest
-/// assertion — if a future change ever did cause an unexpected
-/// cross-domain delivery attempt in one of those tests, this fails loudly
-/// rather than a silent mock quietly accepting a call nobody meant to
-/// make. `#[cfg(test)]` — this is a test double, never meant to be
-/// reachable from `main.rs`'s own real dispatch path, so it stays out of
-/// a non-test build entirely rather than sitting there unused.
+// Panics if invoked — asserts that same-domain-only test suites never
+// trigger a cross-domain delivery.
 #[cfg(test)]
 pub struct NeverInvoker;
 
@@ -345,11 +178,8 @@ impl LambdaInvoker for AwsLambdaInvoker {
 
         let function_error = response.function_error().is_some();
         let bytes = response.payload().map(|blob| blob.as_ref().to_vec()).unwrap_or_default();
-        // A non-JSON or empty body reads as `{}` rather than failing this
-        // call outright — `deliver`'s own refusal-scan already treats a
-        // body with no `"refusals"` array as "nothing refused", the
-        // correct reading for an empty/malformed body too; `function_error`
-        // (checked separately, above) is what actually signals a fault.
+        // A non-JSON/empty body reads as `{}` rather than failing the call;
+        // `function_error` (checked above) is what actually signals a fault.
         let body: Value = serde_json::from_slice(&bytes).unwrap_or_else(|_| serde_json::json!({}));
 
         Ok(InvokeOutcome { body, function_error })
@@ -365,16 +195,12 @@ mod tests {
     fn function_name_matches_rubys_own_hecks_dash_domain_convention() {
         assert_eq!(function_name_for("Compliance"), "hecks-compliance");
         assert_eq!(function_name_for("Notifications"), "hecks-notifications");
-        // Ruby's own `.downcase`, not a snake_case transform — a domain
-        // spelled with an internal capital stays one lowercase word, the
-        // same string `"hecks-#{domain.to_s.downcase}"` would produce.
+        // Ruby's `.downcase`, not snake_case — an internally-capitalized domain
+        // stays one lowercase word.
         assert_eq!(function_name_for("Banking"), "hecks-banking");
     }
 
-    /// Records every call it receives (function name + payload, for the
-    /// "invoked with the right shape" assertions) and answers with
-    /// whatever canned outcome the test configured — no network, no AWS
-    /// SDK type, just `LambdaInvoker` itself.
+    // Records each call and answers with whatever canned outcome the test configured.
     struct MockLambdaInvoker {
         response: Result<InvokeOutcome, String>,
         calls: Mutex<Vec<(String, String)>>,
@@ -444,10 +270,8 @@ mod tests {
 
     #[tokio::test]
     async fn a_refusal_for_a_different_verb_in_the_same_response_does_not_count_as_this_ones() {
-        // Same shape RemoteDispatcher#dispatch's own scan guards against —
-        // a Lambda-routed domain's response can legitimately carry
-        // refusals from other steps in its own replay; only a refusal
-        // naming this verb is this delivery's own outcome.
+        // A response can legitimately carry refusals from other steps; only a
+        // refusal naming this verb counts as this delivery's outcome.
         let invoker = MockLambdaInvoker::answering(
             serde_json::json!({ "refusals": [ { "verb": "Compliance.SomethingElse", "error": "unrelated" } ] }),
             false,
@@ -460,10 +284,8 @@ mod tests {
 
     #[tokio::test]
     async fn a_function_error_response_is_a_hard_failure_not_a_delivery_record() {
-        // Mirrors `Adapters::Lambda::Client#invoke`'s own `raise Runtime::
-        // WiringError` on `response.function_error` — not a member of
-        // Ruby's own DOMAIN_REFUSALS, so it flies rather than getting
-        // swallowed into an ordinary `delivered: false` record.
+        // Mirrors Ruby's `raise WiringError` on `function_error` — not a domain
+        // refusal, so it propagates rather than becoming a `delivered: false` record.
         let invoker = MockLambdaInvoker::answering(serde_json::json!({ "errorMessage": "unhandled panic" }), true);
 
         let outcome = deliver(&invoker, &reaction("Compliance", "Compliance::AccountFreezeReview.Open")).await;
@@ -473,9 +295,8 @@ mod tests {
 
     #[tokio::test]
     async fn an_invoke_that_never_reaches_the_target_at_all_is_also_a_hard_failure() {
-        // The other real invoke fault — the function simply doesn't
-        // exist, or the call never completes (network, throttling,
-        // AccessDeniedException) — never even reaches Ok(InvokeOutcome).
+        // The function doesn't exist, or the call never completes (network,
+        // throttling, AccessDenied) — never even reaches `Ok(InvokeOutcome)`.
         let invoker = MockLambdaInvoker::failing("ResourceNotFoundException: function not found");
 
         let outcome = deliver(&invoker, &reaction("Notifications", "Notifications.Send")).await;
@@ -483,12 +304,8 @@ mod tests {
         assert!(outcome.is_err());
     }
 
-    /// Fails its first `fail_count` calls with a hard invoke fault, then
-    /// answers cleanly — the shape a real transient throttle/network
-    /// blip has: gone by the time a retry reaches the target, not a
-    /// permanent condition `deliver_with_retry` should ever paper over
-    /// for a genuine, persistent fault (that's `MockLambdaInvoker::
-    /// failing`'s own job, unchanged, in the exhaustion test below).
+    // Fails the first `fail_count` calls, then succeeds — the shape of a
+    // transient throttle that clears before a retry limit is hit.
     struct FlakyLambdaInvoker {
         fail_count: std::sync::atomic::AtomicU32,
         calls: Mutex<Vec<String>>,
@@ -527,10 +344,8 @@ mod tests {
 
     #[tokio::test]
     async fn deliver_with_retry_never_retries_a_clean_domain_side_refusal() {
-        // `Ok(delivered: false)` — a real business decision, not a fault
-        // (`deliver`'s own header). Retrying it would not change what
-        // the target domain decided, only waste attempts a genuine fault
-        // might actually need.
+        // A clean refusal is `Ok(delivered: false)`, a business decision — retrying
+        // it would not change what the target domain decided.
         let invoker = MockLambdaInvoker::answering(
             serde_json::json!({ "refusals": [ { "verb": "Compliance::AccountFreezeReview.Open", "error": "already under review" } ] }),
             false,

@@ -1,29 +1,9 @@
 #!/usr/bin/env ruby
 
-# Generates reserved_names.rs from the `RustReservedWord` and
-# `CargoReservedName` vocabularies (lib/hecks/language/bluebook/
-# vocabulary.bluebook, read through the generated lib/hecks/vocabulary.rb)
-# — the words a generated Rust identifier or a domain's Cargo feature key
-# must not take. Written into both Rust build-tool crates, which share no
-# library dependency (rust/build calls rust/codegen as a subprocess — see
-# rust/build/Cargo.toml):
+# Generates reserved_names.rs from the RustReservedWord and CargoReservedName vocabularies.
+# Written into rust/codegen and rust/build, which share no library dependency.
 #
-#   rust/codegen/src/reserved_names.rs  — hecks-codegen's field escaping and
-#                                         reserved-name refusal (naming.rs)
-#   rust/build/src/reserved_names.rs    — hecks-build's domain-name guard
-#                                         (cargo_sync.rs)
-#
-# The Ruby side (rust/project/naming.rb, Hecks::Bluebook::ModelCheck) reads
-# the same two tables, so every generator escapes or refuses the same words
-# instead of hand-typed lists held equal by a comment.
-#
-# Same skeleton as bin/project_refusal_wording: a language-level constant
-# table mirrored into Rust, written atomically. Deliberately small and
-# self-contained — the vocabulary-to-Rust generalisation (one projection
-# writing every such table) is expected to absorb it.
-#
-# Run bin/project_vocabulary first if vocabulary.bluebook changed;
-# CI's codegen-drift job regenerates both and fails on any diff.
+# Run bin/project_vocabulary first if vocabulary.bluebook changed.
 #
 #   bin/project_reserved_names
 
@@ -45,12 +25,7 @@ TABLES = {
 }.freeze
 
 # Writes `content` to `target` through a temp file and atomic rename, so a
-# reader never observes a partially written file even if the process is
-# killed mid-write.
-#
-# @param target [String] absolute path of the file to write
-# @param content [String] full file content to write
-# @return [void]
+# reader never sees a partial file.
 def write_atomically(target, content)
   FileUtils.mkdir_p(File.dirname(target))
   Tempfile.create(File.basename(target), File.dirname(target)) do |tmp|
@@ -61,10 +36,7 @@ def write_atomically(target, content)
   puts "wrote #{target}"
 end
 
-# A Rust string literal — every reserved word is a plain ASCII token.
-#
-# @param text [String] the reserved word, an ASCII token
-# @return [String] `text` as a double-quoted Rust string literal
+# A Rust string literal; every reserved word is a plain ASCII token.
 def rust_lit(text) = text.inspect
 
 consts = TABLES.map do |const, vocabulary|

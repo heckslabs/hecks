@@ -3,11 +3,8 @@ require "open3"
 require "tmpdir"
 require "hecks/fuzzing/domain_generator"
 
-# `Hecks::Fuzzing::DomainGenerator` — blueprints, rendering and the
-# domain-level shrink. The pure examples never boot a generated domain;
-# the census example loads bluebooks the lightweight way FormCensus does,
-# in its own subprocess, because every generated domain is `QaGenerated`
-# and two shapes under one constant must not share a process.
+# `Hecks::Fuzzing::DomainGenerator`: blueprints, rendering and domain-level shrink.
+# The census example runs in a subprocess because every generated domain is `QaGenerated`.
 RSpec.describe Hecks::Fuzzing::DomainGenerator do
   it "is a pure function of its seed" do
     first, again, other = [11, 11, 12].map { |seed| described_class.generate(seed: seed) }
@@ -16,13 +13,8 @@ RSpec.describe Hecks::Fuzzing::DomainGenerator do
     expect(other).not_to eq(first)
   end
 
-  # The two tables may differ, but only in one direction. If `FORMS` were
-  # `FormCensus::FORMS.keys` outright, then the day the census learned a
-  # form this generator has no recipe for (`corrects`, `role_gated`),
-  # `generate` would raise KeyError for any seed that drew it. A census form
-  # with no builder is fine — it is simply never generated. A builder for
-  # something the census cannot measure is not: nothing would ever see
-  # the form it claims to be exercising.
+  # The tables may differ in one direction only: a census form with no builder is never
+  # generated, but a builder the census cannot measure exercises a form nothing sees.
   it "can only build forms the census can measure" do
     expect(described_class::FORMS - Hecks::Fuzzing::FormCensus::FORMS.keys).to be_empty
   end
@@ -60,16 +52,9 @@ RSpec.describe Hecks::Fuzzing::DomainGenerator do
     end
   end
 
-  # Regression for the generator finding hecks_qa's stress-domain sweep hit
-  # at seed 357307 (`has_query` + `composite_piece`): `extras` can pick the
-  # same entity name (`ENTITY_NAMES` is a small pool shared by every
-  # aggregate) on a different aggregate than a form forced it onto, one
-  # composite and one not — and an unqualified "LineAdded" collided across
-  # aggregates with different shapes, which `validate_event_shapes!`
-  # correctly refused. Every event name a generated domain can emit must be
-  # unique to its shape, the same way `Hecks::Fuzzing::GeneratedDomainCheck`
-  # actually boots one: an event name reused with a different shape is a
-  # generator defect, never a legitimate finding.
+  # Regression (seed 357307, `has_query` + `composite_piece`): `extras` can reuse an entity
+  # name from the shared pool on another aggregate, so an unqualified "LineAdded" collided
+  # across shapes and `validate_event_shapes!` refused it. That is a generator defect.
   it "never lets two aggregates emit the same event name with a different shape" do
     (1..3000).each do |seed|
       blueprint = described_class.generate(seed: seed)
@@ -117,10 +102,8 @@ RSpec.describe Hecks::Fuzzing::DomainGenerator do
         .not_to include(a_string_starting_with("ThroughOpen"))
     end
 
-    # qa/stress_domains/generated_revalued_shape was promoted with
-    # `Reopen from closed` and no `Close`: the removal dropped Close's
-    # transition, and pruning only asked whether Reopen's command still
-    # existed, never whether its from-state could still be reached.
+    # Regression: removing Close left `Reopen from closed` with an unreachable from-state,
+    # and pruning only checked that Reopen's command still existed.
     it "drops a transition whose from-state a removal left unreachable" do
       lifecycled = described_class.generate(seed: 0, forms: %w[lifecycle closed_set])
       close = lifecycled["aggregates"].first["commands"].index { |command| command["name"] == "Close" }

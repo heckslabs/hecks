@@ -1,26 +1,7 @@
 require "spec_helper"
 
-# ADR 0027 — canonical IR plus the Projector framework (§30 of
-# HECKS_IMPLEMENTATION_PLAN.md) is the one seam nearly everything else in
-# this project either builds or stands on. This is the mechanical half of
-# that ADR's own "is this a projector?" question, made into an enforced
-# gate rather than a question someone has to remember to ask — the same
-# move ADR 0026 already made for "does the language use what it
-# declares?" (spec/self_use_spec.rb).
-#
-# `lib/hecks/projections/` is the sanctioned home for a "canonical
-# IR in, external artifact out" tool (`Projector::Target`'s own doc
-# comment, lib/hecks/projector/target.rb) — every file there is
-# expected to `extend Projector::Target` and `projects_as` a real key,
-# self-registering at require time ("requireing a target is the whole of
-# installing it" — target.rb's own words). This spec confirms nothing
-# sits there unregistered, and separately names the other two kinds
-# `lib/hecks/projector.rb`'s own header already distinguishes — an
-# export (needs a declaration's bindings, which `call(bluebook:,
-# options:)` has no channel for) or a state projection (reads records,
-# not a declaration) — so "why isn't X registered" has one checked
-# answer, not archaeology, the same "never silence" discipline
-# spec/fuzzing/meta_domain_coverage_spec.rb already holds the grammar to.
+# Gate: every file in lib/hecks/projections/ registers a Projector::Target (ADR 0027).
+# Exports and state projections are listed explicitly, never silently skipped.
 RSpec.describe "the seam between canonical IR and its projections (ADR 0027)" do
   PROJECTIONS_DIR = File.join(InMemoryDomain::ROOT, "lib/hecks/projections")
 
@@ -29,12 +10,8 @@ RSpec.describe "the seam between canonical IR and its projections (ADR 0027)" do
     expect(files).not_to be_empty,
                          "lib/hecks/projections/ is empty or missing — this spec's own path is stale"
 
-    # `extend[\s(]+` on purpose, not just `extend\s+` — projections/ir.rb
-    # writes this as `IR.extend(Projector::Target)`, a real, legitimate
-    # method-call form every other file spells as a bare `extend
-    # Projector::Target` instead. Confirmed by running this spec red
-    # first: the narrower regex silently skipped ir.rb rather than
-    # verifying it.
+    # `extend[\s(]+`, not `extend\s+`: projections/ir.rb writes `IR.extend(Projector::Target)`,
+    # which the narrower regex skipped silently.
     findings = files.filter_map do |path|
       content = File.read(path)
       next unless content.match?(/extend[\s(]+[\w:]*Projector::Target\b/) ||
@@ -54,13 +31,8 @@ RSpec.describe "the seam between canonical IR and its projections (ADR 0027)" do
   end
 
   it "extends Projector::Target from every file that declares a projects_as key" do
-    # **The other direction** — a file that calls `projects_as` without also
-    # `extend`ing `Target` would raise NoMethodError the moment it loads,
-    # so this can't silently drift the way the first check could; kept
-    # as its own example anyway, so a future refactor that changes how
-    # `projects_as` is reached (a module method instead of an `extend`)
-    # gets a spec failure here rather than this file's own comment going
-    # stale about what "the sanctioned way" currently is.
+    # The other direction: `projects_as` without `extend`ing `Target` raises NoMethodError on load.
+    # Kept separate so a change to how `projects_as` is reached fails here.
     files = Dir.glob(File.join(PROJECTIONS_DIR, "*.rb"))
     orphaned_projects_as = files.select do |path|
       content = File.read(path)
@@ -73,16 +45,9 @@ RSpec.describe "the seam between canonical IR and its projections (ADR 0027)" do
                                     "extending Projector::Target"
   end
 
-  # Real, named, reasoned — not an escape hatch. Each entry is a
-  # construct that genuinely fits one of `lib/hecks/projector.rb`'s
-  # other two kinds (export or state projection), read and confirmed
-  # against its own real code before being listed here, the same
-  # discipline `spec/fuzzing/meta_domain_coverage_spec.rb`'s own
-  # META_DOMAIN_KNOWN_GAPS holds every entry to.
-  #
-  # `Layout/HashAlignment`'s repo-wide `table` style (.rubocop.yml) would
-  # force every reason string below onto the same column, leaving almost
-  # no room to wrap under Layout/LineLength's own 130-column limit.
+  # Each entry is a construct that genuinely is an export or state projection, not an escape hatch.
+  # The repo's `table` HashAlignment style would force every reason onto one column, leaving
+  # no room under the 130-column LineLength.
   # rubocop:disable-next Layout/HashAlignment
   KNOWN_NON_PROJECTIONS = {
     "lib/hecks/projector/exporter.rb" =>

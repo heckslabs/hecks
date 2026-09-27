@@ -16,8 +16,7 @@ module Hecks
     # @return [Router] the built router
     def self.load(root) = new(Bluebook::ProjectLoader.load(root))
 
-    # Install one project router for ordinary application calls. The explicit
-    # `Router.load` API remains useful for tests and embedded hosts.
+    # Installs one project router as `.default` for ordinary application calls.
     #
     # @param root [String] project root to discover bluebooks under
     # @return [Router] the booted router, also stored as `.default`
@@ -75,14 +74,12 @@ module Hecks
     # Dispatches a command to its resolved aggregate.
     #
     # @param address [String] a fully-qualified command address, realm included
-    # @param args [Hash] command facts, plus the dispatcher's optional `:to`, `:with`,
-    #   and `:saga_correlation` keys
+    # @param args [Hash] command facts, plus optional `:to`, `:with`, `:saga_correlation`
     # @return [Runtime::Dispatcher::Result] the dispatch result
     # @raise [UnknownAddress] if `address` has no realm, or names no known route
     # @raise [WrongVerbKind] if `address` names a query
     # @raise [Runtime::UnknownVerb] if the resolved verb names something undeclared
-    # @raise [StandardError] any class in `Runtime::DOMAIN_REFUSALS` when the domain refuses
-    #   the call
+    # @raise [StandardError] any `Runtime::DOMAIN_REFUSALS` class when the domain refuses
     # @raise [Runtime::StaleWrite] if concurrent writers beat this one through every retry
     # @raise [Runtime::WiringError] if the aggregate's repository cannot be resolved
     def dispatch(address, **args)
@@ -97,13 +94,12 @@ module Hecks
     # @param address [String] a fully-qualified query address, realm included
     # @param args [Hash{Symbol => Object}] the query's declared arguments
     # @return [Array<Hash>] one row Hash per match; see `Runtime::Dispatcher#query`
-    #   for the exact shape per address kind
     # @raise [UnknownAddress] if `address` has no realm, or names no known route
     # @raise [WrongVerbKind] if `address` names a command
     # @raise [Runtime::UnknownVerb] if the resolved verb names something undeclared
     # @raise [Runtime::NotFound] if a read model's root reference names no record
     # @raise [Runtime::TypeMismatch] if an argument cannot be coerced to its declared type
-    # @raise [KeyError] if a rooted read model is asked without its reference argument
+    # @raise [KeyError] if a rooted read model lacks its reference argument
     # @raise [Runtime::WiringError] if the aggregate's repository cannot be resolved
     def query(address, **args)
       entry = resolve(address)

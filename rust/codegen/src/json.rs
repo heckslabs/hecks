@@ -1,22 +1,5 @@
-//! A minimal, dependency-free JSON reader — deliberately not the typed
-//! `rust/parser/src/ir.rs` structs. Those structs are shaped for the
-//! parsing direction (populated field-by-field while walking `.bluebook`
-//! source, then serialized to match `to_h`'s JSON spelling) and use
-//! Rust-native field names that diverge from the JSON keys themselves
-//! (`type_name` vs the JSON key `"type"`, for one). `rust/project/*.rb`'s
-//! own algorithms are written against the actual JSON-round-tripped Hash
-//! (`ir[:name]`, `attr[:type]`, `vo[:closed_set]`, ...) — Stage 0c's own
-//! reason for doing that round-trip in the first place was so the Ruby
-//! generator never depends on live Ruby object/Symbol behavior, only on
-//! plain JSON-shaped data. To port that algorithm faithfully and stay
-//! directly comparable line-by-line against the Ruby source, this reads
-//! ir.json the same way: a generic JSON value, indexed by string key,
-//! exactly like `ir[:key]`.
-//!
-//! Only what codegen actually needs: parsing (never emits JSON — this
-//! crate emits Rust source text, not JSON) and read accessors matching
-//! the small vocabulary rust/project/*.rb actually uses (`Hash#[]`,
-//! `Array#map`, `#to_s`, truthiness).
+//! A minimal, dependency-free JSON reader indexed by string key, like the Ruby `ir[:key]` Hash.
+//! It is read-only: this crate emits Rust source, never JSON.
 
 use std::fmt;
 
@@ -24,25 +7,12 @@ use std::fmt;
 pub enum Json {
     Null,
     Bool(bool),
-    // Int vs Float are kept separate, not one `Number(f64)` — Ruby's own
-    // `JSON.generate`/`JSON.parse` round-trip distinguishes them by the
-    // literal spelling (a Float always prints with a decimal point, e.g.
-    // `0.0`; an Integer never does), and `naming.rb#literal_rhs` (an
-    // attribute's own `default:`) branches on the original Ruby type —
-    // `Integer, Float then literal.to_s` looks like one case but Ruby's
-    // `to_s` renders `0.0` for the Float and `0` for the Integer. A single
-    // `f64` here would collapse that distinction (both parse to the same
-    // numeric value) and silently mis-render a whole-number Float default
-    // as a bare integer literal — a real, confirmed mismatch found live,
-    // byte-diffing against Ruby's real output (`DailyFee.amount`, banking).
+    // Kept apart from Float: a whole-number Float default (`0.0`) must not render as `0`.
     Int(i64),
     Float(f64),
     String(String),
     Array(Vec<Json>),
-    // Insertion-ordered pairs, not a HashMap — ir.json is never large
-    // enough for linear lookup to matter, and preserving declaration
-    // order matches what a real Ruby Hash (built by `to_h`) already
-    // guarantees, the same ordering guarantee ir.rs's own header leans on.
+    // Insertion-ordered pairs, matching the declaration order of the Ruby Hash.
     Object(Vec<(String, Json)>),
 }
 
@@ -58,13 +28,7 @@ impl Json {
         Ok(value)
     }
 
-    /// `ir[:key]` — Ruby's own Hash lookup. `None` for a missing key or a
-    /// present-but-`Json::Null` value: Ruby's `symbolize_names` JSON parse
-    /// makes `nil` and "key absent" behave identically at every call site
-    /// rust/project/*.rb actually has (`attr[:default]`, `attr[:pattern]`,
-    /// `attr[:admits]` — every one of them is used as `if attr[:default]`/
-    /// `attr[:pattern] && ...`, never distinguished from "key missing
-    /// entirely"), so collapsing the two here matches every real caller.
+    /// `ir[:key]`: `None` for a missing key or a `Json::Null` value.
     pub fn get(&self, key: &str) -> Option<&Json> {
         match self {
             Json::Object(pairs) => pairs.iter().find(|(k, v)| k == key && !matches!(v, Json::Null)).map(|(_, v)| v),
@@ -72,9 +36,7 @@ impl Json {
         }
     }
 
-    /// Raw lookup that does distinguish "absent" from "present as null" —
-    /// needed by the one caller (`members` row lookup) that must tell a
-    /// declared-but-blank field apart from one never declared at all.
+    /// Like `get`, but distinguishes an absent key from one present as null.
     pub fn get_raw(&self, key: &str) -> Option<&Json> {
         match self {
             Json::Object(pairs) => pairs.iter().find(|(k, _)| k == key).map(|(_, v)| v),
@@ -97,12 +59,7 @@ impl Json {
     }
 
     pub fn as_bool(&self) -> bool {
-        // Ruby truthiness on a JSON-round-tripped Hash value: everything
-        // except `false`/`nil` is truthy, including `0`/`""` (unlike most
-        // other languages) — matches every `if attr[:optional]`/`if
-        // vo[:closed_set]` call site, which never receives a `0`/`""` for
-        // a boolean-shaped field in real ir.json anyway, but this is the
-        // semantics-correct definition regardless.
+        // Ruby truthiness: only `false` and `nil` are falsy, so `0` and `""` are truthy.
         !matches!(self, Json::Bool(false) | Json::Null)
     }
 
@@ -122,11 +79,7 @@ impl Json {
         }
     }
 
-    /// `#to_s` on whatever's there — used where Ruby calls `.to_s` on a
-    /// JSON scalar that's known to be a String already (`attr[:type].to_s`,
-    /// `attr[:name].to_s`) but this stays defensive since a codegen bug
-    /// reading the wrong key is better surfaced as an odd string than a
-    /// panic.
+    /// `#to_s` on a scalar; non-scalars render as the empty string rather than panicking.
     pub fn to_s(&self) -> String {
         match self {
             Json::Null => String::new(),
@@ -138,9 +91,7 @@ impl Json {
         }
     }
 
-    /// Iterate an array field, empty slice for anything else (mirrors
-    /// Ruby's `Array(ir[:key])`/`(ir[:key] || [])` idiom used throughout
-    /// rust/project/*.rb for list-shaped IR fields).
+    /// Array items, or an empty slice for any other value (Ruby's `Array(ir[:key])`).
     pub fn each(&self) -> &[Json] {
         self.as_array().unwrap_or(&[])
     }
@@ -152,12 +103,7 @@ impl fmt::Display for Json {
     }
 }
 
-/// Ruby's `Float#to_s` — always carries a decimal point (`0.0.to_s ==
-/// "0.0"`), unlike Rust's own default `f64` `Display` (`format!("{}",
-/// 0.0f64) == "0"`). Only reached for a genuine `Json::Float` now that
-/// `Json::Int`/`Json::Float` are separate variants (see their own header)
-/// — a whole-number JSON literal like `0` parses as `Json::Int` and never
-/// reaches this function at all.
+/// Ruby's `Float#to_s`: always carries a decimal point (`0.0`), unlike Rust's `{}`.
 fn format_number(n: f64) -> String {
     let text = format!("{n}");
     if text.contains('.') || text.contains('e') || text.contains('E') {
@@ -343,9 +289,7 @@ impl<'a> Parser<'a> {
                     }
                 }
                 Some(_) => {
-                    // Copy one UTF-8 char's worth of bytes at a time so
-                    // multi-byte characters in string/description text
-                    // (real corpus content includes them) survive intact.
+                    // One UTF-8 char at a time so multi-byte text survives intact.
                     let start = self.pos;
                     let rest = std::str::from_utf8(&self.bytes[start..]).map_err(|e| e.to_string())?;
                     let ch = rest.chars().next().ok_or("empty remainder")?;
@@ -381,10 +325,7 @@ impl<'a> Parser<'a> {
             }
         }
         let text = std::str::from_utf8(&self.bytes[start..self.pos]).map_err(|e| e.to_string())?;
-        // A `.` or exponent in the literal spelling means Ruby's own
-        // `JSON.generate` wrote a Float (`0.0`); its absence means an
-        // Integer (`0`) — see `Json::Int`/`Json::Float`'s own header on
-        // why this distinction is load-bearing, not cosmetic.
+        // A `.` or exponent means Ruby wrote a Float; otherwise an Integer (see `Json::Int`).
         if text.contains('.') || text.contains('e') || text.contains('E') {
             text.parse::<f64>().map(Json::Float).map_err(|e| e.to_string())
         } else {

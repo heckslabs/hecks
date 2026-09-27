@@ -1,33 +1,7 @@
 # Hecks::Runtime
 #
-# The runtime layer's face. `lib/hecks/runtime/` held thirteen files and
-# no parent, so the layer had no surface of its own : `lib/hecks.rb`
-# required each file by hand, and the runtime's own state — the registry a
-# declaration is being collected into — sat on the top-level Hecks module
-# beside the DSL words.
-#
-# What lives here is what runs a domain :
-#
-#   Runtime.boot(path)          load a directory and return its Dispatcher
-#   Runtime.with_registry(r)    bind the ambient registry for the duration of a load
-#   Runtime.current_registry    the registry a declaration is landing in, or nil
-#
-# What does not live here is what declares one — `Hecks.bluebook`,
-# `.hecksagon`, `.port`, `.adapter`, `.world` are loading words and stay on the
-# top-level module, which now reads as a facade over this.
-#
-#   runtime = Hecks::Runtime.boot("examples/pizzas/bluebook")
-#   runtime.dispatch("Pizzas::Pizza.CreatePizza", name: "Margherita")
-#
-# Note, and it is the reason this file exists : `current_registry` is still
-# process-global. Each boot builds a fresh Registry, and `Loader.bind_runtime`
-# installs a fresh facade door whose modules close over that boot's dispatcher
-# — no class-level runtime binding remains, so two boots in one process no
-# longer share dispatch state, only the top-level name (the last-bound door
-# wins the constant, which is what per-boot install means). Owning the state
-# here was the first move ; the dispatcher reachable per-runtime rather than
-# through a constant was the second, and it is done — the door is the only
-# constant left, and it is a projection, not the runtime.
+# Boots a domain directory and holds the ambient registry and caller state a boot runs under.
+# `current_registry` is process-global; each boot's dispatcher is per-boot.
 
 require_relative "runtime/event"
 require_relative "runtime/value"
@@ -55,41 +29,33 @@ require_relative "runtime/tenant_check"
 require_relative "runtime/loader"
 
 module Hecks
-  # See the file header above for what this module is and owns; nested
-  # here (rather than documented in place) only because the
-  # `require_relative` calls above must run before Ruby reopens the
-  # module they populate.
+  # The runtime layer: boots a domain directory and holds the ambient registry a boot runs under.
   module Runtime
     class << self
-      # The registry declarations are currently landing in, or nil outside a
-      # boot. Read by the DSL collectors on the top-level module and by the
-      # extraction port.
+      # The registry declarations are currently landing in, or nil outside a boot.
       attr_reader :current_registry
 
-      # Load a bluebook directory and return the Dispatcher bound to it.
-      # `install_facade:`, `environment:` — see Loader.boot.
+      # Loads a bluebook directory and returns the Dispatcher bound to it. See Loader.boot.
+      #
+      #   Hecks::Runtime.boot("examples/pizzas/bluebook")
+      #     .dispatch("Pizzas::Pizza.CreatePizza", name: "Margherita")
       #
       # @param path [String] path to a domain directory, or a file inside one
-      # @param shared [String, nil] a shared-root override; see `Loader.boot`
-      # @param install_facade [Boolean] whether to install the `Widget::Item.Add`-style
-      #   Ruby facade constants for this boot
-      # @param environment [String, nil] the environment name passed through to
-      #   `Adapters::Folder#load_domain`
+      # @param shared [String, nil] a shared-root override
+      # @param install_facade [Boolean] whether to install the Ruby facade constants
+      # @param environment [String, nil] the environment name for `Adapters::Folder#load_domain`
       # @return [Runtime::Dispatcher, Runtime::RemoteDispatcher] the dispatcher bound
       #   to the booted domain
       def boot(path, shared: nil, install_facade: true, environment: nil)
         Loader.boot(path, shared: shared, install_facade: install_facade, environment: environment)
       end
 
-      # `paths` form — see Loader.boot_files.
+      # Loads only the given files of a domain; otherwise like `boot`. See Loader.boot_files.
       #
       # @param paths [String, Array<String>] one or more file paths within the domain
-      #   to load, instead of the whole directory
-      # @param shared [String, nil] a shared-root override; see `Loader.boot_files`
-      # @param install_facade [Boolean] whether to install the `Widget::Item.Add`-style
-      #   Ruby facade constants for this boot
-      # @param environment [String, nil] the environment name passed through to the
-      #   selected-file loader
+      # @param shared [String, nil] a shared-root override
+      # @param install_facade [Boolean] whether to install the Ruby facade constants
+      # @param environment [String, nil] the environment name for the selected-file loader
       # @return [Runtime::Dispatcher, Runtime::RemoteDispatcher] the dispatcher bound
       #   to the booted domain
       def boot_files(paths, shared: nil, install_facade: true, environment: nil)
@@ -110,23 +76,9 @@ module Hecks
         @current_registry = previous
       end
 
-      # Bind the ambient caller (see Runtime::Caller) for the duration of
-      # the block — who a command's declared `role`, if any, is checked
-      # against.
+      # Binds the ambient caller (see Runtime::Caller) for the duration of the block.
+      # A command's declared `role` is checked against it.
       #
-      # `as_of:` is optional, same opt-in shape as `actor_id:` — a caller
-      # that wants a Governance `RoleAssignment`'s `starts_at` enforced
-      # passes `as_of: Ports::Clock.now(registry)` here, at the door,
-      # exactly where `cli_runner.rb` already merges `Clock.now` into a
-      # command's own args. Nothing on the dispatch path calls the clock
-      # itself — see `Ports::Clock`'s own header for why — so an unbound
-      # `as_of` leaves `starts_at` unchecked, exactly as before.
-      #
-      # `scope:` is optional too — a caller that states which scope it is
-      # acting in gets that scope checked against the matching
-      # `RoleAssignment`'s own `scope`, not just its `role_name`. See
-      # `Runtime::Caller::Current`'s own header for why this lives here
-      # rather than as a command-level DSL construct.
       # @param role [String, Symbol] the role to check the caller against
       # @param actor_id [String, nil] who is calling, checked against a real Governance
       #   `RoleAssignment` when given; string-equality only against `role` when nil

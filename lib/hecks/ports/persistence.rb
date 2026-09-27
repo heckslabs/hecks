@@ -23,29 +23,22 @@ Hecks::Ports::Persistence.autoload(:PostgresDump, File.join(__dir__, "persistenc
 
 module Hecks
   module Ports
-    # Reopened once `BindingPolicy`/`RepositoryFactory` (required above) are
-    # loaded, to add the persistence port's actual call surface: resolving
-    # which adapter authoritatively binds an aggregate and building the
-    # repository that reads/writes it.
+    # Reopened once BindingPolicy/RepositoryFactory are loaded, adding the port's
+    # call surface for resolving binds and building repositories.
     module Persistence
       module_function
 
-      # Builds the repository that reads and writes one aggregate's authoritative store.
-      #
-      # The public persistence port owns only authoritative aggregate heads. The repository
-      # comes back already recovered: every journal entry has been re-projected.
+      # Builds the repository that reads and writes one aggregate's authoritative store,
+      # already recovered from its journal.
       #
       # @param registry [Runtime::Registry] the booted registry holding the domain's
       #   hecksagon, world and adapters
       # @param domain [String, Symbol] name of the domain the aggregate belongs to
       # @param aggregate [Bluebook::Aggregate] the aggregate to persist
       # @return [Persistence::AppendOnly] repository over the aggregate's authoritative
-      #   adapter, or over a `Memory` adapter when the domain declares no hecksagon
-      # @raise [Runtime::WiringError] if the aggregate has no authoritative bind, more than
-      #   one, or a bind with a role this port does not support; or if the bound adapter is
-      #   unknown, answers a different verb, is given a setting it does not declare, has no
-      #   Ruby implementation, or lacks a method its port's `answers` list or the
-      #   append-only contract (`append`, `project`, `entries`) requires
+      #   adapter, or a `Memory` adapter when the domain declares no hecksagon
+      # @raise [Runtime::WiringError] if the aggregate's authoritative bind is missing,
+      #   ambiguous, or the bound adapter cannot satisfy the append-only contract
       def repository(registry, domain, aggregate)
         authoritative = BindingPolicy.resolve(registry, domain, aggregate)
         RepositoryFactory.build(registry, domain, aggregate, authoritative)

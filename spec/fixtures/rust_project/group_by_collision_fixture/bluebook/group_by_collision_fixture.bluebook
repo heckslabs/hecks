@@ -1,10 +1,6 @@
-# The smallest domain whose `group_by` can collide (ADR 0061, decision D1).
-# Every corpus `group_by` groups by its aggregate's whole identity, so none
-# can ever have two rows reach one key path. `PartsByBin` groups by a field
-# two parts may share, which is what makes the dispatch-time refusal
-# reachable on both runtimes; `PartsByBinAndRef` covers the identity and is
-# accepted from its declaration. `spec/corpus/rust_conformance/
-# group_by_collision.json` replays both against Ruby and the generated Rust.
+# The smallest domain whose group_by can collide (ADR 0061, decision D1):
+# PartsByBin groups by a field two parts may share (dispatch-time refusal);
+# PartsByBinAndRef covers the identity and is always accepted.
 Hecks.bluebook "GroupByCollisionFixture" do
   vision "The smallest domain where two rows can reach the same group_by key path, and one where they cannot."
 

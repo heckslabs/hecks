@@ -2,13 +2,8 @@ require_relative "../../vocabulary"
 
 module Hecks
   module Adapters
-    # The filesystem-backed loader — glob-and-`Kernel.load` a domain's own
-    # `.port`/`.adapter`/`.bluebook`/`.hecksagon`/`.world`/environment-overlay
-    # files off disk, in the order `Vocabulary.fetch("LoadOrder")` requires,
-    # and locate a domain's own root directory by walking up from any file
-    # inside it looking for a `.hecksagon`. What `Hecks.boot(path)` uses when
-    # a caller names a directory rather than an explicit file list (see
-    # `Loader.boot_files` for that other path).
+    # Loads a domain's files off disk in `Vocabulary.fetch("LoadOrder")` order and finds
+    # a domain's root directory. Used by `Hecks.boot(path)` when given a directory.
     class Folder
       DOMAIN_ORDER = Hecks::Vocabulary.fetch("LoadOrder")
       PORTS        = "ports".freeze
@@ -41,34 +36,12 @@ module Hecks
         load_each(File.join(root, ADAPTERS), %w[*.adapter */*.adapter */*/*.adapter])
       end
 
-      # Chapters first, judged once, then everything that reads them.
-      # A chapter may be split across files (the language's own grammar is
-      # nine), and judging file one before files two-through-nine exist
-      # refuses references that are perfectly well declared a file later —
-      # see MetaValidator.defer for the whole reasoning. DOMAIN_ORDER
-      # already places every `*.bluebook` ahead of hecksagons and worlds,
-      # so the window ends at the last chapter pattern rather than at a
-      # hand-written list this would otherwise have to keep in step.
+      # Loads bluebook chapters first, judged once as a deferred group, then everything
+      # else in `DOMAIN_ORDER`. Deferring keeps a chapter split across files from being
+      # judged before its later files exist (see MetaValidator.defer).
       #
-      # `environment:` — one more pair of files, loaded last, not a glob.
-      # Recovered, not new — see Runtime::Loader.boot's own comment for
-      # the provenance. A caller passing `Hecks.boot(path, environment:
-      # "production")` gets exactly `environments/production.hecksagon`
-      # and `environments/production.world` loaded, whichever exist (a
-      # missing one is a silent no-op — not every environment overrides
-      # both; see docs/implemented/guides/wiring.md's "Swapping wiring per
-      # environment" for the motivating case: swapping a driven adapter
-      # — e.g. a real payment gateway for a mock one, or a hosting
-      # layer's tenancy settings — without an `if`/`else` anywhere in
-      # the domain's own wiring). Never matched by `DOMAIN_ORDER`'s own
-      # globs (all non-recursive, none named `environments/*`), so this
-      # is the only thing that ever reaches them. Loaded as genuine
-      # `Hecks.hecksagon "SameDomain" do ... end` / `Hecks.world
-      # "SameDomain" do ... end` blocks — merged into the base file's
-      # own hecksagon/world (Registry#add_hecksagon / #add_world,
-      # concatenate/override rather than replace), so an overlay can
-      # rebind or add settings for anything the base file declared
-      # without needing to know what else the base file said.
+      # An `environment:` overlay (`environments/<name>.hecksagon` and `.world`) loads
+      # last and merges into the base hecksagon/world; a missing overlay file is skipped.
       #
       # @param directory [String] the domain's bluebook directory to load, as
       #   `bluebook_directory` resolves it
@@ -90,12 +63,8 @@ module Hecks
         load_each(directory, [File.join("environments", "#{environment}.world")])
       end
 
-      # Every bluebook in a folder is one declaration set. Individual files
-      # remain organized in the domain expert's language; the folder is the
-      # unit callers load. Builders group declarations by the chapter name in
-      # each file, so a folder may hold more than one chapter without a catalog.
-      # Sorting makes source order deterministic while the deferred window keeps
-      # cross-file references from being judged against a partial chapter.
+      # Loads every bluebook in a folder as one declaration set, judged after all are loaded
+      # so cross-file references never meet a partial chapter.
       #
       # @param directory [String] the directory to glob for bluebook chapter files
       # @param patterns [Array<String>] glob patterns, relative to `directory`, selecting the
@@ -106,23 +75,11 @@ module Hecks
         Bluebook::MetaValidator.judge_deferred!(Hecks.current_registry)
       end
 
-      # The explicit-file sibling of `load_domain` — for a caller that names
-      # its own exact files rather than a directory to glob (`Loader.boot_files`,
-      # behind `Hecks.boot_files`). No `Dir.glob`, no copying: every path here
-      # is a real file on disk, wherever it actually lives, loaded in place —
-      # a `.behaviors` file's `loads` scopes a boot this way specifically so a
-      # per-test boot never has to fake isolation by staging bluebooks into a
-      # tmpdir (see Loader.boot_files's own header for why that pattern is a
-      # hazard, not a convenience).
+      # Loads exactly the named files in place, without globbing (see `Loader.boot_files`).
       #
-      # Ordered by category, not by the caller's own list order — same four
-      # groups `Vocabulary.fetch("LoadOrder")` walks a directory in
-      # (bluebook chapters, translations, hecksagons, worlds), because a
-      # hecksagon can reference a bluebook's own constants and must not load
-      # first regardless of which order a caller happened to write `loads
-      # "x.hecksagon", "x.bluebook"` in. Bluebook chapters are judged as one
-      # deferred group exactly like `load_domain` does, for the identical
-      # forward-reference reason (MetaValidator.defer's own header).
+      # Files load by category, not in the caller's order: bluebooks (judged as one deferred
+      # group), then hecksagons, then worlds, since a hecksagon may reference bluebook constants.
+      #
       # @param files [Array<String>] file paths to load, relative to `bluebook_directory`
       # @param environment [String, nil] the environment name whose overlay, if present,
       #   loads after the selected files
@@ -181,27 +138,11 @@ module Hecks
 
       # Finds the nearest domain directory at or above `from`, or nil if there is not one.
       #
-      # **The domain you are standing in**. Walks up from `from` — the way git
-      # finds `.git` — and answers the nearest directory a boot would accept,
-      # or nil if there is not one above you.
+      # Walks up from `from`, like git finding `.git`. A domain is marked by a `.hecksagon`,
+      # not a `.bluebook`, since chapters also appear in translations and fixtures.
       #
-      # Marked by a `.hecksagon`, not by a `.bluebook`. Chapters are
-      # everywhere: era translations, the language's own self-hosted grammar,
-      # and `spec/fixtures`, which holds a dozen unrelated ones in a single
-      # directory. A `.hecksagon` is the file that says "this is a domain, and
-      # here is how its aggregates are stored", which is exactly the claim a
-      # caller is relying on when they omit the path.
-      #
-      # Both layouts, because `bluebook_directory` above accepts both: a
-      # domain directory holding a `bluebook/` subdirectory (every example in
-      # this corpus), or one holding the files directly.
-      # Normalised to the outer directory. Standing in `examples/banking/bluebook`,
-      # the `.hecksagon` is right there, so a plain walk stops on the
-      # `bluebook/` directory itself. Both boot identically — `bluebook_directory`
-      # accepts either and `Loader.boot` takes `File.dirname` of what it gets,
-      # so the registry root comes out the same — but `examples/banking` is the
-      # directory a person names, and the one a `.world`'s `dir "data"` reads
-      # as relative to.
+      # A `bluebook/` subdirectory result is normalised to its parent, the directory
+      # a `.world`'s `dir "data"` is relative to.
       #
       # @param from [String] the directory to walk up from; defaults to the process's current
       #   working directory

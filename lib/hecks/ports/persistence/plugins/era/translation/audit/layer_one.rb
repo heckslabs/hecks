@@ -6,12 +6,8 @@ require_relative "../../../../../../bluebook/model_check"
 module Hecks
   module Translation
     module Audit
-      # Layer 1 — from the bluebook alone: every translated state must
-      # pass the new era's types, value-object invariants, and lifecycle.
-      # This is also where a new, stricter invariant that old records
-      # violate surfaces — there is no "grandfather old records"
-      # construct, and the remedy is relaxing the invariant or explicit
-      # remediation, never a translation rule.
+      # Layer 1: every translated state must pass the new era's types, invariants and lifecycle.
+      # Old records that violate a stricter invariant surface here; no translation rule fixes them.
       module LayerOne
         # Hydrates every translated state as a current-era instance and records each one
         # the era's types, invariants or lifecycle refuse.
@@ -28,14 +24,7 @@ module Hecks
             next unless lifecycle
 
             held = instance[lifecycle.field]
-            # `Lifecycle#states` answers default+targets only — a state
-            # legitimately declared just as a `from:` (a terminal
-            # transition's source, never anyone's target) is real and
-            # reachable but invisible to it. `ModelCheck.full_states`
-            # is the full declared set (default, every target, and
-            # every from) that `fuzzing/properties.rb`'s own replay
-            # check already uses for this identical question — see its
-            # comment on this same hole.
+            # `Lifecycle#states` omits states declared only as a `from:`; `full_states` has them.
             allowed = Bluebook::ModelCheck.full_states(lifecycle)
             unless held.nil? || allowed.include?(held.to_s)
               violations << "#{aggregate.name}##{id}: #{lifecycle.field} is #{held.inspect}, " \

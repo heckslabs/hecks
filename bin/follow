@@ -1,20 +1,9 @@
 #!/usr/bin/env ruby
 
-# Live-tails a domain's own persisted event log — the declared `emits`
-# every command reports, durably recorded (not `registry.event_log`,
-# which is an in-process array gone at exit).
+# Live-tails a domain's persisted event log as JSON lines.
 #
-# `events`/`record_event` are one table per domain, not per aggregate
-# (see lib/hecks/adapters/driven/postgres.rb's own `events` table) — so
-# unlike bin/history's per-aggregate walk, this polls a single
-# repository (whichever aggregate's adapter answers `:events` first)
-# and filters client-side when `--aggregate` narrows it. AppendOnly has
-# no subscribe/notify hook, only pull, so this diffs `events.size`
-# against a last-seen count each tick — the same shape as any
-# mtime-diffing file watcher, just diffing an array length instead.
-#
-# One JSON object per line (JSONL), so this composes with jq/grep the
-# way bin/history's single blob deliberately does not.
+# Events are one table per domain, so this polls the first repository that answers `:events`
+# and diffs its size each tick, filtering client-side when `--aggregate` is given.
 #
 #   bin/follow <domain> [--aggregate name] [--interval seconds] [--from-now]
 
@@ -44,13 +33,9 @@ repository = repositories.find { |repo| repo.respond_to?(:events) }
 
 abort "bin/follow: no adapter in #{domain_name} persists an event log" unless repository
 
-# Says whether `event` passes the `--aggregate` filter.
+# Says whether `event` passes the `--aggregate` filter (bare name, case-insensitive, or exact).
 #
-# @param event [Runtime::Event] one persisted event; `aggregate` names its aggregate as
-#   `"Domain::Name"`
-# @param filter [String, nil] the `--aggregate` option's value, or nil to match everything
-# @return [Boolean] true if `filter` is nil, matches the event's bare aggregate name
-#   case-insensitively, or equals `event.aggregate` exactly
+# @return [Boolean]
 def matches?(event, filter)
   filter.nil? || event.aggregate.to_s.split("::").last.casecmp?(filter) || event.aggregate == filter
 end

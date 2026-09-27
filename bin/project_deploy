@@ -1,38 +1,14 @@
 #!/usr/bin/env ruby
 
-# The AWS deployment CLI — docs/decisions/0018-rehydrate-replay-lambda-host.md.
-# Finds a domain's own `.world` file, resolves what it declares under
-# `deployed_to(...)`, and dispatches to the matching export
-# (`Hecks::Projections::Deploy::Lambda` for `"AwsLambda"`,
-# `Hecks::Projections::Deploy::Fargate` for `"AwsFargate"`) through
-# `Hecks::Projector.call`, then writes what comes back.
+# The AWS deployment CLI (ADR 0018): resolves a domain's declared
+# `deployed_to(...)` target and dispatches to the matching Projector export.
 #
-#   bin/project_deploy <domain> [--tenant=<slug>] [--schema=<name>] [--out=<dir>] [--environment=<name>]
+#   bin/project_deploy <domain> [--tenant=<slug>] [--schema=<name>]
+#       [--out=<dir>] [--environment=<name>]
 #
-# `--environment=<name>` loads `<domain>/bluebook/environments/<name>.world`
-# over the base `.world` (the same overlay `Hecks.boot(environment:)`
-# loads), so a domain's base file stays generic and the names of a real
-# live stack — `owner_stack`, `stack_prefix`, `owner` — live in the
-# overlay that targets it. A missing overlay is an error, never a silent
-# no-op: without the pins the generator would name a brand-new stack.
-#
-# Produces `deploy/<domain>/{template.yaml,Makefile,...}` — see each
-# target's own header for exactly which files. A client's domain lives
-# in the client's own repo, so its recipe belongs there too: pass
-# `--out=<dir>` (e.g. `--out=../client-site/deploy-aws/domain`) to write
-# beside the client instead of into this repo's `deploy/`. No hand-authored
-# deployment config for any given domain, only a generator run against
-# whatever its own `.world` file declares:
-#
-#   deployed_to("AwsLambda") { region "..."; memory 512; timeout 10 }
-#
-# is a verb in a domain's `.world` file, needing no framework change at
-# all: `Hecks.world`'s own settings bag is already fully generic
-# (`lib/hecks/bluebook/dsl/world_builder.rb#method_missing`) — the same
-# mechanism `persisted_by`/`projected_by` already use. This script owns
-# none of the generation itself; it only finds the domain, resolves its
-# bindings, and hands both to whichever target its own `deployed_to`
-# block names.
+# `--environment=<name>` layers an overlay `.world` file over the base one;
+# a missing overlay is an error, never a silent no-op. `--out=<dir>` writes
+# the generated recipe elsewhere, for a domain that lives in a client's repo.
 
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
 require "hecks"
@@ -40,25 +16,13 @@ require "fileutils"
 
 require "optparse"
 
-# `--tenant=<slug> [--schema=<name>]` — the Rust/lambda side of
-# multi-tenant hosting (Runtime::TenantCheck's own header has the full
-# story for the Ruby side). Real infrastructure already carries almost
-# all of this: rust/host's own HECKS_SCHEMA (main.rs) already sets
-# `SET search_path` at boot the identical way Ruby's own PostgresEra#
-# connect_for does, and `deployed_to("AwsLambda") { schema "..." }`
-# already generates it into the CloudFormation template for "Shared"
-# database mode — the entire isolation mechanism this needs already
-# exists and is already deployed (Embryonaut's own real migration onto
-# it). What was actually missing was per-tenant generation of the same
-# domain, not a new capability: `--tenant` overrides `deploy_settings`
-# before `infra_name`/`hecks_schema` are computed from it below, so
-# every one of the ~2000 lines that already read those two variables
-# correctly (stack name, logical ids, the schema itself) needs no
-# change at all — the same reason this is additive rather than a
-# retrofit. `stack_name` is appended to, never replaced outright — the
-# comment right below on why a stack name must stay pinned applies
-# per-tenant too: `bin/project_deploy foo --tenant=acme` run twice must
-# regenerate the same acme stack, not two different ones.
+# `--tenant`/`--schema` are the per-tenant override for shared-database
+# hosting (see Runtime::TenantCheck's own header for the Ruby-side story).
+# They rewrite `deploy_settings` before `infra_name`/`hecks_schema` are
+# computed below, so everything downstream that reads those two variables
+# needs no separate tenant-aware path. `stack_name` is appended to, not
+# replaced — re-running with the same `--tenant` must regenerate the same
+# stack, not a new one.
 tenant_options = {}
 out_option = nil
 environment_option = nil
@@ -78,20 +42,10 @@ root = File.expand_path("..", __dir__)
 domain_name = File.basename(domain)
 world_file = File.join(domain, "bluebook", "#{domain_name}.world")
 
-# Fallback, only when the fast path misses — every domain this generator
-# has ever pointed at until now names its own `.world` file after its
-# own directory basename (examples/banking/bluebook/banking.world, e.g.),
-# so `domain_name` (`File.basename(domain)`) already finds it directly.
-# QualityControl breaks that convention on purpose (qa/bluebook/
-# quality_control.world's own header: PascalCase domain, snake_cased in
-# full, deliberately not the shorter "qa" its directory might suggest) —
-# a real, live "does not exist" abort the first time this ran against
-# `bin/project_deploy qa` caught it. Falls back to the sole `*.world`
-# file under `<domain>/bluebook/`, same file this domain's own `bin/run
-# qa/bluebook` already finds through a different mechanism (Loading's
-# own glob, not this basename convention) — never picked when there's
-# more than one candidate, since which one is "the" domain would then be
-# a guess this generator refuses to make silently.
+# Falls back to the sole `*.world` file under `<domain>/bluebook/` when
+# it isn't named after the directory (QualityControl is the one domain
+# that isn't) — never picked when there's more than one candidate, since
+# guessing which one is "the" domain isn't this generator's call to make.
 unless File.exist?(world_file)
   candidates = Dir.glob(File.join(domain, "bluebook", "*.world"))
   world_file = candidates.first if candidates.size == 1
@@ -99,14 +53,9 @@ end
 
 File.exist?(world_file) or abort "#{world_file} does not exist — a domain needs a .world file to declare deployed_to(\"AwsLambda\") or deployed_to(\"AwsFargate\")"
 
-# The file's own actual basename, not `domain_name` — the same fallback
-# above exists for. QualityControl's own `.bluebook`/`.hecksagon` sit
-# beside `quality_control.world`, sharing its basename, not "qa"'s (this
-# domain's own directory) — every domain this generator has pointed at
-# before now had the two coincide, so nothing downstream ever needed to
-# draw the distinction. `domain_name` itself stays exactly what it was
-# (a directory-derived AWS-naming default — infra_name, the .wasm
-# filename — unrelated to which files actually exist on disk).
+# The `.world` file's own basename, not `domain_name` — they usually
+# match, but QualityControl's chapter files share the file's basename,
+# not its directory's.
 bluebook_basename = File.basename(world_file, ".world")
 
 registry = Hecks::Runtime::Registry.new
@@ -119,59 +68,36 @@ Hecks.with_registry(registry) do
   end
 end
 
-# The declared world's own name, not the directory's — same distinction
-# bin/project_rust draws between a domain path and its bluebook's own
-# declared name (registry.bluebooks.keys.first, not File.basename).
+# The world's own declared name, not the directory's.
 world = registry.worlds.values.first or
   abort "#{world_file} declares no Hecks.world block at all"
 
-# `world.domain` — "Embryonaut", not the directory's lowercase
-# "embryonaut" — is what Ruby's own LineageManager actually writes
-# into `hecks_eras.domain` (Lineage.new(db, bluebook.name), read
-# directly). HECKS_DOMAIN has to match that string exactly, or
-# rust/host's own boot-time `era_exists` check refuses forever no
-# matter how many times `make mint-era` runs — caught live the first
-# time this generator shipped it as `domain_name` (the directory
-# basename) instead.
+# Must match Ruby's own `hecks_eras.domain` string exactly (`world.domain`,
+# not the directory's lowercase basename) — rust/host's boot-time
+# `era_exists` check refuses forever otherwise.
 declared_domain_name = world.domain
 
 deploy_settings = world.for_verb("deployed_to")
 
-# **The tenant override itself** — see this file's own header comment on
-# `--tenant`/`--schema` for the full reasoning. Applied here, before
-# `infra_name` is computed below, so it reads it the same way it
-# already reads any other `deployed_to` setting. `Lambda`/`Fargate`
-# apply this identical override again, internally, against the same
-# `world`/`tenant:` they are handed — this is only here so `out_dir`
-# (below) agrees with whatever stack name either target actually
-# generates under.
+# Applied before `infra_name` is computed, so `out_dir` below agrees
+# with whatever stack name `Lambda`/`Fargate` generate — they re-apply
+# this same override internally against the `world`/`tenant:` they're handed.
 if tenant_options[:tenant]
   base_stack_name = deploy_settings[:stack_name] || domain_name
   deploy_settings = deploy_settings.merge(stack_name: "#{base_stack_name}-#{tenant_options[:tenant]}")
 end
 
-# **Every AWS-facing name below** — stack, compute logical id, S3
-# prefixes, bastion/secret names — reads this, not `domain_name`, from
-# here on. Ordinarily they're the same string, and most domains never
-# set `stack_name` at all. They diverge on purpose for a domain whose
-# declared identity (`Hecks.bluebook`, hence `world.domain`, hence
-# `.world`'s own filename — `domain_name` above, needed just to find
-# that file) no longer matches its live AWS stack's own name: a
-# CloudFormation stack cannot be renamed in place. `stack_name
-# "embryonaut"` in `deployed_to("AwsLambda")` pins the original name
-# forever, independent of any later `formerly_known_as`-style rename
-# to the domain's own declared identity.
+# Every AWS-facing name below (stack, logical ids, S3 prefixes, secret
+# names) reads this, not `domain_name`. They diverge only when a domain's
+# declared identity has moved on since its stack was created — a
+# CloudFormation stack can't be renamed in place, so `stack_name` pins
+# the original forever.
 infra_name = deploy_settings[:stack_name] || domain_name
 
-# Every policy in every loaded chapter, not just the target domain's
-# own top-level list — `uses_framework` could in principle attach a
-# chapter that itself declares a cross-domain policy — is what a
-# target's own cross-domain invoke grant needs, so this loads the whole
-# registry a domain boots with, not only its own `.bluebook`. `root:`
-# is the identical fix `bin/project_rust`'s own `target_registry`
-# needs for the same reason (see that file's own comment): a domain
-# declaring `uses_embryonaut_bluebook` refuses here with "needs a
-# registry with a root to vendor from" without it.
+# Loads the whole registry a domain boots with, not just its own
+# `.bluebook` — a cross-domain invoke grant can live in any attached
+# chapter. `root:` is required or `uses_embryonaut_bluebook` refuses
+# with "needs a registry with a root to vendor from".
 cross_domain_registry = Hecks::Runtime::Registry.new(root: File.expand_path(domain))
 Hecks.with_registry(cross_domain_registry) do
   Kernel.load(File.expand_path("../lib/hecks/ports/persistence.port", __dir__))
@@ -188,10 +114,8 @@ domain_chapter = cross_domain_registry.bluebook(declared_domain_name) or
 
 out_dir = out_option ? File.expand_path(out_option) : File.join(root, "deploy", infra_name)
 
-# One target per `deployed_to(...)` adapter — each is a real, registered
-# `Projector` export (`needs_world: true`), never a hand-rolled case
-# living here; this script's only job is finding out which one to call
-# and where to write what it returns.
+# Each adapter maps to a registered `Projector` export (`needs_world: true`);
+# this script only finds which one to call and where to write its output.
 target_key =
   case deploy_settings[:adapter]
   when "AwsLambda" then :aws_lambda
@@ -220,11 +144,8 @@ target_key =
   end
 
 # `Lambda`/`Fargate` raise `ArgumentError` for a domain's own deploy
-# conflicts (both `web "Rust"` and a `lambda_handler.rb`, `database
-# "Shared"` with no `owner`, and `deploy.bluebook`'s own
-# `LambdaTarget`/`FargateTarget.Declare` refusals) — caught here so the
-# message still reaches stderr and the exit code still reflects
-# failure, the contract this script holds to throughout.
+# conflicts; caught here so the message reaches stderr with a failing
+# exit code instead of a backtrace.
 begin
   artifact = Hecks::Projector.call(
     target_key,

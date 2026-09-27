@@ -1,20 +1,12 @@
 require_relative "ir"
 
-# The authoring surface for `Hecks.behaviors "Name" do ... end` — one
-# `test "description" do ... end` block per case, `tests`/`setup`/`input`/
-# `expect` inside. `instance_eval`-based, the same shape every other
-# hecks DSL builder uses (`WorldBuilder`, `HecksagonBuilder`).
+# The authoring surface for `Hecks.behaviors "Name" do ... end`, built with `instance_eval`.
 module Hecks
   module Behaviors
-    # Raised at `Hecks.behaviors` build time — a missing `vision` or
-    # `loads` line names the fix directly rather than failing later, deep
-    # inside a boot, over a suite that was never going to be scoped.
+    # Raised at build time, so a missing `vision` or `loads` fails with the fix named.
     class Malformed < StandardError; end
 
-    # The `test "description" do ... end` block's own receiver — collects
-    # `tests`/`setup`/`input`/`expect` calls and builds a `TestCase` (ir.rb).
-    # `validate_expect!` (private, below) is where a malformed or empty
-    # `expect` is refused at build time rather than silently passing later.
+    # The `test "description" do ... end` receiver; builds a `TestCase` (ir.rb).
     class TestCaseBuilder
       # @param description [String] the `test "description" do ... end` text
       def initialize(description)
@@ -82,14 +74,8 @@ module Hecks
 
       private
 
-      # Closes the silent-pass paths a free-form `expect(**kwargs)` merge
-      # otherwise leaves open: a test with no `expect` at all asserts
-      # nothing and passes whenever dispatch doesn't raise; `count:` on a
-      # command and `emits:` on a query are each read by neither runner
-      # (Expectations#run_command/#run_query), so they're accepted here
-      # and then silently ignored at run time. Checking both at build
-      # time, not in the runners, makes them errors on the file that
-      # wrote them rather than green checks nobody questions.
+      # Refuses expectations that would pass silently: an empty `expect`, `count:` on a command,
+      # or `emits:` on a query (neither runner reads those). Checked at build time.
       def validate_expect!
         if @expect.empty?
           raise Malformed, "test #{@description.inspect} has no `expect` — say what this " \
@@ -108,9 +94,7 @@ module Hecks
       end
     end
 
-    # The top-level `Hecks.behaviors "Name" do ... end` receiver — collects
-    # `vision`/`loads`/`test` calls and builds a `BehaviorsSuite` (ir.rb),
-    # refusing to build one missing either `vision` or `loads` (`#build`).
+    # The top-level `Hecks.behaviors` receiver; builds a `BehaviorsSuite` (ir.rb).
     class BehaviorsBuilder
       # @param name [String] the suite's declared name
       # @param source_path [String] the `.behaviors` file's own path
@@ -129,9 +113,7 @@ module Hecks
       # @return [String] `text`, unchanged
       def vision(text) = @vision = text
 
-      # Relative to this `.behaviors` file, never to the filesystem's cwd
-      # or a same-stem convention — scope is a fact this file declares,
-      # not one a runner infers.
+      # Paths are relative to this `.behaviors` file, never the cwd.
       #
       # @param paths [Array<String>] paths to the files this suite's domain boots
       #   from, relative to the `.behaviors` file

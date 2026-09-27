@@ -1,14 +1,9 @@
 require "spec_helper"
 require "tempfile"
 
-# Real dispatch coverage for the Value.scalar unwrap fix in the lifecycle-
-# transition matcher: a VO-typed lifecycle field's bare `.to_s` would hit
-# Ruby's default Object#to_s instead of unwrapping the inner scalar, so
-# `current` would come back as a raw object-pointer string that could never match
-# any declared `from` state. Bites on the second transition specifically:
-# the field starts as a raw, unwrapped default, and only becomes a real
-# Value once the first transition's `sets` wraps it -- a subsequent
-# transition attempt is where the bug shows.
+# A VO-typed lifecycle field must unwrap to its inner scalar when matching `from`.
+# It only shows on the second transition: the field starts as a raw default and
+# becomes a Value once the first transition wraps it.
 RSpec.describe "lifecycle transition on a VO-typed field" do
   def boot(source, hecksagon_name, &binds)
     file = Tempfile.new(["lifecycle-value-scalar-growth-", ".bluebook"])

@@ -1,22 +1,7 @@
 require "spec_helper"
 
-# A reaction has two ways to not happen, and they are not the same thing.
-#
-# The domain refusing (a given not met, a lifecycle move not admitted, a
-# cross-domain target not loaded in this deployment) is a fact worth recording :
-# the command that emitted the event still stands, and the log says why.
-#
-# The runtime breaking (a NoMethodError in an interpreter, a NameError from a
-# missing constant) is a defect. It once had two wrong homes in a row : first
-# a blanket `rescue StandardError` that wrote it as `delivered: false` beside
-# every legitimate refusal, so a crashed runtime read as normal operation ;
-# then, after that was narrowed to DOMAIN_REFUSALS alone, nothing caught it at
-# all, so it propagated straight through the already-succeeded triggering
-# command's own `dispatch` call and blew that up too. Neither is right : a
-# defect is now caught (so the triggering command's success stands), but
-# recorded distinguishably (`defect: true`, the error's own class) rather than
-# folded into an ordinary refusal's shape, and warned to STDERR so it is never
-# silent.
+# A domain refusal is recorded and the emitting command stands; a runtime defect is
+# recorded distinguishably (`defect: true`, error class) and warned to STDERR.
 RSpec.describe "a reaction that cannot be delivered" do
   let(:event) do
     Hecks::Runtime::Event.new(
@@ -41,14 +26,9 @@ RSpec.describe "a reaction that cannot be delivered" do
   end
 
   def registry_for(policy)
-    # `#aggregate` answers nil — same as a real Bluebook asked about a
-    # target it never loaded. ReactionInvocation#resolve_target reads it
-    # unconditionally now (to offer same-aggregate Event.id inheritance
-    # before the door is ever reached), so a double lacking the method
-    # entirely raised its own NoMethodError ahead of either test's own
-    # door-raised error — the exact "runtime breaking" shape this file
-    # exists to tell apart from a domain refusing, tripped by the double
-    # rather than by anything either test means to exercise.
+    # `#aggregate` answers nil like a real Bluebook asked about an unloaded target;
+    # ReactionInvocation#resolve_target reads it before the door, so a double
+    # without it would raise its own NoMethodError.
     bluebook = Class.new do
       attr_reader :name, :policies
 

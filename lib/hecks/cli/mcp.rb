@@ -5,9 +5,8 @@ module Hecks
     # The command behind `bin/hecks_mcp_door` and `hecks mcp`: the MCP door onto the
     # storehouse bus, over stdio only.
     #
-    # This file loads nothing but `McpStdioGuard`, so the transport check runs before
-    # the framework does. The door itself is `McpDoor`, required only once the check
-    # passes.
+    # This file loads nothing but `McpStdioGuard`, so the transport check runs
+    # before the framework does.
     module Mcp
       # The server name the guard's refusals and warnings carry.
       SERVER = "hecks-mcp-door".freeze

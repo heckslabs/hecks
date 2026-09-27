@@ -1,192 +1,38 @@
 require_relative "skip_reason"
 
+# Compiles declared read models into the static Rust tables
+# `kernel/read_model.rs` interprets at runtime.
 module RustProjection
   module Projector
     module_function
 
-    # ── READ MODEL CODEGEN — the subset of a declared `report "X" do
-    # ... end` block (ReadModel — the `read_model` construct;
-    # `report` is the language's own word for it, per syntax.bluebook's
-    # `was: "read_model"`) expressible as: a ROOT aggregate fetched by
-    # its own reference id, plus one or more OTHER aggregate heads found
-    # by scanning and matching a REFERENCE FIELD back to an
-    # already-projected root/sibling row, PLUS (as of 2026-08-11) a
-    # declared `where`/`order_by`/`limit` on the ONE eligible many-side
-    # head. Exactly `kernel/repository.rs`'s existing `AggregateScan`/
-    # `filter_entries` scan primitive (`AggregateScan::scan`/
-    # `filter_entries`, both reused directly — no new kernel scanning or
-    # filtering primitive was needed) plus a hand-written matcher and
-    # sorter (`kernel/read_model.rs`) that walks it the same "compile
-    # shapes, interpret behavior" way `named_query.rs` already walks a
-    # generated `QUERIES` table.
-    #
-    # GROUND TRUTH: `Runtime::ReadModelInterpreter#project`
-    # (lib/hecks/runtime/read_model_interpreter.rb), read directly —
-    # resolve the root by id, walk every declared head ROOT-FIRST for
-    # COMPUTATION regardless of `include` order (a real, once-live bug:
-    # a many-side head declared before its own root silently matched
-    # against an empty `projected` and came back too small — see
-    # `kernel/read_model.rs`'s own header for the full citation), match
-    # every OTHER head's own reference attributes against whichever
-    # heads are already in `projected` (applying `Ports::Query::InMemory.
-    # execute` to the ONE eligible head's own rows the moment they're
-    # computed, before they join `projected` — `model.filtered_head_name`
-    # says which one), then materialize in DECLARED order for the OUTPUT
-    # even though the computation above needed root-first.
-    #
-    # THE WIRE FORMAT USED TO STRUCTURALLY EXCLUDE where/order_by/limit —
-    # `ReadModel#to_h` never serialized them at all, so there was no
-    # data here to bake a filter/sort/cap from no matter how this
-    # generator was written. That changed 2026-08-11: `ReadModel#to_h`
-    # now spells `wheres`/`order_by`/`limit` explicitly, the same
-    # mechanism `Query#to_h` already used (`lib/hecks/bluebook/
-    # ir/read_model.rb`'s own comment has the full history) — so this
-    # generator now reads real filter/sort/cap data off the canonical
-    # `ir.json` for the first time, and does something with it, for the
-    # ONE eligible head `ReadModel#filtered_head_name` already names
-    # (`seal_query_options`'s own "options apply to a single collection"
-    # rule — read directly in `lib/hecks/bluebook/dsl/
-    # read_model_builder.rb` — means there is never ambiguity about which
-    # head where/order_by/limit apply to; this generator trusts that
-    # invariant the same way the Ruby interpreter does, rather than
-    # re-deriving or re-checking it).
-    #
-    # WHAT THIS STILL DELIBERATELY DOES NOT COVER, AND WHY — read together
-    # with `read_model_skip_reason` below:
-    #
-    #   `cursor`/`consistency`/
-    #   `inspection` — real
-    #   capabilities `Ports::Query::InMemory`/`Ports::Query::Ordering`/
-    #   `TenantScope` implement that this generator does not port, the
-    #   SAME boundary `queries.rb` already draws for a declared AGGREGATE
-    #   query's own `order_by`/`limit`/etc (that file's own header),
-    #   applied consistently here now that where/order_by/limit
-    #   themselves have crossed over. `freshness`/`use_index` are NOT in
-    #   this list — see `READ_MODEL_BARE_KEYS` below for why tolerating
-    #   them is honest, not a shortcut. `offset`/`null_semantics`/
-    #   `authorization` used to be in this list too — Phase 10
-    #   (equivalence-gap plan) ported all three, reusing `queries.rb`'s own
-    #   `declared_offset_skip_reason`/`emit_query_order_by`'s own
-    #   `null_semantics_variant`/`declared_authorization_skip_reason`
-    #   directly (no read-model-specific content check needed for any of
-    #   them — the exact same shapes/fallback rules apply whether the
-    #   declaring construct was a Query or a ReadModel). `authorization`
-    #   specifically has no real corpus read model to prove it against
-    #   today (unlike the AGGREGATE-query port, which closed a real,
-    #   previously-refused `Banking::SafeDepositBox.Rented`) — ADR 0041
-    #   has the honest accounting of why it was ported anyway (the
-    #   mechanism is byte-identical to the already-proven query path, not
-    #   new design) and what's verified against instead (a purpose-built
-    #   fixture).
-    #
-    #   A `where`/`order_by` whose own field this generator can't safely
-    #   express — a hop through a reference, an entity-scoped field, a
-    #   `list_of` field, a multi-member non-numeric value object, or (for
-    #   `where` specifically) a LITERAL comparator value whose true JSON
-    #   type can't be recovered from the exported IR. Reuses `queries.rb`'s
-    #   own `query_field_kind`/`query_where_skip_reason` wholesale, against
-    #   the ELIGIBLE HEAD's own aggregate rather than the read model's root
-    #   — the identical reasoning, just aimed at a different aggregate (see
-    #   `read_model_options_content_skip_reason` below).
-    #
-    #   `TenantScope` (an `authorize policy, tenant: :field` boundary) —
-    #   covered by the options-content check above (a declared `authorize`
-    #   survives into `extra_options_to_h`, so any read model declaring one
-    #   is already excluded). No real corpus read model declares one today
-    #   (confirmed by reading all three declarations directly — see
-    #   `bin/rust_coverage`'s own ALLOWLIST entry for this generator).
-    #
-    #   Adapter-native `query_read_model` pushdown (Postgres/SQL) — this
-    #   kernel has no SQL adapter at all, the same structural N/A
-    #   `queries.rb`'s own header and the era/lineage gap already
-    #   establish for this codebase; `kernel/read_model.rs`'s in-process
-    #   loop is the only path, matching Ruby's own in-process fallback
-    #   (`ReadModelInterpreter#project`'s `unless rootless ||
-    #   model.group_by.any?` early-return never fires for anything this
-    #   generator admits, since none of it is rootless or group_by'd
-    #   either — see below). This is also why tolerating `freshness`/
-    #   `use_index` is honest rather than a shortcut: neither is ever READ
-    #   by the in-memory interpreter path this kernel matches — both exist
-    #   solely to steer an adapter's OWN native pushdown, which is
-    #   structurally absent here regardless.
-    #
-    #   `rootless` read models and `group_by` — features that exist on
-    #   this codebase's OWN `main` branch (a later `ReadModelInterpreter`
-    #   than the one this branch carries), not on `feat/rust-projection`
-    #   at all: THIS branch's `ReadModel` has no `reference_target`-
-    #   nilable/`group_by` concept for a bluebook author to even declare,
-    #   so there is structurally nothing here to skip — noted for a
-    #   future reader diffing this generator against a newer
-    #   `read_model_interpreter.rb`, not a corner this generator cuts
-    #   today.
-    #
-    #   `freshness`/`use_index` ARE tolerated (not disqualifying) — the
-    #   only two of the eight generic options that are. Neither is ever
-    #   read by `ReadModelInterpreter#project`'s in-memory path (see the
-    #   pushdown paragraph above), so their presence changes nothing about
-    #   what this generator can honestly compute; refusing on them anyway
-    #   would be refusing a real corpus read model (`Banking::
-    #   ComplianceDashboard` declares both) for a reason that has no
-    #   bearing on correctness.
-    # `group_by` is IN this list — merged in from `main`'s own rootless-
-    # read-model work (see the long note above), which made `
-    # ReadModel#to_h` spell `group_by:` UNCONDITIONALLY, the same
-    # "always spell the key" move `wheres`/`order_by`/`limit` already
-    # went through (this file's own header, above). So `group_by`'s mere
-    # PRESENCE as a key is no longer a usable disqualifying signal — every
-    # read model carries it now, `[]` when nothing was declared — and it
-    # has to be checked by VALUE instead, explicitly, right below.
+    # `group_by` is now always present on the wire (`[]` when undeclared), so
+    # eligibility below must check its value, not the key's mere presence.
     READ_MODEL_BARE_KEYS = %i[name description reference_name reference_target query_name aggregate_heads
                               wheres order_by offset limit freshness index_hints group_by null_semantics
                               authorization count median_field].freeze
 
-    # One declared read model's own eligibility — `nil` (clean) or a
-    # specific, honest reason string, the same "one gate every other
-    # function answers to" shape `queries.rb`'s own `query_skip_reason`
-    # already holds to.
+    # Returns nil if the read model can be generated as-is, otherwise a
+    # short reason string naming what's unsupported.
     def read_model_skip_reason(read_model, aggregates_by_name, unsupported_names)
       extra = read_model.keys.map(&:to_sym) - READ_MODEL_BARE_KEYS
       return read_model_options_skip_reason(extra) if extra.any?
 
-      # ADR 0055 — a DEFENSIVE guard, not a ported capability. Ruby's own
-      # `seal_query_options` used to make it structurally impossible for
-      # this generator to ever see more than one many-side head with
-      # where/order_by/limit/offset declared at all; ADR 0055 relaxed
-      # that (an `on:` names WHICH many-side head each option applies
-      # to), so it's possible now. `read_model_filtered_head_as` below
-      # still trusts the OLD invariant unconditionally (`aggregate_heads
-      # .find { |head| head[:many] }` — the FIRST many-side head, no
-      # matter how many there are), so left unguarded this generator
-      # would silently apply a `Character`-targeted `where` to whichever
-      # many-side head happened to be declared first (e.g. `Part`) — a
-      # real, silent Ruby/Rust divergence, not merely an unported
-      # capability. Refused cleanly instead, the same honest shape as
-      # every other out-of-scope option this generator already names;
-      # full multi-target codegen is a real, separate follow-up (ADR
-      # 0055's own Rust-parity section), not attempted here.
+      # ADR 0055 lets an `on:` target a specific many-side head, but this
+      # generator still assumes the first many-side head is the eligible one
+      # (`read_model_filtered_head_as`), so more than one with options is refused.
       return multi_target_options_skip_reason if multi_target_options?(read_model)
 
-      # A GENUINE `group_by` declaration (a non-empty value, not just the
-      # key's own unconditional presence — see `READ_MODEL_BARE_KEYS`'s
-      # own comment). Checked before the `reference_to`/root-fetch check
-      # below on purpose — a rootless, `group_by`'d read model
-      # (`AccountsByKind`) has no `reference_target` at all, and reporting
-      # THAT as "no matching aggregate head" would be a true but
-      # misleading reason next to the real, honest one this check gives
-      # instead. Ported for the ONE real shape the corpus declares — a
-      # SINGLE rootless head, group_by alone (no where/order/limit/
-      # offset/count/median/authorize alongside it) — see
-      # `group_by_skip_reason`.
+      # Checked before the root lookup below: a rootless, group_by'd read
+      # model has no reference_target, and reporting that as "no matching
+      # aggregate head" would be misleading instead of the real reason.
       return group_by_skip_reason(read_model, aggregates_by_name, unsupported_names) if Array(read_model[:group_by]).any?
 
       heads = read_model[:aggregate_heads]
       root = heads.find { |head| head[:aggregate].to_s == read_model[:reference_target].to_s }
-      # ROOTLESS IS GENERATED — no `reference_to` at all (a count/median
-      # report like `Corrections::FlaggedTrailCount`) means every head reads
-      # its own whole table, `ReadModelInterpreter#project`'s own `rootless`
-      # branch, which `kernel/read_model.rs#run` already ports for the
-      # `group_by` case (`reference_name: None`). Only a NAMED target with
-      # no matching head is refused: there, a root fetch has nothing to key off.
+      # A rootless read model (every head reads its own whole table) has no
+      # reference_target at all; only a named target with no matching head,
+      # which leaves nothing for the root fetch to key off, is refused.
       if !root && !read_model[:reference_target].to_s.empty?
         return skip("missing_root_head", "declares reference_to #{read_model[:reference_target]}, but includes no matching aggregate head — " \
                                          "nothing for this generator's own root fetch to key off")
@@ -216,20 +62,9 @@ module RustProjection
         "neither is read by the in-memory interpreter path this kernel matches")
     end
 
-    # `ReadModel#filtered_head_name`, ported directly — trusts the
-    # SAME invariant it does (`ReadModelBuilder#seal_query_options`
-    # already refuses ambiguity — zero or several many-side heads with
-    # options declared — at bluebook declare time), so this doesn't
-    # re-derive or re-check it either: the first many-side head IS the
-    # eligible one whenever any option is declared at all.
-    # ADR 0055's own guard — see `read_model_skip_reason`'s header. True
-    # only for the shape this generator cannot yet trust itself to pick
-    # the right head for: MORE THAN ONE many-side head with ANY
-    # where/order_by/limit/offset declared at all (targeted via `on:` or
-    # not — this generator has no per-head codegen either way yet, so a
-    # `on:`-targeted option on a 3-many-head model is exactly as
-    # unsupported as an old-style untargeted one would have been if
-    # Ruby's own seal hadn't already made that combination impossible).
+    # True when more than one many-side head has where/order_by/limit/offset
+    # declared — ADR 0055 permits it via `on:`, but this generator has no
+    # per-head codegen yet, so that combination is refused rather than risked.
     def multi_target_options?(read_model)
       many = read_model[:aggregate_heads].count { |head| head[:many] }
       return false if many <= 1
@@ -253,14 +88,8 @@ module RustProjection
       read_model[:aggregate_heads].find { |head| head[:many] }&.fetch(:as)
     end
 
-    # The eligible head's own where/order_by/limit, checked for real
-    # generability — `nil` (clean, including "nothing declared at all")
-    # or a specific reason. Reuses `queries.rb`'s own `query_field_kind`/
-    # `query_where_skip_reason` wholesale, aimed at the ELIGIBLE HEAD's
-    # own aggregate (`CardPayment`, for `ComplianceDashboard`) rather
-    # than the read model's root (`Account`) — the where/order_by
-    # this generator ever bakes in are about the eligible collection's
-    # own attributes, never the root's.
+    # Checks the eligible head's own where/order_by/limit for generability
+    # against ITS aggregate (not the read model's root); nil means clean.
     def read_model_options_content_skip_reason(read_model, aggregates_by_name)
       eligible_as = read_model_filtered_head_as(read_model)
       return nil unless eligible_as
@@ -292,24 +121,11 @@ module RustProjection
         return reskip(reason, "eligible head #{head[:aggregate]}'s own #{reason}") if reason
       end
 
-      # `declared_authorization_skip_reason` — reused from `queries.rb`
-      # wholesale (it's already generic over "some aggregate, some
-      # authorization hash," nothing query-specific in it), aimed at the
-      # ELIGIBLE HEAD's own aggregate — `read_model_filtered_head_as`
-      # above already treats a real `authorization.tenant` as one of the
-      # things that makes a head eligible in the first place, the same
-      # way Ruby's own `filtered_head_name` does.
+      # Reused from queries.rb; checks the eligible head's own aggregate.
       auth_reason = declared_authorization_skip_reason(read_model[:authorization], aggregate, value_objects_by_name)
       return auth_reason if auth_reason
 
-      # `declared_order_by_skip_reason`/`declared_limit_skip_reason` — moved
-      # to `queries.rb` (2026-08-11), not defined here: a declared AGGREGATE
-      # query needed the IDENTICAL field-kind/literal-shape checks for its
-      # own `order_by`/`limit` (that file's own header has the argument),
-      # and both are already generic over "some aggregate, some order_by/
-      # limit hash" — nothing in either check is read-model-specific, so
-      # the only change reuse asked of them was the name (module_function
-      # already put them within reach of every file in this module).
+      # Defined in queries.rb; the field checks aren't read-model-specific.
       order_reason = declared_order_by_skip_reason(read_model[:order_by], aggregate, value_objects_by_name)
       return order_reason if order_reason
 
@@ -319,25 +135,8 @@ module RustProjection
       declared_limit_skip_reason(read_model[:limit])
     end
 
-    # `count`/`median`'s own eligibility, checked LAST — after the
-    # ordinary where/order_by/limit/offset content check already passed
-    # for the eligible head, since both real corpus declarations
-    # (`DisputedPaymentCount`/`DisputedPaymentMedian`) reuse that SAME
-    # `where(status: "disputed")` machinery `ComplianceDashboard` already
-    # generates unchanged — `count`/`median` are reductions of the
-    # already-filtered row set, not a separate shape needing its own root/
-    # head eligibility check the way `group_by`'s narrower rootless-only
-    # slice did. `seal_aggregation` (Ruby, build time) already guarantees
-    # exactly one many-side head, and mutual exclusion with `group_by`/
-    # with each other, by the time this ever runs — this doesn't re-derive
-    # either. `count` needs no further check at all (a bare row count has
-    # nothing to validate); `median`'s own FIELD is the one genuinely new
-    # thing to confirm: does it name a real attribute on the eligible
-    # many-side head's own aggregate, and is it numeric (`Runtime::
-    # ReadModelInterpreter#aggregation_target`'s own check, ported here via
-    # `query_field_kind` — the SAME "comparable reduces to a JSON number"
-    # rule the generated `kernel::read_model::median` function's own
-    # runtime reduction relies on, reused rather than re-derived).
+    # `median_field`'s own eligibility, checked after where/order_by/limit
+    # since count/median only reduce the already-filtered row set.
     def aggregation_skip_reason(read_model, aggregates_by_name)
       return nil unless read_model[:median_field]
 
@@ -356,25 +155,9 @@ module RustProjection
       nil
     end
 
-    # AN `include` NAMING A NESTED ENTITY, not an aggregate — generated,
-    # with Ruby's own answer. `ReadModelInterpreter#records` looks the head
-    # up with `bluebook.aggregate`, which never finds an entity, and reads
-    # it as "no rows of its own" (`spec/runtime/read_model_interpreter_
-    # spec.rb` pins that it neither crashes nor blocks the sibling heads).
-    # So such a head is emitted with no reference fields, and
-    # `kernel/read_model.rs` reads a head whose aggregate has no table as
-    # empty, the same way. `Bluebook::WholeBluebook` (`include Member`,
-    # `Handler`, `Dispatch`) is the corpus site.
-    #
-    # Only as an ordinary sibling head, though: an entity as the ROOT, the
-    # filtered head, the median target or the group_by head would need the
-    # aggregate's own fields or rows, so those stay refused
-    # (`entity_head_skip_reason`). A name that is neither an aggregate nor
-    # a nested entity is still `include_undeclared_aggregate`.
-    #
-    # Ruby reading an entity head as empty is itself a gap — the entity's
-    # rows do exist inside its owner — recorded, not fixed, here: this
-    # change is parity, not a new semantics for either side.
+    # Nested entity names across every aggregate (recursively) — an
+    # `include` naming one of these is generated as an empty head, since
+    # entities have no rows of their own to project.
     def nested_entity_names(aggregates_by_name)
       collect = lambda do |owners|
         owners.flat_map { |owner| Array(owner[:entities]).flat_map { |entity| [entity[:name].to_s, *collect.call([entity])] } }
@@ -400,18 +183,9 @@ module RustProjection
       nil
     end
 
-    # `group_by`'s own eligibility — deliberately narrow, the ONE real
-    # shape the corpus declares (`Banking::AccountsByKind`): a single
-    # ROOTLESS head (`ReadModelInterpreter#group_by_target`'s own
-    # `target = model.aggregate_heads.find { |head| head[:many] }` only
-    # ever needs to consider one candidate when there's only one head at
-    # all), group_by alone — no where/order/limit/offset/count/median/
-    # authorize declared alongside it, each its own genuinely different
-    # shape this generator doesn't ALSO attempt to combine with grouping
-    # in the same pass. `seal_group_by`'s own build-time refusal (Ruby)
-    # already guarantees at most one many-side head when group_by is
-    # declared at all — this doesn't re-derive that, only refuses
-    # generating anything this narrower slice doesn't cover yet.
+    # `group_by` eligibility, narrowed to the one shape the corpus declares:
+    # a single rootless head, group_by alone (build time already guarantees
+    # at most one many-side head whenever group_by is declared at all).
     def group_by_skip_reason(read_model, aggregates_by_name, unsupported_names)
       heads = read_model[:aggregate_heads]
       return skip("group_by", "declares group_by across #{heads.size} aggregate heads — not generated yet (only a single, rootless head is)") if heads.size != 1
@@ -438,12 +212,8 @@ module RustProjection
       nil
     end
 
-    # `hop_wheres` (already confirmed generable by `read_model_options_
-    # content_skip_reason` — this doesn't re-check), compiled into
-    # `ReferenceHopCondition`'s own wire shape — the SAME `{arg:,
-    # literal:}` split `query_conditions` already builds for a local
-    # condition's own value, just carrying `via_field`/`target_aggregate`/
-    # `inner_field` alongside instead of a bare `field`.
+    # Compiles already-confirmed-generable hop wheres into the wire shape
+    # ReferenceHopCondition expects.
     def read_model_hop_conditions(domain_name, hop_wheres, aggregate, aggregates_by_name)
       hop_wheres.map do |where|
         hop = query_hop_plan(aggregate, where[:field].to_s, aggregates_by_name)
@@ -472,22 +242,9 @@ module RustProjection
         "inner_comparator: #{comparator_expr}, inner_value: #{emit_query_condition_value(hop)} },"
     end
 
-    # `head_aggregate`'s own reference attributes, each paired with the
-    # bare aggregate name it targets — `Runtime::ReadModelInterpreter#
-    # reference_fields`, read directly: `aggregate.attributes.select {
-    # attribute.reference? && attribute.type.target_name == target.to_s
-    # }.map(&:name)`, just not narrowed to one `target` at a time the way
-    # Ruby's own runtime re-derives it per candidate `source` — baked in
-    # ONCE per head at codegen time instead, since this compiled kernel
-    # has no runtime attribute-type reflection the way a live Ruby
-    # `Attribute` does. Every reference attribute is included
-    # regardless of whether its OWN target is even a head on this same
-    # read model (unlike Ruby, which only ever asks about a target that
-    # IS already in `projected`) — harmless: `kernel/read_model.rs`'s own
-    # matcher only ever finds a hit when the target genuinely is among
-    # the heads already computed, so a reference field whose target
-    # never appears here simply never contributes a match, the same
-    # observable answer either way.
+    # Baked in once at codegen time — the compiled kernel has no runtime
+    # attribute-type reflection. Includes every reference field regardless
+    # of whether its target is a head here; the matcher simply won't match.
     def read_model_reference_fields(head_aggregate)
       head_aggregate[:attributes].filter_map do |attr|
         target = reference_target(attr[:type])
@@ -503,14 +260,9 @@ module RustProjection
         "field: #{reference_field[:field].to_s.inspect} }"
     end
 
-    # ONE declared `include`, compiled — `is_root` precomputed once here
-    # (`head[:aggregate] == read_model[:reference_target]`) rather than
-    # re-compared at runtime against a stored `reference_target` string
-    # on every call, and `reference_fields` left EMPTY for the root: the
-    # root is never matched by reference at all, it's fetched directly
-    # by the caller's own id argument (`kernel/read_model.rs`'s own
-    # `run`, mirroring `ReadModelInterpreter#project`'s own `if
-    # head[:aggregate] == model.reference_target` branch).
+    # Compiles one declared `include`. `is_root` is precomputed here rather
+    # than re-compared at runtime; the root has no reference_fields since
+    # it's fetched directly by id, never matched by reference.
     def emit_read_model_head(domain_name, head, is_root, aggregates_by_name)
       head_aggregate = aggregates_by_name[head[:aggregate]]
       reference_fields = is_root || head_aggregate.nil? ? [] : read_model_reference_fields(head_aggregate)
@@ -522,38 +274,16 @@ module RustProjection
         "is_root: #{is_root ? 'true' : 'false'}, reference_fields: &[#{reference_fields_expr}] }"
     end
 
-    # A whole declared read model, compiled to the plain data
-    # `emit_read_model_def` renders — `verb` is the "Domain.Name" wire
-    # string `kernel/cli.rs`'s STRING-form "query" step matches a
-    # read-model ask against (that file's own header on how it tells
-    # this shape apart from a named/declared AGGREGATE query's
-    # "Domain::Aggregate.Name" shape: the presence of "::" before the
-    # first "."), using the read model's own DECLARED name — the same
-    # convention `queries.rb`'s own `query_def[:verb]` already picked
-    # for a named query, not the snake-cased `query_name` `Runtime::
-    # Dispatcher#query` would ALSO accept (`bluebook.read_model(named)`
-    # matches either spelling in Ruby; this generator only ever needs to
-    # emit one, and picks the same style precedent already set).
-    # `order_by`'s own compiled form — `descending` collapses Ruby's own
-    # `direction.to_s == "desc"` test once, at codegen time, matching
-    # `kernel/read_model.rs`'s own `ReadModelOrderBy`. `null_semantics` is
-    # a separate, sibling top-level read-model key, same as it is for a
-    # declared AGGREGATE query — `queries.rb`'s own `null_semantics_
-    # variant` reused directly rather than duplicated (`ReadModelOrderBy`
-    # is `query_ordering::OrderBy` itself, an alias — the compiled `nulls:`
-    # field means the identical thing either spelling is read through).
+    # Compiles a declared order_by into Rust's ReadModelOrderBy; `descending`
+    # collapses the desc/asc string check once, at codegen time.
     def emit_read_model_order_by(order_by, null_semantics = nil)
       descending = order_by[:direction].to_s == "desc" ? "true" : "false"
       "crate::kernel::read_model::ReadModelOrderBy { field: #{order_by[:field].to_s.inspect}, descending: #{descending}, " \
         "nulls: #{null_semantics_variant(null_semantics)} }"
     end
 
-    # `limit`'s own compiled form — the identical Literal/Arg split
-    # `queries.rb`'s own `emit_query_condition_value` already draws for a
-    # where clause's own value, aimed at `ReadModelLimit` instead of
-    # `QueryConditionValue`. `read_model_limit_skip_reason` already
-    # confirmed a non-Arg value is a real literal integer, so `.to_i` here
-    # never silently truncates anything it didn't already refuse.
+    # Compiles a declared limit into a Literal or an Arg reference; a
+    # non-Arg value is already confirmed to be a real integer literal.
     def emit_read_model_limit(limit)
       raw = limit[:value].to_s
       return "crate::kernel::read_model::ReadModelLimit::Arg(#{raw.delete_prefix(':').inspect})" if raw.start_with?(":")
@@ -561,36 +291,19 @@ module RustProjection
       "crate::kernel::read_model::ReadModelLimit::Literal(#{raw.to_i})"
     end
 
-    # `offset`'s own compiled form — `crate::kernel::read_model::
-    # ReadModelOffset` is `pub type ReadModelOffset = query_ordering::
-    # Offset` (itself `= query_ordering::Limit` — see that module's own
-    # header), so this reuses `emit_read_model_limit`'s own computation
-    # and swaps only the spelled type name, the identical move `queries.rb`'s
-    # own `emit_query_offset` makes for a declared AGGREGATE query's offset.
+    # ReadModelOffset is a type alias of ReadModelLimit, so this reuses
+    # emit_read_model_limit and swaps only the spelled type name.
     def emit_read_model_offset(offset) = emit_read_model_limit(offset).sub("read_model::ReadModelLimit::", "read_model::ReadModelOffset::")
 
-    # A whole declared read model, compiled to the plain data
-    # `emit_read_model_def` renders — `verb` is the "Domain.Name" wire
-    # string `kernel/cli.rs`'s STRING-form "query" step matches a
-    # read-model ask against (that file's own header on how it tells
-    # this shape apart from a named/declared AGGREGATE query's
-    # "Domain::Aggregate.Name" shape: the presence of "::" before the
-    # first "."), using the read model's own DECLARED name — the same
-    # convention `queries.rb`'s own `query_def[:verb]` already picked
-    # for a named query, not the snake-cased `query_name` `Runtime::
-    # Dispatcher#query` would ALSO accept (`bluebook.read_model(named)`
-    # matches either spelling in Ruby; this generator only ever needs to
-    # emit one, and picks the same style precedent already set).
+    # Compiles a whole declared read model to plain data for
+    # `emit_read_model_def`. `verb` uses the read model's declared name
+    # ("Domain.Name"), the same convention queries.rb picks for a named
+    # query — `kernel/cli.rs` tells the two shapes apart by the "::" that
+    # only a Domain::Aggregate.Name query verb has before the first ".".
     #
-    # `filtered_head`/`conditions`/`order_by`/`limit` are only ever
-    # populated when `read_model_filtered_head_as` names an eligible head
-    # — `read_model_skip_reason` (via `read_model_options_content_skip_
-    # reason`) already refused this read model entirely if that head's
-    # own where/order_by/limit weren't genuinely generable, so by the time
-    # this runs there is nothing left to check. `conditions` reuses
-    # `queries.rb`'s own `query_conditions` wholesale — a where clause's
-    # wire shape (`{field:, op:, value:}`) is identical whether it came
-    # off a declared Query or a ReadModel's own `wheres`.
+    # `filtered_head`/`conditions`/`order_by`/`limit` are populated only when
+    # `read_model_filtered_head_as` names an eligible head; skip_reason above
+    # already refused anything whose content wasn't generable.
     def read_model_def(domain_name, read_model, aggregates_by_name)
       heads = read_model[:aggregate_heads].map do |head|
         is_root = head[:aggregate].to_s == read_model[:reference_target].to_s
@@ -601,14 +314,9 @@ module RustProjection
       group_by_fields = Array(read_model[:group_by]).map { |row| row[:field].to_s }
       group_by_fn_name = group_by_fields.any? ? "group_by_#{read_model[:name].to_s.downcase}" : nil
 
-      # SPLIT, not reused wholesale, the way `conditions` alone used to
-      # be — a hop-shaped where clause has a different WIRE SHAPE
-      # entirely (`ReferenceHopCondition`, not `QueryCondition`), so it
-      # can't ride through `query_conditions_with_authorization`'s own
-      # plain `{field:, op:, value:}` emission the way a local where
-      # clause still does. `read_model_options_content_skip_reason`
-      # already confirmed every where clause here is EITHER a resolvable
-      # hop OR a generable local condition — nothing left to refuse.
+      # Hop wheres need a different wire shape (ReferenceHopCondition) than
+      # local ones, so they're split out below rather than reused wholesale;
+      # every clause here is already confirmed resolvable or generable.
       eligible_aggregate = eligible_as && aggregates_by_name[read_model[:aggregate_heads].find { |h| h[:as].to_s == eligible_as.to_s }[:aggregate]]
       local_wheres, hop_wheres = eligible_as ? Array(read_model[:wheres]).partition { |w| query_hop_plan(eligible_aggregate, w[:field].to_s, aggregates_by_name).nil? } : [[], []]
 
@@ -630,40 +338,15 @@ module RustProjection
       }
     end
 
-    # The generated function `ReadModelDef.group_by` names by value
-    # (`fn(Vec<(String, Json)>) -> Result<Json, Refusal>`) — `kernel/read_model.rs`'s own
-    # header on why this can't be one more data-driven field the way
-    # `offset`/`order_by` already are: which field is a single-attribute
-    # value object is a TYPE-LEVEL fact this generator has at Ruby-codegen
-    # time but the kernel's own generic `run` function never does once
-    # it's holding already-serialized `Json`.
+    # Generates the group_by transform fn by name, since the kernel's own
+    # generic `run` only ever holds already-serialized Json — which value
+    # object unwraps to a bare scalar is a type-level fact only codegen has.
     #
-    # Three real jobs, in order: (1) `repository::row_json`-equivalent —
-    # add `id` back (Rust's own generated `to_json()` never carries it,
-    # unlike a live Ruby record's `to_h`); (2) keep this aggregate's own
-    # real declared attributes PLUS any `projects` field it declares
-    # (`Projector.projected_field_pseudo_attributes` — the same
-    # attributes-plus-projections composition `domain_generator.rb`'s own
-    # `record_attributes` and `commands.rb`'s own `record_fields` already
-    # use for this exact aggregate's record shape; a projected field is a
-    # REAL, always-current, stored field on the live record — QA sweep
-    # SW-banking-1788994980 found it silently dropped from every
-    # `group_by` read model's own output, the one place this generator
-    # had reached for `aggregate[:attributes]` alone) — while still
-    # EXCLUDING any synthetic field a DIFFERENT Phase 10 capability may
-    # have added to the record's own JSON shape (`corrects`'s own
-    # `emitted_*` flags, ADR 0049 — real Rust-only bookkeeping with no
-    # Ruby analog, which `Instance#to_h` never carries either); (3)
-    # recursively unwrap every single-attribute value object along the
-    # way (`unwrap_json_expr`), matching `Value.materialize_unwrapped`
-    # exactly — a projected field is always a plain scalar by
-    # construction (`validate_projected_field!`'s own `projectable_
-    # scalar?` check), so it needs no unwrap arm of its own and falls
-    # through to the `_ => v` pass-through already below. `kernel::
-    # read_model::nest` (hand-written once, purely structural — no type
-    # knowledge needed for grouping/stripping itself) does the actual
-    # nesting, and refuses two rows reaching one leaf unless
-    # `group_by_leaf_check` found the key path covering the identity.
+    # It re-attaches `id`, keeps only real declared attributes plus any
+    # `projects` field while excluding Rust-only synthetic fields (ADR 0049),
+    # and recursively unwraps single-attribute value objects. Actual grouping
+    # is `kernel::read_model::nest`, which refuses a second row per leaf
+    # unless `group_by_leaf_check` found the key path covers the identity.
     def emit_group_by_transform(fn_name, read_model_name, aggregate, group_by_fields)
       value_objects_by_name = aggregate[:value_objects].to_h { |vo| [vo[:name].to_s, vo] }
       lifecycle_field = aggregate[:lifecycle] && aggregate[:lifecycle][:field].to_s
@@ -708,10 +391,9 @@ module RustProjection
       RUST
     end
 
-    # `Behaviour::ReadModel#groups_by_identity?`, read off the IR: a key path
-    # naming every identity head of the grouped aggregate cannot collide, so
-    # its leaves go unchecked; any other refuses a second row (ADR 0061,
-    # decision D1). `identified_by` in the IR holds the identity paths.
+    # A key path naming every identity field of the grouped aggregate can't
+    # collide, so its leaves go unchecked; any other refuses a second row
+    # per leaf (ADR 0061). `identified_by` in the IR holds identity paths.
     def group_by_leaf_check(read_model_name, aggregate, group_by_fields)
       identity = Array(aggregate[:identified_by]).map { |path| path.to_s.split(".").first }.uniq
       return "crate::kernel::read_model::LeafCheck::IdentityCovered" if identity.any? && (identity - group_by_fields).empty?
@@ -719,19 +401,10 @@ module RustProjection
       "crate::kernel::read_model::LeafCheck::RefuseCollision(#{read_model_name.inspect})"
     end
 
-    # `Value.materialize_unwrapped`, ported directly — a single-attribute
-    # value object (`AccountKind{name: "current"}`) unwraps to its own
-    # bare field (`"current"`); a multi-attribute one, or an ENTITY
-    # (`Account.ledger`'s own `LedgerEntry`, which never appears in
-    # `value_objects_by_name` at all — entities and value objects are
-    # separate IR constructs), keeps its own object shape but recurses
-    # into EACH of its own declared fields the same way; a bare scalar
-    # (String/Integer/Float/Reference) or an unrecognized composite type
-    # passes through unchanged. `list:` wraps the same logic in an
-    # `Array` map — a list of value objects and a list of entities are
-    # unwrapped identically either way, matching Ruby's own
-    # `when Array then value.map { |item| materialize_unwrapped(item) }`,
-    # which never special-cases what the array HOLDS.
+    # Ports Value.materialize_unwrapped: a single-attribute value object
+    # unwraps to its bare field; a multi-attribute one or an entity keeps
+    # its object shape but recurses into each field; scalars and lists
+    # (mapped element-wise) pass through the same logic unchanged.
     def unwrap_json_expr(expr, type_name, list, aggregate, value_objects_by_name)
       if list
         inner = unwrap_json_expr("item", type_name, false, aggregate, value_objects_by_name)
@@ -795,11 +468,9 @@ module RustProjection
       RUST
     end
 
-    # The exact dedented text of `rust/src/exemplar/read_models.rs`'s own
-    # `TMPL:read_model_table` placeholder ROW — `Exemplar.render`'s
-    # substitution is a literal substring match, so this has to reproduce
-    # that file's exact spacing, matching `queries.rb`'s own
-    # `QUERY_TABLE_ROW_PLACEHOLDER` precedent exactly.
+    # Must dedent-match `rust/src/exemplar/read_models.rs`'s own
+    # TMPL:read_model_table placeholder row exactly — Exemplar.render
+    # substitutes by literal substring.
     READ_MODEL_TABLE_ROW_PLACEHOLDER = <<~RUST.rstrip
       crate::kernel::read_model::ReadModelDef {
           verb: "tmpl_verb",
@@ -843,13 +514,9 @@ module RustProjection
       },
     RUST
 
-    # ── THE READ MODEL TABLE — `kernel::read_model::run`'s own static
-    # data, `Runtime::ReadModelInterpreter#project` ported to generated
-    # `ReadModelDef` rows a hand-written, generic function walks
-    # (kernel/read_model.rs), the SAME "compile shapes, interpret
-    # behavior" split `emit_query_table`/`emit_policy_table` already hold
-    # to. One row per read model `read_model_skip_reason` (above) lets
-    # through — a skipped one simply has no row here at all.
+    # The read model table `kernel::read_model::run` walks at runtime — one
+    # row per read model that `read_model_skip_reason` lets through; a
+    # skipped read model simply has no row here.
     def emit_read_model_table(read_model_defs)
       rows = read_model_defs.map { |rmd| emit_read_model_def(rmd) }
       Exemplar.render("read_model_table", READ_MODEL_TABLE_ROW_PLACEHOLDER => rows.join("\n"))

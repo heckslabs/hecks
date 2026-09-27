@@ -1,70 +1,5 @@
-//! Per-address rate limits for the public write routes a stranger can abuse.
-//!
-//! The limits sit in front of dispatch, in `server.rs`, so a refused request costs no Postgres
-//! lock, no wasm run and no journal write. Two routes are limited, each with its own budget and
-//! its own window per client address: `POST /newsletter/subscribers` (the guest subscribe form)
-//! and `POST /registrations` (the guest event registration). Reads, the token-authenticated
-//! confirm and unsubscribe links, the payment webhook and every authenticated admin route are
-//! never limited.
-//!
-//! A limited caller gets `429 Too Many Requests` with a `Retry-After` header (whole seconds until
-//! the oldest counted request leaves the window) and the host's usual JSON error body.
-//!
-//! ## Windows
-//!
-//! Each address keeps the timestamps of its recent allowed requests; a request is refused once
-//! `limit` of them fall inside the last window. Refused requests are not recorded, so hammering a
-//! route never extends the caller's own lockout. Memory is bounded twice over: an address holds at
-//! most `limit` timestamps, and the table holds at most `HECKS_RATE_LIMIT_MAX_KEYS` addresses
-//! (expired ones are swept first, then the least recently active are dropped). IPv6 callers are
-//! counted per /64, since one subscriber routinely controls the whole prefix.
-//!
-//! State lives in this process only. With more than one host task behind the load balancer the
-//! effective limit is `limit` per task, and a restart clears it. That is abuse damping, not a hard
-//! quota.
-//!
-//! ## Which address is the client
-//!
-//! The TCP peer is the client unless a proxy in front of the host says otherwise. The
-//! `X-Forwarded-For` header is trusted only when the request provably came through our own
-//! proxy, because otherwise the caller typed it:
-//!
-//! - the peer address is inside `HECKS_TRUSTED_PROXIES`, or
-//! - the request carries the header named by `HECKS_PROXY_AUTH_HEADER` with the value
-//!   `HECKS_PROXY_AUTH_SECRET` (a secret the CDN or load balancer adds to every origin request).
-//!
-//! A trusted request is resolved by walking `X-Forwarded-For` from the right: the rightmost
-//! `HECKS_TRUSTED_PROXY_HOPS` entries belong to proxies that cannot be listed by address, then
-//! every entry inside `HECKS_TRUSTED_PROXIES` is skipped, and the first remaining entry is the
-//! client. The leftmost entries are whatever the caller typed and are never reached. A header
-//! shorter than the walk implies, or a client entry that is not an address, yields no client; those
-//! requests share one bucket rather than trust a guess. Behind a CDN and then a load balancer the
-//! header reads `<typed by caller>, <client>, <CDN edge>`, so authenticate with the shared secret
-//! and set hops to 1. A sidecar or a single proxy on a fixed address needs only the list.
-//!
-//! What breaks the resolution: a hop added or removed in front of the host without updating the
-//! hop count (callers can then pick their own bucket, or all share a proxy's), and a host that is
-//! reachable without going through the proxy while the proxy's address is trusted. When the peer
-//! is a private address and the header is present but nothing is trusted, every caller shares that
-//! peer's bucket; the host logs `rate_limit_untrusted_proxy` once when it sees that.
-//!
-//! ## Settings
-//!
-//! | variable | default | meaning |
-//! | --- | --- | --- |
-//! | `HECKS_RATE_LIMIT` | on | `off`, `false`, `0`, `no` or `disabled` turns every limit off |
-//! | `HECKS_RATE_LIMIT_WINDOW_SECONDS` | 3600 | window length for every limited route |
-//! | `HECKS_RATE_LIMIT_SUBSCRIBE` | 10 | requests per address per window, subscribe |
-//! | `HECKS_RATE_LIMIT_REGISTER` | 15 | requests per address per window, registration |
-//! | `HECKS_RATE_LIMIT_MAX_KEYS` | 10000 | most addresses tracked at once |
-//! | `HECKS_TRUSTED_PROXIES` | none | comma-separated addresses or `addr/prefix` ranges |
-//! | `HECKS_TRUSTED_PROXY_HOPS` | 0 | rightmost `X-Forwarded-For` entries added by our proxies |
-//! | `HECKS_PROXY_AUTH_HEADER` | none | header a trusted proxy sets to prove it forwarded it |
-//! | `HECKS_PROXY_AUTH_SECRET` | none | the value that header must carry; both must be set |
-//!
-//! A number that is blank, zero or not a whole number falls back to its default, and a bad list
-//! entry is dropped; both are reported in a `rate_limit_config_warning` log line at boot. The
-//! defaults admit a smoke run several times over from one address.
+//! Per-address sliding-window rate limits for the public write routes a stranger can abuse,
+//! enforced in `server.rs` before dispatch so a refused request costs no Postgres lock or run.
 
 use axum::http::header::{HeaderValue, CONTENT_TYPE, RETRY_AFTER};
 use axum::http::{HeaderMap, HeaderName, StatusCode};
@@ -76,7 +11,6 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
-/// The bucket for requests whose client address could not be determined.
 const UNKNOWN_CLIENT: &str = "unknown";
 
 const DEFAULT_WINDOW_SECONDS: u64 = 3600;
@@ -100,9 +34,7 @@ struct Entry {
     seq: u64,
 }
 
-/// A sliding-window counter keyed by client, with the clock passed in.
-///
-/// `check` takes the current instant so tests move time by hand instead of sleeping.
+// `check` takes the current instant so tests move time by hand instead of sleeping.
 pub struct SlidingWindow {
     limit: usize,
     window: Duration,
@@ -116,8 +48,7 @@ pub struct SlidingWindow {
 }
 
 impl SlidingWindow {
-    /// Builds a window allowing `limit` requests per key inside `window`, tracking at most
-    /// `max_keys` keys. A zero `limit` or `max_keys` is raised to 1.
+    // A zero `limit` or `max_keys` is raised to 1.
     pub fn new(limit: usize, window: Duration, max_keys: usize) -> Self {
         Self {
             limit: limit.max(1),
@@ -129,7 +60,6 @@ impl SlidingWindow {
         }
     }
 
-    /// Counts a request from `key` at `now`, recording it when it is allowed.
     pub fn check(&mut self, key: &str, now: Instant) -> Decision {
         let window = self.window;
         match self.entries.get_mut(key) {
@@ -200,7 +130,6 @@ impl SlidingWindow {
     }
 }
 
-/// An address range: a single address, or a network written with a prefix length.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct IpNet {
     addr: IpAddr,
@@ -208,7 +137,6 @@ pub struct IpNet {
 }
 
 impl IpNet {
-    /// Parses `10.0.0.5`, `10.0.0.0/8`, `::1` or `fd00::/8`; `None` for anything else.
     pub fn parse(text: &str) -> Option<Self> {
         let text = text.trim();
         let (addr_text, prefix_text) = match text.split_once('/') {
@@ -224,7 +152,7 @@ impl IpNet {
         Some(Self { addr, prefix })
     }
 
-    /// Whether `ip` falls inside the range; an IPv4-mapped IPv6 address counts as its IPv4 form.
+    // An IPv4-mapped IPv6 address counts as its IPv4 form.
     pub fn contains(&self, ip: IpAddr) -> bool {
         match (self.addr, ip.to_canonical()) {
             (IpAddr::V4(net), IpAddr::V4(ip)) => {
@@ -240,14 +168,12 @@ impl IpNet {
     }
 }
 
-/// A header a trusted proxy sets on every request it forwards, and the value it must carry.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ProxyAuth {
     header: HeaderName,
     secret: String,
 }
 
-/// Which proxies to believe about the client address, and how to read what they say.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct ProxyTrust {
     networks: Vec<IpNet>,
@@ -256,11 +182,8 @@ pub struct ProxyTrust {
 }
 
 impl ProxyTrust {
-    /// Resolves the client address of one request.
-    ///
-    /// `presented_secret` is the value of the configured proxy-authentication header, when the
-    /// request has it. The forwarded header is read only from a trusted source; see the module
-    /// comment for the walk. `None` means the address could not be determined safely.
+    // `None` means the client address could not be determined safely, rather than guessed;
+    // callers then share one bucket. The forwarded header is read only from a trusted source.
     pub fn client_ip(&self, peer: Option<IpAddr>, forwarded_for: Option<&str>, presented_secret: Option<&str>) -> Option<IpAddr> {
         let peer = peer.map(|p| p.to_canonical());
         if !self.trusts(peer, presented_secret) {
@@ -292,17 +215,13 @@ fn constant_time_eq(a: &[u8], b: &[u8]) -> bool {
     a.len() == b.len() && a.iter().zip(b).fold(0u8, |diff, (x, y)| diff | (x ^ y)) == 0
 }
 
-/// The public write routes that are limited, each with its own budget.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Form {
-    /// `POST /newsletter/subscribers`
     Subscribe,
-    /// `POST /registrations`
     Register,
 }
 
 impl Form {
-    /// Names the limited form a request targets, or `None` for an unlimited route.
     pub fn for_request(method: &str, path: &str) -> Option<Self> {
         match (method, path) {
             ("POST", "/newsletter/subscribers") => Some(Self::Subscribe),
@@ -312,7 +231,6 @@ impl Form {
     }
 }
 
-/// Everything the limits are configured by, read once at boot.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Config {
     enabled: bool,
@@ -324,10 +242,8 @@ pub struct Config {
 }
 
 impl Config {
-    /// Reads the settings through `get` (the process environment in production).
-    ///
-    /// Returns the configuration and one message per setting that was unusable and replaced by
-    /// its default or dropped.
+    // Returns one warning per setting that was unusable and fell back to its default or was
+    // dropped, rather than failing boot.
     pub fn from_lookup(get: impl Fn(&str) -> Option<String>) -> (Self, Vec<String>) {
         let mut warnings = Vec::new();
         let mut number = |name: &str, default: u64| -> u64 {
@@ -409,19 +325,15 @@ fn parse_proxy_auth(header: Option<String>, secret: Option<String>, warnings: &m
     }
 }
 
-/// What the limits decided about one request.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Verdict {
-    /// The request may proceed: it is not limited, or it is within its budget.
     Allowed,
-    /// The caller is over its budget and may retry after this many seconds.
     Limited {
-        /// Whole seconds until the oldest counted request leaves the window.
+        // Whole seconds until the oldest counted request leaves the window.
         retry_after_secs: u64,
     },
 }
 
-/// The per-route windows and the rules for finding the client, shared by every request.
 pub struct RateLimits {
     config: Config,
     windows: Mutex<HashMap<Form, SlidingWindow>>,
@@ -429,12 +341,10 @@ pub struct RateLimits {
 }
 
 impl RateLimits {
-    /// Builds the limits from a parsed configuration.
     pub fn new(config: Config) -> Self {
         Self { config, windows: Mutex::new(HashMap::new()), warned_untrusted_proxy: AtomicBool::new(false) }
     }
 
-    /// Builds the limits from the process environment and logs the effective settings.
     pub fn from_env() -> Self {
         let (config, warnings) = Config::from_lookup(|name| std::env::var(name).ok());
         for warning in &warnings {
@@ -455,15 +365,12 @@ impl RateLimits {
         Self::new(config)
     }
 
-    /// Counts a request against its route's per-client budget.
-    ///
-    /// `method` and `path` name the route (the path without its query string), `headers` and
-    /// `peer` identify the caller. A route that is not limited is always `Allowed`.
+    // A route that is not limited is always `Allowed`.
     pub fn check(&self, method: &str, path: &str, headers: &HeaderMap, peer: Option<IpAddr>) -> Verdict {
         self.check_at(method, path, headers, peer, Instant::now())
     }
 
-    /// `check` with the clock supplied, so tests need not sleep.
+    // `check` with the clock supplied, so tests need not sleep.
     pub fn check_at(&self, method: &str, path: &str, headers: &HeaderMap, peer: Option<IpAddr>, now: Instant) -> Verdict {
         let Some(form) = Form::for_request(method, path).filter(|_| self.config.enabled) else {
             return Verdict::Allowed;
@@ -544,7 +451,6 @@ fn is_private(ip: IpAddr) -> bool {
     }
 }
 
-/// The refusal a limited caller receives: 429, `Retry-After`, and the host's JSON error shape.
 pub fn too_many_requests(retry_after_secs: u64) -> Response {
     let body = json!({ "error": "too many requests, please try again later" }).to_string();
     let mut response = (StatusCode::TOO_MANY_REQUESTS, body).into_response();
@@ -590,8 +496,6 @@ mod tests {
         }
         map
     }
-
-    // ---- the window -----------------------------------------------------------------------
 
     #[test]
     fn allows_up_to_the_limit_then_refuses_with_the_seconds_until_the_oldest_hit_expires() {
@@ -685,8 +589,6 @@ mod tests {
         assert_eq!(window.len(), 1);
     }
 
-    // ---- address ranges -------------------------------------------------------------------
-
     #[test]
     fn parses_and_matches_addresses_and_cidr_ranges() {
         let single = IpNet::parse("10.0.0.5").unwrap();
@@ -712,8 +614,6 @@ mod tests {
             assert!(IpNet::parse(bad).is_none(), "{bad:?}");
         }
     }
-
-    // ---- client address -------------------------------------------------------------------
 
     #[test]
     fn with_nothing_trusted_the_peer_is_the_client_and_the_header_is_ignored() {
@@ -819,8 +719,6 @@ mod tests {
         assert_eq!(bucket_key(ip("203.0.113.7")), "203.0.113.7");
     }
 
-    // ---- configuration --------------------------------------------------------------------
-
     #[test]
     fn defaults_are_on_with_no_trust() {
         let (config, warnings) = config_from(&[]);
@@ -885,8 +783,6 @@ mod tests {
         assert!(config.trust.auth.is_none());
         assert_eq!(warnings.len(), 1);
     }
-
-    // ---- routes ---------------------------------------------------------------------------
 
     #[test]
     fn only_the_public_write_routes_are_limited() {

@@ -5,13 +5,8 @@ module Hecks
   module Adapters
     class NotExtractable < StandardError; end
 
-    # Extracts a `given`/`ensures`/invariant block's own source text back out
-    # of the `.rb` file it was defined in (via `block.source_location`),
-    # parses it with the `prism` gem, and canonicalises it — how a rule's
-    # predicate becomes readable, comparable text (era diffing, docs) rather
-    # than an opaque compiled Proc. Per-process `TREES` cache keyed by file
-    # path; `forget`/`forget_all` exist for a caller that reloads an edited
-    # file in-process (see their own comment).
+    # Extracts a `given`/`ensures`/invariant block's own source text via
+    # `prism`, canonicalised into readable, comparable text (era diffing, docs).
     module Prism
       # Not frozen — a real cache, keyed by file path and mutated by
       # #tree_for below (`TREES[file] ||= ...`) and #forget/#forget_all.
@@ -67,32 +62,14 @@ module Hecks
       # @param file [String] the file path to parse and cache under
       # @return [Prism::ProgramNode] the parsed syntax tree's root node
       def tree_for(file)
-        # ::Prism.parse_file(file) reads the file itself, at the C
-        # extension level — bypassing Ruby's own File/IO layer entirely.
-        # That's invisible to anything that virtualizes the filesystem at
-        # the Ruby level instead of the OS level (e.g. tebako's memfs,
-        # which presses a hecks-based app into a single executable —
-        # see domain/README.md's "Deploying" section in a client site's domain for
-        # why that matters). ::Prism.parse(File.read(file)) parses the
-        # exact same bytes, just read through Ruby's File.read first,
-        # which those tools do intercept.
+        # ::Prism.parse_file reads the file at the C-extension level, bypassing
+        # Ruby's File/IO layer — invisible to tools that virtualize the filesystem
+        # there (e.g. tebako's memfs). Read through File.read first so they intercept it.
         TREES[file] ||= ::Prism.parse(File.read(file)).value
       end
 
-      # `TREES` caches for the life of the process, keyed by path, with
-      # no staleness check — correct for every ordinary caller (a file
-      # loads once per process: one `bin/ir` run, one rspec worker,
-      # never edited out from under it), but wrong for anything that
-      # legitimately reloads an edited file in-process: a stale cached
-      # tree reports a `given`/`ensures` block at its old line number,
-      # which does not match the freshly re-executed file's own
-      # `block.source_location` — surfacing as "did not survive
-      # extraction" on a perfectly valid file. Built for real building
-      # `Hecks::Codemod` (lib/hecks/codemod.rb), which needs exactly this
-      # invalidation rather than reaching into `TREES.clear` directly — a
-      # private implementation detail poked from outside. `forget`/
-      # `forget_all` are the real API so nothing else that reloads an
-      # edited file in-process has to know `TREES` exists at all.
+      # Drops one file from the process-wide parse cache, for a caller (`Hecks::Codemod`)
+      # that reloads an edited file in-process and needs the stale tree invalidated.
       #
       # @param file [String] the file path to drop from the cache
       # @return [Prism::ProgramNode, nil] the cached tree that was removed, or nil if

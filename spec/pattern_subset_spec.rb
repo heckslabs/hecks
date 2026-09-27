@@ -1,23 +1,16 @@
 require "spec_helper"
 require "json"
 
-# **Which regexes a bluebook may say**.
-#
-# A `pattern:` is declared data, so it stays inside what regex engines agree
-# on. A pattern one engine admits and another refuses is a bluebook that
-# loads in one place and not another, which is the failure this exists to stop.
+# Which regexes a bluebook may say: a `pattern:` stays inside what regex engines agree on,
+# so a pattern never loads in one place and not another.
 RSpec.describe Hecks::Bluebook::PatternSubset do
-  # PATTERNS_CONTRACT, not contract : a constant assigned inside an RSpec.describe
-  # block lands on Object, so a bare `CONTRACT` here silently overwrote the one in
-  # naming_spec and broke a test in a file this one never mentions. Whichever
-  # loaded second won, which made it look like load-order flakiness.
+  # Named PATTERNS_CONTRACT: a constant assigned in an RSpec.describe lands on Object, and a
+  # bare `CONTRACT` overwrote the one in naming_spec.
   PATTERNS_CONTRACT = File.join(InMemoryDomain::ROOT, "spec/corpus/fixtures/patterns.json").freeze
 
   describe "the constructs it refuses" do
-    # The first four only a backtracking engine can parse. The last two every
-    # engine parses — and means differently, which is the dangerous half :
-    # nothing errors, engines just quietly disagree about whether a value is
-    # valid.
+    # The first four need a backtracking engine. The last two every engine parses but reads
+    # differently, so nothing errors and engines quietly disagree.
     {
       '(a)\1'           => "backreference",
       '(?<x>a)\k<x>'    => "named backreference",
@@ -81,9 +74,7 @@ RSpec.describe Hecks::Bluebook::PatternSubset do
       end
     end
 
-    # A genuine possessive quantifier — including the bounded `{n}+` form,
-    # which the old scan never even looked for — is still refused when it
-    # occurs outside any character class.
+    # A genuine possessive quantifier, including bounded `{n}+`, is refused outside a class.
     {
       "a{2}+"    => "possessive quantifier",
       "a{2,4}+"  => "possessive quantifier",
@@ -99,11 +90,8 @@ RSpec.describe Hecks::Bluebook::PatternSubset do
     end
   end
 
-  # A recorded contract, not a re-derived one : the fixture holds the
-  # expected verdicts, so a regression in the walk is caught against what was
-  # agreed rather than against whatever the walk now says. Recording the
-  # implementation's own answers and diffing it against itself would have
-  # made it unilaterally right.
+  # Verdicts come from the fixture, not from the walk, so a regression is caught against
+  # what was agreed.
   describe "the recorded contract" do
     it "reads every admitted pattern the way the fixture says" do
       rows = JSON.parse(File.read(PATTERNS_CONTRACT))

@@ -5,26 +5,8 @@ module Hecks
   module Projections
     module Deploy
       module Fargate
-        # The extra resources, parameters, outputs and IAM grants a stack can
-        # declare beyond the ones the generator always makes.
-        #
-        # ## Settings
-        #
-        # - `buckets`: S3 buckets, each `{id:, name_prefix:, public_read:, cors_origins:}`. The
-        #   bucket is named `<name_prefix>-<account id>`. `public_read` opens the bucket to
-        #   anonymous `GetObject`. `cors_origins` allows those origins to `GET` from a browser.
-        # - `generated_secrets`: Secrets Manager secrets with a generated value, each
-        #   `{id:, name:, description:, key:, length:}`. `key` is the JSON field the value is
-        #   stored under (`secret`).
-        # - `session_secret`: `{name:, description:}` names the always-created session secret
-        #   and describes it.
-        # - `task_policies` and `execution_policies`: extra IAM policies for the task role (what
-        #   the containers may do) and the execution role (what `ECS` may do to start them).
-        #   Each is `{name:, statements: [{effect:, actions:, resources:}]}`; `effect` is `Allow`
-        #   by default and resources may be intrinsics.
-        # - `parameters`: extra template parameters, a map of name to
-        #   `{type:, default:, description:, no_echo:}`.
-        # - `outputs`: extra template outputs, a map of name to a value or intrinsic.
+        # The extra resources, parameters, outputs and IAM grants a stack can declare beyond
+        # what the generator always makes; settings are documented in the DSL reference.
         module Extras
           module_function
 
@@ -38,14 +20,6 @@ module Hecks
                             ssmmessages:OpenControlChannel ssmmessages:OpenDataChannel].freeze
 
           # Reads and checks the resource-declaring settings.
-          #
-          # @param settings [Hash{Symbol => Object}] the world's `deployed_to("AwsFargate")`
-          #   settings
-          # @return [Hash{Symbol => Object}] `:buckets`, `:secrets`, `:session_secret`,
-          #   `:task_policies`,
-          #   `:execution_policies`, `:parameters` and `:outputs`, each checked and defaulted to
-          #   empty
-          # @raise [ArgumentError] if any of those settings is malformed
           def normalize(settings)
             {
               buckets:            buckets(settings.fetch(:buckets, [])),
@@ -59,9 +33,6 @@ module Hecks
           end
 
           # Renders the buckets and generated secrets.
-          #
-          # @param extras [Hash] the checked settings from `normalize`
-          # @return [String] flush-left resources separated by blank lines, or empty
           def resources_yaml(extras)
             (extras[:buckets].flat_map { |bucket| bucket_blocks(bucket) } + extras[:secrets].map do |secret|
               secret_yaml(secret)
@@ -69,16 +40,11 @@ module Hecks
           end
 
           # Renders extra policies as entries of a role's `Policies` list.
-          #
-          # @param policies [Array<Hash>] the checked policies
-          # @return [String] flush-left list entries, or empty
           def policies_yaml(policies)
             policies.map { |policy| policy_yaml(policy) }.join
           end
 
           # Renders the policy that lets `aws ecs execute-command` open a session in a container.
-          #
-          # @return [String] one flush-left `Policies` list entry
           def execute_command_policy_yaml
             policy_yaml(
               name:       "EcsExecDebug",
@@ -87,9 +53,6 @@ module Hecks
           end
 
           # Renders the extra template parameters.
-          #
-          # @param parameters [Hash{String => Hash}] the checked parameters
-          # @return [String] flush-left parameters, or empty
           def parameters_yaml(parameters)
             parameters.map do |name, given|
               lines = ["#{name}:", "  Type: #{given[:type]}"]
@@ -101,9 +64,6 @@ module Hecks
           end
 
           # Renders the extra template outputs.
-          #
-          # @param outputs [Hash{String => Object}] the checked outputs
-          # @return [String] flush-left outputs, or empty
           def outputs_yaml(outputs)
             outputs.map { |name, value| "#{name}:\n  Value: #{Yaml.string(value)}\n" }.join
           end
@@ -253,8 +213,7 @@ module Hecks
           end
           private_class_method :policy_yaml
 
-          # One entry is written as a scalar, the form IAM policies are usually written in; more are
-          # a list.
+          # One entry is written as a scalar, the form IAM policies usually take; more are a list.
           def statement_list(key, values)
             return ["        #{key}: #{values.first}"] if values.one?
 

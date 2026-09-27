@@ -6,17 +6,8 @@ module Hecks
         module Cdn
           module_function
 
-          # The distribution a stack gets when its world sets no `cdn` options.
-          #
-          # Real HTTPS in front of the load balancer's HTTP-only listener, and
-          # the one safe caching default the generator can offer: every route
-          # is treated as session-driven, so nothing is cached. The comment
-          # inside the rendered block explains why, and reaches the generated
-          # template unchanged.
-          #
-          # @param alb_id [String] the logical id of the load balancer
-          # @param distribution_id [String] the logical id the distribution is given
-          # @return [String] the flush-left resource text with its comments, ending in a newline
+          # The distribution a stack gets when its world sets no `cdn` options: HTTPS in
+          # front of the HTTP-only ALB, caching disabled since every route is session-driven.
           def default_yaml(alb_id:, distribution_id:)
             <<~DEFAULT
               # Real HTTPS (the ALB's own Listener above is HTTP-only —

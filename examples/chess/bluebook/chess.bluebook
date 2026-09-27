@@ -2,26 +2,8 @@ Hecks.bluebook "Chess" do
   vision "A chess game: pieces with no life outside the board that holds them, a status that only ever moves one legal way at a time, and turn order and check enforced by declaration rather than a hand-written engine."
   supporting
 
-  # WHY THIS DOMAIN EXISTS (ADR 0026) — `entity`, `lifecycle`/`transition`,
-  # `policy`, and `ensures` are all declared by the language and only
-  # thinly exercised by the rest of the corpus. A chess game gives each
-  # one real, non-contrived work: a piece has no identity or lifecycle
-  # apart from the game it belongs to (entity); a game's own status moves
-  # in_progress -> check -> checkmate/stalemate/resigned/draw and refuses
-  # every illegal jump (lifecycle); turn order and check are announced by
-  # a policy reacting to a move actually having happened, not computed
-  # inline (policy); and a move has to leave the board in a state its own
-  # postcondition can still vouch for after the fact (ensures).
-  #
-  # DELIBERATELY SIMPLIFIED, on purpose, per this domain's own charter:
-  # this is not a chess engine. Move-shape legality (can a bishop
-  # actually reach that square) is trusted from the caller, the same way
-  # a real client would already have computed it before ever sending the
-  # command. What this domain enforces structurally is everything a rules
-  # engine cannot get away with skipping: whose turn it is, whether the
-  # game is still being played at all, that a square is not already
-  # occupied by a piece of the same color, and that the game's own status
-  # can only ever take one of its declared, legal transitions.
+  # Not a chess engine: move-shape legality is trusted from the caller. This enforces turn order,
+  # game status transitions, and that no square holds two pieces of one color.
   aggregate "Game" do
     description "One game: its pieces, whose turn it is, and how the game currently stands."
 
@@ -43,9 +25,7 @@ Hecks.bluebook "Chess" do
       invariant("a piece has an id") { !value.to_s.empty? }
     end
 
-    # FILE/RANK, ZERO-INDEXED — file 0 is the a-file, rank 0 is white's
-    # own back rank and rank 7 is black's, the same orientation a real
-    # client's own board representation would already use.
+    # Zero-indexed: file 0 is the a-file, rank 0 is white's back rank.
     value_object "Square" do
       attribute :file, Integer
       attribute :rank, Integer
@@ -60,27 +40,18 @@ Hecks.bluebook "Chess" do
       attribute :value, String, one_of: ["pawn", "knight", "bishop", "rook", "queen", "king"]
     end
 
-    # WHETHER A PIECE HAS EVER MOVED — a real rule (castling and a pawn's
-    # own first-move double-step both depend on it) kept as a bare fact
-    # this domain records rather than a legality check it enforces, the
-    # same simplification this file's own header names.
+    # Recorded as a fact, not enforced; castling and a pawn's double-step depend on it.
     value_object "MovedFlag" do
       attribute :value, String, one_of: ["unmoved", "moved"]
     end
 
-    # THE FACT A MOVER DECLARES ABOUT THE OPPONENT'S OWN SIDE, immediately
-    # after the move — this domain trusts it the same way it trusts move
-    # shape, and the two policies below are what turn a true declaration
-    # into the game's own recorded status.
+    # What the mover declares about the opponent's side after the move; trusted like move shape.
     value_object "GameOutcome" do
       attribute :value, String, one_of: ["ongoing", "check", "checkmate", "stalemate"]
     end
 
-    # A CLOSED SET ONE MEMBER WIDER THAN Color — "none" is the state
-    # nobody has offered a draw, which Color itself has no member for.
-    # `OfferDraw`, below, bridges a Color argument straight into this
-    # field (`sets :draw_offer, to: :by`): every Color member is also a
-    # DrawOffer member, so the bridge can never refuse.
+    # One member wider than Color: "none" means no offer. `OfferDraw` bridges a Color into it
+    # with `sets :draw_offer, to: :by`, which can never refuse.
     value_object "DrawOffer" do
       attribute :value, String, one_of: ["none", "white", "black"]
     end
@@ -101,9 +72,7 @@ Hecks.bluebook "Chess" do
 
       identified_by :id
 
-      # DECLARED ONCE, ON THE PIECE (the same shape banking's own
-      # LedgerEntry uses for "customer is active"/"account is open") —
-      # Move and Capture both need the identical fact about the GAME they
+      # Declared once on the piece; Move and Capture read the game's status through `parent`.
       # belong to, read through `parent` rather than retyped on each.
       given("only an active game may be played") { parent.status == "in_progress" || parent.status == "check" }
 
@@ -154,22 +123,12 @@ Hecks.bluebook "Chess" do
       end
     end
 
-    # A draw offer only ever came from one side or nobody — declared once
-    # so AcceptDraw and DeclineDraw read the identical fact rather than
-    # retyping it.
+    # Declared once so AcceptDraw and DeclineDraw read the same fact.
     given("a draw was actually offered, by the other side") { draw_offer.value != "none" && draw_offer.value != by.value }
 
     lifecycle :status, default: "in_progress" do
-      # ORDER MATTERS HERE — every policy below reacting to "PieceMoved"
-      # fires in the order its own `policy` block is declared (Runtime::
-      # PolicyInterpreter#policies_for reads a bluebook's own array in
-      # declaration order), and `AdvanceTurn` is declared, and therefore
-      # runs, BEFORE the three Declare* policies further down. AdvanceTurn
-      # unconditionally clears a stale "check" back to "in_progress" every
-      # time a piece moves; only after that does a genuine new check,
-      # checkmate, or stalemate get declared on top of it. Reverse that
-      # declaration order and a freshly-declared check would be wiped the
-      # instant the turn advances.
+      # Order matters: policies on PieceMoved fire in declaration order, so AdvanceTurn clears a
+      # stale check before the Declare* policies set a new one.
       transition "AdvanceTurn"      => "in_progress", from: ["in_progress", "check"]
       transition "DeclareCheck"     => "check",       from: "in_progress"
       transition "DeclareCheckmate" => "checkmate",   from: ["in_progress", "check"]
@@ -183,9 +142,6 @@ Hecks.bluebook "Chess" do
 
       attribute :label, GameLabel
 
-      # Wave 8 fix — :label is this aggregate's own IDENTITY (line 28),
-      # already a required command attribute, but was never `sets` —
-      # every started game's own :label came back nil.
       sets :label
       sets :turn,       to: "white"
       sets :draw_offer, to: "none"
@@ -194,13 +150,7 @@ Hecks.bluebook "Chess" do
       emits GameStarted
     end
 
-    # LIFECYCLE STATE AS A COMMAND GUARD (S10, ADR 0025). `PlacePiece`/
-    # `OfferDraw` name no matching `transition` — placing a piece or
-    # offering a draw doesn't move the game's own status — so `from:`
-    # is the only thing gating them. `AdvanceTurn`, below, DOES match a
-    # transition; its own `from:` there is redundant-but-kept, same
-    # reason `Account`'s FreezeAccount/Unfreeze/CloseAccount already do
-    # both.
+    # `PlacePiece` and `OfferDraw` match no `transition`, so `from:` alone gates them.
     command "PlacePiece", from: ["in_progress", "check"] do
       goal "Set a piece down on the board — used to build the starting position, or any position a test needs"
 
@@ -220,11 +170,8 @@ Hecks.bluebook "Chess" do
       emits PiecePlaced
     end
 
-    # THE ONLY DOOR A CALLER USES TO MOVE A PIECE — Piece.Move itself is
-    # never dispatched directly here. `delegates_to` makes the entity's
-    # own refusal this command's refusal, synchronously, in the same
-    # dispatch, rather than a reaction a caller would have to poll a log
-    # to see the result of.
+    # The only door for moving a piece; `delegates_to` makes the entity's refusal this command's
+    # own, synchronously.
     command "MovePiece" do
       goal "Move one of your own pieces, on your turn, on the caller's behalf"
 
@@ -345,10 +292,8 @@ Hecks.bluebook "Chess" do
     end
   end
 
-  # TURN ALTERNATION — declared FIRST, see the lifecycle's own comment on
-  # why declaration order matters here. Exactly one of these two ever
-  # matches a given "PieceMoved" event, since `by` is always exactly one
-  # Color.
+  # Declared first because order matters (see the lifecycle); exactly one matches, since `by`
+  # is one Color.
   policy "OnWhiteMovedAdvanceTurn" do
     on Game::PieceMoved
     where { by.value == "white" }
@@ -361,10 +306,7 @@ Hecks.bluebook "Chess" do
     trigger Game::AdvanceTurn, with: { turn: "white" }
   end
 
-  # CHECK DETECTION — reacting to a move having actually happened, not
-  # computed inline inside `Piece.Move` itself. Each `where` reads the
-  # `outcome` the mover declared on the very event `AdvanceTurn`, above,
-  # already reacted to.
+  # Check detection reacts to a completed move, reading the `outcome` the mover declared.
   policy "OnCheckDeclaredAfterMove" do
     on Game::PieceMoved
     where { outcome.value == "check" }

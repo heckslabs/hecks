@@ -67,14 +67,8 @@ RSpec.describe "receiver routing outside the command payload" do
     end.to raise_error(Hecks::Runtime::TypeMismatch, /needs 1 entity identity.*got 0/)
   end
 
-  # BUG#18 — a routing envelope naming only the aggregate (`entities: []`,
-  # or `entity`/`entities` absent altogether) on an aggregate-level command
-  # (entity_depth 0) would satisfy `envelope`'s own `entities.size !=
-  # entity_depth` check trivially (`0 != 0` is false) and reach the
-  # command's own validation instead of being refused as a malformed
-  # route — Rust's `RoutingEnvelope::from_json` always refused this Hash
-  # shape outright, unconditionally, regardless of entity_depth. Both now
-  # refuse at the same point, TypeMismatch, matching Rust's own wording.
+  # An aggregate-only envelope (`entities: []` or absent) on an entity_depth 0 command passes
+  # the `entities.size != entity_depth` check trivially; Rust refuses it outright, so must Ruby.
   def open_account(runtime, ref: "c1", number: "a1")
     runtime.dispatch_flat("Banking::Customer.Register", reference: { value: ref },
                      name: { given: "A", family: "Customer" }, email: { address: "a@example.com" })
@@ -121,14 +115,8 @@ RSpec.describe "receiver routing outside the command payload" do
     end.not_to raise_error
   end
 
-  # The `with:` half of the same bug — Ruby already refused this
-  # combination (TypeMismatch, "with: plus loose kwargs" — unrelated to
-  # what `with:` actually contains), but Rust silently dropped the
-  # sibling fact and judged `with:`'s own value as the facts instead,
-  # refusing UnknownArgument — a different kind for the identical
-  # malformed step (rust/src/kernel/routing.rs's own regression test,
-  # `refuses_with_beside_a_sibling_legacy_fact_the_same_as_ruby_does`,
-  # pins the Rust side of this same alignment).
+  # Rust once judged `with:`'s value as the facts and refused UnknownArgument; both must now
+  # refuse TypeMismatch (pinned Rust-side in rust/src/kernel/routing.rs).
   it "refuses with: carrying a routing-shaped object beside a loose legacy fact" do
     runtime = boot_banking
     open_account(runtime)

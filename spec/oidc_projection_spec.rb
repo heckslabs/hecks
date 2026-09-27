@@ -1,28 +1,8 @@
 require "hecks"
 require "hecks/fuzzing/isolated_boot"
 
-# §11'S integration layer — everything between a verified OIDC token and
-# an authorized dispatch. What "verified" means (redirect, code exchange,
-# JWT/JWKS signature checking against a live provider) is deliberately
-# out of scope: real, security-critical, external-dependency work,
-# tracked separately. This starts from claims already in hand, exactly
-# the plan doc's own sketch:
-#
-#   identity = identities.lookup_external(issuer: claims["iss"], subject: claims["sub"])
-#   Hecks.as_caller(role: governance.role_for(identity)) { runtime.dispatch(...) }
-#
-# `lookup_external` is `Ports::IdentityResolution.resolve` ; `role_for`
-# is folded into the same check `Ports::Authorization.holds_role?`
-# already makes for `act_as` — the model here is "does this identity
-# hold the one role this command needs," not a single role-per-identity
-# lookup, since `RoleAssignment` already supports an actor holding
-# several roles at once.
-#
-# The real, shipped wiring, same as governance_authorization_spec.rb —
-# Banking's own `.hecksagon` already declares `uses_framework
-# "Governance"` and `uses_framework "Identity"`, so a plain `Hecks.boot`
-# has both in the same registry, and `Fuzzing::IsolatedBoot` keeps a
-# Heki-backed boot from touching examples/banking/data/ for real.
+# Integration layer between verified OIDC claims and an authorized dispatch.
+# Token verification (redirect, code exchange, JWKS) is out of scope; tests start from claims.
 RSpec.describe "the OIDC client projection's integration layer" do
   def runtime
     Hecks::Fuzzing::IsolatedBoot.call("examples/banking") { |copy| return Hecks.boot(copy) }
@@ -58,10 +38,7 @@ RSpec.describe "the OIDC client projection's integration layer" do
     )
   end
 
-  # The application-level composition — not new library code, the same
-  # discipline `act_as_spec.rb`'s own helper follows: verified claims in,
-  # a scoped dispatch out, refusing before the block ever runs if either
-  # step says no.
+  # Application-level composition: verified claims in, scoped dispatch out, refused up front.
   def authenticated_dispatch(registry, issuer:, subject:, role:, &block)
     identity_id = Hecks::Ports::IdentityResolution.resolve(registry, issuer: issuer, subject: subject)
     raise "unknown identity" unless identity_id

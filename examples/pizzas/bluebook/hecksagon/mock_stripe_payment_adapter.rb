@@ -1,26 +1,9 @@
 #!/usr/bin/env ruby
 
-# A driving adapter, standing in for a real Stripe webhook handler — the
-# same role a Rails controller would play (see docs/rails-integration.md's
-# "Rails is a driving adapter, not a special one"), reduced to what's
-# needed to demonstrate the shape without a real Stripe account. Boots
-# Pizzas the normal way (bin/console's own path) and calls straight
-# through Dispatcher#dispatch_port, exactly as a webhook controller would.
+# Driving adapter standing in for a Stripe webhook handler: boots Pizzas and calls
+# Dispatcher#dispatch_port, which translates the payment into PizzaPaymentReceived.
 #
 #   examples/pizzas/bluebook/hecksagon/mock_stripe_payment_adapter.rb
-#
-# Lives beside pizzas.hecksagon, deliberately — a `.hecksagon` file
-# declares a port; a `hecksagon/` folder beside it holds the driving
-# adapters that actually call one, the same pairing
-# `lib/hecks/adapters/driven/` already has with `.adapter` files,
-# mirrored for the opposite direction. Findable by walking there, not by
-# knowing this file's name in advance.
-#
-# What this proves end to end: the port never touches Purchase's own
-# business rules directly — it only translates an external fact
-# ("this payment succeeded") into the domain's own event vocabulary
-# (PizzaPaymentReceived), and OnPizzaPaymentReceived (pizzas.bluebook)
-# is what actually triggers Purchase, given/then_set and all.
 
 $LOAD_PATH.unshift File.expand_path("../../../../lib", __dir__)
 
@@ -29,22 +12,16 @@ require "hecks"
 DOMAIN  = File.expand_path("../..", __dir__)
 RUNTIME = Hecks.boot(DOMAIN)
 
-# Unique per run — this script is meant to be re-run freely, and identity
-# here is never minted (see command_interpreter.rb's own "nothing is
-# minted"), so a repeat name is a repeat record, refused as AlreadyExists.
+# Unique per run: identity is never minted, so a repeated name would be refused as AlreadyExists.
 NAME = "StripeDemoMargherita-#{Process.pid}-#{rand(10_000)}".freeze
 
-# Set the stage: an order that's actually purchasable — Purchase's own
-# `given` rules (at least one topping, still available) apply exactly the
-# same whether reached directly or through this port.
+# Set the stage: an order Purchase's `given` rules will accept.
 order = Order.create_pizza(name: { value: NAME }, pizza: { price_cents: { cents: 1200 }, size: { value: "large" } })
 order.add_topping(topping: { value: "Basil" }, amount: { value: 3 })
 
 puts "Before payment: #{order.status}, customer=#{order.customer_name.inspect}"
 
-# **The webhook** — a real handler would verify a Stripe signature here and
-# pull these fields out of event.data.object; a reference is always a bare
-# id (never an object), matching every other reference in this language.
+# The webhook: a real handler would verify a Stripe signature; a reference is always a bare id.
 RUNTIME.dispatch_port(
   "Pizzas", "Order", "PaymentGateway", "Receive",
   flat: {

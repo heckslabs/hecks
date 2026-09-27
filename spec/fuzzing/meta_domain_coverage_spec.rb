@@ -1,70 +1,16 @@
 require "spec_helper"
 require "hecks/fuzzing"
 
-# The gate that automates the thing this arc exists for — "we don't do
-# a good job of adding the properties when we add to the language."
-# `Bluebook::MetaValidator.grammar_registry` is the language (that
-# module's own header: "the language IS the source" — every real
-# bluebook is judged against it, and it is loaded from the same
-# `language/bluebook/*.bluebook` files whether a domain author or this
-# spec asks). So every construct and attribute the language can ever
-# declare is enumerable, mechanically, with no second list to keep in
-# sync by hand — which is exactly the list `combination_coverage_spec.rb`
-# already keeps by hand for pairwise form coverage (that file's own
-# header: "Adding a property here is how a new form joins the gate").
-#
-# This spec closes the gap one level up: not "is this form exercised at
-# all," but "does a real run's invariant exist for this feature, or was
-# it left unchecked." `Properties::FEATURE_COVERAGE` is the claim —
-# which property answers for which "Construct#attribute" — and this
-# spec is the only thing that reads both the claim and the grammar and
-# refuses to let them drift apart silently:
-#
-#   * a claimed feature that no longer exists in the grammar (renamed,
-#     removed) fails loudly here, not by quietly protecting nothing
-#   * a feature the grammar adds that nobody claims, and that isn't an
-#     explicitly reasoned exemption or a named, honest KNOWN_GAP, fails
-#     here too — the moment it lands, not whenever someone remembers to
-#     go looking
-#
-# META_DOMAIN_KNOWN_GAPS is not a place to hide an unclaimed feature — it is a
-# visible, itemized admission ("this needs a property, this session did
-# not write one, here is why it's not a property yet"), the same
-# distinction `spec/combination_coverage_spec.rb`'s own "unmet on
-# purpose — and empty, which is the position to defend" makes for its
-# own gate.
+# Fails when FEATURE_COVERAGE and the language's own grammar drift apart: a claimed feature
+# the grammar dropped, or a grammar feature with no claim, exemption, guarantee or named gap.
 RSpec.describe "the fuzzer's declared properties, against the language's own grammar" do
   META_DOMAIN_GRAMMAR = Hecks::Bluebook::MetaValidator.grammar_registry.bluebook("Bluebook")
   META_DOMAIN_PROPERTY_COVERAGE = Hecks::Fuzzing::Properties::FEATURE_COVERAGE
   META_DOMAIN_GUARANTEED_BY_CONSTRUCTION = Hecks::Fuzzing::Properties::GUARANTEED_BY_CONSTRUCTION
 
-  # Every "Construct#attribute" the language can declare, read straight
-  # off the meta-domain — never re-typed, so an attribute added to
-  # `language/bluebook/*.bluebook` appears here the next time this spec
-  # runs, with no second edit anywhere in this file required to notice
-  # it exists.
-  # S17, ADR 0026 — an aggregate's own entities carry attributes too
-  # (Member, nested under ValueObject), and their fields are just as real
-  # a fuzzer-coverage question as any top-level aggregate's — so they are
-  # walked here rather than silently dropping out of account the day
-  # `entity "Member"` replaced `aggregate "Member"`.
-  #
-  # **Recursive, at every depth** — not just one hop down. An entity can
-  # nest its own entities (`entity "Dispatch"`, inside `entity "Handler"`,
-  # inside `aggregate "ProcessManager"` — lib/hecks/language/bluebook/
-  # process_manager.bluebook), and walking only `agg.entities` would
-  # stop at Handler, leaving Dispatch's own fields
-  # (command_name/position/with_spec/compensates_command_name/
-  # compensates_with_spec) outside this list entirely — never claimed,
-  # never exempted, never gapped, because they were never even
-  # enumerated. That is the exact one-level assumption BUG#11 broke in
-  # the sequence generator's own catalog (`lib/hecks/fuzzing/
-  # sequence_generator/catalog.rb`'s `each_entity_chain`, walking every
-  # depth for the same reason) — this spec had the identical bug in a
-  # different place. `walk_grammar_entities` is a fresh, spec-owned walk
-  # over the language's own Aggregate/Entity model objects (never a
-  # booted runtime's catalog — a different set of objects, so this is
-  # not an import of that generator code, just the same shape of fix).
+  # Every "Construct#attribute" the language declares, read off the meta-domain so new
+  # attributes appear without a second edit. Entities are walked at every depth: they nest
+  # (Dispatch inside Handler inside ProcessManager).
   walk_grammar_entities = lambda do |owner, &collect|
     owner.entities.each do |entity|
       collect.call(entity)
@@ -80,13 +26,8 @@ RSpec.describe "the fuzzer's declared properties, against the language's own gra
     agg.attributes.map { |attr| "#{agg.name}##{attr.name}" } + nested_features
   end.freeze
 
-  # META_DOMAIN_STRUCTURAL_FEATURES bookkeeping — no property should ever single these out,
-  # because they carry no behavior of their own to have wrong: an
-  # identity/foreign-key column, a position index the language's own
-  # `spec/ir_golden_spec.rb` already pins byte-for-byte, a human-facing
-  # label, or the meta-domain's own grammar tables (`Vocabulary`,
-  # `Syntax` — the closed sets a domain's fields point into, not a
-  # feature a domain itself exercises).
+  # Bookkeeping no property should single out: identity/foreign-key columns, position indexes
+  # pinned by spec/ir_golden_spec.rb, labels, and the meta-domain's own grammar tables.
   META_DOMAIN_STRUCTURAL_FEATURES = %w[
     Bluebook#name Bluebook#vision Bluebook#classification Bluebook#version
     Bluebook#formerly_known_as Bluebook#normalisations Bluebook#attaches_to
@@ -101,13 +42,8 @@ RSpec.describe "the fuzzer's declared properties, against the language's own gra
     Vocabulary#name Syntax#name Syntax#bluebook
   ].concat(META_DOMAIN_ALL_FEATURES.select { |f| f.end_with?("#position") }).freeze
 
-  # **Honest, itemized gaps** — a feature real enough to deserve its own
-  # invariant, that this arc did not reach, and that construction alone
-  # does not already guarantee (see `Properties::GUARANTEED_BY_CONSTRUCTION`
-  # for the features that were checked for that category and qualified —
-  # this list is what's left once those are subtracted out). Each entry
-  # names the candidate property a future session should write, so
-  # "unclaimed" never has to mean "unnoticed."
+  # Features that deserve an invariant, are not guaranteed by construction, and have no
+  # property yet. Each entry names the candidate property to write.
   META_DOMAIN_KNOWN_GAPS = {
     "Command#references"                => "reference-typed command arguments are exercised constantly (guard dereferencing) " \
                                            "but have no property of their own asking whether a dangling reference was ever " \
@@ -117,29 +53,12 @@ RSpec.describe "the fuzzer's declared properties, against the language's own gra
                                            "doesn't declare",
     "Policy#trigger_command"            => "a policy's own target command is exercised by dispatch itself; no property " \
                                            "names a mismatch between declared trigger and what actually fired",
-    # Re-examined 2026-09-11 (angle-4) — the premise this entry carried
-    # ("none of the example domains declare one yet") was stale: banking
-    # declares four `across` policies today (ReviewOnFreeze/
-    # ReviewOnBoxSurrender -> "Compliance",
-    # NotifyOnClosure/FlagKeyReturn -> "Notifications" —
-    # examples/banking/bluebook/deposit_accounts.bluebook:477,573,
-    # safe_deposit_boxes.bluebook:270,276), two of them the very
-    # `unacknowledged_relationship`/`unknown_target_domain` pair those two
-    # policies now declare as expected (`expect_undelivered: true`, checked
-    # by model_check.rb in both directions). The gap itself still
-    # holds — nothing in FEATURE_COVERAGE claims Policy#target_domain,
-    # and no fuzzer property (as opposed to model_check's static check)
-    # asks whether a generated sequence's cross-domain dispatch actually
-    # resolves to the declared target — only the premise needed fixing.
-    # Checked statically, not by a property: model_check.rb raises
-    # stale_undelivered_expectation when a declared target is reachable,
-    # and spec/model_check_spec.rb proves both directions on banking.
+    # Held statically: model_check.rb raises stale_undelivered_expectation when a declared
+    # target is reachable (spec/model_check_spec.rb proves both directions on banking).
     "Policy#expect_undelivered"         => "a declared-undelivered across target is held by model_check.rb's static " \
                                            "stale check, but no fuzzer PROPERTY asks whether a generated sequence's " \
                                            "reaction to such a policy is actually recorded as undelivered at runtime",
-    # Read by the role check, boot's ungoverned-role refusal, the
-    # authorization adapter and the fuzzer's own grant steering (the
-    # `actor_known` caller shape), all over real Governance boots.
+    # Read by the role check, the ungoverned-role boot refusal and the fuzzer's grant steering.
     "Bluebook#provides"                 => "the declared authorization verbs drive every identified-caller role check a " \
                                            "sequence makes, but no property asks whether holds_role? through the " \
                                            "declared assignments verb agrees with the grants the sequence itself made",
@@ -162,18 +81,8 @@ RSpec.describe "the fuzzer's declared properties, against the language's own gra
                                            "sequence never runs — so there is no dispatch-shaped behavior yet for a " \
                                            "property to exercise. spec/runtime/rebuild_sweep_spec.rb covers the sweep " \
                                            "itself directly instead",
-    # Found by the depth fix on 2026-09-11 — leads, not accepted. Before
-    # `walk_grammar_entities` (above) recursed past one hop, Dispatch's
-    # own fields (nested two entities deep — ProcessManager -> Handler ->
-    # Dispatch, lib/hecks/language/bluebook/process_manager.bluebook:187,
-    # 237) never appeared in META_DOMAIN_ALL_FEATURES at all, so they
-    # were never claimed, exempted, guaranteed, or gapped — not "known,
-    # accepted, and named," just structurally invisible to this whole
-    # spec. `Dispatch#position` needed no entry (it auto-qualifies as
-    # structural — ends in `#position`, `META_DOMAIN_STRUCTURAL_FEATURES`
-    # above). These four are real, itemized leads for a future session,
-    # not settled gaps this session investigated and accepted — see the
-    # PR body for each one's own file:line and disposition.
+    # Found when the grammar walk began recursing past one hop; leads, not accepted gaps.
+    # `Dispatch#position` is structural (see META_DOMAIN_STRUCTURAL_FEATURES).
     "Dispatch#command_name"             => "found by the depth fix on 2026-09-11; lead, not accepted. " \
                                            "dispatch_binding_fidelity " \
                                            "(lib/hecks/fuzzing/properties/dispatch_and_mutations.rb) already " \
@@ -205,15 +114,8 @@ RSpec.describe "the fuzzer's declared properties, against the language's own gra
                                            "(spec.compensates.with_spec, resolved via the same `dispatch_args` call " \
                                            "`deliver_saga_dispatch` uses) is never logged anywhere a property could " \
                                            "independently re-derive it against",
-    # S14, ADR 0026 — Syntax/Keyword/Argument are meta-domain-only : the
-    # language's own grammar table, dispatched once at boot by
-    # `SyntaxBoot` (a dedicated, internal mechanism — spec/syntax_
-    # lifecycle_spec.rb and spec/syntax_conformance_spec.rb already hold
-    # every row to the builders directly), never something a generated
-    # fuzzer sequence exercises the way it exercises a real domain's own
-    # Account/Customer dispatches. The fuzzer walks real corpus domains
-    # (banking, pizzas, ...), none of which ever declares Syntax data —
-    # there is no dispatch-shaped behavior here for a property to reach.
+    # Syntax/Keyword/Argument are the language's own grammar table, seeded once by SyntaxBoot;
+    # no domain the fuzzer walks declares Syntax data, so there is no dispatch to exercise.
     "Syntax#keywords"                   => "META-DOMAIN-ONLY grammar table, seeded once by SyntaxBoot — no real domain " \
                                            "the fuzzer walks ever dispatches Syntax data ; " \
                                            "spec/syntax_lifecycle_spec.rb/spec/syntax_conformance_spec.rb already hold " \
@@ -267,12 +169,7 @@ RSpec.describe "the fuzzer's declared properties, against the language's own gra
                      "declares — a rename or removal left a property's claim pointing at nothing"
   end
 
-  # The third table had no rot check, and said so — `Properties`' own
-  # comment on `dispatch_binding_fidelity` records the consequence: two
-  # `Dispatch#*` entries sat here naming strings the grammar walk never
-  # produces, so they exempted nothing and nothing noticed. A gap naming
-  # a feature that no longer exists is worse than no entry at all: it
-  # reads like an accounted-for hole while accounting for nothing.
+  # A gap naming a missing feature reads as accounted for while covering nothing.
   it "never lets a gap rot either — every META_DOMAIN_KNOWN_GAPS entry names a feature the live grammar still declares" do
     stale = META_DOMAIN_KNOWN_GAPS.keys - META_DOMAIN_ALL_FEATURES
 
@@ -281,14 +178,8 @@ RSpec.describe "the fuzzer's declared properties, against the language's own gra
                      "declares — delete the entry, or fix the name it was meant to point at"
   end
 
-  # Every property the battery runs declares what it answers for. This
-  # file walks grammar -> claim; nothing walked property -> claim, so a
-  # property could join `Properties.check` and never appear in
-  # `FEATURE_COVERAGE` at all — which is how `commands_respect_tenant_scope`
-  # and `corrections_reference_an_emitted_event` both ran for real while
-  # that file's own stated discipline ("every property declares the
-  # language feature it covers") quietly did not hold for them. Read off
-  # the source, not by calling `check` — that needs a real history.
+  # Walks property -> claim (the other tests walk grammar -> claim). Reads the source of
+  # `Properties.check` because calling it needs a real history.
   it "lets no property run unclaimed — every property in Properties.check appears in FEATURE_COVERAGE" do
     source = File.read(File.join(InMemoryDomain::ROOT, "lib/hecks/fuzzing/properties.rb"))
     body = source[/def check\(history\)(.*?)\n      end/m, 1].to_s

@@ -1,14 +1,5 @@
-# A DEDICATED FIXTURE for the CHAPTER-WIDE, ENTITY-SCOPED `given`
-# scope — one level below `Aggregate`'s own existing chapter-wide
-# sharing (`spec/rule_reference_spec.rb`'s own "resolve_owner_keyed
-# (AggregateBuilder#given)"). Two DIFFERENT aggregates' own nested
-# entities share a `given` predicate across the aggregate boundary,
-# mirroring the real corpus shape this construct exists for:
-# `Account::LedgerEntry` and `SafeDepositBox::Visit` (examples/banking/)
-# both used to independently type `given("customer is active") {
-# parent.customer.status == "active" }`, byte for byte — `Visit` now
-# spells `given("customer is active", declared_by: "Account.LedgerEntry")`
-# instead.
+# Fixture for chapter-wide, entity-scoped `given`: entities of two different aggregates
+# share one predicate across the aggregate boundary via `declared_by:`.
 Hecks.bluebook "ChapterEntityGiven" do
   vision "Two aggregates' own nested entities sharing one precondition across the aggregate boundary."
   core

@@ -1,57 +1,22 @@
 module Hecks
   module Projections
     module Deploy
-      # Plumbing `Lambda` and `Fargate` both need — VPC/subnet/security-group
-      # resources, RDS/Aurora, `bastion.yaml`, and a cross-domain policy's
-      # own least-privilege invoke grant are the same problem (get a
-      # domain's own Postgres instance stood up and reachable for the one
-      # boot that mints era 1, and let a domain call another domain's
-      # Lambda) whichever compute target ships the domain's own code.
-      #
-      # Plain module functions, not a registered `Projector::Target` — this
-      # has no `deployed_to(...)` block of its own to generate from, only
-      # helpers the two real targets call with the facts they have already
-      # resolved (`db_id`, `aurora`, `google_oauth_present`, and so on).
-      #
-      # Every `*_table` method here answers the same `key`/`var`/`name`
-      # strings regardless of which target built them — `stack_outputs`'
-      # own `"FunctionSecurityGroupId"` key, in particular, is what a
-      # Shared-mode domain looks up from its owner's stack (`bin/project_deploy`'s
-      # own Shared-mode branch), and that lookup has to succeed the same
-      # way whether the owner is a `Lambda` or a `Fargate` deploy.
+      # VPC, RDS/Aurora, bastion and cross-domain invoke plumbing shared by the
+      # `Lambda` and `Fargate` deploy targets. Plain module functions, not a Target.
       module Shared
         module_function
 
-        # The stack↔bastion contract — one shared table each of
-        # `template.yaml`'s Outputs, `bastion.yaml`'s Parameters, and a
-        # Makefile's own eval/`--parameter-overrides` lines reads from,
-        # instead of three to four independent string literals per fact
-        # with nothing checking they agree. `var` is the Make variable
-        # each output becomes.
+        # The stack-to-bastion contract: one table that `template.yaml` Outputs,
+        # `bastion.yaml` Parameters and the Makefile overrides all read from.
+        # Empty when `shared`, since such a domain provisions no VPC/RDS of its own.
         #
-        # Empty when `shared` — a Shared-mode domain provisions no
-        # VPC/RDS of its own to expose at all (`bastion_parameters`,
-        # `bastion_yaml`, and era-minting are all skipped for the same
-        # reason: there's nothing here for a bastion to reach). A
-        # Shared-mode domain's own stack is never an owner, so nothing
-        # downstream ever needs to look these up from it either.
-        #
-        # @param shared [Boolean] whether this domain borrows another domain's
-        #   RDS instance (`database "Shared"`) rather than provisioning its own
-        # @param db_id [String] the RDS/VPC resources' own shared logical-id prefix
-        # @param db_ref_id [String] the logical id `.Endpoint`/`.MasterUserSecret` resolve
-        #   against — `db_id` itself for plain RDS, `"#{db_id}Cluster"` for Aurora
-        # @param secret_intrinsic [String] the rendered `!Ref`/`!GetAtt` expression for
-        #   this domain's own database secret
-        # @param compute_security_group_ref [String] the `!Ref` expression for the
-        #   compute resource's own security group (a Lambda function's, an `ECS`
-        #   service's) — reused by a Shared-mode domain elsewhere to attach its own
-        #   compute to this domain's VPC without minting a security group of its own
-        # @param google_oauth_present [Boolean] whether this domain's own NAT
-        #   Gateway/public-subnet resources exist, and so whether `PublicSubnetId`/
-        #   `BastionSubnetId` are real outputs to expose
-        # @return [Array<Hash{Symbol => String}>] frozen; each entry a `{key:, var:,
-        #   ref:}` triple
+        # @param shared [Boolean] whether this domain borrows another domain's RDS instance
+        # @param db_id [String] shared logical-id prefix of the RDS/VPC resources
+        # @param db_ref_id [String] logical id `.Endpoint` resolves against (Cluster for Aurora)
+        # @param secret_intrinsic [String] rendered `!Ref`/`!GetAtt` for the database secret
+        # @param compute_security_group_ref [String] `!Ref` for the compute's security group
+        # @param google_oauth_present [Boolean] whether the NAT/public-subnet resources exist
+        # @return [Array<Hash{Symbol => String}>] frozen `{key:, var:, ref:}` entries
         def stack_outputs(shared:, db_id:, db_ref_id:, secret_intrinsic:, compute_security_group_ref:, google_oauth_present:)
           return [].freeze if shared
 
@@ -60,44 +25,25 @@ module Hecks
             { key: "DbSecurityGroupId", var: "DB_SG_ID",       ref: "!Ref #{db_id}SecurityGroup" },
             { key: "DatabaseEndpoint",  var: "DB_HOST",       ref: "!GetAtt #{db_ref_id}.Endpoint.Address" },
             { key: "DatabaseSecretArn", var: "DB_SECRET_ARN", ref: secret_intrinsic },
-            # Not consumed by anything in this domain's own generated output —
-            # a "Shared"-mode domain elsewhere looks these two up live to
-            # attach its own compute to this domain's VPC/security group
-            # without minting either itself.
+            # Read live by a Shared-mode domain to attach its compute to this VPC.
             { key: "FunctionSecurityGroupId", var: "FN_SG_ID",            ref: compute_security_group_ref },
             { key: "PrivateSubnetAId",        var: "PRIVATE_SUBNET_A_ID", ref: "!Ref #{db_id}SubnetA" },
             { key: "PrivateSubnetBId",        var: "PRIVATE_SUBNET_B_ID", ref: "!Ref #{db_id}SubnetB" },
-            # Only when google_oauth_present — #{db_id}PublicSubnet (and the
-            # Internet Gateway it's attached through) only exist as resources
-            # at all when the NAT Gateway block does. `bastion.yaml` needs
-            # this: a VPC accepts only one attached Internet Gateway, and one
-            # already exists once this is true — its own temporary IGW+subnet
-            # would collide (a real, live "Resource.AlreadyAssociated").
+            # A VPC accepts one Internet Gateway; `bastion.yaml` must reuse this subnet's
+            # rather than mint its own (Resource.AlreadyAssociated).
             *(google_oauth_present ? [{ key: "PublicSubnetId", var: "PUBLIC_SUBNET_ID", ref: "!Ref #{db_id}PublicSubnet" }] : []),
-            # A separate subnet from PublicSubnetId, same shared route
-            # table/Internet Gateway -- #{db_id}PublicSubnet always lands in
-            # AZ index 0 (`!Select [0, !GetAZs '']`), and a real, live
-            # CREATE_FAILED caught this account unable to launch any EC2
-            # instance there at all ("Your requested instance type ... is
-            # not supported in your requested Availability Zone
-            # (us-east-1a)") -- NatGateway and RDS aren't EC2 instances and
-            # never hit this, only BastionInstance does. AZ index 1 instead,
-            # matching #{db_id}SubnetB's own choice.
+            # Separate AZ-1 subnet: EC2 instances cannot launch in AZ index 0 on this
+            # account, which only the bastion hits.
             *(google_oauth_present ? [{ key: "BastionSubnetId", var: "BASTION_SUBNET_ID", ref: "!Ref #{db_id}BastionPublicSubnet" }] : []),
           ].freeze
         end
 
-        # `bastion.yaml`'s own Parameters — deliberately allowed to rename
-        # (`RdsSecurityGroupId` reads better inside `bastion.yaml` than the
-        # stack output's own `DbSecurityGroupId`), which is exactly the kind
-        # of rename that can silently drift between the two files without
-        # this shared table.
+        # `bastion.yaml`'s Parameters, kept in one table so renames cannot drift
+        # from the stack outputs.
         #
-        # @param shared [Boolean] whether this domain borrows another domain's
-        #   RDS instance — see `stack_outputs`' own comment
+        # @param shared [Boolean] see `stack_outputs`
         # @param google_oauth_present [Boolean] see `stack_outputs`
-        # @return [Array<Hash{Symbol => String}>] frozen; each entry a `{name:,
-        #   from_output:, type:}` triple
+        # @return [Array<Hash{Symbol => String}>] frozen `{name:, from_output:, type:}` entries
         def bastion_parameters(shared:, google_oauth_present:)
           return [].freeze if shared
 
@@ -109,16 +55,9 @@ module Hecks
           ].freeze
         end
 
-        # A generation-time assertion, not a bluebook refusal — this is the
-        # generator catching its own bug immediately, before writing a
-        # single file, instead of producing a `bastion.yaml` whose Parameter
-        # nothing could ever fill.
+        # Generation-time check that every bastion parameter maps to a stack output.
         #
-        # @param bastion_parameters [Array<Hash{Symbol => String}>] as `bastion_parameters` builds
-        # @param stack_outputs [Array<Hash{Symbol => String}>] as `stack_outputs` builds
-        # @return [void]
-        # @raise [RuntimeError] if any parameter names a `from_output` absent from
-        #   `stack_outputs`
+        # @raise [RuntimeError] if a parameter names a `from_output` absent from `stack_outputs`
         def check_bastion_parameters!(bastion_parameters, stack_outputs)
           bastion_parameters.each do |param|
             stack_outputs.any? { |o| o[:key] == param[:from_output] } or
@@ -126,27 +65,13 @@ module Hecks
           end
         end
 
-        # Renders the least-privilege IAM grant a cross-domain policy's own
-        # invoke needs — one `lambda:InvokeFunction` statement per declared
-        # `across:` target, appended to the compute role's existing
-        # `Policies:` list. `rust/host`'s own `lambda_client.rs`
-        # (`AwsLambdaInvoker`) is the one piece of a cross-domain dispatch
-        # path that needs this at all, regardless of which compute target
-        # ships the calling domain's own code — a Fargate task and a Lambda
-        # function both reach another domain's dispatch Lambda the same way.
+        # Renders one `lambda:InvokeFunction` IAM statement per `across:` target,
+        # to append to the compute role's `Policies:` list.
+        # An ARN for a not-yet-deployed function is valid IAM; the call just fails until then.
         #
-        # Declared, not deployed: an ARN naming a function that does not
-        # exist yet is still valid IAM policy — the call simply fails with
-        # `ResourceNotFoundException` instead of `AccessDeniedException`
-        # until the target domain is deployed for real.
-        #
-        # @param targets [Array<String>] the domain names this stack's `across:` targets
-        #   declare
-        # @param base [String] the marker line's own rendered indentation whitespace;
-        #   everything below is built relative to it
-        # @return [String] the rendered comment plus one `Statement`-shaped IAM policy
-        #   entry granting invoke on each target's function ARN, ending in exactly one
-        #   trailing newline; an empty string if `targets` is empty
+        # @param targets [Array<String>] domain names declared by `across:`
+        # @param base [String] indentation of the marker line
+        # @return [String] the YAML ending in one newline; empty if `targets` is empty
         def cross_domain_invoke_policy_yaml(targets, base)
           return "" if targets.empty?
 
@@ -173,32 +98,18 @@ module Hecks
           ].join("\n") + "\n"
         end
 
-        # Renders one domain's own private VPC, subnets, RDS/Aurora Postgres
-        # instance, and the two security groups pairing it with its compute
-        # — everything `Lambda` and `Fargate` both need to give a
-        # non-`"Shared"`-mode domain a real, reachable Postgres endpoint.
-        # Dedented flush-left, the same shape a caller's own enclosing
-        # `<<~` heredoc expects to reindent as it splices this in.
+        # Renders a domain's private VPC, subnets, RDS/Aurora Postgres and the two
+        # security groups pairing it with its compute, dedented flush-left.
+        # The compute group has no inbound rule; it only needs egress to the database.
         #
-        # `compute_logical_id`'s own security group carries no inbound rule
-        # at all — neither a Lambda function nor a Fargate task/`ALB` target
-        # group receives traffic over this VPC-attached `ENI` directly, only
-        # egress to the database (and, when `google_oauth_present`, to the
-        # internet for a real OAuth token exchange).
-        #
-        # @param db_id [String] the RDS/VPC resources' own shared logical-id prefix
-        # @param db_name [String] the database identifier RDS/Aurora provisions
-        # @param infra_name [String] the domain's own AWS-facing name, quoted in the
-        #   `DBSubnetGroupDescription`
+        # @param db_id [String] shared logical-id prefix of the RDS/VPC resources
+        # @param db_name [String] database identifier RDS/Aurora provisions
+        # @param infra_name [String] AWS-facing domain name, quoted in the subnet group description
         # @param aurora [Boolean] Aurora Serverless v2 when true, plain RDS otherwise
-        # @param google_oauth_present [Boolean] whether a NAT Gateway, public subnet, and
-        #   the compute security group's own internet egress rule are needed
-        # @param compute_logical_id [String] the compute resource's own logical id,
-        #   naming its security group and egress rules
-        # @param compute_description [String] the compute security group's own
-        #   `GroupDescription` text — what actually terminates the `ENI` this ingress
-        #   pairs with
-        # @return [String] the rendered CloudFormation Resources, flush-left
+        # @param google_oauth_present [Boolean] whether to add a NAT Gateway and internet egress
+        # @param compute_logical_id [String] logical id naming the compute's security group
+        # @param compute_description [String] the compute security group's `GroupDescription`
+        # @return [String] the rendered CloudFormation Resources
         def vpc_and_database_yaml(db_id:, db_name:, infra_name:, aurora:, google_oauth_present:, compute_logical_id:, compute_description:)
           <<~OWNDB.rstrip
             #{db_id}Vpc:
@@ -466,25 +377,15 @@ module Hecks
           OWNDB
         end
 
-        # Renders the temporary era-minting bastion — a standalone
-        # CloudFormation template, deployed and destroyed by `make
-        # mint-era`, never merged into the main stack. SSM Session Manager
-        # only, never SSH: no key pair, no inbound security group rule at
-        # all — the only way in is `aws ssm start-session`, itself gated by
-        # the caller's own IAM permissions.
+        # Renders the temporary era-minting bastion: a standalone template deployed
+        # and destroyed by `make mint-era`. SSM Session Manager only, no inbound rules.
+        # Callers skip this when `shared`, as there is no RDS/VPC for it to reach.
         #
-        # Callers skip this entirely when `shared` — a Shared-mode domain
-        # provisions no RDS/VPC of its own for a bastion to reach, and era-
-        # minting for it reuses its owner's own already-standing bastion
-        # path instead.
-        #
-        # @param domain [String] the domain directory's path, named in the header comment
-        # @param infra_name [String] the domain's own AWS-facing name
-        # @param stack_name [String] the main stack's own name, tagged onto the bastion instance
-        # @param db_id [String] the RDS/VPC resources' own shared logical-id prefix, as
-        #   `vpc_and_database_yaml` names them
-        # @param google_oauth_present [Boolean] whether the main stack already has its own
-        #   public subnet/Internet Gateway to reuse, rather than minting a second one
+        # @param domain [String] domain directory path, named in the header comment
+        # @param infra_name [String] AWS-facing domain name
+        # @param stack_name [String] main stack name, tagged onto the instance
+        # @param db_id [String] shared logical-id prefix, as `vpc_and_database_yaml` names it
+        # @param google_oauth_present [Boolean] reuse the stack's public subnet, mint none
         # @param bastion_parameters [Array<Hash{Symbol => String}>] as `bastion_parameters` builds
         # @return [String] the rendered CloudFormation template
         def bastion_yaml(domain:, infra_name:, stack_name:, db_id:, google_oauth_present:, bastion_parameters:)

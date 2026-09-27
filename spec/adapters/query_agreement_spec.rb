@@ -2,42 +2,17 @@ require "hecks"
 require "hecks/ports/persistence/plugins/era"
 require "tmpdir"
 require_relative "../support/postgres_probe"
-# `pg` is required explicitly — the adapter only requires it lazily,
-# inside `PostgresEra.connect_for` — see postgres_era_spec.rb's own note.
+# `pg` is required explicitly; the adapter only requires it lazily in `PostgresEra.connect_for`.
 require "pg"
 
-# **Why this gate exists**: every existing adapter spec (postgres_spec.rb,
-# sqlite_spec.rb, memory-backed specs elsewhere) proves each adapter
-# self-consistent — it asks the adapter a question and checks the
-# adapter's own answer looks sane. None of them ever checked that Memory,
-# Sqlite, and Postgres agree with each other on the same declared query
-# over the same records. A self-referential oracle cannot see divergence
-# — that is exactly why nested-field query bugs (numeric_field? judging
-# only the first path segment, a dotted field silently matching nothing
-# in the reference interpreter) shipped silently: nothing ever put two
-# engines' answers side by side. This file is that differential gate,
-# reborn adapter-vs-adapter instead of Ruby-vs-Rust.
-#
-# Every case below asserts against a hand-computed expected id list —
-# not merely "the three adapters agree with each other" — because three
-# engines sharing one bug would still "agree" under a pairwise check. The
-# expectation is an independent oracle, worked out by hand from the
-# fixture table, and cross-adapter agreement follows transitively from
-# every engine matching it.
-# The reachability probe itself lives in support/postgres_probe.rb,
-# shared by every Postgres spec — a real `PG.connect` round trip asking
-# the identical question five separate times over was real, redundant
-# I/O. Lazy: `postgres_available?` below only calls it from inside a
-# hook/example body, never at file-load time — see postgres_probe.rb's
-# own header for why that distinction matters even under `io: true`.
+# Differential gate: Memory, Sqlite and Postgres must agree on the same declared query over the
+# same records. Every case also asserts a hand-computed id list, since engines sharing one bug
+# would still agree pairwise.
+# The reachability probe (support/postgres_probe.rb) is lazy: called only from hooks and
+# examples, never at file-load time.
 
-# D1 needs real Cloudflare credentials (CLOUDFLARE_ACCOUNT_ID,
-# CLOUDFLARE_D1_DATABASE_ID, CLOUDFLARE_D1_API_TOKEN) — optional, same as
-# Postgres above: this gate runs Memory-vs-Sqlite-vs-Postgres agreement on
-# any machine, and additionally includes D1 wherever those three env vars
-# point at a real, reachable database. Same laziness as Postgres: only a
-# module method, memoized once, never a top-level constant — module
-# definition does no I/O, only calling `.available?` does.
+# D1 joins the run only when CLOUDFLARE_ACCOUNT_ID, CLOUDFLARE_D1_DATABASE_ID and
+# CLOUDFLARE_D1_API_TOKEN point at a reachable database; probed lazily, like Postgres.
 module QueryAgreementD1Probe
   def self.available?
     return @available if defined?(@available)
@@ -65,17 +40,11 @@ RSpec.describe "adapter agreement — declared queries answer identically across
                "PostgresEra, plain Postgres, and D1",
                :io do
   AGREEMENT_DB = "hecks_query_agreement_spec".freeze
-  # A separate scratch database from PostgresEra's own AGREEMENT_DB above
-  # — both engines run against the same live server in the same test
-  # run, and PostgresEra's own journal/head-view machinery and plain
-  # Postgres's own flat table shape have nothing to share; one database
-  # per engine keeps a `DROP SCHEMA public CASCADE` on one from ever
-  # touching the other's tables.
+  # Separate from AGREEMENT_DB: one database per engine keeps `DROP SCHEMA public CASCADE`
+  # on one from touching the other's tables.
   PLAIN_POSTGRES_AGREEMENT_DB = "hecks_query_agreement_spec_plain".freeze
 
-  # Instance methods, not `def self.` — `PostgresProbe`/`QueryAgreementD1Probe`
-  # already memoize the real check once at the module level, so every call
-  # below is cheap; these just give hook/example bodies a short name for it.
+  # Instance methods over the module-level memoized probes, giving hooks a short name.
   def postgres_available? = PostgresProbe.available?
   def d1_available? = QueryAgreementD1Probe.available?
 
@@ -113,12 +82,7 @@ RSpec.describe "adapter agreement — declared queries answer identically across
     scrub_plain.close
   end
 
-  # D1 has no throwaway-database-per-run the way Postgres does here (one
-  # real, persistent database was provisioned for this, not minted and
-  # dropped per suite run) — so instead of DROP SCHEMA/CREATE SCHEMA, this
-  # drops just the two tables the "Thing" fixture actually uses, which
-  # gets to the same state: empty tables, freshly recreated by whichever
-  # adapter's own schema-creation runs next when `d1` is first touched.
+  # D1 is one persistent database, so reset drops just the "Thing" tables, not the schema.
   before do
     next unless d1_available?
 
@@ -139,31 +103,15 @@ RSpec.describe "adapter agreement — declared queries answer identically across
     FileUtils.remove_entry(@dir) if @dir
   end
 
-  # One aggregate carries every field the 11 cases below ask about, and
-  # every query is declared through the builder so seal_query_targets
-  # blesses each one (a query over an undeclared field, a dotted path
-  # that lands on a value object instead of a scalar, or an ordered
-  # comparator over a non-numeric field all refuse at build time — this
-  # fixture exercises none of those refusals, only the answering side).
-  # `ConstShim.with` — this fixture calls the builder API directly
-  # (`Hecks::Bluebook::DSL::AggregateBuilder.new(...).tap { |b| ... }`),
-  # outside any `Hecks.bluebook do ... end`/`instance_eval` a real bluebook
-  # loads through, so `Object.const_missing`'s own global hook (S0b) is
-  # never installed unless this does it directly — without it, a bare
-  # `Money`/`Name`/... below would raise `NameError`, not resolve the
-  # forward reference the way it would inside a real bluebook. The
-  # resolver just hands the const back (`bluebook_builder.rb`'s own
-  # bareword resolver) — `Attribute#spell`'s `type.to_s` renders a Symbol
-  # identically to the quoted String this replaces.
+  # One aggregate carries every field the cases ask about; queries go through the builder so
+  # seal_query_targets blesses each one.
+  # `ConstShim.with`: the builder API is called outside a bluebook load, so the global
+  # const_missing hook is not installed and a bare `Money`/`Name` would raise NameError.
   def build_aggregate
     Hecks::Bluebook::DSL::ConstShim.with(->(const) { const }) { build_thing_aggregate }
   end
 
-  # One fixture aggregate, declared whole — every field and query the 11
-  # cases below ask about lives on this one builder call so a reader can see
-  # what's being asked of it in one place; splitting it apart would scatter
-  # each query's own fixture context (see the comments beside NoteValuesIn,
-  # InNoStatuses, etc.) away from the query it explains.
+  # Declared whole so each query's fixture context stays beside the query it explains.
   # rubocop:disable-next Metrics/AbcSize
   # rubocop:disable-next Metrics/MethodLength
   def build_thing_aggregate
@@ -178,13 +126,8 @@ RSpec.describe "adapter agreement — declared queries answer identically across
       builder.value_object("Box")   { attribute :price, Price }
       builder.value_object("Tag")   { attribute :name, String }
       builder.value_object("Note")  { attribute :value, String }
-      # **The nullable axis**. Every field above is present on every record,
-      # so until these two existed no case here could exercise a null at
-      # all — which is how three separate null bugs reached main through
-      # this gate (`ne:` with an empty string, array `in:`, and `ne:`
-      # against a null field, where Memory returned a row every SQL
-      # engine omitted because Ruby's `nil != "x"` is true and SQL's
-      # `NULL <> 'x'` is NULL).
+      # The nullable axis: `ne:` against a null field matches on Memory (`nil != "x"`) but not
+      # in SQL (`NULL <> 'x'` is NULL).
       builder.value_object("Rating") { attribute :value, Integer }
       builder.value_object("Label")  { attribute :value, String }
 
@@ -199,21 +142,13 @@ RSpec.describe "adapter agreement — declared queries answer identically across
       builder.query("OpenOnes")       { where(status: "open") }
       builder.query("NotClosed")      { where(status: { ne: "closed" }) }
       builder.query("InBothStatuses") { where(status: { in: "open,closed" }) }
-      # A real array, not a comma-joined string — and every member is a
-      # whole sentence that carries its own commas as content, the exact
-      # shape an id built from a joined identity path could take. Under
-      # the old `value.to_s.split(",")` reading this matched nothing at
-      # all on Sqlite/Postgres (the array's own `.to_s` gets re-split on
-      # every comma inside it, member and content alike) while Memory
-      # already read a real Array correctly — a divergence, not a typo.
+      # A real Array whose members carry commas as content; splitting `value.to_s` on commas
+      # would match nothing on Sqlite/Postgres while Memory reads the Array correctly.
       builder.query("NoteValuesIn") do
         where("note.value": { in: ["flagged: high, risk today", "high, risk, reviewed"] })
       end
-      # An empty in-list is not refused at the seal — only lt/lte/gt/gte
-      # get the numeric-field check — so this stays admitted, and every
-      # engine's own documented reading is "empty candidate set matches
-      # no rows" (Ports::Query::InMemory#members("") splits to [], SQL's
-      # empty_in_clause compiles to a literal falsehood).
+      # An empty in-list is admitted (only lt/lte/gt/gte need a numeric field) and matches no rows
+      # on every engine.
       builder.query("InNoStatuses") { where(status: { in: "" }) }
 
       builder.query("BelowFloor") do
@@ -227,13 +162,7 @@ RSpec.describe "adapter agreement — declared queries answer identically across
         order_by :balance, :desc
       end
 
-      # `lte` had no case of its own here — every other ordered comparator
-      # (lt, gt, gte) already had one, so `lte` alone rode through
-      # untested by this file even though the shared Comparison module
-      # covers it identically to its three siblings. No order_by, on
-      # purpose: this asks the selection question alone, the same way
-      # OpenOnes/NotClosed do, rather than repeating BelowFloor's/
-      # AtLeast500Desc's ordering coverage under a different comparator.
+      # Selection only, with no order_by, like OpenOnes/NotClosed.
       builder.query("AtMost500") { where(balance: { lte: { cents: 500 } }) }
 
       builder.query("PriceAbove300") do
@@ -253,18 +182,11 @@ RSpec.describe "adapter agreement — declared queries answer identically across
 
       builder.query("StatusContainsOpen") { where(status: { contains: "open" }) }
 
-      # The comma-bearing case — `note.value` genuinely carries a comma as
-      # part of its own content, not as a separator. `contains` on a
-      # scalar field means substring on every engine (Ports::Query::
-      # InMemory#contains?, QueryInterpreter#contains?,
-      # SqlQueryBuilder#contains_clause) — this exact case would expose
-      # a divergence if the reference interpreter read `contains`
-      # as CSV-split membership, splitting this note in two.
+      # `note.value` carries a comma as content; `contains` is substring on every engine, so a
+      # CSV-membership reading would diverge here.
       builder.query("NoteContainsPhrase") { where(note: { contains: "high, risk" }) }
 
-      # A NULL satisfies no comparison — one case per comparator, because
-      # the engines had every opportunity to disagree per-operator and
-      # `ne` is simply the one somebody happened to write in a bluebook.
+      # A NULL satisfies no comparison; one case per comparator, each implemented separately.
       builder.query("LabelNotBeta")    { where("label.value": { ne: "beta" }) }
       builder.query("LabelIsAlpha")    { where("label.value": "alpha") }
       builder.query("RatingAbove200")  { where("rating.value": { gt: 200 }) }
@@ -272,17 +194,13 @@ RSpec.describe "adapter agreement — declared queries answer identically across
       builder.query("RatingInList")    { where("rating.value": { in: "100,300" }) }
       builder.query("LabelContainsPh") { where("label.value": { contains: "ph" }) }
 
-      # The other half, and the one already agreed before this: a null on
-      # the value compared to is a deliberate IS NULL / IS NOT NULL, not
-      # an unknown (NullPolicy.sql_predicate). Included so the two
-      # readings are pinned against each other — if either drifts toward
-      # the other, one of these two fails.
+      # A null on the compared-to value is a deliberate IS NULL / IS NOT NULL
+      # (NullPolicy.sql_predicate); pinned against the case above so neither reading drifts.
       builder.query("LabelIsNull")    { where("label.value": nil) }
       builder.query("LabelIsNotNull") { where("label.value": { ne: nil }) }
 
-      # Ordering is NullPolicy's other half again, and carries the same
-      # two-implementation risk the comparators did — `order` in Ruby and
-      # `sql_order` in SQL, agreeing only by construction.
+      # Ordering is NullPolicy's other half: `order` in Ruby and `sql_order` in SQL agree only
+      # by construction.
       builder.query("ByRatingNullsFirst") do
         order_by :"rating.value"
         nulls :first
@@ -324,20 +242,10 @@ RSpec.describe "adapter agreement — declared queries answer identically across
     built
   end
 
-  # Five records, distinct on every axis a case below probes. `name` is
-  # deliberately not alphabetical in id order — ByNameAsc must actually
-  # sort by the declared field, or a bug that quietly falls back to
-  # identity order would pass unnoticed.
-  # `note` deliberately puts a comma in a place that would have broken
-  # the old CSV-split reading of `contains`: r1 and r4 carry the exact
-  # phrase "high, risk" ; r2 carries a comma elsewhere in text that still
-  # contains both words separately (a false positive the old membership
-  # reading could not have produced, but a real regression test for
-  # substring reading getting it right either way).
-  # `rating` and `label` are absent on r2 and r4 — the nullable axis. Two
-  # nulls rather than one, and on the same two records for both fields,
-  # so a case cannot pass by accident on a single-row coincidence, and
-  # ordering has a real tie to break among the nulls.
+  # Five records distinct on every axis. `name` is not alphabetical in id order, so ByNameAsc
+  # must really sort. `note` has a comma inside "high, risk" on r1/r4, and r2 has both words
+  # split by a comma, pinning substring `contains`. `rating` and `label` are null on r2 and r4,
+  # two nulls so ordering has a tie to break.
   RECORDS = {
     "r1" => { status: "open", balance: { cents: 100 }, box: { price: { cents: 100 } }, name: { value: "Eve" },
 tags: [{ name: "red" }],   note: { value: "flagged: high, risk today" },      rating: { value: 100 }, label: { value: "alpha" } },
@@ -361,11 +269,8 @@ tags: [{ name: "blue" }],  note: { value: "low risk" }, rating: { value: 500 }, 
     end
   end
 
-  # Runs the named declared query against every adapter under test and
-  # checks each against the same hand-computed `expected` — the
-  # independent oracle. Postgres and D1 participate only when reachable, so
-  # Memory-vs-Sqlite agreement still runs (and still means something) on
-  # a machine with no local Postgres.
+  # Runs the query on every adapter under test and checks each against `expected`, the
+  # hand-computed oracle. Postgres and D1 join only when reachable.
   def agree!(query_name, args = {}, expected:)
     declared = aggregate.query(query_name)
 
@@ -432,10 +337,8 @@ tags: [{ name: "blue" }],  note: { value: "low risk" }, rating: { value: 500 }, 
     agree!("NoteContainsPhrase", expected: %w[r1 r4])
   end
 
-  # r2 and r4 hold no rating and no label. Every case below asserts they
-  # are absent from the answer — a null is unknown, and unknown satisfies
-  # no comparison. Memory would otherwise return them for `ne` while every
-  # SQL engine omits them.
+  # r2 and r4 hold no rating or label and must be absent: a null is unknown and satisfies
+  # no comparison.
   it "excludes nulls from ne, the same everywhere" do
     agree!("LabelNotBeta", expected: %w[r1 r5])
   end
@@ -460,9 +363,7 @@ tags: [{ name: "blue" }],  note: { value: "low risk" }, rating: { value: 500 }, 
     agree!("LabelContainsPh", expected: %w[r1 r5])
   end
 
-  # The deliberate null, as opposed to the unknown one: comparing to nil
-  # is a real question about presence, and both engines already answered
-  # it the same way. Pinned here so neither reading drifts into the other.
+  # Comparing to nil is a question about presence; pinned so neither null reading drifts.
   it "reads a comparison to nil as IS NULL, the same everywhere" do
     agree!("LabelIsNull", expected: %w[r2 r4])
   end

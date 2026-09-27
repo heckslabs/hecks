@@ -1,63 +1,5 @@
-// **The console's own presentation config, read** — the Rust-native
-// counterpart to the console app's `web/presentation_config.rb`
-// `.load`, returning the identical nested JSON shape that file has
-// always returned (`{"states" => {...}, "collections" => {...},
-// "overview" => {...}}`), so `ui_schema.rs`, the `/api/*` routes and
-// index.html's own readers all see exactly what the Ruby engine
-// serves them.
-//
-// Why this reads Ruby's own Postgres tables and not this crate's
-// journal — the config is real domain data (a `ConsoleSettings`
-// chapter: StateStyle, Collection, Overview), dispatched through real
-// commands, but it is not in `hecks_lambda_journal`. The consuming
-// app pins it, permanently and deliberately, to the Ruby "Postgres"
-// adapter — that app's own `.hecksagon` comment says why in
-// full: with `HECKS_LAMBDA_ROUTING=true` every other chapter routes
-// through the dispatch Lambda (this crate's own flat journal), and
-// ConsoleSettings followed it there once, into a store no Ruby-side
-// write had ever populated, so the console read back "no presentation
-// entry for" every real state at once. It has been Postgres-only ever
-// since: "purely WebFunction's own console-UI data, never read or
-// written by any business command".
-//
-// So the rows live in Ruby's era-aware head views — `state_style_head`,
-// `collection_head`, `overview_head` — in the same database this crate
-// already holds a connection to (the storehouse RDS instance, this
-// domain's own schema, already on `search_path` from main.rs). Reading
-// a Ruby head view from Rust is not new here either: `auth.rs` has
-// always read the membership aggregate's own head view exactly this
-// way (`journal::read_lineage_head_all`/`read_lineage_head_by_id`).
-// This module is that same read, for three more relations, plus the
-// reshaping `presentation_config.rb` does on the way out.
-//
-// **Two sources, asked in this order** — and the first one is not SQL at
-// all.
-//
-// 1. This host's own kernel, when it carries the chapter. `uses_framework
-//    "ConsoleSettings"` in a consuming app's `.hecksagon` folds
-//    StateStyle/Collection/Overview into the same `.wasm` this host
-//    already loads (`merged.rs`'s one `Store` spans every attached
-//    chapter — exactly how Governance and Identity get in there), so
-//    the rows can be read the way every other aggregate this host
-//    serves is read: `dispatch::read`'s own instances, no relation
-//    name to guess and no adapter to agree with. `presentation_write
-//    .rs` writes through that same kernel, which is what makes
-//    `PUT /api/presentation` possible at all.
-//
-// 2. Ruby's own Postgres tables, when it does not. A console app can
-//    still pin this chapter to Ruby's "Postgres" adapter — which
-//    a client site did, permanently and deliberately, after
-//    routing it through the dispatch Lambda once landed it in a store
-//    no Ruby-side migration had ever populated and the console read
-//    back "no presentation entry for" every real state at once. Those
-//    rows live in Ruby's era-aware head views, in the same database
-//    this crate already holds a connection to, and reading a Ruby head
-//    view from Rust is not new here: `auth.rs` has always read the
-//    membership aggregate's own head view exactly this way.
-//
-// The choice is asked, never assumed: `kernel_rows` runs the chapter's
-// own `ConsoleSettings.Styles` read model as a query, and a kernel that
-// has never heard of it answers with no query result at all.
+//! The console's presentation config (states, collections, overview),
+//! read from the attached kernel or else Ruby's Postgres head views (ADR 0059).
 
 use crate::dispatch;
 use crate::journal::{self, LineageConfig};
@@ -67,11 +9,8 @@ use std::path::Path;
 use tokio::sync::Mutex;
 use tokio_postgres::{Client, GenericClient};
 
-/// The chapter the console's own config lives in — a literal here for
-/// the same reason it is a literal in `presentation_config.rb`
-/// (`registry.bluebook("ConsoleSettings")`): the name is part of the
-/// console's own contract, not a property of whichever domain this
-/// host happens to serve.
+/// The chapter the console's config lives in, matching
+/// `presentation_config.rb`'s own `registry.bluebook("ConsoleSettings")`.
 pub const CONFIG_DOMAIN: &str = "ConsoleSettings";
 
 /// `Naming.snake` of each of that chapter's three aggregates — the
@@ -80,16 +19,9 @@ const STATE_STYLE: &str = "state_style";
 const COLLECTION: &str = "collection";
 const OVERVIEW: &str = "overview";
 
-/// The whole config, exactly as `PresentationConfig.load` returns it.
-///
-/// Never an error for a domain that simply has no ConsoleSettings rows
-/// — or no ConsoleSettings relations at all, which is every domain but
-/// the one console app that uses this. An absent relation reads as an
-/// empty section, the same answer Ruby gives for a present-but-empty
-/// one, because "this domain configures no presentation" and "this
-/// domain has never saved any presentation" are the same fact to every
-/// reader downstream (`ui_schema` falls back to derived defaults for
-/// both).
+/// The whole config, as `PresentationConfig.load` returns it. A domain
+/// with no ConsoleSettings rows, or none of its relations, reads back
+/// an empty section rather than an error.
 pub async fn load(client: &Mutex<Client>, wasm_path: &Path, config: &LineageConfig) -> anyhow::Result<Value> {
     if let Some(rows) = kernel_rows(client, wasm_path).await? {
         return Ok(reshape(&rows.states, &rows.collections, &rows.overview));
@@ -97,9 +29,8 @@ pub async fn load(client: &Mutex<Client>, wasm_path: &Path, config: &LineageConf
     load_from_relations(client, config).await
 }
 
-/// Source 2 — the Ruby-written relations. Split out so the kernel path
-/// above reads as the one decision it is, and so the three live-database
-/// tests below can still drive this half directly.
+/// The Ruby-written relations, split out so the kernel path above reads
+/// as the one decision it is, and so tests can drive this half directly.
 async fn load_from_relations(client: &Mutex<Client>, config: &LineageConfig) -> anyhow::Result<Value> {
     let guard = client.lock().await;
     let states = read_head_states(&*guard, &config.domain, STATE_STYLE).await?;
@@ -109,31 +40,15 @@ async fn load_from_relations(client: &Mutex<Client>, config: &LineageConfig) -> 
     Ok(reshape(&states, &collections, &overview))
 }
 
-/// The three aggregates' live records, straight off the kernel — or
-/// `None` for a kernel that does not carry this chapter at all, which
-/// is every domain but a console app.
+/// The three aggregates' live records, straight off the kernel, or
+/// `None` when this kernel does not carry the chapter at all.
 ///
-/// The read first, the probe only if it is ambiguous — and that order
-/// is what keeps this cheap on the path every console screen takes.
-///
-/// `dispatch::read` answers from the snapshot alone when the snapshot
-/// is current, with no wasm invocation at all; a domain that has any
-/// ConsoleSettings row is therefore answered by one SELECT. Only an
-/// empty answer is ambiguous — "this kernel has no such chapter" and
-/// "it has the chapter and nobody has saved yet" look identical from
-/// the instance map — and only then is the chapter's own
-/// `ConsoleSettings.Styles` read model run as a probe. A kernel that
-/// knows it answers with one entry in `queries`; one that does not
-/// answers with an empty `queries` and a refusal naming it ("... is not
-/// generated for this domain"), which is the honest signal, and the
-/// reason this asks the kernel rather than reading an environment
-/// variable or a file name that could be stale.
-///
-/// This read/probe order replaces what would otherwise cost three
-/// `to_regclass` probes and a SELECT on every read; a guaranteed wasm
-/// run instead would be a real regression on a first paint, which asks
-/// for `/api/me`, `/api/ui-schema` and `/api/presentation` before it
-/// draws anything.
+/// An empty read is ambiguous — no chapter, or the chapter with nothing
+/// saved yet — so only then does this probe `ConsoleSettings.Styles` as
+/// a query; a kernel that knows it answers, one that doesn't refuses.
+/// Keeping the plain read a single SELECT (via `dispatch::read`'s
+/// snapshot) matters here: this runs on every first paint, alongside
+/// `/api/me` and `/api/ui-schema`.
 pub(crate) async fn kernel_rows(client: &Mutex<Client>, wasm_path: &Path) -> anyhow::Result<Option<KernelRows>> {
     let state = dispatch::read(client, wasm_path).await?;
     let rows = bucket(state.get("instances"));
@@ -156,13 +71,9 @@ fn bucket(instances: Option<&Value>) -> KernelRows {
     let mut rows = KernelRows::default();
     let Some(instances) = instances.and_then(|i| i.as_object()) else { return rows };
     for (key, state) in instances {
-        // `"ConsoleSettings::StateStyle#Event:open"` — the kernel's own
-        // instance key, `Domain::Aggregate#id`. The id is kept because
-        // the write side needs to know which rows already exist before
-        // it can tell a `Declare` from a `Set*`, and it is split on the
-        // first `#` only: StateStyle's own composite identity is
-        // `"Agg:state"`, which contains no `#` but would be lost to a
-        // split that took the last one.
+        // `Domain::Aggregate#id`, split on the first `#` — a StateStyle
+        // id like `Agg:state` has none itself but would be lost to a
+        // split on the last one. Ids feed `presentation_write`'s declare-vs-set check.
         let Some((qualified, id)) = key.split_once('#') else { continue };
         match qualified {
             _ if qualified == format!("{CONFIG_DOMAIN}::StateStyle") => {
@@ -181,9 +92,8 @@ fn bucket(instances: Option<&Value>) -> KernelRows {
 }
 
 /// Every ConsoleSettings record this kernel holds, bucketed by
-/// aggregate — the three row sets `reshape` takes, plus the identities
-/// `presentation_write` needs to tell "declare this row" from "set a
-/// field on it".
+/// aggregate, plus the ids `presentation_write` needs to tell a
+/// declare from a set.
 #[derive(Default)]
 pub(crate) struct KernelRows {
     pub(crate) states: Vec<Value>,
@@ -210,9 +120,7 @@ impl KernelRows {
 }
 
 /// Pure: the three row sets in, `PresentationConfig.load`'s own hash
-/// out. Split from the SQL above so every reshaping rule below is
-/// unit-testable against a literal row, the way `auth_gate`'s own
-/// decision is (web.rs) — `load` itself needs a live connection.
+/// out, kept unit-testable without a live connection.
 pub fn reshape(states: &[Value], collections: &[Value], overview: &[Value]) -> Value {
     let mut config = Map::new();
     config.insert("states".to_string(), reshape_states(states));
@@ -221,37 +129,13 @@ pub fn reshape(states: &[Value], collections: &[Value], overview: &[Value]) -> V
     Value::Object(config)
 }
 
-// ---- the relations -------------------------------------------------
-
 /// Every live `state` document for one ConsoleSettings aggregate.
 ///
-/// Four candidate names, in order, because four different runtimes have
-/// written these rows and each derived its own relation name — all of
-/// them answering the same two columns (`id`, `state` jsonb), which is
-/// the only part this module actually depends on.
-///
-///   1. `sample_app_state_style_head` — where this host's
-///      own lineage writes land for an attached chapter. `dispatch`
-///      qualifies a mutation by `config.domain`, the host's domain,
-///      never by the chapter the aggregate came from, so a
-///      ConsoleSettings row written through this crate is filed under
-///      the consuming domain's name. `mint` provisions it under the
-///      same name, so this is where it really is — confirmed against
-///      the live storehouse, which holds both this relation and (2)
-///      side by side.
-///   2. `console_settings_state_style_head` — the era head view as
-///      docs/decisions/0059 qualifies it from Ruby's side, where the
-///      chapter's own domain does the qualifying.
-///   3. `state_style_head` — the same view before that decision, which
-///      is where a pre-0059 console app's rows are.
-///   4. `state_style` — the flat table today's `Adapters::Postgres`
-///      creates and reads for a `persisted_by("Postgres")` binding
-///      (`table = aggregate.storage_name`).
-///
-/// First one that exists wins. This is a resolution step, not a
-/// fallback that hides an error: a relation that exists but fails to
-/// read still errors, and an empty answer is only ever reported for a
-/// domain with none of the four.
+/// Tries several relation names in order — host-qualified, then
+/// chapter-qualified (ADR 0059), then the plain view or table — because
+/// different runtimes have written these rows under different names,
+/// all answering the same `id`/`state` columns. First one that exists
+/// wins; a relation that exists but fails to read still errors.
 async fn read_head_states<C: GenericClient>(
     client: &C,
     host_domain: &str,
@@ -282,21 +166,16 @@ fn head_view_candidates(host_domain: &str, storage_name: &str) -> Vec<String> {
     candidates
 }
 
-/// `to_regclass` resolves through the connection's own `search_path`
-/// — the same way the unqualified `SELECT ... FROM state_style_head`
-/// below resolves — so this asks precisely "would that query find a
-/// relation", never "does some same-named relation exist in some other
-/// schema".
+/// `to_regclass` resolves through the connection's own `search_path`,
+/// same as the unqualified SELECT below — never a same-named relation
+/// in some other schema.
 async fn relation_exists<C: GenericClient>(client: &C, relation: &str) -> anyhow::Result<bool> {
     let row = client.query_one("SELECT to_regclass($1) IS NOT NULL", &[&relation]).await?;
     Ok(row.get(0))
 }
 
-// ---- reshaping — presentation_config.rb, rule for rule --------------
-
-/// `PresentationConfig.unwrap` — every scalar this chapter stores is a
-/// single-attribute value object (`{"value": ...}`), so one unwrap
-/// handles all of them; anything else rides through untouched.
+/// `PresentationConfig.unwrap` — every scalar here is a single-attribute
+/// value object (`{"value": ...}`); anything else rides through untouched.
 fn unwrap(value: &Value) -> Value {
     match value.get("value") {
         Some(inner) => inner.clone(),
@@ -308,21 +187,16 @@ fn unwrap_str(value: Option<&Value>) -> String {
     value.map(unwrap).and_then(|v| v.as_str().map(String::from)).unwrap_or_default()
 }
 
-/// Ruby truthiness for a stored field: an absent key and a JSON `null`
-/// are both "not set" (`if row[:tone]`), and no field this chapter
-/// stores is ever boolean `false` on the wire — `attention` is stored
-/// as the string "true"/"false", which is why its own read below
-/// compares strings rather than trusting a JSON boolean.
+/// Ruby truthiness for a stored field: absent and JSON `null` are both
+/// "not set", matching `if row[:tone]` — `attention` is a "true"/"false"
+/// string on the wire, never a real boolean.
 fn present(value: Option<&Value>) -> Option<&Value> {
     value.filter(|v| !v.is_null() && v.as_bool() != Some(false))
 }
 
-/// `PresentationConfig.merge_extra!` — the opaque passthrough blob
-/// (`extra_json`) merged in, never overwriting an explicitly-modeled
-/// key that is already present. Accepts the blob either wrapped
-/// (`{"value": "{...}"}`, how a head field stores it) or bare (how a
-/// `list_of` element stores it), because Ruby's own `unwrap`/`row_field`
-/// pair reads it both ways for exactly the same reason.
+/// `PresentationConfig.merge_extra!` — the opaque `extra_json` blob
+/// merged in without overwriting an explicitly-modeled key. Accepts it
+/// either wrapped (a head field) or bare (a `list_of` element).
 fn merge_extra(entry: &mut Map<String, Value>, extra_json: Option<&Value>) {
     let Some(raw) = present(extra_json).map(unwrap) else { return };
     let Some(text) = raw.as_str().filter(|t| !t.is_empty()) else { return };
@@ -364,9 +238,8 @@ fn reshape_collections(rows: &[Value]) -> Value {
 }
 
 /// `reshape_collection_row` — the modelled fields in Ruby's own order,
-/// each only when set, then the four `Replace*` lists (always present,
-/// empty or not — an empty `columns` is a real answer, not a missing
-/// one), then the opaque extras.
+/// each only when set, then the list fields (always present, even
+/// empty), then the opaque extras.
 fn reshape_collection_row(row: &Value) -> Value {
     let mut entry = Map::new();
     for (key, field) in [
@@ -416,9 +289,8 @@ fn reshape_identity(row: &Value) -> Option<Value> {
     Some(Value::Object(identity))
 }
 
-/// `reshape_column` — `sortable` is stored as the string "true"/"false"
-/// (a value object holds a String, not a boolean) and comes back as a
-/// real boolean, exactly as Ruby's `(sortable == "true")` does.
+/// `reshape_column` — `sortable` is a "true"/"false" string on the
+/// wire and comes back as a real boolean, as Ruby's own read does.
 fn reshape_column(column: &Value) -> Value {
     let mut entry = Map::new();
     entry.insert("field".to_string(), column.get("field").cloned().unwrap_or(Value::Null));
@@ -432,10 +304,8 @@ fn reshape_column(column: &Value) -> Value {
     Value::Object(entry)
 }
 
-/// `reshape_detail_fields` — `detail_field_columns` is stored flat
-/// (one row per (field, column) pair, see console_settings.bluebook's
-/// own comment on why it isn't nested) and is regrouped here, back
-/// under the detail field that owns it.
+/// `reshape_detail_fields` — `detail_field_columns` is stored flat, one
+/// row per (field, column) pair, and is regrouped here under its field.
 fn reshape_detail_fields(row: &Value) -> Value {
     let flat = elements(row, "detail_field_columns");
     let entries = elements(row, "detail_fields")
@@ -465,9 +335,8 @@ fn reshape_detail_fields(row: &Value) -> Value {
     Value::Array(entries)
 }
 
-/// `reshape_precondition` — both keys always, `state` included as an
-/// explicit null when unset, matching Ruby's own literal hash (a
-/// precondition with no state is "the target must merely exist").
+/// `reshape_precondition` — `state` is an explicit null when unset,
+/// meaning "the target must merely exist", matching Ruby's own hash.
 fn reshape_precondition(precondition: &Value) -> Value {
     let mut entry = Map::new();
     entry.insert("field".to_string(), precondition.get("field").cloned().unwrap_or(Value::Null));
@@ -485,19 +354,16 @@ fn reshape_field_formats(row: &Value) -> Value {
     Value::Object(formats)
 }
 
-/// `reshape_overview` — a singleton aggregate: one row or none, and
-/// none reads as `{}` (never `{"stats": []}`), the same distinction
-/// Ruby draws between "never configured" and "configured empty".
+/// `reshape_overview` — a singleton: no row reads as `{}`, never
+/// `{"stats": []}`, matching Ruby's "never configured" vs "empty".
 fn reshape_overview(rows: &[Value]) -> Value {
     let Some(row) = rows.first() else { return Value::Object(Map::new()) };
     let stats: Vec<Value> = elements(row, "stats").iter().map(reshape_stat).collect();
     json!({ "stats": stats })
 }
 
-/// `reshape_stat` — `where` is stored as an opaque JSON string
-/// (`where_json`: hecks has no attribute type for "arbitrary nested
-/// map", see presentation_config.rb's own header) and is parsed back
-/// out here, at this file's own boundary, exactly as Ruby does.
+/// `reshape_stat` — `where` is an opaque JSON string on the wire
+/// (`where_json`) and is parsed back out here, exactly as Ruby does.
 fn reshape_stat(stat: &Value) -> Value {
     let mut entry = Map::new();
     entry.insert("label".to_string(), stat.get("label").cloned().unwrap_or(Value::Null));
@@ -520,11 +386,8 @@ fn reshape_stat(stat: &Value) -> Value {
 mod tests {
     use super::*;
 
-    // Every row literal below is copied from the real rows the console
-    // app's own database holds (`select state from collection_head`,
-    // `state_style_head`, `overview_head`) — not invented shapes. What
-    // they pin is that this module reshapes them into exactly what
-    // `PresentationConfig.load` builds out of the same rows.
+    // Row literals below are copied from the real rows the console
+    // app's own database holds, not invented shapes.
 
     #[test]
     fn head_view_candidates_cover_every_relation_a_runtime_has_written_these_rows_to() {
@@ -718,15 +581,10 @@ mod tests {
         assert_eq!(reshape_states(&rows), json!({"Client": {"active": {"tone": "good", "note": "n"}}}));
     }
 
-    // ---- against a real Postgres --------------------------------
-    //
-    // The reshaping above is pure and pinned by the tests before this
-    // point; what these three add is the half that only a real
-    // database can answer — which relation this module reads, and what
-    // it does when there isn't one. Same throwaway-database-per-test
-    // pattern dispatch.rs's own tests use (its own comment: uniquely
-    // named "so `cargo test`'s default parallelism doesn't race two
-    // tests against the same journal table").
+    // What follows needs a real database: which relation this module
+    // reads, and what it does when there isn't one. Same throwaway-db
+    // pattern as dispatch.rs's own tests, uniquely named per test so
+    // `cargo test`'s parallelism doesn't race two against one table.
 
     async fn scratch_db(name: &str) -> Mutex<Client> {
         let (admin, conn) = tokio_postgres::connect("host=localhost dbname=postgres", tokio_postgres::NoTls)
@@ -747,14 +605,10 @@ mod tests {
         Mutex::new(client)
     }
 
-    // A table, not a view over a snapshot table — this module only
-    // ever SELECTs `state`, so the relation's own provenance (Ruby's
-    // era view, or anything else answering the same two columns) is
-    // exactly the part it has no business knowing.
-    /// A host domain that qualifies to nothing these fixtures create,
-    /// so the candidate list falls through to the relations each test
-    /// actually seeds — the same position every console app but this
-    /// one's own is in.
+    // A plain table, not a view — this module only ever SELECTs
+    // `state`, so a relation's real provenance doesn't matter here.
+    /// A domain matching none of these fixtures' relations, so lookup
+    /// falls through to whatever each test seeds directly.
     fn relations_only() -> LineageConfig {
         LineageConfig { domain: "Fixtures".to_string(), era: None, mirrored: None }
     }
@@ -771,10 +625,9 @@ mod tests {
             .unwrap();
     }
 
-    // **Which kind of empty** — the one question the instance map alone
-    // cannot answer, and the only case that costs a second call. Both
-    // of these run against a real compiled kernel, because "does this
-    // wasm know this read model" is not a thing a fixture can fake.
+    // Which kind of empty is the one question the instance map alone
+    // can't answer; both tests below run against a real compiled
+    // kernel, since a fixture can't fake "does this wasm know this read model".
 
     #[tokio::test]
     async fn a_kernel_that_carries_the_chapter_but_holds_no_rows_answers_some_empty() {

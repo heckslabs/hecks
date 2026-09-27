@@ -3,34 +3,12 @@ require "tmpdir"
 require "fileutils"
 require "open3"
 
-# bin/check_engine_agreement is a script, not a library — same reasoning
-# bin_stores_spec.rb's own header gives: there's nothing to require, so
-# this runs it as a real subprocess (Open3) against real files.
-#
-# The positive case runs it against the real, current repo: Tiers 1-4
-# already unified the two engines behind QuerySpecification::Common::
-# Comparison, so this is the proof that state stays "0 problems" —
-# not merely that the script runs.
-#
-# The negative cases run it against a temp copy of the six files it
-# reads (the shared comparison module, the two engine files, and the
-# three cross-engine agreement specs), each deliberately mutated to
-# reintroduce exactly one of the two shipped bugs this mechanism exists
-# to catch. `HECKS_CHECK_ENGINE_AGREEMENT_ROOT` points the script at
-# that copy instead of the real repo — `Hecks::Vocabulary` itself still
-# loads for real (the script's own `require "hecks"` is unconditional,
-# resolved from its own real `lib/`), so the declared closed set is
-# always the real nine comparators; only where it looks for the shared
-# case and the agreement specs is faked.
+# bin/check_engine_agreement is a script, so this runs it as a subprocess. The negative cases
+# mutate a scratch copy of the files it reads, selected by `HECKS_CHECK_ENGINE_AGREEMENT_ROOT`;
+# the declared comparator set still comes from the real `Hecks::Vocabulary`.
 RSpec.describe "bin/check_engine_agreement" do
-  # Namespaced, not a bare script — see load_hygiene_spec.rb's own "no two
-  # spec files disagree about a top-level constant" check: a constant
-  # assigned inside a `describe` block lands at Object (top level, not on
-  # the example group), so a bare `SCRIPT` here silently collided with
-  # project_tenant_spec.rb's own bare `SCRIPT` — whichever spec file's
-  # `require` ran last during rspec's load phase won, and every example in
-  # this file ended up shelling out to bin/project_tenant instead. Follows
-  # bin_stores_spec.rb's own `BIN_STORES_SCRIPT` naming for the same reason.
+  # Namespaced because a constant assigned in a `describe` block lands on Object; a bare
+  # `SCRIPT` collided with project_tenant_spec.rb's (see load_hygiene_spec.rb).
   CHECK_ENGINE_AGREEMENT_SCRIPT = File.join(InMemoryDomain::ROOT, "bin/check_engine_agreement").freeze
 
   TRACKED_RELATIVE_PATHS = %w[
@@ -42,10 +20,7 @@ RSpec.describe "bin/check_engine_agreement" do
     spec/query_none_in_state_growth_spec.rb
   ].freeze
 
-  # A faithful copy of the six real, tracked files under a scratch root
-  # — every other comparator stays fully covered, so a mutation below
-  # isolates exactly the one gap it introduces rather than accidentally
-  # tripping on some unrelated, pre-existing gap.
+  # Copies the six tracked files so each mutation below isolates exactly one gap.
   def clone_tracked_tree(dir)
     TRACKED_RELATIVE_PATHS.each do |relative|
       source = File.join(InMemoryDomain::ROOT, relative)
@@ -64,9 +39,7 @@ RSpec.describe "bin/check_engine_agreement" do
 
     expect(status).to be_success, "expected 0 problems, got:\n#{stdout}#{stderr}"
     expect(stdout).to include("0 problems")
-    # All nine declared comparators named in the clean report, proving
-    # the declared set was actually read (not silently empty — see the
-    # script's own refusal for that case).
+    # Proves the declared set was actually read rather than silently empty.
     %w[eq ne gt gte lt lte in contains none_in_state].each do |comparator|
       expect(stdout).to include(comparator)
     end
@@ -87,8 +60,7 @@ RSpec.describe "bin/check_engine_agreement" do
 
       comparison_path = File.join(dir, "lib/hecks/query_specification/common/comparison.rb")
       source = File.read(comparison_path)
-      # Delete the `gt` case alone — every other comparator's case (and
-      # every spec example) is left untouched.
+      # Delete the `gt` case alone.
       mutated = source.sub(/\s*when\s+"gt"\s+then\s+ordered\?\(held, want\) && held > want\n/, "\n")
       raise "fixture did not change — regex no longer matches comparison.rb's own `gt` case" if mutated == source
 
@@ -106,11 +78,8 @@ RSpec.describe "bin/check_engine_agreement" do
     Dir.mktmpdir("check-engine-agreement-") do |dir|
       clone_tracked_tree(dir)
 
-      # Strip every explicit `gt:` occurrence (and the one example whose
-      # description names it) from all three agreement-suite copies,
-      # leaving comparison.rb's own `gt` case exactly as it is — this
-      # isolates the spec gap from the case gap the previous example
-      # covers.
+      # Strip every `gt:` from the three agreement specs, leaving comparison.rb's `gt`
+      # case intact, to isolate the spec gap from the case gap.
       %w[
         spec/adapters/query_agreement_spec.rb
         spec/query_none_in_state_aggregate_level_growth_spec.rb
@@ -133,9 +102,7 @@ RSpec.describe "bin/check_engine_agreement" do
       clone_tracked_tree(dir)
 
       in_memory_path = File.join(dir, "lib/hecks/ports/query/in_memory.rb")
-      # A duplicate, private re-implementation living alongside the real
-      # `Comparison.holds?` call — exactly the shape the original bug
-      # took: not a replacement, a second copy nobody deletes.
+      # A second, private copy of the comparator logic alongside the real `Comparison.holds?`.
       poisoned = File.read(in_memory_path).sub(
         "module_function\n",
         "module_function\n\n        def duplicated_eq_check(operation)\n          " \

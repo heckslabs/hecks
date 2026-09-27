@@ -6,26 +6,17 @@ module Hecks
   module Adapters
     class PostgresEra
       module LineageManager
-        # Tail-merge, driven from bin/merge_tail: interleave the old
-        # world's post-cut writes into the head by their recorded global
-        # ordinals, under the full audit, in one transaction.
+        # Tail-merge (bin/merge_tail): interleaves the stale world's post-cut writes into the
+        # head by global ordinal, audited, in one transaction.
         module MergeCoordinator
-          # Merges the writes old checkouts made after the last mint into the current
-          # era's head, on a connection of its own that it closes afterwards.
+          # Merges writes old checkouts made after the last mint into the current era's head.
           #
-          # @param registry [Runtime::Registry] the loaded registry; supplies the
-          #   translation edges the chain is built from
-          # @param bluebook [Bluebook::Chapter] the domain whose tail is merged
-          # @param settings [Hash{Symbol, String => Object}] the world's persistence
-          #   settings for this binding; `database` is required
           # @param winners [Hash{String => String}] record id to `"old"` or `"new"`, naming
-          #   which world's whole record wins for each id both worlds touched since the cut
+          #   which world's record wins for each id both worlds touched since the cut
           # @return [true] when the merge committed
-          # @raise [Runtime::WiringError] if the database cannot be reached, the domain
-          #   stands at era 1, the edge chain is broken, a record touched by both worlds
-          #   has no named winner, the post-merge audit reports violations, another mint
-          #   or merge holds the domain lock for 10 seconds, or Postgres refuses a
-          #   statement; every refusal rolls the merge back
+          # @raise [Runtime::WiringError] if the domain stands at era 1, the edge chain is
+          #   broken, a contested record has no winner, or the audit reports violations;
+          #   every refusal rolls the merge back
           def merge!(registry:, bluebook:, settings:, winners: {})
             db = PostgresEra.connect_for(bluebook.name, settings)
             lineage = Lineage.new(db, bluebook.name, formerly_known_as: bluebook.formerly_known_as)

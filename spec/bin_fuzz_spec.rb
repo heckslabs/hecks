@@ -1,14 +1,8 @@
 require "spec_helper"
 require "hecks/fuzzing"
 
-# M24 — `bin/fuzz` is a CLI script, not a lib/ file: `shrink_arguments`,
-# `outcome`, and friends are plain top-level methods, and the file's own
-# tail (ARGV parsing, a real domain sweep, `exit`) runs unconditionally
-# the moment the file loads — `require`/`load`ing it directly would run
-# a full fuzz sweep and kill the spec process. `bin_fuzz_methods` slices
-# out only the method definitions (everything before the CLI's own
-# arg-parsing preamble) and evaluates them into a private, throwaway
-# module instead, so a method under test can be called directly.
+# bin/fuzz runs a full sweep and exits when loaded, so `bin_fuzz_methods`
+# evaluates only its method definitions (before the CLI preamble) into a throwaway module.
 RSpec.describe "bin/fuzz" do
   def bin_fuzz_methods
     path = File.join(InMemoryDomain::ROOT, "bin/fuzz")
@@ -22,9 +16,7 @@ RSpec.describe "bin/fuzz" do
   end
 
   describe "#args_of" do
-    # key? first, never `||` — a step's own "args" spelling must win even
-    # when it holds a value that looks falsy, rather than silently
-    # substituting whatever the other spelling happens to hold.
+    # key? first, never `||`: a falsy "args" value must still win over the other spelling.
     it "returns the string-keyed value even when it is literally `false`, rather than falling to the symbol spelling" do
       fuzz = bin_fuzz_methods
 
@@ -39,11 +31,7 @@ RSpec.describe "bin/fuzz" do
   end
 
   describe "#shrink_arguments" do
-    # `outcome` is stubbed to reproduce the same finding unconditionally,
-    # regardless of which arguments survive — isolating exactly the bug
-    # this property is checked against: whether accepted drops accumulate,
-    # with no other consideration (which argument is "really" relevant)
-    # confounding the result.
+    # `outcome` always reproduces, so only whether accepted drops accumulate is tested.
     def always_reproduces(fuzz)
       fuzz.define_singleton_method(:outcome) { |_domain, _steps, _adapter = :memory| [:crash, "boom"] }
     end
@@ -55,19 +43,14 @@ RSpec.describe "bin/fuzz" do
       steps = [{ "verb" => "Some.Verb", "args" => { "a" => 1, "b" => 2 } }]
       shrunk = fuzz.shrink_arguments("unused-domain", steps, "crash: boom")
 
-      # Both "a" and "b" are independently droppable (the stub reproduces
-      # no matter what), so the fully-shrunk result should carry neither —
-      # a shrinker whose accepted drops don't accumulate would instead end
-      # up with only the last one dropped and the first one reverted.
+      # Both are droppable, so neither should survive; a shrinker that fails to
+      # accumulate drops would keep the first one.
       expect(shrunk.first["args"]).to eq({})
     end
 
     it "still reverts a drop the domain genuinely needs, mid-accumulation" do
       fuzz = bin_fuzz_methods
-      # "a" is droppable ; "b" is not — dropping it changes the outcome
-      # (no longer reproduces), so it must come straight back, the same
-      # way `StepBuilder#malform`'s own doc names an argument the domain
-      # requires as changing the refusal and un-reverting itself.
+      # "a" is droppable; dropping "b" changes the outcome, so it must be restored.
       fuzz.define_singleton_method(:outcome) do |_domain, steps, _adapter = :memory|
         steps.first["args"].key?("b") ? [:crash, "boom"] : [:clean, nil]
       end

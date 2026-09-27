@@ -1,6 +1,4 @@
-//! Port of `rust/project/commands.rb` — read that file's own header
-//! comments in full; this mirrors its algorithm directly, function for
-//! function.
+//! Port of `rust/project/commands.rb`: emits the per-command dispatch functions.
 
 use crate::exemplar::Exemplar;
 use crate::json::Json;
@@ -10,11 +8,7 @@ use crate::naming;
 use crate::skip_reason::{skip, SkipReason};
 use std::collections::HashMap;
 
-/// Port of `rust/project/commands.rb#invariants_fn_name` /
-/// `#emit_invariants_fn` — the aggregate's own invariant set, generated
-/// once per aggregate file and passed to every dispatch of its commands
-/// (docs/semantics/bluebook-semantics.md C6.2). Read the Ruby file's own
-/// comment for the mirrored `check_entity_invariants` walk.
+/// The aggregate's invariant set, generated once per aggregate file and passed to every dispatch.
 pub fn invariants_fn_name(aggregate: &Json) -> String {
     format!("{}_invariants", naming::rust_ident_field(aggregate.get("name").and_then(Json::as_str).unwrap_or("")).to_lowercase())
 }
@@ -22,12 +16,7 @@ pub fn invariants_fn_name(aggregate: &Json) -> String {
 pub fn emit_invariants_fn(aggregate: &Json) -> String {
     let aggregate_vec = invariant_specs_vec(aggregate.get("invariants").map(Json::each).unwrap_or(&[]), 8);
     let entities_vec = entity_invariants_vec(aggregate, 8);
-    // Mirrors `commands.rb#emit_invariants_fn`'s own conditional import —
-    // `use crate::kernel::Expr;` is only needed when one of the two vecs
-    // above actually built an `Expr::...` literal (`invariant_specs_vec`'s
-    // own `emit_ast` call, never reached when `rules` is empty and it
-    // short-circuits to a bare `vec![]`). An aggregate/entity with no
-    // invariants at all emits neither, leaving the import unused.
+    // `Expr` is imported only when an invariant literal was emitted; otherwise it is unused.
     let needs_expr = aggregate_vec.contains("Expr::") || entities_vec.contains("Expr::");
     [
         Some(format!("fn {}() -> crate::kernel::InvariantSet {{", invariants_fn_name(aggregate))),
@@ -99,43 +88,20 @@ fn entity_invariants_vec(owner: &Json, indent: usize) -> String {
     format!("vec![\n{}\n{}]", rows.join("\n"), " ".repeat(indent))
 }
 
-/// Port of `rust/project/commands.rb::DEREF_PARAMS` — the two extra
-/// parameters every generated `dispatch_*`/`dispatch_entity_*` function
-/// now takes, already resolved by the router (`registry.rs`'s own
-/// `aggregate_arms`/`entity_arms`) into plain owned data
-/// (`reference_lookup.rs`'s own header on why that has to happen there).
+/// Extra parameters of every generated `dispatch_*`/`dispatch_entity_*`, resolved by the router.
 fn deref_params() -> [&'static str; 2] {
     ["owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>", "command_deref: Vec<(&'static str, crate::kernel::DerefNode)>"]
 }
 
-/// BUG#139 — port of `rust/project/commands.rb::TENANT_BOUNDARY_PARAM`.
-/// The aggregate-command-only counterpart to `deref_params`, above:
-/// `kernel/dispatch.rs`'s own `dispatch()` (never `dispatch_entity`/
-/// `apply_entity_command` — write-side tenant boundary checks are wired
-/// for aggregate commands only) now takes an already-computed
-/// `Result<(), Refusal>`, deferred to the exact position Ruby's own
-/// `step_save` checks it (see `dispatch()`'s own header comment on the
-/// parameter for the full reasoning). This pipeline has no `tenant_
-/// boundary_checks`-equivalent source data of its own yet (this crate
-/// works purely from `ir.json`, which carries no such field — see
-/// `registry.rs`'s own header on the one command shape this affects in
-/// the real corpus), so `emit_command` always threads this parameter
-/// through and the router always passes `Ok(())` for it — correct today
-/// because no domain built through this pipeline declares a write-side
-/// tenant boundary (`tenant_ledger`, the one domain that does, is
-/// generated exclusively through the Ruby-hosted pipeline), and safe if
-/// that ever changes, because an unconditional `Ok(())` is exactly a
-/// no-op check.
+/// Write-side tenant boundary result, threaded through aggregate commands only.
+/// The router always passes `Ok(())`: no domain generated from `ir.json` declares a boundary.
 const TENANT_BOUNDARY_PARAM: &str = "tenant_boundary_check: Result<(), crate::kernel::Refusal>";
 
-/// Port of `rust/project/commands.rb#with_references_binding`.
 fn with_references_binding() -> String {
     "let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };".to_string()
 }
 
-/// Port of `rust/project/commands.rb#seed_projections_binding` — the
-/// synchronous half of `projects` (S12, ADR 0025). See that method's own
-/// header for the full reasoning.
+/// Binds the synchronous half of `projects` (ADR 0025).
 fn seed_projections_binding(aggregate: &Json) -> String {
     let table = naming::screaming_snake(aggregate.get("name").and_then(Json::as_str).unwrap_or(""));
     format!("let seed_projections = crate::kernel::seeded_projections(&with_references, {table}_PROJECTED_FIELDS);")
@@ -149,11 +115,7 @@ fn target_type_for<'a>(target: &str, aggregate: &'a Json, lifecycle_field: Optio
     attrs.iter().find(|a| crate::attr::name(a) == target).map(crate::attr::type_name)
 }
 
-// BUG#25 — the lifecycle field is never list-typed; every other target's
-// own `list` flag, straight off the aggregate's declared attribute
-// (`false` when the target isn't found at all — `target_type_for`
-// above already answers `None` for that same case, so callers' own
-// `target_type.is_some()` guard short-circuits first).
+// The lifecycle field is never a list; `false` when the target is not found.
 fn target_list_for(target: &str, aggregate: &Json, lifecycle_field: Option<&str>) -> bool {
     if lifecycle_field == Some(target) {
         return false;
@@ -166,19 +128,15 @@ pub fn command_skip_reason(command: &Json, aggregate: &Json, value_objects_by_na
     command_skip_reason_with(command, aggregate, value_objects_by_name, true)
 }
 
-/// `creating_possible` — false for an entity command, which never
-/// creates (commands.rb's own `entity_command_skip_reason`): its own
-/// optional identity argument is not an identity source.
+/// `creating_possible` is false for an entity command: its optional identity argument is not an
+/// identity source.
 fn command_skip_reason_with(command: &Json, aggregate: &Json, value_objects_by_name: &HashMap<String, &Json>, creating_possible: bool) -> Option<SkipReason> {
     let mutations_list = command.get("mutations").map(Json::each).unwrap_or(&[]);
 
     let mut unsupported_ops: Vec<String> = Vec::new();
     for m in mutations_list {
         let op = m.get("op").map(Json::to_s).unwrap_or_default();
-        // BUG#32 — `remove` is admitted here and narrowed to the one
-        // generatable shape (an entity-typed list, matched by identity)
-        // by `mutations::remove_field_problems` below; see
-        // rust/project/commands.rb's own matching comment.
+        // `remove` passes here; `mutations::remove_field_problems` narrows it to entity lists.
         if !["append", "set", "increment", "decrement", "multiply", "clamp", "remove", "delegate", "corrects"].contains(&op.as_str()) && !unsupported_ops.contains(&op) {
             unsupported_ops.push(op);
         }
@@ -188,10 +146,8 @@ fn command_skip_reason_with(command: &Json, aggregate: &Json, value_objects_by_n
     }
 
     if let Some(corrects) = crate::bridging::corrects_of(command) {
-        // Ruby's `derive_reverses_mutations!` appends the inverse of an
-        // increment/decrement before this check, and the IR this crate reads
-        // is that derived one — so only a command still carrying nothing but
-        // its `corrects` is refused, exactly as commands.rb's own check does.
+        // The IR is already derived, so only a command carrying nothing but its `corrects` is
+        // refused.
         if crate::bridging::corrects_reverses(corrects) && mutations_list.iter().all(|m| m.get("op").map(Json::to_s).unwrap_or_default() == "corrects") {
             let event = corrects.get("target").map(Json::to_s).unwrap_or_default();
             return Some(skip("corrects_reverses", format!("corrects {event}, reverses: true — the derived append/remove-reversal shape is a real, separate gap Ruby's own authors haven't finished designing (AggregateBuilder#seal_correction_targets's own comment) — not generated yet")));
@@ -256,12 +212,8 @@ fn command_skip_reason_with(command: &Json, aggregate: &Json, value_objects_by_n
             let cmd_attrs = command.get("attributes").map(Json::each).unwrap_or(&[]);
             let source_attr = cmd_attrs.iter().find(|a| crate::attr::name(a) == source_name);
             let source_type = source_attr.map(crate::attr::type_name);
-            // BUG#25 — `bridgeable_value_types` checks element types
-            // only; cardinality (list vs scalar) is a separate, equally
-            // necessary condition — see `rust/project/commands.rb`'s own
-            // matching comment for the full story (a mismatch here used
-            // to reach `mutation_set_rhs`/`value_rhs`, which collapsed a
-            // whole `Vec` as if it were one bare scalar).
+            // List-ness must match too: element-type bridging alone would collapse a `Vec` to a
+            // scalar.
             match (target_type, source_type, source_attr) {
                 (Some(t), Some(s), Some(source_attr)) => {
                     target_list_for(&target, aggregate, lifecycle_field.as_deref()) != crate::attr::list(source_attr)
@@ -292,10 +244,7 @@ fn command_skip_reason_with(command: &Json, aggregate: &Json, value_objects_by_n
         return Some(skip("arithmetic", format!("sets :{} increment/decrement/multiply amount or target field isn't bridgeable — not generated yet", unsupported_arithmetic.join(", "))));
     }
 
-    // `:clamp` — see rust/project/commands.rs's own comment on this same
-    // check for the full reasoning. No amount to resolve at all; the
-    // target half is identical to increment/decrement/multiply, the
-    // bounds half is `clamp_bounds_ints` (bridging.rs).
+    // `:clamp`: target as for increment/decrement/multiply; bounds via `clamp_bounds_ints`.
     let clamp_targets: Vec<&Json> = mutations_list.iter().filter(|m| m.get("op").map(Json::to_s).unwrap_or_default() == "clamp").collect();
     let unsupported_clamp: Vec<String> = clamp_targets
         .iter()
@@ -366,8 +315,7 @@ fn optional_source_mismatches_with(command: &Json, aggregate: &Json, value_objec
                 if target_attr.map(crate::attr::list).unwrap_or(false) {
                     continue;
                 }
-                // An aggregate command's record fields are all `Option<T>` —
-                // commands.rb's own comment on this check.
+                // An aggregate command's record fields are all `Option<T>`.
                 if creating_possible {
                     continue;
                 }
@@ -405,37 +353,14 @@ fn optional_source_mismatches_with(command: &Json, aggregate: &Json, value_objec
     problems
 }
 
-/// Shared by `emit_command`/`emit_entity_command`. `pattern:` at this
-/// usage-level door is deliberately not checked (docs/decisions/0051) —
-/// confirmed, by tracing `Runtime::CommandInterpreter`'s full dispatch
-/// pipeline exhaustively and against Ruby's real interpreter, that a
-/// bare command-attribute's own `pattern:` is never enforced: `check_
-/// patterns` fires only via a value object's own `build`, which a usage-
-/// level scalar attribute never triggers. Generating a check here made
-/// Rust stricter than Ruby — removed per ADR 0010 (Ruby is the reference
-/// implementation). `admits:` at this same door is genuinely enforced
-/// unconditionally by Ruby's own `normalize_args`, so it's kept exactly
-/// as it was. List attributes get neither check (`admit_declared_set` is
-/// reached only via the scalar branch of `Value.for_attribute` — a list
-/// attribute returns early into `hydrate_entity_list` first) — matching
-/// that silent non-enforcement, rather than refusing to generate the
-/// command at all.
-/// Port of `rust/project/commands.rb#argument_check_lines` — one
-/// attribute's own admits-constraint-plus-invariant pair, against an
-/// arbitrary already-bound value expression. Factored out of
-/// `invariant_checks_for` (below) so `json_codec.rs`'s own
-/// `emit_from_json_flat` can run the identical two checks against a bare
-/// local (ADR 0037 Finding 7's own fix) instead of waiting for
-/// `invariant_checks_for`'s POST-construction copy to run against the
-/// whole already-built `args.{field}`.
+/// One attribute's `admits:` check and value-object invariant check against `value_expr`.
+/// `pattern:` is not checked: Ruby never enforces it on a bare command attribute (ADR 0051).
+/// List attributes get no `admits:` check either, matching Ruby.
 pub fn argument_check_lines(exemplar: &Exemplar, attr: &Json, value_expr: &str, aggregates_by_name: &HashMap<String, &Json>, value_objects_by_name: &HashMap<String, &Json>) -> Vec<String> {
     let mut lines: Vec<String> = Vec::new();
 
     if !crate::attr::list(attr) {
-        // **Raw field expression, unconditionally** — `types.rs`'s own
-        // value-object-field door passes `self.{field}` raw and never
-        // wraps the result itself, trusting `constraints.rs`'s own
-        // internal optional-handling to be self-contained.
+        // Raw field expression: `constraints.rs` handles optionals itself.
         if let Some(c) = crate::constraints::emit_admits_check(exemplar, value_expr, attr, aggregates_by_name, value_objects_by_name) {
             lines.push(format!("        {c}"));
         }
@@ -462,12 +387,7 @@ pub fn argument_check_lines(exemplar: &Exemplar, attr: &Json, value_expr: &str, 
     lines
 }
 
-/// Port of `rust/project/commands.rb#invariant_checks_for` — the
-/// POST-construction copy, run against the whole already-built Args
-/// struct (`args.{field}`), kept deliberately redundant with
-/// `emit_from_json_flat`'s own interleaved copy (see
-/// `argument_check_lines`, above, and `domain_generator.rs`'s own
-/// comment on why the redundancy itself is kept).
+/// Invariant checks against the built `args.{field}`, redundant with `emit_from_json_flat`'s copy.
 pub fn invariant_checks_for(exemplar: &Exemplar, command: &Json, aggregates_by_name: &HashMap<String, &Json>, value_objects_by_name: &HashMap<String, &Json>) -> Vec<String> {
     let attrs = command.get("attributes").map(Json::each).unwrap_or(&[]);
     let mut lines: Vec<String> = Vec::new();
@@ -534,20 +454,8 @@ pub fn emit_command(exemplar: &Exemplar, command: &Json, aggregate: &Json, domai
     };
 
     let mutations_list = command.get("mutations").map(Json::each).unwrap_or(&[]);
-    // Same exclusion `rust/project/commands.rb`'s own generic mutation-line
-    // loop needs, for the same reason "corrects" is already excluded here —
-    // a "delegate" mutation's real rendering is `delegation_of`'s `d.apply`
-    // below, which overwrites `mutation_lines` wholesale when a delegation
-    // exists; this loop's own output for it is thrown away regardless. Ruby
-    // gets away with feeding it through anyway (`emit_mutation_line_body`'s
-    // `case` has no "delegate" arm and no `else`, so it silently returns
-    // `nil` — an empty line, harmless only because it's discarded next).
-    // `mutations::emit_mutation_line`'s own dispatch panics on an op it
-    // doesn't recognize rather than silently doing nothing (deliberately —
-    // see that panic's own message), so reaching it with "delegate" here
-    // crashed for real on the first domain whose only mutation was one
-    // (`examples/roster`'s `Retire`, `delegates_to "Member.Retire"` with no
-    // other mutation on the command at all).
+    // A `delegate` mutation is rendered by `delegation_of`, which overwrites `mutation_lines`;
+    // `mutations::emit_mutation_line` panics on the op, so it must be excluded here.
     let mut mutation_lines: Vec<String> = mutations_list
         .iter()
         .filter(|m| {
@@ -559,17 +467,11 @@ pub fn emit_command(exemplar: &Exemplar, command: &Json, aggregate: &Json, domai
     if mutations::reads_pre_state(mutations_list) {
         mutation_lines.insert(0, mutations::pre_state_line());
     }
-    // `corrects`'s own other half — see `rust/project/commands.rb`'s own
-    // `corrects_flag_mutation_lines` for the full reasoning: stamp the
-    // fact forward onto the record for every command whose own `emits`
-    // names an event some `corrects` mutation elsewhere on this
-    // aggregate targets.
+    // Stamp the fact forward for every command whose `emits` names an event a `corrects` targets.
     let correctable = crate::bridging::correctable_event_names(aggregate);
     let mut emitted_names: Vec<String> = Vec::new();
     for name in command.get("emits").map(Json::each).unwrap_or(&[]).iter().map(Json::to_s) {
-        // `.uniq` — first-occurrence order preserved, not sorted; matches
-        // `rust/project/commands.rb`'s own `Array(command[:emits]).map(&
-        // :to_s).uniq` exactly.
+        // `.uniq`: first-occurrence order, not sorted.
         if !emitted_names.contains(&name) {
             emitted_names.push(name);
         }
@@ -590,24 +492,15 @@ pub fn emit_command(exemplar: &Exemplar, command: &Json, aggregate: &Json, domai
     let delegation = delegation_of(exemplar, command, aggregate, value_objects_by_name, domain_name);
     if let Some(d) = &delegation {
         assert!(!creates, "{cmd}: a creating command cannot delegate — nothing exists to delegate to");
-        // BUG#140 — `d.element` (the target's own identity extraction)
-        // runs first, inside the same closure `dispatch` only ever calls
-        // after a successful hydrate — mirrors `rust/project/commands.rb`'s
-        // own identical fix exactly.
+        // `d.element` runs first, inside the closure `dispatch` calls after a successful hydrate.
         mutation_lines = vec![d.element.clone(), d.apply.clone()];
     }
     let prelude = delegation.as_ref().map(|d| d.prelude.clone()).unwrap_or_default();
     let payload = if delegation.is_some() { "delegate_facts.clone()," } else { "args.to_json()," }.to_string();
 
     let (hydrate, fn_signature);
-    // `projected_field_pseudo_attributes` — a `projects` field is never
-    // a command argument (never `matched` below), so this always falls
-    // to the plain `None,` branch: correct, since `seed_projections`
-    // (this same dispatch's own trailing step, right before save) is
-    // what actually populates it, not anything a creating command's own
-    // args could set. Owned (`record_agg_attrs_owned`) because the
-    // pseudo-attributes are freshly built `Json` values, not borrowed
-    // from `aggregate`.
+    // A `projects` field is never a command argument; `seed_projections` populates it before save.
+    // Owned because the pseudo-attributes are freshly built.
     let mut record_agg_attrs_owned: Vec<Json> = aggregate.get("attributes").map(Json::each).unwrap_or(&[]).to_vec();
     record_agg_attrs_owned.extend(crate::types::projected_field_pseudo_attributes(aggregate));
     let record_agg_attrs = record_agg_attrs_owned.as_slice();
@@ -627,15 +520,8 @@ pub fn emit_command(exemplar: &Exemplar, command: &Json, aggregate: &Json, domai
                         } else if crate::attr::list(attr) || matched_type == attr_type {
                             format!("            {field}: args.{field}.clone(),")
                         } else {
-                            // A cross-aggregate argument, same name as the
-                            // owner's own field but a different declared
-                            // type — see bridging.rs's own header
-                            // (`SafeDepositBox.Rent`'s `attribute :customer,
-                            // CustomerNumber`, bridged into the owner's own
-                            // `customer: Reference<Customer>` field). A
-                            // blind `.clone()` here assumed the two types
-                            // were always identical, which this generic
-                            // name-match never actually required.
+                            // A cross-aggregate argument named like the owner's field but of
+                            // another type needs a bridge.
                             format!("            {field}: {},", mutations::optional_value_rhs(&format!("args.{field}"), matched_type, attr_type, value_objects_by_name))
                         }
                     } else if crate::attr::list(attr) || matched_type == attr_type {
@@ -667,23 +553,15 @@ pub fn emit_command(exemplar: &Exemplar, command: &Json, aggregate: &Json, domai
             record_fields.push(format!("            {}: false,", crate::bridging::corrects_flag_field(&ev)));
         }
 
-        // BUG#28 — mirrors `CommandInterpreter#step_hydrate`'s own branch
-        // (`ctx.plan.complete_state? && ctx.plan.state_independent?`);
-        // `dependency_planning::state_independent_creation`'s own header
-        // has the full story.
+        // Mirrors `CommandInterpreter#step_hydrate`: `complete_state? && state_independent?`.
         let state_independent = crate::dependency_planning::state_independent_creation(aggregate, command, value_objects_by_name);
         let create_block = format!(
             "crate::kernel::Hydrate::Create {{\n        id: __hydrate_id,\n        build: Box::new(|| {record} {{\n{}\n        }}),\n        state_independent: {state_independent},\n    }}",
             record_fields.join("\n")
         );
 
-        // BUG#22 (QualityControl ledger) — see `rust/project/commands.rb`'s
-        // identical block for the full story: `complete_state_creation`
-        // alone (not `state_independent_creation`) decides whether a
-        // route given to this creating command is checked against its
-        // own derived identity (complete_state-true — `TypeMismatch` on a
-        // mismatch) or forces a plain find-or-`NotFound` instead
-        // (complete_state-false, the legacy `hydrate_existing` path).
+        // A route on a creating command is checked against its derived identity (`TypeMismatch`)
+        // only when `complete_state_creation` holds; otherwise it forces find-or-`NotFound`.
         let complete_state = crate::dependency_planning::complete_state_creation(aggregate, command, value_objects_by_name);
         let derived_id_expr = mutations::build_identity_expr(&identity);
         let route_mismatch_message = format!(
@@ -762,10 +640,7 @@ pub fn emit_command(exemplar: &Exemplar, command: &Json, aggregate: &Json, domai
     format!("{}\n\n#[derive(Debug, Clone)]\n{}\n\n{dispatch_fn}", crate::fielded::emit_fielded_flat(exemplar, &format!("{cmd}Args"), attrs, value_objects_by_name, &[]), args_struct.join("\n"))
 }
 
-/// Port of commands.rb's `delegate_of`/`delegate_mapping`/
-/// `delegate_target`/`delegate_skip_reason`/`delegation_of` — the
-/// `:delegate` mutation (`delegates_to`), see the exemplar's own
-/// `delegate_prelude`/`delegate_apply` comment for the shape.
+/// The `:delegate` mutation (`delegates_to`).
 fn delegate_of(command: &Json) -> Option<&Json> {
     command.get("mutations").map(Json::each).unwrap_or(&[]).iter().find(|m| m.get("op").map(Json::to_s).unwrap_or_default() == "delegate")
 }
@@ -824,14 +699,8 @@ pub fn delegate_skip_reason(command: &Json, aggregate: &Json, value_objects_by_n
         if crate::attr::list(source) != crate::attr::list(attr) {
             return Some(format!("{label}: door argument {source_name} is a list, target wants a scalar (or vice versa) — not generated yet"));
         }
-        // `bridgeable_value_types`, not exact type-name equality — see
-        // rust/project/commands.rs's own comment on this same check
-        // (docs/decisions/0045) for the full reasoning: the JSON-level
-        // alias-then-deserialize delegate mechanism never compares the
-        // two arguments' declared type names to each other, only Ruby's
-        // real behavior does (nothing, empirically confirmed) — so this
-        // generator shouldn't either, past the same semantic-soundness
-        // check `mutation_set_rhs`'s own RHS already trusts.
+        // Bridgeable, not exact type-name equality: the alias-then-deserialize delegate never
+        // compares declared type names (docs/decisions/0045).
         if !crate::bridging::bridgeable_value_types(crate::attr::type_name(source), crate::attr::type_name(attr), value_objects_by_name) {
             return Some(format!("{label}: door argument {source_name} is {}, target wants {} — not generated yet", crate::attr::type_name(source), crate::attr::type_name(attr)));
         }
@@ -853,9 +722,7 @@ pub fn delegate_skip_reason(command: &Json, aggregate: &Json, value_objects_by_n
 
 struct Delegation {
     prelude: String,
-    // BUG#140 — see `rust/project/commands.rb`'s own identical field for
-    // the full reasoning: split out of `prelude` so `element_id`'s own
-    // extraction runs after `dispatch`'s own hydrate, not before it.
+    // Split from `prelude` so the element identity is extracted after `dispatch`'s hydrate.
     element: String,
     apply: String,
     emits: Vec<String>,
@@ -934,9 +801,6 @@ fn delegation_of(exemplar: &Exemplar, command: &Json, aggregate: &Json, value_ob
     let identity_reading = entity.get("identified_by").map(Json::each).unwrap_or(&[]).iter().map(Json::to_s).collect::<Vec<_>>().join(", ");
 
     let prelude = exemplar.render("delegate_prelude", &[("tmpl_aliases_placeholder()", aliases.join(", ")), ("TmplTargetArgs", target_args_name)]);
-    // BUG#140 — see the `Delegation` struct's own comment, above, and
-    // `rust/src/exemplar/commands.rs`'s `tmpl_delegate_element_host`
-    // header for the full reasoning.
     let element = exemplar.render("delegate_element", &[("TmplElement", element_record.clone())]);
     let apply = exemplar.render(
         "delegate_apply",
@@ -944,16 +808,9 @@ fn delegation_of(exemplar: &Exemplar, command: &Json, aggregate: &Json, value_ob
             ("TmplRecord", naming::rust_ident(&aggregate_name)),
             ("tmpl_list_field", naming::rust_ident_field(crate::attr::name(list_attr))),
             ("TmplElement", element_record),
-            // Bare, not "{entity_name}.{target name}" — mirrors
-            // rust/project/commands.rb's own identical fix: this feeds
-            // straight into refusal-message text, and Ruby's own
-            // `command.hecks_name` is never entity-qualified.
+            // Bare, not entity-qualified: it feeds refusal-message text, as in Ruby.
             ("\"TmplQualifiedCommandName\"", naming::ruby_inspect_string(&target.get("name").map(Json::to_s).unwrap_or_default())),
-            // BUG#31 — `apply_entity_command`'s own new parameter
-            // (kernel/dispatch.rs); mirrors `rust/project/commands.rb`'s
-            // own identical fix — see that call site's comment for why
-            // this is computed correctly even though no real corpus
-            // domain combines `delegates_to` with `corrects` today.
+            // Lets `apply_entity_command` (kernel/dispatch.rs) judge `corrects` admissibility.
             ("\"TmplQualifiedName\"", naming::ruby_inspect_string(&format!("{domain_name}::{aggregate_name}"))),
             ("\"TmplAggregateName\"", naming::ruby_inspect_string(&aggregate_name)),
             ("\"TmplEntityName\"", naming::ruby_inspect_string(&entity_name)),
@@ -972,21 +829,12 @@ fn delegation_of(exemplar: &Exemplar, command: &Json, aggregate: &Json, value_ob
     })
 }
 
-/// `entity_command_skip_reason` — `command_skip_reason` with `entity`
-/// standing in for `aggregate`, with no special-casing for an entity's
-/// own `:append` mutation: an entity's own IR shape is genuinely the
-/// same six-key shape an aggregate's is, entities included (S17, ADR
-/// 0026), so `append_element`'s `aggregate.get("entities")` read works
-/// the same way for both. Mirrors commands.rb's own identical treatment
-/// exactly, confirmed the same way: both real corpus targets
-/// (`ValueObject::Member.Pair`, a VO-list; `ProcessManager::
-/// Handler.Dispatch`, a genuinely nested entity-list) compile and pass
-/// codegen_parity_spec against the Ruby-orchestrated generator.
+/// `command_skip_reason` for an entity command; an entity has the same IR shape as an aggregate.
 pub fn entity_command_skip_reason(command: &Json, entity: &Json, value_objects_by_name: &HashMap<String, &Json>) -> Option<SkipReason> {
     command_skip_reason_with(command, entity, value_objects_by_name, false)
 }
 
-/// **An entity command**.
+/// Emits the dispatch function for an entity command.
 pub fn emit_entity_command(
     exemplar: &Exemplar,
     command: &Json,
@@ -1027,12 +875,8 @@ pub fn emit_entity_command(
 
     let invariant_checks = invariant_checks_for(exemplar, command, aggregates_by_name, value_objects_by_name);
 
-    // BUG#31 — `corrects_given_specs(command)` prepended here, mirroring
-    // `emit_command`'s own aggregate-level twin (above) exactly: see
-    // `rust/project/commands.rb`'s own identical fix for the full
-    // reasoning (`apply_entity_command`, kernel/dispatch.rs, evaluates a
-    // `corrects_event`-carrying given against the parent record, never
-    // the entity's own element).
+    // `corrects_given_specs` is prepended as in `emit_command`; `apply_entity_command` evaluates
+    // it against the parent record, never the entity's element.
     let givens = command.get("givens").map(Json::each).unwrap_or(&[]);
     let mut given_specs: Vec<String> = crate::bridging::corrects_given_specs(command);
     given_specs.extend(givens.iter().map(|g| {
@@ -1075,8 +919,7 @@ pub fn emit_entity_command(
         mutation_lines = vec!["        let _ = record;".to_string()];
     }
 
-    // Bare, not entity-qualified — same reasoning as delegate_apply's own
-    // identical fix above.
+    // Bare, not entity-qualified, as in `delegate_apply`.
     let qualified_command_name = command.get("name").and_then(Json::as_str).unwrap_or("").to_string();
     let emits = command.get("emits").map(Json::each).unwrap_or(&[]);
     let emits_expr = emits.iter().map(|e| naming::ruby_inspect_string(&e.to_s())).collect::<Vec<_>>().join(", ");
@@ -1115,13 +958,8 @@ pub fn emit_entity_command(
         format!("#[derive(Debug, Clone)]\n{}", args_struct.join("\n")),
         crate::json_codec::emit_to_json_flat_sparse(exemplar, &args_struct_name, attrs, value_objects_by_name),
         {
-            // `unknown_argument_allowlist:` — BUG#8's own fix (see
-            // `json_codec::command_argument_allowlist`'s own doc comment
-            // for the full account). Computed the same way an
-            // aggregate command's own call site does
-            // (domain_generator.rs), plus the entity's own identity head
-            // — `ArgumentGate#refuse_unknown_arguments`'s
-            // `extra_identity_heads:` on the Ruby runtime side.
+            // `unknown_argument_allowlist:` as for an aggregate command, plus the entity's
+            // identity head (`extra_identity_heads:` in Ruby's `ArgumentGate`).
             let entity_identity_heads: Vec<String> = entity
                 .get("identified_by")
                 .map(Json::each)
@@ -1132,9 +970,7 @@ pub fn emit_entity_command(
             let allowlist = crate::json_codec::command_argument_allowlist(parent_aggregate, command, process_managers, &entity_identity_heads);
             crate::json_codec::emit_from_json_flat(exemplar, &args_struct_name, attrs, value_objects_by_name, Some(&allowlist), Some(&qualified_command_name), true, true, Some(aggregates_by_name))
         },
-        // The argument gates (roadmap D2) — `kernel::decode_entity_
-        // arguments` calls these in `EntityStep::ORDER`; see
-        // `json_codec::emit_argument_gates`' own header.
+        // Argument gates, run by `kernel::decode_entity_arguments` in `EntityStep::ORDER`.
         {
             let entity_identity_heads: Vec<String> = entity
                 .get("identified_by")
@@ -1151,29 +987,8 @@ pub fn emit_entity_command(
     .join("\n\n")
 }
 
-/// BUG#11 (loop-parity) — mirrors `rust/project/commands.rb#emit_nested_
-/// entity_command` exactly: a command owned by an entity nested two
-/// levels deep (`Aggregate.Entity.Entity.Command`, e.g. `ProcessManager.
-/// Handler.Dispatch.BindCompensation`). `kernel::dispatch_entity` and
-/// `kernel::apply_entity_command` (dispatch.rs, unchanged by either
-/// generator) are already generic over any (parent, list, matches,
-/// apply_mutations) tuple — this composes them exactly the way `emit_
-/// entity_command`'s own `delegate_apply` already proves `apply_entity_
-/// command` composes with a surrounding `dispatch`/`dispatch_entity`
-/// call, one level deeper: the outer hop runs through `dispatch_entity`
-/// with no given/ensures/transition of its own (`nested`'s command
-/// belongs to the inner hop, never the entity it's nested inside — see
-/// the Ruby generator's own header for why), and the inner hop is one
-/// more `apply_entity_command` call nested inside the outer's own
-/// `apply_mutations` closure. The generated function below is
-/// **Addressing-agnostic** — `parent_id`/`hop1_id`/`hop1_wants`/`hop2_id`/
-/// `hop2_wants` are plain `&str` parameters, no `RoutingEnvelope` in
-/// sight. BUG#11 (this function's own original form) only ever called it
-/// from the routed (`to: { aggregate:, entities: [hop1, hop2] }`) shape;
-/// BUG#19 taught `registry.rs`'s own `nested_entity_arms` a second
-/// caller shape — flat args, one identity head per hop, resolved via
-/// `entity`'s/`nested`'s own `extract_id`/`extract_wants` (`domain_
-/// generator.rs`'s own header) — with no change needed here at all.
+/// Emits the dispatch function for a command on an entity nested two levels deep.
+/// Takes plain `&str` ids per hop, so routed and flat-args callers can both use it.
 pub fn emit_nested_entity_command(
     exemplar: &Exemplar,
     command: &Json,
@@ -1246,8 +1061,7 @@ pub fn emit_nested_entity_command(
         })
         .collect();
 
-    // The nested entity's own lifecycle — same reasoning as `emit_entity_
-    // command`'s identical call, one level deeper.
+    // The nested entity's lifecycle, as in `emit_entity_command`.
     let transition = mutations::lifecycle_transition_for(command, nested);
     let transition_arg = match &transition {
         Some(t) => format!(
@@ -1272,26 +1086,11 @@ pub fn emit_nested_entity_command(
         mutation_lines = vec!["                let _ = record;".to_string()];
     }
 
-    // Bare — same reasoning as `emit_entity_command`'s identical
-    // `qualified_command_name`.
+    // Bare, as in `emit_entity_command`.
     let qualified_command_name = command.get("name").and_then(Json::as_str).unwrap_or("").to_string();
-    // BUG#31 — the hop-2 `apply_entity_command` call below gets the root
-    // aggregate's own qualified name purely to keep the signature
-    // compiling, not to make its own `corrects` admissibility real —
-    // mirrors `rust/project/commands.rb`'s own identical fix; see that
-    // call site's comment for the full reasoning (a hop-2 command's own
-    // `record` at that inner closure is the hop-1 entity, not the root
-    // aggregate, so a correction check evaluated there would check the
-    // wrong thing — left open, unexercised, same as BUG#30's own explicit
-    // scope boundary).
-    //
-    // BUG#137 — the hop-2 `apply_entity_command` call's own trailing
-    // `parent_in_args` literal, below, is `true` now, not `false` —
-    // mirrors `rust/project/commands.rb`'s own identical fix byte for
-    // byte (`spec/project_rust_pipeline_spec.rb`'s own whole-file
-    // comparison catches a drift here); see that call site's comment,
-    // and `kernel/dispatch.rs`'s own `apply_entity_command`/`dispatch_
-    // entity` header, for the full reasoning.
+    // The hop-2 `apply_entity_command` gets the root aggregate's qualified name only to satisfy
+    // the signature: its `record` is the hop-1 entity, so `corrects` admissibility is not checked
+    // there. Its trailing `parent_in_args` literal is `true`, byte for byte as Ruby emits.
     let emits = command.get("emits").map(Json::each).unwrap_or(&[]);
     let emits_expr = emits.iter().map(|e| naming::ruby_inspect_string(&e.to_s())).collect::<Vec<_>>().join(", ");
     let fn_name = format!(
@@ -1382,9 +1181,7 @@ pub fn emit_nested_entity_command(
         format!("#[derive(Debug, Clone)]\n{}", args_struct.join("\n")),
         crate::json_codec::emit_to_json_flat_sparse(exemplar, &args_struct_name, attrs, value_objects_by_name),
         {
-            // `extra_identity_heads:` — both hops' own identity heads, not
-            // just `nested`'s own — matching Ruby's own `ctx.chain.
-            // flat_map(&:identity_heads)` (entity_interpreter.rb).
+            // Both hops' identity heads, as `ctx.chain.flat_map(&:identity_heads)` in Ruby.
             let mut identity_heads: Vec<String> = entity
                 .get("identified_by")
                 .map(Json::each)
@@ -1403,8 +1200,7 @@ pub fn emit_nested_entity_command(
             let allowlist = crate::json_codec::command_argument_allowlist(parent_aggregate, command, process_managers, &identity_heads);
             crate::json_codec::emit_from_json_flat(exemplar, &args_struct_name, attrs, value_objects_by_name, Some(&allowlist), Some(&qualified_command_name), true, true, Some(aggregates_by_name))
         },
-        // The argument gates (roadmap D2) — see the one-hop entity
-        // command's own identical call, above.
+        // Argument gates, as in the one-hop entity command.
         {
             let mut identity_heads: Vec<String> = entity
                 .get("identified_by")

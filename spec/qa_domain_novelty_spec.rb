@@ -2,13 +2,8 @@ require "spec_helper"
 require "open3"
 require "hecks/fuzzing/form_census"
 
-# `bin/qa_domain_novelty` — the gate a new stress domain passes before
-# it becomes a `QualityControl::Target`: does it put two declared forms
-# together, on one aggregate, that no existing target does? See the
-# script's own header for the argument; this proves the script itself,
-# as a real subprocess, over fixture domains and `--against` — never the
-# ledger (`spec/quality_control_spec.rb`'s own rule: a spec that read
-# the real ledger would depend on what every prior sweep left in it).
+# `bin/qa_domain_novelty` as a subprocess over fixture domains and `--against`: does a new
+# stress domain combine two declared forms on one aggregate that no existing target does?
 RSpec.describe "bin/qa_domain_novelty" do
   NOVELTY_FIXTURES = File.join(InMemoryDomain::ROOT, "spec/fixtures/qa_domain_novelty").freeze
   BASELINE = File.join(NOVELTY_FIXTURES, "baseline").freeze
@@ -71,10 +66,8 @@ RSpec.describe "bin/qa_domain_novelty" do
     expect(err).to include("usage: bin/qa_domain_novelty")
   end
 
-  # **The worked example** — the domain the reference-hop forms joined the
-  # census for. Pinned here so the census and the domain cannot drift
-  # apart: every form `qa/stress_domains/referral_chain` exists to
-  # exercise has to keep reading true on the aggregate that carries it.
+  # The worked example: pins the census to `qa/stress_domains/referral_chain`, whose forms
+  # must keep reading true on the aggregate that carries them.
   describe "Hecks::Fuzzing::FormCensus over qa/stress_domains/referral_chain" do
     let(:census) { Hecks::Fuzzing::FormCensus.census(File.join(InMemoryDomain::ROOT, "qa/stress_domains/referral_chain")) }
 

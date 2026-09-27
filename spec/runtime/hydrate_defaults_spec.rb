@@ -1,11 +1,7 @@
 require "spec_helper"
 
-# Point 6 of the translation design: a newly-required field with no
-# historical source is an ordinary bluebook `default:`, not a
-# translation rule. `Instance#initialize` always filled defaults for a
-# fresh instance; loading existing state never ran that same fill, so a
-# record written before the attribute existed hydrated to nil forever.
-# The runtime now fills declared defaults on the hydrate path too.
+# A field added after a record was stored hydrates through its declared `default:`,
+# the same fill `Instance#initialize` applies to a fresh instance.
 RSpec.describe "hydrating stored state through declared defaults" do
   def aggregate_with_defaults
     registry = Hecks::Runtime::Registry.new

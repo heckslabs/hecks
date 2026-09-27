@@ -11,34 +11,15 @@ module Hecks
   module Ports
     module Persistence
       module Plugins
-        # ADR 0033 — requiring this file is installing the plugin. Nothing in
-        # Hecks core requires it. A boot loads it on demand for a domain that
-        # binds `PostgresEra` (`Runtime::Loader.load_bound_adapters!` resolves the
-        # adapter, which autoloads this file, before the gates are collected). An
-        # app that wants schema-translation support without binding `PostgresEra`
-        # requires it explicitly, the same shape every adapter-specific spec
-        # fixture already uses to load one particular `.adapter` file rather than
-        # all of them.
+        # ADR 0033 — requiring this file installs the plugin; nothing in Hecks core
+        # requires it, so it loads only for a domain that binds `PostgresEra` (or asks explicitly).
         module Era
           module_function
 
           # Registers this plugin's era gates on one boot's gate list.
           #
-          # `Runtime::Loader.run_boot_gates!` asks every loaded persistence
-          # plugin to contribute here, generically — it never mentions
-          # `EraCheck` or "era" by name. Two gates, both `:pre_verify`:
-          #
-          # `:era_compute_rules` — unconditional, whenever this plugin is
-          # loaded at all. A `compute`/`rekey` rule requires Postgres
-          # whatever adapter is actually bound (ADR 0031's own reasoning,
-          # unchanged) — this is the rich, adapter-aware version of that
-          # check; `Runtime::Loader`'s own structural backstop (plain
-          # `Bluebook::Translation` data, no plugin-specific class) only
-          # ever fires when no persistence plugin is loaded at all.
-          #
-          # `:era_check` — conditional, exactly ADR 0031's own gate,
-          # unchanged: registered only when this registry has an aggregate
-          # actually bound to a lineage-capable adapter.
+          # Two `:pre_verify` gates: `era_compute_rules` always runs; `era_check` (ADR 0031)
+          # runs only when the registry binds something lineage-capable.
           #
           # @param registry [Runtime::Registry] the registry being booted, asked whether any
           #   bluebook's first aggregate is bound to a lineage-capable adapter

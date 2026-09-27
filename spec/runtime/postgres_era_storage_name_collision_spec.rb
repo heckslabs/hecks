@@ -4,55 +4,10 @@ require "tmpdir"
 require_relative "../support/postgres_probe"
 require_relative "../support/fenced_owner"
 
-# The storage-name collision, found live against a real, private client
-# project — a domain at era 12 of its own schema history (its own real
-# `aggregate "Note"`) attaching a second, small, vendored bluebook chapter via `uses_embryonaut_bluebook
-# "notes"` (`Notes`, its own unrelated `aggregate "Note"`), both bound to
-# PostgresEra against the same Postgres database.
-#
-# **Root cause** — `Lineage#head_view`/`#head_snapshot`/`#matview`
-# (postgres_era/lineage.rb) were qualified by `storage_name` alone,
-# never by domain — unlike `#journal`, which already folds
-# `Naming.snake(@domain)` in. Ruby's own snake-casing turns two
-# different aggregates both named "Note" into the identical
-# storage_name "note", so both domains' `PostgresEra` adapters derived
-# the exact same physical relations (`note_head`, `note_head_snapshot_
-# 1`, `note_lineage_N_<label>`) — and `PostgresEra#initialize`'s own
-# unconditional, every-boot self-heal (`ensure_head_snapshot!`/
-# `ensure_first_head!` — "belt-and-suspenders... at the cost of one
-# CREATE TABLE IF NOT EXISTS nobody pays for twice") meant booting the
-# second domain (still at era 1) dropped and recompiled the shared
-# `note_head` view back to its own simple, era-1-only form — silently
-# clobbering the first domain's already-compiled, higher-era union view,
-# purely from an ordinary boot, no write involved at all. Confirmed live
-# by hand: manually recompiling `note_head` back to its real era-12
-# union form, then re-booting the same project with nothing changed on
-# disk, clobbered it right back.
-#
-# Fixed by domain-qualifying `head_view`/`head_snapshot`/`matview` the
-# same way `journal` already was (`Lineage#qualified_name`, folding in
-# `Naming.snake(@domain)`, degrading to a hashed/truncated form only
-# once the readable form would risk Postgres's own 63-byte identifier
-# limit) — see docs/decisions/0059 for the full writeup, including the
-# parallel fix this same collision needed in `rust/host` (`journal.rs`/
-# `mint.rs`'s own independent copies of this naming scheme) and in
-# `FieldCache#field_cache` (a fourth, differently-shaped relation family
-# with the identical storage_name-only gap).
-#
-# Three examples, in increasing fidelity to the live report:
-#   1. the straightforward case — two fresh (both era 1) domains sharing
-#      a storage_name, dispatched through real commands, must never see
-#      each other's writes, and must occupy genuinely distinct physical
-#      relations.
-#   2. the same mechanism under `uses_framework` instead of
-#      `uses_embryonaut_bluebook` — nothing in `lineage.rb` ever branches
-#      on how a chapter got attached, so this is expected (and confirmed)
-#      to reproduce identically.
-#   3. the actual reported damage — a domain already minted to a higher
-#      era (a real translation edge, real historical data only visible
-#      through the compiled union view) sharing a database with a fresh
-#      era-1 sibling, proving an ordinary boot of the sibling no longer
-#      clobbers the first domain's own already-compiled view.
+# Pins a fix (ADR 0059): Lineage#head_view/#head_snapshot/#matview were
+# qualified by storage_name alone, so two aggregates named alike (e.g. two
+# "Note"s in different domains) derived the same physical relations, and
+# PostgresEra's boot-time self-heal silently clobbered one with the other.
 RSpec.describe "PostgresEra domain-qualifies head_view/head_snapshot/matview (docs/decisions/0059)", :io do
   STORAGE_COLLISION_DB = "hecks_storage_name_collision_spec".freeze
 
@@ -98,8 +53,6 @@ RSpec.describe "PostgresEra domain-qualifies head_view/head_snapshot/matview (do
     scrub.close
     FencedOwner.own_public!(STORAGE_COLLISION_DB)
   end
-
-  # ── 1: uses_embryonaut_bluebook — the live report's own attachment mechanism ──
 
   describe "uses_embryonaut_bluebook: two fresh domains, one storage_name" do
     def target_bluebook
@@ -223,16 +176,14 @@ RSpec.describe "PostgresEra domain-qualifies head_view/head_snapshot/matview (do
         target_rows = dispatcher.query("Target::Note.All")
         notes_rows  = dispatcher.query("Notes::Note.All")
 
-        # **The bug, pinned**: pre-fix, both domains' "Note" aggregate read
-        # and wrote through the same unqualified "note_head"/
-        # "note_head_snapshot_1" relations, so each domain's own query
-        # would have seen both writes.
+        # Pinned: pre-fix, both domains' "Note" aggregate read and wrote
+        # through the same unqualified note_head/note_head_snapshot_1
+        # relations, so each query would have seen both writes.
         expect(target_rows.map { |r| r[:ref][:value] }).to eq(["target-owns-this"])
         expect(notes_rows.map { |r| r[:ref][:value] }).to eq(["notes-owns-this"])
 
-        # **Domain-qualified, not shared** — one snapshot table per domain,
-        # even though both aggregates share the exact same storage_name
-        # "note".
+        # One snapshot table per domain, even though both aggregates share
+        # the same storage_name "note".
         snapshots = relation_names("%note_head_snapshot_1")
         expect(snapshots).to contain_exactly("target_note_head_snapshot_1", "notes_note_head_snapshot_1")
 
@@ -253,20 +204,6 @@ RSpec.describe "PostgresEra domain-qualifies head_view/head_snapshot/matview (do
       end
     end
   end
-
-  # ── 2: uses_framework — the same mechanism, a different attachment path ──
-  #
-  # `lineage.rb`'s own naming helpers never branch on how a chapter got
-  # attached — `uses_framework`/`uses_embryonaut_bluebook` both just add
-  # a bluebook to the same registry, and `PostgresEra#initialize`
-  # resolves `@domain` from the aggregate's own owning chapter name
-  # either way (postgres_era.rb's own comment on `@domain`). So a
-  # `uses_framework "Governance"` domain whose own aggregate happens to
-  # share a storage_name with one of Governance's real aggregates
-  # ("RoleAssignment") is expected to reproduce the identical collision
-  # — confirmed directly here, at the repository level (no command
-  # dispatch/role-grant machinery needed: a repository is built the same
-  # way whether or not anything ever authorizes a command against it).
 
   describe "uses_framework: the same collision, confirmed against a real framework member (Governance)" do
     def custodian_bluebook
@@ -330,11 +267,9 @@ RSpec.describe "PostgresEra domain-qualifies head_view/head_snapshot/matview (do
         dispatcher = Hecks.boot(domain_dir, install_facade: false)
         registry = dispatcher.registry
 
-        # Repository-level, deliberately — building a repository never
-        # requires an actual role GRANT to exist (only dispatching a
-        # role-gated command does), so this reaches the exact same
-        # `PostgresEra#initialize` self-heal path the live bug hit
-        # without needing to bootstrap a real Governance admin grant.
+        # Repository-level: building a repository never requires a role grant
+        # (only dispatching a role-gated command does), so this reaches the
+        # same PostgresEra#initialize self-heal path without a Governance grant.
         custodian_repo   = registry.repository("Custodian", registry.bluebook("Custodian").aggregate("RoleAssignment"))
         governance_repo  = registry.repository("Governance", registry.bluebook("Governance").aggregate("RoleAssignment"))
 
@@ -344,9 +279,8 @@ RSpec.describe "PostgresEra domain-qualifies head_view/head_snapshot/matview (do
                             ))
 
         expect(custodian_repo.all.map { |i| i.ref.to_h }).to eq([{ value: "custodian-owns-this" }])
-        # Governance's own real RoleAssignment table is untouched by
-        # Custodian's write — pre-fix, both would have shared the exact
-        # same "role_assignment_head_snapshot_1" table.
+        # Governance's own table is untouched — pre-fix both would have
+        # shared the same role_assignment_head_snapshot_1 table.
         expect(governance_repo.count).to eq(0)
 
         snapshots = relation_names("%role_assignment_head_snapshot_1")
@@ -355,9 +289,6 @@ RSpec.describe "PostgresEra domain-qualifies head_view/head_snapshot/matview (do
       end
     end
   end
-
-  # ── 3: the actual reported damage — a higher-era domain's own already-
-  # compiled view, clobbered by an ordinary boot of a colliding sibling ──
 
   describe "a fresh sibling's own boot no longer clobbers an already-minted, higher-era domain's own head view" do
     TARGET_V1 = <<~BLUEBOOK.freeze
@@ -395,9 +326,8 @@ RSpec.describe "PostgresEra domain-qualifies head_view/head_snapshot/matview (do
       end
     BLUEBOOK
 
-    # **The shape change** — `title` renamed to `heading`, enough to change
-    # `StorageShape.project`'s own output and trigger a real mint,
-    # exactly the minimal shape `lineage_spec.rb`'s own V1/V2 pair uses.
+    # title renamed to heading: enough to change StorageShape.project's output
+    # and trigger a real mint — the same minimal shape lineage_spec.rb's V1/V2 pair uses.
     TARGET_V2 = <<~BLUEBOOK.freeze
       Hecks.bluebook "Target" do
         vision "the domain that attaches a second, vendored bluebook sharing an aggregate name"
@@ -503,17 +433,13 @@ RSpec.describe "PostgresEra domain-qualifies head_view/head_snapshot/matview (do
       Hecks::Runtime::StorageShape.mint_hash(load_registry(source).bluebooks.values.first)[0, 6]
     end
 
-    # The full end-to-end reproduction — era-1 mint, a real era-2
-    # translation, then the ordinary multi-bluebook boot that would
-    # clobber it unguarded — genuinely needs every step below to mean anything;
-    # splitting it would leave no single example that reproduces the
-    # live bug's own actual mechanism.
+    # Every step here is needed to reproduce the live mechanism; splitting
+    # this into smaller examples would leave none that actually exercises it.
     # rubocop:disable-next RSpec/ExampleLength
     it "keeps Target's own real, translated era-2 data visible after Notes' fresh era-1 self-mint boots alongside it" do
       Dir.mktmpdir do |dir|
-        # ── era 1: mint Target directly (no hecksagon/world involved —
-        # LineageManager.check! only needs a registry + bluebook), then
-        # write one real record through Target's own generic write path ──
+        # LineageManager.check! only needs a registry + bluebook — no
+        # hecksagon/world required to mint Target directly at era 1.
         registry_v1 = check!(TARGET_V1)
         aggregate_v1 = registry_v1.bluebooks.values.first.aggregate("Note")
         adapter_v1 = Hecks::Adapters::PostgresEra.new(
@@ -523,10 +449,8 @@ RSpec.describe "PostgresEra domain-qualifies head_view/head_snapshot/matview (do
                           aggregate: aggregate_v1, id: "n1", state: { title: { "value" => "Original Title" } }
                         ))
 
-        # ── era 2: a real translation edge, mint straight through —
-        # Target's own "target_note_head" is now the compiled, chained-
-        # edge union view lineage_spec.rb's own suite proves elsewhere,
-        # never a plain single-snapshot view again ──
+        # After this real translation edge, target_note_head is the compiled
+        # union view, never a plain single-snapshot view again.
         from = label_of(TARGET_V1)
         to = label_of(TARGET_V2)
         check!(TARGET_V2, translation_source: edge_source(from: from, to: to))
@@ -538,10 +462,8 @@ RSpec.describe "PostgresEra domain-qualifies head_view/head_snapshot/matview (do
         db.close
         expect(JSON.parse(pre_boot[0]["state"])).to eq("ref" => { "value" => "n1" }, "heading" => { "value" => "Original Title" })
 
-        # ── now write the real multi-bluebook project directory — target.bluebook
-        # is TARGET_V2 (the shape `hecks_eras` already holds as current,
-        # so this boot's own EraResolver finds no drift), plus the
-        # vendored Notes chapter, sharing Target's own storage_name ──
+        # target.bluebook is TARGET_V2, the shape hecks_eras already holds,
+        # so EraResolver finds no drift when this multi-bluebook boot runs.
         write(File.join(dir, "bluebook", "target.bluebook"), TARGET_V2)
         write(
           File.join(dir, "vendor", "embryonaut_bluebooks", "notes", "bluebook", "notes.bluebook"),
@@ -586,32 +508,21 @@ RSpec.describe "PostgresEra domain-qualifies head_view/head_snapshot/matview (do
           end
         WORLD
 
-        # **The moment the live bug happened** — an ordinary boot of the
-        # multi-bluebook registry. Notes has never been minted before,
-        # so its own `PostgresEra#initialize` self-mints era 1 for
-        # its own "note" storage_name — pre-fix, `ensure_first_head!`
-        # would drop and recompile the shared (unqualified) "note_head"
-        # view back to Notes' own simple era-1 form, taking Target's
-        # real, compiled era-2 union down with it.
+        # Pinned: pre-fix, Notes' era-1 self-mint (ensure_first_head!) would
+        # drop and recompile the shared, unqualified note_head view back to
+        # era-1 form, taking Target's already-compiled era-2 union down with it.
         dispatcher = Hecks.boot(File.join(dir, "bluebook"), install_facade: false)
 
-        # Target's own real data is still there, still correctly
-        # translated — the actual claim the live bug's own field report
-        # made about that project's real historical notes.
         target_rows = dispatcher.query("Target::Note.All")
         expect(target_rows.map { |r| r[:heading][:value] }).to eq(["Original Title"])
 
-        # Notes' own boot-time self-mint happened, genuinely — it just
-        # landed in its own physical relations, never Target's.
+        # Notes' own self-mint landed in its own relations, never Target's.
         dispatcher.dispatch_flat("Notes::Note.Write", ref: { value: "notes-owns-this" })
         expect(dispatcher.query("Notes::Note.All").map { |r| r[:ref][:value] }).to eq(["notes-owns-this"])
-        # ...and Target's own query is still untouched by that write.
         expect(dispatcher.query("Target::Note.All").map { |r| r[:heading][:value] }).to eq(["Original Title"])
 
-        # **Direct SQL, the sharpest possible confirmation**: two distinct
-        # physical relations, Target's own still the compiled union
-        # (its definition still names its own era-2 matview), Notes'
-        # own the plain era-1 form — neither clobbered the other's.
+        # Confirms two distinct relations directly: Target's view still names
+        # its era-2 matview; Notes' stays plain era-1 — neither clobbered the other.
         db = PG.connect(dbname: STORAGE_COLLISION_DB)
         target_def = db.exec_params("SELECT definition FROM pg_views WHERE viewname = $1", ["target_note_head"])[0]["definition"]
         notes_def = db.exec_params("SELECT definition FROM pg_views WHERE viewname = $1", ["notes_note_head"])[0]["definition"]

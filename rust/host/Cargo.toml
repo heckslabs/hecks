@@ -3,147 +3,57 @@ name = "rust_host"
 version = "0.1.0"
 edition = "2021"
 
-# Empty table, deliberate, same reasoning rust/web's own Cargo.toml
-# gives for itself: makes THIS crate its own workspace root instead of
-# Cargo folding it into whatever workspace `rust` (the kernel crate)
-# might belong to.
+# Empty table: makes this crate its own workspace root instead of joining `rust`'s.
 [workspace]
 
 [[bin]]
 name = "bootstrap"
 path = "src/main.rs"
 
-# NO path dependency on `rust` — unlike rust/web (which links the
-# kernel in-process for a JS-callable function, sacrificing nothing
-# since a browser tab is already the sandbox), this crate treats the
-# compiled `.wasm` artifact as an opaque, untrusted-by-default module
-# loaded through wasmtime at runtime, not a Rust library to link
-# against. That's the whole point of keeping WASM in the loop here:
-# dispatch logic runs inside wasmtime's sandbox, with ZERO ambient
-# access to the Postgres connection this crate itself holds — a real
-# capability boundary a direct `rust::kernel::cli::run(...)` call
-# would throw away.
+# No path dependency on `rust`: the compiled `.wasm` is loaded through wasmtime as an untrusted
+# module, so dispatch runs sandboxed with no access to this crate's Postgres connection.
 [dependencies]
 wasmtime = "47.0.3"
 wasmtime-wasi = "47.0.3"
 lambda_runtime = "0.13"
 tokio = { version = "1", features = ["macros", "net", "rt-multi-thread", "sync"] }
-# HECKS_SERVE_MODE=1 (server.rs) — a long-lived HTTP server for AWS
-# Fargate, alongside the Lambda custom-runtime path above; needed so a
-# domain deployed via `deployed_to("AwsFargate")` (fargate.rb) can
-# actually answer the HTTP the generated ALB/target group already
-# expects. Pure Rust (hyper + tower underneath, both already
-# TLS-agnostic here — the ALB terminates HTTP, this crate never opens a
-# listening TLS socket of its own), the same no-C-toolchain discipline
-# every other dependency in this file already holds to. default-features
-# = false + an explicit, minimal feature list — "http1" (plain HTTP/1.1,
-# all an ALB-fronted container needs; no h2/gRPC caller exists),
-# "tokio" (the `axum::serve` runtime integration this crate's own
-# `#[tokio::main]` needs), "json" (a thin `axum::Json` response wrapper
-# over `serde_json`, already a dependency either way) — deliberately
-# without axum's own "query"/"form"/"matched-path"/"original-uri"/
-# "macros" features, none of which server.rs's own single-fallback-route
-# handler uses.
+# Used by server.rs (HECKS_SERVE_MODE=1) to answer the ALB's HTTP on Fargate. HTTP/1.1 only;
+# the features are the minimal set its single fallback route needs.
 axum = { version = "0.8", default-features = false, features = ["http1", "json", "tokio"] }
 tokio-postgres = { version = "0.7", features = ["with-serde_json-1"] }
-# RDS Postgres requires TLS by default (confirmed live: "no pg_hba.conf
-# entry ... no encryption" refusing a plain NoTls connection). Pure
-# Rust (rustls), not native-tls/OpenSSL -- OpenSSL's -sys crate needs a
-# real cross-compiled sysroot for aarch64-unknown-linux-gnu that isn't
-# set up when cross-compiling from macOS (confirmed: "Could not find
-# openssl via pkg-config... has not been configured to support
-# cross-compilation"), exactly the C-toolchain pain cargo-lambda's own
-# Zig-based linking exists to avoid.
-#
-# NOT webpki-roots -- confirmed live (InvalidCertificate(UnknownIssuer))
-# that Mozilla's bundle doesn't include Amazon's own RDS CA, a private
-# PKI webpki-roots has no reason to carry. rds-ca-bundle.pem (checked
-# in, embedded via include_bytes!) is AWS's own published bundle
-# (https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem)
-# -- the actual, specific trust anchor this app needs, since it only
-# ever talks to the one RDS instance its own template creates.
-#
-# default-features = false: rustls's OWN default pulls in aws_lc_rs
-# (another C-dependent backend, wrapping AWS-LC/BoringSSL) regardless
-# of what's requested on tokio-postgres-rustls -- explicit "ring" here
-# is what actually keeps this pure Rust.
+# RDS requires TLS. rustls, not OpenSSL: -sys needs a cross-compiled sysroot for
+# aarch64-unknown-linux-gnu that is not set up when building from macOS.
+# Trust anchor is AWS's own RDS bundle (rds-ca-bundle.pem, embedded via include_bytes!), not
+# webpki-roots, which lacks the RDS CA.
+# default-features = false: rustls's default pulls in aws_lc_rs (C); "ring" keeps this pure Rust.
 rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12"] }
 tokio-postgres-rustls = { version = "0.14", default-features = false, features = ["ring"] }
 rustls-pemfile = "2"
-# preserve_order: `Value::Object` is IndexMap-backed (insertion order),
-# not the default BTreeMap (alphabetized). Load-bearing for
-# approval.rs's `edge_digest` -- a translation edge's `renames` is a
-# genuine JSON object whose KEY ORDER is meaningful domain data (the
-# DSL's own rename-declaration order), which the digest must reproduce
-# exactly to match `ApprovalDigest.edge_digest`'s own output. Every
-# other JSON reader in this crate (`ir.rs`, `storage_shape.rs`) only
-# ever looks up named fields directly, never iterates an object's own
-# key order, so this feature changes nothing for them -- confirmed by
-# the full test suite staying green after enabling it.
+# preserve_order keeps JSON object key order, which approval.rs's `edge_digest` needs to match
+# `ApprovalDigest.edge_digest` (a translation edge's `renames` order is meaningful).
 serde_json = { version = "1", features = ["preserve_order"] }
 anyhow = "1"
-# FIELD-SHAPE RENDERING HINTS (field_hints.rs, generated by bin/project_
-# field_hints from Vocabulary::FieldHint) — pure Rust, no C-toolchain
-# dependency, confirmed safe unlike aws-lc-sys above: `cargo tree` shows
-# no aws-lc/openssl-sys pulled in by adding this.
+# Used by field_hints.rs; pure Rust, no aws-lc/openssl-sys.
 regex = "1"
-# GOOGLE SIGN-IN (auth.rs) -- rustls-tls, not default-tls, same
-# pure-Rust/no-C-toolchain reasoning tokio-postgres-rustls above
-# already gives; the aarch64-unknown-linux-gnu cross-compile has no
-# OpenSSL sysroot configured. jsonwebtoken's own default backend is
-# `ring` too -- one crypto backend across this whole crate, not two.
+# Google sign-in (auth.rs). rustls-tls, not default-tls: no OpenSSL sysroot for the
+# aarch64 cross-compile. jsonwebtoken also uses ring.
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json"] }
 jsonwebtoken = "9"
 hmac = "0.12"
 sha2 = "0.10"
 uuid = { version = "1", features = ["v4"] }
-# CROSS-LAMBDA POLICY DISPATCH (lambda_client.rs) — a direct port of
-# `Adapters::Lambda::Client` (lib/hecks/adapters/driven/lambda/
-# client.rb): given a cross-domain policy's OWN target domain name
-# (baked in at codegen time from its `across:` declaration — never
-# path/basename-derived, so this crate never repeats the real bug that
-# comment names Ruby working around: "root is always /var/task inside a
-# deployed Lambda", `ENV["DOMAIN_NAME"]`-first), compute
-# "hecks-<domain>" and invoke that Lambda directly, same service,
-# same function-name convention, different language's SDK for it.
-#
-# NEITHER CRATE'S "default"/"rustls" FEATURE IS USED — both, checked
-# directly against their own published Cargo.toml, resolve to
-# `aws-smithy-http-client`'s `rustls-aws-lc` feature (`aws-config`'s
-# "rustls" -> "client-hyper" -> "aws-smithy-runtime/default-https-client"
-# -> "aws-smithy-http-client/rustls-aws-lc"; `aws-sdk-lambda`'s own
-# unqualified `default` feature list includes `default-https-client`
-# outright) — i.e. `aws-lc-rs`, a C-dependent crypto backend needing a
-# real `cmake`+C toolchain to cross-compile, the EXACT class of problem
-# tokio-postgres-rustls's own comment above already ruled out for the
-# aarch64-unknown-linux-gnu cross-compile with no C toolchain configured
-# (confirmed empirically: adding either crate with its own defaults grew
-# `aws-lc-sys` into `cargo tree` where NOTHING pulled it before). Instead:
-# `default-features = false` on both, `aws-smithy-http-client` depended on
-# directly with ONLY its `rustls-ring` feature (confirmed via its own
-# Cargo.toml: `rustls-ring = ["__rustls", "rustls?/ring"]` — the modern
-# hyper-based client, ring-backed, no aws-lc anywhere in the graph), and
-# `lambda_client.rs`'s own `AwsLambdaInvoker::from_env` builds that
-# client explicitly and hands it to `aws_config::ConfigLoader::
-# http_client` rather than letting either crate build its own default one.
+# Cross-lambda policy dispatch (lambda_client.rs). Both SDK crates take default-features = false:
+# their default TLS features resolve to aws-lc-rs, which needs a C toolchain to cross-compile.
+# aws-smithy-http-client with only `rustls-ring` supplies the client, which
+# `AwsLambdaInvoker::from_env` passes to `aws_config::ConfigLoader::http_client`.
 aws-config = { version = "1", default-features = false, features = ["rt-tokio", "behavior-version-latest", "credentials-process"] }
 aws-sdk-lambda = { version = "1", default-features = false, features = ["rt-tokio", "behavior-version-latest"] }
-# DB PASSWORD FETCHED AT RUNTIME (secrets.rs), not baked into
-# Environment.Variables by a CloudFormation dynamic reference anymore
-# (see secrets.rs's own header) -- SAME default-features=false +
-# rustls-ring-via-aws-smithy-http-client treatment as aws-sdk-lambda
-# above, for the identical reason: this crate's own aarch64-unknown-
-# linux-gnu cross-compile has no C toolchain configured, and either
-# crate's own "default"/"rustls" feature pulls in aws-lc-sys regardless.
+# Secrets Manager (secrets.rs). Same default-features = false and rustls-ring treatment as
+# aws-sdk-lambda above, to avoid aws-lc-sys.
 aws-sdk-secretsmanager = { version = "1", default-features = false, features = ["rt-tokio", "behavior-version-latest"] }
 aws-smithy-http-client = { version = "1", default-features = false, features = ["rustls-ring"] }
 async-trait = "0.1.92"
 
-# DEBUG INFO OFF FOR DEV BUILDS — Phase 6 of the CI speed effort. Every
-# binary this crate produces in CI is run once and thrown away (never
-# attached to a debugger), so the debuginfo a plain `cargo build`/
-# `cargo test` normally embeds is pure build time and disk cost with
-# nothing reading it. Release builds (none of which CI actually uses
-# today) are unaffected — this only touches the dev profile.
+# CI never attaches a debugger to dev binaries, so skip debuginfo to save build time.
 [profile.dev]
 debug = 0

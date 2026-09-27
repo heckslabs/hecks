@@ -4,21 +4,12 @@ module Hecks
   module Adapters
     class PostgresEra
       class Lineage
-        # The one deliberate, human-driven command that closes a fork:
-        # `merge_tail!` re-enters an old era's post-cut writes into the
-        # current era under named winners, and `diverged_count` observes how
-        # far the two worlds have drifted at any time before that.
+        # `merge_tail!` closes a fork: an old era's post-cut writes re-enter under named winners;
+        # `diverged_count` measures the drift before that.
         module TailMerge
-          # ── fork observability ─────────────────────────────────────────
-
           # Counts the journal rows an old era wrote after the next era's cut.
           #
-          # Post-cut writes an old era made after the newer era was minted
-          # — the divergence between the worlds, observable at any time.
-          #
-          # @param old_era [Integer] ordinal of the superseded era to measure
-          # @return [Integer] number of `old_era` rows past the watermark of era `old_era + 1`;
-          #   0 when the domain holds no such newer era
+          # @return [Integer] 0 when the domain holds no newer era
           # @raise [Runtime::WiringError] if a held era's text fails its integrity check
           def diverged_count(old_era)
             cut = eras.find { |era| era[:ordinal] == old_era + 1 }&.dig(:watermark)
@@ -29,41 +20,18 @@ module Hecks
             )[0]["count"].to_i
           end
 
-          # ── tail-merge ─────────────────────────────────────────────────
+          # Folds every old era's post-cut writes into the current era's heads, under winners.
           #
-          # Folds every old era's post-cut writes into the current era's heads, under named winners.
-          #
-          # The one deliberate command — it marks a business event (an app
-          # retiring), never a shape change. One transaction: advance the
-          # watermarks, rebuild the head so the tail interleaves by its
-          # recorded global ordinal, append the declared winners, audit —
-          # and roll the whole thing back on any refusal. Records touched
-          # by both worlds since the cut refuse until each has an explicit
-          # winner; resolution itself is append-only (the winner's state
-          # re-enters as the newest row and wins structurally — originals
-          # stay immutable).
+          # One transaction; any refusal rolls back. Records both worlds touched need a winner.
           # rubocop:disable Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/MethodLength, Metrics/PerceivedComplexity
-          # One Postgres transaction (`BEGIN`…`COMMIT`) with a manual `ROLLBACK`
-          # at every early refusal, and a snapshot-before-mutation
-          # invariant (`new_states` captured before the head rebuild lets
-          # the tail interleave). Splitting the steps into separate
-          # methods would force each to independently know how to roll
-          # back the same shared transaction, and would separate the
-          # snapshot from the mutation it must precede.
+          # One transaction with a manual `ROLLBACK` at each refusal, and `new_states` must be
+          # captured before the head rebuild; splitting the steps would scatter both.
           #
-          # @param aggregates [Array<Bluebook::Aggregate>] the current bluebook's aggregates, each
-          #   of which gets its head rebuilt
-          # @param edges [Array<Hash{Symbol => Bluebook::Translation}>] the full edge chain in mint
-          #   order, one `{ translation: }` Hash per step, as `LineageManager.edge_chain` builds it
-          # @param winners [Hash{String => String}] aggregate id to winning side, `"old"` or
-          #   `"new"`; the winner's whole state is appended as the newest row
-          # @param audit [#call, nil] callable run just before `COMMIT` that returns an
-          #   `Array<String>` of violations, empty to pass; nil skips the audit
-          # @return [true] always, once the merge is committed; every refusal raises instead
-          # @raise [Runtime::WiringError] if the domain stands at era 1, if an id touched by both
-          #   worlds since the cut has no entry in `winners`, if `audit` reports a violation, if
-          #   another mint or merge holds the domain lock for over 10s, if Postgres refuses any
-          #   statement, or if a held era's text fails its integrity check
+          # @param aggregates [Array<Bluebook::Aggregate>] the current bluebook's aggregates
+          # @param edges [Array<Hash>] the mint-order edge chain, from `LineageManager.edge_chain`
+          # @param winners [Hash{String => String}] aggregate id to `"old"` or `"new"`
+          # @param audit [#call, nil] returns violations (Array<String>); run before `COMMIT`
+          # @raise [Runtime::WiringError] at era 1, an unresolved conflict, audit or lock failure
           def merge_tail!(aggregates:, edges:, winners: {}, audit: nil)
             @db.exec("BEGIN")
             @db.exec("SET LOCAL lock_timeout = '10s'")
@@ -125,23 +93,14 @@ module Hecks
                   end
                 next unless state
 
-                # Same two-step append does for a live write — journal
-                # first, snapshot second — because this INSERT bypasses
-                # PostgresEra#append entirely (it writes through Lineage
-                # directly). Skipping the snapshot half here would mean a
-                # merge winner lands in the journal but head_view — which
-                # reads this era's live rows from the snapshot table, not
-                # by re-scanning the journal — never shows it.
+                # Journal first, snapshot second, as a live write does: this INSERT bypasses
+                # PostgresEra#append, and head_view reads live rows from the snapshot table.
                 ordinal = @db.exec_params(
                   "INSERT INTO #{quoted_journal} (era, aggregate, aggregate_id, operation, state) " \
                   "VALUES ($1, $2, $3, 'save', $4) RETURNING ordinal",
                   [era, aggregate.storage_name, id, state]
                 )[0]["ordinal"]
-                # Always `'save'` — a merge winner is read from either
-                # the matview's own `operation = 'save'` rows or the new
-                # world's live head (`new_states`, captured from
-                # `head_view`, which is save-only by construction), so
-                # nothing reaching this INSERT is ever a delete.
+                # Always 'save': winners come from save-only sources, never a delete.
                 @db.exec_params(
                   "INSERT INTO #{quote(head_snapshot(aggregate.storage_name, era))} (id, ordinal, operation, state) " \
                   "VALUES ($1, $2, 'save', $3) " \
@@ -182,26 +141,10 @@ module Hecks
           end
           # rubocop:enable Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/MethodLength, Metrics/PerceivedComplexity
 
-          # Ids touched by both worlds since the cut — the old world's
-          # post-cut tail INTERSECTed with the new world's own writes.
+          # Ids written by both worlds since the cut, as `[storage_name, aggregate_id]` pairs.
           #
-          # Known gap, not silently risked: this compares raw
-          # `aggregate_id` values, with no notion of "these two different
-          # ids are the same entity, rekeyed." If a domain's history
-          # includes a rekey (see TranslationRekey) and is later
-          # merged here, a record's pre-rekey and post-rekey rows will
-          # never intersect — they just silently survive as two separate,
-          # unrelated-looking heads (a duplicate, not corruption: nothing
-          # here deletes or clobbers either side). Resolve any such
-          # duplicate manually after a merge; teaching this intersect
-          # about a rekey mapping is real, separate work, deliberately
-          # out of scope for rekey's first pass.
-          # @param aggregate [Bluebook::Aggregate] the aggregate to check for conflicting ids
-          # @param edges [Hash] the fork's own era edges, as `names_by_era` reads them
-          # @param era [Integer] the new world's own era
-          # @param cut [Integer] the ordinal the fork happened at
-          # @return [Array<Array(String, String)>] `[storage_name, aggregate_id]` pairs touched
-          #   by both worlds since the cut
+          # Compares raw ids: a rekeyed record's pre- and post-rekey rows never intersect and
+          # survive as two separate heads (a duplicate, not corruption); resolve by hand.
           def conflict_ids(aggregate, edges, era, cut)
             names = names_by_era(aggregate, edges)
             olds = (1...era).map { |ancestor| text_literal(names[:storage][ancestor - 1]) }.join(", ")

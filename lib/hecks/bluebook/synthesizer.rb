@@ -1,58 +1,21 @@
 module Hecks
   module Bluebook
-    # **One synthesized argument per declared attribute** — never a random
-    # guess. Reads only real `IR` (`Aggregate`, `Command`,
-    # `Attribute`, `ValueObject`), so it works against any
-    # loaded bluebook, not one particular domain: a String becomes a
-    # fixed marker; an Integer becomes 0; a closed set uses its own
-    # first admitted member (never a value a real `one_of` would
-    # legitimately refuse); a reference uses whatever id the caller
-    # already knows for that target (`created`), so a command whose
-    # own shape depends on an earlier-created record — a `TripItem`
-    # needing a real `PackingItem`, say — gets something real to work
-    # with instead of a guess that would only ever fail.
-    #
-    # Extracted from `bin/interview`'s own smoke test, where this first
-    # got built and proved — the logic never actually knew anything
-    # about the Interview domain or any one app; it only ever read IR.
+    # Synthesizes one argument per declared attribute from the IR: fixed markers for scalars,
+    # a closed set's first member, and a known `created` id for references. Never random.
     module Synthesizer
-      # The only type names that are ever truly scalar — anything else
-      # a value object's own field names is another value object,
-      # nested (`Pizza.price_cents: Price`, itself wrapping `cents:
-      # Integer` — a real, ordinary shape, not an edge case). Missing
-      # this the first time round meant a nested field silently
-      # synthesized as the bare string `"smoke-test"` instead of the
-      # real nested structure a command actually declares — caught
-      # only by testing against Pizzas instead of re-testing against
-      # the one simpler domain this was first built for, where every
-      # value object happened to be single-field and primitive-typed.
-      # The same list `Attribute::PRIMITIVES` holds, referenced rather
-      # than repeated. It was a second, byte-identical copy — and only
-      # the Attribute one is held to `vocabulary.bluebook` by
-      # spec/vocabulary_conformance_spec, so this copy could drift from
-      # the language and nothing would say so.
+      # Shared with `Attribute::PRIMITIVES` so the two lists cannot drift.
       PRIMITIVES = Attribute::PRIMITIVES
 
       module_function
 
-      # `chapter`/`aggregate` are the real `Bluebook`/`Aggregate`
-      # the command belongs to — needed to resolve a value object type
-      # name back to its own declared shape. `created` maps an
-      # aggregate name to a real id already minted for it earlier in
-      # the same run; a reference whose target isn't in there yet gets
-      # a placeholder instead of failing outright, since the caller may
-      # not care about that particular argument's real value.
+      # Synthesizes arguments for `command`. A reference whose target is not in `created`
+      # gets a placeholder id.
       #
-      # @param chapter [Bluebook::Chapter] the chapter the command's aggregate
-      #   belongs to, needed to resolve a value object type name back to its
-      #   own declared shape
+      # @param chapter [Bluebook::Chapter] resolves value object type names to their shapes
       # @param aggregate [Bluebook::Aggregate] the aggregate `command` belongs to
-      # @param command [Class] the command class (a `Bluebook::Command`
-      #   subclass) to synthesize arguments for
-      # @param created [Hash{String => Object}] aggregate name mapped to a real
-      #   id already minted for it earlier in this same run
-      # @return [Hash{Symbol => Object}] one synthesized value per declared
-      #   attribute, keyed by attribute name
+      # @param command [Class] the `Bluebook::Command` subclass to synthesize arguments for
+      # @param created [Hash{String => Object}] aggregate name mapped to an id minted earlier
+      # @return [Hash{Symbol => Object}] one synthesized value per declared attribute
       def args_for(chapter, aggregate, command, created = {})
         command.attributes.to_h do |attribute|
           if attribute.reference?
@@ -63,13 +26,8 @@ module Hecks
         end
       end
 
-      # A value object's own synthesized value — its first admitted
-      # member if it's a closed set (the one value guaranteed not to be
-      # refused), otherwise one synthesized scalar per declared field.
-      # Falls back to searching every aggregate in the chapter, the
-      # same tolerance `bin/interview shape`'s own lookup already
-      # needed: a value object referenced by name doesn't have to be
-      # declared on the same aggregate using it.
+      # Synthesizes a value object: its first member if a closed set, else one value per field.
+      # Falls back to searching every aggregate, since a value object need not be local.
       #
       # @param chapter [Bluebook::Chapter] the chapter to search when
       #   `type_name` is not declared on `aggregate` itself
@@ -91,11 +49,7 @@ module Hecks
         value_object.attributes.to_h { |field| [field.name, field_value_for(chapter, aggregate, field.type)] }
       end
 
-      # A single field's own synthesized value — a plain scalar if its
-      # type is one of the true primitives, otherwise that type names
-      # another value object, resolved the identical way `value_for`
-      # resolves any other one (its own closed set or its own nested
-      # fields, however deep that nesting actually goes).
+      # A field's value: a scalar for a primitive type, otherwise the nested value object.
       #
       # @param chapter [Bluebook::Chapter] see `value_for`
       # @param aggregate [Bluebook::Aggregate] see `value_for`
@@ -107,10 +61,7 @@ module Hecks
         PRIMITIVES.include?(type_name.to_s) ? scalar_for(type_name) : value_for(chapter, aggregate, type_name)
       end
 
-      # A bare primitive's own synthesized value. Never used for a
-      # closed set's own field (that's `value_for`'s job, reading the
-      # set's real first member) — only for a plain scalar field with
-      # no declared vocabulary to respect.
+      # A primitive's synthesized value; closed-set fields are handled by `value_for`.
       #
       # @param primitive [String, Symbol] the primitive type name, such as
       #   `"Integer"` or `"String"`

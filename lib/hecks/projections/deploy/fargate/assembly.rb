@@ -5,25 +5,12 @@ module Hecks
   module Projections
     module Deploy
       module Fargate
-        # Fills the optional sections of a rendered Fargate template.
-        #
-        # The template text carries `# TMPL:<name>` marker lines where an
-        # optional section belongs. `apply` replaces each with what the stack's
-        # `Settings::Plan` calls for, and with nothing when the plan sets
-        # nothing there, so a world that uses none of the optional settings
-        # renders the template it always did.
+        # Fills the optional `# TMPL:<name>` sections of a rendered Fargate template with
+        # what the plan calls for, or nothing when a world uses none of them.
         module Assembly
           module_function
 
           # Replaces every optional-section marker in a rendered template.
-          #
-          # @param template [String] the rendered template holding `# TMPL:` marker lines
-          # @param plan [Settings::Plan] the stack's checked optional settings
-          # @param context [Hash{Symbol => Object}] `:stack_name`, `:vpc_ref`, `:listener_id`,
-          #   `:alb_id`, `:distribution_id` and `:db_secret_ref`
-          # @return [String] the template with the markers replaced
-          # @raise [ArgumentError] if `domain_env` removes a variable the generator does not set, or
-          #   the finished template declares one logical id or parameter twice
           def apply(template, plan, context)
             text = override_domain_env(template, plan.domain_env)
             sections(plan, context).each { |marker, block| text = Yaml.splice(text, marker, block) }

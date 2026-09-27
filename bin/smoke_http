@@ -5,41 +5,12 @@
 #
 #   SMOKE_WEBHOOK_SECRET=... bin/smoke_http --url http://127.0.0.1:4322 --path /webhooks/events
 #
-# Delivers one payload to a webhook route the way a sender would, and proves the
-# receiver does what a receiver must:
+# Checks that unsigned, wrong-secret and tampered deliveries are refused, a
+# correctly signed one is accepted, and a repeated delivery leaves state
+# unchanged. Every check runs even if an earlier one fails; exit status is 1
+# if any failed. See `--help` for flags; each also has an env var.
 #
-#   1. refuses a delivery with no signature
-#   2. refuses a delivery signed with the wrong secret
-#   3. refuses a delivery whose body changed after it was signed
-#   4. accepts a correctly signed delivery
-#   5. answers a repeated delivery of the same payload with success, not an error
-#
-# With `--state-path`, a GET route whose body is compared before and after the
-# repeat: a repeated delivery that changes state is not idempotent. With
-# `--health-path`, a GET route that must answer 200 first.
-#
-# The service must already be running. Every check runs even if an earlier one
-# fails, so one run surfaces everything wrong. Exit status is 1 if any check failed.
-#
-# Each option can also be set through the environment variable shown:
-#
-#   --url <url>          base URL, default http://127.0.0.1:4322   SMOKE_TARGET_URL
-#   --path <route>       the webhook route, required               SMOKE_WEBHOOK_PATH
-#   --secret <secret>    the shared signing secret, required       SMOKE_WEBHOOK_SECRET
-#   --header <name>      signature header, default X-Signature     SMOKE_SIGNATURE_HEADER
-#   --scheme <name>      signature scheme, default timestamped     SMOKE_SIGNATURE_SCHEME
-#   --payload <json>     the body to deliver, default a ping event
-#   --payload-file <f>   the body to deliver, read from a file
-#   --health-path <r>    a route that must answer 200
-#   --state-path <r>     a route whose body must not change on a repeat delivery
-#
-# Prefer the variable for the secret: an argument shows in `ps`.
-#
-# Schemes are all HMAC-SHA256 of the body with the secret, hex encoded:
-#
-#   timestamped   `t=<unix seconds>,v1=<hmac of "<t>.<body>">`
-#   sha256        `sha256=<hmac of body>`
-#   hex           `<hmac of body>`
+# Prefer SMOKE_WEBHOOK_SECRET over `--secret`: an argument shows in `ps`.
 
 require "net/http"
 require "openssl"
@@ -55,13 +26,6 @@ class SmokeHttp
     module_function
 
     # Signs a body the way the chosen scheme's sender would.
-    #
-    # @param scheme [String] one of `SCHEMES`
-    # @param secret [String] the shared signing secret
-    # @param body [String] the exact bytes that will be sent
-    # @param at [Time] the delivery time, used only by the timestamped scheme
-    # @return [String] the header value
-    # @raise [ArgumentError] if the scheme is unknown
     def header_value(scheme, secret, body, at: Time.now)
       case scheme
       when "timestamped"
@@ -74,21 +38,12 @@ class SmokeHttp
     end
 
     # Computes the keyed digest every scheme is built from.
-    #
-    # @param secret [String] the key
-    # @param text [String] the message
-    # @return [String] the hex HMAC-SHA256
     def digest(secret, text)
       OpenSSL::HMAC.hexdigest("SHA256", secret, text)
     end
   end
 
   # Reads the command line and environment into the settings a run needs.
-  #
-  # @param argv [Array<String>] the command-line arguments
-  # @param env [Hash{String => String}] the environment
-  # @return [Hash{Symbol => String, nil}] the settings
-  # @raise [ArgumentError] if the webhook path or secret is missing, or the scheme unknown
   def self.settings(argv, env)
     options = {}
     parser(options).parse!(argv)
@@ -101,10 +56,6 @@ class SmokeHttp
     settings
   end
 
-  # Builds the parser for the script's flags.
-  #
-  # @param options [Hash{Symbol => String}] filled in as flags are parsed
-  # @return [OptionParser] the parser for the script's flags
   def self.parser(options)
     OptionParser.new do |parser|
       %i[url path secret header scheme payload health_path state_path].each do |name|
@@ -116,10 +67,6 @@ class SmokeHttp
   end
 
   # Refuses settings a run cannot start from.
-  #
-  # @param settings [Hash{Symbol => String, nil}] the merged settings
-  # @return [void]
-  # @raise [ArgumentError] if the path or secret is missing, or the scheme unknown
   def self.validate!(settings)
     raise ArgumentError, "no webhook path: pass --path or set SMOKE_WEBHOOK_PATH" if settings[:path].to_s.empty?
     raise ArgumentError, "no signing secret: set SMOKE_WEBHOOK_SECRET (or pass --secret)" if settings[:secret].to_s.empty?
@@ -128,9 +75,6 @@ class SmokeHttp
     raise ArgumentError, "unknown scheme #{settings[:scheme].inspect}; expected one of #{Signature::SCHEMES.join(', ')}"
   end
 
-  # @param settings [Hash{Symbol => String, nil}] `:url`, `:path`, `:secret`, `:header`,
-  #   `:scheme`, and optionally `:payload`, `:health_path`, `:state_path`
-  # @param out [#puts, #print] where progress is written
   def initialize(settings, out: $stdout)
     @settings = settings
     @out = out
@@ -138,9 +82,6 @@ class SmokeHttp
     @target = URI(settings.fetch(:url))
   end
 
-  # Runs every check.
-  #
-  # @return [Integer] 0 when every check passed, 1 otherwise
   def run
     @out.puts "== signed webhook checks against #{@target}#{@settings[:path]} =="
     check_health

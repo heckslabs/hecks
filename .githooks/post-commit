@@ -1,39 +1,10 @@
 #!/bin/sh
 #
-# post-commit — the fuzzer, out of the interactive loop.
-#
-# spec/fuzzing/ (`fuzzing: true`, spec_helper.rb) is excluded from an
-# ordinary local `bundle exec rspec` the same way `io: true` is — not
-# because it does real I/O, but because it's the most expensive thing
-# in the suite for a different reason: properties_spec.rb's own
-# "standard battery" replays a live, randomly generated command
-# sequence against a real domain, several seeds deep, checked twice
-# (determinism + every registered property) — ~8s of what would
-# otherwise be a ~50ms/example suite, paid on every single run while
-# iterating. This hook pays it once per commit instead, in the
-# background of a step that already just happened rather than the one
-# about to happen next.
-#
-# A post-commit hook cannot block the commit — git has already written
-# it by the time this runs — so a failure here is reported loudly, not
-# silently, and left for the next commit or push to actually fix.
-#
-# pre-push (.githooks/pre-push) has its OWN explicit
-# `bundle exec rspec spec/fuzzing --tag fuzzing` step now too — its
-# own `parallel_rspec spec` sets no CI and passes no --tag, so it
-# excludes spec/fuzzing the same way it excludes `io: true`, and
-# without that added step a commit made with --no-verify, or one
-# whose post-commit run was skipped (SKIP_POST_COMMIT_FUZZING=1),
-# could otherwise reach a push having never run it at all. So fuzzing
-# is checked on TWO cadences on purpose, not by accident: this hook
-# catches it early, close to the commit that broke it; pre-push is the
-# backstop that means a push can never skip it, however this hook was
-# bypassed getting there.
+# post-commit — runs spec/fuzzing after each commit, outside the interactive rspec loop.
+# A failure is reported but cannot block the commit; pre-push re-runs it as a backstop.
 #
 # Install:  git config core.hooksPath .githooks
-# Skip once: SKIP_POST_COMMIT_FUZZING=1 git commit ...   (post-commit
-#            has no --no-verify of its own — git always runs it once
-#            installed — so this is the actual escape hatch)
+# Skip once: SKIP_POST_COMMIT_FUZZING=1 git commit ...
 
 if [ -n "$SKIP_POST_COMMIT_FUZZING" ]; then
   exit 0

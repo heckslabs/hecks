@@ -4,51 +4,22 @@ require_relative "../../runtime/value"
 module Hecks
   module Fuzzing
     class SequenceGenerator
-      # Query arguments drawn from what the sequence has already written.
+      # Query arguments drawn from rows the sequence has already written, so a
+      # query can match a stored row instead of a fresh word that matches nothing.
       #
-      # A query is only a real test of an adapter when its argument names a row
-      # that exists. A `where(site_reference: :site_reference)` asked with a
-      # freshly generated word matches nothing on every adapter, so an adapter
-      # that compiles the comparison wrongly (and so also matches nothing) is
-      # indistinguishable from a correct one. Every argument `args_for` draws
-      # is independent of the store, and the chance that one lands on a stored
-      # value is small enough that a whole persistence-parity sweep can pass
-      # without a single query returning a row.
-      #
-      # ## What is written, and what is bound
-      #
-      # After each command that took effect, every aggregate a query filters
-      # on is read back from the repository, and the values of exactly the
-      # fields those queries compare (`bound_fields`) are remembered as one
-      # row per record. A row is what the store holds, not what a command was
-      # given, so a value a `sets` mapping renamed, a policy wrote in another
-      # aggregate, or a lifecycle transition assigned is covered too. A later
-      # query step usually takes its arguments from one remembered row, so
-      # several parameters filter the same record. The rest of the time it
-      # keeps the generated argument, which is what reaches the empty answer.
-      #
-      # ## Why a separate random stream
-      #
-      # The choice draws from its own `Random`, seeded from the sequence's
-      # seed and restarted wherever `@random` is (`restart_random`). Drawing
-      # from `@random` would shift every later step of every seed. This way
-      # each seed generates the same commands, in the same order, with the
-      # same arguments as before, and only the arguments of a query step
-      # change. A query changes no state, so nothing downstream moves.
+      # After each effective command, the compared fields of every aggregate a
+      # query filters on are read back from the repository as one row per record.
+      # The choice uses its own `Random` (`restart_random`); drawing from `@random`
+      # would shift every later step of every seed.
       module QueryBinding
-        # How often a query step whose aggregate has written rows takes its
-        # arguments from one of them. High, because a query that misses a
-        # stored row tests nothing, and the miss is still drawn the other
-        # quarter of the time.
+        # How often a query step takes its arguments from a written row; the
+        # rest of the time the generated miss is kept.
         BOUND_QUERY_PROBABILITY = 0.75
 
-        # Comparators whose argument is one scalar or value, so a stored value
-        # is a legitimate operand. `in` takes a list and `none_in_state` an
-        # `"Aggregate:state"` string; a stored value is neither.
+        # Comparators taking one scalar operand; `in` and `none_in_state` do not.
         BINDABLE_OPERATORS = %i[eq ne lt lte gt gte].freeze
 
-        # Keeps the binding stream apart from `@random`'s, which is seeded
-        # with the bare seed.
+        # Keeps the binding stream apart from `@random`, which is seeded with the bare seed.
         BINDING_SEED_OFFSET = 0x9e3779b1
 
         private

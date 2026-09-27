@@ -31,16 +31,8 @@ RSpec.describe "a composite-identified aggregate with two entities" do
     rent = box.command("Rent")
 
     expect(box.attribute(:customer).relationship).to eq("belongs_to")
-    # Redeclaring `attribute :customer, CustomerNumber` on `Rent` — a
-    # plain value-object type (Customer's own identity VO) — would shadow
-    # the aggregate's own `belongs_to Customer` (a real Reference type) and
-    # mean `Rent`'s own `customer` attribute was never dereferenced at
-    # create time. Harmless as long as nothing needed to read through it —
-    # until a `given("customer is active")` guard (issue #278) tried to and
-    # was silently refused for every customer, active or not. Fixed by
-    # removing the redundant redeclaration: `sets :customer` alone (same
-    # shape `Account.Open` already used successfully) inherits the
-    # aggregate's own Reference-typed attribute instead of shadowing it.
+    # Redeclaring `attribute :customer, CustomerNumber` on `Rent` would shadow the aggregate's
+    # `belongs_to Customer` Reference, so a `given("customer is active")` guard could not read it.
     expect([rent.attribute(:customer).type.to_s, rent.attribute(:customer).reference?])
       .to eq(["Reference<Customer>", true])
 
@@ -181,8 +173,7 @@ RSpec.describe "a composite-identified aggregate with two entities" do
                                                             date: { value: "2026-01-05" }, sequence: { value: 1 })
     end.to raise_error(Hecks::Runtime::AlreadyExists, /Visit.*already exists/)
 
-    # **The one that did land stands** — a refused second write leaves the
-    # first exactly as it was, not doubled and not gone.
+    # A refused second write leaves the first exactly as it was.
     visits = Banking::SafeDepositBox.find("DOWNTOWN:12").visits
     expect(visits.size).to eq(1)
   end

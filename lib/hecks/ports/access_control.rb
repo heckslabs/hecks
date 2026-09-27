@@ -2,22 +2,9 @@ require_relative "../runtime/registry"
 
 module Hecks
   module Ports
-    # Who can sign in, and what role do they hold — the domain-specific
-    # half of sign-in `Ports::Authentication` deliberately stays out of
-    # (see that port's own header: it only ever talks to the external
-    # provider, never this registry's own data). Resolved the same way
-    # every other port here resolves its adapter: one adapter
-    # registry-wide answers this, since an app has no reason to want a
-    # different "who's allowed in" source per aggregate.
-    #
-    # Every domain shapes this differently — who its own "a person who
-    # can sign in" aggregate is, what admits them, what grants them
-    # access — so this port is pure delegation, same as every sibling
-    # port. The one piece of this that is generic (a live Governance
-    # grant should win over whatever an aggregate's own role field
-    # says) lives on `Ports::Authorization#live_role_for` instead —
-    # a domain's adapter here calls that directly, rather than this
-    # port re-deriving Governance-query logic another port already owns.
+    # Who can sign in and what role they hold: the domain-specific half of sign-in.
+    # Pure delegation to the one adapter bound registry-wide; adapters that need a
+    # live Governance grant call `Ports::Authorization#live_role_for`.
     module AccessControl
       NAME = "access_control".freeze
 
@@ -39,16 +26,13 @@ module Hecks
 
       # Admits a new person, in whatever way this domain's adapter defines admission.
       #
-      # The keywords carry the names of a verified sign-in (`Ports::Authentication.verify`
-      # answers `issuer`, `subject` and `email`), but nothing in this repository wires the
-      # two together, so their shapes here are adapter-defined.
+      # The keywords carry the names of a verified sign-in (`Ports::Authentication.verify`),
+      # but nothing here wires the two together, so their shapes are adapter-defined.
       #
       # @param registry [Runtime::Registry] the booted registry to resolve the adapter against
       # @param email [Object] adapter-defined, forwarded unchanged; the person's email
-      # @param issuer [Object] adapter-defined, forwarded unchanged; the OIDC issuer that
-      #   authenticated the person
-      # @param subject [Object] adapter-defined, forwarded unchanged; the OIDC subject the
-      #   issuer vouches for
+      # @param issuer [Object] adapter-defined, forwarded unchanged; the OIDC issuer
+      # @param subject [Object] adapter-defined, forwarded unchanged; the OIDC subject
       # @return [Object] adapter-defined representation of the newly admitted person
       # @raise [Runtime::WiringError] if this port does not resolve to exactly one adapter
       #   (see `adapter`)

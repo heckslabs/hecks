@@ -1,24 +1,9 @@
 require "spec_helper"
 
-# S17, ADR 0026 — proves EntityInterpreter#apply_to_element's
-# :append/:remove/:multiply/:clamp cases (a missing case would otherwise
-# silently no-op rather than raise) against a dedicated fixture,
-# before either mechanism converts the meta-domain's own
-# Member/Dispatch to real entities.
+# Covers EntityInterpreter#apply_to_element's :append/:remove/:multiply/:clamp cases (ADR 0026).
 RSpec.describe "an entity's own list-typed attribute" do
-  # Not `FIXTURE` — a real, pre-existing gotcha this file's own first
-  # draft rediscovered: `RSpec.describe "..." do ... end` is an
-  # ordinary Ruby block, lexically scoped to wherever it was written
-  # (this file's own top level, i.e. `Object`) — so `FIXTURE = ...`
-  # here does not become a constant on this describe block's own
-  # anonymous class, it becomes the single process-wide
-  # `Object::FIXTURE`. `spec/runtime/rebuild_sweep_spec.rb` already
-  # names its own fixture path the same bare way; whichever spec file
-  # RSpec happens to `require` last silently wins that constant for
-  # the rest of the process, and every earlier spec sharing the name
-  # loads whatever path won instead of its own — reproduced for real:
-  # this file passed alone and failed only inside the full suite,
-  # loading rebuild_sweep_spec's own fixture instead of its own.
+  # Not `FIXTURE`: a bare constant in a describe block lands on `Object`, so another spec's
+  # same-named constant would silently win in the full suite.
   ENTITY_LIST_MUTATIONS_FIXTURE = File.join(InMemoryDomain::ROOT,
                                             "spec/fixtures/entity_list_mutations/entity_list_mutations.bluebook")
 
@@ -103,16 +88,8 @@ factor: 10)
     expect(list[:count][:value]).to eq(10)
   end
 
-  # ADR 0047 — `Value::Coercion#hydrate_entity_list` delegates to
-  # `hydrate_value_object_list` the moment its target attribute's type
-  # names a value object rather than an entity, rather than bailing out to
-  # a raw, un-hydrated passthrough: a bare `sets :field`
-  # (a whole-array argument, as opposed to element-by-element `append:`)
-  # would otherwise leave the list holding plain Hashes forever — never real `Value`
-  # instances, never through the value object's own `pattern:`/
-  # `invariant` checks. `SetTags`/`RemoveTagFromBoard` exist on this
-  # fixture's `Board` aggregate (not `TaggedList`, its entity — this is
-  # the aggregate-level path) purely to exercise that repro shape.
+  # ADR 0047: a bare `sets :field` whole-array argument must hydrate a value-object list into
+  # real `Value`s, not leave plain Hashes that skip the value object's checks.
   it "hydrates a bare-sets-populated value-object list into real Values, not raw Hashes" do
     runtime = boot
     runtime.dispatch_flat("EntityListMutations::Board.OpenBoard", name: { value: "b5" })

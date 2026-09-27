@@ -7,9 +7,7 @@ Hecks.bluebook "World" do
     # so the bare reference name would collide with it.
     belongs_to World, as: :world_ref
 
-    # THE WORLD IT IS IN, AND THE VERB IT ANSWERS. One world binds one adapter per
-    # verb — that is what a binding IS — so the verb names the wiring, and the
-    # world says whose.
+    # One world binds one adapter per verb, so the verb names the wiring and the world says whose.
     identified_by :world, :verb
 
     attribute :world,    WiringText

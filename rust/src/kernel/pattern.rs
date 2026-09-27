@@ -1,47 +1,15 @@
-// **Hand-written, once, generic** — a regex matcher for exactly the dialect
-// `Hecks::Bluebook::PatternSubset` (`lib/hecks/bluebook/
-// pattern_subset.rb`) admits into a bluebook's `pattern:` declaration in
-// the first place: literal characters, `.`, `^`/`$` (and `\A`/`\z`)
-// anchors, `[...]`/`[^...]` character classes with explicit ranges,
-// `*`/`+`/`?`/`{n}`/`{n,}`/`{n,m}` quantifiers, `(...)` groups, and `|`
-// alternation. `PatternSubset` refuses backreferences, named
-// backreferences, Perl classes (`\d`/`\w`/`\s`...), POSIX classes,
-// lookaround, atomic groups, and possessive quantifiers at bluebook-load
-// time — read directly, not guessed — so by construction no pattern that
-// ever reaches this matcher needs any of those: a plain recursive
-// backtracking matcher is enough, no NFA/DFA compilation required, and
-// zero Cargo dependencies (the same constraint `json.rs`/`expr.rs`
-// already hold themselves to — see docs/implemented/decisions/0012).
-//
-// `Value::for_attribute`'s own `check_patterns` (coercion.rb) semantics:
-// unanchored search — `Regexp.new(pattern).match?(text)` finds a match
-// anywhere in `text`, not just a whole-string match, unless the pattern
-// itself anchors with `^`/`$`/`\A`/`\z`. `matches` (below) reproduces
-// that: try every start position unless the pattern's own first atom is
-// an anchor.
+// Regex matcher for the dialect `Hecks::Bluebook::PatternSubset` admits (no backreferences,
+// lookaround or Perl classes). Unanchored search, like Ruby's `Regexp#match?`.
 
 #[derive(Debug, Clone)]
 enum Node {
     Literal(char),
     Any,
     Class { negate: bool, ranges: Vec<(char, char)> },
-    // `^`/`$` — per-line anchors (Ruby's own default, unlike most other
-    // regex flavors): `^` matches at position 0 or right after any `\n`;
-    // `$` matches at the end of the text or right before any `\n`. Item
-    // #4, whole-project table-unification survey — found via a new
-    // #[cfg(test)] walking spec/corpus/fixtures/patterns.json's own
-    // recorded contract: treating `^`/`$` identically to `\A`/`\z`
-    // (whole-string only) disagrees with Ruby's real `Regexp` on any
-    // multi-line input — e.g. `/^[A-Z]{3}-[0-9]{4}$/` against
-    // `"xx\nABC-1234\nyy"` (Ruby: true; whole-string-only treatment:
-    // false).
+    // `^`/`$` match at line boundaries, as in Ruby.
     LineStart,
     LineEnd,
-    // `\A`/`\z`/`\Z` — whole-string anchors, never satisfied mid-text no
-    // matter where a `\n` falls. Distinct nodes, not a flag on Start/End,
-    // because the two anchor kinds mean genuinely different things, not
-    // two spellings of the same fact — collapsing them is exactly the
-    // bug this fix undoes.
+    // `\A`/`\z`/`\Z` match only at the whole-string boundaries.
     StringStart,
     StringEnd,
     Group(Vec<Node>),
@@ -49,21 +17,11 @@ enum Node {
     Repeat { node: Box<Node>, min: usize, max: Option<usize> },
 }
 
-/// `true` if `text` contains a match for `pattern`, per the dialect above.
-/// A pattern `PatternSubset` would have refused (or any other parse
-/// failure) returns `false` rather than panicking — this matcher is only
-/// ever invoked with a bluebook's own declared `pattern:` string, already
-/// validated at load time by the Ruby side that generated this call, so a
-/// parse failure here would mean a real bug elsewhere, not bad input to
-/// tolerate gracefully.
+/// `true` if `text` contains a match for `pattern`; a pattern that fails to parse is `false`.
 pub fn matches(pattern: &str, text: &str) -> bool {
     let Ok(nodes) = parse(pattern) else { return false };
     let chars: Vec<char> = text.chars().collect();
-    // Only `\A` (StringStart) justifies skipping straight to position 0 —
-    // `^` (LineStart) can still legitimately match at a later position
-    // (right after some `\n`), so the general "try every start position"
-    // loop below has to run for it; `LineStart`'s own per-position check
-    // (in `match_from`) is what actually enforces which positions qualify.
+    // Only `\A` may skip to position 0; `^` can still match after a later `\n`.
     let anchored_start = matches!(nodes.first(), Some(Node::StringStart));
     if anchored_start {
         return match_from(&nodes, 0, &chars, 0, &|_| true);
@@ -77,11 +35,7 @@ fn match_from(nodes: &[Node], idx: usize, text: &[char], ti: usize, cont: &dyn F
     }
     match &nodes[idx] {
         Node::Literal(c) => ti < text.len() && text[ti] == *c && match_from(nodes, idx + 1, text, ti + 1, cont),
-        // `.` — matches any character except `\n`, Ruby's own default
-        // (no `/m` flag support in this dialect — PatternSubset admits
-        // no way to spell one). Item #4, whole-project table-unification
-        // survey — found via the same #[cfg(test)] contract test as the
-        // LineStart/LineEnd and escape_char fixes just above.
+        // Like Ruby without `/m`, `.` does not match `\n`.
         Node::Any => ti < text.len() && text[ti] != '\n' && match_from(nodes, idx + 1, text, ti + 1, cont),
         Node::Class { negate, ranges } => {
             ti < text.len() && class_matches(*negate, ranges, text[ti]) && match_from(nodes, idx + 1, text, ti + 1, cont)
@@ -96,14 +50,8 @@ fn match_from(nodes: &[Node], idx: usize, text: &[char], ti: usize, cont: &dyn F
     }
 }
 
-/// Greedy quantifier matching with backtracking: try one more repetition
-/// first (as many as `max` allows), and only once that whole branch fails
-/// does it fall back to stopping at the current count — standard greedy-
-/// then-backtrack semantics, the same a backtracking engine gives `+`/`*`
-/// in any other implementation. `count == ti` guards against looping
-/// forever on a zero-width repeated match (an empty group inside `*`,
-/// which nothing in the admitted dialect's live usage needs, but a
-/// well-formed matcher shouldn't hang on either).
+// Greedy: try one more repetition first, then fall back to stopping at the current count.
+// The `ti2 == ti` check stops a zero-width repetition from looping forever.
 #[allow(clippy::too_many_arguments)]
 fn match_repeat(
     node: &Node,
@@ -137,22 +85,7 @@ fn class_matches(negate: bool, ranges: &[(char, char)], c: char) -> bool {
     hit != negate
 }
 
-// `\t`/`\n`/`\r` — the three control-character escapes Ruby's own
-// `Regexp` recognizes and this dialect's real corpus usage leans on
-// hardest (`[^ \t\n\r]`, banking.bluebook's own most common `pattern:`
-// — 26 usages in that one file alone). Item #4, whole-project table-
-// unification survey — found via the new #[cfg(test)] contract test:
-// taking the raw character following the backslash verbatim at either
-// escape call site (`\t` → the letter `t`, not a real tab) would mean
-// `[^ \t\n\r]` silently checks against the letters t/n/r instead of
-// actual whitespace/control characters — every string containing a
-// lowercase t, n, or r anywhere (extremely common in real text) would
-// be wrongly refused, and a string containing an actual tab/newline/CR
-// would be wrongly accepted. Every other escaped character
-// (`\.`, `\+`, `\\`, `\-`, ...) passes through unchanged — this is a
-// closed, small set, not a general C-style escape table, matching
-// `PatternSubset`'s own admitted dialect (no `\0`, no `\xNN`, no
-// Unicode escapes).
+// `\t`, `\n` and `\r` become control characters; any other escape is the literal itself.
 fn escape_char(c: char) -> char {
     match c {
         't' => '\t',
@@ -162,10 +95,7 @@ fn escape_char(c: char) -> char {
     }
 }
 
-// ── Parser — recursive descent, `alternation > concat > repeat > atom`,
-// the standard regex grammar shape. Returns a flat `Vec<Node>` (a `Seq`)
-// at the top level; `|` at any level becomes one `Node::Alt` holding each
-// branch's own `Vec<Node>`.
+// Recursive descent: `alternation > concat > repeat > atom`.
 fn parse(pattern: &str) -> Result<Vec<Node>, ()> {
     let chars: Vec<char> = pattern.chars().collect();
     let mut p = Parser { chars: &chars, pos: 0 };
@@ -194,9 +124,7 @@ impl<'a> Parser<'a> {
         c
     }
 
-    /// `alternation := concat ('|' concat)*` — a single branch collapses
-    /// straight back to its own `Vec<Node>` rather than a one-armed `Alt`,
-    /// so a pattern with no `|` anywhere never pays for the indirection.
+    /// `alternation := concat ('|' concat)*`
     fn parse_alt(&mut self) -> Result<Vec<Node>, ()> {
         let first = self.parse_concat()?;
         if self.peek() != Some('|') {
@@ -210,8 +138,7 @@ impl<'a> Parser<'a> {
         Ok(vec![Node::Alt(branches)])
     }
 
-    /// `concat := repeat*` — stops at `|` or `)`, the two constructs that
-    /// end a concatenation without consuming it themselves.
+    /// `concat := repeat*`, ending at `|` or `)`.
     fn parse_concat(&mut self) -> Result<Vec<Node>, ()> {
         let mut nodes = Vec::new();
         while let Some(c) = self.peek() {
@@ -245,10 +172,7 @@ impl<'a> Parser<'a> {
                 match self.parse_bounded_repeat() {
                     Some((min, max)) => Ok(Node::Repeat { node: Box::new(atom), min, max }),
                     None => {
-                        // Not a well-formed `{n,m}` — PatternSubset would
-                        // never let a bare/malformed `{` through as
-                        // anything but a literal brace either, so treat it
-                        // as one, same as any other non-special character.
+                        // Not a well-formed `{n,m}`: read the brace as a literal.
                         self.pos = save;
                         Ok(atom)
                     }
@@ -258,9 +182,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    /// Already past the `{`. `n`, `n,`, or `n,m`, each digit run non-empty
-    /// for `n`/`m` — returns `None` (not a quantifier after all) rather
-    /// than `Err` so the caller can fall back to a literal `{`.
+    /// Past the `{`. Returns `None` (not a quantifier) so the caller can read a literal `{`.
     fn parse_bounded_repeat(&mut self) -> Option<(usize, Option<usize>)> {
         let min = self.parse_digits()?;
         match self.peek() {
@@ -314,20 +236,14 @@ impl<'a> Parser<'a> {
             '\\' => match self.bump().ok_or(())? {
                 'A' => Ok(Node::StringStart),
                 'z' | 'Z' => Ok(Node::StringEnd),
-                // an escaped metacharacter (`\.`, `\+`, `\\`, ...) or control
-                // char (`\t`, `\n`, `\r`) — the literal itself
+                // an escaped metacharacter or control char: the literal itself
                 c => Ok(Node::Literal(escape_char(c))),
             },
             c => Ok(Node::Literal(c)),
         }
     }
 
-    /// `[...]`/`[^...]` — explicit ranges (`a-z`) and bare characters,
-    /// `PatternSubset`'s own admitted dialect (no POSIX `[:digit:]`,
-    /// already refused before this ever runs). A `]` as the very first
-    /// class member (`[]abc]`) is a literal `]`, the conventional regex
-    /// reading — checked before the loop treats `]` as the closing
-    /// bracket.
+    /// `[...]`/`[^...]` with ranges. A leading `]` is a literal member (`[]abc]`).
     fn parse_class(&mut self) -> Result<Node, ()> {
         let negate = if self.peek() == Some('^') {
             self.bump();
@@ -363,18 +279,7 @@ impl<'a> Parser<'a> {
     }
 }
 
-// Item #4, whole-project table-unification survey — `matches` above had
-// zero unit-test coverage of its own before this, only the exact-wording
-// contract of a handful of real corpus refusals via
-// spec/rust_conformance_spec.rb (refusal_wording_pattern_mismatch.json,
-// added alongside this test). This mirrors what
-// spec/pattern_subset_spec.rb already does for Ruby's own `Regexp`
-// against the same recorded contract (`spec/corpus/fixtures/
-// patterns.json`) — one `#[test]` walking every row, not a hand-picked
-// subset, so a change to `matches`'s own dialect can't silently drop
-// coverage of a case nobody thought to re-add. `#[cfg(test)]` only —
-// compiled out of every real build, touches none of the matcher's own
-// hot-path lines above.
+// Walks every row of the recorded pattern contract so dialect changes cannot drop a case.
 #[cfg(test)]
 mod tests {
     use super::matches;

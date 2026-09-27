@@ -3,20 +3,8 @@ require "hecks/ports/persistence/plugins/era"
 require "tempfile"
 require_relative "../../../support/postgres_probe"
 
-# `PostgresEra#reset!` against a real lineage-provisioned (force row
-# level security) journal — the journal carries an INSERT policy and a
-# SELECT policy (advance_era!, mint_transaction.rb) and no DELETE
-# policy at all, for anyone. A plain `DELETE ... WHERE aggregate = $1`
-# from an ordinary connection would therefore silently match zero
-# rows: no privilege error, no exception — `reset!` compares the row
-# count before and after and raises instead of returning `self` having
-# deleted nothing.
-#
-# Same non-superuser-owner harness as lineage_spec.rb's own header
-# explains: a local dev Postgres user is commonly a superuser (mine
-# is), and a superuser bypasses RLS unconditionally regardless of
-# force, so "the owner is fenced too" is untestable without a real,
-# ordinary, non-superuser owner role.
+# `PostgresEra#reset!` raises rather than silently deleting nothing when the journal's
+# force-RLS policies admit no DELETE. Needs a non-superuser owner: superusers bypass RLS.
 RSpec.describe "PostgresEra#reset! against a lineage-provisioned journal", :io do
   RESET_DB = "hecks_reset_spec".freeze
   RESET_OWNER = "hecks_reset_spec_owner".freeze
@@ -49,10 +37,7 @@ RSpec.describe "PostgresEra#reset! against a lineage-provisioned journal", :io d
     admin.exec("DROP DATABASE IF EXISTS #{RESET_DB} WITH (FORCE)")
     admin.exec("CREATE DATABASE #{RESET_DB}")
     admin.exec("DROP ROLE IF EXISTS #{RESET_OWNER}")
-    # Plain CREATE ROLE ... LOGIN — no superuser, no BYPASSRLS, same as
-    # lineage_spec.rb's LINEAGE_OWNER. Either attribute would make
-    # force ROW LEVEL SECURITY a no-op for this role, same as it
-    # already is for the ambient dev connection.
+    # No superuser or BYPASSRLS: either would make FORCE ROW LEVEL SECURITY a no-op for the role.
     admin.exec("CREATE ROLE #{RESET_OWNER} LOGIN")
     admin.close
     grant = PG.connect(dbname: RESET_DB)
@@ -119,28 +104,19 @@ RSpec.describe "PostgresEra#reset! against a lineage-provisioned journal", :io d
 
     expect { adapter.reset! }.to raise_error(Hecks::Runtime::WiringError, /FORCE ROW LEVEL SECURITY|DELETE policy/)
 
-    # Nothing was actually removed — the record a silent no-op would
-    # leave behind (and the bug this pins) is still exactly there.
+    # A silent no-op would leave the record behind; it must still be there.
     expect(adapter.find("a1")).not_to be_nil
   end
 
   it "does not raise, and genuinely clears the journal, for a role that bypasses RLS" do
     registry = check!
-    # The ambient spec-runner connection has no explicit owner_url role —
-    # it is whatever the local Postgres install's default user is, which
-    # PostgresProbe.available? already required to be reachable, and
-    # lineage_spec.rb's own header notes is commonly a superuser. A
-    # superuser bypasses RLS regardless of force, so this is the "actually
-    # works" side of the fix, not merely its refusal side.
+    # The ambient connection is the local default user, commonly a superuser, which bypasses RLS.
     aggregate = registry.bluebooks.values.first.aggregate("Acct")
     ambient_adapter = Hecks::Adapters::PostgresEra.new(aggregate: aggregate, settings: { database: RESET_DB, domain: "Ledger" })
     write_a_record(ambient_adapter, registry, id: "a2")
     expect(ambient_adapter.entries).not_to be_empty
 
-    # `entries` reads the journal directly (unlike `find`, which reads a
-    # derived head view/snapshot reset! makes no claim about refreshing)
-    # — this is the direct, unambiguous check that the DELETE itself
-    # really removed rows rather than silently matching zero.
+    # `entries` reads the journal directly, unlike `find`, which reads a derived head.
     expect { ambient_adapter.reset! }.not_to raise_error
     expect(ambient_adapter.entries).to be_empty
   end

@@ -4,8 +4,7 @@ require_relative "../../hecks"
 module Hecks
   module CLI
     # The command behind `bin/stores` and `hecks stores`: every aggregate's current
-    # records as JSON, the head rather than the journal (`bin/history` prints the
-    # full write history).
+    # records as JSON (the head, not the journal — see `bin/history` for that).
     module Stores
       module_function
 

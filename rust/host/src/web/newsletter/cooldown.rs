@@ -5,17 +5,12 @@ use std::time::{Duration, Instant};
 /// How long an address is left alone after a confirmation email went to it.
 pub(super) const WINDOW: Duration = Duration::from_secs(10 * 60);
 
-/// The most addresses remembered at once. Past it a new address is refused
-/// (no email) rather than evicting one still inside its window.
+/// The most addresses remembered; past it a new address is refused, not evicting a live one.
 pub(super) const CAPACITY: usize = 10_000;
 
-/// A per-address cooldown on confirmation emails, so that submitting someone
-/// else's address over and over cannot turn the form into a mail bomb.
+/// A per-address cooldown on confirmation emails, so the form cannot mail-bomb someone.
 ///
-/// The memory is in-process: it is not shared between processes and does not
-/// survive a restart. The service runs one task today, so that is one window
-/// per address; a second task would give each address one email per window per
-/// task.
+/// In-process: not shared between tasks and lost on restart, so each task has its own window.
 pub(super) struct ConfirmationCooldown {
     window: Duration,
     capacity: usize,
@@ -27,9 +22,8 @@ impl ConfirmationCooldown {
         Self { window, capacity, last_sent: Mutex::new(HashMap::new()) }
     }
 
-    /// Whether an email may go to `email` now; when it may, the send is
-    /// recorded, so the caller must then actually send. The key is the
-    /// lowercased address.
+    /// Whether an email may go to `email` now (keyed by lowercased address). A `true` records the
+    /// send, so the caller must then send.
     pub(super) fn try_acquire(&self, email: &str) -> bool {
         self.try_acquire_at(email, Instant::now())
     }

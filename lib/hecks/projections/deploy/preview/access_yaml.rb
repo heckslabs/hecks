@@ -4,29 +4,16 @@ module Hecks
   module Projections
     module Deploy
       module Preview
-        # The secrets and IAM roles of a preview stack.
-        #
-        # The task role reads the shared database secret and this preview's own
-        # secrets and nothing owned by the main stack. The execution role also reads
-        # the database secret, only so the one-shot task can receive the credentials
-        # as container secrets.
+        # The secrets and IAM roles of a preview stack, scoped away from the main stack.
         module AccessYaml
           extend YamlText
 
           module_function
 
-          # Renders the secrets a preview generates: its session secret and the ones
-          # containers declare.
-          #
-          # @param settings [Settings] the resolved preview settings
-          # @return [Array<String>] one YAML resource block per secret
           def secrets(settings)
             [session_secret, *settings.containers.flat_map { |c| container_secrets(c) }]
           end
 
-          # Renders the per-branch session secret the host reads at start.
-          #
-          # @return [String] the secret's resource block
           def session_secret
             <<~YAML.chomp
               # No explicit Name: Secrets Manager keeps a deleted secret through its recovery window,
@@ -43,10 +30,6 @@ module Hecks
             YAML
           end
 
-          # Renders one generated secret per name a container declares.
-          #
-          # @param container [Containers::Entry] the container
-          # @return [Array<String>] one resource block per declared secret name
           def container_secrets(container)
             container.secrets.map do |name|
               <<~YAML.chomp
@@ -63,10 +46,6 @@ module Hecks
             end
           end
 
-          # Renders the task execution role and the task role.
-          #
-          # @param settings [Settings] the resolved preview settings
-          # @return [Array<String>] the two role resource blocks
           def roles(settings)
             assume = <<~YAML.chomp
               AssumeRolePolicyDocument:
@@ -79,11 +58,6 @@ module Hecks
             [execution_role(assume), task_role(assume, settings)]
           end
 
-          # Renders the execution role, which pulls images and hands the one-shot task
-          # its credentials.
-          #
-          # @param assume [String] the shared trust policy block
-          # @return [String] the role's resource block
           def execution_role(assume)
             <<~YAML.chomp
               # The execution role reads the database secret only so the one-shot task can be given
@@ -105,12 +79,6 @@ module Hecks
             YAML
           end
 
-          # Renders the task role: read access to the shared database secret and this
-          # preview's own secrets.
-          #
-          # @param assume [String] the shared trust policy block
-          # @param settings [Settings] the resolved preview settings
-          # @return [String] the role's resource block
           def task_role(assume, settings)
             readable = ["SessionSecret", *settings.containers.flat_map { |c| c.secrets.map { |n| secret_id(c, n) } }]
             <<~YAML.chomp

@@ -1,17 +1,5 @@
-//! The `ValueObject`/`OneOf` constructs
-//! (`lib/hecks/bluebook/ir/value_object.rb`) — shared here exactly as
-//! `ValueObjectBuilder` answers both in Ruby (`one_of` `instance_eval`s
-//! its block on the builder itself, so the two contexts are one Ruby
-//! object; see `spec/syntax_conformance_spec.rb`'s own `BUILDER` table).
-//! `invariant` admits both `source` spellings (`{ ... }` and
-//! `do ... end` — `parse::mod::source_body_text`'s own header explains
-//! why) for a fresh declaration, and — mirroring `command.rs`'s own
-//! `given` one level over (S10, ADR 0025) — a bare, block-less form that
-//! references an already-declared invariant of the same description on a
-//! sibling value object of the same aggregate instead
-//! (`try_reference_named_invariant`'s own header). `member` rows
-//! (`build/closed_sets.rs`) are an open map of pairs, captured verbatim
-//! per `PairsShape::verbatim`.
+//! The `ValueObject` and `OneOf` constructs, which share one builder as in Ruby.
+//! A bare `invariant("...")` references a sibling's invariant; `member` rows are verbatim pairs.
 
 use crate::canonical;
 use crate::diag::{Diagnostic, ParseResult};
@@ -23,34 +11,11 @@ pub fn not_implemented(file: &str, line: usize, word: &str) -> Diagnostic {
     Diagnostic::not_yet_implemented(file, line, format!("ValueObject.{word}"))
 }
 
-/// No block is a reference, not a fresh declaration (S10/S-next, ADR 0025,
-/// one level over `command.rs`'s own `try_reference_named_given` — read
-/// that function's header first, this mirrors it exactly one construct
-/// down). `syntax.bluebook` declares exactly one keyword row for
-/// `invariant`/ValueObject (`body: "source"`, `parse::mod::body_gate`'s
-/// own comment names it directly among the words with "at most a sibling
-/// `none` row, never" one — false as of this function; that comment is
-/// now stale for this one word, kept anyway since fixing it belongs in
-/// `syntax.bluebook`, out of scope here), so a bare `invariant("...")`
-/// would otherwise be refused by the ordinary `next_line`/`body_gate`
-/// path before ever reaching the `"invariant"` match arm below. Resolved
-/// by `description` against `owner_value_objects` — the owning
-/// aggregate's own sibling value objects, built so far (source order;
-/// `aggregate::parse_body`'s own `"value_object"` arm hands in
-/// `@value_objects + closed_sets` up to this point, the same combination
-/// `AggregateBuilder#value_object`'s own `owner_value_objects:` uses) —
-/// duplicating the matched `Given` verbatim, the same canonical text,
-/// into this value object's own invariants. Confirmed real:
-/// banking.bluebook's own `Account`, `PositiveMoney`'s bare
-/// `invariant("a currency is a three-letter code")` resolving against
-/// `Money`'s own block-form declaration of the same description,
-/// declared earlier in the same aggregate.
+/// Resolves a bare `invariant("...")` against the sibling value objects' invariants by
+/// description, copying the match; consumes the line only when it is that bare form (ADR 0025).
 ///
-/// Peeks the next physical line without consuming it unless it actually
-/// matches (word `invariant`, `Opener::None`) — anything else (a
-/// `invariant { ... }`/`invariant do ... end` fresh declaration, or any
-/// other word entirely) falls through untouched to the ordinary
-/// `next_line` gate below.
+/// The grammar declares only a `source` body row for `invariant`, so the ordinary body gate
+/// would refuse the bare form before the `"invariant"` arm in `parse_body` ran.
 fn try_reference_named_invariant(
     file: &str,
     lines: &[SourceLine],
@@ -99,9 +64,6 @@ fn try_reference_named_invariant(
     Ok(Some(resolved))
 }
 
-/// Parses a `value_object "Name" do ... end` body. `owner_value_objects`
-/// — see `try_reference_named_invariant`'s own header — is the owning
-/// aggregate's own sibling value objects declared so far.
 pub fn parse_body(
     file: &str,
     lines: &[SourceLine],
@@ -123,24 +85,14 @@ pub fn parse_body(
         }
 
         let Some(gated) = super::next_line(file, lines, pos, "ValueObject")? else {
-            // `ValueObjectBuilder#build`'s own `closed_set: @closed_set ||
-            // !@members.empty?` — a non-empty `members` closes the set
-            // even when nothing else set the flag explicitly (the bare
-            // `member` spelling, S3, ADR 0025, never touches `closed_set`
-            // itself the way `one_of:`/the legacy wrapper do).
+            // Mirrors `ValueObjectBuilder#build`: a non-empty `members` closes the set.
             vo.closed_set = vo.closed_set || !vo.members.is_empty();
             return Ok(vo);
         };
 
         match gated.row.word {
-            // A synthesized inline `one_of(...)` closed set (the type-
-            // position form, `attribute :x, one_of("a", "b")`) is
-            // discarded here on purpose — see `build/closed_sets.rs`'s
-            // own header; `ValueObjectBuilder#build` never reads
-            // `closed_sets` either (nor could it hold one: `IR::
-            // ValueObject.declare` has no nested-value-objects field at
-            // all). The field's own `one_of:` keyword (below) is the real
-            // spelling for a closed set declared inside a value_object.
+            // An inline type-position `one_of(...)` set is discarded (see build/closed_sets.rs);
+            // `ValueObject` has no nested-value-objects field. Use the `one_of:` keyword instead.
             "attribute" => {
                 let (attribute, one_of) = build_value_object_attribute(file, &gated.args)?;
                 if let Some(values) = one_of {
@@ -165,11 +117,6 @@ pub fn parse_body(
                     canonical: canonical::apply(&raw),
                 });
             }
-            // Bare now (S3, ADR 0025 — "closed sets lose the wrapper
-            // block") — a `member` row sits directly in the value_object
-            // body, no `one_of do ... end` around it. A non-empty
-            // `members` already means closed; see `build`'s own comment
-            // below for why nothing else has to change for that.
             "member" => push_member(file, gated.line.number, &gated.args, &mut vo.members)?,
             _ => {
                 return Err(super::not_built_yet(
@@ -184,11 +131,7 @@ pub fn parse_body(
     }
 }
 
-/// `AttributeCollector#attribute`'s own `one_of:` keyword, read off the
-/// argument gate directly rather than through the shared `build_attribute`
-/// (which knows nothing about it — every other context refuses it) — an
-/// array literal of raw values, same shape `resolve_type_expression`'s own
-/// positional `one_of(...)` already reads.
+/// Reads the `one_of:` keyword, which the shared `build_attribute` refuses in every context.
 fn build_value_object_attribute(
     file: &str,
     args: &super::ArgumentGateResult,
@@ -208,12 +151,8 @@ fn build_value_object_attribute(
     Ok((attribute, one_of))
 }
 
-/// **The new spelling** — `attribute :name, String, one_of: [...]`. Refuses a
-/// second attribute naming one_of: on the same value object (a single-
-/// field set names exactly one field, by construction) and — the other
-/// half of the same rule — refuses it once the value object turns out to
-/// hold more than this one attribute, mirroring `ValueObjectBuilder#
-/// install_inline_closed_set`/`#build` exactly.
+/// Installs `attribute :name, String, one_of: [...]`; refused unless it is the value object's
+/// only attribute, mirroring `ValueObjectBuilder#install_inline_closed_set` and `#build`.
 fn install_inline_closed_set(
     file: &str,
     line: usize,
@@ -238,13 +177,8 @@ fn install_inline_closed_set(
     }
 
     vo.closed_set = true;
-    // Unmarked, exactly like a bare `member` row (`push_member`, below):
-    // Ruby's `install_inline_closed_set` writes the same member rows, and
-    // the round trip through `Marks#member` unmarks every one of them, so
-    // `one_of: ["as", "false", "true"]` exports `false`/`true` as JSON
-    // booleans, not strings. Found via parser_parity_spec's
-    // bluebook_language member once RustReservedWord (vocabulary.bluebook)
-    // listed the Rust keywords `true`/`false` as closed-set values.
+    // Unmarked like a bare `member` row (`push_member`): Ruby round-trips these through
+    // `Marks#member`, so `true`/`false` export as JSON booleans, not strings.
     vo.members = values
         .iter()
         .map(|value| vec![(field.to_string(), unmark_scalar(value))])
@@ -252,10 +186,6 @@ fn install_inline_closed_set(
     Ok(())
 }
 
-/// `member field: value, ...` — one `pairs_shape: "verbatim"` open map,
-/// bare now (no `one_of do ... end` wrapper — S3, ADR 0025). Shared by
-/// both a value_object's own top-level `member` rows and (unchanged) the
-/// same shape everywhere else `member` appears.
 fn push_member(
     file: &str,
     line: usize,
@@ -278,22 +208,9 @@ fn push_member(
     Ok(())
 }
 
-/// Port of `Marks#unmark_scalar` (lib/hecks/bluebook/assembly/marks.rb) —
-/// not the same thing as reading the Ruby literal type off the source
-/// text. `ValueObject#to_h` (Ruby's own runtime) stores every member
-/// field as text regardless of how it was written (`member required:
-/// "true"` and a hypothetical bare `required: true` land the same way),
-/// then infers Bool/Integer/Float back out of that text by shape alone —
-/// a quoted `"true"`/`"1"` unmarks to a real `true`/`1` exactly like an
-/// unquoted one would, because by the time this runs the quoting is
-/// already gone. Getting this wrong (preserving the as-parsed-from-
-/// source Ruby type instead) is silently plausible: it happens to give
-/// the right answer whenever a corpus member writes an Integer bare
-/// (`retention_months: 84`) and only diverges once one writes a
-/// boolean/numeric-shaped value as a quoted string (`required: "true"`,
-/// `at: "1"` — the self-hosted grammar's own ArgumentSeed/KeywordSeed
-/// members, syntax.bluebook, do exactly this) — found via
-/// parser_parity_spec's bluebook_language fixture, not a synthetic case.
+/// Port of `Marks#unmark_scalar` (lib/hecks/bluebook/assembly/marks.rb).
+/// Ruby stores every member field as text and infers Bool/Integer/Float from its shape, so a
+/// quoted "true" or "1" unmarks to a real `true` or `1`.
 fn unmark_scalar(text: &str) -> ruby_value::Value {
     if text == "true" {
         return ruby_value::Value::Bool(true);
@@ -314,16 +231,13 @@ fn unmark_scalar(text: &str) -> ruby_value::Value {
     ruby_value::Value::Str(text.to_string())
 }
 
-/// `/\A-?\d+\z/` — Ruby's own pattern, ported literally: an optional
-/// single leading `-`, then one or more ASCII digits, nothing else.
+/// Matches `/\A-?\d+\z/`: an optional leading `-`, then ASCII digits.
 fn is_integer_shape(text: &str) -> bool {
     let digits = text.strip_prefix('-').unwrap_or(text);
     !digits.is_empty() && digits.bytes().all(|b| b.is_ascii_digit())
 }
 
-/// `/\A-?\d+\.\d+\z/` — Ruby's own pattern, ported literally: digits,
-/// a literal `.`, more digits. No exponent form, no bare leading/
-/// trailing dot — matching Ruby's regex exactly, not "parses as f64".
+/// Matches `/\A-?\d+\.\d+\z/`: no exponent form, no bare leading or trailing dot.
 fn is_float_shape(text: &str) -> bool {
     let rest = text.strip_prefix('-').unwrap_or(text);
     let Some((int_part, frac_part)) = rest.split_once('.') else {

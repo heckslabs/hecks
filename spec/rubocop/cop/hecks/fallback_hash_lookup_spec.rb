@@ -1,44 +1,21 @@
 require "rubocop"
-# Not "rubocop/rspec/support" — that file's own top-level `RSpec.configure
-# { |config| config.include CopHelper; ... }` installs CopHelper's `registry`
-# method onto every example group in the whole process the instant this file
-# is required, not just this one. That collided in a real, reproducible way
-# with unrelated specs elsewhere in this suite that also define their own
-# `registry` (a `let(:registry)` or a same-named local var) — `bisect`
-# confirmed the resulting failures as order-dependent, and isolating just
-# this cop's own describe block (below) to only the two mixins it actually
-# needs, `require_relative`'d directly instead of via that global-installing
-# file, is the fix: CopHelper/ExpectOffense stay fully functional for this
-# cop's own examples, and nothing leaks into any other spec file.
+# Not "rubocop/rspec/support": its top-level RSpec.configure includes CopHelper into every
+# example group, and CopHelper#registry collides with other specs' own `registry`.
 require "rubocop/rspec/cop_helper"
 require "rubocop/rspec/expect_offense"
 require_relative "../../../../lib/rubocop/cop/hecks/fallback_hash_lookup"
 
-# `RuboCop::RSpec::ExpectOffense`/`CopHelper` need RSpec required first — see
-# `CopHelper`'s own `extend RSpec::SharedContext`, which blows up with an
-# uninitialized-constant `NameError` if `rspec` (pulled in by `spec_helper`
-# already, transitively, but named explicitly here since this spec would
-# still make sense run in isolation) hasn't defined it yet.
+# CopHelper extends RSpec::SharedContext, so RSpec must be loaded first.
 RSpec.describe RuboCop::Cop::Hecks::FallbackHashLookup do
   include CopHelper
   include RuboCop::RSpec::ExpectOffense
 
   subject(:cop) { described_class.new(config) }
 
-  # `DisplayCopNames` defaults to true in a bare `RuboCop::Config.new` (it
-  # comes from `config/default.yml`'s own `AllCops` section, not from
-  # anything this repo's `.rubocop.yml` sets) — turned off here so the
-  # offense message below matches this cop's own `MSG` verbatim, without
-  # every expectation also needing to restate the `Hecks/
-  # FallbackHashLookup: ` badge `MessageAnnotator` would otherwise prepend.
+  # Off so offense messages match the cop's MSG without the cop-name badge.
   let(:config) { RuboCop::Config.new("AllCops" => { "DisplayCopNames" => false }) }
 
-  # **The exact historical bug shape** — a value that could arrive keyed
-  # either by symbol or by string, read with a `||` fallback that silently
-  # drops a genuinely stored `false` and returns the other spelling's value
-  # (usually `nil`) instead. This is the shape `lib/hecks/query_specification
-  # /field_path.rb#read` was rewritten away from — see that method's own
-  # comment ("`key?` first, never `||`").
+  # A `||` fallback between symbol and string keys drops a stored `false`.
   it "flags the historical h[k.to_sym] || h[k] shape" do
     expect_offense(<<~RUBY)
       h[k.to_sym] || h[k]
@@ -46,10 +23,7 @@ RSpec.describe RuboCop::Cop::Hecks::FallbackHashLookup do
     RUBY
   end
 
-  # A regression fixture matching the actual shape fixed in
-  # `lib/hecks/query_specification/field_path.rb#read` before it was
-  # rewritten to the `key?`-first form — reconstructed here (not by
-  # reverting that file) so this cop is proven to catch it.
+  # Fixture rebuilding the shape field_path.rb#read once had, so the cop is proven to catch it.
   it "flags the exact shape field_path.rb#read used to have, reconstructed as a fixture" do
     expect_offense(<<~RUBY)
       module Hecks

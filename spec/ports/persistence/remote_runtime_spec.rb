@@ -2,14 +2,8 @@ require "hecks"
 require "hecks/adapters/driven/lambda"
 require "hecks/adapters/driven/postgres"
 
-# `Ports::Persistence::RemoteRuntime` — the shared shape for "the real
-# interpreter lives behind a call boundary," named so it's a real,
-# checkable capability (`registry.adapter_class(name) <= RemoteRuntime`,
-# `Runtime::RemoteDispatcher`'s own use) rather than one adapter's own
-# ad hoc raise/[] implementation compared by name. Proven against a bare
-# double first (the module's own contract shouldn't need a live AWS
-# client to prove), then against the two real adapters that answer this
-# capability question differently.
+# `RemoteRuntime` is proven against a bare double, then against the two real adapters
+# that answer the remote-runtime question differently.
 RSpec.describe Hecks::Ports::Persistence::RemoteRuntime do
   let(:delegate_class) { Class.new { include Hecks::Ports::Persistence::RemoteRuntime } }
 

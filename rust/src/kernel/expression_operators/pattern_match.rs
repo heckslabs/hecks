@@ -1,33 +1,5 @@
-// Implements the Ruby grammar's "pattern_match" expression-operator
-// category (projection.json: `.match?`, its one member) — `Resolver::
-// MatchesRegex` (resolver.rb's `matches_regex?`), read directly:
-// `receiver.match?(/pattern/flags)` against a real Ruby-Regexp-style
-// pattern, taken as-is between the slashes (no sub-grammar to recurse
-// into, same precedent `pattern`/`flags` on the Ruby struct already set).
-//
-// **The one dependency this crate has**. Every other file under
-// rust/src/kernel/ holds itself to zero Cargo dependencies (ADR 0012 —
-// WASM-via-WASI binary size and auditability; see json.rs's and
-// arithmetic.rs's own headers for the same constraint stated twice
-// already). `regex` is a deliberate, single, documented exception: the
-// resolver.rb comment on `MatchesRegex` itself calls `.match?` "the
-// single most impactful corpus-wide dispatch-time gap of the whole
-// migration" — email/phone/ISO-8601-timestamp/zip format-validation
-// rules, in nearly every value_object across every corpus this
-// migration touched — and no hand-rolled subset (character classes,
-// anchors, quantifiers, alternation) gets real Ruby-Regexp parity
-// without becoming a second regex engine maintained by hand, a far
-// larger and more failure-prone undertaking than one well-audited,
-// pure-Rust dependency. `regex` itself has no transitive C dependency
-// (confirmed via `cargo tree`, the same check rust/host's own Cargo.toml
-// comments already lean on for every dependency that crate accepts) —
-// it does not reopen the cross-compile/aarch64-toolchain problem
-// `rust/host/Cargo.toml`'s own comments document at length for crates
-// that do carry one.
-//
-// `expr.rs`'s `category_of` guarantees `interpret` below is only ever
-// called with `MatchesRegex` — see `logical.rs`'s header for why the
-// trailing arm is a router-bug guard, not a real refusal path.
+//! Interprets `.match?` against a Ruby-style pattern with `i`/`m`/`x` flags.
+//! `regex` is the kernel's one dependency: a hand-rolled subset cannot reach Ruby parity.
 
 use crate::kernel::expr::{eval_error, interpret as eval, EvalContext, Expr, Value};
 use crate::kernel::Refusal;
@@ -40,11 +12,7 @@ pub fn interpret(expr: &Expr, ctx: &EvalContext) -> Result<Value, Refusal> {
 
     let text = coerce_text(&eval(receiver, ctx)?)?;
 
-    // `Resolver#matches_regex?`, read directly: `i`/`m`/`x` map straight
-    // onto RegexBuilder's own case_insensitive/multi_line/... flags —
-    // Ruby's `/x` (extended, whitespace-and-comments-ignored) is the one
-    // that needs a name change (`ignore_whitespace` here) since the two
-    // libraries spell the same feature differently, not a semantic gap.
+    // Ruby's `/x` is `ignore_whitespace` in `regex`; `i` and `m` map directly.
     let mut builder = RegexBuilder::new(pattern);
     builder.case_insensitive(flags.contains('i'));
     builder.multi_line(flags.contains('m'));
@@ -57,10 +25,7 @@ pub fn interpret(expr: &Expr, ctx: &EvalContext) -> Result<Value, Refusal> {
     Ok(Value::Bool(re.is_match(&text)))
 }
 
-/// `Resolver#matches_regex?`'s own `case receiver_value` — String/Symbol
-/// (this kernel has no `Symbol` `Value`, so just `Str`), Integer/Float
-/// stringified, `nil` as `""`; anything else refuses by name rather than
-/// stringifying a shape `.match?` was never meant to receive.
+/// Text form of a scalar receiver: nil is empty, Bool and lists refuse.
 fn coerce_text(v: &Value) -> Result<String, Refusal> {
     match v {
         Value::Str(s) => Ok(s.clone()),

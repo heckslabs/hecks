@@ -6,32 +6,20 @@ require_relative "../../runtime/errors"
 
 module Hecks
   module Adapters
-    # Shared by every adapter that holds decoded Ruby records rather than
-    # running real SQL (Memory, Lambda, Heki) — the identical dotted-path
-    # value-object member-picking Postgres/Sqlite/D1's own
-    # order_expression does (numeric member wins, else the one-field
-    # convention "value"), just walked in Ruby instead of compiled to a
-    # JSONB/json_extract path, because there is no query engine
-    # underneath any of these three to hide that walk inside.
+    # Ordering for adapters that hold decoded Ruby records (Memory, Lambda, Heki),
+    # mirroring the SQL adapters' value-object member picking.
     module InMemoryOrdering
       module_function
 
-      # Orders decoded records by a declared attribute, then by id as the total-order
-      # tiebreaker.
+      # Orders decoded records by a declared attribute, then by id as the tiebreaker.
       #
-      # order_by is a runtime value (an HTTP query param, in the
-      # console's case), not framework-authored bluebook source — see
-      # postgres.rb's own all for the full reasoning. Whitelisted the
-      # identical way before FieldPath.dig ever runs.
+      # `order_by` may come from an HTTP query param, so it is checked before `FieldPath.dig`.
       #
       # @param records [Array<Runtime::Instance>] the records to order
-      # @param aggregate [Bluebook::Aggregate] the aggregate `records` belong to, checked for
-      #   `order_by`'s attribute
-      # @param order_by [String, Symbol, nil] a dotted attribute path to sort by; nil returns
-      #   `records` unchanged
+      # @param aggregate [Bluebook::Aggregate] the aggregate `records` belong to
+      # @param order_by [String, Symbol, nil] a dotted attribute path; nil returns `records` as-is
       # @param direction [Symbol] `:asc` or `:desc`
-      # @return [Array<Runtime::Instance>] `records`, ordered by `order_by` then id; unchanged
-      #   when `order_by` is nil
+      # @return [Array<Runtime::Instance>] `records`, ordered by `order_by` then id
       # @raise [Runtime::WiringError] if `order_by` names no attribute of `aggregate` and is
       #   not its lifecycle field
       def ordered(records, aggregate:, order_by:, direction:)
@@ -68,13 +56,8 @@ module Hecks
         vo = aggregate.value_object(attribute.type)
         return field.to_s unless vo
 
-        # Numeric member first, then the sole attribute whatever it is
-        # named (single-attribute value objects strictly answer `.value`
-        # — the same generalization `SqlQueryBuilder#query_expression`
-        # makes for the column side, kept in lockstep so Memory and SQL
-        # order the identical rows identically), and only then the bare
-        # `value` convention — now purely a backstop for the multi-field
-        # non-numeric shape neither rule can honestly pick a field for.
+        # Numeric member, else the sole attribute, else `value`; kept in lockstep with
+        # `SqlQueryBuilder#query_expression` so Memory and SQL order rows identically.
         member = vo.attributes.find { |a| %w[Integer Float].include?(a.type) }&.name ||
                  vo.sole_attribute&.name || "value"
         "#{name}.#{member}"

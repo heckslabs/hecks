@@ -2,11 +2,7 @@ require "hecks"
 
 RSpec.describe Hecks::Runtime::Value do
   describe ".latest_by" do
-    # A real list_of field, not a synthetic array — `toppings` grows by
-    # plain append (`AddTopping`), the exact shape `.latest_by` exists
-    # for: nothing here erases the earlier "Basil, amount 3" when
-    # "Basil, amount 5" gets added later, so reading the field's own
-    # raw history back gives both rows, in order.
+    # `toppings` grows by plain append, so its raw history keeps both Basil rows in order.
     let(:runtime) { boot_in_memory }
 
     def pizza_toppings
@@ -46,10 +42,8 @@ RSpec.describe Hecks::Runtime::Value do
       expect(rows.map(&:to_h)).to eq(original.map(&:to_h))
     end
 
-    # **The actual shape this exists for** — an append-only sentinel field
-    # (BurningManPrep's own `List#placements`, `position == -1` meaning
-    # "removed"), proving the split holds: `.latest_by` only groups,
-    # the caller supplies every bit of meaning on top.
+    # The append-only log with a removal sentinel (`position == -1`): `.latest_by` only
+    # groups, the caller supplies the meaning.
     it "supports the append-only-log-with-a-removal-sentinel pattern, grouping only — the caller still interprets" do
       vo = pizza_toppings.first.value_object
       rows = [
@@ -64,18 +58,10 @@ RSpec.describe Hecks::Runtime::Value do
     end
   end
 
-  # S2 (docs/audits/2026-08-10-main-bug-audit.md) — `.reference_identity`
-  # walked a dotted identity path with `held[segment.to_sym] ||
-  # held[segment]`, which drops a genuinely-stored `false` to `nil`
-  # (`false || …` falls through). Any part of an identity resolving to
-  # `nil` fails the whole identity (the very next line refuses a `nil`
-  # part), so a `false`-valued identity component didn't just misread —
-  # it took the entire canonical identity down with it.
+  # A stored `false` in a dotted identity path must not read as nil, which would fail
+  # the whole identity.
   describe ".reference_identity" do
-    # A minimal double for the referenced aggregate/entity: only
-    # `identity_paths` is read on this path (`identity_heads` is only
-    # consulted for a bare, single-Value shortcut this fixture doesn't
-    # take).
+    # Minimal doubles: only `identity_paths` is read on this path.
     ReferenceIdentityFakeType      = Struct.new(:target) { def resolve = target } unless defined?(ReferenceIdentityFakeType)
     ReferenceIdentityFakeTarget    = Struct.new(:identity_paths) unless defined?(ReferenceIdentityFakeTarget)
     ReferenceIdentityFakeAttribute = Struct.new(:type) unless defined?(ReferenceIdentityFakeAttribute)

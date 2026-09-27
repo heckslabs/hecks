@@ -1,12 +1,7 @@
 require "spec_helper"
 
-# Runtime::Invocation (roadmap PR I1) — one dispatch as data: verb, target
-# (the routing envelope), and every fact as Absent / Null / Present.
-# `Invocation.from_call` is now the only reader of a call's shape; the
-# interpreters still consume `#to_args`, so I1 changes no behavior.
-#
-# Fixture constructs and the pinned characterization table, kept out of the
-# describe block so they never leak into the global namespace.
+# Runtime::Invocation: one dispatch as data (verb, target, each fact Absent / Null / Present).
+# Fixtures and the characterization table sit outside the describe block to avoid global leaks.
 module InvocationSpecFixtures
   Attr      = Struct.new(:name, :optional) { def optional? = optional }
   Declaring = Struct.new(:hecks_name, :attributes)
@@ -22,14 +17,8 @@ module InvocationSpecFixtures
   BY_REF   = Operation.new("Settle", [Attr.new(:payment, false), Attr.new(:amount, false)], Attr.new(:payment, false), nil)
   BY_TO    = Operation.new("Refund", [Attr.new(:payment_id, false), Attr.new(:amount, false)], nil, "Payment")
 
-  # Characterization — every row below was run through the pre-I1 code
-  # (`Routing.payload` + `Routing.envelope` for aggregate/entity commands,
-  # `Dispatcher#port_invocation` for port operations) and its result pinned
-  # here verbatim: the args Hash (as ordered pairs), the envelope, or the
-  # refusal class and message. Rows are mined from the bug# regression specs
-  # (routing_envelope_spec, routing_envelope_shape_spec, dry_run's BUG#131,
-  # the BUG#16/#17 conformance fixtures, query_null_vo_argument_spec's
-  # explicit-null shape) plus each branch's refusal precedence.
+  # Characterization table: the args, envelope or refusal each call shape must produce, including
+  # the regression shapes mined from earlier routing specs.
   # rubocop:disable Layout/LineLength
   ROWS = [
     ["flat facts only", :aggregate, CREDIT, nil, nil, { account: "a1", amount: 1, narrative: 2 }, 0],

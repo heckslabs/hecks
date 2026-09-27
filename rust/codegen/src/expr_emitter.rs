@@ -1,17 +1,5 @@
-//! Port of `rust/project/expr_emitter.rb` — walks the `ast` tree every
-//! IR rule row carries (`Expression::AstJson.rule_row`) and emits Rust
-//! `Expr` data-literal source, mirroring the Ruby file's `emit_ast`/
-//! `emit_comparison` directly, arm for arm. This generator no longer
-//! parses `canonical` text at all: the one parse happened at IR emission
-//! (in Ruby's `Evaluator.parse`, behind `AstJson`), and both generators
-//! transcribe the same tree. The former `rust/codegen/src/expr/` — a
-//! hand-ported second parser of the expression sublanguage — is gone
-//! with it, and so is the drift class it carried.
-//!
-//! A literal-array `include?` haystack never reaches here — `AstJson.
-//! emit_include` already rewrote it into an or of equalities at emission
-//! (see that file's comment), so the `include` arm only ever sees a real
-//! field/string haystack.
+//! Port of `rust/project/expr_emitter.rb`: turns each IR rule's `ast` tree into `Expr` source.
+//! A literal-array `include?` never reaches here; `AstJson` rewrites it to an or of equalities.
 
 use crate::json::Json;
 use crate::naming::ruby_inspect_string;
@@ -66,18 +54,12 @@ pub fn emit_ast(node: &Json) -> String {
         "ends_with" => format!("Expr::EndsWith {{ receiver: {}, substring: {}.to_string() }}", boxed("receiver"), text("substring")),
         "first" => format!("Expr::First({})", boxed("receiver")),
         "last" => format!("Expr::Last({})", boxed("receiver")),
-        // Every op `AstJson::OPS` names has an arm above — this firing
-        // means the roster grew an op this generator has no rendering
-        // for yet (a real bug in this file), or the input isn't an ast
-        // at all. Hard failure, never a silent Unsupported case.
+        // Every op in `AstJson::OPS` has an arm above; reaching here is a hard failure.
         other => panic!("unhandled ast op {other:?} — no Rust rendering exists for it in this generator (rust/codegen/src/expr_emitter.rs#emit_ast)"),
     }
 }
 
-/// Fully qualified, not `use`d bare — see `rust/project/expr_emitter.rb`'s
-/// own `emit_comparison` comment: the self-hosted grammar declares its own
-/// "Comparison" type, and qualifying here means the two can never collide
-/// in a generated file.
+// Fully qualified because the self-hosted grammar declares its own `Comparison` type.
 pub fn emit_comparison(cmp: &Json) -> String {
     let flag = |key: &str| cmp.get(key).unwrap_or_else(|| panic!("cmp has no {key:?}: {cmp:?}")).to_s();
     format!("crate::kernel::Comparison {{ less_than: {}, equal: {}, negated: {} }}", flag("less_than"), flag("equal"), flag("negated"))

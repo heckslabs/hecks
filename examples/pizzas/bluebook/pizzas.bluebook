@@ -8,10 +8,7 @@ Hecks.bluebook "Pizzas" do
     attribute :name,          PizzaName
     attribute :pizza,         Pizza
     attribute :toppings,      list_of(Topping)
-    # OPTIONAL — Wave 8 fix: genuinely unknown until `Purchase` (below)
-    # sets it; no pizza has a buyer's name at CreatePizza time. The same
-    # DSL knob `ATMCard`'s own `nickname` (banking) already uses for the
-    # identical "not known until later" shape.
+    # Optional: unknown until `Purchase` sets it.
     attribute :customer_name, CustomerName, optional: true
 
     identified_by :name
@@ -51,26 +48,13 @@ Hecks.bluebook "Pizzas" do
       attribute :amount, Integer
     end
 
-    # A NAMED, REUSABLE closed set — its own sibling value object, the same
-    # shape LedgerDirection/AccountKind use in the banking corpus, not the
-    # `attribute :size, one_of(...)` shorthand (which synthesises an
-    # ANONYMOUS value object and only reads naturally directly on an
-    # aggregate/entity/command attribute, unchanged by S3). `one_of:` is
-    # the field's own keyword here (ADR 0025's "closed sets lose the
-    # wrapper block") — before it existed, the inline shorthand genuinely
-    # could not be spelled inside a `value_object` block at all: it
-    # desugars by calling `one_of` on the enclosing builder, and a nested
-    # `value_object` already had its OWN differently-shaped `one_of`
-    # (the now-removed `one_of do member ... end` wrapper), so the two
-    # collided with a wrong-arity ArgumentError.
+    # A named, reusable closed set as a sibling value object; the inline `one_of(...)` shorthand
+    # cannot be spelled inside a `value_object` block.
     value_object "Size" do
       attribute :value, String, one_of: ["small", "large"]
     end
 
-    # WHAT WAS ORDERED, not who ordered it or whether it's been paid for —
-    # those live on Order itself, which has the identity and lifecycle a
-    # pizza never needed. Two large Margheritas with the same toppings are
-    # interchangeable value, exactly what a value object means.
+    # What was ordered; who ordered it and payment state live on Order.
     value_object "Pizza" do
       attribute :price_cents, Price
       attribute :size,        Size
@@ -85,25 +69,14 @@ Hecks.bluebook "Pizzas" do
       order_by :name
     end
 
-    # BOTH price queries reach through the nested Pizza value object with a
-    # dotted path — the shape that could not be asked at all when Pizza
-    # first became a value object. They were dropped then rather than
-    # answered wrongly; QuerySpecification::FieldPath is what let them
-    # return: one walk shared by the reference interpreter, both SQL
-    # dialects, and the build seal, so a nested ask answers identically
-    # everywhere or refuses to build.
+    # Both price queries reach through the nested Pizza value object with a dotted path.
     query "CostingLessThan" do
       attribute :ceiling, Price
       where(:"pizza.price_cents.cents" => { lt: :ceiling })
       order_by :name
     end
 
-    # A LITERAL, not a kwarg — CostingLessThan's :ceiling is always resolved
-    # from the caller's args before it ever reaches the comparator, so it
-    # never exercised the literal-value path: a where-clause's own number
-    # is stringified when the query is declared ("1000", not 1000), and
-    # gt/gte/lte were never implemented against it at all until this query
-    # gave the corpus something to disagree about.
+    # A literal, not a kwarg: exercises the path where the where-clause number is stringified.
     query "Expensive" do
       where(:"pizza.price_cents.cents" => { gt: 1000 })
       order_by :name
@@ -116,21 +89,13 @@ Hecks.bluebook "Pizzas" do
       attribute :name,  PizzaName
       attribute :pizza, Pizza
 
-      # Wave 8 fix — both already declared, required command attributes,
-      # never written: CreatePizza had zero mutations at all, so every
-      # created Order's own :name/:pizza came back nil regardless of
-      # what the caller sent.
       sets :name
       sets :pizza
 
       emits PizzaCreated
     end
 
-    # LIFECYCLE STATE AS A COMMAND GUARD (S10, ADR 0025) — `AddTopping`
-    # has no matching `transition` (customizing a pizza doesn't move its
-    # own state), so `from:` is the only thing gating it. `Purchase`
-    # DOES match the `transition` above; its own `from:` here is
-    # redundant with `admissible_transition` in the harmless direction.
+    # AddTopping has no transition, so `from:` is its only lifecycle guard.
     command "AddTopping", from: "available" do
       role "Chef"
       goal "Customize a pizza with an ingredient"
@@ -155,27 +120,17 @@ Hecks.bluebook "Pizzas" do
 
       given("a pizza needs at least one topping") { toppings.size.positive? }
       given("a payment was actually made")         { amount.cents.positive? }
-      # NOT re-deciding WHETHER a payment happened — that's the external
-      # fact the comment below this command explains. This checks the
-      # fact ITSELF makes sense: an underpayment arriving from upstream
-      # (a data-entry error, a stale price quoted before an increase, a
-      # malformed webhook) shouldn't mark the pizza sold any more than a
-      # payment for an already-sold pizza should.
+      # Checks the payment itself is plausible (e.g. an underpayment), not whether one happened.
       given("the payment covers the price") { amount.cents >= pizza.price_cents.cents }
 
-      # THE LIFECYCLE MOVES IT (C5.3) — `transition "Purchase" => "sold"`
-      # above is what sets `status`; a `sets` on the lifecycle field is
-      # refused at build.
+      # The lifecycle transition sets status; a `sets` on the lifecycle field is refused at build.
       sets :customer_name
 
       emits PizzaPurchased
     end
   end
 
-  # A PAYMENT ARRIVING IS AN EXTERNAL FACT, NOT A DECISION THIS DOMAIN MAKES —
-  # the actual business rules (must have a topping, must still be available)
-  # stay on Purchase itself, reached only through this. See
-  # pizzas.hecksagon for the port this reacts to.
+  # A payment arriving is an external fact; the business rules stay on Purchase.
   policy "OnPizzaPaymentReceived" do
     on Order::PizzaPaymentReceived
     trigger Order::Purchase

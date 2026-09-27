@@ -1,30 +1,14 @@
 module Hecks
   module Adapters
-    # **The deterministic `agent` fulfillment** — a hand-loaded queue of raw
-    # answers, one queue per operation, so a spec (or `bin/interview`
-    # run against it deliberately) can assert on an exact question,
-    # proposal, finding, or suggestion with no live model in the room.
-    # `reset!` mirrors `SequentialIdentity`'s own convention: this
-    # module's state is class-level, not per-boot, so a spec that wants
-    # a clean queue calls it explicitly.
+    # Deterministic `agent` fulfillment: one queue of raw answers per operation.
+    # State is class-level, so specs call `reset!` for a clean queue.
     #
-    # Returns raw hashes, same shape a real `claude` reply unwraps to —
-    # this double stands in for `ClaudeCode.call`, not for
-    # `Ports::Agent`'s own validation, so a scripted answer still has to
-    # survive `Ports::Agent::Answers` exactly like a live one does. A
-    # spec proving the loop works against this double is also,
-    # incidentally, a spec proving the validation is real.
-    #
-    # Never required from `driven.rb`, the same trap `SequentialIdentity`
-    # already documents there: a second adapter answering the `agent`
-    # port unconditionally would make the port permanently ambiguous
-    # for every consumer, not just the specs that asked for this one.
+    # Stands in for `ClaudeCode.call`; answers still pass `Ports::Agent::Answers` validation.
+    # Never required from `driven.rb`: a second `agent` adapter would make the port ambiguous.
     module ScriptedAgent
       module_function
 
-      # Queues one answer (a raw Hash) per call, in order, for `verb`
-      # (`:ask`/`:interpret`/`:critique`/`:name`). Call again to append
-      # more onto the same queue.
+      # Appends raw answers to `verb`'s queue, in dequeue order.
       #
       # @param verb [Symbol] the operation the answers are for (`:ask`, `:interpret`,
       #   `:critique`, or `:name`)
@@ -68,10 +52,7 @@ module Hecks
         next_answer(:critique, declared: declared, refusals: refusals, findings: findings)
       end
 
-      # `suggest_name`, not `name` — see `Ports::Agent#suggest_name`'s
-      # own comment: a module-function called `name` shadows `Module
-      # #name` and breaks anything that later asks this module its own
-      # name (RSpec's own failure formatting, for one — measured).
+      # Named `suggest_name` because a module-function `name` would shadow `Module#name`.
       #
       # @param meaning [String] what the new name needs to mean; passed through unused
       # @param kind [String] the kind of construct being named; passed through unused
@@ -80,8 +61,7 @@ module Hecks
       # @raise [Hecks::Ports::Agent::Unavailable] if no answer is queued for `:name`
       def suggest_name(meaning:, kind:, near:) = next_answer(:name, meaning: meaning, kind: kind, near: near)
 
-      # Dequeues the next answer for `verb`, shared by `#ask`, `#interpret`, `#critique`, and
-      # `#suggest_name`.
+      # Dequeues the next answer for `verb`.
       #
       # @param verb [Symbol] queue key to dequeue from
       # @param call [Hash] the keyword arguments the caller was invoked with, used only in the

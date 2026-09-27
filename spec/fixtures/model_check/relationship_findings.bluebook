@@ -18,26 +18,22 @@ Hecks.bluebook "RelationshipFindings" do
     end
   end
 
-  # UNACKNOWLEDGED: across "Elsewhere" with nothing in the sibling
-  # hecksagon recording the expectation (no uses_framework, no subscribe).
+  # Unacknowledged: across "Elsewhere" with no uses_framework or subscribe in the hecksagon.
   policy "OnElsewhere" do
     on      "ThingDone"
     trigger Elsewhere::SomeCommand
     across  "Elsewhere"
   end
 
-  # CONTRADICTORY: across "Governance" while the sibling hecksagon ALSO
-  # uses_framework "Governance" — mutually exclusive relationship claims
-  # about the same target (Shared Kernel AND Customer/Supplier at once).
+  # Contradictory: across "Governance" while the hecksagon also uses_framework it,
+  # claiming Shared Kernel and Customer/Supplier at once.
   policy "OnGovernance" do
     on      "ThingDone"
     trigger Governance::SomeCommand
     across  "Governance"
   end
 
-  # CLEAN: across "Known" with a matching subscribe "Known.*" in the
-  # sibling hecksagon — the well-formed case, proving the checker does
-  # not false-positive it.
+  # Clean: a matching subscribe "Known.*" in the hecksagon must not be flagged.
   policy "OnKnown" do
     on      "ThingDone"
     trigger Known::SomeCommand

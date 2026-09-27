@@ -1,14 +1,7 @@
 #!/usr/bin/env ruby
 
-# Regenerates docs/implemented/reference/ from the language's own Syntax chapter —
-# the tables from the declaration, the prose preserved from the
-# committed pages. The golden spec refuses a tree where the two drifted.
-#
-# Goes through the projector registry (Projections::Reference), which is
-# the first projection to emit a tree rather than one artifact — see its
-# own `emits: :files`. README's generated indexes are a second output,
-# rooted elsewhere, so they stay a separate call rather than being
-# folded into a map keyed by paths from two different roots.
+# Regenerates docs/implemented/reference/ from the language's Syntax chapter.
+# Tables come from the declaration, prose is kept from the committed pages.
 #
 #   bin/reference
 
@@ -28,10 +21,7 @@ Hecks::Doc::Reference.write_readme!(root)
 
 puts "wrote #{written.size} pages to docs/implemented/reference/, and regenerated README.md's own indexes"
 
-# Both coverage gates, reported together — regeneration is when a new
-# word first appears on a page, so it is the moment somebody can see
-# what they now owe it. `bin/doc_coverage` asks the same two questions
-# as its own exit status, for the pre-push hook.
+# Both coverage gates, reported together; bin/doc_coverage asks the same as an exit status.
 {
   "prose"             => Hecks::Doc::Reference.undocumented(directory),
   "a running example" => Hecks::Doc::Reference.unexemplified(directory)

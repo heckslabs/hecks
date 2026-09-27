@@ -1,79 +1,47 @@
 module Hecks
   module Bluebook
-    # One field crossing a value-object boundary: a scalar becoming a VO
-    # member, a VO member becoming a scalar, or a rename across the move.
+    # One field crossing a value-object boundary, or carried under a new name.
     # Paths are dotted ("price.cents") for a VO member, bare otherwise.
     TranslationMove = Struct.new(:from, :to)
 
-    # One field whose value, not just its name or position, changed —
-    # an old value has nothing in common with a new one, so the only
-    # honest way to bridge it is a declared, exhaustive lookup table.
-    # Paths follow `TranslationMove`'s convention (dotted reaches a VO
-    # member); `values` maps every old-era value that can appear to its
-    # new-era replacement.
-    # `:values` shadows Struct#values on purpose (same reasoning as
-    # AttributeCollector::OneOf) — no caller reads the built-in behavior.
+    # One field whose value changed, bridged by an exhaustive lookup table.
+    # Paths follow `TranslationMove`; `values` maps each old-era value to its new-era one.
+    # `:values` shadows Struct#values on purpose; no caller reads the built-in.
     # rubocop:disable-next Lint/StructNewOverride
     TranslationConvert = Struct.new(:from, :to, :values)
 
-    # A value object's or entity's own type name changed with its member
-    # structure unchanged — the one drift `rename`/`move` cannot express,
-    # because the attribute kept its name and only the type it points at
-    # changed name. Mirrors `was:` one level deeper.
+    # A value object's or entity's type name changed with its members unchanged.
+    # The attribute kept its name, so `rename`/`move` cannot express it.
     TranslationRetype = Struct.new(:from, :to)
 
-    # A computed transform — rescale, reformat, split, merge — whose only
-    # implementation is the SQL expression itself, evaluated exclusively
-    # inside the compiled Postgres head. No in-process reference exists
-    # to check it against; any aggregate carrying one refuses to boot on
-    # every other adapter.
+    # A computed transform whose only implementation is a SQL expression run inside
+    # the compiled Postgres head; an aggregate carrying one refuses to boot elsewhere.
     TranslationCompute = Struct.new(:from, :to, :sql)
 
-    # The aggregate's own identity changed what it's computed from — not
-    # a field crossing a boundary (that's `move`), a value objects's type
-    # name (`retype`), or a value transform (`compute`): the record's own
-    # key. No `from:`/`to:` path, unlike every other rule here, because
-    # nothing is being consumed from or moved into `state` — the state
-    # a record already holds is untouched; only what identifies it is
-    # recomputed. Same SQL-only, Postgres-only, no-in-process-reference
-    # shape `compute` already has, and for the same reason: there is
-    # nothing to check this against outside the compiled head.
+    # The aggregate's own key is recomputed by a SQL expression; stored state is untouched.
+    # Postgres-only like `compute`, and it has no `from:`/`to:` path.
     TranslationRekey = Struct.new(:sql)
 
-    # A newly added, required attribute with no source in old data at
-    # all — not a rename, move, or convert, all of which need a from
-    # path in the old shape. `default` is the value an existing record
-    # reads until the next command against it writes a real one; unlike
-    # `compute`, this is adapter-agnostic — applied in-process by
-    # `Lineage#translate`, the same as rename/move/drop, because there is
-    # nothing to compute, only a value to declare.
+    # A newly added, required attribute with no source in old data.
+    # `default` is what an existing record reads until a command writes a real value;
+    # applied in-process by `Lineage#translate` on every adapter.
     TranslationBackfill = Struct.new(:name, :default)
 
-    # One aggregate's part of a translation: which attributes were
-    # renamed, moved, converted, or deliberately dropped on the way from
-    # the old era to the new one. `drops` exists so data loss is a
-    # declared decision, not a field that quietly stopped being
-    # explained.
+    # One aggregate's part of a translation between eras.
+    # `drops` makes data loss a declared decision.
     class TranslationAggregate
       attr_reader :name, :was, :renames, :moves, :converts, :drops, :retypes, :computes, :rekeys, :backfills
 
       # @param name [String, Symbol] the aggregate's name in the destination era
-      # @param was [String, Symbol, nil] the aggregate's name in the origin era, or `nil`
-      #   if it was not renamed
-      # @param renames [Hash{Symbol => Symbol}] each renamed field, old name to new name
-      # @param moves [Array<Bluebook::TranslationMove>] fields crossing a value-object
-      #   boundary
-      # @param converts [Array<Bluebook::TranslationConvert>] fields whose value is
-      #   remapped through a declared lookup table
+      # @param was [String, Symbol, nil] its name in the origin era, or `nil` if unchanged
+      # @param renames [Hash{Symbol => Symbol}] old field name to new field name
+      # @param moves [Array<Bluebook::TranslationMove>] fields crossing a value-object boundary
+      # @param converts [Array<Bluebook::TranslationConvert>] fields remapped via a lookup table
       # @param drops [Array<Symbol>] fields deliberately not carried forward
-      # @param retypes [Array<Bluebook::TranslationRetype>] value object or entity type
-      #   renames with their member structure unchanged
-      # @param computes [Array<Bluebook::TranslationCompute>] fields computed by a SQL
-      #   expression evaluated only inside the compiled Postgres head
-      # @param rekeys [Array<Bluebook::TranslationRekey>] SQL expressions that recompute
-      #   the aggregate's own identity
-      # @param backfills [Array<Bluebook::TranslationBackfill>] newly added required
-      #   fields with no source in old data
+      # @param retypes [Array<Bluebook::TranslationRetype>] value object or entity type changes
+      # @param computes [Array<Bluebook::TranslationCompute>] fields computed by Postgres-only SQL
+      # @param rekeys [Array<Bluebook::TranslationRekey>] SQL recomputing the aggregate's identity
+      # @param backfills [Array<Bluebook::TranslationBackfill>] new required fields, no old source
       def initialize(name:, was: nil, renames: {}, moves: [], converts: [], drops: [], retypes: [],
                      computes: [], rekeys: [], backfills: [])
         @name      = name.to_s
@@ -89,12 +57,8 @@ module Hecks
       end
     end
 
-    # A declared map from one era of a domain's storage shape to the
-    # next. Renames and moves — the smallest slice that proves the
-    # concept: old records are translated when they are replayed, never
-    # rewritten. `retired` acknowledges aggregates that are gone
-    # outright — not renamed — so their disappearance is a decision,
-    # not an accident.
+    # A declared map from one era of a domain's storage shape to the next.
+    # Old records are translated on replay, never rewritten; `retired` names aggregates removed.
     class Translation
       attr_reader :domain, :from, :to, :aggregates, :retired
 
@@ -104,7 +68,7 @@ module Hecks
       # @param aggregates [Array<Bluebook::TranslationAggregate>] each aggregate's own
       #   translation rules
       # @param retired [Array<String>] the names of aggregates gone outright in the
-      #   destination era, rather than renamed
+      #   destination era
       def initialize(domain:, from:, to:, aggregates: [], retired: [])
         @domain     = domain.to_s
         @from       = from

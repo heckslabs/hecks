@@ -43,15 +43,11 @@ Gem::Specification.new do |spec|
   spec.metadata["changelog_uri"]     = "#{spec.homepage}/blob/main/CHANGELOG.md"
   spec.metadata["documentation_uri"] = "https://rubydoc.info/gems/hecks"
 
-  # UNLIKE Postgres/Sqlite (ADAPTERS, reached only if a domain's
-  # .hecksagon wires one — declaring them here would force a database
-  # client library on every project that never touches either), prism
-  # is a genuinely unconditional dependency: adapters/driven/prism.rb's
-  # own `require "prism"` runs the moment `require "hecks"` does,
-  # not lazily. Real, not merely tidy — Ruby 3.3+ bundles prism as a
-  # default gem so this went unnoticed everywhere prism was already
-  # present for free; Ruby 3.2 (AWS Lambda's own managed runtime, among
-  # others) does not, and `require "hecks"` failed outright there
-  # with prism undeclared (caught live building for Lambda).
+  # Unlike Postgres/Sqlite (adapters, loaded only if a domain's .hecksagon
+  # wires one), prism is a genuinely unconditional dependency:
+  # adapters/driven/prism.rb requires it the moment `require "hecks"` runs,
+  # not lazily. Ruby 3.3+ bundles prism as a default gem, but Ruby 3.2
+  # (AWS Lambda's managed runtime, among others) does not, so it must be
+  # declared here explicitly.
   spec.add_dependency "prism"
 end

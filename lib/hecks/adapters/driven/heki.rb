@@ -35,12 +35,9 @@ module Hecks
         @aggregate = aggregate
         @path      = resolve_path(settings, root)
         @journal_path = "#{@path}.journal"
-        @events    = []
-        # The optional saga-persistence capability's own scoping (§2/§4)
-        # — falls back to the aggregate's own name for a directly-
-        # instantiated adapter (specs), same fallback shape Postgres's
-        # own @domain already uses.
-        @domain    = (
+        @events = []
+        # Saga scope; falls back to the aggregate's name for a directly built adapter.
+        @domain = (
           if settings.key?(:domain)
             settings[:domain]
           elsif settings.key?("domain")
@@ -81,13 +78,7 @@ module Hecks
 
       # Answers a declared query specification against the projected records.
       #
-      # `registry: context[:registry]` — Memory's own `query` already
-      # threads this through; Heki's own never did, which made
-      # `none_in_state?` (Ports::Query::InMemory) unconditionally
-      # return `true` (its own graceful "no registry, no way to look
-      # the target up" default) for every `none_in_state` where-clause
-      # against a Heki-backed aggregate — silently excluding nothing,
-      # always, no matter the actual target state.
+      # The registry is passed through so `none_in_state` clauses can look up their target.
       #
       # @param specification [QuerySpecification::Common::Options,
       #   Bluebook::Behaviour::ReadModel::FilteredOptions] the declared query specification
@@ -113,17 +104,11 @@ module Hecks
 
       # Applies one journaled entry to the current-state snapshot.
       #
-      # Reads fresh rather than trusting the memoized `store` — under
-      # `with_lock`, another process may have projected a snapshot since
-      # this one last read it, and mutating *its* stale copy would
-      # overwrite that write on disk rather than layer on top of it.
+      # Reads fresh, not the memoized `store`: another process may have projected since,
+      # and a stale copy would overwrite that write.
       #
-      # On a delete, though, the record `current.delete` finds is already
-      # gone: every caller (`#delete` above, `AppendOnly#delete`) appends
-      # before it projects, so the fresh read above has already replayed
-      # this very entry off the journal. What the memoized `store` last
-      # held — from before this call — is read up front, for the return
-      # value only; it plays no part in what gets written.
+      # On a delete the fresh read has already replayed the entry, so the returned record
+      # comes from the memoized `store`, read up front.
       #
       # @param entry [Persistence::Entry] the save or delete to materialize
       # @return [Runtime::Instance, nil] on a save, the newly stored record; on a delete, the
@@ -178,10 +163,7 @@ module Hecks
       # @return [Array<Runtime::Event>] the adapter's in-memory event log, including `event`
       def record_event(event) = @events << event
 
-      # ── the optional saga-persistence capability (§2) — Heki's own
-      # shape (a sibling snapshot+journal file pair, `SagaStore`,
-      # heki/saga_store.rb) rather than a table in a store this adapter
-      # doesn't have.
+      # Checkpoints one saga instance in a sibling file pair (`SagaStore`).
       #
       # @param process_manager [String, Symbol] the process manager's name, compared as
       #   `.to_s`
@@ -209,18 +191,15 @@ module Hecks
         saga_store.delete_saga(@domain, process_manager.to_s, correlation.to_s)
       end
 
-      # Yields every checkpointed saga instance of this domain, for `Registry
-      # #rehydrate_sagas!` to restore at boot.
+      # Yields every checkpointed saga instance of this domain, for boot-time rehydration.
       #
       # @yieldparam process_manager [String] the process manager's name
       # @yieldparam correlation [String] the instance's correlation value
       # @yieldparam state [String] the saga's state name
       # @yieldparam memory [Hash{Symbol => Object}] the saga's memory, Symbol keys at every
       #   depth
-      # @yieldparam completed_compensations [Array] the completed-compensation ledger, `[]`
-      #   when none was recorded
-      # @return [Enumerator, Hash{String => Hash}] an enumerator over the same five values
-      #   when no block is given; otherwise `SagaStore`'s internal records Hash
+      # @yieldparam completed_compensations [Array] the completed-compensation ledger
+      # @return [Enumerator, Hash{String => Hash}] an enumerator when no block is given
       def each_saga(&) = saga_store.each_saga(@domain, &)
 
       private
@@ -229,8 +208,6 @@ module Hecks
         @saga_store ||= SagaStore.new(File.dirname(@path))
       end
 
-      # `record` is the snapshot/journal's own string-keyed JSON — decoded
-      # deep through the state codec, never symbolized one level by hand.
       def instance(id, record)
         Runtime::Instance.new(
           aggregate: @aggregate,
@@ -248,13 +225,7 @@ module Hecks
         replay_journal(snapshot)
       end
 
-      # `dir: :default` — a bare Symbol, the framework's own convention
-      # for "a declared value that resolves by convention, never a silent
-      # fallback" — would otherwise crash `File.join` outright
-      # (`TypeError: no implicit conversion of Symbol into String`):
-      # `resolve_path` only ever checked for a missing `dir` setting,
-      # never a Symbol one. Treated the same as no setting at all — falls
-      # back to the existing "data" default, not a new special case.
+      # `dir: :default` means no setting; a Symbol would make `File.join` raise TypeError.
       def resolve_path(settings, root)
         declared =
           if settings.key?(:dir)

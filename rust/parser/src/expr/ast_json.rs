@@ -1,14 +1,5 @@
-//! Mirror of `lib/hecks/bluebook/expression/ast_json.rb` — walks the
-//! `Evaluator`/`Resolver` tree this module's own `parse` produces and
-//! emits the same `"op"`-tagged JSON every Ruby rule row carries as
-//! `ast`. Key order per node matches the Ruby file's Hash literal order
-//! exactly, because parser parity compares the pretty-printed document
-//! byte for byte — a reordered key is a parity failure, by design.
-//!
-//! The literal-array `include?` rewrite (or of equalities; empty array →
-//! `{"op":"bool","value":false}`) is mirrored too — see the Ruby file's
-//! `emit_include` comment for the reasoning. `SignTest` drops its `test`
-//! spelling in favour of the comparison triple, exactly as Ruby does.
+//! Emits the `"op"`-tagged JSON AST for a parsed predicate, mirroring `ast_json.rb`.
+//! Key order must match the Ruby output byte for byte; parser parity compares it.
 
 use crate::emit::JsonValue;
 use crate::expr::evaluator::{self, Evaluator};
@@ -114,8 +105,7 @@ fn emit_resolver(node: &Resolver) -> JsonValue {
             ("predicate", emit_bool(predicate)),
             ("path", JsonValue::Array(path.iter().map(|s| JsonValue::String(s.clone())).collect())),
         ]),
-        // Only reachable as an `include?` needle-side literal or a
-        // comparison operand — the haystack case is intercepted above.
+        // The haystack case is intercepted in `emit_include`.
         Resolver::ArrayLiteral(elements) => obj(vec![
             op_tag("array"),
             ("elements", JsonValue::Array(elements.iter().map(emit_resolver).collect())),
@@ -123,9 +113,7 @@ fn emit_resolver(node: &Resolver) -> JsonValue {
     }
 }
 
-/// Ruby's `Float#to_s` — always carries a decimal point. Mirrors
-/// `rust/codegen/src/json.rs`'s own `format_number`, which this crate
-/// cannot import.
+/// Ruby's `Float#to_s`: always carries a decimal point.
 fn ruby_float(n: f64) -> String {
     let text = format!("{n}");
     if text.contains('.') || text.contains('e') || text.contains('E') {

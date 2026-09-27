@@ -4,38 +4,19 @@ require_relative "field_renderer"
 
 module Hecks
   module Forms
-    # The two directions between a flat, dotted, all-strings web payload
-    # (`{"amount.cents"=>"1050", "amount.currency"=>"USD"}`, whether it came
-    # off a POST form body or a GET query string — Rack hands back the same
-    # flat shape for both as long as nothing uses `[]` bracket names) and the
-    # nested, typed hash `Dispatcher#dispatch`/`#query` actually take
-    # (`{amount: {cents: 1050, currency: "USD"}}`).
+    # Converts between flat dotted web params (`{"amount.cents"=>"1050"}`) and the nested
+    # hash of typed values a dispatch takes (`{amount: {cents: 1050}}`).
     #
-    # `extract` needs the Field tree, not just the raw params — a numeric
-    # leaf's own runtime check (`Value::Coercion#check_numeric_fields`)
-    # requires an actual `Integer`/`Float`, not a String that merely looks
-    # like one (`given.is_a?(expected)`, no coercion attempted there); a web
-    # form can only ever hand back strings, so the cast has to happen here,
-    # once, using the same shape `FieldShape` already resolved for
-    # rendering the input in the first place — one reading of the IR, not
-    # two that could disagree.
+    # `extract` needs the Field tree because the runtime's numeric check rejects
+    # numeric-looking Strings, so the cast happens here.
     module Params
       # Casts a flat, all-strings web payload into the nested, typed arguments a command or
       # query takes, guided by the field tree the form was rendered from.
       #
-      # Every leaf field carries its own full dotted path regardless of how
-      # deep `FieldShape` nested it to get there — a single-attribute value
-      # object unwraps to a leaf sitting at the top of the fields array with
-      # a two-segment path (`"reference.value"`), the exact same shape a
-      # `:group`'s own child carries. So this collects every leaf as
-      # (full path -> value) first, and nests by the path's own segments
-      # last — one nesting rule, blind to how a field arrived at its path.
-      #
-      # @param fields [Array<Forms::Field>] the resolved field tree the payload was posted
-      #   against
+      # @param fields [Array<Forms::Field>] the resolved field tree the payload was posted against
       # @param raw [Hash{String => String}] the flat web payload, keyed by dotted field path
-      # @return [Hash{Symbol => Object}] nested, typed arguments keyed by path segment, ready
-      #   to splat into a dispatch; a blank optional field is left out
+      # @return [Hash{Symbol => Object}] nested, typed arguments ready to splat into a dispatch;
+      #   a blank optional field is left out
       # @raise [ArgumentError] if a number field's text is not numeric, or two fields collide
       #   at one path (see `nest`)
       # @raise [TypeError] if a required number field is missing from `raw`
@@ -68,23 +49,8 @@ module Hecks
       # Nests values keyed by dotted path into a Hash keyed by path segment, refusing two
       # paths that cannot share one result.
       #
-      # A path-prefix collision: one field named (say) "price" alongside
-      # another named "price.cents" implies "price" is both a scalar leaf
-      # and the parent of a nested group — the two can never coexist in
-      # the same result hash. Depending on which pair `each_with_object`
-      # reaches first, an unguarded walk fails in one of two ways: a scalar
-      # planted first leaves `acc[segment] ||= {}` seeing a truthy non-Hash
-      # and reusing it as `node`, so the next `node[leaf] = value` blows up
-      # with a raw `TypeError` from calling `String#[]=` with a Symbol key;
-      # a scalar planted after the nested group instead sails through
-      # `node[leaf] = value` and silently clobbers the entire nested hash
-      # with the scalar, losing every sibling under it with no error at
-      # all. Both directions are checked explicitly here so either order
-      # raises the same clear `ArgumentError` instead of a confusing crash
-      # or silent data loss — this is the family of error every
-      # command/query submission path in app.rb already rescues into a 422
-      # (`ArgumentError` sits right alongside the domain refusals in every
-      # one of those rescue clauses).
+      # "price" and "price.cents" cannot coexist. Both orders are checked so a collision
+      # raises ArgumentError (rescued into a 422) rather than a TypeError or silent data loss.
       #
       # @param pairs [Hash{String => Object}] values keyed by dotted path, such as
       #   `{"amount.cents" => 1050}`
@@ -121,11 +87,8 @@ module Hecks
 
       # Reads a `:list` field's textarea into an Array, one element per non-blank line.
       #
-      # One line of the textarea per element. A line that itself needs
-      # several fields (a multi-attribute value object as a list element)
-      # is read as JSON on that one line — the honest fallback documented in
-      # docs/command-form-and-query-form-bluebook.md rather than a second
-      # widget this prototype doesn't build yet.
+      # One textarea line per element; a multi-attribute value object element is read as
+      # JSON on its line.
       #
       # @param field [Forms::Field] a `:list` field whose first child describes one element
       # @param raw [Hash{String => String}] the flat web payload, keyed by dotted field path
@@ -191,13 +154,8 @@ module Hecks
       # Flattens held values back into the dotted-path, all-strings pairs a query string
       # carries — the reverse of `extract`.
       #
-      # The other direction — a nested value hash back to the flat dotted
-      # pairs a GET link's query string carries, so a query view's
-      # "shareable link" and its filter form stay two renderings of the
-      # same data rather than two formats that can drift. Reads with
-      # `FieldRenderer.dig` — the identical full-path lookup a re-rendered
-      # input's own value comes from — for the same reason `extract` above
-      # nests by full path rather than by tree shape.
+      # Reads with `FieldRenderer.dig`, the same full-path lookup a re-rendered input uses,
+      # so a shareable link and its filter form cannot drift.
       #
       # @param fields [Array<Forms::Field>] the field tree naming which paths to read
       # @param values [Hash{String, Symbol => Object}] held values, flat or nested; see
@@ -221,11 +179,7 @@ module Hecks
       # Lists every dotted path a field tree submits under, whether or not anything was
       # entered for it.
       #
-      # Every leaf/list path a field tree carries, independent of any
-      # values — what `command_form_renderer.rb`'s inspect panel wants
-      # ("which fields does this command take"), where `flatten` above wants
-      # "what does this one submission look like" and returns nothing for a
-      # field nothing was entered for.
+      # Unlike `flatten`, this does not depend on values, so unset fields are listed too.
       #
       # @param fields [Array<Forms::Field>] the field tree to walk
       # @param into [Array<String>] accumulator the paths are appended to in place

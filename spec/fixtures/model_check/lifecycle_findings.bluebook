@@ -12,15 +12,12 @@ Hecks.bluebook "LifecycleFindings" do
       attribute :value, String
     end
 
-    # UNREACHABLE STATE + DEAD TRANSITION, one declaration doing both:
-    # "orphaned" is a target no OTHER transition ever reaches, so the
-    # transition INTO it can never fire — the same finding seen from
-    # each side (the state that is never reached, and the transition
-    # that can never fire because its own source is never reached).
+    # Unreachable state and dead transition from one declaration: no other transition
+    # reaches "orphaned", and the transition into it has an unreachable source.
     lifecycle :status, default: "new" do
       transition "Activate" => "active",   from: "new"
       transition "Retire"   => "orphaned", from: "abandoned"
-      # UNKNOWN COMMAND: nothing on Widget is ever called "Vanish".
+      # Unknown command: nothing on Widget is ever called "Vanish".
       transition "Vanish"   => "gone",     from: "active"
     end
 
@@ -49,8 +46,7 @@ Hecks.bluebook "LifecycleFindings" do
       identified_by :serial
       attribute :serial, Serial
 
-      # STUCK STATE: reachable ("mounted" is the default), but nothing
-      # ever transitions out of it — a WARNING, not an error.
+      # Stuck state: reachable as the default, but nothing transitions out (a warning).
       lifecycle :status, default: "mounted" do
       end
 
@@ -67,12 +63,8 @@ Hecks.bluebook "LifecycleFindings" do
     end
   end
 
-  # TERMINAL EXEMPT: "queued" is the default and reached, but unlike
-  # Widget::Part above (an EMPTY lifecycle), this one declares a real
-  # constrained transition elsewhere ("Escalate", from: "flagged").
-  # "queued" is simply never named as a transition's own from: —
-  # model_check.rb's `terminal_exempt` treats that differently from an
-  # unwired lifecycle: no stuck_state warning for "queued" itself.
+  # Terminal exempt: unlike Widget::Part's empty lifecycle, this one declares a real
+  # transition elsewhere, so `terminal_exempt` raises no stuck_state for "queued".
   aggregate "Gadget" do
     identified_by :code
 

@@ -7,33 +7,6 @@ module Hecks
       module Fargate
         # Alerting for a Fargate stack: an `SNS` topic, CloudWatch alarms, and an
         # optional synthetic check.
-        #
-        # Every alarm reports to the topic on both alarm and recovery. An email
-        # address subscribes to the topic, but `SNS` holds the subscription as
-        # pending until the recipient follows the confirmation link it mails;
-        # the stack cannot do that step.
-        #
-        # ## Settings
-        #
-        # `alerts` is a hash:
-        #
-        # - `topic`: the `SNS` topic name (required).
-        # - `email`: an address to subscribe to the topic.
-        # - `alarms`: a list of kinds, each a string or a hash `{kind:, container:, threshold:,
-        #   period:, evaluation_periods:, datapoints_to_alarm:, description:}`. The kinds are
-        #   `alb_5xx` (5xx responses from targets), `target_unhealthy` (an unhealthy target, for
-        #   one `container` or for every load-balanced one) and `cloudfront_5xx` (5xx responses
-        #   counted at the edge).
-        # - `warmer`: `{paths:, namespace:, rate:}` adds a function that requests each path
-        #   through the CDN on a schedule and reports failures as a metric, with an alarm that
-        #   also fires when the metric goes silent. `code` replaces the function's inline source,
-        #   and `schedule_description` and `alarm_description` replace the schedule's and the
-        #   alarm's description text.
-        #
-        # The logical ids come from `logical_ids`: `alerts_topic`, `alerts_subscription`,
-        # `alb_5xx_alarm`, `cloudfront_5xx_alarm`, `cloudfront_monitoring`, `synthetic_alarm`,
-        # `warmer_role`, `warmer_function`, `scheduler_role` and `warmer_schedule`. A
-        # per-container alarm is `<Container>TargetUnhealthyAlarm`.
         module Monitoring
           module_function
 
@@ -56,13 +29,6 @@ module Hecks
             synthetic:        "The synthetic check found a non-200 response on a real path, or stopped reporting."
           }.freeze
 
-          # Reads and checks the `alerts` setting.
-          #
-          # @param setting [Hash, nil] the world's `alerts` value, or nil when it sets none
-          # @param containers [Array<String>] the names of the load-balanced containers
-          # @return [Hash{Symbol => Object}, nil] the checked settings, or nil for none
-          # @raise [ArgumentError] if a key is unknown or malformed, or an alarm names a container
-          #   that has no target group
           def normalize(setting, containers:)
             return nil if setting.nil?
 
@@ -76,20 +42,10 @@ module Hecks
             }
           end
 
-          # Tells whether any alarm needs the CloudFront metrics subscription.
-          #
-          # @param alerts [Hash, nil] the checked settings from `normalize`
-          # @return [Boolean] true when a `cloudfront_5xx` alarm is declared
           def cloudfront_metrics?(alerts)
             !alerts.nil? && alerts[:alarms].any? { |alarm| alarm[:kind] == "cloudfront_5xx" }
           end
 
-          # Renders every alerting resource.
-          #
-          # @param alerts [Hash] the checked settings from `normalize`
-          # @param context [Hash{Symbol => Object}] `:ids` (resolved logical ids), `:stack_name`,
-          #   `:alb_id`, `:distribution_id` and `:target_groups` (container name to target group id)
-          # @return [String] flush-left resources separated by blank lines, ending in a blank line
           def yaml(alerts, context)
             blocks = [topic_yaml(alerts, context[:ids])]
             blocks << subscription_yaml(alerts, context[:ids]) if alerts[:email]

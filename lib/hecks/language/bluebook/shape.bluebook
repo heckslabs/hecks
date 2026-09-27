@@ -4,19 +4,14 @@ Hecks.bluebook "Bluebook" do
 
     reference_to Aggregate
 
-    # THE AGGREGATE IT BELONGS TO, AND ITS NAME. A value object belongs to one
-    # aggregate by rule, and `Name` or `Amount` is spelled in half the chapters
-    # there are.
+    # Identity is the owning aggregate plus the name; `Name` recurs across chapters.
     identified_by :aggregate, :name
 
     attribute :name,       ValueObjectName
     attribute :attributes, list_of(ShapeField)
     attribute :invariants, list_of(Assertion)
     attribute :rows,       RowCount, optional: true
-    # S17, ADR 0026 — Member NESTED here, an entity rather than its own
-    # root aggregate (see `entity "Member"`, below). `list_of(Member)`
-    # forward-references it the same way banking's own `attribute :ledger,
-    # list_of(LedgerEntry)` names LedgerEntry before it is declared.
+    # Member is nested here as an entity; `list_of(Member)` forward-references it.
     attribute :members,    list_of(Member)
 
     value_object "RowCount" do
@@ -34,9 +29,9 @@ Hecks.bluebook "Bluebook" do
       attribute :list,    String, pattern: '[^ \t\n\r]'
       attribute :optional, String, optional: true
       attribute :pattern,  String, optional: true
-      # optional: a declaration with no default has none (C3.7 — a value object's fields arrive or it refuses)
+      # optional: a declaration with no default has none
       attribute :default, String, optional: true
-      # The closed set this value must belong to — see Aggregate::Field.
+      # The closed set this value must belong to; see Aggregate::Field.
       attribute :admits, String, optional: true
       attribute :relationship, String, optional: true
       invariant("a field is named") { !name.to_s.empty? }
@@ -51,43 +46,27 @@ Hecks.bluebook "Bluebook" do
       invariant("an assertion canonical form is present") { !canonical.to_s.empty? }
     end
 
-    # S17, ADR 0026 — MemberPosition/MemberText/Pair, hoisted up from the
-    # old standalone `aggregate "Member"`. An entity cannot declare its own
-    # `value_object` (EntityBuilder has no such method — a piece borrows its
-    # owning aggregate's, the same way LedgerEntry borrows Account's Money),
-    # so these live here now, one level up, where `entity "Member"` below
-    # can still reach them.
-    #
-    # Named MemberPosition rather than reusing ValueObject's own `Position`
-    # two lines above — that one orders value objects among an AGGREGATE's
-    # siblings ; this one orders admitted rows within ONE value object. Same
-    # shape, different fact, so a shared name would have let one silently
-    # answer for the other.
+    # An entity cannot declare its own value objects, so Member's pieces live here.
+    # MemberPosition is distinct from Position: that orders value objects among an
+    # aggregate's siblings, this orders admitted rows within one value object.
     value_object "MemberPosition" do
       attribute :value, Integer
     end
 
     value_object "MemberText" do
       attribute :value, String
-      # MemberText is free-form serialized text from member definitions,
-      # which can include empty strings and numeric literals — not restricted
+      # Free-form text; may be empty or numeric, so unrestricted.
     end
 
     value_object "Pair" do
       attribute :key,   String, pattern: '[^ \t\n\r]'
       attribute :value, String
-      # Pair keys must be named, but values can be empty strings or numeric literals
+      # Keys must be named; values may be empty or numeric.
       invariant("a pair key is present") { !key.to_s.empty? }
     end
 
-    # The way back: everything DECLARED IN the aggregate above. The parent
-    # reference IS the query.
-    # WHERE IT SITS AMONG ITS SIBLINGS. Declaration order is a FACT ABOUT THE
-    # SOURCE — the IR is a contract read straight from this file,
-    # field for field AND INDEX FOR INDEX. So the language HOLDS it, instead of
-    # inheriting it from whatever order a store happens to iterate: an ask that
-    # does not say how it is ordered is answered in identity order, which is
-    # right for every other ask and fatal for the one that is the SOURCE.
+    # Declaration order is a fact about the source, so the language holds it rather than
+    # inheriting store iteration order; an unordered ask is answered in identity order.
     value_object "Position" do
       attribute :value, Integer
     end
@@ -121,16 +100,11 @@ Hecks.bluebook "Bluebook" do
       attribute :type,    ValueObjectName
       attribute :list,    ValueObjectName
       attribute :optional, ValueObjectName, optional: true
-      # FREE TEXT, like `default` beside it and like the pattern every other
-      # element builder takes. `ValueObjectName` carries the invariant "a value
-      # object is named", which is not a thing a regex has to be — it happened to
-      # admit banking's one pattern because that pattern is not empty, and it
-      # said the wrong thing about why.
+      # Free text, like `default`; ValueObjectName's "is named" invariant does not suit a regex.
       attribute :pattern,  ValueObjectText, optional: true
       attribute :default, ValueObjectText, optional: true
       attribute :admits,  ValueObjectText, optional: true
-      # See Command.Argument's own :relationship (command.bluebook) — the
-      # same field, the same reason.
+      # Same field as Command.Argument's :relationship (command.bluebook).
       attribute :relationship, ValueObjectText, optional: true
 
       sets :attributes, append: { name: :name, type: :type, list: :list, default: :default, optional: :optional, pattern: :pattern, admits: :admits, relationship: :relationship }
@@ -142,10 +116,8 @@ Hecks.bluebook "Bluebook" do
       role "Language"
       goal "Declare that this value object admits a closed set of rows"
 
-      # Dispatched only when the bluebook declared a one_of — so an EMPTY closed
-      # set is visible where it used to be invisible : a shape that is closed
-      # and admits nothing. Members live in their own root (a row is a list of
-      # pairs inside a list of rows), so the count is offered rather than read.
+      # Dispatched only when a one_of was declared, so an empty closed set is visible.
+      # Members live in their own list, so the count is passed in.
 
       given("a closed set admits a member") { rows.value > 0 }
 
@@ -171,20 +143,12 @@ Hecks.bluebook "Bluebook" do
 
     value_object "ValueObjectText" do
       attribute :value, String
-      # ValueObjectText is free-form serialized text from member definitions,
-      # which can include empty strings and numeric literals — not restricted
+      # Free-form text; may be empty or numeric, so unrestricted.
     end
 
-    # THE MEMBER'S OWN CREATION. S17, ADR 0026 — Member is a genuine ENTITY
-    # now (`entity "Member"`, below), and an entity is never created through
-    # its own dotted verb — banking's own LedgerEntry is created by
-    # `Account.LogEntry`, an ordinary append on the OWNER, never by a
-    # `LedgerEntry.Declare` of its own (EntityInterpreter#element_of only
-    # LOCATES an element already on the list — see entity_interpreter.rb —
-    # it has no path that creates one). So Member's creation moved here,
-    # onto ValueObject, mirroring `Field`/`Close`/`Assert` beside it :
-    # a bare, aggregate-level append. What it creates is empty — pairs fill
-    # in afterward, one at a time, through the entity's own `Pair`.
+    # An entity is only located by its own dotted verb, never created (see
+    # EntityInterpreter#element_of), so Member is created by an append here.
+    # Pairs are added afterward through the entity's own `Pair`.
     command "Member" do
       role "Language"
       goal "Open one admitted row on a value object"
@@ -196,24 +160,12 @@ Hecks.bluebook "Bluebook" do
       emits MemberDeclared
     end
 
-    # S17, ADR 0026 — ONE ADMITTED ROW, nested rather than its own root
-    # aggregate. A member has no other distinguishing fact : its pairs are
-    # an OPEN MAP, which is the whole reason it used to need a root of its
-    # own, and a map cannot be a path — but that was always a reason it
-    # could not be a VALUE OBJECT, never a reason it could not be an
-    # ENTITY, which is what it structurally always was: a nested, ordered,
-    # separately-mutated element of ValueObject's own list. `ValueObject.
-    # Member` (above) creates it ; `Pair` (below) fills it in, one field
-    # at a time, exactly the way `Command.Rule` fills in a precondition.
+    # One admitted row, nested because its pairs are an open map, which a value
+    # object cannot hold. `ValueObject.Member` creates it; `Pair` fills it in.
     entity "Member" do
       description "One admitted row of a value object's one_of — a whole combination of field values, not a per-field choice. Nested under the value object because a row is a list of pairs inside a list of rows."
 
-      # Position is not a mint — it is read straight out of the source
-      # file, the same fact the language already holds deliberately so
-      # that an ask ordered any other way cannot take declaration order
-      # away. `ValueObject.Member` mints it as the walk index at creation
-      # (the same way `declare`'s own `position` field always has), and
-      # every later `Pair` locates the element by it.
+      # Position is read from the source; `ValueObject.Member` mints it as the walk index.
       identified_by MemberPosition, as: :position
 
       attribute :pairs, list_of(Pair)
@@ -233,9 +185,7 @@ Hecks.bluebook "Bluebook" do
       end
     end
 
-    # HOW VALUEOBJECT IS SPELLED. These rows live with the concept
-    # they describe; SyntaxBoot discovers every aggregate-local seed table.
-    # Contexts represented here: ValueObject, OneOf, Type.
+    # Spelling rows for ValueObject, OneOf and Type; SyntaxBoot discovers each seed table.
     value_object "KeywordSeed" do
       attribute :word,          String
       attribute :context,       String, admits: "Syntax::Context"

@@ -33,19 +33,8 @@ RSpec.describe "the expression sublanguage" do
       expect { evaluate('amount.modulo("x")', amount: 7) }.to raise_error(/modulo expects a number/)
     end
 
-    # M8 (docs/audits/2026-08-10-main-bug-audit.md) — modulo zero-checks
-    # the real, untruncated divisor and evaluates a plain `%` on the
-    # coerced values. Truncating both operands with `.to_i` before
-    # dividing, and zero-checking a coerced-but-still-untruncated divisor,
-    # would let a divisor that only truncates to zero (`0.3.to_i == 0`)
-    # sail past that guard and then blow up the real `%` with a raw
-    # `ZeroDivisionError` — never reaching this sublanguage's own
-    # `EvaluationError` refusal.
-    #
-    # `resolve`, not `evaluate` — modulo is the Resolver's own arithmetic
-    # leaf, and `Evaluator.call` would fold its numeric result through
-    # `truthy?` on the way out (fine for a bare `given`/`invariant`, but it
-    # would hide a wrong number behind an equally-true boolean here).
+    # Modulo zero-checks the untruncated divisor: a divisor like 0.3 must not reach a
+    # raw ZeroDivisionError. Uses `resolve` because `evaluate` folds numbers to booleans.
     def resolve(expression, state = {}, args = {})
       Hecks::Bluebook::Expression::Resolver.resolve(expression, state, args)
     end
@@ -56,7 +45,7 @@ RSpec.describe "the expression sublanguage" do
 
     it "does not truncate float operands, matching Ruby's own modulo" do
       expect(resolve("amount.modulo(2.5)", amount: 7.5)).to eq(7.5 % 2.5)
-      # the truncated-to-Integer answer, if modulo still truncated both operands first
+      # the answer modulo would give if it truncated both operands first
       expect(resolve("amount.modulo(2.5)", amount: 7.5)).not_to eq(1)
     end
 
@@ -65,32 +54,16 @@ RSpec.describe "the expression sublanguage" do
       expect(evaluate('ratio.to_s == "1.5"', ratio: 1.5)).to be(true)
     end
 
-    # Found live via the type-directed bounded-exhaustive expression
-    # generator (Phase 7, equivalence-gap plan): `Resolver#match_call`
-    # used `expr.rindex(".modulo(")` — the rightmost occurrence — then
-    # stripped one trailing `)`. For a nested divisor
-    # (`0.modulo(amount.modulo(-1))`), `rindex` found the inner
-    # `.modulo(` instead of the outer one, splitting into a receiver of
-    # `"0.modulo(amount"` and a divisor of `"-1)"` — both garbage, both
-    # re-parsed as bogus `Lookup` paths, both refusing with "cannot
-    # resolve" — a silent misparse that happened to fail safe into a
-    # real `EvaluationError` rather than a crash, which is exactly why
-    # it went unnoticed: nothing before this generator ever fed
-    # `.modulo` a nested `.modulo` call.
+    # Pins the outer `.modulo(` split: matching the rightmost occurrence would take the
+    # inner call and misparse a nested divisor.
     it "parses a NESTED modulo divisor correctly, not by finding the rightmost .modulo(" do
       expect(resolve("0.modulo(amount.modulo(3))", amount: 7)).to eq(0.modulo(7.modulo(3)))
       # 5 % 3 = 2; 7 % 2 = 1
       expect(evaluate("1 == 7.modulo(amount.modulo(3))", amount: 5)).to be(true)
     end
 
-    # The same mis-split, a different shape: chained calls
-    # (`x.modulo(a).modulo(b)`, the receiver of the outer call itself
-    # ending in a `.modulo(...)` call) — the leftmost-occurrence-only
-    # version of this fix (tried right after the `rindex` bug above was
-    # found) still mis-parsed this one: the first `.modulo(`'s own
-    # matching close paren lands mid-string, before the second
-    # `.modulo(...)`, and has to be rejected in favor of trying the next
-    # occurrence rather than giving up.
+    # Chained calls: the first `.modulo(`'s close paren lands mid-string, so that
+    # occurrence must be rejected and the next one tried.
     it "parses a CHAINED modulo receiver correctly too" do
       expect(resolve("amount.modulo(5).modulo(3)", amount: 11)).to eq(11.modulo(5).modulo(3))
     end
@@ -190,13 +163,8 @@ RSpec.describe "the expression sublanguage" do
       expect(evaluate("!(a && b)",      { a: true, b: false })).to be true
     end
 
-    # M6 (docs/audits/2026-08-10-main-bug-audit.md) — every spelling of
-    # negated membership resolves correctly: `!` negates the whole boolean
-    # expression that follows it, exactly as real Ruby's `!` binds to a
-    # full method-call chain. Without that, `match_include`'s naive
-    # `rindex(".include?(")` is not aware of a leading `!`, so it would
-    # swallow the marker straight into the haystack text ("!names"),
-    # which `Resolver.parse` cannot resolve.
+    # `!` negates the whole call chain that follows; it must not leak into the haystack
+    # text ("!names"), which `Resolver.parse` cannot resolve.
     it "expresses negated membership" do
       state = { names: %w[Basil Olive] }
 
@@ -257,14 +225,8 @@ RSpec.describe "the expression sublanguage" do
       expect(evaluate('names.include?("Anchovy")', state)).to be(false)
     end
 
-    # `Evaluator#match_include`'s own version of `Resolver#match_call`'s
-    # nested-modulo bug (found by the same generator, same session): it
-    # used `expr.rindex(".include?(")`, finding the innermost occurrence
-    # when the needle itself contains another `.include?` call — e.g. a
-    # String built by `.to_s`'ing a block predicate whose own body
-    # includes one. Fixed identically: try each occurrence left to
-    # right, keep the first whose own balanced-paren match reaches the
-    # string's last character.
+    # Occurrences are tried left to right, keeping the first whose balanced paren
+    # reaches the string's end, so a needle containing `.include?` is not split.
     it "tests membership when the needle ITSELF contains another .include? call" do
       state = { names: %w[Basil Olive], letters: %w[a b] }
       expect(evaluate('names.include?(letters.any? { |l| letters.include?("a") }.to_s)', state))
@@ -340,18 +302,8 @@ RSpec.describe "the expression sublanguage" do
         .to raise_error(Hecks::Bluebook::Expression::EvaluationError, /all\? expects a list, got "oops"/)
     end
 
-    # `[`/`]` -- the identical "block predicate's own operator split the
-    # whole expression" lesson two tests above, a third time, found by
-    # the type-directed bounded-exhaustive expression generator (Phase
-    # 7): `Evaluator#top_level_index` and `Resolver#split_addition`
-    # tracked `(`/`)` and `{`/`}` as grouping constructs but never
-    # `[`/`]` -- so an array literal receiver whose own element contains
-    # a top-level `+`/comparison (`[0, 1 + 1].all? { |n| n > 0 }`) read
-    # as a split point for the enclosing expression before
-    # `parse_block_opener` ever saw the array-plus-block as one atomic
-    # leaf, the exact "TypeError: no implicit conversion of Symbol into
-    # Integer" signature every unsupported construct in this file
-    # raises.
+    # `[`/`]` must count as grouping in `top_level_index` and `split_addition`, or an
+    # operator inside an array literal splits the enclosing expression.
     it "does not let a + inside an array-literal receiver's own element split the enclosing expression" do
       expect(evaluate("[0, 1 + 1].all? { |n| n >= 0 }")).to be(true)
       expect(evaluate("[0, 1 + 1].any? { |n| n > 5 }")).to be(false)
@@ -359,7 +311,6 @@ RSpec.describe "the expression sublanguage" do
 
     it "handles a block predicate nested inside another block predicate's own predicate, the shipping-domain " \
        "re-routing check this grammar gap forced a workaround for" do
-      # legs.any? { |l| an outer condition on l, and some other leg satisfies an inner condition }
       legs_with_a_later_leg = [
         { "load" => "SESTO", "unload" => "USNYC" },
         { "load" => "USNYC", "unload" => "AUSYD" }
@@ -389,9 +340,7 @@ RSpec.describe "the expression sublanguage" do
 
     it "resolves to nil, not an error, when no element matches — a normal 'no leg after this one' outcome" do
       expect(evaluate('legs.find { |l| l.load == "ZZZZZ" }.voyage == "V002"', legs: legs)).to be(false)
-      # bare (no comparison), Evaluator truthy-casts every leaf's raw value
-      # the same way it does for `.last`/`.present?` — nil casts to false,
-      # not an error, exactly what "no leg found" should mean here.
+      # bare (no comparison): the leaf is truthy-cast, so nil reads as false
       expect(evaluate('legs.find { |l| l.load == "ZZZZZ" }.voyage', legs: legs)).to be(false)
     end
 
@@ -465,11 +414,8 @@ RSpec.describe "the expression sublanguage" do
     end
 
     it "unwraps the terminal value of a dotted lookup that navigates to a nested single-field VO" do
-      # the leg.voyage shape: `leg` is an entity/hash, `voyage` is itself
-      # a single-field VO -- the dotted walk's intermediate hop reaches
-      # `leg` via #[], but the final hop lands on a VO and must unwrap
-      # it the same as a bare lookup would, or `==` silently returns
-      # false for every comparison (Value#== only equals another Value).
+      # The final hop lands on a VO and must unwrap like a bare lookup, or `==` is
+      # always false (Value#== only equals another Value).
       leg = { voyage: SingleFieldDouble.new("SF-NY") }
 
       expect(evaluate('leg.voyage == "SF-NY"', leg: leg)).to be(true)
@@ -503,9 +449,7 @@ RSpec.describe "the expression sublanguage" do
       expect(evaluate("value.set?", value: nil)).to be(false)
       expect(evaluate("value.unset?", value: nil)).to be(true)
 
-      # **The point of the pair**: an assigned-but-empty value is set, unlike
-      # `.present?`'s own reading of the identical value (see the block
-      # above -- `"".present?` is false).
+      # An assigned-but-empty value is set, unlike `"".present?`.
       expect(evaluate("value.set?", value: "")).to be(true)
       expect(evaluate("value.unset?", value: "")).to be(false)
       expect(evaluate("value.set?", value: [])).to be(true)
@@ -639,20 +583,13 @@ RSpec.describe "the expression sublanguage" do
       expect(evaluate("customer_name == nil", { customer_name: nil })).to be(true)
     end
 
-    # M9 (docs/audits/2026-08-10-main-bug-audit.md) — a dotted lookup that
-    # walks onto an Array with a non-Integer segment refuses with
-    # `EvaluationError`, the same as every other "this predicate can't
-    # read that" case, rather than hitting `Array#[]` and raising a raw
-    # `TypeError` straight past this sublanguage's own refusal boundary.
+    # Must refuse with `EvaluationError`, not leak Array#[]'s raw TypeError.
     it "refuses, rather than raising a raw TypeError, a dotted lookup onto a list" do
       expect { evaluate("list.foo", { list: [1, 2, 3] }) }
         .to raise_error(Hecks::Bluebook::Expression::EvaluationError, /cannot read "foo"/)
     end
 
-    # M9 — a malformed pattern between the slashes refuses with
-    # `EvaluationError` rather than reaching `Regexp.new` and raising a
-    # raw `RegexpError`, the same shape of boundary crossing as the
-    # TypeError/ZeroDivisionError cases above.
+    # Must refuse with `EvaluationError`, not leak Regexp.new's raw RegexpError.
     it "refuses, rather than raising a raw RegexpError, an invalid match? pattern" do
       expect { evaluate("value.match?(/[/)", value: "x") }
         .to raise_error(Hecks::Bluebook::Expression::EvaluationError, /invalid pattern/)
@@ -671,11 +608,8 @@ RSpec.describe "the expression sublanguage" do
     end
   end
 
-  # `Hecks::Adapters::Prism::TREES` caches a file's parsed AST for
-  # the life of the process, keyed by path — correct for every ordinary
-  # caller, wrong for anything that reloads an edited file in-process
-  # (found for real building `Hecks::Codemod`, see its own file
-  # header). `forget`/`forget_all` are the real invalidation API.
+  # `Prism::TREES` caches parsed ASTs per path for the process; `forget`/`forget_all`
+  # invalidate it for code that reloads an edited file.
   describe "cache invalidation" do
     around do |example|
       Dir.mktmpdir do |dir|
@@ -742,13 +676,8 @@ RSpec.describe "the expression sublanguage" do
     end
   end
 
-  # `interpret`'s own `case` in both Evaluator and Resolver has an `else`
-  # branch that refuses, so a node type `parse` never produces reaching it
-  # (today, only possible from a hand-built AST, not real corpus text)
-  # cannot return bare `nil` silently instead. Neither method's real
-  # `parse` can produce a node outside its own known set, so this
-  # exercises the backstop directly, past `parse`, the only way to reach
-  # it at all.
+  # `parse` never yields an unknown node, so the `else` refusal in `interpret` is
+  # reachable only with a hand-built AST; this calls it directly.
   describe "interpret's own exhaustiveness backstop" do
     UnknownNode = Struct.new(:whatever)
 
@@ -765,13 +694,8 @@ RSpec.describe "the expression sublanguage" do
     end
   end
 
-  # `Resolver#split_addition` counts braces toward depth exactly as it
-  # counts parens — its own comment has the story. Before it did, a `+`
-  # inside a block predicate's own body split the whole expression as an
-  # Addition, and the unparenthesized spelling below (the natural one, and
-  # the one a downstream chess domain's castling given actually wrote)
-  # died with "no implicit conversion of Symbol into Integer" while its
-  # parenthesized twin worked — a trap distinguishable only by parens.
+  # A `+` inside a block body must not split the enclosing expression, so the bare
+  # spelling must answer like its parenthesized twin.
   describe "arithmetic inside a block predicate" do
     let(:attrs) do
       { kings:  [{ status: "on_board", square: { file: 6, rank: 0 } }],
@@ -797,12 +721,7 @@ RSpec.describe "the expression sublanguage" do
     end
   end
 
-  # S2 (docs/audits/2026-08-10-main-bug-audit.md) — a dotted lookup that
-  # lands on a `false` member reads it as itself, not as absent.
-  # `Resolver#walk_path` does not read a dotted step with
-  # `current[segment.to_sym] || current[segment]`, which would drop a
-  # genuinely-stored `false` to `nil` (`false || …` falls through to the
-  # other key spelling).
+  # A stored `false` must not fall through to the other key spelling and read as nil.
   describe "dotted lookup onto a stored false" do
     it "reads a false-valued nested member as itself, not as absent" do
       expect(evaluate("flags.active == false", { flags: { active: false } })).to be(true)

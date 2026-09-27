@@ -1,17 +1,10 @@
 require_relative "../projector"
 
 module Hecks
-  # Reopened from projections.rb (see there for the namespace's full
-  # rationale) to define and register the :ir target below.
+  # The projection targets, each registered under a name; this file adds the `:ir` target.
   module Projections
-    # The canonical IR, as a constant. The implementation already existed
-    # and is already golden-tested (`Projector::IRProjector`, registered
-    # as `:ir`) — this only gives it the constant spelling every other
-    # target has, by re-registering the same module under the same key.
-    #
-    # Deliberately not a new implementation: two things named `IR` that
-    # each rendered IR their own way is exactly the drift this namespace
-    # exists to avoid.
+    # The canonical IR projection, registered as `:ir`.
+    # Aliases `Projector::IRProjector` rather than reimplementing it, so IR has one renderer.
     IR = Projector::IRProjector
 
     IR.extend(Projector::Target)

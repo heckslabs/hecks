@@ -1,9 +1,6 @@
 #!/usr/bin/env ruby
 
-# Kept for muscle memory only: rust/src/kernel/refusal_wording.rs is now
-# rust/src/kernel/vocab/refusal_template.rs, generated with every other
-# Vocabulary table by bin/project_rust_vocabulary (Projections::
-# RustVocabulary). This runs that script.
+# Alias for bin/project_rust_vocabulary, which generates the refusal template table.
 #
 #   bin/project_refusal_wording
 

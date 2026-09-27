@@ -1,44 +1,21 @@
 #!/usr/bin/env ruby
 
-# THE TENANT PROVISIONER — same split bin/project_deploy already draws
-# between VALIDATING a declared shape (lib/hecks/deploy's own
-# Tenant.Declare) and ACTING on it. The overlay write now lives behind
-# a real driven port (Deploy::Tenant.port "TenantProvisioning") instead
-# of inline script code — `TenantProvisioner` (lib/hecks/adapters/
-# driven/tenant_provisioner.rb) writes the `.world` overlay; this
-# script still does the boot-for-real + tenant_capable? gate itself,
-# deliberately NOT nested inside the adapter (see that adapter's own
-# header for why a boot running mid-dispatch, inside another boot's
-# own call stack, is a real, separate concern from writing one file).
+# Provisions a tenant: validates the declared shape, writes the `.world` overlay through the
+# TenantProvisioning port, boots once, and checks tenant_capable? and the Tenancy record.
 #
-# `Deploy` and `Tenancy` are booted TOGETHER, into one shared registry
-# (Hecks.boot_files, not two separate `Hecks.boot` calls) — the
-# `translates` reaction in tenancy.hecksagon (on Tenant::
-# TenantProvisioned, trigger Tenant::Register) can only see across
-# domains loaded into the SAME registry; PolicyInterpreter scans every
-# bluebook the registry holds, not just the emitting one, but two
-# separate registries share nothing.
+# Deploy and Tenancy boot into one shared registry so the `translates` reaction in
+# tenancy.hecksagon can see Deploy's TenantProvisioned event.
 #
-# THE OVERLAY REPLACES, NOT MERGES, THE BASE persisted_by SETTINGS FOR
-# THE SAME ADAPTER — Registry#merge_worlds' own documented shallow-merge
-# shape. So `--database` is REQUIRED here even when the base `.world`
-# already names one.
+# The overlay replaces (shallow merge) the base persisted_by settings, so --database is required.
 #
-# A REFUSED REACTION IS NEVER RAISED — PolicyInterpreter#deliver
-# deliberately swallows a policy-triggered command's own refusal (it
-# would blow up the ORIGINAL caller's dispatch for a failure in a
-# DIFFERENT command it never asked to run). So this script confirms
-# the record actually landed by querying for it afterward, rather than
-# trusting that no exception means success.
+# PolicyInterpreter#deliver swallows a reaction's refusal, so success is confirmed by query.
 #
 #   bin/project_tenant <domain-directory> <slug> --domain=name --realm=name \
 #     --schema=name --database=name [--adapter=PostgresEra]
 
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
 require "hecks"
-# ADR 0033 — provisioning a tenant against `PostgresEra` (this script's
-# own documented `--adapter=PostgresEra` option) needs the era
-# persistence plugin loaded; core no longer carries it unconditionally.
+# --adapter=PostgresEra needs the era persistence plugin (ADR 0033).
 require "hecks/ports/persistence/plugins/era"
 require "optparse"
 
@@ -74,9 +51,7 @@ dispatcher = Hecks.boot_files(
   install_facade: false
 )
 
-# VALIDATED, not hand-checked — the same given/invariant machinery
-# LambdaTarget's own validation already is, before anything is
-# provisioned.
+# Validated through Tenant.Declare's givens and invariants before anything is provisioned.
 begin
   dispatcher.dispatch(
     "Deploy::Tenant.Declare",
@@ -92,9 +67,7 @@ rescue *Hecks::Runtime::DOMAIN_REFUSALS => e
   abort "tenant #{slug.inspect} is invalid: #{e.message}"
 end
 
-# THE ADAPTER RUNS HERE — writes the overlay only. Answers
-# TenantProvisioned or refuses ProvisioningRefused; either way this
-# call itself never raises.
+# Writes the overlay only; answers TenantProvisioned or ProvisioningRefused, never raises.
 reactions = dispatcher.dispatch_port(
   "Deploy", "Tenant", "TenantProvisioning", "Provision",
   to:   slug,
@@ -113,25 +86,16 @@ end
 overlay_path = File.join(domain_directory, "environments", "#{slug}.world")
 puts "wrote #{overlay_path}"
 
-# BOOTED ONCE, FOR REAL — PostgresEra#connect_for's own `CREATE SCHEMA
-# IF NOT EXISTS` (idempotent, same self-healing discipline every other
-# provisioning step in this adapter already holds itself to) means this
-# is also the schema's own provisioning step, not just a smoke test.
+# The boot also provisions the schema: PostgresEra#connect_for runs an idempotent CREATE SCHEMA.
 target_dispatcher = Hecks.boot(domain_directory, environment: slug, install_facade: false)
 puts "booted #{options[:domain]} for tenant #{slug.inspect} under realm #{options[:realm].inspect}"
 
-# THE GATE, CHECKED AFTER A REAL BOOT — belt-and-suspenders: a domain
-# whose bound adapter cannot actually keep two tenants apart should
-# never reach this point silently. Checked per bluebook this registry
-# declares, not just the one named --domain, the same completeness
-# refuse_ungoverned_roles! already holds itself to across every
-# hecksagon a boot merges.
+# Checked for every bluebook in the registry, not just --domain, after a real boot.
 target_dispatcher.registry.bluebooks.each_key do |name|
   Hecks::Runtime::TenantCheck.refuse_unless_tenant_capable!(target_dispatcher.registry, name)
 end
 
-# CONFIRMED BY QUERY, NOT BY ABSENCE OF AN EXCEPTION — see this
-# script's own header on why a policy's own refusal never raises.
+# Confirm by query: a refused reaction never raises (see header).
 tenant = dispatcher.registry.repository("Tenancy", dispatcher.registry.bluebook("Tenancy").aggregate("Tenant"))
                    .find(slug)
 tenant or abort "provisioning succeeded but #{slug.inspect} was never registered in Tenancy — " \

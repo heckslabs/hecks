@@ -1,20 +1,5 @@
-// **The sandbox boundary** — runs the compiled `.wasm` artifact (built by
-// bin/project_wasm, the exact same wasm32-wasip1 module
-// bin/rust_conformance's own WASM mode already verifies byte-for-byte
-// against native) through an embedded wasmtime instance. This is the
-// only place in rust/host that touches wasmtime; everything else (the
-// Postgres journal, the Lambda handler) only ever sees plain JSON
-// strings in and out — the module itself never gets a socket, a file,
-// or any ambient capability beyond the stdin bytes it's handed here.
-//
-// WASIp1 (`wasm32-wasip1`, what bin/project_wasm builds) speaks
-// stdin/stdout the same way a native process does
-// (docs/implemented/decisions/0012-wasm-via-wasi-stdio.md) — `MemoryInputPipe`/
-// `MemoryOutputPipe` (wasmtime_wasi::p2::pipe) are the in-process
-// equivalent of piping a string to/from a subprocess, without actually
-// spawning one. Neither implements `StdinStream`/`StdoutStream`
-// directly in this wasmtime-wasi version, so the two thin wrappers
-// below just forward to them — no behavior of their own.
+// Runs the compiled `.wasm` artifact through an embedded wasmtime
+// instance — the only place in this crate that touches wasmtime.
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -56,55 +41,25 @@ impl StdoutStream for StepsOut {
     }
 }
 
-// Compiled once per (warm) lambda execution environment, not once per
-// call — `Engine`/`Module` hold only the compiled artifact, no
-// per-invocation state at all (that lives entirely in `Store`, still
-// created fresh below, every call), so caching them leaks nothing
-// between invocations. Without this caching, every command dispatch
-// (`dispatch::handle`) would pay a real, live cost: it runs through
-// here, and `Module::from_file` is wasmtime doing real JIT compilation
-// from raw bytes — a genuine multi-second cost on Lambda's own CPU
-// allocation, paid again on every single warm call, not just a true
-// cold start. `dispatch::read`'s own fast path (a snapshot with nothing
-// to replay) never reaches this function at all, which is why reads
-// stay fast while every command would otherwise cost far more than the
-// actual rehydrate-replay work here ever needs to.
+// Cached per (warm) process, not per call — `Engine`/`Module` hold only
+// the compiled artifact, so caching leaks nothing between invocations.
+// Recompiling on every warm call would cost real seconds per dispatch,
+// and `dispatch::read`'s snapshot fast path never reaches here at all.
 //
-// Keyed by `wasm_path`, not a bare single slot — a deployed Lambda's own
-// `HECKS_WASM_PATH` never changes across its whole warm lifetime, which
-// is exactly why the original single-slot `OnceLock<(Engine, Module)>`
-// stayed invisible in production: every call in that process really was
-// the same path, forever. Found live, in this crate's own `cargo test`:
-// one test binary genuinely dispatches against two different domains'
-// `.wasm` files in the same process (dispatch.rs's own banking.wasm
-// fixtures alongside web.rs's own site wasm ones, run concurrently
-// by cargo test's own thread pool) — whichever path happened to compile
-// first silently won for every subsequent call regardless of its own
-// `wasm_path` argument, so a banking dispatch got a client site's compiled
-// module back and refused every real Banking verb as "unknown command."
-// `Engine`/`Module` are both cheap-`Clone` (wasmtime's own docs: each
-// wraps an `Arc` internally), so caching owned clones per path costs
-// nothing beyond the HashMap entry itself.
+// Keyed by `wasm_path`, not one shared slot: a single test binary can
+// dispatch against two domains' `.wasm` files at once, and a bare
+// `OnceLock<(Engine, Module)>` would silently serve one domain's
+// compiled module to the other's dispatch calls.
 static ENGINE_AND_MODULE: OnceLock<Mutex<HashMap<PathBuf, Arc<Compiled>>>> = OnceLock::new();
 
-/// One path's compiled module, empty until the first call for that path
-/// has compiled it. The cell's own lock is the single-flight gate: callers
-/// for the same path queue on it while one of them compiles.
+/// One path's compiled module, empty until first compiled. The cell's
+/// lock is the single-flight gate other callers for the same path queue on.
 type Compiled = Mutex<Option<(Engine, Module)>>;
 
-/// Compiles `wasm_path` once per process, however many callers ask at the
-/// same time.
-///
-/// Compiling is the one slow step here (seconds in an unoptimized build,
-/// and it takes every core it is given), and the first requests to a
-/// freshly booted host all arrive before it finishes. Letting each of
-/// them compile its own copy, as an earlier version did, made a burst of
-/// cold requests slower than one compile by the size of the burst; on a
-/// small machine a client that retried after its own timeout kept adding
-/// compiles faster than they finished, and no request was ever answered.
-/// So the callers for one path wait on the first one's compile instead,
-/// and a compile that fails leaves the cell empty for the next caller to
-/// retry. Different paths do not wait on each other.
+/// Compiles `wasm_path` once per process, however many callers ask at
+/// once — later callers for the same path block on the first one's
+/// compile rather than each paying for their own. A failed compile
+/// leaves the cell empty for the next caller to retry.
 fn engine_and_module(wasm_path: &Path) -> anyhow::Result<(Engine, Module)> {
     let cache = ENGINE_AND_MODULE.get_or_init(|| Mutex::new(HashMap::new()));
     let cell = Arc::clone(cache.lock().unwrap().entry(wasm_path.to_path_buf()).or_default());
@@ -132,21 +87,15 @@ pub(crate) fn compile_count(wasm_path: &Path) -> usize {
     COMPILED_PATHS.lock().unwrap().iter().filter(|compiled| compiled.as_path() == wasm_path).count()
 }
 
-/// Compiles `wasm_path` now, so the first request served does not pay for
-/// it. The host calls this once at boot, before it starts listening: a
-/// client's first read then meets a compiled module rather than a compile
-/// longer than its own timeout. Errors when the file is missing or is not
-/// a valid module.
+/// Compiles `wasm_path` at boot, before the host starts listening, so
+/// the first real request meets an already-compiled module.
 pub fn warm(wasm_path: &Path) -> anyhow::Result<()> {
     engine_and_module(wasm_path).map(|_| ())
 }
 
 /// Runs `wasm_path` (a wasm32-wasip1 module speaking the `{"steps"}` ->
-/// `{"instances","events","refusals"}` CLI contract) against `input`,
-/// returning its stdout. The compiled module is cached across calls
-/// (see `engine_and_module` above) — `Store`/`Linker`/the instance
-/// itself stay fresh every call, so there is still no state to leak
-/// between invocations.
+/// `{"instances","events","refusals"}` contract) against `input`,
+/// returning its stdout. `Store`/`Linker` are fresh every call.
 pub fn run(wasm_path: &Path, input: &str) -> anyhow::Result<String> {
     let (engine, module) = engine_and_module(wasm_path)?;
 
@@ -163,10 +112,9 @@ pub fn run(wasm_path: &Path, input: &str) -> anyhow::Result<String> {
     let instance = linker.instantiate(&mut store, &module)?;
     let start = instance.get_typed_func::<(), ()>(&mut store, "_start")?;
 
-    // A WASI "command" module calls `proc_exit` (surfaced as a trap
-    // carrying `I32Exit`) on ordinary completion too, not only on
-    // failure — exit code 0 is success, matching how a native process's
-    // exit status is read after `main` returns.
+    // A WASI "command" module calls `proc_exit` (an `I32Exit` trap) on
+    // ordinary completion too — exit code 0 is success here, same as a
+    // native process's exit status after `main` returns.
     match start.call(&mut store, ()) {
         Ok(()) => {}
         Err(err) => {
@@ -199,9 +147,9 @@ pub(crate) mod tests {
         copy
     }
 
-    /// The first requests to a booted host all arrive before its compile
-    /// finishes. Each used to compile its own copy, so a burst cost the
-    /// burst's size in compiles and, on a small machine, never finished.
+    /// A burst of concurrent cold callers compiles the module exactly
+    /// once; paying per-caller would make a cold burst slower than one
+    /// compile and let retries after a timeout pile up faster than they finish.
     #[test]
     fn a_burst_of_cold_callers_compiles_the_module_once() {
         let path = cold_copy_of_fixture("burst");

@@ -5,27 +5,8 @@ require_relative "../query_specification/common/where_clause"
 
 module Hecks
   module Runtime
-    # `authorize policy, tenant: :field` declared a tenant boundary that
-    # nothing enforced — the policy name and the field were stored and read
-    # by nothing at dispatch time. This is the half that can be enforced
-    # without a caller-identity/session system: the boundary itself, made
-    # mandatory. Whether this caller actually holds `policy` for this
-    # tenant needs real identity infrastructure this runtime does not have
-    # — that stays a named, open gap, not something this quietly pretends
-    # to answer.
-    #
-    # Enforcement is a synthetic `eq` where-clause, symbol-valued exactly
-    # the way a dynamic `where(field: :arg_name)` already resolves against
-    # args in every engine (QueryInterpreter#interpret,
-    # Ports::Query::InMemory, both SQL adapters via SqlQueryBuilder) — so
-    # every engine that already reads `.wheres` enforces the boundary for
-    # free, with no per-engine code and no way for one engine to forget it.
-    # `Scoped` is handed only to those engines as their `declared`/
-    # `specification` argument — never returned to a caller that might call
-    # an IR-level method (`filtered_head_name`, `to_h`, …) whose own
-    # internal `wheres` call would resolve against the original object, not
-    # this override, since `SimpleDelegator` only intercepts calls made
-    # directly on the wrapper.
+    # Enforces the `authorize policy, tenant: :field` boundary as a synthetic `eq` where-clause.
+    # `Scoped` goes only to query engines; IR-level calls on it would bypass the override.
     module TenantScope
       module_function
 
@@ -52,13 +33,7 @@ module Hecks
         Scoped.new(declared, QuerySpecification::Common::WhereClause.new(field: tenant, op: "eq", value: tenant))
       end
 
-      # A SimpleDelegator wrapping one declared query/read-model spec
-      # with its tenant `eq` where-clause appended to #wheres — the
-      # object every query engine actually reads, so nothing beyond
-      # TenantScope.apply itself has to know the boundary exists. Never
-      # handed back to a caller that might call an IR-level method whose
-      # own internal `.wheres` read would bypass this override (see this
-      # module's own header for why).
+      # A SimpleDelegator whose #wheres has the tenant clause appended.
       class Scoped < SimpleDelegator
         # @param declared [Bluebook::Query, Bluebook::ReadModel] the specification to wrap,
         #   delegated to for everything but `#wheres`

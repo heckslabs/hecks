@@ -4,64 +4,11 @@ require_relative "scripts/settings"
 module Hecks
   module Projections
     module Deploy
-      # The hosting scripts an AWS Fargate deploy ships beside its template:
-      # the steps an operator runs after `make deploy` has created the stack.
-      # `Fargate.call` adds them when the domain's
-      # `deployed_to("AwsFargate")` block opts in, and leaves its file map
-      # untouched otherwise.
-      #
-      # ## What it emits
-      #
-      # - `deploy-service.sh` reads the service's active task definition,
-      #   pushes a local image under a never-reused tag, swaps one container's
-      #   image, and syncs that container's CloudFormation `*ImageTag`
-      #   parameter with `--use-previous-template`, checking afterwards that no
-      #   other parameter changed.
-      # - `smoke-after-deploy.sh` waits for the roll to settle, then dispatches
-      #   a GitHub workflow and reports its result. Exit codes 20 to 23 are its
-      #   own.
-      # - `hosting.mk` is included by the generated `Makefile`. It pins the
-      #   Hecks release the domain image is built from (`HECKS_ROOT` resolves
-      #   to a cached checkout of that release's tag, never to a path on one
-      #   machine) and adds the `deploy-service`, `smoke-after-deploy` and
-      #   `check-era` targets.
-      # - `expected-era` is the allow-list `bin/check_era` compares a host's
-      #   `GET /version` era against.
-      #
-      # ## Settings
-      #
-      # Read from `deployed_to("AwsFargate")`. Everything but `hosting_scripts`
-      # and `hecks_release` has a default; the ones the stack template already
-      # names (`stack_name`, `stack_prefix`, `region`) are not repeated here.
-      #
-      # - `hosting_scripts` opts in to every file above, when `true`. Off by default.
-      # - `hecks_release` is the Hecks release the domain image is built from,
-      #   such as `"2.5.1"`. Required.
-      # - `hecks_source` is the repository URL the release tag is fetched from.
-      #   Defaults to the Hecks repository.
-      # - `hecks_cache_dir` is where release checkouts are kept, a Make expression.
-      #   Defaults to `$(HOME)/.cache/hecks`.
-      # - `ecs_cluster` and `ecs_service` name the cluster and service. They default to the
-      #   names the generated template gives them: the stack name, or the `names` override.
-      # - `smoke_repo` is the GitHub `owner/name` holding the smoke workflow, and
-      #   `smoke_workflow` its file name. With neither set, `REPO` and `WORKFLOW` must
-      #   come from the environment.
-      # - `smoke_ref` is the ref the workflow is dispatched on. Defaults to `main`.
-      # - `expected_eras` lists the era ids `expected-era` holds. Defaults to none, so a
-      #   host is only checked to report an era.
-      # - `public_url` is the host URL `make check-era` requests. Without it, `URL` must
-      #   be passed to `make`.
-      #
-      # ## Names come from the template
-      #
-      # The containers, their ECR repositories and their image-tag parameters are not
-      # settings of the scripts. `deploy-service.sh` accepts exactly the containers the
-      # template's `Fargate::Containers::Layout` holds (the domain container, then each
-      # entry of the world's `containers`), and for each one pushes to the repository and
-      # syncs the parameter that layout names: the values the template renders. Rename them
-      # with `domain_container` and `containers` (see `Fargate`), and the scripts, and the
-      # `Makefile`'s `deploy`, follow.
+      # The hosting scripts an AWS Fargate deploy ships beside its template: the steps an
+      # operator runs after `make deploy` has created the stack.
       module Scripts
+        # Container names, repositories and image-tag parameters come from `plan`, not
+        # from a setting here; rename them in `Fargate::Settings::Plan` and these scripts follow.
         SCRIPT_DIR = File.join(__dir__, "scripts").freeze
 
         module_function

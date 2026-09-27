@@ -1,38 +1,20 @@
 #!/usr/bin/env ruby
 
-# The storage-shape projection of one bluebook file, as JSON — the exact
-# form StorageShape.mint_hash hashes to name an era, printed so a
-# bump/no-bump question can be answered by diffing two of these directly.
+# Prints the storage-shape projection of a bluebook, the same hash
+# PostgresEra mints an era's label from — diff two runs to see if a
+# bluebook change would bump an era.
 #
 #   bin/shape path/to/pizzas.bluebook   # the projection, as JSON
 #   bin/shape path/to/bluebook_dir      # one "<Domain> <label>" line per domain
 #
-# Given a directory it prints, for every domain declared by the `*.bluebook`
-# files directly in it, the label PostgresEra would mint (the first
-# `StorageShape::LABEL_LENGTH` characters of the hash), sorted by domain name.
-# A changed label here is a changed era there, so running it before and after
-# a re-vendor of a bluebook directory answers "does this bump an era?" without
-# a database. Files in subdirectories are not read.
-#
-# Goes through the projector registry (`Projections::Shape`) rather than
-# calling `StorageShape.project` directly, so there is one definition of
-# what this projection is — the same one `Pizzas.project(Projections::Shape)`
-# answers from a console. Output is unchanged either way.
-#
-# The registry/loading dance below is not part of that: it turns a file
-# path into one bluebook without booting a domain, which is upstream of
-# projection and is duplicated near-verbatim across six bin/ scripts
-# (merge_tail, reattest_era, backfill_era_projections, scaffold_translation,
-# translation_audit, and this one). Worth extracting on its own terms;
-# deliberately not folded into the projector framework, which takes an
-# Bluebook and has no business knowing how one was obtained.
+# A directory prints every domain's label (files in subdirectories are
+# not read).
 
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
 
 require "hecks"
-# ADR 0033 — the `:shape` projection needs the era persistence plugin
-# loaded (Runtime::StorageShape lives there now); this tool has no
-# reason to exist without it.
+# The `:shape` projection needs the era persistence plugin loaded
+# (Runtime::StorageShape lives there, ADR 0033).
 require "hecks/ports/persistence/plugins/era"
 require "json"
 

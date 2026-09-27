@@ -1,14 +1,7 @@
 require "spec_helper"
 
-# The translation chapter's Rule.Kind closed set must equal the rule
-# vocabulary the DSL actually admits.
-#
-# The two lived apart with nothing holding them together: the grammar chapter
-# declared the kinds in an invariant nobody read, and
-# TranslationAggregateBuilder re-spelled the same list by hand in its
-# method_missing refusal. A declaration nothing reads cannot disagree with
-# anything — the same drift vocabulary_conformance_spec.rb exists to stop for
-# every other closed set. This is the same gate for the translation sublanguage.
+# The translation chapter's Rule.Kind closed set must equal the rule vocabulary the DSL admits,
+# the same drift gate vocabulary_conformance_spec.rb applies to every other closed set.
 RSpec.describe "the declared translation rule kinds" do
   def self.declared_kinds
     registry = Hecks::Runtime::Registry.new
@@ -25,22 +18,8 @@ RSpec.describe "the declared translation rule kinds" do
 
   KIND_OBJECT, DECLARED_KINDS = declared_kinds
 
-  # The builder's own rule methods, introspected rather than listed — add a
-  # rule to the DSL without declaring it and this fails; declare one the DSL
-  # does not implement and this fails. A rule word "admitted" now means
-  # either a real public method or one `GenericDispatch` (item #13's full
-  # metaprogrammed dispatch) executes off the grammar table directly —
-  # `drop` moved to the second kind in slice 2 (whole-project table-
-  # unification survey) and no longer shows up in `public_instance_
-  # methods` at all, the same way `WordGate`'s own admissibility check
-  # never counted `method_missing` itself as an answered word. `unresolved`
-  # (slice 4) and `rename`/`move`/`convert`/`retype`/`compute`/`rekey`/
-  # `backfill` (slice 4c) all moved to the same second kind, but (unlike
-  # `drop`) each kept a real, directly-defined method — just renamed to
-  # `*_impl` and reached through `calls:` — so every one of those names has
-  # to be excluded from the direct-methods half here too, or it would show
-  # up as an extra "word" of its own alongside the one GENERIC_DISPATCH.
-  # handles? already adds.
+  # Rule methods are introspected, not listed. Words run by `GenericDispatch` come from the grammar
+  # table, and their `*_impl` methods are excluded so no word is counted twice.
   GENERIC_DISPATCH = Hecks::Bluebook::DSL::GenericDispatch
   AGGREGATE_RULES = (
     (Hecks::Bluebook::DSL::TranslationAggregateBuilder.public_instance_methods(false) -
@@ -66,15 +45,8 @@ RSpec.describe "the declared translation rule kinds" do
     expect(GENERIC_DISPATCH.handles?("Translation", "retired")).to be(true)
   end
 
-  # WordGate (item #13's remaining builders) replaced the builder's own
-  # hand-written method_missing — a genuine typo (`banana`, admitted
-  # nowhere in the whole grammar) now falls through to Ruby's own plain
-  # NoMethodError instead, so the old probe (any unknown word producing
-  # a full "must be X, Y, or Z" list) no longer applies. A word admitted
-  # somewhere else in the grammar but not in this context still gets
-  # WordGate's own richer, table-driven refusal, which names this
-  # context's full legal-word list — `identified_by` (real, Aggregate
-  # context) stands in for the old `banana` probe.
+  # `identified_by` is admitted elsewhere in the grammar, so WordGate refuses it with a message
+  # naming this context's legal words; a word admitted nowhere would be a plain NoMethodError.
   it "names the same kinds WordGate refuses toward" do
     builder = Hecks::Bluebook::DSL::TranslationAggregateBuilder.new("Account")
     message = begin

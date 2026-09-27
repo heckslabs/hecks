@@ -1,12 +1,5 @@
-//! Port of `rust/project/skip_reason.rb` — a skip decision carrying the
-//! construct family that forced it.
-//!
-//! Every `*_skip_reason` in this crate answers `None` (generate it) or one
-//! of these. `text` is the reason string, unchanged; `construct` is the
-//! short, machine-readable family name (`reference_hop_where`,
-//! `optional_source`, ...) the same branch set when it decided, written to
-//! `manifest.json` beside the reason so `bin/rust_coverage` and the
-//! differential fuzzer read the family, never the prose.
+//! A skip decision plus the construct family that forced it (`rust/project/skip_reason.rb`).
+//! `construct` goes to `manifest.json` beside the reason so tools read the family, not the prose.
 
 use std::fmt;
 
@@ -16,13 +9,11 @@ pub struct SkipReason {
     pub text: String,
 }
 
-/// `skip(construct, text)`. Most constructs are literals; a few are read
-/// off the IR (`extras.first`, a read model's own option key).
 pub fn skip(construct: impl Into<String>, text: impl Into<String>) -> SkipReason {
     SkipReason { construct: construct.into(), text: text.into() }
 }
 
-/// `reskip(inner, text)` — `inner`'s own construct, re-worded.
+/// Keeps `inner`'s construct with new wording.
 pub fn reskip(inner: &SkipReason, text: impl Into<String>) -> SkipReason {
     SkipReason { construct: inner.construct.clone(), text: text.into() }
 }

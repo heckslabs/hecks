@@ -3,25 +3,8 @@ require "tmpdir"
 require_relative "support/postgres_probe"
 require_relative "support/fenced_owner"
 
-# The architectural finding this spec proves, end to end: hosting
-# multitenancy needs no ambient "current tenant" thread-local and no
-# adapter-level connection cache — `Bluebook::ProjectRegister` already
-# resolves an address's realm to a dispatcher at registration time, and
-# each registered entry already carries its own boot's own Registry,
-# Dispatcher, and adapter instances. So booting the same domain
-# directory once per tenant, each with its own `environment:` overlay
-# (realm + persistence settings, both built in the previous slice —
-# see Runtime::Loader.boot's own comment), and registering every boot
-# into one shared ProjectRegister, gives real, physical multitenancy
-# through mechanisms that already existed and were already tested for
-# something else (Router's realm-keyed dispatch, PostgresEra's `schema:`
-# Storehouse isolation) before this spec ever ran.
-#
-# Runtime::TenantCheck#tenant_capable? is the one genuinely new piece:
-# the gate that refuses to trust this pattern for a domain bound to an
-# adapter that does not keep two boots' data apart (a hypothetical
-# adapter with process-wide state, or one with no per-boot isolation
-# setting at all).
+# Multitenancy needs no ambient tenant: one boot per tenant, each registered into a shared
+# ProjectRegister, keeps data apart. TenantCheck refuses adapters that do not.
 RSpec.describe "multitenancy: one boot per tenant, one shared route table" do
   def write(dir, relative, content)
     path = File.join(dir, relative)
@@ -60,11 +43,8 @@ RSpec.describe "multitenancy: one boot per tenant, one shared route table" do
     BLUEBOOK
   end
 
-  # One directory, two tenant overlays — `environments/acme.world` and
-  # `environments/bloom.world` each override realm (and, for the real
-  # Postgres example below, persistence settings) the same way a host's
-  # generated tenant overlay would (Q9's own `Deploy::Tenant` world-
-  # projector, not yet built, would generate exactly these files).
+  # One directory, two tenant overlays (environments/acme.world, bloom.world) overriding realm
+  # and persistence settings.
   def write_tenant_domain(dir, adapter:, tenant_settings:)
     write(dir, "tenanted.bluebook", tenant_bluebook)
     write(dir, "tenanted.hecksagon", <<~HECKSAGON)
@@ -97,18 +77,8 @@ RSpec.describe "multitenancy: one boot per tenant, one shared route table" do
     Hecks.boot(dir, environment: slug, install_facade: false)
   end
 
-  # A shared ProjectRegister, fed by more than one boot — the same
-  # object Bluebook::ProjectLoader#load already builds, just called by
-  # hand here rather than through directory discovery (ProjectLoader
-  # assumes one boot per discovered directory; a real multi-tenant
-  # loader that calls this once per known tenant is later work — Q9's
-  # own Deploy::Tenant, not yet built — this proves the primitive it
-  # would be built on).
-  # Only "Tenanted" — not every bluebook this registry loaded. `uses_framework
-  # "Governance"` pulls Governance's own bluebook into the same registry, and
-  # nothing here declares a `Hecks.world "Governance"` (this fixture never
-  # needs Governance addressable through the router at all), so registering
-  # every bluebook the registry knows about would raise MissingRealm for it.
+  # Registers only "Tenanted": `uses_framework "Governance"` also loads Governance, which has no
+  # world, so registering it would raise MissingRealm.
   def register_tenant(register, dispatcher, dir)
     register.register([dispatcher.registry.bluebook("Tenanted")], dispatcher.registry, dispatcher, dir)
   end
@@ -120,7 +90,6 @@ RSpec.describe "multitenancy: one boot per tenant, one shared route table" do
       acme  = boot_tenant(dir, "acme")
       bloom = boot_tenant(dir, "bloom")
 
-      # Neither refuses — Memory is tenant_capable? by construction.
       expect { Hecks::Runtime::TenantCheck.refuse_unless_tenant_capable!(acme.registry, "Tenanted") }
         .not_to raise_error
       expect { Hecks::Runtime::TenantCheck.refuse_unless_tenant_capable!(bloom.registry, "Tenanted") }
@@ -144,13 +113,9 @@ RSpec.describe "multitenancy: one boot per tenant, one shared route table" do
 
   it "refuses to trust a domain for more than one tenant when its bound adapter is not tenant_capable?" do
     Dir.mktmpdir do |dir|
-      # `Postgres` (no era, no schema story) never declares
-      # tenant_capable? — the exact adapter this gate exists to catch.
+      # Postgres (no era, no schema story) never declares tenant_capable?.
       write_tenant_domain(dir, adapter: "Postgres", tenant_settings: { "acme" => { database: "whatever" } })
-      # `Hecks.boot` itself would try to connect; the gate is checked
-      # against the builder's own binds directly, before any adapter is
-      # ever instantiated, the same way refuse_ungoverned_roles! checks
-      # a merged hecksagon without needing a live repository either.
+      # Hecks.boot would connect; check the gate against the loaded registry instead.
       registry = Hecks::Runtime::Registry.new(root: dir)
       Hecks.with_registry(registry) do
         Kernel.load(InMemoryDomain::EXTRACTION_PORT)
@@ -164,21 +129,8 @@ RSpec.describe "multitenancy: one boot per tenant, one shared route table" do
     end
   end
 
-  # The wiring itself, not just the predicate — every example above
-  # calls `TenantCheck.refuse_unless_tenant_capable!` by hand, which
-  # proves the gate works but not that anything actually reaches it.
-  # This one instead drives the real integration point:
-  # `ProjectRegister#register`, called twice for the same on-disk
-  # directory the way a real multi-tenant host would (`register_tenant`
-  # above, the same helper the Memory/PostgresEra examples use).
-  #
-  # A domain's first registration for a directory is never refused —
-  # nothing shares its data yet, so an ordinary single-tenant deploy on
-  # a plain, non-tenant_capable? adapter still boots exactly as before
-  # this gate existed. Only the second registration of that same
-  # directory is refused — and refused before its routes are merged
-  # into the shared table, so a leaking tenant's requests never even
-  # become reachable through `Router#resolve`.
+  # Drives the real integration point, ProjectRegister#register: a directory's first registration
+  # is never refused; the second is refused before its routes merge into the shared table.
   def load_bare_registry(dir, realm)
     registry = Hecks::Runtime::Registry.new(root: dir)
     Hecks.with_registry(registry) do
@@ -195,10 +147,7 @@ RSpec.describe "multitenancy: one boot per tenant, one shared route table" do
   it "refuses a domain's SECOND registration into a shared route table when its bound adapter " \
      "is not tenant_capable?, but never touches its first" do
     Dir.mktmpdir do |dir|
-      # `Postgres` (no era, no schema story) never declares
-      # tenant_capable? — same non-capable adapter the direct-call
-      # example above uses, and for the same reason: this never boots
-      # through `Hecks.boot`, so it never tries to actually connect.
+      # Postgres never declares tenant_capable?; this skips Hecks.boot, so nothing connects.
       write_tenant_domain(dir, adapter: "Postgres", tenant_settings: { "acme" => {}, "bloom" => {} })
 
       acme_registry  = load_bare_registry(dir, "Acme")
@@ -219,11 +168,8 @@ RSpec.describe "multitenancy: one boot per tenant, one shared route table" do
     end
   end
 
-  # A real scratch Postgres database (created/torn down once, ensure
-  # below) proving isolation two ways together — through the runtime's
-  # own dispatch/query and a direct SQL bypass of it — against the same
-  # two real schemas; splitting would mean paying the create/drop
-  # database and tenant boot twice for two halves of one claim.
+  # One database proves isolation both through dispatch/query and through direct SQL, so the
+  # create/drop and tenant boots are paid once.
   # rubocop:disable-next RSpec/ExampleLength
   it "keeps two tenants' data completely apart on real PostgresEra, in genuinely separate schemas", :io do
     skip "no local Postgres reachable" unless PostgresProbe.available?
@@ -233,16 +179,10 @@ RSpec.describe "multitenancy: one boot per tenant, one shared route table" do
     admin.exec("DROP DATABASE IF EXISTS #{db} WITH (FORCE)")
     admin.exec("CREATE DATABASE #{db}")
     admin.close
-    # both tenants boot as a non-superuser owner — the ambient dev/CI
-    # user is a superuser, which PostgresEra refuses to boot as (BUG#24;
-    # see support/fenced_owner.rb)
+    # Both tenants boot as a non-superuser owner; PostgresEra refuses superusers (fenced_owner.rb).
     FencedOwner.own!(db)
 
-    # **No CREATE SCHEMA here** — deliberately. PostgresEra#connect_for
-    # itself now creates a declared `schema:` idempotently on connect
-    # (found needing exactly this the first time this spec ran); this
-    # boots straight into schemas nobody has created yet, proving that
-    # self-healing rather than working around its absence.
+    # No CREATE SCHEMA: PostgresEra creates a declared schema on connect, and this pins that.
 
     begin
       Dir.mktmpdir do |dir|
@@ -270,29 +210,9 @@ RSpec.describe "multitenancy: one boot per tenant, one shared route table" do
         expect(router.query("Acme::Tenanted::Widget.all").map { |w| w[:ref][:value] }).to eq(["acme-only-real-postgres"])
         expect(router.query("Bloom::Tenanted::Widget.all")).to eq([])
 
-        # The schemas are real, not just logically disjoint — a direct
-        # query against tenant_bloom's own schema, bypassing the runtime
-        # entirely, confirms the table itself holds nothing. Found by
-        # name via information_schema rather than hardcoded — this is
-        # deliberately not asserting PostgresEra's own storage_name
-        # convention, only that whichever table holds the aggregate's
-        # own data (not any of PostgresEra's own bookkeeping tables) in
-        # acme's write ended up empty in bloom's own schema.
-        #
-        # Not `.first` on the unfiltered list — found live, the flaky
-        # way: `information_schema.tables` makes no ordering guarantee,
-        # and this schema also holds hecks_eras/hecks_era_texts/hecks_
-        # backfill_progress, each carrying its own legitimate 1-row
-        # bookkeeping entry PostgresEra provisions for every schema it
-        # touches, tenant write or not. Whichever one the catalog
-        # happened to return first was failing this exact assertion on
-        # real, correct isolation — `widget_head` itself was empty the
-        # whole time. `_head` is the one naming shape only an
-        # aggregate's own data table has (`Lineage#head_view`) — no
-        # bookkeeping table ends in it, and `_head_snapshot_<era>`
-        # doesn't either, so this still isn't the storage_name
-        # convention itself, only the shape every aggregate's head
-        # shares regardless of what it's actually called.
+        # Direct SQL against tenant_bloom bypasses the runtime. The table is found by its `_head`
+        # suffix (Lineage#head_view): the catalog has no ordering, and PostgresEra's bookkeeping
+        # tables each hold a legitimate row.
         direct = PG.connect(dbname: db)
         direct.exec("SET search_path TO tenant_bloom")
         table = direct.exec("SELECT table_name FROM information_schema.tables WHERE table_schema = 'tenant_bloom'")

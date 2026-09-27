@@ -1,18 +1,7 @@
 #!/usr/bin/env ruby
 
-# Proactively backfills `hecks_eras.held_projection` for every row of one
-# domain that predates that column — an explicit, operator-run version of
-# what `EraStore#eras` already does incidentally, as a side effect, the
-# next time the domain happens to boot through Ruby
-# (`verify_integrity!` -> `backfill_frozen_facts!`,
-# lib/hecks/adapters/driven/postgres_era/lineage/era_store.rb). No new
-# backfill logic lives here — this just calls that existing path and
-# reports what it found, so an operator can prove every row is migrated
-# before any consumer that refuses, rather than computes one, on a row
-# still missing its projection.
-#
-# Idempotent: a second run against an already-migrated domain reports
-# nothing left to do.
+# Backfills `hecks_eras.held_projection` for rows that predate it, by calling
+# the same path `EraStore#eras` already takes on boot, explicitly. Idempotent.
 #
 #   bin/backfill_era_projections <domain path>
 
@@ -44,8 +33,8 @@ capable =
   end
 
 unless capable
-  # Only a lineage-capable adapter holds eras at all — every other
-  # adapter has no held_projection column to migrate.
+  # Only a lineage-capable adapter holds eras — every other adapter has no
+  # held_projection column to migrate.
   abort "#{bluebook.name} is bound to #{adapter_name}, which holds no eras — nothing to migrate."
 end
 
@@ -68,11 +57,8 @@ if before.zero?
 end
 
 begin
-  # The side effect this tool exists to trigger, explicitly — no new
-  # backfill logic, just calling the path Ruby already takes
-  # incidentally. Raises on the first row that fails its own digest
-  # check — a genuinely tampered row, a different problem than a
-  # merely-legacy one, and not something backfilling should paper over.
+  # Raises on the first row whose own digest check fails — a tampered row,
+  # not a merely-legacy one, which backfilling must not paper over.
   lineage.eras
 rescue Hecks::Runtime::WiringError => e
   puts "#{bluebook.name}: stopped at a row that isn't merely legacy — it fails its own integrity check:"

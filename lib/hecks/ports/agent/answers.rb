@@ -1,18 +1,8 @@
 module Hecks
   module Ports
     module Agent
-      # Where a raw hash becomes a struct — the one place, so every
-      # adapter (the real `claude_code` one, and any scripted double
-      # standing in for it in a spec) is held to the identical shape.
-      # An adapter's whole job ends at "here is what came back, already
-      # JSON"; whether that hash is usable is decided once, here, not
-      # re-decided per adapter.
-      #
-      # Every failure raises `ValidationError` — never lets a bare
-      # `NoMethodError` on nil, or a `KeyError`, reach a caller looking
-      # for an agent-shaped failure. `bin/interview` catches exactly one
-      # class for "the model answered badly," not a grab-bag of Ruby's
-      # own.
+      # Turns an adapter's raw reply hash into structs, so every adapter is held to
+      # one shape. Every failure raises `ValidationError`, never a bare `NoMethodError`.
       module Answers
         VERB_PATTERN = /\A[A-Za-z]+::[A-Za-z]+\.[A-Za-z]+\z/
 
@@ -77,8 +67,6 @@ module Hecks
           end
         end
 
-        # ── shared checks, each named for what it refuses ───────────────
-
         # Reads the array of rows an answer holds under one key, refusing any other shape.
         #
         # @param raw [Object] the adapter's reply; only a Hash is accepted
@@ -111,12 +99,8 @@ module Hecks
 
         # Reads a proposal row's verb, refusing one that is not fully qualified.
         #
-        # A verb the language could not even parse is an adapter fault,
-        # refused right here — the same `not_fully_qualified` shape the
-        # language's own grammar already refuses by, reused rather than
-        # reinvented. A verb naming a real category that turns out to
-        # describe the wrong fact is not this port's business: that one
-        # dispatches, and `Interview::Session#offer` is what says no.
+        # Only the shape is checked; whether the verb fits the fact is
+        # `Interview::Session#offer`'s call.
         #
         # @param row [Hash{String => Object}] one proposal row of the adapter's answer
         # @return [String] the row's `"verb"`, shaped `Chapter::Aggregate.Command`
@@ -157,9 +141,7 @@ module Hecks
 
         # Normalises a proposal row's arguments into symbol-keyed, all-String rows.
         #
-        # Rows shaped exactly as `Interview::Proposal::Argument` — a
-        # reference's `field` is legitimately blank (a reference is an
-        # id), so only `name` is required here.
+        # Only `name` is required: a reference's `field` is legitimately blank.
         #
         # @param row [Hash{String => Object}] one proposal row of the adapter's answer
         # @return [Array<Hash{Symbol => String}>] one `{name:, field:, value:}` Hash per

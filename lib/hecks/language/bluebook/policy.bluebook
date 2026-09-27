@@ -4,53 +4,27 @@ Hecks.bluebook "Bluebook" do
 
     reference_to Bluebook
 
-    # THE CHAPTER IT IS IN, AND ITS NAME. A policy hangs off the chapter rather
-    # than an aggregate, so the chapter is the part above it.
+    # The chapter it belongs to, and its name; a policy hangs off the chapter, not an aggregate.
     identified_by :bluebook, :name
 
     attribute :name,            PolicyName
-    # WHICH HEAD DECLARED IT, empty for a reaction the chapter owns.
-    #
-    # A policy written inside an aggregate is hoisted onto the chapter by the
-    # builder, and the chapter is where the runtime reads it — so nothing was ever
-    # lost at runtime. What was lost is where it was WRITTEN, which is a fact about
-    # the source, and facts about the source are what this language holds.
-    # `Aggregate#to_h` does not carry it and does not need to: the wire format is
-    # a contract, and the language may hold more than it.
+    # The head that declared it, empty for a reaction the chapter owns. Where it was written is a
+    # fact about the source, which the language holds; Aggregate#to_h does not carry it.
     attribute :aggregate,       PolicyText
     attribute :on_event,        PolicyText
     attribute :trigger_command, PolicyText
     attribute :target_domain,   PolicyText
-    # AN `across` TARGET THIS DOMAIN EXPECTS NEVER TO REACH — declared on
-    # the policy that owns the expectation, not held in a core allowlist
-    # keyed by domain name. `ModelCheck` honours it both ways: the
-    # unknown-target and unacknowledged-relationship findings it would
-    # otherwise raise are expected, and a declaration whose target turns
-    # out to be known or acknowledged after all is STALE and fails.
+    # An `across` target this domain expects never to reach. ModelCheck treats the related findings
+    # as expected, and fails a declaration whose target turns out to be known after all.
     attribute :expect_undelivered, PolicyText
-    # THE GUARD, CARRIED AS TEXT — same discipline `Command.givens`
-    # already holds: the block that wrote it is never called at
-    # runtime, only its EXTRACTED SOURCE is (Ports::Extraction), so
-    # what the language holds is the string, not a live Proc no wire
-    # format could carry. Optional — most policies fire unconditionally.
+    # The guard as text: only its extracted source runs (Ports::Extraction), never a live Proc.
+    # Optional; most policies fire unconditionally.
     attribute :where,           PolicyText, optional: true
-    # THE FAN-OUT SOURCE — a query verb ("Aggregate.query_name" or
-    # "Domain::Aggregate.query_name"), same text shape as
-    # `trigger_command`/`target_domain` beside it. Optional — most
-    # policies fire once, not once per row.
+    # The fan-out source, a query verb ("Aggregate.query_name" or "Domain::Aggregate.query_name").
+    # Optional; most policies fire once, not once per row.
     attribute :for_each,        PolicyText, optional: true
-    # WHAT THE TRIGGER IS GIVEN, when the event's own shape is not it.
-    # Empty means the whole payload forwards verbatim — what every policy
-    # did before this existed, and still the right default for a trigger
-    # shaped like its event.
-    #
-    # The same `Binding` list a saga's own `Dispatch` carries, for the
-    # same reason: a reaction crosses an aggregate boundary, and the
-    # event on one side is under no obligation to be shaped like the
-    # command on the other. Without it the target has to declare every
-    # field the event happens to carry — banking's own `FreezeAccount`
-    # grew an attribute it never reads, and Account grew two duplicated
-    # value objects to type it, before this word existed.
+    # What the trigger is given when the event's shape is not it; empty forwards the payload.
+    # The same Binding list a saga's Dispatch carries: the event need not match the command.
     attribute :with_spec,       list_of(Binding)
 
     value_object "PolicyName" do
@@ -62,22 +36,14 @@ Hecks.bluebook "Bluebook" do
       attribute :value, String
     end
 
-    # DECLARED HERE RATHER THAN SHARED WITH `Dispatch`'s own — a value
-    # object belongs to the aggregate that uses it, and everything that
-    # walks an aggregate's own scope has nowhere else to look.
+    # Declared here rather than shared with Dispatch's: a value object belongs to its aggregate.
     value_object "Binding" do
       attribute :key,   String
       attribute :value, String
     end
 
-    # The way back: everything DECLARED IN the chapter above. The parent
-    # reference IS the query.
-    # WHERE IT SITS AMONG ITS SIBLINGS. Declaration order is a FACT ABOUT THE
-    # SOURCE — the IR is a contract read straight from this file,
-    # field for field AND INDEX FOR INDEX. So the language HOLDS it, instead of
-    # inheriting it from whatever order a store happens to iterate: an ask that
-    # does not say how it is ordered is answered in identity order, which is
-    # right for every other ask and fatal for the one that is the SOURCE.
+    # Declaration order among siblings. The IR is read index for index, so the language
+    # holds it rather than inheriting whatever order a store iterates.
     value_object "Position" do
       attribute :value, Integer
     end
@@ -129,25 +95,8 @@ Hecks.bluebook "Bluebook" do
       emits TriggerBindingAttached
     end
 
-    # HOW POLICY IS SPELLED. These rows live with the concept
-    # they describe; SyntaxBoot discovers every aggregate-local seed table.
-    # Contexts represented here: Policy.
-    #
-    # `on`'s ArgumentSeed gained a `kind: "constant"` row alongside its
-    # existing `kind: "text"` one (ADR 0025, S6 — "events first-class"),
-    # same shape `trigger`'s own pair already carries — `on
-    # Account::AccountFrozen`, a bare constant, now parses the same way
-    # `trigger Account::Debit` does. `calls: "on_impl"` routes the word
-    # through a hand-written method (`PolicyBuilder#on_impl`) instead of
-    # the generic single-fill coercion, mirroring `trigger`'s own
-    # `calls: "trigger_impl"` on the row below. UNLIKE `trigger`,
-    # `on_impl` does NOT refuse the quoted-text form outside
-    # `shadow_parse` — command references were safe to refuse that way
-    # only because they're 100% migrated across the live corpus; event
-    # names (`emits`/`on`) are not (only Account's `AccountFrozen` is,
-    # this pass), so refusing the old spelling here would break every
-    # live `.bluebook` site this pass didn't touch. Both forms stay
-    # admitted until a full corpus migration lands.
+    # Keyword and argument rows for the policy words; SyntaxBoot discovers every seed table.
+    # `on_impl` still admits quoted text: event names are not yet migrated to constants everywhere.
     value_object "KeywordSeed" do
       attribute :word,          String
       attribute :context,       String, admits: "Syntax::Context"

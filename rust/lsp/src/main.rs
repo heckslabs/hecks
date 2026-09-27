@@ -1,19 +1,5 @@
-//! `hecks-lsp` — a minimal Language Server Protocol front end for
-//! `.bluebook`/`.hecksagon` files, over stdio, speaking JSON-RPC by
-//! hand (see `rpc.rs`/`json.rs` for why no dependency was taken for
-//! either). Scope of this first cut: diagnostics only —
-//! `publishDiagnostics` on open/change/save, sourced by shelling out to
-//! `rust/parser`'s own `hecks-parse chapter` (see `diagnostics.rs`'s own
-//! header for why a subprocess, not a library call). No completion, no
-//! hover, no go-to-definition yet — see `README.md` for what each of
-//! those needs from `rust/parser` before it can be built the same
-//! subprocess way this crate's diagnostics are.
-//!
-//! **One request at a time, synchronous**: an editor sends `didChange`
-//! notifications far slower than a `hecks-parse` invocation takes to
-//! run, so there is no concurrency here to manage — see this crate's
-//! own Cargo.toml for why that keeps a dependency-free async runtime
-//! off the table too, for now.
+//! `hecks-lsp`: a minimal stdio language server for `.bluebook`/`.hecksagon` files.
+//! Publishes diagnostics from `hecks-parse chapter` and serves document symbols and definitions.
 
 mod diagnostics;
 mod json;
@@ -27,8 +13,7 @@ use std::path::{Path, PathBuf};
 
 struct Server {
     hecks_parse: Option<PathBuf>,
-    /// Warned about a missing `hecks-parse` at most once — every
-    /// `didChange` would otherwise re-log the same fact.
+    /// Set once the missing-parser warning is logged, so `didChange` does not repeat it.
     warned_missing_parser: bool,
     documents: HashMap<String, String>,
 }
@@ -52,7 +37,7 @@ fn main() {
                     break;
                 }
             }
-            Ok(None) => break, // client closed stdin
+            Ok(None) => break,
             Err(e) => {
                 eprintln!("hecks-lsp: {e}");
                 break;
@@ -62,9 +47,7 @@ fn main() {
 }
 
 impl Server {
-    /// Returns `false` when the server should stop (an `exit`
-    /// notification, or a fatal transport error already logged by the
-    /// caller).
+    /// Returns `false` when the server should stop.
     fn handle(&mut self, message: &Json, out: &mut impl Write) -> bool {
         let method = message.get("method").and_then(Json::as_str).unwrap_or("");
         let id = message.get("id").cloned();
@@ -76,11 +59,7 @@ impl Server {
                         (
                             "capabilities",
                             Json::object(vec![
-                                // Full sync (1): the client resends the whole
-                                // document body on every change, matching
-                                // `hecks-parse`'s own "read a whole file" shape
-                                // — no incremental-patch bookkeeping to get
-                                // wrong for a scaffold this size.
+                                // Full sync (1): the client resends the whole body on each change.
                                 ("textDocumentSync", Json::Number(1)),
                                 ("documentSymbolProvider", Json::Bool(true)),
                                 ("definitionProvider", Json::Bool(true)),
@@ -100,7 +79,7 @@ impl Server {
                     self.warn_missing_parser(out);
                 }
             }
-            "initialized" => {} // notification, nothing to do yet
+            "initialized" => {}
             "shutdown" => {
                 if let Some(id) = id {
                     let _ = rpc::write_message(out, &rpc::response(id, Json::Null));
@@ -178,7 +157,7 @@ impl Server {
                     publish_diagnostics(out, uri, Vec::new());
                 }
             }
-            "" => {} // a message with no "method" isn't one this server sent; ignore
+            "" => {}
             other => {
                 if let Some(id) = id {
                     let _ = rpc::write_message(
@@ -186,8 +165,7 @@ impl Server {
                         &rpc::error_response(id, -32601, &format!("method not found: {other}")),
                     );
                 }
-                // An unhandled notification (no id) is silently ignored, per
-                // spec — only unhandled requests owe the client a reply.
+                // Only requests owe a reply; unhandled notifications are ignored.
             }
         }
         true
@@ -200,7 +178,7 @@ impl Server {
         self.warned_missing_parser = true;
         log(
             out,
-            2, // Warning
+            2,
             "hecks-lsp: could not find the `hecks-parse` binary (checked $HECKS_PARSE_BIN, \
              $PATH, and ../parser/target/{debug,release}/hecks-parse relative to the cwd this \
              server was launched from). Diagnostics are disabled until it's built — see \
@@ -233,14 +211,8 @@ impl Server {
         }
     }
 
-    /// `textDocument/definition`: resolve the bare identifier under the
-    /// cursor (a `reference_to Customer`/`belongs_to Account`-style
-    /// usage) to wherever that aggregate/entity/value_object is
-    /// declared — first in the buffer itself, then across sibling
-    /// `.bluebook`/`.hecksagon` files in the same directory, since a
-    /// chapter routinely spans several files (`parse::chapter`'s own
-    /// header) and the thing being referenced is frequently declared in
-    /// one of them, not the file doing the referencing.
+    /// Resolves the identifier under the cursor to its declaration in this buffer,
+    /// then in sibling `.bluebook`/`.hecksagon` files, since a chapter spans several files.
     fn find_definition(&self, message: &Json) -> Option<Json> {
         let params = message.get("params")?;
         let uri = params.get("textDocument")?.get("uri")?.as_str()?;
@@ -268,9 +240,7 @@ impl Server {
                     && matches!(p.extension().and_then(|e| e.to_str()), Some("bluebook") | Some("hecksagon"))
             })
             .collect();
-        // Sorted for determinism — a name genuinely declared in more
-        // than one sibling would otherwise resolve to whichever order
-        // `read_dir` happened to hand back.
+        // Sorted so a name declared in several siblings resolves deterministically.
         siblings.sort();
 
         for sibling in siblings {
@@ -284,11 +254,7 @@ impl Server {
     }
 }
 
-/// The identifier touching character offset `character` (0-indexed, LSP
-/// convention) on `line_text` — extends in both directions over
-/// `[A-Za-z0-9_]` so a cursor anywhere inside or at either edge of a
-/// word resolves it, matching how every real LSP client already
-/// positions the cursor for a "go to definition" request.
+/// The `[A-Za-z0-9_]` word touching 0-indexed offset `character`, including at its edges.
 fn identifier_at(line_text: &str, character: usize) -> Option<String> {
     let chars: Vec<char> = line_text.chars().collect();
     let is_ident = |c: char| c.is_ascii_alphanumeric() || c == '_';
@@ -311,11 +277,7 @@ fn identifier_at(line_text: &str, character: usize) -> Option<String> {
     Some(chars[start..end].iter().collect())
 }
 
-/// A zero-width `Location` at a symbol's declaring line — like
-/// `lsp_diagnostic`, there's no column to be more precise with (this
-/// crate's own outline is line-based; see `outline.rs`'s header), and a
-/// zero-width range still lands the cursor on the right line in every
-/// client that matters here.
+/// A zero-width `Location` at the declaring line; the outline is line-based, so no column.
 fn location(uri: &str, line_1_indexed: usize) -> Json {
     let line0 = line_1_indexed.saturating_sub(1) as i64;
     let point = Json::object(vec![("line", Json::Number(line0)), ("character", Json::Number(0))]);
@@ -341,14 +303,7 @@ fn document_symbol_json(symbol: &outline::Symbol) -> Json {
     ])
 }
 
-/// LSP `SymbolKind` (the spec's own fixed numeric enum) — picked for
-/// how each construct reads to a developer skimming an outline, not for
-/// any deeper claim of equivalence: `Struct` for the three constructs
-/// that are pure data shapes (`value_object`/`entity`/`read_model`),
-/// `Class` for the two that hold behavior an outline groups other
-/// things under (`aggregate`/`process_manager`), `Method`/`Function`
-/// for the two callable-shaped constructs, `Interface` for `policy`
-/// (it reacts to an event the way a handler implementation would).
+/// Maps a construct to an LSP `SymbolKind` number by how it reads in an outline.
 fn lsp_symbol_kind(kind: outline::Kind) -> i64 {
     use outline::Kind::*;
     match kind {
@@ -363,12 +318,7 @@ fn lsp_symbol_kind(kind: outline::Kind) -> i64 {
     }
 }
 
-/// Only handles a plain `file://` URI with no percent-escapes — every
-/// real URI this server is ever handed (this repo's own checkout paths
-/// have no spaces or non-ASCII characters), and the one thing that
-/// actually matters here (`find_definition`'s sibling-file search) only
-/// needs the directory, which survives even if the filename portion
-/// were escaped.
+/// Handles only plain `file://` URIs without percent-escapes.
 fn uri_to_path(uri: &str) -> Option<PathBuf> {
     uri.strip_prefix("file://").map(PathBuf::from)
 }
@@ -390,12 +340,8 @@ fn log(out: &mut impl Write, severity: i64, message: &str) {
     let _ = rpc::write_message(out, &rpc::notification("window/logMessage", params));
 }
 
-/// Full-line range (see `diagnostics.rs`'s own header on why there's no
-/// column to be more precise than that yet), severity split by whether
-/// `rust/parser` itself is refusing the construct outright vs. merely
-/// not having built it yet, and the raw `expected` list folded into the
-/// message text since plain `Diagnostic` has nowhere else in the LSP
-/// shape to put it that every client already renders.
+/// Builds a full-line diagnostic: Warning when not yet implemented, else Error.
+/// The `expected` list is folded into the message text.
 fn lsp_diagnostic(diag: &diagnostics::FileDiagnostic, text: &str) -> Json {
     let zero_based_line = diag.line.saturating_sub(1) as i64;
     let line_len = text
@@ -434,20 +380,9 @@ fn lsp_diagnostic(diag: &diagnostics::FileDiagnostic, text: &str) -> Json {
     ])
 }
 
-/// A stable scratch path per URI, under the OS temp dir — `hecks-parse`
-/// only ever reads from a real filesystem path (`rust/parser/src/
-/// main.rs::run_chapter` calls `fs::read_to_string`), so an unsaved
-/// buffer has to land on disk somewhere before every check. Keyed by a
-/// hash of the full URI, not just the basename, so two same-named files
-/// open from different directories (a real thing: every domain's own
-/// `.bluebook` file across `examples/*/`) never collide.
+/// A stable scratch path per URI under the temp dir, since `hecks-parse` reads only from disk.
 ///
-/// Not percent-decoded: the URI's raw bytes name a throwaway file this
-/// process alone reads and writes, never resolved back into a real path
-/// — correctness here only needs `hecks-parse`'s own diagnostic line to
-/// come back prefixed with the exact same path string this function
-/// handed it, which `diagnostics::parse_diagnostic_line` already
-/// depends on and gets, regardless of what the bytes mean.
+/// Keyed by a hash of the full URI so same-named files from different directories do not collide.
 fn temp_path_for(uri: &str) -> PathBuf {
     let hash = fnv1a(uri.as_bytes());
     let basename = uri.rsplit('/').next().unwrap_or("buffer.bluebook");

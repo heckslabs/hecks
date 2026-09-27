@@ -2,43 +2,14 @@ require "spec_helper"
 require "json"
 require "fileutils"
 
-# `Bluebook#to_h` is the wire format two production mechanisms stand on:
-# `StorageShape.project` reads it by key name to mint era hashes and detect
-# drift (a silently renamed or dropped key would corrupt era identity with no
-# error anywhere), and `MetaValidator` hashes it as the verdict-cache key. So
-# it is the one shape in this codebase that must never move by accident.
-#
-# `round_trip_spec` cannot hold it still. It compares the builder's IR against
-# the meta-domain's records — two sides both computed fresh at test time, so
-# an emission bug on a path the corpus never exercises is simply absent from
-# both and passes vacuously. `Field#default` was legal and unexercised for
-# precisely that reason. A frozen file is the one check immune to correlated
-# drift: it pins today's emission against a reference nothing live can move.
-#
-# The corpus is every chapter in the tree, not the four `round_trip_spec`
-# walks: a shape only one bluebook exercises is exactly the shape a partial
-# corpus lets through.
-#
-# Regenerate deliberately, never casually:
-#
-#     GOLDEN=rewrite bundle exec rspec spec/ir_golden_spec.rb
-#
-# A rewrite is a claim that the wire format changed — read the diff before
-# trusting it, because every held era's projection was minted off the old one.
+# Freezes `Bluebook#to_h`, the wire format behind era hashes (StorageShape) and the MetaValidator
+# cache key. round_trip_spec compares two live computations, so a shared emission bug passes there.
+# Regenerate with GOLDEN=rewrite only when the wire format really changed; read the diff first.
 RSpec.describe "the IR the builder produces, frozen" do
   GOLDEN_DIR = File.join(InMemoryDomain::ROOT, "spec/golden/ir").freeze
 
-  # The guard for the comment above, made executable. Gemfile.lock is
-  # gitignored (this is a library gem — Bundler convention holds lockfiles
-  # for applications, not gems consumers install), so nothing commits the
-  # exact dependency graph that produced these fixtures. What does commit
-  # is the Gemfile's own `gem "json", "2.7.2"` — an exact pin (no `~>`),
-  # chosen because a newer `json` gem changes `JSON.pretty_generate`'s
-  # formatting of an empty array/hash, which would fail every fixture
-  # below with a diff that has nothing to do with the wire format
-  # actually changing. This spec fails loudly, in this file, if that pin
-  # and the resolved gem ever disagree — rather than the failure showing
-  # up only as a wall of unrelated-looking byte diffs further down.
+  # The Gemfile pins `json` exactly because newer versions reformat empty arrays/hashes in
+  # pretty_generate, which would fail every fixture with diffs unrelated to the IR.
   it "resolves the exact `json` gem the Gemfile pins, not merely one the lockfile once recorded" do
     pin = File.read(File.join(InMemoryDomain::ROOT, "Gemfile"))
               .match(/^\s*gem\s+"json"\s*,\s*"([\d.]+)"\s*$/)&.captures&.first
@@ -56,13 +27,8 @@ RSpec.describe "the IR the builder produces, frozen" do
   # Chapters that load from a file, name => path.
   LOADABLE = {
     "Pizzas"     => "examples/pizzas/bluebook/pizzas.bluebook",
-    # The flagship domain, now carrying alone what market and relay once
-    # carried between them.
-    # Composite identity (`SafeDepositBox`, branch_code + box_number), a
-    # command that announces twice (`Surrender`), two entities on one head,
-    # a second read_model and a second process_manager — every rare form this
-    # corpus's coverage gates exist to catch, now exercised by the real
-    # domain rather than a fixture invented solely to hold it.
+    # Composite identity, a command that announces twice, two entities on one head, a second
+    # read_model and process_manager: the rare forms the coverage gates exist to catch.
     "Banking"    => InMemoryDomain::BANKING_BLUEBOOK_DIR,
     "Expression" => "lib/hecks/grammar/expression.bluebook",
     "TillRoom"   => "spec/fixtures/till.bluebook",
@@ -70,10 +36,7 @@ RSpec.describe "the IR the builder produces, frozen" do
     "Reflex"     => "spec/fixtures/reflex.bluebook"
   }.freeze
 
-  # The two language chapters are not loaded like a domain — judging one while
-  # loading it would recurse, so they come from the bootstrap registry. They are
-  # in the corpus because the refactor changes how every chapter is built, and
-  # the language is the chapter it would be worst to break quietly.
+  # Language chapters come from the bootstrap registry: judging one while loading it would recurse.
   LANGUAGES = %w[Bluebook World Hecksagon].freeze
 
   def load_chapter(file)
@@ -91,9 +54,7 @@ RSpec.describe "the IR the builder produces, frozen" do
 
   def golden_path(name) = File.join(GOLDEN_DIR, "#{name}.json")
 
-  # Pretty-printed and key-sorted, so a diff a human reads names the field that
-  # moved rather than the whole document. Sorting is the same normalisation
-  # `bin/canonicalise` applies — key order is not semantics.
+  # Sorted like bin/canonicalise (key order is not semantics), so a diff names the moved field.
   def rendered(bluebook) = "#{JSON.pretty_generate(sorted(bluebook.to_h))}\n"
 
   def sorted(value)

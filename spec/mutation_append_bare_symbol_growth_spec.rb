@@ -1,25 +1,8 @@
 require "spec_helper"
 require "tempfile"
 
-# Real coverage for issue #138: `then_set :list, append: :bare_symbol` (a
-# scalar, not the usual `append: { field: :value, ... }` Hash) crashed —
-# `Mutation#appended_fields`/`MutationApplier#appended`/the meta-validator
-# Judge's own `mutation_rows` all call `Hash#transform_values` on
-# `mutation.source` unconditionally, and a bare Symbol has no such method.
-# Confirmed genuinely crashing with the fix reverted (`git stash`): a plain
-# `NoMethodError: undefined method 'transform_values' for :tag:Symbol`,
-# raised from `Mutation#appended_fields` the moment the bluebook's own IR
-# was built (`BluebookBuilder#build` -> `MetaValidator.call` -> `Command#to_h`
-# -> `Mutation#to_h`) — before any dispatch ever ran, and regardless of
-# whether meta-validation is on or off.
-#
-# `CommandBuilder#normalize_append_source` treats the bare value the same
-# way an explicit `append: { value: :bare_symbol }` already would — the
-# `:value` name mirrors `MutationApplier#appended`'s own single-field
-# value-object scalar-unwrap convention. This spec boots with
-# meta-validation on (no ENV override) so both the runtime dispatch path
-# and the meta-validator's own Judge path (`Readings#mutation_rows`) are
-# exercised for real, not just one of the two.
+# `then_set :list, append: :bare_symbol` (a scalar, not a Hash) must not crash `transform_values`.
+# Boots with meta-validation on so both the runtime and the Judge path are exercised.
 RSpec.describe "mutation op append, bare-symbol shorthand" do
   def boot(source, hecksagon_name, &binds)
     file = Tempfile.new(["mutation-append-bare-symbol-growth-", ".bluebook"])

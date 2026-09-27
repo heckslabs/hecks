@@ -1,26 +1,14 @@
 require "rubocop"
-# Not "rubocop/rspec/support" — see fallback_hash_lookup_spec.rb's identical
-# comment: that file's top-level `RSpec.configure { config.include CopHelper;
-# ... }` installs CopHelper's `registry` method onto every example group the
-# instant it's required, which collided with unrelated specs elsewhere in
-# this suite that define their own `registry`. Requiring the two mixins
-# directly and including them only in this describe block keeps this cop's
-# specs fully working without leaking anything globally.
+# Not "rubocop/rspec/support": its global include of CopHelper collides with other specs'
+# own `registry`.
 require "rubocop/rspec/cop_helper"
 require "rubocop/rspec/expect_offense"
 require_relative "../../../../lib/rubocop/cop/hecks/thread_shared_ivar_mutation"
 
-# `RuboCop::RSpec::ExpectOffense`/`CopHelper` need RSpec required first — see
-# `CopHelper`'s own `extend RSpec::SharedContext`, which blows up with an
-# uninitialized-constant `NameError` if `rspec` (pulled in by `spec_helper`
-# already, transitively, but named explicitly here since this spec would
-# still make sense run in isolation) hasn't defined it yet.
-# `Style/FormatStringToken` prefers `%<foo>s` over `%{foo}` — but
-# `expect_offense`'s own `**replacements` mechanism (`format_offense`,
+# CopHelper extends RSpec::SharedContext, so RSpec must be loaded first.
+# `expect_offense`'s `**replacements` (`format_offense`,
 # rubocop/rspec/expect_offense.rb) matches the literal text `%{keyword}` in
-# the source string via `gsub`, not real `Kernel#format` interpolation, so
-# `%<class_name>s` would not be substituted at all here. The template form
-# is this file's actual requirement, not a style lapse.
+# the source via gsub, so the `%<keyword>s` form would not be substituted.
 # rubocop:disable-next Style/FormatStringToken
 RSpec.describe RuboCop::Cop::Hecks::ThreadSharedIvarMutation do
   include CopHelper
@@ -28,20 +16,10 @@ RSpec.describe RuboCop::Cop::Hecks::ThreadSharedIvarMutation do
 
   subject(:cop) { described_class.new(config) }
 
-  # `DisplayCopNames` defaults to true in a bare `RuboCop::Config.new` (it
-  # comes from `config/default.yml`'s own `AllCops` section, not from
-  # anything this repo's `.rubocop.yml` sets) — turned off here so the
-  # offense message below matches this cop's own `MSG` verbatim, without
-  # every expectation also needing to restate the `Hecks/
-  # ThreadSharedIvarMutation: ` badge `MessageAnnotator` would otherwise
-  # prepend.
+  # Off so offense messages match the cop's MSG without the cop-name badge.
   let(:config) { RuboCop::Config.new("AllCops" => { "DisplayCopNames" => false }) }
 
-  # The two classes the user named, scoped by short class name (see the
-  # cop's own comment on why full-namespace resolution isn't attempted) —
-  # `class Dispatcher` inside `module Hecks; module Runtime; ... end; end`
-  # is exactly this codebase's own actual layout for both
-  # `lib/hecks/runtime/dispatcher.rb` and `lib/hecks/runtime/registry.rb`.
+  # The cop matches by short class name; Dispatcher and Registry live in Hecks::Runtime.
   shared_examples "flags plain ivar mutation" do |class_name|
     it "flags a plain assignment" do
       expect_offense(<<~RUBY, class_name: class_name)
@@ -119,10 +97,7 @@ RSpec.describe RuboCop::Cop::Hecks::ThreadSharedIvarMutation do
     end
 
     it "does not flag assignment inside initialize" do
-      # `expect_no_offenses` (unlike `expect_offense`) takes no
-      # `**replacements` — it never needs the `%{...}` substitution
-      # machinery since there's no annotation line to keep aligned with a
-      # variable-width name, so plain string interpolation stands in here.
+      # `expect_no_offenses` takes no `**replacements`, so the name is interpolated.
       expect_no_offenses(<<~RUBY)
         module Hecks
           module Runtime

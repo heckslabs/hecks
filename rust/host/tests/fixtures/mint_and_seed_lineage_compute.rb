@@ -1,34 +1,6 @@
 #!/usr/bin/env ruby
-# ADR 0029 step 7 — the highest-effort remaining case: an era minted
-# with a `compute` rule, the one migration kind with NO in-process Ruby
-# reference implementation at all (`Ports::Persistence::Lineage#
-# translate`'s own header: "compute is deliberately not applied here...
-# this transform neither imitates nor checks it"). Its only
-# verification anywhere in this project is the human-approved sample
-# the real audit records — mint refuses outright without a matching,
-# unstale approval (`lineage_manager/minter.rb`'s own gate). This
-# script is the first thing in the whole codebase that drives that gate
-# for real from outside `bin/translation_audit` itself.
-#
-# BECAUSE there is no in-process reference transform for `compute`, this
-# fixture's own "ground truth" is necessarily narrower than mint_and_
-# seed_lineage.rb's: it can only be Postgres's own compiled SQL
-# (`head_compiler.rb`'s `compile_compute`), read directly — proving
-# "Rust's read agrees with what Postgres's compiled SQL actually
-# produced," not "Rust agrees with an independent Ruby computation."
-# That is the honest, narrower claim ADR 0029 itself names for this
-# exact case, not a weakening introduced here.
-#
-# `score`/`doubled` are each wrapped in their own single-member value
-# object, not bare scalars — this language refuses a scalar attribute
-# directly on an aggregate outright ("attributes must use value-object
-# types", meta_validator/judge.rb's own comment on that refusal), found
-# live writing this fixture's first draft. `compile_compute`'s own SQL
-# (head_compiler.rb) only ever extracts a FLAT `->>'` key, so the
-# compute's `sql:` expression re-parses the extracted VO's own JSON
-# text and rebuilds a proper `{"value": ...}` object as its result,
-# rather than the compute rule needing any dotted-path support the
-# generator doesn't have.
+# Mints an era with a `compute` rule and prints Postgres's compiled-SQL result as ground truth.
+# Compute has no in-process Ruby reference, so the head view is the only oracle.
 #
 # usage: mint_and_seed_lineage_compute.rb <db_name> <owner_role> <app_role>
 
@@ -99,7 +71,7 @@ V2 = <<~BLUEBOOK
   end
 BLUEBOOK
 
-# ── same proven helpers mint_and_seed_lineage.rb already carries ──
+# Helpers as in mint_and_seed_lineage.rb.
 
 def load_registry(source, translation_source: nil)
   registry = Hecks::Runtime::Registry.new
@@ -149,7 +121,6 @@ def account_instance(aggregate, kind_label, field, int_value)
   built
 end
 
-# ── era 1: mint, then real writes ──
 
 registry_v1 = check!(V1, owner_url: owner_url)
 aggregate_v1 = registry_v1.bluebooks.values.first.aggregate("Account")
@@ -159,14 +130,8 @@ adapter_v1 = Hecks::Adapters::PostgresEra.new(
 adapter_v1.save(account_instance(aggregate_v1, "a", :score, 5))
 adapter_v1.save(account_instance(aggregate_v1, "b", :score, 7))
 
-# ── the human gate, exercised for real: compute the SAME digest
-# ApprovalDigest.edge_digest computes over the real, parsed edge, and
-# record it bound to the journal's CURRENT high-water ordinal — exactly
-# what bin/translation_audit --approve does, just driven here instead
-# of through that CLI. Must happen AFTER every era-1 write above and
-# BEFORE the era-2 mint below: the approval binds to "the journal as it
-# stood when the samples were read," and any write between review and
-# mint would invalidate it (minter.rb's own reviewed_ordinal check). ──
+# Record the approval mint requires, bound to the journal's current high-water ordinal.
+# It must follow every era-1 write and precede the mint, or it goes stale.
 
 from = label_of(V1)
 to = label_of(V2)
@@ -181,23 +146,17 @@ lineage_for_approval = Hecks::Adapters::PostgresEra::Lineage.new(approval_db, DO
 lineage_for_approval.record_approval!(from: from, to: to, edge_digest: edge_digest)
 approval_db.close
 
-# ── era 2: mint (role-fenced to app_role) — refuses outright without
-# the approval just recorded, per minter.rb's own gate ──
+# Mint refuses without the approval recorded above.
 
 registry_v2 = check!(V2, owner_url: owner_url, translation_source: translation_source, role: app_role)
 aggregate_v2 = registry_v2.bluebooks.values.first.aggregate("Account")
 adapter_v2 = Hecks::Adapters::PostgresEra.new(
-  # owner_url, not app_url -- same ensure_head_snapshot!/backfill-
-  # progress permission gap mint_and_seed_lineage.rb's own comment
-  # documents; unrelated to compute specifically.
+  # owner_url, not the app role: same backfill-permission gap as mint_and_seed_lineage.rb.
   aggregate: aggregate_v2, settings: { database: owner_url, domain: DOMAIN, era: 2 }
 )
 adapter_v2.save(account_instance(aggregate_v2, "c", :doubled, 20))
 
-# ── ground truth: Postgres's OWN compiled SQL, read directly -- the
-# only implementation `compute` has anywhere. Owner-authenticated (RLS
-# fencing itself is proven elsewhere; this script seeds and reads,
-# it doesn't re-prove the fence). ──
+# Ground truth: Postgres's compiled SQL, read as the owner.
 
 # domain-qualified (docs/decisions/0059) — Naming.snake("LedgerCompute") == "ledger_compute"
 raw = PG.connect(owner_url).exec("SELECT id, state FROM ledger_compute_account_head ORDER BY id")

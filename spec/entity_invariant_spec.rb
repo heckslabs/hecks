@@ -1,15 +1,7 @@
 require "spec_helper"
 
-# Round 7 — `EntityBuilder#invariant`: a piece's own shape rule,
-# checked against every instance the aggregate holds, at the same two
-# checkpoints (after every mutation, before save) the aggregate's own
-# invariants already run at. Not a separate enforcement boundary — see
-# Admissibility#enforce_invariants' own comment on why this does not
-# contradict "there is no separate entity invariant."
-#
-# Real corpus exercise: SafeDepositBox's own `Visit` — "a written note
-# is not blank" — an optional VisitNote a vault officer wrote nothing
-# but empty text into.
+# `EntityBuilder#invariant`: a piece's shape rule, checked against every instance
+# at the same checkpoints as the aggregate's own invariants.
 RSpec.describe "a piece's own invariant, checked against every instance the aggregate holds" do
   BANKING_BLUEBOOK = InMemoryDomain::BANKING_BLUEBOOK_DIR unless defined?(BANKING_BLUEBOOK)
 

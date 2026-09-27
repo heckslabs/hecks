@@ -1,41 +1,8 @@
 require "socket"
 
 module Hecks
-  # The startup gate for the stdio MCP servers in `bin/` (`hecks_mcp_door`,
-  # `hecks_query_ir_mcp`): it refuses to run when the process was set up to
-  # speak to anything but a local parent, and it says on stderr what the
-  # process does and does not protect.
-  #
-  # ## Why a gate and not a comment
-  #
-  # Both servers have no authentication. What keeps a stranger away from
-  # them is that only a process that can spawn them can write to their
-  # stdin. That holds until someone wraps one in `socat TCP-LISTEN:... EXEC:`
-  # or an `inetd`-style listener, which hands the process a network socket
-  # as stdin/stdout without changing a line of the server. The gate turns
-  # that setup into a refusal at startup instead of an exposure nobody
-  # noticed.
-  #
-  # ## What it checks
-  #
-  # - **Arguments** — none, except `--stdio`. A `--port` or `--http` flag is
-  #   refused rather than ignored, so a caller that believes it started a
-  #   network server finds out immediately.
-  # - **Environment** — no `HECKS_MCP_*` variable except
-  #   `HECKS_MCP_TRANSPORT=stdio`. The servers take no configuration, so an
-  #   unknown option in that namespace fails closed.
-  # - **Descriptors** — stdin and stdout must not be internet-protocol sockets
-  #   (`AF_INET` or `AF_INET6`). A pipe, a file, a terminal and a Unix-domain socket all pass;
-  #   the last matters because some MCP clients spawn servers over a
-  #   `socketpair`, which is local to the machine.
-  #
-  # ## What it does not do
-  #
-  # It does not authenticate anyone and it cannot see a proxy that copies
-  # bytes from a network socket into an ordinary pipe. It closes the
-  # configurations that announce themselves; the ADR on MCP authentication
-  # (`docs/decisions/0062-mcp-servers-need-real-authentication-before-any-network-transport.md`)
-  # covers what a network transport would need.
+  # Startup gate for the stdio MCP servers in `bin/`: refuses network sockets, extra flags and
+  # unknown `HECKS_MCP_*` variables. It is not authentication (ADR 0062).
   module McpStdioGuard
     ACCEPTED_ARGS = %w[--stdio].freeze
     ENV_PREFIX    = "HECKS_MCP_".freeze
@@ -71,12 +38,8 @@ module Hecks
       (COMMON_NOTES + notes).map { |line| "#{server}: #{line}" }
     end
 
-    # Refuses to continue on a non-stdio setup.
-    #
-    # A server calls this before it requires anything heavy, so a misconfigured start
-    # fails in milliseconds and before any protocol byte is answered. Everything goes
-    # to `stderr`: stdout carries the MCP protocol, and one stray line there corrupts
-    # the client's framing.
+    # Refuses to continue on a non-stdio setup. Everything goes to `stderr`: stdout
+    # carries the MCP protocol, and a stray line there corrupts the client's framing.
     #
     # @param server [String] the server's name, used as the line prefix
     # @param argv [Array<String>] the command-line arguments

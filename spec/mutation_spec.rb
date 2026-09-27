@@ -49,9 +49,7 @@ RSpec.describe "sets arithmetic" do
     runtime.dispatch_flat("TillRoom::Till.OpenTill", number: { value: "till-1" })
     runtime.dispatch_flat("TillRoom::Till.TakeIn", number: { value: "till-1" }, amount: { cents: 10_000 })
 
-    # Refused at the payload gate as a domain refusal, not deep in a predicate
-    # as an EvaluationError — the latter is not in DOMAIN_REFUSALS, so it used
-    # to be recorded beside genuine refusals while actually being a crash.
+    # Must be refused at the payload gate: an EvaluationError is not in DOMAIN_REFUSALS.
     expect { runtime.dispatch_flat("TillRoom::Till.TakeIn", number: { value: "till-1" }, amount: { cents: "lots" }) }
       .to raise_error(Hecks::Runtime::TypeMismatch,
                       'Money.cents expects Integer, got "lots"')
@@ -71,16 +69,8 @@ RSpec.describe "sets arithmetic" do
                                                                   ])
   end
 
-  # A mutation names a target — but must the target exist?
-  #
-  # The language says only `given("a mutation names a target") { !target.value
-  # .to_s.empty? }`. Non-emptiness, nothing more. So a sets naming a field
-  # the aggregate never declared is, as far as the language is concerned, well
-  # formed — and at runtime it writes into nothing while every check stays green,
-  # which is the signature of every defect this corpus has produced.
-  #
-  # Found while giving CardPayment a `disputed_by` : the sets was in place
-  # before the aggregate field was, and nothing said so.
+  # The language only requires a mutation target to be non-empty, so a sets naming an
+  # undeclared field is well formed yet writes into nothing at runtime.
   describe "a mutation into a void" do
     def in_registry
       registry = Hecks::Runtime::Registry.new

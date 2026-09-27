@@ -2,15 +2,8 @@ module Hecks
   module Projections
     module Deploy
       module Fargate
-        # Validation for the optional settings a `deployed_to("AwsFargate")`
-        # block accepts beyond the required ones.
-        #
-        # `FargateTarget.Declare` in deploy.bluebook owns the baseline
-        # settings (`cpu`, `memory`, `port`, `database`, `web`). The keys added
-        # for multi-container stacks are nested shapes (lists of hashes, maps),
-        # which that aggregate's flat attributes cannot describe, so they are
-        # checked here. Every check raises `ArgumentError` naming the setting
-        # it was reading, so a mistake in a `.world` file points at its line.
+        # Validation for the optional Fargate settings beyond the baseline ones.
+        # Every check raises `ArgumentError` naming the setting it was reading.
         module Check
           module_function
 
@@ -71,7 +64,7 @@ module Hecks
                                  "(letters and digits, starting with a letter), got #{value.inspect}"
           end
 
-          # Checks that a value is a name AWS accepts for a container, repository or stack resource.
+          # Checks that a value is a name AWS accepts for a container, repository or stack.
           #
           # @param value [Object] the name as written in the world file
           # @param where [String] the setting's name, used in the error message
@@ -116,7 +109,7 @@ module Hecks
           # @param min [Integer] the fewest entries allowed
           # @param max [Integer, nil] the most entries allowed, or nil for no limit
           # @return [Array<String>] the entries as strings
-          # @raise [ArgumentError] if the value is not a list of strings or its size is out of range
+          # @raise [ArgumentError] if the value is not a list of strings or is out of size range
           def strings!(value, where, min: 0, max: nil)
             list = value.is_a?(Array) ? value : nil
             ok = list&.all? { |item| (item.is_a?(String) || item.is_a?(Symbol)) && !item.to_s.empty? }
@@ -128,9 +121,7 @@ module Hecks
           end
 
           # Checks that a value is a map of names to strings and returns it string-keyed.
-          #
-          # A `nil` value is kept: for the domain container's environment it
-          # removes a default variable.
+          # A `nil` value is kept: the domain container's env setting removes a variable with it.
           #
           # @param value [Object] the map as written in the world file
           # @param where [String] the setting's name, used in the error message

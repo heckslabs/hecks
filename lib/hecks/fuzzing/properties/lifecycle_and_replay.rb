@@ -3,29 +3,14 @@ require_relative "../nondeterministic"
 module Hecks
   module Fuzzing
     module Properties
-      # Lifecycle/saga-shape properties, and replay determinism itself: a
-      # replayed history's lifecycle fields are among the aggregate's own
-      # declared states, a saga's advances follow its declared handlers, and
-      # replaying the same steps twice produces the same history.
-
-      # Holds lifecycle_values_are_declared, saga_advances_follow_declared_handlers,
-      # and replay_is_deterministic — the foundational property, since every
-      # other property here trusts that a single replay's own history is
-      # trustworthy in the first place.
+      # Properties over declared lifecycle states, saga edges and replay determinism.
       module LifecycleAndReplay
-        # Every lifecycle field a replay leaves an instance holding is one
-        # of the aggregate's own declared states — the full set, not just
-        # `Lifecycle#states`' default+targets (see ModelCheck.full_states'
-        # own comment on that hole). The tie to M2 is direct: the model
-        # checker proves which states a domain's own declarations can ever
-        # produce ; this proves a real run never produced anything else —
-        # a coercion bug, a stale string surviving a rename, a default
-        # that drifted from the declared set, would all show up here as a
-        # value nothing upstream would have predicted.
+        # Every lifecycle field a replay leaves holds one of the aggregate's declared states.
+        #
+        # Uses the full state set (`ModelCheck.full_states`), not just `Lifecycle#states`.
         #
         # @param history [Hash] a replayed history, as returned by `Fuzzing::Replay.call`
-        # @return [true, String] true if every instance's lifecycle field holds a declared
-        #   state; otherwise a semicolon-joined message naming each offending instance
+        # @return [true, String] true, or a message naming each offending instance
         def lifecycle_values_are_declared(history)
           bluebook = history.fetch(:bluebook)
           declared = {}
@@ -49,20 +34,10 @@ module Hecks
           offenders.empty? || offenders.join("; ")
         end
 
-        # Every saga advance a replay actually logged moved along an edge
-        # the process manager declared — `(from, to)` pairs that appear in
-        # `saga_log` with `advanced: true` must be a `(handler.from_state,
-        # handler.to_state)` pair some handler on that PM declares
-        # (compensation edges included ; a refused-triggered advance is a
-        # handler like any other). A saga that advanced along a pair no
-        # handler names would mean the runtime moved state the language
-        # never authorized — the same trust ModelCheck's static reachability
-        # rests on, checked here against what a run actually did.
+        # Every logged saga advance follows a `(from_state, to_state)` pair some handler declares.
         #
         # @param history [Hash] a replayed history as returned by `Replay.call`
-        # @return [true, String] true if every logged advance matches a declared
-        #   handler edge; otherwise a message naming the process manager and pair
-        #   that does not
+        # @return [true, String] true, or a message naming the process manager and undeclared pair
         def saga_advances_follow_declared_handlers(history)
           bluebook = history.fetch(:bluebook)
           edges = Hash.new { |h, k| h[k] = [] }
@@ -83,40 +58,21 @@ module Hecks
           offenders.empty? || offenders.join("; ")
         end
 
-        # The foundational one. `Hecks::Runtime` mints nothing — every
-        # identity is declared and derived, never invented (see
-        # command_interpreter.rb's own "nothing is minted" — a random hex,
-        # a counter, anything not reproducible from the payload, was
-        # refused out of the runtime specifically because it broke this).
-        # So the same steps, replayed against a fresh boot, must produce
-        # byte-identical events, refusals, and instances — any drift here
-        # is nondeterminism the runtime promised not to have: a wall-clock
-        # read that leaked into compared state, a Hash iteration order a
-        # comparison depended on, anything. Two independent replays, not a
-        # cached one compared to itself, so a bug that corrupts the first
-        # run's own bookkeeping cannot pass by agreeing with itself.
+        # Replaying the same steps on a fresh boot yields identical events, refusals and instances.
         #
-        # @param domain_path [String] path to the domain directory to boot, such as
-        #   `"examples/pizzas"`
+        # The runtime mints no identity, so drift is nondeterminism (a clock read, hash order).
+        # Two independent replays are compared so a corrupted first run cannot agree with itself.
+        #
+        # @param domain_path [String] the domain directory to boot, such as `"examples/pizzas"`
         # @param steps [Array<Hash>] the step list to replay twice
-        # @param adapter [Symbol] persistence adapter to boot with (`:memory`,
-        #   `:postgres`, or `:postgres_era`)
-        # @return [true, String] true if both replays produce identical histories
-        #   (after stripping declared nondeterministic fields); otherwise a message
-        #   naming the step count that diverged
+        # @param adapter [Symbol] persistence adapter (`:memory`, `:postgres`, or `:postgres_era`)
+        # @return [true, String] true, or a message naming the step count that diverged
         def replay_is_deterministic(domain_path, steps, adapter: :memory)
           first  = Replay.call(domain_path, steps, adapter: adapter)
           second = Replay.call(domain_path, steps, adapter: adapter)
 
-          # What leaves this comparison, and why, is declared once in
-          # `Nondeterministic::FIELDS`: the `outbox_row` group (per-enqueue
-          # uuids), the `event` group on each row's full `Event#to_h`
-          # (`occurred_at`, which `history[:events]` never carried), and the
-          # `history` group (live IR objects). Stripped per `outbox_traces`
-          # row rather than dropping `outbox_traces` wholesale: everything
-          # else on a row (status, consumer, kind, the event's own name/
-          # aggregate/id/payload) is reproducible from the steps alone and
-          # stays checked.
+          # What is stripped is declared in `Nondeterministic::FIELDS`. Outbox rows are stripped
+          # per row, not dropped, so status, consumer and event payload stay checked.
           strip_outbox_nondeterminism = lambda do |history|
             traces = Array(history[:outbox_traces]).map do |trace|
               trace.merge(rows: trace[:rows].map do |row|

@@ -1,12 +1,7 @@
 require "spec_helper"
 
-# The `else held == want` spec/query_comparators_spec.rb's own header
-# describes as already the cause of one real, shipped silent-`eq` bug
-# (gt/gte/lt/lte/ne/in/contains, before this table existed) is no longer a
-# quiet fallback for a new, unrecognized comparator either — it refuses
-# instead of guessing. A direct, no-boot unit test: the closed set itself
-# (Vocabulary::QueryComparator) is exhaustively covered by
-# query_comparators_spec.rb; this is the backstop for the tenth name.
+# Backstop for a name outside the closed comparator set covered by query_comparators_spec.rb:
+# it must be refused, not silently compared for equality.
 RSpec.describe "Comparison.holds?, an unrecognized comparator" do
   it "refuses rather than silently comparing for equality" do
     expect do

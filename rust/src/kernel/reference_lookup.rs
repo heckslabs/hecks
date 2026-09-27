@@ -1,47 +1,9 @@
-// Cross-aggregate dereference — `CommandRules::References#dereference`
-// (lib/hecks/runtime/command_rules/references.rb), read directly.
-// Ruby's own `given`/`ensures` clauses can name a hop through a declared
-// `reference_to`/`belongs_to` field (`customer.status`, `account.customer.
-// status`, `parent.account.customer.status`) — resolved by fetching the
-// referenced record through `@registry.repository(domain, target)` and
-// merging its own state (recursively dereferenced one hop further, up to
-// `DEREFERENCE_DEPTH`) under the field's own stripped `_id`-less name,
-// before the expression is ever evaluated. This file is that same
-// resolution, ported: a real repository lookup, not a static-shaped
-// approximation — a fetched record's own `Fielded::field` impl (already
-// generated, already type-correct: `Value::Int`/`Float`/`Str` exactly as
-// declared) answers every scalar the way it always has, the same
-// mechanism `command`/`aggregate`-level fields already use, just reached
-// one hop later.
-//
-// Why this is built outside `kernel::dispatch`/`dispatch_entity`, not
-// **inside them**: resolving a reference needs `store` — every other
-// aggregate's repo, not just this command's own — which structurally
-// only exists at the router level (`registry.rs`'s generated
-// `dispatch_by_name`, the same reason `resolve_references`'s own
-// existence check lives there and not in commands.rb — see dispatch.rs's
-// own header). Borrowing `store` immutably (for a lookup) and
-// `store.<this aggregate>` mutably (for the dispatch call itself) in the
-// same expression would be two overlapping borrows of the same value —
-// so the router resolves every reference into owned `DerefNode` data
-// first (a plain value, no longer borrowing `store` at all), and only
-// then takes the mutable per-aggregate borrow `dispatch_by_name`'s own
-// call already needed. `Store`'s generated `ReferenceLookup` impl is the
-// one piece still reached through `store`, and only during that earlier,
-// non-overlapping immutable phase.
+//! Cross-aggregate reference dereference for `given`/`ensures` clauses.
+//! Rust counterpart of `CommandRules::References#dereference` (references.rb).
 
 use super::{Field, Fielded, Value};
 
-/// One declared `reference_to`/`belongs_to` field, as data —
-/// `rust/project/reference_specs.rb`'s own per-attribute walk
-/// (`Attribute#reference?`, the same test `reactions.rb`'s own
-/// `reference_target`/`naming.rb`'s own `reference_type?` already use for
-/// the existence check), computed once at codegen time. `field` is the
-/// stored attribute name (`"customer_id"`); `as_name` is what a `given`/
-/// `ensures` clause actually writes (`"customer"` — the same `attribute.
-/// name.to_s.sub(/_id\z/, "")` stripping `CommandRules::References
-/// #dereference` uses); `target` is the fully domain-qualified aggregate
-/// name (`"Banking::Customer"`) `ReferenceLookup::find_fielded` routes on.
+/// A declared `reference_to`/`belongs_to` field: stored name, clause name, target aggregate.
 #[derive(Clone, Copy)]
 pub struct ReferenceSpec {
     pub field: &'static str,
@@ -49,34 +11,15 @@ pub struct ReferenceSpec {
     pub target: &'static str,
 }
 
-/// Every generated aggregate's own reference specs, keyed by its fully
-/// domain-qualified name — one static table per domain (`registry.rb`'s
-/// own `emit_reference_table`), consulted by `deref_layer` to know how
-/// to recurse one hop further once it has fetched some target record: the
-/// target's own specs are looked up here by name rather than threaded
-/// through as a second parameter at every call site, since a spec's
-/// `target` is already the only fact identifying which row applies.
+/// Per-aggregate reference specs keyed by fully qualified aggregate name.
 pub type ReferenceTable = &'static [(&'static str, &'static [ReferenceSpec])];
 
-/// Ruby's own `DEREFERENCE_DEPTH` (`references.rb`), read directly:
-/// "nothing in this corpus dots more than two hops, and a bound is
-/// simpler than tracking visited (type, id) pairs for a cycle nothing
-/// here declares." Kept as the identical bound here for the identical
-/// reason — a schema cycle (A references B, B references A) is
-/// structurally representable in `ReferenceTable` (two static rows
-/// pointing at each other), so recursion needs a hard floor regardless
-/// of whether any real corpus declaration ever reaches it.
+/// Maximum hops followed; bounds recursion on cyclic references.
+// A cycle (A -> B -> A) is representable in `ReferenceTable`, so recursion needs a floor.
 pub const DEREFERENCE_DEPTH: usize = 4;
 
-/// `@registry.repository(domain, target).find(id)`, read directly — the
-/// one piece of this mechanism that genuinely needs `store` (every
-/// generated aggregate's own repo), so it's a trait `Store` itself
-/// implements (`registry.rb`'s own generated `impl`), not a free
-/// function. Returns the fetched record type-erased but otherwise
-/// unchanged — the same generated `Fielded` impl every other lookup in
-/// this kernel already trusts, so a fetched `Customer`'s `status` field
-/// answers `Value::Str` exactly as declared, never a JSON-roundtripped
-/// guess at its type.
+/// Fetches a record by aggregate name and id, type-erased behind `Fielded`.
+// Reachable only through `store`: resolve into owned `DerefNode`s before the mutable borrow.
 pub trait ReferenceLookup {
     fn find_fielded(&self, target: &str, id: &str) -> Option<Box<dyn Fielded>>;
 }
@@ -85,17 +28,7 @@ fn specs_for(table: ReferenceTable, target: &str) -> &'static [ReferenceSpec] {
     table.iter().find(|(name, _)| *name == target).map(|(_, specs)| *specs).unwrap_or(&[])
 }
 
-/// One fetched, recursively-dereferenced record — `base` answers every
-/// field it declares directly (`Fielded::field`, delegated), `nested`
-/// answers the handful of names that are actually another hop
-/// (`"customer"` on a fetched `Account`), checked first so a reference
-/// name never loses to a same-named literal field (nothing in this
-/// corpus collides the two, but `nested` taking precedence matches
-/// `dereference`'s own hydrated-hash-wins framing generally: the merge
-/// this node represents is always the higher-precedence side of
-/// whichever tier constructed it). `id` is the key it was fetched by
-/// (`ReferenceLookup::find_fielded`'s own argument) — kept alongside
-/// `base`/`nested` purely for `as_scalar`, below.
+/// A fetched record plus its dereferenced nested references.
 pub struct DerefNode {
     id: String,
     base: Box<dyn Fielded>,
@@ -104,27 +37,14 @@ pub struct DerefNode {
 
 impl Fielded for DerefNode {
     fn field(&self, name: &str) -> Option<Field<'_>> {
+        // `nested` is checked first so a reference name beats a same-named field.
         if let Some((_, node)) = self.nested.iter().find(|(n, _)| *n == name) {
             return Some(Field::Nested(node));
         }
         self.base.field(name)
     }
 
-    /// `Resolver#unwrap_scalar`'s own fallthrough for a dereferenced
-    /// reference, read directly: a bare `source`/`destination` (no
-    /// further dotted segment) doesn't unwrap to a single field the way
-    /// a `{value: X}` VO does — Ruby's own version just returns the
-    /// whole hydrated Hash, still comparable (`==`/`!=`) and testable
-    /// (`.empty?`) generically. This kernel has no equivalent of "compare
-    /// two arbitrary Hashes structurally" (`Value` has no `Hash`
-    /// variant), so it collapses to the id it was fetched by instead —
-    /// two dereferenced references are the same reference iff they
-    /// resolved to the same id, which is what `source != destination`
-    /// ("a transfer moves BETWEEN accounts") and `!source.empty?`
-    /// actually need: a non-empty, comparable identity, not the full
-    /// state. Observably identical to Ruby's own Hash-equality reading
-    /// for every real dispatch this corpus exercises — a resolved
-    /// reference's id already determines its whole fetched state.
+    // `Value` has no map variant; equal ids mean the same reference.
     fn as_scalar(&self) -> Option<Value> {
         Some(Value::Str(self.id.clone()))
     }
@@ -133,19 +53,6 @@ impl Fielded for DerefNode {
     }
 }
 
-/// `CommandRules::References#dereference`'s own recursive body, read
-/// directly: for every reference `specs` declares, read its id off
-/// `source`, fetch the target, and recurse into that target's own specs
-/// one hop further — `next if id.nil?` (an absent/empty id — no
-/// reference set yet, e.g. `CardPayment#disputed_by` before the first
-/// `Dispute`) and `next unless record` (a dangling id `ReferenceLookup`
-/// can't resolve) are both silently skipped, never refused: by the time
-/// evaluation reaches here, `resolve_references`'s own existence check
-/// (`registry.rs`'s generated reference checks) has already run for
-/// every reference this command declares directly — a still-missing hop
-/// two levels down is exactly the "cannot resolve" a `Lookup` against it
-/// would raise on its own, no different from Ruby's own `EvaluationError`
-/// path.
 fn deref_layer(lookup: &dyn ReferenceLookup, table: ReferenceTable, specs: &'static [ReferenceSpec], source: &dyn Fielded, depth: usize) -> Vec<(&'static str, DerefNode)> {
     if depth == 0 {
         return Vec::new();
@@ -155,6 +62,7 @@ fn deref_layer(lookup: &dyn ReferenceLookup, table: ReferenceTable, specs: &'sta
         .iter()
         .filter_map(|spec| {
             let Some(Field::Value(Value::Str(id))) = source.field(spec.field) else { return None };
+            // Absent or dangling ids are skipped, not refused: direct ones were already checked.
             if id.is_empty() {
                 return None;
             }
@@ -166,68 +74,25 @@ fn deref_layer(lookup: &dyn ReferenceLookup, table: ReferenceTable, specs: &'sta
         .collect()
 }
 
-/// An aggregate/entity's own reference fields, dereferenced off its
-/// stored record (an acting command's own hydrated instance) —
-/// `CommandRules::Admissibility#enforce_givens`'s own `dereference(domain,
-/// owner, subject)`, read directly, spread across several top-level
-/// names (`"customer"`, not nested under one key). `target`/`id` name the
-/// record to fetch; an id this lookup can't resolve, or a creating
-/// command (no record exists yet — its caller passes no `id` at all,
-/// see `command_deref` below for why that's not a real gap), answers
-/// with the empty list, same as Ruby's own `owner.nil?` guard.
+/// Dereferences an aggregate/entity's stored reference fields, spread across top-level names.
 pub fn owner_deref(lookup: &dyn ReferenceLookup, table: ReferenceTable, target: &'static str, id: &str) -> Vec<(&'static str, DerefNode)> {
     let Some(base) = lookup.find_fielded(target, id) else { return Vec::new() };
     deref_layer(lookup, table, specs_for(table, target), base.as_ref(), DEREFERENCE_DEPTH)
 }
 
-/// An entity command's own parent aggregate, wrapped as one node —
-/// `CommandRules::Admissibility#enforce_givens`'s own `parent:
-/// dereference(domain, parent.aggregate, parent.state).merge(parent.
-/// state)`, read directly: entity givens read the whole parent under one
-/// name (`parent.account.customer.status`), not spread across top-level
-/// keys the way an aggregate's own references are (`owner_deref`,
-/// above) — `DerefNode`'s own shape (a base record plus its nested
-/// further-dereferenced references) already answers both halves of that
-/// merge directly, so this is `owner_deref`'s identical fetch, just kept
-/// as one un-spread node instead of unpacked into a list.
+/// Wraps an entity command's parent aggregate as one dereferenced node.
 pub fn parent_deref(lookup: &dyn ReferenceLookup, table: ReferenceTable, target: &'static str, id: &str) -> Option<DerefNode> {
     let base = lookup.find_fielded(target, id)?;
     let nested = deref_layer(lookup, table, specs_for(table, target), base.as_ref(), DEREFERENCE_DEPTH);
     Some(DerefNode { id: id.to_string(), base, nested })
 }
 
-/// A command's own reference-typed arguments, dereferenced directly off
-/// the already-typed, already-`from_json`'d `args` struct —
-/// `CommandRules::References#dereference(domain, command, args)`, read
-/// directly. No repository lookup is needed to find the source here
-/// (`args` already is it, unlike `owner_deref`'s `target`/`id` pair,
-/// which still has to fetch the record it reads from) — only to resolve
-/// what each reference-typed argument points at, the same
-/// `deref_layer` every other tier reuses. Covers both a creating
-/// command's own reference arguments (`Account.Open`'s `customer_id` —
-/// the only tier available before the record exists at all, since
-/// `owner_deref` needs an `id` a creating command's caller never has)
-/// and an acting command's own extra reference arguments beyond its
-/// identity target (`CardPayment.Dispute`'s `disputed_by`, unset on the
-/// stored record until this very dispatch sets it).
+/// Dereferences a command's reference-typed arguments.
 pub fn command_deref(lookup: &dyn ReferenceLookup, table: ReferenceTable, specs: &'static [ReferenceSpec], args: &dyn Fielded) -> Vec<(&'static str, DerefNode)> {
     deref_layer(lookup, table, specs, args, DEREFERENCE_DEPTH)
 }
 
-/// The Fielded surface `given`/`ensures` evaluation actually reads as
-/// `EvalContext.args` (dispatch.rs) — `CommandRules::Admissibility
-/// #enforce_givens`'s own `attrs = dereference(domain, owner, subject).
-/// merge(args).merge(dereference(domain, command, args))`, read
-/// directly: `command_deref` wins ties (checked first — includes a
-/// `"parent"` entry for an entity command, appended alongside its own
-/// reference arguments by the generated caller), the untouched typed
-/// `args` struct is checked second, `owner_deref` (an aggregate/entity's
-/// own stored reference fields) is checked last. Merge order matters the
-/// **same way it does in Ruby**: an aliased command-level reference
-/// (`reference_to Customer, as: :customer`) hydrates under the same name
-/// the raw id argument already holds — `command_deref` must win that
-/// collision, or a `.status` lookup would hit the raw id String instead
-/// (Ruby's own comment on this exact bug, references.rb, read directly).
+/// The `Fielded` view `given`/`ensures` read: `command_deref`, then `args`, then `owner_deref`.
 pub struct WithReferences<'a> {
     pub command_deref: &'a [(&'static str, DerefNode)],
     pub args: &'a dyn Fielded,
@@ -236,6 +101,7 @@ pub struct WithReferences<'a> {
 
 impl<'a> Fielded for WithReferences<'a> {
     fn field(&self, name: &str) -> Option<Field<'_>> {
+        // `command_deref` must win: an aliased reference shares its name with the raw id argument.
         if let Some((_, node)) = self.command_deref.iter().find(|(n, _)| *n == name) {
             return Some(Field::Nested(node));
         }
@@ -252,45 +118,19 @@ impl<'a> Fielded for WithReferences<'a> {
     }
 }
 
-// The synchronous half of `projects` (S12, ADR 0025) —
-// `CommandInterpreter#seed_projected_fields` (command_interpreter.rb),
-// read directly: "every time a record with `projects` fields is about to
-// save — creating or acting, either can be the first time a referenced
-// record resolves — read each one once ... using the exact same
-// `RebuildSweep.remote_value` a sweep itself would compute."
-//
-// Built on the same pre-resolved `WithReferences` every dispatch call
-// already constructs for `given`/`ensures` evaluation, not a second
-// repository lookup — `owner_deref`/`command_deref` already fetch
-// exactly the referenced record a projected field's own `reference` name
-// points at (the same `ReferenceTable` row, since every reference a
-// `projects` field names is structurally a real `reference_to`/
-// `belongs_to` attribute too — `BluebookBuilder#validate_projected_
-// fields!` requires it), so this reads the remote field straight off the
-// already-fetched `DerefNode`, no new borrow-of-`store` needed (this
-// file's own header explains why a genuinely new lookup couldn't live
-// inside `dispatch` at all). Handles the chained case too
-// (`Transfer.source_customer_status` from `source.customer_status`,
-// itself a projected field on `Account`) for free: `DerefNode::field`
-// falls through to the fetched record's own generated `Fielded` impl,
-// which answers a projected field the identical way it answers any other
-// attribute once codegen has given it a struct field and a read arm.
-//
-// Scoped to `Option<String>` — String-typed remote fields (a lifecycle
-// `status`, or another projected field) cover every real `projects`
-// declaration in the corpus today; a numeric/boolean projected field
-// would need real generalizing here, not silently mis-seeding, so this
-// stays narrow rather than guessing a coercion nothing has exercised.
+/// A `projects` field: its name, the reference it follows, and the remote field it reads.
 pub struct ProjectedFieldSpec {
     pub field: &'static str,
     pub reference: &'static str,
     pub remote_field: &'static str,
 }
 
+/// Reads each projected field off the already-dereferenced references.
 pub fn seeded_projections(with_references: &dyn Fielded, specs: &'static [ProjectedFieldSpec]) -> Vec<(&'static str, Option<String>)> {
     specs
         .iter()
         .map(|spec| {
+            // Only `Option<String>` remote fields are seeded; other types would need a coercion.
             let value = match with_references.field(spec.reference) {
                 Some(Field::Nested(node)) => match node.field(spec.remote_field) {
                     Some(Field::Value(Value::Str(s))) => Some(s),
@@ -303,15 +143,7 @@ pub fn seeded_projections(with_references: &dyn Fielded, specs: &'static [Projec
         .collect()
 }
 
-// The write half a generic `Fielded::field` read has no counterpart for
-// — every generated aggregate record implements this, one match arm per
-// `projects` field it declares (empty match body, `_ => {}`, for every
-// aggregate with none), so `kernel::dispatch` can apply `seeded_
-// projections`' own output generically without a per-command closure
-// the way `apply_mutations` needs one (a projected field's own shape
-// never varies per-command the way a command's own mutations do — it is
-// always exactly this aggregate's own declared `projects` list, so one
-// generated method per aggregate is enough).
+/// Write side of `projects`: one generated match arm per projected field.
 pub trait SetProjectedField {
     fn set_projected_field(&mut self, name: &'static str, value: Option<String>);
 }

@@ -5,9 +5,8 @@ require_relative "../../bluebook/dsl/hecksagon_builder"
 module Hecks
   module Facade
     module Surface
-      # One chapter's module: vision and aggregate roll-call on the
-      # singleton, one aggregate door per declared head, and the
-      # declaration hook for names the door does not carry.
+      # One chapter's module: vision and aggregate list on the singleton, one
+      # aggregate door per declared head, and a `const_missing` hook for undeclared names.
       module Chapter
         # Builds the anonymous module that stands for one booted chapter: `vision`,
         # `aggregates`, `docs`, `narrate` and `project` as singleton methods, plus one
@@ -24,49 +23,22 @@ module Hecks
           chapter.define_singleton_method(:vision)     { bluebook.vision }
           chapter.define_singleton_method(:aggregates) { bluebook.aggregates.map(&:name).sort }
 
-          # **The chapter, explaining itself**. `Projector::DocsProjector` reads
-          # nothing but this bluebook's own IR, so the document cannot drift
-          # from the domain — the same guarantee `bin/reference` gives the DSL
-          # reference by generating it from the Syntax chapter.
-          #
-          # A method rather than only a script because that is what gets it
-          # read: `QualityControl.docs` in a console, beside `vision` and
-          # `aggregates`, at the moment somebody is wondering what a verb
-          # wants. Projected on each call rather than memoised — it is a pure
-          # read of the IR, and a stale document is the entire thing this
-          # exists to prevent.
+          # The chapter's usage document, projected from its IR on each call so it
+          # cannot go stale.
           chapter.define_singleton_method(:docs) do |**options|
             Projector.call(:docs, bluebook: bluebook, options: options)
           end
 
-          # **The chapter, read back in english** — `Projector::NarrateProjector`
-          # beside `:docs`, for the reader who needs to confirm the domain is
-          # right rather than call it: `QualityControl.narrate` in a console.
+          # The chapter read back in english, via `Projector::NarrateProjector`.
           chapter.define_singleton_method(:narrate) do |**options|
             Projector.call(:narrate, bluebook: bluebook, options: options)
           end
 
-          # **The domain's own IR, projected**. `Projector` has taken
-          # `call(name, bluebook:, options:)` since §30, but nothing could
-          # reach it from a booted domain — this module already closes
-          # over the one `Bluebook` every projector wants and simply
-          # never handed it out, so every bin/ projector rebuilt a
-          # Registry and reloaded the files to recover what was already
-          # sitting here.
+          # Projects the chapter's IR through a target; `out:` writes the artifact and
+          # the remaining options go to the projector (`audience:` for OIDC).
           #
           #   Pizzas.project(Projections::OIDC)
           #   Pizzas.project(Projections::Shape, out: "shape.json")
-          #
-          # No `to_ir` companion: `project(Projections::IR)` already
-          # answers with the canonical serialized form, and handing out
-          # the live graph as well would be a second way to say the same
-          # thing. Anything genuinely needing the graph is a projector,
-          # and a projector is given it.
-          #
-          # `out:` writes and everything else is passed through to the
-          # target — so `options` stays the projector's own vocabulary
-          # (`audience:` for OIDC) rather than a fixed set this method
-          # would have to know about.
           chapter.define_singleton_method(:project) do |target, out: nil, **options|
             key      = Projector.key_for(target)
             artifact = Projector.call(key, bluebook: bluebook, options: options)
@@ -79,25 +51,9 @@ module Hecks
             chapter.const_set(aggregate.hecks_name, aggregate_module(dispatcher, bluebook.name, aggregate))
           end
 
-          # Inside a hecksagon, a name is a declaration, not a lookup. A
-          # `.hecksagon` may name an aggregate this door does not carry — a stale
-          # door from an earlier boot resolving another registry's chapter, which
-          # can happen because the facade is installed once a boot finishes, not
-          # on every load. With a collector open, the name becomes a `BindingProxy`
-          # recording the same bind the aggregate module would ; without one, it
-          # is a genuine NameError.
-          #
-          # The other reader of a miss is S0b's own bridge (docs/dsl-work-
-          # slices.md, const_shim.rb's `ScopedConstant`): a bluebook still being
-          # declared that names `#{bluebook.name}::Something` — an event, a
-          # command reference, an `admits:` — reaches here, not
-          # `Object.const_missing`, the moment this chapter's own facade already
-          # exists (a previous boot in the same process, or this same chapter
-          # re-entering its own name). `ConstShim.active?` is exactly as true
-          # here as it is at the top level, mid-declaration, and consulting the
-          # same resolver is what makes a scoped reference resolve identically
-          # whether or not a facade happens to be built yet — a bridge consulted
-          # only at the top level works only before any facade exists.
+          # Inside a hecksagon a name is a declaration: with a collector open it becomes
+          # a `BindingProxy`. Otherwise a scoped reference from a bluebook mid-declaration
+          # goes to the `ConstShim` resolver, so it resolves whether or not a facade exists.
           chapter.define_singleton_method(:const_missing) do |name|
             collector = Bluebook::DSL::HecksagonBuilder.collector
             return Bluebook::DSL::BindingProxy.new("#{bluebook.name}::#{name}", collector) if collector

@@ -2,61 +2,24 @@ module RustProjection
   module Projector
     module_function
 
-    # `use crate::generated::<mod_name>::<owner>::<Type>;` for every value
-    # object THIS aggregate's own commands/entity-commands/port operations
-    # reference by NAME but never declare locally — the ONLY place a
-    # "foreign" value-object type can appear at all: an aggregate's own
-    # attributes, a value object's own fields, and an entity's own
-    # attributes are always LOCAL by construction (the DSL only lets a
-    # construct reference a value object already visible where it's
-    # declared), but a COMMAND argument can name ANY value object the
-    # whole domain declares (`domain_generator.rb`'s own header on
-    # `domain_value_object_owner`) — `SafeDepositBox.Rent`'s own
-    # `attribute :customer, CustomerNumber` (`Customer`'s own VO) is the
-    # corpus's one live example.
-    #
-    # A struct field's own type/a `TypeName::from_json(...)` call still
-    # emits the SAME bare identifier `rust_type`/`rust_ident` always did
-    # — this is what makes that identifier actually resolve for a foreign
-    # type, the same way any other Rust file imports a sibling module's
-    # own struct, rather than threading a qualified path through every
-    # codegen call site that ever builds one.
-    #
-    # SAME-CHAPTER ONLY — `domain_value_object_owner` is built from THIS
-    # domain's own `ir[:aggregates]` alone (`DomainGenerator.call` runs
-    # once per chapter), so a value object declared in a DIFFERENT
-    # attached chapter is a real, narrower gap this doesn't cover; no
-    # command in the corpus needs it today (checked directly), so it's
-    # left unresolved rather than guessed at, the same way `command_skip_
-    # reason`'s own unresolved shapes already are.
+    # `use` statements for value-object types this aggregate's commands
+    # reference by name but don't declare locally (same chapter only).
     def cross_aggregate_vo_imports(aggregate, domain_value_object_owner, mod_name)
       local_names = aggregate[:value_objects].map { |vo| vo[:name] }.to_set
       attrs = (aggregate[:commands] + aggregate[:entities].flat_map { |e| e[:commands] } +
                aggregate[:ports].flat_map { |p| p[:operations] })
               .flat_map { |c| c[:attributes] }
 
-      # A type name that's ALSO declared LOCALLY is never foreign, no
-      # matter what `domain_value_object_owner` says — many aggregates
-      # across this corpus independently declare their own same-named VO
-      # ("Position", "IdentityPath", ...; not a shared concept, just a
-      # common one), and `domain_value_object_owner` keeps only ONE
-      # owner per name domain-wide. The local declaration always wins;
-      # only a type THIS aggregate never declares at all can be foreign.
+      # A locally-declared type is never "foreign", even if some other
+      # aggregate owns a VO of the same name domain-wide.
       foreign_types = attrs.map { |a| a[:type] }.uniq.reject { |type| local_names.include?(type) }
       foreign_types.filter_map { |type| domain_value_object_owner[type] && [type, domain_value_object_owner[type]] }
                    .sort_by { |(type, owner)| [owner, type] }
                    .map { |(type, owner)| "use crate::generated::#{mod_name}::#{owner.downcase}::#{rust_ident(type)};" }
     end
 
-    # Ruby's real cross-type coercion — `Value::Coercion#fields_for`, read
-    # directly: a value object rebuilds into ANY differently-named target
-    # value object that shares its field NAMES, matched by name, not
-    # position, with the target's own `default:` filling anything the
-    # source doesn't carry (`Value.build`'s own fallback). `PositiveMoney`
-    # into a `Money` slot — `Credit`'s own `amount`, appended onto a
-    # `LedgerEntry` — is the real, live example this corpus carries, not
-    # a hypothetical: both declare `cents`/`currency`, so every target
-    # field is answered by name.
+    # Whether target_vo's fields can all be filled from source_vo's fields
+    # (matched by name) or the target's own defaults.
     def vo_field_bridgeable?(source_vo, target_vo)
       return false unless source_vo && target_vo
       return closed_sets_bridgeable?(source_vo, target_vo) if source_vo[:closed_set] || target_vo[:closed_set]
@@ -66,14 +29,8 @@ module RustProjection
       end
     end
 
-    # ONE CLOSED SET INTO ANOTHER — `sets :draw_offer, to: :side` (chess:
-    # a `Color`, white/black, into a `DrawOffer`, none/white/black).
-    # `Value.for_attribute` coerces through the sole scalar at runtime
-    # and refuses a non-member; here it is admitted only when it can
-    # NEVER refuse — both single-field, every source member also a
-    # target member — so the generated bridge is an infallible `match`,
-    # one arm per source member, usable inside a creating command's own
-    # record-building closure where nothing may fail.
+    # Source closed-set members mappable to target members, or nil unless
+    # every source member is also a target member (so the bridge can't fail).
     def closed_set_bridge_members(source_vo, target_vo)
       return nil unless source_vo[:closed_set] && target_vo[:closed_set]
       return nil unless source_vo[:attributes].size == 1 && target_vo[:attributes].size == 1
@@ -107,42 +64,20 @@ module RustProjection
       "#{rust_ident(target_type)} { #{fields.join(', ')} }"
     end
 
-    # Why a command is skipped, or nil if it isn't. Named per-command, per-
-    # reason, so coverage is visible at generation time rather than only
-    # discoverable by noticing a dispatch function that should exist doesn't.
-    # Shared with `value_rhs`, which actually performs whichever bridge
-    # this says is possible — kept as one function so the "can we generate
-    # this" check and the "here's how" generator can never silently
-    # disagree about what counts as bridgeable. Used by BOTH `:set`'s own
-    # RHS and `:append`'s per-field RHS — the two real places a command
-    # copies one already-typed thing into a differently-typed slot.
+    # Whether a value can move from source_type to target_type. Shared
+    # with `value_rhs`, which performs the bridge this checks for.
     def bridgeable_value_types?(source_type, target_type, value_objects_by_name)
       return true if source_type == target_type
-      # Both sides are represented by the identical Rust scalar even
-      # though their DECLARED type names differ — `Reference<ValueObject>`
-      # into a plain `String` field (the self-hosted grammar's own
-      # `Aggregate.Attribute` append, `type:`) is the real, live case:
-      # `effective_scalar_type` already maps a Reference to `"String"`,
-      # the same representation a bare `String` attribute gets.
+      # Compares Rust representations, not declared type names: a
+      # `Reference<T>` and a bare `String` are both just `String`.
       return true if effective_scalar_type(source_type) && effective_scalar_type(source_type) == effective_scalar_type(target_type)
 
       source_vo = value_objects_by_name[source_type]
       target_vo = value_objects_by_name[target_type]
       return vo_field_bridgeable?(source_vo, target_vo) if target_vo
 
-      # A bare scalar target (the lifecycle field, "String") — only a
-      # single-field source VO whose one field's own type already IS the
-      # target scalar unwraps cleanly into one. Compared via `effective_
-      # scalar_type` on BOTH sides, same as the Reference-vs-bare-String
-      # check above — not exact type-name equality: `CustomerNumber`'s
-      # own field is a plain `String`, and `SafeDepositBox.Rent`'s own
-      # `sets :customer` target is `Reference<Customer>` (also `String`
-      # at the Rust representation level) — a real, live cross-aggregate
-      # example (`CustomerNumber` is declared on `Customer`'s own
-      # aggregate, resolved here only once `value_objects_by_name` widens
-      # to the whole domain — `domain_generator.rb`'s own header), not a
-      # hypothetical exact-name match this used to require and neither
-      # side ever actually has.
+      # A single-field source VO unwraps into a bare scalar target when
+      # that one field's own Rust representation already matches it.
       return false unless source_vo && !source_vo[:closed_set] && source_vo[:attributes].size == 1
 
       unwrapped_type = source_vo[:attributes].first[:type]
@@ -163,45 +98,16 @@ module RustProjection
       "#{source_expr}.#{rust_ident_field(source_vo[:attributes].first[:name])}.clone()"
     end
 
-    # BUG#25 — TRUE exactly when a list-to-list `:set` genuinely needs
-    # `list_value_rhs`'s own per-element rebuild, rather than a single
-    # whole-container `.clone()`. Mirrors `value_rhs`'s own first two
-    # early returns — same-named types, or two types that already share
-    # ONE Rust representation (`effective_scalar_type` equal, `Reference
-    # <Member>` and a bare `String` both being exactly `String`) — a
-    # `.clone()` on the WHOLE expression is correct there regardless of
-    # list-ness OR optionality (a `CardPayment.tags` "redundant re-set" —
-    # `sets :tags, to: :tags` where both sides are `Tag` — needs a bare
-    # `args.tags.clone()`, whatever concrete Rust type `args.tags` itself
-    # already is: `Vec<Tag>`, or `Option<Vec<Tag>>` when the ARGUMENT is
-    # optional; `list_value_rhs`'s own `.iter()` breaks against the
-    # latter, found live: E0277, "a value of type `Option<Vec<Tag>>`
-    # cannot be built from an iterator over elements of type `Vec<Tag>`").
-    # Element-wise reconstruction is needed ONLY when the two sides
-    # genuinely have DIFFERENT per-element Rust shapes — `Handle` (a
-    # value object) into `Reference<Member>` (a bare `String`) being the
-    # one shape this bug is actually about.
+    # Whether a list `:set` needs per-element rebuilding, rather than one
+    # `.clone()`, because source and target elements differ in representation.
     def list_bridge_requires_element_mapping?(source_type, target_type)
       return false if source_type == target_type
 
       !(effective_scalar_type(source_type) && effective_scalar_type(source_type) == effective_scalar_type(target_type))
     end
 
-    # `value_rhs` ELEMENT-WISE, for a `:set` mutation whose source
-    # argument AND target attribute are both lists AND whose per-element
-    # types genuinely differ (`list_bridge_requires_element_mapping?`
-    # above is the caller's own gate) — a `has_many`'s own
-    # `Reference<Target>` list field, set wholesale from a
-    # `list_of(SomeHandleType)` argument (`Circle.Admit`'s own `sets
-    # :members` is the real, live shape this closes). `value_rhs` itself
-    # stays scalar-only/element-only on purpose (every other caller of it
-    # — command-creation field assembly, `:append`'s own per-field RHS —
-    # already passes it one ELEMENT at a time, never a whole `Vec`), so
-    # this wraps it in the SAME `.iter().map(...).collect()` shape
-    # `emit_to_json_flat`'s own list branch already uses, rather than
-    # teaching `value_rhs` to branch on list-ness itself and risk two
-    # different call shapes (bare value vs list) tangled into one
-    # function's logic.
+    # `value_rhs`, mapped over each element of a list `:set` whose source
+    # and target element types differ.
     def list_value_rhs(source_expr, source_type, target_type, value_objects_by_name)
       "#{source_expr}.iter().map(|item| #{value_rhs('item', source_type, target_type, value_objects_by_name)}).collect()"
     end
@@ -212,21 +118,16 @@ module RustProjection
       return false unless value.is_a?(String) || value.is_a?(Numeric) || value == true || value == false
       return true unless target_type && value_objects_by_name[target_type]
 
-      # A SCALAR literal into a SINGLE-FIELD value object — `Value.
-      # for_attribute`'s own rewrap, the coercion every `sets :x, to:
-      # "literal"` onto a closed set (a chess rook's `moved: "moved"`)
-      # or a plain one-field VO relies on at runtime: the literal is the
-      # sole field's value, and bridges exactly as the hash it stands for.
+      # A scalar literal into a single-field VO stands for that field's
+      # value (mirrors `Value.for_attribute`'s runtime rewrap).
       sole = sole_field_of(target_type, value_objects_by_name)
       return false unless sole
 
       literal_hash_bridgeable?({ sole => value }, target_type, value_objects_by_name)
     end
 
-    # The rendered right-hand side of ANY literal into a target type —
-    # a Hash through `literal_hash_rhs`, a scalar into a single-field
-    # value object through the same after the rewrap above, a scalar
-    # into a scalar as itself.
+    # The right-hand side for a literal into target_type: a Hash, a
+    # scalar rewrapped into a single-field VO, or the scalar itself.
     def literal_rhs_for(value, target_type, value_objects_by_name)
       return literal_hash_rhs(value, target_type, value_objects_by_name) if value.is_a?(Hash)
 
@@ -236,15 +137,8 @@ module RustProjection
       literal_rhs(value)
     end
 
-    # A literal Hash's own bridgeability into a target type — either an
-    # ordinary VO (every declared field present, by Symbol or String key)
-    # or a CLOSED SET (the Hash matches one member row's own fields
-    # exactly, the same match `admit_member` performs at runtime — an
-    # append's literal `direction: { value: "debit" }` targets exactly
-    # this shape, `LedgerDirection`). Shared by `:set`'s literal source and
-    # `:append`'s literal fields — the same Hash-shaped literal, unmarked
-    # from either `classified_source`'s raw value or `Marks.read` of an
-    # `appended_fields` string, bridges the identical way once it's a Hash.
+    # Whether a literal Hash supplies every field a target VO (or one
+    # of its closed-set members) needs.
     def literal_hash_bridgeable?(hash, target_type, value_objects_by_name)
       vo = value_objects_by_name[target_type]
       return false unless vo
@@ -283,10 +177,8 @@ module RustProjection
       attr && attr[:name]
     end
 
-    # The target half of an `:increment`/`:decrement` mutation — the
-    # attribute plus which of ITS OWN fields is the one Integer field the
-    # arithmetic actually touches. `nil` when the target isn't a plain
-    # (non-list) value-object attribute with exactly one such field.
+    # The attribute and its one Integer field an `:increment`/`:decrement`
+    # touches, or nil unless the target is a single-field integer VO.
     def arithmetic_target_field(mutation, aggregate, value_objects_by_name)
       target_attr = aggregate[:attributes].find { |a| a[:name].to_s == mutation[:target].to_s }
       return nil unless target_attr && !target_attr[:list]
@@ -295,18 +187,8 @@ module RustProjection
       field && [target_attr, field]
     end
 
-    # The amount half — resolved to a raw Rust integer-typed EXPRESSION, not
-    # a value object, since only the one shared field ever actually
-    # participates in the arithmetic (arithmetic.rb's own
-    # `arithmetic_value_object`, read directly: `current.with(field,
-    # current[field] + sign*amount[field])` — every OTHER field of `current`
-    # passes through untouched, which is exactly what emit_mutation_line's
-    # `..current` struct-update syntax gives it). A bare `Integer`-typed
-    # argument needs no field walk; a VO-typed argument needs its own
-    # Integer field read off; a literal (`ScheduledPayment.Retry`'s `{value:
-    # 1}` — not `.inspect`'d, see literal_set_bridgeable? above) reads that
-    # same field out of the Hash directly. Returns nil, not raise, when
-    # nothing bridges — command_skip_reason's half of this pairing.
+    # The amount side of an `:increment`/`:decrement` as a raw Rust
+    # integer expression. Returns nil, not raise, when nothing bridges.
     def arithmetic_amount_expr(source, command, value_objects_by_name, target_integer_field)
       if source[:kind] == "literal"
         value = source[:value]
@@ -325,16 +207,8 @@ module RustProjection
       end
     end
 
-    # `clamp:`'s own bounds — always a literal two-element `[min, max]`
-    # Array of Integers (`Bluebook::Behaviour::Mutation#classified_source`:
-    # anything that isn't a Symbol or a StateRef is `{kind: "literal",
-    # value: source}` untouched, and `CommandBuilder#sets_impl`'s own
-    # `clamp:` kwarg only ever receives the bare Array a bluebook author
-    # wrote — `sets :field, clamp: [min, max]`). `nil`, not raise, for
-    # anything else — a non-literal source, a wrong-length Array, or a
-    # non-Integer bound (this generator's own Integer-only scope,
-    # matching `integer_field_of`/`arithmetic_target_field`, not widened
-    # here either) — `command_skip_reason`'s half of this pairing.
+    # `clamp:`'s literal `[min, max]` bounds, or nil for anything else
+    # (non-literal source, wrong length, non-Integer bound).
     def clamp_bounds_ints(source)
       return nil unless source[:kind] == "literal"
 
@@ -344,41 +218,16 @@ module RustProjection
       value
     end
 
-    # An aggregate attribute a CREATING command's own arguments never
-    # mention — `Runtime::Instance.defaults`/`.default_for`, read directly:
-    # every declared attribute gets a value the moment a record is minted,
-    # not just the ones the creating command happened to name. Two real
-    # shapes: the attribute itself carries a `default:` (rare — checked
-    # first, so it wins the way Ruby's own `default_for` orders its two
-    # `return`s), or its VALUE OBJECT's every field carries one of its own
-    # (`RetryCount { value: Integer, default: 0 }` — `ScheduledPayment`
-    # never sets `attempts:` at all; `Value.build(value_object, {})` builds
-    # it from nothing but those defaults). `nil` — not raise — for anything
-    # else, the same as Ruby's own `default_for` returning a real `nil`
-    # (no default anywhere): the record's field is genuinely unset, not a
-    # gap this generator failed to bridge.
+    # The default for an attribute a creating command's arguments don't
+    # mention: its own default, or one built from its VO's field defaults.
     def creation_default_rhs(attr, value_objects_by_name)
       default = attr[:default]
       unless default.nil?
         return literal_rhs(default) unless default.is_a?(Hash)
 
-        # BACKFILLED FROM THE TARGET VO'S OWN PER-FIELD DEFAULTS —
-        # `attribute :refunded_amount, Money, default: { cents: 0 }`
-        # names only `cents`; Money's own `currency` attribute carries
-        # its own `default: "USD"`. Every OTHER caller of
-        # literal_hash_rhs here (mutations.rb x3, bridging.rb's own
-        # `literal_rhs` dispatch) checks literal_hash_bridgeable? first
-        # and takes a different path when it's false; this was the one
-        # caller that called literal_hash_rhs on the raw, possibly-
-        # partial declared default UNCONDITIONALLY — found live,
-        # generating a client site's vendored payments.bluebook, the first
-        # domain in the corpus to declare a Hash default that leans on
-        # its own VO's per-field defaults rather than naming every
-        # field explicitly. Ruby's own runtime (Coercion#build) already
-        # backfills exactly this way at object-construction time; this
-        # brings codegen's compile-time literal to the same completed
-        # shape before handing it to literal_hash_rhs, rather than
-        # inventing a second, parallel completion path.
+        # Completes a partial Hash default with the target VO's own
+        # per-field defaults first; `literal_hash_rhs` requires every
+        # field present.
         return literal_hash_rhs(complete_hash_default(default, attr[:type], value_objects_by_name), attr[:type], value_objects_by_name)
       end
 
@@ -389,14 +238,8 @@ module RustProjection
       "#{rust_ident(attr[:type])} { #{fields.join(', ')} }"
     end
 
-    # A field the completed hash still lacks — the ORIGINAL hash didn't
-    # name it AND the target VO's own attribute has no default either —
-    # is left OUT of the returned hash entirely, not set to nil: adding
-    # a `nil`-valued key would satisfy `literal_hash_bridgeable?`/
-    # `literal_hash_rhs`'s own `hash.key?` check and silently emit
-    # `literal_rhs(nil)` for a field that is genuinely, unrecoverably
-    # missing — exactly the gap their own "should have caught this"
-    # guard exists to catch, and must keep catching after this.
+    # Fields present in `hash`, plus any the target VO defaults on its
+    # own; a field with neither is left out, not set to nil.
     def complete_hash_default(hash, target_type, value_objects_by_name)
       vo = value_objects_by_name[target_type]
       return hash unless vo && !vo[:closed_set]

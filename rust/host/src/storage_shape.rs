@@ -1,46 +1,12 @@
-// Port of lib/hecks/runtime/storage_shape.rb's `project`/`mint_hash`/
-// `mint_label` — the canonical shape-hash Ruby computes once at mint
-// time. rust/host needs to compute the same hash independently at boot,
-// to detect drift against `hecks_eras` by comparing its own compiled
-// shape rather than trusting an externally-supplied era number
-// (journal.rs's own `LineageConfig` doc comment names exactly this as
-// today's gap).
-//
-// Operates on the same `ir.json` `Value` `crate::ir::ir()` already
-// loads generically — no new build-time export needed. `bluebook.to_h`'s
-// own wire shape (aggregates/attributes/value_objects/entities/
-// identified_by/lifecycle) is what `ir.json`'s top level already
-// carries; `translations`/`lineage` (this crate's own two merged-in
-// keys) are simply never read here, the same way Ruby's own `project`
-// only ever reads `"aggregates"` off `bluebook.to_h` and ignores
-// everything else on the wire.
-//
-// Byte-exact with Ruby's own `JSON.generate` output is the whole point
-// — a mismatched canonical string means a mismatched SHA256 means Rust
-// and Ruby disagree about which era a given shape names. Every object/
-// array here is hand-assembled in the same field order Ruby's own
-// `project`/`project_aggregate`/`project_attribute`/`type_signature`
-// build their Hashes in (Ruby Hashes are insertion-ordered, and
-// `JSON.generate` preserves that order) — never left to a JSON
-// library's own key-ordering default, which for `serde_json` without
-// the `preserve_order` feature would alphabetize silently wrong. Only
-// leaf string escaping goes through `serde_json` (`json_string`), which
-// is safe: JSON string escaping is one unambiguous spec, not a library
-// convention two correct implementations could disagree on.
-//
-// Verified against a real, already-minted edge, not a synthetic one:
-// examples/pizzas' own Pizza -> Order translation names its `to:` label
-// as "77625c" — this module's own test asserts `mint_label` reproduces
-// that exact label from the live `ir.json` Ruby already generated for
-// the current (post-rename) shape.
+//! Port of storage_shape.rb's `project`/`mint_hash`/`mint_label`: the canonical shape hash.
+//! Byte-exact with Ruby's `JSON.generate`, or the two disagree about which era a shape names.
 
 use serde_json::Value;
 use sha2::{Digest, Sha256};
 
 pub const LABEL_LENGTH: usize = 6;
 
-// storage_shape.rb's own FORM_VERSION — bump this in the same change
-// that alters `project`/`canonical`'s output below, on both sides.
+// Mirrors FORM_VERSION in storage_shape.rb; bump both when `canonical`'s output changes.
 pub const FORM_VERSION: i32 = 1;
 
 pub fn mint_hash(ir: &Value) -> String {
@@ -79,9 +45,7 @@ fn project(ir: &Value) -> String {
 fn project_aggregate(aggregate: &Value) -> String {
     let name = json_string(aggregate.get("name").and_then(Value::as_str).unwrap_or(""));
 
-    // `Array(aggregate["identified_by"]).map(&:to_s)` — the wire form is
-    // already an array of (possibly dotted) strings when declared, and
-    // absent/null when not; `Array(nil) == []`.
+    // Ruby's `Array(aggregate["identified_by"]).map(&:to_s)`: absent or null is `[]`.
     let identity: Vec<String> = match aggregate.get("identified_by") {
         Some(Value::Array(items)) => items.iter().filter_map(|item| item.as_str().map(str::to_string)).collect(),
         Some(Value::String(s)) => vec![s.clone()],
@@ -124,10 +88,8 @@ fn project_attribute(aggregate: &Value, attribute: &Value, seen: &[String]) -> S
     format!("{{\"name\":{name},\"list\":{list},\"type\":{type_json}}}")
 }
 
-// A plain type name for a primitive; the type name plus its members'
-// full signatures for a value object or entity — so two attributes with
-// the same declared type name but different internals are never
-// mistaken for unchanged.
+// A primitive is its type name; a value object or entity adds its members' signatures, so
+// same-named types with different internals never look unchanged.
 fn type_signature(aggregate: &Value, type_name: &str, seen: &[String]) -> String {
     let Some(container) = nested_type(aggregate, type_name) else {
         return json_string(type_name);
@@ -171,9 +133,7 @@ fn join_array<I: Iterator<Item = String>>(items: I) -> String {
     format!("[{}]", items.collect::<Vec<_>>().join(","))
 }
 
-// JSON string escaping is one unambiguous spec — safe to delegate to
-// serde_json for this leaf case, unlike object/array key order, which
-// is a library convention this whole file deliberately never delegates.
+// Leaf escaping is one unambiguous spec, so serde_json is safe here; key order is not.
 fn json_string(s: &str) -> String {
     serde_json::to_string(s).expect("a plain &str always serializes")
 }
@@ -183,10 +143,7 @@ mod tests {
     use super::*;
     use std::fs;
 
-    // The real, live ir.json bin/project_rust already writes for
-    // examples/pizzas — not a hand-built fixture, so this test breaks
-    // (loudly, correctly) the moment the real shape or this module's
-    // own algorithm drifts from Ruby's.
+    // The real ir.json for examples/pizzas, not a fixture, so drift from Ruby fails here.
     fn pizzas_ir() -> Value {
         let path = concat!(env!("CARGO_MANIFEST_DIR"), "/../src/generated/pizzas/ir.json");
         let text = fs::read_to_string(path).expect("rust/src/generated/pizzas/ir.json — run bin/project_rust examples/pizzas first");
@@ -195,23 +152,15 @@ mod tests {
 
     #[test]
     fn mint_label_reproduces_the_real_translation_edge_s_own_to_label() {
-        // examples/pizzas/bluebook/translations/2-77625c.bluebook declares
-        // `from: "e3f3d7", to: "77625c"` for the Pizza -> Order rename —
-        // Minter#mint! itself requires `edge.to == label` (this shape's
-        // own computed label) before a mint may proceed, so "77625c" is
-        // the real, already-verified-by-Ruby answer for the current
-        // (post-rename) shape, not a value this test invents.
+        // examples/pizzas/bluebook/translations/2-77625c.bluebook names "77625c" as the label Ruby
+        // computed for this shape (Minter#mint! requires `edge.to == label`).
         let ir = pizzas_ir();
         assert_eq!(mint_label(&ir), "77625c");
     }
 
     #[test]
     fn a_reordered_but_otherwise_identical_ir_hashes_the_same() {
-        // Structural comparison only, never a hash comparison — the
-        // whole point storage_shape.rb's own header names: two IR trees
-        // that declare the same shape in a different key/array order
-        // must mint the same label, or a purely cosmetic JSON
-        // reformatting would spuriously look like a schema change.
+        // Pins that attribute order is normalised: reordering must not look like a schema change.
         let ir = pizzas_ir();
         let mut reordered = ir.clone();
         if let Some(aggregates) = reordered.get_mut("aggregates").and_then(Value::as_array_mut) {

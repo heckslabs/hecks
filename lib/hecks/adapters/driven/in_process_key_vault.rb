@@ -2,20 +2,8 @@ require "securerandom"
 
 module Hecks
   module Adapters
-    # The real `key_vault` fulfillment for a single running process — a
-    # table of key material, keyed by an opaque reference never exposed to
-    # a bluebook or an event. Cryptoshredding only works if the key
-    # genuinely leaves memory when destroyed: `destroy` deletes the Hash
-    # entry outright, not merely a flag, so a `fetch` afterward has
-    # nothing left to decrypt with.
-    #
-    # **Not crash-durable** — a process restart loses every key this
-    # adapter ever issued, along with every ciphertext under it. A
-    # deployment that needs destruction to survive a restart (or to leave
-    # a physical-destruction audit trail) backs this port with a real
-    # `KMS` or `HSM` instead; this default asks for nothing external to
-    # run, the same tradeoff `SecureRandomIdentity` already makes for
-    # identity minting.
+    # In-process `key_vault` fulfillment: key material held under opaque references.
+    # Not crash-durable; use a KMS or HSM when destruction must survive a restart.
     module InProcessKeyVault
       module_function
 

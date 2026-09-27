@@ -1,26 +1,16 @@
 require "spec_helper"
 require "hecks/fuzzing"
 
-# `Hecks::Fuzzing::RotationPriority`, proven as the pure function it is —
-# plain hashes standing in for `Target.Rotation` rows, no ledger boot, no
-# Postgres, nothing throwaway to clean up afterward. Every dial this
-# module reads is passed explicitly in every example here, on purpose:
-# a unit spec for a pure function should not depend on load order
-# deciding whether `QualityControlDials` happens to be defined yet
-# (`spec/quality_control_spec.rb`'s own examples cover the real dials,
-# against a real booted-from-Memory `Target.Rotation`).
+# Plain hashes stand in for `Target.Rotation` rows; every dial is passed explicitly
+# so the pure function does not depend on `QualityControlDials` being loaded.
 RSpec.describe Hecks::Fuzzing::RotationPriority do
   def row(reference, last_swept:, yield_score:)
     { reference: { value: reference }, last_swept: { value: last_swept }, yield_score: { value: yield_score } }
   end
 
-  # Simulates 200 irregular ticks of "pick, then release" — every pick
-  # resets the winner's own `last_swept` to `now`, exactly the way a
-  # real `bin/qa_sweep` clean pass would. `state` maps a reference to
-  # its own `{ last_swept:, yield_score: }`, mutated as the simulation
-  # runs; callers pass a fresh `Hash` per call (`transform_values(&:dup)`
-  # is not needed — a new literal per test is simplest and clearest).
-  # Returns every `[now, picked_reference]` pair, in tick order.
+  # Simulates 200 irregular ticks; each pick resets the winner's `last_swept` to `now`.
+  # `state` maps a reference to `{ last_swept:, yield_score: }` and is mutated, so pass a
+  # fresh Hash per call. Returns every `[now, picked_reference]` pair in tick order.
   def simulate_ticks(state, weight_seconds:, floor_seconds:)
     now = 0
     picks = []
@@ -79,8 +69,7 @@ RSpec.describe Hecks::Fuzzing::RotationPriority do
       exhausted = row("pizzas", last_swept: 900, yield_score: 0)
       hot       = row("roster", last_swept: 950, yield_score: 6)
 
-      # "roster" was swept more recently (less staleness) but keeps
-      # finding things — BUG#7/#15/#16, per the practice's own roster.
+      # "roster" was swept more recently (less staleness) but keeps finding things.
       picked = described_class.pick([exhausted, hot], now: 1_000, weight_seconds: 100, floor_seconds: 100_000)
 
       expect(picked[:reference][:value]).to eq("roster")
@@ -113,22 +102,9 @@ RSpec.describe Hecks::Fuzzing::RotationPriority do
       expect(picked[:reference][:value]).to eq("banking")
     end
 
-    # **The no-starvation guarantee itself** — many simulated rotation
-    # picks, real elapsed time between them, two targets that always
-    # out-yield a third one that never finds anything at all.
-    #
-    # **The bound, not the mechanism**. It would be tempting to assert
-    # "exhausted is only ever picked once the floor forces it" — but
-    # that is not quite what the arithmetic guarantees, and asserting it
-    # would be wrong: staleness itself is unbounded while "hot"/"warm" keep resetting
-    # their own staleness to ~0 every time they win, "exhausted"'s plain
-    # staleness can occasionally out-race a competitor's own bounded
-    # ceiling (yield_score * weight_seconds) even before crossing the
-    # floor. That is a feature, not a bug — it means the floor is a
-    # ceiling on the wait, not the only thing preventing it from being
-    # arbitrarily long. What every waiting target is guaranteed is never
-    # waiting more than `floor_seconds` — that is the one thing this
-    # example actually needs to hold.
+    # The no-starvation guarantee: two targets that always out-yield a third that never finds
+    # anything. Asserts only the bound (no wait past `floor_seconds`), not that the floor forces
+    # the pick; plain staleness can out-race a competitor's ceiling before the floor is crossed.
     it "never leaves a waiting target unswept for longer than the floor, whatever its yield" do
       floor_seconds  = 1_000
       weight_seconds = 50
@@ -146,13 +122,8 @@ RSpec.describe Hecks::Fuzzing::RotationPriority do
       expect(first_exhausted_pick.first).to be <= floor_seconds
     end
 
-    # The floor's own reason to exist, isolated from the "natural
-    # crossover" above — a weight dial large enough that a competitor's
-    # own bounded ceiling is far out of plain staleness's reach within
-    # any ordinary run. Without a floor this genuinely leaves the
-    # exhausted target unswept for the whole simulated window; with the
-    # same oversized weight, the floor still bounds the wait exactly the
-    # way the dial promises, independent of how the other dial is tuned.
+    # Isolates the floor: with a weight this large, no floor leaves the exhausted target
+    # unswept for the whole window, and the floor alone still bounds the wait.
     it "bounds the wait on the floor alone, even when the weight dial would otherwise starve a target for a very long time" do
       weight_seconds = 100_000 # one point of yield now outweighs a huge amount of plain staleness
       fresh_state = -> { { "hot" => { last_swept: 0, yield_score: 10 }, "exhausted" => { last_swept: 0, yield_score: 0 } } }
@@ -164,10 +135,7 @@ RSpec.describe Hecks::Fuzzing::RotationPriority do
       first_exhausted_pick = with_floor.find { |_now, ref| ref == "exhausted" }
 
       expect(first_exhausted_pick).not_to be_nil
-      # One tick of slack (17 seconds, `simulate_ticks`'s own irregular
-      # step) — `now` can only land on the floor exactly by coincidence,
-      # so the real guarantee is "no more than one tick past it," not
-      # "never a second over."
+      # One tick of slack (17s): `now` lands exactly on the floor only by coincidence.
       expect(first_exhausted_pick.first).to be <= 1_017
     end
   end

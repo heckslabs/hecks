@@ -1,16 +1,7 @@
 require "spec_helper"
 
-# Dispatcher#dry_run?'s own comment has the full reasoning — built for a
-# downstream chess domain's own whole-board postcondition tests ("does
-# this move leave my own king in check"), which would otherwise have to
-# dispatch a real, unrelated piece's own move purely to trigger the
-# check, with that move then having to avoid interfering with the very
-# position being tested. Reuses the delegates_to fixture — it already
-# has a plain entity command (Piece.Move) and a delegating aggregate
-# command (Board.MovePiece) and a policy reacting to the entity's own
-# event, which is exactly the surface dry_run needs to prove itself
-# against: does a dry run see through the delegation, and does it
-# correctly reach neither persistence nor reactions in either shape.
+# Reuses the delegates_to fixture: a plain entity command, a delegating aggregate command and a
+# policy reacting to the entity's event.
 RSpec.describe "Dispatcher#dry_run?" do
   DRY_RUN_FIXTURE = File.join(InMemoryDomain::ROOT, "spec/fixtures/delegates_to/delegates_to.bluebook")
 
@@ -54,11 +45,7 @@ RSpec.describe "Dispatcher#dry_run?" do
     end.to raise_error(Hecks::Runtime::GivenNotMet, /destination differs from current square/)
   end
 
-  # The shape dry_run was built for — a `delegates_to` command's own
-  # in-memory mutation, reached through EntityElement.locate_chain the
-  # same way a real dispatch reaches it, discarded because step_save
-  # never runs. Proves dry_run? sees straight through the delegation,
-  # not just a plain entity command.
+  # A delegated entity mutation is discarded too, not only a plain entity command's.
   it "sees through delegates_to too — persists nothing from the delegated entity's own mutation" do
     runtime = boot
     runtime.dispatch_flat("DelegatesTo::Board.OpenBoard", name: { value: "b3" })
@@ -70,11 +57,7 @@ RSpec.describe "Dispatcher#dry_run?" do
     expect(board(runtime, "b3")[:pieces].first[:square].to_h).to eq(file: 3, rank: 3)
   end
 
-  # **Policies must never fire** — `move_count` (bumped by
-  # OnPieceMovedBumpMoveCount, the same policy delegates_to_spec.rb's
-  # own ambient-args test uses) staying at its default proves
-  # Dispatcher#dry_run? never reaches `announced.each { @policies.react
-  # }` at all, not merely that it reacted and rescued something.
+  # `move_count` (bumped by OnPieceMovedBumpMoveCount) staying at its default proves no policy ran.
   it "never triggers a policy reaction — nothing was announced to react to" do
     runtime = boot
     runtime.dispatch_flat("DelegatesTo::Board.OpenBoard", name: { value: "b4" })
@@ -97,10 +80,5 @@ RSpec.describe "Dispatcher#dry_run?" do
     expect(board(runtime, "b5")[:move_count].to_h).to eq(value: 1)
   end
 
-  # No port-bearing fixture was worth building fresh for this alone —
-  # the guard itself is a plain, direct `if aggregate.port(head) then
-  # raise else entity dispatch` two-liner in Dispatcher#dry_run?, read
-  # and confirmed correct rather than exercised through a dedicated
-  # fixture. Named here so the gap is visible, not silently assumed
-  # covered.
+  # No port-bearing fixture exists, so the port guard in Dispatcher#dry_run? is not exercised here.
 end

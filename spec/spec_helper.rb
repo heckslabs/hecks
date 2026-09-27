@@ -35,15 +35,12 @@ module InMemoryDomain
   # same as any other consumer would.
   ERA_PLUGIN = "hecks/ports/persistence/plugins/era".freeze
 
-  # Loads one or more bluebook files as a single chapter.
-  #
-  # A chapter may reopen across several business-concept files. Load the set
-  # inside the same deferred validation window Runtime::Loader uses, then judge
-  # the completed chapter once rather than treating each file as a domain.
+  # Loads one or more bluebook files as a single chapter, judging the
+  # completed chapter once rather than treating each file as a domain.
   #
   # @param path [String, Array<String>] a single file, or every file making up one chapter
-  # @return [Object] the judged chapter (when `path` is an Array), or the folder adapter's
-  #   own load result (when `path` is a single file or directory)
+  # @return [Object] the judged chapter (when `path` is an Array), or the folder
+  #   adapter's own load result (single file or directory)
   def load_bluebook_files(path)
     if path.is_a?(Array)
       Hecks::Bluebook::MetaValidator.defer { path.each { |file| Kernel.load(file) } }
@@ -57,9 +54,9 @@ module InMemoryDomain
   end
   module_function :load_bluebook_files
 
-  # Sibling ACL hecksagon `uses_framework "Governance"` needs as of 2.0 —
-  # attaching a BC without `Hecks.hecksagon "Governance"` refuses boot.
-  # Same Memory binds every in-process spec already used.
+  # Sibling ACL hecksagon `uses_framework "Governance"` needs — attaching a
+  # BC without `Hecks.hecksagon "Governance"` refuses boot. Same Memory
+  # binds every in-process spec already used.
   GOVERNANCE_MEMORY_HECKSAGON = <<~HECKSAGON.freeze
     Hecks.hecksagon "Governance" do
       Governance::RoleAssignment.persisted_by("Memory")
@@ -110,10 +107,9 @@ module InMemoryDomain
       Kernel.load(PRISM_ADAPTER)
       Kernel.load(PIZZAS_BLUEBOOK)
 
-      # `::` on purpose — a real .hecksagon file is loaded at top level, where an
-      # unresolved constant reaches Object's const_missing (ConstShim ->
-      # BindingProxy). This block lives inside a module, so a bare `Pizzas`
-      # would be looked up here first and reach no hook at all.
+      # `::` on purpose — a real .hecksagon file loads at top level, where an
+      # unresolved constant reaches Object's const_missing. This block lives
+      # inside a module, so a bare `Pizzas` would resolve here first instead.
       Hecks.hecksagon("Pizzas") do
         uses_framework "Governance"
         ::Pizzas::Order.persisted_by("Memory")
@@ -142,28 +138,18 @@ RSpec.configure do |config|
   # local, per-checkout state, never meant to be shared or committed.
   config.example_status_persistence_file_path = "tmp/rspec_examples.txt"
 
-  # `io: true` marks a spec (or single example) that does real,
-  # uncontrolled I/O — a subprocess spawn, a live Postgres/D1
-  # connection, a `cargo build` — the kind of thing that made a plain
-  # local `bundle exec rspec` slow even though most of it self-skips
-  # when the resource isn't reachable. CI (.github/workflows/ci.yml)
-  # provisions everything for real and always sets `CI`, so it runs
-  # these unfiltered; run them locally on demand with
+  # `io: true` marks an example that does real, uncontrolled I/O (subprocess
+  # spawn, live Postgres/D1, `cargo build`) so a plain local run stays fast.
+  # CI always sets `CI` and runs these unfiltered; locally use
   # `CI=true bundle exec rspec` or `bundle exec rspec --tag io`.
   config.filter_run_excluding io: true unless ENV["CI"]
 
-  # `fuzzing: true` — every example under spec/fuzzing/, tagged by
-  # path rather than by hand at each file (`define_derived_metadata`,
-  # not a per-file `:fuzzing` label to keep in sync). Not `io: true`
-  # itself — nothing here does real I/O, it's slow for a different
-  # reason: a live-generated-history replay against a real domain,
-  # dispatched for real, several seeds deep, run twice over
-  # (`properties_spec.rb`'s own "standard battery" + determinism
-  # check alone is ~8s of a suite that's otherwise ~50ms/example).
-  # Same shape as `io: true` — excluded from the everyday local loop,
-  # run automatically on every commit instead (`.githooks/post-commit`,
-  # `bundle exec rspec spec/fuzzing --tag fuzzing`), and unfiltered in
-  # CI. Run on demand with `bundle exec rspec spec/fuzzing --tag fuzzing`.
+  # `fuzzing: true` tags every example under spec/fuzzing/ by path
+  # (`define_derived_metadata`) rather than by hand per file. Slow for a
+  # different reason than `io: true`: a live-generated-history replay run
+  # several seeds deep. Excluded locally, run automatically post-commit
+  # and unfiltered in CI; run on demand with
+  # `bundle exec rspec spec/fuzzing --tag fuzzing`.
   config.define_derived_metadata(file_path: %r{/spec/fuzzing/}) { |metadata| metadata[:fuzzing] = true }
   config.filter_run_excluding fuzzing: true unless ENV["CI"]
 

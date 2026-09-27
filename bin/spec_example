@@ -1,20 +1,11 @@
 #!/usr/bin/env ruby
 
-# Run one spec file, filtered to one example — through `RSpec::Core::
-# Runner` directly rather than the `rspec` executable, so a `bin/
-# qa_log_bug --demonstration "…"` string naming a single fixture-backed
-# example (the usual shape a hecks_qa finding's failing test takes —
-# `spec/rust_conformance_spec.rb`'s own `RUST_CONFORMANCE_FIXTURES.each`
-# loop turns every `spec/corpus/rust_conformance/*.json` fixture into
-# exactly one example, named after its own file) stays a single,
-# reproducible, no-flags-to-remember command instead of everyone
-# reconstructing rspec's own `-e`/`--example` quoting by hand.
+# Runs one spec file filtered to one example, through RSpec::Core::Runner directly, so a
+# `bin/qa_log_bug --demonstration` string needs no rspec `-e` quoting by hand.
 #
 #   bin/spec_example <spec_file> <example description substring>
 #
-# Exit status is RSpec's own — 0 all examples passed, non-zero otherwise
-# — so this composes with `bin/qa_log_bug`'s own "run --demonstration and
-# refuse a passing one" check unchanged.
+# The exit status is RSpec's own: 0 when every example passed.
 
 require "rspec/core"
 

@@ -3,13 +3,10 @@ require_relative "commands"
 module Hecks
   module Release
     class Runner
-      # The npm step when CI publishes: the release tag triggers
-      # `.github/workflows/publish-client.yml`, which publishes `@hecks/client`
-      # with npm trusted publishing, so nothing is published from this machine.
-      # This watches npm until the version appears.
+      # Watches npm for `@hecks/client` after CI publishes it via
+      # `.github/workflows/publish-client.yml` (npm trusted publishing).
       #
-      # The clock and the pause are injected, so a spec runs the whole wait
-      # without sleeping.
+      # Its clock and pause are injected, so a spec runs the wait without sleeping.
       class CiPublisher
         WORKFLOW = ".github/workflows/publish-client.yml".freeze
         INTERVAL = 15

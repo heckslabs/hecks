@@ -4,23 +4,13 @@ require_relative "../../runtime/registry"
 module Hecks
   module Ports
     module Persistence
-      # Resolves one aggregate's persistence topology. An unmarked binding is
-      # authoritative; roles are deliberately opt-in so a second adapter can
-      # never silently become a read source.
+      # Resolves one aggregate's persistence topology; an unmarked binding is
+      # authoritative, and roles are opt-in so no adapter silently becomes a read source.
       module BindingPolicy
         module_function
 
-        # Picks the one bind that names an aggregate's authoritative store.
-        #
-        # A domain with no hecksagon gets the default in-memory bind. A domain that has one
-        # must bind the aggregate exactly once without a role.
-        #
-        # A `default_adapter` a world declares (`Registry#default_adapter_for` — the
-        # chapter's own world, else the project's) stands in wherever the hecksagon binds
-        # nothing for the aggregate, and replaces the in-memory fallback for a domain
-        # with no hecksagon. It is never consulted once the hecksagon binds the aggregate
-        # or declares a domain-level default of its own, so an explicit chapter decision
-        # always wins.
+        # Picks the one bind that names an aggregate's authoritative store. A world's
+        # `default_adapter` only fills a hecksagon's gap; an explicit bind always wins.
         #
         # @param registry [Runtime::Registry] the registry holding the domain's hecksagon
         # @param domain [String, Symbol] name of the domain the aggregate belongs to

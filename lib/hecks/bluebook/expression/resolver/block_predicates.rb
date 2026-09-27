@@ -1,124 +1,39 @@
-# **Hand-written** — the block-predicate/find family of the leaf grammar
-# (`Bluebook::Expression::Resolver`'s own `.all?`/`.any?`/`.none?`/
-# `.find` suffixes), split into this sibling file to keep resolver.rb
-# under Metrics/ModuleLength (350) : this reopens the same `Resolver`
-# module resolver.rb defines, the long nested `module A; module B; ...`
-# form (not the compact `A::B` form) so bare constant/method lookups
-# here (`EvaluationError`, `Evaluator`, `describe`, `unwrap_scalar`,
-# `walk_path`) resolve exactly the way they do inside resolver.rb
-# itself — this is one module, split across two files, not two
-# modules. See resolver.rb's own header for the grammar this belongs
-# to; see each struct/method below for its own "why".
+# Block-predicate and `.find` suffixes of the `Resolver` leaf grammar, split out of resolver.rb
+# to stay under Metrics/ModuleLength. Uses the nested `module` form so constants resolve as there.
 module Hecks
   module Bluebook
     module Expression
-      # Reopens the same `Resolver` module resolver.rb defines — see this
-      # file's own header comment above for why the block-predicate/find
-      # family lives here rather than in resolver.rb itself.
+      # Reopens `Resolver` (see resolver.rb) for the block-predicate/find suffixes.
       module Resolver
-        # `receiver.all? { |x| PREDICATE }` / `.any? { ... }` / `.none? {
-        # ... }` -- vendored addition, not (yet) upstream hecks
-        # (migration plan task 9), completing the same `Phrase`
-        # four-segment invariant the `Split` node above was built for
-        # (`value.split("::").all? { |s| s.length > 0 }`). Structurally
-        # different from every other addition in this file: every prior
-        # suffix is a flat receiver -> scalar transform, but a block
-        # predicate needs to evaluate its own sub-expression once per
-        # element with the block parameter bound to that element. Kept
-        # minimal per the migration plan's own instruction -- no
-        # persistent iteration-variable concept added to Resolver's
-        # state model at all ; `predicate` below is a fully-parsed
-        # evaluator ast (not a Resolver ast -- the predicate is a
-        # boolean/comparison expression like `s.length > 0`, exactly the
-        # grammar `Bluebook::Expression::Evaluator` owns, not this
-        # module's own leaf grammar), parsed once at `parse`-time same as
-        # every sibling node's sub-expressions are. `mode` distinguishes
-        # all?/any?/none? without three duplicated node types, since
-        # their only difference is which Array predicate aggregates the
-        # per-element results (interpret_with_element, below, is the
-        # "smallest correct thing" the plan asked for -- it threads the
-        # element binding through a temporarily-extended `attrs` hash for
-        # that one predicate's evaluation only, never touching
-        # `interpret`'s own signature or any other node's call sites).
-        # `Resolver` already calls into `Evaluator` elsewhere in this
-        # file (`sign_test_node`/`apply_sign_test` call `Evaluator.
-        # apply`/`Evaluator::OPERATORS` directly) -- this is the same
-        # precedented cross-reference, not a new coupling.
+        # `receiver.all? { |x| PREDICATE }` / `.any?` / `.none?`. `predicate` is a parsed
+        # `Evaluator` ast (not a Resolver ast), evaluated once per element with the block
+        # parameter bound to that element.
         BlockPredicate = Struct.new(:mode, :receiver, :param, :predicate, keyword_init: true)
 
-        # Which Array method each block-predicate suffix maps to, and
-        # which Ruby Enumerable method decides the aggregate result --
-        # declared as data, not a three-way `case`, the same shape
-        # SIGN_TEST_OPERATORS above already uses for its own suffix
-        # family.
+        # Maps each block-predicate suffix to the aggregate mode it applies.
         BLOCK_PREDICATE_MODES = {
           "all?"  => :all,
           "any?"  => :any,
           "none?" => :none
         }.freeze
 
-        # `receiver.find { |x| PREDICATE }` / `.find { ... }.a.b` -- the
-        # "find-then-project" shape the shipping domain's re-routing
-        # rules kept reaching for by hand (a caller-precomputed
-        # `next_load_location` field standing in for "the leg after this
-        # one", because `BlockPredicate` above can only answer yes/no,
-        # never hand back the element it found). `path` holds the
-        # dotted segments walked past the closing `}`, e.g. the `["
-        # next_load_location"]` in `legs.find { |l| l.load_location ==
-        # x }.next_load_location` -- empty when `.find { ... }` is used
-        # bare (its own found-element-or-nil is the value, same as any
-        # other leaf, e.g. composed with `.present?` the same way every
-        # other receiver already composes with it). Reuses `param`/
-        # `predicate`'s exact field names from `BlockPredicate` on
-        # purpose: `interpret_with_element` below binds by those two
-        # names and is shared unchanged between both node types.
+        # `receiver.find { |x| PREDICATE }` with an optional trailing dotted `path` projected
+        # through the found element (`legs.find { |l| ... }.next_load_location`).
+        # Shares `param`/`predicate` with `BlockPredicate` so `interpret_with_element` serves both.
         Find = Struct.new(:receiver, :param, :predicate, :path, keyword_init: true)
 
         module_function
 
-        # Every suffix that opens a `{ |x| ... }` block, `.find` included
-        # -- shared by `parse_block_opener` below, and by nothing else
-        # (this is not `BLOCK_PREDICATE_MODES` — `.find` isn't a mode
-        # `evaluate_block_predicate` aggregates through, it builds a
-        # `Find` node instead, see below).
+        # Every suffix that opens a `{ |x| ... }` block; `.find` builds a `Find`, not a mode.
         BLOCK_OPENER_SUFFIXES = (BLOCK_PREDICATE_MODES.keys + ["find"]).freeze
 
-        # `.all?`/`.any?`/`.none?`/`.find` -- vendored addition, see the
-        # `BlockPredicate`/`Find` structs' own comments above. Matched
-        # last among the suffix rules (right before the `Lookup`
-        # catch-all) since a block's own predicate text can itself
-        # contain almost anything a leaf expression can, including
-        # another block-opening suffix -- letting every more specific
-        # rule above try first avoids this one accidentally swallowing a
-        # receiver another rule was meant to parse.
+        # `.all?`/`.any?`/`.none?`/`.find` — matched last among the suffix rules, before the
+        # `Lookup` catch-all, since a block's predicate can contain almost any leaf expression.
         #
-        # One combined header regex over all four suffixes together,
-        # not `.find` and `.all?/any?/none?` scanned separately (that
-        # was this file's own first cut, and it broke the moment a
-        # block predicate's own predicate text contained a different
-        # kind of block-opener than the one being scanned for --
-        # `legs.any? { |leg| ... legs.find { |o| ... } ... }` : scanning
-        # for `.find` first found the inner `.find`, not the outer
-        # `.any?`, because a non-greedy receiver capture only guarantees
-        # the first occurrence of its own suffix, not the first
-        # occurrence of any block-opening suffix -- confirmed live via
-        # the shipping domain's own re-routing rules, the same
-        # "no implicit conversion of Symbol into Integer" signature the
-        # original nested-`.any?` bug had, not inferred). Scanning for
-        # all four at once and letting the regex engine's own leftmost
-        # match win fixes both directions (`.find` nested in `.any?` or
-        # `.any?` nested in `.find`) with the same one rule, since the
-        # true receiver never itself contains any of these four words
-        # followed by `{`.
-        #
-        # `matching_brace` walks forward counting `{`/`}` depth from
-        # there, the same quote-aware, depth-aware discipline
-        # `split_addition`/`array_elements` already apply, so a `}`
-        # inside a nested block (or a quoted `start_with?` substring)
-        # never miscounts. `.find`'s own trailing dotted path (`path`)
-        # is captured from whatever follows the closing brace ; every
-        # other suffix instead requires nothing follow it at all (the
-        # `BlockPredicate` shape, unchanged from before this rewrite).
+        # One regex scans all four suffixes together so the leftmost opener wins; scanning per
+        # suffix would match a `.find` nested inside an outer `.any?` block first.
+        # `matching_brace` finds the closing `}`; `.find` may then carry a trailing dotted `path`,
+        # every other suffix must end at the brace.
         #
         # @param expr [String] the leaf expression text to parse
         # @return [Find, BlockPredicate, nil] the parsed node, or nil when `expr` does
@@ -151,14 +66,8 @@ module Hecks
           end
         end
 
-        # The index of the `}` that closes the `{` implicitly opened
-        # just before `start` (the caller's own header match already
-        # consumed that opening brace, so depth begins at 1) -- nil if
-        # the string runs out before depth returns to 0 (a caller-error
-        # shape, not a valid expression). Quote-aware so a `}` inside a
-        # quoted substring (`.start_with?("}")`) never miscounts, the
-        # same discipline `split_addition`/`array_elements` already
-        # apply for their own depth tracking.
+        # The index of the `}` closing the `{` the caller's header match already consumed
+        # (depth starts at 1). Quote-aware, so a `}` inside a quoted substring never counts.
         #
         # @param expr [String] the text to scan
         # @param start [Integer] the index just after the opening `{`, where depth is 1
@@ -185,16 +94,8 @@ module Hecks
           nil
         end
 
-        # `.all?`/`.any?`/`.none?` -- vendored addition, see the
-        # `BlockPredicate` struct's own comment above. `collection` is
-        # already-interpreted (a real Array, produced by whatever
-        # receiver expression came before it -- typically `Split`'s
-        # output), so this only has to run the per-element predicate and
-        # aggregate. `interpret_with_element` is the "smallest correct
-        # thing" the migration plan asked for : no persistent iteration-
-        # variable concept added anywhere else in Resolver's state model,
-        # just `attrs` extended with the bound name for the span of that
-        # one predicate evaluation, discarded immediately after.
+        # `.all?`/`.any?`/`.none?` over an already-interpreted `collection`: runs the
+        # per-element predicate and aggregates by `node.mode`.
         #
         # @param node [BlockPredicate] the parsed `.all?`/`.any?`/`.none?` node
         # @param collection [Object] the interpreted receiver, expected to be an Array
@@ -214,39 +115,21 @@ module Hecks
           end
         end
 
-        # Binds the block parameter for exactly one element's predicate
-        # evaluation -- `attrs` wins over `state` in `fetch` (see below),
-        # so the bound name shadows any same-named state/attrs field for
-        # the span of this one call only ; nothing persists past it.
+        # Interprets `node.predicate` with `node.param` bound to `element`, for that call only.
+        # `attrs` wins over `state`, so the bound name shadows any same-named field.
         #
-        # @param node [BlockPredicate, Find] the node whose `param`/
-        #   `predicate` to bind and interpret
-        # @param element [Object] the one collection element to bind
-        #   `node.param` to
-        # @param state [Hash{Symbol => Object}] the record's own current
-        #   state
-        # @param attrs [Hash{Symbol => Object}] the command's own bound
-        #   arguments
-        # @return [Object] `node.predicate` interpreted with `node.param`
-        #   bound to `element`
+        # @param node [BlockPredicate, Find]
+        # @param element [Object] the collection element to bind
+        # @param state [Hash{Symbol => Object}] the record's current state
+        # @param attrs [Hash{Symbol => Object}] the command's bound arguments
+        # @return [Object] the predicate's value for `element`
         # @raise [EvaluationError] if `node.predicate` refuses to evaluate
         def interpret_with_element(node, element, state, attrs)
           Evaluator.interpret(node.predicate, state, attrs.merge(node.param.to_sym => element))
         end
 
-        # `.find { |x| PREDICATE }` -- see the `Find` struct's own
-        # comment above. Reuses `interpret_with_element` unchanged
-        # (below, shared with `BlockPredicate` — both bind `node.param`
-        # to one element and interpret `node.predicate` against it) to
-        # find the first element the predicate accepts, then projects
-        # `node.path` through it via `walk_path`, the same dotted-
-        # segment walk `lookup` uses for a plain attribute path. `nil`
-        # (no matching element, or a `path` segment that doesn't
-        # resolve) flows through rather than raising — the same "a
-        # dispatch-time given just refuses" shape every other missing-
-        # value case in this grammar already has, and the one a re-
-        # routing check like "is there a leg after this one" needs :
-        # not finding one is a normal outcome, not an error.
+        # `.find { |x| PREDICATE }` — the first element the predicate accepts, then `node.path`
+        # walked through it. A miss yields nil rather than raising: no match is a normal outcome.
         #
         # @param node [Find] the parsed `.find` node
         # @param collection [Object] the interpreted receiver, expected to be an Array

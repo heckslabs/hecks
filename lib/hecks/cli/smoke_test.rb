@@ -7,22 +7,12 @@ module Hecks
     # and dispatches one synthesized call per declared command and report
     # (`Bluebook::SmokeTest`), printing every failure rather than the first.
     #
-    # It needs a real `.hecksagon`: a bare `.bluebook` with nothing bound to an
-    # adapter has nothing to run commands against. A failure may be a domain bug or
-    # a value the synthesizer's naive choices (0, an empty list, "smoke-test") cannot
-    # satisfy; the message underneath says which. Smoke-testing proves nothing
+    # Needs a real `.hecksagon`; a failure may be a domain bug or a value the
+    # synthesizer's naive choices cannot satisfy — smoke-testing proves nothing
     # crashes, not that an answer is right.
     module SmokeTest
       module_function
 
-      # Smoke-tests the domain `argv` names, or every wired domain under
-      # `root/examples/`, and exits with the verdict.
-      #
-      # @param argv [Array<String>] an optional domain directory
-      # @param root [String] the directory whose `examples/*` are tested when `argv`
-      #   names no domain
-      # @return [void]
-      # @raise [SystemExit] always: 0 when clean, 1 with failures or no domain found
       def call(argv, root:)
         dir_arg = argv.first
         targets = dir_arg ? [dir_arg] : Dir.glob("#{root}/examples/*/").map { |d| d.chomp("/") }.select { |d| wired?(d) }
@@ -35,10 +25,6 @@ module Hecks
         exit(ok ? 0 : 1)
       end
 
-      # Says whether `dir`, or something nested under it, is a bindable domain.
-      #
-      # @param dir [String] a directory to check
-      # @return [Boolean] true if `dir` contains at least one `.hecksagon` file
       def wired?(dir) = !Dir.glob(File.join(dir, "**/*.hecksagon")).empty?
 
       # @api private

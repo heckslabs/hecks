@@ -7,38 +7,7 @@ module Hecks
     module Deploy
       module Fargate
         # The CloudFront distribution in front of the load balancer.
-        #
-        # With no `cdn` setting the stack gets `default_yaml`: the default
-        # certificate, one origin, and one behavior that caches nothing. A
-        # `cdn` setting replaces that with a distribution described by the
-        # world.
-        #
-        # ## Settings
-        #
-        # `cdn` is a hash with these optional keys:
-        #
-        # - `aliases`: hostnames the distribution answers to. Needs `certificate_arn`.
-        # - `certificate_arn`: an `ACM` certificate in us-east-1, or an intrinsic such as
-        #   `"!Ref CertArn"`.
-        # - `minimum_protocol`: the TLS policy for the certificate; `TLSv1.2_2021` by default.
-        # - `origin_id`: the id of the load-balancer origin; `<AlbId>Origin` by default.
-        # - `origin_ssl_protocols`: the TLS versions CloudFront may use to reach the origin, such
-        #   as `["TLSv1.2"]`.
-        # - `explicit_origin_ports`: false leaves `HTTPPort` and `HTTPSPort` unset; true by
-        #   default.
-        # - `origin_secret`: `{header:, parameter:}` sends a secret header to the origin, filled
-        #   from a `NoEcho` template parameter the stack declares under that name.
-        # - `extra_origins`: S3 origins, each `{id:, domain_name:, origin_access_control_id:}`.
-        # - `default_behavior`: `{origin:, viewer_protocol:, methods:, compress:, cache_policy:,
-        #   origin_request_policy:}`.
-        # - `behaviors`: entries of the same shape with a required `path`; the first match wins,
-        #   so order matters.
-        # - `retain`: true keeps the distribution when the stack is deleted or replaces it.
-        #
-        # A cache or origin-request policy is a managed policy's name (`caching_disabled`,
-        # `caching_optimized`, `all_viewer`, `all_viewer_except_host`, or `none` to omit an origin
-        # request policy) or the id of a policy in the account. `methods` is `all`, `read` or
-        # `get_head`.
+        # With no `cdn` setting the stack gets `default_yaml`; settings are in the DSL reference.
         module Cdn
           module_function
 
@@ -64,14 +33,6 @@ module Hecks
           HOSTNAME = /\A(\*\.)?([A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?\.)+[A-Za-z]{2,}\z/
 
           # Reads and checks the `cdn` setting.
-          #
-          # @param setting [Hash, nil] the world's `cdn` value, or nil when it sets none
-          # @param default_origin_id [String] the load-balancer origin's id when `origin_id` is not
-          #   set
-          # @return [Hash{Symbol => Object}, nil] the checked options with defaults applied, or nil
-          #   for none
-          # @raise [ArgumentError] if an option is unknown, malformed, or names an origin that does
-          #   not exist
           def normalize(setting, default_origin_id:)
             return nil if setting.nil?
 
@@ -87,9 +48,6 @@ module Hecks
           end
 
           # Lists the template parameters the options need.
-          #
-          # @param options [Hash, nil] the checked options from `normalize`
-          # @return [String] flush-left parameter text, or empty
           def parameters_yaml(options)
             secret = options && options[:origin_secret]
             return "" unless secret
@@ -103,11 +61,6 @@ module Hecks
           end
 
           # Renders the distribution for a set of checked options.
-          #
-          # @param options [Hash] the checked options from `normalize`
-          # @param distribution_id [String] the logical id the distribution is given
-          # @param alb_id [String] the logical id of the load balancer the origin points at
-          # @return [String] the flush-left resource text ending in a newline
           def yaml(options, distribution_id:, alb_id:)
             lines = ["#{distribution_id}:", "  Type: AWS::CloudFront::Distribution"]
             lines.push("  DeletionPolicy: Retain", "  UpdateReplacePolicy: Retain") if options[:retain]

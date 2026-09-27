@@ -1,42 +1,19 @@
 require "spec_helper"
 
-# The declared vocabularies must equal the tables the runtime actually uses.
-#
-# Seven closed sets decide what the runtime may accept — the comparison
-# operators, the sign tests, the primitive types, the normalisation strategies,
-# the mutation ops, the declaration load order, and which errors count as the
-# domain refusing rather than the runtime breaking. Each lives in a Ruby
-# constant, and each is something the language's own declaration must pin.
-#
-# Nothing held them together before. The grammar chapter's operator table and
-# Expression::Evaluator::COMPARISONS drifted into disjoint sets and no gate
-# noticed, because a declaration nothing reads cannot disagree with anything.
-#
-# So this reads the declarations out of the meta-domain's IR and holds the live
-# constants to them. Add an operator to the evaluator without declaring it and
-# this fails ; declare one the evaluator does not implement and this fails.
+# The declared vocabularies must equal the tables the runtime uses: the comparison operators, sign
+# tests, primitives, normalisation strategies, mutation ops, load order and domain refusals.
 RSpec.describe "the declared vocabularies" do
-  # The grammar registry's Bluebook chapter is the judged one now — grammar_registry runs
-  # the fixpoint at boot (judge the language through itself, keep the assembled
-  # graph), so the typed member values this file compares against each
-  # runtime's live constants (`compares_less_than: true`, not the source text
-  # "true") come straight off the singleton. This also makes the whole suite a
-  # tripwire : if the fixpoint swap ever regresses to the raw builder graph,
-  # every typed-vs-string assertion below fails at once — exactly what
-  # happened the one time this spec briefly read a raw chapter.
+  # grammar_registry runs the fixpoint at boot, so member values arrive typed (`true`, not "true").
+  # A regression to the raw builder graph fails every typed-vs-string assertion below.
   def self.judged_meta = Hecks::Bluebook::MetaValidator.grammar_registry.bluebook("Bluebook")
 
   def self.vocabularies
     aggregate = judged_meta.aggregates.find { |a| a.name == "Vocabulary" }
-    # `hecks_name`, not `name`: a value object is a Ruby class, so `name` is the
-    # constant path it lives at and the declared name is carried beside it.
+    # `hecks_name`, not `name`: a value object is a Ruby class, so `name` is its constant path.
     aggregate.value_objects.to_h { |vo| [vo.hecks_name, vo.members.map { |row| row.to_h.values.first }] }
   end
 
-  # The full row for one vocabulary — every field a member carries, not just
-  # its first. `vocabularies` above only needs the first field because every
-  # other vocabulary is a flat list of names ; Comparison is not, since an
-  # operator now also declares which primitives it computes from.
+  # The full row for one vocabulary; Comparison members carry more than a name.
   def self.full_rows(name)
     aggregate = judged_meta.aggregates.find { |a| a.name == "Vocabulary" }
     aggregate.value_objects.find { |vo| vo.hecks_name == name }.members.map(&:to_h)
@@ -53,43 +30,19 @@ RSpec.describe "the declared vocabularies" do
     terms
   end
 
-  # Every other closed set's constant now reads the generated table itself
-  # (lib/hecks/vocabulary.rb, `Hecks::Vocabulary.fetch`/`.symbols`), and
-  # spec/vocabulary_table_spec.rb holds both halves — the table equal to
-  # the declaration, and each constant equal to the table — so a per-set
-  # comparison here would only restate it. Comparison is the exception:
-  # Evaluator::COMPARISONS derives from the operator projection, not the
-  # vocabulary table, so its declared order is still held here.
+  # Other constants read the generated table, held in vocabulary_table_spec.rb. Comparison is the
+  # exception: Evaluator::COMPARISONS derives from the operator projection, so it is held here.
   it "Comparison matches the table the runtime uses" do
     expect(declared("Comparison")).to eq(Hecks::Bluebook::Expression::Evaluator::COMPARISONS.map(&:to_s))
   end
 
-  # The language's own duplicate of its own closed set — gone, not gated.
-  #
-  # A block here once held `Command::OpName`'s invariant
-  # (`set || append || increment || decrement`) equal to Vocabulary::MutationOp,
-  # because the language had no way to link the two: `reference_to` reaches
-  # aggregate roots and a vocabulary's sets are value objects inside one, while
-  # inline `one_of` synthesises a fresh set rather than naming an existing one.
-  #
-  # The language grew the word. `Change.op` says `admits: Vocabulary::MutationOp`
-  # and the invariant is deleted, so there is no second copy to hold honest —
-  # which is what this gate asked for in so many words. What replaces it is not
-  # another comparison but the link itself: an `admits` must name a set the
-  # language declares, so dropping the link turns WhereClause.op
-  # back into a plain String instead of a closed set.
+  # `Change.op` says `admits: Vocabulary::MutationOp`, so no second copy exists to compare. An
+  # `admits` must name a declared set; dropping the link would turn WhereClause.op into a String.
 
-  # The name lists above only prove the set of operators agrees. This proves
-  # the semantics do too : Vocabulary::Comparison declares, per symbol, which
-  # of the two primitives (less_than, equal) it reads and whether the result
-  # is negated — the same three fields Evaluator::OPERATORS carries. If a
-  # runtime's `compare` and the language ever say something different about
-  # what `>=` computes, this is what catches it.
+  # The name lists only prove the operator set agrees; this proves the semantics do too: which of
+  # less_than/equal each symbol reads and whether the result is negated, as Evaluator::OPERATORS.
   it "Comparison declares the same algebra Evaluator::OPERATORS computes with" do
-    # Written as text ("true"/"false") in the language, the same as ListFlag —
-    # but a member's fields decode back through typed literal decoding on the
-    # way out of reconstruction (the same path Attribute#list uses), so what
-    # comes back here is already a real Ruby boolean, not text.
+    # Members decode through typed literal decoding, so these are real booleans, not text.
     live = Hecks::Bluebook::Expression::Evaluator::OPERATORS.to_h do |op|
       [op.symbol, { compares_less_than: op.compares_less_than,
                     compares_equal:     op.compares_equal,
@@ -106,19 +59,12 @@ RSpec.describe "the declared vocabularies" do
     end
   end
 
-  # SignTest's compares_via, MutationOp's sign, RefusalTemplate's wording and
-  # FieldHint's patterns were once held equal to hand-typed Ruby tables here
-  # and in their own conformance specs. Those constants now read the
-  # generated table (Resolver::SIGN_TEST_OPERATORS, CommandRules::
-  # MUTATION_OPS, RefusalWording::TEMPLATES, FieldShape::HINTS), so the
-  # regenerate-and-diff gates (spec/vocabulary_table_spec.rb, spec/
-  # rust_vocabulary_spec.rb, CI's checks_codegen_drift) are the whole check.
+  # SignTest, MutationOp, RefusalTemplate and FieldHint read the generated table, so the
+  # regenerate-and-diff gates (vocabulary_table_spec, rust_vocabulary_spec, codegen drift check)
+  # are the whole check.
 
-  # Unlike Comparison, there is no separate live Ruby table to hold
-  # this equal to — `strategy` names what Evaluator#includes? already does
-  # per branch, not something a shared constant computes independently. This
-  # pins the declaration against the actual case branches directly, so
-  # changing what a branch does without updating the language is still caught.
+  # No live Ruby table exists to compare against: `strategy` names what Evaluator#includes? does
+  # per branch, so this pins the declaration against the actual branches.
   it "IncludeHaystack names the strategy each type actually uses" do
     expect(INCLUDE_HAYSTACK_ROWS.to_h { |row| [row[:type], row[:strategy]] })
       .to eq("Array" => "membership", "String" => "substring")
@@ -132,30 +78,13 @@ RSpec.describe "the declared vocabularies" do
            )).to be(true), "String substring should still match, matching the declared strategy"
   end
 
-  # Only the names are held to the corpus — signs are read straight off the
-  # generated table by CommandRules::MUTATION_OPS.
+  # Only names are held to the corpus; signs are read off the generated table.
   it "MutationOp admits every op the corpus uses" do
     used = Dir.glob(File.join(InMemoryDomain::ROOT, "spec/corpus/*.json")).flat_map do |path|
       JSON.parse(File.read(path)).fetch("steps", [])
     end
-    # Vendored addition, not (yet) upstream hecks (migration plan task
-    # 4, i106 in-DSL math): multiply/clamp/remove joined set/append/
-    # increment/decrement as real, declared MutationOp members — see
-    # vocabulary.bluebook's own MutationOp comment for the arithmetic each
-    # one performs.
-    #
-    # `delegate` joined them for a different real need, from a downstream
-    # consumer rather than one of these three bundled examples —
-    # CommandBuilder#delegates_to's own comment gives the full reasoning
-    # (a chess domain's own move-legality check needing a synchronous,
-    # single-dispatch handoff into a nested entity command). No bundled
-    # example here uses it yet; `spec/dsl_spec.rb`'s own delegates_to
-    # example is this vocabulary member's real usage instead.
-    #
-    # `corrects` joined for retroactive correction — CommandBuilder
-    # #corrects_impl's own comment gives the full reasoning. Real in
-    # banking: `Account.CorrectFee` corrects `FeeApplied`
-    # (examples/banking/bluebook/deposit_accounts.bluebook).
+    # multiply/clamp/remove, `delegate` (CommandBuilder#delegates_to) and `corrects`
+    # (CommandBuilder#corrects_impl) extend set/append/increment/decrement.
     ops = %w[set append increment decrement multiply clamp remove delegate corrects]
     expect(declared("MutationOp")).to eq(ops)
     expect(used).not_to be_empty
@@ -169,16 +98,8 @@ RSpec.describe "the declared vocabularies" do
     )
   end
 
-  # Never `bind_runtime` — this spec only ever dispatches by raw FQN
-  # string (`runtime.dispatch("DispatchOrder::Widget.Open", ...)`
-  # below), never the Ruby facade sugar `bind_runtime` installs.
-  # `bind_runtime` puts a bare global constant on `Object` per domain
-  # and per aggregate name with no cleanup — "Widget" here once leaked
-  # into an unrelated later spec in the same process that also uses a
-  # generic "Widget" fixture name, corrupting its own unrelated build
-  # (the exact hazard `Bluebook::SmokeTest`'s own `install_facade:
-  # false` exists to avoid — this spec predates that fix and had the
-  # identical exposure).
+  # Never `bind_runtime`: it installs global constants per aggregate name with no cleanup, and
+  # "Widget" leaked into unrelated specs. Dispatch here is by raw FQN string only.
   def boot(bluebook)
     registry = Hecks::Runtime::Registry.new
     Hecks.with_registry(registry) do
@@ -191,26 +112,8 @@ RSpec.describe "the declared vocabularies" do
     Hecks::Runtime::Dispatcher.new(registry)
   end
 
-  # **Coverage, both directions**. A declared step with no handler and a handler
-  # with no declaration are the same class of drift — a step DISPATCH_ORDER
-  # never reaches — but only the first direction was gated until now:
-  #
-  #   every DISPATCH_ORDER name must resolve to a real `step_<name>` handler
-  #   `call` can actually `send` to — the thing that would have silently
-  #   no-op'd (NoMethodError at dispatch time, really, but only the first
-  #   time that step's preconditions were ever met) if a declared step and
-  #   its handler ever drifted apart.
-  #
-  # The reverse was ungated: a `step_` method that exists but is missing
-  # from the vocabulary is simply never called, with nothing failing — the
-  # exact shape of bug audit H1 (see EntityDispatchOrder's own bluebook
-  # comment above), where an entity command ran neither
-  # refuse_unknown_arguments nor refuse_absent_arguments because a since-
-  # corrected comment claimed the aggregate's own gate covered it, and no
-  # spec here noticed the handler side had nothing declaring it. A live
-  # orphan today would silently skip whatever it implements (a payload
-  # gate, an invariant check, ...) on every single dispatch, forever — not
-  # a NoMethodError, not a raised anything.
+  # Coverage runs both ways: a declared step needs a `step_<name>` handler, and a handler missing
+  # from the vocabulary is never called, with nothing failing (the audit H1 shape).
   [
     ["AggregateDispatchOrder", Hecks::Runtime::CommandInterpreter],
     ["EntityDispatchOrder", Hecks::Runtime::EntityInterpreter]
@@ -223,10 +126,8 @@ RSpec.describe "the declared vocabularies" do
     end
 
     it "every #{interpreter} step_ handler appears in the declared #{vocabulary}" do
-      # `private_instance_methods(false)`, not `private_method_defined?` —
-      # only methods this class itself defines, so a `step_` helper picked
-      # up from an included module (there are none today, but nothing stops
-      # one tomorrow) can't be mistaken for an orphaned dispatch step.
+      # Only methods this class defines itself, so a `step_` helper from an included module is not
+      # mistaken for an orphaned dispatch step.
       handler_steps = interpreter.private_instance_methods(false)
                                  .grep(/\Astep_/) { |m| m.to_s.delete_prefix("step_") }
       orphans = handler_steps - declared(vocabulary)
@@ -238,14 +139,9 @@ RSpec.describe "the declared vocabularies" do
     end
   end
 
-  # Conditional correctness : assign_creation_attributes and advance_lifecycle
-  # (both interpreters) are the two DISPATCH_ORDER members `call` does not run
-  # unconditionally — each traces exactly when its own precondition holds, per
-  # CommandInterpreter#step_assign_creation_attributes/#step_advance_lifecycle
-  # and EntityInterpreter#step_advance_lifecycle's own internal self-guards.
-  # `Open`/`Advance` fire both ; `Close`/`Touch` (spec/fixtures/
-  # dispatch_order.bluebook) create and transition neither, so together the
-  # four dispatches below exercise every conditional step's fire and skip.
+  # `call` runs assign_creation_attributes and advance_lifecycle only when their precondition
+  # holds. `Open`/`Advance` fire both; `Close`/`Touch` (spec/fixtures/dispatch_order.bluebook)
+  # neither, so the four dispatches below cover each step's fire and skip.
   it "assign_creation_attributes fires only for a creating command" do
     runtime = boot(File.join(InMemoryDomain::ROOT, "spec/fixtures/dispatch_order.bluebook"))
 

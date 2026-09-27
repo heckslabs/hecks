@@ -1,61 +1,5 @@
-//! The `ProcessManager`/`Handler` constructs
-//! (`lib/hecks/bluebook/ir/process_manager.rb`) — shared here the
-//! same way Ruby shares them (`Handler`'s builder is
-//! `ProcessManagerBuilder::HandlerBuilder`, a nested class, not a
-//! standalone one — see `spec/syntax_conformance_spec.rb`'s `BUILDER`
-//! table).
-//!
-//! S7 (ADR 0025, "events and reactions"): one state-machine vocabulary —
-//! the same `transition` word `Lifecycle`'s own `transition` already
-//! carries under `context: "Aggregate"`/`"Entity"`
-//! (`rust/parser/src/parse/lifecycle.rs`), one level over. The old
-//! `state "x"` word (declaring states by hand) and `on event_type,
-//! transition: {...} do ... end` (a named `transition:` kwarg wrapping a
-//! second Hash) are both gone, replaced by a bare rocket-pair `transition
-//! "AccountDebited" => "awaiting_credit", from: "requested" do ... end` —
-//! the identical `pairs_shape: "fields"` positional argument shape
-//! Lifecycle's own `transition` uses, plus a mandatory `from:` (Lifecycle's
-//! own is optional — an aggregate transition may be admitted from any
-//! state; `SagaInterpreter#advance_saga`'s own admission checks a saga
-//! instance's current state by plain equality, so an unconstrained PM
-//! transition would silently match nothing — refused here instead) plus
-//! an optional dispatch block (Lifecycle's own transition never dispatches
-//! anything).
-//!
-//! `states` is derived from the transitions that name them
-//! (`derived_states`, below) — the same reading `Behaviour::Lifecycle
-//! #states` already gives an aggregate's own field
-//! (`ProcessManagerBuilder#derived_states`) — first-seen order, walking
-//! each expanded handler's own `from_state`/`to_state`.
-//!
-//! The IR wire shape (`ir::ProcessManager`'s own `states`/`handlers`,
-//! `ir::ProcessManagerHandler`'s own `event_type`/`from_state`/`to_state`/
-//! `dispatches`) is byte-identical to before this slice — only how the
-//! declaration reaches that same shape changed, confirmed against the
-//! Ruby source (`lib/hecks/bluebook/process_manager.rb`, unchanged by
-//! S7) and the builder (`lib/hecks/bluebook/dsl/process_manager_
-//! builder.rb`, which expands a `from: [...]` transition into several flat
-//! handler rows immediately, before constructing the IR object — mirrored
-//! here the same way, in `parse_transition` below).
-//!
-//! `saga`/`Saga` (the derived compensation reading, `handler_for
-//! ("refused")`) is deliberately absent from `to_h` — `IR::ProcessManager
-//! #to_h`'s own comment: "the IR export spells the source, and a derived
-//! fact is not a fact about the source" — so nothing here needs to build
-//! it; a `Vec<ProcessManagerHandler>` already carries everything `saga`
-//! would derive from.
-//!
-//! Per-dispatch saga compensation (`compensates`, mirroring Ruby's own
-//! `HandlerBuilder#dispatch_impl` + `DispatchBuilder#compensates_impl`,
-//! `lib/hecks/bluebook/dsl/process_manager_builder.rb`) — `dispatch`
-//! gained a second `KeywordRow` (`body: "keywords"`, opening a new
-//! "Dispatch" context) alongside its original `body: "none"` row, the
-//! identical two-row shape `transition` already uses one level up for
-//! its own optional dispatch block. `parse_dispatches` picks between
-//! them via `gated.call.opener`, same as `parse_transition` does for
-//! `transition`'s own block. `compensates` (the one word "Dispatch"
-//! admits) never nests further — a compensation is not itself
-//! compensable.
+//! The `ProcessManager`/`Handler` constructs: `transition` legs with optional `dispatch` blocks.
+//! `states` is derived from the legs, not declared.
 
 use super::GatedLine;
 use crate::diag::{Diagnostic, ParseResult};
@@ -87,27 +31,13 @@ pub fn parse_body(
         let line = gated.line.number;
 
         match gated.row.word {
-            // `ProcessManagerBuilder#correlates_by(field) = @correlates_by
-            // = field.to_sym` — a dotted symbol, so `positional_symbol`'s
-            // own quoted-spelling handling (`:"reference.value"`) is what
-            // this needs; a bare identifier could never spell the dot at
-            // all.
+            // A dotted symbol (`:"reference.value"`), which only `positional_symbol` can spell.
             "correlates_by" => {
                 pm.correlates_by =
                     super::positional_symbol(file, line, "correlates_by", &gated.args, 1)?
             }
-            // ADR 0025, S6 — "events first-class": `starts_on`/`ends_on`
-            // gained a `kind: "constant"` argument row alongside their
-            // existing `kind: "text"` one (2026-08-28), same shape
-            // `on`/`emits` already carry — `positional_event_name_ref`
-            // (not `positional_text`, and not `positional_command_ref`
-            // either) so a qualified constant keeps only its bare final
-            // segment, matching Ruby's own `Naming.event_name_ref`
-            // (`ProcessManagerBuilder#starts_on_impl`/`#ends_on_impl`,
-            // and that method's own header for why a process manager's
-            // own event references never keep their `::` qualifier —
-            // `SagaInterpreter` matches them against a bare
-            // `event.name`).
+            // Event references keep only the bare final segment (`Naming.event_name_ref`);
+            // `SagaInterpreter` matches them against a bare `event.name`.
             "starts_on" => {
                 pm.starts_on = Some(super::positional_event_name_ref(
                     file,
@@ -128,12 +58,8 @@ pub fn parse_body(
             }
             "transition" => {
                 for handler in parse_transition(file, lines, pos, line, &gated)? {
-                    // C10.3 (docs/semantics/bluebook-semantics.md) — a
-                    // leg is selected by (event, current state), so two
-                    // legs on one pair would be picked by declaration
-                    // order, silently. Refused at build, mirroring
-                    // `ProcessManagerBuilder#refuse_ambiguous_legs!`
-                    // (same wording, same `from: [...]` fan-out reading).
+                    // Two legs on one (event, state) pair would be picked by declaration order;
+                    // mirrors `ProcessManagerBuilder#refuse_ambiguous_legs!`.
                     if let Some(earlier) = pm
                         .handlers
                         .iter()
@@ -168,14 +94,8 @@ pub fn parse_body(
     }
 }
 
-/// Derived, not declared (S7) — every state this procedure ever runs on is
-/// already named by some handler's own `from_state` or `to_state`; a state
-/// nothing transitions into or out of is not a state this procedure has,
-/// the same reading `Behaviour::Lifecycle#states` already gives an
-/// aggregate's own field. First-seen order, walking declaration order —
-/// `begin_saga`'s own `pm.states.first` is what a fresh instance starts
-/// in, so the order has to survive the derivation, not just the
-/// membership.
+/// Every state named by a handler's `from_state` or `to_state`, in first-seen order.
+/// Order matters: `begin_saga` starts a fresh instance in `pm.states.first`.
 fn derived_states(handlers: &[ir::ProcessManagerHandler]) -> Vec<String> {
     let mut states = Vec::new();
     for handler in handlers {
@@ -188,38 +108,11 @@ fn derived_states(handlers: &[ir::ProcessManagerHandler]) -> Vec<String> {
     states
 }
 
-/// `ProcessManagerBuilder#transition(mapping, &block)` — a bare rocket-pair
-/// argument (`transition "AccountDebited" => "awaiting_credit", from:
-/// "requested" do ... end`), the same `pairs_shape: "fields"` shape
-/// `Lifecycle::transition`'s own `command => to_state` pair uses
-/// (`rust/parser/src/parse/lifecycle.rs`'s own `"transition"` arm) — the
-/// pair's key is either a `text` (an announced event name,
-/// `"TransferRequested"`) or the bare `:refused` sentinel
-/// (`IR::ProcessManager::REFUSED`, a leg noticing a dispatch it made was
-/// declined, which no aggregate ever announces), both already gated by
-/// `syntax.bluebook`'s two Argument rows for `transition`/`ProcessManager`
-/// and both read the same way `text_value` already reads Lifecycle's own
-/// pair key (`ruby_value::read` turns a bare `:refused` into
-/// `Value::Symbol`, and `ruby_value::to_s` drops the colon).
+/// Parses `transition "Event" => "state", from: ... do ... end`; the block is optional.
 ///
-/// Unlike `Lifecycle::transition`'s own `from:` (genuinely optional — an
-/// aggregate transition may be admitted from any state), `from:` here is
-/// mandatory (`ProcessManagerBuilder#transition`'s own refusal for a nil
-/// `from:`) — the argument gate's generic required-check never reaches a
-/// `pairs_shape: "fields"` named row (see `argument_gate_fields_pairs`'s
-/// own header), so the refusal has to happen here.
-///
-/// One declared transition is several rows when `from:` names more than
-/// one source state — `ProcessManagerBuilder#expand`'s own comment, the
-/// identical fan-out `Lifecycle`'s own `from_values` (below) already
-/// performs one level over: a `ProcessManagerHandler` only ever carries a
-/// single `from_state`, so a `from: [...]` transition mints one row per
-/// source, each carrying the same dispatches.
-///
-/// The block is optional (`Opener::None` is legal — `ProcessManagerBuilder
-/// #transition`'s own `handler.instance_eval(&block) if block`) — an
-/// empty `dispatches` list when absent, the nested `Handler` body's own
-/// `dispatch` lines collected when present.
+/// The pair key is an event name or the bare `:refused` sentinel. `from:` is mandatory here,
+/// and the argument gate never checks a `pairs_shape: "fields"` row, so it is refused below.
+/// A `from: [...]` list expands to one handler per source state, each with the same dispatches.
 fn parse_transition(
     file: &str,
     lines: &[SourceLine],
@@ -231,18 +124,8 @@ fn parse_transition(
         Diagnostic::new(file, line, "'transition' names no 'event => state' pair")
     })?;
     let (event_raw, to_state_raw) = super::split_top_level_rocket(pair_text);
-    // ADR 0025, S6 — "events first-class": the trigger side of a
-    // `transition EVENT => "state"` pair accepts a bare constant, the
-    // same lexical shape `policy.rs`'s own `on`/`emits` accept —
-    // `Account::AccountDebited` still reads as a qualified reference,
-    // but `crate::build::naming::event_name_ref` (not `command_ref`)
-    // keeps only its bare final segment: `Naming.event_name_ref`'s own
-    // Ruby-side header has the full account (found live, 2026-08-28,
-    // wiring a real migrated corpus site into `bin/model_check` for
-    // the first time) — `SagaInterpreter#advance_saga` matches
-    // `handler.event_type` against a bare `event.name`, never a `.`
-    // qualified one, unlike a policy's own cross-aggregate `on`. A
-    // plain string still passes through unchanged.
+    // Keeps only the bare final segment of a qualified constant: `SagaInterpreter#advance_saga`
+    // matches `handler.event_type` against a bare `event.name`, unlike a policy's `on`.
     let event_type = crate::build::naming::event_name_ref(event_raw.trim());
     let to_state = text_value(to_state_raw);
 
@@ -285,12 +168,7 @@ fn text_value(raw: &str) -> String {
     }
 }
 
-/// `from: "requested"` (one state) or `from: ["requested", "pending"]`
-/// (several, list-expanded) — the same two-kind shape `Lifecycle`'s own
-/// `from:` rows already have (`rust/parser/src/parse/lifecycle.rs`'s own
-/// `from_values`), mirrored here rather than shared directly since this
-/// one has no `None` case to fold in (`from:` is mandatory, checked by
-/// the caller before this ever runs).
+/// `from: "a"` or `from: ["a", "b"]`; mandatory, so no `None` case unlike `Lifecycle`'s.
 fn from_values(raw: &str) -> Vec<String> {
     let trimmed = raw.trim();
     if trimmed.starts_with('[') && trimmed.ends_with(']') {
@@ -302,8 +180,7 @@ fn from_values(raw: &str) -> Vec<String> {
     vec![text_value(trimmed)]
 }
 
-/// The `Handler` context's own body — zero or more `dispatch` lines
-/// (`HandlerBuilder#dispatch`), up to the matching `end`.
+/// The `Handler` body: zero or more `dispatch` lines up to the matching `end`.
 fn parse_dispatches(
     file: &str,
     lines: &[SourceLine],
@@ -325,16 +202,7 @@ fn parse_dispatches(
                     1,
                 )?;
                 let with_spec = parse_with_pairs_opt(&gated.args);
-                // An optional `do ... end` block opens the "Dispatch"
-                // context on this dispatch specifically — per-dispatch
-                // saga compensation (`HandlerBuilder#dispatch_impl`'s own
-                // comment). `dispatch`'s own two `body` rows (keywords.rs)
-                // mirror `transition`'s own pair one level up: `body:
-                // "none"` when no block follows, `body: "keywords"`
-                // (opening "Dispatch") when one does — `body_gate` already
-                // picks the right row from `gated.call.opener` alone, the
-                // same way `parse_transition` above already relies on for
-                // `transition`'s own optional dispatch block.
+                // A `do ... end` block opens the "Dispatch" context for per-dispatch compensation.
                 let compensates = match &gated.call.opener {
                     Opener::None => None,
                     Opener::DoBlock { .. } => {
@@ -363,14 +231,7 @@ fn parse_dispatches(
     }
 }
 
-/// The `Dispatch` context's own body — at most one `compensates` line
-/// (`ProcessManagerBuilder::HandlerBuilder::DispatchBuilder#compensates_impl`),
-/// up to the matching `end`. Structurally identical to `dispatch`'s own
-/// two argument rows (positional command reference + optional `with:`
-/// pairs), because a compensation resolves through the exact same scope
-/// any saga dispatch already does — see `syntax.bluebook`'s own comment
-/// on why the two `ArgumentRow`s are shape-for-shape copies under
-/// `context: "Dispatch"` instead of `"Handler"`.
+/// The `Dispatch` body: at most one `compensates` line, shaped like `dispatch`'s own arguments.
 fn parse_compensates_block(
     file: &str,
     lines: &[SourceLine],
@@ -392,10 +253,7 @@ fn parse_compensates_block(
                     1,
                 )?;
                 let with_spec = parse_with_pairs_opt(&gated.args);
-                // Never nested further — `compensates` has no block of
-                // its own (its only KeywordRow is `body: "none"`), so
-                // this inner `DispatchSpec`'s own `compensates` is
-                // always `None`.
+                // A compensation has no block of its own, so it is never itself compensable.
                 compensates = Some(ir::DispatchSpec {
                     command_name,
                     with_spec,
@@ -415,27 +273,18 @@ fn parse_compensates_block(
     }
 }
 
-/// `dispatch`'s own `with:` — a `pairs_shape: "verbatim"` open map,
-/// already split into `(key, raw-value-text)` pairs by `argument_gate`
-/// (both the `identifier: value` and hash-rocket spellings — not
-/// exercised by any real `dispatch` here, every one uses plain
-/// identifiers). Each value is read back through `ruby_value` and
-/// re-rendered — `IR::DispatchSpec#to_h`'s own `with_spec.map { |key,
-/// value| [key.to_s, IR.render_value(value)] }` — so a Symbol
-/// (`:source`, an argument reference resolved at dispatch time, not
-/// here) keeps its colon and a nested Hash literal (`{ text: "transfer
-/// out" }`) renders the same pinned way `Mutation`'s own append fields
-/// do.
-/// `with:` where it is optional — absent reads as no bindings at all,
-/// which is what both callers mean by leaving it off: `dispatch` sends
-/// the command its declared arguments, and `trigger` forwards the
-/// event's whole payload verbatim.
+/// `with:` where it is optional; absent means no bindings, which both callers read as
+/// "pass everything through".
 pub(super) fn parse_with_pairs_opt(args: &super::ArgumentGateResult) -> Vec<(String, String)> {
     super::named_raw(args, "with")
         .map(parse_with_pairs)
         .unwrap_or_default()
 }
 
+/// Splits a `with:` open map into `(key, rendered value)` pairs.
+///
+/// Values round-trip through `ruby_value`, so a Symbol keeps its colon and a nested Hash renders
+/// in the pinned form.
 pub(super) fn parse_with_pairs(raw: &str) -> Vec<(String, String)> {
     let trimmed = raw.trim();
     let inner = trimmed

@@ -42,65 +42,33 @@ require_relative "hecks/embryonaut_bluebook"
 # packaged gem leaves it out (ADR 0066).
 Hecks.autoload(:Corpus, File.expand_path("hecks/corpus", __dir__))
 
-# The root namespace and public facade of the whole DSL/runtime: `Hecks.boot`/
-# `.boot_files` assemble a running domain from `.bluebook`/`.hecksagon`/
-# `.world` files, and `.bluebook`/`.hecksagon`/`.port`/`.adapter`/`.world`/
-# `.data_translation` are the top-level declaration words every such file
-# opens with, each collecting its built construct into the currently booting
-# Registry (`#collect`, private below).
+# Root namespace and public facade of the DSL/runtime: `Hecks.boot`/`.boot_files`
+# assemble a running domain from `.bluebook`/`.hecksagon`/`.world` files.
 module Hecks
   class LoadOutsideBoot < StandardError; end
 
   class << self
-    # The loading words below collect into the registry the runtime is
-    # holding open ; booting and that ambient state belong to the runtime
-    # layer, so this module is their facade and Hecks::Runtime is where
-    # they live.
-    # `install_facade:` — see Runtime::Loader.boot. Defaults on; a caller
-    # that only dispatches by FQN string can skip the global sugar.
-    #
-    # `environment:` — recovered, not new: this parameter (and the
-    # `environments/<name>.hecksagon` / `.world` overlay it loads —
-    # see Adapters::Folder#load_domain) existed on a prior commit of
-    # this repo (933d1dd), was vendored out to a real consumer
-    # (a client site's domain), and was then lost from this repo's own
-    # history (no branch here reaches that commit). Ported forward
-    # from the consumer's vendor snapshot — the only surviving copy —
-    # and generalized: the original only loaded a `.hecksagon`
-    # overlay; this also loads a same-named `.world` overlay, both
-    # merged into the base rather than replacing it (Registry#add_hecksagon
-    # / #add_world). hecks never reads ENV itself — a caller
-    # resolves its own env var name and passes the resulting string
-    # straight through, e.g. `Hecks.boot(path, environment:
-    # ENV.fetch("MYAPP_ENV", "development"))`.
-    #
+    # Boots a domain from `path`, assembling a running dispatcher from its
+    # `.bluebook`/`.hecksagon`/`.world` files. hecks never reads ENV itself —
+    # a caller resolves its own env var name and passes it as `environment`.
     # @param path [String] path to a domain directory, or a file inside one
     # @param shared [String, nil] a shared-root override; see `Runtime::Loader.boot`
-    # @param install_facade [Boolean] whether to install the `Widget::Item.Add`-style
-    #   Ruby facade constants for this boot
-    # @param environment [String, nil] the environment name whose
-    #   `environments/<name>.hecksagon`/`.world` overlay, if present, loads after the
-    #   domain's own
-    # @return [Runtime::Dispatcher, Runtime::RemoteDispatcher] the dispatcher bound
-    #   to the booted domain
+    # @param install_facade [Boolean] install the `Widget::Item.Add`-style facade
+    # @param environment [String, nil] env name; its `.hecksagon`/`.world` overlay,
+    #   if present, loads after the domain's own
+    # @return [Runtime::Dispatcher, Runtime::RemoteDispatcher] dispatcher bound to the domain
     def boot(path, shared: nil, install_facade: true, environment: nil)
       Runtime.boot(path, shared: shared, install_facade: install_facade, environment: environment)
     end
 
-    # `paths` — an explicit list of files to boot (a `.bluebook`, its
-    # `.hecksagon`, optionally a `.world`), loaded in place from wherever
-    # they actually live — see Runtime::Loader.boot_files's own header for
-    # why this exists beside `boot` rather than as a special case of it.
-    #
+    # Boots a domain from an explicit list of files (a `.bluebook`, its
+    # `.hecksagon`, optionally a `.world`) instead of a whole directory —
+    # see `Runtime::Loader.boot_files` for why this exists beside `boot`.
     # @param paths [String, Array<String>] one or more file paths within the domain
-    #   to load, instead of the whole directory
     # @param shared [String, nil] a shared-root override; see `Runtime::Loader.boot_files`
-    # @param install_facade [Boolean] whether to install the `Widget::Item.Add`-style
-    #   Ruby facade constants for this boot
-    # @param environment [String, nil] the environment name passed through to the
-    #   selected-file loader
-    # @return [Runtime::Dispatcher, Runtime::RemoteDispatcher] the dispatcher bound
-    #   to the booted domain
+    # @param install_facade [Boolean] install the `Widget::Item.Add`-style facade
+    # @param environment [String, nil] environment name passed to the selected-file loader
+    # @return [Runtime::Dispatcher, Runtime::RemoteDispatcher] dispatcher bound to the domain
     def boot_files(paths, shared: nil, install_facade: true, environment: nil)
       Runtime.boot_files(paths, shared: shared, install_facade: install_facade, environment: environment)
     end
@@ -117,21 +85,8 @@ module Hecks
     # @return [Runtime::Registry, nil] the current registry, or nil outside a boot
     def current_registry = Runtime.current_registry
 
-    # Bind who is dispatching for the duration of the block — checked
-    # against a command's declared `role`, if it has one. Unbound (the
-    # default), a command's role stays exactly what it is without this:
-    # decoration.
-    #
-    # `actor_id` is optional — a caller naming only a role is checked by
-    # string equality against the command's own `role`, exactly as
-    # before. A caller that also names who it is lets the check run
-    # against a real Governance `RoleAssignment` instead, once the
-    # command's domain has Governance attached — see
-    # `CommandRules::Authorization`'s own header.
-    #
-    # `as_of` and `scope` are optional too, same shape — see
-    # `Runtime.as_caller`'s own header for what each does.
-    #
+    # Binds who is dispatching for the duration of the block, checked against
+    # a command's declared `role`; unbound (the default) is a no-op.
     # @param role [String, Symbol] the role to check the caller against
     # @param actor_id [String, nil] who is calling, checked against a real Governance
     #   `RoleAssignment` when given; string-equality only against `role` when nil
@@ -165,26 +120,16 @@ module Hecks
     # @return [Bluebook::Hecksagon] the built hecksagon
     # @raise [LoadOutsideBoot] if called outside `Hecks.boot`/`.boot_files`
     def hecksagon(name, &) = collect(:add_hecksagon, Bluebook::DSL::HecksagonBuilder.build(name, &))
-    # Repointed to DomainPortBuilder — the migration DomainPort's own
-    # class comment names as its goal, now landed for the top-level
-    # `.port` file callers too (the aggregate-scoped `Thing.port(...)`,
-    # binding_proxy.rb, already went through this builder). Every real
-    # `.port` file only ever spells `verb`/`signal` (no `.port` file
-    # declares operations — that's DomainPort's own newer shape), and
-    # DomainPortBuilder's own bare-verb branch produces the exact same
-    # `Port` object PortBuilder itself did (dsl_spec.rb's own byte-
-    # identity check) — a pure repoint, no behavior change for any
-    # existing caller reading `.verb`/`.signal` off what comes back.
+
+    # Declares a port — a `.port` file's top-level word.
     #
-    # `legacy_bare_port: true` — the one real semantic gap this repoint
-    # would otherwise open: `PortBuilder#build` never refused a
-    # completely empty build (no verb, no signal even), a real shape
-    # dsl_spec.rb's own "a port" tests exercise (`signal`-only, no
-    # `verb`). `DomainPortBuilder`'s own "declares no verb and no
-    # operations" refusal is real and correct for its other two callers
-    # (`BindingProxy#port`, `HecksagonBuilder#port_impl`) — only this,
-    # the literal top-level `.port` file entry point, keeps the older,
-    # looser rule (see `DomainPortBuilder#initialize`'s own comment).
+    # `legacy_bare_port: true` — only this entry point allows a completely
+    # empty port body; see `DomainPortBuilder#initialize`'s own doc.
+    #
+    # @param name [String] the port's name
+    # @yield the port's body, evaluated against a `Bluebook::DSL::DomainPortBuilder`
+    # @return [Bluebook::Port, Bluebook::DomainPort] the built port
+    # @raise [LoadOutsideBoot] if called outside `Hecks.boot`/`.boot_files`
     def port(name, &) = collect(:add_port, Bluebook::DSL::DomainPortBuilder.build(name, legacy_bare_port: true, &))
 
     # Declares an adapter — an `.adapter` file's top-level word.

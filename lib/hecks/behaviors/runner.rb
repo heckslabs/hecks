@@ -2,14 +2,9 @@ require_relative "expectations"
 
 # Hecks::Behaviors.run(path) / .run_all(dir)
 #
-# Discovery + aggregation. `run_one` (expectations.rb) is the impure edge
-# that actually touches a live runtime; this file finds `.behaviors`
-# files, loads them, and maps their tests through it.
+# Finds `.behaviors` files, loads them, and runs their tests through `Expectations.run_one`.
 module Hecks
-  # See this file's own header above for `.run`/`.run_all`/`.parse` — the
-  # discovery-and-aggregation half of the `.behaviors` authoring surface;
-  # `Expectations` (expectations.rb) is the impure edge that actually runs
-  # one test against a live runtime.
+  # The `.behaviors` toolkit: DSL, IR, runner and rspec shim.
   module Behaviors
     FileResult = Struct.new(:path, :parse_error, :runs, keyword_init: true)
     SweepResult = Struct.new(:root, :files_swept, :files, :summary, keyword_init: true)
@@ -18,33 +13,16 @@ module Hecks
     class LoadOutsideRunner < StandardError; end
 
     class << self
-      # The `.behaviors` file currently being `Kernel.load`ed, if any —
-      # bound only for the duration of that load (`run`'s own `ensure`),
-      # never left set. `Hecks.behaviors` (lib/hecks/behaviors.rb)
-      # reads this to resolve its own `loads` line relative to the right
-      # file, and to refuse a `.behaviors` file loaded any other way.
+      # The `.behaviors` file being `Kernel.load`ed; `Hecks.behaviors` reads it to resolve
+      # `loads` and to refuse a file loaded any other way.
       attr_accessor :loading_path
 
-      # The suite the most recent `Hecks.behaviors` call built — read
-      # once, right after `Kernel.load`, by `run` below, which resets it
-      # to nil before every load so a file that loads without calling
-      # `Hecks.behaviors` at all is never confused for a stale previous
-      # suite (a real bug in a prior port of this idea: compared only
-      # against nil, so after the first successful file in a sweep it
-      # stayed non-nil forever).
+      # The suite the latest `Hecks.behaviors` call built. `parse` resets it before each load so
+      # a file that never calls `Hecks.behaviors` is not mistaken for the previous suite.
       attr_accessor :last_suite
 
-      # `Kernel.load`s one `.behaviors` file and returns its suite, with
-      # no test actually executed yet — the cheap half, split out so a
-      # caller that only needs to know what tests exist (the rspec shim,
-      # naming its `it`s at collection time) doesn't pay for running them
-      # until it actually wants to. `Behaviors.loading_path` is bound only
-      # for the duration of the load, and `last_suite` is reset to nil
-      # before it — a file that loads without ever calling
-      # `Hecks.behaviors` is unambiguously a parse error, never a stale
-      # suite from whatever loaded before it in a sweep (a real bug in a
-      # prior port of this idea: compared only against nil, so after the
-      # first successful file in a sweep it stayed non-nil forever).
+      # `Kernel.load`s one `.behaviors` file and returns its suite without running any test.
+      #
       # @param path [String] the `.behaviors` file's path
       # @return [Behaviors::ParseResult] `suite` holding the built `BehaviorsSuite` and
       #   `parse_error` nil on success; `suite` nil and `parse_error` a String describing
@@ -83,10 +61,8 @@ module Hecks
         FileResult.new(path: parsed.path, parse_error: nil, runs: runs)
       end
 
-      # Sweeps every `.behaviors` file under `dir`. Reports the file count
-      # it actually found — a sweep that goes green without saying how
-      # much it looked at is indistinguishable from one that found
-      # nothing to look at.
+      # Sweeps every `.behaviors` file under `dir`, reporting the file count so a green sweep
+      # that found nothing is distinguishable.
       #
       # @param dir [String] the directory to search, recursively, for `.behaviors` files
       # @return [Behaviors::SweepResult] `files_swept` the count found, `files` one

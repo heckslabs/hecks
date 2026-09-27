@@ -1,13 +1,8 @@
 require "spec_helper"
 require "hecks/forms/params"
 
-# The Rust web host's own `nest()` (rust/host/src/web.rs) mirrors this
-# method exactly, and shares the identical path-prefix collision case: a
-# flat, dotted payload where one field is a plain scalar ("price") and
-# another implies it should be a nested group ("price.cents") raises
-# `ArgumentError` by name, rather than crashing with a raw `TypeError` or
-# silently clobbering a whole nested hash down to a lone scalar,
-# regardless of which pair the input hash happens to iterate first.
+# Rust's `nest()` (rust/host/src/web.rs) mirrors `.nest`: a scalar ("price")
+# colliding with a nested group ("price.cents") raises ArgumentError in any order.
 RSpec.describe Hecks::Forms::Params do
   describe ".nest" do
     it "nests ordinary dotted pairs into their tree shape" do

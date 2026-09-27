@@ -1,131 +1,28 @@
 require_relative "skip_reason"
 
+# Generates the Rust named-query table from the exported IR, with skip reasons.
 module RustProjection
   module Projector
     module_function
 
-    # ── NAMED QUERY CODEGEN — the subset of a declared `query "X" do
-    # ... end` block expressible as one or more field-comparator
-    # conditions, ANDed together, against a single aggregate's OWN
-    # attributes, PLUS (as of 2026-08-11) that same result set's own
-    # declared `order_by`/`limit`: exactly `kernel/repository.rs`'s
-    # existing `filter_entries`/`AggregateScan` machinery for the where
-    # clauses, chained into `kernel/query_ordering.rs`'s `apply` for the
-    # order/cap — the SAME sort/limit tail `read_models.rb` already ported
-    # for a read model's own eligible head (that module's own header has
-    # the full argument for why this was reuse, not new invention, once it
-    # existed). `query_skip_reason` is the single gate every other
-    # function here answers to; `query_conditions` only ever runs once a
-    # query has already passed it.
+    # Named-query codegen: a declared `query` whose where clauses compare one aggregate's own
+    # fields becomes a `QueryDef` row, with its `order_by`/`offset`/`limit` carried alongside.
     #
-    # WHAT THIS DELIBERATELY DOES NOT COVER, and why — read together with
-    # `query_where_skip_reason`/`declared_order_by_skip_reason`/
-    # `declared_offset_skip_reason`/`declared_limit_skip_reason` below:
+    # `query_skip_reason` is the gate; a query it refuses gets no row, with the reason recorded.
+    # Refused: cursor/consistency/freshness/inspection/use_index, order_by on a field that is not
+    # a plain string or number, a limit/offset that is neither an integer literal nor a Symbol arg.
     #
-    #   cursor / consistency / freshness /
-    #   inspection / use_index — every one of these is a real capability
-    #   `Ports::Query::InMemory`/`TenantScope` implements and this
-    #   generator does not attempt to port, the SAME boundary
-    #   `read_models.rb` draws for a declared read model's own eligible
-    #   head (that file's own header has the full argument — including WHY
-    #   freshness/use_index are tolerated there and NOT here: this
-    #   generator hasn't been given the same "neither is ever read by the
-    #   in-memory interpreter path" case-by-case audit for the AGGREGATE-
-    #   query side of that argument, so it stays conservative rather than
-    #   assume the read-model finding transfers unexamined). `offset`/
-    #   `null_semantics`/`authorization` used to be in this list too —
-    #   Phase 10 (equivalence-gap plan) ported all three for real: `offset`
-    #   the identical Literal/Arg shape `limit` already had
-    #   (`declared_offset_skip_reason`/`emit_query_offset` below — read
-    #   models gained it too, a separate round); `null_semantics` a
-    #   top-level `nulls :first`/`:last` override folded straight into the
-    #   generated `OrderBy` struct (`query_ordering::NullsMode` — that
-    #   type's own header has the full argument for why an unrecognized/
-    #   absent mode safely falls back to the pre-existing direction-
-    #   dependent default rather than needing a refusal case at all);
-    #   `authorization` (TenantScope) a synthetic `field == args[tenant]`
-    #   condition baked into `conditions` at codegen time PLUS an explicit
-    #   presence check on the wire arg (`named_query::TenantAuth` —
-    #   `declared_authorization_skip_reason`/`emit_query_authorization`
-    #   below have the full argument, including why `authorize policy`
-    #   with no `tenant:` is a genuine no-op rather than a gap; read models
-    #   still refuse a declared `authorize` outright, unchanged — this is
-    #   a QUERY-only port, no real corpus read model to prove it against).
-    #
-    #   an order_by field that doesn't reduce to a plain JSON string or
-    #   number (a hop, an entity-scoped field, a list_of field, a
-    #   multi-member non-numeric value object) — `declared_order_by_skip_
-    #   reason` below, reusing `query_field_kind` the identical way
-    #   `read_models.rb`'s own `read_model_order_by_skip_reason` (now
-    #   moved here and renamed — see that function's own comment) already
-    #   did.
-    #
-    #   a limit whose own declared value isn't a literal integer or a
-    #   caller-bound Symbol arg — `declared_limit_skip_reason` below, same
-    #   move-and-rename.
-    #
-    #   a where clause hopping through a reference (`customer.status`) —
-    #   cross-aggregate joins are `read_model` territory, a different,
-    #   still-wholly-ungenerated IR construct (domain_generator.rb's own
-    #   header). Detected here as a side effect of `query_field_kind`
-    #   simply failing to resolve the field's head against this
-    #   aggregate's own declared attributes/lifecycle field: a hop's own
-    #   head names an ACCESSOR alias (`Naming.reference_hop`), never the
-    #   attribute's real storage name, so it never matches.
-    #
-    #   a LITERAL (non-Symbol) where value whose true JSON type this
-    #   generator cannot recover. `QuerySpecification::Common::
-    #   WhereClause#to_h` — the only shape `bin/ir`'s exported IR (what
-    #   this generator actually reads) ever carries a where clause's own
-    #   value AS — renders EVERY literal through `QuerySpecification.
-    #   render_value`, which is `value.to_s` for anything that isn't a
-    #   Symbol: an Integer literal `1000` and a String literal `"1000"`
-    #   are already indistinguishable by the time this file ever sees
-    #   them. `gt`/`gte`/`lt`/`lte` need real Json::Num-vs-Json::Str
-    #   fidelity to mean anything at all (query_comparators.rs's own
-    #   `ordered?` gate), so a literal comparator value is never eligible
-    #   there. `eq`/`ne` only need that fidelity when the TARGET field
-    #   itself could ever reduce to something other than a string
-    #   (`Ports::Query::InMemory#comparable`'s own numeric-member-wins,
-    #   else-single-member-collapses rule) — `query_field_kind` walks the
-    #   SAME declared-shape collapse, so a literal `eq`/`ne` is only
-    #   generated when it lands on a field that's provably string-shaped.
-    #   `in`/`contains` are the one pair of comparators exempt from this
-    #   entirely: both stringify their OWN argument unconditionally in
-    #   Ruby (`Ports::Query::InMemory#members`/`#contains?`, read
-    #   directly — `value.to_s.split(",")`/`want.to_s`, neither gated on
-    #   the value's real type), so a rendered-string literal is exactly
-    #   as correct there as whatever the original value really was.
-    #
-    # A Symbol-valued where (`where(actor_id: :actor_id)`) is exempt from
-    # all of the literal-safety reasoning above: it resolves against
-    # THIS call's own wire `args` at dispatch time (kernel/named_query.rs),
-    # which carries its real JSON type already — no IR round trip to lose
-    # it through.
-
+    # Literal where values arrive through the exported IR as `value.to_s`, so an Integer and a
+    # String literal are indistinguishable. gt/gte/lt/lte therefore never take a literal, eq/ne
+    # take one only against a provably string-shaped field, and in/contains stringify anyway.
+    # A Symbol value resolves from the typed wire args at dispatch, so it is always safe.
     COMPARATORS_NEEDING_NUMERIC_FIDELITY = %w[gt gte lt lte].freeze
     COMPARATORS_EXEMPT_FROM_LITERAL_TYPING = %w[in contains].freeze
 
-    # The declared attribute (or synthetic lifecycle field) `field`'s
-    # HEAD segment names on `aggregate`, walked through nested value
-    # objects for any segments after it — `:unknown` for anything that
-    # ISN'T one of this aggregate's own attributes (a hop's own accessor
-    # alias never matches a real attribute name, so this doubles as the
-    # hop/cross-aggregate detector this file's own header describes).
-    #
-    #   :string  — this field's `comparable`-reduced value is ALWAYS a
-    #              JSON string (a plain `String`/lifecycle field, a bare
-    #              `Reference<X>` id, or a value object that collapses —
-    #              no numeric member, exactly one member — to one).
-    #   :number  — collapses to a JSON number (a numeric primitive, or a
-    #              value object carrying a numeric member — the member
-    #              that wins `comparable`'s own numeric-first rule).
-    #   :other   — resolves, but to something a literal can never safely
-    #              represent (a `list_of` attribute read as a bare
-    #              scalar, a multi-member non-numeric value object that
-    #              stays a whole JSON object).
-    #   :unknown — does not resolve against this aggregate's own declared
-    #              shape at all.
+    # The kind (`:string`, `:number`, `:other`, `:unknown`) a where/order_by `field` reduces to
+    # on `aggregate`, mirroring `Ports::Query::InMemory#comparable`. Nested value-object
+    # segments are walked; `:unknown` means the head is not one of the aggregate's own
+    # attributes, which is also how a reference hop is detected.
     def query_field_kind(aggregate, field, value_objects_by_name)
       segments = field.to_s.split(".")
       head = segments.first
@@ -136,11 +33,7 @@ module RustProjection
 
       attr = aggregate[:attributes].find { |a| a[:name].to_s == head }
       return :unknown unless attr
-      # A `list_of` field's own comparable value is the array itself
-      # (or, under `contains`, each element's OWN reduction) — never a
-      # bare scalar a literal `eq`/`ne` could safely target. `contains`/
-      # `in` never consult this at all (see `query_where_skip_reason`),
-      # so this only ever disqualifies the pair it should.
+      # A `list_of` field compares as an array, never a scalar a literal could target.
       return :other if attr[:list]
 
       query_type_kind(attr[:type].to_s, rest, value_objects_by_name)
@@ -174,11 +67,8 @@ module RustProjection
       end
     end
 
-    # `Ports::Query::InMemory#comparable`'s own declared-shape mirror: a
-    # numeric member wins outright; a genuinely single-member value
-    # object collapses to that one member's own kind; anything else (0
-    # or 2+ non-numeric members) stays a whole JSON object, which a
-    # literal query value can never safely represent.
+    # Mirrors `comparable` for a value object: a numeric member wins, a single member collapses
+    # to its own kind, anything else stays a whole JSON object.
     def query_vo_collapse_kind(vo, value_objects_by_name)
       return :number if vo[:attributes].any? { |a| %w[Integer Float].include?(a[:type].to_s) }
       return query_type_kind(vo[:attributes].first[:type].to_s, [], value_objects_by_name) if vo[:attributes].size == 1
@@ -186,32 +76,11 @@ module RustProjection
       :other
     end
 
-    # Does `field` HOP through a reference (`account/status` — the DSL's
-    # own `/` operator, `QuerySpecification::HopPath`'s own header: `.`
-    # walks fields inside this record, `/` crosses into another one) —
-    # and if so, resolve it: `nil` for a field that isn't a hop at all,
-    # OR a hop this generator can't (yet) resolve (more than one `/` —
-    # a multi-hop chain, real in Ruby via `HopPath::MAX_HOPS`, but D2 of
-    # the equivalence-gap plan, not attempted here; the head segment
-    # isn't a real Reference-typed attribute on `aggregate`; or the
-    # target aggregate isn't declared in this domain at all — Ruby's own
-    # `HopPath::Plan#refusal` of `:unresolvable` covers the identical
-    # case, refused at BUILD time, so a hop reaching codegen with an
-    # undeclared target could only mean a cross-domain hop — also
-    # refused build-time, per `HopPath`'s own comment — so
-    # `aggregates_by_name` (this DOMAIN's own aggregates) is always the
-    # right, sufficient scope to search, never a gap this generator
-    # introduces on its own). Otherwise, `{via_field:, target_aggregate:,
-    # target:, inner_field:}` — `target` is the resolved aggregate hash
-    # itself (`aggregates_by_name`'s own value shape), handed back so a
-    # caller never has to re-look-it-up.
-    # A CHAIN IS GENERATED TOO (`member/sponsor/standing`): every segment
-    # but the last must be a reference on the previous segment's target,
-    # up to `HopPath::MAX_HOPS`. `:through` carries the steps after the
-    # first (`kernel::read_model::HopStep`); `:target` is the LAST target,
-    # the one the inner field is checked against.
+    # Resolves a `/` reference-hop field (`member/sponsor/standing`) against `aggregates_by_name`.
+    # Returns nil for a non-hop or an unresolvable one; otherwise
+    # `{via_field:, target_aggregate:, through:, target:, inner_field:}`, where `through` holds
+    # the steps after the first and `target` is the last aggregate the inner field is checked on.
     HOP_CHAIN_LIMIT = 8 # Hecks::QuerySpecification::HopPath::MAX_HOPS
-
     def query_hop_plan(aggregate, field, aggregates_by_name)
       segments = field.to_s.split("/")
       return nil if segments.size < 2 || segments.size - 1 > HOP_CHAIN_LIMIT
@@ -234,9 +103,7 @@ module RustProjection
         target: current, inner_field: segments.last }
     end
 
-    # One where clause's own eligibility — `nil` (clean) or a specific,
-    # honest reason string. See this file's own header for the full
-    # argument; this is just that argument turned into a gate.
+    # One where clause's eligibility: nil when generable, otherwise a skip reason.
     def query_where_skip_reason(where, aggregate, value_objects_by_name)
       field = where[:field].to_s
       kind = query_field_kind(aggregate, field, value_objects_by_name)
@@ -276,44 +143,21 @@ module RustProjection
                             "reduce to a plain JSON string (kind: #{kind}) — its true wire type can't be recovered from the exported IR")
     end
 
-    # A whole declared query's own eligibility. `nil` means every
-    # `emit_query_table` needs to fully bake this query in; a String
-    # names the first reason (top-level option, where clause, or
-    # order_by/limit content) that disqualifies it.
-    #
-    # order_by/limit's own PRESENCE stopped being disqualifying here
-    # 2026-08-11 — this used to `return` immediately on `query[:order_by]`/
-    # `query[:limit]` before even looking at the where clauses, which meant
-    # a query declaring BOTH order_by and something else genuinely out of
-    # scope (a hop, `freshness`, `authorize`) always reported "declares
-    # order_by" — true, but not the reason that would still exclude it once
-    # order_by itself was supported. Checking extras/use_index/wheres FIRST
-    # now, and content-checking order_by/limit LAST, means the reason this
-    # function returns for a still-excluded query is always the REAL
-    # remaining one, never a stale one order_by/limit merely used to mask.
+    # A whole query's eligibility: nil when `emit_query_table` can bake it in, otherwise the
+    # first skip reason. order_by/limit content is checked last so the reason reported is the
+    # real remaining one.
     def query_skip_reason(query, aggregate, value_objects_by_name, aggregates_by_name = {})
       extras = %i[cursor consistency freshness inspection].select { |k| query[k] }
       return skip(extras.first, "declares #{extras.join(', ')} — out of scope for this generator (rust/project/queries.rb's own " \
                                 "header has the full argument)") if extras.any?
       return skip("index_hints", "declares use_index, out of scope for the same reason the extras above are") if Array(query[:index_hints]).any?
 
-      # An empty `wheres` list is ONLY a real "nothing to compile" — a
-      # declared `authorize policy, tenant: :field` synthesizes its own
-      # where clause at codegen time (`query_conditions_with_authorization`
-      # below), so a query with no ordinary where clause but a real tenant
-      # gate still has a real reason to generate: the tenant-scoping check
-      # IS the query's whole logic. Checking for a declared tenant here,
-      # before the empty-wheres refusal, is what lets that query through;
-      # `declared_authorization_skip_reason` below still runs afterward
-      # either way, to validate the tenant FIELD itself is generable.
+      # A query with no where clause but a declared tenant still has logic: the tenant check.
       declared_tenant = query[:authorization] && query[:authorization][:tenant]
       return skip("no_wheres", "declares no where clauses at all — nothing for filter_entries to bake in") if Array(query[:wheres]).empty? && !declared_tenant
 
-      # A SINGLE hop through a reference (`customer/status`) is generated —
-      # folded by `kernel::read_model::apply_reference_hops`, the same code a
-      # read model's eligible head uses. Its inner clause gets the ordinary
-      # check against the hop's target aggregate. A chain of more than one
-      # hop still falls through to `reference_hop_where`.
+      # A single hop is generated via `kernel::read_model::apply_reference_hops`; its inner
+      # clause is checked against the target aggregate. A longer chain is refused.
       query[:wheres].each do |where|
         hop = query_hop_plan(aggregate, where[:field].to_s, aggregates_by_name)
         if hop
@@ -340,16 +184,8 @@ module RustProjection
       declared_limit_skip_reason(query[:limit])
     end
 
-    # `authorize policy, tenant: :field`'s own content check —
-    # `AuthorizationSpec#to_h` is `{policy:, tenant:}`, `tenant` `nil`
-    # unless declared. A `nil` tenant is a REAL, harmless no-op in Ruby
-    # too (`Runtime::TenantScope.apply`'s own `return declared unless
-    # tenant`), not merely unsupported — matched here by simply not
-    # disqualifying it. A real tenant needs the SAME field-validity check
-    # any other where-clause field gets: constructing the exact synthetic
-    # arg-bound where shape `query_conditions_with_authorization` below
-    # will actually compile and reusing `query_where_skip_reason`
-    # wholesale, rather than re-deriving a parallel field check.
+    # `authorize policy, tenant: :field`: no tenant is a no-op, as in `TenantScope.apply`;
+    # a tenant field gets the same check as a where clause on it.
     def declared_authorization_skip_reason(authorization, aggregate, value_objects_by_name)
       tenant = authorization && authorization[:tenant]
       return nil unless tenant
@@ -359,18 +195,7 @@ module RustProjection
       reason && skip("authorization", reason)
     end
 
-    # `Query`'s own `order_by`/`limit` content check — MOVED here from
-    # `read_models.rb` (2026-08-11, was `read_model_order_by_skip_reason`/
-    # `read_model_limit_skip_reason`), not duplicated: neither check ever
-    # depended on being a read model in the first place — both take "some
-    # aggregate, some order_by/limit hash" and answer a question that's
-    # equally true of a declared AGGREGATE query's own order_by/limit
-    # (`query_skip_reason` above) and a read model's eligible-head
-    # order_by/limit (`read_models.rb`'s own `read_model_options_content_
-    # skip_reason`, which now calls these same two functions by their new
-    # name). `module_function` already put them within reach of every file
-    # in this module before the move — the move is purely about which file
-    # a reader looks in first, not a reachability fix.
+    # Whether `order_by` names a field that reduces to a plain string or number.
     def declared_order_by_skip_reason(order_by, aggregate, value_objects_by_name)
       return nil unless order_by
 
@@ -383,13 +208,8 @@ module RustProjection
                        "field, or a multi-member non-numeric value object can't be compared generically")
     end
 
-    # `limit`'s own literal value rides the wire through `QuerySpecification.
-    # render_value` (`.to_s` for anything that isn't a Symbol), so a real
-    # Integer literal ("5") and a genuinely non-numeric literal are only
-    # told apart here, the same "recover the true type or refuse" caution
-    # this file's own literal-comparator reasoning already holds to — a
-    # Symbol arg (":page_size") needs no such check, it resolves from real,
-    # correctly-typed wire args at dispatch time.
+    # `limit` arrives through `render_value` as text, so an integer literal is told apart from a
+    # non-numeric one here; a Symbol arg resolves from typed wire args at dispatch.
     def declared_limit_skip_reason(limit)
       return nil unless limit
 
@@ -400,17 +220,7 @@ module RustProjection
                     "can't compile a real limit count from it")
     end
 
-    # `offset`'s own content check — the IDENTICAL shape `declared_limit_
-    # skip_reason` just above already checks: `QuerySpecification.
-    # render_value` puts `offset`'s own literal value on the wire exactly
-    # the way `limit`'s does (`OffsetSpec`/`LimitSpec` are both a bare
-    # `value:`, no separate encoding), so a real literal integer or a
-    # caller-bound Symbol arg is the same two-case test either field ever
-    # needs. Kept as its own named function (rather than calling
-    # `declared_limit_skip_reason(offset)` directly from `query_skip_
-    # reason`) purely so a reader following `query_skip_reason`'s own
-    # sequence of checks sees "offset" named in the reason it returns,
-    # not "limit" borrowed for a field it didn't actually name.
+    # `offset` has the same wire shape as `limit`; kept separate so the reason names "offset".
     def declared_offset_skip_reason(offset)
       return nil unless offset
 
@@ -421,35 +231,16 @@ module RustProjection
                      "can't compile a real offset count from it")
     end
 
-    # `order_by`'s own compiled form — the identical `descending` collapse
-    # `read_models.rb`'s own `emit_read_model_order_by` already does,
-    # aimed at the canonical `crate::kernel::query_ordering::OrderBy` path
-    # directly rather than through the `read_model::ReadModelOrderBy` alias
-    # (which resolves to the exact same type — either spelling compiles to
-    # the same struct — but a declared AGGREGATE query has no read-model
-    # baggage to route through, so it spells the shared type's own name).
-    # `null_semantics` is a SEPARATE, sibling top-level query key in Ruby's
-    # own IR (`QuerySpecification::Common::Options#null_semantics`, not
-    # nested inside `order_by` there) — passed in alongside rather than
-    # read off `order_by` itself, and folded into the one Rust struct that
-    # only ever means anything together with a declared order.
+    # `order_by`'s compiled form. `null_semantics` is a sibling key in the IR, passed in
+    # separately and folded into the `OrderBy` struct.
     def emit_query_order_by(order_by, null_semantics = nil)
       descending = order_by[:direction].to_s == "desc" ? "true" : "false"
       "crate::kernel::query_ordering::OrderBy { field: #{order_by[:field].to_s.inspect}, descending: #{descending}, " \
         "nulls: #{null_semantics_variant(null_semantics)} }"
     end
 
-    # `QuerySpecification::Common::NullPolicy.order`'s own `case policy&.
-    # mode.to_s; when "first"...when "last"...else...` — ported to a
-    # lookup with the SAME fallback: `nulls(mode)` (lib/hecks/
-    # query_specification/common/dsl.rb) accepts anything, unvalidated, so
-    # a genuinely declared but unrecognized mode reads as "native" in Ruby
-    # too, never a refusal there — `Hash#fetch`'s own default arm matches
-    # that exactly. `null_semantics` itself is `nil` for the ordinary case
-    # (no declared `nulls` at all — `Query#to_h`'s own `extra_options_to_h`
-    # already strips a `{mode: "native"}` null_semantics off the wire
-    # entirely, so ANY value reaching here came from a real, non-default
-    # `nulls` declaration).
+    # An unrecognized `nulls` mode falls back to native ordering, as in
+    # `QuerySpecification::Common::NullPolicy.order`; the default never reaches the wire.
     NULLS_MODE_VARIANTS = { "first" => "First", "last" => "Last" }.freeze
 
     def null_semantics_variant(null_semantics)
@@ -457,10 +248,7 @@ module RustProjection
       "crate::kernel::query_ordering::NullsMode::#{NULLS_MODE_VARIANTS.fetch(mode, 'Native')}"
     end
 
-    # `limit`'s own compiled form — `declared_limit_skip_reason` already
-    # confirmed a non-Arg value is a real literal integer, so `.to_i` here
-    # never silently truncates anything it didn't already refuse. Same
-    # canonical-path reasoning as `emit_query_order_by` just above.
+    # `limit`'s compiled form; `declared_limit_skip_reason` has already vetted the literal.
     def emit_query_limit(limit)
       raw = limit[:value].to_s
       return "crate::kernel::query_ordering::Limit::Arg(#{raw.delete_prefix(':').inspect})" if raw.start_with?(":")
@@ -468,35 +256,13 @@ module RustProjection
       "crate::kernel::query_ordering::Limit::Literal(#{raw.to_i})"
     end
 
-    # `offset`'s own compiled form — `crate::kernel::query_ordering::
-    # Offset` is `pub type Offset = Limit` (query_ordering.rs's own
-    # comment has the reasoning: identical Literal/Arg shape, identical
-    # resolution rule, one field with two names rather than two separate
-    # types). Rust itself doesn't care which name resolves the variant —
-    # `Limit::Literal(1)` and `Offset::Literal(1)` construct the identical
-    # value — but a human reading a generated `offset:` field seeing
-    # `Limit::Literal(...)` would reasonably read that as a bug, so this
-    # reuses `emit_query_limit`'s own computation (never duplicated) and
-    # swaps only the spelled type name in the result.
+    # `offset`'s compiled form: `Offset` aliases `Limit`, so this reuses `emit_query_limit`
+    # and respells the type so the generated code reads naturally.
     def emit_query_offset(offset) = emit_query_limit(offset).sub("query_ordering::Limit::", "query_ordering::Offset::")
 
-    # `query_skip_reason` already returned `nil` for this query — every
-    # where clause is either Symbol-valued (an `arg:`) or a safely-typed
-    # literal (a `literal:`), never both, matching `kernel/named_query.rs`'s
-    # own `QueryConditionValue` two-variant shape exactly.
-    #
-    # THE LITERAL HALF NEEDS DECODING, not the raw wire text — since the
-    # Literal-pinning rework a string literal rides `Literal.render`'s own
-    # `quote`d spelling (`"active"`, with real quote characters in the
-    # String), the same as every other literal field this codebase reads
-    # back through `Marks.read`/`Literal.read`. `query_where_skip_reason`
-    # already confirmed `kind == :string` for anything literal that reaches
-    # here, so `Literal.read` always hands back a plain String — baking the
-    # UNDECODED wire text in instead would compare a field's real value
-    # against a Rust string literal still wearing its own quote marks,
-    # which can never match (empty results, not a compile error — exactly
-    # what made this silent before spec/rust_conformance_spec.rb's own
-    # named-query/read-model fixtures caught it).
+    # Where clauses as `arg:` (Symbol value) or `literal:` conditions. A string literal is
+    # decoded with `Literal.read`; the raw wire text still carries its quote marks and would
+    # silently match nothing.
     def query_conditions(query)
       query[:wheres].map do |where|
         raw_value = where[:value].to_s
@@ -510,20 +276,8 @@ module RustProjection
       end
     end
 
-    # `Runtime::TenantScope.apply`'s own synthetic clause — `Scoped#wheres
-    # = __getobj__.wheres + [@clause]`, `@clause` a `WhereClause.new(field:
-    # tenant, op: "eq", value: tenant)`. Ported at CODEGEN TIME instead of
-    # runtime, since the compiled shape never varies: always `Eq` against
-    # an Arg named for the same field. Appended (not prepended) — matching
-    # Ruby's own `+`, though AND has no order sensitivity here anyway.
-    # Deliberately a QUERY-only concern: a read model's own `conditions`
-    # reuses `query_conditions` wholesale for its `wheres`, but read models
-    # still refuse a declared `authorize` outright (`read_models.rb`'s own
-    # eligibility gate, unchanged) — folding this into `query_conditions`
-    # itself would have silently extended TenantScope to read models with
-    # no real corpus case to prove it against, so this stays a separate,
-    # QUERY-call-site-only append (`domain_generator.rb`'s own
-    # `query_defs <<`) instead.
+    # `Runtime::TenantScope.apply`'s synthetic `field == args[tenant]` clause, appended at
+    # codegen time. Query-only: read models still refuse `authorize`.
     def query_conditions_with_authorization(query)
       tenant = query[:authorization] && query[:authorization][:tenant]
       return query_conditions(query) unless tenant
@@ -531,24 +285,16 @@ module RustProjection
       query_conditions(query) << { field: tenant.to_s, op: "eq", arg: tenant.to_s, literal: nil }
     end
 
-    # A declared query's where clauses, SPLIT — local ones (plus the tenant
-    # clause) as ordinary `QueryCondition`s, single-hop ones as
-    # `ReferenceHopCondition`s (`read_models.rb#read_model_hop_conditions`,
-    # reused). `query_skip_reason` already confirmed every clause is one or
-    # the other.
+    # Splits a query's where clauses into local conditions (plus the tenant clause) and
+    # single-hop `ReferenceHopCondition`s.
     def query_conditions_and_hops(domain_name, query, aggregate, aggregates_by_name)
       local, hops = Array(query[:wheres]).partition { |where| query_hop_plan(aggregate, where[:field].to_s, aggregates_by_name).nil? }
       [query_conditions_with_authorization(query.merge(wheres: local)),
        read_model_hop_conditions(domain_name, hops, aggregate, aggregates_by_name)]
     end
 
-    # `TenantAuth`'s own compiled form — `nil` unless a real tenant is
-    # declared (an `authorize policy` with no `tenant:` is a genuine no-op,
-    # per `declared_authorization_skip_reason`'s own comment; nothing to
-    # compile for it at all, matching Ruby exactly). `policy` rides along
-    # too, carried but NOT enforced (TenantAuth's own Rust-side doc
-    # comment has the full reasoning — Ruby's own TenantScope.apply never
-    # reads it either).
+    # `TenantAuth`'s compiled form; nil without a declared tenant. `policy` is carried, not
+    # enforced, as in Ruby.
     def emit_query_authorization(query_name, authorization)
       tenant = authorization && authorization[:tenant]
       return nil unless tenant
@@ -557,23 +303,9 @@ module RustProjection
       "crate::kernel::named_query::TenantAuth { query_name: #{query_name.to_s.inspect}, tenant_field: #{tenant.to_s.inspect}, policy: #{policy.to_s.inspect} }"
     end
 
-    # `where[:op]` (one of `Hecks::QuerySpecification::Common::
-    # COMPARATORS`, grammar-validated at bluebook declare time —
-    # `admits: "Vocabulary::QueryComparator"`) to its Rust `QueryComparator`
-    # variant name. `Vocabulary::QueryComparator` itself declares NINE names
-    # (`none_in_state` was added later — vocabulary.bluebook's own comment
-    # calls it "a vendored addition") — `rust/src/kernel/query_comparators
-    # .rs`'s own `QueryComparator::NoneInState` variant DOES exist now
-    # (item #9, whole-project table-unification survey), proven correct
-    # against a synthetic multi-domain fixture, but this hash still
-    # DELIBERATELY excludes it: `query_where_skip_reason` (above)'s own
-    # comment has the real reason (no generated call site can hand it a
-    # cross-domain search list yet — generating it today would silently
-    # answer every row `true`, never a real anti-join). Only the eight
-    # this hash lists get a real generated row.
-    # `query_where_skip_reason` (above) checks this BEFORE a query reaches
-    # `query_comparator_variant` below, so the `raise` there stays the
-    # "should be unreachable" backstop it always was, not the primary gate.
+    # Maps a where `op` to its Rust `QueryComparator` variant. `none_in_state` is omitted on
+    # purpose: no generated call site can supply a cross-domain search list, so it would
+    # answer every row `true` (see `query_where_skip_reason`).
     QUERY_COMPARATOR_VARIANTS = {
       "eq" => "Eq", "ne" => "Ne", "gt" => "Gt", "gte" => "Gte",
       "lt" => "Lt", "lte" => "Lte", "in" => "In", "contains" => "Contains",
@@ -591,12 +323,8 @@ module RustProjection
       if condition[:arg]
         "crate::kernel::QueryConditionValue::Arg(#{condition[:arg].inspect})"
       elsif condition[:literal].is_a?(Numeric)
-        # `query_where_skip_reason` only lets a bare Integer/Float literal
-        # (never a String, since `Literal.read` only ever returns Numeric
-        # for genuinely numeric-shaped, unquoted source text) reach here
-        # once the TARGET FIELD is already proven numeric-kind — so the
-        # literal's own Ruby class is sufficient to pick the variant,
-        # no need to re-derive kind a second time.
+        # Only a numeric-kind target reaches here with a Numeric literal, so its class picks
+        # the variant.
         "crate::kernel::QueryConditionValue::NumericLiteral(#{Float(condition[:literal]).inspect})"
       else
         "crate::kernel::QueryConditionValue::Literal(#{condition[:literal].inspect})"
@@ -609,13 +337,7 @@ module RustProjection
         "value: #{emit_query_condition_value(condition)} },"
     end
 
-    # `order_by`/`offset`/`limit` are only ever populated when
-    # `query_skip_reason` already confirmed their content is generable
-    # (`nil` for a query that declares none of them, matching
-    # `named_query.rs`'s own `QueryDef` header: "the ordinary case, and
-    # the ONLY case before 2026-08-11" for order_by/limit; `offset` joined
-    # the same "nil unless generable" convention when it was ported,
-    # Phase 10 of the equivalence-gap plan).
+    # `order_by`/`offset`/`limit`/`authorization` are nil unless the query declared them.
     def emit_query_def(query_def)
       conditions = query_def[:conditions].map { |c| "        #{emit_query_condition(c)}" }.join("\n")
       reference_hop_conditions = Array(query_def[:reference_hop_conditions]).map { |h| "        #{emit_reference_hop_condition(h)}" }.join("\n")
@@ -642,10 +364,8 @@ module RustProjection
       RUST
     end
 
-    # The exact dedented text of `rust/src/exemplar/queries.rs`'s own
-    # `TMPL:query_table` placeholder ROW — `Exemplar.render`'s substitution
-    # is a literal substring match (its own header: "never a regex"), so
-    # this has to reproduce that file's exact spacing, not just its shape.
+    # Text of the `TMPL:query_table` row in `rust/src/exemplar/queries.rs`; `Exemplar.render`
+    # substitutes it as an exact substring, so the spacing must match.
     QUERY_TABLE_ROW_PLACEHOLDER = <<~RUST.rstrip
       crate::kernel::QueryDef {
           verb: "tmpl_verb",
@@ -674,15 +394,8 @@ module RustProjection
       },
     RUST
 
-    # ── THE QUERY TABLE — `kernel::named_query::run`'s own static data,
-    # `Runtime::QueryInterpreter#interpret` ported to generated `QueryDef`
-    # rows a hand-written, generic function walks (kernel/named_query.rs),
-    # the SAME "compile shapes, interpret behavior" split
-    # `emit_policy_table`/`emit_process_manager_table` (reactions.rb)
-    # already hold to. One row per query `query_skip_reason` (queries.rb,
-    # above) let through — a skipped query simply has no row here at all,
-    # the same "absent, not wrong" shape an unrouted command's own missing
-    # registry entry already is.
+    # The `QUERIES` table `kernel::named_query::run` walks, one row per generable query, then
+    # the authorization-assignments constant and the entity-query table.
     def emit_query_table(query_defs)
       entity_defs, aggregate_defs = query_defs.partition { |q| q[:entity] }
       rows = aggregate_defs.map { |q| emit_query_def(q) }
@@ -691,18 +404,13 @@ module RustProjection
         "#{emit_entity_query_table(entity_defs)}"
     end
 
-    # `provides "authorization", assignments: "Aggregate.Query"` — the
-    # chapter-local verb a role check reads, or nil when this chapter
-    # provides no authorization. Ruby's `Chapter#provided_verb`, read off IR.
+    # The chapter-local verb `provides "authorization", assignments:` names, or nil.
     def provided_assignments(ir)
       Array(ir[:provides]).find { |row| row[:capability] == "authorization" && row[:key] == "assignments" }&.dig(:verb)
     end
 
-    # THE DECLARED ASSIGNMENTS QUERY, beside the table it lives in — the
-    # first def this table covers that a chapter's `provides` named
-    # (`assignments: true`, set where the def is built). A merged union
-    # carries its framework chapters' defs, so the flag travels with them.
-    # `kernel::check_role_via` reads this instead of Governance's name.
+    # The `AUTHORIZATION_ASSIGNMENTS` constant `kernel::check_role_via` reads; a merged union
+    # carries its chapters' `assignments` flag with their defs.
     def emit_authorization_assignments(query_defs)
       verb = query_defs.find { |q| q[:assignments] }&.dig(:verb)
       value = verb ? "Some(#{verb.inspect})" : "None"
@@ -711,10 +419,7 @@ module RustProjection
         "pub const AUTHORIZATION_ASSIGNMENTS: Option<&str> = #{value};\n"
     end
 
-    # DECLARED ENTITY QUERIES (`Aggregate.Entity.Query`) —
-    # `kernel::named_query::run_entity`, `QueryInterpreter#entity_rows`
-    # compiled. Beside `QUERIES` in every table this emits, empty for a
-    # domain that declares none.
+    # `ENTITY_QUERIES`: declared `Aggregate.Entity.Query` rows for `named_query::run_entity`.
     def emit_entity_query_table(entity_defs)
       rows = entity_defs.map { |q| "#{emit_entity_query_def(q)}\n" }.join
       "/// Declared entity queries (`Aggregate.Entity.Query`) — `kernel::named_query::run_entity`.\n" \
@@ -734,10 +439,8 @@ module RustProjection
         "order_by: #{order_by},\n    offset: #{offset},\n    limit: #{limit},\n},"
     end
 
-    # An entity query's own eligibility: its aggregate must hold the entity
-    # in a list (the thing `entity_rows` flattens), a tenant-scoped one is
-    # not generated yet, and otherwise every clause gets the SAME check a
-    # declared aggregate query does — against the entity's own fields.
+    # An entity query needs a list attribute holding the entity; tenant scope is not generated.
+    # Its clauses are otherwise checked as on an aggregate query, against the entity's fields.
     def entity_query_skip_reason(query, entity, list_attr, value_objects_by_name)
       return skip("entity_query", "#{entity[:name]} is held in no list attribute on its aggregate — nothing to flatten") unless list_attr
       return skip("entity_query_authorization", "declares authorize — an entity query's tenant scope is not generated yet") if query[:authorization]
@@ -745,27 +448,15 @@ module RustProjection
       query_skip_reason(query, entity, value_objects_by_name)
     end
 
-    # `Hecks::Naming.snake` — `Naming.reference_key`, the key an entity
-    # query's rows name their owning record under.
+    # `Hecks::Naming.snake`.
     def snake(text)
       text.to_s.gsub(/([A-Z]+)([A-Z][a-z])/, '\1_\2').gsub(/([a-z\d])([A-Z])/, '\1_\2').downcase
     end
 
-    # C3.7 FOR A NAMED QUERY'S OWN ARGUMENTS — `QueryInterpreter#normalize_
-    # args` (query_interpreter.rb): every declared attribute the caller's
-    # args carry goes through `Value.for_attribute(boundary: false)`, so a
-    # VALUE-OBJECT argument is built for real (shape, pattern, admits,
-    # invariants) while a bare scalar passes untyped (C3.8's own query
-    # allowance). ADR 0037 finding 4, closed here: `named_query::run` used
-    # to read a `QueryConditionValue::Arg` straight out of the raw JSON,
-    # so a `Price`-typed `ceiling: {cents: -1}` never met `Price`'s own
-    # invariant. One `if let` per value-object argument — built, invariant-
-    # checked, dropped: the typed value is only a gate here; the comparison
-    # itself still reads the raw JSON, exactly what Ruby's own comparator
-    # sees after `comparable`. A closed set's `from_json` already refuses a
-    # non-member, so it gets no `check_invariants` (none is generated for
-    # it, types.rb). Only the aggregate's OWN value objects are typed —
-    # a borrowed identity type lives in another module (recorded gap).
+    # Builds and invariant-checks each value-object argument of a named query, as
+    # `QueryInterpreter#normalize_args` does; the typed value is only a gate, the comparison
+    # reads raw JSON. A closed set's `from_json` already refuses non-members, so it is not
+    # invariant-checked. Only the aggregate's own value objects are typed.
     def query_arg_checks(query, mod_path, value_objects_by_name)
       query[:attributes].filter_map do |attr|
         next if attr[:list] || attr[:relationship]
@@ -780,11 +471,8 @@ module RustProjection
       end
     end
 
-    # The gate `kernel/cli.rs` runs before `named_query::run` — one arm
-    # per query that declares a typed argument, `Ok(())` for every other
-    # verb (a query with only scalar arguments, or none, has nothing to
-    # type). Emitted beside `QUERIES` in every registry `emit_query_table`
-    # reaches (a chapter's own, the merged one, meta's).
+    # `check_query_args`, the gate `kernel/cli.rs` runs before `named_query::run`: one arm per
+    # query with a typed argument, `Ok(())` otherwise.
     def emit_query_arg_check_table(query_defs)
       arms = query_defs.reject { |q| q[:arg_checks].empty? }.map do |q|
         lines = q[:arg_checks].map { |line| "            #{line}" }.join("\n")

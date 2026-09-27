@@ -1,42 +1,5 @@
-//! A minimal, dependency-free, mutable JSON value — the one genuine new
-//! piece of infrastructure this crate needs beyond pure orchestration.
-//! `rust/codegen/src/json.rs` (this crate's closest sibling) is
-//! deliberately read-only (that file's own header: "this crate emits
-//! Rust source text, not JSON") and `rust/parser/src/emit.rs` is a
-//! write-only tree walker over `rust/parser/src/ir.rs`'s own typed
-//! structs, not a generic value. Neither fits: this crate needs to
-//! parse `hecks-parse`'s already-pretty `ir.json` text, mutate exactly
-//! one boolean field in exactly the spots `mark_append_optional_fields!`
-//! (`rust/project/mutations.rb`) would, and re-emit the result matching
-//! `JSON.pretty_generate` byte-for-byte — so a generic, editable tree
-//! with its own reader and writer earns its keep here in a way it
-//! didn't in either sibling crate.
-//!
-//! The number type is raw text, not `i64`/`f64` — deliberately, unlike
-//! `rust/codegen/src/json.rs`'s `Int`/`Float` split (which exists there
-//! because `naming.rb#literal_rhs` branches on Ruby's original numeric
-//! type). This crate never reads a number's value, only round-trips it
-//! (the one numeric field in real `ir.json`, `ir_version`, is never
-//! touched by the optional-marking pass) — storing the exact literal
-//! substring the parser scanned and re-emitting it unchanged sidesteps
-//! any float-formatting mismatch entirely, rather than risking one for
-//! no benefit.
-//!
-//! The writer is `rust/parser/src/emit.rs::write_value`/`write_array`/
-//! `write_object`/`write_string`, copied algorithm-for-algorithm (not
-//! shared via a library — the plan's own architecture decision keeps
-//! `rust/parser`/`rust/codegen` untouched, sibling, subprocess-only
-//! dependencies; the alternative, restructuring either into a library
-//! crate this one could depend on, was explicitly rejected). Includes
-//! the same pinned empty-array hazard `emit.rs`'s own header documents
-//! (`JSON.pretty_generate({a: []})` renders `"{\n  \"a\": [\n\n  ]\n}"`
-//! under the bundled json 2.7.2 gem this repo resolves — an extra,
-//! unindented blank line, not simply `"[]"`) — unmodified fields in a
-//! mutated `ir.json` still round-trip byte-exact only if this quirk is
-//! reproduced exactly, and several real corpus arrays (`Order.entities`,
-//! `Order.ports`, various `invariants`/`members`/`ensures`/`givens`/
-//! `mutations`) are empty in practice, so this is exercised for real,
-//! not theoretical.
+//! A minimal, dependency-free, mutable JSON value with a reader and a pretty writer.
+//! The writer matches `JSON.pretty_generate` byte-for-byte, including its empty-array quirk.
 
 use std::fmt::Write as _;
 
@@ -44,15 +7,11 @@ use std::fmt::Write as _;
 pub enum Json {
     Null,
     Bool(bool),
-    /// Raw literal text, exactly as scanned — see this module's own
-    /// header on why this isn't `i64`/`f64`.
+    /// Raw literal text as scanned, so numbers round-trip unchanged.
     Number(String),
     String(String),
     Array(Vec<Json>),
-    /// Insertion-ordered pairs, not a `HashMap` — matches a real Ruby
-    /// Hash's own iteration-order guarantee (`to_h`'s declaration
-    /// order), which both `write_object` below and every real reader in
-    /// this crate depend on for byte-exact re-emission.
+    /// Insertion-ordered pairs; byte-exact re-emission depends on key order.
     Object(Vec<(String, Json)>),
 }
 
@@ -68,10 +27,7 @@ impl Json {
         Ok(value)
     }
 
-    /// `ir[:key]` — Ruby's own Hash lookup, collapsing "missing" and
-    /// "present as null" the same way `rust/codegen/src/json.rs::get`
-    /// already documents doing for the identical reason (every real
-    /// caller in this crate treats the two the same).
+    /// Looks up `key`, treating a `null` value as missing.
     pub fn get(&self, key: &str) -> Option<&Json> {
         match self {
             Json::Object(pairs) => pairs.iter().find(|(k, v)| k == key && !matches!(v, Json::Null)).map(|(_, v)| v),
@@ -114,27 +70,18 @@ impl Json {
         }
     }
 
-    /// Ruby truthiness on a JSON-round-tripped value — everything except
-    /// `false`/`nil` is truthy. Matches every `if attr[:optional]` call
-    /// site this crate ports (`rust/codegen/src/json.rs::as_bool`'s own
-    /// identical reasoning).
+    /// Ruby truthiness: everything except `false` and `null` is true.
     pub fn as_bool(&self) -> bool {
         !matches!(self, Json::Bool(false) | Json::Null)
     }
 
-    /// Iterate an array field, empty slice for anything else — mirrors
-    /// Ruby's `Array(ir[:key])` idiom.
+    /// Iterates an array field; empty for any other value.
     pub fn each(&self) -> &[Json] {
         self.as_array().unwrap_or(&[])
     }
 
-    /// `field_attr[:optional] = true` — the one mutation this whole
-    /// crate exists to perform. Finds the existing pair and overwrites
-    /// its value (every real `IR::Attribute#to_h` always carries an
-    /// `optional` key, per `attribute.rb`'s own unconditional
-    /// `optional: optional` field, so the pair always already exists);
-    /// falls back to appending a new pair only as a defensive measure,
-    /// never reached against real corpus `ir.json`.
+    /// Sets `key` to `value`, the only mutation the optional-marking pass performs.
+    /// Overwrites the existing pair, or appends one if absent.
     pub fn set_bool(&mut self, key: &str, value: bool) {
         if let Json::Object(pairs) = self {
             if let Some((_, existing)) = pairs.iter_mut().find(|(k, _)| k == key) {
@@ -145,15 +92,7 @@ impl Json {
         }
     }
 
-    /// `ir[:lineage] = {...}` — the generic sibling `set_bool` doesn't
-    /// cover: overwrites an existing pair in place (never reached
-    /// against real corpus `ir.json` — `lineage` is never already
-    /// present, `hecks-parse` never emits it), otherwise appends,
-    /// matching Ruby Hash's own "a new key lands last" insertion-order
-    /// guarantee — the same guarantee `set_bool`'s own fallback already
-    /// relies on, and the reason `lineage` lands as `ir.json`'s own
-    /// last top-level key, after `canonical_form`, exactly where the
-    /// default Ruby path's own `target_ir[:lineage] = ...` puts it.
+    /// Sets `key` to `value`, overwriting in place or else appending last.
     pub fn set(&mut self, key: &str, value: Json) {
         if let Json::Object(pairs) = self {
             if let Some((_, existing)) = pairs.iter_mut().find(|(k, _)| k == key) {
@@ -341,9 +280,7 @@ impl<'a> Parser<'a> {
                     }
                 }
                 Some(_) => {
-                    // One UTF-8 char's worth of bytes at a time, so
-                    // multi-byte characters in real description text
-                    // survive intact — same as rust/codegen/src/json.rs.
+                    // One UTF-8 char at a time so multi-byte text survives.
                     let start = self.pos;
                     let rest = std::str::from_utf8(&self.bytes[start..]).map_err(|e| e.to_string())?;
                     let ch = rest.chars().next().ok_or("empty remainder")?;
@@ -355,9 +292,7 @@ impl<'a> Parser<'a> {
         Ok(out)
     }
 
-    /// Unlike `rust/codegen/src/json.rs::parse_number` (which classifies
-    /// into `Int`/`Float`), this just captures the raw literal substring
-    /// — see `Json::Number`'s own header on why.
+    // Keeps the raw literal text, so numbers round-trip unchanged.
     fn parse_number(&mut self) -> Result<Json, String> {
         let start = self.pos;
         if self.peek() == Some(b'-') {
@@ -386,12 +321,7 @@ impl<'a> Parser<'a> {
     }
 }
 
-/// Matches `JSON.pretty_generate` byte-for-byte for the bundled `json`
-/// gem this repo resolves — the identical algorithm as
-/// `rust/parser/src/emit.rs::write`, copied rather than shared (this
-/// crate's own header on why). Verified against the same real corpus
-/// (pizzas, banking) both `spec/parser_parity_spec.rb` and this crate's
-/// own `spec/hecks_build_pipeline_spec.rb` already hold to byte-exact.
+/// Renders `value` exactly as `JSON.pretty_generate` does for the pinned json gem.
 pub fn write(value: &Json) -> String {
     let mut out = String::new();
     write_value(&mut out, value, 0);
@@ -435,7 +365,7 @@ fn write_string(out: &mut String, text: &str) {
 
 fn write_array(out: &mut String, items: &[Json], depth: usize) {
     if items.is_empty() {
-        // **The pinned hazard** — see this module's own header.
+        // Empty arrays render with a blank line, matching the pinned json gem.
         out.push_str("[\n\n");
         indent(out, depth);
         out.push(']');
@@ -455,9 +385,7 @@ fn write_array(out: &mut String, items: &[Json], depth: usize) {
 }
 
 fn write_object(out: &mut String, pairs: &[(String, Json)], depth: usize) {
-    // No special case for an empty object — see emit.rs's own header:
-    // the ordinary loop already produces the right bytes when it simply
-    // runs zero times.
+    // An empty object needs no special case: the loop runs zero times.
     out.push_str("{\n");
     for (idx, (key, val)) in pairs.iter().enumerate() {
         indent(out, depth + 1);

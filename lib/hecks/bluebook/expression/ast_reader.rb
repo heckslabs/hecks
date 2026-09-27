@@ -4,41 +4,20 @@ require_relative "resolver"
 module Hecks
   module Bluebook
     module Expression
-      # The inverse of `AstJson` — reads the `"op"`-tagged JSON a rule row
-      # carries as `ast` back into the same `Evaluator`/`Resolver` node
-      # Structs `Evaluator.parse` builds from `canonical`. This is how the
-      # runtime evaluates a rule without re-parsing its text: the one
-      # parse happened at DSL-build time, behind `AstJson`; dispatch walks
-      # the structured form (`Evaluator.call_rule`), and `canonical` stays
-      # what it always displayed as — text for humans and refusal wording.
-      #
-      # Written as the obvious mirror of `ast_json.rb`'s two walkers, arm
-      # for arm, so a new op there is a new arm here and
-      # spec/expression_ast_spec.rb's roster contract fails until it
-      # lands. Promoted from spec/support once the runtime switched —
-      # the spec proved the round trip first, then the runtime adopted it.
-      #
-      # One deliberate asymmetry, inherited: `AstJson` rewrites a
-      # literal-array `.include?` into an or of equalities (see
-      # `emit_include`), so reading never produces an `Include` over an
-      # `ArrayLiteral`. Evaluation is unchanged by that rewrite, which is
-      # exactly what the equivalence spec pins.
+      # The inverse of `AstJson`: reads a rule row's `"op"`-tagged `ast` back into the
+      # `Evaluator`/`Resolver` nodes, so dispatch evaluates a rule without re-parsing its text.
       module AstReader
         module_function
 
-        # Reads a whole predicate's own `"op"`-tagged JSON back into its AST.
-        #
-        # @param json [Hash{String => Object}] the `"op"`-tagged JSON a rule row's own
-        #   `ast` carries
-        # @return [Evaluator::Or, Evaluator::And, Evaluator::Not, Evaluator::Compare,
-        #   Evaluator::Include, Evaluator::Resolve] the boolean/comparison AST node
+        # Arm for arm with `AstJson`: a new op there fails spec/expression_ast_spec.rb until added
+        # here.
+        # A literal-array `.include?` is emitted as an or of equalities, so it never reads back as
+        # an `Include` over an `ArrayLiteral`; evaluation is unchanged.
+
+        # Reads a whole predicate's `"op"`-tagged JSON back into its AST.
         def read_predicate(json) = read_bool(json)
 
         # Reads one boolean/comparison node, recursing into its own children.
-        #
-        # @param json [Hash{String => Object}] the `"op"`-tagged JSON for one node
-        # @return [Evaluator::Or, Evaluator::And, Evaluator::Not, Evaluator::Compare,
-        #   Evaluator::Include, Evaluator::Resolve] the boolean/comparison AST node
         def read_bool(json)
           case json.fetch("op")
           when "or"      then Evaluator::Or.new(left: read_bool(json["left"]), right: read_bool(json["right"]))
@@ -53,14 +32,8 @@ module Hecks
           end
         end
 
-        # The comparator algebra travels as its three-flag triple; the
-        # `Operator` carrying that exact triple is the one `parse` would
-        # have chosen, because the roster (`expression/projection.json`)
-        # holds one symbol per triple.
-        #
-        # @param cmp [Hash{String => Boolean}] `{"less_than"=>, "equal"=>, "negated"=>}`
-        # @return [Evaluator::Operator] the operator carrying that exact triple
-        # @raise [RuntimeError] if no operator in `Evaluator::OPERATORS` has that triple
+        # The roster (`expression/projection.json`) holds one symbol per flag triple,
+        # so the triple identifies the operator `parse` would have chosen.
         def operator(cmp)
           Evaluator::OPERATORS.find do |op|
             op.compares_less_than == cmp.fetch("less_than") &&
@@ -70,14 +43,6 @@ module Hecks
         end
 
         # Reads one dotted/arithmetic leaf node, recursing into its own children.
-        #
-        # @param json [Hash{String => Object}] the `"op"`-tagged JSON for one leaf node
-        # @return [Object] a `Resolver` AST node — one of `IntegerLiteral`, `FloatLiteral`,
-        #   `StringLiteral`, `BoolLiteral`, `NilLiteral`, `ArrayLiteral`, `Lookup`,
-        #   `Addition`, `SignTest`, `Empty`, `ToS`, `Modulo`, `Size`, `First`, `Last`,
-        #   `BlockPredicate`, `Find`, `MatchesRegex`, `Presence`, `Assignment`, `Split`,
-        #   `StartsWith`, or `EndsWith`
-        # @raise [RuntimeError] if `json["op"]` names no known resolver op
         # rubocop:disable Metrics/AbcSize, Metrics/CyclomaticComplexity -- one arm
         # per AstJson op is the point; splitting the case would hide the roster.
         def read_resolver(json)
@@ -118,15 +83,8 @@ module Hecks
         end
         # rubocop:enable Metrics/AbcSize, Metrics/CyclomaticComplexity
 
-        # `SignTest#test` is only wording (the refusal names it); the
-        # triple is what evaluates. Recover the spelling from the
-        # vocabulary so a rebuilt node refuses with the same message the
-        # parsed one would.
-        #
-        # @param operator [Evaluator::Operator] the comparison operator a sign test's own
-        #   triple resolved to
-        # @return [String] the sign test's own vocabulary name, or `operator.symbol` when
-        #   no sign test shares its triple
+        # `SignTest#test` is only refusal wording; recovering it keeps a rebuilt node's message
+        # identical to the parsed one's.
         def sign_test_name(operator)
           Resolver::SIGN_TEST_OPERATORS.key(operator.symbol) || operator.symbol
         end

@@ -1,9 +1,5 @@
-//! Query-input inference after the chapter's aggregate graph is complete.
-//! A symbolic `where` operand is an input whose type is already determined
-//! by the compared field. Local bare/dotted paths resolve against their
-//! owner immediately; `/` reference hops resolve here, after every target
-//! aggregate exists. Pagination symbols have no compared field and therefore
-//! remain explicit declarations.
+//! Infers a query's symbolic `where` arguments from the compared field's type, once every
+//! aggregate exists so `/` reference hops resolve; pagination symbols stay explicit.
 
 use crate::diag::{Diagnostic, ParseResult};
 use crate::ir;
@@ -62,10 +58,8 @@ fn infer_queries(
     for query in queries {
         let clauses = query.wheres.clone();
 
-        // Ruby resolves every local field while its aggregate is sealed, then
-        // resolves reference hops after the chapter exists. Keep those phases
-        // distinct so inferred arguments retain the same order even when a
-        // query writes a hop before a local comparison.
+        // Local fields resolve first, then reference hops, so inferred arguments keep the
+        // order Ruby gives them even when a hop is written before a local comparison.
         for clause in &clauses {
             if clause.field.contains('/') {
                 continue;

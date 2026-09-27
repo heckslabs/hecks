@@ -4,77 +4,25 @@ require_relative "form_census"
 
 module Hecks
   module Fuzzing
-    # A small, valid bluebook, written from a seed — so the QA loop can test
-    # construct combinations nobody has hand-authored yet.
-    #
-    # ## Why this exists
-    #
-    # The ledger's most productive moments were a new stress domain's first
-    # sweep: `corrections` found four bugs, `referral_chain` four,
-    # `tenant_ledger` two. Every one of those domains was written by hand,
-    # one angle at a time, and `bin/qa_domain_novelty` exists precisely
-    # because the bugs live where two declared forms meet on one aggregate
-    # for the first time (`spec/combination_coverage_spec.rb`'s header).
-    # This writes those meetings mechanically: a seed picks two
-    # `FormCensus::FORMS` to force onto one aggregate, adds whatever other
-    # aggregates those forms need (a reference target, a two-hop chain),
-    # sprinkles extras (a lifecycle, a closed set, an entity, a query, a
-    # policy, a role), and renders the whole thing as ordinary bluebook
-    # source any runtime boots.
-    #
-    # ## Blueprint, not source, is the unit
-    #
-    # `generate` answers a plain, JSON-shaped Hash (string keys) — a small
-    # IR of its own — and `render` turns it into source. That split is what
-    # makes a finding shrinkable at the domain level: `shrink_candidates`
-    # removes one element at a time (a query, a command, an entity, an
-    # aggregate, a given…) and `prune` drops whatever that removal left
-    # dangling, using the explicit `requires` tokens every dependent
-    # element carries. Nothing here parses Ruby back.
-    #
-    # ## One fixed domain name
-    #
-    # Every generated domain is the same domain name — `QaGenerated`, in a
-    # `qa_generated/bluebook/qa_generated.bluebook` directory — because the
-    # directory basename doubles as a Rust module and Cargo feature name
-    # (`bin/project_rust`'s own landmine guard), and one fixed feature is
-    # what lets `bin/qa_generated_domains --rust` rebuild incrementally.
-    # Each domain is checked in its own child process for the same reason:
-    # two different shapes under one constant name never share a process.
+    # Builds a small, valid bluebook from a random seed, so the QA loop can
+    # exercise construct combinations nobody has hand-authored yet.
     module DomainGenerator
       DOMAIN_NAME = "QaGenerated".freeze
       DIRECTORY   = "qa_generated".freeze
-      # `FORMS` — what this generator can build, defined at the bottom of
-      # this module, beside the `Builder::FORM_STEPS` table it reads.
 
-      # **No Rust-reserved snake names**. `Crate` was here first and every
-      # domain holding it failed to compile under `--rust`: its snake form
-      # is the keyword `crate`, which Rust cannot escape even as a raw
-      # identifier, and the projection emits it as a module and field name
-      # unguarded (`bin/project_rust` only guards the domain name). That is
-      # a real finding, reported rather than generated into every run.
+      # A name whose snake_case form collides with a Rust keyword (`Crate`
+      # -> `crate`) fails to compile under `--rust`; `bin/project_rust`
+      # guards only the domain name, not these.
       AGGREGATE_NAMES = %w[Ticket Desk Parcel Venue Kiosk Hangar].freeze
       ENTITY_NAMES    = %w[Line Stamp].freeze
       CLOSED_SETS     = [%w[low high], %w[red amber green], %w[draft final]].freeze
       ROLES           = %w[Clerk Manager].freeze
 
-      # Forms that need another aggregate to reference, and the ones that
-      # need a two-hop chain ending in a lifecycle.
       REFERENCE_FORMS = %w[reference_attr revalued_reference].freeze
       CHAIN_FORMS     = %w[two_hop_given multi_hop_where].freeze
 
       module_function
 
-      # Builds a random blueprint from a seed and prunes it to a fixpoint,
-      # ready for `write` to render into a fresh `QaGenerated` domain.
-      #
-      # @param seed [Integer] the random seed; the same seed and `forms` always
-      #   produce the same blueprint
-      # @param forms [Array<String, Symbol>, nil] the `FormCensus::FORMS` names to
-      #   force onto the primary aggregate; two random forms from `FORMS` when nil
-      # @return [Hash{String => Object}] the pruned blueprint, with `"seed"` and
-      #   `"forms"` merged in
-      # @raise [ArgumentError] if `forms` names anything outside `FORMS`
       def generate(seed:, forms: nil)
         random = Random.new(seed)
         forms  = Array(forms || FORMS.sample(2, random: random)).map(&:to_s)
@@ -85,18 +33,8 @@ module Hecks
         prune(blueprint.merge("seed" => seed, "forms" => forms))
       end
 
-      # `<root>/qa_generated/bluebook/qa_generated.bluebook`, plus the
-      # blueprint beside the domain directory (never inside it — a stray
-      # file under `bluebook/` would be loaded as a chapter).
-      #
-      # A blueprint carrying `"source"` is bluebook text someone else wrote
-      # (`bin/qa_mine_combinations`' agent): it is adopted, not rendered,
-      # and its empty `aggregates`/`policies` leave nothing to shrink.
-      #
-      # @param blueprint [Hash{String => Object}] a blueprint as `generate` answers,
-      #   or one carrying a `"source"` key instead of `"aggregates"`/`"policies"`
-      # @param root [String] the directory to write the domain and blueprint under
-      # @return [String] the written domain's directory (`<root>/qa_generated`)
+      # `blueprint.json` is written beside the domain directory, never
+      # inside it — a stray file under `bluebook/` would load as a chapter.
       def write(blueprint, root)
         domain = File.join(root, DIRECTORY)
         FileUtils.rm_rf(domain)
@@ -107,23 +45,11 @@ module Hecks
         domain
       end
 
-      # Renames an outside bluebook's own chapter to `QaGenerated`, the one
-      # name the scratch crate and child processes are built around.
-      #
-      # @param source [String] bluebook source text declaring one chapter
-      # @return [String] `source` with its `Hecks.bluebook "..."` chapter name
-      #   replaced by `"QaGenerated"`
+      # Renamed to `QaGenerated` — the fixed name child processes expect.
       def adopt(source)
         source.sub(/Hecks\.bluebook\s*\(?\s*(["'])[^"']+\1/) { "Hecks.bluebook #{DOMAIN_NAME.inspect}" }
       end
 
-      # ── rendering ───────────────────────────────────────────────────
-
-      # Renders a whole blueprint into one bluebook source file.
-      #
-      # @param blueprint [Hash{String => Object}] a blueprint as `generate` answers
-      # @return [String] the complete `Hecks.bluebook "QaGenerated" do ... end` source,
-      #   ending in a newline
       def render(blueprint)
         out = []
         out << "# GENERATED by Hecks::Fuzzing::DomainGenerator — seed #{blueprint['seed']}, forms " \
@@ -138,11 +64,6 @@ module Hecks
         "#{out.join("\n")}\n"
       end
 
-      # Renders one aggregate's whole `aggregate ... end` block, including
-      # every value object, entity, command and query it declares.
-      #
-      # @param aggregate [Hash{String => Object}] one aggregate's blueprint entry
-      # @return [Array<String>] source lines, unindented at the block's own `aggregate`/`end`
       def render_aggregate(aggregate)
         out = aggregate_header(aggregate)
         aggregate["attributes"].each { |attribute| out << "    #{render_attribute(attribute)}" }
@@ -156,22 +77,12 @@ module Hecks
         out << "  end"
       end
 
-      # Renders an aggregate block's opening lines, up through `identified_by`.
-      #
-      # @param aggregate [Hash{String => Object}] one aggregate's blueprint entry
-      # @return [Array<String>] the `aggregate ... do`, `description` and
-      #   `identified_by` lines
       def aggregate_header(aggregate)
         ["", "  aggregate #{aggregate['name'].inspect} do",
          "    description #{"A generated #{aggregate['name'].downcase}.".inspect}", "",
          "    identified_by #{aggregate['identity'].map { |part| ":#{part}" }.join(', ')}"]
       end
 
-      # Renders one entity's whole `entity ... end` block.
-      #
-      # @param entity [Hash{String => Object}] one entity's blueprint entry, as built
-      #   by `Builder#entity`
-      # @return [Array<String>] source lines, unindented at the block's own `entity`/`end`
       def render_entity(entity)
         out = ["", "    entity #{entity['name'].inspect} do",
                "      description #{"A generated #{entity['name'].downcase}.".inspect}"]
@@ -182,12 +93,6 @@ module Hecks
         out << "    end"
       end
 
-      # Renders one `attribute` declaration line.
-      #
-      # @param attribute [Hash{String => Object}] `"name"`, `"type"`, and optional
-      #   `"list"`, `"optional"`, `"default"` keys
-      # @return [String] one `attribute :name, Type` line, with `list_of`, `optional:`
-      #   and `default:` added as the Hash calls for
       def render_attribute(attribute)
         type = attribute["list"] ? "list_of(#{attribute['type']})" : attribute["type"]
         line = "attribute :#{attribute['name']}, #{type}"
@@ -196,13 +101,6 @@ module Hecks
         line
       end
 
-      # Renders one `value_object ... end` block.
-      #
-      # @param name [String] the value object's declared name
-      # @param value_object [Hash{String => Object}] `"kind"` (`"string"`, `"positive"`,
-      #   `"integer"` or `"closed"`) and, for `"closed"`, a `"members"` array
-      # @param indent [String] leading whitespace for every rendered line
-      # @return [Array<String>] source lines, indented by `indent`
       def render_value_object(name, value_object, indent)
         body =
           case value_object["kind"]
@@ -219,12 +117,6 @@ module Hecks
         ["", "#{indent}value_object #{name.inspect} do", *body.map { |line| "#{indent}  #{line}" }, "#{indent}end"]
       end
 
-      # Renders one `lifecycle ... end` block.
-      #
-      # @param lifecycle [Hash{String => Object}] `"field"`, `"default"` and
-      #   `"transitions"` (each `"command"`, `"to"`, `"from"`)
-      # @param indent [String] leading whitespace for every rendered line
-      # @return [Array<String>] source lines, indented by `indent`
       def render_lifecycle(lifecycle, indent)
         out = ["", "#{indent}lifecycle :#{lifecycle['field']}, default: #{lifecycle['default'].inspect} do"]
         lifecycle["transitions"].each do |transition|
@@ -234,15 +126,6 @@ module Hecks
         out << "#{indent}end"
       end
 
-      # Renders one `command ... end` block.
-      #
-      # @param command [Hash{String => Object}] `"name"`, `"creates"`, `"role"`,
-      #   `"references"`, `"args"`, `"givens"`, `"sets"` and `"emits"`
-      # @param self_name [String, nil] the owning aggregate's name, added as a
-      #   `reference_to` on a non-creating entity command; nil for an
-      #   aggregate-level command, which needs no reference to itself
-      # @param indent [String] leading whitespace for every rendered line
-      # @return [Array<String>] source lines, indented by `indent`
       def render_command(command, self_name, indent)
         out = ["", "#{indent}command #{command['name'].inspect} do"]
         out << "#{indent}  role #{command['role'].inspect}" if command["role"]
@@ -256,12 +139,6 @@ module Hecks
         out << "#{indent}end"
       end
 
-      # Renders one `sets` line inside a command block.
-      #
-      # @param set [Hash{String => Object}] `"target"`, plus either `"to"` (rename) or
-      #   `"append"` (a Hash of field => value token to append with); neither means a
-      #   bare positional set
-      # @return [String] one `sets :target[, to: :value | append: { ... }]` line
       def render_set(set)
         return "sets :#{set['target']}, to: :#{set['to']}" if set["to"]
         return "sets :#{set['target']}, append: { #{set['append'].map { |k, v| "#{k}: :#{v}" }.join(', ')} }" if set["append"]
@@ -269,11 +146,6 @@ module Hecks
         "sets :#{set['target']}"
       end
 
-      # Renders one `query ... end` block.
-      #
-      # @param query [Hash{String => Object}] `"name"`, `"wheres"` (each `"field"`,
-      #   `"value"`) and `"order_by"`
-      # @return [Array<String>] source lines, unindented at the block's own `query`/`end`
       def render_query(query)
         out = ["", "    query #{query['name'].inspect} do", "      description #{"Generated #{query['name']}.".inspect}"]
         query["wheres"].each do |where|
@@ -283,32 +155,16 @@ module Hecks
         out << "    end"
       end
 
-      # Renders one `policy ... end` block.
-      #
-      # @param policy [Hash{String => Object}] `"name"`, `"on"` and `"trigger"`
-      # @return [Array<String>] source lines, unindented at the block's own `policy`/`end`
       def render_policy(policy)
         ["", "  policy #{policy['name'].inspect} do", "    on #{policy['on']}", "    trigger #{policy['trigger']}", "  end"]
       end
 
-      # ── domain-level shrinking ──────────────────────────────────────
-
-      # Every blueprint one removal smaller, each already pruned. Identity
-      # attributes and creating commands are never offered: without them
-      # there is no domain left to dispatch against.
-      #
-      # @param blueprint [Hash{String => Object}] a blueprint as `generate` answers
-      # @return [Array<Hash{String => Object}>] one pruned blueprint per candidate removal,
-      #   deduplicated and never including `blueprint` itself
+      # Identity attributes and creating commands are never offered for
+      # removal — without them there is no domain left to dispatch against.
       def shrink_candidates(blueprint)
         removals(blueprint).map { |path| prune(remove_at(blueprint, path)) }.uniq.reject { |candidate| candidate == blueprint }
       end
 
-      # Every path into `blueprint` naming one element a shrink could remove.
-      #
-      # @param blueprint [Hash{String => Object}] a blueprint as `generate` answers
-      # @return [Array<Array<String, Integer>>] one path per removable element, each
-      #   a sequence of Hash keys and Array indices `Hash#dig` can follow
       def removals(blueprint)
         paths = blueprint["policies"].each_index.map { |i| ["policies", i] }
         blueprint["aggregates"].each_with_index do |aggregate, a|
@@ -325,12 +181,6 @@ module Hecks
         paths
       end
 
-      # `removals`'s own entity half — one path per entity's lifecycle (if any) and
-      # per entity command.
-      #
-      # @param aggregate [Hash{String => Object}] one aggregate's blueprint entry
-      # @param at [Array<String, Integer>] the path prefix to `aggregate` itself
-      # @return [Array<Array<String, Integer>>] one path per removable entity element
       def entity_removals(aggregate, at)
         aggregate["entities"].each_with_index.flat_map do |entity, e|
           paths = entity["lifecycle"] ? [[*at, "entities", e, "lifecycle"]] : []
@@ -338,13 +188,6 @@ module Hecks
         end
       end
 
-      # `removals`'s own command half — one path for the whole command (unless it
-      # creates the aggregate), one per given, and one for its role or its last
-      # extra emit.
-      #
-      # @param command [Hash{String => Object}] one command's blueprint entry
-      # @param at [Array<String, Integer>] the path prefix to `command` itself
-      # @return [Array<Array<String, Integer>>] one path per removable command element
       def command_removals(command, at)
         paths = command["creates"] ? [] : [at]
         command["givens"].each_index { |g| paths << [*at, "givens", g] }
@@ -353,13 +196,6 @@ module Hecks
         paths
       end
 
-      # Deep-copies `blueprint` and deletes whatever `path` names.
-      #
-      # @param blueprint [Hash{String => Object}] a blueprint as `generate` answers
-      # @param path [Array<String, Integer>] a path as `removals` returns, its last
-      #   element the Hash key or Array index to delete
-      # @return [Hash{String => Object}] a deep copy of `blueprint` with that one
-      #   element removed
       def remove_at(blueprint, path)
         copy = JSON.parse(JSON.generate(blueprint))
         *parents, last = path
@@ -368,16 +204,9 @@ module Hecks
         copy
       end
 
-      # Drop whatever a removal left dangling, to a fixpoint. Every element
-      # that depends on another carries `requires` — tokens naming exactly
-      # what must still exist (`attribute:Ticket.score`, `lifecycle:Desk`,
-      # `reference:Ticket->Desk`, `command:Ticket.Close`, …) — so this is
-      # set arithmetic over those tokens, never a reading of the source.
-      #
-      # @param blueprint [Hash{String => Object}] a blueprint as `generate` answers
-      # @return [Hash{String => Object}] a deep copy of `blueprint` with every element
-      #   whose `requires` tokens are not all still present removed, repeated until
-      #   nothing more can be dropped
+      # Repeatedly drops whatever a removal left dangling, using each
+      # element's `requires` tokens — set arithmetic, never a re-read of
+      # the rendered source.
       def prune(blueprint)
         current = JSON.parse(JSON.generate(blueprint))
         loop do
@@ -389,28 +218,12 @@ module Hecks
         current
       end
 
-      # One pass of `prune` — drops every policy, then every aggregate element,
-      # whose `requires` tokens are not all in `available`.
-      #
-      # @param blueprint [Hash{String => Object}] the blueprint being pruned, mutated
-      #   in place
-      # @param available [Set<String>] every token `tokens` finds still declared
-      # @return [void]
       def prune_once!(blueprint, available)
         keep = ->(item) { Array(item["requires"]).all? { |token| available.include?(token) } }
         blueprint["policies"].select!(&keep)
         blueprint["aggregates"].each { |aggregate| prune_aggregate!(aggregate, available, keep) }
       end
 
-      # `prune_once!`'s own per-aggregate pass — drops attributes, invariants,
-      # entities, unsatisfied references and empty queries, then recurses into
-      # each remaining lifecycle and command.
-      #
-      # @param aggregate [Hash{String => Object}] one aggregate's blueprint entry,
-      #   mutated in place
-      # @param available [Set<String>] every token `tokens` finds still declared
-      # @param keep [Proc] the `requires`-satisfied predicate `prune_once!` built
-      # @return [void]
       def prune_aggregate!(aggregate, available, keep)
         aggregate["references"].select! { |target| available.include?("aggregate:#{target}") }
         %w[attributes invariants entities].each { |key| aggregate[key].select!(&keep) }
@@ -422,14 +235,6 @@ module Hecks
         end
       end
 
-      # Drops transitions whose own command does not exist, then whatever that
-      # leaves unreachable from the default state; clears `"lifecycle"` outright
-      # once no transition survives.
-      #
-      # @param owner [Hash{String => Object}] an aggregate or entity blueprint entry,
-      #   mutated in place
-      # @param available [Set<String>] every token `tokens` finds still declared
-      # @return [void]
       def prune_lifecycle!(owner, available)
         return unless owner["lifecycle"]
 
@@ -440,16 +245,8 @@ module Hecks
         owner["lifecycle"] = nil if transitions.empty?
       end
 
-      # Every state a path from the default reaches. A transition out of a
-      # state nothing reaches can never fire, so a removal that orphans one
-      # goes too — without this, shrinking away `Close` leaves `Reopen from
-      # closed` behind, the shape `qa/stress_domains/generated_revalued_shape`
-      # was promoted with, which `bin/model_check` reports as a dead transition.
-      #
-      # @param default [String] the lifecycle's default state name
-      # @param transitions [Array<Hash{String => Object}>] the lifecycle's surviving
-      #   transitions, each with `"from"` (an Array of state names) and `"to"`
-      # @return [Array<String>] every state reachable from `default`, `default` included
+      # A transition out of an unreached state can never fire; leaving one
+      # behind after a shrink is a dead transition `bin/model_check` reports.
       def reachable_states(default, transitions)
         reachable = [default]
         loop do
@@ -460,25 +257,12 @@ module Hecks
         end
       end
 
-      # Drops a command's own unsatisfied references, args, givens and sets.
-      #
-      # @param command [Hash{String => Object}] one command's blueprint entry,
-      #   mutated in place
-      # @param available [Set<String>] every token `tokens` finds still declared
-      # @return [void]
       def prune_command!(command, available)
         keep = ->(item) { Array(item["requires"]).all? { |token| available.include?(token) } }
         command["references"].select! { |target| available.include?("aggregate:#{target}") }
         %w[args givens sets].each { |key| command[key].select!(&keep) }
       end
 
-      # Every declaration token `blueprint` currently makes available — what a
-      # `requires` entry elsewhere in the blueprint can point at.
-      #
-      # @param blueprint [Hash{String => Object}] a blueprint as `generate` answers
-      # @return [Set<String>] tokens such as `"aggregate:Ticket"`,
-      #   `"attribute:Ticket.score"`, `"lifecycle:Desk"`, `"reference:Ticket->Desk"`,
-      #   `"command:Ticket.Close"` and `"event:Ticket.TicketOpened"`
       def tokens(blueprint)
         blueprint["aggregates"].each_with_object(Set.new) do |aggregate, set|
           name = aggregate["name"]
@@ -499,22 +283,11 @@ module Hecks
         end
       end
 
-      # Converts a rendered `CamelCase` aggregate/entity name to the `snake_case`
-      # form its own `reference_to`/`sets` field uses.
-      #
-      # @param name [String] a `CamelCase` name
-      # @return [String] `name` in `snake_case`
       def snake(name) = name.gsub(/([a-z])([A-Z])/, '\1_\2').downcase
 
-      # ── building ────────────────────────────────────────────────────
-
-      # One seeded pass: the aggregates the forms need, the forms forced
-      # onto the first ("primary") aggregate, then extras everywhere.
+      # One seeded pass: builds the aggregates the forced forms need, applies
+      # each form to the primary aggregate, then sprinkles extras everywhere.
       class Builder
-        # @param random [Random] the seeded generator every random choice this
-        #   builder makes draws from
-        # @param forms [Array<String>] the `FormCensus::FORMS` names to force onto
-        #   the primary aggregate
         def initialize(random, forms)
           @random = random
           @forms  = forms
@@ -522,11 +295,6 @@ module Hecks
           @policies = []
         end
 
-        # Builds the aggregates the forced forms need, applies each forced form to
-        # the primary aggregate, then sprinkles extras onto every aggregate.
-        #
-        # @return [Hash{String => Object}] `"aggregates"` and `"policies"`, the two
-        #   keys `DomainGenerator.generate` merges `"seed"`/`"forms"` into
         def build
           chain = @forms.intersect?(CHAIN_FORMS)
           count = if chain then 3
@@ -543,8 +311,6 @@ module Hecks
           { "aggregates" => aggregates, "policies" => @policies }
         end
 
-        # One step per `FormCensus::FORMS` entry, each run against the
-        # builder with the primary aggregate and every aggregate in play.
         FORM_STEPS = {
           "composite_id"       => ->(primary, _) { composite_id(primary) },
           "has_entity"         => ->(primary, _) { entity(primary) },
@@ -597,8 +363,6 @@ module Hecks
 
         def past(verb) = verb.end_with?("e") ? "#{verb}d" : "#{verb}ed"
 
-        # ── the forms ────────────────────────────────────────────────
-
         def apply_form(form, primary, aggregates) = instance_exec(primary, aggregates, &FORM_STEPS.fetch(form))
 
         def composite_id(aggregate)
@@ -631,16 +395,9 @@ module Hecks
           types = { "sequence" => "#{name}Sequence", "batch" => "#{name}Batch" }
 
           aggregate["attributes"] << { "name" => list, "type" => name, "list" => true, "requires" => ["entity:#{owner}.#{name}"] }
-          # Event names are qualified by the owner aggregate, not just the
-          # entity type — `ENTITY_NAMES` is a small pool (`Line`, `Stamp`)
-          # shared across every aggregate in a domain, and `extras` can pick
-          # the same entity name on a different aggregate than a form forced
-          # it onto (composite there, plain here, or vice versa). Aggregate
-          # names are always unique within one generated domain, so this is
-          # the same qualification ordinary commands already get by default
-          # (`"#{aggregate['name']}#{past(name)}"`) — without it, two
-          # aggregates can both emit a bare "LineAdded" with different
-          # shapes, which `validate_event_shapes!` correctly refuses.
+          # Qualified by the owner, not just the entity name: `ENTITY_NAMES`
+          # is shared across aggregates, so two could otherwise both emit a
+          # bare "LineAdded" with different shapes.
           piece = { "name" => name, "identity" => parts, "requires" => [],
                     "attributes" => parts.map { |part| { "name" => part, "type" => types[part] } } +
                                     [{ "name" => "label", "type" => "#{name}Label", "optional" => true }],
@@ -699,7 +456,6 @@ module Hecks
                                       sets: [{ "target" => "tags", "requires" => ["attribute:#{name}.tags"] }])
         end
 
-        # Answers the closed set's members, so a query can filter on one.
         def closed_set(aggregate)
           name = aggregate["name"]
           existing = aggregate["vos"]["#{name}Priority"]
@@ -743,8 +499,6 @@ module Hecks
                                          sets: [{ "target" => "note", "requires" => ["attribute:#{name}.note"] }])
         end
 
-        # An aggregate-level `reference_to`, set by the owner's own creating
-        # command (`Member.Join`'s shape, qa/stress_domains/referral_chain).
         def reference_attr(owner, target)
           return unless target
           return if owner["references"].include?(target["name"])
@@ -762,7 +516,7 @@ module Hecks
                                              "command_reference:#{owner['name']}.Open->#{target['name']}"] }
         end
 
-        # primary -> middle -> root, root with a lifecycle.
+        # `chain` is ordered primary, middle, root — root gets the lifecycle.
         def link_chain(chain)
           primary, middle, root = chain
           lifecycle(root)
@@ -793,8 +547,8 @@ module Hecks
           }
         end
 
-        # A command redeclaring the aggregate's own reference field under a
-        # plain value object — `Referral.Reassign`'s shape (ADR 0037 F5).
+        # Mirrors `Referral.Reassign` (ADR 0037 F5): redeclares the reference
+        # under a plain value object instead of the reference itself.
         def revalued_reference(owner, target)
           return unless target
 
@@ -805,8 +559,6 @@ module Hecks
           command(owner, "Repoint", args: [{ "name" => field, "type" => "#{target['name']}Handle" }],
                                     sets: [{ "target" => field, "requires" => requires }])
         end
-
-        # ── extras, on every aggregate ───────────────────────────────
 
         def extras(aggregate, aggregates)
           extra_shape(aggregate)
@@ -854,17 +606,9 @@ module Hecks
         def snake(name) = DomainGenerator.snake(name)
       end
 
-      # What this generator can build, not everything the census names.
-      # This read `FormCensus::FORMS.keys`, which quietly assumed the two
-      # tables would always agree — and they stopped agreeing the moment
-      # the census learned a form (`corrects`, `role_gated`) that
-      # `Builder::FORM_STEPS` has no recipe for: `generate` raised
-      # `KeyError` for any seed that happened to draw one. The census
-      # measures what a domain has; this names what a generator can
-      # write, and a form in the first without the second simply is not
-      # generated — the rotation still meets it, and
-      # `spec/combination_coverage_spec.rb`'s own `HELD_OUTSIDE_THE_GOLDENS`
-      # names where. Kept honest by `spec/fuzzing/domain_generator_spec.rb`.
+      # What this generator can build, not everything FormCensus knows about.
+      # A form with no `Builder::FORM_STEPS` recipe is simply never
+      # generated; kept in sync by spec/fuzzing/domain_generator_spec.rb.
       FORMS = Builder::FORM_STEPS.keys.freeze
     end
   end

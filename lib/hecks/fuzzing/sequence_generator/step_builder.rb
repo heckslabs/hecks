@@ -21,18 +21,9 @@ module Hecks
           { "query" => entry[:verb], "args" => args }
         end
 
-        # A report ask — the bare domain form `entry[:verb]` already carries
-        # ("Domain.report_name", no "::"), so `Dispatcher#query` routes it
-        # to the read model rather than an aggregate query. A `ReadModel`
-        # has no declared `.attributes` the way a `Query` does — its own
-        # argument surface is exactly one key, `reference_name`, and only
-        # for a rooted model (`read_model_actionable?` already gated a
-        # rootless one straight into eligibility with nothing to supply).
-        # A bare scalar, not `identity_shaped` — `ReadModelInterpreter#
-        # refuse_object_reference` explicitly rejects a Hash/Value offered
-        # here (this is the one place in the whole generator where the
-        # subject's own identity must not be wrapped the way a command
-        # argument's would be).
+        # A report ask. Its only argument is `reference_name`, on a rooted model.
+        # The id stays a bare scalar: `ReadModelInterpreter#refuse_object_reference`
+        # rejects a wrapped identity.
         def build_read_model_step(runtime, entry)
           model = entry[:model]
           args  = model.reference_target.nil? ? {} : { model.reference_name.to_s => pick_known(model.reference_target) }
@@ -41,29 +32,12 @@ module Hecks
           { "query" => entry[:verb], "args" => args }
         end
 
-        # The adversarial layer sits here, and only here — after the step's
-        # arguments and identity are fully built, before the one real
-        # dispatch this generator makes to learn what the step did, and
-        # before the step is returned as corpus data. That ordering is
-        # the whole contract: the mutated `args` are what this generator's
-        # own inline dispatch sees (so `known_ids` tracking reflects what
-        # actually happened), and they are the bytes `Fuzzing::Replay`
-        # later hands Ruby's runtime and the bytes `JSON.generate({steps:
-        # ...})` hands the compiled Rust binary — one step, one payload,
-        # both engines. Nothing downstream of this method can tell a
-        # mutated step from an ordinary one except by reading the
-        # `"adversarial"` metadata it carries (see adversary.rb).
+        # The adversarial mutation happens here, after the args and identity are
+        # built and before the one inline dispatch, so the dispatch, the corpus
+        # step and both replay engines all see the same mutated payload.
         #
-        # Two more draws sit right after the mutation, in a fixed order —
-        # a caller (`caller_draw!`, adversary.rb: `role:`/`actor_id:` on
-        # the step, bound around this one dispatch exactly the way
-        # `Fuzzing::Replay` and `kernel/cli.rs` will later bind it) and
-        # then the dry-run coin (`{"dry_run": verb}` instead of
-        # `{"verb": verb}` — `Dispatcher#dry_run?` here, the same door on
-        # both replay sides). Order matters for the seed contract: every
-        # draw comes from the one `Random.new(seed)`, so the sequence of
-        # draws per step is what makes a seed reproducible. Both are
-        # off by default and draw nothing when off.
+        # The caller draw and then the dry-run coin follow the mutation. The order
+        # is part of the seed contract; both draw nothing when off.
         def build_command_step(runtime, catalog, entry)
           args = args_for(entry[:command].attributes, entry[:aggregate])
           add_identity!(args, entry)
@@ -91,14 +65,11 @@ module Hecks
           step
         end
 
-        # No RNG draw at all when the fraction is zero — the same "off is
-        # byte-identical" contract `adversarial?` keeps.
+        # Draws nothing when the fraction is zero, like `adversarial?`.
         def dry_run_draw? = @dry_run.positive? && @random.rand < @dry_run
 
-        # `Hecks.as_caller` for exactly this block, or a bare yield — the
-        # same binding `Fuzzing::Replay` makes from the step's own keys
-        # later, so the generator's inline dispatch and both replays see
-        # one caller.
+        # Runs the block under `Hecks.as_caller`, the binding `Fuzzing::Replay` makes
+        # from the step's keys, or yields bare when there is no caller.
         def as_caller(caller, &)
           return yield unless caller
 
@@ -107,28 +78,14 @@ module Hecks
 
         def args_for(attributes, aggregate)
           args = attributes.each_with_object({}) do |attribute, built|
-            # An optional argument is sometimes not given, and that is an
-            # ordinary payload rather than a damaged one — see
-            # OPTIONAL_OMITTED_PROBABILITY for why this cannot live in
-            # `malform` below and what it was costing while it did not
-            # exist at all.
+            # Omitting an optional argument is an ordinary payload, not a malformation
+            # (see OPTIONAL_OMITTED_PROBABILITY).
             next if attribute.optional? && @random.rand < SequenceGenerator::OPTIONAL_OMITTED_PROBABILITY
 
             if attribute.list?
               value = list_value_for(attribute, aggregate)
-              # A list-of-entity command attribute has no real example
-              # anywhere in this repo's domains — every entity-owned list is
-              # populated via a per-element append command instead, never a
-              # whole-list command argument — so `list_value_for` (below)
-              # answers `nil` for one rather than guessing at an entity's own
-              # shape, and this step still skips it exactly as it always
-              # has. A list-of-value-object attribute (`ConsoleSettings::
-              # Collection.ReplaceColumns`' own `columns`, `list_of(Column)`)
-              # is the real case this covers —
-              # `sets :columns` imports the owner aggregate's own declared
-              # `list_of` attribute onto the command verbatim (Command
-              # Builder#resolve_bare_set!), so it is a required, ordinary
-              # top-level argument like any other, not an entity mutation.
+              # `list_value_for` answers nil for a list of entities (those are
+              # populated by per-element append commands), so the step skips it.
               next if value.nil?
 
               built[attribute.name.to_s] = value
@@ -140,19 +97,8 @@ module Hecks
           malform(args, attributes, aggregate)
         end
 
-        # A `list_of` attribute's own value — an array of independently
-        # generated elements, each shaped exactly the way a bare (non-list)
-        # attribute of the same declared element type already is
-        # (`ValueGenerator.value_for`), since `list_of(X)`'s own element
-        # coercion is `X`'s ordinary shape repeated, not a different one
-        # (`Attribute#type` is already unwrapped from `list_of(...)` at
-        # declare time — the same fact `command_builder.rb`'s own comment
-        # on `resolve_bare_set!` names). 0-3 elements — enough to exercise a
-        # genuinely non-trivial replace without generating pathologically
-        # large payloads every time. `nil`, not `[]`, when the element type
-        # isn't a declared value object at all (an entity-typed list) — see
-        # `args_for`'s own comment on why that case still skips rather than
-        # guesses.
+        # An array of 0-3 independently generated elements shaped like the bare
+        # element type. `nil`, not `[]`, when the element type is not a value object.
         def list_value_for(attribute, aggregate)
           value_object = Runtime::Value.value_object_for(aggregate, attribute.type.to_s)
           return nil unless value_object
@@ -160,12 +106,8 @@ module Hecks
           Array.new(@random.rand(0..3)) { ValueGenerator.value_for(attribute, aggregate, random: @random, known_ids: @known_ids) }
         end
 
-        # One malformation at a time, and usually none. A step whose payload is
-        # wrong in three ways only ever proves which check runs first ; wrong in
-        # exactly one way names the check that fired. And the rate stays low on
-        # purpose — a corrupted step is almost always refused, a sequence of
-        # refusals reaches no state at all, and bin/fuzz already counts those as
-        # silent rather than scoring them.
+        # At most one malformation per step, so the check that fired is identifiable.
+        # The rate stays low because refused steps reach no state.
         def malform(args, attributes, aggregate)
           return args if args.empty? || @random.rand >= MALFORMED_ARGUMENT_PROBABILITY
 
@@ -176,14 +118,8 @@ module Hecks
           end
         end
 
-        # Never the identity. A creating command with no id auto-mints one, and
-        # a minted id is deliberately unreproducible — a random hex, never a
-        # guessable counter — so dropping it manufactures a step whose outcome
-        # cannot be replayed and says nothing about the runtime's behaviour.
-        # Every step in the hand-written corpus
-        # supplies an id for the same reason. Whether an auto-minted id ought to
-        # be reproducible is a real question, but it is not one a payload fuzzer
-        # can ask.
+        # Never drops the identity: an auto-minted id is unreproducible, so the
+        # step's outcome could not be replayed.
         def drop_one(args, aggregate)
           identity  = (aggregate.identified_by || :id).to_s
           droppable = args.keys - [identity, "id"]
@@ -207,15 +143,8 @@ module Hecks
           if entry[:entity]
             parent_scalar = pick_known(aggregate.hecks_name)
             args[parent_key] = identity_shaped(aggregate, aggregate.identified_by, parent_scalar, aggregate)
-            # One identity per hop, each drawn from the pool its own
-            # parent-plus-hops landed elements in (`entity_pool_key`) —
-            # a depth-1 chain draws exactly what it always did; a
-            # `Board.Card` chain draws a Board under this Workspace, then
-            # a Card under that Board. Flat args, one head per hop, is
-            # the legacy addressing `EntityElement#locate_chain` reads
-            # (`args[head]` per identity path); the routed `to: {
-            # aggregate:, entities: [...] }` spelling is an adversarial
-            # shape layered on top (adversary.rb), never the default.
+            # One identity per hop, drawn from that hop's pool (`entity_pool_key`), as
+            # flat args, which is what `EntityElement#locate_chain` reads.
             scalars = [parent_scalar]
             names   = []
             entry[:chain].each do |piece|
@@ -225,22 +154,8 @@ module Hecks
               scalars << scalar
             end
           elsif entry[:command].creates?
-            # A composite identity (`identified_by` answering nil with more
-            # than one declared path — Behaviour::Identified's own "a
-            # composite has no single head" comment) supplies every one of
-            # its parts as its own ordinary, individually-declared command
-            # attribute already — `RoleAssignment::Assign` takes actor_id/
-            # role_name/starts_at directly, `args_for` (above) already
-            # generated all three. Forcing a synthetic top-level `id` here
-            # too — this codebase's own fallback for the single-key and the
-            # genuinely untyped (`identity_paths.empty?`, no `identified_by`
-            # declared at all) cases — hands a composite creating command
-            # an argument it never declared at all, refused every time as
-            # unknown before this check existed (a creating `Assign`/`Grant`
-            # step was never anything but refused). `identity_paths.empty?`
-            # is the untyped default (falls all the way back to a minted
-            # `:id` the runtime itself never declared as an attribute
-            # either), which still needs exactly the old minting behavior.
+            # A composite identity's parts are already generated as the command's own
+            # attributes; a synthetic `id` would be refused as an undeclared argument.
             unless composite_identity?(aggregate)
               args[parent_key] ||= identity_shaped(aggregate, aggregate.identified_by, ValueGenerator.random_id(@random),
                                                    aggregate)
@@ -251,25 +166,13 @@ module Hecks
           end
         end
 
-        # True only for a genuine multi-field identity — `identified_by`
-        # returns nil both for a real composite (`identity_paths.size > 1`)
-        # and for the untyped default with no identity declared at all
-        # (`identity_paths.size == 0`, Behaviour::Identified's own
-        # `Array(@identified_by)` fallback) ; only the first of those two
-        # has its own parts already sitting in `args` as real, individually-
-        # generated command attributes.
+        # True only for a multi-field identity: `identified_by` is also nil for the
+        # untyped default, whose parts are not in `args`.
         def composite_identity?(aggregate) = aggregate.identified_by.nil? && aggregate.identity_paths.size > 1
 
-        # A bare scalar id, shaped to match whatever `construct` itself
-        # declares that identity field as. `Account::LedgerEntry` is addressed
-        # by `sequence`, and `sequence` is declared as a value-object-typed
-        # attribute (`LedgerSequence`), not a plain identifier — a fuzz run
-        # that skipped this wrapping and dispatched a bare `"1"` had every
-        # such step refused at the type gate (a bare scalar against a
-        # value-object-typed identity is a TypeMismatch, not a NotFound), so
-        # the wrapping is what lets a fuzz step address the record at
-        # all. Left as a bare scalar when the construct declares no such
-        # attribute at all — the default `:id` case, which really is untyped.
+        # Shapes a bare scalar id like the construct's identity field. A
+        # value-object-typed identity given a bare scalar is a TypeMismatch, so it
+        # must be wrapped; the untyped default `:id` stays bare.
         def identity_shaped(construct, key, scalar, aggregate)
           return scalar unless key
 
@@ -295,18 +198,11 @@ module Hecks
 
         def symbolize(args) = args.transform_keys(&:to_sym)
 
-        # A step the runtime declines is not a generator failure — it simply did
-        # not take effect, so nothing is recorded and the sequence carries on. The
-        # step still goes into the corpus, because a refusal is an answer, and
-        # its wording is pinned by the corpus.
+        # A declined step is not a generator failure: nothing is recorded, the
+        # sequence carries on, and the step still enters the corpus as a refusal.
         #
-        # EvaluationError sits alongside the declared refusals deliberately : a
-        # payload the interpreter cannot read is the domain declining it, and
-        # bin/run already records exactly those in a corpus's refusals —
-        # `positive? expects a number, got "lots"` is one of banking's. Anything
-        # else still propagates and fails spec/fuzzing, which is what says the
-        # generator built a step that breaks the interpreter for reasons that have
-        # nothing to do with the domain declining a payload.
+        # EvaluationError counts as a refusal (an unreadable payload); any other
+        # error propagates and fails spec/fuzzing.
         def safe_call
           result = yield
           @last_outcome = "ok"
@@ -316,11 +212,8 @@ module Hecks
           nil
         end
 
-        # Where the addressed aggregate stood just before this dispatch — its
-        # lifecycle value, or `exists`/`absent` when it declares none. Read
-        # straight off the repository, never through dispatch, and draws
-        # nothing from the RNG, so it changes no generated byte. An identity
-        # an adversarial mutation mangled past resolving is `?`.
+        # The addressed aggregate's lifecycle value before this dispatch, or
+        # `exists`/`absent`; `?` when a mutation mangled the identity. Draws nothing from the RNG.
         def state_before(runtime, entry, args)
           aggregate = entry[:aggregate]
           symbolic  = symbolize(args)

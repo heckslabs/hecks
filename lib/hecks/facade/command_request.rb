@@ -2,42 +2,24 @@ require_relative "../runtime/errors"
 
 module Hecks
   module Facade
-    # Turns an external command request into the dispatcher's receiver/payload
-    # envelope. Human-facing doors may accept their old flat id spelling at
-    # the edge, but every call leaving this boundary has one shape:
+    # Turns an external command request into the dispatcher's `to:`/`with:` envelope.
     #
     #   aggregate command: { to: "record-id", with: { declared: "facts" } }
-    #   entity command:    { to: { aggregate: "...", entity: "..." },
-    #                        with: { declared: "facts" } }
-    #
-    # The command interpreter remains the authority on which facts are
-    # declared. This helper only prevents routing fields from leaking into the
-    # fact payload and gives every external door the same wire contract.
+    #   entity command:    { to: { aggregate: "...", entity: "..." }, with: { ... } }
     module CommandRequest
       module_function
 
-      # Splits one external request into routing (`to:`) and facts (`with:`), accepting
-      # either the explicit envelope or a flat Hash, and refuses a receiver that does
-      # not fit the kind of command being called.
+      # Splits a request, explicit envelope or flat Hash, into routing (`to:`) and facts (`with:`).
+      # Keys are symbolized at every depth; in a flat Hash everything but the receiver is a fact.
       #
-      # Keys are symbolized at every depth first, so a parsed JSON body and a Ruby Hash
-      # are treated alike. In a flat Hash everything but `to` (or the legacy receiver
-      # keys) is a fact.
-      #
-      # @param input [Hash, Object] the request, with String or Symbol keys; anything
-      #   that is not a Hash is refused
-      # @param receiver [Symbol, nil] the kind of receiver the command takes:
-      #   `:aggregate` (an identity), `:entity` (a Hash of `aggregate:` and `entity:`
-      #   identities), or `nil` for a command that takes none, such as a creating command
-      # @param legacy_receiver [Symbol, String, Hash{Symbol => Symbol, String}, nil] where
-      #   a flat request without `to` may carry its receiver instead: one key name (such
-      #   as `:id`) for an `:aggregate` receiver, or `{ aggregate: key, entity: key }` for
-      #   an `:entity` receiver; `nil` accepts no legacy spelling
-      # @return [Hash{Symbol => Object}] `{ with: facts }`, plus `to:` holding the route
-      #   whenever `receiver` is not `nil`; ready to pass to `Dispatcher#dispatch_flat`
-      # @raise [Runtime::TypeMismatch] if `input` or its `with:` is not a Hash, if an
-      #   explicit envelope carries keys other than `to:` and `with:`, or if the route
-      #   is missing, blank, malformed, or given to a command that takes no receiver
+      # @param input [Hash] the request, with String or Symbol keys
+      # @param receiver [Symbol, nil] `:aggregate`, `:entity`, or `nil` for a command with none
+      # @param legacy_receiver [Symbol, String, Hash, nil] the flat key that may carry the
+      #   receiver instead of `to:`: a name for `:aggregate`, `{ aggregate:, entity: }` for
+      #   `:entity`
+      # @return [Hash{Symbol => Object}] `{ with: facts }`, plus `to:` when `receiver` is set
+      # @raise [Runtime::TypeMismatch] if the request is malformed or the route does not fit
+      #   the receiver kind
       # @raise [ArgumentError] if `receiver` is not `nil`, `:aggregate` or `:entity`
       def normalize(input, receiver:, legacy_receiver: nil)
         request = symbolize(input)
@@ -87,9 +69,7 @@ module Hecks
       end
       private_class_method :take_legacy_route
 
-      # A case dispatch over the three closed receiver kinds (nil,
-      # :aggregate, :entity) plus the impossible-kind backstop — each
-      # branch is its own self-contained validation for that one kind.
+      # One self-contained check per closed receiver kind, plus a backstop.
       # rubocop:disable-next Metrics/CyclomaticComplexity
       def validate_route!(route, receiver)
         case receiver

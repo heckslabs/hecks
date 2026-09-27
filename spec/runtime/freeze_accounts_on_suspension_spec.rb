@@ -1,35 +1,7 @@
 require "spec_helper"
 
-# Two real bugs fixed; two more found, both genuinely bigger, both
-# deliberately left open — found wiring `for_each` into banking for the
-# first time (this session's own property-testing arc), not a
-# hypothetical. `FreezeAccountsOnSuspension` has refused every dispatch,
-# silently, since it was written. See banking.bluebook's own comment on
-# the policy for the full account; the short version:
-#
-#   fixed — the addressing bug (`Behaviour::Command#addressing_key_for`,
-#   pinned directly in spec/bluebook/behaviour/command_addressing_key_
-#   spec.rb — no live policy needs to exercise it for that spec to hold).
-#
-#   fixed — the business-rule contradiction (`Account.FreezeAccount`'s own
-#   given, "customer is active" -> "customer is not closed", matching
-#   `Account.CloseAccount`'s own established idiom — verified directly
-#   below).
-#
-#   **still open** — wholesale payload forwarding, and, discovered only once
-#   the two fixes above let this policy's own for_each dispatch actually
-#   succeed for the first time in Ruby: `hecks-parse` does not parse
-#   `where`/`for_each` on a `Policy` at all (a known, tracked Stage-1
-#   gap — but `examples/banking` is a `REAL_PARITY_MEMBERS` domain, held
-#   to full byte-exact parser parity, so it can't be the corpus member
-#   that closes this), and separately, `bin/project_rust`'s own
-#   generated Rust kernel dispatch doesn't implement `for_each` fan-out
-#   at all (`PolicyRule` carries no such field). Both real, both much
-#   bigger than this session's own two fixes, both flagged rather than
-#   attempted. `for_each` therefore stays unwired on the real policy —
-#   `FreezeAccountsOnSuspension` is back to a plain `trigger`, same as
-#   it always was, still refusing on the wholesale-forwarding question
-#   for the original reason.
+# The for_each fan-out of FreezeAccountsOnSuspension: each open account of the suspended
+# customer is frozen. Payload forwarding needs a projection, see the example below.
 RSpec.describe "FreezeAccountsOnSuspension" do
   def build
     registry = Hecks::Runtime::Registry.new
@@ -83,10 +55,8 @@ RSpec.describe "FreezeAccountsOnSuspension" do
     expect(repository.find("acct-2").state[:status]).to eq("frozen")
   end
 
-  # **The refusal without a projection**. `with: { account: :account }`
-  # is what closes it — without a projection the whole `CustomerSuspended`
-  # payload would ride along, and `FreezeAccount` (which declares no
-  # arguments at all) would refuse every row with `does not declare
+  # Without `with: { account: :account }` the whole `CustomerSuspended` payload rides
+  # along and FreezeAccount, which declares no arguments, refuses with `does not declare
   # standing`.
   it "hands the trigger the row and nothing else, so the event's own fields never reach it" do
     runtime = build
@@ -123,26 +93,14 @@ RSpec.describe "FreezeAccountsOnSuspension" do
     expect(rows.map { |row| row[:id] }).to eq(["acct-1"])
   end
 
-  # The business rule itself, pinned independently of any reaction.
-  #
-  # Dispatching `FreezeAccount` directly against a suspended customer's
-  # open account, to prove the given in isolation, is not possible: that
-  # state is not reachable, since the policy freezes every open account the
-  # moment its customer is suspended, `Account.Open` refuses a suspended
-  # customer, and `Unfreeze` refuses one too — so "an open account
-  # belonging to a suspended customer" cannot be constructed at all any
-  # more, which is the domain working rather than the test decaying.
-  #
-  # What remains checkable is the rule as declared, plus the behaviour
-  # above: the policy's own fan-out succeeding is the given admitting a
-  # suspended customer, since nothing else could have let it through.
+  # The given cannot be dispatched in isolation: an open account of a suspended customer
+  # is unreachable. The rule is checked as declared; the fan-out above exercises it.
   it "guards on the relationship being open, not on the customer being active" do
     runtime = build
     freeze = runtime.registry.bluebook("Banking").aggregate("Account").command("FreezeAccount")
 
-    # "account is open" — S10, ADR 0025 — is now a lifecycle guard
-    # (command "FreezeAccount", from: "open"), not a given; the given
-    # list carries only the rule no lifecycle field can check.
+    # "account is open" is a lifecycle guard (`from: "open"`); givens carry only
+    # rules no lifecycle field can check.
     expect(freeze.givens.map(&:description)).to eq(["customer is not closed"])
     expect(freeze.from).to eq("open")
   end

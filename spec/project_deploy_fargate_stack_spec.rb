@@ -3,13 +3,8 @@ require "fileutils"
 require "open3"
 require "hecks/projections/deploy/template_diff"
 
-# The AwsFargate template generator's two promises: a world that sets none of the multi-container
-# settings renders the single-container stack (compared byte for byte against golden files), and a
-# world that sets them renders one task with several containers, routed by path behind one load
-# balancer and one distribution.
-#
-# Each world is generated once through `bin/project_deploy`, the real entry point, and read back off
-# disk. The multi-container world uses neutral names throughout.
+# Two promises: no multi-container settings renders the single-container
+# golden stack; setting them renders one task with several containers, routed by path.
 RSpec.describe "bin/project_deploy — a multi-container deployed_to(\"AwsFargate\") stack", :io do
   FARGATE_STACK_ROOT_DIR = File.expand_path("..", __dir__)
   FARGATE_STACK_GOLDEN_DIR = File.join(__dir__, "fixtures", "deploy_fargate_golden")

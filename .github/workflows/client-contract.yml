@@ -1,20 +1,9 @@
 name: "@hecks/client"
 
-# Tests for packages/hecks-client, the JavaScript client for the dispatch
-# protocol a Hecks host answers. Two jobs:
-#
-#   - `hecks_client_unit` builds the package and runs its hermetic tests
-#     against an in-process fake of the protocol. Node only.
-#   - `hecks_client_contract` boots the real rust/host (HECKS_SERVE_MODE=1)
-#     on the checkout fixture domain and runs the same protocol scenario
-#     against it (packages/hecks-client/test/contract.mjs), so a change to the
-#     host's wire shape or to the client fails here.
-#
-# This workflow is deliberately not one of the required checks in ci.yml, and
-# it is filtered by path: it starts only for a pull request that touches the
-# package, the host's request path, or the fixture the scenario runs against.
-# `merge_group` runs cannot be path-filtered, so it is not a trigger.
+# Tests packages/hecks-client, the JS client for the dispatch protocol a
+# Hecks host answers: hermetic unit tests, plus a contract run against a real booted rust/host.
 
+# Path-filtered on purpose; `merge_group` can't be path-filtered, so it isn't a trigger here.
 on:
   pull_request:
     paths:
@@ -103,10 +92,9 @@ jobs:
         run: npm ci
         working-directory: packages/hecks-client
 
-      # HECKS_SERVE_MODE=1 makes the binary answer plain HTTP (server.rs)
-      # instead of the Lambda runtime. The host provisions its own schema and
-      # first era on boot; the database only has to exist. The contract
-      # script polls the protocol's read until the domain has booted.
+      # HECKS_SERVE_MODE=1 makes the binary answer plain HTTP instead of the
+      # Lambda runtime; it provisions its own schema and era on boot, so the
+      # database only has to exist. The contract script polls until it's up.
       - name: Start the host
         run: |
           psql -d postgres -c "CREATE DATABASE hecks_client_contract"

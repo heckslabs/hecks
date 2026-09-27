@@ -1,21 +1,10 @@
 require "spec_helper"
 
-# ADR 0025, S6 — "events first-class". Scope-narrowed pass, 2026-08-27:
-# `emits`/`on` accept a bare event constant (`emits Account::AccountFrozen`,
-# `on Account::AccountFrozen`), resolved the same way `trigger`/`dispatch`
-# already resolve a command reference (`Naming.event_ref`, ConstShim).
-# Unlike command references, the old quoted-string form is not refused —
-# only command references were 100% corpus-migrated, so refusing the old
-# spelling for events would break every live site this pass didn't touch.
-# Both forms stay admitted; see policy.bluebook's own KeywordSeed comment.
+# `emits`/`on` accept a bare event constant (`emits Account::AccountFrozen`) or the
+# quoted-string form; both are admitted (ADR 0025).
 RSpec.describe "events first-class (ADR 0025, S6)" do
-  # The minimal "one aggregate, one command, emits a bare qualified event"
-  # fixture several examples below need only as scaffolding, not as the
-  # thing under test — `instance_eval`d back in wherever it's needed, which
-  # runs it exactly as if it had been written inline (both the DSL words
-  # here and `Widget`'s own constant resolution are dispatched dynamically
-  # off whatever `self`/resolver is active at call time, not off where this
-  # proc is textually defined).
+  # Scaffolding fixture, `instance_eval`d where needed; DSL words and constants
+  # resolve against the active `self`, not where the proc is defined.
   def widget_emits_widget_made
     proc do
       aggregate "Widget" do
@@ -82,10 +71,7 @@ RSpec.describe "events first-class (ADR 0025, S6)" do
     expect(policy.on_event).to eq("Widget.WidgetMade")
   end
 
-  # Not built off `widget_emits_widget_made` — the quoted spelling used
-  # throughout here, instead of the bare constant that helper emits, is the
-  # entire thing this example proves still works, so sharing that fixture
-  # would hide the one difference this test exists to exercise.
+  # Does not reuse `widget_emits_widget_made`: its bare constant is the very difference tested.
   # rubocop:disable-next RSpec/ExampleLength
   it "still accepts the old quoted-string form for both emits and on, unchanged" do
     ir = Hecks::Bluebook::DSL::BluebookBuilder.build("EventsQuotedStillWorks") do
@@ -155,12 +141,7 @@ RSpec.describe "events first-class (ADR 0025, S6)" do
     end.to raise_error(Hecks::Bluebook::DSL::Malformed, /off "Widget\.WidgetMade", which does not declare it/)
   end
 
-  # Its own two-command aggregate plus process_manager, not
-  # `widget_emits_widget_made` — this proves starts_on/ends_on/transition
-  # resolve a bare constant to the same stored name a same-aggregate emits
-  # already uses, which needs two distinct emitted events (Make/Finish) to
-  # show, and the process_manager block itself is the other half of what's
-  # under test, not swappable scaffolding.
+  # Needs two distinct emitted events (Make/Finish), so it cannot reuse `widget_emits_widget_made`.
   # rubocop:disable-next RSpec/ExampleLength
   it "accepts a bare, qualified event constant on a process_manager's starts_on/ends_on/transition, but " \
      "stores only the bare event name — SagaInterpreter matches a bare event.name, never a dotted one" do
@@ -198,11 +179,7 @@ RSpec.describe "events first-class (ADR 0025, S6)" do
     end
 
     pm = ir.process_managers.first
-    # Bare, matching what `emits WidgetMade` actually stores
-    # (`ir.aggregates.first.commands.first.emits`) — a qualified
-    # `Widget::WidgetMade` still resolves to the same stored string a
-    # bare `WidgetMade` would, unlike `on`/`emits` themselves, which
-    # keep the "." qualifier.
+    # A qualified constant stores the bare name here, unlike `on`/`emits`, which keep the ".".
     expect(pm.starts_on).to eq("WidgetMade")
     expect(pm.ends_on).to eq("WidgetFinished")
     expect(pm.handlers.first.event_type).to eq("WidgetMade")

@@ -8,22 +8,16 @@ require_relative "saga_pending_dispatch"
 
 module Hecks
   module Runtime
-    # Runs one domain's `process_manager` (saga) declarations against a
-    # just-emitted event: begins a new correlated instance on its
-    # starts_on event, advances a matching handler's state and dispatches
-    # its declared commands, and ends/deletes the instance on ends_on —
-    # checkpointing each transition durably before its dispatches run.
+    # Runs one domain's declared process managers against a just-emitted
+    # event, checkpointing each transition durably before its dispatches run.
     class SagaInterpreter
       include Correlation
 
-      # The trigger lives on the declaration it triggers, not on the runtime that
-      # notices it — see ProcessManager::REFUSED.
+      # The trigger lives on the declaration it triggers — see ProcessManager::REFUSED.
       REFUSED = Bluebook::ProcessManager::REFUSED
 
-      # A crash gets this many extra attempts before the procedure gives up
-      # and treats it as something to compensate for — see
-      # `deliver_saga_dispatch`'s own comment for why a crash isn't unwound
-      # on the first failure the way a domain refusal is.
+      # A crash gets this many retries before it's treated as something to
+      # compensate for, instead of unwinding on the first failure.
       MAX_DEFECT_RETRIES = 3
 
       attr_reader :registry
@@ -38,12 +32,7 @@ module Hecks
       end
 
       # Runs `domain`'s declared process managers against `event`: begins,
-      # advances or ends each matching saga instance, checkpointing durably
-      # before its own dispatches run.
-      #
-      # `only:` — one process manager, the outbox relay's way of running
-      # exactly the consumer a row names (`Runtime::Outbox::Relay#
-      # run_consumer`); nil advances every manager the domain declares.
+      # advances or ends each matching saga instance.
       #
       # @param event [Runtime::Event] the just-emitted event to react to
       # @param domain [String, Symbol] the domain whose declared process managers
@@ -64,27 +53,11 @@ module Hecks
 
       private
 
-      # The checkpoint write, shared by every mutation site below —
-      # holds `saga_mutex` across both the in-memory Hash mutation and
-      # the persistence write (§7), not just the Hash mutation alone:
-      # two threads racing the same (process_manager, correlation) key
-      # could otherwise interleave their writes out of order, silently
-      # reordering a saga's own transition history — worse for the
-      # adapters with no locking of their own (Heki) than for Postgres.
-      # `deep_copy` guards against a real bug shape (over-freezing a live,
-      # still-mutated Hash) — never hand a persistence adapter the same
-      # object `advance_saga`/`unwind` go on to mutate in place;
-      # round-tripping through JSON is also what guarantees the value is
-      # safe for every adapter that itself calls `JSON.generate` on it.
-      # `pending:` — see saga_pending_dispatch.rb. Injected into the
-      # written copy of memory only, never into `instance[:memory]`
-      # itself: every other reader of a live instance's memory
-      # (`dispatch_args`'s "opening event memory" scope, the fuzzer's
-      # own round-trip/shape checks, `saga_spec.rb`'s exact-equality
-      # assertion against a fresh instance's seeded memory) sees exactly
-      # what it always did. The marker exists only in the persisted
-      # blob, and only for as long as a dispatch cascade is genuinely
-      # in flight for this instance.
+      # Holds `saga_mutex` across both the in-memory mutation and the
+      # persistence write, never just the mutation — otherwise two threads
+      # racing the same (process_manager, correlation) key could interleave
+      # their writes out of order. `pending:` is injected into the written
+      # copy only, never into `instance[:memory]` itself.
       def checkpoint(process_manager, correlation, instance, domain, pending: nil)
         memory = deep_copy(instance[:memory])
         memory[SAGA_PENDING_DISPATCH_KEY] = pending if pending
@@ -95,13 +68,9 @@ module Hecks
         )
       end
 
-      # `deep_copy` is `JSON.parse(JSON.generate(hash), ...)`, which
-      # only accepts an object at the top level — `completed_compensations`
-      # is an array, so it gets its own wrap-and-unwrap rather than a
-      # second, parallel `deep_copy_array` reimplementing the same
-      # round-trip. `|| []` — an instance from before this field existed
-      # (or one that has never completed a compensable leg) rehydrates
-      # to an empty ledger, never nil.
+      # Wrapped in a Hash before the round-trip since `JSON.parse` only
+      # accepts an object at the top level. `|| []` rehydrates a ledger
+      # that has never completed a compensable leg to empty, never nil.
       def deep_copy_array(array) = deep_copy(list: array || [])[:list]
 
       def deep_copy(hash) = JSON.parse(JSON.generate(hash), symbolize_names: true)
@@ -119,22 +88,9 @@ module Hecks
         created = @registry.saga_mutex.synchronize do
           next false if @registry.saga_instances[process_manager.name].key?(correlation)
 
-          # `.dup`, not the same object — a fresh saga's own memory starts
-          # as a copy of the starting event's own payload, never the
-          # payload itself. A saga's own memory is meant to be written
-          # into over its lifetime (remember-style, growing beyond what
-          # the starting event carried) ; the payload it was seeded from
-          # is a fact about something that already happened, logged and
-          # emitted before the saga ever saw it. Sharing the one Hash
-          # object between them means a write into the saga's own memory
-          # is silently also a write into an already-emitted event's own
-          # payload — retroactively adding a field nothing announced.
-          # `event.payload` is deep-frozen by `Event#emit!` by the time
-          # this runs, so a naive in-place write here would raise
-          # FrozenError rather than corrupt silently — but the `.dup`
-          # still matters: it is what makes the saga's own memory a
-          # normal, writable Hash of its own, rather than one write away
-          # from crashing every future in-place `remember`.
+          # `.dup` — a fresh saga's own memory starts as a copy of the
+          # starting event's payload, never the frozen payload itself,
+          # since memory is written into over the saga's lifetime.
           instance = { state: process_manager.states.first, memory: event.payload.dup, completed_compensations: [] }
           @registry.saga_instances[process_manager.name][correlation] = instance
           checkpoint(process_manager, correlation, instance, domain)
@@ -146,13 +102,10 @@ module Hecks
                                 instance: correlation, born: true, state: process_manager.states.first }
       end
 
-      # The mutex covers only the state-check-and-mutate-and-checkpoint
-      # step, never the dispatch cascade that follows — `deliver_saga_
-      # dispatch` calls `@door.reenter`, which can recursively re-enter
-      # this same interpreter (a saga's own leg triggering another saga,
-      # or itself again) on the same thread, and `Mutex` is not
-      # reentrant: holding it across that call would deadlock the
-      # thread against itself the moment any real chain did that.
+      # The mutex covers only the check-mutate-checkpoint step, never the
+      # dispatch cascade that follows — `deliver_saga_dispatch`'s
+      # `@door.reenter` can recursively re-enter this interpreter on the
+      # same thread, and `Mutex` is not reentrant.
       def advance_saga(process_manager, event, domain)
         return unless process_manager.handles?(event.name)
 
@@ -170,10 +123,9 @@ module Hecks
             @registry.saga_log << record.merge(advanced: false, reason: "no conversation remembers #{correlation.inspect}")
             next false
           end
-          # The leg is chosen by (event, current state) — C10.3. Read
-          # under the mutex, against the state this instance holds right
-          # now, so two legs on the same event from different states each
-          # answer exactly when their own state is current.
+          # Leg chosen by (event, current state) — read under the mutex so
+          # two legs on the same event pick based on the state that's
+          # actually current right now.
           handler = process_manager.handler_for(event.name, instance[:state])
           unless handler
             @registry.saga_log << record.merge(advanced: false,
@@ -192,8 +144,6 @@ module Hecks
         settle_transition(process_manager, event, handler, instance, correlation, domain, record, pre_state)
       end
 
-      # "in X, not Y" — the same wording as before C10.3 when one leg
-      # answers the event; every leg's own from: listed when several do.
       def leg_mismatch(process_manager, event_name, state)
         expected = process_manager.handlers_for(event_name).map { |h| h.from_state.inspect }.uniq
         "in #{state.inspect}, not #{expected.join(' or ')}"
@@ -203,41 +153,19 @@ module Hecks
         { on: event.name, from: from_state, to: to_state, dispatches: handler.dispatches.map(&:command_name) }
       end
 
-      # The shared tail of `advance_saga` and `unwind` — both are "guard,
-      # mutate, checkpoint-with-pending" under the mutex (kept separate
-      # per caller: `advance_saga`'s own guard also has to handle "no
-      # instance at all", `unwind`'s doesn't), then this: log the real
-      # observed transition, run the leg's dispatches, and clear the
-      # pending marker once that cascade — however it ended — is done.
+      # The shared tail of `advance_saga` and `unwind`, both of which guard,
+      # mutate and checkpoint under the mutex before calling this.
       def settle_transition(process_manager, event, handler, instance, correlation, domain, record, pre_state,
                             drain_compensations: false)
-        # `from:`/`to:` are the instance's own real pre/post state — read
-        # back from `instance` itself, never re-derived from `handler.
-        # from_state`/`handler.to_state` a second time. `Properties.saga_
-        # advances_follow_declared_handlers` (fuzzing/properties.rb) builds
-        # its own "declared edges" list from this same handler object (via
-        # `process_manager.handlers`), so a log entry that just echoed `handler.
-        # from_state`/`handler.to_state` back could never disagree with
-        # that list no matter what the runtime actually did — the entry
-        # and the thing it's checked against would be the identical fact,
-        # read twice. Logging the instance's own observed state instead
-        # means a future defect that moves an instance somewhere its own
-        # declared handler didn't say (a stale handler reference, the
-        # wrong handler picked, a second racing mutation) shows up as a
-        # real mismatch instead of vanishing into a tautology.
+        # from:/to: read back from `instance` itself, never re-derived from
+        # `handler.from_state`/`to_state` — otherwise a log entry checked
+        # against that same handler object could never actually disagree
+        # with it, no matter what the runtime did.
         @registry.saga_log << record.merge(advanced: true, from: pre_state, to: instance[:state])
 
-        # **Derived compensation first, newest-first** — only for `unwind`'s
-        # own call (`drain_compensations: true`): every leg this instance
-        # actually completed that declared its own `compensates`, popped
-        # and dispatched in reverse completion order, before any
-        # hand-written `on :refused` dispatches below — coexistence, not
-        # replacement. Drained (not just read) as it fires: a saga's own
-        # `on :refused` handler is guarded against re-entry by `unwind`'s
-        # own `instance[:state] == handler.from_state` check, so this can
-        # only ever run once per refusal — but draining rather than
-        # leaving the ledger populated is what makes that true by
-        # construction too, not only by the state guard.
+        # Derived compensations run newest-first, before any hand-written
+        # `on :refused` dispatches below. Drained (popped), not just read —
+        # that's what keeps a re-entrant `on :refused` from running twice.
         if drain_compensations
           compensations = instance[:completed_compensations] || []
           deliver_derived_compensation(process_manager, compensations.pop, correlation, domain) until compensations.empty?
@@ -248,23 +176,11 @@ module Hecks
           deliver_saga_dispatch(process_manager, spec, event, instance, correlation, domain)
         end
 
-        # **The clear** — guarded by the same identity check `end_saga`'s own
-        # `.delete` return value implies: `deliver_saga_dispatch`'s
-        # `@door.reenter` can synchronously trigger this same correlation's
-        # `ends_on` event as a nested reaction (a leg's own dispatch is
-        # what makes the saga's terminal event fire), which deletes this
-        # row from the store before this line ever runs. Writing the
-        # clear unconditionally would resurrect a legitimately-ended saga
-        # — this diff's own first attempt did exactly that, caught by
-        # `saga_durability_spec.rb`'s "deletes the checkpoint once a saga
-        # genuinely ends" — so this only re-checkpoints when `instance`
-        # is still the same object `@saga_instances` holds for this
-        # correlation (`.equal?`, not `==`: a fresh saga reborn under the
-        # same correlation between then and now is a different instance,
-        # and writing this stale one's state onto that one's row would be
-        # its own corruption). Under the mutex — dispatching is over by
-        # now, so this is not the reentrancy hazard `advance_saga`'s own
-        # comment warns about.
+        # Guarded by `.equal?` (not `==`): `deliver_saga_dispatch`'s own
+        # `reenter` can trigger this correlation's `ends_on` as a nested
+        # reaction, deleting this row before this line runs. Clearing
+        # unconditionally would resurrect an already-ended saga, or stamp
+        # a reborn instance with a stale one's state.
         @registry.saga_mutex.synchronize do
           next unless @registry.saga_instances[process_manager.name][correlation].equal?(instance)
 
@@ -278,15 +194,9 @@ module Hecks
         args   = dispatch_args(process_manager, spec, event, instance, correlation)
         record = { process_manager: process_manager.name, instance: correlation, dispatch: spec.command_name }
 
-        # The raw inputs `args` was resolved from, captured alongside the
-        # result — never re-derived from history[:saga_instances] later
-        # (that only ever holds the final memory, after every step has
-        # run; this dispatch's own memory, at the moment it actually
-        # fired, is a different fact for a saga whose memory keeps
-        # changing). `spec.with_spec.empty?` skipped: nothing declared
-        # to check, a tautological pass, the same reason a command with
-        # no givens/from is skipped by lifecycle_guard_and_given_
-        # violations_are_refused.
+        # Raw inputs captured alongside the resolved result — never
+        # re-derived later from saga_instances, which only ever holds the
+        # final memory, not what it was at the moment this dispatch fired.
         unless spec.with_spec.to_a.empty?
           @registry.saga_dispatch_log << { process_manager: process_manager.name, instance: correlation,
                                            dispatch: spec.command_name,
@@ -296,16 +206,8 @@ module Hecks
         end
 
         if @door.reaction_depth_reached?
-          # The ceiling is not a domain decision either — same reasoning as a
-          # crash, below — but unlike a crash there is nothing ambiguous
-          # about it: the leg unambiguously did not run, so it unwinds
-          # exactly like a refusal instead of stranding the instance for a
-          # human to notice. `unwind`'s own state guard (it moves to its
-          # `to_state` before its dispatches run) is what keeps this from
-          # looping if the ceiling is still in effect when the compensating
-          # leg tries to dispatch — that leg's own attempt hits this same
-          # branch, calls `unwind` again, and finds the instance already
-          # past `from_state`.
+          # Not a domain decision, but unambiguous — the leg didn't run, so
+          # it unwinds like a refusal rather than stranding the instance.
           @registry.saga_log << record.merge(delivered: false,
                                              reason:    "reaction depth #{@door.max_reaction_depth} reached")
           unwind(process_manager, event, instance, correlation, domain)
@@ -315,20 +217,12 @@ module Hecks
         attempt = 0
         compensation_recorded = false
         begin
-          # Recorded before dispatching, not after `@door.reenter`
-          # returns — `@door.reenter` can recursively re-enter this same
-          # saga interpreter (the event this dispatch emits triggers a
-          # later handler, which can itself refuse and unwind) entirely
-          # within this one call, before it ever returns here. Recording
-          # "after reenter succeeds" would be too late for a nested
-          # refusal to ever see this leg's own compensation — found
-          # live: Settlement's own AccountDebited handler refuses
-          # Account.Credit and unwinds from inside Account.Debit's own
-          # `reenter` call, so "delivered: true, then record" left the
-          # ledger empty at the exact moment it was needed. Popped back
-          # off in the rescues below if this leg's own attempt is the
-          # one that failed — never left recorded for a refusal that
-          # was never this leg's own to compensate.
+          # Recorded before dispatching, not after `@door.reenter` returns —
+          # reenter can recursively re-enter this interpreter and refuse
+          # before ever returning here, and recording only on success would
+          # be too late for that nested refusal to see this leg's own
+          # compensation. Popped back off in the rescues below if this
+          # leg's own attempt is the one that failed.
           if spec.compensates && !compensation_recorded
             resolved = dispatch_args(process_manager, spec.compensates, event, instance, correlation)
             instance[:completed_compensations] << { command_name: spec.compensates.command_name, args: resolved }
@@ -349,35 +243,18 @@ module Hecks
           @registry.saga_log << record.merge(delivered: true)
         rescue *DOMAIN_REFUSALS => e
           unrecord_compensation(instance, correlation, domain, process_manager) if compensation_recorded
-          # Same rule as the policy interpreter : a refusal by the target is
-          # a recorded outcome, and the leg that raised it unwinds — see
-          # `unwind`'s own comment for why the procedure runs its
-          # compensation here rather than leaving the money (or whatever
-          # else a leg moved) sitting out.
+          # A refusal by the target is a recorded outcome, and the leg
+          # that raised it unwinds and runs its own compensation there.
           @registry.saga_log << record.merge(delivered: false, reason: e.message)
           unwind(process_manager, event, instance, correlation, domain)
         rescue StandardError => e
           unrecord_compensation(instance, correlation, domain, process_manager) if compensation_recorded
           compensation_recorded = false
-          # A defect, not a refusal — see PolicyInterpreter#deliver's own
-          # comment for the full reasoning: the same DOMAIN_REFUSALS split,
-          # and the same "the triggering command already succeeded and
-          # persisted by the time this runs" fact that makes catching it
-          # here safe rather than reckless.
-          #
-          # Unlike a refusal, a crash is not a decision the domain made, so
-          # it does not unwind on the first failure — MAX_DEFECT_RETRIES
-          # gives a transient failure (a DB timeout, a race, a cold start)
-          # a chance to clear on its own, retrying the identical dispatch,
-          # before this is treated as something to compensate for. Every
-          # attempt is recorded distinguishably (`defect: true`, the
-          # error's own class); only once retries are exhausted is it
-          # warned to STDERR and unwound — tagged `defect_compensated:
-          # true` rather than folded into an ordinary refusal's shape, so
-          # the log never misrepresents a crash as a decision the domain
-          # made. Compensating a genuinely stuck leg beats leaving it for a
-          # human to find; misrepresenting *why* it compensated is what the
-          # tag is for.
+          # Unlike a refusal, a crash isn't a domain decision, so it
+          # doesn't unwind on the first failure — MAX_DEFECT_RETRIES lets a
+          # transient failure clear on retry. `defect_compensated: true`
+          # tags an exhausted retry distinctly, so the log never
+          # misrepresents a crash as a decision the domain made.
           attempt += 1
           if attempt <= MAX_DEFECT_RETRIES
             @registry.saga_log << record.merge(delivered: false, reason: e.message,
@@ -395,38 +272,23 @@ module Hecks
       end
       # rubocop:enable Metrics/AbcSize, Metrics/MethodLength
 
-      # The rollback half of `deliver_saga_dispatch`'s own speculative
-      # pre-record (that method's own comment for why it has to be
-      # speculative) — this leg's own attempt is the one that failed,
-      # so whatever was just pushed for it was never actually earned.
-      # `.pop`, not a search-and-delete: nothing else can have pushed
-      # after this leg's own entry without this leg's own `@door.
-      # reenter` call having already returned (the recursive re-entry
-      # this whole mechanism exists for only ever runs between this
-      # push and this leg's own return, and a nested refusal that
-      # consumed it already popped it itself — this rollback only ever
-      # runs for this leg's own, still-present entry).
+      # `.pop`, not search-and-delete — nothing else can have pushed after
+      # this leg's own entry without this leg's own `reenter` having
+      # already returned first.
       def unrecord_compensation(instance, correlation, domain, process_manager)
         instance[:completed_compensations].pop
         checkpoint(process_manager, correlation, instance, domain)
       end
 
-      # A refused leg unwinds — the procedure runs the leg declared `on :refused`,
-      # which is where the compensation lives. So does a leg that hit the
-      # reaction-depth ceiling, and so does a leg that crashed and stayed
-      # crashing through MAX_DEFECT_RETRIES — see `deliver_saga_dispatch`'s own
-      # comments for why each of those is safe to route here.
+      # A refused leg unwinds by running its own declared `on :refused`
+      # handler, where compensation lives — also the destination for a
+      # leg that hit the reaction-depth ceiling or exhausted its defect
+      # retries.
       #
-      # Until this existed a refusal was recorded and nothing else happened. The
-      # wire's thousand was taken from the source, refused by the destination, and
-      # sat nowhere until a human dispatched the reversal by hand ; banking's
-      # settlement left a debit standing with no credit and no compensation at all.
-      # Both bluebooks had written the compensating leg. Nothing armed it.
-      #
-      # A compensation that is itself refused does not unwind again, and needs no
-      # flag to stop it: the state moves to the compensating leg's to_state before
-      # its dispatches run, so a second refusal finds the instance already out of
-      # from_state and records that instead. The check is the guard.
+      # A compensation that is itself refused does not unwind again: the
+      # state moves to the compensating leg's to_state before its
+      # dispatches run, so a second refusal finds the instance already
+      # out of from_state and records that instead.
       def unwind(process_manager, event, instance, correlation, domain)
         return unless instance && process_manager.handles?(REFUSED)
 
@@ -435,10 +297,8 @@ module Hecks
         pre_state = nil
 
         # Same non-reentrancy reasoning as `advance_saga`'s own comment —
-        # the mutex covers only the check-and-mutate-and-checkpoint step.
+        # the mutex covers only the check-mutate-checkpoint step.
         advanced = @registry.saga_mutex.synchronize do
-          # The compensating leg is selected by (`REFUSED`, current state)
-          # too — C10.3, one rule for every leg.
           handler = process_manager.handler_for(REFUSED, instance[:state])
           unless handler
             @registry.saga_log << record.merge(advanced: false,
@@ -454,28 +314,16 @@ module Hecks
         end
         return unless advanced
 
-        # See `settle_transition`'s own comment on `pre_state`/
-        # `instance[:state]` — the real observed transition, not a
-        # second read of the same handler object `Properties.saga_
-        # advances_follow_declared_handlers` checks this log against.
-        # `drain_compensations: true` — only `unwind`'s own call site
-        # fires derived compensation; `advance_saga`'s own call never
-        # does.
+        # `drain_compensations: true` only here — `advance_saga`'s own call
+        # never fires derived compensation.
         settle_transition(process_manager, event, handler, instance, correlation, domain, record, pre_state,
                           drain_compensations: true)
       end
 
-      # A derived compensation — `entry[:args]` is already resolved
-      # (`record_completed_compensation`'s own comment for why), so this
-      # skips `dispatch_args` entirely and goes straight to delivery,
-      # through the same retry-on-defect path an ordinary forward leg
-      # uses. Never re-enters `unwind` on its own failure — a
-      # compensation that itself refuses is a real, pre-existing gap
-      # this feature makes visible rather than closes (see this file's
-      # own class-level notes); `compensation_failed: true` tags it
-      # distinctly in the log instead of recording it identically to an
-      # ordinary failed delivery, and every other completed compensation
-      # still queued still gets its own attempt.
+      # `entry[:args]` is already resolved, so this skips `dispatch_args`
+      # and goes straight to delivery. Never re-enters `unwind` on its own
+      # failure — `compensation_failed: true` tags a refused compensation
+      # distinctly rather than as an ordinary failed delivery.
       def deliver_derived_compensation(process_manager, entry, correlation, domain)
         record = { process_manager: process_manager.name, instance: correlation, dispatch: entry[:command_name] }
 
@@ -520,43 +368,11 @@ module Hecks
         )
       end
 
-      # BUG#6 — unconditionally the saga's own home domain, never inferred
-      # from `command_name`'s own shape. Guessing from a leftover
-      # `::` after `Naming.command_ref`'s own rewrite (read as "already
-      # domain-qualified" and left alone) cannot actually
-      # tell a genuinely cross-domain reference (`Banking::Account::
-      # Debit` -> one `::` survives) apart from a same-domain entity
-      # command reference (`Manifest::Slot::Fill` -> one `::` survives
-      # too, for an unrelated reason — entity nesting, not a domain
-      # qualifier) — both collapse to the identical "one `::` left" shape,
-      # and the string alone carries no further signal to split them
-      # (confirmed against `Naming.command_ref`'s own rewrite: it only
-      # ever strips the last `::`, so the count of what remains is blind
-      # to why it's there). Picking the cross-domain reading unconditionally
-      # would leave `qa/stress_domains/waybill`'s own `Packing` saga dispatching
-      # `Manifest::Slot::Fill` — an entity command in its own domain —
-      # unprefixed, so `Naming.split_verb` would read "Manifest" as a domain
-      # name instead of this chapter's own aggregate, and the dispatch
-      # would fail with `UnknownVerb`, silently recorded as an ordinary
-      # domain refusal rather than surfacing as the real bug it is.
-      #
-      # The fix mirrors `PolicyInterpreter#deliver`'s own mechanism,
-      # which never had this bug: a policy's cross-domain target is a
-      # separate, explicit field (`Policy#target_domain`, set only by the
-      # `across` keyword) — `deliver` unconditionally builds
-      # `"#{policy.target_domain || domain}::#{policy.trigger_command}"`,
-      # never asking whether `trigger_command` looks already-qualified.
-      # A saga's own `dispatch`/`compensates` has no such explicit field
-      # and no keyword to set one — and, confirmed against the entire
-      # corpus (banking's Onboarding/Settlement/ExternalSettlement,
-      # quality_control's BugCiWatch, and this domain's own Packing),
-      # no saga anywhere ever dispatches genuinely cross-domain: "every
-      # command a saga fires lands inside its own bluebook chapter"
-      # (`Projections::Diagrams#saga_diagram`'s own comment, written
-      # independently of this fix and still true). So the home domain is
-      # the only explicit context a saga dispatch ever has — this applies
-      # it the same way `deliver` applies its own default (no `across`)
-      # case, without inventing a keyword nothing in the corpus needs.
+      # Unconditionally the saga's own home domain, never inferred from
+      # `command_name`'s shape — unlike a policy's explicit `target_domain`
+      # (set by `across`), a saga's `dispatch`/`compensates` has no such
+      # field, and every command a saga fires lands inside its own
+      # bluebook chapter.
       def qualified(command_name, domain)
         "#{domain}::#{command_name}"
       end

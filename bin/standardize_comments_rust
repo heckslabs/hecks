@@ -1,37 +1,15 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
-# Checks Rust comments against docs/COMMENT_STYLE_GUIDE_RUST.md.
-#
-# ## Modes
-#
-#   bin/standardize_comments_rust --report rust   # summary tables (default)
-#   bin/standardize_comments_rust --check  rust   # one line per violation, exit 1 if any
-#   bin/standardize_comments_rust --fix    rust   # rewrite the mechanical categories
-#
-# `--only all_caps,long_line` narrows any mode to the named categories and
-# `--json` swaps the report for machine-readable output.
-#
-# ## What `--fix` touches
-#
-# Only `all_caps` and `long_line` are mechanical. Every other category needs
-# someone to read the code, so the fixer leaves it alone.
-#
-# The prose rules (all_caps, bare_constant, design_history, unknown_capitals)
-# reuse the English-word list, acronym list, and proper-noun list from
-# `bin/standardize_comments`, so a name added to either language's exemptions
-# there is recognised here too.
-#
-# This script is not a CI gate. Nothing runs it automatically.
+# Checks Rust comments against docs/COMMENT_STYLE_GUIDE_RUST.md, fixing the
+# mechanical categories with --fix. Not a CI gate; run by hand.
 
 require "json"
 require "optparse"
 load File.join(__dir__, "standardize_comments")
 
-# Checks a set of Rust files against docs/COMMENT_STYLE_GUIDE_RUST.md and,
-# for the mechanical categories, rewrites them to comply. Shares its prose
-# vocabulary (acronyms, proper nouns, the English word list, design-history
-# phrasing) with `CommentStyle`, the Ruby-side linter.
+# Checks Rust files against docs/COMMENT_STYLE_GUIDE_RUST.md, sharing its
+# prose vocabulary with `CommentStyle`, the Ruby-side linter.
 module RustCommentStyle
   MAX_LINE = CommentStyle::MAX_LINE
   MAX_HEADING_WORDS = CommentStyle::MAX_HEADING_WORDS
@@ -52,10 +30,8 @@ module RustCommentStyle
   MARKER = %r{\A/{2,3}!?\s*}
   DOC_LINE = %r{\A\s*(?:///(?!/)|//!)}
 
-  # `// TMPL:name BEGIN`/`END` (and a nested `TMPL:outer:INNER BEGIN`/`END`)
-  # are exact-string sentinels `rust/project/exemplar.rb` parses back out of
-  # this source verbatim, casing included — never prose, never a shout to
-  # fix. Every prose rule skips a comment matching this outright.
+  # `// TMPL:name BEGIN`/`END` sentinels are parsed verbatim by
+  # `rust/project/exemplar.rb`; every prose rule skips them outright.
   TMPL_MARKER = /\bTMPL:\S+\s+(?:BEGIN|END)\b/i
   MOD_DOC_LINE = %r{\A\s*//!}
   ATTR_LINE = /\A\s*#\[/
@@ -64,15 +40,10 @@ module RustCommentStyle
   GAP = CommentStyle::GAP
   FILLER = CommentStyle::FILLER
 
-  # Trait impls whose method bodies are fixed by the trait's own contract, the
-  # same idea as Ruby's `to_s`/`inspect`/`==` exemption. A method here never
-  # takes `pub`, so it would not be flagged anyway, but `main` is listed
-  # explicitly since it is a `pub fn` an entry point, not an API.
+  # `main` is a pub fn entry point, not an API surface to document.
   SELF_EVIDENT_FNS = %w[main].to_set.freeze
 
-  # Vocabulary this codebase's Rust needs beyond `bin/standardize_comments`'s
-  # Ruby-focused lists: compiler/runtime jargon, AWS service acronyms, and
-  # the hecks-ecosystem project names its comments cross-reference.
+  # Rust-specific acronyms beyond `bin/standardize_comments`'s Ruby list.
   RUST_ACRONYMS = %w[EOF RAII RHS SQS DLQ JIT LSP NFA DFA CR].to_set.freeze
 
   RUST_PROPER_NOUNS = {
@@ -96,21 +67,14 @@ module RustCommentStyle
   Violation = Struct.new(:path, :line, :category, :message)
   Comment = Struct.new(:line, :col, :text, :full_line)
 
-  # Walks Rust source one character at a time, distinguishing code from line
-  # comments (`//`, `///`, `//!`), ordinary strings, raw strings (`r"..."`,
-  # `r#"..."#`, ...), and char literals, so a `//` inside any of those is
-  # never mistaken for a comment. Block comments (`/* */`) do not appear in
-  # this codebase's hand-written Rust and are not recognised.
+  # Finds Rust source's line comments, distinguishing them from `//` inside
+  # code, strings, raw strings, and char literals. Block comments are not recognised.
   class Tokenizer
     # Lexes `source` for its line comments in one pass.
-    #
-    # @param source [String] Rust source
-    # @return [Array<Comment>]
     def self.comments(source)
       new(source).run
     end
 
-    # @param source [String] Rust source to walk
     def initialize(source)
       @src = source
       @len = source.length
@@ -118,8 +82,6 @@ module RustCommentStyle
     end
 
     # Walks the whole source once, collecting every line comment.
-    #
-    # @return [Array<Comment>]
     def run
       pos = 0
       line = 1
@@ -194,17 +156,14 @@ module RustCommentStyle
     end
   end
 
-  # Folds Rust-specific jargon into the shared English word list once, so
-  # every stemming rule `Dictionary.english?` already knows (plurals,
-  # gerunds, past tense) applies to these words too.
+  # Folds Rust jargon into the shared word list so `Dictionary.english?`
+  # already covers these words' plurals, gerunds, and past tense too.
   CommentStyle::Dictionary.words&.merge(RUST_EXTRA_WORDS)
 
   # One parsed `.rs` file and the violations found in it.
   class SourceFile
     attr_reader :path, :lines, :comments
 
-    # @param path [String] file to lint
-    # @param source [String, nil] contents, read from `path` when nil
     def initialize(path, source = nil)
       @path = path
       @source = source || File.read(path)
@@ -216,9 +175,6 @@ module RustCommentStyle
     end
 
     # Finds every place this file departs from the style guide.
-    #
-    # @param only [Array<String>, nil] categories to keep, all when nil
-    # @return [Array<Violation>]
     def violations(only: nil)
       return [] if generated?
 
@@ -228,9 +184,6 @@ module RustCommentStyle
     end
 
     # Rewrites the mechanical categories.
-    #
-    # @param only [Array<String>, nil] categories to fix, every fixable one when nil
-    # @return [String] the fixed source, or the original when nothing changed
     def fixed(only: nil)
       return @source if generated?
 
@@ -240,8 +193,6 @@ module RustCommentStyle
 
     # A generated file's comments belong to its generator: `bin/project_rust`
     # and friends stamp this exact banner on line one.
-    #
-    # @return [Boolean]
     def generated?
       @lines.first.to_s.start_with?("// GENERATED by")
     end
@@ -491,10 +442,8 @@ module RustCommentStyle
       "#{indent}#{text[0, cut].rstrip}\n#{wrap(indent, "#{lead}#{text[cut..].strip}")}"
     end
 
-    # `pub` items with no `///` block directly above, and files with no `//!`
-    # module doc at the top. Attribute lines (`#[derive(...)]`, `#[cfg(...)]`)
-    # between the doc comment and the item are skipped, the same way Ruby
-    # skips nothing (Ruby has no attribute lines) but Rust needs to.
+    # `pub` items with no `///` doc above, and files with no `//!` module
+    # doc at the top. Attribute lines between the doc and item are skipped.
     def structure_violations
       (test_tree? ? [] : missing_doc_violations) + missing_module_doc_violation
     end
@@ -523,8 +472,7 @@ module RustCommentStyle
     end
 
     # Tracks whether the line just observed sits inside a `#[cfg(test)]`
-    # module, by brace depth: the module starts at the attribute and ends
-    # once brace depth returns to what it was there.
+    # module, by brace depth.
     class TestCfgTracker
       TEST_CFG = /\A\s*#\[cfg\(test\)\]/
 
@@ -535,9 +483,6 @@ module RustCommentStyle
       end
 
       # Updates the tracked brace depth with one more source line.
-      #
-      # @param line [String] the next source line, in file order
-      # @return [void]
       def observe(line)
         @depth += line.count("{") - line.count("}")
         @test_depth = @depth if line.match?(TEST_CFG)
@@ -545,8 +490,6 @@ module RustCommentStyle
       end
 
       # Answers whether the line just observed sits inside a test module.
-      #
-      # @return [Boolean]
       def inside?
         !@test_depth.nil?
       end
@@ -649,9 +592,6 @@ module RustCommentStyle
   end
 
   # Builds the CLI's option parser, filling `options` as flags are seen.
-  #
-  # @param options [Hash] mutated in place as each flag is parsed
-  # @return [OptionParser]
   def self.option_parser(options)
     OptionParser.new do |opts|
       opts.banner = "Usage: bin/standardize_comments_rust [--report|--check|--fix] [--only a,b] PATH..."
@@ -665,10 +605,6 @@ module RustCommentStyle
   end
 
   # Prints `--report`, `--check`, or `--json` output for a finished run.
-  #
-  # @param run [Run] the run whose violations to render
-  # @param options [Hash] parsed CLI options (`:mode`, `:json`, `:top`)
-  # @return [Integer] process exit status
   def self.render(run, options)
     found = run.violations
     if options[:json]
@@ -682,9 +618,6 @@ module RustCommentStyle
   end
 
   # The CLI entry point: parses `argv` and runs the requested mode.
-  #
-  # @param argv [Array<String>]
-  # @return [Integer] process exit status
   def self.main(argv)
     options = { mode: :report, top: 20 }
     parser = option_parser(options)

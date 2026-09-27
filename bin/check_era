@@ -1,25 +1,9 @@
 #!/usr/bin/env ruby
 
-# Checks the era a running host reports against an allow-list file, after a
-# roll. The host's own `GET /version` document names the era it booted on
-# (rust/host/src/server.rs); the file lists the eras that should be running,
-# one per line (see Hecks::Runtime::EraCheck::ExpectedEra for the format).
+# Checks the era a running host reports (`GET /version`) against an
+# allow-list file after a roll. Read-only: one GET, no writes.
 #
 #   bin/check_era <url> <expected-era-file> [--timeout=<seconds>]
-#
-# `<url>` is the host's base URL, or its `/version` URL itself.
-#
-# Exit codes:
-#    0  the reported era is on the list, or the list names none and the host
-#       reports one
-#    1  the host reports an era that is not on the list
-#    2  bad usage, or the file cannot be read
-#    3  the host could not be reached, or did not answer a version document
-#
-# The check only reads: it makes one GET request and never writes anywhere.
-# It is a different question from the boot-time gate (`EraCheck.check!`), which
-# decides against the store whether a host may run at all; this one compares
-# what an already-running host says with what the operator expects.
 
 require_relative "../lib/hecks/ports/persistence/plugins/era/expected_era"
 

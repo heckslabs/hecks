@@ -1,16 +1,8 @@
 require "hecks"
 require "hecks/ports/persistence/plugins/era"
 
-# `PostgresEra.setting` is the shared two-spelling settings digger four
-# call sites in postgres_era.rb (database, schema, domain, era) all read
-# through — deliberately not `io: true`: it touches no database at all,
-# so it runs in the ordinary local loop rather than only under Postgres.
-#
-# The bug this guards against: `settings[:x] || settings["x"]` silently
-# discards a genuinely stored `false` at the symbol spelling in favor of
-# whatever (or nothing) sits at the string spelling, because `||` cannot
-# tell "stored false" apart from "absent". `key?` can, and must be asked
-# first.
+# Not `io: true`: `setting` touches no database. Pins that a stored `false` at the symbol
+# key is not discarded by `||` in favor of the string key, so `key?` must be asked first.
 RSpec.describe "Hecks::Adapters::PostgresEra.setting" do
   let(:described_class) { Hecks::Adapters::PostgresEra }
 

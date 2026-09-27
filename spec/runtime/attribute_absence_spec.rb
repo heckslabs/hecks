@@ -1,14 +1,7 @@
 require "spec_helper"
 
-# ADR 0025, "Added attributes and absence": the read-side half of S11.
-# GuardState's own nil-read (hydrate_defaults_spec.rb's boot-time half —
-# `Instance.hydrate_with_defaults` — is the write-side companion) would
-# answer nil for any declared-but-absent field, optional or not. That is
-# exactly right for optional — nil is what optional means — and exactly
-# wrong for a required field with no default: a `given`/`ensures` reading
-# it would silently evaluate against a value nobody ever wrote, the same
-# bug class as an unpopulated projection reading "not active". This pins
-# the narrowed behaviour: optional stays nil, required raises named.
+# Reading a declared-but-absent attribute (ADR 0025): optional yields nil, while a required one
+# with no default raises, so a `given`/`ensures` never evaluates against a value nobody wrote.
 RSpec.describe "reading a declared attribute a record predates" do
   def aggregate_without_defaults
     registry = Hecks::Runtime::Registry.new
@@ -32,9 +25,8 @@ RSpec.describe "reading a declared attribute a record predates" do
     registry.bluebook("Absence").aggregate("Account")
   end
 
-  # `balance` is required, no default: — declared, but stripped from the
-  # stored state below, exactly as a record written before it existed
-  # would arrive off any adapter's own decode.
+  # `balance` is required with no default, but missing from the stored state, as in a record
+  # written before the attribute existed.
   def record_predating_balance(aggregate)
     Hecks::Runtime::Instance.new(
       aggregate: aggregate, id: "a1", state: { number: { "value" => "a1" } }

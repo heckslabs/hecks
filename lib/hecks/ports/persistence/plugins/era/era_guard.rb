@@ -6,23 +6,8 @@ require_relative "../../../../runtime/registry"
 
 module Hecks
   module Runtime
-    # The shape-drift coverage primitives — ADR 0032. Not a driver: nothing
-    # here walks a registry or reads/writes a held snapshot on its own.
-    # `PostgresEra::LineageManager::CoverageCheck` calls `uncovered_
-    # attributes`/`unsafe_additions`/`refuse_uncovered!`/`refuse_unsafe_
-    # addition!`/`check_vanished_aggregates!` directly, per translation
-    # edge, over its own DB-held shapes; `Translation::Reattest` and
-    # `PostgresEra::LineageManager` call `shadow_parse` directly, to read
-    # historical bluebook text under old grammar defaults. Both are real,
-    # independent, currently-shipped consumers.
-    #
-    # There is deliberately no top-level `check!`/`check_bluebook!` here
-    # walking a registry and reading/writing a held snapshot under
-    # `data/eras/*.bluebook`: it would duplicate, on its own, the same
-    # per-aggregate walk `CoverageCheck` already performs against
-    # `PostgresEra`'s own DB-held shapes, and nothing in production would
-    # call it — an unwired driver is not kept, per ADR 0032. If one is
-    # wanted, it is built informed by `CoverageCheck`'s real orchestration.
+    # Shape-drift coverage primitives (ADR 0032). Not a driver: callers own
+    # walking a registry and reading/writing held snapshots; nothing here does either.
     module EraGuard
       extend ShapeDiff
 
@@ -30,20 +15,16 @@ module Hecks
 
       # Refuses the boot when a held aggregate is gone and no translation says where it went.
       #
-      # An aggregate that existed in the held text and answers to no
-      # current name — renamed silently, with nothing declaring `was:` to
-      # explain where its data went — is exactly the disease this guards
-      # against, and a plain per-aggregate diff would never see it: the
-      # current aggregate simply has no held counterpart to compare to.
+      # A held aggregate matching no current name has no counterpart for a
+      # plain per-aggregate diff to compare against; only a `was:` or
+      # `retired` translation can explain it.
       #
-      # @param registry [Runtime::Registry] the registry whose declared translations are
-      #   searched for a `was:` or a `retired` entry naming the held aggregate
+      # @param registry [Runtime::Registry] the registry searched for a `was:`/`retired` entry
       # @param bluebook [Bluebook::Chapter] the bluebook booting now
       # @param held_bluebook [Bluebook::Chapter] the bluebook parsed from the held era's text
       # @return [void]
-      # @raise [Runtime::WiringError] if a held aggregate matches no current aggregate by
-      #   name, no current aggregate's translation declares it as `was:`, and no translation
-      #   for this domain retires it
+      # @raise [Runtime::WiringError] if a held aggregate matches no current aggregate, no
+      #   `was:` declares it, and no translation retires it
       def check_vanished_aggregates!(registry, bluebook, held_bluebook)
         held_bluebook.aggregates.each do |held_aggregate|
           claimed = bluebook.aggregates.any? do |aggregate|
@@ -125,65 +106,16 @@ module Hecks
         end
       end
 
-      # Parses held source into its own IR, in a scratch registry so a past
-      # era's text never touches the one actually booting.
+      # Parses held source into its own IR, in a throwaway registry.
       #
-      # Normal parse first, shadow only as a fallback — never shadow-parsing
-      # unconditionally. A handful of DSL
-      # defaults fork on `MetaValidator.shadow_parsing?` for a reason
-      # that has nothing to do with syntax the live grammar cannot
-      # read at all (`identified_by { }`, `belongs_to`, `has_one`,
-      # `has_many` — genuinely removed spellings, exactly what shadow-
-      # parsing exists to keep readable): `reference_to`'s own default
-      # mint name (`default_reference_name`, attribute_collector.rb)
-      # is bare under ADR 0025 and `_id`-suffixed under shadow mode, and
-      # that fork applies even to text using nothing but current, live
-      # syntax. Held text minted under the current grammar — every real
-      # era in this corpus today, since nothing has ever minted a second
-      # one — parses fine normally; under unconditional shadow mode only
-      # the reference-naming default differs, so it silently
-      # reconstructs a different shape (and hash) than a fresh parse of
-      # the identical text — the same text hashing two different ways
-      # depending on which code path read it, breaking `ensure_named!`'s
-      # own from/to edge lookup with a spurious "no translation edge
-      # covers it" refusal that has nothing to do with any real
-      # translation gap.
-      #
-      # A normal parse can only ever succeed on text the live grammar
-      # fully understands — there is no way for it to silently produce a
-      # wrong-but-plausible answer for genuinely legacy text, since every
-      # removed spelling refuses loudly (`Malformed`) rather than
-      # degrading. So: try normal first — if the ordinary grammar reads
-      # this text without complaint, that is the canonical, unambiguous
-      # interpretation, the same one `label_of`/`mint_hash` on the same
-      # source text always computes, whoever's asking. Only on a
-      # `Malformed` refusal — the one signal that actually means "this
-      # spelling is not in the live grammar" — fall back to the legacy
-      # grammar. Any other exception (a
-      # genuine syntax error, an unrelated validation refusal) propagates
-      # unchanged; swallowing it here to retry under shadow mode would
-      # risk masking a real defect in the held text behind a confusing
-      # second failure instead of the original, more specific one.
-      #
-      # `MetaValidator.while_shadow_parsing` (ADR 0025, docs/dsl-work-
-      # slices.md's S0a) is what makes the fallback a legacy grammar
-      # rather than just a second copy of today's: it stops
-      # `BluebookBuilder.build` from judging this text against the
-      # grammar as it stands now, which is the one thing that would make
-      # a removed spelling refuse history the day it is removed from
-      # live source. The scratch registry is throwaway either way —
-      # nothing here is dispatched against or exposed to the real one —
-      # so skipping the judge/assemble round-trip changes nothing this
-      # method reads: `shape`, `uncovered_attributes`, and friends only
-      # ever ask the built IR for its own structure.
+      # Tries the live grammar first, falling back to the shadow one only
+      # on `Malformed` — the one signal meaning "not in the live grammar"
+      # (ADR 0025); any other exception propagates unchanged.
       #
       # @param source [String] the held bluebook text to evaluate
-      # @param path [String] the file path the text is evaluated as, which the predicate
-      #   extractor reads from disk; callers pass a tempfile holding the same text
-      # @return [Bluebook::Chapter, nil] the first bluebook the text declares; nil when it
-      #   declares none
-      # @raise [Bluebook::DSL::Malformed] if the text parses under neither the live grammar
-      #   nor the legacy one
+      # @param path [String] the file path reported as the text's origin
+      # @return [Bluebook::Chapter, nil] the first bluebook declared; nil when it declares none
+      # @raise [Bluebook::DSL::Malformed] if neither grammar accepts the text
       # @raise [SyntaxError] if the text is not valid Ruby
       def shadow_parse(source, path)
         parse_bluebook(source, path, shadow: false)
@@ -196,7 +128,7 @@ module Hecks
       # @param source [String] the bluebook text to evaluate
       # @param path [String] the file path reported to `Kernel.eval` as the text's origin
       # @param shadow [Boolean] true evaluates inside `MetaValidator.while_shadow_parsing`
-      #   (the legacy grammar); false evaluates under the live grammar
+      #   (the shadow grammar); false evaluates under the live grammar
       # @return [Bluebook::Chapter, nil] the first bluebook the text registered in the scratch
       #   registry; nil when it declares none
       # @raise [Bluebook::DSL::Malformed] if the chosen grammar refuses the text

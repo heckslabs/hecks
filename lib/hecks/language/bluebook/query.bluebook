@@ -7,9 +7,7 @@ Hecks.bluebook "Bluebook" do
     # Which piece declared it — see Command's entity_id.
     reference_to Entity, as: :entity_id, optional: true
 
-    # THE IMMEDIATE OWNER, AND ITS NAME — the same derivation Command takes
-    # (see the note there), because an ask sits exactly where a verb does and
-    # an entity's asks are its own the same way its verbs are.
+    # The immediate owner and its name, derived as Command does: an entity's asks are its own.
     identified_by :owner_id, :name
 
     attribute :name,        QueryName
@@ -19,18 +17,8 @@ Hecks.bluebook "Bluebook" do
     attribute :limit,       QueryText
     attribute :wheres,      list_of(Filter)
     attribute :attributes,  list_of(AskArgument)
-    # EVERY OTHER OPTION A QUERY CAN CARRY, as an open map rather than a field
-    # each. `offset`, `cursor`, `nulls`, `authorize`, `consistency`, `freshness`,
-    # `inspect_query` and `use_index` are eight more specifications, several of them
-    # compound — authorize names a policy AND a tenant, freshness a mode AND a max
-    # age. Eleven more fields would have to be added here one at a time, and the
-    # ninth option would need a twelfth.
-    #
-    # So they ride as rows: the option's NAME, the KEY within it, and the value. The
-    # language already models an open map exactly this way twice — a member's pairs
-    # and a world's settings — and both are their own root for the same reason, that
-    # no value object can hold a map. Held here as a list because an option belongs
-    # to the ask rather than standing alone.
+    # Every other option a query carries, as an open map: rows of option name, key within it, and
+    # value. No value object can hold a map, so options ride as a list on the ask.
     attribute :options,     list_of(AskOption)
 
     value_object "QueryName" do
@@ -44,11 +32,7 @@ Hecks.bluebook "Bluebook" do
 
     value_object "Filter" do
       attribute :field, String
-      # THE FIRST USE OF THE WORD. The runtime maps these eight strings
-      # through a hand-typed comparator table ; the set it is mapping to is
-      # one the language DECLARES, and until the link between them was
-      # declared, typing it downstream
-      # would have been a guess. This declares it.
+      # The comparator set is declared by the language (Vocabulary::QueryComparator).
       attribute :op,    String, admits: "Vocabulary::QueryComparator"
       attribute :value, String
     end
@@ -59,7 +43,7 @@ Hecks.bluebook "Bluebook" do
       attribute :list,    String
       attribute :optional, String, optional: true
       attribute :pattern,  String, optional: true
-      # optional: a declaration with no default has none (C3.7 — a value object's fields arrive or it refuses)
+      # optional: a declaration with no default has none
       attribute :default, String, optional: true
       # The closed set this value must belong to — see Aggregate::Field.
       attribute :admits, String, optional: true
@@ -75,18 +59,12 @@ Hecks.bluebook "Bluebook" do
       attribute :option, String
       attribute :key,    String
       attribute :value,  String
-      # optional: only a repeated option (an index hint) carries an `at` (C3.7)
+      # optional: only a repeated option (an index hint) carries an `at`
       attribute :at,     String, optional: true
     end
 
-    # The way back: everything DECLARED IN the aggregate above. The parent
-    # reference IS the query.
-    # WHERE IT SITS AMONG ITS SIBLINGS. Declaration order is a FACT ABOUT THE
-    # SOURCE — the IR is a contract read straight from this file,
-    # field for field AND INDEX FOR INDEX. So the language HOLDS it, instead of
-    # inheriting it from whatever order a store happens to iterate: an ask that
-    # does not say how it is ordered is answered in identity order, which is
-    # right for every other ask and fatal for the one that is the SOURCE.
+    # Declaration order among siblings. The IR is read index for index, so the language
+    # holds it rather than inheriting whatever order a store iterates.
     value_object "Position" do
       attribute :value, Integer
     end
@@ -143,11 +121,8 @@ Hecks.bluebook "Bluebook" do
 
       attribute :option, QueryText
       attribute :key,    QueryText
-      # AN OPTION MAY HAVE NO VALUE. `consistency :snapshot` with no timeout is a
-      # complete declaration, and an option is judged one key at a time — so the
-      # `timeout` row arrives carrying nothing. Requiring a value here made every
-      # such declaration unbuildable, which is a rule about the LANGUAGE, not
-      # about the one spec that noticed.
+      # An option may have no value: `consistency :snapshot` with no timeout is complete, and
+      # options are judged one key at a time.
       attribute :value,  QueryText, optional: true
       attribute :at,     QueryText, optional: true
 
@@ -169,11 +144,7 @@ Hecks.bluebook "Bluebook" do
       attribute :pattern,  QueryText, optional: true
       attribute :default, QueryText, optional: true
       attribute :admits,  QueryText, optional: true
-      # See Command.Argument's own :relationship (command.bluebook) — the
-      # same field, the same reason: an argument minted verbatim from the
-      # owner's own reference-typed attribute must carry that fact through
-      # the self-hosted round trip too, or the language cannot say it about
-      # itself.
+      # See Command.Argument's :relationship: keeps reference-typed arguments in the round trip.
       attribute :relationship, QueryText, optional: true
 
       sets :attributes, append: { name: :name, type: :type, list: :list, default: :default, optional: :optional, pattern: :pattern, admits: :admits, relationship: :relationship }
@@ -182,9 +153,7 @@ Hecks.bluebook "Bluebook" do
     end
 
 
-    # HOW QUERY IS SPELLED. These rows live with the concept
-    # they describe; SyntaxBoot discovers every aggregate-local seed table.
-    # Contexts represented here: Query.
+    # Keyword and argument rows for queries; SyntaxBoot discovers every aggregate-local seed table.
     value_object "KeywordSeed" do
       attribute :word,          String
       attribute :context,       String, admits: "Syntax::Context"

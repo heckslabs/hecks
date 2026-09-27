@@ -4,9 +4,7 @@ require_relative "../entity_element"
 module Hecks
   module Runtime
     class CommandInterpreter
-      # How a command's declared mutations land on the instance in hand —
-      # set, append (with value-object or entity elements), and the
-      # arithmetic pair.
+      # Applies a command's declared mutations (set, append, remove, arithmetic) to an instance.
       module MutationApplier
         private
 
@@ -19,23 +17,10 @@ module Hecks
           end
         end
 
-        # A case statement over a closed, declared set — every mutation op
-        # the grammar can emit gets its own branch, including the `else`
-        # backstop for the day a new op reaches this method undeclared (see
-        # its own comment). Splitting each branch into its own method would
-        # not reduce what a reader has to hold at once (each op's own
-        # comment already explains why it is shaped the way it is) and
-        # would obscure that the set is closed and exhaustive.
+        # Applies one mutation: sources read `pre` (pre-dispatch state), targets write `instance`.
         # rubocop:disable Lint/DuplicateBranch -- :delegate and :corrects
-        # both no-op here, for two unrelated documented reasons (see each
-        # branch's own comment below); merging would blur that distinction.
+        # both no-op here, for unrelated reasons; merging would blur that.
         # rubocop:disable Metrics/AbcSize, Metrics/CyclomaticComplexity
-        #
-        # `pre` — the pre-dispatch state (C4.2): every source below reads
-        # it, every target is written to `instance`. A command's effects
-        # are one update set; declaration order carries no meaning, and
-        # build refuses a field written twice (`CommandBuilder#
-        # refuse_duplicate_targets!`).
         def apply(instance, aggregate, mutation, args, pre = instance)
           case mutation.op
           when :set
@@ -52,24 +37,14 @@ module Hecks
             amount = @rules.resolve_source(mutation.source, args)
             attribute = aggregate.attribute(mutation.target)
             current   = pre[mutation.target]
-            # Vendored fix, not (yet) upstream hecks (migration plan
-            # task 9): see #rewrap_arithmetic_result's own comment below
-            # -- `amount` is wrapped only when `current` already is, not
-            # merely because the target attribute exists.
+            # Wrap `amount` only when `current` is already a Value (see #rewrap_arithmetic_result).
             amount = Value.for_attribute(aggregate, attribute, amount) if attribute && current.is_a?(Value)
             result = @rules.arithmetic(current, amount, mutation.target, @rules.sign_of(mutation.op))
             instance[mutation.target] = rewrap_arithmetic_result(aggregate, attribute, current, result)
-          # Vendored addition, not (yet) upstream hecks (migration
-          # plan task 4): remove -- the list-removal counterpart to
-          # append, matching an element by value (plan.bluebook's
-          # RemoveDependency/DeactivateSprint: "a concurrent Add can
-          # never be lost").
+          # Removes a list element by value, the counterpart to append.
           when :remove
             instance[mutation.target] = removed(pre, aggregate, mutation, args)
-          # Vendored addition, not (yet) upstream hecks (migration
-          # plan task 4, i106): multiply/clamp, the scale/bound pair
-          # alongside increment/decrement's add/subtract pair -- see
-          # CommandRules::Arithmetic#multiply/#clamp's own comments.
+          # Scales the current value; the counterpart to clamp below.
           when :multiply
             amount = @rules.resolve_source(mutation.source, args)
             attribute = aggregate.attribute(mutation.target)
@@ -77,65 +52,28 @@ module Hecks
             amount = Value.for_attribute(aggregate, attribute, amount) if attribute && current.is_a?(Value)
             result = @rules.multiply(current, amount, mutation.target)
             instance[mutation.target] = rewrap_arithmetic_result(aggregate, attribute, current, result)
-          # Vendored addition, not (yet) upstream hecks (migration
-          # plan task 4, i106): clamp -- bounds the current value into
-          # [min, max]. mutation.source is always a literal [min, max]
-          # pair, never an argument reference -- resolve_source would be
-          # a no-op for an Array (it only special-cases Symbol), so it's
-          # read straight.
+          # Bounds the current value into [min, max]; the source is a literal pair, read as is.
           when :clamp
             instance[mutation.target] = @rules.clamp(pre[mutation.target], mutation.source, mutation.target)
-          # `delegates_to` — CommandBuilder#delegates_to's own comment gives
-          # the full reasoning for storing it as a mutation at all. A real
-          # no-op here, not a gap: it targets no field on this instance —
-          # `CommandInterpreter#step_delegate_to_entity`, a later step in
-          # the same dispatch, is what actually applies it, against the
-          # target entity element `EntityElement.apply_to_element` reaches,
-          # never through this method.
+          # `delegates_to`: a no-op here; CommandInterpreter#step_delegate_to_entity applies it.
           when :delegate
             nil
-          # `corrects` — CommandBuilder#corrects_impl's own comment gives
-          # the full reasoning for storing it as a mutation at all. A real
-          # no-op here too: it targets no field on this instance either —
-          # its own event name, and whether this record has actually
-          # emitted it, is checked once, up front, by
-          # CommandRules::Admissibility#enforce_correction_target, not
-          # here. Whatever field this correction actually changes is an
-          # ordinary declared (or, for `reverses: true`, derived — see
-          # AggregateBuilder#seal_correction_targets) mutation of its own,
-          # applied by one of the branches above like any other.
+          # `corrects`: a no-op here; its target event is checked up front by
+          # CommandRules::Admissibility#enforce_correction_target.
           when :corrects
             nil
           else
-            # Every declared op has a `when` above — this is not a real
-            # runtime path today, only a backstop against the day one
-            # more mutation kind reaches the grammar and this method,
-            # unlike every other one it could reach, does not: applying
-            # nothing and refusing nothing would be the one silent
-            # no-op in a language that otherwise refuses what it cannot
-            # check.
+            # Backstop: an unhandled op must refuse, not silently apply nothing.
             raise Runtime::WiringError, "no mutation applier handles :#{mutation.op} — add one before declaring it"
           end
         end
         # rubocop:enable Lint/DuplicateBranch
         # rubocop:enable Metrics/AbcSize, Metrics/CyclomaticComplexity
 
-        # A caller-supplied arg, first -- an append's own field can also
-        # name something the subject already knows about itself, falling
-        # back to the aggregate's own current field when it isn't one — a
-        # caller appending at the end without computing or supplying a
-        # position (`position: :next_position`, a field the command never
-        # declares as an argument at all). `args.key?`, not a truthiness
-        # check on the value — an explicitly-nil argument still counts as
-        # "the caller named it," same distinction `assign_creation_attributes`
-        # already draws.
-        #
-        # Extracted to its own method (pure refactor, ternary -> early
-        # return, no behavior change) alongside `remove`'s own addition
-        # below, purely for readability at this point in the file.
+        # A caller-supplied arg wins; otherwise the field falls back to the instance's own
+        # value. `args.key?` so an explicit nil still counts as supplied.
         def resolve_append_source(source, instance, args)
-          # `state(:field)` — the record's own value, never an argument
-          # (`Literal::StateRef`'s own comment).
+          # `state(:field)` reads the record's own value, never an argument.
           return instance[source.name] if source.is_a?(StateRef)
           return source unless source.is_a?(Symbol)
           return args[source] if args.key?(source)
@@ -149,12 +87,7 @@ module Hecks
           value_object = aggregate.value_object(element_type)
           value_object&.attributes&.each do |attribute|
             held = fields[attribute.name]
-            # A single-field value unwraps to its scalar so it bridges
-            # into the element's own (differently named) wrapper; a
-            # multi-field one (a `state(:en_passant_square)` Square
-            # copied off the record) has no scalar to stand in for it
-            # and is handed across whole — `Value.for_attribute` keeps a
-            # value of the element field's own type as it is.
+            # A single-field value unwraps to its scalar; a multi-field one passes through whole.
             fields[attribute.name] = Value.scalar(held) if held.is_a?(Value) && held.to_h.size == 1
           end
           element = if value_object
@@ -165,27 +98,11 @@ module Hecks
                                      fields)
                     end
 
-          # Frozen, like every other value the domain hands back — without
-          # this, an appended list would come back mutable, letting a
-          # caller push straight into an aggregate's own state after the
-          # dispatch had finished.
+          # Frozen so a caller cannot push into the aggregate's state after dispatch.
           Freezer.deep(Array(instance[mutation.target]) + [element])
         end
 
-        # Vendored addition, not (yet) upstream hecks (migration plan
-        # task 4): the removal counterpart to #appended -- matches by
-        # value equality, element-wise, no read-modify-write (plan.
-        # bluebook's own words: "so a concurrent Add can never be lost")
-        # -- unless the target list is itself entity-typed (BUG#32,
-        # QualityControl ledger), in which case `EntityElement.
-        # list_element_match?` matches by the entity's own identity
-        # field instead -- see that method's own comment for the full
-        # "why identity, not whole-value equality" reasoning. `mutation.
-        # source` is a single field reference (`:dependency`), unlike
-        # append's field-map -- resolved and Value-coerced the same way
-        # increment/decrement already coerce their own amount, so the
-        # comparison is against a like-shaped Value, not a raw scalar
-        # against a wrapped one.
+        # Removes the element matching by value, or by identity for entity-typed lists.
         def removed(instance, aggregate, mutation, args)
           value     = @rules.resolve_source(mutation.source, args)
           attribute = aggregate.attribute(mutation.target)
@@ -195,43 +112,8 @@ module Hecks
           end
         end
 
-        # Vendored fix, not (yet) upstream hecks (migration plan
-        # task 9): #apply's `:increment`/`:decrement`/`:multiply`
-        # branches wrapping `amount` into a `Value` unconditionally
-        # whenever the target attribute existed, never checking whether
-        # `current` (the field's own existing value, read straight off
-        # `instance[mutation.target]`) was also wrapped, would let the two
-        # sides of the same arithmetic call disagree on Value-ness. On a
-        # phantom-created field this is the common case, not an edge
-        # one: `Instance.defaults`/`#default_for` leaves a VO-typed
-        # attribute with no declared `default:` genuinely absent (nil),
-        # and `CommandRules::Arithmetic#arithmetic`/`#multiply`'s own
-        # `current ||= 0` then turns that nil into a raw, unwrapped
-        # Integer `0` -- so `current.is_a?(Value) && amount.is_a?(Value)`
-        # read false even though `amount` (correctly wrapped by the old
-        # unconditional line) genuinely held a valid, correctly-typed
-        # number, and the primitive path's `unless amount.is_a?(Numeric)`
-        # guard refused it as a type mismatch the caller never made --
-        # an artifact of this method's own asymmetric wrapping, not bad
-        # input.
-        #
-        # Fixed at the call site (above) by wrapping `amount` only when
-        # `current` is already a `Value` -- so an established VO-typed
-        # field (a multi-field Money balance, say, already hydrated from
-        # a prior save) keeps going through
-        # `Arithmetic#arithmetic_value_object` exactly as before (the
-        # "already-Value-wrapped field still mutates correctly" case
-        # this fix must not regress), while a phantom field's raw
-        # `current` and raw `amount` both take the plain-Numeric path
-        # together. This method closes the other half: the plain-Numeric
-        # path returns a bare Ruby number, and if the attribute is
-        # itself VO-typed (the norm), that raw result needs the same
-        # wrap `:set` already gives its own resolved value (`Value.for`)
-        # before it's stored, so a field's stored shape doesn't depend
-        # on which dispatch happened to mutate it first. A no-op
-        # whenever `current` was already a Value (the VO branch already
-        # returns one) or the mutation targets no declared attribute at
-        # all.
+        # Wraps a plain-Numeric arithmetic result back into the attribute's Value type.
+        # Skipped when `current` was already a Value, since the Value path returns one.
         def rewrap_arithmetic_result(aggregate, attribute, current, result)
           return result if current.is_a?(Value) || attribute.nil? || result.is_a?(Value)
 
@@ -254,37 +136,18 @@ module Hecks
             EntityElement.check_entity_collision(aggregate, entity, current, fields)
           end
           fields[entity.lifecycle.field] ||= entity.lifecycle.default if entity.lifecycle
-          # BUG#12 — every one of this entity's own declared attributes
-          # the append mapping (and the identity/lifecycle filling just
-          # above) didn't already touch gets its own default, the same
-          # way a fresh aggregate's own attributes already do
-          # (`Instance.defaults`) — see `EntityElement#
-          # fill_declared_defaults`'s own comment for the full reasoning;
-          # shared rather than reimplemented so this aggregate-level
-          # entity creation and `EntityElement#appended_to_element`'s
-          # entity-nested-in-entity one can never drift on what "the
-          # default" means.
+          # Fill declared defaults for attributes the append mapping did not touch, shared with
+          # EntityElement so both entity-creation paths agree on what "the default" means.
           EntityElement.fill_declared_defaults(aggregate, entity, fields)
         end
 
-        # The minted identity is one past the highest held (C4.5) — not
-        # `size + 1`, which repeats an identity the moment the list has
-        # ever shrunk. One strategy for the language, so the IR declares
-        # none; the Rust generators mint by the same rule.
+        # One past the highest identity held, not `size + 1`, which repeats one after a shrink.
         def next_identity(current, entity)
           held = Array(current).map { |element| Value.scalar(element[entity.identified_by]).to_i }
           held.max.to_i + 1
         end
 
-        # The entity-collision check lives in `EntityElement.check_entity_collision`
-        # (entity_element.rb) — BUG#145 — shared by both `#entity_element` above
-        # (an aggregate's own entity list, e.g. `Workspace.boards`) and
-        # `EntityElement#appended_to_element`'s own nested-entity branch (an
-        # entity's own entity list one hop further in, e.g. `Board.cards`),
-        # which needs the exact same guard against a caller-supplied nested
-        # identity silently duplicating. See that method's own call site and
-        # comment; the check's own doc comment (heads/composite/auto-mint
-        # reasoning) lives with the code, in entity_element.rb.
+        # The entity-collision guard is shared with EntityElement#appended_to_element.
       end
     end
   end

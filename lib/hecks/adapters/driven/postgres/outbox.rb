@@ -3,21 +3,12 @@ require_relative "../../../runtime/outbox"
 
 module Hecks
   module Adapters
-    # **The outbox, Postgres-shaped** — shared verbatim by `Postgres` and the
-    # era plugin's `PostgresEra`, the same way their `events` and
-    # `hecks_saga_instances` DDL is copied between them: nothing here is
-    # lineage-specific. Needs `@db` (a `PG::Connection`) and `table`
-    # (the aggregate's storage name) from the including class. See
-    # `Runtime::Outbox` for what the four verbs mean, and Sqlite's copy
-    # for the SQL idioms (`ON CONFLICT DO NOTHING` = idempotent enqueue,
-    # `WHERE status = 'pending'` = the compare-and-set claim).
+    # Outbox storage shared by `Postgres` and `PostgresEra`; needs `@db` and `table`.
+    # See `Runtime::Outbox` for the four verbs.
     module PostgresOutbox
       # Runs the block inside one Postgres transaction, joining an already-open one.
       #
-      # **Re-entrant** — `Interpreting#run_dispatch_order` opens one
-      # transaction around save+emit+outbox and the adapter's own
-      # `append`/`atomic_put`/`delete` each open theirs; PG refuses
-      # BEGIN inside BEGIN, so an inner call joins the open one.
+      # Re-entrant: PG refuses BEGIN inside BEGIN, so an inner call joins the open one.
       #
       # @yield the writes to commit together; an exception raised inside rolls the
       #   outermost transaction back

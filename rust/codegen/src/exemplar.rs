@@ -1,16 +1,5 @@
-//! Port of `rust/project/exemplar.rb`'s `Exemplar` module — same source
-//! tree (`rust/src/exemplar/*.rs`), same `// TMPL:<id> BEGIN`/`END`
-//! fencing, same substitution rules. Read `exemplar.rb` in full before
-//! touching this file; every method here has a named Ruby counterpart and
-//! this port follows its algorithm and comments directly rather than
-//! reinventing the mechanism.
-//!
-//! Deliberately not sharing code with `exemplar.rb` (impossible — cross-
-//! language) but sharing the same data (`rust/src/exemplar/*.rs`, read at
-//! runtime by both, never duplicated into this crate) — the one thing
-//! that actually needs to stay in sync between the two codegens is which
-//! literal shapes exist and what they say, and that's a file both read,
-//! not a fact either encodes independently.
+//! Port of `rust/project/exemplar.rb`: loads the template shapes in `rust/src/exemplar/*.rs`.
+//! Both codegens read those files at runtime, so the shapes cannot drift.
 use std::collections::HashMap;
 use std::path::PathBuf;
 
@@ -18,28 +7,18 @@ pub struct Exemplar {
     shapes: HashMap<String, String>,
 }
 
-/// Any marker this vocabulary can produce — see `exemplar.rb`'s own
-/// `LEFTOVER_PLACEHOLDER` header for the full rationale (covers both
-/// identifier-shaped and literal-content placeholders in one check).
+// True for any placeholder word the template vocabulary can produce.
 fn is_leftover_placeholder(word: &str) -> bool {
     (word.starts_with("Tmpl") && word.len() > 4)
         || (word.starts_with("tmpl_") && word.len() > 5)
         || (word.starts_with("TMPL_") && word.len() > 5)
 }
 
-/// Scan `text` for `\b(?:Tmpl\w*|tmpl_\w*|TMPL_\w*)\b`-shaped leftovers —
-/// a small hand-rolled word scanner standing in for the Ruby regex, since
-/// this crate carries no regex dependency (same zero-dependency discipline
-/// `rust/parser` already holds itself to).
+// Finds `Tmpl*`, `tmpl_*` and `TMPL_*` words; hand-rolled because this crate has no regex
+// dependency.
 fn scan_leftover_placeholders(text: &str) -> Vec<String> {
-    // Byte-index candidate positions, but only ones that fall on real char
-    // boundaries — generated text embeds real corpus prose (invariant
-    // descriptions, `vision` strings, ...) that can contain multi-byte
-    // UTF-8 characters (an em dash, `—`), and a raw byte-by-byte walk that
-    // slices `&text[i..]` at an arbitrary `i` panics the moment `i` lands
-    // inside one of those characters' continuation bytes — found live,
-    // running this against the self-hosted grammar chapter (whose own
-    // `RefusalTemplate` members embed literal `—` characters).
+    // Skip non-char-boundary positions: generated text contains multi-byte UTF-8 (an em dash),
+    // and slicing `&text[i..]` inside a character panics.
     let mut found = Vec::new();
     let bytes = text.as_bytes();
     let is_word_byte = |b: u8| b.is_ascii_alphanumeric() || b == b'_';
@@ -98,9 +77,8 @@ impl Exemplar {
             .unwrap_or_else(|| panic!("Exemplar: no shape {shape_id:?} — checked rust/src/exemplar/*.rs for `// TMPL:{shape_id} BEGIN`"))
     }
 
-    /// Fixed-arity rendering — mirrors `exemplar.rb#render` exactly,
-    /// including the longest-marker-first ordering and the leftover-
-    /// placeholder check both ways.
+    /// Substitutes `subs` into one shape, longest marker first; panics on a missing marker
+    /// or a leftover placeholder.
     pub fn render(&self, shape_id: &str, subs: &[(&str, String)]) -> String {
         let mut text = self.raw(shape_id).to_string();
         render_subs(shape_id, "render", &mut text, subs);
@@ -111,10 +89,8 @@ impl Exemplar {
         subs_list.iter().map(|subs| self.render(shape_id, subs)).collect::<Vec<_>>().join(join_with)
     }
 
-    /// General splice — mirrors `exemplar.rb#assemble`: nested slots
-    /// filled (each reindented by its own marker's position) before the
-    /// outer substitutions run, so an outer marker can never accidentally
-    /// match text that came from an already-rendered slot.
+    /// Fills nested slots (reindented to the slot's position) before the outer substitutions,
+    /// so an outer marker cannot match text from a rendered slot.
     pub fn assemble(&self, outer_id: &str, outer_subs: &[(&str, String)], slots: &[(&str, String)]) -> String {
         let mut outer_text = self.raw(outer_id).to_string();
 
@@ -137,19 +113,15 @@ impl Exemplar {
         outer_text
     }
 
-    /// Two-level composition for the common single-slot case — mirrors
-    /// `exemplar.rb#compose`.
+    /// Renders `field_id` once per entry of `field_subs_list` and assembles it into `outer_id`.
     pub fn compose(&self, outer_id: &str, outer_subs: &[(&str, String)], field_id: &str, field_subs_list: &[Vec<(&str, String)>], join_with: &str) -> String {
         let content = self.render_each(field_id, field_subs_list, join_with);
         self.assemble(outer_id, outer_subs, &[(field_id, content)])
     }
 }
 
-/// Longest-marker-first substitution, then the leftover-placeholder scan
-/// both directions — the shared tail of `render`/`assemble` (`exemplar.rb`
-/// keeps this duplicated across its own two methods too, for the same
-/// reason: no shared private helper existed for it in the original either,
-/// and this mirrors that rather than "improving" on it during the port).
+// Longest-marker-first substitution, then the leftover-placeholder scan; shared by
+// `render` and `assemble`.
 fn render_subs(shape_id: &str, caller: &str, text: &mut String, subs: &[(&str, String)]) {
     let mut ordered: Vec<&(&str, String)> = subs.iter().collect();
     ordered.sort_by_key(|(marker, _)| std::cmp::Reverse(marker.len()));
@@ -167,10 +139,7 @@ fn render_subs(shape_id: &str, caller: &str, text: &mut String, subs: &[(&str, S
     }
 }
 
-/// Finds the full line (including trailing newline, if any) containing
-/// `<<TMPL_SLOT:id>>` at some indentation, returning `(byte_start,
-/// byte_end, indent)` — mirrors `exemplar.rb`'s own regex `^([
-/// \t]*)#{Regexp.escape(slot)}$` applied per-line.
+// Finds the line holding only `slot` after indentation; returns `(byte_start, byte_end, indent)`.
 fn find_slot_line(text: &str, slot: &str) -> Option<(usize, usize, String)> {
     let mut offset = 0usize;
     for line in text.split_inclusive('\n') {
@@ -198,8 +167,7 @@ fn end_marker(line: &str) -> Option<&str> {
     marker_id(line, "END")
 }
 
-/// `line[%r{//\s*TMPL:(\S+)\s+#{kind}\s*$}, 1]` — a small hand-rolled
-/// match standing in for the Ruby regex (no regex dependency here either).
+// Returns the id from a `TMPL:<id> <kind>` line comment.
 fn marker_id<'a>(line: &'a str, kind: &str) -> Option<&'a str> {
     let idx = line.find("//")?;
     let mut rest = line[idx + 2..].trim_start();
@@ -213,8 +181,7 @@ fn marker_id<'a>(line: &'a str, kind: &str) -> Option<&'a str> {
     }
 }
 
-/// Same idea as Ruby's `<<~` squiggly heredoc — drop whatever leading
-/// whitespace every non-blank line shares.
+// Drops the leading whitespace every non-blank line shares, like Ruby's `<<~`.
 fn dedent(lines: &[String]) -> String {
     let margin = lines
         .iter()
@@ -231,7 +198,7 @@ fn dedent(lines: &[String]) -> String {
 }
 
 fn parse_file(path: &std::path::Path, text: &str, result: &mut HashMap<String, String>) {
-    // Each frame: (id, lines, begin_indent)
+    // Each frame is (id, lines, begin_indent).
     let mut stack: Vec<(String, Vec<String>, String)> = Vec::new();
     for raw_line in text.split_inclusive('\n') {
         let line = raw_line;

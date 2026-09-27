@@ -3,35 +3,14 @@ require_relative "../projector"
 
 module Hecks
   module Projections
-    # The model classes, projected from the language that declares them.
-    #
-    # A construct's holding half — its readers, its emission, a
-    # constructor that assigns declared fields and hands off — restates
-    # what `bluebook.bluebook` already says, three times over in Ruby.
-    # This renders it instead.
-    #
-    # **Only the holding half**. `Behaviour::X` is hand-written and permanent,
-    # and `settle` is the seam: everything a declaration cannot state
-    # lives behind it, so regenerating can never be lossy. That property
-    # was established construct by construct before any of this was
-    # written — the chapter looked generatable and was not, until its
-    # `@hecks_root`, ports table and child stamping moved behind `settle`.
-    #
-    # The `HOST` manifest is the honest part. The grammar states the fields;
-    # it does not state which constructs are Ruby classes rather than
-    # instances, what a constructor's defaults are, or how a value is
-    # coerced on the way in. Those are facts about Ruby, not about
-    # bluebooks, so they are declared here rather than pretended into the
-    # language — and keeping them in one table is what would let a second
-    # host swap this file rather than edit thirteen.
+    # The model classes' holding half (readers, emission, constructor), projected from the
+    # language. `Behaviour::X` stays hand-written behind `settle`, so regenerating is never lossy.
     module Model
       extend Projector::Target
 
       projects_as :model, declares: "Bluebook", emits: :files
 
-      # **Per-construct Ruby facts**. `coerce` is the only fiddly column: a
-      # declared field arrives as whatever the builder handed over, and
-      # each construct has always normalised its own on the way in.
+      # Per-construct Ruby facts the grammar does not state (defaults, coercion, class shape).
       HOST = {
         "Policy" => {
           construct: "Policy",
@@ -42,22 +21,12 @@ module Hecks
           defaults:  { name: nil, on_event: "nil", trigger_command: "nil",
                        target_domain: "nil", expect_undelivered: "false", where: "nil", for_each: "nil",
                        with_spec: "[]", aggregate: "nil" },
-          # A flag on the wire is a boolean — the language holds it as
-          # text ("true"), the builder hands over `true`, and a
-          # reconstruction hands back whichever it read; all three land
-          # as the same `true`/`false`.
+          # The language holds a flag as "true" and the builder as `true`; both become a boolean.
           coerce:    { name: ".to_s", aggregate: "&.to_s", expect_undelivered: ".to_s == \"true\"" },
-          # A list of bindings is not a scalar on the wire. Every other
-          # field emits as itself; this one has to render the way
-          # `DispatchSpec`'s own `with_spec` does — keys to strings, and
-          # `render_value` keeping the leading colon on a Symbol, because
-          # a binding that reads an event field and one that supplies a
-          # literal string are otherwise indistinguishable once written
-          # down (see `MetaValidator::Readings`' own note on exactly that).
+          # Bindings render like `DispatchSpec#with_spec`; `render_value` keeps a Symbol's colon
+          # so an event-field read and a literal string stay distinguishable.
           renders:   { with_spec: "-> { with_spec.map { |key, value| [key.to_s, Bluebook.render_value(value)] } }",
-                       # Computed (Deviations::COMPUTED["Policy"]): the structured
-                       # form of `where`, a pure function of that text, the same
-                       # `ast` every rule row carries beside its `canonical`.
+                       # Computed (Deviations::COMPUTED["Policy"]): derived from `where`.
                        where_ast: "-> { where_ast }" },
           settles:   false
         }
@@ -109,11 +78,8 @@ module Hecks
         RUBY
       end
 
-      # The emission, keyed as the model spells it and sourced as the
-      # language declares it.
-      # A computed field (Deviations::COMPUTED) is emitted too — it is
-      # model-only by definition, so it rides after the declared fields
-      # and must have a `renders` entry, there being nothing to `send`.
+      # Renders the `emits_ir` call. A computed field (Deviations::COMPUTED) rides after the
+      # declared ones and needs a `renders` entry, since there is nothing to `send`.
       #
       # @param bluebook [Bluebook::Chapter] the "Bluebook" chapter the construct's own
       #   attributes are read from
@@ -127,10 +93,8 @@ module Hecks
         "emits_ir(\n#{fields.map { |f| "  #{"#{f}:".ljust(width + 1)} #{renders.fetch(f, ":#{f}")}" }.join(",\n")}\n)"
       end
 
-      # What the construct emits: what the language declares, less every
-      # deviation the tables account for. The generator and
-      # spec/model_shape_conformance_spec compute this the same way, from
-      # the same tables, which is the point of the tables being in lib.
+      # What the construct emits: the declared attributes less every `Deviations` entry.
+      # spec/model_shape_conformance_spec computes it from the same tables.
       #
       # @param bluebook [Bluebook::Chapter] the "Bluebook" chapter the construct's own
       #   attributes are read from
@@ -158,10 +122,7 @@ module Hecks
         accessors = host.fetch(:accessors, [])
         return lines.join("\n") if accessors.empty?
 
-        # A declared field the model deliberately does not emit still
-        # needs a reader, and the reason it is off the wire is carried
-        # here rather than typed in — a comment that survives
-        # regeneration is one the generator writes.
+        # The off-the-wire reason is emitted so the comment survives regeneration.
         reasons = Deviations::OFF_THE_WIRE.fetch(host.fetch(:construct, ""), {})
         (lines + accessors.map do |a|
           why = reasons[a]

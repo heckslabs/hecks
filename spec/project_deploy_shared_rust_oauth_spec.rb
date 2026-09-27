@@ -3,23 +3,8 @@ require "fileutils"
 require "open3"
 require "yaml"
 
-# Regression coverage for the combination bin/project_deploy once
-# refused outright: a Shared-mode domain (database "Shared") with real
-# Google OAuth (web "Rust" + a .env.local carrying GOOGLE_CLIENT_ID).
-# The refusal assumed OAuth needed its own NAT Gateway this domain has
-# none of in Shared mode — but a Shared-mode rust_web domain's main
-# dispatch function already runs inside the owner's borrowed private
-# subnets/security group, which the owner's own template already
-# routes through its NAT Gateway and already permits 443 egress on
-# (added there for the owner's own real, live OAuth token-exchange
-# bug). Nothing new to provision; this spec exists because the actual
-# bug found while lifting the refusal was elsewhere — the Parameters
-# section's own `if google_oauth_present ... elsif shared ...` treated
-# the two as mutually exclusive, so the "both true" case silently
-# dropped one entire set of Parameters even though Resources below
-# already referenced them unconditionally. Mirrors
-# spec/project_deploy_contract_spec.rb's own fixture-generation
-# pattern.
+# A Shared-mode domain with real Google OAuth must declare both Parameter sets: the
+# google_oauth_present and shared branches must not be mutually exclusive.
 RSpec.describe "bin/project_deploy — Shared mode + rust_web + real Google OAuth", :io do
   SHARED_RUST_OAUTH_FIXTURE_BASENAME = "project_deploy_shared_rust_oauth_spec_fixture".freeze
 
@@ -75,10 +60,8 @@ RSpec.describe "bin/project_deploy — Shared mode + rust_web + real Google OAut
     @makefile = File.read(File.join(@generated_dir, "Makefile"))
   end
 
-  # `deploy:`'s own recipe, lines only — line-based (not a single regex)
-  # because the recipe has a genuine blank line inside it (between
-  # `sam build` and `$(MAKE) sync-google-oauth`), which a naive
-  # `(?:\t.*\n)+` line-of-recipe pattern stops matching at.
+  # Line-based, not one regex: a blank line between `sam build` and `$(MAKE) sync-google-oauth`
+  # stops a `(?:\t.*\n)+` pattern.
   def self.deploy_recipe_lines(makefile)
     lines = makefile.lines
     start = lines.index { |l| l == "deploy:\n" } or raise "no deploy: target found in the generated Makefile"
@@ -111,13 +94,8 @@ RSpec.describe "bin/project_deploy — Shared mode + rust_web + real Google OAut
     expect(@raw).to match(/SESSION_SECRET_ARN: !Sub "\$\{\w+SessionSecret\}"/)
   end
 
-  # The main function's execution role needs to fetch both secrets
-  # GOOGLE_OAUTH_SECRET_ID/SESSION_SECRET_ARN name at runtime now (see
-  # that Environment block's own comment) — same
-  # secretsmanager:GetSecretValue shape the DB secret's own grant
-  # already used, extended rather than duplicated as a second Policies
-  # key (bin/project_deploy's own cross_domain_lambda_policies_yaml
-  # comment documents the same one-Policies-key rule).
+  # The execution role must fetch both secrets named by GOOGLE_OAUTH_SECRET_ID/SESSION_SECRET_ARN,
+  # extending the DB secret's grant rather than adding a second Policies key.
   it "grants the main function's role secretsmanager:GetSecretValue on both the Google OAuth secret and the session secret" do
     function = @template["Resources"].values.find { |r| r["Type"] == "AWS::Serverless::Function" && r.dig("Properties", "Environment", "Variables", "GOOGLE_OAUTH_SECRET_ID") }
     statements = function.dig("Properties", "Policies").flat_map { |p| p["Statement"] || [] }
@@ -127,16 +105,8 @@ RSpec.describe "bin/project_deploy — Shared mode + rust_web + real Google OAut
     expect(resources).to include(a_string_matching(/SessionSecret\}\z/))
   end
 
-  # The Parameters section declaring both sets together (above) is
-  # necessary but not sufficient — `deploy:`'s own `sam deploy` call is
-  # a separate piece of generated code that has to actually pass both
-  # sets of values, or the stack it declared them for refuses at
-  # deploy time with "Parameters: [...] must have values" no matter
-  # how correct template.yaml itself is. The `if google_oauth_present
-  # ... elsif shared ...` bug this file's own header describes was
-  # fixed here first (Parameters section, #347) and left unfixed in
-  # this sibling code for a full deploy cycle before being caught live
-  # — this coverage is what should have caught it the first time.
+  # Declaring both Parameter sets is not enough: `sam deploy` must pass values for both, or the
+  # stack refuses at deploy time with "Parameters: [...] must have values".
   it "passes both the Owning* and WebRedirectBaseUrl overrides together in deploy:'s own sam deploy call" do
     recipe = self.class.deploy_recipe_lines(@makefile).join
 
@@ -149,16 +119,9 @@ RSpec.describe "bin/project_deploy — Shared mode + rust_web + real Google OAut
                                                                   "real sam deploy call (the WEB_URL-present branch)"
   end
 
-  # `deploy:`'s recipe is not one giant chain end to end — it's several
-  # independent shell invocations back to back (e.g. `sam build`, then a
-  # standalone `@echo` announcing the Shared-mode owner-stack lookup below
-  # it, then the actual backslash-joined lookup+`sam deploy` chain). What
-  # must never happen is a second '@' appearing mid a single backslash-
-  # joined chain — that stops being a Make directive and becomes literal,
-  # invalid shell text the moment it's concatenated with the line before
-  # it. Checked per chain, not across the whole recipe: a target can
-  # legitimately carry more than one independent '@'-prefixed line (see
-  # mint_era_recipe's own `OWNMINT` branch, which already does this).
+  # `deploy:` is several independent shell invocations, not one chain. A second '@' inside one
+  # backslash-joined chain becomes literal invalid shell, so check per chain, not per recipe: a
+  # target may carry several independent '@' lines (see mint_era_recipe's OWNMINT branch).
   def self.shell_chains(lines)
     chains = []
     current = []

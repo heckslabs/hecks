@@ -2,13 +2,8 @@ module RustProjection
   module Projector
     module_function
 
-    # `Policy#event_qualifier`/`#event_name` (`Naming.qualifier`/
-    # `Naming.unqualified`, read directly) — NOT separate wire fields
-    # (`Policy#to_h` only carries `on_event` whole); the exported
-    # canonical IR gives this generator the same raw `on_event` string
-    # Ruby's own runtime re-derives these from, so it re-derives them the
-    # identical way rather than exporting a fourth field the wire contract
-    # doesn't have.
+    # Re-derives event_qualifier/event_name from on_event the same way
+    # Policy#event_qualifier/#event_name do — the wire only carries on_event whole.
     def policy_event_qualifier(on_event)
       text = on_event.to_s
       text.include?(".") ? text.split(".", 2).first : nil
@@ -19,28 +14,8 @@ module RustProjection
       text.include?(".") ? text.split(".", 2).last : text
     end
 
-    # ── THE POLICY TABLE — `kernel::orchestrate`'s own static data,
-    # `Runtime::PolicyInterpreter#policies_for`/`#deliver` ported to
-    # generated `PolicyRule` rows a hand-written, generic function walks
-    # (kernel/orchestrate.rs), the SAME "compile shapes, interpret
-    # behavior" split every other generated/kernel pair in this project
-    # already holds to.
-    #
-    # CROSS-DOMAIN POLICIES ARE SPLIT OUT, not skipped: `bin/project_rust
-    # <domain>` still compiles exactly ONE target domain (plus the
-    # self-hosted meta-language) into one `Store` — a policy whose
-    # `across` names a domain THIS build never generated still has no
-    # `dispatch_by_name`/`Store` to route to LOCALLY. What changed is
-    # that local dispatch is no longer the only way this project delivers
-    # a command: `rust/host` (the unsandboxed host layer, real AWS SDK
-    # access this WASM-compiled kernel structurally lacks — see
-    # orchestrate.rs's own header) can invoke that OTHER domain's own
-    # deployed Lambda directly, a straight port of Ruby's own
-    # `Adapters::Lambda::Client`. `emit_cross_domain_policy_table`, below,
-    # emits these rows into their OWN table (`CrossDomainPolicyRule`, not
-    # `PolicyRule` — a different shape, since there is no local
-    # `target_verb` to dispatch, only a domain+verb pair for rust/host's
-    # `lambda_client.rs` to invoke remotely) instead of dropping them.
+    # Emits PolicyRule rows for policies targeting domain_name only; a policy
+    # targeting another domain routes through emit_cross_domain_policy_table.
     def emit_policy_table(domain_name, policies, aggregates = [])
       fns  = where_fns(policies)
       rows = local_policy_rows(domain_name, policies, aggregates)
@@ -51,33 +26,8 @@ module RustProjection
       ).then { |table| fns.empty? ? table : "#{table}\n\n#{fns.join("\n\n")}" }
     end
 
-    # ── THE MERGED POLICY TABLE — bin/project_rust's own `merged.rs`,
-    # spanning the target domain AND every framework/vendored chapter it
-    # attaches, the SAME union `merged_aggregates`/`merged_queries` there
-    # already are. RECOVERS A DOCUMENTED, DELIBERATE GAP: bin/project_rust
-    # used to call `emit_policy_table` with ONLY the target domain's own
-    # policies — "Policies/process managers do NOT merge across chapters
-    # here — Governance/Identity declare none today... not attempted by
-    # this pass" (that comment's own words). Governance/Identity really
-    # don't declare any, so the gap was invisible until a domain vendored
-    # a chapter that does — found live, generating a client site's vendored
-    # embryonaut_bluebooks/payments: `Payments::Payment.PaymentGateway
-    # .Succeeded` (a real, generated, correctly-dispatchable port
-    # operation — dispatch_by_name already routes it fine) emitted
-    # `PaymentConfirmedByProcessor` exactly as declared, but the MERGED
-    # Store's own POLICIES table was `&[]` — Payments' 8 policies existed
-    # in payments/registry.rs's own STANDALONE table (each chapter still
-    # gets its own, unchanged, via emit_policy_table above), just never
-    # folded into the ONE table kernel::orchestrate actually reads at
-    # runtime. `OnPaymentConfirmedByProcessor`'s own trigger never fired;
-    # a real webhook would have left the payment stuck "pending" forever.
-    #
-    # `sources` — one `{domain_name:, policies:, aggregates:}` per
-    # chapter (target first, then each attached one, matching
-    # `chapter_mod_names`' own insertion order) — each entry runs through
-    # the IDENTICAL `local_policy_rows` a standalone chapter's own table
-    # already uses, so a policy's own `target_verb` is qualified against
-    # ITS OWN domain_name/aggregates, never the target's.
+    # Merges policy rows across the target domain and every attached chapter;
+    # each source is qualified against its own domain_name/aggregates.
     def emit_merged_policy_table(sources)
       rows = sources.flat_map { |source| local_policy_rows(source[:domain_name], source[:policies], source[:aggregates]) }
       fns  = sources.flat_map { |source| where_fns(source[:policies]) }
@@ -98,13 +48,8 @@ module RustProjection
         qualifier_expr = qualifier ? "Some(#{qualifier.inspect})" : "None"
         target_verb = "#{target_domain}::#{policy[:trigger_command]}"
 
-        # `policy_name` — orchestrate.rs's own `reaction_log`/`saga_log`
-        # entries need the policy's own declared name (`PolicyInterpreter
-        # #deliver`'s `record = { policy: policy.name, ... }`, read
-        # directly) — previously absent here on purpose (this struct's own
-        # OLD header: "nothing downstream of a same-domain reaction ever
-        # needed to name the policy that caused it"), now needed the same
-        # way `CrossDomainPolicyRule` already carries it.
+        # policy_name lets orchestrate.rs's reaction_log/saga_log name the
+        # policy that fired, matching what CrossDomainPolicyRule already carries.
         "    crate::kernel::PolicyRule { policy_name: #{policy[:name].to_s.inspect}, event_name: #{event_name.inspect}, " \
           "event_qualifier: #{qualifier_expr}, target_verb: #{target_verb.inspect}, " \
           "for_each: #{fan_out_verb_expr(domain_name, policy)}, " \
@@ -113,11 +58,8 @@ module RustProjection
       end
     end
 
-    # `where { … }` — the policy's own predicate over the event payload
-    # (`PolicyInterpreter#where_holds?`). A `PolicyRule` is a `const` row,
-    # and an `Expr` owns boxes, so the predicate is a generated FUNCTION
-    # the kernel calls when the event arrives — `where_expr: Some(fn)` in
-    # the row, the fn itself emitted beside the table (`where_fns`).
+    # where_expr is a generated function, not a literal: PolicyRule is a const
+    # row but Expr owns boxes, so a where { ... } predicate compiles to a callback.
     def where_fn_name(policy) = "where_#{dispatch_fn_name(rust_ident(policy[:name].to_s))}"
 
     def where_expr(policy)
@@ -133,13 +75,8 @@ module RustProjection
       end
     end
 
-
-    # ── `for_each` — THE FAN-OUT'S OWN QUERY, qualified here rather than
-    # in the kernel. `Behaviour::Policy#for_each_route` resolves the bare
-    # "Aggregate.query" spelling against the policy's OWN domain, and
-    # that resolution is a fact about the source: settling it at codegen
-    # keeps the kernel's own lookup a plain table hit, the same shape
-    # `cli::run` already answers a top-level ask with.
+    # Resolves a bare "Aggregate.query" for_each spelling against the policy's
+    # own domain here, so the kernel's own lookup stays a plain table hit.
     def fan_out_verb_expr(domain_name, policy)
       for_each = policy[:for_each].to_s
       return "None" if for_each.empty?
@@ -147,15 +84,8 @@ module RustProjection
       "Some(#{(for_each.include?("::") ? for_each : "#{domain_name}::#{for_each}").inspect})"
     end
 
-    # ── THE NAME A MATCHED ROW'S ID IS MINTED UNDER, which is the TARGET
-    # COMMAND'S question and not the aggregate's: a command declared ON
-    # the aggregate it references is addressed by that aggregate's own
-    # bare reference key, and one merely HOLDING a reference to it is
-    # addressed by the attribute that holds it. `Behaviour::Command
-    # #addressing_key_for` is the rule, and this is the same rule read
-    # off the exported IR — `spec/codegen_parity_spec.rb` holds this
-    # generator byte-identical to `rust/codegen`'s own twin, which is
-    # what keeps the two spellings of it from drifting.
+    # Addressing key: a command declared on the aggregate it references uses
+    # its bare reference key; one merely holding a reference uses that attribute.
     def fan_out_key_expr(domain_name, policy, aggregates)
       for_each = policy[:for_each].to_s
       return "None" if for_each.empty?
@@ -184,10 +114,8 @@ module RustProjection
       name.to_s.gsub(/([a-z\d])([A-Z])/, '\\1_\\2').gsub(/([A-Z]+)([A-Z][a-z])/, '\\1_\\2').downcase
     end
 
-    # ── `trigger ..., with:` — WHAT THE TRIGGER IS GIVEN. Each binding
-    # rides the wire already rendered (`Literal::render`, so a Symbol
-    # keeps its leading colon and stays distinguishable from a literal
-    # string of the same spelling); the kernel reads that spelling back.
+    # Each binding rides the wire already rendered (Literal::render, so a
+    # Symbol keeps its leading colon and stays distinct from a same-spelled string).
     def with_spec_expr(policy)
       pairs = Array(policy[:with_spec])
       return "&[]" if pairs.empty?
@@ -195,29 +123,8 @@ module RustProjection
       "&[#{pairs.map { |key, value| "(#{key.to_s.inspect}, #{value.to_s.inspect})" }.join(', ')}]"
     end
 
-    # ── THE CROSS-DOMAIN POLICY TABLE — every policy `local_policy_rows`
-    # above filtered OUT, represented instead of dropped. `target_verb`
-    # here is FULLY QUALIFIED (`"#{target_domain}::#{trigger_command}"`),
-    # the SAME formula `local_policy_rows` uses, above — NOT the bare
-    # `policy[:trigger_command]` this used to emit.
-    #
-    # FOUND LIVE, deploying a real second domain (Compliance) to actually
-    # prove cross-domain delivery for the first time: a bare verb refuses
-    # with "unknown command" against ANY compiled target, single-chapter
-    # or not — `dispatch_by_name`'s own generated match arms are ALWAYS
-    # "Domain::Aggregate.Command", the same convention every other verb
-    # in this whole system already uses (`kernel::cli::run`'s own
-    # top-level step, `RemoteDispatcher#dispatch`'s real cross-Lambda
-    # calls, `Adapters::Lambda::Client#dispatch`). The OLD reasoning here
-    # ("the Lambda invoked IS the domain, so the verb it receives is
-    # already implicitly scoped to it") assumed a target Lambda's own
-    # dispatch table could somehow be UNqualified for a single-chapter
-    # compile — never actually true; nothing in `rust/project/registry.rb`
-    # ever emits an unqualified match arm. Confirmed both ways: compiled
-    # `examples/compliance` refuses a bare "AccountFreezeReview.Open" as
-    # "unknown command" and accepts "Compliance::AccountFreezeReview.Open"
-    # cleanly. This was never caught before because no domain had ever
-    # deployed a real second Lambda to receive one of these calls.
+    # target_verb is always fully qualified ("Domain::Aggregate.Command") —
+    # the same form dispatch_by_name and every cross-Lambda caller expect.
     def cross_domain_policy_rows(domain_name, policies)
       policies.filter_map do |policy|
         target_domain = policy[:target_domain] || domain_name
@@ -246,14 +153,8 @@ module RustProjection
       )
     end
 
-    # ── THE MERGED CROSS-DOMAIN POLICY TABLE — same recovery as
-    # emit_merged_policy_table above, same documented gap, same reason
-    # (Governance/Identity declare no cross-domain policies either, so
-    # this half was equally invisible until a vendored chapter needed
-    # it). `sources` — the identical `{domain_name:, policies:,
-    # aggregates:}` array `emit_merged_policy_table` takes (aggregates
-    # unused here, cross-domain rows need no fan-out addressing key —
-    # see cross_domain_policy_rows' own shape).
+    # Merges cross-domain rows across every attached chapter the same way
+    # emit_merged_policy_table merges local ones; aggregates are unused here.
     def emit_merged_cross_domain_policy_table(sources)
       rows = sources.flat_map { |source| cross_domain_policy_rows(source[:domain_name], source[:policies]) }
 
@@ -266,21 +167,14 @@ module RustProjection
       )
     end
 
-    # A `with:` binding's raw wire spelling — Hecks::Literal's, the
-    # same one every other to_h-bound literal field rides. `Marks.read` is
-    # the exact, already-proven inverse (mutations.rb's
-    # `append_field_source` is the identical round trip on a `sets
-    # append:` field) — reused rather than re-derived.
+    # Reuses Marks.read (mutations.rb's append_field_source is the same round
+    # trip) rather than re-deriving the with: literal's wire spelling.
     def with_value_parsed(raw)
       Hecks::Bluebook::Assembly::Marks.read(raw)
     end
 
-    # A parsed `with:` literal (`Marks.read`'s own output shape for
-    # anything that isn't a Symbol — a Hash/String/Integer/Float/Boolean/
-    # nil) to a Rust expression BUILDING the equivalent `Json` value —
-    # never a `const` literal (`Json` holds `Vec`/`String`, not
-    # `const`-constructible in stable Rust), which is why every literal
-    # gets its own one-off generated function (`emit_with_value`, below).
+    # Builds a Json value expression rather than a const literal: Json holds
+    # Vec/String, which isn't const-constructible in stable Rust.
     def json_literal_expr(value)
       case value
       when Hash
@@ -301,12 +195,8 @@ module RustProjection
       end
     end
 
-    # One `with:` binding, resolved to a `WithValue` — a bare Symbol is a
-    # RUNTIME reference (`WithValue::Ref`, resolved by
-    # `kernel::orchestrate`'s `resolve_with`); anything else is a LITERAL,
-    # emitted as its own tiny `fn() -> Json` (`literal_fns` collects these
-    # so the caller can splice them in above the table that references
-    # them by name).
+    # A bare Symbol is a runtime WithValue::Ref; anything else is a literal,
+    # emitted as its own fn() -> Json collected into literal_fns.
     def emit_with_value(raw, literal_fns)
       parsed = with_value_parsed(raw)
       return "crate::kernel::WithValue::Ref(#{parsed.to_s.inspect})" if parsed.is_a?(Symbol)
@@ -320,20 +210,8 @@ module RustProjection
       "crate::kernel::WithValue::Literal(#{fn_name})"
     end
 
-    # `compensates` — per-dispatch saga compensation (`ir::DispatchSpec::
-    # compensates`/`Hecks::Bluebook::DispatchSpec#compensates`,
-    # `lib/hecks/bluebook/process_manager.rb`): `nil` on the IR emits
-    # `None`; a nested hash recurses through THIS SAME method one level
-    # in — the identical move `kernel::orchestrate::DispatchSpec::
-    # compensates`'s own header describes for why it's `Option<&'static
-    # DispatchSpec>`, not `Option<Box<DispatchSpec>>` — `Some(&...)`
-    # here relies on Rust's rvalue static promotion (a struct literal
-    # built entirely of other promotable/`'static` values promotes to
-    # a `'static` place a reference can point at) inside the `static`
-    # table this whole expression is spliced into. Never nested further
-    # than one level on the Ruby side (a compensation is not itself
-    # compensable), so this recursion bottoms out in at most one extra
-    # call.
+    # compensates recurses into itself at most one level: a compensation is
+    # never itself compensable.
     def emit_dispatch_spec(spec, literal_fns)
       with_pairs = spec[:with_spec].map { |key, raw| "(#{key.to_s.inspect}, #{emit_with_value(raw, literal_fns)})" }
       compensates = spec[:compensates] ? "Some(&#{emit_dispatch_spec(spec[:compensates], literal_fns)})" : "None"
@@ -345,16 +223,8 @@ module RustProjection
       "crate::kernel::Handler { event_type: #{handler[:event_type].inspect}, from_state: #{handler[:from_state].inspect}, to_state: #{handler[:to_state].inspect}, dispatches: &[#{dispatches.join(', ')}] }"
     end
 
-    # ── THE PROCESS MANAGER TABLE — `kernel::orchestrate`'s own static
-    # data for `SagaInterpreter#advance`/`#unwind`, the same "compile
-    # shapes, interpret behavior" split the policy table above holds to.
-    # No cross-domain narrowing needed here the way `emit_policy_table`
-    # needs one: every `dispatch` spec's `command_name` is ALREADY fully
-    # domain-qualified on the wire (`Banking::Account.Debit`, not
-    # `Account.Debit`) — a process manager cannot name a target this
-    # single-domain `Store` doesn't hold without that verb simply failing
-    # to route at `dispatch_by_name`'s own `unknown command` branch, the
-    # same swallowed-refusal path any other unreachable target takes.
+    # No cross-domain narrowing needed here the way emit_policy_table needs
+    # one: every dispatch's command_name is already domain-qualified on the wire.
     def emit_process_manager_table(process_managers)
       literal_fns = []
       pm_exprs = process_managers.map do |pm|
@@ -372,25 +242,8 @@ module RustProjection
       )
     end
 
-    # `Naming.reference_key(event.aggregate)`, precomputed per aggregate
-    # rather than re-derived at runtime — `Correlation#saga_correlation`'s
-    # own THIRD tier (this file's own header on `orchestrate.rs`), needed
-    # for real: a leg dispatched WITH its own `reference_to` argument
-    # (`Transfer.Credited`'s own `transfer:`, `json_codec.rb`'s
-    # `emit_extract_id` header) announces an event whose payload carries
-    # THAT key, not `correlates_by`'s own dotted field — `TransferCredited`
-    # only ever has `{"transfer": "xfer-1"}`, never `{"reference": {...}}`.
-    # `kernel::orchestrate`'s `correlation_of` falls back to this table,
-    # keyed by the emitting event's OWN qualified aggregate name, exactly
-    # the same per-event (not per-process-manager) rule Ruby's own
-    # `Naming.reference_key(event.aggregate)` applies.
-    # `chapters` — `[[domain_name, aggregate_names], ...]`, one pair per
-    # chapter (bin/project_rust's own per-domain call for a single-
-    # chapter registry.rs passes exactly one pair; the merged registry
-    # spanning every chapter a domain attaches passes one pair per
-    # chapter) — this table is domain-qualified-name -> key regardless
-    # of how many chapters fed it, so merging is just "more pairs in
-    # the same flat list," no other change needed.
+    # Precomputes Naming.reference_key(event.aggregate) per aggregate for
+    # kernel::orchestrate's correlation fallback, keyed by qualified aggregate name.
     def emit_reference_key_table(chapters)
       arms = chapters.flat_map do |domain_name, aggregate_names|
         aggregate_names.map do |name|
@@ -403,18 +256,8 @@ module RustProjection
       Exemplar.render("reference_key_table", '"tmpl_qualified" => Some("tmpl_key"),' => arms.join("\n"))
     end
 
-    # ── "DOES THIS VERB CREATE THE RECORD IT ADDRESSES" — `orchestrate.rs`'s
-    # own routing split (`split_routed_args`, its own header) needs this
-    # BEFORE it can decide whether a policy/saga-triggered dispatch's
-    # projected args should have their addressing key promoted into `to:`
-    # at all: `ReactionInvocation.build`'s own `target.command.creates?`
-    # gate — a CREATING target has no existing record to route to, so its
-    # whole projection stays `with:` facts, unrouted, exactly like
-    # `Pizzas::Order.CreatePizza` dispatched directly. Reuses `emit_
-    # registry`'s own already-computed `commands[]`/`entity_commands[]`
-    # `creates:`/`verb:` fields verbatim — an entity command is never
-    # creating (commands.rb's own header on `emit_entity_command`), so it
-    # always reads `false` here without needing its own separate branch.
+    # Whether a verb's dispatch creates its own record, needed before
+    # orchestrate.rs's routing split can promote an addressing key into to:.
     def emit_creates_table(aggregates)
       arms = aggregates.flat_map do |aggregate|
         (Array(aggregate[:commands]).map { |c| [c[:verb], c[:creates]] } +
@@ -426,19 +269,8 @@ module RustProjection
       Exemplar.render("creates_table", '"tmpl_verb" => true,' => arms.join("\n"))
     end
 
-    # ── THE SINGLE-COMPONENT IDENTITY HEAD `orchestrate.rs`'s own routing
-    # split (`split_routed_args`) tries FIRST, matching `ReactionInvocation
-    # .identity_for`'s own first move (`Identity.of`, tried before any
-    # alias): a construct's own declared identity field, present in the
-    # projected args by that EXACT name — `ExternalTransfer::SendTransfer`'s
-    # own `dispatch ..., with: { end_to_end: :end_to_end }` is the corpus's
-    # live example (`end_to_end`, `ExternalTransfer`'s own `identified_by`
-    # head, not derivable from `reference_key_for_aggregate`'s generic
-    # snake-cased-type-name rule at all). A COMPOSITE identity (more than
-    # one component) is a real, documented gap here, not silently assumed
-    # to work — `identity_for`'s own multi-field reconstruction needs every
-    # component present at once, which this single-key table cannot
-    # express; skipped rather than guessed at.
+    # Single-component identity only; a composite identity (more than one
+    # component) is a known gap, skipped rather than guessed at.
     def emit_identity_head_table(aggregates)
       arms = aggregates.filter_map do |aggregate|
         heads = Array(aggregate[:identified_by])
@@ -452,28 +284,8 @@ module RustProjection
       Exemplar.render("identity_head_table", '"tmpl_qualified" => Some("tmpl_head"),' => arms.join("\n"))
     end
 
-    # ── THE ENTITY's OWN SINGLE-COMPONENT IDENTITY HEAD — `orchestrate.
-    # rs`'s own saga-dispatch routing (BUG#10: `qa/stress_domains/
-    # waybill`'s own `Packing` saga, whose leg 3 targets `Manifest::
-    # Slot.Fill`, an ENTITY-owned command) needs the ENTITY's own
-    # identity, not just its parent aggregate's, to build a real
-    # `{aggregate:, entities:}` route the way `ReactionInvocation.build`'s
-    # own `entity_identities` loop already does on the Ruby side (`identity_
-    # for`'s structural match against the entity's OWN declared identity
-    # attribute name, found directly in the saga's `with:`-projected
-    # facts — `Manifest::Slot.Fill`'s own `with: { number: :number, item:
-    # :item }` projects `number`, Slot's own `identified_by`, for exactly
-    # this reason, even though `Fill` itself never declares `number` as
-    # an attribute). Same restraint `emit_identity_head_table` already
-    # documents for the AGGREGATE case, one level down: a composite
-    # identity (more than one component) is a real, documented gap here
-    # too, skipped rather than guessed at. Keyed by "Domain::Aggregate.
-    # Entity" — the exact prefix a ONE-LEVEL-deep entity command's own
-    # qualified verb splits down to (`orchestrate.rs`'s own `entity_
-    # command_paths`); a TWO-level-deep entity command (BUG#11's own
-    # separate, larger, still-open gap) never computes that longer
-    # prefix, so it simply never resolves through this table — out of
-    # scope here on purpose, not silently mishandled.
+    # Entity-level counterpart to emit_identity_head_table, keyed by
+    # "Domain::Aggregate.Entity"; composite identities are out of scope.
     def emit_entity_identity_head_table(aggregates)
       arms = aggregates.flat_map do |aggregate|
         Array(aggregate[:entities]).filter_map do |entity|
@@ -489,40 +301,8 @@ module RustProjection
       Exemplar.render("entity_identity_head_table", '"tmpl_qualified" => Some("tmpl_head"),' => arms.join("\n"))
     end
 
-    # ── THIS COMMAND'S OWN DECLARED ATTRIBUTE NAMES (R1,
-    # docs/audits/2026-08-11-bug-triage.md) — `orchestrate.rs`'s own
-    # `split_routed_args` needs this to build a reaction-triggered
-    # dispatch's `with:` facts the SAME way `ReactionInvocation.
-    # command_facts` does on the Ruby side: `args.slice(*declared)`,
-    # dropping anything the target command doesn't itself declare as an
-    # attribute — an identity/reference/correlation key a policy or
-    # process manager's own `with:` mapping resolved (`reference: :reference`
-    # forwarding a Transfer's own reference onto its saga-dispatched
-    # Account::Debit/Credit legs, the corpus's real, live example) but
-    # the TARGET command never declared stays OFF that command's own
-    # event payload — exactly like a direct, hand-written dispatch of the
-    # same command never carries it either. Previously `split_routed_
-    # args` only ever REMOVED the one key it promoted into `to:`,
-    # leaving every OTHER undeclared key (like a forwarded `reference:`)
-    # sitting in `with:` unfiltered, which is what let it leak all the
-    # way into the persisted event (`Json::overlay`'s own `patch` merge
-    # never touches a key it doesn't declare, so `base`'s copy — this
-    # exact leaked key — survived the merge untouched).
-    #
-    # Built the same way `emit_creates_table` is: one arm per verb, both
-    # `aggregate[:commands]` and `aggregate[:entity_commands]` — an
-    # entity command's own declared attributes are exactly as real a
-    # constraint on its facts as an aggregate command's.
-    #
-    # NARROWER THAN Ruby's OWN gate, on purpose: this only ever runs
-    # inside `split_routed_args`, itself only ever reached from a
-    # POLICY/PROCESS-MANAGER-triggered dispatch (`react_policies`/
-    # `deliver_saga_dispatch`'s own `build_dispatch_args`) — a direct,
-    # externally-dispatched command's own facts are never touched by
-    # this table at all, matching Ruby's own split (`ReactionInvocation
-    # .build`'s `command_facts` slice applies to a REACTION's own
-    # explicit projection, never to `Dispatcher#dispatch`'s plain
-    # external args).
+    # Declared attribute names per verb, used to filter a policy/process-
+    # manager dispatch's with: facts down to what the target command declares.
     def emit_command_attributes_table(aggregates)
       arms = aggregates.flat_map do |aggregate|
         (Array(aggregate[:commands]) + Array(aggregate[:entity_commands])).map do |c|

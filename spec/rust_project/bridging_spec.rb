@@ -2,19 +2,11 @@ require "spec_helper"
 require_relative "../../rust/project/naming"
 require_relative "../../rust/project/bridging"
 
-# `attribute :refunded_amount, Money, default: { cents: 0 }` — Money's
-# own `currency` attribute carries its own `default: "USD"`, so the
-# literal hash names only `cents`, relying on Money's per-field default
-# for the rest. No domain in the corpus banking/pizzas/compliance
-# examples declared this shape (confirmed: every Hash-typed attribute
-# default in those three either names every field explicitly or has
-# none at all), so this bug was latent — real, but unexercised by
-# anything codegen_parity_spec.rb's own corpus-based proof already
-# covers. Found live generating a client project's vendored
-# embryonaut_bluebooks/payments — the first domain in the corpus to
-# hit it. Tested directly here instead of via a new fixture domain,
-# same reasoning constraints_spec.rb's own header already gives for
-# the identical shape of latent bug.
+# `attribute :refunded_amount, Money, default: { cents: 0 }` — Money's own
+# `currency` attribute carries its own `default: "USD"`, relied on for any
+# field a literal default hash omits. Untested by the corpus-based proof in
+# codegen_parity_spec.rb, since no banking/pizzas/compliance domain
+# declares this shape.
 RSpec.describe RustProjection::Projector do
   MONEY_VO = {
     name:       "Money",

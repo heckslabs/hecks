@@ -4,46 +4,8 @@ require_relative "shared"
 module Hecks
   module Projections
     module Deploy
-      # The AWS Lambda deploy target — docs/decisions/0018-rehydrate-replay-lambda-host.md.
-      # An export (`Projector::Target#projects_as`'s own `needs_world: true`),
-      # not an ordinary projection: it reads a domain's own
-      # `deployed_to("AwsLambda")` `.world` settings, not only its
-      # declaration, because a running system has to know how it is wired.
-      #
-      # `bin/project_deploy` finds and boots the domain's own chapter and
-      # its `.world`/`.hecksagon` bindings, calls this through
-      # `Projector.call(:aws_lambda, bluebook:, options:, world:)`, and
-      # writes the returned tree — see that script for the CLI-facing parts
-      # (ARGV parsing, `--tenant`/`--schema`, finding the `.world` file) this
-      # target never needs to know about.
-      #
-      # ## What this generates
-      #
-      # The SAM template and build Makefile for `rust/host` (the
-      # wasmtime+Postgres Lambda entry point) from a domain's own `.world`
-      # file, the same way `bin/project_wasm` generates the `.wasm` artifact
-      # from the domain's own `.bluebook` — no hand-authored deployment
-      # config for any given domain, only a generator run against whatever it
-      # declares:
-      #
-      #   deployed_to("AwsLambda") { region "..."; memory 512; timeout 10 }
-      #
-      # is a verb in a domain's `.world` file, read through `Hecks.world`'s
-      # own generic settings bag
-      # (`lib/hecks/bluebook/dsl/world_builder.rb#method_missing`).
-      #
-      # Self-contained: the returned `template.yaml` owns its own private
-      # VPC, subnets, and RDS Postgres instance, not just the Lambda — no
-      # externally-supplied database, no secret anyone has to type (RDS's
-      # own `ManageMasterUserPassword` plus a CloudFormation dynamic
-      # reference compose `DATABASE_URL` at deploy time). `PackageType:
-      # Zip`, `Runtime: provided.al2023` — no container, no Docker, no ECR.
-      #
-      # `Shared` (`lib/hecks/projections/deploy/shared.rb`) carries the parts
-      # of this generator `Fargate` needs too — VPC/subnet/security-group
-      # resources, RDS/Aurora, `bastion.yaml`, and the era-minting/
-      # translation Make recipes — plain functions, not a registered target
-      # of their own.
+      # The AWS Lambda deploy target (ADR 0018): renders `template.yaml`,
+      # `Makefile`, `samconfig.toml`, and `bastion.yaml` from a domain's `.world`.
       module Lambda
         extend Projector::Target
 
@@ -51,37 +13,14 @@ module Hecks
 
         module_function
 
-        # Generates `template.yaml`, `Makefile`, `samconfig.toml`, and
-        # (unless this domain borrows another domain's RDS instance)
-        # `bastion.yaml` for one domain's `deployed_to("AwsLambda")` deploy
-        # target.
+        # Renders `template.yaml`, `Makefile`, `samconfig.toml`, and (unless
+        # this domain shares another domain's RDS instance) `bastion.yaml`.
         #
-        # `bluebook:` establishes admission — a real chapter, not merely a
-        # directory — but generation itself reads from `options`: every
-        # loaded chapter (`options[:cross_domain_registry]`), not only this
-        # one, is what a cross-domain policy's own invoke grant needs.
-        #
-        # @param bluebook [Bluebook::Behaviour::Chapter] the domain's own booted chapter
-        # @param options [Hash] generation options
-        # @option options [Bluebook::World] :world the domain's `.world` settings,
-        #   required — `Projector.call`'s own `world:` keyword merges this in
-        # @option options [String] :domain_dir the domain directory's path
-        # @option options [String] :root the hecks project root, for `rust/host`,
-        #   `rust/dist`, and this project's own `Gemfile.lock`
-        # @option options [String] :world_file the `.world` file's own path, quoted in
-        #   refusal messages
-        # @option options [Runtime::Registry] :cross_domain_registry every chapter this
-        #   domain loads (its own, plus any framework attachments), for resolving
-        #   cross-domain policy invoke targets
-        # @option options [Hash] :tenant `--tenant`/`--schema` overrides
-        #   (`{tenant: "acme", schema: "acme"}`), or omitted for an ordinary deploy
-        # @return [Hash{String => String}] `"template.yaml"`, `"Makefile"`,
-        #   `"samconfig.toml"`, and — unless this domain declares `database "Shared"` —
-        #   `"bastion.yaml"`, each mapped to its rendered content
-        # @raise [ArgumentError] if the domain's own deploy settings conflict (both
-        #   `web "Rust"` and a `lambda_handler.rb`, `database "Shared"` with no
-        #   `owner`, and the other refusals `deploy.bluebook`'s own
-        #   `LambdaTarget.Declare` and this generator raise)
+        # @param bluebook [Bluebook::Behaviour::Chapter] the domain's booted chapter
+        # @param options [Hash] :world, :domain_dir, :root, :world_file, and
+        #   :cross_domain_registry are required; :tenant is optional
+        # @return [Hash{String => String}] generated file contents by filename
+        # @raise [ArgumentError] if `deployed_to("AwsLambda")` is invalid
         def call(bluebook:, options: {})
           world                 = options.fetch(:world)
           domain                = options.fetch(:domain_dir)
@@ -95,19 +34,9 @@ module Hecks
 
           deploy_settings = world.for_verb("deployed_to")
 
-          # **`PII` detection** — structural only, no live boot: `load_bluebooks`/a
-          # bare `.hecksagon` `Kernel.load` populate `registry.pending_privacy_
-          # markings` (`AggregateDoor#mark_sensitive`/`BindingProxy#mark_sensitive`,
-          # lib/hecks/runtime/registry.rb) the same way `Runtime::Loader.boot`'s
-          # own first phase does, without that method's later `run_boot_gates!`/
-          # `dispatcher_for` steps — those need a live persistence adapter (a real
-          # Postgres connection for a PostgresEra-bound domain), which a static
-          # template generator must never require. A registry of its own, not
-          # `cross_domain_registry` — that one boots this domain's bluebook too,
-          # but through a different, hand-rolled port/adapter load (persistence
-          # + extraction + memory + prism only) than the one `pending_privacy_
-          # markings` was verified against; kept separate rather than assumed
-          # equivalent.
+          # Structural-only load (no `run_boot_gates!`/live persistence adapter)
+          # populates `registry.pending_privacy_markings` for pii detection below
+          # without requiring a real Postgres connection to generate a template.
           pii_registry = Hecks::Runtime::Registry.new(root: File.expand_path(domain))
           Hecks.with_registry(pii_registry) do
             bootstrap = Hecks::Ports::Loading.bootstrap
@@ -118,21 +47,12 @@ module Hecks
             Dir.glob(File.join(bluebook_dir, "*.hecksagon")).each { |file| Kernel.load(file) }
           end
 
-          # Only `category: "pii"` counts — `phi` or any other vocabulary a
-          # consuming domain's own `mark_sensitive` calls use stays a Governance/
-          # redaction concern (Privacy::Marking's own mechanism) without also
-          # provisioning CloudFront/WAF, which this generator has no way to know
-          # is warranted for, say, health data under a different compliance
-          # regime entirely. A domain wanting the same protection for a
-          # non-"pii" category marks it "pii" too — the category string is
-          # open-ended by design (privacy.bluebook's own header), not a closed
-          # enum this generator could instead enumerate.
+          # Only `category: "pii"` triggers CloudFront/WAF provisioning; other
+          # marking categories (e.g. "phi") stay a Governance/redaction concern.
           pii_detected = pii_registry.pending_privacy_markings.any? { |marking| marking[:category].to_s == "pii" }
 
-          # **The tenant override itself** — see this file's own header comment on
-          # `--tenant`/`--schema` for the full reasoning. Applied here, before
-          # `infra_name`/`hecks_schema` are computed below, so both read it the
-          # same way they already read any other `deployed_to` setting.
+          # Applied before infra_name/hecks_schema below, so both read the
+          # override the same way they read any other `deployed_to` setting.
           if tenant_options[:tenant]
             base_stack_name = deploy_settings[:stack_name] || domain_name
             deploy_settings = deploy_settings.merge(
@@ -141,57 +61,20 @@ module Hecks
             )
           end
 
-          # **Every AWS-facing name below** — stack, Lambda logical id (and so the
-          # RDS logical id derived from it, `#{logical_id}Db`), S3 prefixes,
-          # bastion/secret names — reads this, not `domain_name`, from here on.
-          # Ordinarily they're the same string, and most domains never set
-          # `stack_name` at all. They diverge on purpose for a domain whose
-          # declared identity (`Hecks.bluebook`, hence `world.domain`, hence
-          # `.world`'s own filename — `domain_name` above, needed just to find
-          # that file) does not match its live AWS stack's own name: a
-          # CloudFormation stack cannot be renamed in place, and this domain's
-          # logical ids are already load-bearing on a real RDS instance other
-          # domains borrow from in Shared mode (see `owner_stack_name` below) —
-          # regenerating the template under a new stack/logical-id would not
-          # rename anything, it would stand up a second, empty, disconnected
-          # set of AWS resources next to the real one. `stack_name
-          # "embryonaut"` in `deployed_to("AwsLambda")` pins the original name
-          # forever, independent of any later `formerly_known_as`-style rename
-          # to the domain's own declared identity.
+          # Every AWS-facing name (stack, logical ids, S3 prefixes, secrets)
+          # reads `infra_name`, not `domain_name`, so a `stack_name` override
+          # survives a later `formerly_known_as` rename of the declared identity
+          # without renaming (and disconnecting from) the live AWS stack.
           infra_name = deploy_settings[:stack_name] || domain_name
 
-          # **The actual Postgres/RDS identifier** — every domain before this one
-          # ever picked a single-word `stack_name` (or none at all, falling back
-          # to a single-word directory `domain_name`), so `infra_name` itself was
-          # already a valid database name and nothing ever needed a second
-          # variable. `stack_name "quality-control-webhook"` (a real, live,
-          # multi-word choice — the first one) broke that assumption for real:
-          # RDS's own DBName/DatabaseName parameter refuses it outright
-          # ("DBName must begin with a letter and contain only alphanumeric
-          # characters" — confirmed live, a genuine CREATE_FAILED before this
-          # existed), and `infra_name` unsanitized is also what every downstream
-          # consumer (WebFunction/#{logical_id}'s own DB_NAME Environment
-          # variable, every Makefile shell command that connects `-d
-          # #{infra_name}`) reads as the database to actually connect to — so
-          # every one of those has to agree on the same sanitized spelling, not
-          # just the one CloudFormation property that happened to refuse loudly.
-          # Stack names, logical ids, and S3 prefixes are unchanged (still read
-          # `infra_name` directly) — CloudFormation/S3 both allow hyphens fine;
-          # only the actual database identifier needed this at all.
+          # RDS's own DBName/DatabaseName parameter refuses non-alphanumeric
+          # characters; every downstream consumer (Environment vars, Makefile
+          # shell commands) has to read the same sanitized spelling.
           db_name = infra_name.gsub(/[^a-zA-Z0-9]/, "")
 
-          # Validated, not hand-checked — dispatches into lib/hecks/deploy's
-          # own LambdaTarget.Declare (the same given/invariant machinery every
-          # other kind of bluebook mistake in this codebase is caught by),
-          # replacing a `fetch(:region) { abort ... }` chain with
-          # real, named, corpus-testable refusals: memory/timeout are actual
-          # Integers here (never silently stringified) and checked against
-          # Lambda's own real 128-10240 MB / 900s ceilings, not just "present or
-          # not." Only the default values stay Ruby's own concern —
-          # deploy.bluebook's own header explains why: a command-level `default:`
-          # is honored only at the JSON/Rust-codegen boundary, never by Ruby's
-          # own direct dispatch — so this validates a fully-resolved target,
-          # after defaulting, not instead of it.
+          # Dispatches into LambdaTarget.Declare's given/invariant machinery for
+          # named, corpus-testable refusals (memory/timeout checked as real
+          # Integers against Lambda's 128-10240 MB / 900s ceilings).
           deploy_dispatcher = Hecks.boot(File.expand_path("../../deploy", __dir__))
           begin
             target = deploy_dispatcher.dispatch(
@@ -201,14 +84,7 @@ module Hecks
                 region:   { value: deploy_settings[:region] },
                 memory:   { value: deploy_settings.fetch(:memory, 512) },
                 timeout:  { value: deploy_settings.fetch(:timeout, 10) },
-                # "Postgres" — Embryonaut's own live choice, and every domain
-                # declared before this setting existed — unless a domain's own
-                # deployed_to("AwsLambda") names "Aurora" explicitly.
                 database: { value: deploy_settings.fetch(:database, "Postgres") },
-                # "None" — every domain declared before this setting existed,
-                # Embryonaut included (its own public web UI is the separate,
-                # pre-existing lambda_handler.rb-file-presence mechanism, not this
-                # attribute) — unless a domain names "Rust" explicitly.
                 web: { value: deploy_settings.fetch(:web, "None") }
               }
             ).instance
@@ -216,68 +92,26 @@ module Hecks
             raise ArgumentError, "#{world_file}'s deployed_to(\"AwsLambda\") is invalid: #{e.message}"
           end
 
-          # `dispatch "None"` / `secret_env "..."` — deploy-time wiring facts, not
-          # business invariants `Deploy::LambdaTarget.Declare` itself needs to
-          # hold, read straight off `deploy_settings` the same way `owner`/
-          # `owner_stack`/`schema`/`stack_name` already are (this file's own
-          # comment on `infra_name`, above, has the full reasoning for why those
-          # stay Ruby-level rather than validated attributes).
-          #
-          # `dispatch "None"` decides whether the primary rust/host dispatch
-          # Lambda (`#{logical_id}`, computed further below) gets generated at
-          # all. Default (unset, every domain declared
-          # before this setting existed) keeps generating the rust/host wasmtime
-          # dispatch Lambda exactly as always — "None" is the new, opt-in case: no
-          # rust/host dispatch Lambda for this domain at all, because a domain
-          # with no `.bluebook`-shaped command surface of its own to dispatch
-          # through (QualityControl's own real first user: a driving GitHub
-          # webhook adapter, `lib/hecks/adapters/driving/github_webhook.rb`,
-          # calling straight into `QualityControl::Clearance` through Ruby, never
-          # through rust/host's wasmtime dispatch at all) has nothing for that
-          # Lambda to ever serve. Reuses the existing `lambda_handler.rb`-file-
-          # presence WebFunction mechanism wholesale (Runtime: ruby3.2, Function
-          # URL AuthType `NONE`, container build + patch-pg-native for `pg`'s native
-          # extension) rather than inventing a second Ruby-Lambda shape — the
-          # WebFunction path already proved itself for real (Embryonaut's own live
-          # stack) before this ever needed a second consumer; deploy.bluebook's
-          # own generator, "one generator reads what a domain declares," extends
-          # rather than forks.
+          # `dispatch "None"` skips generating a rust/host dispatch Lambda for a
+          # domain with no `.bluebook` command surface to dispatch through (e.g.
+          # QualityControl's GitHub webhook, dispatching straight into Ruby);
+          # such a domain's WebFunction becomes its only Lambda.
           dispatch_none = deploy_settings[:dispatch].to_s == "None"
 
-          # `secret_env "GITHUB_WEBHOOK_SECRET"` — names the env var
-          # WebFunction's own `lambda_handler.rb` should find the fetched secret's
-          # real plaintext under, once it resolves `#{secret_env}_ARN` (below,
-          # WebFunction's own Environment) via the AWS SDK the same cold-start
-          # pattern DATABASE_URL/SESSION_SECRET/GOOGLE_CLIENT_ID already use
-          # (WebFunction's own header comment: "fetch at runtime, over the SDK,
-          # never let CloudFormation/Lambda configuration see it at all"). Wired
-          # generically — any WebFunction-shaped domain declaring one gets its own
-          # auto-generated, never-typed-or-seen SecretsManager secret + least-
-          # privilege grant, not something specific to GitHub webhooks; this
-          # domain's own `qa/lambda_handler.rb` is simply the first real consumer.
+          # Names the env var WebFunction's `lambda_handler.rb` finds the fetched
+          # secret's plaintext under, once it resolves `#{secret_env}_ARN`.
           webhook_secret_env = deploy_settings[:secret_env]
 
-          # `handler_module "QaWebhookLambdaHandler"` — the same name
-          # `lambda_handler.rb`'s own module actually defines, named here rather
-          # than assumed, since `dispatch "None"` is a generic mechanism (any
-          # future domain could adopt it, each with its own wrapper module name)
-          # — "WebLambdaHandler" stays the fixed, historical default for every
-          # domain that has never set this (Embryonaut's own, unchanged).
+          # The module name `lambda_handler.rb` actually defines; named here
+          # since `dispatch "None"` domains may each pick their own.
           webhook_handler_module = deploy_settings.fetch(:handler_module, "WebLambdaHandler")
           if dispatch_none && !deploy_settings.key?(:handler_module)
             raise ArgumentError, "#{world_file}'s deployed_to(\"AwsLambda\") declares dispatch \"None\" but no handler_module — add handler_module \"YourModuleName\" naming the module #{domain}/lambda_handler.rb defines."
           end
 
-          # Every policy in every loaded chapter, not just the target domain's
-          # own top-level list — `uses_framework` (Compliance's own header:
-          # "genuinely supports either mode") could in principle attach a chapter
-          # that itself declares a cross-domain policy, and a policy nested inside
-          # `aggregate "X" do ... end` is exactly as real a cross-domain trigger as
-          # one declared at the bluebook's own top level (docs/implemented/guides/policies-
-          # and-process-managers.md: "A policy does not care where it was
-          # written"). `to_h`'s own `policies` already flattens aggregate-scoped
-          # and top-level policies into one list per bluebook — read the same way
-          # `rust/project/reactions.rb`'s `emit_cross_domain_policy_table` does.
+          # Scans every loaded chapter, not just this domain's own — a
+          # `uses_framework`-attached chapter can itself declare a cross-domain
+          # policy, including one nested inside `aggregate "X" do ... end`.
           cross_domain_lambda_targets = cross_domain_registry.bluebooks.flat_map { |chapter_name, bluebook|
             bluebook.policies.select(&:target_domain).map(&:target_domain)
           }.uniq.sort
@@ -291,15 +125,8 @@ module Hecks
           shared   = database == "Shared"
           rust_web = target.state[:web].value == "Rust"
 
-          # **`WAFv2` for CloudFront needs us-east-1** — not a preference, a hard
-          # AWS API constraint (`AWS::WAFv2::WebACL` with `Scope: CLOUDFRONT` is
-          # refused by CloudFormation outside us-east-1, independent of which
-          # region the distribution itself, being global, would otherwise
-          # suggest). Refused here, before writing a single file, the same
-          # discipline this generator already holds every other one of its own
-          # refusals to — a generated template that would only fail at deploy
-          # time, in a region a caller may not think to suspect, is a worse
-          # failure mode than refusing now with the fix named.
+          # AWS::WAFv2::WebACL with Scope: CLOUDFRONT is refused by
+          # CloudFormation outside us-east-1; refused here before writing a file.
           if pii_detected && region != "us-east-1"
             raise ArgumentError, "#{world_file} marks a field \"pii\" but deployed_to(\"AwsLambda\") sets region " \
                                   "#{region.inspect} — a CloudFront-scoped WAFv2 WebACL can only be created in " \
@@ -307,25 +134,13 @@ module Hecks
                                   "genuinely holds none."
           end
 
-          # Read straight off `deploy_settings` (the raw `WorldBuilder` bag), not
-          # through `target` — these two are optional and pii-only, unlike every
-          # `target.state[...]` field above, which `LambdaTarget` validates as
-          # always-present for every `AwsLambda` deployment regardless of pii.
-          # "none" (`RestrictionType: none`, `Locations: []`) is CloudFront's own
-          # default shape for "no restriction configured" — declaring one later
-          # is a `deployed_to` edit, not a template rewrite.
+          # Read off `deploy_settings` directly, not `target` — these two are
+          # optional and pii-only, unlike every always-validated `target.state`.
           geo_restriction_type      = deploy_settings[:geo_restriction] || "none"
           geo_restriction_countries = deploy_settings[:geo_restriction_countries] || []
 
-          # **The storehouse** — this domain provisions no RDS/VPC of its own at all;
-          # it borrows another already-deployed domain's instance instead,
-          # isolated by a native Postgres schema (this domain's own lowercase
-          # name) rather than a separate database. `owner` is read the same way
-          # `pg_version`/`google_oauth_present` below are — a Ruby-level fact off
-          # `deploy_settings` directly, not one of `Deploy::LambdaTarget.Declare`'s
-          # own validated attributes (deploy.bluebook's own comment on why: which
-          # domain owns the shared instance is a deploy-time wiring fact, not a
-          # business invariant).
+          # Shared mode provisions no RDS/VPC of its own; it borrows another
+          # already-deployed domain's instance, isolated by Postgres schema.
           if shared
             owner_domain_name = deploy_settings[:owner] or raise ArgumentError, <<~MSG
               #{world_file}'s deployed_to("AwsLambda") declares database "Shared" but no owner. Add one, e.g.:
@@ -338,182 +153,83 @@ module Hecks
 
               naming the already-deployed domain whose Postgres instance this one borrows.
             MSG
-            # `hecks-<lowercase name>` / lowercase name-as-dbname — the same
-            # two conventions `stack_name`/`DBName: #{infra_name}` below already
-            # commit to for this domain, and the default for the owner too. Not
-            # always the owner's real stack name, though — a domain generated
-            # before this convention existed keeps whatever it was actually
-            # deployed as (real, live example: Embryonaut's own stack is
-            # "hecksagain-embryonaut", a legacy prefix, not "hecks-embryonaut" --
-            # `deploy:`'s own owner-outputs lookup below would look for a stack
-            # that has never existed and fail before this domain's own `sam
-            # deploy` ever ran). `owner_stack "hecksagain-embryonaut"` is the
-            # escape hatch, read the same deploy_settings-direct way `owner`
-            # itself is (deploy.bluebook's own comment on why neither lives in
-            # the validated LambdaTarget aggregate) — optional, defaults to the
-            # ordinary convention for every domain that doesn't need it.
+            # `owner_stack` is the escape hatch for an owner whose live stack
+            # name predates the "hecks-<lowercase name>" convention below.
             owner_stack_name = deploy_settings[:owner_stack] || "hecks-#{owner_domain_name.downcase}"
             owner_db_name     = owner_domain_name.downcase
           end
 
-          # `HECKS_SCHEMA` — rust/host's own optional counterpart to Ruby's
-          # `settings[:schema]` (postgres.rb's own `connect_for`). Automatic for a
-          # Shared-mode domain (this domain's own lowercase name — matches the
-          # schema the real migration creates for it, `CREATE SCHEMA
-          # #{infra_name}`, and needs no separate declaration since Shared mode
-          # already implies it). Optional and explicit otherwise
-          # (`deployed_to("AwsLambda") { schema "embryonaut" }`) — for an owning
-          # domain that later migrates itself onto a shared instance's own schema
-          # too (Embryonaut, in the real migration this exists for), without
-          # switching its own `database` setting away from where its real RDS
-          # instance already lives.
+          # rust/host's optional counterpart to Ruby's `settings[:schema]`.
+          # Automatic (this domain's lowercase name) in Shared mode; otherwise
+          # explicit via `deployed_to("AwsLambda") { schema "..." }`.
           hecks_schema = shared ? infra_name : deploy_settings[:schema]
 
           logical_id = "#{infra_name.split(/[_-]/).map(&:capitalize).join}Function"
-          # `stack_prefix` — the "hecks-" half of this domain's own stack name, a
-          # setting only for a domain whose live stack predates the convention
-          # (real, live example: Embryonaut's own stack, both its Lambda function
-          # names, and its Google OAuth secret are all "hecksagain-embryonaut*",
-          # generated by the pre-rename hecksagain fork). Same shape and
-          # reasoning as `owner_stack` above — read `deploy_settings`-direct, not
-          # validated by LambdaTarget, optional — but for this domain rather than
-          # the owner it borrows from. Everything downstream (stack, FunctionName
-          # for both Lambdas, the OAuth secret name and its IAM policy, the
-          # bastion stack, samconfig's stack_name/s3_prefix) reads `stack_name`,
-          # so one setting moves them all together; `infra_name` (logical ids,
-          # deploy/<dir>, DB name) is untouched — that is `stack_name`'s job.
-          # Defaults to "hecks", so every domain that doesn't set it regenerates
-          # byte-identically.
+          # The "hecks-" half of this domain's own stack name; overridable for a
+          # live stack that predates the convention. Everything downstream
+          # (FunctionNames, OAuth secret, bastion stack, samconfig) reads
+          # `stack_name`; `infra_name` (logical ids, DB name) is untouched.
           stack_prefix = deploy_settings[:stack_prefix] || "hecks"
           stack_name = "#{stack_prefix}-#{infra_name}"
 
           db_id = "#{logical_id.sub(/Function\z/, '')}Db"
-          # The Aurora shape splits the database in two (a DBCluster carrying
-          # the managed password/endpoint, plus at least one DBInstance inside
-          # it) — every `.Endpoint.Address`/`.MasterUserSecret.SecretArn`
-          # reference below has to point at the cluster, not `db_id` itself,
-          # when Aurora is chosen. The plain-RDS path is unaffected: `db_ref_id`
-          # equals `db_id` exactly, so every one of those references renders
-          # byte-identical to before this existed.
+          # Aurora splits the database into a DBCluster plus DBInstance(s), so
+          # every `.Endpoint.Address`/`.MasterUserSecret` reference below has to
+          # point at the cluster, not `db_id`, when Aurora is chosen.
           db_ref_id = aurora ? "#{db_id}Cluster" : db_id
 
-          # The Aurora path uses a self-managed secret (`#{db_id}Secret`, below —
-          # see its own comment for why: ManageMasterUserPassword's rotation
-          # breaks a Lambda's static Environment), not the plain-RDS path's own
-          # `db_ref_id.MasterUserSecret` attribute (which only exists for the
-          # managed-password feature at all). `secret_sub` is the identifier for
-          # use inside a `!Sub` "${...}" interpolation (dot-free for a plain
-          # `!Ref`, dotted for a `!GetAtt` attribute — CloudFormation's `${}`
-          # auto-detects either shape); `secret_intrinsic` is the same fact
-          # spelled as a bare YAML value, for the one site (stack_outputs) that
-          # isn't inside a `!Sub` string at all.
+          # Aurora uses a self-managed secret (ManageMasterUserPassword rotation
+          # would break a Lambda's static Environment); plain RDS uses its own
+          # MasterUserSecret attribute. `secret_sub` is for `!Sub "${...}"`
+          # interpolation; `secret_intrinsic` is the same fact as a bare value.
           secret_sub       = aurora ? "#{db_id}Secret" : "#{db_ref_id}.MasterUserSecret.SecretArn"
           secret_intrinsic = aurora ? "!Ref #{db_id}Secret" : "!GetAtt #{db_ref_id}.MasterUserSecret.SecretArn"
-          # The same `${...}`-inside-`!Sub` identifier `secret_sub` above already
-          # is -- used here for #{logical_id}'s own runtime IAM grant instead of a
-          # deploy-time `{{resolve:secretsmanager:...}}` dynamic reference (see
-          # that Environment.Variables comment below for why DATABASE_URL moved
-          # off that mechanism entirely). Shared mode has no `secret_sub` of its
-          # own to reach for -- `OwningDatabaseSecretArn` (this template's own
-          # Parameter, filled from the owning stack's Output) already is the bare
-          # ARN string, not a Ref/GetAtt target inside this stack.
+          # Shared mode has no `secret_sub` of its own; `OwningDatabaseSecretArn`
+          # (this template's Parameter) is already a bare ARN string.
           db_secret_ref = shared ? "OwningDatabaseSecretArn" : secret_sub
 
-          # **Opt-in, by file presence** — a domain that wants its own web app on
-          # Lambda too (not every domain has one; Banking doesn't) drops a
-          # `lambda_handler.rb` at its own root, the Rack-to-Function-URL-event
-          # adapter Sinatra runs through. No new .world verb for this: the file
-          # itself is the declaration, the same way a `.hecksagon` file's mere
-          # existence is what makes a domain framework-attached.
+          # Opt-in by file presence: a domain wanting its own web app on Lambda
+          # drops a `lambda_handler.rb` (the Rack-to-Function-URL-event adapter
+          # Sinatra runs through) at its own root. No separate .world verb.
           web_handler_present = File.exist?(File.join(domain, "lambda_handler.rb"))
 
-          # A domain declares one web story, not both — `web "Rust"` (rust/host
-          # serves its own web UI in-process) and a `lambda_handler.rb` (a
-          # separate Ruby WebFunction) are two different mechanisms for the same
-          # job; picking one silently when both are present would be exactly the
-          # kind of ambiguity this generator's own `deploy.bluebook` gate exists
-          # to refuse instead of guess at.
+          # A domain declares one web story, not both.
           if rust_web && web_handler_present
             raise ArgumentError, "#{domain} declares both web \"Rust\" (#{world_file}) and a lambda_handler.rb (#{File.join(domain, 'lambda_handler.rb')}) — pick one."
           end
 
-          # Read straight out of the domain's own Gemfile.lock, not hardcoded —
-          # `patch-pg-native`'s build recipe below has to fetch the same pg
-          # version Bundler resolved, or its from-source extension and the
-          # gem's own Ruby wrapper (lib/pg.rb, autoloads, etc.) can drift apart.
-          # The plain, platform-less lock line ("pg (1.6.3)") is what this
-          # matches — platform-suffixed siblings ("pg (1.6.3-aarch64-linux)")
-          # fail the all-digits-and-dots capture on purpose.
-          #
-          # Optional, not required whenever a web app exists — Embryonaut's own
-          # Sinatra app talks to Postgres directly (hence `pg` in its
-          # Gemfile.lock) but that's that app's own choice, not a rule every
-          # WebFunction follows. A web app that only ever dispatches through a
-          # Lambda-routed domain (RemoteDispatcher/Adapters::Lambda, never a
-          # local Postgres connection — hecks_on_web's own apps, e.g.) has no
-          # `pg` gem and needs none of the native-extension patching below; the
-          # generated Makefile's own `deploy:` target branches on whether this
-          # is present, same convention `google_oauth_present` already uses for
-          # its own opt-in machinery.
+          # Read from the domain's own Gemfile.lock, not hardcoded — the
+          # `patch-pg-native` build recipe below must fetch the same pg version
+          # Bundler resolved, or the from-source extension can drift from it.
           pg_version = nil
           if web_handler_present
             # `dispatch "None"` reads this project's own root Gemfile.lock, not
-            # #{domain}'s — WebFunction's own CodeUri is `root` in that case
-            # (`web_code_uri`, below), not #{domain} itself, precisely because
-            # #{domain} (a bluebook directory inside this very repo, e.g. "qa")
-            # has no Gemfile of its own to bundle at all; it needs `lib/hecks`
-            # and this project's own Gemfile.lock, sitting one level up. Every
-            # other WebFunction (Embryonaut's own self-contained app checkout,
-            # vendoring its own copy of hecks) keeps reading its own, unchanged.
+            # #{domain}'s: #{domain} has no Gemfile of its own to bundle (it
+            # needs `lib/hecks` from one level up), so CodeUri is `root` there.
             pg_version_path = File.join(dispatch_none ? root : domain, "Gemfile.lock")
             pg_version = File.read(pg_version_path)[/^\s+pg \(([\d.]+)\)/, 1]
           end
           web_logical_id = "WebFunction"
 
-          # `dispatch "None"` — same reason `pg_version_path` reaches one
-          # directory further up, above: #{domain} alone has no Gemfile/lib/hecks
-          # of its own to zip, so WebFunction's CodeUri has to be this whole
-          # project's own root instead (the identical absolute-path shape
-          # Embryonaut's own real, live deploy already uses for a checkout that
-          # isn't colocated with `deploy/<stack>/` either — bin/project_deploy's
-          # own header: "Self-contained... no hand-authored deployment config").
-          # `web_handler_relpath` follows the same split: #{domain}/lambda_handler
-          # is only the right relative path once CodeUri stops being #{domain}
-          # itself — every existing WebFunction (CodeUri: #{domain}) still finds
-          # its own lambda_handler.rb at that directory's own root, unchanged.
+          # Same `dispatch "None"` split as `pg_version_path` above: #{domain}
+          # alone has no Gemfile/lib/hecks to zip, so CodeUri is `root` instead.
           web_code_uri = dispatch_none ? root : domain
           web_handler_relpath = dispatch_none ? "#{domain}/lambda_handler" : "lambda_handler"
 
-          # Opt-in, by file presence + content — the same convention
-          # `web_handler_present` itself uses. `.env.local` is #{domain}'s own
-          # gitignored local-dev secrets file (never committed, never read by
-          # this tool for anything but detecting the key is there); the real
-          # value is synced into Secrets Manager by `make sync-google-oauth`
-          # below, straight from that same file, at deploy time — never baked
-          # into this generated, git-tracked template.yaml as plaintext.
-          # Also gates the NAT Gateway/public subnet template.yaml's own "no NAT
-          # gateway" comment describes — computed here, once, before
-          # stack_outputs/bastion_parameters below need to know whether
-          # #{db_id}PublicSubnet exists at all to pass along to bastion.yaml.
+          # `.env.local` is #{domain}'s gitignored local-dev secrets file, read
+          # only to detect the key is present; `make sync-google-oauth` syncs
+          # the real value into Secrets Manager at deploy time.
           google_oauth_present = (web_handler_present || rust_web) &&
             File.exist?(File.join(domain, ".env.local")) &&
             File.read(File.join(domain, ".env.local")).match?(/^GOOGLE_CLIENT_ID=\S/)
 
-          # **The Ruby case stays refused** — a shared-instance Ruby WebFunction
-          # needs its own cross-stack DATABASE_URL wiring this generator doesn't
-          # build yet (web_handler_present's own Member-style direct-Postgres
-          # binding), real, unbuilt design, not a small addition. This check
-          # alone is why the google_oauth_present check below can assume
-          # web_handler_present is already false by the time it runs — it always
-          # aborts first when both are true.
+          # A shared-instance Ruby WebFunction needs cross-stack DATABASE_URL
+          # wiring this generator doesn't build yet.
           if shared && web_handler_present
             raise ArgumentError, "#{domain} declares both database \"Shared\" and a lambda_handler.rb — a shared-instance Ruby WebFunction isn't supported yet."
           end
 
-          # `dispatch "None"` means WebFunction becomes the domain's only Lambda —
-          # there is nothing left to reach through a Function URL at all without a
-          # `lambda_handler.rb` to serve it, and (below) no rust_web dispatch
-          # Lambda whose own Function URL that role could fall back to either.
+          # `dispatch "None"` means WebFunction is the domain's only Lambda.
           if dispatch_none && !web_handler_present
             raise ArgumentError, "#{domain} declares dispatch \"None\" but has no lambda_handler.rb — dispatch \"None\" means no rust/host dispatch Lambda at all, so a WebFunction (lambda_handler.rb) has to exist to be the domain's only Lambda."
           end
@@ -521,33 +237,12 @@ module Hecks
             raise ArgumentError, "#{domain} declares both dispatch \"None\" and web \"Rust\" — dispatch \"None\" already means there is no rust/host Lambda for rust_web's own in-process web UI to run inside."
           end
 
-          # **The Rust case is not refused** — rust_web's own OAuth wiring (the main
-          # dispatch function's own Environment/VpcConfig, generated below) needs
-          # no NAT Gateway of its own in Shared mode: it already runs inside the
-          # owner's borrowed private subnets (OwningSubnetAId/OwningSubnetBId)
-          # and borrowed security group (OwningSecurityGroupId) — the same ones
-          # this domain's own dispatch traffic already uses — and the owner's own
-          # template already routes those subnets through its NAT Gateway and
-          # already permits 443-to-internet egress on that security group (added
-          # there for the owner's own WebFunction's real, live OAuth
-          # token-exchange bug — see that stack's own
-          # `#{owner_domain_name}FunctionEgressToInternet` resource). Nothing new
-          # to provision for this combination; the Parameters section below just
-          # has to declare both the Owning* set (Shared mode) and
-          # WebRedirectBaseUrl (OAuth) together, not as alternatives — see its
-          # own comment on why an if/elsif there would be wrong.
-          #
-          # Still a real gap, left refused: rust_web isn't checked here
-          # explicitly because shared && web_handler_present already aborted
-          # above whenever web_handler_present is true — so by construction, if
-          # `shared && google_oauth_present` is ever true at this point,
-          # web_handler_present must be false, meaning google_oauth_present's own
-          # `(web_handler_present || rust_web)` can only have been satisfied by
-          # rust_web. Nothing left to refuse here.
+          # A Shared-mode rust_web domain with OAuth needs no new NAT Gateway:
+          # it already runs inside the owner's borrowed private subnets and
+          # security group, which already route to the internet for OAuth.
 
-          # The stack↔bastion contract, and the least-privilege cross-domain
-          # invoke grant — `Shared`'s own header explains why both are
-          # `Fargate`'s problem too, not only this target's.
+          # The stack-bastion contract and the least-privilege cross-domain
+          # invoke grant are shared with `Fargate` — see `Shared`'s header.
           stack_outputs = Shared.stack_outputs(
             shared: shared, db_id: db_id, db_ref_id: db_ref_id, secret_intrinsic: secret_intrinsic,
             compute_security_group_ref: "!Ref #{logical_id}SecurityGroup", google_oauth_present: google_oauth_present
@@ -555,14 +250,9 @@ module Hecks
           bastion_parameters = Shared.bastion_parameters(shared: shared, google_oauth_present: google_oauth_present)
           Shared.check_bastion_parameters!(bastion_parameters, stack_outputs)
 
-          # Computed here, as its own local, rather than as two heredocs
-          # opened side by side inside the big template heredoc's own
-          # interpolation below — a heredoc's body is read starting from
-          # the line after it opens, so two on one line only stay
-          # unambiguous as long as neither branch is ever edited to span
-          # the other's own territory. An ordinary `if`/`else`, each
-          # heredoc entirely inside its own branch, cannot develop that
-          # failure mode at all.
+          # A plain local, not two heredocs opened side by side inside the
+          # template heredoc's own interpolation — a heredoc body starts on the
+          # line after it opens, so an if/else here keeps each one unambiguous.
           web_google_oauth_env_yaml =
             if google_oauth_present
               <<~GOOGLE.each_line.with_index.map { |l, i| i.zero? ? l : "        " + l }.join.rstrip
@@ -619,22 +309,10 @@ module Hecks
               journal (docs/decisions/0018), backed by its own private RDS
               Postgres instance. PackageType Zip, no container.
             #{
-              # Two independent reasons a Parameters section might be needed --
-              # google_oauth_present (any web mode) and shared (any domain
-              # borrowing an owner's VPC) -- are collected into one array and
-              # joined under a single `Parameters:` header (YAML permits exactly
-              # one), rather than treated as mutually exclusive alternatives via
-              # an if/elsif/else here. That shape breaks for the one combination
-              # both can be true at once (a Shared-mode rust_web domain with
-              # real Google OAuth): the elsif branch would never run, so
-              # OwningSubnetAId/OwningSecurityGroupId/etc. would never get declared as
-              # Parameters at all, even though VpcConfig below (`shared ?
-              # "SubnetIds: [!Ref OwningSubnetAId, ...]" : ...`) already
-              # references them unconditionally whenever `shared` is true --
-              # exactly the CloudFormation-references-an-undeclared-Parameter
-              # break bastion_parameters' own generation-time assertion (above)
-              # exists to catch for a different table. This fixes it for both
-              # the "either" and the "both" case.
+              # google_oauth_present and shared are independent and collected
+              # into one array under a single `Parameters:` header, not an
+              # if/elsif/else — both can be true at once (a Shared-mode
+              # rust_web domain with real Google OAuth).
               param_blocks = []
               if google_oauth_present
                 param_blocks << <<~OAUTHPARAMS.rstrip
@@ -693,17 +371,8 @@ module Hecks
               if param_blocks.empty?
                 ""
               else
-                # Every line indented 2, not just appended flush-left — each
-                # heredoc above squiggly-dedents to column 0 (its own
-                # least-indented line, matching every other heredoc's own
-                # convention in this file), but these are Parameters: children,
-                # which YAML requires indented under it. Confirmed the hard way:
-                # without this, `ruby -ryaml` parses the file without raising
-                # (it's still syntactically valid YAML) but
-                # `doc["Parameters"]["OwningVpcId"]` is nil — WebRedirectBaseUrl/
-                # OwningVpcId/etc. land as their own top-level document keys,
-                # siblings of Parameters/Resources, not children of Parameters
-                # at all.
+                # Indented 2: the heredocs above dedent to column 0, but these
+                # are Parameters: children, which YAML requires indented under it.
                 "Parameters:\n" + param_blocks.join("\n").each_line.map { |l| "  #{l}" }.join
               end
             }
@@ -805,13 +474,8 @@ module Hecks
                       # sibling of VpcConfig) is the one runtime IAM permission
                       # that fetch needs, scoped to this one secret ARN.
                       #{if shared
-                          # **The storehouse** — #{owner_domain_name}'s own live
-                          # Endpoint/Secret, looked up at deploy time into
-                          # OwningDatabaseEndpoint/OwningDatabaseSecretArn (this
-                          # template's own Parameters, above), not a resource in
-                          # this stack. Same dbname as #{owner_domain_name}'s own
-                          # DBName -- one database, isolated by schema
-                          # (HECKS_SCHEMA below), not a second database.
+                          # Owner's live Endpoint/Secret, looked up into
+                          # OwningDatabaseEndpoint/OwningDatabaseSecretArn.
                           "DB_HOST: !Ref OwningDatabaseEndpoint\n" \
                           "          DB_NAME: #{owner_db_name}\n" \
                           "          DB_SECRET_ARN: !Sub \"${OwningDatabaseSecretArn}\""
@@ -1176,31 +840,13 @@ module Hecks
           YAML
 
           # Spliced in after the heredoc renders, not interpolated inside it —
-          # found live, the hard way: `<<~`'s own dedent strips whatever the
-          # shallowest leading-whitespace line in the raw source text has, computed
-          # before any `#{...}` interpolation runs. `cross_domain_lambda_policies`
-          # is "" for the overwhelmingly common case (no cross-domain policies at
-          # all), and a `#{...}` marker written at column 0 in the source (so it
-          # renders flush when empty) is itself a zero-indent line by that same
-          # raw-text measure — dragging the whole heredoc's computed dedent down to
-          # zero and leaving every other line's original leading whitespace
-          # un-stripped, a real, generated-then-caught-by-spec bug (`bin/
-          # project_deploy`'s own contract spec: "Outputs only declares []" — not
-          # actually empty, just re-indented into structural nonsense by this).
-          # A plain, unconditional `String#sub` after the fact has no such
-          # interaction with the text it's replacing into.
+          # a `#{...}` marker at column 0 would drag the heredoc's own dedent
+          # computation to zero and leave every other line un-stripped.
           template_yaml = template_yaml.sub(/^([ \t]*)# TMPL:cross_domain_lambda_policies\n/) { Shared.cross_domain_invoke_policy_yaml(cross_domain_lambda_targets, $1) }
 
-          # **The `PII` → CloudFront splice** — operates on the already-fully-rendered
-          # string, the same reason the `dispatch_none` splice (below) does rather
-          # than threading a third reindentation layer through the main heredoc
-          # above: `pii_cloudfront_yaml` builds its own already-correctly-indented
-          # text from scratch (its own `reindent` lambda), so there is nothing here
-          # for a heredoc dedent computation to interact with badly.
-          # `fronted_logical_id`/`use_oac` are resolved here, not earlier, because
-          # both need `web_handler_present`/`web_logical_id`/`rust_web`/`logical_id`
-          # — every one of which is computed after this generator's own pii
-          # detection, above.
+          # Operates on the already-rendered string — `pii_cloudfront_yaml`
+          # builds its own correctly-indented text, so nothing here interacts
+          # with a heredoc's own dedent computation.
           if pii_detected
             fronted_logical_id = web_handler_present ? web_logical_id : logical_id
             use_oac             = !web_handler_present && !rust_web
@@ -1212,46 +858,22 @@ module Hecks
             template_yaml = template_yaml.sub(/^Outputs:\n/) { "#{pii_resources}Outputs:\n  PiiDistributionDomainName:\n    Value: !GetAtt PiiDistribution.DomainName\n" }
           end
 
-          # `dispatch "None"` — surgical removal, POST-render, rather than a
-          # fourth reindentation layer threaded through the heredoc above.
-          # Tried that first: wrapping `#{logical_id}`'s own resource block in a
-          # conditional nested heredoc (matching `RUSTSECRET`/`WEB`/`OWNDB`'s own
-          # established `<<~TAG.each_line.with_index.map { ... }` convention)
-          # looked right, but broke several pre-existing embedded multi-line
-          # `#{shared ? "a\nb" : "c"}`-shaped strings already living inside that
-          # block (the DB_HOST/DB_NAME/DB_SECRET_ARN Environment lines among
-          # them) — those assume they sit at exactly one reindentation layer deep
-          # (the outer template heredoc's own margin), and adding a second layer
-          # on top shifted every line their own hardcoded embedded-newline
-          # indentation didn't already account for. Confirmed live, diffing a
-          # real regenerated examples/banking (`dispatch` unset — the ordinary,
-          # far more common path) against its own git-tracked output: real
-          # indentation corruption, not a false alarm. Operating on the already-
-          # fully-rendered, already-correctly-indented string instead sidesteps
-          # that whole class of interaction — no new heredoc layer, so nothing
-          # already living inside the old one has to change its own assumptions.
+          # Surgical removal, post-render, not a nested heredoc — a conditional
+          # nested heredoc broke embedded multi-line `#{shared ? ... : ...}`
+          # strings inside the resource block, which assume exactly one
+          # reindentation layer (confirmed regenerating examples/banking).
           if dispatch_none
-            # The #{logical_id} resource itself — non-greedy through its own
-            # `FunctionUrlConfig`/`AuthType` closing pair (the actual last
-            # property this resource ever renders, confirmed above), so a second
-            # occurrence of "AuthType:" later in the document (WebFunction's own,
-            # always AuthType: `NONE`) can never be matched instead.
+            # Non-greedy through the resource's own FunctionUrlConfig/AuthType
+            # closing pair, so WebFunction's own later "AuthType:" can't match.
             template_yaml = template_yaml.sub(
               /^  #{Regexp.escape(logical_id)}:\n.*?\n        AuthType: (?:NONE|AWS_IAM)\n/m, ""
             )
-            # WebFunction's own Policies — `LambdaInvokePolicy: FunctionName: !Ref
-            # #{logical_id}` grants invoking a function that, above, was just
-            # removed from this template entirely; SAM refuses a `!Ref` to an
-            # undeclared resource at package time, not silently.
+            # Removes the now-dangling `!Ref` to the resource just deleted above
+            # — SAM refuses an unresolved Ref at package time, not silently.
             template_yaml = template_yaml.sub(
               /^        - LambdaInvokePolicy:\n            FunctionName: !Ref #{Regexp.escape(logical_id)}\n/, ""
             )
-            # Outputs — no `#{logical_id}Url` exists for `FunctionUrl` to
-            # `!GetAtt`; WebFunction's own URL becomes the stack's one and only
-            # "FunctionUrl" (never "WebFunctionUrl" — that name is reserved for
-            # the two-URL case, a domain that also has a #{logical_id} of its
-            # own to disambiguate from, which this one, by construction, never
-            # does).
+            # WebFunction's own URL becomes the stack's only "FunctionUrl".
             template_yaml = template_yaml.sub(
               /^  FunctionUrl:\n    Value: !GetAtt #{Regexp.escape(logical_id)}Url\.FunctionUrl\n  WebFunctionUrl:\n    Value: !GetAtt #{Regexp.escape(web_logical_id)}Url\.FunctionUrl\n/,
               "  FunctionUrl:\n    Value: !GetAtt #{web_logical_id}Url.FunctionUrl\n"
@@ -1260,42 +882,18 @@ module Hecks
 
 
 
-          # **The ephemeral era-minting bastion** — a separate, sibling stack
-          # (`#{stack_name}-bastion`), never merged into template.yaml itself.
-          # The main stack stays exactly as minimal as its own header already
-          # commits to (no NAT gateway, no bastion sitting there costing money
-          # by default) — this template only ever exists for the few minutes
-          # `make mint-era` (below) needs it, then gets deleted. SSM Session
-          # Manager only, never SSH: no key pair, no inbound security group rule
-          # at all (the instance's own SG declares zero Ingress) — the only way
-          # in is `aws ssm start-session`, itself gated by the caller's own IAM
-          # permissions, nothing this template opens to the internet.
-          # Skipped entirely when `shared` — this domain provisions no RDS/VPC
-          # of its own for a bastion to reach (bastion_parameters is empty for
-          # the same reason, above); a bare `!Ref VpcId` with no declared
-          # Parameter would just fail at deploy time. Era-minting for a
-          # Shared-mode domain reuses its owner's own already-standing
-          # infrastructure instead — see the Makefile's own `mint-era` comment
-          # for the manual path this leaves until that's automated too.
+          # A separate, sibling stack for the few minutes `make mint-era`
+          # needs it, then deleted — SSM Session Manager only, never SSH, no
+          # inbound rule at all. Skipped when `shared`: era-minting reuses the
+          # owner's own standing infrastructure instead.
 bastion_yaml = shared ? nil : Shared.bastion_yaml(
   domain: domain, infra_name: infra_name, stack_name: stack_name, db_id: db_id,
   google_oauth_present: google_oauth_present, bastion_parameters: bastion_parameters
 )
 
-          # `mint-era`'s own recipe body — a top-level variable, not inlined at
-          # its call site inside the Makefile heredoc below, on purpose: Make
-          # recipe lines need a literal tab as their true first character (no
-          # leading spaces at all), and nesting this heredoc a second level
-          # deeper inside another `#{...}` interpolation (the way `OWNDB`/params
-          # above handle conditional template.yaml content) would need its own
-          # per-line re-indent pass — one that adds spaces before every line
-          # including the already-tab-prefixed recipe ones, corrupting Make's
-          # own recipe-line detection. A single top-level heredoc, each line
-          # already at its own final indentation (recipe lines as "  \t..." —
-          # the same two-space-before-the-tab convention every other recipe
-          # line in this Makefile already uses, stripped by the encolosing
-          # `<<~MAKE` heredoc's own squiggly stripping below, same as them),
-          # sidesteps that: nothing re-touches an already-correct line twice.
+          # A top-level variable, not inlined in the Makefile heredoc below —
+          # Make recipe lines need a literal leading tab, and a nested
+          # interpolation's re-indent pass would corrupt that detection.
           mint_era_recipe =
             if shared
               <<~SHAREDMINT.rstrip
@@ -1474,42 +1072,15 @@ bastion_yaml = shared ? nil : Shared.bastion_yaml(
               OWNMINT
             end
 
-          # `scaffold-translation`/`translation-audit` — the two-step fix
-          # minter.rb's own refusal names ("run bin/scaffold_translation to write
-          # the edge, check it with bin/translation_audit, then boot again") when
-          # a deploy's own pre-flight boot check refuses a shape change with no
-          # translation edge covering it. Same bastion/tunnel/retry/teardown
-          # chain mint_era_recipe already uses — only the one thing done over the
-          # tunnel differs: these run the scaffold/audit scripts (hecks's
-          # own bin/, not a Ruby -e one-liner) instead of a boot check, since
-          # both scripts already do their own registry-loading internally.
+          # Shares mint_era_recipe's bastion/tunnel/retry/teardown chain but
+          # runs bin/scaffold_translation or bin/translation_audit over it.
           #
-          # HECKS_SCHEMA/DATABASE_URL below are not actually consumed by those
-          # scripts, despite reading as if they were: grep-confirmed, neither
-          # `bin/scaffold_translation` nor `bin/translation_audit` nor
-          # `Hecks::Bluebook::Behaviour::World#for_binding` nor
-          # `PostgresEra.connect_for` ever reads `ENV["DATABASE_URL"]` or
-          # `ENV["HECKS_SCHEMA"]` — both scripts call
-          # `registry.binding_settings(...)`, a pure hash lookup
-          # against whatever literal `database "..."` string #{domain}'s own
-          # `.world` file declares. Without `db_env_blind:` below, this whole
-          # recipe would stand up a real bastion, punch a live 5432 ingress rule
-          # into production's security group, open a real SSM tunnel to
-          # #{stack_name}'s RDS instance, tear it all down again — and then
-          # silently scaffold/audit the developer's local dev database the
-          # entire time, reporting success. `db_env_blind:`
-          # (below) is exactly this: true for scaffold-translation/
-          # translation-audit (confirmed env-blind), left false for
-          # migrate-console-settings (an app-owned script this generator doesn't
-          # control the internals of — it may honor these vars; not asserting
-          # either way here). A `db_env_blind` recipe refuses before ever
-          # touching AWS unless `ALLOW_LOCAL_DB=1` is set, rather than silently
-          # doing the wrong (but locally successful-looking) thing.
-          # `cwd:`/`run_prefix:` — every existing caller runs a hecks-owned
-          # script from hecks's own $(root) with `-Ilib` (source, not the
-          # installed gem); `migrate_console_settings_recipe` below is the one
-          # exception, an app-owned script that needs the app's own Gemfile
-          # context instead — `cd $(DOMAIN) && bundle exec ruby`, not `-Ilib`.
+          # Neither script actually reads DATABASE_URL/HECKS_SCHEMA (both call
+          # `registry.binding_settings`, a lookup against the literal `database
+          # "..."` in #{domain}'s `.world`) — without `db_env_blind:`, this
+          # recipe would open a real tunnel to production and silently
+          # scaffold/audit the local dev database instead, reporting success.
+          # `db_env_blind` refuses unless `ALLOW_LOCAL_DB=1` is set.
           translation_recipe = lambda do |verb, script, extra_args = "", cwd: "$(ROOT)", run_prefix: "ruby -Ilib", db_env_blind: false|
             if shared
               <<~SHAREDTRANSLATION.rstrip
@@ -1577,38 +1148,18 @@ bastion_yaml = shared ? nil : Shared.bastion_yaml(
           scaffold_translation_recipe = translation_recipe.call("scaffold-translation", "bin/scaffold_translation", db_env_blind: true)
           translation_audit_recipe = translation_recipe.call("translation-audit", "bin/translation_audit", db_env_blind: true)
 
-          # `make migrate-console-settings` — the same bastion/tunnel/retry/
-          # teardown chain as scaffold-translation/translation-audit, running an
-          # app-owned one-time migration script instead of one of hecks's
-          # own bin/ tools (see translation_recipe's own `cwd:`/`run_prefix:`
-          # comment). Only meaningful for a domain that actually has one — most
-          # domains don't, so this target is generated unconditionally but simply
-          # has nothing to run for them; harmless (`bundle exec ruby` on a
-          # missing file just fails loudly, same as any other missing script
-          # would).
+          # Same chain, running an app-owned one-time migration script instead
+          # of a hecks bin/ tool. Harmless when the domain has none: `bundle
+          # exec ruby` on a missing file just fails loudly.
           migrate_console_settings_recipe = translation_recipe.call(
             "migrate-console-settings", "bin/migrate_console_settings", "",
             cwd: "$(DOMAIN)", run_prefix: "bundle exec ruby"
           )
 
-          # `rename-schema`'s own recipe body — same top-level-variable-not-inlined
-          # reasoning as `mint_era_recipe` just above (recipe lines need a literal
-          # leading tab; nesting this heredoc a level deeper would need its own
-          # re-indent pass). Reuses the same bastion.yaml, the same stack/
-          # BASTION_STACK Make variables mint-era already defines, and the same
-          # stand-up/tunnel/teardown-no-matter-what shell chain — only the one
-          # thing done over the tunnel differs: a schema rename instead of a
-          # Ruby boot. `OLD`/`NEW` are Make command-line variables
-          # (`make rename-schema OLD=old NEW=new`), not baked in here, so this
-          # is genuinely reusable — the domain whose own schema this renames is
-          # whichever one owns this stack's RDS instance (this generator's own
-          # `#{infra_name}` database on it), not necessarily this domain forever.
-          #
-          # Idempotent by inspection, not by catching a Postgres error: checks
-          # which of old/new actually exists as a schema before touching
-          # anything, so a second run (or a run after a partial failure) reads
-          # as a clear no-op message rather than a bare "schema already exists"
-          # error with no context.
+          # `OLD`/`NEW` are Make command-line variables (`make rename-schema
+          # OLD=old NEW=new`), reusable across whichever domain owns this
+          # stack's RDS instance. Idempotent by inspection (checks which schema
+          # exists first), not by catching a Postgres error.
           rename_schema_recipe =
             if shared
               <<~SHAREDRENAME.rstrip
@@ -1718,27 +1269,11 @@ bastion_yaml = shared ? nil : Shared.bastion_yaml(
               OWNRENAME
             end
 
-          # `deploy:`'s own `sam deploy` call — `google_oauth_present` and
-          # `shared` are collected together here rather than spelled as an
-          # if/elsif/else, the same shape `Parameters:` above holds to: the
-          # two are independent facts about a domain, not alternatives, and
-          # a client site can be both — an elsif shape would silently drop the
-          # Owning* overrides whenever OAuth is also present. Caught live
-          # the first time a Shared-mode domain with real Google OAuth
-          # actually ran `make deploy`: `sam deploy` refused
-          # with "Parameters: [OwningVpcId, ...] must have values" because
-          # nothing had ever passed them. WebRedirectBaseUrl stays a conditional
-          # override (empty on a genuine first deploy, before the Function Url
-          # exists — see that Parameter's own comment); Owning* is unconditional
-          # whenever `shared`, in every branch that reaches `sam deploy` at all.
-          # One continuous `\`-joined shell chain, however many pieces
-          # contribute to it — `@` (Make's own "don't echo this line" prefix)
-          # is only meaningful on the true first line of that chain; written on
-          # any later line it stops being a Make directive at all and becomes
-          # literal shell text (`@WEB_URL=...` parses as a bogus command, not
-          # an assignment) the moment two independently-`@`-prefixed pieces
-          # get concatenated. Built unprefixed here; `@` is added once, to
-          # whichever piece actually ends up first, right before joining.
+          # `google_oauth_present` and `shared` are independent facts, not
+          # alternatives — an elsif would silently drop Owning* overrides
+          # whenever OAuth is also present. `@` (Make's "don't echo" prefix)
+          # is only meaningful on the chain's true first line, so lines are
+          # built unprefixed and `@` is added once, right before joining.
           owner_lookup_lines = shared ? [
             %(OWNER_VPC_ID=$$(aws cloudformation describe-stacks --stack-name #{owner_stack_name} --query "Stacks[0].Outputs[?OutputKey=='VpcId'].OutputValue" --output text); \\),
             %(OWNER_SUBNET_A_ID=$$(aws cloudformation describe-stacks --stack-name #{owner_stack_name} --query "Stacks[0].Outputs[?OutputKey=='PrivateSubnetAId'].OutputValue" --output text); \\),
@@ -1777,36 +1312,13 @@ bastion_yaml = shared ? nil : Shared.bastion_yaml(
           deploy_shell_chain = owner_lookup_lines + sam_deploy_lines
           deploy_shell_chain = ["@#{deploy_shell_chain.first}"] + deploy_shell_chain.drop(1) if deploy_shell_chain.first&.match?(/=\$\$\(/)
 
-          # `deploy:`'s own pre-deploy `mint-era` bridge (below, inlined into
-          # `PREDEPLOYBRIDGE`) — a plain Ruby string built here, not inlined
-          # directly in that heredoc, for the same reason as everywhere else
-          # comment: it needs its own `if/else` branch on `google_oauth_present`,
-          # and Ruby heredoc-in-string-interpolation only reads cleanly one level
-          # deep before it gets hard to follow.
-          #
-          # Google OAuth newly added to an existing stack deadlocks this bridge —
-          # confirmed live: stack_outputs (above) only gains PublicSubnetId/
-          # BastionSubnetId entries once `google_oauth_present` is true, but those
-          # two CloudFormation resources (#{db_id}PublicSubnet/
-          # #{db_id}BastionPublicSubnet) don't exist on a stack that predates
-          # turning OAuth on — only the upcoming `sam deploy` (further below,
-          # still ahead of us here) creates them. This pre-check's own `mint-era`
-          # call evaluates stack_outputs against the currently live stack (an
-          # `aws cloudformation describe-stacks` eval chain, same one mint-era's
-          # own recipe uses), gets an empty string back for both, and hands
-          # bastion.yaml an empty `AWS::EC2::Subnet::Id` — CloudFormation refuses
-          # that outright. The pre-check fails before `sam deploy` ever runs, so
-          # the one deploy that would actually create those outputs never gets
-          # the chance to: a hard deadlock, `make deploy` can never get OAuth
-          # provisioned on a stack that didn't have it already. Detected the same
-          # way a genuine first deploy is detected just below (describe-stacks
-          # succeeding or not) — here, describe-stacks succeeds (the stack
-          # itself exists) but the specific output this deploy is newly adding
-          # does not, yet. Skip the pre-deploy bridge in exactly that one case;
-          # the unconditional `mint-era` call at the very end of `deploy:` still
-          # covers it once `sam deploy` has actually created PublicSubnetId/
-          # BastionSubnetId — the exact same "runs once, after the stack exists"
-          # path a domain's true first deploy already takes below.
+          # Google OAuth newly added to an existing stack would deadlock this
+          # bridge: PublicSubnetId/BastionSubnetId don't exist on the live stack
+          # until the upcoming `sam deploy` creates them, so the pre-check's own
+          # `mint-era` call would hand bastion.yaml an empty Subnet::Id and
+          # CloudFormation would refuse it before `sam deploy` ever runs. Skip
+          # the bridge in exactly that case; the unconditional `mint-era` call
+          # at the end of `deploy:` still covers it afterward.
           predeploy_bridge_shell =
             if google_oauth_present
               <<~OAUTHBRIDGE.rstrip
@@ -2214,13 +1726,8 @@ bastion_yaml = shared ? nil : Shared.bastion_yaml(
             \t$(MAKE) mint-era
           MAKE
 
-          # Everything `sam deploy --guided` asks interactively — stack name,
-          # region, capabilities, rollback behavior — is already known once the
-          # domain and its deployed_to("AwsLambda") block are: none of it needs
-          # a human typing answers on every deploy. There's no secret to carry
-          # here either now: DATABASE_URL is composed inside the template itself
-          # from RDS's own auto-generated Secrets Manager password, so nothing
-          # gets typed, saved, or passed as a --parameter-overrides flag at all.
+          # Everything `sam deploy --guided` would ask interactively is already
+          # known from the domain's own `deployed_to("AwsLambda")` block.
           samconfig_toml = <<~TOML
             # GENERATED by bin/project_deploy #{domain} — re-run it to refresh
             # this file rather than hand-editing.
@@ -2243,46 +1750,11 @@ bastion_yaml = shared ? nil : Shared.bastion_yaml(
           files
         end
 
-        # Builds the CloudFront/WAFv2/logging resources a `PII`-marked domain gets fronted by.
-        #
-        # **`PII` → CloudFront** — once a domain marks a field "pii", its own public
-        # surface (`WebFunction` when one exists, `#{logical_id}` otherwise —
-        # `fronted_logical_id`, computed where both are known, in `call`) gets
-        # fronted by a distribution carrying a WAFv2 WebACL (AWS managed rule
-        # groups), security response headers, geo-restriction, and access
-        # logging — every other domain's own template is untouched
-        # (`pii_detected` false means `call` never invokes this at all).
-        #
-        # **`OAC` only for the AWS_IAM case** (`use_oac`) — the already-public
-        # `WebFunction`/`rust_web` shape (`AuthType: NONE`) is left exactly as
-        # reachable as it already was; CloudFront adds WAF/headers/geo/logging
-        # on top of that, it does not change who could already call the
-        # Function URL directly. `#{logical_id}` itself (the AWS_IAM,
-        # internal-dispatch default) is the opposite: OAC lets CloudFront sign
-        # requests to it via SigV4 while `PiiLambdaInvokePermission`'s own
-        # `SourceArn` admits only this one distribution — direct, unsigned
-        # access to the Function URL stays refused exactly as it was before
-        # this ran.
-        #
-        # **Managed cache/origin-request policy ids** — not custom resources.
-        # `4135ea2d-6df8-44a3-9df3-4b5a84be39ad`/`216adef6-5c7f-47e4-b989-
-        # 5492eafa07d3` are AWS's own permanent, account-independent
-        # `Managed-CachingDisabled`/`Managed-AllViewer` ids (the same ones the
-        # console's own dropdown offers) — this fronts a Lambda dispatch
-        # endpoint, not a static site; caching a response meant for exactly
-        # one caller would be a real correctness bug, not a performance choice
-        # made once here.
-        #
-        # @param fronted_logical_id [String] the Lambda resource this distribution fronts
-        # @param use_oac [Boolean] true only when `fronted_logical_id`'s own FunctionUrlConfig is
-        #   AWS_IAM (never true for WebFunction/rust_web, both always `NONE`)
-        # @param geo_restriction_type ["none", "allowlist", "blocklist"] `deployed_to`'s own
-        #   `geo_restriction` setting; "none" (no restriction, structurally present so a later
-        #   change is a one-line `deployed_to` edit, not a template rewrite) when unset
-        # @param geo_restriction_countries [Array<String>] ISO 3166-1 alpha-2 codes; ignored when
-        #   `geo_restriction_type` is "none"
-        # @return [String] the Resources entries to splice in before Outputs:, absolutely
-        #   indented to 2 spaces (this stack's own top-level Resources entry column)
+        # Builds the CloudFront/WAFv2/logging resources a pii-marked domain is
+        # fronted by. `use_oac` signs requests only for the AWS_IAM case; the
+        # already-public WebFunction/rust_web Function URL stays as reachable
+        # as before. Managed cache/origin-request policy ids are AWS's own
+        # permanent `Managed-CachingDisabled`/`Managed-AllViewer` ids.
         def pii_cloudfront_yaml(fronted_logical_id:, use_oac:, geo_restriction_type:, geo_restriction_countries:)
           reindent = ->(text) { text.each_line.map { |line| line.strip.empty? ? line : "  #{line}" }.join }
 

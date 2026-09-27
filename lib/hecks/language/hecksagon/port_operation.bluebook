@@ -7,17 +7,8 @@ Hecks.bluebook "Hecksagon" do
     attribute :attributes, list_of(PortOperationField)
     attribute :emits,      list_of(EmittedEvent)
 
-    # THE TWO ENDINGS OF AN `asks`, held by the language about itself.
-    #
-    # `emits` above is what an inbound `tells` says once the fact is in.
-    # These two are the outbound half: what the adapter came back with, and
-    # what it said instead. Singular where `emits` is a list, because an ask
-    # has exactly one of each — a call that could answer two different ways
-    # is two calls.
-    #
-    # Empty on every `tells`, which is why neither carries an invariant
-    # demanding a value; `PortOperationBuilder` refuses the wrong word for
-    # the direction long before a record gets here.
+    # The two endings of an `asks`: what the adapter answered, or what it refused with.
+    # Singular because an ask has exactly one of each; empty on every `tells`, so no invariant.
     attribute :answers,    AnsweringEvent
     attribute :refuses,    RefusingEvent
 
@@ -44,9 +35,7 @@ Hecks.bluebook "Hecksagon" do
       attribute :value, String
     end
 
-    # HOW PORTOPERATION IS SPELLED. These rows live with the concept
-    # they describe; SyntaxBoot discovers every aggregate-local seed table.
-    # Contexts represented here: PortOperation.
+    # Keyword rows for PortOperation; SyntaxBoot discovers every aggregate-local seed table.
     value_object "KeywordSeed" do
       attribute :word,          String
       attribute :context,       String, admits: "Syntax::Context"

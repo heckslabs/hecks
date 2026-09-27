@@ -1,36 +1,19 @@
 #!/usr/bin/env ruby
 
-# The WASM projector — wraps the same Rust binary bin/project_rust already
-# generates, rather than a second, WASM-specific implementation (decision
-# docs/decisions/0012-wasm-via-wasi-stdio.md, echoing 0007's own "WASM is a
-# compile target of the same generated artifact, not a separate
-# implementation"). rust/src/main.rs's stdin/stdout JSON CLI contract
-# (kernel/cli.rs) uses nothing but std — no filesystem, no network, no OS
-# calls — so it compiles for wasm32-wasip1 completely unchanged; WASI
-# implements stdin/stdout the same way a native process does. This script
-# is the only thing that's new: regenerate, then cross-compile.
+# Regenerates the domain with bin/project_rust and cross-compiles it to wasm32-wasip1
+# (docs/decisions/0012-wasm-via-wasi-stdio.md).
 #
 #   bin/project_wasm <domain>
 #
-# Produces rust/dist/<domain>.wasm — run it with `wasmtime run
-# rust/dist/<domain>.wasm < script.json` (or any other WASI-preview1 host).
+# Produces rust/dist/<domain>.wasm; run with `wasmtime run rust/dist/<domain>.wasm < script.json`.
 
 domain = ARGV.shift or abort "usage: bin/project_wasm <domain>"
 
 root = File.expand_path("..", __dir__)
 target_mod_name = File.basename(domain)
 
-# Same paired opt-in bin/project_rust already honors — `HECKS_PARSER=rust
-# HECKS_CODEGEN=rust` means "compile entirely in Rust," and until now this
-# script never checked for it: it always shelled out to `bin/project_rust`
-# with no env override, so the .wasm a `make deploy`-generated Makefile
-# ships to Lambda went through the Ruby generator even on a domain built
-# end-to-end via `hecks-build` everywhere else. `rust/build`'s own
-# `build_wasm` (`build_artifact.rs`) is a verbatim port of the exact steps
-# below — same toolchain check, same `rustup run stable cargo build`
-# invocation, same `rust/dist/<domain>.{wasm,ir.json}` output paths — so
-# delegating to it here changes nothing about what gets produced, only
-# which process produces it.
+# HECKS_PARSER=rust with HECKS_CODEGEN=rust (as in bin/project_rust) delegates to hecks-build,
+# whose build_wasm runs the same steps below and writes the same rust/dist outputs.
 if ENV["HECKS_PARSER"] == "rust" && ENV["HECKS_CODEGEN"] == "rust"
   hecks_build_dir = File.join(root, "rust", "build")
   hecks_build_bin = File.join(hecks_build_dir, "target", "debug", "hecks-build")
@@ -39,9 +22,7 @@ if ENV["HECKS_PARSER"] == "rust" && ENV["HECKS_CODEGEN"] == "rust"
   system("cargo", "build", chdir: hecks_build_dir, out: $stdout, err: $stderr, exception: true)
 
   puts "== hecks-build #{domain} --wasm =="
-  # No chdir here — `domain` resolves relative to the current directory,
-  # same as the Ruby path below (`bin/project_rust` isn't chdir'd either);
-  # `hecks-build`'s own `root::find` walks up from wherever it runs.
+  # No chdir: `domain` resolves against the current directory, as in the Ruby path below.
   system(hecks_build_bin, domain, "--wasm", out: $stdout, err: $stderr, exception: true)
   exit 0
 end
@@ -56,14 +37,9 @@ unless system("rustup target list --installed 2>/dev/null | grep -qx wasm32-wasi
   MSG
 end
 
-# The crate is projected and built in a scratch copy, never in place.
-# `bin/project_rust` rewrites `rust/Cargo.toml` (its `default` feature) and
-# `rust/src/generated/` (`mod.rs`, plus every chapter the domain attaches —
-# a framework chapter can share a directory name with a checked-in domain,
-# e.g. Compliance), so running it against the real crate leaves tracked
-# files modified. `HECKS_RUST_DIR` points it at the copy instead, and
-# `CARGO_TARGET_DIR` keeps the build output (and the compiled dependency
-# cache) in `rust/target` where it always lived.
+# Built in a scratch copy because bin/project_rust rewrites rust/Cargo.toml and
+# rust/src/generated/, which would dirty tracked files. HECKS_RUST_DIR points it at the copy;
+# CARGO_TARGET_DIR keeps build output and the dependency cache in rust/target.
 require "fileutils"
 scratch = File.join(root, "tmp", "project_wasm", "rust")
 FileUtils.rm_rf(scratch)
@@ -75,12 +51,8 @@ system({ "HECKS_RUST_DIR" => scratch }, File.join(root, "bin", "project_rust"), 
 
 puts "== cargo build --release --target wasm32-wasip1 =="
 Dir.chdir(scratch) do
-  # `rustup run` rather than a bare `cargo` — a `cargo`/`rustc` earlier on
-  # path than rustup's own shims (Homebrew installs one; found live on this
-  # machine) is a different toolchain that never saw `rustup target add`,
-  # and fails with "can't find crate for `std`" despite the target check
-  # above passing (that check asks rustup, correctly; a bare `cargo build`
-  # doesn't necessarily run through rustup at all).
+  # `rustup run`, not bare `cargo`: a Homebrew cargo earlier on PATH never saw
+  # `rustup target add` and fails with "can't find crate for `std`".
   system({ "CARGO_TARGET_DIR" => File.join(root, "rust", "target") },
          "rustup", "run", "stable", "cargo", "build", "--release", "--target", "wasm32-wasip1", exception: true)
 end
@@ -95,12 +67,7 @@ FileUtils.cp(built, out)
 puts "wrote #{out}"
 puts %(run it: wasmtime run #{out} < script.json)
 
-# The plain-JSON sidecar domain_generator.rb writes beside metadata.rs
-# — rust/host has no path dependency on this crate (see that file's
-# own comment), so a Rust-native web layer reads this file at runtime
-# instead. Copied alongside the .wasm artifact, not embedded in it,
-# same reasoning HECKS_WASM_PATH already gets an external file rather
-# than a compiled-in constant.
+# The ir.json sidecar is copied beside the .wasm because rust/host reads it at runtime.
 ir_json = File.join(scratch, "src", "generated", target_mod_name, "ir.json")
 if File.exist?(ir_json)
   ir_out = File.join(dist_dir, "#{target_mod_name}.ir.json")

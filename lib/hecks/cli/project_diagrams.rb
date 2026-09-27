@@ -9,13 +9,6 @@ module Hecks
     module ProjectDiagrams
       module_function
 
-      # Projects and writes one chapter's diagrams, then lists what was written.
-      #
-      # @param argv [Array<String>] the domain path, then the chapter name
-      # @param program [String] the name the usage message calls this command by
-      # @param root [String] the directory `docs/generated/diagrams/` is written under
-      # @return [void]
-      # @raise [SystemExit] when either argument is missing
       def call(argv, program:, root:)
         usage = "usage: #{program} <domain-path> <ChapterName>"
         domain_path  = argv[0] or abort usage

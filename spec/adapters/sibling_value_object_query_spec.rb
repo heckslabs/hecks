@@ -7,16 +7,11 @@ require_relative "../support/sibling_value_object_domain"
 # only require it lazily, when they connect.
 require "pg"
 
-# **Why this gate exists**: `query_agreement_spec.rb` puts every engine side by
-# side over an aggregate whose value objects are all its own. It cannot see a
-# value object a sibling aggregate declares: the SQL builders looked the type up
-# on the aggregate alone, found nothing, and read the column as plain text. A
-# `where` over a jsonb column that holds `{"value":"s1"}` then compared that
-# whole object to the bare string `"s1"` and matched nothing, on every SQL
-# engine, while Memory (which coerces through the chapter) answered correctly.
-#
-# The expectations are hand-computed, as in the agreement spec, so three
-# engines sharing one bug cannot agree their way to green.
+# Why this gate exists: query_agreement_spec.rb cannot see a value object a sibling aggregate
+# declares. A builder that resolves types on the aggregate alone reads the jsonb column as text,
+# so a `where` comparing `{"value":"s1"}` to `"s1"` matches nothing on every SQL engine while
+# Memory answers correctly. Expectations are hand-computed so engines sharing one bug cannot
+# agree their way to green.
 RSpec.describe "a query over a value object a sibling aggregate declares", :io do
   SIBLING_VO_DB       = "hecks_sibling_vo_spec".freeze
   SIBLING_VO_PLAIN_DB = "hecks_sibling_vo_spec_plain".freeze

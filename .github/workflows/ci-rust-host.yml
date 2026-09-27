@@ -1,52 +1,29 @@
 name: CI rust host (reusable)
 
-# REUSABLE-WORKFLOW SPLIT OF ci.yml, group 3 (part 4 of 4) — see
-# ci-rust-io.yml's own header for the full split rationale. This file
-# holds only `rspec_rust_host`, the required-status-check job.
+# Reusable workflow holding the required-status-check jobs for rust/host.
+# Split rationale is in ci-rust-io.yml.
 
 on:
   workflow_call:
 
 jobs:
-  # rust/host/ ("mint_harness"/"lineage_harness") — the fourth
-  # independent Cargo project, and the ONLY one of the four that needs
-  # Postgres: rust_host_lineage_conformance_spec.rb mints across a real
-  # era boundary against its own scratch database
-  # (`rust_host_lineage_pizzas_#{suffix}`, created and dropped by the
-  # spec itself — it never touches the shared `hecks_pizzas` database,
-  # so no separate provisioning step is needed here either).
+  # rust/host/ is the only Cargo project here that needs Postgres. The lineage spec
+  # mints across a real era boundary in its own scratch database, created and
+  # dropped by the spec, so no provisioning step is needed.
   #
-  # SPLIT INTO TWO JOBS, NOT ONE — 2026-09-18. `cargo test` and the
-  # rspec lineage spec used to run serially in one job (5m36s in a real
-  # run: 89s building wasm, 130s cargo test, 73s rspec), making this the
-  # tied-longest job in the whole pipeline. They have no real dependency
-  # on each other: the rspec spec builds its OWN `lineage_harness`
-  # binary independently (memoized in its own before(:all)-equivalent,
-  # same pattern as parser/codegen) and never reads anything `cargo
-  # test` produces. Confirmed by reading rust/host/src/bin/
-  # lineage_harness.rs directly — no reference to `rust/dist/*.wasm`
-  # anywhere, so it needs neither the wasm-toolchain setup nor the wasm
-  # build step below, only Postgres and a plain native `cargo build`.
-  # Isolation is real on both sides, not assumed: rust/host/src/
-  # dispatch.rs's own `#[cfg(test)] mod tests` creates a uniquely-named
-  # throwaway database per test ("so `cargo test`'s default parallelism
-  # doesn't race two tests against the same journal table" — its own
-  # comment), and the rspec spec does the identical thing with its own
-  # `SecureRandom.hex(4)`-suffixed scratch database/roles — so running
-  # both concurrently on separate runners, each against its own
-  # Postgres instance, has no collision surface at all.
+  # Two jobs so `cargo test` and the rspec lineage spec run in parallel: the spec
+  # builds its own `lineage_harness` binary and needs neither the wasm build nor
+  # anything `cargo test` produces. Each job's tests use uniquely named scratch
+  # databases, so they cannot collide.
   #
-  # `rspec_rust_host_cargo` keeps the wasm build (the ONLY consumer of
-  # it) and `Create a superuser role` (only `cargo test`'s raw
-  # `tokio_postgres` connections bypass libpq's PG* env vars and need
-  # it — the rspec leg below connects via the `pg` gem, which already
-  # honors PGUSER/PGPASSWORD). `rspec_rust_host_lineage` drops both.
+  # Only the cargo job needs the wasm build and the superuser role: `cargo test`
+  # connects with tokio_postgres, which ignores PG* env vars, while the spec
+  # connects through the `pg` gem, which honors them.
   rspec_rust_host_cargo:
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
-    # See `rspec` job's own comment in ci.yml — cache-warming push doesn't
-    # need this job.
+    # The cache-warming push run does not need this job.
     if: github.event_name != 'push'
 
     env:
@@ -58,8 +35,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-ruby
 
-      # PREINSTALLED + TUNED, NOT A `services:` CONTAINER — Phase 5 of
-      # the CI speed effort; see the action's own header.
+      # Preinstalled Postgres rather than a `services:` container; see the action header.
       - uses: ./.github/actions/postgres
 
       - uses: ./.github/actions/cargo-cache
@@ -67,11 +43,8 @@ jobs:
           name: host
           crate-root: rust/host
 
-      # rust/host's own `cargo test` dispatches against two compiled
-      # domains: rust/dist/banking.wasm (dispatch.rs) and
-      # rust/dist/checkout_fixture.wasm (web.rs's checkout routes, from
-      # spec/fixtures/rust_host/checkout_fixture). rust/dist is
-      # gitignored, so build both here.
+      # `cargo test` dispatches against banking.wasm and checkout_fixture.wasm.
+      # rust/dist is gitignored, so build both here.
       - uses: ./.github/actions/wasm-toolchain
 
       - name: Build banking + checkout_fixture wasm
@@ -83,16 +56,12 @@ jobs:
           git checkout -- rust/src/generated rust/Cargo.toml
           git clean -fdq rust/src/generated
 
-      # rust/host's Postgres tests connect with tokio_postgres, which
-      # ignores libpq's PG* env vars and logs in as the OS user (a
-      # superuser on a dev machine). Give the runner user the same role;
-      # the action already trusts loopback TCP, so no password needed.
+      # tokio_postgres logs in as the OS user, so give the runner user a superuser
+      # role; the postgres action already trusts loopback TCP.
       - name: Create a superuser role for the runner user
         run: sudo -u postgres psql -c "CREATE ROLE \"$(whoami)\" SUPERUSER LOGIN"
 
-      # `bundle exec` so the lineage tests' Ruby mint fixtures
-      # (tests/fixtures/*.rb, spawned as plain `ruby`) inherit
-      # RUBYOPT=-rbundler/setup and can load `pg`.
+      # `bundle exec` lets the Ruby mint fixtures (spawned as plain `ruby`) load `pg`.
       - name: "cargo test (rust/host)"
         run: cd rust/host && bundle exec cargo test
 
@@ -113,11 +82,7 @@ jobs:
 
       - uses: ./.github/actions/postgres
 
-      # Same cache, same crate-root as the cargo leg above — this leg
-      # only needs it to build the `lineage_harness` binary the spec
-      # itself compiles on first use; no wasm-toolchain, no wasm build,
-      # no superuser role (see the header comment above for why neither
-      # is needed here).
+      # Same cache as the cargo job; only needed to build `lineage_harness`.
       - uses: ./.github/actions/cargo-cache
         with:
           name: host

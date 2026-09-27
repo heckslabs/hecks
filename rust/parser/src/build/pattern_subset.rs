@@ -1,31 +1,12 @@
-//! Mirrors `Hecks::Bluebook::PatternSubset`
-//! (`lib/hecks/bluebook/pattern_subset.rb`) — which regexes a
-//! bluebook may say in `attribute ..., pattern: ...`. A declared pattern
-//! is a fact carried in the bluebook, not Ruby code, so it must not lean
-//! on what any one engine happens to accept: backreferences/lookaround/
-//! atomic groups/possessive quantifiers can't be matched in linear time
-//! and portable engines refuse them outright; perl (`\d`/`\w`/`\s`) and
-//! POSIX (`[:digit:]`) character classes are the dangerous half — every
-//! engine parses them, but ASCII in some and Unicode in others, so
-//! nothing ever errors and two adapters silently disagree. `refuse_
-//! unshared_pattern` (`attribute_collector.rb`) calls this at
-//! declaration time, and `attribute`'s own row is what this parser has to
-//! refuse the same way — confirmed real by banking.bluebook's own
-//! `EmailAddress` value object, whose own comment names exactly this
-//! module as the reason its pattern is spelled with explicit ranges
-//! (`[^@ ]`) rather than `\S`.
-//!
-//! A character walk, deliberately plain, mirroring Ruby's own line for
-//! line — the subset is defined by this walk, not by handing the pattern
-//! to a real regex engine and asking what it thinks.
+//! The regex subset a bluebook `pattern:` may use (mirrors `Hecks::Bluebook::PatternSubset`).
+//! Engines disagree on backreferences, lookaround and `\d`/POSIX classes, so they are refused.
 
 pub struct Rejection {
     pub construct: &'static str,
     pub reason: &'static str,
 }
 
-/// `PatternSubset.validate` — `None` when the pattern is admitted, a
-/// `Rejection` naming the construct and why when it is not.
+/// `None` when the pattern is in the portable subset, else a `Rejection` naming the construct.
 pub fn validate(pattern: &str) -> Option<Rejection> {
     let chars: Vec<char> = pattern.chars().collect();
     let mut index = 0usize;
@@ -174,9 +155,7 @@ mod tests {
 
     #[test]
     fn treats_an_escaped_construct_as_a_literal() {
-        // `\(\?=` is the three characters "(?=" and says nothing about
-        // lookahead — Ruby's own doc comment on `validate` names this
-        // exact case.
+        // `\(\?=` is the literal text "(?=", not a lookahead.
         assert!(validate(r"\(\?=").is_none());
     }
 }

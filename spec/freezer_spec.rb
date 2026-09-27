@@ -2,15 +2,8 @@ require "spec_helper"
 
 # What the domain freezes, asserted against a real dispatch.
 #
-# Freezing has been fixed four times in four places — list attributes,
-# the event log, query rows, value objects — and each fix topped the
-# container and left the contents. `.freeze` on a Hash stops a key being
-# added or removed and nothing else, so a caller reaches through and
-# edits in place. Every one of those fixes looked complete.
-#
-# So this asks the question of a real result rather than a constructed
-# one, and asks it about the whole reachable graph rather than the object
-# on top.
+# `.freeze` on a Hash leaves its contents editable, so each example walks the
+# whole reachable graph of a real result rather than only its top object.
 RSpec.describe Hecks::Freezer do
   describe "the walk itself" do
     it "sees through a container that is frozen on top" do
@@ -22,8 +15,7 @@ RSpec.describe Hecks::Freezer do
     end
 
     it "names the PATH to the first mutable thing, not merely that there is one" do
-      # Frozen on top, mutable two levels down — the exact shape every
-      # one of the four previous fixes left behind.
+      # frozen on top, mutable two levels down
       nested = { order: { pizzas: [{ name: +"m" }].freeze }.freeze }.freeze
 
       expect(described_class.unfrozen_within(nested)).to eq("order.pizzas.0")
@@ -41,8 +33,7 @@ RSpec.describe Hecks::Freezer do
       expect(list).to all(be_frozen)
     end
 
-    # Immediates answer `frozen?` truthfully, but the walk should not
-    # depend on that being true in every Ruby.
+    # The walk must not rely on immediates answering `frozen?` in every Ruby.
     it "treats immediates as already immune" do
       [nil, true, false, 1, 2.0, :sym].each do |held|
         expect(described_class.deeply_frozen?(held)).to be true
@@ -58,12 +49,8 @@ RSpec.describe Hecks::Freezer do
                             pizza: { price_cents: { cents: 500 }, size: { value: "small" } })
     end
 
-    # **The bug this exists for**. `@fields.freeze` left the String inside a
-    # value object mutable, so `vo[:value] << "!"` edited it in place —
-    # demonstrated on a real dispatch, not supposed.
-    # Asserted on the value object's own fields, not on `to_h` — that
-    # answers a fresh hash by design, so its mutability says nothing
-    # about the value it came from.
+    # Regression: `@fields.freeze` left the String inside mutable. Asserted on
+    # `@fields`, not `to_h`, which answers a fresh hash.
     it "is frozen through, not merely on top" do
       name = result.instance.state[:name]
 
@@ -77,8 +64,7 @@ RSpec.describe Hecks::Freezer do
       expect { name[:value] << " MUTATED" }.to raise_error(FrozenError)
     end
 
-    # A value object has no identity to change over, so the immutable
-    # answer is a new one — which must itself be frozen through.
+    # The new value object must itself be frozen through.
     it "answers a frozen value object from `with`" do
       grown = result.instance.state[:name].with(:value, "Napoli")
 
@@ -96,8 +82,7 @@ RSpec.describe Hecks::Freezer do
       runtime.events.last
     end
 
-    # The domain fact the event carries. Freezing the payload Hash alone
-    # would leave every value in it editable in place.
+    # Freezing the payload Hash alone would leave its values editable.
     it "carries a payload frozen through" do
       expect(described_class.unfrozen_within(event.payload)).to be_nil
     end
@@ -107,17 +92,13 @@ RSpec.describe Hecks::Freezer do
       expect { event.payload["forged"] = 1 }.to raise_error(FrozenError)
     end
 
-    # The event itself, not merely its payload. This could not be
-    # asserted while correlation was merged onto already-emitted events;
-    # it is set at construction now, because correlation is part of the
-    # transaction and known before anything is emitted.
+    # The event itself, not only its payload; correlation is set at construction.
     it "is frozen once it exists" do
       expect(event).to be_frozen
       expect { event.name = "Forged" }.to raise_error(FrozenError)
     end
 
-    # The log is not the events. New events are still recorded; it is
-    # each one that stops changing.
+    # The log stays appendable; only each event stops changing.
     it "leaves the log itself appendable" do
       before = runtime.events.size
       runtime.dispatch_flat("Pizzas::Order.CreatePizza",
@@ -128,9 +109,7 @@ RSpec.describe Hecks::Freezer do
     end
   end
 
-  # The walk, pointed at a real dispatch. These are the three the QA
-  # branch fixed and never landed — found by pointing `unfrozen_within`
-  # at a booted domain rather than by reasoning about which paths exist.
+  # `unfrozen_within` pointed at a booted domain rather than at hand-built values.
   describe "collections the domain hands back" do
     let(:runtime) do
       rt = boot_in_memory
@@ -156,8 +135,7 @@ RSpec.describe Hecks::Freezer do
       expect(described_class.unfrozen_within(rows)).to be_nil
     end
 
-    # Every value on a hydrated record, rather than the record's own
-    # state holder — that stays mutable so a command can change it.
+    # Each value, not the state holder, which stays mutable for commands.
     it "freezes every value read back out of the store" do
       state = repository.find("Frozen").state
 
@@ -165,9 +143,7 @@ RSpec.describe Hecks::Freezer do
     end
   end
 
-  # Not everything is frozen, and the exceptions are the point rather
-  # than an oversight — a policy that froze the instance's own state
-  # would refuse every command that changes anything.
+  # Freezing an instance's own state would refuse every command that changes it.
   describe "what is deliberately NOT frozen" do
     it "leaves an instance's state holder mutable, since a command's job is to change it" do
       runtime = boot_in_memory

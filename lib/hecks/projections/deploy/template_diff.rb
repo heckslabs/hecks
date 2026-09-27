@@ -5,39 +5,13 @@ require_relative "template_diff/comparer"
 module Hecks
   module Projections
     module Deploy
-      # An offline comparison of two CloudFormation templates.
-      #
-      # It answers "what would change if this template replaced that one"
-      # from the two files alone, the offline half of checking that a
-      # generated template leaves a live stack untouched: when the generated
-      # template and the one already deployed differ in nothing but comments,
-      # ordering and spelling, a change set against the live stack should be
-      # empty too. It reads no AWS state and changes nothing.
-      #
-      # ## What it reports
-      #
-      # Resources, parameters, outputs, conditions and mappings that were
-      # added, removed or changed, by logical id, and for a changed one every
-      # property that differs, with the value before and after. Other
-      # top-level keys, such as `Description`, are compared as values.
-      # Comments and the order of keys do not count, and the short and long
-      # forms of an intrinsic (`!Ref Name`, `{"Ref": "Name"}`) are the same
-      # thing. A change to a resource's `Type` is marked as a replacement.
-      # Differences that are only in how a value is written are marked
-      # cosmetic and do not count as a difference unless `strict` is set.
-      #
-      # ## What it does not do
-      #
-      # It does not know which property changes CloudFormation applies in
-      # place and which replace the resource beyond a change of `Type`, so a
-      # changed immutable property is listed as a change, not flagged.
+      # An offline diff of two CloudFormation templates: what would change if one replaced
+      # the other, ignoring comments, key order and equivalent intrinsic spellings.
       module TemplateDiff
         module_function
 
         Report = Struct.new(:sections, :strict, keyword_init: true) do
-          # Tells whether the two templates differ in a way that counts.
-          #
-          # @return [Boolean] false when every difference is cosmetic and the report is not strict
+          # False when every difference is cosmetic and the report is not strict.
           def different?
             sections.any? do |name, diff|
               if name == "Template"
@@ -48,32 +22,13 @@ module Hecks
             end
           end
 
-          # Keeps the changes that count towards a difference.
-          #
-          # @param changes [Array<Comparer::Change>] the changes to filter
-          # @return [Array<Comparer::Change>] every change, or only the non-cosmetic ones unless
-          #   strict
           def counted(changes) = strict ? changes : changes.reject(&:cosmetic)
         end
 
-        # Compares two template texts.
-        #
-        # @param before [String] the first template, YAML
-        # @param after [String] the second template, YAML
-        # @param strict [Boolean] whether cosmetic differences count as differences
-        # @return [Report] the differences, by section
-        # @raise [ArgumentError] if either text is not a valid template
         def diff(before, after, strict: false)
           Report.new(sections: Comparer.compare(Loader.load(before), Loader.load(after)), strict: strict)
         end
 
-        # Compares two template files.
-        #
-        # @param before_path [String] the path of the first template
-        # @param after_path [String] the path of the template to compare it with
-        # @param strict [Boolean] whether cosmetic differences count as differences
-        # @return [Report] the differences, by section
-        # @raise [ArgumentError] if either file is missing or is not a valid template
         def diff_files(before_path, after_path, strict: false)
           Report.new(
             sections: Comparer.compare(Loader.load_file(before_path), Loader.load_file(after_path)),
@@ -81,11 +36,7 @@ module Hecks
           )
         end
 
-        # Writes a report as text for a person to read.
-        #
-        # @param report [Report] the differences to describe
-        # @return [String] one section per kind of entity, each entity on a `+`, `-` or `~` line,
-        #   or `no differences` when nothing differs
+        # One line per entity: `+` added, `-` removed, `~` changed; `no differences` when none.
         def render(report)
           lines = report.sections.flat_map do |name, diff|
             name == "Template" ? template_lines(report, diff) : section_lines(report, name, diff)
@@ -96,10 +47,7 @@ module Hecks
           "#{(lines + note).join("\n")}\n"
         end
 
-        # Writes a report as JSON for a program to read.
-        #
-        # @param report [Report] the differences to describe
-        # @return [String] a JSON document with `different` and one entry per section
+        # Top-level keys: `different` and one entry per section.
         def render_json(report)
           sections = report.sections.to_h do |name, diff|
             [name, name == "Template" ? diff.map { |change| change_hash(change) } : section_hash(diff)]

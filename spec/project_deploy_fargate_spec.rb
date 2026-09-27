@@ -3,12 +3,8 @@ require "fileutils"
 require "open3"
 require "yaml"
 
-# End-to-end coverage for the `deployed_to("AwsFargate")` path —
-# `Hecks::Projections::Deploy::Fargate`, dispatched to through
-# `bin/project_deploy` the same way `spec/project_deploy_contract_spec.rb`
-# exercises the `AwsLambda` path. Mirrors that spec's own fixture style: a
-# scratch domain built under a tmpdir, generated for real through the CLI,
-# read back off disk.
+# End-to-end coverage for the `deployed_to("AwsFargate")` path: a scratch
+# domain built under a tmpdir, generated for real through the CLI, read back off disk.
 RSpec.describe "bin/project_deploy — deployed_to(\"AwsFargate\")", :io do
   FARGATE_FIXTURE_BASENAME = "project_deploy_fargate_spec_fixture".freeze
 
@@ -17,9 +13,7 @@ RSpec.describe "bin/project_deploy — deployed_to(\"AwsFargate\")", :io do
   end
 
   # Runs `bin/project_deploy` for real against a scratch domain declaring
-  # `world_body`, and answers its raw stdout/stderr/status — the one place
-  # both `generate` (the success path) and the refusal test below build a
-  # fixture domain from.
+  # `world_body`; both `generate` and the refusal test below build fixtures from this.
   def run_project_deploy(world_body)
     root = File.expand_path("..", __dir__)
     FileUtils.rm_rf(generated_dir)
@@ -103,11 +97,8 @@ RSpec.describe "bin/project_deploy — deployed_to(\"AwsFargate\")", :io do
 
     expect(distribution).not_to be_nil
     behavior = distribution["Properties"]["DistributionConfig"]["DefaultCacheBehavior"]
-    # Managed-CachingDisabled/Managed-AllViewer — the safe default this
-    # generator has no way to reason its way past; fargate.rb's own
-    # CloudFront resource comment has the full reasoning (a hand-authored
-    # stack that loosened this, a client project's, 2026-09-21, served one
-    # signed-in session's own response to a different request).
+    # Pinned deliberately: loosening this policy pair once leaked one
+    # signed-in session's cached response to a different visitor.
     expect(behavior["CachePolicyId"]).to eq("4135ea2d-6df8-44a3-9df3-4b5a84be39ad")
     expect(behavior["OriginRequestPolicyId"]).to eq("216adef6-5c7f-47e4-b989-5492eafa07d3")
     expect(doc["Outputs"]).to have_key("CloudFrontDomain")
@@ -119,10 +110,9 @@ RSpec.describe "bin/project_deploy — deployed_to(\"AwsFargate\")", :io do
     _name, alb_sg = doc["Resources"].find { |name, _resource| name.end_with?("AlbSecurityGroup") }
     rule = alb_sg["Properties"]["SecurityGroupIngress"].first
 
-    # pl-3b927c52 — com.amazonaws.global.cloudfront.origin-facing. A
-    # CachingDisabled distribution in front of an ALB that's still open
-    # on 0.0.0.0/0 protects nothing: anyone can bypass it and hit the
-    # plain-HTTP origin directly.
+    # pl-3b927c52 = CloudFront's origin-facing prefix list. A CachingDisabled
+    # distribution in front of an ALB still open on 0.0.0.0/0 protects
+    # nothing — anyone can bypass it and hit the plain-HTTP origin directly.
     expect(rule["SourcePrefixListId"]).to eq("pl-3b927c52")
     expect(rule).not_to have_key("CidrIp")
   end
@@ -243,11 +233,9 @@ RSpec.describe "bin/project_deploy — deployed_to(\"AwsFargate\")", :io do
     FileUtils.rm_rf(generated_dir)
   end
 
-  # No RSpec `skip` when the tool is absent — spec/support/ci_skip_backstop.rb
-  # fails the suite in CI over an unrouted `skip`, and no CI job here
-  # installs cfn-lint. A plain early return leaves this example green
-  # either way: it asserts something real when the tool exists, and
-  # asserts nothing (never a false failure) when it does not.
+  # No RSpec `skip`: spec/support/ci_skip_backstop.rb fails the suite in CI
+  # over an unrouted skip, and no CI job here installs cfn-lint. A plain
+  # early return stays green either way, asserting nothing when the tool is absent.
   it "lints clean with cfn-lint, when it is installed" do
     next if `which cfn-lint`.strip.empty?
 

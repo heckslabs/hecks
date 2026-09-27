@@ -3,21 +3,8 @@ require "hecks/ports/persistence/plugins/era"
 require "tempfile"
 require_relative "../../../support/postgres_probe"
 
-# Phase 2 of docs/implemented/postgres-era-adapter-split-plan.md: the validation spec
-# for Track C (field_cache.rb + resumable_backfill.rb + the retrofitted
-# backfill_head_snapshot!). Proves the three things the plan doc requires,
-# against a real throwaway Postgres database, never the dev database —
-# same pattern every other real-Postgres spec here already uses
-# (support/postgres_probe.rb):
-#
-#   1. cache-table correctness, both before and after a mint
-#   2. backfill resumability under a simulated crash/restart
-#   3. genuine non-blocking-ness — a concurrent write succeeds while a
-#      backfill is mid-scan
-#
-# A toy aggregate, purpose-built for this — not routed through Payments
-# (~/Projects/junkdrawer/payments), which stays on Heki by its own
-# explicit design; this proves a framework capability, not a real domain.
+# Field cache and resumable backfill against a throwaway Postgres database:
+# correctness before and after a mint, crash resumability, and non-blocking writes.
 RSpec.describe "PostgresEra field cache — Track C validation", :io do
   FIELD_CACHE_DB = "hecks_field_cache_spec".freeze
   FIELD_CACHE_OWNER = "hecks_field_cache_owner".freeze
@@ -56,17 +43,8 @@ RSpec.describe "PostgresEra field cache — Track C validation", :io do
     end
   BLUEBOOK
 
-  # A real shape drift — Track C must keep working across a mint, not
-  # merely before one. `status`/`price` survive untouched on purpose: the
-  # same two declared queries above still apply after the rename, so this
-  # proves cache tables carry the id through a rekey-free mint correctly.
-  # A real shape drift — the aggregate's own name changes (Widget ->
-  # Item), which alone is enough to mint a new era (StorageShape's own
-  # projection carries the aggregate's identity), while every attribute
-  # stays byte-for-byte the same. Deliberately the smallest possible
-  # diff: this test is about proving Track C's cache tables survive a
-  # mint correctly, not about exercising the translation DSL's rename/
-  # move/convert/drop machinery — that's lineage_spec.rb's own job.
+  # The smallest shape drift that mints an era: the aggregate is renamed (Widget -> Item)
+  # and every attribute is unchanged, so the same queries still apply after the mint.
   FIELD_CACHE_V2_SOURCE = <<~BLUEBOOK.freeze
     Hecks.bluebook "Cache" do
       aggregate "Item" do
@@ -106,10 +84,7 @@ RSpec.describe "PostgresEra field cache — Track C validation", :io do
 
   def label_of(source) = hash_of(source)[0, 6]
 
-  # `from:`/`to:` are era labels (the first 6 hex chars of the minted
-  # shape hash), not raw source text — same convention lineage_spec.rb's
-  # own `edge_source(from:, to:)` uses (see its "mints era 2..." example).
-  # An empty body — nothing to explain, since no attribute changed.
+  # `from:`/`to:` are era labels (first 6 hex chars of the minted shape hash).
   def edge_source
     <<~RUBY
       Hecks.data_translation("Cache", from: #{label_of(FIELD_CACHE_V1_SOURCE).inspect}, to: #{label_of(FIELD_CACHE_V2_SOURCE).inspect}) do
@@ -190,23 +165,12 @@ RSpec.describe "PostgresEra field cache — Track C validation", :io do
     registry.bluebooks.values.first.aggregate(aggregate_name).queries.find { |q| q.name == query_name }
   end
 
-  # The real helper, not a second, hand-rolled copy of its hash — a
-  # hand-rolled copy of `Lineage#field_cache`'s own
-  # `Digest::SHA256.hexdigest(...)`, storage_name-only, would silently
-  # go out of sync the moment `field_cache` folds `@domain` into that
-  # hash (docs/decisions/0059: the same cross-domain storage_name
-  # collision `head_view`/`head_snapshot`/`matview` were fixed for
-  # also applies here, a fourth, differently-shaped relation family).
-  # Every real call site in this file is domain "Cache" (see
-  # `adapter_for`'s own `domain: "Cache"`) — calling through the real
-  # method rather than reconstructing it independently is what makes
-  # this impossible to drift out of sync again.
+  # Calls `Lineage#field_cache` rather than re-deriving the table name, which
+  # would drift when the name hash changes (ADR 0059).
   def field_cache_table(db, storage_name, era, field)
     name = Hecks::Adapters::PostgresEra::Lineage.new(db, "Cache").field_cache(storage_name, era, field)
     db.exec_params("SELECT to_regclass($1) IS NOT NULL AS present", [name])[0]["present"] == "t" ? name : nil
   end
-
-  # ── 1. cache-table correctness, before the mint ──────────────────────
 
   it "answers a declared where query correctly through the field cache, before any mint" do
     registry = check!(FIELD_CACHE_V1_SOURCE)
@@ -252,8 +216,6 @@ RSpec.describe "PostgresEra field cache — Track C validation", :io do
     expect(adapter.query(declared_query(registry, "Widget", "ByStatus")).map(&:id)).to eq([])
   end
 
-  # ── 2. cache-table correctness, after the mint ───────────────────────
-
   it "answers the same declared query correctly after a real era mint" do
     registry = check!(FIELD_CACHE_V1_SOURCE)
     aggregate1 = registry.bluebooks.values.first.aggregate("Widget")
@@ -265,10 +227,7 @@ RSpec.describe "PostgresEra field cache — Track C validation", :io do
     aggregate2 = registry2.bluebooks.values.first.aggregate("Item")
     adapter2 = adapter_for(registry2, "Item", era: 2)
 
-    # w1/w2 survive the rename untranslated in shape (status/price
-    # untouched) — the ancestor side of the field-cache backfill (Track
-    # C's own union of matview + this era's own snapshot) is what has to
-    # get this right; nothing wrote w1/w2 in era 2 yet.
+    # nothing wrote w1/w2 in era 2 yet, so the ancestor side of the backfill must supply them
     ids = adapter2.query(declared_query(registry2, "Item", "ByStatus")).map(&:id)
     expect(ids).to contain_exactly("w1")
 
@@ -290,10 +249,7 @@ RSpec.describe "PostgresEra field cache — Track C validation", :io do
     db.exec("DROP TABLE #{PG::Connection.quote_ident(name)}")
     db.exec("DELETE FROM hecks_backfill_progress WHERE target = '#{name}'")
 
-    # A fresh adapter instance re-derives the same cache table name and
-    # must self-heal it — create, then a full chunked backfill sourced
-    # from the current head, not an empty table silently matching
-    # nothing.
+    # a fresh adapter must recreate the table and backfill it from the current head
     adapter2 = adapter_for(registry, "Widget")
     ids = adapter2.query(declared_query(registry, "Widget", "ByStatus")).map(&:id)
     expect(ids).to contain_exactly("w1", "w2")
@@ -301,14 +257,8 @@ RSpec.describe "PostgresEra field cache — Track C validation", :io do
     db&.close
   end
 
-  # ── 3. backfill resumability under a simulated crash/restart ─────────
-
-  # One scenario: simulate a mid-scan crash, check the partial state it
-  # leaves behind, then resume and check it completes correctly from
-  # the persisted cursor rather than rescanning. The resume assertions
-  # only mean something read against that specific partial state, so
-  # splitting would either re-pay the crash simulation or silently
-  # drop the "picks up where it left off" claim.
+  # One scenario: the resume assertions only mean something against the partial
+  # state the simulated crash leaves, so splitting would re-pay the crash setup.
   # rubocop:disable-next RSpec/ExampleLength
   it "resumes a backfill from its persisted cursor after a simulated crash mid-scan" do
     registry = check!(FIELD_CACHE_V1_SOURCE)
@@ -344,9 +294,7 @@ RSpec.describe "PostgresEra field cache — Track C validation", :io do
     expect(partial_count).to be > 0
     expect(partial_count).to be < 10
 
-    # Resume, unstubbed — must pick up from the persisted cursor, not
-    # rescan/redo the chunks the first attempt already committed, and
-    # must reach full, correct coverage.
+    # resume unstubbed: continues from the persisted cursor to full coverage
     fresh_lineage = Hecks::Adapters::PostgresEra::Lineage.new(
       adapter.instance_variable_get(:@db), "Cache"
     )
@@ -358,13 +306,8 @@ RSpec.describe "PostgresEra field cache — Track C validation", :io do
     db&.close
   end
 
-  # ── 4. genuine non-blocking-ness ──────────────────────────────────────
-
-  # A single concurrency proof: a slow-chunk backfill on one thread, a
-  # live write on a separate connection timed to land mid-scan, and a
-  # wall-clock assertion the write wasn't blocked. Splitting the setup
-  # from the timing assertion would leave neither half provable on its
-  # own.
+  # One concurrency proof: a slow backfill, a write landing mid-scan, and a
+  # wall-clock bound; the setup and the timing assertion cannot be split.
   # rubocop:disable-next RSpec/ExampleLength
   it "lets a concurrent plain write through while a backfill is mid-scan" do
     registry = check!(FIELD_CACHE_V1_SOURCE)
@@ -385,9 +328,7 @@ RSpec.describe "PostgresEra field cache — Track C validation", :io do
     lineage = Hecks::Adapters::PostgresEra::Lineage.new(backfill_db, "Cache")
     expression = "state #>> ARRAY['status']::text[]"
 
-    # A slow chunk callback — long enough that, if any lock were held
-    # across it, a concurrent writer on a separate connection would
-    # visibly stall behind it.
+    # slow enough that a lock held across a chunk would visibly stall the writer
     original = lineage.method(:upsert_field_cache_rows!)
     allow(lineage).to receive(:upsert_field_cache_rows!) do |*args|
       sleep 0.3

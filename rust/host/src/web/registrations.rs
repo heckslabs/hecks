@@ -10,34 +10,23 @@ use std::path::Path;
 use tokio::sync::Mutex;
 use tokio_postgres::Client;
 
-// ---- registrations, events and checkout: /events, /registrations, /webhooks/stripe ----
-// The Event and Registration names are fixed here rather than read from the
-// IR (see `render`'s gate comment and checkout.rs's header). The routes were
-// ported from the first consuming domain's Ruby HTTP adapter, with the same
-// paths, status codes and dispatch order.
+// Routes for /events, /registrations and /webhooks/stripe. Event and
+// Registration names are fixed here rather than read from the IR.
 
-/// Whether the checkout routes are on: `configured` (`HECKS_CHECKOUT_DOMAIN`)
-/// must be set and name exactly `domain`. Pure and separately unit-tested from
-/// the env read in `render`, the same split `membership_aggregate` and
-/// `resolve_membership_aggregate` use in auth.rs. Exact match, not merely
-/// "set": a deploy whose `HECKS_DOMAIN` disagrees with `HECKS_CHECKOUT_DOMAIN`
-/// would otherwise dispatch `<wrong domain>::Registration.Request` and refuse
-/// every registration.
+/// Whether checkout is on: `configured` must be set and equal `domain`
+/// exactly — a mismatch would dispatch the wrong domain's Registration.Request.
 pub(crate) fn checkout_enabled(configured: Option<&str>, domain: &str) -> bool {
     configured.is_some_and(|c| !c.is_empty() && c == domain)
 }
 
-// The fixed, publicly-known, non-secret mock webhook secret. It verifies a
-// webhook only while STRIPE_WEBHOOK_SECRET is unset, so a mock deploy needs no
-// webhook secret configured to be exercisable end to end; `webhook_route`
-// refuses anything that could only come from a real processor when a
-// webhook was verified against it.
+// Fixed, publicly-known, non-secret mock webhook secret; used only while
+// STRIPE_WEBHOOK_SECRET is unset, so a mock deploy needs no secret to be
+// exercisable end to end.
 pub(crate) const MOCK_STRIPE_WEBHOOK_SECRET: &str = "whsec_mock_checkout_fixed";
 
-// The processor a Payment reports, as Payments::Payment.Initiate recorded it
-// ("mock_stripe" for the walkthrough, "stripe" for a real charge). Read off the
-// Payment itself rather than guessed from whatever is connected now: the
-// connection can change between a guest registering and the webhook arriving.
+// The processor a Payment reports, as Payment.Initiate recorded it. Read off
+// the Payment itself, not the connection now in effect — the connection can
+// change between a guest registering and the webhook arriving.
 fn payment_processor(read: &Value, payments: &PaymentsProvider, reference: &str) -> Option<String> {
     instances_for(read, &payments.instance_prefix())
         .into_iter()
@@ -45,21 +34,8 @@ fn payment_processor(read: &Value, payments: &PaymentsProvider, reference: &str)
         .and_then(|(_, payment)| payment.get("processor").and_then(|p| p.get("value")).and_then(|v| v.as_str()).map(String::from))
 }
 
-// The Payment statuses whose registration still holds a seat: an open checkout
-// (`pending`), a paid registration (`succeeded`), and the two states a paid
-// registration passes through without the money leaving for good (`refunding`,
-// which returns to `succeeded` if the refund is declined, and `disputed`).
-// `failed` (declined or expired), `refunded` and `charged_back` give the seat
-// back. A partial refund leaves the Payment `succeeded`, so that registration
-// keeps its seat until it can be cancelled itself.
-//
-// The rule as a whole: a registration holds a seat iff its Payment status is in
-// this list AND the registration is not archived. A registration with no
-// Payment holds nothing. Archiving is the registration's own lifecycle
-// (`status`, "archived"), independent of the money: it frees the seat whatever
-// the Payment says, and restoring it takes the seat back. A registration with
-// no `status` at all counts as active, which keeps the rule inert for a domain
-// whose Registration has no lifecycle and for data written before one existed.
+/// Payment statuses whose registration still holds a seat. A registration
+/// with no Payment, or one that's archived, holds none regardless of status.
 const SEAT_HOLDING_PAYMENT_STATUSES: [&str; 4] = ["pending", "succeeded", "refunding", "disputed"];
 
 /// The Registration lifecycle state that gives its seat back.
@@ -79,9 +55,8 @@ fn plain_id(raw: Option<&Value>) -> Option<String> {
     value.as_str().filter(|id| !id.is_empty()).map(String::from)
 }
 
-/// Seats used per event slug: the non-archived Registrations whose Payment (the
-/// same reference) is in a seat-holding status. A Registration with no Payment
-/// holds nothing, since no payment could ever settle it.
+/// Seats used per event slug: non-archived Registrations whose Payment (same
+/// reference) is in a seat-holding status.
 fn seat_counts(read: &Value, domain: &str, payments: &PaymentsProvider) -> std::collections::HashMap<String, usize> {
     let statuses: std::collections::HashMap<String, String> = instances_for(read, &payments.instance_prefix())
         .into_iter()
@@ -151,9 +126,8 @@ fn seats_path_slug(path: &str) -> Option<&str> {
     (!slug.is_empty() && !slug.contains('/')).then_some(slug)
 }
 
-/// GET /events/seats and GET /events/<slug>/seats: the seat rule as a read, so
-/// a site never has to count registrations itself. Public like
-/// GET /registrations/:id, and it exposes only counts.
+/// GET /events/seats and GET /events/<slug>/seats: the seat rule as a read,
+/// so a site never has to count registrations itself.
 async fn seats_route(path: &str, client: &Mutex<Client>, wasm_path: &Path, config: &LineageConfig, payments: &PaymentsProvider) -> Value {
     let read = match dispatch::read(client, wasm_path).await {
         Ok(r) => r,
@@ -174,11 +148,9 @@ fn unix_now() -> i64 {
 }
 
 #[allow(clippy::too_many_arguments)]
-// The checkout, registration-payment and webhook routes, served only when
-// the domain's IR declares `provides "payments"`: that declaration names the
-// verbs and the paying aggregate, so a domain (or a missing IR) that carries
-// none serves none of them. The IR is a parameter, not `ir()`, so the gate
-// can be tested with an IR that lacks the key.
+// Serves the checkout, registration-payment and webhook routes only when the
+// domain's IR declares `provides "payments"`. Takes the IR as a parameter,
+// not `ir()`, so the gate can be tested against one that lacks the key.
 #[allow(clippy::too_many_arguments)]
 pub(super) async fn payments_routes(
     domain_ir: Option<&Value>,
@@ -210,26 +182,16 @@ pub(super) async fn checkout_route(
         ("POST", "/registrations") => {
             Some(registrations_route(raw_body, &payments::PlatformConfig::load().await, client, wasm_path, config, invoker, payments).await)
         }
-        // GET /registrations/:id — read-only, re-derives the truth
-        // (the Ruby adapter's route comment: "never trust a client-held
-        // value") for the site's confirmation and pay pages, both of which
-        // fetch this server-to-server rather than trusting their own query
-        // string/URL. Health fields stay off this response the same way the
-        // Ruby route omits them — no read-gate/redaction exists here yet to
-        // let an authorized caller see them unmasked, so they're simply never
-        // serialized.
+        // GET /registrations/:id: read-only, re-derives state server-side
+        // for the confirmation and pay pages rather than trusting their own
+        // query string.
         ("GET", path) if path.starts_with("/registrations/") && !path.ends_with("/complete") => {
             let registration_id = path.trim_start_matches("/registrations/");
             Some(registration_show_route(registration_id, client, wasm_path, config, payments).await)
         }
-        // POST /registrations/:id/complete — the local checkout's own
-        // "Pay"/"Cancel" button on the site's pay page,
-        // refused for any Payment a real processor collected: the
-        // processor is read off the Payment itself, so this can only
-        // settle a payment that was started on the mock walkthrough.
-        // Settles the Payment through the SAME PaymentGateway port POST
-        // /webhooks/stripe uses — never a parallel, untested way to
-        // reach the same two states.
+        // POST /registrations/:id/complete: mock checkout's Pay/Cancel button,
+        // refused unless the Payment's own processor is "mock_stripe". Settles
+        // through the same PaymentGateway port as POST /webhooks/stripe.
         ("POST", path) if path.starts_with("/registrations/") && path.ends_with("/complete") => {
             let registration_id = path.trim_start_matches("/registrations/").trim_end_matches("/complete").trim_end_matches('/');
             Some(registration_complete_route(registration_id, raw_body, client, wasm_path, config, invoker, payments).await)
@@ -237,14 +199,9 @@ pub(super) async fn checkout_route(
         ("POST", "/webhooks/stripe") => {
             Some(webhook_route(raw_body, stripe_signature, &payments::PlatformConfig::load().await, client, wasm_path, config, invoker, payments).await)
         }
-        // POST /events — a separate mock-payments service driving in: puts a
-        // new session on the calendar whenever an editor picks a date on an
-        // experience with checkout on. Ported field-for-field from the Ruby
-        // adapter's POST /events. Idempotent on purpose, same reasoning as
-        // the Ruby route's own comment: the caller already guards against
-        // calling this twice for the same slug (its own Session ledger), but a driving endpoint
-        // shouldn't rely on every caller getting that right — Event.find
-        // first means a repeat call is a no-op, not a duplicate-id error.
+        // POST /events: a mock-payments service schedules a new session
+        // when an editor picks a date. Idempotent — Event.find first means
+        // a repeat call for the same slug is a no-op, not an error.
         ("GET", "/events/seats") => Some(seats_route(path, client, wasm_path, config, payments).await),
         ("GET", path) if seats_path_slug(path).is_some() => Some(seats_route(path, client, wasm_path, config, payments).await),
         ("POST", "/events") => Some(events_route(raw_body, client, wasm_path, config, invoker).await),
@@ -252,11 +209,8 @@ pub(super) async fn checkout_route(
     }
 }
 
-/// POST /events — see checkout_route's own match arm for the full
-/// reasoning. `config.domain`-qualified ("<domain>::Event.Schedule"),
-/// same as registrations_route's own `Registration.Request` — Event is
-/// this deploy's own top-level aggregate, never a vendored chapter like
-/// Payments/Newsletter.
+/// POST /events. Dispatches `<domain>::Event.Schedule` — Event is this
+/// deploy's own top-level aggregate, not a vendored chapter like Payments.
 async fn events_route(raw_body: &str, client: &Mutex<Client>, wasm_path: &Path, config: &LineageConfig, invoker: &dyn LambdaInvoker) -> Value {
     let body: Value = match serde_json::from_str(raw_body) {
         Ok(v) => v,
@@ -311,11 +265,8 @@ async fn events_route(raw_body: &str, client: &Mutex<Client>, wasm_path: &Path, 
     respond(201, "application/json", &serde_json::to_string_pretty(&with_id(slug, event)).unwrap_or_default())
 }
 
-/// GET /registrations/:id's own shape, ported field-for-field from
-/// the Ruby adapter's own route: event slug/name, attendee's own public
-/// fields, amount_cents and payment_status from the SAME-reference
-/// Payment (registrations_route's own header: registration_id IS the
-/// Payment's own reference, minted once).
+/// GET /registrations/:id: event and attendee fields, plus amount_cents and
+/// payment_status from the same-reference Payment.
 async fn registration_show_route(registration_id: &str, client: &Mutex<Client>, wasm_path: &Path, config: &LineageConfig, payments: &PaymentsProvider) -> Value {
     let read = match dispatch::read(client, wasm_path).await {
         Ok(r) => r,
@@ -350,13 +301,8 @@ async fn registration_show_route(registration_id: &str, client: &Mutex<Client>, 
     }).to_string())
 }
 
-/// POST /registrations/:id/complete — refused outright for any Payment that
-/// was not itself initiated on the mock processor ("mock_stripe"), same
-/// per-payment guard the Ruby adapter's own route carries. Settles the
-/// shared-reference Payment through the same PaymentGateway.Succeeded/Failed
-/// port webhook_route already dispatches through — a repeat call on an
-/// already-settled Payment is the same benign no-op webhook_route's own header
-/// already documents.
+/// POST /registrations/:id/complete. Refused unless the Payment itself was
+/// initiated on "mock_stripe"; settles through the same PaymentGateway port webhook_route uses.
 pub(crate) async fn registration_complete_route(
     registration_id: &str,
     raw_body: &str,
@@ -391,10 +337,9 @@ pub(crate) async fn registration_complete_route(
         _ => return respond(403, "application/json", &json!({"error": "not available with a real payment processor"}).to_string()),
     };
     let reported_processor = json!({"value": processor});
-    // `reference_to Payment, as: :reference` keeps the receiver field inside
-    // `with:` (routing.rs's own "Field Retention" comment) so the command's
-    // argument parser can still see it — `to:` alone isn't enough, the kernel
-    // still expects `reference` present in facts or it TypeMismatches.
+    // `reference_to Payment, as: :reference` keeps `reference` inside `with:`
+    // too — `to:` alone isn't enough, the argument parser still expects it
+    // present in facts or it TypeMismatches.
     let reference_fact = json!({"value": registration_id});
     let (verb, facts) = if outcome == "succeeded" {
         (
@@ -411,10 +356,9 @@ pub(crate) async fn registration_complete_route(
         Ok(o) => o,
         Err(e) => return respond(500, "text/plain", &format!("{e:#}")),
     };
-    // A repeat Succeeded/Failed through the same PaymentGateway port on
-    // an already-settled Payment is a silent no-op on Payment's own
-    // `given` (webhook_route's own header on this exact case) — not
-    // surfaced as a 422 here either, same reasoning.
+    // A repeat Succeeded/Failed on an already-settled Payment is a silent
+    // no-op on Payment's own `given`, so it isn't surfaced as a 422 here
+    // either.
     if !outcome_result.accepted {
         let refusal = last_refusal(&outcome_result.result);
         let already_settled = refusal.get("error").and_then(|v| v.as_str()).map(|s| s.contains("pending")).unwrap_or(false);
@@ -432,21 +376,10 @@ pub(crate) async fn registration_complete_route(
     respond(200, "application/json", &json!({"registration_id": registration_id, "payment_status": status}).to_string())
 }
 
-// Whatever shape a consuming domain's own `Attendee` value object
-// declares — this crate's own checkout glue is shared, generic
-// dispatch code (hardcoded rather than IR-driven, this module's own
-// "checkout glue" header), not specific to any one domain's Attendee
-// fields. An Attendee may be a bare `{name, email}` or a much wider
-// record (first_name, last_name, email, phone and several survey
-// fields), so `registrations_route` does not hardcode one shape.
-// Forwarding the caller's own submitted fields through verbatim,
-// whatever they are, means this route never needs to know any one
-// domain's Attendee shape — each domain's own generated
-// given/invariant checks are still the real validation, exactly as
-// they already were for `event_slug`/`registration_id` above.
-// `event_slug`/`return_to` are the only two fields definitely NOT part
-// of any Attendee (routing metadata this function itself consumes),
-// so those are the only ones stripped.
+// Attendee shape varies per domain, so this forwards the caller's fields
+// through verbatim rather than hardcoding one shape; each domain's own
+// given/invariant checks remain the real validation. Only `event_slug` and
+// `return_to` (routing metadata, never part of Attendee) are stripped.
 fn attendee_from(body: &Value) -> Value {
     let mut attendee = body.clone();
     if let Some(object) = attendee.as_object_mut() {
@@ -456,14 +389,9 @@ fn attendee_from(body: &Value) -> Value {
     attendee
 }
 
-// Payments::Payment's own `Client` value object is NOT part of this
-// attendee shape — payment.bluebook's own `Client` only ever wants a
-// single `name` + `email` — so a caller sending a flat `name` (the
-// CheckoutFixture test double, and any simple-shape domain) keeps
-// working unchanged, and a caller sending a `first_name`/`last_name`
-// split gets a real
-// display name composed from both, rather than this route needing to
-// pick one shape and hardcode it.
+// Payment's own Client value object wants a single `name`, so a caller
+// sending `first_name`/`last_name` instead gets a composed display name
+// rather than this route hardcoding one shape.
 fn display_name_from(body: &Value) -> Option<String> {
     if let Some(name) = body.get("name").and_then(|v| v.as_str()) {
         return Some(name.to_string());
@@ -473,14 +401,8 @@ fn display_name_from(body: &Value) -> Option<String> {
     Some(format!("{first} {last}"))
 }
 
-// **The site driving in** — the Ruby adapter's own `POST /registrations`.
-// Payment first, then Registration, sharing one reference minted here
-// (the domain's Registration comment has the full
-// reasoning: a Registration with no Payment behind it is meaningless,
-// a Payment with no Registration just needs cleaning up eventually).
-// `role: None` throughout — this route has no notion of an
-// authenticated caller's role any more than web.rs's own generic
-// `submit` does (that function's own comment); the site calls in
+// POST /registrations. Payment first, then Registration, sharing one
+// reference minted here; `role: None` throughout since the site calls in
 // server-to-server, not as a signed-in user.
 #[allow(clippy::too_many_arguments)]
 pub(crate) async fn registrations_route(
@@ -499,13 +421,9 @@ pub(crate) async fn registrations_route(
     let Some(event_slug) = body.get("event_slug").and_then(|v| v.as_str()) else {
         return respond(400, "application/json", &json!({"error": "missing event_slug"}).to_string());
     };
-    // Cheap early exits before ever dispatching Payment.Initiate — the
-    // real, complete Attendee validation still happens downstream, in
-    // Registration.Request's own given/invariant checks, whatever this
-    // domain's Attendee actually requires; these two are just the
-    // fields THIS route itself needs before that (a display name for
-    // Payment's own Client, an email address for both Client and
-    // Attendee).
+    // Cheap early exits before dispatching Payment.Initiate — full Attendee
+    // validation still happens downstream in Registration.Request's own
+    // given/invariant checks.
     let Some(name) = display_name_from(&body) else {
         return respond(400, "application/json", &json!({"error": "missing name (or first_name and last_name)"}).to_string());
     };
@@ -534,9 +452,8 @@ pub(crate) async fn registrations_route(
     let event_name = event.get("name").and_then(|n| n.get("value")).and_then(|v| v.as_str()).unwrap_or("");
 
     // What checkout does is decided per request from this tenant's own
-    // PaymentConnection, before anything is written: a paused connection
-    // must not leave an orphaned Payment behind, and must never fall back
-    // to the mock walkthrough (payments.rs's own header).
+    // PaymentConnection, before anything is written — a paused connection
+    // must never fall back to the mock walkthrough.
     let plan = payments::checkout_plan(payments::connection(&read, &config.domain).as_ref(), platform);
     let processor = match plan {
         payments::CheckoutPlan::Mock => "mock_stripe",
@@ -550,10 +467,8 @@ pub(crate) async fn registrations_route(
     let reference = uuid::Uuid::new_v4().to_string();
 
     // A Stripe plan opens its embedded session before anything is written, so
-    // a Stripe failure leaves no Payment or Registration behind and a guest
-    // retrying does not pile up pending registrations. The session is a charge
-    // on the business's own account, authenticated with that account's key. If a
-    // domain refusal follows, the unused session simply expires.
+    // a failure leaves no Payment or Registration behind. If a domain refusal
+    // follows, the unused session simply expires.
     let embedded_checkout = if let payments::CheckoutPlan::Stripe { api_key, publishable_key } = &plan {
         let auth = checkout::StripeAuth { api_key, base_url: &platform.api_base };
         match checkout::create_checkout_session(&auth, price_cents, event_name, &reference, checkout::session_expires_at(unix_now())).await {
@@ -593,11 +508,9 @@ pub(crate) async fn registrations_route(
         "registration_id": {"value": reference},
         "attendee": attendee_from(&body),
     });
-    // A reaction reads only the fields its event carries, never one nested
-    // inside `attendee`, so a domain that subscribes registrants who tick the
-    // newsletter box declares the same fields flat on Registration.Request. A
-    // command refuses an argument it does not declare, so they go only to a
-    // domain that does.
+    // A reaction reads only fields its event carries, never ones nested
+    // inside `attendee`, so newsletter fields are declared flat on
+    // Registration.Request; a command refuses args it doesn't declare.
     let news_signup = body.get("news_signup").and_then(|v| v.as_bool()).unwrap_or(false);
     let binding = crate::ir::registrations_binding(&config.domain);
     let forwards_newsletter = crate::ir::ir().is_some_and(|ir| {
@@ -632,18 +545,9 @@ pub(crate) async fn registrations_route(
         return respond(200, "application/json", &json!({"registration_id": reference, "embedded_checkout": embedded}).to_string());
     }
 
-    // A GUEST-SUPPLIED PATH, NEVER TRUSTED RAW -- `return_to` rides
-    // through as a query param on the confirmation page's own URL (the Ruby
-    // adapter's route sent `/<event id>.html` instead, but the event id is the
-    // Event's own slug, not the slug the site's pages are keyed by, so the
-    // guest landed on a 404).
-    // A value like "https://evil.example" or "//evil.example" (protocol-
-    // relative -- no scheme, but still an absolute redirect in a
-    // browser) would turn this into an open redirect if interpolated
-    // as-is; `safe_return_to`'s own "starts with exactly one leading
-    // slash" check keeps it a same-site path no matter what a caller
-    // sends, falling back to "/" -- never the event's own page --
-    // exactly like `safe_return_to`'s own Ruby original.
+    // `return_to` is guest-supplied and never trusted raw — only a same-site
+    // path (one leading slash, not two) is kept, since e.g. "//evil.example"
+    // would otherwise be an open redirect; anything else falls back to "/".
     let return_to = match body.get("return_to").and_then(|v| v.as_str()) {
         Some(path) if path.starts_with('/') && !path.starts_with("//") => path.to_string(),
         _ => "/".to_string(),
@@ -659,11 +563,9 @@ pub(crate) async fn registrations_route(
     let success_url = format!("{site_url}/registration-confirmed.html?{}", confirm_query("succeeded"));
     let cancel_url = format!("{site_url}/registration-confirmed.html?{}", confirm_query("cancelled"));
 
-    // **Mock, not an error** — a tenant with no connection, or one that is
-    // not enabled, is on the mock walkthrough (this route's own header,
-    // checkout.rs's own header) — never a misconfiguration to refuse. The
-    // success and cancel URLs belong to this walkthrough only; an embedded
-    // session has nothing to redirect to.
+    // A tenant with no connection, or a disabled one, is on the mock
+    // walkthrough, never a misconfiguration to refuse. success_url/cancel_url
+    // belong to this walkthrough only — an embedded session redirects nowhere.
     let checkout_url = checkout::mock_checkout_session(&reference, &success_url, &cancel_url, site_url);
     respond(200, "application/json", &json!({"checkout_url": checkout_url, "registration_id": reference}).to_string())
 }
@@ -679,21 +581,10 @@ fn mock_secret_refused() -> Value {
     )
 }
 
-// **Stripe driving in** — the Ruby adapter's own `POST /webhooks/stripe`.
-// `reference` round-trips through Checkout's own metadata (set above,
-// keyed "registration_id" — the same string is both the Registration's
-// own id and the Payment's own reference), read back here — never
-// trusted without a verified signature first. Dispatches through
-// Payment's own vendored PaymentGateway port, never Registration's
-// (removed — see the domain's own Registration comment).
-//
-// Events are signed with `STRIPE_WEBHOOK_SECRET`, or with the signing secret
-// saved along with the business's own keys (payments.rs, keystore.rs); either is
-// accepted. While neither is set the public mock secret verifies the signature
-// instead, and anything only a real processor could send (an event for a Payment
-// a real processor collected) is refused rather than trusted on a
-// publicly-known key. Whenever any real credential is configured or saved the
-// mock secret is refused outright.
+/// POST /webhooks/stripe. Verifies the signature against
+/// `STRIPE_WEBHOOK_SECRET`, a saved signing secret, or — only while neither
+/// is set — the public mock secret, refusing anything only a real processor
+/// could have sent.
 pub(crate) async fn webhook_route(
     raw_body: &str,
     signature_header: &str,
@@ -746,33 +637,22 @@ pub(crate) async fn webhook_route(
     let reference = object.get("metadata").and_then(|m| m.get("registration_id")).and_then(|v| v.as_str()).map(String::from);
 
     if let Some(reference) = reference {
-        // The processor Payment.Initiate recorded — "stripe" when there is
-        // no such Payment, as the Ruby adapter's own route defaults it.
+        // Defaults to "stripe" when there's no matching Payment.
         let processor = payment_processor(&read, payments, &reference).unwrap_or_else(|| "stripe".to_string());
         if fallback_secret && processor != "mock_stripe" {
             return refuse_fallback();
         }
         let reported_processor = json!({"value": processor});
-        // **Routed, not mixed args** — the kernel refuses a flat
-        // `{"reference": ..., ...}` for an aggregate-scoped port
-        // operation ("invalid routing envelope: aggregate-scoped
-        // operation requires to"), and the benign-refusal rule below
-        // turned that into a silent 200 with the payment left pending.
-        // Found wiring these tests to spec/fixtures/rust_host/
-        // checkout_fixture. `to` is the bare reference string.
-        // `reference` is ALSO kept inside `with:` (routing.rs's own "Field
-        // Retention" comment for port operations) — `to:` alone doesn't
-        // satisfy the `reference_to Payment, as: :reference` declaration,
-        // which the argument parser still expects to find in facts.
+        // The kernel refuses a flat `{"reference": ...}` for an
+        // aggregate-scoped port operation — `to` is the bare reference
+        // string, and `reference` stays inside `with:` too, since the
+        // argument parser still expects to find it in facts.
         let reference_fact = json!({"value": reference.clone()});
         let verb_and_facts = match event_type {
             "checkout.session.completed" => {
-                // Checkout's own PaymentIntent id when one exists (every
-                // card/wallet payment mints one), the Checkout Session's
-                // own id otherwise — `.get(...)`, not a panic on a
-                // missing key, matching the Ruby adapter's own `[]`
-                // comment (a synthetic test payload carries no
-                // payment_intent at all).
+                // The PaymentIntent id when one exists, else the Checkout
+                // Session's own id — `.get`, not a panic, since a synthetic
+                // test payload carries no payment_intent at all.
                 let transaction_id = object.get("payment_intent").and_then(|v| v.as_str())
                     .or_else(|| object.get("id").and_then(|v| v.as_str()))
                     .unwrap_or("")
@@ -792,19 +672,9 @@ pub(crate) async fn webhook_route(
         };
 
         if let Some((verb, facts)) = verb_and_facts {
-            // A refusal here (e.g. a redelivered webhook for an already-
-            // settled payment — Stripe's own delivery is at-least-once)
-            // is a benign no-op, not an error: the payment already holds
-            // the right status, there's nothing left to do, and
-            // returning 200 is what tells Stripe's own retry logic to
-            // stop. The Ruby adapter's route has no rescue around
-            // its equivalent `dispatch_port` call at all (unlike POST
-            // /registrations, just above it) — an uncaught
-            // DOMAIN_REFUSALS there 500s and leaves Stripe retrying
-            // forever; only a genuine Err (a WASM/database fault, not a
-            // domain refusal) propagates as a real failure here, a
-            // deliberate improvement over the Ruby route's own gap, not
-            // a divergence papering over one.
+            // A refusal here (e.g. a redelivered webhook — Stripe's delivery
+            // is at-least-once) is a benign no-op: the payment already holds
+            // the right status, and 200 tells Stripe's retry logic to stop.
             if let Err(e) = dispatch::handle_routed(client, wasm_path, verb, json!(reference), facts, None, config, invoker).await {
                 return respond(500, "text/plain", &format!("{e:#}"));
             }
@@ -1133,10 +1003,8 @@ mod tests {
 
     #[test]
     fn attendee_from_forwards_the_old_flat_shape_unchanged_for_backward_compatibility() {
-        // The exact shape CheckoutFixture's own tests (below) and any
-        // future simple-Attendee domain still send — must round-trip
-        // byte-for-byte, or this fix would be a breaking change instead
-        // of an additive one.
+        // Must round-trip byte-for-byte — this exact shape is what
+        // CheckoutFixture's tests, and any simple-Attendee domain, send.
         let body = json!({"event_slug": "happy-event", "name": "Ada Lovelace", "email": "ada@example.com"});
         assert_eq!(attendee_from(&body), json!({"name": "Ada Lovelace", "email": "ada@example.com"}));
     }
@@ -1170,17 +1038,9 @@ mod tests {
         assert!(response["body"].as_str().unwrap().contains("missing name"));
     }
 
-    // A caller submits the new `first_name`/`last_name` shape (no flat
-    // `name` at all) against a domain whose Attendee still only
-    // declares the old `name` field (CheckoutFixture, a stable, pinned
-    // fixture this crate never redesigns). `display_name_from` still
-    // composes a real name for Payment's own Client (proving Payment.
-    // Initiate succeeds), and `attendee_from` forwards `first_name`/
-    // `last_name` through UNCHANGED rather than silently coercing them
-    // into `name` — so Registration.Request correctly refuses on
-    // CheckoutFixture's own real Attendee invariant, the same shape of
-    // refusal a real Attendee of the new shape produces. Proves
-    // both pieces of the fix without needing a second wasm fixture.
+    // A caller submits `first_name`/`last_name` against CheckoutFixture's
+    // `name`-only Attendee — proves display_name_from composes a real Client
+    // name and attendee_from forwards fields verbatim, without a second fixture.
     #[tokio::test]
     async fn registrations_route_forwards_a_new_shaped_attendee_verbatim_even_against_an_old_shaped_fixture() {
         let client = scratch_db("hecks_host_web_test_registrations_new_shape").await;
@@ -1199,10 +1059,9 @@ mod tests {
         .to_string();
         let response = registrations_route(&body, &payments::test_platform(), &client, &wasm_path, &config, &lambda_client::NeverInvoker, &crate::ir::fixture_payments()).await;
 
-        // Registration.Request refuses (CheckoutFixture's Attendee has
-        // no first_name/last_name) — but that's AFTER Payment.Initiate
-        // already ran, proving display_name_from really did compose
-        // "Ada Lovelace" and Payment accepted it.
+        // Registration.Request refuses (no first_name/last_name in this
+        // Attendee) but only after Payment.Initiate already ran, proving
+        // display_name_from composed a real name Payment accepted.
         assert_eq!(response["statusCode"], 422, "{response:?}");
         assert!(
             response["body"].as_str().unwrap().contains("name"),
@@ -1304,11 +1163,8 @@ mod tests {
         );
     }
 
-    // Idempotent by construction (this route's own header) — a repeat
-    // call for the same slug is a 200 no-op returning the EXISTING
-    // event's own state, never a second Event.Schedule dispatch (which
-    // would refuse outright on the duplicate identity anyway, but this
-    // route never even reaches that dispatch on the repeat).
+    // A repeat call for the same slug is a 200 no-op returning the existing
+    // event's state, never a second Event.Schedule dispatch.
     #[tokio::test]
     async fn events_route_is_idempotent_on_a_repeat_slug() {
         let client = scratch_db("hecks_host_web_test_events_idempotent").await;
@@ -1320,11 +1176,8 @@ mod tests {
         let first = events_route(&body, &client, &wasm_path, &config, &lambda_client::NeverInvoker).await;
         assert_eq!(first["statusCode"], 201, "{first:?}");
 
-        // A second call, even with different name/price/capacity (mock_
-        // payments never sends a different shape for the same slug in
-        // practice, but this route's own idempotency check keys ONLY on
-        // slug, matching Event.find-before-schedule's own semantics) —
-        // returns the ORIGINAL event's state, 200, not a second 201.
+        // A second call with different name/price/capacity still returns the
+        // original event's state, 200 not 201 — idempotency keys only on slug.
         let second_body = json!({"slug": "repeat-event", "name": "Different Name", "price_cents": 9999, "capacity": 1}).to_string();
         let second = events_route(&second_body, &client, &wasm_path, &config, &lambda_client::NeverInvoker).await;
         assert_eq!(second["statusCode"], 200, "{second:?}");
@@ -1372,10 +1225,9 @@ mod tests {
 
     #[tokio::test]
     async fn registrations_route_propagates_a_real_domain_refusal_from_payment_initiate() {
-        // A zero-price event -- PositiveMoney's own "an amount is
-        // positive" invariant refuses Payment.Initiate before
-        // Registration.Request is ever reached, proving the refusal
-        // this route surfaces is the real domain rule, not a stand-in.
+        // A zero-price event: PositiveMoney's invariant refuses
+        // Payment.Initiate before Registration.Request is ever reached,
+        // proving the refusal is the real domain rule.
         let client = scratch_db("hecks_host_web_test_registrations_zero_price").await;
         provision_lineage(&*client.lock().await, "CheckoutFixture", 1, &["Event", "Registration", "Payment"]).await;
         let config = checkout_config(1);
@@ -1407,21 +1259,17 @@ mod tests {
 
         schedule_event(&client, &wasm_path, &config, "happy-event", 4200).await;
 
-        // No connection -- checkout genuinely on the mock walkthrough
-        // (this route's own header), not a misconfiguration: the whole
-        // chain runs for real and returns a real, working mock checkout
-        // URL, never a 500.
+        // No connection: checkout is genuinely on the mock walkthrough, not
+        // a misconfiguration — the whole chain runs and returns a real
+        // checkout URL, never a 500.
         let body = json!({"event_slug": "happy-event", "name": "Ada Lovelace", "email": "ada@example.com"}).to_string();
         let response = registrations_route(&body, &payments::test_platform(), &client, &wasm_path, &config, &lambda_client::NeverInvoker, &crate::ir::fixture_payments()).await;
         assert_eq!(response["statusCode"], 200, "{response:?}");
         let body: Value = serde_json::from_str(response["body"].as_str().unwrap()).unwrap();
         let reference = body["registration_id"].as_str().unwrap().to_string();
-        // LocalCheckout's own exact shape (checkout.rs's own header):
-        // this site's own /pay/<reference>.html page, with success_url
-        // and cancel_url riding along as encoded query params, each
-        // pointing at registration-confirmed.html (this route's own
-        // header on why that replaced the old, dead-code event-page
-        // redirect) -- no return_to sent, so it falls back to "/".
+        // LocalCheckout's shape: /pay/<reference>.html, with success_url and
+        // cancel_url as encoded query params pointing at
+        // registration-confirmed.html; no return_to sent, so it falls back to "/".
         assert_eq!(
             body["checkout_url"],
             format!(
@@ -1440,27 +1288,20 @@ mod tests {
         let payment = payment.unwrap();
         assert_eq!(registration["event_slug"], "happy-event");
         assert_eq!(registration["attendee"]["name"], "Ada Lovelace");
-        // **One shared reference** — the Registration's own id equals the
-        // Payment's own reference, minted once (this route's own header
-        // on why), never independently.
+        // The Registration's id equals the Payment's reference, minted once
+        // here, never independently.
         assert_eq!(registration["registration_id"]["value"], reference);
         assert_eq!(payment["reference"]["value"], reference);
         assert_eq!(payment["amount"]["cents"], 4200);
-        // Mock, not "stripe" -- the processor `checkout_plan` picks for a
-        // tenant with no connection, which the webhook then reads back
-        // off the Payment itself (this function's own header on why that
-        // drift matters: Payment::Succeed's own "the processor matches"
-        // given).
+        // Mock, not "stripe": the processor checkout_plan picks with no
+        // connection, which the webhook reads back off the Payment itself
+        // for Payment::Succeed's "processor matches" given.
         assert_eq!(payment["processor"]["value"], "mock_stripe");
     }
 
-    // A caller's own `return_to` (the page the guest was actually
-    // registering from) drives the redirect, not the event's own
-    // slug -- the exact bug found live: a real Sample Studio registration
-    // succeeded but then redirected to /sample-studio-friday-september-5.html
-    // (the domain Event's own internal slug, never a real page route)
-    // instead of back to /sample-studio.html, 404ing every real guest right
-    // after a successful, already-charged registration.
+    // Pins a real bug: a guest was redirected to the Event's internal slug
+    // page (never a real route) instead of back to their own `return_to`,
+    // 404ing every guest right after a successful, already-charged registration.
     #[tokio::test]
     async fn registrations_route_redirects_to_the_caller_s_own_return_to_not_the_event_slug() {
         let client = scratch_db("hecks_host_web_test_registrations_return_to").await;
@@ -1489,13 +1330,8 @@ mod tests {
         );
     }
 
-    // safe_return_to's own guest-supplied-path reasoning (the Ruby adapter's
-    // own comment on it, ported byte for byte) -- an absolute or
-    // protocol-relative return_to must never become an open redirect;
-    // falls back to "/", exactly as if no return_to had been sent at all
-    // (never the event's own page -- that redirect target was retired
-    // alongside the old, dead-code `?registered=` shape, this route's
-    // own header above).
+    // An absolute or protocol-relative return_to must never become an open
+    // redirect; falls back to "/" exactly as if none had been sent.
     #[tokio::test]
     async fn registrations_route_refuses_an_absolute_or_protocol_relative_return_to() {
         let client = scratch_db("hecks_host_web_test_registrations_return_to_unsafe").await;
@@ -1516,10 +1352,9 @@ mod tests {
             let response = registrations_route(&body, &payments::test_platform(), &client, &wasm_path, &config, &lambda_client::NeverInvoker, &crate::ir::fixture_payments()).await;
             assert_eq!(response["statusCode"], 200, "{response:?}");
             let body: Value = serde_json::from_str(response["body"].as_str().unwrap()).unwrap();
-            // checkout_url is now the /pay/<id>.html walkthrough page (LocalCheckout's
-            // own shape); registration-confirmed.html's own return_to shows up
-            // encoded (twice: once for the /pay page's success_url, once more for
-            // registration-confirmed.html's own return_to inside that) as "%252F".
+            // checkout_url is the /pay/<id>.html walkthrough page; return_to
+            // is double-encoded (once for /pay's success_url, once more inside
+            // it) so it shows up as "%252F".
             let checkout_url = body["checkout_url"].as_str().unwrap();
             let parsed = reqwest::Url::parse(checkout_url).unwrap();
             let success_url = parsed.query_pairs().find(|(k, _)| k == "success_url").map(|(_, v)| v.into_owned()).unwrap_or_default();
@@ -1532,14 +1367,9 @@ mod tests {
 
     #[tokio::test]
     async fn a_mock_registration_confirms_end_to_end_through_a_synthetic_signed_webhook() {
-        // The full loop, mock adapter both ends — registrations_route's
-        // own mock checkout_url, then a webhook shaped exactly like
-        // the domain's own manual payment-confirmation script (Ruby)
-        // sends, signed against the same fixed default
-        // `webhook_route` falls back to while STRIPE_WEBHOOK_SECRET is
-        // unset. Proves the "processor matches" given (Payment::Succeed's
-        // own) actually admits a mock-initiated payment's own
-        // mock-reported confirmation.
+        // The full loop, mock both ends: registrations_route's own
+        // checkout_url, then a webhook signed against the same mock secret
+        // webhook_route falls back to while STRIPE_WEBHOOK_SECRET is unset.
         let client = scratch_db("hecks_host_web_test_mock_full_loop").await;
         provision_lineage(&*client.lock().await, "CheckoutFixture", 1, &["Event", "Registration", "Payment"]).await;
         let config = checkout_config(1);
@@ -1617,12 +1447,9 @@ mod tests {
         assert_eq!(payment["status"], "succeeded");
         assert_eq!(payment["transaction_id"]["value"], "pi_test_abc");
 
-        // A redelivered webhook (Stripe's own delivery is at-least-once)
-        // for the same already-succeeded payment must still answer 200
-        // — the real domain refusal underneath is a benign no-op here,
-        // not surfaced as an error (this route's own header explains
-        // why, and why that's a deliberate improvement over
-        // the Ruby adapter's own unguarded equivalent).
+        // A redelivered webhook (Stripe's delivery is at-least-once) for an
+        // already-succeeded payment must still answer 200 — the refusal
+        // underneath is a benign no-op, not surfaced as an error.
         let redelivered = webhook_route(&payload, &header, &payments::test_platform_with_secret(secret), &client, &wasm_path, &config, &lambda_client::NeverInvoker, &crate::ir::fixture_payments()).await;
         assert_eq!(redelivered["statusCode"], 200, "a redelivered webhook must not surface the resulting refusal as an error: {redelivered:?}");
     }

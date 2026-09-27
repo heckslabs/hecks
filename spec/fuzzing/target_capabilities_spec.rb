@@ -4,15 +4,8 @@ require "tmpdir"
 require "fileutils"
 require "hecks/fuzzing"
 
-# `Hecks::Fuzzing::TargetCapabilities` — the one rule `bin/qa_sweep`
-# resolves its modes by (`enabled ∩ eligible`), checked two ways: the
-# inference reads real corpus directories (so a regex here can never
-# quietly stop matching what the harness actually ships), and the
-# resolution is pinned against hand-built capability sets so the
-# `MODE_REQUIREMENTS` table is itself a tested fact. `StructuralSkips`
-# rides along at the bottom: same file, same reason — both exist so a
-# "quiet divergence" (a stale Cargo feature, a codegen regression hiding
-# behind "not generated") becomes a printed, logged fact.
+# Resolves QA modes as enabled ∩ eligible, where eligibility is inferred from
+# the real corpus on disk, so a stale regex or manifest can only fail here.
 RSpec.describe Hecks::Fuzzing::TargetCapabilities do
   CAP_ROOT      = InMemoryDomain::ROOT
   CAP_RUST_DIR  = File.join(CAP_ROOT, "rust")
@@ -188,21 +181,15 @@ RSpec.describe Hecks::Fuzzing::TargetCapabilities do
     it "names every DEFERRED mode in MODE_REQUIREMENTS, and every dial mode too" do
       expect(described_class::DEFERRED_MODES - described_class::MODE_REQUIREMENTS.keys).to be_empty
 
-      # The dial and the requirements table must agree on the mode
-      # vocabulary in both directions — a mode one names and the other
-      # doesn't is exactly the drift `resolve` would silently hide.
+      # The dial and requirements table must agree on the mode vocabulary
+      # in both directions, or `resolve` would silently hide the drift.
       define_dials!
       expect(QualityControlDials::MODES.keys).to match_array(described_class::MODE_REQUIREMENTS.keys)
     end
   end
 
-  # The dial, read without touching the live ledger — `QualityControlDials`
-  # is a constant the bluebook file defines while loading, and a bluebook
-  # only loads inside a boot. `IsolatedBoot` (via `Replay.call` with no
-  # steps) boots a throwaway copy of qa/bluebook rebound to Memory, the
-  # same door every fuzz path uses — never the real `hecks_quality_control`
-  # database (`spec/quality_control_spec.rb`'s own header on why that
-  # would be unacceptable).
+  # Boots a throwaway qa/bluebook copy on Memory to read QualityControlDials,
+  # never the live hecks_quality_control database (spec/quality_control_spec.rb).
   def define_dials!
     return if defined?(QualityControlDials::MODES)
 

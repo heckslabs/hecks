@@ -4,18 +4,10 @@ require_relative "../../rust/project/naming"
 require_relative "../../rust/project/reactions"
 
 # `emit_merged_policy_table`/`emit_merged_cross_domain_policy_table` —
-# the recovery of a documented, deliberate gap: building bin/project_rust's
-# one merged Store's policy/cross-domain-policy tables from
-# only the target domain's own policies would silently drop every
-# attached/vendored chapter's own. Invisible until a domain vendored a
-# chapter that actually declares policies (Governance/Identity, the only
-# framework chapters exercised before this, declare none) — found live
-# generating a client project's vendored embryonaut_bluebooks/payments:
-# `OnPaymentConfirmedByProcessor`'s own trigger never fired against the
-# merged Store, even though payments/registry.rs's own standalone table
-# had it all along. Tested directly here, same reasoning
-# bridging_spec.rb's own header gives for an identically-shaped latent
-# gap with no corpus domain exercising it.
+# building bin/project_rust's one merged Store's tables from only the
+# target domain's own policies silently dropped every vendored chapter's
+# own. Invisible until a vendored chapter actually declares policies
+# (Governance/Identity, the only ones exercised before this, declare none).
 RSpec.describe RustProjection::Projector do
   TARGET_POLICY = {
     name: "OnOrderPlaced", on_event: "OrderPlaced", trigger_command: "Invoice.Open",

@@ -9,10 +9,8 @@ module Hecks
       # Raised when a check refuses the release; the message names the fix.
       class Refusal < StandardError; end
 
-      # Runs the release's external commands: git, gem, npm, curl, op.
-      #
-      # The runner takes any object answering `capture` and `run!` the way this
-      # one does, so a spec hands in a recorder and never starts a real process.
+      # Runs the release's external commands (git, gem, npm, curl, op) through
+      # any object answering `capture`/`run!`, so a spec injects a recorder.
       class Commands
         # What a captured command printed and whether it succeeded.
         #

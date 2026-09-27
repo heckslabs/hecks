@@ -1,6 +1,5 @@
-//! Port of `rust/project/read_models.rb` — read that file's own header
-//! comments in full; this mirrors its algorithm directly, function for
-//! function.
+//! Port of `rust/project/read_models.rb`, mirrored function for function —
+//! read that file's own header for the full algorithm.
 
 use crate::exemplar::Exemplar;
 use crate::json::Json;
@@ -20,12 +19,9 @@ pub fn read_model_skip_reason(read_model: &Json, aggregates_by_name: &HashMap<St
         return Some(read_model_options_skip_reason(&extra));
     }
 
-    // ADR 0055 — mirrors `rust/project/read_models.rb`'s own identical
-    // guard; read that file's header for the full reasoning (Ruby's own
-    // `seal_query_options` now permits more than one many-side head with
-    // options declared, via `on:`, and `read_model_filtered_head_as`
-    // below still trusts "the first many-side head is the eligible one"
-    // unconditionally — refused here rather than silently miscompiled).
+    // ADR 0055: `read_model_filtered_head_as` below still assumes the first
+    // many-side head is the eligible one, so more than one with options
+    // declared is refused rather than risk silently picking the wrong head.
     if multi_target_options(read_model) {
         return Some(multi_target_options_skip_reason());
     }
@@ -73,12 +69,8 @@ fn read_model_options_skip_reason(extra: &[&str]) -> SkipReason {
     ))
 }
 
-/// ADR 0055's own guard — mirrors `rust/project/read_models.rb`'s
-/// `multi_target_options?` exactly. True only for the shape this
-/// generator cannot yet trust itself to pick the right head for: more
-/// than one many-side head with any where/order_by/limit/offset declared
-/// at all (targeted via `on:` or not — this generator has no per-head
-/// codegen either way yet).
+// True when more than one many-side head has where/order_by/limit/offset
+// declared — this generator has no per-head codegen yet.
 fn multi_target_options(read_model: &Json) -> bool {
     let many = read_model.get("aggregate_heads").map(Json::each).unwrap_or(&[]).iter().filter(|h| h.get("many").map(Json::as_bool).unwrap_or(false)).count();
     if many <= 1 {
@@ -172,13 +164,9 @@ fn read_model_options_content_skip_reason(read_model: &Json, aggregates_by_name:
     queries::declared_limit_skip_reason(read_model.get("limit"))
 }
 
-/// `count`/`median`'s own eligibility — mirrors `rust/project/
-/// read_models.rb`'s own `aggregation_skip_reason` exactly. `seal_
-/// aggregation` (Ruby, build time) already guarantees exactly one
-/// many-side head, and mutual exclusion with `group_by`/with each other,
-/// by the time this ever runs — this doesn't re-derive either. `count`
-/// needs no further check (a bare row count has nothing to validate);
-/// `median`'s own field is the one genuinely new thing to confirm.
+// `seal_aggregation` (Ruby, build time) already guarantees exactly one
+// many-side head and mutual exclusion with `group_by` — only `median`'s own
+// field needs checking here.
 fn aggregation_skip_reason(read_model: &Json, aggregates_by_name: &HashMap<String, &Json>) -> Option<SkipReason> {
     let median_field = read_model.get("median_field")?;
     let field = Json::to_s(median_field);
@@ -202,9 +190,8 @@ fn aggregation_skip_reason(read_model: &Json, aggregates_by_name: &HashMap<Strin
     }
 }
 
-/// `group_by`'s own eligibility — mirrors `rust/project/read_models.rb`'s
-/// own `group_by_skip_reason` exactly: the one real shape the corpus
-/// declares, a single rootless head, group_by alone.
+// Mirrors `rust/project/read_models.rb`'s `group_by_skip_reason`: the one
+// shape the corpus declares — a single rootless head, group_by alone.
 fn group_by_skip_reason(read_model: &Json, aggregates_by_name: &HashMap<String, &Json>, unsupported_names: &[String]) -> Option<SkipReason> {
     let heads = read_model.get("aggregate_heads").map(Json::each).unwrap_or(&[]);
     if heads.len() != 1 {
@@ -247,9 +234,7 @@ fn group_by_skip_reason(read_model: &Json, aggregates_by_name: &HashMap<String, 
     None
 }
 
-/// Port of `read_models.rb#nested_entity_names` — every entity name nested
-/// at any depth under a declared aggregate (that file's own header on why
-/// an `include` naming one is generated).
+// Every entity name nested at any depth under a declared aggregate.
 fn nested_entity_names(aggregates_by_name: &HashMap<String, &Json>) -> Vec<String> {
     fn collect(owner: &Json, out: &mut Vec<String>) {
         for entity in owner.get("entities").map(Json::each).unwrap_or(&[]) {
@@ -342,10 +327,8 @@ fn emit_read_model_limit(limit: &Json) -> String {
     format!("crate::kernel::read_model::ReadModelLimit::Literal({})", ruby_to_i(&raw))
 }
 
-/// Same reasoning as `queries::emit_query_offset`: `ReadModelOffset` is
-/// `pub type ReadModelOffset = query_ordering::Offset`, so this reuses
-/// `emit_read_model_limit`'s own computation and swaps only the spelled
-/// type name.
+// `ReadModelOffset` is a type alias for `ReadModelLimit`'s own type, so this
+// reuses `emit_read_model_limit`'s computation and swaps the type name.
 fn emit_read_model_offset(offset: &Json) -> String {
     emit_read_model_limit(offset).replace("read_model::ReadModelLimit::", "read_model::ReadModelOffset::")
 }
@@ -501,17 +484,9 @@ pub fn emit_read_model_def(rmd: &ReadModelDef) -> String {
     )
 }
 
-/// Port of `rust/project/read_models.rb`'s own `emit_group_by_transform`
-/// — see that function's own header for the full reasoning (three jobs:
-/// `row_json`-equivalent id insertion, keep this aggregate's own real
-/// declared attributes plus any `projects` field it declares
-/// (`crate::types::projected_field_pseudo_attributes` — the same
-/// attributes-plus-projections composition `domain_generator.rs`'s own
-/// `record_attributes` and `commands.rs`'s own `record_fields` already
-/// use for this exact aggregate's record shape) plus id + lifecycle —
-/// excluding any other Phase 10 capability's own synthetic fields, like
-/// `corrects`'s `emitted_*` flags — and recursively unwrap
-/// single-attribute value objects).
+// Keeps this aggregate's declared attributes plus any `projects` field, id
+// and lifecycle field, excluding other capabilities' synthetic fields (like
+// `corrects`'s `emitted_*` flags), and unwraps value objects recursively.
 fn emit_group_by_transform(fn_name: &str, read_model_name: &str, aggregate: &Json, group_by_fields: &[String]) -> String {
     let value_objects: Vec<&Json> = aggregate.get("value_objects").map(Json::each).unwrap_or(&[]).iter().collect();
     let value_objects_by_name: HashMap<String, &Json> = value_objects.iter().map(|vo| (vo.get("name").map(Json::to_s).unwrap_or_default(), *vo)).collect();
@@ -543,10 +518,8 @@ fn emit_group_by_transform(fn_name: &str, read_model_name: &str, aggregate: &Jso
     )
 }
 
-/// Port of `rust/project/read_models.rb`'s own `group_by_leaf_check`: a key
-/// path naming every identity head of the grouped aggregate cannot collide,
-/// so its leaves go unchecked; any other refuses a second row (ADR 0061,
-/// decision D1). `identified_by` in the IR holds the identity paths.
+// A key path naming every identity head cannot collide, so its leaves go
+// unchecked; any other refuses a second row (ADR 0061).
 fn group_by_leaf_check(read_model_name: &str, aggregate: &Json, group_by_fields: &[String]) -> String {
     let mut identity: Vec<String> = Vec::new();
     for path in aggregate.get("identified_by").map(Json::each).unwrap_or(&[]) {
@@ -561,8 +534,7 @@ fn group_by_leaf_check(read_model_name: &str, aggregate: &Json, group_by_fields:
     format!("crate::kernel::read_model::LeafCheck::RefuseCollision({})", crate::naming::ruby_inspect_string(read_model_name))
 }
 
-/// Port of `rust/project/read_models.rb`'s own `unwrap_json_expr` —
-/// `Value.materialize_unwrapped`, ported directly.
+// Port of `Value.materialize_unwrapped` (Ruby).
 fn unwrap_json_expr(expr: &str, type_name: &str, list: bool, aggregate: &Json, value_objects_by_name: &HashMap<String, &Json>) -> String {
     if list {
         let inner = unwrap_json_expr("item", type_name, false, aggregate, value_objects_by_name);

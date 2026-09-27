@@ -1,19 +1,13 @@
 Hecks.bluebook "Banking" do
   aggregate "OnboardingCase" do
     given("case is screening") { status == "screening" }
-    # REFERENCED, NOT REDECLARED (chapter-wide sharing) — see
-    # `SafeDepositBox`'s own comment on this same reference and on why
-    # `declared_by:` is required.
+    # Shared given; see SafeDepositBox for why `declared_by:` is required.
     given("customer is active", declared_by: Account)
     description "The KYC check a newly registered customer clears before an account exists for them — screened once, and if it does not clear there is nothing to undo, because nothing was ever opened."
 
-    # `reference_to` mints `customer`, no `_id` suffix (ADR 0025) — the
-    # same bare name `belongs_to` used to mint as sugar, before `belongs_to`
-    # itself was retired for having no work left to do.
+    # Mints a bare `customer` attribute, no `_id` suffix (ADR 0025).
     reference_to Customer
-    # SAME NAME Account's OWN projected field uses (S12, ADR 0025) —
-    # the shared `declared_by: Account` given above reads
-    # `customer_status` regardless of which aggregate declares it.
+    # Must match Account's projected field name: the shared given reads `customer_status`.
     projects :customer_status, from: :"customer.status"
 
     attribute :reference, OnboardingReference
@@ -41,9 +35,7 @@ Hecks.bluebook "Banking" do
       role "Branch clerk"
       goal "Open a KYC case for a newly registered customer, naming the account it will become"
 
-      # OWN GIVEN, NOT SHARED (S12, ADR 0025) — `customer` is `Open`'s
-      # own fresh command argument; see Account.Open's own comment for
-      # the full reasoning.
+      # Own given: `customer` is a fresh command argument, not yet stored state.
       given("customer is active") { customer.status == "active" }
 
       sets :customer
@@ -53,10 +45,6 @@ Hecks.bluebook "Banking" do
       emits OnboardingOpened
     end
 
-    # LIFECYCLE STATE AS A COMMAND GUARD (S10, ADR 0025) — `from:`
-    # replaces `given("case is screening")` on both commands below; the
-    # matching `transition` above already gates the identical check via
-    # `admissible_transition`, so the redundant given only duplicated it.
     command "Clear", from: "screening" do
       role "Compliance officer"
       goal "Pass a customer's identity and screening checks"
@@ -84,23 +72,15 @@ Hecks.bluebook "Banking" do
     end
   end
 
-  # THE FIRST SAGA THAT DOES NOT COMPENSATE. Settlement and ExternalSettlement
-  # both carry an `on :refused` leg because a transfer stopped halfway is
-  # money unaccounted for — something must be put back. A KYC case that does
-  # not clear has nothing to put back: no account was ever opened and no
-  # money ever moved, so Decline is simply where the flow stops. There is no
-  # `on :refused` leg here — compare its shape against Settlement in
-  # `transfers_and_payments.bluebook` rather than trusting the claim.
+  # A saga with no compensating leg: a declined KYC case opened no account
+  # and moved no money, so there is nothing to undo.
   process_manager "Onboarding" do
     correlates_by :"reference.value"
     starts_on OnboardingCase::OnboardingOpened
     ends_on   Account::AccountOpened
 
     transition OnboardingCase::OnboardingCleared => "cleared", from: "screening" do
-      # A STANDARD ACCOUNT, OPENED AUTOMATICALLY — kind and opening limit are
-      # the bank's default terms for a just-cleared customer, not something
-      # onboarding negotiates; a customer who wants something else changes it
-      # afterward through Account's own commands.
+      # Kind and limit are the bank's default terms; later changes go through Account.
       dispatch Account::Open, with: {
         customer:    :customer,
         number:      :account_number,
@@ -109,8 +89,7 @@ Hecks.bluebook "Banking" do
       }
     end
 
-    # THE NON-COMPENSATING LEG — no dispatch, because nothing was ever
-    # created to undo.
+    # No dispatch: nothing was created to undo.
     transition OnboardingCase::OnboardingDeclined => "declined", from: "screening"
   end
 end

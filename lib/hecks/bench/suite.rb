@@ -1,43 +1,15 @@
 module Hecks
   module Bench
     # Runs every requested target against every requested domain and aggregates the runs.
-    #
-    # Each domain's runs are interleaved across targets (memory, sqlite, ..., memory,
-    # sqlite, ...) rather than finished one target at a time, so a burst of unrelated load on
-    # the machine lands on every target instead of flattering one of them. Each figure in the
-    # result is the median across runs, with the fastest and slowest throughput kept so a noisy
-    # measurement shows.
+    # Runs are interleaved across targets so unrelated machine load lands on all of them.
     module Suite
-      # Every target `bin/bench` can measure.
       TARGETS = %w[ruby:memory ruby:sqlite ruby:postgres ruby:postgres_era rust].freeze
 
-      # What to measure and how hard.
-      #
-      # @!attribute domains
-      #   @return [Array<String>] workload names, keys of `Workload.all`
-      # @!attribute targets
-      #   @return [Array<String>] members of `TARGETS`
-      # @!attribute warmup
-      #   @return [Integer] cycles discarded before each run is timed
-      # @!attribute iterations
-      #   @return [Integer] cycles timed in each run
-      # @!attribute runs
-      #   @return [Integer] how many fresh boots of each target to measure per domain
-      # @!attribute rust_binary
-      #   @return [String, nil] a pre-built binary to use instead of building one; only valid
-      #     with a single domain, since a binary embeds exactly one
+      # What to measure; `rust_binary` needs a single domain, since a binary embeds exactly one.
       Config = Struct.new(:domains, :targets, :warmup, :iterations, :runs, :rust_binary, keyword_init: true)
 
       module_function
 
-      # Measures everything `config` asks for.
-      #
-      # @param config [Config] what to measure
-      # @param log [#puts] where progress lines go; one line per run
-      # @return [Hash{Symbol => Object}] `:environment`, `:config`, `:results` (one entry per
-      #   domain and target, see `.aggregate`) and `:skipped` (each skipped target and why)
-      # @raise [ArgumentError] if a target or domain is unknown, a count is not positive, or
-      #   `rust_binary` is combined with more than one domain
       def call(config, log: $stderr)
         validate(config)
         load_before = Environment.load_average
@@ -51,11 +23,6 @@ module Hecks
           config: config.to_h, results: results, skipped: skipped }
       end
 
-      # Checks a configuration before anything is booted.
-      #
-      # @param config [Config] the configuration to check
-      # @return [void]
-      # @raise [ArgumentError] on the first problem found
       def validate(config)
         unknown = config.targets - TARGETS
         raise ArgumentError, "unknown target #{unknown.first.inspect} — one of #{TARGETS.join(', ')}" if unknown.any?
@@ -69,10 +36,6 @@ module Hecks
         raise ArgumentError, "--rust-binary embeds one domain, so it needs exactly one --domain"
       end
 
-      # Finds the targets this machine cannot run.
-      #
-      # @param config [Config] the configuration whose targets to check
-      # @return [Array<Hash{Symbol => String}>] `{target:, reason:}` for each unavailable target
       def unavailable_targets(config)
         postgres = PostgresProbe.unavailable_reason if config.targets.any? { |t| t.start_with?("ruby:postgres") }
         rust = RustRunner.unavailable_reason(binary: config.rust_binary) if config.targets.include?("rust")
@@ -82,13 +45,6 @@ module Hecks
         end
       end
 
-      # Measures one domain across every active target, `config.runs` times each.
-      #
-      # @param workload [Workload] the domain's commands
-      # @param targets [Array<String>] the targets that can run here
-      # @param config [Config] warmup, iterations, runs and any binary override
-      # @param log [#puts] where progress lines go
-      # @return [Array<Hash>] one aggregated entry per target
       def measure_domain(workload, targets, config, log)
         binaries = {}
         summaries = Hash.new { |hash, target| hash[target] = [] }
@@ -102,25 +58,11 @@ module Hecks
         targets.map { |target| aggregate(workload.name, target, summaries[target]) }
       end
 
-      # Formats the one line printed as each run finishes.
-      #
-      # @param label [String] the domain and target
-      # @param position [String] which run of how many, e.g. `"2/3"`
-      # @param summary [Hash] the run's `Run#summary`
-      # @return [String] the progress line
       def progress_line(label, position, summary)
         "#{label.ljust(27)} #{position}  #{summary[:throughput_per_s].round.to_s.rjust(8)} cmds/s  " \
           "p50 #{summary[:p50_us].to_s.rjust(9)} us  p99 #{summary[:p99_us].to_s.rjust(9)} us"
       end
 
-      # Runs one target once.
-      #
-      # @param workload [Workload] the domain's commands
-      # @param target [String] a member of `TARGETS`
-      # @param config [Config] warmup, iterations and any binary override
-      # @param binaries [Hash{String => String}] Rust binaries already built, by domain name;
-      #   filled in as they are built
-      # @return [Run] the run's timings
       def measure_once(workload, target, config, binaries)
         if target == "rust"
           binary = config.rust_binary || (binaries[workload.name] ||= RustRunner.build(workload.name))
@@ -131,14 +73,6 @@ module Hecks
         end
       end
 
-      # Reduces one target's runs to a single entry.
-      #
-      # @param domain [String] the workload name
-      # @param target [String] the target name
-      # @param summaries [Array<Hash>] each run's `Run#summary`
-      # @return [Hash{Symbol => Object}] `:domain`, `:target`, `:runs` (the raw summaries),
-      #   `:median` (the median of each run's throughput, p50, p99 and drift, plus
-      #   `:by_verb`), and `:throughput_range` (`[slowest, fastest]` across runs)
       def aggregate(domain, target, summaries)
         rates = summaries.map { |summary| summary[:throughput_per_s] }
         median = %i[throughput_per_s p50_us p99_us mean_us max_us drift].to_h do |key|
@@ -150,20 +84,12 @@ module Hecks
           throughput_range: rates.minmax }
       end
 
-      # Takes each verb's median p50 and p99 across runs.
-      #
-      # @param summaries [Array<Hash>] each run's `Run#summary`
-      # @return [Hash{String => Hash{Symbol => Float}}] `:p50_us` and `:p99_us` per verb
       def median_by_verb(summaries)
         summaries.first[:by_verb].keys.to_h do |verb|
           [verb, %i[p50_us p99_us].to_h { |key| [key, Stats.median(summaries.map { |s| s[:by_verb][verb][key] })] }]
         end
       end
 
-      # Reads the Postgres server version if a Postgres target ran.
-      #
-      # @param active [Array<String>] the targets that ran
-      # @return [String, nil] the server version, or nil when no Postgres target ran
       def postgres_version(active)
         PostgresProbe.server_version if active.any? { |target| target.start_with?("ruby:postgres") }
       end

@@ -4,13 +4,9 @@ require "hecks/forms/field_shape"
 RSpec.describe Hecks::Forms::FieldShape do
   BANKING_BLUEBOOK = InMemoryDomain::BANKING_BLUEBOOK_DIR unless defined?(BANKING_BLUEBOOK)
 
-  # No persistence adapter, no hecksagon, no verify! — a Field is derived
-  # purely from the IR. The extraction port/adapter still has to be there
-  # (`identified_by { ... }` recovers its own canonical text through it at
-  # declare time), the one piece of wiring a bare `Kernel.load` can't skip.
-  #
-  # Booted once per file, not per example — nothing below ever dispatches,
-  # only reads the loaded IR back out, so a shared load is safe.
+  # A Field derives purely from the IR, so no persistence or hecksagon is loaded;
+  # only the extraction port, which `identified_by` needs at declare time.
+  # Booted once per file: nothing here dispatches, so the shared load is safe.
   before(:context) do
     registry = Hecks::Runtime::Registry.new
     Hecks.with_registry(registry) do
@@ -54,10 +50,8 @@ RSpec.describe Hecks::Forms::FieldShape do
   end
 
   it "renders a reference-typed command argument as :reference, carrying the resolved target aggregate" do
-    # Account's own cross-reference is declared via `reference_to Customer`
-    # at the aggregate level, not as a plain `attribute` — a command that
-    # addresses a new Account by its customer carries the reference as an
-    # ordinary argument instead (Open's customer), which is what this checks.
+    # Account's own `reference_to Customer` is aggregate-level; this checks the
+    # reference carried as an ordinary command argument (Open's customer).
     open = account.command("Open")
     field = described_class.resolve(open.attribute(:customer), aggregate: account)
     expect(field.kind).to eq(:reference)

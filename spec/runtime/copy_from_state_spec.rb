@@ -1,16 +1,9 @@
 require "spec_helper"
 
-# `state(:field)` as a mutation source — the record's own value copied
-# into an appended element or onto another field. A bare Symbol always
-# names a command argument, so before this a command could not snapshot
-# its own record at all: chess's threefold repetition needs the board's
-# piece lists copied off the record every ply, and nothing a caller
-# hands in can be trusted to be that.
+# `state(:field)` as a mutation source: copies the record's own value into an appended
+# element or onto another field (a bare Symbol always names a command argument).
 RSpec.describe "a mutation sourced from the record's own state" do
-  # One inline bluebook, declared whole — a domain-definition DSL block
-  # read top to bottom as the fixture, not a sequence of independent
-  # steps; splitting it would scatter one readable declaration across
-  # several methods that only make sense read back-to-back.
+  # One inline bluebook declared whole; splitting would scatter a single DSL declaration.
   # rubocop:disable-next Metrics/AbcSize
   # rubocop:disable-next Metrics/MethodLength
   def boot_board
@@ -36,9 +29,7 @@ RSpec.describe "a mutation sourced from the record's own state" do
           value_object("Ply")     { attribute :value, Integer }
           value_object("Square")  { attribute :file, Integer }
 
-          # **One snapshot**: the ply it was taken at and the pieces as they
-          # stood — a list of the aggregate's own entity records, held
-          # by a value object.
+          # One snapshot: the ply and the aggregate's piece entities, held by a value object.
           value_object "Position" do
             attribute :ply,    Ply
             attribute :pieces, list_of(Piece)
@@ -78,7 +69,7 @@ RSpec.describe "a mutation sourced from the record's own state" do
             delegates_to "Piece.Move", with: { id: :id, to: :to }
           end
 
-          # **The point**: declares no argument, reads two fields off the record.
+          # Declares no argument; reads two fields off the record.
           command "Record" do
             reference_to Board
             sets :positions, append: { ply: state(:ply), pieces: state(:pieces) }

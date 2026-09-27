@@ -1,33 +1,6 @@
 #!/usr/bin/env ruby
-# ADR-0030-in-progress step 8 — the differential proof `mint_harness`
-# (rust/host/src/bin/mint_harness.rs) exists for: THE SAME declared
-# edge, minted INDEPENDENTLY by Ruby's own `LineageManager.check!`/
-# `mint!` and by Rust's own boot-gate mint path (`mint_harness`, not a
-# synthetic shortcut — the real `decide_boot_action` -> hold_first/
-# audit_before_mint/mint_era sequence `bootstrap`'s own boot gate
-# runs), must produce byte-identical `_head` views.
-#
-# Every EARLIER example in spec/rust_host_lineage_conformance_spec.rb
-# (ADR 0029) proves Rust READS/WRITES an era RUBY minted correctly —
-# structurally weaker than this: it never proves Rust's OWN mint (the
-# DDL, the compiled matview, the translated data) agrees with Ruby's
-# independently-produced one. This is the first fixture in this
-# codebase where BOTH sides of the diff are a REAL mint, in two
-# different languages, against two separate scratch databases.
-#
-# Each side writes through its OWN real generic write path — Ruby's
-# `PostgresEra#save`, Rust's `lineage_harness`'s own `write` op (already
-# separately proven correct by this spec file's OWN second example) —
-# not a raw byte-identical INSERT, so this proves the FULL stack agrees
-# (mint AND write), the actual end-to-end claim ADR-0030-in-progress
-# makes, not a narrower "the DDL text matches" one.
-#
-# `ir.json` for each shape comes from `Hecks::Projector::Exporter.
-# call`/`.translations` DIRECTLY — the SAME calls `bin/project_rust`
-# itself makes to build the real `ir.json` sidecar every deployed
-# domain ships — not a hand-approximated JSON shape this fixture
-# invented for itself.
-#
+# Differential proof for mint_harness: the same declared edge, minted independently by Ruby's
+# LineageManager and Rust's boot-gate mint path, must produce byte-identical `_head` views.
 # usage: mint_via_rust_matches_ruby.rb <mint_harness_binary> <lineage_harness_binary>
 
 require "pg"
@@ -66,8 +39,7 @@ admin.close
 
 ruby_owner_url = "postgres://#{OWNER}@localhost/#{RUBY_DB}"
 
-# SAME shape mint_and_seed_lineage.rb (ADR 0029) already proved — one
-# attribute rename is enough to change StorageShape.project's own
+# One attribute rename changes StorageShape.project's output and triggers a real mint.
 # output and trigger a real mint.
 V1 = <<~BLUEBOOK
   Hecks.bluebook "Ledger" do
@@ -139,8 +111,7 @@ from_label = label_of(V1)
 to_label = label_of(V2)
 edge_src = edge_source(from: from_label, to: to_label)
 
-# Real Exporter output, same calls bin/project_rust itself makes —
-# see this file's own header on why this beats a hand-built ir.json.
+# Real Exporter output, the same calls bin/project_rust makes.
 def export_ir(source, translation_source:)
   registry = load_registry(source, translation_source: translation_source)
   domain_name = registry.bluebooks.keys.first
@@ -151,15 +122,8 @@ def export_ir(source, translation_source:)
   )
 end
 
-# Kept as `Tempfile` objects, not just their `.path` strings: a Tempfile
-# with no live reference is eligible for GC at any point, and its
-# finalizer unlinks the underlying file — exactly the flake this fixture
-# hit in CI ("reading /tmp/mvr-v1-*.json: No such file or directory"),
-# nondeterministically on either file depending on GC timing, because
-# `.tap { |f| ... }.path` discards the only reference to `f` on this
-# same line. `v1_ir_file`/`v2_ir_file` stay reachable as top-level
-# locals for the rest of this script, so the file can't be unlinked out
-# from under `run!(mint_harness_binary, ..., v1_ir_path)` below.
+# Tempfiles stay bound to locals: an unreferenced Tempfile can be GC'd and unlinked mid-run,
+# which made the harness reads flake with "No such file or directory".
 v1_ir_file = Tempfile.new(["mvr-v1-", ".json"])
 v1_ir_file.write(JSON.generate(export_ir(V1, translation_source: nil)))
 v1_ir_file.flush
@@ -197,13 +161,12 @@ def account_instance(aggregate, kind_label, cents:)
 end
 
 def read_head(db_name, owner)
-  # domain-qualified (docs/decisions/0059) — DOMAIN above is "Ledger".
+  # Domain-qualified table name (docs/decisions/0059).
   rows = PG.connect(dbname: db_name, user: owner).exec("SELECT id, state FROM ledger_account_head ORDER BY id")
   rows.map { |row| [row["id"], JSON.parse(row["state"])] }
 end
 
-# ── era 1: each side mints, then writes real data through its OWN
-# generic write path ──
+# era 1: each side mints, then writes through its own generic write path.
 
 registry_v1 = check_ruby!(V1, owner_url: ruby_owner_url)
 aggregate_v1 = registry_v1.bluebooks.values.first.aggregate("Account")
@@ -218,10 +181,7 @@ era1_writes.each do |kind, cents|
   raise "rust era-1 write of #{kind.inspect} failed: #{result}" unless result.dig("results", 0, "ok")
 end
 
-# ── era 2: each side mints (the real audit/approval-gate path, on the
-# Rust side, runs for real here — this is the FIRST place in this
-# codebase Rust's own audit_before_mint is proven against a domain it
-# didn't author its own fixture data for by hand), then writes ──
+# era 2: each side mints (Rust runs its real audit_before_mint gate), then writes.
 
 registry_v2 = check_ruby!(V2, owner_url: ruby_owner_url, translation_source: edge_src, role: nil)
 aggregate_v2 = registry_v2.bluebooks.values.first.aggregate("Account")
@@ -236,9 +196,7 @@ era2_writes.each do |kind, cents|
   raise "rust era-2 write of #{kind.inspect} failed: #{result}" unless result.dig("results", 0, "ok")
 end
 
-# ── read BOTH sides' final account_head directly — same connection
-# shape (owner, no RLS fencing involved), the most direct possible
-# comparison of what each language's own mint actually produced ──
+# Compares both sides' final account_head directly, as the owner (no RLS fencing).
 
 puts JSON.generate({
                       ruby_db: RUBY_DB, rust_db: RUST_DB, owner: OWNER,

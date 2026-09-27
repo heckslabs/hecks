@@ -1,23 +1,9 @@
-// Implements the `:scalar` branch of `Runtime::Value::Coercion::SHAPES`
-// (lib/hecks/runtime/value/coercion.rb) — `for_attribute`'s final
-// `else value` (the value object lookup misses, so the raw
-// String/Integer/Float/Boolean value passes through unchanged). At the
-// expression-evaluation layer that "raw value" is one of this kernel's
-// `Value::{Str,Int,Float,Bool}` — deliberately not `Value::List` (the
-// `:list` shape, list.rs's own file) or `Value::Nil` (the `:optional`
-// shape, optional.rs) — so every function here explicitly excludes those
-// two rather than accepting `Value` wholesale and hoping callers only
-// ever pass a scalar.
+// The `:scalar` shape of `Runtime::Value::Coercion::SHAPES`: `Value::{Str,Int,Float,Bool}`.
+// `List` and `Nil` belong to the other shapes, so every function here returns `None` for them.
 
 use crate::kernel::expr::Value;
 
-/// Ruby's implicit numeric coercion inside `Evaluator.less_than`/`equal?`
-/// — `Resolver.numeric(lhs)` (resolver.rb): `Integer`/`Float` compare and
-/// add across each other freely (nothing in the corpus's own arithmetic
-/// distinguishes them), every other `Value` — scalar or not — is not a
-/// number. Used by `expression_operators::comparison` (comparing) and
-/// `expression_operators::arithmetic` (adding/modulo'ing) alike, so it
-/// lives here rather than duplicated in both.
+// Mirrors `Resolver.numeric`: `Int` and `Float` mix freely; any other `Value` is not a number.
 pub fn numeric(v: &Value) -> Option<f64> {
     match v {
         Value::Int(i) => Some(*i as f64),
@@ -26,11 +12,7 @@ pub fn numeric(v: &Value) -> Option<f64> {
     }
 }
 
-/// `Resolver::ToS`'s scalar half — `.to_s` on a `Str`/`Int`/`Float`/
-/// `Bool` value (`expression_operators::to_string` calls this before
-/// falling back to `optional::to_s` for the `Nil` case that isn't a
-/// scalar at all). `None` for any non-scalar `Value` (`List`/`Nil`),
-/// same reasoning as `numeric` above.
+// `.to_s` on a scalar; `None` for `List`/`Nil`.
 pub fn to_s(v: &Value) -> Option<Value> {
     match v {
         Value::Str(s) => Some(Value::Str(s.clone())),
@@ -41,11 +23,7 @@ pub fn to_s(v: &Value) -> Option<Value> {
     }
 }
 
-/// `Resolver::Empty`/`Resolver::Size`'s scalar half — the only scalar
-/// `Value` with a length at all is `Str` (`Int`/`Float`/`Bool` have none
-/// to ask about, so `None` for those, matched by
-/// `expression_operators::sized` falling through to its own explicit
-/// refusal arm rather than this file inventing an answer).
+// Only `Str` has a length; `Int`/`Float`/`Bool` answer `None` so the caller refuses.
 pub fn is_empty(v: &Value) -> Option<bool> {
     match v {
         Value::Str(s) => Some(s.is_empty()),

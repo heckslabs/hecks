@@ -1,12 +1,7 @@
 require "spec_helper"
 
-# The glossary every domain carries with it — `<domain>/glossary/` (the two
-# examples, and the QA ledger under qa/) is a projection of the bluebook
-# beside it, and this refuses a diff the
-# same way spec/diagrams_spec.rb refuses one for the diagrams: regenerate
-# in memory, compare byte for byte, refuse an orphan. The page is then
-# checked for the three promises Projections::Glossary makes to a reader
-# outside engineering — no identifiers, no type labels, every link lands.
+# Each committed `<domain>/glossary/` must match a fresh in-memory projection byte for byte,
+# with no orphan files, and the page must keep the Glossary promises: no identifiers or kinds.
 RSpec.describe "the glossary a domain carries with it" do
   # Domain folder (relative to the repo root) => the chapter it declares.
   GLOSSARY_DOMAINS = {

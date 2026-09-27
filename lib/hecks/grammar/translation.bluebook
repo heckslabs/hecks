@@ -18,12 +18,9 @@ Hecks.bluebook "Translation" do
       transition "Retire" => "retired",  from: "admitted"
     end
 
-    # THE CLOSED SET OF RULE KINDS — declared as members, not a hand-rolled
-    # OR-chain, so the set is data a conformance spec can hold the live
-    # builder to (spec/translation_vocabulary_conformance_spec.rb). Nine of
-    # these are TranslationAggregateBuilder's own rule methods ; "retired" is
-    # the edge-level declaration (TranslationBuilder#retired), in the set
-    # because it is one admitted way a shape survives — by not surviving.
+    # The closed set of rule kinds, kept as data so a conformance spec can hold the
+    # builder to it. All but "retired" are TranslationAggregateBuilder rule methods;
+    # "retired" is the edge-level declaration (TranslationBuilder#retired).
     value_object "Kind" do
       attribute :value, String,
                 one_of: ["rename", "move", "convert", "drop", "retype", "retired", "compute", "rekey",

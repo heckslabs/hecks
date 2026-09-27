@@ -2,22 +2,8 @@ require "spec_helper"
 require "hecks/ports/persistence/plugins/era"
 require "tmpdir"
 
-# ADR 0025's own prerequisite (docs/dsl-work-slices.md, slice S0a): no
-# spelling can be removed from the live grammar until frozen era text
-# can still be read under whatever grammar was live when it was
-# written. `EraGuard.shadow_parse` runs a plain `Kernel.eval` of stored
-# source at boot, at mint, and during tamper detection — against
-# today's grammar unless something tells it otherwise, which would
-# refuse history the day a spelling it used is removed.
-#
-# Proved against a rule that already exists only in the meta-domain,
-# never duplicated as a builder's own `raise Malformed` —
-# `BluebookBuilder#vision`'s own comment says so: "moved to the
-# language: Vision invariant, on Chapter.Declare". That makes it the
-# one real, present-day case where `MetaValidator`'s judging is the
-# only thing that would refuse this text, which is exactly what
-# `while_shadow_parsing` has to hold off — not a spelling invented for
-# this spec, and not a future removal pre-empted from this slice.
+# Frozen era text must stay readable under the grammar live when it was written (ADR 0025).
+# The vision rule lives only in the meta-domain, so `while_shadow_parsing` must hold it off.
 RSpec.describe "shadow-parsing frozen era text against a legacy grammar" do
   EMPTY_VISION = <<~BLUEBOOK.freeze
     Hecks.bluebook "ShadowParseFixture" do
@@ -36,11 +22,8 @@ RSpec.describe "shadow-parsing frozen era text against a legacy grammar" do
     end
   BLUEBOOK
 
-  # `identified_by { ... }`'s block is never called — its source is read
-  # back off disk the same way a `given`'s is (`Ports::Extraction`,
-  # `AggregateBuilder#identified_by`'s own comment), so the fixture has
-  # to be a real file at the path it is eval'd under, not a string
-  # handed a made-up name.
+  # The `identified_by` block's source is read back off disk, so the fixture must be a real
+  # file at the path it is eval'd under.
   def fixture_path(dir, name) = File.join(dir, "#{name}.bluebook")
 
   def eval_live(source, path)
@@ -89,25 +72,9 @@ RSpec.describe "shadow-parsing frozen era text against a legacy grammar" do
     end
   end
 
-  # A dotted-hop (`/`) where clause through the era/shadow-parse path —
-  # found live while moving QualityControl's own ledger onto PostgresEra
-  # (qa/bluebook/quality_control.bluebook's `Ticket.RestingOnUnpaused`,
-  # `where(:"bug/status" => ...)`). The failure that surfaced there was
-  # not a bug in this machinery: a stale local Postgres database, left
-  # over from earlier manual testing of this same binding, held era text
-  # written under the pre-ADR-0025 spelling (`where(:"bug.status" =>
-  # ...)`, a dot) — a spelling `seal_query_field` correctly refuses under
-  # both the live grammar and the shadow-parse fallback, because a dotted
-  # hop was never one of the "genuinely removed spellings" shadow-parsing
-  # exists to keep readable (see this file's own header, and era_guard.rb's
-  # `shadow_parse` comment) — only `identified_by { }`/`belongs_to`/
-  # `has_one`/`has_many`, and `reference_to`'s default-naming fork, are.
-  # These two examples pin both halves: the current `/` spelling parses
-  # clean through `shadow_parse` needing no legacy fallback at all, and
-  # the old `.` spelling refuses loudly rather than silently
-  # misinterpreting the hop as a local dotted field — the same honest
-  # refusal a live boot already gives, not a special case shadow-parsing
-  # quietly forgives.
+  # Dotted-hop (`/`) where clauses through shadow_parse. The `.` spelling was never one of the
+  # removed spellings shadow-parsing keeps readable, so it must refuse loudly rather than be
+  # read as a local dotted field; the `/` spelling parses with no legacy fallback.
   describe "a dotted-hop (`/`) where clause" do
     HOP_CHAIN_SOURCE = File.read(File.join(__dir__, "fixtures/hop_chain.bluebook")).freeze
 
@@ -124,14 +91,8 @@ RSpec.describe "shadow-parsing frozen era text against a legacy grammar" do
       end
     end
 
-    # A minimal, self-contained fixture (not hop_chain.bluebook) —
-    # deliberately one aggregate, one reference, one query, so the only
-    # thing this proves is dot-vs-slash. `MetaValidator.while_shadow_
-    # parsing` also reverts `reference_to`'s default-naming convention
-    # (era_guard.rb's own `shadow_parse` comment), which would give a
-    # second, unrelated reason for a busier fixture's own default-named
-    # hop queries to refuse under the shadow branch — a real interaction,
-    # but a different question than the one this example asks.
+    # Minimal fixture (not hop_chain.bluebook): `while_shadow_parsing` also reverts
+    # `reference_to`'s default naming, which would give a busier fixture a second reason to refuse.
     DOTTED_HOP_SOURCE = <<~BLUEBOOK.freeze
       Hecks.bluebook "DottedHopFixture" do
         generic

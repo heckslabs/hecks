@@ -1,25 +1,10 @@
 require "spec_helper"
 
-# `trigger ..., with:` — what the trigger is given.
+# `trigger ..., with:` projects what a trigger is given instead of forwarding the whole event.
 #
-# A policy forwards its event's whole payload verbatim unless told
-# otherwise, which makes every trigger's argument list a hostage to the
-# shape of an event declared somewhere else: banking's `FreezeAccount`
-# carried an `attribute :standing` it never read, and `Account` carried a
-# duplicated value object to type it, purely so a forward would not
-# refuse. `with:` is the projection that was missing.
-#
-# The fan-out case is the one worth writing down twice: the row key is
-# merged into the source a projection reads from, not onto its result, so
-# a `for_each` trigger can name the row and send nothing else. Merged the
-# other way, "the record and nothing else" would be inexpressible — which
-# is the case a fan-out almost always wants.
+# On a `for_each` the row key is merged into the projection's source, so a trigger can name the
+# row and send nothing else.
 RSpec.describe "a policy's trigger projection" do
-  # A declarative bluebook fixture, not procedural code — two aggregates
-  # and the one policy this file exists to exercise, declared start to
-  # finish in one place, same as every other `.bluebook`-shaped fixture
-  # in this suite. Nothing here branches; splitting it would only spread
-  # one DSL block across call sites.
   # rubocop:disable-next Metrics/AbcSize
   # rubocop:disable-next Metrics/MethodLength
   def boot_projection
@@ -56,15 +41,13 @@ RSpec.describe "a policy's trigger projection" do
             emits "PermitGranted"
           end
 
-          # **Takes only which permit**. Nothing about the alert that caused
-          # it — which is the whole point.
+          # Takes only which permit, nothing about the alert that caused it.
           command "Revoke" do
             reference_to Permit
             emits "PermitRevoked"
           end
 
-          # Takes a note, and the note is the one the alert carried under
-          # a different name — the renaming half of a projection.
+          # Takes the note the alert carried under a different name.
           command "Annotate" do
             reference_to Permit
             attribute :note, Note
@@ -100,9 +83,8 @@ RSpec.describe "a policy's trigger projection" do
           end
         end
 
-        # **The row and nothing else** — `Revoke` declares no arguments, and
-        # `BreachReported` carries three. Without the projection every
-        # delivery would be refused as UnknownArgument.
+        # `Revoke` declares no arguments and `BreachReported` carries three, so without
+        # the projection every delivery is refused as UnknownArgument.
         policy "RevokeOnBreach" do
           on       "BreachReported"
           for_each "Permit.ForHolder"
@@ -145,8 +127,7 @@ RSpec.describe "a policy's trigger projection" do
     expect(Projecting::Permit.find("p-3").status).to eq("valid")
   end
 
-  # **The regression this spec exists for**. `Revoke` declares no arguments
-  # at all, so if the event's own fields reached it the refusal would be
+  # Pins the regression: if the event's fields reached `Revoke` the refusal would be
   # `UnknownArgument: Revoke does not declare holder, ref, summary`.
   it "keeps the event's own fields away from a trigger that never declared them" do
     report
@@ -162,9 +143,7 @@ RSpec.describe "a policy's trigger projection" do
 
     report
 
-    # `summary` on the breach, `note` on the permit — the same value,
-    # under the name the target declares rather than the one the event
-    # happened to use.
+    # `summary` on the breach is `note` on the permit: the target's name wins.
     expect(Projecting::Permit.find("p-1").note.to_h).to eq(text: "took the van")
   end
 

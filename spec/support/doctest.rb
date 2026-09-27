@@ -2,53 +2,14 @@ require "tempfile"
 require "prism"
 require_relative "postgres_probe"
 
-# **Executable documentation** — a guide's fenced examples are extracted and
-# run against the real runtime, so a guide that lies goes red in CI. The
-# same covenant everything else in this codebase lives under: a
-# declaration nothing reads cannot disagree with anything, and prose is
-# a declaration.
+# Executable documentation: a guide's fenced examples run against the real runtime.
+# A guide that lies goes red in CI.
 #
-# ## Fence kinds
-#
-# A guide is a Markdown file whose fences mean:
-#
-#   ```ruby bluebook   a domain declaration — booted, via its own
-#                      Tempfile (Prism's extraction memoises per PATH,
-#                      so every block gets a fresh one). Spelled
-#                      "ruby bluebook", not bare "bluebook", so a
-#                      public renderer (GitHub Pages' Rouge highlighter
-#                      reads only the first info-string word) colors it
-#                      as the real Ruby it is, the same reason
-#                      "ruby boot" / "ruby skip" already do.
-#   ```ruby boot       wiring — hecksagon/world blocks, still inside
-#                      with_registry
-#   ```ruby            usage — runs against the bound runtime, one
-#                      shared binding per guide so locals carry across
-#                      blocks the way a narrative expects
-#   ```ruby skip       shown, never run
-#
-# and hidden setup lives in an HTML comment:
-#
-#   <!-- doctest:boot
-#   Kernel.load(...)
-#   -->
-#
-# ## Claim markers
-#
-# Two claim markers, both required to sit on a single-line expression
-# (the transform must preserve the file's line count so a failure names
-# the guide's real line):
-#
-#   expr   # => expected      asserted with == against the expected
-#                             text evaluated in the same binding
-#   expr   # ~> Klass: text   the expression must refuse — class name
-#                             (demodulized) and message substring both
-#                             checked; not raising is the failure
-#
-# ## Postgres-gated guides
-#
-# A guide whose first line is `<!-- doctest: postgres -->` runs only
-# when a local Postgres answers, and skips cleanly otherwise.
+# Fences: `ruby bluebook` (a domain, booted), `ruby boot` (wiring), `ruby` (usage, one shared
+# binding per guide), `ruby skip` (never run); hidden setup lives in `<!-- doctest:boot ... -->`.
+# Claims sit on one line so failures name the true line: `expr # => value` asserts equality,
+# `expr # ~> Klass: text` must raise that class (demodulized) with that message substring.
+# A guide whose first line is `<!-- doctest: postgres -->` skips cleanly without a local Postgres.
 module Doctest
   class Mismatch < StandardError
   end
@@ -57,36 +18,14 @@ module Doctest
   end
 
   Block = Struct.new(:kind, :code, :line, keyword_init: true)
-  # `skip_fences` counts the ```ruby skip fences parse dropped — shown,
-  # never run. spec/doc_skip_fence_caps_spec.rb caps it per file.
+  # `skip_fences` counts the dropped `ruby skip` fences; doc_skip_fence_caps_spec.rb caps it.
   Guide = Struct.new(:path, :blocks, :postgres, :skip_fences, keyword_init: true)
 
-  # Shared with every other Postgres spec via support/postgres_probe.rb —
-  # a real `PG.connect` round trip asking the identical question, not a
-  # copy of the probe itself. A method, not a constant — this module gets
-  # `require_relative`d unconditionally by every doctest-running spec, so
-  # a constant here would connect on every `bundle exec rspec`, `io: true`
-  # excluded or not. Both callers below already only reach this from
-  # inside an example body (already deferred by RSpec), so a method call
-  # there triggers real I/O only when the example actually runs.
-  #
-  # @return [Boolean] true if a local Postgres answers a real connection
+  # A method, not a constant: a constant would connect to Postgres on every run, `io: true` or not.
   def self.postgres_available? = PostgresProbe.available?
 
-  # schema-evolution.md's opening section is not a fixture — it reads
-  # `examples/pizzas`' own real era-1→2 migration back out of whatever
-  # Postgres is reachable, on purpose (see the guide's own "It already
-  # happened here" section for why faking that history would be a
-  # larger dishonesty than skipping it). That real history exists on
-  # exactly one machine: whoever's local Postgres lived through the
-  # actual pizza migration. A fresh database — CI's, or anyone else's
-  # first `createdb hecks_pizzas` — has the schema and none of the
-  # history, so this checks for the second era's own row rather than
-  # assume reachable Postgres means this specific guide can run. Also a
-  # method, memoized, for the same reason `postgres_available?` is.
-  #
-  # @return [Boolean] true if a local Postgres has schema-evolution.md's
-  #   real era-1→2 pizza migration history (at least 2 rows in hecks_eras)
+  # schema-evolution.md reads pizzas' real era-1→2 history out of Postgres; a fresh database
+  # has the schema but not the history, so check for the second era's row. Memoized.
   def self.pizzas_history_available?
     return @pizzas_history_available if defined?(@pizzas_history_available)
 
@@ -104,16 +43,6 @@ module Doctest
 
   module_function
 
-  # A single-pass state machine over the guide's lines — `fence` is the
-  # in-progress marker (or nil), `buffer`/`start` accumulate the current
-  # block. Dispatches on the closed set of fence markers this file's own
-  # header documents. Splitting the line-loop from the `case` would mean
-  # threading `fence`/`buffer`/`start` between methods as parameters and
-  # return values instead of as plain locals closed over by one loop.
-  #
-  # @param path [String] filesystem path to the guide's Markdown file
-  # @return [Doctest::Guide] the file's fenced blocks in order, its skip-fence
-  #   count, and whether its first three lines opt into requiring Postgres
   # rubocop:disable-next Metrics/CyclomaticComplexity
   def parse(path)
     blocks = []
@@ -154,24 +83,9 @@ module Doctest
               postgres: File.foreach(path).first(3).any? { |l| l.include?("<!-- doctest: postgres -->") })
   end
 
-  # The chapter names a guide declares — the collision gate reads these,
-  # because facade constants install onto Object and are never
-  # uninstalled: two guides inventing the same domain would silently
-  # rebind to whichever booted last, under random spec order.
-  #
-  # Only `Hecks.bluebook "Name" do ... end` counts as inventing one — a
-  # guide that instead Kernel.loads a real corpus file (examples/pizzas,
-  # examples/banking) and wires it with its own `hecksagon`/`world`
-  # block never writes that chapter's own `Hecks.bluebook` line itself
-  # (that line lives inside the loaded file, invisible to this scan), so
-  # two guides sharing one real corpus example this way is safe and
-  # deliberately not flagged: both boot the identical file into their
-  # own isolated Registry, and there is nothing for them to disagree
-  # about.
-  #
-  # @param guide [Doctest::Guide] a guide already parsed by `.parse`
-  # @return [Array<String>] each domain name the guide declares via
-  #   `Hecks.bluebook`, deduplicated
+  # Facade constants install onto Object and are never uninstalled, so two guides inventing the
+  # same chapter would rebind to whichever booted last. Only `Hecks.bluebook "Name"` counts;
+  # loading a shared corpus file declares nothing here.
   def declared_domains(guide)
     guide.blocks
          .reject { |block| block.kind == :usage }
@@ -179,41 +93,27 @@ module Doctest
          .flatten.uniq
   end
 
-  # Parses a guide and runs all of its blocks against a fresh boot.
+  # Parses the guide at `path` and runs all of its blocks against a fresh boot.
   #
-  # @param path [String] filesystem path to the guide's Markdown file
-  # @return [Boolean] true if every claim in the guide holds
   # @raise [Doctest::Mismatch] if an `# =>` or `# ~>` claim does not hold
-  # @raise [Doctest::Malformed] if a claim marker sits on an expression that
-  #   does not parse on its own line
+  # @raise [Doctest::Malformed] if a claim marker sits on an expression that does not parse alone
   def run(path)
     guide = parse(path)
     session = Session.new(guide)
     session.call
   end
 
-  # A guide runs as waves: each run of declaration blocks boots one
-  # session, and the usage blocks after it run against that boot. A
-  # later declaration block starts the next wave — the README's shape,
-  # where two independent narratives share one file. Locals persist
-  # across waves (one shared binding), but a new wave's boot rebinds the
-  # runtime, so a guide reaches back to an earlier wave's domain at its
-  # own peril.
+  # Runs a guide in waves: each run of declaration blocks boots a runtime, and the usage
+  # blocks after it run against that boot. Locals persist across waves, but a later wave's
+  # boot rebinds `runtime`.
   class Session
-    # @param guide [Doctest::Guide] the parsed guide to run
     def initialize(guide)
       @guide = guide
       @tempfiles = []
     end
 
-    # Runs the guide's waves in order: boots each declaration block's
-    # runtime, then evaluates its usage blocks' transformed claims against
-    # it, all in one binding shared across the whole guide.
-    #
-    # @return [Boolean] true once every wave has run without a claim failing
     # @raise [Doctest::Mismatch] if an `# =>` or `# ~>` claim does not hold
-    # @raise [Doctest::Malformed] if a claim marker sits on an expression
-    #   that does not parse on its own line
+    # @raise [Doctest::Malformed] if a claim marker sits on an expression that does not parse alone
     def call
       host = Object.new
       checker = Checker.new(@guide.path)
@@ -255,6 +155,7 @@ module Doctest
 
         declarations.each do |block|
           if block.kind == :bluebook
+            # Prism memoises extraction per path, so each block needs a fresh file.
             file = Tempfile.new(["doctest-", ".bluebook"])
             file.write(block.code)
             file.flush
@@ -269,8 +170,7 @@ module Doctest
       Hecks::Runtime::Loader.bind_runtime(Hecks::Runtime::Dispatcher.new(registry))
     end
 
-    # Marker lines are rewritten in place — one line stays one line, so
-    # every backtrace and failure names the guide's true line number.
+    # One line stays one line, so backtraces name the guide's true line.
     def transform(block)
       block.code.each_line.with_index.map do |line, index|
         transform_line(line, block.line + index)
@@ -299,27 +199,13 @@ module Doctest
     end
   end
 
-  # Evaluates one guide's `# =>` and `# ~>` claims and raises `Mismatch`
-  # with a readable diff when one fails. `Session#call` binds an instance
-  # into the guide's shared binding as `__dt__`; only the code
-  # `Session#transform` generates calls `#eq` and `#refuses`.
+  # Evaluates the `# =>` and `# ~>` claims, raising `Mismatch` with a readable diff. Only code
+  # generated by `Session#transform` calls it.
   class Checker
-    # @param path [String] the guide's filesystem path, used in error messages
     def initialize(path)
       @path = path
     end
 
-    # Checks a `# =>` claim: the yielded expression's value must equal the
-    # expected value.
-    #
-    # @param line [Integer] the guide's line number the claim sits on
-    # @param expected_source [String] the claim's expected-value source text,
-    #   evaluated in this checker's own binding
-    # @param expression [String] the claim's expression, as source text, for
-    #   the error message
-    # @yieldreturn [Object] the actual value the claim's expression produces
-    # @return [Object] the actual value, when it equals the expected value
-    # @raise [Doctest::Mismatch] if the actual value does not equal expected
     def eq(line, expected_source, expression)
       actual = yield
       expected = eval(expected_source, binding, "#{@path} (expected at :#{line})")
@@ -333,20 +219,6 @@ module Doctest
       WHY
     end
 
-    # Checks a `# ~>` claim: the yielded expression must raise the named
-    # class with a message containing the expected substring.
-    #
-    # @param line [Integer] the guide's line number the claim sits on
-    # @param klass [String] the expected exception class's demodulized name
-    # @param message [String] a substring expected in the exception's
-    #   message, or `""` for none
-    # @param expression [String] the claim's expression, as source text, for
-    #   the error message
-    # @yield evaluates the expression expected to raise
-    # @return [StandardError] the rescued exception, when its class and
-    #   message match
-    # @raise [Doctest::Mismatch] if the block does not raise, or raises a
-    #   different class or a message missing the expected substring
     def refuses(line, klass, message, expression)
       yield
       raise Mismatch, <<~WHY

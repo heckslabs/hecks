@@ -2,22 +2,8 @@ module RustProjection
   module Projector
     module_function
 
-    # A list-typed aggregate attribute reads `nil` in Ruby, not `[]`,
-    # under one precise condition (0019's/0014's own investigation, read
-    # directly against `mutation_applier.rb`/`value/coercion.rb`, not
-    # guessed): some CREATING command declares an explicit `:set`-op
-    # mutation (`sets attr, to: source`) targeting it, sourced from a
-    # command argument the CALLER omitted. Every declared mutation runs
-    # UNCONDITIONALLY during `apply_mutations` — `resolve_source`/`Value.
-    # for_attribute` pass a missing argument through as a real `nil`,
-    # overwriting `Instance.defaults`' own `[]` baseline every list
-    # attribute otherwise starts with. `CardPayment.tags` (`sets
-    # :tags, to: :tags`, sourced from its own `optional: true` argument)
-    # is the corpus's one live example; `Account.ledger` (touched only by
-    # `Credit`/`Debit`'s own `append`, never a creating command's `:set`)
-    # is the negative case that must stay `[]` — the exact regression the
-    # 0014 doc's own reverted empty-list-to-null heuristic caused by not
-    # distinguishing them.
+    # True when a list attribute reads `nil` rather than `[]`: a creating command `sets` it from
+    # an optional argument the caller omitted (`CardPayment.tags`). `Account.ledger` stays `[]`.
     def list_attr_creation_optional?(aggregate, attr_name, value_objects_by_name)
       aggregate[:commands].any? do |command|
         next false unless creates_owner?(aggregate, command, value_objects_by_name)
@@ -31,57 +17,10 @@ module RustProjection
       end
     end
 
-    # `creates_owner?(aggregate, command, value_objects_by_name)` — REPLACES
-    # `command[:references].nil?` ALONE (and the coincidental bare-name
-    # matching `identity_components`, below, used to do) as the "does this
-    # command build the OWNER record from scratch" test.
-    #
-    # `references.nil?` IS HONEST WHENEVER IT'S SET — a command that
-    # genuinely declares `reference_to <its own owner>` (bare, no `as:`)
-    # really does act on an existing one (`Compliance::AccountFreezeReview
-    # .Clear`/`Governance::RoleTransition.Revoke`, both real, both keep
-    # `references` non-nil and stay `false` here, unconditionally, on that
-    # signal alone). What's dishonest is treating an ABSENT `references` as
-    # proof of creation — a mutating meta-domain command like `Aggregate.
-    # Attribute` declares no `reference_to` at all, not because it creates,
-    # but because the owner it acts on is supplied entirely through ROUTING
-    # (`to:`/`with:`), never as a declared argument — adding a bare
-    # `reference_to Aggregate` purely to flip this heuristic was the
-    # rejected direction (RESTART.md's own "Option 1": a fake self-
-    # reference). So `references: nil` needs a SECOND, honest test.
-    #
-    # THAT TEST IS NOT COMPLETENESS. A creating command's generated Rust
-    # struct Option-wraps EVERY scalar field regardless (`emit_record`'s own
-    # header, types.rb) — an uncovered field just becomes `None`, which is
-    # exactly how `Pizzas::Order.CreatePizza` (zero mutations, no `customer_
-    # name` argument at all — `Order`'s fourth field) already generates
-    # correctly. `Runtime::DependencyPlanning::Analyzer#complete_state?`
-    # answers a DIFFERENT, narrower question for Ruby's own runtime (an
-    # atomic-put OPTIMIZATION eligibility check) and disagrees with "creates"
-    # on both sides — `CardPayment.Authorize` is complete_state?-false (its
-    # own identity field, `authorisation`, is never a `:set` target) yet
-    # unquestionably creates a fresh `CardPayment`; `Aggregate.Lifecycle`
-    # IS complete_state?-true-shaped (it `:set`s two real fields) yet acts on
-    # an existing `Aggregate` — completeness alone cannot tell these apart.
-    #
-    # THE HONEST TEST: with `references: nil` already narrowing to "no
-    # explicit reference at all," a command creates the owner when it
-    # supplies (via a `:set` mutation OR — `emit_command`'s own
-    # `record_fields`, commands.rb — a same-named argument, copied straight
-    # across with NO mutation required) at least one of the owner's own
-    # REQUIRED (non-list, non-optional) fields. `Order.CreatePizza` supplies
-    # `name`/`pizza` this way (both required) — that's real evidence of
-    # building a genuinely new record. `Aggregate.Attribute`/`Aggregate.
-    # Lifecycle` supply nothing of the kind: the first's every argument is
-    # claimed by its own `append`, the second touches only `state_field`/
-    # `state_start`, both `optional: true` — attaching a fact to a record
-    # that must already exist is exactly what "nothing required is ever
-    # newly supplied" looks like. A `:set`/bare-matched argument already
-    # claimed by an APPEND (`ValueObject.Member`'s own `position`, feeding
-    # the appended MEMBER's `position`, never `ValueObject`'s own
-    # unrelated, declaration-order field of the same name) is excluded from
-    # counting as such evidence — the exact bare-name coincidence this
-    # whole fix exists to stop trusting blindly.
+    # Whether `command` builds the owner record from scratch. Needs `references: nil` plus a
+    # supplied required owner field, by `:set` or a same-named argument. Arguments claimed by an
+    # `append` don't count (`ValueObject.Member#position` is not the owner's). Completeness of
+    # state is not the test: `Analyzer#complete_state?` disagrees on both sides.
     def creates_owner?(aggregate, command, value_objects_by_name)
       return false unless command[:references].nil?
 
@@ -89,10 +28,7 @@ module RustProjection
       owner_fields << aggregate[:lifecycle][:field].to_s if aggregate[:lifecycle]
       required_fields = aggregate[:attributes].reject { |a| a[:list] || a[:optional] }.map { |a| a[:name].to_s }.to_set
 
-      # ARGUMENT NAMES ALREADY CLAIMED BY AN APPEND — collected first, so
-      # an append's own element-field argument is never ALSO eligible to
-      # bare-name-match an unrelated owner field that happens to share its
-      # name (see this method's own header on `ValueObject.Member`).
+      # Arguments claimed by an append never bare-name-match an owner field.
       append_claimed = Set.new
       command[:mutations].each do |m|
         next unless m[:op].to_s == "append"
@@ -105,16 +41,13 @@ module RustProjection
 
       known_writes = Set.new
 
-      # A BARE-NAME MATCH — `record_fields` (commands.rb) copies a
-      # creating command's argument straight into the same-named owner
-      # field with no `:set` mutation required at all.
+      # A same-named argument is copied across by `record_fields` with no `:set`.
       command[:attributes].each do |attr|
         name = attr[:name].to_s
         known_writes << name if owner_fields.include?(name) && !append_claimed.include?(name)
       end
 
-      # AN EXPLICIT `:set` MUTATION — covers the "renamed source" shape a
-      # bare-name match alone can't (`sets :field, to: :other_arg`).
+      # A `:set` covers the source-from-another-argument shape (`sets :field, to: :other_arg`).
       command[:mutations].each do |m|
         next unless m[:op].to_s == "set"
 
@@ -125,42 +58,19 @@ module RustProjection
       required_fields.any? { |field| known_writes.include?(field) }
     end
 
-    # `append`'s TARGET, resolved to whichever real thing it is — a plain
-    # value object (`Order.toppings`, a `Vec<Topping>`) or an ENTITY
-    # (`Account.ledger`, a `Vec<LedgerEntry>`) — so field-type lookups can
-    # read `[:attributes]` the same way regardless of which. `nil` when
-    # the attribute names neither (a codegen bug if reached; every real
-    # append target already passed `unsupported_attribute_types` above).
+    # Resolves an `append` target to its entity or value object, or nil if it is neither.
     def append_element(aggregate, target_type, value_objects_by_name)
       # LOCAL FIRST — an aggregate's own nested entity is scoped to that
-      # aggregate; `value_objects_by_name` is merged DOMAIN-WIDE (every
-      # aggregate's own value objects, so a cross-aggregate reuse like
-      # Translation's own TranslationName resolves at all). The two
-      # namespaces aren't meant to collide, but the self-hosted grammar's
-      # own Bluebook chapter proves they CAN: Command's domain-wide
-      # value_object "Argument" (an ordinary command's own argument row)
-      # and Syntax's own LOCAL entity "Argument" (S14, ADR 0026 — one row
-      # of the syntax table itself, keyword/context/at/named/kind/...)
-      # share a name purely by coincidence. Checking local first — same
-      # "the aggregate's own declaration wins" precedent judge.rb's own
-      # cross-aggregate value-object fallback already set — means Syntax's
-      # OWN Argument entity resolves correctly; every other aggregate,
-      # with no such collision, sees identical behavior either order.
+      # Local entities win over the domain-wide value objects: Syntax's local `Argument` entity
+      # shares a name with Command's `Argument` value object.
       local = aggregate[:entities].find { |e| e[:name] == target_type }
       return local if local
 
       value_objects_by_name[target_type]
     end
 
-    # An entity element's identity, auto-minted at append time exactly the
-    # way `MutationApplier#entity_element` does it: sequential position
-    # (`Array(current).size + 1`) wrapped into whichever single-field
-    # value object the identity's own dotted path names —
-    # `LedgerEntry.identified_by { sequence.value }`, the one real shape
-    # this corpus needs. Returns `[attribute, its_value_object]`, or `nil`
-    # when the shape doesn't match (a composite entity identity, or one
-    # that isn't a bare-declared attribute) — command_skip_reason's half
-    # of this pairing, same as every other bridgeable?/rhs pair here.
+    # Identity attribute and its single-field value object for an auto-minted entity element,
+    # or nil for a composite or non-bare identity.
     def entity_identity_mint(entity, value_objects_by_name)
       id_path = entity[:identified_by]&.first
       return nil unless id_path
@@ -177,31 +87,8 @@ module RustProjection
       [attr, vo]
     end
 
-    # BUG#33 — `MutationApplier#check_entity_collision`'s own guard
-    # (mutation_applier.rb), ported for `append` already by BUG#13 (see
-    # `emit_mutation_line_body`'s own `"append"` branch, above), extended
-    # here to a whole-list `:set` REPLACE (`sets :entries` bare — `Ledger.
-    # ReplaceEntries`, qa/stress_domains/corrections, the corpus's first
-    # `list_of(ENTITY)` command argument/mutation). Unlike `append`,
-    # there is no per-element RHS to compute here — `rhs` already names a
-    # whole `Vec<Entity>` built by ordinary `from_json` deserialization
-    # (`json_codec.rb`'s own generated `Entity::from_json`, which already
-    # REQUIRES the identity field via `v.require(...)` — a MISSING
-    # identity is therefore already refused, by construction, before this
-    # codegen is ever reached; only the DUPLICATE case is a real gap
-    # here), so this only needs the identity's own field name to compare
-    # elements PAIRWISE with the derived `PartialEq` every generated
-    # entity struct already has.
-    #
-    # Returns `[guard_text, effective_rhs]`: a NON-COMPOSITE entity-typed
-    # list target (`entity[:identified_by].size == 1`, exactly BUG#13's
-    # own scope — a composite identity's own duplicate question is the
-    # same pre-existing, documented gap BUG#13 left open for `append`,
-    # not widened here) gets a `let` binding plus a pairwise duplicate
-    # check ahead of the assignment, and `effective_rhs` then names that
-    # bound local rather than re-evaluating `rhs` a second time; every
-    # other list target (a value-object element, or a composite entity
-    # identity) is untouched, `rhs` handed back exactly as given.
+    # Guard for a whole-list `:set` of entities: refuses duplicate identities pairwise.
+    # Returns `[guard_text, effective_rhs]`; composite identities are left unguarded.
     def entity_list_replace_guard(aggregate, target_attr, target_field, rhs, value_objects_by_name)
       entity = aggregate[:entities].find { |e| e[:name] == target_attr[:type] }
       return ["", rhs] unless entity && entity[:identified_by]&.size == 1
@@ -211,12 +98,7 @@ module RustProjection
       return ["", rhs] unless id_attr
 
       id_field  = rust_ident_field(id_attr[:name])
-      # `Rendering.describe`'s own single-field unwrap (rendering.rb),
-      # matched here so `format!` renders the SAME bare scalar Ruby's
-      # own `RefusalWording.render`'s "offered" arm does — `e.#{id_field}`
-      # alone Debug-prints the WHOLE identity value object
-      # (`EntrySequence { value: 1 }`), not the bare `1` a reader (and
-      # `bin/rust_conformance`'s own byte-exact comparison) expects.
+      # Single-field unwrap, so `format!` prints the bare scalar as Ruby's refusal wording does.
       id_vo = value_objects_by_name[id_attr[:type]]
       offered_expr =
         if id_vo && !id_vo[:closed_set] && id_vo[:attributes].size == 1
@@ -238,16 +120,8 @@ module RustProjection
       [guard, local_var]
     end
 
-    # Every `append` mutation's own field(s), checked against the element
-    # they're building — the same "can we generate this" role
-    # bridgeable_value_types?/literal_hash_bridgeable? already play for
-    # `:set`, applied per-field instead of once. Two real problems this
-    # catches that a blanket `.inspect`-string skip used to hide: a field
-    # sourced from an argument whose type doesn't bridge to the field's
-    # own declared type (`Credit`'s `PositiveMoney` `amount` into
-    # `LedgerEntry`'s `Money` `amount` — DOES bridge, by field name; a
-    # genuine mismatch would not), and — for an ENTITY target only — an
-    # identity that can't be auto-minted and isn't supplied explicitly.
+    # Why an `append` can't be generated: an unresolvable element, an undeclared field, a source
+    # that doesn't bridge, or an entity identity that is neither minted nor supplied.
     def append_field_problems(command, aggregate, value_objects_by_name)
       command[:mutations].select { |m| m[:op].to_s == "append" }.flat_map do |m|
         target_attr = aggregate[:attributes].find { |a| a[:name].to_s == m[:target].to_s }
@@ -258,9 +132,7 @@ module RustProjection
           field_attr = element[:attributes].find { |a| a[:name].to_s == field_name.to_s }
           next "#{m[:target]}.#{field_name}: not a declared field" unless field_attr
 
-          # A SYMBOL names an argument, anything else IS the value — the one
-          # distinction the wire spelling carries (Hecks::Literal), read
-          # rather than sniffed off the first character.
+          # A Symbol names an argument; anything else is the value (Hecks::Literal).
           parsed = append_field_source(source)
           next nil if parsed.is_a?(Hecks::StateRef) # checked by state_source_problems
           next literal_problem(m, field_name, parsed, field_attr, value_objects_by_name) unless parsed.is_a?(Symbol)
@@ -283,26 +155,8 @@ module RustProjection
       end
     end
 
-    # BUG#32 (QualityControl ledger) — whether a `remove:` mutation is
-    # generatable at all. `remove:`'s single scalar source is matched
-    # against a stored list element differently depending on what the
-    # list holds (`Runtime::EntityElement.list_element_match?`, read
-    # directly): whole-VALUE equality for a value-object-typed list, or
-    # the entity's own IDENTITY field for an entity-typed one
-    # (`Runtime::Value::Coercion#hydrate_entity_identity`'s own comment
-    # gives the full "why identity, not whole-value equality"
-    # reasoning). This generator only emits the ENTITY shape —
-    # `qa/stress_domains/corrections`'s own `Ledger.Void` is the one
-    # live corpus command that needs it — using the SAME single-head,
-    # single-field-VO identity shape `entity_identity_mint` (above)
-    # already requires for auto-minting an appended entity's own
-    # identity, reused here rather than re-derived so the two "can this
-    # entity's identity be generated at all" questions can never drift.
-    # A VALUE-OBJECT-typed list's own `remove:` (matched by whole-value
-    # equality, real on the Ruby side —
-    # `spec/mutation_remove_growth_spec.rb`) has no live corpus command
-    # for this generator to prove itself against, so it stays
-    # unsupported here, same as before this fix.
+    # Why a `remove:` can't be generated. Only entity-typed lists are supported, matched by a
+    # single bridgeable identity field, the same shape `entity_identity_mint` requires.
     def remove_field_problems(command, aggregate, value_objects_by_name)
       command[:mutations].select { |m| m[:op].to_s == "remove" }.filter_map do |m|
         target_attr = aggregate[:attributes].find { |a| a[:name].to_s == m[:target].to_s }
@@ -311,12 +165,8 @@ module RustProjection
         entity = aggregate[:entities].find { |e| e[:name] == target_attr[:type] }
         next "#{m[:target]}: remove on a value-object-typed list is not generated yet" unless entity
 
-        # `entity_identity_mint` alone only ever inspects `identified_by`'s
-        # OWN first entry (see that method's own header) — a COMPOSITE
-        # identity (more than one head) needs the same explicit exclusion
-        # `emit_mutation_line_body`'s own append-collision-guard branch
-        # already gives it, or a two-head entity's own first head alone
-        # would silently pass this check.
+        # `entity_identity_mint` inspects only the first head, so a composite identity is
+        # excluded here.
         if Array(entity[:identified_by]).size != 1
           next "#{m[:target]}: #{entity[:name]}'s identity is composite — remove not generated yet"
         end
@@ -341,11 +191,8 @@ module RustProjection
       end
     end
 
-    # `Marks.read` is the exact, already-proven inverse of the spelling
-    # `appended_fields` writes — the OPPOSITE direction of the same round
-    # trip the self-hosted grammar's own bootstrap uses it for. A Symbol
-    # back means the field names a command ARGUMENT ; anything else IS the
-    # literal value.
+    # Decodes an append field source: a Symbol names a command argument, anything else is a
+    # literal.
     def append_field_source(source) = Hecks::Bluebook::Assembly::Marks.read(source)
 
     def literal_problem(mutation, field_name, literal, field_attr, value_objects_by_name)
@@ -354,21 +201,14 @@ module RustProjection
       "#{mutation[:target]}.#{field_name}: literal doesn't bridge to #{field_attr[:type]}"
     end
 
-    # All transition rows this command names, collapsed into the one
-    # `field`/`from_states` shape `TransitionCheck` wants — a command with
-    # more than one `from:` (CloseAccount: from "open" OR "frozen") shares
-    # one `to_state` across every matching row, per the "Lifecycles"
-    # section above, so only `from_states` needs to be a list.
+    # Collapses the transition rows a command names into the `field`/`from_states` hash
+    # TransitionCheck reads.
     def lifecycle_transition_for(command, aggregate)
       return nil unless aggregate[:lifecycle]
 
       rows = aggregate[:lifecycle][:transitions].select { |t| t[:command] == command[:name] }
-      # `from:` WITHOUT a transition — `Admissibility#enforce_lifecycle_
-      # guard`, read directly: a command that only guards on the current
-      # state (a chess door's `from: "in_play"`) refuses with the same
-      # transition_blocked wording a transition does and moves nothing.
-      # `to_state: nil` is that "moves nothing"; every caller pushes the
-      # state-setting line only when it is present.
+      # `from:` without a transition only guards on state; `to_state: nil` means it moves
+      # nothing.
       if rows.empty?
         froms = Array(command[:from]).compact.map(&:to_s)
         return nil if froms.empty?
@@ -376,19 +216,9 @@ module RustProjection
         return { field: aggregate[:lifecycle][:field], to_state: nil, from_states: froms.uniq, unconstrained: false }
       end
 
-      # `from: nil` — an UNCONSTRAINED transition, admitting from any
-      # state (a creating command has no prior state to come from).
-      # Ruby reads it as `!t.constrained? || Array(t.from).include?(...)`
-      # (IR::Lifecycle#constrained? is `!@from.nil?`), so one such row
-      # admits everything and the whole check is skipped. Left in,
-      # `nil.inspect` renders as the literal Rust token `nil`, which is
-      # not a Rust value: the generated crate does not compile.
-      #
-      # Carried BESIDE the compacted list rather than returning nil for
-      # the row, because the caller reads this hash for TWO things — the
-      # TransitionCheck guard AND the advance_lifecycle assignment of
-      # to_state. Dropping the row would compile and silently stop
-      # advancing the lifecycle: a wrong answer traded for a build error.
+      # A `from: nil` row is unconstrained and admits any state. It is carried as
+      # `unconstrained`
+      # rather than dropped: the caller also reads `to_state` to advance the lifecycle.
       froms = rows.map { |r| r[:from_state] }
       {
         field: aggregate[:lifecycle][:field],
@@ -398,42 +228,16 @@ module RustProjection
       }
     end
 
-    # Ruby's real `apply`, for `:set`, does `Value.for(aggregate,
-    # mutation.target, value)` — it coerces whatever arrived into the
-    # TARGET attribute's OWN declared type, not the source argument's.
-    # `target_type` is that target type ("String" for the lifecycle field,
-    # which is never VO-wrapped). The literal half is its own shape
-    # (`literal_hash_rhs`, straight from the raw Hash — never `.inspect`'d,
-    # see literal_set_bridgeable? above); the argument half is
-    # `bridgeable_value_types?`/`value_rhs`'s shared job.
-    # `target_list:` (BUG#25) — TRUE exactly when the mutation's TARGET
-    # attribute is itself a list (a `has_many`'s own `Reference<Target>`
-    # field, chiefly — `Circle.Admit`'s own `sets :members` from a
-    # `list_of(Handle)` argument is the real, live shape). `value_rhs`
-    # is scalar/element-only by design (see `list_value_rhs`'s own
-    # header) — when BOTH sides are lists, this routes through that
-    # element-wise wrapper instead, so a whole-list `:set` never runs
-    # `value_rhs`'s own "unwrap a single-field value object into its
-    # sole field" fallback directly against a `Vec<T>` (the literal BUG
-    # #25 defect: `record.members = args.members.value.clone()`,
-    # collapsing a `Vec<Handle>` argument as if it were one bare
-    # `Handle`). A source that ISN'T itself a list reaching here with
-    # `target_list: true` is a shape `commands.rb`'s own `mismatched_
-    # sets` check (BUG#25's companion fix there) refuses to generate at
-    # all — this method is never called for that combination.
+    # Rust expression for a `:set` source, coerced to the target attribute's declared type.
+    # With `target_list:` a list source maps element-wise instead of unwrapping a single-field
+    # value object out of a `Vec<T>`.
     def mutation_set_rhs(source, target_type, command, value_objects_by_name, target_list: false)
       if source[:kind] == "literal"
         return literal_rhs_for(source[:value], target_type, value_objects_by_name)
       end
 
-      # `state(:field)` — the record's own value, cloned across. Both
-      # sides are record fields of the SAME declared type (checked by
-      # `state_source_problems`), so they share one representation and
-      # no rewrap is needed.
-      # `pre`, not `record` — the PRE-DISPATCH state (C4.2): the update
-      # set reads what the record held before this command, whatever
-      # order its effects are declared in. `reads_pre_state?` is what
-      # makes the caller bind `pre` at all.
+      # `state(:field)` clones the record's value; `pre` is the pre-dispatch state, so effect
+      # order is irrelevant.
       return "pre.#{rust_ident_field(source[:name])}.clone()" if source[:kind] == "state"
 
       source_attr = command[:attributes].find { |a| a[:name].to_s == source[:name] }
@@ -445,10 +249,7 @@ module RustProjection
       value_rhs(source_expr, source_attr[:type], target_type, value_objects_by_name)
     end
 
-    # A `state(:field)` source reads one of the owner's own fields into a
-    # target (a `set`) or an appended element's field (an `append`) of
-    # the SAME declared type and list-ness — that is the one shape that
-    # clones straight across; anything else is a real bridge this
+    # Problems with `state(:field)` sources: only a same-type, same-list-ness copy is generated.
     # generator has no data for, and says so rather than guessing.
     def state_source_problems(command, aggregate, value_objects_by_name)
       command[:mutations].flat_map do |m|
@@ -479,75 +280,17 @@ module RustProjection
       "#{label}: state(:#{state_name}) is #{state_attr[:list] ? 'a list of ' : ''}#{state_attr[:type]}, the target wants #{target_attr[:list] ? 'a list of ' : ''}#{target_attr[:type]} — not generated yet" unless same
     end
 
-    # `:append` and `:set` — the two `sets` ops this slice generates.
-    # `:set` has one real special case: the LIFECYCLE field is not one of
-    # the aggregate's own `attributes` (see "Lifecycles" above), so it
-    # can't be looked up there and isn't `Option`-wrapped on the record the
-    # way every other field is — `Purchase`'s own `sets :status, to:
-    # "sold"` is a real, redundant instance of this (redundant with the
-    # transition's own advance, harmless, same pattern as `Account.Open`'s
-    # redundant `sets` on an already-implicit creation attribute).
-    # THE IDENTITY IS THE JOIN OF ITS PARTS (Naming::IDENTITY_JOIN is ":",
-    # read directly) — one component per `identified_by` entry, each
-    # resolved the same way `Runtime::Identity.from` resolves it: a
-    # component whose HEAD names a declared command attribute walks into
-    # that argument's own field (a dotted `rest` walks further into it —
-    # `box_number.value`, a value-object-typed argument); a component
-    # whose head is NOT a declared attribute (`owner_id` — "never a
-    # declared attribute," per `language/bluebook/behavior.bluebook`'s own
-    # comment) isn't in the command's own typed `XArgs` struct at all —
-    # it's an addressing key allowed straight through `refuse_unknown_
-    # arguments`'s allowlist the same way `id:` already is, so it never
-    # became a struct field; the generated dispatch function instead takes
-    # it as its own extra parameter, the same shape an acting command's
-    # caller-supplied `id: &str` already has. `head:` (this branch only)
-    # is that same fact one level RAWER than `expr`/`param` — the bare
-    # JSON key `registry.rb`'s own router reads it off `args_json` under,
-    # once it stops merely declaring the parameter and starts actually
-    # supplying it.
-    #
-    # THE HEAD CHECK GOVERNS BOTH SHAPES, NOT JUST THE BARE ONE — this used
-    # to branch on `rest.any?` FIRST, so any dotted path unconditionally
-    # read `args.<head>.<rest>`, assuming the head was always one of this
-    # command's OWN declared attributes. True for every ordinary domain's
-    # creating command until the self-hosted meta-grammar's own
-    # owner-mutating commands (`Aggregate.Identify` et al.) exercised the
-    # one combination nothing else in the corpus had: a DOTTED identity
-    # component (`name.value`, the meta-Aggregate's own name being a
-    # single-field value object) whose head belongs to the OWNER being
-    # mutated, not to the command's own args — `IdentifyArgs` has only
-    # `path`, so `args.name` doesn't exist, and `cargo build` refused it.
-    # The head-declared? check now gates BOTH shapes: undeclared means
-    # external regardless of whether the path was dotted, because a value
-    # supplied from outside args is already the resolved scalar the caller
-    # read off the owner's own state — there is no `.value` left to walk.
-    #
-    # "DECLARED" MEANS a genuine `:set` mutation TARGETS this head — not
-    # merely "some command attribute happens to share the head's name"
-    # (the bare-name check this used to be). A dozen meta-domain "attach
-    # one child to the owner" commands (`Aggregate.Attribute` et al.) each
-    # declare an attribute coincidentally named the same as one of their
-    # OWNER's identity components (both have a field called `name`) while
-    # never setting the owner's own field at all — their one mutation
-    # APPENDS that attribute into a list, sourced by that argument, which
-    # is an entirely different thing from minting the owner's own id. See
-    # `creates_owner?`'s own header (this file) for the full story; this
-    # method is only ever consulted once that check has already said
-    # `true`, but stays honest on its own terms rather than leaning on the
-    # caller to have filtered first.
+    # One entry per `identified_by` component, as `{ expr:, param:, head: }`. A head that is
+    # "declared" reads `args.<head>` (walking a dotted rest); otherwise the caller supplies it
+    # as a
+    # `&str` parameter, and `head:` is the raw JSON key the router reads it under.
+    # Declared means a `:set` targets the head, or a same-named argument not claimed by an
+    # append
+    # supplies it (bare-name copy, `Governance::RoleAssignment.Assign`). A bare name shared with
+    # an
+    # appended attribute (`Aggregate.Attribute#name`) is not the owner's identity.
     def identity_components(aggregate, command)
-      # THE SAME "DECLARED" TEST `creates_owner?` (this file, own header)
-      # uses to count a field as supplied: a `:set` mutation targeting it,
-      # OR a same-named command argument copied straight across by
-      # `record_fields` (commands.rb) with no mutation at all — EXCLUDING
-      # an argument already claimed by an append (`ValueObject.Member`'s
-      # own `position`, coincidentally named, feeds the appended member's
-      # `position`, never the owner's identity). A "creates" command whose
-      # identity head is supplied this second way (`Governance::
-      # RoleAssignment.Assign`'s own `actor_id`/`role_name`/`starts_at` —
-      # no explicit `:set` at all, bare-name-matched like `Order.
-      # CreatePizza`'s whole record) reads `args.<head>` exactly the same
-      # as one supplied via an explicit `sets :<head>`.
+      # Declared: a `:set` targets the head, or a same-named argument not claimed by an append.
       append_claimed = Set.new
       command[:mutations].each do |m|
         next unless m[:op].to_s == "append"
@@ -569,16 +312,8 @@ module RustProjection
             { expr: "args.#{rust_ident_field(head)}.to_string()", param: nil }
           end
         else
-          # `.to_string()` here too, matching the other two branches — a
-          # single-component identity returns this expr UNWRAPPED
-          # (build_identity_expr, below: `components.first[:expr]` when
-          # there's only one), straight into a `Hydrate::Create { id: ...
-          # }` field typed `String`. This param is `&str`; every other
-          # branch already produces an owned `String`, so this was the one
-          # combination (single identity component, and it's external) that
-          # left a bare `&str` where `String` was expected — never hit
-          # before the meta-grammar's own owner-mutating commands added a
-          # case with exactly one identity part, entirely external.
+          # `.to_string()` keeps this an owned `String`: a single-component identity is returned
+          # unwrapped into a `String` field, and this param is `&str`.
           param = rust_ident_field(head)
           { expr: "#{param}.to_string()", param: "#{param}: &str", head: head }
         end
@@ -592,30 +327,9 @@ module RustProjection
       "format!(#{placeholders.inspect}, #{components.map { |c| c[:expr] }.join(', ')})"
     end
 
-    # One `append` field's value. An argument-sourced field runs through the
-    # same `value_rhs` bridge `:set` does; a literal is built inline —
-    # `append_field_source` (this file's own header) is the decode, the
-    # SAME one `append_field_problems` above already used to confirm either
-    # direction bridges before this could be reached. (Decoding through
-    # `Marks.read`/`Literal.read` rather than a raw `"{"`-prefix string
-    # check on `source` directly, because `source` here is the same
-    # wire-spelled value `append_field_problems` already decoded that way —
-    # `Marks.unmark` no longer exists post the Literal-pinning rework, one
-    # reader now, `Literal.read`, reached through `Marks.read`.)
-    #
-    # `arg_attr[:optional]` — `mark_append_optional_fields!` (below) has
-    # already run by the time this is reached, so `field_attr[:optional]`
-    # is ALREADY true whenever `arg_attr[:optional]` is (that is the one
-    # fact this whole file's own marking pass exists to guarantee) — the
-    # `Option<T>`-aware bridge below is therefore always reaching for the
-    # right target shape, never guessing. A caller-omittable argument's
-    # own Rust field is `Option<T>` (commands.rb's own Args-struct rule),
-    # so the ordinary `value_rhs` bridge — built to run against a bare
-    # `T`, the same assumption `mutation_set_rhs`'s sibling `:set` path
-    # gets to keep because ITS only optional+optional case is same-type,
-    # never cross-type — cannot run directly against it; `optional_value_
-    # rhs` runs that identical bridge against the value a `.map` closure
-    # unwraps instead.
+    # Value of one `append` field: an argument runs through the `value_rhs` bridge, a literal
+    # is built inline. A caller-omittable argument is `Option<T>` in Rust, so it bridges through
+    # `optional_value_rhs`; `mark_append_optional_fields!` has already made the field match.
     def append_field_rhs(source, field_attr, command, value_objects_by_name, aggregate = nil)
       parsed = append_field_source(source)
       return state_field_rhs(parsed, field_attr, aggregate) if parsed.is_a?(Hecks::StateRef)
@@ -624,15 +338,8 @@ module RustProjection
       arg_attr = command[:attributes].find { |a| a[:name].to_s == parsed.to_s }
       arg_expr = "args.#{rust_ident_field(arg_attr[:name])}"
       if arg_attr[:optional]
-        # SAME REPRESENTATION on both sides (`SafeDepositBox::Visit.note`'s
-        # own case: VisitNote -> VisitNote, no real coercion at all) needs
-        # no per-element remap — `args.field` IS already the exact
-        # `Option<TargetType>` the struct field wants, the identical
-        # "just clone the Option itself" shortcut `mutation_set_rhs`'s
-        # `:set` sibling already takes for its one optional+optional case.
-        # Only a REAL cross-type coercion (`Field.default`'s own
-        # `LiteralText -> String` unwrap) needs `optional_value_rhs`'s
-        # own per-element `.map`.
+        # Same representation on both sides: clone the `Option` as is. Only a cross-type
+        # coercion needs a per-element `.map`.
         same_representation = arg_attr[:type] == field_attr[:type] ||
           (effective_scalar_type(arg_attr[:type]) && effective_scalar_type(arg_attr[:type]) == effective_scalar_type(field_attr[:type]))
         return "#{arg_expr}.clone()" if same_representation
@@ -641,33 +348,13 @@ module RustProjection
       end
 
       rhs = value_rhs(arg_expr, arg_attr[:type], field_attr[:type], value_objects_by_name)
-      # A field `mark_append_optional_fields!` made `Option<T>` for a
-      # DIFFERENT command's own optional-sourced append (Field's own
-      # `default`, fed both by `Attribute`'s optional argument AND —
-      # nowhere in this corpus, but the shape is real — some sibling
-      # command's non-optional one) still needs `Some(...)` here: THIS
-      # source is required, but the STRUCT FIELD it lands in is optional
-      # regardless of which command is filling it this time.
+      # The struct field may be `Option<T>` because another command sources it optionally,
+      # so a required source still needs `Some(...)`.
       field_attr[:optional] ? "Some(#{rhs})" : rhs
     end
 
-    # THE OPTIONAL HALF of `value_rhs` — same bridge, run against `v`
-    # (whatever a `.map` closure unwraps an `Option<T>` argument's clone
-    # into) rather than against the raw `Option<T>` expression the
-    # ordinary bridge assumes it never has to see. Produces an
-    # `Option<TargetType>`, matching the field it feeds exactly — see
-    # `append_field_rhs`'s own header for why the field is guaranteed to
-    # already be that shape whenever this runs.
-    # `state(:field)` into an appended element's field. A record's
-    # non-list field is `Option`-wrapped (`emit_record`'s own shape —
-    # `Order.name: Option<PizzaName>`), an element's non-optional field
-    # is not, so a scalar/value-object copy unwraps (the record holds
-    # it: an acting command's record is complete) and a list clones as
-    # is. Same declared type on both sides (`state_source_problems`).
-    # WHETHER ANY EFFECT READS THE RECORD'S OWN STATE — a `set` from
-    # `state(:field)` or an `append` field sourced from one. Only then
-    # does the emitted closure bind `let pre = record.clone();` (C4.2 —
-    # the pre-dispatch state every such read goes through).
+    # Whether any effect reads the record's own state (`state(:field)` in a `set` or `append`);
+    # only then does the closure bind `pre`.
     def reads_pre_state?(mutations)
       mutations.any? do |m|
         case m[:op].to_s
@@ -680,11 +367,8 @@ module RustProjection
 
     def pre_state_line = "        let pre = record.clone();"
 
-    # C3.3 — Integer is signed 64-bit and an effect's arithmetic that
-    # leaves it is an evaluation FAULT, never a wrap and never a panic:
-    # `checked_add`/`checked_sub`/`checked_mul` into `Refusal::Fault`,
-    # worded as `CommandRules::Arithmetic#bounded` words it. `amount` is
-    # bound once so the wording can quote it without re-evaluating.
+    # An Integer effect that leaves signed 64-bit is a Fault, never a wrap or panic (C3.3).
+    # `amount` is bound once so the wording can quote it.
     CHECKED_OPS = { "+" => "checked_add", "-" => "checked_sub", "*" => "checked_mul" }.freeze
 
     def checked_arithmetic(op, field_ident, symbol, amount_expr)
@@ -693,6 +377,9 @@ module RustProjection
         "64-bit integer\", current.#{field_ident}, amount)))? }"
     end
 
+    # `state(:field)` into an appended element's field. Records `Option`-wrap non-list fields
+    # and
+    # elements don't, so scalars unwrap and lists clone as is.
     def state_field_rhs(parsed, field_attr, aggregate)
       expr = "pre.#{rust_ident_field(parsed.name)}.clone()"
       state_attr = aggregate && aggregate[:attributes].find { |a| a[:name].to_s == parsed.name.to_s }
@@ -702,32 +389,15 @@ module RustProjection
       "#{expr}.unwrap()"
     end
 
+    # The `value_rhs` bridge run against the value a `.map` closure unwraps from an `Option<T>`.
     def optional_value_rhs(source_expr, source_type, target_type, value_objects_by_name)
       "#{source_expr}.clone().map(|v| #{value_rhs('v', source_type, target_type, value_objects_by_name)})"
     end
 
-    # THE STRUCT-LEVEL `Option<T>`-ness of an appended element's own
-    # field, derived from USAGE — the same move `list_attr_creation_
-    # optional?` already makes for a RECORD's own list field, generalised
-    # to a per-FIELD append target (an entity's or a plain value object's,
-    # `append_element`'s own either/or). Ruby's real `appended`
-    # (mutation_applier.rb) resolves a Symbol source straight off `args`;
-    # a caller-omitted `optional: true` argument reads there as a genuine
-    # `nil`, and `Value.build` (coercion.rb) stores it WITHOUT complaint —
-    # `language/bluebook/behavior.bluebook`'s own `Query.Option` says so
-    # directly ("AN OPTION MAY HAVE NO VALUE... a rule about the
-    # LANGUAGE, not about the one spec that noticed"). So one optional-
-    # sourced `sets append` is reason enough to make the field's own
-    # Rust type `Option<T>` for EVERY command that reaches it.
-    #
-    # Mutated onto the SAME attribute hash every other emitter here
-    # already reads (`emit_value_object`/`emit_entity`'s own `attr
-    # [:optional]` struct-field wrap, `optional_source_mismatches`'s own
-    # skip check) — called once, before either of those run, so nothing
-    # downstream ever has to learn a second, parallel notion of
-    # "optional." Never turns a `true` back to `false` — a field the
-    # domain author already marked optional by hand (`SafeDepositBox::
-    # Visit.note`) needs no rederiving.
+    # Makes an appended element's field `Option<T>` when any command sources it from an optional
+    # argument, since Ruby stores the omitted nil without complaint. Mutates the shared
+    # attribute
+    # hash once, before the emitters read it, and never resets a `true`.
     def mark_append_optional_fields!(aggregate, value_objects_by_name)
       aggregate[:attributes].each do |target_attr|
         element = append_element(aggregate, target_attr[:type], value_objects_by_name)
@@ -738,10 +408,8 @@ module RustProjection
             next unless m[:op].to_s == "append" && m[:target].to_s == target_attr[:name].to_s
 
             m[:fields].each do |field_name, source|
-              # The same `append_field_source` decode `append_field_rhs`
-              # itself uses — a Symbol back means an argument name (a
-              # caller-omittable one is what this pass is looking for);
-              # anything else IS a literal value, never optional.
+              # A Symbol is an argument name (optional ones are what this pass wants); else a
+              # literal.
               parsed = append_field_source(source)
               next unless parsed.is_a?(Symbol)
 
@@ -756,24 +424,10 @@ module RustProjection
       end
     end
 
-    # `AggregateBuilder::Sealing#seal_correction_targets`'s own derivation,
-    # read directly and reproduced exactly: a `corrects EVENT, reverses:
-    # true` command has no `sets` of its own — every sibling command that
-    # `emits` EVENT hands over its own non-`:corrects` mutations, and each
-    # one that's INVERTIBLE (only `increment`/`decrement` ever are — Ruby's
-    # own `inverse_op` table, unchanged) gets appended onto the correcting
-    # command as its opposite op, same target, same source. Mutated onto
-    # `aggregate[:commands]` BEFORE `command_skip_reason`/mutation-line
-    # emission ever read a command's `[:mutations]` — same idiom, same
-    # call site, as `mark_append_optional_fields!` just above — so nothing
-    # downstream needs a second notion of "this command's mutations."
-    # Left untouched (and therefore still caught by `command_skip_reason`'s
-    # own `reverses: true` refusal) whenever nothing emits the event, or
-    # any sibling mutation is one of the non-invertible ops
-    # (`append`/`remove`/`set`/`multiply`/`clamp`) Ruby's own authors
-    # haven't finished designing a reversal for (ADR 0041) — this pass
-    # only ever ADDS mutations for the one shape that's genuinely resolved
-    # on the Ruby side, never guesses at the rest.
+    # Derives the mutations of a `corrects EVENT, reverses: true` command from the commands that
+    # emit EVENT: only increment/decrement invert (ADR 0041). Left alone when nothing emits the
+    # event
+    # or any sibling mutation can't invert, so `command_skip_reason` still refuses it.
     INVERSE_MUTATION_OP = { "increment" => "decrement", "decrement" => "increment" }.freeze
 
     def derive_reverses_mutations!(aggregate)
@@ -790,9 +444,8 @@ module RustProjection
         derived = sources.flat_map { |c| c[:mutations] }.reject { |m| m[:op].to_s == "corrects" }
         next if derived.empty? || derived.any? { |m| !INVERSE_MUTATION_OP.key?(m[:op].to_s) }
 
-        # `reverses: true` alongside an explicit `sets` is `Malformed` in
-        # Ruby (never reaches this pass there at all) — here, simply never
-        # derive a SECOND time onto a command that already has one, so a
+        # Never derive twice onto a command that already has mutations, so re-runs stay
+        # idempotent.
         # generator re-run over already-derived IR stays idempotent.
         next if command[:mutations].any? { |m| m[:op].to_s != "corrects" }
 
@@ -802,24 +455,13 @@ module RustProjection
       end
     end
 
-    # `optional:` — true for an aggregate RECORD (every non-list field is
-    # `Option`-wrapped, emit_record's own reason) and false for an ENTITY
-    # element (emit_entity's fields are plain, never `Option`-wrapped — an
-    # entity command's own `element_of`/copy-on-write already guarantees
-    # the element it hands `apply_mutations` exists, so there is nothing
-    # for `Option` to represent here the way "field exists but is unset on
-    # a freshly created aggregate" needs it to on a record).
+    # `optional:` is true for an aggregate record (non-list fields are `Option`-wrapped) and
+    # false for an entity element.
     def emit_mutation_line(mutation, aggregate, command, value_objects_by_name, optional: true)
       target_field   = rust_ident_field(mutation[:target])
       lifecycle_field = aggregate[:lifecycle] && aggregate[:lifecycle][:field].to_s
 
-      # The leading "        " restores the OLD code's own hardcoded
-      # 8-space prefix — each `Exemplar.render` call below returns
-      # flush-left text (a single-line shape's own dedent margin is
-      # always its full indent, stripped to zero), and the CALLER
-      # (commands.rb) joins these lines with "\n" expecting each one to
-      # already carry its own indentation, the same as every other
-      # single-line leaf in this generator.
+      # Callers join these lines with a newline, expecting each to carry its own 8-space indent.
       "        #{emit_mutation_line_body(mutation, aggregate, command, value_objects_by_name, target_field, lifecycle_field, optional)}"
     end
 
@@ -836,56 +478,24 @@ module RustProjection
           "#{rust_ident_field(field_name)}: #{append_field_rhs(source, field_attr, command, value_objects_by_name, aggregate)}"
         end
 
-        # An ENTITY element carries two fields no `append: { ... }` binding
-        # ever names, because Ruby never asks the caller to: its own
-        # identity (auto-minted — entity_identity_mint, above, the same
-        # `Array(current).size + 1` rule `entity_element` runs) and its own
-        # lifecycle field (its declared `default:`, the same
-        # `fields[entity.lifecycle.field] ||= entity.lifecycle.default`
-        # entity_element runs). command_skip_reason already confirmed both
-        # are mintable before this line could be reached.
+          # An entity element also needs a minted identity and its lifecycle default; no
+          # `append:` names them.
         collision_guard = ""
         if entity
           present = mutation[:fields].keys.map(&:to_s)
           id_attr, id_vo = entity_identity_mint(entity, value_objects_by_name)
           if id_attr && !present.include?(id_attr[:name].to_s)
-            # ONE PAST THE HIGHEST IDENTITY HELD (C4.5) — never `len() +
-            # 1`, which repeats an identity the moment the list has ever
-            # shrunk; `MutationApplier#next_identity`'s own rule.
+            # One past the highest identity held, never `len() + 1`, which repeats after a
+            # shrink (C4.5).
             id_field = rust_ident_field(id_attr[:name])
             vo_field = rust_ident_field(id_vo[:attributes].first[:name])
             mint = "#{rust_ident(id_attr[:type])} { #{vo_field}: record.#{target_field}.iter().map(|e| e.#{id_field}.#{vo_field}).max().unwrap_or(0) + 1 }"
             fields_assignment << "#{rust_ident_field(id_attr[:name])}: #{mint}"
             present << id_attr[:name].to_s
           elsif id_attr && entity[:identified_by].size == 1
-            # A CALLER-SUPPLIED IDENTITY, non-composite only —
-            # `MutationApplier#check_entity_collision`'s own guard
-            # (mutation_applier.rb), ported: reached only when the append's
-            # own field map ALREADY carries the identity (the `if` above
-            # skips auto-minting), the same condition Ruby's own runtime
-            # `entity_element` branches on. Neither generator used to check
-            # the sibling list at all here — a second element offered under
-            # an identity already held silently duplicated, and became
-            # permanently unaddressable by any later command
-            # (`EntityInterpreter#element_of`'s own `find_index` always
-            # matches the FIRST match). Mirrors `rust/codegen/src/
-            # mutations.rs`'s own identical fix byte for byte — this is a
-            # SEPARATE, independent implementation of the same codegen, and
-            # codegen_parity_spec holds the two byte-identical.
-            #
-            # COMPOSITE identities (`entity[:identified_by].size != 1`, e.g.
-            # `ProcessManager::Dispatch`'s own `command_name.value,
-            # position.value`) are deliberately EXCLUDED here —
-            # `entity_identity_mint` (above) only ever inspects
-            # `entity[:identified_by].first`, so `id_attr` at this point
-            # names just ONE of a composite identity's several heads.
-            # Guarding on that alone would refuse two elements as
-            # duplicates whenever they merely SHARE that one head (e.g. two
-            # `Dispatch`es with the same `command_name` at different
-            # `position`s) — a false positive, not a fix. Left as a real,
-            # documented, pre-existing gap (composite-identity entity lists
-            # still accept a genuine duplicate silently), narrower than the
-            # single-field case this bug report actually demonstrated.
+            # Caller-supplied identity: refuse a duplicate (`check_entity_collision`), matching
+            # rust/codegen byte for byte. Composite identities are excluded: only the first head
+            # is seen, so elements sharing it would be false duplicates.
             id_field = rust_ident_field(id_attr[:name])
             _, source = mutation[:fields].find { |field_name, _| field_name.to_s == id_attr[:name].to_s }
             field_attr = entity[:attributes].find { |a| a[:name].to_s == id_attr[:name].to_s }
@@ -893,19 +503,7 @@ module RustProjection
             entity_lit = entity[:name].to_s.inspect
             aggregate_lit = aggregate[:name].to_s.inspect
             identity_lit = entity[:identified_by].join(", ").inspect
-            # BUG#143 — `Rendering.describe`'s own single-field unwrap
-            # (rendering.rb), matched here so `format!` renders the SAME
-            # bare scalar Ruby's own `RefusalWording.render`'s "offered"
-            # arm does, the identical fix `entity_list_replace_guard`
-            # (BUG#33, above) already applies to the sibling whole-list
-            # `:set` REPLACE guard. `#{id_rhs}` alone Debug-prints the
-            # WHOLE identity value object (`SlipReference { value:
-            # "juliet" }`), not the bare `"juliet"` a reader (and
-            # `bin/rust_conformance`'s own byte-exact comparison) expects.
-            # `id_vo` here is `entity_identity_mint`'s own return — this
-            # branch only runs when it returned non-nil (`id_attr` truthy,
-            # above), so it is already guaranteed exactly one attribute;
-            # no fallback arm is needed.
+            # Single-field unwrap so `format!` prints the bare scalar; `id_vo` is non-nil here.
             offered_field = rust_ident_field(id_vo[:attributes].first[:name])
             offered_expr = "#{id_rhs}.#{offered_field}"
             collision_guard =
@@ -920,24 +518,9 @@ module RustProjection
             present << entity[:lifecycle][:field].to_s
           end
 
-          # A THIRD field no `append: { ... }` binding ever names, on top
-          # of the two above: a LIST-typed attribute the entity declares
-          # for some OTHER command to `append`/`remove` into later
-          # (`ValueObject::Member#pairs`, bound only by its own `Pair`
-          # command — S17, ADR 0026). Ruby's `entity_element`
-          # (mutation_applier.rb) never sets this key at all when the
-          # entity is minted — the fields Hash simply lacks it, and
-          # everything downstream reads a missing list key as empty
-          # (`Array(current)`, the same coercion `entity_identity_mint`'s
-          # own `Array(current).size + 1` already relies on). A Rust
-          # struct literal has no such absence to fall back on — every
-          # field must be assigned at construction, so this ports that
-          # same "unmentioned list starts empty" fact explicitly rather
-          # than leaving the struct literal short a field and refusing to
-          # compile. Found live: `ValueObject::Member`'s own `pairs`
-          # (`list_of(Pair)`) reaching exactly this gap the first time
-          # this generator was pointed at the self-hosted grammar's own
-          # IR after S17 landed.
+          # A list attribute no `append:` binding names starts empty. Ruby's fields Hash just
+          # lacks the
+          # key, but a Rust struct literal must assign every field.
           entity[:attributes].each do |attr|
             next unless attr[:list]
             next if present.include?(attr[:name].to_s)
@@ -946,18 +529,8 @@ module RustProjection
             present << attr[:name].to_s
           end
 
-          # A FOURTH field no `append: { ... }` binding ever names: a
-          # scalar OPTIONAL attribute the entity declares for some other
-          # command to `set` later (e.g. `Dispatch#compensates_command_name`,
-          # S18 — `compensates:` per-dispatch saga compensation, bound only
-          # by the dispatch that OPENS a saga, never by the one it
-          # compensates). Same gap as the list case just above and the
-          # same fix: `attr[:optional]` always ports to `Option<T>`
-          # (commands.rb's own `type = "Option<#{type}>" if
-          # attr[:optional]"`), and an absent key reads as `None`
-          # everywhere else this IR flows — so an unmentioned optional
-          # attribute here defaults to `None` rather than leaving the
-          # struct literal short a field.
+          # An optional scalar attribute is `Option<T>` in Rust, so an unmentioned one defaults
+          # to `None`.
           entity[:attributes].each do |attr|
             next if attr[:list] || !attr[:optional]
             next if present.include?(attr[:name].to_s)
@@ -982,51 +555,23 @@ module RustProjection
           source_attr = mutation[:source][:kind] == "argument" ? command[:attributes].find { |a| a[:name].to_s == mutation[:source][:name].to_s } : nil
 
           if target_attr[:list] && optional && list_attr_creation_optional?(aggregate, target_attr[:name], value_objects_by_name)
-            # `CardPayment.Authorize`'s own redundant `sets :tags, to:
-            # :tags` (the same "re-set an already-implicit creation
-            # attribute" pattern `Purchase`'s own status set already is) —
-            # `list_attr_creation_optional?` (this file's own header) is
-            # the SAME check `emit_record`/`record_fields` used to
-            # Option-wrap this record field in the first place, so the
-            # redundant re-set assigns the SAME `Option<Vec<T>>` shape
-            # straight across, no unwrapping.
+            # `CardPayment.Authorize`'s redundant `sets :tags`: `list_attr_creation_optional?`
+            # already
+            # Option-wrapped this field, so the value is assigned straight across.
             Exemplar.render("mutation_set_plain", "tmpl_field" => target_field, "tmpl_rhs_placeholder2()" => rhs)
           elsif target_attr[:list] && source_attr && source_attr[:optional]
-            # A record's own list field is plain `Vec<T>` by DEFAULT
-            # (`emit_record`'s rule, unless the branch above applies) — an
-            # OPTIONAL source argument unwraps with the identical `[]`
-            # fallback `record_fields`' own creation-time case uses —
-            # cleanly resolvable, not the `optional_source_mismatches`
-            # shape that has to be skipped.
+            # A record's list field is a plain `Vec<T>` here; an optional source unwraps with a
+            # `[]` fallback.
             Exemplar.render("mutation_set_unwrap_or_default", "tmpl_field" => target_field, "tmpl_optional_rhs_placeholder()" => rhs)
           elsif target_attr[:list]
-            # BUG#33 — see `entity_list_replace_guard`'s own comment.
-            # Scoped to exactly this branch (a plain, non-optional-source,
-            # non-creation-optional list replace) because it is the only
-            # one any real domain reaches with an ENTITY-typed list target
-            # today (`Ledger.ReplaceEntries`) — the two branches above
-            # combine list-ness with an optionality shape no entity list
-            # in this corpus uses, and guarding them without a corpus
-            # example to prove the generated Rust against would be
-            # decoration, not a fix.
+            # Duplicate-identity guard for a whole-list replace of entities
+            # (`Ledger.ReplaceEntries`).
             guard, effective_rhs = entity_list_replace_guard(aggregate, target_attr, target_field, rhs, value_objects_by_name)
             "#{guard}#{Exemplar.render("mutation_set_plain", "tmpl_field" => target_field, "tmpl_rhs_placeholder2()" => effective_rhs)}"
           else
-            # `target_attr[:optional]` — a PER-FIELD `Option<T>` target
-            # (0014/0015's struct-field change: `SafeDepositBox::Visit.note`,
-            # written by `Visit.Annotate`'s `sets :note, to: :note`) —
-            # not just `optional:`'s own whole-RECORD blanket wrap.
-            #
-            # `source_attr && source_attr[:optional]` — the SAME check
-            # commands.rb's own record-creation path already makes
-            # (see its "the optional arg's own Option<T> assigns
-            # straight across" comment) and the sibling list-mutation
-            # branch just above makes too: when the COMMAND's own
-            # argument is already `Option<T>`, `rhs` already IS that
-            # `Option<T>` — wrapping it again would be
-            # `Option<Option<T>>`, not this field's real type,
-            # regardless of whether `wrap` would otherwise be true for
-            # blanket-record or per-field reasons.
+            # `wrap` for a per-field `Option<T>` target or a whole-record wrap, unless the
+            # source argument
+            # is already `Option<T>` (wrapping again would give `Option<Option<T>>`).
             wrap = (optional || target_attr[:optional]) && !(source_attr && source_attr[:optional])
             if wrap
               Exemplar.render("mutation_set_wrapped", "tmpl_field" => target_field, "tmpl_rhs_placeholder2()" => rhs)
@@ -1040,12 +585,8 @@ module RustProjection
         vo_type = rust_ident(target_attr[:type])
         field_ident = rust_ident_field(integer_field)
         amount_expr = arithmetic_amount_expr(mutation[:source], command, value_objects_by_name, integer_field)
-        # THE IR'S OWN sign FIELD, not re-derived from the op NAME — item
-        # #5 of the whole-project table-unification survey.
-        # `Bluebook::Mutation.sign_for` (command.rb) computes this once,
-        # off `Vocabulary::MutationOp` (the same generated table Runtime::
-        # CommandRules::Arithmetic::MUTATION_OPS reads) — this used to restate the
-        # fact independently via `mutation[:op].to_s == "increment"`.
+        # The sign comes from the IR's `sign` field (`Bluebook::Mutation.sign_for`), not the op
+        # name.
         sign = mutation[:sign].to_s == "1" ? "+" : "-"
         current = optional ? "record.#{target_field}.clone().unwrap()" : "record.#{target_field}.clone()"
         updated = "#{vo_type} { #{field_ident}: #{checked_arithmetic(mutation[:op].to_s, field_ident, sign, amount_expr)}, ..current }"
@@ -1056,29 +597,9 @@ module RustProjection
           "tmpl_updated_placeholder()" => (optional ? "Some(#{updated})" : updated)
         )
       when "multiply"
-        # Phase 10 (equivalence-gap plan) — `CommandRules::Arithmetic
-        # #multiply`, read directly: "Same raw-vs-value-object branch shape
-        # as #arithmetic/#arithmetic_value_object, reused rather than
-        # duplicated verb-for-verb (a Proc picks the actual arithmetic;
-        # everything else... is identical to the additive pair)." This
-        # generator's own eligibility check (`command_skip_reason`'s
-        # `arithmetic_targets`) already folds `multiply` into the SAME
-        # `arithmetic_target_field`/`arithmetic_amount_expr` pairing
-        # `increment`/`decrement` use — the only real difference here is
-        # `*` in place of `sign`, no `sign` field to read at all (`multiply`
-        # carries none — `Vocabulary::MutationOp`'s own `sign: ""`).
-        #
-        # DELIBERATELY SCOPED to the SAME Integer-field subset `increment`/
-        # `decrement` already are — `arithmetic_target_field`'s own
-        # `integer_field_of` only ever matches an `Integer`-typed member,
-        # never `Float`, even though Ruby's own `#multiply` (like
-        # `#arithmetic`) was widened from Integer to `Numeric` (migration
-        # plan task 4, i106) — real corpus `Float` VOs (`DailyFee.amount`)
-        # are NOT reachable through this generator's own `multiply`
-        # support, the same pre-existing Integer-only scope
-        # `increment`/`decrement` already carry, not a new gap introduced
-        # here. Widening `integer_field_of` to `Numeric` for all three ops
-        # together is real, separate follow-on work, not attempted here.
+        # `multiply` shares increment/decrement's Integer-only target and amount pairing but has
+        # no
+        # `sign`; Float value objects are not reachable here.
         target_attr, integer_field = arithmetic_target_field(mutation, aggregate, value_objects_by_name)
         vo_type = rust_ident(target_attr[:type])
         field_ident = rust_ident_field(integer_field)
@@ -1092,20 +613,9 @@ module RustProjection
           "tmpl_updated_placeholder()" => (optional ? "Some(#{updated})" : updated)
         )
       when "clamp"
-        # Phase 10 (equivalence-gap plan) — `CommandRules::Arithmetic
-        # #clamp`, read directly: bounds the CURRENT value into
-        # `[min, max]`, no "amount" argument at all — `mutation.source`
-        # is always a literal pair (`clamp_bounds_ints`, bridging.rb),
-        # never an argument reference, so there is no
-        # `arithmetic_amount_expr` call here at all, unlike increment/
-        # decrement/multiply. The TARGET half is identical to those
-        # three (`arithmetic_target_field`, same Integer-VO-field scope).
-        # Rust's own `i64::clamp(self, min, max)` (via `Ord::clamp`)
-        # matches Ruby's `Integer#clamp(min, max)` exactly: below `min`
-        # returns `min`, above `max` returns `max`, otherwise unchanged
-        # — and both panic/raise identically for a malformed `min > max`
-        # bound, which is not a real runtime path either engine reaches
-        # for a bluebook-declared literal pair.
+        # `clamp` bounds the current value into a literal `[min, max]`, so there is no amount
+        # argument.
+        # `i64::clamp` matches Ruby's `Integer#clamp`.
         target_attr, integer_field = arithmetic_target_field(mutation, aggregate, value_objects_by_name)
         vo_type = rust_ident(target_attr[:type])
         field_ident = rust_ident_field(integer_field)
@@ -1119,23 +629,9 @@ module RustProjection
           "tmpl_updated_placeholder()" => (optional ? "Some(#{updated})" : updated)
         )
       when "remove"
-        # BUG#32 (QualityControl ledger) — `remove:` against an
-        # ENTITY-typed list, matched by the entity's own IDENTITY field
-        # — `command_skip_reason`'s own `remove_field_problems` (above)
-        # already confirmed a single, bridgeable identity field exists
-        # before this could ever be reached, the same pairing every
-        # other "can we generate this" / "here's how" split in this file
-        # already uses. `Runtime::EntityElement.list_element_match?`'s
-        # own comment (Ruby) gives the full "why identity, not
-        # whole-value equality" reasoning this ports: a stored element
-        # is a plain struct, never rebuildable as one whole comparable
-        # value the way a value-object list's own `remove:` target is,
-        # so only its own identity field is ever compared. `retain`
-        # keeps every element whose identity DOESN'T match — the same
-        # `reject { |element| ... }` shape Ruby's own `MutationApplier
-        # #removed`/`EntityElement#removed_from_element` share, inverted
-        # the way `Vec#retain` (keep) and `Enumerable#reject` (drop)
-        # always are for the same predicate.
+        # `remove:` on an entity-typed list matches by identity field (`remove_field_problems`
+        # already
+        # confirmed one exists); `retain` keeps every element whose identity differs.
         target_attr = aggregate[:attributes].find { |a| a[:name].to_s == mutation[:target].to_s }
         entity = aggregate[:entities].find { |e| e[:name] == target_attr[:type] }
         id_attr, = entity_identity_mint(entity, value_objects_by_name)

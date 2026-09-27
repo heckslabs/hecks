@@ -2,11 +2,7 @@ require_relative "word_gate"
 module Hecks
   module Bluebook
     module DSL
-      # Parses a `lifecycle :field, default: ... do transition ... end`
-      # block into a `Lifecycle` — the field an aggregate or entity's own
-      # state machine lives on, its starting value, and the `command =>
-      # target_state` transition table (with an optional `from:` guard)
-      # each `transition_impl` call adds a row to.
+      # Parses a `lifecycle :field, default: ... do transition ... end` block into a `Lifecycle`.
       class LifecycleBuilder
         GRAMMAR_CONTEXT = "Lifecycle".freeze
 
@@ -22,11 +18,7 @@ module Hecks
 
         # Records one transition row per command in `mapping`, all sharing its `from:` guard.
         #
-        # Answers the `transition` word, which the grammar table routes here
-        # through its `calls:` column — item #13's full metaprogrammed
-        # dispatch (slice 4c). Bootstrap-reachable (syntax.bluebook's
-        # own Keyword/Argument entities describe their `status`
-        # lifecycle with it), so in `BOOTSTRAP_CALLS_FALLBACK`.
+        # Listed in `BOOTSTRAP_CALLS_FALLBACK` because syntax.bluebook uses it during boot.
         #
         # @param mapping [Hash{String, Symbol => String, Symbol, Array<String>}] command name to
         #   target state, as in `"Purchase" => "sold"`; the optional `:from` key holds the
@@ -70,17 +62,11 @@ module Hecks
 
         private
 
-        # C5.3 (docs/semantics/bluebook-semantics.md) — two transitions for
-        # one command whose `from:` sets overlap (or where either has no
-        # `from:` at all) were silently first-wins; refused where the state
-        # machine can be read whole. Two transitions for one command from
-        # disjoint states are the legitimate shape (`match_transition`
-        # picks by the current state) and stay. A `from:` naming a state
-        # nothing declares is not refused here: it is a reachability
-        # finding `bin/model_check` already reports (unreachable state,
-        # dead transition), and a bluebook may declare it on purpose.
+        # C5.3 (docs/semantics/bluebook-semantics.md): overlapping `from:` sets for one command
+        # are refused. Disjoint sets are legitimate. An undeclared `from:` state is left to
+        # `bin/model_check`.
         def refuse_ambiguity!
-          return if MetaValidator.shadow_parsing? # frozen era text is history
+          return if MetaValidator.shadow_parsing? # frozen era text is exempt
 
           @transitions.each_with_index do |(command, transition), index|
             earlier = @transitions[0...index].find do |other_command, other|

@@ -1,35 +1,13 @@
-// **Hand-written, once, generic** — the stdin/stdout JSON CLI contract every
-// compiled artifact speaks, native binary or wasm32-wasip1 module alike
-// (WASI implements stdio the same way a normal process does — see
-// docs/implemented/decisions/0012-wasm-via-wasi-stdio.md). Reads the exact
-// `{"steps": [...]}` shape `bin/rust_conformance` already feeds Ruby's
-// `Fuzzing::Replay.call`, and writes the exact `{"instances", "events",
-// "refusals", "queries"}` shape `Fuzzing::Replay.call`'s own return hash
-// already carries (`"queries"` is new — see this file's own header,
-// below, on `run`'s two "query" step shapes) — same contract, now
-// answerable by this compiled artifact too, not only a pre-existing file
-// (`bin/rust_conformance`'s own header comment: "this tool does not invoke
-// Rust itself... until then, 'give me a JSON file to compare against' is
-// the whole interface"). `run` knows nothing domain-specific — every
-// verb/args pair is handed to `kernel::orchestrate`, which recursively
-// routes through `generated::active::dispatch_by_name`,
-// `generated::active::POLICIES`, and `generated::active::PROCESS_MANAGERS`
-// (rust/project/registry.rb's `emit_registry`, rust/project/reactions.rb's
-// `emit_policy_table`/`emit_process_manager_table`) — the domain-agnostic
-// alias `bin/project_rust` rewrites to point at whichever domain was last
-// generated.
+//! The stdin/stdout JSON CLI shared by the native binary and the wasm32-wasip1 module.
+//! `run` reads `{"steps": [...]}` and hands each step to `kernel::orchestrate` (ADR 0012).
 
 use super::{named_query, orchestrate, query_comparators, read_model, repository, AggregateScan, CompletedCompensation, Event, Json, MutationRecord, PendingCrossDomainReaction, Refusal, SagaInstance, Tables};
 use crate::generated::active::{command_attributes_for_verb, command_creates, dispatch_by_name, entity_identity_head_for_path, identity_head_for_aggregate, reference_key_for_aggregate, Store, CROSS_DOMAIN_POLICIES, POLICIES, PROCESS_MANAGERS, QUERIES, READ_MODELS};
 use std::collections::HashMap;
 
-// C3.7 for a named query's own arguments — the generated gate
-// (`queries.rb#emit_query_arg_check_table`) that builds and invariant-
-// checks every value-object argument before `named_query::run` reads
-// the raw JSON (ADR 0037 finding 4).
+// Builds and invariant-checks a named query's value-object arguments (ADR 0037).
 use crate::generated::active::check_query_args;
 
-// Declared entity queries (`Aggregate.Entity.Query`).
 use crate::generated::active::ENTITY_QUERIES;
 
 pub fn run(input: &str) -> String {
@@ -43,15 +21,7 @@ pub fn run(input: &str) -> String {
         None => return error_output("expected a top-level {\"steps\": [...]} object"),
     };
 
-    // `"seed"` — the exact "Domain::Aggregate#id" -> state shape this
-    // run's own "instances" output already produces (`Store::instances`/
-    // `Store::from_seed`, mechanical inverses, `rust/project/registry.rb`'s
-    // `emit_registry`). Optional and additive: an input with no `"seed"`
-    // key behaves exactly as before (`Store::new()`, empty). Lets a host
-    // (rust/host, docs/implemented/decisions/0012) seed prior state back in instead
-    // of replaying `steps` from scratch every invocation — `steps` then
-    // needs to carry only the genuinely new command(s), not the whole
-    // history.
+    // Optional `"seed"`: prior state as `"instances"` emits it, so a host need not replay history.
     let mut store = match parsed.get("seed") {
         Some(seed) => match Store::from_seed(seed) {
             Ok(s) => s,
@@ -61,17 +31,8 @@ pub fn run(input: &str) -> String {
     };
     let mut events: Vec<Event> = Vec::new();
     let mut refusals: Vec<(String, Refusal)> = Vec::new();
-    // Process-manager instances — domain-level, not per-aggregate, so
-    // deliberately not a `Store` field (orchestrate.rs's own header).
-    //
-    // `"sagas"` — optional and additive, the same contract `"seed"`
-    // above already has: an input with no `"sagas"` key behaves exactly
-    // as before (an empty map), backward compatible with every existing
-    // caller (fuzzer, conformance harness) that never sends it. Lets a
-    // host (rust/host) seed a domain's live in-flight saga state back
-    // in, the same way `"seed"` already seeds aggregate state — see
-    // this run's own `"saga_snapshot"` output key below for the other
-    // half.
+    // Process-manager instances are domain-level, so not a `Store` field.
+    // Optional `"sagas"` seeds in-flight saga state the way `"seed"` seeds aggregates.
     let mut sagas: HashMap<(String, String), SagaInstance> = match parsed.get("sagas").and_then(Json::as_array) {
         Some(entries) => entries
             .iter()
@@ -80,11 +41,7 @@ pub fn run(input: &str) -> String {
                 let correlation = entry.get("correlation")?.as_str()?.to_string();
                 let state = entry.get("state")?.as_str()?.to_string();
                 let memory = entry.get("memory").cloned().unwrap_or_else(|| Json::Object(vec![]));
-                // `"completed_compensations"` — optional and additive, the
-                // same contract every other seed field here already has:
-                // absent (an instance persisted before this feature
-                // existed, or one that never completed a compensable leg)
-                // rehydrates to an empty ledger, never a parse failure.
+                // Optional: an instance persisted without a ledger rehydrates with an empty one.
                 let completed_compensations = entry
                     .get("completed_compensations")
                     .and_then(Json::as_array)
@@ -104,133 +61,35 @@ pub fn run(input: &str) -> String {
             .collect(),
         None => HashMap::new(),
     };
-    // One entry per step, in step order — a host driving this kernel
-    // (rust/host, docs/implemented/decisions/0012) needs to know which records this
-    // step's own dispatch (including everything it cascaded through
-    // policies/sagas) actually saved, not just the whole-store snapshot
-    // `instances` already reports. Kept parallel to `steps`, not flattened,
-    // so a caller replaying prior history plus exactly one new step can
-    // read `mutations.last()` for just the new step's own effect.
+    // One entry per step, parallel to `steps`, so a host can read `.last()` for the newest step.
     let mut mutations_per_step: Vec<Vec<MutationRecord>> = Vec::new();
-    // One entry per step, parallel to `mutations_per_step` — this
-    // module's own honest confession (orchestrate.rs's header) that a
-    // policy fired but named a domain this compiled `Store` never
-    // included, so nothing here could deliver it. rust/host reads only
-    // `.last()`, the same "just the newly-dispatched step" rule
-    // `mutations`'s own doc comment already states, and is the one place
-    // actually equipped to finish the job (`lambda_client.rs`).
+    // Parallel to `mutations_per_step`: policies that named a domain not compiled into this
+    // `Store`; rust/host delivers them.
     let mut cross_domain_per_step: Vec<Vec<PendingCrossDomainReaction>> = Vec::new();
-    // Flat, whole-run accumulation — like `events`/`all_events` above,
-    // not per-step like `mutations_per_step`/`cross_domain_per_step`.
-    // Matches `Registry#reaction_log`/`#saga_log` exactly: Ruby accumulates
-    // these across the whole boot, never resets them per dispatched step,
-    // and `Fuzzing::Replay.call`'s own return hash (`reactions: runtime.
-    // reactions, sagas: runtime.sagas`) reports the whole-run total the
-    // same way.
+    // Whole-run accumulations matching `Registry#reaction_log`/`#saga_log`; never reset per step.
     let mut reaction_log: Vec<Json> = Vec::new();
     let mut saga_log: Vec<Json> = Vec::new();
-    // One entry per successfully-answered "query" step, in step order —
-    // Fuzzing::Replay's own `queries` array (lib/hecks/fuzzing/
-    // replay.rb), read directly: a refused query step (either shape)
-    // reports through `refusals` above instead, exactly like a refused
-    // command does, and contributes nothing here — matching Ruby, which
-    // never pushes a `rows:`-bearing entry for a question that raised.
+    // One entry per answered `query` step; a refused query goes to `refusals` instead.
     let mut query_results: Vec<Json> = Vec::new();
-    // One entry per "dry_run" step, in step order — `Dispatcher#dry_run?`
-    // (Ruby): the command evaluated hypothetically, givens/mutations/
-    // ensures for real, nothing saved, nothing emitted, no reaction. Here:
-    // the same dispatch against a throwaway clone of the store.
+    // One entry per `dry_run` step: the command run against a throwaway clone of the store.
     let mut dry_runs: Vec<Json> = Vec::new();
 
     for step in steps {
-        // Read once, ahead of the "query"/"verb" branch below — a query
-        // step's own `args` (Fuzzing::Replay's `runtime.query(question,
-        // **args)`) lives at this same sibling `"args"` key a command step
-        // already reads, never inside the `"query"` value itself.
+        // A query step's `args` sit at the sibling `"args"` key, as for a command step.
         let empty_args = Json::Object(vec![]);
         let args = step.get("args").unwrap_or(&empty_args);
 
-        // A `"query"` step (Fuzzing::Replay's other real shape,
-        // `step["query"]` instead of `step["verb"]` — a query step carries
-        // no verb at all) has two shapes on the wire, checked before
-        // requiring "verb" below since a query step legitimately has none:
-        //
-        //   String  — a named/declared bluebook ask, and it has two real
-        //   sub-shapes of its own, told apart by whether "::" appears
-        //   before the first "." — the exact same test `Runtime::
-        //   Dispatcher#query` makes (`domain, query_name =
-        //   verb.to_s.split(".", 2); if query_name && !domain.include?
-        //   ("::")` — a bare "Domain.Name" is a read model, everything
-        //   else falls through to the aggregate-query parse):
-        //
-        //     "Banking::CardPayment.Pending" (contains "::") — a query on
-        //     one aggregate, Fuzzing::Replay's original shape. Executes
-        //     for real, as of `rust/project/queries.rb`/`kernel/
-        //     named_query.rs`, for whichever declared queries this
-        //     compiled domain's own `QUERIES` table (rust/project/
-        //     registry.rb's `emit_query_table`) carries a row for — the
-        //     subset expressible as one or more field-comparator
-        //     conditions against a single aggregate's own attributes,
-        //     plus (as of 2026-08-11/Phase 10) a declared `order_by`/
-        //     `limit`/`offset` on that same result set (queries.rb's own
-        //     header has the full eligibility argument for what's still
-        //     out: no cursor/.../index_hints, no reference-hopping where
-        //     clause, no type-unrecoverable literal comparator).
-        //
-        //     "Banking.CustomerPortfolio" (no "::") — a read model, a
-        //     cross-aggregate ask spined on a root fetched by reference id
-        //     (`IR::ReadModel`). Executes for real, as of `rust/project/
-        //     read_models.rb`/`kernel/read_model.rs`, for whichever
-        //     declared read models this compiled domain's own
-        //     `READ_MODELS` table carries a row for — a root aggregate
-        //     fetched by reference id plus reference-matched sibling
-        //     heads, plus (as of 2026-08-11/Phase 10) a declared `where`/
-        //     `order_by`/`limit`/`offset` on the one eligible many-side
-        //     head. Still no `cursor`/`consistency`/`freshness`/
-        //     `authorize`/`nulls`/`inspect_query`/`use_index`
-        //     (read_models.rb's own header has the full eligibility
-        //     argument). The one remaining structural gap in the canonical
-        //     IR itself is a `where`/`order_by` field that hops through a
-        //     reference to a different aggregate than the eligible head's
-        //     own — see read_models.rb's own header for why that
-        //     specifically stays ungenerated. Unlike a named
-        //     aggregate query, a read model has no reference-interpreter
-        //     twin at all (`Runtime::Dispatcher#reference_query`'s own
-        //     comment: "Read models have no reference twin"), so its own
-        //     `queries` entry carries `"reference_rows": null` always,
-        //     never a computed second answer — matching `Fuzzing::
-        //     Replay`'s own `reference = question.include?("::") ?
-        //     runtime.reference_query(...) : nil` exactly.
-        //
-        //   Either sub-shape, a question its own table carries no row for
-        //   — genuinely unknown, or a real declared query/read model whose
-        //   shape this generator doesn't cover — refuses cleanly, the same
-        //   `Refusal::TypeMismatch` an unrouted verb already gets.
-        //
-        //   Object  — an ad hoc, single-comparator filter ({"aggregate",
-        //   "field", "op", "value"}). Executes for real: `run_filter`
-        //   (below) resolves the named aggregate against this compiled
-        //   domain's own `Store` (`AggregateScan`, kernel/repository.rs),
-        //   validates `op` against the eight real `QueryComparator`
-        //   variants (query_comparators.rs), and filters that one
-        //   aggregate's own stored instances. Anything this shape doesn't
-        //   cover — an unrecognized comparator, an aggregate this compiled
-        //   domain doesn't recognize (including, honestly, a domain never
-        //   regenerated with scan support at all — AggregateScan's own
-        //   default) — refuses cleanly too, never a wrong (empty-but-
-        //   silent) answer and never a panic.
+        // A `"query"` step carries no verb and takes one of three shapes:
+        //   - `"Domain::Aggregate.Query"`: a declared aggregate query, looked up in `QUERIES`.
+        //   - `"Domain.ReadModel"` (no `::`): a read model from `READ_MODELS`.
+        //   - `{aggregate, field, op, value}`: an ad hoc filter over one aggregate.
+        // A question with no generated table row refuses with `TypeMismatch`.
         if let Some(query) = step.get("query") {
-            // Same "role" key a command step's own `caller_role` already
-            // reads (line ~358, below) — a query step carries it the
-            // identical way. Threaded through purely so it's available to
-            // a future `authorize policy` enforcement pass (TenantAuth's
-            // own doc comment) — `run` doesn't check it against anything
-            // yet.
+            // Read for a future `authorize policy` pass; nothing checks it yet.
             let caller_role = step.get("role").and_then(Json::as_str);
             match query {
-                // **An entity query** — rows are `{ parent_key => id }.merge(element)`
-                // already (`named_query::run_entity`), never `row_json`-wrapped,
-                // and its reference twin is the identical engine (Ruby's
+                // Entity-query rows are already `{ parent_key => id }.merge(element)`; the
+                // reference twin is the same engine.
                 // `reference_interpret` delegates to the same `entity_rows`).
                 Json::Str(question) if question.contains("::") && named_query::find_entity(ENTITY_QUERIES, question).is_some() => {
                     let def = named_query::find_entity(ENTITY_QUERIES, question).expect("matched by the guard above");
@@ -266,42 +125,12 @@ pub fn run(input: &str) -> String {
                                 ("query", Json::Str(question.clone())),
                                 ("args", args.clone()),
                                 ("rows", rows.clone()),
-                                // Provably equal to `rows`, not merely
-                                // assumed — see named_query.rs's own
-                                // "ground truth" paragraph for the exact
-                                // property this leans on: every row this
-                                // table ever holds is, by `queries.rb`'s
-                                // own eligibility gate, hop-free and
-                                // order-free, which is exactly the
-                                // condition under which Ruby's `interpret`
-                                // and `reference_interpret` are the
-                                // identical answer.
+                                // Same as `rows`: one compiled path (named_query.rs).
                                 ("reference_rows", rows),
                             ]));
                         }
-                        // A refused declared-query step still gets a
-                        // `queries` entry in Ruby, not just a top-level
-                        // refusal — `Fuzzing::Replay#call`'s own `entry =
-                        // {query:, args:, rows: native_rows, ...}` is built
-                        // before checking `native_error`, so `rows: nil` is
-                        // a real key with a nil value, not an absent one,
-                        // and (for a "::"-qualified question, `has_reference`
-                        // true) `reference_rows`/`reference_error` are
-                        // populated too — from Rust's own independently-run
-                        // reference path, except there is only one compiled
-                        // path here (`named_query.rs`'s own "ground truth"
-                        // paragraph: `run`/a hypothetical `reference_run`
-                        // are provably the identical answer for this whole
-                        // generated subset), so `error`/`reference_error`
-                        // are the identical string, not independently
-                        // computed the way Ruby's two engines are. Found
-                        // live: a real query-step refusal (Phase 10's own
-                        // `authorize`/TenantScope port) was the first fixture
-                        // ever to exercise a query step that genuinely
-                        // refuses, and `spec/rust_conformance_spec.rb`'s
-                        // own "queries" field comparison caught this queries-
-                        // entry omission immediately — a real, general,
-                        // pre-existing gap, not specific to authorization.
+                        // A refused query still gets an entry with `rows: null`, as in Ruby; one
+                        // compiled path means `error` and `reference_error` are the same string.
                         Err(refusal) => {
                             let message = refusal.to_string();
                             query_results.push(Json::obj(vec![
@@ -335,29 +164,11 @@ pub fn run(input: &str) -> String {
                                 ("query", Json::Str(question.clone())),
                                 ("args", args.clone()),
                                 ("rows", Json::Array(vec![row])),
-                                // A read model has no reference-interpreter
-                                // twin at all — see this block's own header.
-                                // No `reference_rows` key at all, not a null
-                                // one — `Fuzzing::Replay`'s own `if
-                                // has_reference` (replay.rb) only ever sets
-                                // `entry[:reference_rows]` when the question
-                                // has a reference twin; a bare read-model
-                                // question's own entry hash never gains the
-                                // key, so it's absent from Ruby's JSON, not
-                                // present-as-null. This block's own prior
-                                // comment misread that ternary as "always
-                                // set, to nil or a value" — it isn't; the
-                                // key itself is conditional. Confirmed via
-                                // spec/rust_conformance_spec.rb's own
-                                // read_models.json/read_model_snake_case_
-                                // alias.json fixtures, the only two real
-                                // corpus members with a bare read-model ask.
+                                // No `reference_rows` key: Ruby sets it only for questions with a
+                                // reference twin, and a read model has none.
                             ]));
                         }
-                        // Same fix as the "::"-qualified branch above, minus
-                        // `reference_rows`/`reference_error` — a read model
-                        // has no reference-interpreter twin (this block's
-                        // own comment on the success path already says so).
+                        // As above, minus the reference keys.
                         Err(refusal) => {
                             let message = refusal.to_string();
                             query_results.push(Json::obj(vec![
@@ -400,8 +211,7 @@ pub fn run(input: &str) -> String {
 
         if let Some(verb) = step.get("dry_run").and_then(Json::as_str) {
             let caller_role = step.get("role").and_then(Json::as_str);
-            // `actor_id:` — the same sibling opt-in `role:` always was
-            // (see the real command step's own identical comment, below).
+            // See `actor_id` on the command step below.
             let caller_actor_id = step.get("actor_id").and_then(Json::as_str);
             let command_input = dry_run_command_input(args);
             dry_runs.push(dry_run(&store, verb, &command_input, caller_role, caller_actor_id));
@@ -415,63 +225,22 @@ pub fn run(input: &str) -> String {
             None => return error_output("step missing \"verb\", \"dry_run\", or \"query\""),
         };
 
-        // `role:` — the same optional per-step key `Fuzzing::Replay.call`
-        // reads (`lib/hecks/fuzzing/replay.rb`), now on this side of
-        // the wire too: Ruby's caller is thread-local ambient state
-        // (`Hecks.as_caller`) this kernel has no analogue for, so a
-        // step's own `role:` plays that part instead — passed only into
-        // this top-level `orchestrate` call, never into a reaction's own
-        // re-entry (`orchestrate.rs`'s own `None` at every recursive call
-        // site mirrors `Dispatcher#reenter`'s `Caller.without`).
+        // Per-step `role:` stands in for Ruby's ambient `Hecks.as_caller`; passed to the top-level
+        // `orchestrate` call only, never to a reaction's re-entry (as `Dispatcher#reenter`).
         let caller_role = step.get("role").and_then(Json::as_str);
 
-        // `actor_id:` — the same sibling opt-in `role:` always was: a
-        // caller that states only a `role:` (no `actor_id:`) is checked
-        // exactly the way it always has been, string equality against
-        // the command's own declared `role`
-        // (`kernel::repository::check_role_via`'s own doc comment has the
-        // full split) — this key is purely additive, an absent
-        // `"actor_id"` behaves byte-for-byte like every step written
-        // before this key existed. A caller that also names who it is
-        // (`Hecksagain.as_caller(role:, actor_id:)`, Ruby's own
-        // `lib/hecksagain/runtime/caller.rb`) reaches a real Governance
-        // `RoleAssignment` lookup instead, once this compiled domain
-        // actually has Governance's own aggregates merged in. Threaded
-        // the identical way `caller_role` already is: only into this
-        // top-level `orchestrate` call, never into a reaction's own
-        // re-entry.
+        // Without `actor_id:` the role is checked by string equality against the command's `role`;
+        // with it, by a Governance lookup (`check_role_via`). Top-level call only, like `role:`.
         let caller_actor_id = step.get("actor_id").and_then(Json::as_str);
 
-        // `occurred_at:` — the same door pattern `role:` just above already
-        // is: this kernel has no clock (`Event::occurred_at`'s own field
-        // doc, mod.rs), so `rust/host` — which has a real wall clock —
-        // stamps one moment per step here, before this artifact ever runs,
-        // and `orchestrate` applies it to every event this step's own
-        // dispatch produces, including every cascading reaction. Absent
-        // for a caller with nothing to stamp (`hecks-parse`'s own
-        // differential-parity harness, `bin/rust_conformance`'s fixtures
-        // that predate this key) — `None` all the way down, matching how
-        // `caller_role` already answers `None` for the identical case.
+        // Stamped once per step by rust/host, since the kernel has no clock; absent means `None`.
         let occurred_at = step.get("occurred_at").and_then(Json::as_str);
 
-        // Direct callers use top-level `to`/`with`; the durable host wraps
-        // that same object under its historical `args` journal column so no
-        // storage migration is required. Generated `dispatch_by_name`
-        // accepts either location through `CommandInvocation`.
+        // Direct callers use top-level `to`/`with`; the durable host wraps them under `args`.
         let command_input = command_input(step, args);
 
-        // `orchestrate` appends every event — this step's own and every
-        // policy reaction it triggers — into `events` itself; only the
-        // top-level verb's own refusal is recorded per step, matching
-        // `Fuzzing::Replay.call`'s own `rescue *Runtime::DOMAIN_REFUSALS`
-        // scope (a reaction's downstream refusal is swallowed inside
-        // `orchestrate`, never surfaced to this loop at all). A fresh
-        // `Vec` per step, same reasoning as `all_events` being shared
-        // across the whole call but this one being per-step: mutations
-        // triggered by a refused top-level command are real (a saga leg
-        // that dispatched successfully before its sibling refused still
-        // saved something) and stay recorded even though the step itself
-        // is refused — matching `events`' own behavior one line above.
+        // `orchestrate` appends every event itself; only the top-level refusal is recorded here.
+        // Mutations from a refused command stay recorded: earlier saga legs may have saved.
         let mut step_mutations: Vec<MutationRecord> = Vec::new();
         let mut step_cross_domain: Vec<PendingCrossDomainReaction> = Vec::new();
         let tables = Tables {
@@ -537,41 +306,18 @@ pub fn run(input: &str) -> String {
         ("mutations".to_string(), mutations_json),
         ("queries".to_string(), Json::Array(query_results)),
         ("cross_domain_reactions".to_string(), cross_domain_json),
-        // `Registry#reaction_log`/`#saga_log`, read directly — see
-        // reaction_log/saga_log's own declaration above for why these are
-        // flat (whole-run) rather than per-step like `mutations`/
-        // `cross_domain_reactions`.
+        // Whole-run logs, not per-step.
         ("reactions".to_string(), Json::Array(reaction_log)),
         ("sagas".to_string(), Json::Array(saga_log)),
-        // A live snapshot of `sagas` as it stands at the end of this
-        // run — deliberately a separate key from `"sagas"` above, which
-        // is the flat transition log (every attempted transition, even
-        // refused ones), not a snapshot of current state. Same
-        // relationship `"instances"` already has to `"events"`: one is
-        // "what happened," the other is "what's true now." A host
-        // (rust/host) persists this the same way it already persists
-        // `"instances"`, and feeds it back in as this run's own
-        // `"sagas"` input key next time (see above).
+        // State at the end of the run, fed back as `"sagas"` next time; the `"sagas"` key above
+        // is the transition log, including refused transitions.
         ("saga_snapshot".to_string(), saga_snapshot_json(&sagas)),
     ])
     .to_json_string()
 }
 
-/// **The ad hoc filter's own dispatch** — `{"aggregate", "field", "op",
-/// "value"}`, every key required (a missing one refuses via `Json::
-/// require`, the same message shape every generated `from_json` already
-/// uses). `aggregate` is looked up through `AggregateScan::scan`
-/// (kernel/repository.rs), generated per compiled domain; `op` through
-/// `QueryComparator::parse` (query_comparators.rs) — either miss refuses
-/// with a clear, specific reason, never falls through to an empty-but-
-/// silent result. `value`'s own JSON type rides straight through
-/// unchanged (a caller means whatever type they wrote — a bare JSON
-/// number for a numeric comparator, a string, `null` for a genuine nil
-/// check) all the way into `repository::filter_entries`, which is the
-/// one place it's actually interpreted.
-/// `Dispatcher#dry_run?` — evaluate a command against a throwaway copy
-/// of the store. `{"verb", "ok"}` or `{"verb", "ok": false, "error"}`,
-/// the error being the very refusal a real dispatch would have raised.
+/// Evaluates a command against a throwaway copy of the store; `"error"` carries the refusal
+/// a real dispatch would have raised.
 fn dry_run(store: &Store, verb: &str, command_input: &Json, caller_role: Option<&str>, caller_actor_id: Option<&str>) -> Json {
     let mut scratch = store.clone();
     match dispatch_by_name(&mut scratch, verb, command_input, caller_role, caller_actor_id, &mut Vec::new()) {
@@ -594,15 +340,8 @@ fn tables() -> Tables<'static> {
     }
 }
 
-/// **The streaming mode** — `rust --serve`: one JSON step per stdin line, one
-/// JSON answer per stdout line, the store alive across them. What a
-/// move chooser needs from a referee (hecks_ai_training's bin/selfplay):
-/// propose with `{"dry_run": verb, "args": …}` as many times as it likes,
-/// commit with `{"verb": …}`, read the board with `{"instances": true}`,
-/// and try a multi-dispatch sequence (a capture is two) between
-/// `{"snapshot": true}` and `{"restore": true}` — the same throwaway-copy
-/// idea as a dry run, held open across steps. Reactions run on commits
-/// exactly as in `run`; answers carry the events each commit produced.
+/// `--serve` mode: one JSON step per stdin line, one answer per stdout line, store kept across
+/// lines. Beyond `verb` it takes `dry_run`, `snapshot`, `restore` and `instances` steps.
 pub fn serve(input: impl std::io::BufRead, mut output: impl std::io::Write) {
     let mut store = Store::new();
     let mut sagas: HashMap<(String, String), SagaInstance> = HashMap::new();
@@ -622,7 +361,6 @@ pub fn serve(input: impl std::io::BufRead, mut output: impl std::io::Write) {
                 let empty_args = Json::Object(vec![]);
                 let args = step.get("args").unwrap_or(&empty_args);
                 let caller_role = step.get("role").and_then(Json::as_str);
-                // See `run`'s own identical comment, above.
                 let caller_actor_id = step.get("actor_id").and_then(Json::as_str);
                 let occurred_at = step.get("occurred_at").and_then(Json::as_str);
                 if step.get("snapshot").is_some() {
@@ -699,15 +437,8 @@ fn required_str<'a>(filter: &'a Json, key: &str) -> Result<&'a str, Refusal> {
         .ok_or_else(|| Refusal::TypeMismatch(format!("query filter {key:?} must be a string")))
 }
 
-/// The `refusals` entry's own "verb" column, for a refused ad hoc filter
-/// — there is no real verb to report (a filter step carries no verb at
-/// all), so this builds the same descriptive label Fuzzing::Replay's own
-/// mirror-image Ruby code builds from the same three raw fields, tolerant
-/// of any of them being absent or the wrong shape (a malformed filter is
-/// exactly the case this label most needs to describe without itself
-/// panicking) — `Json::as_str` on a missing/non-string field reads as
-/// `None`, folded to `""` here the same way Ruby's own string
-/// interpolation folds a missing/nil hash value.
+/// The `refusals` verb column for a refused ad hoc filter, which has no verb; tolerates
+/// missing or mistyped fields.
 fn filter_label(filter: &Json) -> String {
     let field = |key: &str| filter.get(key).and_then(Json::as_str).unwrap_or("");
     format!("filter {}.{} {}", field("aggregate"), field("field"), field("op"))
@@ -721,46 +452,8 @@ fn command_input<'a>(step: &'a Json, legacy_args: &'a Json) -> &'a Json {
     }
 }
 
-// BUG#131 — a dry run's own command_input, deliberately not the shared
-// `command_input()` above. Ruby's `Dispatcher#dry_run?(verb, **args)` has
-// no `to:`/`with:` keyword parameters at all (unlike `#dispatch`, which
-// does, and which this kernel's `command_input()` mirrors on purpose) —
-// every key of a dry run's `args`, `to`/`with` included, is forwarded
-// straight through as flat command facts, uninterpreted. The fuzzer's own
-// dry_run steps (`step_builder.rb`: `{"dry_run": verb, "args": args}`,
-// the same shape `spec/corpus/rust_conformance/*.json`'s own dry_run
-// fixtures use) never carry a step-level `to`/`with` envelope either —
-// there is no shape a dry run can take in this codebase that legitimately
-// wants routing-envelope parsing at all.
-//
-// Before this: `dry_run()`'s call sites reused `command_input()`, whose
-// legacy branch hands `CommandInvocation::from_json` the flat args
-// object unchanged — and that function treats any present, non-null
-// top-level `to` key as an explicit routing attempt regardless of where
-// the object came from (`RoutingEnvelope::from_json`'s own
-// `non_null_to_still_takes_the_routing_branch_not_the_legacy_one` test
-// pins that contract for an object it receives directly). A domain fact
-// literally named `to` (`Roster::Roster.Mark`, BUG#7/#16/#17/#18's own
-// running collision) with a real, non-null value — `{"to": {"value":
-// 570}, "name": {...}}` — hit exactly that branch: parsed as a
-// routing-envelope Hash, found to carry no `"aggregate"` key, and refused
-// `TypeMismatch("entity route requires a scalar aggregate identity")`
-// before `MarkArgs::from_json` (which already tolerates `to` alongside
-// the identity field `name`, `unknown_keys` allowing both) ever ran.
-// Ruby's own asymmetry between `#dispatch` and `#dry_run?` means Ruby
-// never took that branch for a dry run at all — `ok: true`.
-//
-// Wrapping args as `{"with": args}` reproduces that same asymmetry on
-// this side: `CommandInvocation::from_json` sees no top-level `to` (only
-// `with`), so `target` is `None` and nothing inside `args` is ever
-// sniffed for a `to`/`with` key — the whole object becomes `facts`
-// verbatim, exactly like a dry run's own facts always were meant to be
-// read. Identity resolution is untouched: `route` comes back `None`
-// either way, so `dispatch_by_name`'s own `None => extract_id(facts_json)`
-// fallback still resolves the aggregate (or entity) identity straight out
-// of the same flat facts, the same "legacy mixed-args" convention the
-// real (non-dry-run) path already relies on when it, too, receives no
-// explicit envelope.
+// Not `command_input()`: Ruby's `dry_run?` forwards every arg key, `to`/`with` included, as flat
+// facts. Wrapping under `with` keeps a fact named `to` from being read as a routing envelope.
 fn dry_run_command_input(args: &Json) -> Json {
     Json::obj(vec![("with", args.clone())])
 }
@@ -774,22 +467,11 @@ fn mutation_to_json(mutation: &MutationRecord) -> Json {
     ])
 }
 
-/// One `PendingCrossDomainReaction` (orchestrate.rs), on the wire —
-/// exactly the four fields rust/host's `lambda_client.rs` needs to
-/// finish delivering what this sandboxed module could only match, not
-/// route: which policy fired, which domain's Lambda to invoke, which
-/// verb to invoke it with, and the event's own payload, forwarded
-/// verbatim (this file's own `react_policies` comment on "not reshaped,
-/// not filtered" — the identical rule, just carried out one layer up).
 fn cross_domain_reaction_to_json(reaction: &PendingCrossDomainReaction) -> Json {
     Json::obj(vec![
         ("policy", Json::str(reaction.policy_name.clone())),
-        // The triggering event's own name — carried purely so rust/host
-        // can build a reaction_log-shaped record once it learns the real
-        // delivery outcome (see PendingCrossDomainReaction's own doc
-        // comment); `lambda_client::deliver`'s own request shape never
-        // reads this key, it only reads policy/target_domain/target_verb/
-        // payload, so its presence here is additive and harmless.
+        // Additive: `lambda_client::deliver` never reads `on`; rust/host uses it to build a
+        // reaction_log record.
         ("on", Json::str(reaction.event_name.clone())),
         ("target_domain", Json::str(reaction.target_domain.clone())),
         ("target_verb", Json::str(reaction.target_verb.clone())),
@@ -797,10 +479,7 @@ fn cross_domain_reaction_to_json(reaction: &PendingCrossDomainReaction) -> Json 
     ])
 }
 
-/// The live `sagas` map, dumped as a JSON array of the same shape the
-/// `"sagas"` input key (above) parses — round-trippable: what this
-/// function emits is exactly what a later `run` call, given it back as
-/// `"sagas"`, would parse into an identical map.
+/// The live `sagas` map as a JSON array, in the shape the `"sagas"` input key parses.
 fn saga_snapshot_json(sagas: &HashMap<(String, String), SagaInstance>) -> Json {
     Json::Array(
         sagas
@@ -811,11 +490,7 @@ fn saga_snapshot_json(sagas: &HashMap<(String, String), SagaInstance>) -> Json {
                     ("correlation", Json::str(correlation.clone())),
                     ("state", Json::str(instance.state.clone())),
                     ("memory", instance.memory.clone()),
-                    // Mirrors `SagaInterpreter#checkpoint`'s own
-                    // `completed_compensations:` field — a per-instance,
-                    // dynamic runtime ledger, round-tripped through this
-                    // snapshot the same way `state`/`memory` already are
-                    // (parsed back by `run`'s own `"sagas"` input above).
+                    // Round-trips the compensation ledger, as `state`/`memory`.
                     (
                         "completed_compensations",
                         Json::Array(
@@ -843,12 +518,7 @@ fn event_to_json(event: &Event) -> Json {
         ("aggregate", Json::str(event.aggregate.clone())),
         ("id", Json::str(event.id.clone())),
         ("payload", event.payload.clone()),
-        // 5th key, matching Ruby's own `Event#to_h` key order exactly
-        // (lib/hecks/runtime/event.rb). `Null` for `None` — a caller
-        // this step never carried a wall-clock stamp for at all
-        // (`hecks-parse`'s own differential-parity harness, an older
-        // fixture that predates this key), the same absent-is-null
-        // reading every other optional field on this wire already gets.
+        // Key order matches Ruby's `Event#to_h`; `None` serialises as null.
         ("occurred_at", event.occurred_at.clone().map(Json::Str).unwrap_or(Json::Null)),
     ])
 }
@@ -882,16 +552,8 @@ mod routing_tests {
         assert_eq!(invocation.facts().get("box_number").and_then(Json::as_i64), Some(12));
     }
 
-    // BUG#131 — a domain fact literally named `to`, with a real (non-null)
-    // value, must dry-run as an ordinary fact, never as a routing attempt
-    // — `Roster::Roster.Mark`'s own `to` (BUG#7/#16/#17/#18's running
-    // collision), the exact shape `spec/corpus/rust_conformance/
-    // roster_mark_dry_run_to_collision.json` pins end to end. Without
-    // `dry_run_command_input`, feeding this same `args` object straight
-    // to `CommandInvocation::from_json` (the path the shared
-    // `command_input()` also takes for an ordinary dispatch) hits
-    // `non_null_to_still_takes_the_routing_branch_not_the_legacy_one`'s
-    // own contract and refuses.
+    // A domain fact named `to` must dry-run as a plain fact, never a routing attempt
+    // (pinned end to end by `roster_mark_dry_run_to_collision.json`).
     #[test]
     fn dry_run_command_input_never_sniffs_a_flat_facts_to_key_as_routing() {
         let args = Json::obj(vec![

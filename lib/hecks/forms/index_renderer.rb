@@ -2,10 +2,7 @@ require_relative "html"
 
 module Hecks
   module Forms
-    # The home page: every exposed chapter, every aggregate on it — the
-    # entry point into what would otherwise be a URL you'd have to already
-    # know. `chapters` is `{domain_name => Bluebook::Chapter}`, in `expose`
-    # order (see `Forms::Config` in forms.rb).
+    # The home page: every exposed chapter and the aggregates on it.
     module IndexRenderer
       # Renders the home page body: one section per exposed chapter, each linking to its
       # aggregates.

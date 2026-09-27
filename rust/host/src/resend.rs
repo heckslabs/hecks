@@ -1,23 +1,5 @@
-// The outbound side of a newsletter send: one email handed to Resend's REST
-// API (https://resend.com/docs/api-reference/emails/send-email). The Ruby
-// counterpart is the site's own Resend adapter; both answer the same
-// `deliver` question, ok or not with a message id, so the send loop never
-// knows which provider it is talking to.
-//
-// Three states, decided once per send from the environment (`Mailer::from_env`):
-//
-//   RESEND_API_KEY + RESEND_FROM   live: every email really goes to Resend
-//   RESEND_MOCK=1, no key          mock: logged, never sent, synthetic ids
-//   neither                        not configured: the route refuses before
-//                                  it marks the issue sent
-//
-// Mock is opt-in, unlike checkout's mock-by-default. Marking an issue sent is
-// irreversible, so a deploy that forgot its key must refuse rather than record
-// a send nobody received.
-//
-// Resend's default limit is two requests a second and it answers 429 with a
-// `retry-after`; `deliver` waits and retries a few times before giving up on
-// one recipient, so a fan-out over a small list stays inside the limit.
+//! Sends one newsletter email through Resend's REST API. The Ruby adapter answers the
+//! same `deliver` question, so the send loop never knows which provider is live.
 
 use serde_json::{json, Value};
 use std::time::Duration;
@@ -40,9 +22,8 @@ pub struct Email<'a> {
     pub unsubscribe_url: Option<&'a str>,
 }
 
-/// What handing an email to the provider came to. Never an error: a refusal or
-/// an outage for one recipient is `ok: false` with a reason, so a fan-out can
-/// carry on with the rest.
+/// What handing an email to the provider came to. A refusal or outage for one
+/// recipient is `ok: false` with a reason (never an `Err`), so a fan-out can carry on.
 #[derive(Debug, PartialEq)]
 pub struct Delivery {
     pub ok: bool,
@@ -67,8 +48,8 @@ pub enum Mailer {
 }
 
 impl Mailer {
-    /// `Ok(None)` when nothing is configured, `Err` when a key is set without
-    /// the from address that must go with it.
+    /// `Ok(None)` when nothing is configured; `Err` when a key is set without `RESEND_FROM` —
+    /// marking an issue sent is irreversible, so a missing key must refuse before that happens.
     pub fn from_env() -> Result<Option<Mailer>, String> {
         let var = |name: &str| std::env::var(name).unwrap_or_default();
         Self::configured(&var("RESEND_API_KEY"), &var("RESEND_FROM"), &var("RESEND_MOCK"))
@@ -81,6 +62,7 @@ impl Mailer {
             }
             return Ok(Some(Self::live(api_key, from, API_BASE)));
         }
+        // Mock requires an explicit opt-in, unlike checkout's mock-by-default.
         Ok((mock == "1").then_some(Mailer::Mock))
     }
 

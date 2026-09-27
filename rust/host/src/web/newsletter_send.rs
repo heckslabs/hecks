@@ -11,26 +11,8 @@ use std::path::Path;
 use tokio::sync::Mutex;
 use tokio_postgres::Client;
 
-// ---- newsletter: sending an issue ----------------------------------------
-// Ported from the Ruby HTTP adapter's POST /newsletter/issues/:slug/send and
-// .../send-test, with the outbound half going through resend.rs instead of
-// the Ruby RESEND_ADAPTER. Which commands mark an issue sent and record a
-// delivery comes from the `newsletter_issues` IR key (`provides
-// "newsletter_issues"`); which aggregate holds the subscribers comes from the
-// `newsletter` key beside it. A domain that declares neither serves neither
-// route.
-//
-// Unlike the guest routes in newsletter.rs, these sit behind the admin gate:
-// sending mail to every subscriber is not something a session-less request, or
-// a member with no admin role, may trigger.
-//
-// `Issue.Send` only records the decision to send (see the Newsletter bluebook's
-// own note on it), so the fan-out lives here, in the driving side: one email
-// per confirmed subscriber, each recorded as a Delivery when the provider
-// accepted it. The issue is marked sent before any email goes out, the same
-// order the Ruby route uses: a second click then refuses ("only a draft issue
-// can be sent") instead of mailing everyone twice, at the price that a crash
-// mid-fan-out leaves an issue marked sent that only some subscribers received.
+// Sending a newsletter issue: POST .../send and .../send-test, gated to
+// Admin/Owner. `newsletter_issues` marks issues sent; `newsletter` holds subscribers.
 
 const UNSUBSCRIBE_TOKEN: &str = "{{UNSUBSCRIBE_URL}}";
 const DEFAULT_SITE_URL: &str = "http://localhost:4321";
@@ -41,15 +23,14 @@ const DEFAULT_SITE_URL: &str = "http://localhost:4321";
 pub(super) const UNSUBSCRIBE_PURPOSE: &str = "newsletter-unsubscribe";
 const UNSUBSCRIBE_TTL_SECS: u64 = 730 * 24 * 60 * 60;
 
-/// Which of the two send routes a request is for.
 #[derive(Debug, PartialEq)]
 pub(super) enum IssueAction {
     Send,
     SendTest,
 }
 
-/// `POST /newsletter/issues/{slug}/send` or `.../send-test`, with the slug
-/// percent-decoded; anything else is not one of these routes.
+// Matches `POST /newsletter/issues/{slug}/send(-test)`; the slug comes back
+// percent-decoded.
 pub(super) fn issue_action(method: &str, path: &str) -> Option<(String, IssueAction)> {
     if method != "POST" {
         return None;
@@ -66,8 +47,8 @@ pub(super) fn issue_action(method: &str, path: &str) -> Option<(String, IssueAct
     Some((percent_decode(slug), action))
 }
 
-/// Answers a send route for an Admin or Owner, or `None` when the path is not
-/// one or this domain declares no `newsletter_issues` and `newsletter`.
+// `None` when the path doesn't match, or this domain declares neither
+// `newsletter_issues` nor `newsletter`.
 #[allow(clippy::too_many_arguments)]
 pub(super) async fn issue_route(
     method: &str,
@@ -99,8 +80,8 @@ fn json_error(status: u16, message: &str) -> Value {
     respond(status, "application/json", &json!({ "error": message }).to_string())
 }
 
-/// Refuses a send while there is no secret to sign the unsubscribe links with:
-/// every email carries one, so nothing may go out (or be marked sent) without.
+// Every email carries a signed unsubscribe link, so nothing may go out (or
+// be marked sent) without a secret to sign it with.
 fn require_signing_secret(secret: &str) -> Result<(), Value> {
     if secret.is_empty() {
         return Err(json_error(503, "unsubscribe links cannot be signed: set SESSION_SECRET"));
@@ -108,9 +89,8 @@ fn require_signing_secret(secret: &str) -> Result<(), Value> {
     Ok(())
 }
 
-/// The mailer, once the caller is a signed-in Admin or Owner. Email delivery
-/// not being configured, or no secret to sign unsubscribe links with, is
-/// refused here, before anything is marked sent.
+// Refuses (before anything is marked sent) when the caller isn't an
+// Admin/Owner, mail isn't configured, or there's no signing secret.
 async fn authorize(domain_ir: &Value, cookies: &HashMap<String, String>, secret: &str, client: &Mutex<Client>) -> Result<Mailer, Value> {
     let email = active_session_email(domain_ir, cookies, secret, client).await?;
     match auth::caller_is_admin(client, domain_ir, &email).await {
@@ -130,22 +110,17 @@ pub(super) fn site_url() -> String {
     std::env::var("SITE_URL").unwrap_or_else(|_| DEFAULT_SITE_URL.to_string())
 }
 
-/// The signed token an unsubscribe link carries, minted for exactly `email`.
 pub(super) fn unsubscribe_token(secret: &str, email: &str) -> String {
     auth::purpose_token(secret, UNSUBSCRIBE_PURPOSE, json!({ "email": email }), UNSUBSCRIBE_TTL_SECS)
 }
 
-/// Whether `token` was minted for exactly this `email`, for the unsubscribe
-/// purpose, and has not expired.
 pub(super) fn unsubscribe_token_matches(secret: &str, token: &str, email: &str) -> bool {
     auth::verify_purpose_token(secret, UNSUBSCRIBE_PURPOSE, token)
         .and_then(|claims| claims.get("email").and_then(|v| v.as_str()).map(|signed| signed == email))
         .unwrap_or(false)
 }
 
-/// The page a recipient lands on to leave the list, with their address and the
-/// signed token as query parameters (encoded, so a `+` in the local part
-/// survives). That page calls back to the unsubscribe route with both.
+// Percent-encodes the address so a '+' in the local part survives the URL.
 pub(super) fn unsubscribe_url(site_url: &str, email: &str, token: &str) -> String {
     let mut url = reqwest::Url::parse(&format!("{site_url}/newsletter-unsubscribed.html")).unwrap_or_else(|_| reqwest::Url::parse("http://invalid.invalid/").unwrap());
     url.query_pairs_mut().append_pair("email", email).append_pair("token", token);
@@ -156,12 +131,12 @@ fn personalize(body: &str, unsubscribe_url: &str) -> String {
     body.replace(UNSUBSCRIBE_TOKEN, unsubscribe_url)
 }
 
-/// An aggregate field that is a one-attribute value object: `{"value": ...}`.
+// An aggregate field that is a one-attribute value object: `{"value": ...}`.
 fn value_of<'a>(state: &'a Value, field: &str) -> &'a str {
     state.get(field).and_then(|v| v.get("value")).and_then(|v| v.as_str()).unwrap_or("")
 }
 
-/// Every confirmed subscriber's address, alphabetical so a send is repeatable.
+// Every confirmed subscriber's address, alphabetical so a send is repeatable.
 fn confirmed_emails(subscribers: &[(String, Value)]) -> Vec<String> {
     let mut emails: Vec<String> = subscribers
         .iter()
@@ -199,6 +174,8 @@ async fn send_issue(
     let body = value_of(&issue, "body").to_string();
     let recipients = confirmed_emails(&instances_for(&read, &subscribers.instance_prefix()));
 
+    // Marked sent before mailing: a second click then refuses ("only a draft
+    // issue can be sent") instead of mailing everyone twice.
     match dispatch::handle_routed(client, wasm_path, &issues.send_issue, json!(slug), json!({ "sent_at": { "value": unix_now() } }), None, config, invoker).await {
         Err(e) => return respond(500, "text/plain", &format!("{e:#}")),
         Ok(outcome) if !outcome.accepted => return respond(422, "application/json", &last_refusal(&outcome.result).to_string()),
@@ -239,9 +216,8 @@ async fn send_issue(
     respond(200, "application/json", &json!({ "slug": slug, "sent": sent, "failed": failures.len(), "failures": failures, "unrecorded": unrecorded }).to_string())
 }
 
-/// One email to one address, to see what a subscriber would get. Never touches
-/// the issue's own state: `Issue.Send` is irreversible, so a test cannot reuse
-/// it, and this renders whatever subject and body the caller supplies.
+// Never touches the issue's own state: `Issue.Send` is irreversible, so a
+// test send can't reuse it; it just renders the given subject/body.
 async fn send_test(raw_body: &str, mailer: &Mailer, secret: &str) -> Value {
     let body: Value = match serde_json::from_str(raw_body) {
         Ok(v) => v,

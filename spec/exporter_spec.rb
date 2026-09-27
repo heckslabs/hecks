@@ -2,12 +2,8 @@ require "spec_helper"
 require "hecks/ports/persistence/plugins/era"
 
 RSpec.describe Hecks::Projector::Exporter do
-  # H4 (2026-08-10 audit) — a rekey's SQL was absent from `translation_
-  # aggregate`, so `ApprovalDigest.edge_digest` (which hashes exactly
-  # that shape) could not tell two edges with different `rekey sql:`
-  # apart, and a human approval bound to one rekey's digest silently
-  # kept covering any other rekey SQL swapped in after approval. Fixed
-  # by folding `rekeys` (and `backfills`) into `translation_aggregate`.
+  # Pins that rekey SQL is part of the digested shape: an approval must lapse when
+  # the SQL is swapped afterwards.
   describe ".translation_hash / rekey coverage" do
     def edge_with_rekey(sql)
       aggregate = Hecks::Bluebook::TranslationAggregate.new(
@@ -53,9 +49,7 @@ RSpec.describe Hecks::Projector::Exporter do
     end
   end
 
-  # The same binding for a backfill: a rekey edge mints under one approval, and
-  # the backfill's default is what every old row reads for the new attribute, so
-  # editing it after approval must lapse the approval too.
+  # A backfill default is what every old row reads, so editing it must lapse the approval too.
   describe ".translation_hash / backfill coverage" do
     def edge_with_backfill(name, default)
       aggregate = Hecks::Bluebook::TranslationAggregate.new(
@@ -91,9 +85,8 @@ RSpec.describe Hecks::Projector::Exporter do
     end
   end
 
-  # Pizzas' own hecksagon attaches Governance (`uses_framework`), whose
-  # bluebook declares `provides "authorization"`; the bare bluebook alone
-  # attaches nothing. Shared by `.authorization` and `.membership`.
+  # Pizzas' hecksagon attaches Governance, which `provides "authorization"`; the bare
+  # bluebook attaches nothing.
   def pizzas_registry(with_hecksagon:)
     registry = Hecks::Runtime::Registry.new
     Hecks.with_registry(registry) do
@@ -164,16 +157,8 @@ RSpec.describe Hecks::Projector::Exporter do
   end
 
   describe ".lineage" do
-    # A real PostgresEra binding, not `boot_in_memory`'s own override to
-    # Memory — `Exporter.lineage`'s whole job is answering "which
-    # adapter is this aggregate actually bound to," so a spec that
-    # rebinds Order to Memory first would only ever prove the empty
-    # case. `POSTGRES_ERA_ADAPTER` (the DSL declaration, InMemoryDomain's
-    # own constant) plus requiring the era plugin (ADR 0033 — `Exporter.
-    # lineage` refuses to answer at all unless it's loaded) — the same
-    # pairing bin/project_rust's own header explains — is enough:
-    # `lineage_capable?`'s `require "pg"` stays lazy, inside `PostgresEra.
-    # connect_for` only, so this never needs a live database.
+    # Needs a real PostgresEra binding, not `boot_in_memory`'s Memory override, and the
+    # era plugin loaded (ADR 0033). `require "pg"` stays lazy, so no database is needed.
     def registry_with_pizzas_bound_to_postgres
       require InMemoryDomain::ERA_PLUGIN
       registry = Hecks::Runtime::Registry.new

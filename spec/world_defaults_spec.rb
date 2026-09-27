@@ -1,11 +1,7 @@
 require "spec_helper"
 
-# `default_database` and `default_adapter` — a world's project-wide defaults
-# (lib/hecks/runtime/registry/world_defaults.rb). Each example builds two
-# registries for the same chapters: one that repeats a `persisted_by ...
-# database` block per chapter and a bind per aggregate, and one that says the
-# same thing once with the defaults. They must resolve to the same adapters
-# and the same adapter settings, and a chapter's own declaration must win.
+# `default_database`/`default_adapter` — a world's project-wide fallback for
+# per-chapter binds; a chapter's own declaration still wins over the default.
 RSpec.describe "a world's project-wide defaults" do
   def url = "postgres://localhost/defaults_spec"
 

@@ -59,9 +59,8 @@ Hecks.bluebook "World" do
       emits "WorldDeclared"
     end
 
-    # HOW WORLD IS SPELLED. These rows live with the concept
-    # they describe; SyntaxBoot discovers every aggregate-local seed table.
-    # Contexts represented here: File, World.
+    # Spelling rows for World keywords; SyntaxBoot discovers every
+    # aggregate-local seed table like this one.
     value_object "KeywordSeed" do
       attribute :word,          String
       attribute :context,       String, admits: "Syntax::Context"
@@ -77,10 +76,9 @@ Hecks.bluebook "World" do
       member word: "world",           context: "File",     body: "keywords", inner: "World",          opens: "World",          fills: ""
       member word: "realm",           context: "World",     body: "none", inner: "", opens: "", fills: "realm", calls: "realm_impl"
       member word: "latest",          context: "World",     body: "none", inner: "", opens: "", fills: "latest", calls: "latest_impl"
-      # THE TWO CROSS-CHAPTER DEFAULTS — the same connection string and the
-      # same persistence adapter every chapter of a project repeats, written
-      # once. A chapter's own world (`persisted_by ... database`) and its own
-      # hecksagon bind still win; see docs/implemented/reference/world.md.
+      # The connection string and persistence adapter every chapter of a
+      # project would otherwise repeat, written once here; a chapter's own
+      # world or hecksagon bind still wins.
       member word: "default_database", context: "World", body: "none", inner: "", opens: "", fills: "default_database", calls: "default_database_impl"
       member word: "default_adapter",  context: "World", body: "none", inner: "", opens: "", fills: "default_adapter", calls: "default_adapter_impl"
 

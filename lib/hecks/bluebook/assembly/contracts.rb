@@ -1,46 +1,11 @@
 module Hecks
   module Bluebook
-    # Reopened here for `CONTRACTS`/`.contract(category)` — the one table of
-    # every construct category's own `Contract` (Bluebook, Aggregate,
-    # Command, ValueObject, Query, ...); see `Contract`'s own header
-    # (contract.rb) for the struct format each entry below fills in.
+    # Reopened for `CONTRACTS`, the table of each category's own `Contract`;
+    # see contract.rb for the struct format each entry below fills in.
     class Assembly
-      # One table, where there were five hand-written mirrors of it.
-      #
-      # `bluebook.bluebook` already declares what every construct is made of, and
-      # `Plan` already reads it — parent, fields, lists, setters. What the language
-      # cannot say is the three things Ruby needs to rebuild one, so those are here
-      # and only those:
-      #
-      #   holder    which class holds it
-      #   make      :declare for a construct that became a class, :new for an
-      #             instance — the boundary `Query` sits on, since its body is
-      #             inherited instance methods
-      #   fields    each keyword the constructor takes, as
-      #             keyword => [key in the declaration, how to read it]
-      #
-      # A reader is a symbol naming a method on Marks, or :plain for a value that
-      # needs no decoding, or [:each, reader] for a list. Nothing here is a rule
-      # about whether a declaration is admissible — the language settled that on the
-      # way in. This is only how a spelling becomes an object again.
-      #
-      # Why a table and not a method per category: a hand-written branch per
-      # category can decorate a verb the language declares without the walk ever
-      # offering it, and nothing goes red, because a branch that does not exist
-      # cannot fail. An assembler with a method per category is the same shape.
-      # The table avoids it because spec/assembly_spec checks it against the
-      # language: a field the language declares that no contract consumes is a
-      # failure, not a silence.
-      #
-      # The `derived` list is how a field says it needs no assembling — a parent
-      # pointer the containment tree already knows, or something computed from what
-      # is here (`query_name` is `Naming.snake(name)`, `creates?` is whether a verb
-      # names a root). Naming one is a claim, and the coverage gate holds it.
-      #
-      # @param category [String, Symbol] the construct category name, such as
-      #   `"Aggregate"` or `:Command`
-      # @return [Bluebook::Assembly::Contract] the category's field contract
-      # @raise [KeyError] if no contract is registered for `category`
+      # One table of what each category needs beyond what the language states:
+      # holder, make (:declare vs :new), and fields. spec/assembly_spec checks
+      # it against the language, so an unconsumed declared field fails loudly.
       def self.contract(category) = CONTRACTS.fetch(category.to_s)
 
       CONTRACTS = {
@@ -66,19 +31,10 @@ module Hecks
             description:      [:description,   :plain],
             identified_by:    [:identified_by, :plain],
             attributes:       [:attributes,    [:each, :attribute]],
-            # The aggregate boundary, and the precondition a command may
-            # reference by name (S10, ADR 0025 — "Rules"). Same reader
-            # shapes ValueObject's own `invariants`/Command's own
-            # `givens` already use — `invariant` builds an Invariant,
-            # `given` a Given, the same struct AggregateBuilder#given
-            # hands a referencing command's own resolved list.
+            # Aggregate's own precondition, referenced by name from a command (ADR 0025).
             invariants:       [:invariants,    [:each, :invariant]],
             preconditions:    [:preconditions, [:each, :given]],
-            # S12, ADR 0025 — the local half of "projects :name, from:
-            # :\"reference.remote_field\"", read the same way
-            # invariants/preconditions above are: a synthetic command
-            # (Aggregate.Projects) the judge dispatches once per
-            # declaration, folded into a list on the owning aggregate.
+            # The local half of `projects :name, from: "reference.remote_field"` (ADR 0025).
             projected_fields: [:projected_fields, [:each, :projected_field]],
             provenance:       [:provenance, :plain]
           },
@@ -107,10 +63,7 @@ module Hecks
             ensures:    [:ensures,    [:each, :given]],
             mutations:  [:mutations,  [:each, :mutation]],
             emits:      [:emits,      :plain],
-            # Lifecycle state as a command guard (S10, ADR 0025) — a
-            # literal the same way `provenance`/`default:` already are;
-            # one state or an array of them, or nil for a command with
-            # no such guard.
+            # Lifecycle state as a command guard: one state, an array, or nil (ADR 0025).
             from:       [:from,       :plain],
             provenance: [:provenance, :plain]
           },
@@ -168,22 +121,15 @@ module Hecks
           fields: {
             name:          [:name,          :plain],
             description:   [:description,   :plain],
-            # A list of paths, exactly as an aggregate's is, with no room left for
-            # the two to differ. A Symbol here and a String there would look
-            # identical to `to_h`'s byte-equality check, since both render as a
-            # string, while diverging at runtime: the assembled graph would carry a
-            # String, and `element_of`'s lookup of `args["sequence"]` in a
-            # symbol-keyed payload would find nothing — refusing "Reverse acts on
-            # one LedgerEntry — pass sequence:" while sequence was in fact passed.
+            # A list of paths, like Aggregate's. Must be Symbols: a String looks
+            # identical here but a symbol-keyed args lookup downstream would find
+            # nothing, silently rejecting a value that was in fact passed.
             identified_by: [:identified_by, :plain],
             attributes:    [:attributes,    [:each, :shape_field]],
-            # ADR 0028 — the same shape Aggregate's own `preconditions`
-            # already carries, one level down: a piece's own named
-            # `given`, referenced back by one of its own commands.
+            # Same shape as Aggregate's own `preconditions`, one level down (ADR 0028).
             preconditions: [:preconditions, [:each, :given]],
-            # Round 7 — the same shape Aggregate's own `invariants`
-            # already carries, one level down: checked against every
-            # instance of this piece, not the aggregate's own flat state.
+            # Same shape as Aggregate's own `invariants`, checked per instance of
+            # this entity rather than the aggregate's flat state.
             invariants:    [:invariants,    [:each, :invariant]]
           },
           rows: { transitions: :transition_rows, identified_by: :identity_rows },
@@ -220,35 +166,23 @@ module Hecks
           holder: ProcessManager, make: :new,
           fields: {
             name:          [:name,          :plain],
-            # **A symbol**. `SagaInterpreter` does `event.payload[pm.correlates_by]` — a
-            # hash lookup on a symbol-keyed payload — and `value == pm.correlates_by`
-            # when resolving a leg s bindings. A String there finds nothing and
-            # resolves to nothing, so the wire never advanced and a drawer that
-            # should have held 2500 held 0. to_h could not show it: it stringifies.
+            # Must be a Symbol: SagaInterpreter looks it up as a symbol-keyed hash
+            # key. A String silently matches nothing, and the saga never advances.
             correlates_by: [:correlates_by, :identity],
             starts_on:     [:starts_on,     :plain],
             ends_on:       [:ends_on,       :plain],
             states:        [:states,        :plain]
           },
           reads: { states: :names },
-          # S17, ADR 0026 — `handlers` is a real feature of the language's
-          # own "ProcessManager" declaration now (`attribute :handlers,
-          # list_of(Handler)`, reaction.bluebook), consumed by the judge
-          # walking `Plan`'s own containment tree (`Handler`'s own
-          # `.parent == "ProcessManager"`) rather than by any field this
-          # contract itself reads — the same `:children` shape Aggregate's
-          # own `value_objects` claim already uses, one level in.
+          # `handlers` comes from the judge walking the containment tree
+          # (`Handler.parent == "ProcessManager"`), the same as Aggregate's
+          # own `value_objects` — not from any field this contract reads.
           derived: { position: :walk, handlers: :children }
         ),
 
-        # S17, ADR 0026 — Handler is a genuine entity now, nested under
-        # ProcessManager (`entity "Handler"`, reaction.bluebook). Neither
-        # `position` nor `handler` is a stored field: a saga
-        # answers each event once, so `event_type` is Handler's own real,
-        # non-positional identity (no walk-minted `position` to derive),
-        # and the process manager it belongs to is structural now — which
-        # list this element sits in, not a stored field to fold a parent
-        # pointer out of.
+        # Handler is nested under ProcessManager. `event_type` is its real
+        # identity (a saga answers each event once), so unlike other entities
+        # it has no walk-minted `position` to derive.
         "Handler"        => Contract.new(
           holder: ProcessManagerHandler, make: :new,
           fields: {
@@ -256,46 +190,14 @@ module Hecks
             from_state: [:from_state, :plain],
             to_state:   [:to_state,   :plain]
           },
-          # `dispatches` — same reason ProcessManager's own `handlers`
-          # claim, above, is `:children` : a real feature of the
-          # language's own "Handler" declaration (`attribute :dispatches,
-          # list_of(Dispatch)`), consumed by the judge walking `Plan`'s
-          # own containment tree rather than by any field this contract
-          # reads.
+          # `dispatches` comes from the containment walk, like ProcessManager's
+          # own `handlers` above — not from a field this contract reads.
           derived: { dispatches: :children }
         ),
 
-        # S17, ADR 0026 — Dispatch is a genuine entity now, nested under
-        # Handler (`entity "Dispatch"`, process_manager.bluebook) — two
-        # levels deep, "no life outside its Handler" (the ADR's own
-        # words). `command_name` alone is not Dispatch's own identity —
-        # items #151/#152 (`process_manager.bluebook`'s own
-        # `DispatchPosition` comment) found it collides the instant a
-        # real handler fans the same command out more than once, so
-        # `position` joins it, walk-minted the same way every other
-        # category's own `position` is (`derived: { position: :walk }`,
-        # the same entry ProcessManager's own contract carries above) —
-        # never a stored field on `DispatchSpec` itself, exactly like
-        # `handler` before it.
-        # `compensates_command_name`/`compensates_with_spec` — folded,
-        # the same kind `Lifecycle`'s own `state_field`/`default` claim
-        # (one IR object, `DispatchSpec#compensates`, feeding two
-        # separate language fields): `Readings#field_value`'s own
-        # `contract.folded` branch reads
-        # `node.compensates.to_h[:command_name]` / `[:with_spec]` for
-        # the judge's offering side, nil-safe when there is no
-        # compensation at all (`through`'s own `return nil unless
-        # held`). `compensates_with_spec` also needs its own row shaper
-        # (`compensates_with_spec_rows`, readings.rb) for the judge's
-        # list-offering side — the with_spec pairs still need one
-        # "BindCompensation" append per pair, the same reason
-        # `with_spec` itself needs `with_spec_rows`, one level deeper.
-        # `Reconstruction#dispatch` reads the two flat fields back off
-        # the row and assembles the nested `DispatchSpec` by hand — a
-        # nested object is not one of the shapes `declaration()`'s own
-        # generic per-field hash-build can produce, the identical reason
-        # `handler`/`process_manager` pass a `:children` list through
-        # `extra:` instead.
+        # Dispatch is nested under Handler, two levels deep. `command_name` alone
+        # is not identity — a handler can fan the same command out more than
+        # once, so `position` (walk-minted) disambiguates.
         "Dispatch"       => Contract.new(
           holder: DispatchSpec, make: :new,
           fields: {
@@ -304,6 +206,7 @@ module Hecks
           },
           rows: { with_spec: :with_spec_rows, compensates_with_spec: :compensates_with_spec_rows },
           reads: { with_spec: [:from, :with_spec] },
+          # compensates_* fold one IR object (`DispatchSpec#compensates`) into two fields.
           derived: {
             position:                 :walk,
             compensates_command_name: [:folded, :compensates, :command_name],
@@ -311,15 +214,9 @@ module Hecks
           }
         ),
 
-        # S14, ADR 0026 — Syntax/Keyword/Argument are never built via
-        # `Build`/`Reconstruction`'s own generic path — their own data
-        # lives in a dedicated repository `SyntaxBoot` (meta_validator/
-        # syntax_boot.rb) reads directly, never through the meta-
-        # domain's own reconstruction, the same reason `Member`'s own
-        # entry (above) carries `holder: nil, make: nil` too. These
-        # entries exist purely so the introspection specs
-        # (assembly_spec.rb) can hold them to the same "every field
-        # claimed" discipline every other category answers to.
+        # Syntax/Keyword/Argument bypass Build/Reconstruction entirely (ADR 0026) —
+        # SyntaxBoot reads them directly. These entries exist only so assembly_spec
+        # can hold them to the same "every field claimed" discipline as the rest.
         "Syntax"         => Contract.new(
           holder: nil, make: nil,
           fields: { name: [:name, :plain] },
@@ -374,12 +271,8 @@ module Hecks
             reference_target: [:reference_target, :plain],
             aggregate_heads:  [:aggregate_heads,  [:each, :head]],
             group_by:         [:group_by,         [:each, :group_by_field]],
-            # `count`/`median_field` are `group_by`'s own two siblings —
-            # scalars, not lists, so no `[:each, ...]` shape ; `:plain`
-            # is what `Assembly::Build` needs (fed the native `to_h`
-            # value directly, already `true`/`nil`/a String), and the
-            # `reads:` entry below is what `Reconstruction` needs
-            # instead (fed the stringified meta-domain row).
+            # Scalars, not lists: `:plain` is for Build (native to_h value);
+            # the `reads:` entry below is for Reconstruction (stringified row).
             count:            [:count,            :plain],
             median_field:     [:median_field,     :plain],
             # A read model inherits every option an ask has, so it reads them the
@@ -394,30 +287,14 @@ module Hecks
             inspection:       [:inspection,       [:option, :inspection]]
           },
           rows: { options: :read_model_option_rows },
-          # `wheres` needs its own reader for the same reason Query's does — a
-          # list defaults to `[]`, not the generic `text(row[key])` cell reader's
-          # `nil` — even though a read model's row never carries `wheres` as a
-          # native field the way Query's does (`[:each, :where_clause]` over an
-          # absent `row[:wheres]` is `Array(nil).map { ... }`, i.e. `[]`, always).
-          # The real values, when a read model declares any, arrive through
-          # `options_of(row)`'s merge in `read_model` below (dispatched as
-          # generic Option rows, `read_model_option_rows`/`filter_options` — not
-          # as dedicated where-clause rows), which overrides this default. Until
-          # `ReadModel#to_h` spelled `wheres`/`order_by`/`limit`
-          # unconditionally, `round_trip_spec`'s own "source keys only" +compare
-          # never asked about this key at all, so the `nil`-vs-`[]` gap between
-          # this contract's default and `to_h`'s own `[]` default went unnoticed.
-          # `order_by`/`limit` need no matching entry — the generic reader's
-          # `nil` already agrees with `to_h`'s own nil-when-undeclared default
-          # for those two. `group_by` needs its own reader the same way — a
-          # rootless read model's grouping keys, added independently on main.
+          # `wheres` needs its own reader so an undeclared list defaults to `[]`,
+          # not the generic reader's `nil`; real values arrive via the options
+          # merge in `read_model` below, which overrides this default.
           reads: { reference_name: :symbol, aggregate_heads: [:each, :head],
                   group_by: [:each, :group_by_field], wheres: [:each, :where_clause],
-                  # `count` needs the boolean coercion `Shapes#read_model_count`
-                  # gives it (a stringified "true"/absent on the wire, a real
-                  # `true`/`nil` in `to_h`) — `median_field` needs none: the
-                  # default `text(row[key])` cell reader already returns the
-                  # same String-or-nil `ReadModel#to_h`'s own `&.to_s` does.
+                  # `count` needs boolean coercion (stringified on the wire);
+                  # `median_field` needs none — the default reader already
+                  # matches `to_h`'s String-or-nil.
                   count: :read_model_count },
           derived: {
             position:   :walk,
@@ -426,17 +303,9 @@ module Hecks
           }
         ),
 
-        # A member's pairs are an open map, which is why Member is its own root in
-        # the language. The IR keeps them as a plain hash on the value object, so
-        # they are assembled with their shape rather than as a construct.
-        # S17, ADR 0026 — Member is a genuine entity, nested under
-        # ValueObject (`entity "Member"`, shape.bluebook). It holds no
-        # `shape` field at all (a free-text, un-parsed spelling would suit
-        # only a standalone root ; an entity's element is
-        # never serialized as text) — only `position` (walk-minted, see
-        # `entity_own_identity`, judge.rb) and `pairs` (still an open map,
-        # still one row per entry, still why a value object cannot hold it
-        # directly).
+        # Member is nested under ValueObject. Its pairs are an open map, so it
+        # holds no `shape` field — only walk-minted `position` and `pairs`
+        # (still one row per entry, still an open map).
         "Member"         => Contract.new(
           holder: nil, make: nil,
           fields: {},

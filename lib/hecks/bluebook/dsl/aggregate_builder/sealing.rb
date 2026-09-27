@@ -2,50 +2,22 @@ module Hecks
   module Bluebook
     module DSL
       class AggregateBuilder
-        # **The "SEAL_*" pass** — everything `#build` runs once every
-        # declaration (attributes, entities, commands, queries, the
-        # lifecycle) is otherwise in place, checking that what a command,
-        # query, or default names actually exists elsewhere on the
-        # aggregate. Split out of aggregate_builder.rb (which keeps the
-        # DSL surface itself — attribute/command/query/policy declaration
-        # — and the smaller drain_pending!/identity bookkeeping) because
-        # this cluster is one cohesive concern: cross-field validation
-        # that can only run after every declaration is real, the same
-        # relationship BluebookBuilder's own `self.validate_*` cluster has
-        # to its chapter (see that file's own header for the parallel).
-        # `include`d back into AggregateBuilder, same pattern as
-        # `Runtime::Registry`'s own `include Verification` /
-        # `include SagaPersistence` — same class, its private instance
-        # methods, just filed by responsibility across files.
+        # Build-time checks that what a command, query, or default names exists on the aggregate.
+        # Included into AggregateBuilder; `#build` runs them once every declaration is in place.
         module Sealing
           private
 
-          # Every reference is told which Aggregate declares it, so it can
-          # find the chapter and resolve its target.
+          # Tells every reference which aggregate declares it, so it can resolve its target.
           #
-          # Stamped here, at build, rather than at `reference_to`, because a command
-          # builder does not hold the aggregate and should not learn to. And
-          # deliberately across every list that can carry one — a reference the walk
-          # missed would resolve to nil, and `resolve_references` skips a nil target,
-          # so the guarantee would go quiet instead of going red. That is the exact
-          # shape of the bug that let an Account belong to an unregistered customer
-          # fourteen times over.
+          # Stamped at build because a command builder does not hold the aggregate. Walks every
+          # list that can carry a reference: a missed one resolves to nil and is silently skipped.
           def stamp_references(aggregate)
             reference_bearing_attributes.each { |attribute| attribute.type.declared_in = aggregate }
           end
 
-          # An owned piece's own `reference_to` is an edge this aggregate
-          # points across too (S9, ADR 0025 — "entity/aggregate shared
-          # vocabulary") — a ring closing through a contained piece (Board
-          # -> Board::Card -> Product -> Board) is the same "no boundary
-          # anyone can reason about alone" `validate_no_bidirectional_
-          # references!` already refuses for a direct aggregate-to-
-          # aggregate ring; it was invisible before this because only
-          # `AggregateBuilder#reference_to` ever fed `@reference_targets`,
-          # never `EntityBuilder#reference_to`. Command/query reference
-          # arguments are deliberately excluded — they are data flowing
-          # through a dispatch, not persisted state the graph a cycle
-          # means anything over.
+          # An owned piece's `reference_to` is an edge the aggregate points across too, so a ring
+          # through a contained piece is refused like a direct aggregate-to-aggregate ring.
+          # Command/query reference arguments are excluded: they are dispatch data, not state.
           def entity_reference_targets
             @entities.flat_map { |entity| entity.attributes.select(&:reference?).map { |a| a.type.target_name.to_s } }
           end
@@ -61,51 +33,12 @@ module Hecks
             lists.flatten.select(&:reference?)
           end
 
-          # A mutation must name a field the aggregate actually has.
-          #
-          # Not moved to the language, and deliberately so. The language says only
-          # `given("a mutation names a target") { !target.value.to_s.empty? }` —
-          # non-emptiness — because saying more means reaching a list that lives on
-          # a different root : a command's changes hang off Command, the fields they
-          # name hang off Aggregate, and a given is a closed predicate over its own
-          # state. Aggregate.Seal is the right shape and cannot see commands ; the
-          # reference trick that rescued "attributes use value-object types" needs a
-          # root to point at, and an aggregate's fields are a value-object list, not
-          # roots. This is the second rule that cannot port for that reason — the
-          # first is read-model uniqueness — and both wait on the same thing : a
-          # quantifier, or fields promoted to roots.
-          #
-          # So it lives here, at build, where every declaration is present. Found by
-          # writing `then_set :disputed_by` on CardPayment before the field existed :
-          # it wrote into nothing, refused nothing, and every check stayed green.
           # A default fills the shape it is declared on, or it fills nothing.
           #
-          # `attribute :cover, one_of("covered", "open"), default: "open"` builds
-          # cleanly and then refuses every create at dispatch — "cover is a Cover,
-          # pass its fields as an object" — because the value object wants its
-          # fields and got a bare string. The bluebook is wrong at the line where
-          # it is written and says so nowhere near it.
-          #
-          # It cost a corpus member 33 refusals out of 40 steps, with every gate
-          # green throughout: the refusals were perfectly consistent, which is
-          # consistency about nothing. `till.bluebook` has always had the right shape
-          # — `default: { cents: 0 }`.
-          #
-          # A primitive takes a scalar and a value object takes its fields, so the
-          # test is simply which one the type names. Nothing here guesses at the
-          # keys: a default that is a Hash is left to `Value.for_attribute`, which
-          # is where a wrong field belongs.
+          # A bare default on a value-object attribute builds cleanly and then refuses every
+          # create at dispatch. A Hash default is left to `Value.for_attribute`.
           def seal_defaults
-            # `closed_sets` too, not only `@value_objects` — the exact gap
-            # this method's own comment names: an inline `one_of(...)`
-            # synthesises its value object through `closed_sets`
-            # (AttributeCollector#synthesise_closed_set), never installed
-            # into `@value_objects` until `#build` merges them (see
-            # `#build`'s own `@value_objects + closed_sets`, and
-            # `declared_value_object`'s identical merge). Checking
-            # `@value_objects` alone made this exact attribute — a bare
-            # default on an inline closed set — invisible to the one
-            # check meant to catch it.
+            # closed_sets too: an inline `one_of(...)` lives there until `#build` merges it.
             shapes = (@value_objects + closed_sets).map { |shape| shape.hecks_name.to_s }
 
             attributes.each do |attribute|
@@ -119,11 +52,7 @@ module Hecks
             end
           end
 
-          # A command's `from:` guard needs a lifecycle field to check
-          # against — declared at build time (S10, ADR 0025), the same
-          # point every other "does this actually resolve" check in this
-          # file runs, rather than left to crash `enforce_lifecycle_
-          # guard` the first time such a command is ever dispatched.
+          # A command's `from:` guard needs a lifecycle field to check against.
           def seal_lifecycle_guards
             return if @lifecycle
 
@@ -137,15 +66,9 @@ module Hecks
             end
           end
 
-          # `projects`'s own half of "does this actually resolve" (S12,
-          # ADR 0025) — the local half only: `reference` must name a real
-          # reference-typed attribute this aggregate declares, and
-          # `name` must not collide with an attribute already declared
-          # (a projected field is its own kind of field, never a second
-          # spelling of one that already exists). The target aggregate's
-          # own field is checked separately, once every aggregate in the
-          # chapter is real — see BluebookBuilder#validate_projected_
-          # fields!'s own comment for why that half cannot happen here.
+          # The local half of `projects` resolution: `reference` must name a reference attribute
+          # here and `name` must not collide with a declared attribute. The target aggregate's
+          # field is checked later by BluebookBuilder, once the whole chapter exists.
           def seal_projected_fields
             declared = attributes.map { |attribute| attribute.name.to_sym }
 
@@ -166,31 +89,22 @@ module Hecks
             end
           end
 
+          # A mutation must name a field the aggregate actually has.
+          #
+          # Lives here, not in the language: a command's changes and the aggregate's fields hang
+          # off different roots, and a given is a closed predicate over its own state.
           def seal_mutation_targets
             known = attributes.map { |attribute| attribute.name.to_sym }
             known << @lifecycle.field.to_sym if @lifecycle
 
             @commands.each do |command|
               command.mutations.each do |mutation|
-                # `:delegate` — CommandBuilder#delegates_to's own comment —
-                # targets no field of this aggregate at all; its `target`
-                # names an "Entity.Command" pair instead, checked when the
-                # command builds (`delegates_to`'s own `rpartition` guard)
-                # and again at dispatch time (`CommandInterpreter
-                # #step_delegate_to_entity`, which refuses a real one that
-                # names no such entity or command). Sealing this check
-                # against it would refuse every delegating command outright.
-                # `:corrects` — CommandBuilder#corrects_impl's own comment —
-                # targets an event name, not a field either; checked instead
-                # by `seal_correction_targets`, below.
+                # :delegate targets an "Entity.Command" pair and :corrects an event name, not a
+                # field; the latter is checked by `seal_correction_targets`.
                 next if [:delegate, :corrects].include?(mutation.op)
 
-                # C5.3 (docs/semantics/bluebook-semantics.md) — the
-                # lifecycle field moves only by transition; a `sets` on it
-                # would be overwritten by any transition and bypass the
-                # state machine otherwise. Refused at build — except for
-                # frozen era text (`MetaValidator.shadow_parsing?`), which
-                # is history and must keep parsing as the language tightens.
+                # The lifecycle field moves only by transition (C5.3). Frozen era text is exempt
+                # (`MetaValidator.shadow_parsing?`) so it keeps parsing.
                 if @lifecycle && mutation.target.to_sym == @lifecycle.field.to_sym && !MetaValidator.shadow_parsing?
                   raise Malformed,
                         "#{@name}.#{command.hecks_name} sets #{mutation.target}, #{@name}'s lifecycle field — " \
@@ -206,50 +120,11 @@ module Hecks
             end
           end
 
-          # `corrects` — CommandBuilder#corrects_impl's own comment. Runs
-          # once every command in the aggregate is known (the same reason
-          # this is a `seal_*` step rather than living in `corrects_impl`
-          # itself — a command cannot see its own siblings' `emits` while
-          # it is still being built). Two things are checked:
+          # Checks `corrects` once every sibling command is known: the named event must be emitted
+          # by a command on this aggregate, and `reverses: true` needs every source mutation to be
+          # an increment/decrement, the only ops invertible without runtime data.
           #
-          # 1. The named event must be something a sibling command here
-          #    actually `emits` — naming an event nothing in this aggregate
-          #    ever announces is a build-time authoring error. (Whether
-          #    this record has actually emitted it yet is the dispatch-time
-          #    half — CommandRules::Admissibility#enforce_correction_target.)
-          #
-          # 2. `reverses: true` derives the corrective `sets` from the
-          #    original command's own mutations, rather than the author
-          #    writing them — but only when every one of those mutations is
-          #    structurally invertible with no runtime data: increment/
-          #    decrement, same argument, opposite verb (`sign_for`'s own
-          #    +1/-1 pair — CommandRules::Arithmetic applies `current +
-          #    sign * amount`, so the same source with the opposite sign
-          #    undoes it exactly). Nothing else qualifies today: `set` has
-          #    no such rule at all — inverting it needs the specific prior
-          #    value at the moment the original fired, which is per-
-          #    instance runtime data no build-time derivation can have;
-          #    `multiply`/`clamp` are lossy by design (a clamped value's
-          #    own pre-clamp magnitude is not recoverable from the mutation
-          #    at all); `append`/`remove` look symmetric but are not
-          #    reliably so — `append`'s source is a per-field binding hash
-          #    (`append: { name: :name, amount: :amount }`), `remove`'s is
-          #    a single resolved value to match by equality
-          #    (MutationApplier#removed), and collapsing one shape into the
-          #    other correctly needs the target list's own value-object
-          #    field names, not just the mutation's own recorded shape — a
-          #    real gap, left for a follow-on round rather than guessed at
-          #    here. Refuses rather than silently deriving something wrong
-          #    — see docs/decisions/ for the ADR that draws this exact
-          #    line.
-          # One closed cluster of `corrects`/`reverses: true` rules, run
-          # in sequence against one command at a time (emission exists,
-          # reverses/own-sets conflict, invertibility, then the actual
-          # derivation) — each `raise` gates the next check for that
-          # command, and `inverse_op`/`emitted_by` are shared read-only
-          # lookups built once up front. Splitting the per-command body
-          # out would still need all of `command`/`event`/`sources`/
-          # `inverse_op` passed in, for no clearer a result.
+          # One cluster of sequential rules against one command, each `raise` gating the next.
           # rubocop:disable-next Metrics/AbcSize
           # rubocop:disable-next Metrics/CyclomaticComplexity
           # rubocop:disable-next Metrics/PerceivedComplexity
@@ -299,22 +174,11 @@ module Hecks
             end
           end
 
-          # A query must ask about a field the aggregate actually has — the same
-          # seal `then_set` gets, closing the same silence: a where over a field
-          # nothing declares matches nothing and refuses nothing, forever, on
-          # every adapter. Three more silences close with it. A dotted path may
-          # reach through the value-object graph but must land on a scalar
-          # member (QuerySpecification::FieldPath is the one walk every engine
-          # now shares) — landing on a value object hands SQL a JSON object
-          # where the reference interpreter unwraps a hash. An ordered
-          # comparator (lt/gt/gte/lte) must land on a numeric leaf — over text
-          # the reference interpreter quietly matches no rows while SQL
-          # compares lexicographically. And a :symbol value must name one of
-          # the query's own declared arguments, or it resolves to nil at
-          # dispatch and matches nothing.
-          # `private` above has no effect on a constant (Ruby constants are
-          # always resolvable through their lexical scope); kept here anyway,
-          # beside the method that actually reads it, for the narrative.
+          # A query must ask about a field the aggregate has. A dotted path must land on a scalar
+          # member, an ordered comparator (lt/gt/gte/lte) on a numeric leaf, and a :symbol value
+          # must name one of the query's own arguments; else engines disagree or match nothing.
+          #
+          # `private` does not apply to constants; this sits beside the method that reads it.
           # rubocop:disable-next Lint/UselessConstantScoping
           ORDERED_COMPARATORS = %i[lt lte gt gte].freeze
 
@@ -339,18 +203,11 @@ module Hecks
               @entities.map { |entity| ["#{@name}::#{entity.hecks_name}", entity.attributes, entity.lifecycle, entity.queries] }
           end
 
-          # `/` crosses into another record, `.` walks fields inside this
-          # one (ADR 0025, "References") — the operator answers which
-          # kind of path this is now, not a name collision to arbitrate,
-          # so a hop is routed to its own method before any `.`-splitting
-          # runs at all; `seal_query_hop` below never sees a field this
-          # one would also have tried to resolve as a local dotted walk.
-          # A closed decision tree over where one field can resolve —
-          # hop, local scalar, lifecycle field, value object (refused),
-          # or nothing (refused) — see the doc comment above (and the
-          # method-level comments on the hop/ordering split) for why each
-          # branch exists. Every branch already reads as its own named
-          # rule; extracting pieces would just relocate them.
+          # `/` crosses into another record and `.` walks fields inside this one, so a hop is
+          # routed to `seal_query_hop` before any `.`-splitting.
+          #
+          # A closed decision tree over where a field can resolve: hop, local scalar, lifecycle
+          # field, value object (refused), or nothing (refused).
           # rubocop:disable-next Metrics/CyclomaticComplexity
           # rubocop:disable-next Metrics/PerceivedComplexity
           def seal_query_field(owner, query, fields, lifecycle, field, ordering: false)
@@ -378,25 +235,11 @@ module Hecks
                   "matches nothing and refuses nothing"
           end
 
-          # ORDER BY refuses a hop outright, right here — unlike a WHERE
-          # hop (deferred below), this doesn't need the target's shape to
-          # answer: an ask is ordered by what its own answering rows
-          # hold, and a hop answers with a candidate set, not a sort key
-          # (see Runtime::ReferenceHop).
+          # ORDER BY refuses a hop outright: a hop answers with a candidate set, not a sort key.
           #
-          # A where hop is only recognised here, and checked later. The
-          # head names one of this aggregate's own references, which is
-          # answerable now — a Reference knows its own target_name at
-          # declaration. What it points at is not: stamp_references has
-          # already run by this point, but the chapter (Bluebook, and the
-          # owning aggregate's own place in it) does not exist yet, so
-          # Reference#resolve would answer nil for every target in the
-          # file, including ones declared above this one. The tail, and
-          # whether the target even exists, are BluebookBuilder's
-          # business — see validate_query_hops!, which runs once the
-          # chapter is real, for exactly the reason
-          # validate_no_bidirectional_references! already gives for
-          # living at that same later point.
+          # A where hop is only recognised here. Its head must be one of this aggregate's own
+          # references, but the target cannot resolve before the chapter exists, so
+          # BluebookBuilder#validate_query_hops! checks the tail and the target later.
           def seal_query_hop(owner, query, fields, field, ordering:)
             unless QuerySpecification::HopPath.hop_head?(field, fields)
               raise Malformed,
@@ -416,14 +259,8 @@ module Hecks
           def seal_ordered_comparator(owner, query, fields, clause)
             return unless ORDERED_COMPARATORS.include?(clause.op.to_s.to_sym)
 
-            # A where clause hopping through a reference with an ordered
-            # comparator is legitimate ("client whose balance > 500") —
-            # unlike ORDER BY (refused outright in seal_query_field, see
-            # its own comment), a where-clause hop answers a real
-            # candidate set either way, ordered or not. Deferred for the
-            # same reason any other hop is: whether the tail is even
-            # numeric is BluebookBuilder#validate_query_hops!'s question
-            # to ask of the target's shape, not this aggregate's own.
+            # A where hop with an ordered comparator is legitimate; whether its tail is numeric
+            # is BluebookBuilder#validate_query_hops!'s question, so it is deferred.
             return if clause.field.to_s.include?("/") && QuerySpecification::HopPath.hop_head?(clause.field, fields)
 
             name, *nested = clause.field.to_s.split(".")
@@ -448,12 +285,9 @@ module Hecks
                   "resolves to nil and matches nothing"
           end
 
-          # A symbolic right-hand side is a query input. When the compared path
-          # lands on this owner's declared shape, its type is already known and
-          # repeating an `attribute` line inside the query adds no information.
-          # Reference hops are resolved only after the whole chapter has been
-          # owner-stamped; BluebookBuilder performs the identical inference for
-          # those deferred paths.
+          # A symbolic right-hand side is a query input; when the compared path lands on this
+          # owner's shape its type is known, so no `attribute` line is needed. Reference hops
+          # are inferred later by BluebookBuilder, once the chapter is owner-stamped.
           def infer_local_query_argument(query, fields, lifecycle, clause)
             name = clause.value
             return unless name.is_a?(Symbol)
@@ -473,24 +307,11 @@ module Hecks
             query.attributes << leaf if leaf
           end
 
-          # A bare field naming a value object has to say which member it
-          # means, when more than one could answer. The dotted case above
-          # already refuses a path that lands on a value object rather than
-          # a scalar; a bare name was returning unconditionally, so
-          # `where(frequency: ...)` against a StatementFrequency
-          # (cadence, retention_months, paper_fee_cents) compiled — and the
-          # engines then disagreed about which member it meant, one taking
-          # the first numeric and another declining to unwrap at all.
+          # A bare field naming a value object must say which member it means when several could
+          # answer; otherwise engines disagree (first numeric member vs. no unwrap at all).
           #
-          # Unambiguous is: exactly one member, whatever its type, or
-          # exactly one numeric member among several (Money's `cents`
-          # beside its `currency` — the reading every engine already
-          # shared, and what the corpus relies on). Anything else names
-          # its member with a dotted path, which already works.
-          #
-          # A list is exempt: `contains` over a `list_of` reads element
-          # membership, not a scalar comparison, and has its own agreed
-          # reading across the engines.
+          # Unambiguous is exactly one member, or exactly one numeric member among several.
+          # A list is exempt: `contains` reads element membership, not a scalar comparison.
           def refuse_ambiguous_comparison!(owner, query, field, attribute)
             return if attribute.list?
 

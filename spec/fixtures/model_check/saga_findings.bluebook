@@ -18,9 +18,8 @@ Hecks.bluebook "SagaFindings" do
       emits "LegRequested"
     end
 
-    # Deliberately emits nothing the process manager below listens for
-    # beyond "LegRequested" — no "LegAdvanced", no "LegFinished" — so the
-    # saga's own handler chain and its ends_on both hang.
+    # Emits nothing the saga listens for besides "LegRequested", so its handlers
+    # and ends_on both hang.
     command "Advance" do
       role "Tester"
       goal "A real command the saga never dispatches — proves unknown_dispatch by omission is NOT a finding, only a wrong name is"
@@ -32,22 +31,17 @@ Hecks.bluebook "SagaFindings" do
   process_manager "LegSaga" do
     correlates_by :"reference.value"
     starts_on "LegRequested"
-    # DEAF TRIGGER: nothing in this domain ever emits "LegFinished".
+    # Deaf trigger: nothing in this domain ever emits "LegFinished".
     ends_on   "LegFinished"
 
-    # "advanced"/"compensated" are DERIVED (S7) from the transitions
-    # below, not declared — UNREACHABLE PM STATE (nothing transitions
-    # INTO "advanced" from "requested" via any handler this domain's
-    # own events actually fire) and DEAD COMPENSATION (the refused leg
-    # leaves "advanced", already unreached) still hold: derivation only
-    # says a state is NAMED, never that it is reached.
+    # States are derived from the transitions, and derivation only names a state, so
+    # "advanced" stays unreachable and the compensation out of it stays dead.
     transition "LegRequested" => "requested", from: "requested" do
-      # UNKNOWN DISPATCH: no aggregate in this domain answers to this
-      # spelling — "Leg.Launch" does not exist ("Leg.Request" does).
+      # Unknown dispatch: "Leg.Launch" does not exist ("Leg.Request" does).
       dispatch Leg::Launch, with: { reference: :reference }
     end
 
-    # DEAF HANDLER: nothing ever emits "LegAdvanced" either.
+    # Deaf handler: nothing ever emits "LegAdvanced" either.
     transition "LegAdvanced" => "advanced", from: "requested" do
       dispatch Leg::Advance, with: { reference: :reference }
     end
@@ -57,10 +51,7 @@ Hecks.bluebook "SagaFindings" do
     end
   end
 
-  # UNARMED COMPENSATION: a `compensates` declared here, but this saga
-  # has no handler anywhere answering a refusal — the exact shape of the
-  # real bug per-dispatch compensation exists to catch at build time
-  # (see `lib/hecks/bluebook/model_check.rb`'s own comment).
+  # Unarmed compensation: `compensates` is declared, but no handler answers a refusal.
   process_manager "UnarmedSaga" do
     correlates_by :"reference.value"
     starts_on "LegRequested"

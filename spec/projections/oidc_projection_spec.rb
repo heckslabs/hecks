@@ -1,17 +1,7 @@
 require "spec_helper"
 
-# The artifact half of the OIDC work whose integration half
-# spec/oidc_projection_spec.rb already covers. That one proves a verified
-# (issuer, subject) resolves to an identity, that the identity's role is
-# checked, and that the dispatch is refused when either says no. It just
-# had no way to state, up front and as data, which role each command
-# wants — every answer came from making a real dispatch and seeing what
-# happened.
-#
-# So the two halves are checked against each other here, not merely
-# allowed to coexist: the manifest's verbs are held equal to the
-# runtime's own verb list, and its roles are held to be exactly the
-# strings the commands declare.
+# Checks the OIDC manifest against the runtime: its verbs equal the runtime's verb list
+# and its roles equal the strings the commands declare (integration: spec/oidc_projection_spec.rb).
 RSpec.describe Hecks::Projections::OIDC do
   let(:runtime)  { boot_in_memory }
   let(:pizzas)   { runtime.registry.bluebook("Pizzas") }
@@ -23,11 +13,8 @@ RSpec.describe Hecks::Projections::OIDC do
   end
 
   describe "scopes" do
-    # **The load-bearing invariant**. A scope naming a command the domain
-    # does not have would be an authorization rule for nothing — and
-    # because both sides derive from the same IR, this catches the
-    # projection drifting from the runtime rather than agreeing with
-    # itself.
+    # The load-bearing invariant: a scope naming a command the domain lacks authorizes nothing.
+    # Both sides derive from the same IR, so this catches the projection drifting from the runtime.
     it "names every verb the domain declares, and no others" do
       expect(manifest["scopes"].map { |scope| scope["verb"] }).to match_array(pizzas.verbs)
     end
@@ -51,14 +38,8 @@ RSpec.describe Hecks::Projections::OIDC do
     end
   end
 
-  # Banking, not Pizzas — Pizzas declares no entities at all
-  # (`SafeDepositBox.Visit`, `Account.LedgerEntry`, `ATMCard.Withdrawal`
-  # are Banking's own), so it is the only domain in the corpus that can
-  # show this gap ever existed. Every entity-owned command reaches
-  # `Runtime::Dispatcher#dispatch` through the same dotted-verb routing
-  # (`command_name.include?(".")`) an ordinary command never uses — a
-  # manifest that never names one could never grant a client a scope
-  # for it, and would do so silently, not with an error.
+  # Banking, not Pizzas: Pizzas declares no entities. Entity-owned commands route by dotted verb
+  # (`command_name.include?(".")`), so a manifest omitting one would silently grant no scope.
   describe "entity-owned commands" do
     let(:banking) { Hecks.boot("examples/banking", install_facade: false).registry.bluebook("Banking") }
     let(:banking_manifest) { described_class.call(bluebook: banking) }
@@ -89,9 +70,7 @@ RSpec.describe Hecks::Projections::OIDC do
   end
 
   describe "roles" do
-    # Banking, not Pizzas — Pizzas declares no roles at all, which is
-    # exactly why it is the right domain for the "unguarded command"
-    # case below and the wrong one for this.
+    # Banking, not Pizzas: Pizzas declares no roles at all.
     let(:banking) { Hecks.boot("examples/banking", install_facade: false).registry.bluebook("Banking") }
     let(:banking_manifest) { described_class.call(bluebook: banking) }
 
@@ -101,20 +80,14 @@ RSpec.describe Hecks::Projections::OIDC do
       expect(close["role"]).to eq("Branch clerk")
     end
 
-    # The same string Ports::Authorization.holds_role? compares against a
-    # real Governance::RoleAssignment — see spec/oidc_projection_spec.rb,
-    # which grants precisely this role to run a Banking command.
+    # The string Ports::Authorization.holds_role? compares against a Governance::RoleAssignment.
     it "rolls the declared roles up, de-duplicated and sorted" do
       expect(banking_manifest["roles"]).to include("Compliance officer")
       expect(banking_manifest["roles"]).to eq(banking_manifest["roles"].uniq.sort)
     end
 
-    # Banking again, and for the same reason inverted: every Pizzas
-    # command declares a role, so Pizzas cannot show this case at all.
-    # Banking has genuinely unguarded commands (Account.AccrueInterest
-    # and friends), which is the shape that must not silently vanish —
-    # an omitted scope would read as "no such command" rather than
-    # "this command asks for no role".
+    # Banking again: Pizzas commands all declare a role. An omitted scope would read as
+    # "no such command" rather than "this command asks for no role".
     it "keeps an unguarded command with a nil role rather than dropping it" do
       unguarded = banking_manifest["scopes"].select { |scope| scope["role"].nil? }
 

@@ -2,29 +2,14 @@ module Hecks
   module Projections
     module Deploy
       module TemplateDiff
-        # Compares two loaded CloudFormation templates.
-        #
-        # Resources, parameters, outputs, conditions and mappings are matched
-        # by name, then compared property by property. A list of mappings that
-        # each carry a `Name`, `Id`, `Key` or similar field (container
-        # definitions, environment variables, tags, origins) is matched by that
-        # field, not by position, so inserting one entry reports one addition
-        # instead of a cascade of shifted values. Cache behaviors are matched
-        # the same way but their order is also checked, because CloudFront
-        # takes the first pattern that matches.
-        #
-        # Two values that differ only in how they are written (a number and
-        # the same digits as text, a `!Sub` with nothing but one `${Name}` and
-        # a `!Ref Name`) are equal after normalization or marked `cosmetic`.
+        # Compares two loaded CloudFormation templates, matching entries by an
+        # identity field such as `Name` or `Id` rather than by position.
         module Comparer
           module_function
 
           Change = Struct.new(:path, :kind, :before, :after, :cosmetic, keyword_init: true)
           Entity = Struct.new(:name, :type, :changes, :replaced, keyword_init: true)
           SectionDiff = Struct.new(:added, :removed, :changed, keyword_init: true) do
-            # Tells whether nothing in the section differs.
-            #
-            # @return [Boolean] true when no entity was added, removed or changed
             def empty? = added.empty? && removed.empty? && changed.empty?
           end
 
@@ -32,14 +17,7 @@ module Hecks
           IDENTITY_KEYS = %w[Name Id Key PolicyName PathPattern HeaderName ContainerName Sid Field].freeze
           ORDERED_BY = %w[PathPattern].freeze
 
-          # Compares two templates.
-          #
-          # @param before [Hash{String => Object}] the template as `Loader.load` returns it
-          # @param after [Hash{String => Object}] the template to compare it with
-          # @return [Hash{String => SectionDiff, Array<Change>}] one `SectionDiff` per entity
-          #   section
-          #   that either template has, and `"Template"` mapped to the changes in every other
-          #   top-level key such as `Description`
+          # Diffs each entity section by name, with other top-level keys grouped under "Template".
           def compare(before, after)
             before = normalize(before)
             after = normalize(after)

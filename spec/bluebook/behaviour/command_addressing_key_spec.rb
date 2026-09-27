@@ -1,21 +1,8 @@
 require "spec_helper"
 
-# `Behaviour::Command#addressing_key_for` — the fix for a real bug found
-# wiring `for_each` into banking (this session's own property-testing
-# arc): a fan-out dispatch minting `<aggregate>_id` for every target
-# command unconditionally refuses every dispatch to a command declared
-# on the very aggregate it self-references
-# (`Account.FreezeAccount`, addressed by `account`/its own identity, never a
-# synthetic foreign key).
-#
-# **Pinned against real banking commands directly** — no fixture, no
-# dispatch, no policy, no `for_each` wiring anywhere in this file. The
-# regression this method fixes is real and general (it's asked of any
-# resolved target command, by name, whether or not any policy in the
-# current corpus actually exercises it via `for_each` today — see
-# banking.bluebook's own comment on `FreezeAccountsOnSuspension` for
-# why `for_each` itself isn't wired into a real banking policy right
-# now, independent of this fix's own correctness).
+# Pins that a fan-out dispatch addresses a self-referencing command by the aggregate's own
+# identity (`Account.FreezeAccount` -> `:account`), never a synthetic `<aggregate>_id` key.
+# Runs against the real banking commands directly; no dispatch or policy is involved.
 RSpec.describe "Behaviour::Command#addressing_key_for" do
   def bluebook
     return @bluebook if @bluebook
@@ -34,27 +21,16 @@ RSpec.describe "Behaviour::Command#addressing_key_for" do
   it "mints the SELF-ADDRESSING key for a command declared on the very aggregate it references" do
     freeze = bluebook.aggregate("Account").command("FreezeAccount")
 
-    # `Account.FreezeAccount` declares `reference_to Account` with no `as:` —
-    # it self-references its own owning aggregate. The old, buggy mint
-    # (`Naming.reference_key("Account") + "_id"`) would have answered
-    # `:account_id`, which `Account.FreezeAccount` — declaring zero attributes
-    # of its own — refuses; Account's own identity field is `number`,
-    # not `account_id` either. `:account` is the one key
-    # `CommandInterpreter::ArgumentGate#reference_key` already accepts
-    # for exactly this command.
+    # `FreezeAccount` self-references Account and declares no attributes, so `:account_id`
+    # is refused; `:account` is the one key `ArgumentGate#reference_key` accepts.
     expect(freeze.addressing_key_for("Account")).to eq(:account)
   end
 
   it "mints the CROSS-REFERENCING key — the attribute's own declared name — for a command on a different aggregate" do
     open = bluebook.aggregate("Account").command("Open")
 
-    # `Account.Open` is declared on Account but references Customer — a
-    # real, minted foreign-key attribute (`customer`, bare — ADR 0025),
-    # not a self-reference. The key is the attribute's own name, exactly
-    # as declared, never re-derived from the target's own name (which
-    # matters the moment an `as:` reference's name legitimately differs
-    # from the target's snake case, e.g. Transfer's own `source`/
-    # `destination`, both `Reference<Account>`).
+    # The key is the reference attribute's declared name, not derived from the target's name,
+    # since an `as:` reference (Transfer's `source`/`destination`) can differ.
     expect(open.addressing_key_for("Customer")).to eq(:customer)
   end
 

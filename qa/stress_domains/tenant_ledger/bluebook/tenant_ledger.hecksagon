@@ -1,8 +1,4 @@
-# THE LIVE WIRING — Memory-backed, matching every other stress domain
-# (nested_pieces.hecksagon's own comment) and every command declaring
-# `role` here (Governance needs attaching for the role check to mean
-# anything at all, though nothing in this domain's own fuzz/spec runs
-# ever binds a Caller, so the check stays on its string-fallback path).
+# Memory-backed like the other stress domains; Governance is attached so `role` checks apply.
 Hecks.hecksagon "TenantLedger" do
   uses_framework "Governance"
 

@@ -2,33 +2,15 @@ require_relative "word_gate"
 module Hecks
   module Bluebook
     module DSL
-      # Parses a `domain_port "Name" do ... end` block into a `DomainPort` —
-      # the inbound (`operation`/`tells`) and outbound (`asks`) operations a
-      # domain exchanges with the outside world. Falls back to building a
-      # plain `Port` (the same object `PortBuilder` builds) when the block is
-      # bare-verb shaped instead, so an existing top-level `.port` file can
-      # migrate to being parsed by this builder — see `legacy_bare_port:`'s
-      # own comment on `#initialize`.
+      # Parses a `domain_port "Name" do ... end` block into a `DomainPort` of inbound (`tells`)
+      # and outbound (`asks`) operations, or a plain `Port` when the body is bare-verb shaped.
       class DomainPortBuilder
         GRAMMAR_CONTEXT = "DomainPort".freeze
 
         include WordGate
 
-        # `legacy_bare_port:` — only `Hecks.port`'s own top-level method
-        # (lib/hecks.rb) passes `true`. `PortBuilder#build` never refused
-        # an empty build (no verb, no signal, nothing) — `Port.new(verb:
-        # nil, signal: :reply)` is a real, allowed shape dsl_spec.rb's own
-        # "a port" tests rely on (`signal`-only, no `verb` at all). The
-        # aggregate-scoped (`BindingProxy#port`) and hecksagon-root
-        # (`HecksagonBuilder#port_impl`) callers both reach this same
-        # class with `owner: nil` too when they're building the bare-verb
-        # shape (`port_impl`'s own root-level port can be either shape,
-        # decided only after `build` returns) — so `owner.nil?` cannot be
-        # the discriminator between "old Hecks.port semantics" and "real
-        # DomainPort semantics"; those two callers correctly want the
-        # stricter "declares no verb and no operations" refusal `build`
-        # already raises below, unchanged. Only the literal top-level
-        # `.port` file caller wants the older, looser rule.
+        # Only the top-level `Hecks.port` passes `legacy_bare_port: true`, so its empty body builds
+        # a verbless `Port`. Aggregate-scoped and hecksagon-root callers keep the stricter refusal.
         #
         # @param name [String] the port's name
         # @param owner [String, nil] name of the aggregate the port is declared on, handed to
@@ -46,18 +28,7 @@ module Hecks
 
         # Declares an inbound operation: a fact the outside world delivers to this domain.
         #
-        # **What the outside tells us** — an external fact arriving, translated
-        # into this domain's own word for it. Spelled `operation` or `tells`;
-        # `operation` stays because the corpus is full of it, and renaming
-        # a word costs every chapter that uses it for no gain a reader can
-        # feel.
-        #
-        # Answers both words — item #13's full metaprogrammed dispatch
-        # (slice 4c). `operation`/`tells` are two separate Keyword rows
-        # (a word admitting two forms) that both name `calls: "tells_impl"`
-        # — the routing between the two spellings lives in the table,
-        # not in a Ruby `alias`. Not bootstrap-reachable (checked
-        # directly), so its `BOOTSTRAP_CALLS_FALLBACK` row is never consulted.
+        # Spelled `operation` or `tells`; both route here through the keyword table.
         #
         # @param name [String] the operation's name, such as `"PaymentSettled"`
         # @param to [Symbol, String, Module, nil] the aggregate the operation routes to, written
@@ -73,21 +44,11 @@ module Hecks
 
         # Declares an outbound operation: a question this domain puts to the outside world.
         #
-        # **What we ask of the outside** — the direction that lets a domain
-        # call an adapter, not only be called by one. An `asks` is dispatched
-        # like any other port operation, so
-        # a `policy` can trigger it off an event, and it comes back as one of
-        # the two events it named — which is what makes the outside world
-        # something the model can reason about rather than a place exceptions
-        # come from.
-        #
-        # Answers the `asks` word through the table's `calls:` column — item
-        # #13's full metaprogrammed dispatch (slice 4c), same reasoning as
-        # `tells_impl` above.
+        # Dispatched like any port operation, so a `policy` can trigger it off an event; it comes
+        # back as one of the two events it named.
         #
         # @param name [String] the operation's name
-        # @param to [Symbol, String, Module, nil] the aggregate the operation routes to, written
-        #   as a bare constant; nil leaves routing to the operation's own attributes
+        # @param to [Symbol, String, Module, nil] the aggregate the operation routes to, or nil
         # @yield the operation body (`attribute`, `answers`, `refuses`), evaluated against a
         #   `PortOperationBuilder`
         # @return [Array<Bluebook::PortOperation>] every operation declared so far, this one last
@@ -97,34 +58,8 @@ module Hecks
           @operations << PortOperationBuilder.build(name, to: to, owner: @owner, direction: :outbound, &)
         end
 
-        # The driven half of the same word. `operation`/`emits` translates an
-        # inbound fact into this domain's own event vocabulary — there is no
-        # channel back to a caller beyond the events it emits. `verb` is the
-        # opposite direction: the domain calling out to a swappable adapter
-        # and getting a real value back (a checkout URL, a fetched document),
-        # exactly what `Hecks.port "name" do verb "x" end` already builds —
-        # this is that same `Port`, reached from the same `port` call
-        # `operation` already lives under, so a project's own resource ports
-        # read next to their binding instead of in a separate file. One port,
-        # one shape or the other — never both.
-        # `verb` — item #13's full metaprogrammed dispatch, slice 1
-        # (whole-project table-unification survey): a bare, kind-driven
-        # coerce-and-assign with nothing else, now executed by
-        # `GenericDispatch`.
-
-        # Names the verb aggregates call this port by, which makes it a driven `Port` rather than
-        # a `DomainPort` of operations.
-        #
-        # `Hecks.port "x" do verb "y"; signal :effect end`'s own two words,
-        # reachable here too — a bare-verb `DomainPortBuilder.build` falls
-        # back to the same `Port` object `PortBuilder` produces (`build`,
-        # below), so any `.port` file can migrate to being parsed by this
-        # builder with zero change to its own text, or to any caller that
-        # reads `.verb`/`.signal` off the `Port` it gets back. Ordinary
-        # `def`s, exactly like `PortBuilder`'s own — `WordGate`'s own
-        # header is explicit that a word answered this way never reaches
-        # its `method_missing`, so no new self-hosted grammar row is
-        # needed for either word under this context.
+        # Names the verb aggregates call this port by, making it a driven `Port` rather than a
+        # `DomainPort` of operations. A port is one shape or the other, never both.
         #
         # @param value [String, Symbol] the verb, such as `"charged_by"`
         # @return [String] the verb as stored
@@ -138,16 +73,7 @@ module Hecks
         def signal(value) = @signal = value.to_sym
 
         # Declares one method an adapter bound to a verb-shaped port must respond to.
-        #
-        # **The method contract** — `PortBuilder#answers`'s own twin: a
-        # `.port` file parsed through this builder (the repoint
-        # `lib/hecks.rb#port`'s own comment describes) can declare one
-        # (`extraction.port`'s own
-        # `answers :canonical`, real, live corpus text) — this builder's
-        # bare-verb fallback needs to carry it through to the same `Port`
-        # object `PortBuilder` itself would have built, or the migration
-        # would silently drop a method-contract check for any `.port`
-        # file that uses this word.
+        # The bare-verb fallback carries it onto the `Port`, as `PortBuilder#answers` does.
         #
         # @param name [Symbol, String] the method name, such as `:canonical`
         # @return [Array<Symbol>] every method declared so far, this one last
@@ -178,8 +104,7 @@ module Hecks
         # Evaluates a `port` block against a fresh builder and returns whichever shape it declared.
         #
         # @param name [String] the port's name
-        # @param owner [String, nil] name of the aggregate the port is declared on, or nil for a
-        #   root-level or top-level port
+        # @param owner [String, nil] the aggregate the port is declared on, or nil
         # @param legacy_bare_port [Boolean] true only for `Hecks.port`, which lets an empty body
         #   build a verbless `Port`
         # @yield the port body, evaluated with the builder as `self`; may be omitted

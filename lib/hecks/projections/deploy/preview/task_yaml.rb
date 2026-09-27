@@ -7,9 +7,6 @@ module Hecks
       module Preview
         # The task definitions of a preview stack: the containers it runs and the
         # one-shot task that creates its database.
-        #
-        # The host container gets the domain, session and database environment; a
-        # container's own `environment` wins over a generated entry of the same name.
         module TaskYaml
           # The one-shot task's script. Idempotent, and refuses names the preview must never touch.
           DB_INIT_SCRIPT = <<~SH.freeze
@@ -52,10 +49,7 @@ module Hecks
 
           module_function
 
-          # Renders the one-shot task that creates (or drops) this preview's database.
-          #
-          # @param settings [Settings] the resolved preview settings
-          # @return [String] the task definition's resource block
+          # Also renders the drop path, taken when `ACTION` is `drop`.
           def db_init_task(settings)
             <<~YAML.chomp
               # Run by preview.sh (`aws ecs run-task`) after the images are pushed and before the
@@ -100,10 +94,6 @@ module Hecks
             YAML
           end
 
-          # Renders the preview's task definition, one container per entry of the container list.
-          #
-          # @param settings [Settings] the resolved preview settings
-          # @return [String] the task definition's resource block
           def task_definition(settings)
             <<~YAML.chomp
               TaskDefinition:
@@ -124,11 +114,6 @@ module Hecks
             YAML
           end
 
-          # Renders one container of the task definition.
-          #
-          # @param settings [Settings] the resolved preview settings
-          # @param container [Containers::Entry] the container
-          # @return [String] the list entry
           def container_definition(settings, container)
             lines = [
               "- Name: #{container.name}",
@@ -141,10 +126,6 @@ module Hecks
             lines.join("\n")
           end
 
-          # Renders the log driver settings of one container.
-          #
-          # @param container [Containers::Entry] the container
-          # @return [String] the settings, ending in a newline
           def log_options(container)
             <<~YAML
               LogDriver: awslogs
@@ -155,23 +136,13 @@ module Hecks
             YAML
           end
 
-          # Renders one container's environment as a list.
-          #
-          # @param settings [Settings] the resolved preview settings
-          # @param container [Containers::Entry] the container
-          # @return [String] the list entries
           def environment_yaml(settings, container)
             environment_pairs(settings, container).map do |name, value|
               "- Name: #{name}\n  Value: #{value}"
             end.join("\n")
           end
 
-          # Orders one container's environment as `[name, rendered value]` pairs; the container's
-          # `environment` wins over a generated entry of the same name.
-          #
-          # @param settings [Settings] the resolved preview settings
-          # @param container [Containers::Entry] the container
-          # @return [Array<Array(String, String)>] the pairs, each value already rendered as YAML
+          # The container's own `environment` wins over a generated entry of the same name.
           def environment_pairs(settings, container)
             pairs = { "PORT" => scalar(container.port.to_s) }
             pairs.merge!(host_environment(settings)) if container.host
@@ -181,10 +152,6 @@ module Hecks
             pairs.to_a
           end
 
-          # Answers the environment only the Hecks host container gets.
-          #
-          # @param settings [Settings] the resolved preview settings
-          # @return [Hash{String => String}] name to rendered value
           def host_environment(settings)
             main = settings.main
             pairs = {
@@ -199,9 +166,6 @@ module Hecks
             pairs
           end
 
-          # Answers the environment that points a container at this preview's database.
-          #
-          # @return [Hash{String => String}] name to rendered value
           def database_environment
             {
               "DB_HOST" => "!Ref OwningDatabaseEndpoint", "DB_NAME" => "!Ref DbName",

@@ -1,12 +1,5 @@
-//! The `DomainPort`/`PortOperation` constructs
-//! (`lib/hecks/bluebook/ir/domain_port.rb`) — shared here the same
-//! way `spec/syntax_conformance_spec.rb`'s own `BUILDER` table pairs
-//! `PortOperationBuilder` with `DomainPortBuilder`. The primary/driving
-//! half of hexagonal architecture: an operation carries no `given`/
-//! `ensures`/`sets` (a port is the anti-corruption boundary, not a
-//! second place business rules live). The receiving aggregate is routing
-//! metadata supplied by `to:`, not an operation attribute; `reference_to`
-//! remains parseable only for migration-era sources.
+//! The `DomainPort`/`PortOperation` constructs: the driving half of a hexagonal boundary.
+//! An operation carries no `given`/`ensures`/`sets`; its receiver comes from `to:`.
 
 use crate::build::naming;
 use crate::build::references;
@@ -18,11 +11,8 @@ pub fn not_implemented(file: &str, line: usize, word: &str) -> Diagnostic {
     Diagnostic::not_yet_implemented(file, line, format!("DomainPort.{word}"))
 }
 
-/// Parses a `port "Name" do ... end` body — `operation "Name" do ... end`
-/// entries only; `verb` (the other shape a port can take, `IR::Port`, the
-/// driven/outbound half — see `DomainPortBuilder#verb`'s own comment) is
-/// not exercised by pizzas.bluebook's own port and falls through to
-/// `not_built_yet` if ever written here.
+/// Parses a `port "Name" do ... end` body: `operation` entries only.
+/// Any other word, including `verb`, falls through to `not_built_yet`.
 pub fn parse_body(
     file: &str,
     lines: &[SourceLine],
@@ -61,11 +51,7 @@ pub fn parse_body(
     }
 }
 
-/// `PortOperationBuilder` — an operation's own `reference_to` always
-/// mints an attribute (never the self-reference a command's own
-/// `reference_to` may spell — see `PortOperationBuilder#reference_to`'s
-/// own comment: "there is no `creates?`/`acts_on` distinction to protect
-/// here").
+/// An operation's `reference_to` always mints an attribute, never a self-reference.
 fn parse_operation_body(
     file: &str,
     lines: &[SourceLine],
@@ -88,9 +74,8 @@ fn parse_operation_body(
         let line = gated.line.number;
 
         match gated.row.word {
-            // A synthesized inline `one_of(...)` closed set is discarded
-            // here on purpose — see `build/closed_sets.rs`'s own header;
-            // `DomainPortBuilder#build` never reads `closed_sets` either.
+            // A synthesized inline `one_of(...)` closed set is dropped, as
+            // `DomainPortBuilder#build` does.
             "attribute" => operation
                 .attributes
                 .push(super::build_attribute(file, line, "attribute", &gated.args)?.0),
@@ -123,11 +108,7 @@ fn parse_operation_body(
     }
 }
 
-/// The last line consumed, used only to attach a real line number to the
-/// "no emits"/"no owner reference" checks below — falls back to line 0
-/// (never surfaced to a user: both checks below only fire on a genuinely
-/// malformed operation, and pizzas.bluebook's own `Receive` operation
-/// satisfies both).
+/// The last consumed line, for diagnostics; 0 when none.
 fn pos_line(lines: &[SourceLine], pos: &usize) -> usize {
     lines
         .get(pos.saturating_sub(1))
@@ -135,9 +116,8 @@ fn pos_line(lines: &[SourceLine], pos: &usize) -> usize {
         .unwrap_or(0)
 }
 
-/// An inbound operation must say something. Aggregate receiver identity is
-/// supplied by the routing envelope and therefore is deliberately not
-/// validated as an operation attribute here.
+/// An inbound operation must emit something. The receiver comes from the routing envelope,
+/// so it is not validated as an attribute.
 fn validate_operation(file: &str, line: usize, operation: &ir::PortOperation) -> ParseResult<()> {
     if operation.emits.is_empty() {
         return Err(Diagnostic::new(file, line, format!("'{}' declares no emits — an operation with nothing to say afterward is a call into nothing", operation.name)));

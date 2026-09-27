@@ -1,14 +1,8 @@
 Hecks.bluebook "Banking" do
   aggregate "ATMCard" do
     given("card is issued or active") { ["issued", "active"].include?(status) }
-    # `account_status`/`account_customer_status`, not `account.status`/
-    # `account.customer.status` (S12, ADR 0025) — these are ACTING
-    # commands' own shared givens; `Issue`, the creating command,
-    # keeps its own dot-path given below since `account` there is a
-    # fresh command argument, not stored state. `account_customer_
-    # status` chains through Account's OWN already-projected
-    # `customer_status` (one hop from ATMCard's perspective, same as
-    # Account's own field is one hop from Customer's).
+    # Acting commands read projected fields, not dot-paths (ADR 0025); `Issue`
+    # keeps dot-paths because `account` is a fresh argument there, not stored state.
     given("account is open") { account_status == "open" }
     given("customer is active") { account_customer_status == "active" }
     description "A card issued against an account, and the cash taken with it."
@@ -21,10 +15,8 @@ Hecks.bluebook "Banking" do
 
     identified_by :serial
 
-    # OPTIONAL, genuinely (S13, ADR 0025, coverage standard) — a card
-    # issued the same day it's handed over often carries no nickname
-    # yet; `Active`'s own query below relies on this to demonstrate
-    # `nulls` for real, not on an empty string standing in for absent.
+    # Optional: a card handed over the same day often has no nickname yet, and
+    # the `Active` query's `nulls` ordering relies on true absence.
     attribute :nickname,    CardNickname, optional: true
     attribute :daily_fee,   DailyFee
     attribute :withdrawals, list_of(Withdrawal)
@@ -77,20 +69,11 @@ Hecks.bluebook "Banking" do
         role "Customer"
         goal "Challenge a withdrawal that was not mine"
 
-        # `parent.account_customer_status`/`parent.account_status`, not
-        # `parent.account.customer.status`/`parent.account.status`
-        # (S12, ADR 0025) — ATMCard's own projected fields (above),
-        # already part of `parent.state`.
+        # Reads ATMCard's projected fields, already part of `parent.state` (ADR 0025).
         given("customer is active") { parent.account_customer_status == "active" }
         given("account is open") { parent.account_status == "open" }
-        # WAS a bare `status` — a Withdrawal entity has no `:status` field
-        # of its own (its own lifecycle field is `:state`; `parent.status`
-        # is the ATMCard's own, "issued"/"active"/"retired") — so this
-        # given evaluated against nothing, never matched a real key, and
-        # never refused (Wave 8's dependency-planning audit surfaced this
-        # as a real, live bug, not a hypothetical one: a retired card's
-        # own withdrawals could still be disputed). Not caught by S12's
-        # own dot-path flattening above — a separate bug, same line.
+        # Must read `parent.status`: Withdrawal's own lifecycle field is `:state`,
+        # so a bare `status` would never refuse disputes on a retired card.
         given("card is not retired") { parent.status != "retired" }
         sets :narrative
 
@@ -113,13 +96,8 @@ Hecks.bluebook "Banking" do
       role "Branch clerk"
       goal "Put a card in a customer's hand"
 
-      # OWN GIVENS, NOT SHARED (S12, ADR 0025) — `account` here is
-      # `Issue`'s own fresh command argument (this creates the
-      # ATMCard), which the ADR's boundary rule keeps readable ("its
-      # command arguments") — unlike the acting commands' shared
-      # givens above, which read `account_status`/
-      # `account_customer_status`, projected fields nothing has
-      # stored until AFTER this command creates the record.
+      # Own givens: `account` is a fresh command argument, while the projected
+      # fields the shared givens read are not stored until this command runs.
       given("customer is active") { account.customer.status == "active" }
       given("account is open") { account.status == "open" }
 
@@ -130,18 +108,9 @@ Hecks.bluebook "Banking" do
       emits ATMCardIssued
     end
 
-    # LIFECYCLE STATE AS A COMMAND GUARDS (S10, ADR 0025) — `from:`
-    # below. `Rename`/`Withdraw` have no matching `transition` (naming
-    # or spending doesn't move the card's own state), so `from:` is the
-    # ONLY thing gating them — no `admissible_transition` fallback
-    # exists for either. `Activate`/`Retire` DO have a matching
-    # transition above; their own `from:` here is therefore redundant
-    # with `admissible_transition` in the harmless direction (same
-    # check, same refusal wording, checked twice) but kept for the same
-    # reason `Account`'s `FreezeAccount`/`Unfreeze`/`CloseAccount`
-    # already do both — the command's own signature is where a reader
-    # looks first for what state it needs, not a separate `lifecycle`
-    # block three screens away.
+    # `Rename`/`Withdraw` have no matching transition, so `from:` is their only
+    # state guard. `Activate`/`Retire` repeat their transition's check so the
+    # command signature states the state it needs.
     command "Rename", from: ["issued", "active"] do
       role "Customer"
       goal "Name a card so it is recognisable"
@@ -161,10 +130,7 @@ Hecks.bluebook "Banking" do
       reference_to ATMCard
       given("customer is active")
       given("account is open")
-      # `from: "active"`, not `["issued", "active"]` like Rename/Retire
-      # get — deliberately narrower: a card fresh off `Issue` sits in
-      # "issued" until its holder activates it, and cash withdrawal is
-      # exactly the operation that gap exists to refuse.
+      # Narrower than Rename/Retire on purpose: an issued card must be activated first.
 
       sets :withdrawals, append: { cents: :cents, narrative: :narrative }
 
@@ -189,11 +155,7 @@ Hecks.bluebook "Banking" do
       emits ATMCardRetired
     end
 
-    # `nulls :last` (S13, ADR 0025, coverage standard) — an unnamed
-    # card is real, not a gap to guess about: it sorts after every
-    # named one instead of wherever a bare comparison would leave it
-    # (a nil losing every "<" against a real String is the OLD,
-    # accidental behavior nothing here declared on purpose).
+    # `nulls :last` puts unnamed cards after every named one, explicitly.
     query "Active" do
       description "Live cards in nickname order, unnamed ones last — real nicknames sort among themselves first."
       where(status: "active")
@@ -201,10 +163,7 @@ Hecks.bluebook "Banking" do
       nulls :last
     end
 
-    # `offset 1` (S13, ADR 0025, coverage standard) — the second-
-    # cheapest three, skipping the very cheapest: the same skip-then-
-    # take `Sighting.Paged` demonstrates on the Query reference page,
-    # now for real.
+    # `offset 1` skips the cheapest card, then `limit 3` takes the next three.
     query "ByFee" do
       description "Live cards by what they cost to hold, cheapest first — a fee is a Float, so the order is numeric and not alphabetical."
       where(status: "active")
@@ -218,27 +177,17 @@ Hecks.bluebook "Banking" do
     given("payment is disputed") { status == "disputed" }
     given("payment is captured") { status == "captured" }
     given("payment is authorized") { status == "authorized" }
-    # REFERENCED, NOT REDECLARED (chapter-wide sharing) — `ATMCard`'s
-    # own declaration; `declared_by:` required since `Account`'s own
-    # "customer is active" is a genuinely different canonical.
+    # Shared with ATMCard; `declared_by:` is required because Account's
+    # "customer is active" is a different canonical.
     given("account is open", declared_by: ATMCard)
     given("customer is active", declared_by: ATMCard)
     description "A card authorisation that either settles, is voided before settlement, or becomes a post-settlement dispute."
 
     reference_to Account
-    # SAME NAMES ATMCard's OWN projected fields use (S12, ADR 0025) —
-    # the shared given text above reads `account_status`/
-    # `account_customer_status` regardless of which aggregate declares
-    # it, so each `declared_by: ATMCard` consumer needs its own copy
-    # under the identical field names.
+    # Same names as ATMCard's projected fields: the shared givens read them by name.
     projects :account_status,          from: :"account.status"
     projects :account_customer_status, from: :"account.customer_status"
-    # OPTIONAL: nil until `Dispute` actually sets it — every payment starts
-    # authorized/captured with no disputant at all. `validate_relationship_
-    # cardinality` (references.rb) now refuses ANY reference_to relationship
-    # left nil unless told it may be, so an authorized-but-undisputed
-    # CardPayment (the ordinary case) was refused at save for a fact the
-    # command genuinely never set yet.
+    # Optional: nil until `Dispute` sets it, and an undisputed payment must still save.
     reference_to Customer, as: :disputed_by, optional: true
     attribute :authorisation, AuthorisationCode
 
@@ -260,10 +209,7 @@ Hecks.bluebook "Banking" do
       invariant("a merchant name is present") { !value.to_s.empty? }
     end
 
-    # WHAT THE MERCHANT CATEGORY CODE SAYS ABOUT THIS CHARGE — a plain word,
-    # not a closed set: the risk desk adds a tag before the language has a
-    # name for it, and a scheme this narrow would refuse the very charge it
-    # exists to flag.
+    # Free-form risk tags, not a closed set: the risk desk adds tags before the model names them.
     attribute :tags, list_of(Tag)
 
     value_object "Tag" do
@@ -282,24 +228,12 @@ Hecks.bluebook "Banking" do
     end
 
     command "Authorize" do
-      # DELIBERATELY LEFT ROLE-LESS — `role` is optional metadata; every
-      # other command this file's own Bug #107 audit found bare now
-      # declares one (payment_cards.bluebook's Capture/Void/Refund/
-      # Reverse/Chargeback/RejectDispute among them), but the corpus
-      # still needs at least one genuinely unguarded command for real —
-      # `diagrams_spec.rb`'s own "draws nothing for a command with no
-      # declared role" and `oidc_projection_spec.rb`'s own "keeps an
-      # unguarded command with a nil role rather than dropping it" both
-      # depend on Banking having one, by name, for a scope that must not
-      # silently vanish rather than a nullable field left empty by
-      # accident. Authorize stays that fixture.
+      # Role-less on purpose: diagrams_spec and oidc_projection_spec depend on
+      # Banking having one unguarded command, and this is it.
       goal "Put a hold on funds for a purchase"
       attribute :authorisation, AuthorisationCode
       attribute :tags, list_of(Tag), optional: true
-      # OWN GIVENS, NOT SHARED (S12, ADR 0025) — `account` here is
-      # `Authorize`'s own fresh command argument (this creates the
-      # CardPayment); see ATMCard.Issue's own comment for the full
-      # reasoning, identical shape.
+      # Own givens: `account` is a fresh command argument; see ATMCard.Issue.
       given("customer is active") { account.customer.status == "active" }
       given("account is open") { account.status == "open" }
       sets :account
@@ -310,9 +244,6 @@ Hecks.bluebook "Banking" do
       emits CardAuthorized
     end
 
-    # LIFECYCLE STATE AS COMMAND GUARDS (S10, ADR 0025) — every `from:`
-    # below matches a `transition` above; the removed given only
-    # duplicated what `admissible_transition` already gates.
     command "Capture", from: "authorized" do
       role "System"
       goal "Turn an authorization into an actual charge"
@@ -357,19 +288,9 @@ Hecks.bluebook "Banking" do
       role "Customer"
       goal "Challenge a payment that already settled"
 
-      # The only command in the corpus carrying BOTH a self reference and a
-      # cross-aggregate one, and it is here because the fact is real : a dispute
-      # is raised BY someone, and on a joint account that someone is not
-      # derivable from the payment. The CardPayment knows its Account and the
-      # Account knows a Customer, but not which of them challenged the charge.
-      #
-      # Both branches of CommandBuilder#reference_to fire here. CardPayment
-      # matches the owner, so it sets @references and Dispute is NOT creating ;
-      # Customer does not match, so it becomes a Reference<Customer> attribute.
-      # Everywhere else in the corpus those two paths are exercised apart — a
-      # cross-reference always sits on a creating command or an aggregate head —
-      # so nothing distinguished `creates?` reading a self-reference from
-      # `creates?` reading any reference at all.
+      # Carries both a self reference and a cross-aggregate one: on a joint account
+      # the disputant is not derivable from the payment. The owner match keeps
+      # Dispute non-creating; Customer becomes a Reference attribute.
       reference_to CardPayment
       reference_to Customer, as: :disputed_by
       given("account is open")

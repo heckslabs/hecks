@@ -3,38 +3,8 @@ require "json"
 require "open3"
 require "tmpdir"
 
-# **The expression grammar's own accept corpus** — docs/semantics/
-# bluebook-grammar.md's G-clauses, pinned. `spec/parser_parity_spec.rb`
-# already holds `hecks-parse` to Ruby's own construct/keyword surface
-# byte-for-byte, over the real corpus; `spec/syntax_conformance_spec.rb`
-# holds the DSL builders to the language's own self-hosted Syntax table.
-# Neither ever isolates one expression and asks "does this specific
-# precedence-sensitive shape parse to the same tree on both engines" —
-# that gap is this file's.
-#
-# Every fixture (`spec/corpus/grammar/*.json`) carries the canonical
-# source text and the root node Ruby's own `AstJson.emit_predicate`
-# emits for it — the same oracle `spec/expression_ast_spec.rb` already
-# trusts, re-derived fresh here (never hand-typed), so a fixture can
-# never silently drift from what `Evaluator.parse`/`AstJson` themselves
-# would answer today. `hecks-parse chapter`'s own emitted `ast`, for one
-# rule row of a tiny scratch bluebook wrapping the same canonical text,
-# is compared against it directly — agreement on structure, not merely
-# "didn't crash."
-#
-# `ruby_only: true` fixtures (docs/semantics/bluebook-grammar.md's G11 —
-# `hecks-parse`'s own expression resolver has no production at all for
-# seven ops: MatchesRegex, Presence, Split, StartsWith, EndsWith, First,
-# Last; each falls through to the `Lookup` catch-all instead) are pinned
-# on the Ruby side only — hecks-parse's own (wrong) answer is not
-# compared, so this file states the gap once, honestly, rather than
-# either hiding it or leaving the whole corpus failing.
-#
-# Two nested groups, deliberately: the fixtures' own freshness (Ruby-
-# only, no cargo needed) runs in the ordinary non-io suite, on every
-# commit; `hecks-parse held to it` needs a real build, `io: true`, the
-# same convention `parser_parity_spec` already uses — excluded locally
-# by default, always run in CI.
+# Pins docs/semantics/bluebook-grammar.md's G-clauses: each fixture's expect_ast, re-derived
+# from AstJson, must equal hecks-parse's ast. ruby_only fixtures (G11) are checked on Ruby only.
 RSpec.describe "the Bluebook expression grammar (docs/semantics/bluebook-grammar.md)" do
   GRAMMAR_FIXTURE_DIR = File.expand_path("corpus/grammar", __dir__)
   GRAMMAR_FIXTURES    = Dir.glob(File.join(GRAMMAR_FIXTURE_DIR, "*.json")).freeze
@@ -62,8 +32,7 @@ RSpec.describe "the Bluebook expression grammar (docs/semantics/bluebook-grammar
       expect(fixture.fetch("note")).to include("G11"), "#{File.basename(path)}: a ruby_only grammar fixture must " \
                                                        "cite the G-clause that catalogues why hecks-parse isn't " \
                                                        "held to it"
-      # The reason names the known gap id the note catalogues it under —
-      # so a reason can't drift onto a different (or no) gap.
+      # The reason must name the same gap id the note catalogues, so it can't drift.
       gap_ids = fixture.fetch("note").scan(/KNOWN GAP \((G\d+)/).flatten
       reason = fixture["ruby_only_reason"].to_s
       expect(reason.strip).not_to be_empty, "#{File.basename(path)}: ruby_only with no ruby_only_reason"
@@ -84,11 +53,7 @@ RSpec.describe "the Bluebook expression grammar (docs/semantics/bluebook-grammar
     RUST_PARSER_DIR = File.expand_path("../rust/parser", __dir__)
     GRAMMAR_BINARY  = File.join(RUST_PARSER_DIR, "target", "debug", "hecks-parse")
 
-    # cargo's own stderr is carried into the failure, not discarded —
-    # swallowing it and saying "run `cargo build` there directly to see
-    # why" would be no help at all when "there" is a CI runner that has
-    # already been torn down (a merge-queue ejection leaves no record of
-    # what actually went wrong). Success stays silent.
+    # cargo's stderr goes into the failure: a CI runner is gone by the time anyone looks.
     def self.build_parser!
       _stdout, stderr, status = Open3.capture3("cargo", "build", chdir: RUST_PARSER_DIR)
       raise "cargo build failed for rust/parser (exit #{status.exitstatus}):\n#{stderr}" unless status.success?
@@ -97,16 +62,8 @@ RSpec.describe "the Bluebook expression grammar (docs/semantics/bluebook-grammar
 
     before(:context) { self.class.build_parser! }
 
-    # One scratch bluebook, one command, one `given` — reused across
-    # every fixture by substituting only the canonical text, the same
-    # "vary the one thing under test" shape `spec/deploy_bluebook_spec
-    # .rb`'s own scratch-fixture helper uses. `hecks-parse chapter`
-    # parses a whole file, not a bare expression, so this is the
-    # minimal host every fixture needs regardless of which of the 28
-    # ops it exercises — `tags`/`forbidden`/`toppings`/etc. are declared
-    # broadly enough that every fixture's own receivers resolve to a
-    # real head, never an undeclared-name refusal unrelated to the
-    # grammar point being pinned.
+    # One scratch bluebook reused per fixture; only the canonical text varies. Declared names let
+    # every fixture's receivers resolve, so failures are about the grammar, not undeclared names.
     HOST_BLUEBOOK = <<~RUBY
       Hecks.bluebook "GrammarCorpusHost" do
         aggregate "Thing" do
@@ -186,8 +143,7 @@ RSpec.describe "the Bluebook expression grammar (docs/semantics/bluebook-grammar
     end
 
     GRAMMAR_FIXTURES.each do |path|
-      # ruby_only fixtures are the other half of the partition — the
-      # report below runs them, never gating.
+      # ruby_only fixtures are covered by the non-gating report below.
       next if JSON.parse(File.read(path)).fetch("ruby_only", false)
 
       it "#{File.basename(path, '.json')}: hecks-parse's own ast matches Ruby's" do
@@ -201,9 +157,7 @@ RSpec.describe "the Bluebook expression grammar (docs/semantics/bluebook-grammar
       end
     end
 
-    # **Non-gating, by design** — reports, never fails. A ruby_only fixture
-    # hecks-parse now parses to Ruby's own tree is a known gap closed and
-    # a flag waiting to be removed.
+    # Non-gating: a ruby_only fixture that now matches is a closed gap whose flag can be dropped.
     it "reports which ruby_only fixtures hecks-parse now parses to Ruby's tree (non-gating)" do
       ruby_only = GRAMMAR_FIXTURES.select { |path| JSON.parse(File.read(path)).fetch("ruby_only", false) }
       lines = ruby_only.map do |path|

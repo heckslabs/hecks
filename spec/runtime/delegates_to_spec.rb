@@ -1,13 +1,7 @@
 require "spec_helper"
 
-# CommandBuilder#delegates_to_impl's own comment has the full reasoning —
-# this proves the runtime side: CommandInterpreter#step_delegate_to_entity
-# actually gives synchronous refusal propagation and atomic all-or-nothing
-# persistence, the two properties neither `trigger` nor a saga's own
-# `dispatches` can give (both commit the triggering command first and
-# rescue the target's own refusal). See spec/word_coverage_spec.rb's own
-# exempt entry for `delegates_to` — this file is that word's real,
-# running, dispatch-level coverage.
+# Dispatch-level coverage of `delegates_to`: synchronous refusal propagation and atomic
+# persistence, which `trigger` and a saga's `dispatches` cannot give.
 RSpec.describe "an aggregate command that delegates_to one nested entity command" do
   DELEGATES_TO_FIXTURE = File.join(InMemoryDomain::ROOT, "spec/fixtures/delegates_to/delegates_to.bluebook")
 
@@ -26,9 +20,7 @@ RSpec.describe "an aggregate command that delegates_to one nested entity command
     end
   end
 
-  # `.first`, not a `find` matched on id — one piece per board is all any
-  # example here needs, and it sidesteps having to know whether a stored
-  # id round-trips as a bare String or a wrapped one-field Value.
+  # `.first`, not a `find` on id: a stored id may round-trip as a String or a wrapped Value.
   def square(runtime, name:)
     board = runtime.registry.repository("DelegatesTo", runtime.registry.bluebook("DelegatesTo").aggregate("Board"))
                    .find(name)
@@ -46,18 +38,8 @@ RSpec.describe "an aggregate command that delegates_to one nested entity command
     expect(square(runtime, name: "b1").to_h).to eq(file: 5, rank: 5)
   end
 
-  # A real bug, found live building this fixture's own downstream
-  # consumer (a chess domain): `with:` only remaps what it names, and a
-  # first draft of `step_delegate_to_entity` built `target_args` from
-  # `with:` alone — so a policy reacting to the delegated command's own
-  # emitted event, trying to re-locate Board by its own identity
-  # (`name`, never named in `with: { id:, to: }`), found nothing and its
-  # reaction was rescued and recorded rather than raised (the same
-  # commit-then-react shape every other policy reaction has). Fixed by
-  # starting `target_args` from a copy of the delegating command's own
-  # already-resolved args, so ambient context a caller never had to
-  # name explicitly still flows through, same as a direct entity
-  # dispatch always would.
+  # `with:` only remaps what it names, so `target_args` must start from the delegating
+  # command's resolved args; otherwise a policy re-locating Board by `name` finds nothing.
   it "carries the delegating command's own ambient args through to the target's own emitted event" do
     runtime = boot
     runtime.dispatch_flat("DelegatesTo::Board.OpenBoard", name: { value: "b4" })

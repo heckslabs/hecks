@@ -1,7 +1,5 @@
-# A FIXTURE FOR spec/qa_domain_novelty_spec.rb — the "candidate" side:
-# `baseline`'s own two aggregates, plus a third one that hops TWICE
-# (Proposal -> Engagement -> Client) in a `where`. Against `baseline`
-# that third aggregate is the only thing new; against itself, nothing is.
+# Fixture for spec/qa_domain_novelty_spec.rb: the candidate side, `baseline` plus a
+# Proposal aggregate whose `where` hops twice (Proposal -> Engagement -> Client).
 Hecks.bluebook "Hopper" do
   generic
 

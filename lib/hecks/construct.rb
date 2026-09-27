@@ -1,29 +1,12 @@
 module Hecks
-  # The invisible field a built construct carries.
+  # The invisible identity a built construct carries: an owner chain under `hecks_`-prefixed
+  # fields, not an attribute and not a key in `to_h`.
   #
-  # ## Identity
+  # The fully-qualified name walks owners and matches the id `MetaValidator::Judge#identify` mints.
   #
-  # A construct is a record with an owner chain — the chapter (Bluebook)
-  # owns its aggregates, an aggregate owns everything declared on it — and the
-  # bluebook identity is carried in its own field, under a `hecks_` prefix that
-  # no domain attribute can collide with. Invisible means exactly that: not an
-  # attribute, not a key in `to_h`, not a reader on instances. Framework
-  # metadata about the construct, not part of the domain it describes.
-  #
-  # The identity is computed by walking owners rather than stamped, so nothing
-  # has to be re-stamped when a chapter is assembled after its aggregates:
-  #
-  #     Pizzas                     the chapter — no owner
+  #     Pizzas                     the chapter, no owner
   #     Pizzas::Pizza              an aggregate joins its chapter with ::
   #     Pizzas::Pizza.Price        everything else joins its owner with .
-  #
-  # That spelling is not invented here. It is the id `MetaValidator::Judge`
-  # already mints in `#identify`, so a construct and the meta-domain's
-  # record of that construct carry the same identity, and there is no
-  # translation table between them to be quietly wrong in.
-  #
-  # ## Usage
-  #
   #     price = Class.new(ValueObject)   # a declaration holder
   #     price.hecks_name  = "Price"
   #     price.hecks_owner = pizza_ir         # the Aggregate that declares it
@@ -32,15 +15,12 @@ module Hecks
     # A construct asked for an identity it cannot compute.
     class Unowned < StandardError; end
 
-    # What declares this one — the chapter above an aggregate, the aggregate
-    # above a value object. nil for a chapter, which is the top.
+    # What declares this construct; nil for a chapter, which is the top.
     attr_accessor :hecks_owner
 
     attr_writer :hecks_name
 
-    # A chapter is the only construct that legitimately has no owner. Everything
-    # else is declared in something, so a missing owner is an unstamped construct
-    # rather than a top — see hecks_fqn.
+    # Marks a chapter, the only construct that legitimately has no owner.
     attr_writer :hecks_root
 
     # Whether this construct is the top of its own owner chain.
@@ -53,18 +33,12 @@ module Hecks
     # @return [String] the construct's own name, without any owner prefix
     def hecks_name = @hecks_name
 
-    # How this construct joins its owner. An aggregate is a member of its
-    # chapter's namespace (`::`) ; everything else is declared on its owner
-    # (`.`). Overridden by Aggregate, defaulted here for every other construct.
+    # How this construct joins its owner: `::` for an aggregate, `.` for everything else.
     #
     # @return [String] `"."`, the separator this construct uses in `hecks_fqn`
     def hecks_separator = "."
 
-    # Refuses rather than guesses. A construct with no owner and no claim to be a
-    # chapter has simply not been stamped yet — entity commands are in that state
-    # while entities are still IR objects — and answering the bare name would be a
-    # plausible half-truth that no test would notice. That shape of falsehood is
-    # what this repo keeps finding, so it goes red instead.
+    # Refuses rather than answering a bare name for an unstamped construct.
     #
     # @return [String] the fully-qualified name, joining every owner from the
     #   chapter down to this construct

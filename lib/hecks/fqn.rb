@@ -24,10 +24,9 @@ module Hecks
       new(realm: realm, domain: domain, version: version, aggregate: aggregate, verb: command, kind: :command)
     end
 
-    # Builds the FQN of one query, either on an aggregate or domain-level.
+    # Builds the FQN of one query, on an aggregate or domain-level.
     #
-    # @param realm [String, nil] deployment identity from the world, or nil for an
-    #   unrealmed address
+    # @param realm [String, nil] deployment identity from the world, or nil if unrealmed
     # @param domain [String] the domain name
     # @param query [String] the query's snake_case verb
     # @param aggregate [String, nil] the aggregate the query belongs to, or nil for
@@ -41,12 +40,8 @@ module Hecks
       new(realm: realm, domain: domain, version: version, aggregate: aggregate, verb: query, kind: :query)
     end
 
-    # One order-dependent parse pipeline: split -> shape-validate -> dispatch
-    # on segment count -> split domain/version -> classify kind -> cross-
-    # field validate -> construct. Each step consumes locals (segments, verb,
-    # kind) the step before it derived; splitting would mean threading all of
-    # them back out as parameters/returns between new methods, for no
-    # readability gain over reading the pipeline top to bottom once.
+    # Parses a `Realm::Domain@version::Aggregate.verb` address.
+    # One method on purpose: each step consumes locals the step before it derived.
     #
     # @param text [String] a `Realm::Domain::Aggregate.verb` address, with domain
     #   optionally `@version`-pinned and aggregate optional for a domain-level query
@@ -65,9 +60,7 @@ module Hecks
 
       realm, domain_spec, aggregate = case segments.length
                                       when 3 then segments
-                                      # A two-segment lowercase address is the
-                                      # public realm/domain form for a
-                                      # domain-level read model.
+                                      # realm::domain.query is a domain-level read model
                                       when 2 then query_name?(verb) ? [segments[0], segments[1], nil] : [nil, *segments]
                                       else [nil, segments.first, nil]
                                       end

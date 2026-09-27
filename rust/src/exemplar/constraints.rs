@@ -1,25 +1,6 @@
-// Exemplar shapes for rust/project/constraints.rb — see mod.rs's own
-// header. Both shapes here are single-line `if ... { return Err(...); }`
-// checks, spliced verbatim into a caller's own `check_invariants` body
-// (types.rb) or argument-coercion block (commands.rb) — the host
-// functions below exist purely to give them a real `Result`-returning
-// context with a real scalar in scope, matching how they're actually
-// used everywhere in generated output.
-//
-// V3 — neither shape spells its own wording any more. Both hand their
-// declared arguments to the site's own typed `<Variant>Args::render_args`,
-// instead of splicing a codegen-time `tmpl_prefix_text` (the template's
-// own text with every argument but the last already substituted) in
-// front of a `{:?}` of the offered scalar. `render_args` reads the same
-// `Vocabulary::RefusalSiteArgument` rows Ruby's `RefusalWording
-// .render_site` does — the member list included, quoted and joined by
-// `admitted`'s own row rather than by the generator.
-//
-// These two shapes are the direct Rust reading of `ShapeField.admits`
-// and `ShapeField.pattern` (`shape.bluebook`) — the two optional,
-// free-text constraint fields the language lets a field declare beside
-// its `type`/`list`/`optional`. `admits_check` is `admits`; `pattern_check`
-// is `pattern`. Neither is a fact this file invents a name for.
+//! Exemplar shapes for rust/project/constraints.rb (see mod.rs).
+//!
+//! Both shapes are single-line refusal checks spliced into a `Result`-returning body.
 #![allow(dead_code, unused_variables)]
 
 fn tmpl_admits_check_host(tmpl_scalar: String) -> Result<(), crate::kernel::Refusal> {

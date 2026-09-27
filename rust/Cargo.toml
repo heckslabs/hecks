@@ -1,12 +1,8 @@
-# ONE FEATURE PER GENERATED DOMAIN — selects which domain's own
-# generated::<domain>::merged module `generated::active` re-exports
-# (rust/src/generated/mod.rs). Kept in sync by bin/project_rust: a
-# feature is added here whenever a new domain is generated, never
-# removed (the domain's own generated/<name>/ directory is the
-# source of truth for whether it still exists). `default` tracks
-# whichever domain was generated MOST RECENTLY, so a bare
-# `cargo build`/`cargo test` keeps behaving exactly as it always
-# has; any other still-generated domain stays reachable via
+# Selects which domain's generated module `generated::active` re-exports
+# (rust/src/generated/mod.rs); bin/project_rust adds an entry per generated
+# domain and never removes one, since a domain's own directory is the
+# source of truth for whether it still exists. `default` tracks whichever
+# domain was generated most recently; any other stays reachable via
 # `--no-default-features --features <name>`.
 [features]
 default = ["has_many_fixture"]
@@ -38,17 +34,12 @@ name = "rust"
 version = "0.1.0"
 edition = "2021"
 
-# ONE DELIBERATE, DOCUMENTED EXCEPTION to this crate's own zero-Cargo-
-# dependency discipline (ADR 0012 — WASM-via-WASI binary size and
-# auditability; json.rs's and arithmetic.rs's own headers state the same
-# constraint for themselves). `expression_operators/pattern_match.rs`
-# (`.match?`) is the reason — see that file's own header for why a
-# hand-rolled regex subset was rejected in favour of one well-audited,
-# pure-Rust crate. `default-features = false` keeps out `perf` (SIMD/
-# `memchr`-driven, unneeded for the small per-call patterns this
-# grammar's own predicates use) — `std`/`unicode` alone cover Ruby-
-# Regexp-style `\d`/`\w`/case-insensitive matching without the extra
-# code size.
+# The one dependency exception to this crate's zero-Cargo-dependency
+# discipline (ADR 0012): `expression_operators/pattern_match.rs`'s `.match?`
+# needs a real, audited regex engine. `default-features = false` keeps out
+# the SIMD-driven `perf` feature; `std`/`unicode` alone cover the Ruby-
+# Regexp-style `\d`/`\w`/case-insensitive matching this grammar's own
+# predicates use.
 [dependencies]
 regex = { version = "1", default-features = false, features = ["std", "unicode"] }
 
@@ -60,11 +51,9 @@ path = "src/lib.rs"
 name = "rust"
 path = "src/main.rs"
 
-# DEBUG INFO OFF FOR DEV BUILDS — Phase 6 of the CI speed effort. Every
-# binary this crate produces in CI is run once and thrown away (never
-# attached to a debugger), so the debuginfo a plain `cargo build`/
-# `cargo test` normally embeds is pure build time and disk cost with
-# nothing reading it. Release builds (none of which CI actually uses
-# today) are unaffected — this only touches the dev profile.
+# CI runs every binary this crate produces once and throws it away, never
+# attaching a debugger, so the debuginfo a plain `cargo build`/`cargo test`
+# normally embeds is pure build time and disk cost with nothing reading it.
+# Only this dev profile is affected; release builds are unchanged.
 [profile.dev]
 debug = 0

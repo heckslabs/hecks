@@ -2,16 +2,8 @@ require "spec_helper"
 require "tmpdir"
 require "hecks/codemod"
 
-# The Ruby-side `word_gate` — item #13 of the whole-project table-
-# unification survey, and the first slice of it: Ruby's own DSL
-# builders now consult the same self-hosted grammar table Rust's own
-# parser `word_gate` already reads (`rust/parser/src/parse/mod.rs`),
-# instead of falling straight through to Ruby's generic
-# `NoMethodError`. Proven behaviorally here rather than just by the
-# real corpus continuing to boot byte-identical (which it does — see
-# this slice's own commit message) — a synthetic minimal bluebook
-# means these tests still catch a regression even if the real corpus
-# never happens to exercise a given branch again.
+# Ruby DSL builders consult the self-hosted grammar table, as Rust's parser `word_gate` does.
+# Uses a synthetic bluebook so a regression shows even if the real corpus skips a branch.
 RSpec.describe "Hecks::Bluebook::DSL::WordGate" do
   def load(source)
     Dir.mktmpdir do |dir|
@@ -113,23 +105,15 @@ RSpec.describe "Hecks::Bluebook::DSL::WordGate" do
      "MetaValidator.bootstrapping? gate RuleReference#lookup already relies on, " \
      "since the grammar table this module reads does not exist yet while it is " \
      "still being built" do
-    # bootstrapping? is nil, not false, in a process that has never booted the
-    # grammar — which is this example whenever the seed runs it first.
+    # bootstrapping? is nil, not false, in a process that has never booted the grammar.
     Hecks::Bluebook::MetaValidator.grammar_registry
     expect(Hecks::Bluebook::MetaValidator.bootstrapping?).to be(false)
   end
 
   describe "the bootstrap-window fallback's own-context-first precedence" do
-    # BOOTSTRAP_CALLS_FALLBACK's values are always method-name Symbols in
-    # real use, never `false` — but the lookup that finds them must not
-    # rely on that: it has to pick the own-context entry whenever one
-    # exists, never quietly prefer "Type"'s entry just because the
-    # own-context value happens to look falsy. A minimal class stands in
-    # for a real builder, with a fallback table rigged so the own-context
-    # entry is `false` and the "Type" entry is a real, callable method —
-    # if the old `||` lookup ran, it would silently dispatch to the real
-    # method instead; the fix instead tries to `send(false, ...)`, which
-    # raises `TypeError`, proving the own-context (`false`) entry won.
+    # The lookup must pick the own-context entry whenever one exists, even if its value is falsy.
+    # The fallback table is rigged so it is `false` and "Type" maps to a callable method: a `||`
+    # lookup would dispatch to that method; the correct one raises TypeError from `send(false)`.
     let(:builder_class) do
       Class.new do
         include Hecks::Bluebook::DSL::WordGate

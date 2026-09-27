@@ -1,13 +1,8 @@
 require "spec_helper"
 require "hecks/forms/port_argument"
 
-# bin/present's `-p`/`--port` reader, pulled out so it can be driven
-# directly instead of only through a real server boot. Pins the two
-# spellings the inline `ARGV.each_cons(2)` version got wrong: the
-# `--port=8080` equals form (silently ignored before — matched nothing,
-# fell through to the default) and a non-numeric `-p abc` (blindly
-# `.to_i`'d before — became port 0, which Rackup/WEBrick binds as an
-# ephemeral port).
+# bin/present's `-p`/`--port` reader. Pins the `--port=8080` form being honored
+# and a non-numeric `-p abc` not becoming port 0 (an ephemeral bind).
 RSpec.describe Hecks::Forms::PortArgument do
   def parse(argv) = described_class.parse(argv)
 

@@ -1,13 +1,7 @@
 require "spec_helper"
 
-# M3 (docs/audits/2026-08-10-main-bug-audit.md) — an undeclared
-# (`NullSemantics.default`, mode `:native`) null policy would leave
-# `sql_order` rendering no `NULLS ...` clause at all, deferring to
-# whichever dialect happened to run the query: Postgres's own native
-# default is NULLS LAST on ASC (and FIRST on DESC), while `NullPolicy#order`
-# — this same "native" default, for Memory/Heki — puts nulls first on ASC
-# (and last on DESC), the SQLite convention. Same declared query, same
-# data, a different row order depending only on which store answered it.
+# Pins M3 (docs/audits/2026-08-10-main-bug-audit.md): an undeclared policy must order nulls
+# the same way in SQL as in Memory/Heki, or row order depends on which store answered.
 RSpec.describe Hecks::QuerySpecification::Common::NullPolicy do
   describe ".sql_order" do
     it "renders NULLS FIRST on ascending when no policy is declared, matching #order's own default" do
@@ -36,8 +30,7 @@ RSpec.describe Hecks::QuerySpecification::Common::NullPolicy do
     end
   end
 
-  # #order's own default (undeclared/native policy) — the side this fix
-  # brought `sql_order` into agreement with, not the side that changed.
+  # The undeclared/native default that .sql_order must agree with.
   describe ".order" do
     it "puts nulls first ascending by default, the SQLite convention #sql_order now matches" do
       rows = [{ v: 2 }, { v: nil }, { v: 1 }]

@@ -1,12 +1,6 @@
 #!/usr/bin/env ruby
 
-# Prints a booted domain's own declared facts as plain English
-# sentences — the projection itself is Projections::Statements (see
-# its own header for the "never invent a sentence" discipline). A thin
-# convenience over `Pizzas.project(Projections::Statements)`, which
-# already works with no extra wiring — this just reaches it from a
-# shell instead of a console, the same relationship bin/ir has to
-# `Pizzas.project(Projections::IR)`.
+# Prints a booted domain's declared facts as plain English sentences, via Projections::Statements.
 #
 #   bin/statements <domain-path> <ChapterName>
 #   bin/statements examples/pizzas Pizzas

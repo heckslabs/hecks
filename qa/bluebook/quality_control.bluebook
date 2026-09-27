@@ -1,454 +1,120 @@
-# QUALITY CONTROL — DON'T LET ANYONE FEEL STUPID.
-#
-# The job is not "find bugs". It is: do not let a user end up in a dumb
-# situation that makes them feel dumb.
-#
-# That is a different bar and it changes what counts. A crash is HONEST — the
-# user knows it was not them. The enemy is the quiet divergence: they wrote
-# `as:` and it was accepted and did nothing; a query and a read model drifted
-# apart with neither saying so; a value they supplied was dropped on the way
-# in. Nothing errored. The chapter promised something, the runtime did
-# otherwise, and the only person who finds out concludes they do not
-# understand their own domain.
-#
-# ALL THREE ARE COMPARISONS, which is why a crash announces itself and a
-# broken promise does not: declaration against behaviour, one answer against
-# another, what was sent against what was stored. You only see it holding two
-# things side by side. So the unit of work here is not "a bug" — it is a
-# CHECK: a dispatch made with an expectation written first, and an answer
-# compared against it afterwards.
-#
-# THE UNIT OF ATTENTION IS A CHAPTER. Fixing what Banking exposed usually
-# fixes Pizzas too, because the fault is nearly always in the runtime rather
-# than in the chapter that revealed it. So the practice rotates: least
-# recently swept first, one agent at a time, and a claim that goes stale is
-# taken by whoever is next.
-#
-# ONE ABSOLUTE RULE, AND EVERYTHING ELSE BENDS. A bug is logged with the
-# failing test that proves it, or it is not logged. That is a required
-# ARGUMENT, not a gate — an argument can be satisfied or refused and never
-# waived — and it is absolute because without it there is no evidence. Every
-# other rule here is a gate: it refuses, it can be waived with a reason, and
-# the waiver is counted so "how often do we go round ourselves" is a number
-# rather than a feeling.
+# Quality control: every check writes its expectation down before it looks at the answer.
+# A bug is logged with the failing test that proves it, or it is not logged.
 
-# THE PRACTICE'S OWN DIALS — DATA, NOT PROSE AN LLM READS.
-#
-# `.claude/skills/hecks_qa/SKILL.md` used to say "cap: 3 draft PRs per day"
-# in a sentence, which meant changing it meant editing instructions written
-# for an agent to follow rather than editing data — nobody could grep for
-# the number, and nothing enforced that the sentence and the practice ever
-# agreed. Now it is a fact about a file, the same way `StaleAfter`'s 900 or
-# `BugOrder`'s 1_000 already are: a human changes it by editing a file and
-# reviewing the diff, not by asking a running agent to remember something
-# different.
-#
-# TWO FILES, ONE REASON EACH TO OPEN THEM. The VALUES live in `qa/
-# settings.yml`, sibling to this directory — plain YAML, one key per dial,
-# nothing but the numbers a human actually tunes. The NAME, the TYPE and
-# the WHY of every dial still live here, as the commented constant each
-# callsite in this repository already reads (`QualityControlDials::
-# PR_CAP_PER_DAY` and so on, unchanged) — only the right-hand side of each
-# assignment changed, from a literal to a typed accessor read off the YAML.
-# `Hecks::Fuzzing::QaSettings` (lib/hecks/fuzzing/qa_settings.rb) is the
-# adapter in between: it loads `settings.yml` once per boot and REFUSES —
-# loudly, naming exactly what's wrong — a missing key, an extra key nobody
-# declared, or a value of the wrong shape, rather than letting a bad edit
-# to that file reach `bin/qa_sweep` or any other reader as a silently wrong
-# (or silently `nil`) dial. This split exists so the VALUE has exactly one
-# source of truth (the YAML) and the REASONING has exactly one source of
-# truth (this file's own comments) — moving the numbers out of Ruby syntax
-# does not create a second place either one is written down.
-#
-# NO AGGREGATE, ON PURPOSE — STILL. A live, dispatchable "Policy" record
-# was the first shape tried here and taken back — these are a human's
-# call, not a fact the loop should ever mutate about itself mid-run, and
-# that is exactly as true of a YAML file as it was of a bare Ruby
-# constant: nothing in this practice ever writes to `settings.yml`, it has
-# no lifecycle, and a human still edits it and reviews the diff the same
-# way they always did. (Also: `Policy` collides with this very file's own
-# reaction-policy keyword a few hundred lines down — see the `BugTitle`
-# comment on prefix collisions for why that is not hypothetical here.)
-#
-# GUARDED AGAINST RELOAD, NOT JUST DEFINED. This file is `load`ed once per
-# `Hecks.boot` — and `spec/quality_control_spec.rb` boots a fresh runtime
-# per example, dozens of times in one process. A bare `CONST = value` at
-# top level is reassigned every single time that happens, and Ruby warns
-# on every one of those forty-some reassignments. `defined?` makes the
-# second-and-later load a no-op instead of a warning generator — which
-# also means `settings.yml` itself is parsed and validated exactly once
-# per boot, not once per dial and not once per reload.
-#
-# A PLAIN `require`, NOT `require_relative` — THIS FILE ITSELF GETS
-# COPIED. Every fuzz/replay boot (`Hecks::Fuzzing::IsolatedBoot`) copies
-# `qa/bluebook`'s own contents to a tmpdir and `Kernel.load`s the COPY,
-# so a `require_relative` here would resolve against THAT copy's own
-# location — which has no `lib/` beside it at all, only whatever
-# `qa/bluebook` itself contained. `require "hecks/fuzzing/qa_settings"`
-# resolves off `$LOAD_PATH` instead, set up once for the whole process
-# by whatever booted first (`bin/run`, `bin/qa_sweep`, `spec_helper`),
-# so it finds the one real file regardless of where THIS file is
-# currently being read from. Idempotent either way, like every `require`.
+# Tunable dials for the QA loop: values in qa/settings.yml, reasoning here.
+# `require`, not `require_relative`: isolated fuzz boots load a copy of this file from a tmpdir.
 require "hecks/fuzzing/qa_settings"
 
 unless defined?(QualityControlDials)
   module QualityControlDials
-    # THE ONE LINE THAT ACTUALLY READS `qa/settings.yml` — every constant
-    # below is a named, commented accessor off `settings`, so every
-    # existing `QualityControlDials::X` callsite in this repository keeps
-    # reading exactly as it always did. `QaSettings.load` is what refuses
-    # a missing, extra, or malformed key (see that class's own header).
-    # NO PATH ARGUMENT, ON PURPOSE, FOR EVERY REAL CALLER — `QaSettings::
-    # DEFAULT_PATH` resolves off ITS OWN file location, never off this
-    # bluebook's `__dir__`, because THIS directory gets copied to a
-    # tmpdir for every isolated fuzz/replay boot while `settings.yml` (a
-    # sibling one level up) does not — see `QaSettings::DEFAULT_PATH`'s
-    # own comment for the failure that would otherwise be.
-    #
-    # `HECKS_QA_SETTINGS_PATH`, THE ONE NAMED ESCAPE HATCH — an end-to-end
-    # test that boots a real subprocess (`spec/qa_open_pr_spec.rb`'s own
-    # "refuses one more PR than PR_CAP_PER_DAY allows for today" is the
-    # motivating case: it needs `bin/qa_open_pr`, run as an actual child
-    # process, to see a DIFFERENT `pr_cap_per_day` than the real file's)
-    # has no way to stub a class inside that child process — an env var,
-    # already this exact test file's own pattern for reaching a
-    # subprocess (`QA_REPO_DIR`, `FAKE_GH_LOG`, …), is the one mechanism
-    # that crosses that boundary. Unset, this resolves to `DEFAULT_PATH`
-    # exactly as before — no behavior changes for `bin/run`, `bin/qa_sweep`,
-    # or any fuzz/replay boot, none of which ever sets it.
+    # `DEFAULT_PATH` resolves from QaSettings' own location: this directory is copied for isolated
+    # boots. HECKS_QA_SETTINGS_PATH lets a subprocess test read a different settings file.
     settings = Hecks::Fuzzing::QaSettings.load(ENV.fetch("HECKS_QA_SETTINGS_PATH", Hecks::Fuzzing::QaSettings::DEFAULT_PATH))
 
-    # HOW LONG `hecks_qa`'s OWN LOOP WAITS AFTER A TICK CONCLUDES BEFORE
-    # STARTING THE NEXT ONE. Zero means immediately: the loop restarts the
-    # moment the previous tick's report comes back, rather than waiting
-    # out a fixed interval. This number is read as a FLOOR, not a pace —
-    # the SHORTEST gap the orchestrator ever leaves between one tick's
-    # report and the next tick's dispatch (an earlier comment here said
-    # "CEILING", which contradicted both `0 = immediately` and SKILL.md's
-    # own reading; the stall fallback is `LIVENESS_FALLBACK_SECONDS`,
-    # below, not this). Still read by the `/loop hecks_qa` CALLER, never by
-    # any script in this repository — pacing is the loop's own job.
+    # Minimum gap in seconds between one tick's report and the next dispatch; 0 is immediately.
+    # Read by the `/loop hecks_qa` caller, not by any script.
     CADENCE_SECONDS = settings.cadence_seconds
 
-    # HOW MANY PRs `hecks_qa` may open in one calendar day, across BOTH
-    # `Patch` (a bug's own fix) and `Improvement` (deliberate work). Zero
-    # means uncapped. A positive number here is a fence for when nobody is
-    # watching the loop closely; a human who IS watching it can say so, in
-    # this file, rather than the loop inventing a limit nobody chose.
-    # READ IN CODE, since `bin/qa_open_pr` exists: that script counts
-    # `Patch.OpenedSince` + `Improvement.OpenedSince` from local midnight
-    # and REFUSES (exit 1) to open one more than this allows — a rule an
-    # agent used to be asked to remember, now a refusal it cannot skip.
+    # Most PRs (Patch plus Improvement) `bin/qa_open_pr` opens per calendar day; 0 is uncapped.
     PR_CAP_PER_DAY = settings.pr_cap_per_day
 
-    # THE WIDENING TABLE — how hard `bin/qa_sweep` fuzzes a target as a
-    # function of `Target.clean_streak` (that attribute's own comment says
-    # what the streak means). Three discrete tiers, not a continuous
-    # `seeds = 10 + streak` formula: BUG#14/#15/#16 turned up at seeds 2-4
-    # on targets whose own seed 1 held clean, so a big first jump (10 ->
-    # 25) matters more than smooth growth does, and three numbers are
-    # something a human tunes by editing a table. Moved HERE from
-    # `bin/qa_sweep` itself (where it was policy data living in a script,
-    # duplicated as prose in SKILL.md) for exactly the reason every other
-    # dial lives here. Read by `Hecks::Fuzzing::SweepDepth.for_streak`.
-    #
-    # THE LAST ROW IS THE CEILING, EXPLICITLY — `upto: Float::INFINITY`
-    # reads oddly next to two finite numbers, and that is deliberate: a
-    # target clean for 5 sweeps running and one clean for 5,000 both land
-    # here and both get exactly 50 seeds x 100 steps, never more.
+    # Fuzz depth by `Target.clean_streak`, in three discrete tiers, read by
+    # `SweepDepth.for_streak`. The last row (`upto: Float::INFINITY`) is the ceiling.
     WIDENING_TIERS = settings.widening_tiers
 
-    # HOW MANY `bin/qa_sweep <target>` CHILDREN `--all` KEEPS ALIVE AT
-    # ONCE. `--all` used to be unbounded — one `Process.spawn` per waiting
-    # target, all at once — which on a ten-target rotation meant ten
-    # concurrent Rust conformance builds and ten Ruby runtimes on one
-    # machine. Read by `run_all_mode` (bin/qa_sweep) as a bounded pool:
-    # this many run, the next starts the moment one exits.
+    # How many `bin/qa_sweep <target>` children `--all` keeps running at once.
     SWEEP_MAX_PARALLEL = settings.sweep_max_parallel
 
-    # THE `/loop hecks_qa` CALLER'S OWN `ScheduleWakeup` FALLBACK — how
-    # long the orchestrating session waits for a tick subagent's report
-    # before assuming it stalled. SKILL.md used to say "1200–1800s" in a
-    # sentence; this is that number, as data. Read by the loop caller
-    # (an agent), the same way `CADENCE_SECONDS` is.
+    # How long the `/loop hecks_qa` caller waits for a tick's report before assuming it stalled.
     LIVENESS_FALLBACK_SECONDS = settings.liveness_fallback_seconds
 
-    # THE IDENTITY THE LOOP RUNS AS — `bin/qa_sweep`'s `ENGINEER`, the
-    # `held_by` on every claim it takes and the `engineer` on every sweep
-    # it opens. Named here, not hardcoded in the script, because
-    # `WaivedBy` (the `Sweep`/`Bug` value object below) refuses exactly
-    # this literal: a gate is waived by a person, never by the loop. The
-    # invariant grammar reads literals, not constants, so that value
-    # object spells "qa_sweep" out again — `spec/quality_control_spec.rb`
-    # pins the two equal, so they cannot drift apart unnoticed.
+    # The identity the loop runs as. `WaivedBy` repeats this literal (invariants read literals,
+    # not constants); `spec/quality_control_spec.rb` pins the two equal.
     AUTOMATED_ENGINEER = "qa_sweep"
 
-    # HOW `bin/qa_open_pr` OPENS A PR. `DRAFT_ONLY = true` would pass
-    # `--draft` to `gh pr create` (the practice's original posture: green
-    # CI is necessary, not sufficient, for something that ran unattended);
-    # `AUTO_MERGE = true` runs `gh pr merge --auto` right after, so the
-    # PR lands the moment its required checks go green. Both a human's
-    # call, made 2026-09-11: non-draft, auto-queued. `BRANCH_PREFIX` is
-    # what `bin/qa_open_pr` refuses a branch NOT starting with — the
-    # old `loop-parity/` prefix was never enforced and drifted (see
-    # `Patch`'s own header on #534).
+    # How `bin/qa_open_pr` opens a PR: not a draft, queued for auto-merge, on a branch that starts
+    # with BRANCH_PREFIX.
     DRAFT_ONLY    = settings.draft_only
     AUTO_MERGE    = settings.auto_merge
     BRANCH_PREFIX = settings.branch_prefix
 
-    # WHAT FRACTION OF GENERATED COMMAND STEPS `bin/qa_sweep` MUTATES
-    # ADVERSARIALLY (0.0..1.0) — `SequenceGenerator`'s `adversarial:`
-    # option, `lib/hecks/fuzzing/sequence_generator/adversary.rb`: the
-    # argument shapes BUG#7–#16 were actually found through, injected on
-    # every domain in the rotation rather than only the one that happened
-    # to declare the colliding name. Zero turns the layer off (a sweep
-    # then generates exactly what it did before the layer existed).
-    # Higher finds refusal-ordering splits sooner but reaches deep state
-    # less often — a mutated step is usually refused, and a refused step
-    # creates nothing later steps can act on. `bin/qa_sweep --adversarial
-    # N` overrides this for one run.
+    # Fraction (0.0..1.0) of generated command steps mutated adversarially; 0 turns the layer off.
+    # Higher finds refusal-ordering splits sooner but reaches deep state less often.
     ADVERSARIAL_FRACTION = settings.adversarial_fraction
 
-    # COVERAGE-GUIDED GENERATION ACROSS ONE SWEEP'S SEEDS — `Hecks::
-    # Fuzzing::CoverageCampaign` (lib/hecks/fuzzing/coverage_campaign.rb
-    # has the full why). `false` makes every seed independent again,
-    # exactly as before this existed. The coverage unit is a (verb, step
-    # kind, lifecycle state before, adversarial mutation, outcome) tuple.
+    # Coverage-guided generation across one sweep's seeds (`Hecks::Fuzzing::CoverageCampaign`).
     GUIDED_GENERATION = settings.guided_generation
 
-    # WHAT FRACTION OF SEEDS (0.0..1.0) START FROM A PREFIX OF AN EARLIER
-    # SEED THAT REACHED A NEW TUPLE, instead of from an empty store.
-    #
-    # OFF BY DEFAULT, BECAUSE IT WAS MEASURED. Nine rotation domains, three
-    # repetitions, 1500 generated attempts each, adversarial 0.3, against
-    # unguided generation (geometric mean of distinct tuples / tuples
-    # reached from an existing record / distinct refusal combinations):
-    #   favor 3 alone          x1.049 / x1.086 / x1.038
-    #   favor 6 alone          x1.030 / x1.066 / x1.020
-    #   splice 0.25 + favor 3  x1.018 / x1.064 / x1.007
-    #   splice 0.5  + favor 3  x0.980 / x1.074 / x0.979
-    # Splicing trades breadth for depth: on banking, 0.5 reached x1.41 the
-    # deep-state tuples, while on chess it lost x0.88 of all tuples.
-    # Favor alone won on all three axes and never lost on any domain. Turn
-    # this up for a target whose bugs need long setup more than variety.
+    # Fraction (0.0..1.0) of seeds that start from a prefix of an earlier seed's new coverage.
+    # Off by default: measured, it trades breadth for depth (banking reached 1.41x the deep-state
+    # tuples, chess lost 0.12x of all tuples), while favoring rare verbs alone never lost.
     CORPUS_SPLICE_PROBABILITY = settings.corpus_splice_probability
 
-    # HOW MANY OF THE SWEEP'S LEAST-HIT VERBS (never-hit declared verbs
-    # first) the next seed weights up — 3 measured best of 3 and 6 (see
-    # the table above). Zero turns the favor lever off.
+    # How many of the least-hit verbs the next seed weights up; 0 turns the lever off.
     FAVOR_RARE_VERBS = settings.favor_rare_verbs
 
-    # WHETHER `bin/qa_sweep` ALSO RUNS THE SELF-CONSISTENCY PASS — cold
-    # rehydration, replay idempotency, value-object JSON round trip
-    # (`Hecks::Fuzzing::SelfConsistency`) — beside its own, older
-    # differential (Ruby vs compiled Rust) comparison, on the SAME
-    # generated sequence (adversarially mutated or not — the two layers
-    # compose for free: this pass reads whatever `history` the dispatch
-    # of THAT sequence produced, adversarial or plain, with no idea which
-    # it was). ON by default: this is a genuinely different comparison
-    # axis (one engine against ITSELF, not one engine against the other),
-    # not an experimental extra, so the practice's own default posture is
-    # to run it every sweep. `--self-consistency false` (or `true`)
-    # overrides this for one run the same way `--adversarial` overrides
-    # `ADVERSARIAL_FRACTION`.
+    # Whether `bin/qa_sweep` also runs the self-consistency pass (cold rehydration, replay
+    # idempotency, value-object JSON round trip) on the same generated sequence.
     SELF_CONSISTENCY_CHECKS = settings.self_consistency_checks
 
-    # HOW MANY CANDIDATE CHECKS `bin/qa_sweep` MAY SPEND SHRINKING ONE
-    # SURPRISED CHECK before printing its report (`Hecks::Fuzzing::
-    # Shrinker`, lib/hecks/fuzzing/shrinker.rb). Each candidate is one
-    # replay of that check's own mode — for `differential` that is a Ruby
-    # replay plus a Rust subprocess, for `persistence_parity` a real
-    # Postgres round trip — so this is a time fence, not a quality dial:
-    # a budget that runs out still hands back a demonstration that
-    # reproduces, just a less small one. Zero turns shrinking off (the
-    # report then carries only the full generated sequence, as before
-    # this existed). `concurrency` is never shrunk at any budget: a race
-    # does not reproduce on demand, so "still reproduces" means nothing.
+    # Candidate replays `bin/qa_sweep` may spend shrinking one surprised check; 0 turns shrinking
+    # off. `concurrency` is never shrunk: a race does not reproduce on demand.
     SHRINK_BUDGET = settings.shrink_budget
 
-    # THE THREE DIALS BELOW ARE READ IN CODE — `Hecks::Fuzzing::
-    # RotationPriority`, every time `bin/qa_sweep` picks a single target
-    # with no name given — because the weighting formula has to be a pure
-    # function of ledger state, not a "please remember to weight it"
-    # instruction, so the numbers it runs on have to be data a program
-    # reads too, not only a human. Only `CADENCE_SECONDS` and
-    # `LIVENESS_FALLBACK_SECONDS` above are still read by an AGENT (the
-    # `/loop hecks_qa` caller) rather than by Ruby; every other dial in
-    # this module is named by a script or a module in this repository.
-
-    # HOW MANY SECONDS OF STALENESS ONE POINT OF A TARGET'S OWN DECAYED
-    # YIELD SCORE IS WORTH. `RotationPriority.pick` adds
-    # `yield_score.value * YIELD_WEIGHT_SECONDS` straight onto a target's
-    # own staleness in seconds before comparing candidates, so this reads
-    # literally as "one more bug-bearing release is worth this many
-    # seconds of head start over a target that has not been swept in a
-    # while." Zero would make yield invisible and put the pick straight
-    # back to pure least-recently-swept — unlike the two dials above,
-    # that is not a real "uncapped" escape hatch here, just a small
-    # weight, so pick a number believing the practice actually wants
-    # yield to matter.
+    # Seconds of staleness that one point of yield score is worth in `RotationPriority.pick`.
+    # Zero would make yield invisible, so pick a number that lets it matter.
     YIELD_WEIGHT_SECONDS = settings.yield_weight_seconds
 
-    # WHAT SURVIVES ONE RELEASE, as a percentage of the OLD score. A
-    # target's yield score is not a running total of every bug it has
-    # ever produced — a chapter that found three things two months ago
-    # and has been clean for forty sweeps since should not still
-    # out-rank one nobody has looked at all week, which a running total
-    # would do forever. 50 means roughly the last two or three releases'
-    # worth of findings dominate the number, which is what "recent"
-    # yield is supposed to mean. The decay itself happens in the CALLER,
-    # never inside `Target.Release` — see that command's own comment for
-    # why the mutation language cannot express "decay, then add" against
-    # one field in one command.
+    # Percent of the prior yield score kept at each release, so recent findings dominate.
+    # Applied by the caller: the mutation language cannot express "decay, then add" in `Release`.
     YIELD_DECAY_PERCENT = settings.yield_decay_percent
 
-    # THE FLOOR. Weighting toward yield is supposed to sharpen the
-    # rotation, not let an exhausted target starve just because
-    # something else keeps finding bugs — a target can go quiet for a
-    # long stretch and then find something again, the way roster did
-    # across a whole session's worth of otherwise-clean sweeps
-    # elsewhere. Past this many seconds since it was last swept, a
-    # waiting target wins `RotationPriority.pick` outright, yield score
-    # or not — see that module's own comment for the exact mechanics.
-    # Six hours is long enough that it never fires in one ordinary
-    # sweeping session and short enough that nothing sits untouched for
-    # days.
+    # Once a waiting target is this stale, `RotationPriority.pick` takes it whatever its yield
+    # score, so a quiet target cannot starve.
     ROTATION_STALE_FLOOR_SECONDS = settings.rotation_stale_floor_seconds
 
-    # THE PERSISTENCE-PARITY AXIS'S OWN SPEED FENCE — `bin/qa_sweep
-    # --persistence-parity` (lib/hecks/fuzzing/persistence_parity.rb) pays
-    # for a real `PG.connect` and real SQL per dispatch, against a real
-    # disposable `PostgresEra` database, where every OTHER check this
-    # practice runs (Memory-vs-Rust, Memory-only properties) pays for
-    # neither. Clamped here, not left to whatever `--seeds` a human or an
-    # agent happens to type — the same reason `CADENCE_SECONDS`/
-    # `PR_CAP_PER_DAY` live as data instead of prose: a human changes the
-    # number by editing this file and reviewing the diff, not by asking a
-    # running agent to remember a different one. `bin/qa_sweep` reads this
-    # as a CEILING on `--seeds`, clamping down (never up) and printing a
-    # note when it does — a smaller `--seeds` for an ordinary quick check
-    # is still honoured exactly as given.
+    # Ceiling on `--seeds` for `--persistence-parity`, which pays for real Postgres per dispatch.
+    # `bin/qa_sweep` clamps down, never up, and prints a note.
     PERSISTENCE_PARITY_SEED_CAP = settings.persistence_parity_seed_cap
 
-    # THE `concurrency` AXIS'S OWN SPEED FENCE, TIGHTER STILL —
-    # `bin/qa_sweep --modes concurrency` (lib/hecks/fuzzing/
-    # concurrent_dispatch.rb) pays for TWO disposable PostgresEra schemas
-    # per seed (a real forked race, plus its own sequential oracle) where
-    # `persistence_parity` pays for one — roughly twice the real-Postgres
-    # I/O, for one seed. Same discipline as `PERSISTENCE_PARITY_SEED_CAP`:
-    # a ceiling on `--seeds`, clamped down (never up), a human's number
-    # changed by editing this file.
+    # Ceiling on `--seeds` for the concurrency mode, which needs two disposable schemas per seed.
     CONCURRENCY_SEED_CAP = settings.concurrency_seed_cap
 
-    # WHICH TWO ADAPTERS EACH ADAPTER-PARITY MODE COMPARES, BY MODE NAME —
-    # `Hecks::Fuzzing::PersistenceParity.diff` (lib/hecks/fuzzing/
-    # persistence_parity.rb) used to hardcode Memory vs PostgresEra; it now
-    # takes `left:`/`right:` adapter symbols, so a NEW pairing is this hash
-    # gaining an entry, never a new diff method. `persistence_parity`'s own
-    # entry is exactly what `bin/qa_sweep` hardcoded before this dial
-    # existed — changing it changes what that mode compares, not just
-    # whether it runs (`MODES`, below, is the "whether"). `adapter_parity_
-    # sqlite`'s pair needs no `database:`/`schema:` — `:sqlite` has no
-    # disposable-database lifecycle to own (`IsolatedBoot#rebind_to_
-    # sqlite!`'s own header).
+    # The two adapters each adapter-parity mode compares, by mode name; a new pairing is a new
+    # entry. `adapter_parity_sqlite` needs no `database:`/`schema:` because sqlite has no
+    # disposable database.
     ADAPTER_PARITY_PAIRS = settings.adapter_parity_pairs
 
-    # MODES ARE DATA. Which comparison modes `bin/qa_sweep` runs is the
-    # ONE rule `modes_to_run = MODES.select(enabled) ∩ TargetCapabilities.
-    # infer(path)` (lib/hecks/fuzzing/target_capabilities.rb — that
-    # module's own header explains why inference off the filesystem,
-    # never a stored list, is the decider; `MODE_REQUIREMENTS` there is
-    # the capability each mode needs). This hash is the OTHER half of
-    # that rule: which modes a human has turned on at all. A `false` here
-    # names a mode the practice knows it wants and has not built yet —
-    # flipping it is the whole change once the code exists, and until
-    # then `resolved modes:` already says, per target, which of them
-    # WOULD be eligible. `--modes a,b,c` overrides this list for one run;
-    # `--persistence-parity` and `--self-consistency false` are aliases
-    # kept for the hands that already type them.
+    # Which comparison modes `bin/qa_sweep` may run: the enabled ones intersected with what
+    # `TargetCapabilities.infer(path)` finds in the target. `--modes a,b,c` overrides for one run.
     #
-    # TWO KINDS OF `false` LIVE IN THIS TABLE, AND CONFLATING THEM IS HOW
-    # A DIAL GETS FLIPPED BY ACCIDENT. `adapter_parity_sqlite`,
-    # `era_boundary` and `concurrency` are BUILT and deliberately off:
-    # each is real extra I/O multiplied across the whole rotation
-    # (`concurrency` pays for a real fork and two real disposable schemas
-    # per seed — see `bin/qa_sweep`'s own top-of-file comment for the
-    # mechanism), and this practice has not yet measured that cost at
-    # rotation scale. Flipping one is the entire enablement once someone
-    # has. `wasm_front` and `adapter_parity_postgres` are off for a
-    # categorically different reason: NOTHING RUNS THEM. No compiled WASM
-    # dispatch front exists in this repository to compare against, and
-    # `adapter_parity_postgres` has no pair in `ADAPTER_PARITY_PAIRS`, no
-    # branch in `bin/qa_sweep`, and no place in `--all`'s deferred wave
-    # (which names only `era_boundary`/`concurrency`).
-    #
-    # ALL FIVE WERE `true` FOR A WHILE, AND ONLY THE BUILT ONES MADE A
-    # SOUND. Commit `4a917a37` flipped the lot inside a PR about something
-    # else; the three built ones turned main red on four `:io` examples
-    # and were reverted (#741). The two unbuilt ones did nothing at all,
-    # and that silence is the defect: `TargetCapabilities.resolve` only
-    # asks whether the target HAS the capability, so each landed in
-    # `active_modes`, printed on the `resolved modes:` line and into the
-    # sweep's own `notes=`, and produced no Check — a sweep advertising a
-    # comparison nobody had written. That is exactly the quiet divergence
-    # this chapter's opening comment names, aimed at the practice itself.
-    # `TargetCapabilities::RUNNABLE_MODES` now says which modes exist,
-    # `bin/qa_sweep` REFUSES to start when a dial or `--modes` enables one
-    # that does not, and `spec/qa_sweep_runnable_modes_spec.rb` greps the
-    # runner so the list cannot drift from the code again.
+    # `wasm_front` and `adapter_parity_postgres` are off because nothing runs them; the others are
+    # built and off because their I/O cost across the rotation is unmeasured. `bin/qa_sweep`
+    # refuses to start when a mode outside `TargetCapabilities::RUNNABLE_MODES` is enabled.
     MODES = settings.modes
 
-    # HOW OFTEN A GENERATED ROLE-GATED COMMAND STEP CARRIES A DRAWN CALLER
-    # (`role:`/`actor_id:` on the step — `SequenceGenerator`'s
-    # `role_draw:` option, lib/hecks/fuzzing/sequence_generator/
-    # adversary.rb's `caller_role` shapes). `refuse_role_mismatch` is a
-    # `DISPATCH_ORDER` step (lib/hecks/vocabulary.rb) that no generated
-    # sequence had ever exercised: the generator emitted no `role`, so
-    # both engines' role checks were dormant on every sweep. Zero turns
-    # the draw off (byte-identical sequences to before it existed) —
-    # the same opt-in contract `ADVERSARIAL_FRACTION` has.
+    # How often a generated role-gated command step carries a drawn caller (`role:`/`actor_id:`);
+    # 0 turns the draw off.
     ROLE_DRAW_PROBABILITY = settings.role_draw_probability
 
-    # WHAT FRACTION OF GENERATED COMMAND STEPS ARE OFFERED AS A DRY RUN
-    # (`{"dry_run": verb, "args": …}` — `Dispatcher#dry_run?`, `kernel/
-    # cli.rs`'s own `dry_run` door) instead of a real dispatch. Both
-    # engines already answered the step; nothing generated it, so the
-    # `dry_runs` surface was never compared and "a dry run leaves no
-    # trace" was never a checked property. Zero turns the draw off, same
-    # contract as `ROLE_DRAW_PROBABILITY`. Kept low: a dry-run step
-    # reaches no new state for later steps to act on.
+    # Fraction of generated command steps offered as a dry run instead of a real dispatch; 0 is
+    # off. Kept low: a dry run creates no state for later steps to act on.
     DRY_RUN_FRACTION = settings.dry_run_fraction
 
-    # HOW MANY GENERATED DOMAINS ONE `bin/qa_tick` CHECKS, after the
-    # rotation sweep — `bin/qa_generated_domains --from-dials` (that
-    # script's header has the why: the ledger's most productive sweeps
-    # were each hand-written stress domain's FIRST, and this writes new
-    # construct combinations mechanically). Each tick starts from a fresh
-    # domain seed, printed. Zero turns the step off; the tick then runs
-    # exactly the two steps it always did.
+    # How many generated domains one `bin/qa_tick` checks after the rotation sweep; 0 skips the
+    # step.
     GENERATED_DOMAINS_PER_TICK = settings.generated_domains_per_tick
 
-    # WHETHER THOSE DOMAINS ARE ALSO COMPARED AGAINST A COMPILED RUST
-    # BINARY — projected into a scratch copy of the crate, never the
-    # checked-in `rust/`. Measured while building it: projection ~2.5s and
-    # an incremental `cargo build --features qa_generated` ~2-3s per
-    # domain, so the axis the ledger's bugs mostly came from is cheap
-    # enough to run every tick.
+    # Whether generated domains are also compared against a compiled Rust binary built in a scratch
+    # copy.
     GENERATED_DOMAINS_RUST = settings.generated_domains_rust
 
-    # HOW MANY GENERATED SEQUENCES EACH GENERATED DOMAIN GETS.
+    # Generated sequences run per generated domain.
     GENERATED_DOMAIN_SEEDS = settings.generated_domain_seeds
 
-    # THE CONSTRUCT FAMILIES A SKIPPED QUERY VERB MAY BELONG TO. The
-    # differential comparison drops a named query/read model only when the
-    # binary's manifest.json declares it `generated: false`
-    # (`Hecks::Fuzzing::RustGapManifest`); `Hecks::Fuzzing::StructuralSkips`
-    # then names each skipped verb's `construct` from that same entry. A
-    # skip whose construct is in this list is logged Held with the list on
-    # the record; one outside it is Surprised. The list is shrink-only:
-    # spec/fuzzing/rust_gap_manifest_spec.rb fails when a family here is
-    # declared by no committed manifest, so each gap codegen closes takes
-    # its family out and turns the next such skip into a finding.
+    # Construct families a skipped query verb may belong to. A skip inside the list is logged Held,
+    # one outside it Surprised. Shrink-only: spec/fuzzing/rust_gap_manifest_spec.rb fails when a
+    # family here is declared by no committed manifest.
     STRUCTURAL_REFUSAL_BOUNDARY = settings.structural_refusal_boundary
   end
 end
@@ -458,15 +124,8 @@ Hecks.bluebook "QualityControl" do
 
   core
 
-  # ── whose turn it is ─────────────────────────────────────────────────
-
-  # THE ROTATION, AND THE LOCK.
-  #
-  # The only aggregate here whose whole reason is coordination: more than one
-  # QA agent runs at a time, and two of them starting on Banking is wasted
-  # work and duplicate bugs. `Claim` is a lifecycle edge, so the race resolves
-  # itself — one transition wins and the other agent is refused and takes the
-  # next chapter. Nothing needed a lock; the machine already is one.
+  # The rotation and its lock: `Claim` is a lifecycle edge, so when two agents race for a chapter
+  # one transition wins and the other is refused.
   aggregate "Target" do
     description "A chapter that can be pressure-tested, and whose turn it is — the rotation, and the claim that stops two agents doing the same work twice."
 
@@ -475,44 +134,17 @@ Hecks.bluebook "QualityControl" do
     attribute :reference,  TargetReference
     attribute :path,       TargetPath
     attribute :held_by,    Engineer
-    # WHEN THE CLAIM WAS TAKEN, as a number. Not a timestamp type: the
-    # predicate sublanguage compares numbers and nothing else, and the
-    # staleness rule below has to be EXPRESSIBLE, not merely true.
+    # A number, not a timestamp type: the predicate sublanguage compares only numbers.
     attribute :claimed_at, Instant
     attribute :window,     StaleAfter
     attribute :last_swept, SweptIn
-    # A DECAYED COUNT OF HOW OFTEN THIS CHAPTER HAS RECENTLY BEEN WORTH
-    # SWEEPING — see `YieldScore`'s own comment for what it holds and
-    # `QualityControlDials::YIELD_WEIGHT_SECONDS`/`RotationPriority` for
-    # what it is FOR. Zero, same as `SweptIn`, means "nothing recent to
-    # weight toward" — a fresh target and a long-clean one both start
-    # here, which is exactly right: neither has EARNED priority yet.
+    # Recency-decayed count of how often this chapter was worth sweeping; see `YieldScore`.
     attribute :yield_score, YieldScore
-    # HOW MANY CONSECUTIVE `Release`s IN A ROW CAME BACK CLEAN — not a
-    # count of sweeps ever run, a count of sweeps run SINCE THE LAST TIME
-    # ANYTHING SURPRISED THIS TARGET. `bin/qa_sweep` reads it right after
-    # claiming, to decide how hard to fuzz THIS pass (see that file's own
-    # header on the widening formula): a target that has held clean fifty
-    # times running is under-tested by a fixed shallow sweep the same way
-    # a target just added to the rotation is — the streak is what tells
-    # the runner which of those two situations it is actually in.
-    #
-    # ZERO MEANS "NO STREAK YET" — a freshly `Identify`d target (never
-    # swept), and a target whose last sweep ever surprised, read
-    # identically here, on purpose: both deserve the narrowest, cheapest
-    # pass until they have proven themselves clean again. Same shape
-    # `SweptIn`'s own "zero sorts first for free" comment already gives.
+    # Consecutive `Release`s that came back clean; `bin/qa_sweep` reads it to choose sweep depth.
+    # Zero means no streak yet, shared on purpose by a never-swept target and a just-surprised one.
     attribute :clean_streak, CleanStreak
-    # WHAT THIS CHAPTER CAN BE COMPARED AGAINST — comma-joined mode names
-    # (`"rust,postgres_era"`), recorded by whoever releases it from what
-    # that runner actually inferred from the chapter's own files (a
-    # `rust/Cargo.toml` feature, a `persisted_by("PostgresEra")` binding).
-    # STORED, NOT DECIDED: inference at sweep time stays the decider of
-    # which modes run; this field only makes that decision LEDGER-VISIBLE
-    # (`EligibleFor`, below), so "why did directory never get a parity
-    # pass" is a query rather than an archaeology. A stored list that
-    # lags yesterday's Cargo feature is itself the quiet divergence this
-    # practice hunts — see `Capabilities`'s own comment on the shape.
+    # Comma-joined mode names recorded at release from what the runner inferred. Stored so
+    # `EligibleFor` can answer why a mode never ran; inference at sweep time still decides.
     attribute :capabilities, Capabilities
     attribute :reason,     TargetReason
 
@@ -521,8 +153,7 @@ Hecks.bluebook "QualityControl" do
       invariant("a target is referenced") { !value.to_s.empty? }
     end
 
-    # WHERE IT ACTUALLY IS. Required, because "Banking" is a name two people
-    # can disagree about and a path is a thing you can open.
+    # Required: a name can be disputed, a path can be opened.
     value_object "TargetPath" do
       attribute :value, String, pattern: '[^ \t\n\r]'
       invariant("a target says where it is") { !value.to_s.empty? }
@@ -537,26 +168,14 @@ Hecks.bluebook "QualityControl" do
       invariant("an instant is not before the epoch") { !value.negative? }
     end
 
-    # WHEN IT WAS LAST SWEPT, AS A NUMBER — and the first version of this was
-    # the string "never", which does not sort. `order_by :last_swept` put
-    # "SW-9" before "never" because S precedes n in ASCII, so the rotation
-    # offered the recently-swept chapter first and the never-swept one last:
-    # exactly backwards, silently, which is the failure this whole chapter
-    # exists to hunt. Caught by its own spec.
-    #
-    # Zero means never, and zero sorts first for free.
+    # A number, not a string: "never" sorts after "SW-9" and inverts the rotation. Zero means
+    # never.
     value_object "SweptIn" do
       attribute :value, Integer, default: 0
       invariant("a sweep time is not before the epoch") { !value.negative? }
     end
 
-    # A COUNT, NOT A CLOCK — unlike every other Integer VO in this
-    # aggregate (`Instant`, `SweptIn`), nothing here compares this against
-    # `now`. `default: 0` is what makes this field ADDITIVE to a live
-    # ledger: an existing `Target` row written before this field existed
-    # hydrates with `clean_streak.value == 0` rather than refusing to
-    # boot — the exact same "zero means never" shape `SweptIn` already
-    # established for a row from before ITS own field existed.
+    # A count, not a clock. `default: 0` keeps rows written before this field hydrating.
     value_object "CleanStreak" do
       attribute :value, Integer, default: 0
       invariant("a streak is not negative") { !value.negative? }
@@ -567,52 +186,27 @@ Hecks.bluebook "QualityControl" do
       invariant("shelving a target says why") { !value.to_s.empty? }
     end
 
-    # COMMA-JOINED, ONE STRING — the `Bug.Tagged` shape (`contains`
-    # against a bound argument) without a `list_of`: `EligibleFor` asks
-    # "does this chapter carry mode X" and `contains` answers it as a
-    # substring on a scalar, which is exactly what a comma-joined list of
-    # short, distinct mode names needs and nothing more. `default: ""` is
-    # what makes this ADDITIVE to a live ledger, the same `CleanStreak`
-    # precedent: a `Target` row written before this field existed
-    # hydrates as "nothing recorded yet", not as a refusal to boot.
+    # Comma-joined in one string so `EligibleFor` can test it with `contains`.
+    # `default: ""` keeps rows written before this field booting.
     value_object "Capabilities" do
       attribute :value, String, default: ""
     end
 
-    # ONE MODE NAME, as `EligibleFor`'s own argument — a query attribute,
-    # never stored on the record, so it costs no era.
+    # One mode name, as `EligibleFor`'s argument; a query attribute, never stored.
     value_object "Capability" do
       attribute :value, String, pattern: '[^ \t\n\r]'
       invariant("a mode is named") { !value.to_s.empty? }
     end
 
-    # RECENCY-WEIGHTED, NOT LIFETIME. This is not "how many bugs this
-    # chapter has ever produced" — that number only grows, and would let
-    # one hot month outrank every other target forever. It is the
-    # decayed count `Hecks::Fuzzing::RotationPriority.next_yield_score`
-    # computes at each `Release`: mostly this period's own findings,
-    # fading out what came before by `QualityControlDials::
-    # YIELD_DECAY_PERCENT` every time. An Integer, like `CheckCount` and
-    # `BugOrder` elsewhere in this chapter — a priority signal, not a
-    # statistic anyone reports on its own.
+    # Recency-weighted, not lifetime: `RotationPriority.next_yield_score` decays it at each
+    # `Release` by `QualityControlDials::YIELD_DECAY_PERCENT`.
     value_object "YieldScore" do
       attribute :value, Integer, default: 0
       invariant("a yield score is not negative") { !value.negative? }
     end
 
-    # `suspended` IS "SURPRISED, WAITING FOR A PERSON" — a real state,
-    # distinct from `held`. Before it existed, a target `bin/qa_sweep`
-    # left held after a surprise was indistinguishable from one an agent
-    # was busy sweeping: both read `held`, both dropped out of `Rotation`,
-    # and the only difference was in a report somebody may have read. A
-    # claim that goes stale is taken by whoever is next (this chapter's
-    # own header) — which is exactly right for a busy agent and exactly
-    # wrong for a chapter with an unresolved surprising check, which must
-    # NOT be re-fuzzed in a known-broken state on the next tick. So the
-    # surprise moves the record here (`SuspendOnSurprise`, at this file's
-    # own foot), where no stale-claim arithmetic ever reaches it, and only
-    # a `Release` — a person's deliberate `bin/qa_sweep <t> --release` —
-    # puts it back in the rotation.
+    # `suspended` is "surprised, waiting for a person": stale-claim arithmetic never reaches it, so
+    # a chapter with an unresolved surprise is not re-fuzzed until a `Release` puts it back.
     lifecycle :status, default: "waiting" do
       transition "Claim"   => "held",      from: ["waiting", "held"]
       transition "Release" => "waiting",   from: ["held", "suspended"]
@@ -631,32 +225,16 @@ Hecks.bluebook "QualityControl" do
       emits "TargetIdentified"
     end
 
-    # THE STALE CLAIM, IN THE ARITHMETIC THE LANGUAGE ACTUALLY HAS.
-    #
-    # `from: ["waiting", "held"]` looks wrong and is the point: a held target
-    # CAN be claimed, but only once its claim has gone stale. The rule reads
-    # "it is not held, or the claim is old enough", and it is spelled as an
-    # addition because the sublanguage has `+` and no `-` — `claimed_at +
-    # window <= now` says what `now - claimed_at >= window` would, in the
-    # words available.
-    #
-    # `now` ARRIVES AS AN ARGUMENT, from the Clock port. A predicate cannot
-    # ask the time — it reads attributes and nothing else — so the caller
-    # supplies it, exactly as it supplies an id. The port is what makes that
-    # testable instead of dependent on wall-clock luck.
+    # `from: ["waiting", "held"]` is deliberate: a held target is claimable once its claim is
+    # stale. The sublanguage has `+` and no `-`, so `claimed_at + window <= now` stands for `now -
+    # claimed_at >= window`. `now` arrives as an argument (Clock port) because a predicate cannot
+    # read the time.
     command "Claim" do
       role "QA engineer"
       goal "Take the next chapter in the rotation, or one whose holder has gone quiet"
 
-      # THE WINDOW IS NOT THE CLAIMER'S TO SET. It was an argument, which meant
-      # any agent could take a live claim from any other by asking with a window
-      # of one second — the guard read a number the CALLER supplied and dutifully
-      # agreed. A staleness rule that the party it constrains gets to choose is
-      # not a rule.
-      #
-      # So it lives on the record, where `given` reads it as state and no dispatch
-      # can name it. Fifteen minutes is the practice's answer, written once as a
-      # default rather than re-asserted by every claimer.
+      # The window lives on the record, not in an argument: a caller-supplied window would let any
+      # agent take a live claim by asking with a window of one second.
       reference_to Target
       attribute :held_by,    Engineer
       attribute :now,        Instant
@@ -680,74 +258,21 @@ Hecks.bluebook "QualityControl" do
       role "QA engineer"
       goal "Hand a chapter back to the rotation, stamped with when, what this pass was worth, and how the clean streak moves"
 
-      # THE ARGUMENT IS `now`, AND THE FIELD IS `last_swept`, which is what
-      # `sets` is for. It was `last_swept` on both sides and that made it
-      # the one timestamp a caller still had to type by hand — the door fills
-      # `now` and knows nothing about a field called `last_swept`. Naming the
-      # ARGUMENT for where it comes from and the FIELD for what it means costs
-      # one line and leaves no hand-typed clock anywhere in the chapter.
+      # `now` is the argument and `last_swept` the field, so the door can fill the clock.
       #
-      # `next_streak` IS THE SAME SHAPE, ONE FIELD OVER — and it is the
-      # CALLER'S to compute, not this record's, for the identical reason
-      # `now` is: whether the sweep just concluded was clean is a fact
-      # about `Sweep` (and, for any check ever marked `Surprised`, about
-      # that check's own sticky `ever_surprised` — see `Sweep::Check::
-      # Surprised`'s own comment — which survives even a later `Remake`
-      # that resolves it), and `Target` cannot read another aggregate's
-      # state to check that for itself. No policy could carry it either —
-      # see this file's OWN closing comment on why the rotation gets no
-      # automatic reaction at all: the payload a `SweepConcluded` event
-      # carries has no way to reach back into `Sweep.checks` for this, and
-      # a reaction that cannot carry what its target needs refuses at run
-      # time while reading, in the log, as though it had worked. So this
-      # is REQUIRED, not defaulted or left optional the way an absent fact
-      # quietly resolves to nil elsewhere in this language — an omitted
-      # streak would either silently blank a real counter or silently
-      # guess at continuing it, and neither is a guess this record should
-      # make about work it never watched happen.
-      #
-      # `bin/qa_sweep` already has to read THIS record's own `clean_streak`
-      # before it ever claims, to size the very sweep it is about to run —
-      # so computing `clean_streak.value + 1` (every check held, and none
-      # of them ever surprised) or `0` (anything did) costs it nothing
-      # extra, and keeps the arithmetic out of the one record that cannot
-      # check it for itself.
+      # `next_streak` is the caller's to compute (`clean_streak + 1` if every check held and none
+      # was ever surprised, else 0): `Target` cannot read `Sweep` state and no policy payload can
+      # carry it. Required, so an omitted streak can neither blank the counter nor guess at it.
       reference_to Target
       attribute :now,          Instant
       attribute :next_streak,  CleanStreak
-      # WHAT THE RELEASING RUNNER INFERRED THIS CHAPTER CAN BE COMPARED
-      # AGAINST — see the attribute's own comment. REQUIRED, like
-      # `yield_score` and for the same reason: an in-process dispatch does
-      # not fill a defaulted value object in for an absent argument (only
-      # the CLI door does, and only for `now`), so an omitted list would
-      # be a refusal, not a quiet blank — which is right. `bin/qa_sweep`
-      # infers it on every release it makes, the clean path and
-      # `--release` alike; a human releasing through `bin/run` by hand
-      # types what they know (`capabilities.value=""` is honest too).
+      # Required: an in-process dispatch does not fill defaults for absent arguments, so an omitted
+      # list refuses rather than blanks. `capabilities.value=""` is an honest value.
       attribute :capabilities, Capabilities
 
-      # REQUIRED, NOT DEFAULTED TO ZERO — the same call `Submitter` already
-      # makes over `Engineer`'s "nobody" default (see that value object's own
-      # comment): a caller that could silently release a target at yield
-      # zero would quietly erase whatever it actually found, the exact
-      # failure this whole chapter exists to hunt. The releasing caller
-      # already has the target's OLD `yield_score` in hand (it just claimed
-      # or is holding this very record) and knows how many things this pass
-      # actually turned up, so it computes the next value itself —
-      # `Hecks::Fuzzing::RotationPriority.next_yield_score` — and this
-      # command only stores what it is told, the same division of labor
-      # `now`/`last_swept` already have.
-      #
-      # WHY THE DECAY DOES NOT LIVE HERE, AS ITS OWN MUTATION. The
-      # mutation language has both `multiply` (decay) and `increment` (add
-      # this period's finds) — but a command's declared mutations are one
-      # update set, and build refuses a field written twice
-      # (`MutationApplier`'s own comment on `CommandBuilder#refuse_
-      # duplicate_targets!`). `sets :yield_score, multiply: ...` and a
-      # second `sets :yield_score, increment: ...` right after it is not two
-      # steps, it is a build-time refusal. So the arithmetic happens exactly
-      # where `now` already happens — in the caller — and only the finished
-      # number crosses into the aggregate.
+      # Required, not defaulted to zero: a silent zero would erase what the pass found. The caller
+      # computes `RotationPriority.next_yield_score`; decay cannot be a second mutation here
+      # because build refuses a field written twice in one command.
       attribute :yield_score, YieldScore
 
       sets :last_swept, to: :now
@@ -758,14 +283,7 @@ Hecks.bluebook "QualityControl" do
       emits "TargetReleased"
     end
 
-    # `role "System"` — DISPATCHED BY A POLICY, NEVER TYPED. `SuspendOnSurprise`
-    # (this file's own foot) fires this the moment any `Sweep::Check::
-    # Surprised` lands, carrying that check's own restated `target`. The
-    # same `System` role `Ticket.Filed`/`Clearance.Passed` already wear for
-    # the identical reason: a fact the machine records about itself, not a
-    # decision a person makes. `reason` is a literal the policy supplies —
-    # see that policy's own `with:` — so a reader of `Target.Suspended`
-    # sees what to do, not just that something happened.
+    # Dispatched by `SuspendOnSurprise` as `System`; `reason` is the literal that policy supplies.
     command "Suspend" do
       role "System"
       goal "Take a chapter out of the rotation because a check surprised, until a person releases it"
@@ -790,12 +308,7 @@ Hecks.bluebook "QualityControl" do
       emits "TargetShelved"
     end
 
-    # `reason` IS REQUIRED HERE TOO, since BUG#23's own era: a silent
-    # un-shelve was how a chapter shelved for a real architectural blocker
-    # got put back in the rotation with nothing on the record saying
-    # whether that blocker was actually fixed or merely forgotten. The
-    # same `sets :reason` `Shelve` already keeps — so the record's `reason`
-    # always reads as the LAST decision made about it, in either direction.
+    # `reason` is required so the record's `reason` reads as the last decision in either direction.
     command "Restore" do
       role "QA engineer"
       goal "Put a shelved chapter back in the rotation, and say what changed"
@@ -808,21 +321,8 @@ Hecks.bluebook "QualityControl" do
       emits "TargetRestored"
     end
 
-    # STILL ORDERED BY `last_swept` ALONE, DELIBERATELY — `order_by`
-    # sorts by exactly one stored field (`Ports::Query::Ordering`), and a
-    # target's actual rotation PRIORITY wants two blended together: time
-    # since last swept, AND recent yield (`yield_score`, now a field on
-    # every row this returns). Nothing in the query sublanguage can
-    # express that blend, and computing it here would mean this query's
-    # answer changes with the wall clock even between two reads in the
-    # same request — which `where`/`order_by` never do anywhere else in
-    # this chapter. So this stays the raw view — useful on its own, "what
-    # has gone longest untouched" — and `Hecks::Fuzzing::RotationPriority
-    # .pick` is what actually weights it, against the rows this returns,
-    # in Ruby, where `now` can be an argument instead of a lie. See that
-    # module's own header for exactly what it changes: `bin/qa_sweep`
-    # picking ONE target with no name given, and nothing about `bin/
-    # qa_sweep --all`, which sweeps every row here regardless of order.
+    # Ordered by `last_swept` alone: `order_by` sorts one stored field, and the yield-weighted
+    # blend needs `now`. `RotationPriority.pick` weights these rows in Ruby.
     query "Rotation" do
       description "Whose turn it is — waiting chapters, least recently swept first. The one reason this aggregate exists. Raw ordering only — see Hecks::Fuzzing::RotationPriority for the yield-weighted pick built on top of these same rows."
       where(status: "waiting")
@@ -854,10 +354,7 @@ Hecks.bluebook "QualityControl" do
       order_by :reference
     end
 
-    # THE AUDIT `capabilities` EXISTS FOR — "which waiting chapters could
-    # a given mode run against", answered from the ledger rather than by
-    # re-walking every chapter's files. Least recently swept first, the
-    # same raw ordering `Rotation` gives, and for the same reason.
+    # Answers from the ledger which waiting chapters a mode could run against.
     query "EligibleFor" do
       description "Waiting chapters whose recorded capabilities include one mode — e.g. mode=postgres_era for the persistence-parity axis. The ledger's own answer to which chapters a mode can reach; inference at sweep time is still what decides."
       attribute :mode, Capability
@@ -872,8 +369,6 @@ Hecks.bluebook "QualityControl" do
     end
   end
 
-  # ── one pass over one chapter ────────────────────────────────────────
-
   aggregate "Sweep" do
     description "One agent's pass over one chapter — every check it made, what each expected, and what actually came back."
 
@@ -885,20 +380,11 @@ Hecks.bluebook "QualityControl" do
     attribute :engineer,  Engineer
     attribute :made,      CheckCount
     attribute :notes,     SweepNotes
-    # THE WAIVER COUNT — the mark that makes going round a gate countable. A
-    # counter rather than a flag because a sweep can bend more than one rule,
-    # and rather than a list because a `where` cannot ask whether a list is
-    # empty.
+    # A counter, not a flag (a sweep can bend several gates) or a list (`where` cannot test
+    # emptiness).
     attribute :waived,    WaiverCount
-    # WHO WAIVED — the signature beside the count. `waived` says a gate
-    # was gone round; this says by whom, and `WaivedBy`'s own invariants
-    # are what make "never waive it yourself" a REFUSAL rather than a
-    # sentence in SKILL.md an agent had to remember. Absent on every
-    # sweep that never waived anything, and on every row written before
-    # this field existed — no default, on purpose: a default signature
-    # would be a forged one. `optional: true` for the same reason: a row
-    # written before this field existed has no way to fill it, and there
-    # is no legitimate value to backfill it with.
+    # The signature beside the count. No default, since a default would be a forged signature;
+    # `optional: true` because a sweep that waived nothing has no signer.
     attribute :waived_by, WaivedBy, optional: true
     attribute :checks,    list_of(Check)
 
@@ -924,10 +410,7 @@ Hecks.bluebook "QualityControl" do
 
     value_object "SweepNotes" do
       attribute :value, String, pattern: '[^ \t\n\r]'
-      # THE NUMBER IS IN THE SENTENCE, because the sentence IS the refusal.
-      # "a sweep says what it learned" told a caller their note was wrong and
-      # not one thing about what would make it right, which is the exact
-      # failure this chapter opens by naming.
+      # The number is in the sentence because the sentence is the refusal message.
       invariant("a sweep says what it learned, in at least 40 characters") { value.to_s.size >= 40 }
     end
 
@@ -936,29 +419,17 @@ Hecks.bluebook "QualityControl" do
       invariant("a waived gate says why") { !value.to_s.empty? }
     end
 
-    # THE UNWAIVABLE SHAPE, APPLIED TO WAIVING ITSELF. This chapter's own
-    # header: an argument is satisfied or refused and never waived. "Never
-    # waive it yourself" used to be a bullet in SKILL.md — a rule an agent
-    # was asked to hold in mind — and now it is a required argument whose
-    # invariants refuse the loop's own identity outright. The literal
-    # `"qa_sweep"` here IS `QualityControlDials::AUTOMATED_ENGINEER`; the
-    # invariant grammar reads literals, not constants, so the two are
-    # pinned equal by `spec/quality_control_spec.rb` rather than by
-    # reference. `"nobody"` is refused for the reason `Submitter` already
-    # gives: an unsigned waiver is an anonymous one.
+    # The literal "qa_sweep" is `QualityControlDials::AUTOMATED_ENGINEER`; invariants read
+    # literals, so `spec/quality_control_spec.rb` pins the two equal. "nobody" is refused: unsigned
+    # is anonymous.
     value_object "WaivedBy" do
       attribute :value, String, pattern: '[^ \t\n\r]'
       invariant("a gate is waived by a person, never by the loop") { value != "qa_sweep" }
       invariant("a waiver is signed") { value != "nobody" }
     end
 
-    # THE TARGET, RESTATED ON A SURPRISE so the EVENT carries it — the
-    # `Bug.Fix` precedent (that command's own `reference` comment gives
-    # the full reasoning): an emitted event carries exactly the arguments
-    # it was dispatched with, never the record's own references, so
-    # `CheckSurprised` said `sequence` and `observation` and nothing a
-    # policy could address a `Target` by. `SuspendOnSurprise` (this file's
-    # own foot) is the reaction that needs it.
+    # Restated on a surprise so the event carries it: an event holds only its dispatched arguments,
+    # and `SuspendOnSurprise` needs a `Target` to address.
     value_object "TargetRef" do
       attribute :value, String
     end
@@ -968,14 +439,8 @@ Hecks.bluebook "QualityControl" do
       invariant("a check sequence is positive") { value.positive? }
     end
 
-    # WHAT WAS PUT TO THE SYSTEM — a verb, a script, a suite. Text, because
-    # the battery derives its subjects from the chapter's own command surface
-    # at run time, and a closed set here would refuse whatever the language
-    # grew last week.
-    # PLAIN TEXT, NO PATTERN — and that is the point. Every other string in
-    # this chapter refuses whitespace, because a reference or a name that is
-    # all spaces is a mistake somebody wants caught early. A test file is
-    # newlines by construction, and tool output is whatever the tool said.
+    # Plain text, no pattern: a test file is newlines by construction and tool output is whatever
+    # the tool said.
     value_object "Listing" do
       attribute :value, String
     end
@@ -985,13 +450,7 @@ Hecks.bluebook "QualityControl" do
       invariant("a check names what it put to the system") { !value.to_s.empty? }
     end
 
-    # WHAT WAS SUPPOSED TO HAPPEN, WRITTEN BEFORE IT DID.
-    #
-    # The load-bearing rule of this aggregate, and the reason a check is a
-    # record rather than a line in a log. A comparison needs two sides and one
-    # of them has to exist first: an expectation filled in after the answer is
-    # an expectation fitted to the answer, and a check that cannot be
-    # surprised finds nothing.
+    # Written before the answer exists: an expectation fitted to the answer cannot be surprised.
     value_object "Expectation" do
       attribute :value, String, pattern: '[^ \t\n\r]'
       invariant("a check says what it expected") { !value.to_s.empty? }
@@ -1001,17 +460,9 @@ Hecks.bluebook "QualityControl" do
       attribute :value, String
     end
 
-    # ONE COMPARISON.
-    #
-    # AN ENTITY, and the test is the one `docs/guides/entities.md` states: a
-    # check has its own identity, its own verbs and its own lifecycle, and
-    # never makes sense apart from the sweep that made it. Nobody looks up
-    # check 7 without already knowing which sweep ran it.
-    #
-    # The ask that would argue for a head — "show me every surprising check
-    # across every sweep" — is answered anyway: an entity query returns every
-    # matching element across every parent, stamped with the parent it came
-    # from. `Surprising` is that ask.
+    # One comparison. An entity: a check has its own identity, verbs and lifecycle, and only makes
+    # sense inside the sweep that made it. `Surprising` answers "every surprising check, any
+    # sweep".
     entity "Check" do
       description "One dispatch made against a written-down expectation, and what actually came back."
 
@@ -1021,25 +472,13 @@ Hecks.bluebook "QualityControl" do
       attribute :subject,     Subject
       attribute :expectation, Expectation
       attribute :observation, Observation, optional: true
-      # STICKY, ON PURPOSE — `outcome` (below) is the CURRENT verdict, and
-      # `Remake` deliberately puts it back to "made" so a check that was
-      # once surprising can be re-run against a system that has since
-      # changed. That is exactly right for the OUTCOME and exactly wrong
-      # for the QUESTION `Target::Release`'s own `next_streak` needs
-      # answered: "did anything in this sweep EVER surprise", which a
-      # `Remake`-then-`Held` cycle must never be able to erase. `default:
-      # "no"` rather than a `Boolean` type: this chapter has no precedent
-      # anywhere for a boolean-typed attribute, and `one_of` — already the
-      # established closed-set idiom here (`SafeDepositBox.size`'s own
-      # comment on the inline shorthand) — is one more construct nobody
-      # reading this file has to learn.
+      # Sticky: `outcome` is the current verdict and `Remake` resets it, but `Release`'s
+      # `next_streak` needs "did anything ever surprise this sweep", which a remake must not erase.
+      # `one_of` rather than a Boolean, which this chapter has no precedent for.
       attribute :ever_surprised, one_of("no", "yes"), default: { value: "no" }
 
-      # `surprising` IS NOT `failed`, AND THE DIFFERENCE IS THE POINT. A check
-      # that refused when it should have refused is `held`. A check that did
-      # something other than what was written down is `surprising` — which
-      # covers the crash AND the quiet divergence without prejudging which,
-      # and the quiet one is the whole reason this chapter exists.
+      # `surprising` is not `failed`: it covers the crash and the quiet divergence without
+      # prejudging which.
       lifecycle :outcome, default: "made" do
         transition "Held"      => "held",       from: "made"
         transition "Surprised" => "surprising", from: "made"
@@ -1065,18 +504,13 @@ Hecks.bluebook "QualityControl" do
 
         attribute :sequence,    CheckSequence
         attribute :observation, Observation
-        # RESTATED, NOT READ — see `TargetRef`'s own comment. The sweep
-        # this check lives under already references its target; this
-        # says it again purely so `CheckSurprised` rides forward with a
-        # `Target` id that `SuspendOnSurprise` can address. Required: a
-        # caller that forgets it is refused (`AbsentArgument`), not
-        # silently suspending nothing.
+        # Restated so `CheckSurprised` carries a `Target` id for `SuspendOnSurprise`; see
+        # `TargetRef`. Required: a caller that omits it is refused (`AbsentArgument`) rather than
+        # suspending nothing.
         attribute :target,      TargetRef
 
         sets :observation
-        # `to: "yes"` — A LITERAL, NEVER `Remake`d BACK. `ever_surprised`'s
-        # own comment is the full reasoning; this is the one place it is
-        # ever set, and nothing else in this entity ever sets it again.
+        # A literal, set here and nowhere else; see `ever_surprised`.
         sets :ever_surprised, to: "yes"
 
         emits "CheckSurprised"
@@ -1149,16 +583,9 @@ Hecks.bluebook "QualityControl" do
       attribute :subject,     Subject
       attribute :expectation, Expectation
 
-      # `sequence` IS ABSENT ON PURPOSE — `MutationApplier#entity_element`
-      # mints it as `size + 1`. A sweep numbers its checks in the order it
-      # made them, which is the only order that could be right.
-      #
-      # `observation` IS ABSENT FOR THE RULE'S SAKE. A check is written down
-      # when it is MADE, carrying only what it expected; what happened arrives
-      # afterwards. Allowing both halves in one dispatch would let a check be
-      # invented after the fact with its expectation written to match — the
-      # one thing this record must make impossible, since it is also the
-      # easiest mistake to make in good faith.
+      # `sequence` is absent because `MutationApplier#entity_element` mints it as `size + 1`.
+      # `observation` is absent on purpose: a check is written down when made, carrying only its
+      # expectation, so an expectation cannot be fitted to an answer after the fact.
       sets :checks, append: { subject: :subject, expectation: :expectation }
       sets :made,   increment: { value: 1 }
 
@@ -1167,20 +594,15 @@ Hecks.bluebook "QualityControl" do
       emits "CheckMade"
     end
 
-    # A GATE, WAIVED, AND MARKED SO IT CAN BE COUNTED.
-    #
-    # Every rule in this chapter bends except one. The point is not the escape
-    # — it is that `Sweep.Waived` can be read afterwards, so going round the
-    # protocol has a price that shows up in a number.
+    # Waiving is countable: `Sweep.Waived` can be read afterwards, so going round a gate has a
+    # price.
     command "Waive" do
       role "QA engineer"
       goal "Go round a gate, on the record, signed by a person"
 
       reference_to Sweep
       attribute :reason,    WaiverReason
-      # SIGNED, AND THE SIGNATURE IS CHECKED — `WaivedBy`'s own invariants
-      # refuse `"qa_sweep"` and `"nobody"`, which is the whole of "only a
-      # human actually calls waive" as an argument instead of a rule.
+      # `WaivedBy` refuses "qa_sweep" and "nobody", so only a person can sign.
       attribute :waived_by, WaivedBy
 
       sets :waived, increment: { value: 1 }
@@ -1198,10 +620,8 @@ Hecks.bluebook "QualityControl" do
       reference_to Sweep
       attribute :notes, SweepNotes
 
-      # THE GATE THE COUNTER EXISTS FOR — and the `waived` clause is what
-      # makes it a gate rather than a wall. A sweep that checked nothing
-      # tested nothing, and concluding it would put a pass in the record that
-      # a later reader takes as evidence the chapter was examined.
+      # A sweep that checked nothing tested nothing; the `waived` clause makes this a gate, not a
+      # wall.
       given("a sweep that checked nothing tested nothing") { made.value.positive? || waived.value.positive? }
 
       sets :notes
@@ -1235,19 +655,8 @@ Hecks.bluebook "QualityControl" do
     end
   end
 
-  # ── the bug ──────────────────────────────────────────────────────────
-
-  # ONE FAILING TEST, ONE BUG — AND THE TEST COMES FIRST.
-  #
-  # Nineteen red examples are not nineteen bugs, and they are not one bug with
-  # nineteen failures hanging off it. You take one, write the test that shows
-  # it, and log that. If fixing it clears the other sixteen, that is a good
-  # day and nobody writes it down.
-  #
-  # WHICH IS WHY THERE IS NO `found` STATE AND NO `Failure` RECORD. `Log`
-  # takes the demonstration as a required argument, so a bug that cannot be
-  # shown cannot be written down. It is the one rule here with no way through,
-  # because without it there is no evidence.
+  # One failing test, one bug, and the test comes first: `Log` requires the demonstration, so a bug
+  # that cannot be shown cannot be written down. Hence no `found` state and no `Failure` record.
   aggregate "Bug" do
     description "One thing now known to be wrong, the test that proves it, and how far the fix got."
 
@@ -1261,13 +670,8 @@ Hecks.bluebook "QualityControl" do
     attribute :demonstration, Demonstration
     attribute :symptom,       Symptom
     attribute :expectation,   Expectation
-    # WHO SAYS SO. A bug with no submitter is an anonymous accusation, and
-    # in a ledger more than one agent writes to, "who found this" is the
-    # first question anybody asks about a finding they did not make.
-    #
-    # DISTINCT FROM `held_by`, which is who is working on it NOW and changes
-    # every time a claim is taken or goes stale. A submitter never changes:
-    # it is a fact about the REPORT, not about the work.
+    # Who reported it. Distinct from `held_by` (who is working on it now); a submitter never
+    # changes.
     attribute :submitter,     Submitter
     attribute :order,         BugOrder
     attribute :tags,          list_of(Tag)
@@ -1278,65 +682,20 @@ Hecks.bluebook "QualityControl" do
     attribute :reason,        BugReason
     attribute :next_step,     NextStep
     attribute :waived,        WaiverCount
-    # THE SAME SIGNATURE `Sweep.waived_by` CARRIES, for the same reason —
-    # read that attribute's own comment. Absent until a person waives,
-    # and `optional: true` for the same reason: no row written before
-    # this field existed can fill it.
+    # The same signature as `Sweep.waived_by`; absent until a person waives.
     attribute :waived_by,     WaivedBy, optional: true
-    # A SHORT, MEMORABLE HANDLE — `BUG#33` is unambiguous but says nothing;
-    # `replace-entries-duplicate-identity` is what a person actually
-    # remembers a bug by a week later. `Log`'s own comment (below) is
-    # where a fresh bug picks one up going forward; this is what lets
-    # every bug already on file get one after the fact.
-    #
-    # OPTIONAL, NO DEFAULT — `WaivedBy`'s own comment gives the identical
-    # reasoning: no row written before this field existed can fill it
-    # (`optional: true`), and there is no legitimate value to backfill it
-    # with either. A good slug cannot be auto-generated for an old bug —
-    # only a person reading what it actually was can write one — and a
-    # forced `default: ""` would be noise on every one of the 36 bugs
-    # already logged, not a real name.
+    # A short memorable handle such as `replace-entries-duplicate-identity`. Optional with no
+    # default: only a person reading an old bug can write a good slug.
     attribute :name,          BugName, optional: true
-    # SELF-CONTAINED OR BIGGER — the one judgment "On a surprising check"
-    # always asked an agent to make and never asked it to WRITE DOWN.
-    # `undecided` is the state a bug is born in; `Triage` is the only
-    # thing that moves it, and `BugsByDisposition` is what makes the
-    # practice's own split ("how much of what we find can we fix on the
-    # spot") a number rather than a feeling. `one_of` with a default, the
-    # `Check.ever_surprised` idiom, rather than a Boolean this chapter has
-    # no precedent for — and `default:` is what makes this ADDITIVE to
-    # every bug already on file: each hydrates `undecided`, which is
-    # exactly true of a bug nobody triaged.
+    # Whether the bug is fixable on the spot or bigger; `Triage` is the only mover.
+    # `default:` keeps rows already on file hydrating as `undecided`.
     attribute :disposition,   one_of("undecided", "self_contained", "bigger"), default: { value: "undecided" }
-    # "YES" UNLESS SOMEBODY SAYS OTHERWISE — the same `one_of`-with-
-    # default shape `disposition` (above) uses, and for the identical
-    # reason: `default:` is what makes this ADDITIVE to every one of the
-    # ~56+ bugs already on file, each hydrating `yes`, which is exactly
-    # true of them — `bin/qa_log_bug`'s own absolute rule (this file's
-    # header) has always required a demonstration that actually fails,
-    # so every bug logged before this attribute existed already has a
-    # real, reliably-reproducing one. UNLIKE `name`/`waived_by`, a
-    # genuine default value exists here — it is not "no legitimate value
-    # to backfill with" (their own comments), it is a true fact about
-    # every existing row. Only a NEWLY-logged bug can be `no`: the
-    # escape hatch for a finding an agent is confident is real but
-    # cannot get to reproduce reliably (flaky, environment-sensitive,
-    # timing-dependent) — see `bin/qa_log_bug --reproduced no` and
-    # `Log`'s own `reproduced` argument, below.
+    # `default: yes` is true of every bug on file, since `Log` always required a failing
+    # demonstration. `no` is the escape hatch for a real but flaky finding (`bin/qa_log_bug
+    # --reproduced no`).
     attribute :reproduced,    one_of("yes", "no"), default: { value: "yes" }
-    # A BUG IS WORK, AND WORK GETS CLAIMED.
-    #
-    # Sweeping is not the only way an agent gets something to do — it can
-    # take the next open bug off the queue and fix that instead, which is
-    # most of what a second agent does once a first has been round the
-    # chapters. Two agents on one bug is the same waste two agents on one
-    # chapter is, so it wants the same protection.
-    #
-    # NOT A LIFECYCLE HERE, where `Target` uses one. A target's whole state IS
-    # whose turn it is; a bug's state is how far the fix got, and holding it
-    # is orthogonal to that — an agent picks up an `investigating` bug
-    # without moving it. So the race is a `given` rather than an edge, and
-    # the serialisation is the same either way: one dispatch per record wins.
+    # Bugs are claimed like chapters so two agents do not fix the same one. A `given` rather than a
+    # lifecycle edge: holding a bug is orthogonal to how far the fix got.
     attribute :held_by,       Engineer
     attribute :claimed_at,    Instant
     attribute :window,        StaleAfter
@@ -1351,18 +710,15 @@ Hecks.bluebook "QualityControl" do
       invariant("a bug sequence is positive") { value.positive? }
     end
 
-    # PREFIXED, AND THE PREFIX IS LOAD-BEARING. `Facade::Surface.install` puts
-    # every aggregate name on Object as a top-level constant, so a value
-    # object sharing a word with any aggregate anywhere resolves to that class
-    # once the other domain has booted — green alone, red in the suite.
+    # Prefixed on purpose: `Facade::Surface.install` puts every aggregate name on Object, so a
+    # value object sharing a word with any aggregate resolves to that class once the other domain
+    # boots.
     value_object "BugTitle" do
       attribute :value, String, pattern: '[^ \t\n\r]'
       invariant("a bug is titled") { !value.to_s.empty? }
     end
 
-    # THE TEST THAT PROVES IT. Required at `Log`, which is what makes this
-    # chapter's one absolute rule absolute: an argument is satisfied or
-    # refused, never waived.
+    # Required at `Log`, which is what makes the one absolute rule absolute.
     value_object "Demonstration" do
       attribute :value, String, pattern: '[^ \t\n\r]'
       invariant("a bug is proven by a test somebody can re-run") { !value.to_s.empty? }
@@ -1388,16 +744,13 @@ Hecks.bluebook "QualityControl" do
       invariant("an investigation says why the code is wrong") { !value.to_s.empty? }
     end
 
-    # 7 TO 40 HEX. A fix that lives in a working tree is not a fix, and a
-    # commit is the cheapest possible proof that it does not.
+    # 7 to 40 hex: a fix that lives only in a working tree is not a fix.
     value_object "CommitRef" do
       attribute :value, String, pattern: '^[0-9a-fA-F]{7,40}$'
     end
 
-    # WHAT WAS ACTUALLY RUN — "rspec --order random, 1335 examples, 0
-    # failures, seed 12345". A count and a seed are checkable; "tests pass" is
-    # not, which is the lesson a commit claiming a fix taught this repository
-    # by taking nineteen of twenty-seven pizzas examples red.
+    # What was actually run, e.g. "rspec --order random, 1335 examples, 0 failures, seed 12345":
+    # a count and a seed are checkable, "tests pass" is not.
     value_object "Verification" do
       attribute :value, String, pattern: '[^ \t\n\r]'
       invariant("a verification says what was actually run") { !value.to_s.empty? }
@@ -1408,8 +761,7 @@ Hecks.bluebook "QualityControl" do
       invariant("stopping on a bug says why") { !value.to_s.empty? }
     end
 
-    # WHO DECIDES, AND WHAT WOULD UNBLOCK IT. A pause without one of these is
-    # how "deferred" becomes "forgotten".
+    # Who decides and what would unblock it, so "deferred" does not become "forgotten".
     value_object "NextStep" do
       attribute :value, String, pattern: '[^ \t\n\r]'
       invariant("stopping on a bug says what would move it") { !value.to_s.empty? }
@@ -1425,25 +777,16 @@ Hecks.bluebook "QualityControl" do
       invariant("a waived gate says why") { !value.to_s.empty? }
     end
 
-    # REDECLARED, NOT SHARED — this file's own habit (`Engineer`, `Instant`,
-    # `CommitRef`); `Sweep::WaivedBy`'s own comment gives the reasoning
-    # once for both. The `"qa_sweep"` literal is pinned equal to
-    # `QualityControlDials::AUTOMATED_ENGINEER` by spec, here too.
+    # Redeclared, as elsewhere in this file; the "qa_sweep" literal is pinned to AUTOMATED_ENGINEER
+    # by spec.
     value_object "WaivedBy" do
       attribute :value, String, pattern: '[^ \t\n\r]'
       invariant("a gate is waived by a person, never by the loop") { value != "qa_sweep" }
       invariant("a waiver is signed") { value != "nobody" }
     end
 
-    # KEBAB-CASE, AT LEAST TWO WORDS — `TicketRepository`'s own
-    # `^owner/repo$` shape and `CommitRef`'s own hex shape are this
-    # file's precedent for a scalar whose entire contract IS its pattern:
-    # fully anchored, no separate `invariant` needed, because a value
-    # that matches the pattern already satisfies everything worth
-    # checking. One word alone (`"duplication"`) is too close to a tag
-    # (`Tag`'s own `^[a-z0-9][a-z0-9_-]*$`, one word by design) to tell
-    # the two apart at a glance, so `+(-[a-z0-9]+)+` requires the hyphen
-    # a real slug actually has.
+    # Kebab-case, at least two words: one word is too close to a `Tag` to tell apart at a glance.
+    # The anchored pattern is the whole contract.
     value_object "BugName" do
       attribute :value, String, pattern: '^[a-z0-9]+(-[a-z0-9]+)+$'
     end
@@ -1466,47 +809,16 @@ Hecks.bluebook "QualityControl" do
       invariant("a staleness window is positive") { value.positive? }
     end
 
-    # TAGS ARE A SET ON THE BUG, NOT AN ENTITY UNDER IT — and the choice is
-    # about what a tag IS. An entity has identity, a lifecycle and a history:
-    # a check has all three, which is why a check is one. A tag has none. It
-    # is a word that is either on the bug or not, nobody cares when it was
-    # put there, and "flaky" on one bug is the same "flaky" as on another.
-    #
-    # THE COST IS THAT TAGGING REPLACES RATHER THAN APPENDS. There is no
-    # append in this language — `sets` sets — so `Tag` takes the whole
-    # set and the caller sends every tag it wants the bug to end up with.
-    # That reads worse in one place and better everywhere else: removing a
-    # tag needs no second verb, tagging twice is not two tags, and the
-    # attribute is always exactly what the bug is tagged with.
-    # A SUBMITTER IS SOMEBODY, WHICH IS WHY IT IS NOT AN `Engineer`.
-    #
-    # `Engineer` defaults to "nobody" because `held_by` needs that value — an
-    # unclaimed bug IS held by nobody, and the default is what makes the claim
-    # arithmetic work. Reusing the type here gave `submitter` the same default
-    # and made it optional in everything but intent: omit it and the ledger
-    # cheerfully recorded that nobody found this. `--help` said so out loud —
-    # `submitter.value  String; defaults to "nobody"` — which is how it was
-    # caught.
-    #
-    # So it is its own type, with no default and an invariant that says the
-    # quiet part. The two fields look alike and mean opposite things: one is
-    # who is working on it NOW and changes constantly, the other is who
-    # reported it and never changes at all.
+    # Not an `Engineer`: that type defaults to "nobody" (an unclaimed bug is held by nobody), which
+    # would let a report omit its submitter. This type has no default and refuses "nobody".
     value_object "Submitter" do
       attribute :value, String, pattern: '[^ \t\n\r]'
 
       invariant("a bug is reported by somebody") { value != "nobody" }
     end
 
-    # WHAT TO DO FIRST. The queue was ordered by `sequence` — the order things
-    # were FOUND in, which is a fact about the sweep and says nothing about
-    # what matters. An order is somebody's judgement, and it is kept apart from
-    # the discovery order so that changing your mind about priority does not
-    # rewrite the history of when a thing was seen.
-    #
-    # LOWER IS SOONER, and the default is deliberately not zero: a bug nobody
-    # has ranked sits BEHIND everything anybody has, rather than jumping the
-    # whole queue by saying nothing.
+    # An order is judgement, kept apart from discovery order (`sequence`). Lower is sooner; the
+    # default is not zero so an unranked bug sits behind every ranked one.
     value_object "BugOrder" do
       attribute :value, Integer, default: 1_000
 
@@ -1519,16 +831,13 @@ Hecks.bluebook "QualityControl" do
       invariant("a tag is a word, not a sentence") { !value.empty? }
     end
 
-    # A bug is born PROVEN. There is no state for "somebody thinks something
-    # is wrong" — that is a check, and it lives on the sweep.
+    # A bug is born proven; "somebody thinks something is wrong" is a check, on the sweep.
     lifecycle :status, default: "logged" do
       transition "Investigate" => "investigating", from: "logged"
       transition "Fix"         => "fixed",         from: "investigating"
       transition "Verify"      => "verified",      from: "fixed"
       transition "Pause"       => "paused",        from: ["logged", "investigating"]
-      # THE TEST CAN BE WRONG — not the bug, the test. `withdrawn` is for a
-      # report that proved something other than what it claimed, and it is a
-      # different fact from a fix that worked.
+      # `withdrawn` is for a report whose test proved something other than what it claimed.
       transition "Withdraw"    => "withdrawn",     from: ["logged", "investigating"]
       transition "Regress"     => "investigating", from: ["fixed", "verified"]
       transition "Revisit"     => "investigating", from: "paused"
@@ -1545,47 +854,21 @@ Hecks.bluebook "QualityControl" do
       attribute :demonstration, Demonstration
       attribute :symptom,       Symptom
       attribute :expectation,   Expectation
-      # REQUIRED, LIKE THE DEMONSTRATION. Both answer "why should anybody
-      # believe this" — one is the evidence, the other is who produced it,
-      # and a ledger that let either be omitted would be collecting claims
-      # rather than findings.
+      # Required like the demonstration: one is the evidence, the other is who produced it.
       attribute :submitter,     Submitter
       attribute :tags,          list_of(Tag), optional: true
-      # OPTIONAL, LIKE THE AGGREGATE'S OWN FIELD (see its comment) — a
-      # submitter names a bug at log time going forward if a good slug is
-      # already obvious; `Name` (below) is what covers the rest, both for
-      # a bug logged without one and for the 36 already on file before
-      # this argument existed. NO `sets` NEEDED — unlike `Name`'s mutation
-      # of an existing record, `Log` is a creation command, and a command
-      # argument sharing its name with the aggregate's own field already
-      # lands there directly (the same way `title`/`demonstration`/
-      # `symptom` above need no `sets` either).
+      # Optional; `Name` covers bugs logged without one. No `sets`: on a creation command an
+      # argument sharing the aggregate field's name lands there directly.
       attribute :name,          BugName, optional: true
-      # OPTIONAL, LEFT TO THE AGGREGATE'S OWN DEFAULT WHEN OMITTED —
-      # `yes` unless a caller says otherwise, same reasoning as the
-      # aggregate's own `reproduced` attribute (see its comment) and the
-      # same NO-`sets`-NEEDED shape `name` (above) already uses: omitted
-      # here, `assign_creation_attributes` never touches the field and
-      # the fresh record hydrates straight off `default: { value: "yes"
-      # }`; passed, it lands directly. This is what lets
-      # `bin/qa_log_bug --reproduced no` skip its own must-fail check for
-      # a finding with no reliable pass/fail signal, while every ordinary
-      # `Log` — every caller before this argument existed included —
-      # keeps demanding one.
+      # Optional; omitted, the aggregate's default `yes` applies. `bin/qa_log_bug --reproduced no`
+      # uses it to skip its must-fail check for a finding with no reliable pass/fail signal.
       attribute :reproduced,    one_of("yes", "no"), optional: true
 
       emits "BugLogged"
     end
 
-    # TAGGING IS NOT A LIFECYCLE MOVE, deliberately. A bug can be tagged
-    # while logged, while being fixed, after it is verified, after it is
-    # withdrawn — a tag says what KIND of thing this is, and that is knowable
-    # at any point and does not change what may happen next. Putting it in
-    # the lifecycle would mean inventing a state per tag, which is how a
-    # lifecycle stops describing the work.
-    # NOT A LIFECYCLE MOVE, for the same reason `Tag` is not: a bug can be
-    # ranked while logged, while being fixed, or after it is paused, and
-    # ranking it changes nothing about what may happen to it next.
+    # Tagging and ranking are not lifecycle moves: they are knowable at any status and change
+    # nothing about what may happen next.
     command "Rank" do
       role "QA engineer"
       goal "Say what should be dealt with first"
@@ -1598,6 +881,8 @@ Hecks.bluebook "QualityControl" do
       emits "BugRanked"
     end
 
+    # Tags are a set on the bug, not an entity: a tag has no identity or lifecycle. `Tag` replaces
+    # the whole set, so removing one needs no second verb and tagging twice is not two tags.
     command "Tag" do
       role "QA engineer"
       goal "Say what kind of thing this bug is, so it can be found with its kind later"
@@ -1610,13 +895,8 @@ Hecks.bluebook "QualityControl" do
       emits "BugTagged"
     end
 
-    # THE JUDGMENT, RECORDED — the `Rank` shape: not a lifecycle move,
-    # because "can this be fixed here" is knowable at any point in the
-    # fix and changes nothing about what may happen to the bug next. Only
-    # the two decided values are accepted; `undecided` is what a bug is
-    # BORN as (see the attribute) and never something a person chooses.
-    # `bin/qa_log_bug --triage` dispatches this right after `Log`, so a
-    # bug reaches the ledger already carrying the call its finder made.
+    # Not a lifecycle move (the `Rank` shape); `undecided` is only ever the birth value.
+    # `bin/qa_log_bug --triage` dispatches this right after `Log`.
     command "Triage" do
       role "QA engineer"
       goal "Write down whether this can be fixed on the spot or needs a bigger judgment"
@@ -1624,13 +904,9 @@ Hecks.bluebook "QualityControl" do
       reference_to Bug
       attribute :disposition, one_of("self_contained", "bigger")
 
-      # THE GIVEN IS THE FENCE, NOT THE `one_of` ABOVE — found live, not
-      # assumed: a command attribute sharing its NAME with the record's
-      # own `one_of` field coerces against the record's wider set, so the
-      # narrower inline set here documents intent but "undecided" still
-      # got through it. A predicate reads the argument first (`Expression::
-      # Resolver#fetch` checks args before state), so this reads the
-      # caller's word, not the record's current one.
+      # The `given` is the fence: an argument named like the record's own `one_of` field coerces
+      # against the wider set, so the narrower inline set did not refuse "undecided". Predicates
+      # read args first.
       given("a triage decides — self_contained or bigger, never undecided") { disposition.value != "undecided" }
 
       sets :disposition
@@ -1638,14 +914,8 @@ Hecks.bluebook "QualityControl" do
       emits "BugTriaged"
     end
 
-    # THE SAME SHAPE AS `Triage`/`Rank`/`Tag` — NOT A LIFECYCLE MOVE,
-    # deliberately, and callable from ANY status. `Triage` above has no
-    # status-`given` at all, and for the identical reason: a slug is
-    # knowable — or worth assigning — at any point in a bug's life
-    # (logged, investigating, fixed, verified, paused, even withdrawn),
-    # and naming it changes nothing about what may happen to it next.
-    # This is also the whole point: it is what lets an ALREADY-LOGGED bug
-    # get a name after the fact, no matter what became of it since.
+    # Not a lifecycle move and callable from any status, so an already-logged bug can be named
+    # later.
     command "Name" do
       role "QA engineer"
       goal "Give a bug a short, memorable slug — at log time or any point after"
@@ -1658,14 +928,7 @@ Hecks.bluebook "QualityControl" do
       emits "BugNamed"
     end
 
-    # THE LOOKUP THE TAGS EXIST FOR. `contains` against a bound argument
-    # rather than a literal — banking's `Flagged` asks the same question with
-    # `"high_risk"` written into the chapter, which answers one question
-    # forever; this asks whichever one you have.
-    # EVERYTHING ONE AGENT FOUND, whatever became of it. The counterpart of
-    # `InHand`, which answers what somebody is holding NOW: this answers what
-    # they have ever reported, which is the question a daily report is
-    # written from and the one a second agent asks before trusting a queue.
+    # Everything one agent ever reported, as against `InHand`, which is what it holds now.
     query "From" do
       description "Every bug one submitter has ever logged, in whatever state — what an agent found, as against what it is holding."
       attribute :submitter, Submitter
@@ -1673,6 +936,7 @@ Hecks.bluebook "QualityControl" do
       order_by :reference
     end
 
+    # `contains` against a bound argument, so it answers whichever tag you have.
     query "Tagged" do
       description "Every bug carrying one tag, whatever state it is in — the way to find all the flaky ones, or everything about the projector."
       attribute :tag, Tag
@@ -1680,16 +944,13 @@ Hecks.bluebook "QualityControl" do
       order_by :reference
     end
 
-    # THE SAME RULE AS A TARGET'S, IN THE SAME ARITHMETIC. Held by nobody, or
-    # held long enough ago that the holder has gone quiet. `+` rather than `-`
-    # because that is the operator the sublanguage has, and `now` arrives as
-    # an argument because a predicate cannot ask the time.
+    # Same rule as `Target.Claim`: held by nobody, or stale. `+` because the sublanguage has no
+    # `-`.
     command "Claim" do
       role "QA engineer"
       goal "Take the next bug off the queue, or one whose holder has gone quiet"
 
-      # SAME RULE, SAME REASON — see Target.Claim. The window is the practice's,
-      # on the record, not the claimer's to name.
+      # Same reason as `Target.Claim`: the window is on the record, not the claimer's to name.
       reference_to Bug
       attribute :held_by, Engineer
       attribute :now,     Instant
@@ -1730,30 +991,9 @@ Hecks.bluebook "QualityControl" do
       emits "BugInvestigated"
     end
 
-    # `reference` IS DECLARED HERE, RESTATED — the one attribute on this
-    # command that names something the caller already said by addressing
-    # the bug at all. Redundant on its face; load-bearing underneath.
-    #
-    # A mutating command's emitted event carries exactly the arguments it
-    # was dispatched WITH — never the record's own identity, which travels
-    # as routing (`to:`/`id:`), not as a fact (`CommandRules::Emission#emit`:
-    # `payload: args`, nothing merged in from the hydrated instance). So
-    # `BugFixed` said `commit` and nothing else, and `BugCiWatch` below —
-    # the process manager that starts on this exact event — had no way to
-    # remember WHICH bug it was watching for: a saga's own memory is a copy
-    # of the starting event's payload and nothing more (`SagaInterpreter
-    # #begin_saga`), so an absent field here is an absent field for the
-    # rest of that saga's life, silently, which is the one failure mode
-    # this whole chapter exists to hunt.
-    #
-    # The fix is the same shape banking's own `Settlement` already leans
-    # on for `Account::Debit`'s `reference:` — a scalar restated purely so
-    # it rides the event forward — except EXPLICIT here rather than
-    # smuggled through the argument gate's own domain-wide `correlation_
-    # keys` widening (that mechanism's own comment calls itself "the
-    # weakest part of the gate"): a caller who forgets `reference:` is
-    # refused outright (`AbsentArgument`), not silently short a field three
-    # steps downstream.
+    # `reference` is restated so `BugFixed` carries it: an event holds only its dispatched
+    # arguments, and `BugCiWatch`'s saga memory is a copy of that payload, so without it the saga
+    # cannot know which bug it watches. Required, so omitting it is refused (`AbsentArgument`).
     command "Fix" do
       role "QA engineer"
       goal "Record the commit that makes it stop happening"
@@ -1827,7 +1067,7 @@ Hecks.bluebook "QualityControl" do
 
       reference_to Bug
       attribute :reason,    WaiverReason
-      # SIGNED, AND CHECKED — see `Sweep.Waive`'s own identical argument.
+      # Signed and checked, as in `Sweep.Waive`.
       attribute :waived_by, WaivedBy
 
       sets :waived, increment: { value: 1 }
@@ -1842,10 +1082,6 @@ Hecks.bluebook "QualityControl" do
       order_by :sequence
     end
 
-    # THE PILE NOBODY HAS MADE THE CALL ON YET — live bugs still at the
-    # disposition they were born with. A row here past its own sweep is a
-    # finding somebody logged and walked away from before deciding what
-    # kind of thing it was.
     query "Untriaged" do
       description "Live bugs (logged or investigating) nobody has triaged as self_contained or bigger yet — the judgment still owed on each."
       where(status: { in: "logged,investigating" })
@@ -1853,18 +1089,8 @@ Hecks.bluebook "QualityControl" do
       order_by :sequence
     end
 
-    # THE OTHER SIDE OF `Untriaged`. That query is every live bug nobody has
-    # judged YET; this is every open bug someone already judged too big to
-    # fix on the spot — the pile still owed the bigger call, not a fresh
-    # triage. Before this existed, getting this answer meant dispatching
-    # `bug.all` (every bug ever logged) and filtering client-side for
-    # `disposition.value == "bigger"` and status not `verified`/`withdrawn`
-    # — wasteful, and error-prone the moment a new status is added and the
-    # client-side filter is not updated to match. `fixed` counts as still
-    # owed here on purpose: a fix landing does not retroactively answer
-    # the bigger judgment call that was made about it, and the bug is not
-    # RESOLVED (this query's own opposite) until `Verify` or `Withdraw`
-    # says so.
+    # `fixed` counts as still owed: a landed fix does not answer the bigger judgment call; only
+    # `Verify` or `Withdraw` resolves it.
     query "NeedsJudgment" do
       description "Open bugs triaged bigger and not yet resolved — the pile still owed a human or agent judgment call, not one anybody can just fix off the queue."
       where(:"disposition.value" => "bigger")
@@ -1872,22 +1098,12 @@ Hecks.bluebook "QualityControl" do
       order_by :sequence
     end
 
-    # THE OTHER WAY TO GET WORK. Sweeping finds new bugs; this is the pile of
-    # ones already found and not yet in anybody's hands, oldest first — which
-    # is what an agent that is not sweeping picks from.
     query "Queue" do
       description "Open bugs nobody is holding, most important first, then oldest. The queue an agent takes from when it is fixing rather than sweeping."
       where(status: { in: "logged,investigating" })
       where(:"held_by.value" => "nobody")
-      # RANK FIRST, THEN AGE. Ordering by `sequence` alone made the queue the
-      # order things were found in, which is the one ordering nobody wants
-      # from a queue. Age stays as the tiebreak so two bugs nobody has ranked
-      # still come out oldest-first rather than arbitrarily.
-      # THE SCALAR, NOT THE VALUE OBJECT. `order_by :order` sorted by the
-      # whole `{value: n}` and put the bug ranked 1 BEHIND two ranked 1000 —
-      # silently, in the one query whose entire job is the ordering. A VO is
-      # ordered by whatever comparing two of them happens to do; the number
-      # inside it is what anybody meant.
+      # Order by the scalar, not the value object: sorting the whole `{value: n}` put rank 1 behind
+      # two ranked 1000.
       order_by :"order.value"
     end
 
@@ -1935,39 +1151,8 @@ Hecks.bluebook "QualityControl" do
     end
   end
 
-  # ── where to look next ───────────────────────────────────────────────
-
-  # THE PRACTICE'S OWN MEMORY OF WHERE TO LOOK, KEPT AS DATA — the
-  # "stored-prompt-corpus" idea, given a real shape. Every sweep so far has
-  # found its bugs by an agent's own judgement, re-derived from scratch each
-  # session: read the recent commits, read the open PRs, guess at what
-  # hasn't been tried yet. That works, but it does not ACCUMULATE — the
-  # angle a session considered and set aside lives in that session's own
-  # transcript, which the next session cannot query and usually never even
-  # sees. This aggregate is what lets "which construct combination hasn't
-  # been fuzzed yet" survive the session that first thought of it.
-  #
-  # AN AGGREGATE, NOT A THIRD BARE CONSTANT NEXT TO `QualityControlDials`.
-  # The dials comment at the top of this file explains why a live,
-  # dispatchable record was tried and taken BACK for those two numbers — but
-  # that reasoning is specific to them, not a blanket rule against
-  # aggregates for practice-level bookkeeping. `CADENCE_SECONDS` and
-  # `PR_CAP_PER_DAY` are each ONE fact, fixed until a human edits the file,
-  # with nothing that happens during a sweep ever changing either. An angle
-  # is the opposite of that on every count that matters: there are MANY of
-  # them, each with its own real state that moves on its own — proposed,
-  # picked up, built or set aside — and that movement is exactly the
-  # history a future sweep needs to read before inventing its own from
-  # scratch. A bare constant cannot hold a growing list of records each
-  # with their own lifecycle at all; this is precisely the shape `Bug`
-  # already is, aimed one step earlier, at what to go looking for rather
-  # than what was already found.
-  #
-  # A "LEAD," NOT A TASK. `Angle` deliberately does not say what to BUILD —
-  # `citation` says what already-known fact makes it worth chasing, and
-  # `resolution` (once one exists) says what actually got built from it.
-  # The gap between the two is real work an agent still has to do; this
-  # record only refuses to let that work start from nothing.
+  # The practice's backlog of leads: a citable reason to suspect an uninvestigated corner.
+  # A lead, not a task: `citation` says why it is worth chasing, `resolution` what got built.
   aggregate "Angle" do
     description "One concrete, citable reason to suspect an uninvestigated corner exists — proposed, chased down, and either built into something real or set aside with a reason. The practice's own backlog of what to try next, so a future sweep mines its own history instead of guessing."
 
@@ -1986,35 +1171,21 @@ Hecks.bluebook "QualityControl" do
       invariant("an angle is referenced") { !value.to_s.empty? }
     end
 
-    # SUBSTANCE, ENFORCED THE WAY `SweepNotes` ALREADY ENFORCES IT — a
-    # number in the invariant's own sentence, because the sentence IS the
-    # refusal. "look at sagas more" is a mood, not a lead: it gives a
-    # future reader nothing to act on that they could not have guessed
-    # themselves. Sixty is not a magic number so much as a tripwire against
-    # exactly that one-line stub — long enough that a genuine restating of
-    # what was checked and what remains cannot fit under it by accident.
+    # The number is in the sentence because the sentence is the refusal; 60 characters trips a
+    # stub.
     value_object "AnglePremise" do
       attribute :value, String, pattern: '[^ \t\n\r]'
       invariant("an angle says enough to be acted on without its proposer in the room, in at least 60 characters") { value.to_s.size >= 60 }
     end
 
-    # WHAT MAKES THIS A LEAD AND NOT A HUNCH. A Bug reference, an ADR
-    # number, or a named construct-combination gap — something another
-    # reader can go and look at themselves, the same distinction
-    # `Demonstration` already draws for a bug: a claim nobody can
-    # independently check is not evidence, it is an opinion with a period
-    # after it.
+    # A Bug reference, ADR number or named gap that a reader can check for themselves.
     value_object "AngleCitation" do
       attribute :value, String, pattern: '[^ \t\n\r]'
       invariant("an angle cites something concrete, not a mood") { !value.to_s.empty? }
     end
 
-    # NOT `Engineer` — the exact reasoning `Bug`'s own `Submitter` already
-    # gives for the identical split: `held_by`-shaped types default to
-    # "nobody" because an unclaimed record legitimately IS held by nobody,
-    # and reusing that default here would let an angle's own authorship go
-    # unrecorded the same quiet way a bug's once did, until `--help` said
-    # so out loud.
+    # Not an `Engineer`, for the reason `Submitter` is not: that default would let authorship go
+    # unrecorded.
     value_object "Proposer" do
       attribute :value, String, pattern: '[^ \t\n\r]'
       invariant("an angle is proposed by somebody") { value != "nobody" }
@@ -2025,35 +1196,21 @@ Hecks.bluebook "QualityControl" do
       invariant("an instant is not before the epoch") { !value.negative? }
     end
 
-    # WHAT ACTUALLY CAME OF IT — a Target reference, a PR number, a stress
-    # domain's own path, whatever a later reader would need to go confirm
-    # the lead was real, not merely closed. Set once, at `Build`, and only
-    # then: an angle cannot claim a resolution it does not yet have, the
-    # same way a `Bug` cannot be `Fix`ed before it is `Investigate`d.
+    # What came of it (a Target, a PR number, a domain path); set once, at `Build`.
     value_object "AngleResolution" do
       attribute :value, String, pattern: '[^ \t\n\r]'
       invariant("a built angle says what actually got built") { !value.to_s.empty? }
     end
 
-    # THE SAME PATTERN `Target::Shelve` ALREADY ESTABLISHED, restated here
-    # rather than shared across aggregates: deciding NOT to chase a lead is
-    # a real decision with its own reasoning, and a discarded angle with no
-    # reason recorded is indistinguishable from one nobody ever looked at.
+    # Redeclared as `Target::Shelve` does: a discard with no reason looks like a lead nobody read.
     value_object "AngleReason" do
       attribute :value, String, pattern: '[^ \t\n\r]'
       invariant("discarding an angle says why") { !value.to_s.empty? }
     end
 
-    # PROPOSED, THEN INVESTIGATING, THEN ONE OF TWO ENDINGS — the exact
-    # shape `Bug` already uses for logged/investigating/fixed, deliberately:
-    # `Build` is only reachable FROM `investigating`, so a lead cannot be
-    # marked built without ever having been picked up first, the same
-    # discipline that keeps a bug from being `Fix`ed before it is
-    # `Investigate`d. `Discard` reads from both live states — like
-    # `Target::Shelve`'s own `from: ["waiting", "held"]` — because a lead
-    # can turn out not worth the time either before anyone starts (a
-    # citation that turns out to already be covered) or partway through
-    # (real investigation finds the angle is a dead end after all).
+    # `Build` is reachable only from `investigating`, so a lead cannot be built unless it was
+    # picked up. `Discard` reads from both live states: a lead can prove a dead end before or after
+    # it starts.
     lifecycle :status, default: "proposed" do
       transition "Investigate" => "investigating", from: "proposed"
       transition "Build"       => "built",         from: "investigating"
@@ -2068,12 +1225,7 @@ Hecks.bluebook "QualityControl" do
       attribute :premise,   AnglePremise
       attribute :citation,  AngleCitation
       attribute :proposer,  Proposer
-      # OMITTED ARGUMENT, FILLED FROM THE CLOCK — `now:` reaches here
-      # exactly the way `Target.Claim`'s own comment already explains: a
-      # predicate cannot ask the time, but a plain assignment does not need
-      # to, and the same `clock` port that already answers `target.claim`
-      # answers this the identical way, including believing an explicit
-      # value over the clock when a caller supplies one.
+      # `now:` is filled from the clock port, as in `Target.Claim`; an explicit value wins.
       attribute :now,       Instant
 
       sets :proposed_at, to: :now
@@ -2113,37 +1265,23 @@ Hecks.bluebook "QualityControl" do
       emits "AngleDiscarded"
     end
 
-    # THE BACKLOG — the way `Bug.Queue` is the backlog an agent not
-    # sweeping picks from, this is the backlog an agent not sure WHAT to
-    # sweep reads first. Oldest first: `order_by :"proposed_at.value"`
-    # rather than `order_by :proposed_at`, for the exact reason `Bug.Queue`'s
-    # own comment already gives about `BugOrder` — ordering by the whole
-    # value object sorts by however two of them happen to compare, not by
-    # the number a reader actually means.
+    # Ordered by the scalar `proposed_at.value`, not the value object (see `Bug.Queue`).
     query "Backlog" do
       description "Leads nobody has finished chasing yet, oldest first — read this before inventing a new angle from scratch."
       where(status: { in: "proposed,investigating" })
       order_by :"proposed_at.value"
     end
 
-    # THE OTHER HALF OF THE SAME LIST — what became of every earlier lead,
-    # so a reader sees history rather than only the live backlog. Built and
-    # discarded sit in one query on purpose: a discarded angle is not a
-    # failure to hide, it is evidence a citation was already covered, and
-    # burying it in a separate, less-read query would make the practice
-    # look more decisive than it actually was.
+    # Built and discarded share one query: a discarded angle is evidence a citation was already
+    # covered.
     query "Resolved" do
       description "Leads already acted on, one way or the other — built into something real, or discarded with a reason. Read beside Backlog for the practice's own hit rate."
       where(status: { in: "built,discarded" })
       order_by :reference
     end
 
-    # THE DUPLICATE-PREMISE CHECK — the same question `Ticket.ForBug` and
-    # `Patch.ForBug` already answer for their own kind of duplicate, asked
-    # of a lead: has anybody already proposed an angle citing THIS exact
-    # fact? Asked before `Propose`, so a second session re-deriving the
-    # same citation finds the first one's own row instead of minting a
-    # twin of it.
+    # The duplicate-premise check, run before `Propose` so a second session finds the first one's
+    # row.
     query "Citing" do
       description "Every angle ever proposed on one exact citation, whatever became of it — the check before proposing another on the same fact."
       attribute :citation, AngleCitation
@@ -2157,14 +1295,8 @@ Hecks.bluebook "QualityControl" do
     end
   end
 
-  # ── the outside world ────────────────────────────────────────────────
-
-  # RAISE AN ISSUE ONLY FOR A BUG YOU COULD NOT FIX YOURSELF.
-  #
-  # `Raise` requires `reference_to Bug`, and that reference has to resolve at
-  # dispatch — the strongest form a rule takes in this language. What it
-  # cannot check is the bug's STATE, because a reference is an id and not the
-  # record it names; `RestingOnUnpaused` below is where that half is surfaced.
+  # Raise an issue only for a bug you could not fix yourself. `Raise` checks that the reference
+  # resolves but not the bug's state; `RestingOnUnpaused` surfaces that half.
   aggregate "Ticket" do
     description "One issue raised in a tracker outside this repository — what it says, whether the tracker took it, and how many times we have asked."
 
@@ -2181,11 +1313,8 @@ Hecks.bluebook "QualityControl" do
     attribute :url,        IssueUrl
     attribute :refusal,    RefusalText
     attribute :attempts,   AttemptCount
-    # THE CAP LIVES ON THE RECORD, not on the retry command. A policy carries
-    # the event payload and nothing else, so a `max` passed as an argument is
-    # a `max` the retry never receives — the reaction is refused with "Retry
-    # was not given max" and the ticket stops dead one attempt in. Banking's
-    # ScheduledPayment holds `max_attempts` for exactly this reason.
+    # The cap lives on the record: a policy carries only the event payload, so a `max` passed as an
+    # argument would never reach the retry.
     attribute :max_attempts, MaxAttempts
 
     value_object "TicketReference" do
@@ -2202,17 +1331,8 @@ Hecks.bluebook "QualityControl" do
       invariant("a ticket is titled") { !value.to_s.empty? }
     end
 
-    # A FIX MAY ALREADY EXIST, AND THE TICKET SHOULD SAY SO.
-    #
-    # Filing an issue for a bug somebody has already opened a pull request for
-    # is how the same work gets done twice. The URL is on the TICKET rather
-    # than only in the body prose because the ledger should be able to ANSWER
-    # "which of these already have a fix proposed" — `Ticket.Proposed` below —
-    # and a substring search of prose is not an answer.
-    #
-    # OPTIONAL, because most tickets are raised before anybody has fixed
-    # anything. An empty one is the ordinary case, not a missing value, which
-    # is why it defaults rather than being refused.
+    # The URL is on the ticket so the ledger can answer `Ticket.Proposed`. It defaults to ""
+    # because most tickets are raised before anybody has fixed anything.
     value_object "PullRequest" do
       attribute :value, String, default: ""
     end
@@ -2235,10 +1355,7 @@ Hecks.bluebook "QualityControl" do
       attribute :value, String
     end
 
-    # THREE TRIES, AND THEN A HUMAN. The cap lives on the record rather than
-    # in the retry policy, because a policy carries no state and would ask
-    # forever — banking's `ScheduledPayment` holds `attempts` for exactly this
-    # reason and `Retry`'s own given reads it.
+    # Three tries, then a human. The cap is on the record because a policy carries no state.
     value_object "AttemptCount" do
       attribute :value, Integer, default: 0
       invariant("an attempt count is not negative") { !value.negative? }
@@ -2253,14 +1370,9 @@ Hecks.bluebook "QualityControl" do
       attribute :value, String
     end
 
-    # RAISING AND SENDING ARE TWO VERBS, and the split is not ceremony.
-    #
-    # A crash between them leaves a row in `Ticket.Raised` — composed, not
-    # sent — rather than a record claiming a filing that never went out. And
-    # it is what makes the ask drivable at all: a policy re-enters with the
-    # EVENT payload, a creating command emits its value objects, and a
-    # reference slot takes an id and refuses an object. `Submit` is
-    # non-creating, so `TicketSubmitted` carries `{ id: … }`, which fits.
+    # Raising and sending are two verbs: a crash between them leaves a `Raised` row, not a false
+    # filing. `Submit` is non-creating, so `TicketSubmitted` carries `{ id: ... }`, which a
+    # reference slot takes.
     lifecycle :status, default: "raised" do
       transition "Submit"  => "submitting", from: ["raised", "refused"]
       transition "Filed"   => "filed",      from: "submitting"
@@ -2270,16 +1382,7 @@ Hecks.bluebook "QualityControl" do
       transition "Close"   => "closed",     from: "filed"
     end
 
-    # THE PORT IS DECLARED IN THE HECKSAGON, NOT HERE — see
-    # `quality_control.hecksagon`. That is where pizzas puts its own
-    # `PaymentGateway` too, and the reason is that a port is where the domain
-    # meets a swappable adapter: its SHAPE is vocabulary, but its existence is
-    # a wiring decision, and wiring lives with the binds.
-    #
-    # What it says there: `asks "File"`, naming `IssueFiled` and
-    # `IssueFilingRefused` as its two endings, and `tells "Closed"` for when
-    # somebody closes the issue upstream. The policies at the foot of this
-    # chapter are what drive it.
+    # The port is declared in `quality_control.hecksagon`, where wiring lives.
 
     command "Raise" do
       role "QA engineer"
@@ -2290,27 +1393,15 @@ Hecks.bluebook "QualityControl" do
       attribute :repository,   TicketRepository
       attribute :title,        TicketTitle
       attribute :body,         TicketBody
-      # CARRIED INTO THE FILING WITHOUT A SECOND VERB. `held_state` hands the
-      # whole ticket to the adapter, so a field on the record reaches `gh`
-      # even though the ask itself declares no argument for it.
+      # `held_state` hands the whole ticket to the adapter, so this field reaches `gh` with no
+      # extra argument.
       attribute :pull_request, PullRequest, optional: true
 
       emits "TicketRaised"
     end
 
-    # DISPATCH THIS WITH `id:`, NOT THROUGH THE FACADE.
-    #
-    # `TicketSubmitted` is what the policy re-enters the port with, verbatim,
-    # and a port's reference slot takes an id and deliberately refuses an
-    # object. `Handle#run` — the facade form, `ticket.submit` — addresses a
-    # record by its IDENTITY HEADS, so the payload carries `reference` as a
-    # TicketReference and the ask is refused with "File was not given id".
-    # Dispatched as `Ticket.Submit(id: "TK-1")` the payload is `{ id: … }`,
-    # which is what the port wants.
-    #
-    # A real rough edge, and worth naming here rather than letting somebody
-    # rediscover it: the two ways of addressing the same record produce
-    # different payloads, and only one of them can drive an ask.
+    # Dispatch with `id:`, not through the facade: the facade form addresses by identity heads, so
+    # the payload carries `reference` and the port refuses it ("File was not given id").
     command "Submit" do
       role "QA engineer"
       goal "Send it — the last reversible moment"
@@ -2346,20 +1437,9 @@ Hecks.bluebook "QualityControl" do
       emits "TicketFilingRefused"
     end
 
-    # `refusal` IS TAKEN AND CARRIED FORWARD, and it is not decoration.
-    #
-    # A policy re-enters its target with the emitting event's payload
-    # VERBATIM, and `TicketFilingRefused` carries the refusal. A `Retry`
-    # declaring no arguments is refused outright — "Retry does not declare
-    # refusal" — and the ticket stops dead one attempt in, with the reaction
-    # log the only place saying so. So the target of a policy must accept
-    # exactly what the event carries.
-    #
-    # Given it has to be accepted, it is SET rather than ignored: an argument
-    # taken and dropped is the precise smell this chapter exists to hunt, and
-    # writing one into the very record that hunts it would be a poor joke.
-    # Carrying it forward is also true — a retry knows what it is retrying
-    # after.
+    # A policy re-enters its target with the event payload verbatim, so `Retry` must accept
+    # `refusal` or be refused outright. It is set rather than dropped: an argument taken and
+    # ignored is exactly what this chapter hunts.
     command "Retry" do
       role "System"
       goal "Ask again, up to the limit, carrying what was refused"
@@ -2390,9 +1470,6 @@ Hecks.bluebook "QualityControl" do
       emits "TicketClosed"
     end
 
-    # WHICH ONES ALREADY HAVE A FIX. The reason the URL is a field and not
-    # prose: somebody triaging a list of filed tickets wants to skip the ones
-    # already answered, and that has to be a question the ledger can take.
     query "Proposed" do
       description "Tickets that already carry a pull request — a fix exists, so more work filed against them is duplicated effort."
       where(:"pull_request.value" => { ne: "" })
@@ -2436,11 +1513,8 @@ Hecks.bluebook "QualityControl" do
       order_by :reference
     end
 
-    # A DOTTED WHERE, HOPPING A REFERENCE — because the rule it carries cannot
-    # be a `given`. "Only raise a ticket for a bug you could not fix" reads
-    # like a precondition, but `bug.status` resolves to nothing inside a
-    # predicate; only a where-clause hops. So it is surfaced, not enforced,
-    # which is honest: raising ahead of the pause is a mistake, not a crime.
+    # A dotted where hops the reference because this cannot be a `given`: `bug.status` does not
+    # resolve inside a predicate. The rule is surfaced, not enforced.
     query "RestingOnUnpaused" do
       description "Tickets about a bug nobody has stopped on. Raise an issue only for something you could not fix yourself — this is the list where that gets skipped."
       where(status: { in: "raised,filed" })
@@ -2461,44 +1535,8 @@ Hecks.bluebook "QualityControl" do
     end
   end
 
-  # ── which pull requests are ours ─────────────────────────────────────
-
-  # THE THING THIS WHOLE AGGREGATE EXISTS TO END: `bin/qa_pr_check` used to
-  # ask GitHub to GUESS which PRs were ours — `gh pr list --search`,
-  # matching a branch prefix (`loop-parity/*`) or a title convention
-  # (`"qa: ..."`). Checked against this practice's own real history, not
-  # assumed: neither is a superset of the other. #533/#532/#529/#526 are
-  # real `loop-parity/*` branches titled `"heki: ..."`/`"BUG#N: ..."`/
-  # `"rust: ..."` — invisible to a title search. #534 is titled `"qa: ..."`
-  # on a branch that never got the `loop-parity/` prefix at all — invisible
-  # to a branch search. It sat open and genuinely red, unseen by both, for
-  # a day. Widening the search to the union of both patterns is still a
-  # GUESS about every naming habit an agent will ever have — it only has to
-  # be wrong once more.
-  #
-  # THE FIX IS THE ONE THIS CHAPTER ALREADY MAKES EVERYWHERE ELSE: STOP
-  # RE-DERIVING A FACT THAT WAS ALREADY KNOWN, AND WRITE IT DOWN AT THE
-  # MOMENT IT WAS. `hecks_qa` knows a PR's number, url, branch and head
-  # commit the instant it opens one — that is `gh pr create`'s own return
-  # value, not a guess about it afterward. `Open` below records exactly
-  # that, once, and `bin/qa_pr_check` from here on reads `Patch.Open` for
-  # the worklist and asks `gh` about each one BY ITS OWN NUMBER — the same
-  # move `Bug.commit` already made for the identical reason (`BugCiWatch`'s
-  # own header explains why that commit has to be exact rather than
-  # re-derived), aimed one layer up: not just which commit is ours, but
-  # which PR is ours in the first place.
-  #
-  # NOT NAMED `PullRequest` — `Ticket`, forty lines up, already owns that
-  # word. `Ticket::PullRequest` is a value object (the URL a ticket carries
-  # once a fix exists for the issue it filed), and `Facade::Surface
-  # .install` puts every AGGREGATE name on Object as a top-level constant
-  # the identical way `Bug::BugTitle`'s own comment already warns about for
-  # the mirror case — a value object sharing a word with an aggregate
-  # resolves to whichever one booted last. An aggregate named `PullRequest`
-  # here would collide with `Ticket`'s own value object of that name the
-  # moment both are loaded, which within this one file they always are.
-  # `Patch` says the same thing — a change offered against a Bug's own fix
-  # — without reusing a word this chapter already spoke for something else.
+  # A PR opened for a Bug's own fix, recorded at open so `bin/qa_pr_check` looks it up by number.
+  # Not named `PullRequest`: `Ticket::PullRequest` exists and aggregate names install on Object.
   aggregate "Patch" do
     description "One pull request opened for a Bug's own fix — number, branch, and the exact commit that makes checking its CI status a lookup instead of a guess."
 
@@ -2511,12 +1549,8 @@ Hecks.bluebook "QualityControl" do
     attribute :branch, PatchBranch
     attribute :commit, CommitRef
     attribute :title,  PatchTitle
-    # WHEN, AS A NUMBER — what makes `QualityControlDials::PR_CAP_PER_DAY`
-    # COUNTABLE (`OpenedSince`, below; `bin/qa_open_pr` is the reader).
-    # `default: 0` for the `CleanStreak` reason: every patch recorded
-    # before this field existed hydrates at the epoch, which `OpenedSince`
-    # never counts against today's cap — exactly right for a PR opened
-    # before the cap was ever enforced.
+    # Makes `PR_CAP_PER_DAY` countable (`OpenedSince`). `default: 0` hydrates older rows at the
+    # epoch, which the cap never counts.
     attribute :opened_at, Instant
 
     value_object "Instant" do
@@ -2539,12 +1573,7 @@ Hecks.bluebook "QualityControl" do
       invariant("a patch says which branch it is on") { !value.to_s.empty? }
     end
 
-    # THE FIELD THAT RETIRES THE OLD SEARCH. `bin/qa_pr_check` used to have
-    # to ask GitHub to find the commit for a PR it only had a guess about;
-    # recording it here at `Open` means the commit is in hand the moment a
-    # PR needs checking at all — the same "written down before it's
-    # needed" discipline `Bug.commit` already keeps for the reason
-    # `BugCiWatch`'s own header gives.
+    # Recorded at `Open` so the commit is in hand when the PR needs checking, as `Bug.commit` is.
     value_object "CommitRef" do
       attribute :value, String, pattern: '^[0-9a-fA-F]{7,40}$'
     end
@@ -2558,29 +1587,15 @@ Hecks.bluebook "QualityControl" do
       attribute :value, String
     end
 
-    # OPENED, THEN ONE OF TWO ENDINGS GITHUB ITSELF REPORTS — the same
-    # `raised` → `filed`/`closed` shape `Ticket`'s own lifecycle already
-    # gives an outside-world record, restated here rather than shared
-    # (this file's own established habit — `Engineer`, `Instant`,
-    # `CommitRef` are each redeclared per aggregate too). Both endings are
-    # terminal on purpose: a merged PR does not reopen, and this ledger's
-    # memory of a closed one does not either. GitHub's own history is where
-    # to look if somehow either did.
+    # Both endings are terminal: a merged PR does not reopen, and neither does the ledger's memory
+    # of a closed one.
     lifecycle :status, default: "opened" do
       transition "Merge" => "merged", from: "opened"
       transition "Close" => "closed", from: "opened"
     end
 
-    # DISPATCHED BY `bin/qa_open_pr --bug BUG#n`, AND BY NOTHING ELSE. That
-    # script is what runs `gh pr create`, reads the five facts straight
-    # back (`gh pr view --json number,url,headRefName,headRefOid,title`)
-    # and dispatches this in the same breath — the fact is written down
-    # by the same process that made it true, never copied out of a
-    # subagent's report by an orchestrator afterward (which is how an
-    # earlier SKILL.md had it, and how a retried report could record one
-    # PR twice, or a dropped one never). `now` is that script's own
-    # clock read, threaded in explicitly the way `Target.Claim` already
-    # takes it; the cap that reads it back is `OpenedSince`, below.
+    # Dispatched only by `bin/qa_open_pr --bug`, which reads the facts back from `gh pr view`, so
+    # the record is written by the process that made it true. `now` is that script's clock read.
     command "Open" do
       role "QA engineer"
       goal "Record that a fix has been opened as a pull request, the moment its number, branch and commit are already known"
@@ -2614,11 +1629,7 @@ Hecks.bluebook "QualityControl" do
       emits "PatchClosed"
     end
 
-    # THE NEW SOURCE OF TRUTH FOR `bin/qa_pr_check` — every PR this ledger
-    # believes is still open, to check by ITS OWN number rather than by
-    # asking GitHub to search for one that might be ours. Read this
-    # instead of `gh pr list --search`, full stop: for each row, ask `gh`
-    # about that exact number and nothing else.
+    # The worklist for `bin/qa_pr_check`: ask `gh` about each row's exact number, never search.
     query "Open" do
       description "Every PR we've opened that's still open, by number — bin/qa_pr_check's own worklist. For each of these, ask gh for exactly this number's CI status; nothing here is a guess."
       where(status: "opened")
@@ -2632,10 +1643,8 @@ Hecks.bluebook "QualityControl" do
       order_by :number
     end
 
-    # THE CAP, COUNTABLE — `bin/qa_open_pr` asks this (and `Improvement.
-    # OpenedSince`, its twin) with local midnight as `since` and compares
-    # the two row counts against `QualityControlDials::PR_CAP_PER_DAY`.
-    # `gte` against a bound argument, the `Account.AtOrAbove` shape.
+    # `bin/qa_open_pr` compares this and `Improvement.OpenedSince` counts, from local midnight,
+    # against `PR_CAP_PER_DAY`. `gte` on a bound argument, the `Account.AtOrAbove` shape.
     query "OpenedSince" do
       description "Every patch opened at or after one instant, in number order — what today's count against PR_CAP_PER_DAY is read from."
       attribute :since, Instant
@@ -2649,80 +1658,18 @@ Hecks.bluebook "QualityControl" do
     end
   end
 
-  # ── deliberate work, landed ───────────────────────────────────────────
-
-  # NOT EVERY REAL PR IS A BUG'S OWN FIX. This whole practice has opened
-  # real PRs that name no `Bug` at all — a backlog aggregate (`Angle`,
-  # above), a compaction tool, `Patch` itself — because `Bug` specifically
-  # means "one thing now known to be wrong, proven with a failing test"
-  # (this file's own header, and `Bug`'s own description). Widening
-  # `Patch.Open`'s `reference_to Bug` to accept something else instead —
-  # or making it `optional: true` so a patch could name neither — was
-  # asked and refused: a bug fix without a `Bug` behind it is exactly the
-  # blurring `Bug`'s own meaning exists to prevent, and the repository
-  # owner confirmed it stays required, unchanged. So this is a SIBLING,
-  # not a second door into `Patch`: its own aggregate, its own lifecycle,
-  # its own CI watch below — mirroring `Patch`/`BugCiWatch`'s shape for a
-  # different kind of PR rather than teaching either of them a second
-  # meaning.
+  # A PR for deliberate, non-bugfix work: a sibling of `Patch`, because `Bug` means "proven wrong"
+  # and `Patch.Open` keeps its required `reference_to Bug`.
+  # Born `opened`, with no investigating state: the work was decided before any code moved.
   #
-  # `Improvement` — checked against this file's own naming hazard before
-  # committing to it, the same way `Patch`'s own comment already checked
-  # itself: `Facade::Surface.install` puts every AGGREGATE name in every
-  # loaded bluebook onto `Object` as a top-level constant, so a second
-  # aggregate anywhere in the corpus sharing this word would resolve to
-  # whichever booted last. Grepped for `aggregate "Improvement"` across
-  # every `.bluebook` file in this repository (examples/, qa/, the
-  # framework chapters, every fixture) — nothing. Not a Ruby core
-  # constant either. Plainer synonyms considered and set aside:
-  # `Enhancement` (no shorter, no plainer, and this file already prefers
-  # the word an engineer would actually say), `Change`/`Build`/`Delivery`
-  # (each already a verb or noun doing other work nearby — `Angle.Build`
-  # a few hundred lines up is the literal reason `Build` was struck
-  # first).
-  #
-  # NOT SHAPED LIKE `Bug`. `logged → investigating → fixed → verified` is
-  # what it costs to prove something is actually broken before touching
-  # it; there is no investigation here because nothing is broken — the
-  # work was already decided, deliberately, before a line of code moved.
-  # What is actually true instead: a PR exists, or it does not; CI has an
-  # opinion on its exact commit, or it does not yet; and GitHub eventually
-  # says merged or closed. That is `opened → landed → (needs_fix |
-  # merged | closed)`, and nothing about it needed a fourth word — see
-  # `Land`'s own comment for why `landed` covers both "just opened" and
-  # "fixed and re-pushed" without a fifth state to tell them apart.
-  #
-  # BORN OPENED, THE SAME WAY `Patch` IS BORN OPENED and `Bug` is born
-  # PROVEN (that aggregate's own comment) — there is no state for
-  # "somebody is thinking about doing this." The ledger's job starts once
-  # the PR is real, not before.
-  #
-  # `Open` AND `Land` ARE TWO COMMANDS, DELIBERATELY, where `Patch.Open`
-  # gets the commit in one shot. The split exists for exactly one reason:
-  # `ImprovementCiWatch` below has to `starts_on` ONE event, and that
-  # event has to be the SAME one a human or agent dispatches again after
-  # a `Regress` — the identical trick `Bug::Fix` already relies on
-  # (reused for the first fix and every re-fix after `Bug.Regress`; see
-  # that command's own comment). Folding `commit` into `Open` would mean
-  # a re-landed commit has nowhere to go but a second `Open` — refused
-  # outright as `AlreadyExists`, since `Open` is this aggregate's own
-  # creating command and a number only gets created once.
+  # `Open` and `Land` are separate so `ImprovementCiWatch` can `starts_on` the one event that is
+  # also re-dispatched after a `Regress`; folding `commit` into `Open` would refuse a re-land
+  # as `AlreadyExists`.
   aggregate "Improvement" do
     description "One pull request landed for deliberate, non-bugfix work — a domain-modeling addition, a tool, an aggregate this very practice needed — number, branch, and the exact commit that makes watching its CI a lookup instead of a guess, the same discipline `Patch` already keeps for a bug's own fix."
 
-    # OPTIONAL, AND SET ONLY AT `Open` — the same shape `hop_chain.
-    # bluebook`'s own `Proposal` already establishes for a reference that
-    # is real some of the time (`reference_to Engagement, optional:
-    # true`, restated on the creating command `Draft` for the identical
-    # reason: "a nil/never-set reference is real state a hop has to
-    # answer for, and the command input and retained relationship
-    # therefore state the same optionality explicitly"). Most of this
-    # session's real infra PRs began life as a cited `Angle` a past sweep
-    # left in the backlog, but not all deliberate work does — a
-    # spontaneous fix-the-tooling PR with no prior lead is exactly as
-    # real, and forcing a citation onto it would be inventing an Angle
-    # after the fact to satisfy a required field, the identical dishonesty
-    # `Expectation`'s own comment already refuses for a check.
+    # Optional, set only at `Open`: not all deliberate work began as a cited `Angle`, and forcing
+    # one would invent a lead after the fact.
     reference_to Angle, optional: true
 
     identified_by :number
@@ -2732,8 +1679,7 @@ Hecks.bluebook "QualityControl" do
     attribute :branch, ImprovementBranch
     attribute :commit, CommitRef
     attribute :title,  ImprovementTitle
-    # WHEN — see `Patch.opened_at`'s own comment; the same field, for the
-    # same cap, restated per aggregate the way this file already does.
+    # See `Patch.opened_at`: the same field, for the same cap.
     attribute :opened_at, Instant
 
     value_object "Instant" do
@@ -2756,13 +1702,8 @@ Hecks.bluebook "QualityControl" do
       invariant("an improvement says which branch it is on") { !value.to_s.empty? }
     end
 
-    # REDECLARED, NOT SHARED — this file's own established habit
-    # (`Engineer`, `Instant`, `CommitRef` are each redeclared per
-    # aggregate; `Patch`'s own `CommitRef` comment says why once for all
-    # of them). ABSENT UNTIL `Land`, ON PURPOSE — the same reason `Bug`
-    # leaves `commit` unset at `Log` and fills it only at `Fix`: this
-    # attribute exists to be watched, and there is nothing to watch until
-    # a commit is actually on the record.
+    # Redeclared per aggregate. Absent until `Land`: there is nothing to watch until a commit
+    # exists.
     value_object "CommitRef" do
       attribute :value, String, pattern: '^[0-9a-fA-F]{7,40}$'
     end
@@ -2776,18 +1717,9 @@ Hecks.bluebook "QualityControl" do
       attribute :value, String
     end
 
-    # BOTH ENDINGS ALSO REACHABLE STRAIGHT FROM "opened" — the `Merge`/
-    # `Close` commands below say so already ("the same `opened →
-    # merged`/`closed` shape `Patch` already keeps"), and GitHub itself
-    # does not wait for a `Land` before merging or closing a PR: a
-    # deliberate proof-only PR (never meant to merge, closed the moment
-    # its point was made — real example, PR #543) can be closed by a
-    # human while this ledger still has it at "opened", having never been
-    # `Land`ed at all. Confirmed live, not assumed: `bin/qa_pr_check`
-    # crashed with an uncaught `LifecycleRefused` the first time
-    # `retire_if_settled?` tried exactly this — "opened" missing here was
-    # the whole gap, matched by `Patch`'s own `Close`/`Merge`, both
-    # `from: "opened"`, with no "landed" state to have skipped.
+    # `Merge` and `Close` are reachable from "opened" too: GitHub does not wait for a `Land`, and a
+    # proof-only PR can be closed while still "opened" (`retire_if_settled?` hit
+    # `LifecycleRefused`).
     lifecycle :status, default: "opened" do
       transition "Land"    => "landed",   from: ["opened", "needs_fix"]
       transition "Regress" => "needs_fix", from: "landed"
@@ -2795,13 +1727,8 @@ Hecks.bluebook "QualityControl" do
       transition "Close"   => "closed",   from: ["opened", "landed", "needs_fix"]
     end
 
-    # DISPATCHED BY `bin/qa_open_pr --improvement [--angle ANGLE-n]`, THE
-    # SAME MOMENT AND FOR THE SAME REASON `Patch.Open`'s own comment
-    # already gives: that script has the number/url/branch/title straight
-    # from `gh pr create`'s own return value, and this is where they get
-    # written down instead of re-derived later — followed, in the same
-    # script run, by `Land` with the head commit, so `ImprovementCiWatch`
-    # starts watching before the script even exits.
+    # Dispatched by `bin/qa_open_pr --improvement`, which then dispatches `Land` in the same run so
+    # `ImprovementCiWatch` is watching before the script exits.
     command "Open" do
       role "QA engineer"
       goal "Record that a deliberate, non-bugfix piece of work has been opened as a pull request, before its own commit is known to be worth watching"
@@ -2818,17 +1745,8 @@ Hecks.bluebook "QualityControl" do
       emits "ImprovementOpened"
     end
 
-    # THE EVENT `ImprovementCiWatch` STARTS ON, AND THE ONE A RE-LANDING
-    # FIRES AGAIN — see this aggregate's own header comment on why `Open`
-    # and `Land` are two commands rather than one.
-    #
-    # `number` IS RESTATED, THE SAME REDUNDANT-ON-ITS-FACE, LOAD-BEARING
-    # REASON `Bug::Fix`'s own comment gives in full for `reference`: an
-    # emitted event carries exactly the arguments it was dispatched with,
-    # never the record's own identity riding along for free, so an
-    # absent `number` here would be an absent `number` for the rest of
-    # `ImprovementCiWatch`'s own saga memory — silently, the one failure
-    # mode this whole chapter exists to hunt.
+    # The event `ImprovementCiWatch` starts on, and the one a re-landing fires again.
+    # `number` is restated so the event carries it into the saga's memory (see `Bug::Fix`).
     command "Land" do
       role "QA engineer"
       goal "Record the commit this PR is now at, so CI can be watched for it — whether that is the commit it was opened with, or a fresh one pushed after a NeedsFix"
@@ -2842,12 +1760,7 @@ Hecks.bluebook "QualityControl" do
       emits "ImprovementLanded"
     end
 
-    # `Regress` — THE SAME WORD `Bug` ALREADY USES for the identical
-    # idea, deliberately shared rather than a second verb for one
-    # meaning: "put it back in front of somebody when what looked done
-    # stops holding." `ImprovementCiWatch` below is the only dispatcher —
-    # see that process manager's own header for why there is no
-    # "investigating" for this to regress back TO.
+    # The same word `Bug` uses; `ImprovementCiWatch` is the only dispatcher.
     command "Regress" do
       role "QA engineer"
       goal "Put landed work back in front of somebody when its own commit stops holding"
@@ -2856,12 +1769,8 @@ Hecks.bluebook "QualityControl" do
       emits "ImprovementRegressed"
     end
 
-    # OPENED THEN ONE OF TWO ENDINGS GITHUB ITSELF REPORTS — the same
-    # `opened → merged`/`closed` shape `Patch` already keeps, restated
-    # here rather than shared for the identical reason `Patch`'s own
-    # lifecycle comment gives: both endings are terminal, and reachable
-    # from `needs_fix` too, because GitHub can merge or close a PR
-    # regardless of what this ledger's own CI watch last heard.
+    # Both endings are terminal and reachable from `needs_fix`: GitHub can merge or close a PR
+    # whatever this ledger's CI watch last heard.
     command "Merge" do
       role "QA engineer"
       goal "Record that GitHub merged it"
@@ -2897,7 +1806,7 @@ Hecks.bluebook "QualityControl" do
       order_by :number
     end
 
-    # `Patch.OpenedSince`'S TWIN — the cap counts both kinds of PR.
+    # `Patch.OpenedSince`'s twin: the cap counts both kinds of PR.
     query "OpenedSince" do
       description "Every improvement opened at or after one instant, in number order — the other half of today's count against PR_CAP_PER_DAY."
       attribute :since, Instant
@@ -2911,15 +1820,8 @@ Hecks.bluebook "QualityControl" do
     end
   end
 
-  # ── is it safe to ship ───────────────────────────────────────────────
-
-  # A GREEN CI RUN, AGAINST THE EXACT COMMIT.
-  #
-  # "Safe to deploy" is not a question about now, it is a record about a
-  # commit: CI passed at two o'clock, you have pushed twice since, and the
-  # green belongs to what it ran against. So a clearance is minted per commit
-  # and nothing has to make it stale — a later commit simply has none of its
-  # own, which is the same thing said without needing a clock.
+  # One CI run against one commit. A clearance is minted per commit, so a later commit is stale
+  # by simply having none.
   aggregate "Clearance" do
     description "One CI run against one commit, and therefore the only answer to whether that commit is safe to ship."
 
@@ -2967,12 +1869,8 @@ Hecks.bluebook "QualityControl" do
       role "System"
       goal "Record that the suite went red against this commit"
 
-      # `refusal`, NOT `summary`, and the rename is load-bearing. A policy
-      # re-enters its target with the answering event payload VERBATIM, and
-      # the runtime names what came back from a refused ask `refusal` — so a
-      # command expecting `summary` here would be handed a key it never
-      # declared and refuse the very failure it exists to record. The word
-      # is the framework's; `sets` is where it becomes ours.
+      # `refusal`, not `summary`: a policy re-enters with the answering event's payload verbatim,
+      # and the runtime names what a refused ask returned `refusal`.
       reference_to Clearance
       attribute :refusal, RunSummary
 
@@ -2981,10 +1879,7 @@ Hecks.bluebook "QualityControl" do
       emits "ClearanceRefused"
     end
 
-    # THE DEPLOY QUESTION, ASKED THE ONLY WAY IT CAN BE ANSWERED — name the
-    # commit you are about to ship. An empty answer is a no, and it is a no
-    # for the right reason: not "CI is red" but "nothing has vouched for
-    # THIS".
+    # Name the commit you are about to ship; an empty answer means nothing has vouched for it.
     query "For" do
       description "Is this exact commit cleared? Ask with the sha you are about to deploy; an empty answer is a no, including when nobody has run CI on it at all."
       attribute :commit, CommitRef
@@ -3005,187 +1900,79 @@ Hecks.bluebook "QualityControl" do
     end
   end
 
-  # ── noticing when a fix stops holding ───────────────────────────────
-
-  # A HUMAN USED TO BE THE ONLY THING WATCHING FOR THIS. `Bug.Fix` records
-  # a commit; CI runs against it, eventually, somewhere else; and until
-  # this procedure existed, nothing in the ledger ever put those two facts
-  # back together on its own. A fix that looked right locally and broke on
-  # CI's own fresh build sat `fixed` — or worse, `verified` — indefinitely,
-  # and the only way anyone found out was a person noticing a PR had gone
-  # red and saying so out loud. That is exactly the shape this whole
-  # chapter exists to hunt: the ledger PROMISED a fix, the world quietly
-  # disagreed, and nobody but a human happened to be looking.
-  #
-  # `Regress` ALREADY SAID THE RIGHT WORD — "put a bug back when its fix
-  # stopped holding" — and nothing had ever dispatched it. This procedure
-  # is the thing that finally does, every time, driven by the one fact
-  # that actually settles the question: what `Clearance` says about the
-  # exact commit `Fix` recorded.
-  #
-  # CORRELATES BY THE COMMIT, NOT THE BUG'S OWN REFERENCE — commit is the
-  # one scalar both sides of this conversation can name. `Bug.Fix` sets it
-  # directly, so `BugFixed` carries it in payload; `Clearance` is
-  # IDENTIFIED by it, so `ClearanceGiven`/`ClearanceRefused` correlate with
-  # no field of their own to dig at all — `SagaInterpreter::Correlation`'s
-  # own third tier reads a mutating aggregate's `event.id` exactly when the
-  # correlated field IS that aggregate's own identity, and `commit` is
-  # `Clearance`'s. The bug's own reference travels a different way: it
-  # rides along in `BugFixed`'s payload too (see `Bug.Fix`'s own comment on
-  # why `reference` is declared there, restated), captured once into this
-  # saga's own memory at the start and read back out the one time it is
-  # needed — addressing the SAME bug when its commit comes back red.
-  #
-  # `ClearanceGiven` ENDS IT. CI passed; there is nothing left to watch
-  # for; `ends_on` deletes the instance the moment that event arrives for
-  # this commit. `ClearanceRefused` does the one thing this procedure
-  # exists to do and stops there — no `ends_on` names it, the same way
-  # `ExternalSettlement`'s own `:refused` branch leaves `"returned"`
-  # un-ended (examples/banking's own precedent, not an oversight here): the
-  # regression is on the record the moment `Bug.Regress` lands, and an
-  # instance sitting in `"regressed"` forever costs nothing — its commit
-  # already has its answer.
+  # Puts `Bug.Fix`'s commit and CI's `Clearance` for it back together, dispatching `Bug.Regress` on
+  # red. Correlates by commit, which `BugFixed` carries and `Clearance` is identified by.
+  # `ClearanceRefused` has no `ends_on`, as in banking's `ExternalSettlement`: an instance left in
+  # "regressed" costs nothing.
   process_manager "BugCiWatch" do
     correlates_by :"commit.value"
     starts_on Bug::BugFixed
     ends_on   Clearance::ClearanceGiven
 
-    # `bug:` — Bug's OWN reference key (`Naming.reference_key("Bug")`),
-    # the same alias Settlement's own `transfer:`/`wire:` legs already
-    # address a record by, never the bare `reference:` field name. The
-    # VALUE stays `:reference` — the one field `BugFixed` was made to
-    # carry, sitting in this saga's own memory since the moment it began.
+    # `bug:` is Bug's own reference key (`Naming.reference_key("Bug")`); the value is the
+    # `reference` that `BugFixed` carries into saga memory.
     transition Clearance::ClearanceRefused => "regressed", from: "watching" do
       dispatch Bug::Regress, with: { bug: :reference }
     end
   end
 
-  # ── noticing when landed work stops holding ─────────────────────────
-
-  # THE SAME WATCH `BugCiWatch` ALREADY KEEPS, above, aimed at deliberate
-  # work instead of a proven-wrong finding — `Improvement.Land` records a
-  # commit; CI runs against it, eventually, somewhere else; this is what
-  # puts those two facts back together on its own, the identical shape
-  # `BugCiWatch`'s own header already explains end to end (why the
-  # correlation is by commit and not by this record's own reference, why
-  # `ClearanceGiven` simply ends the instance and `ClearanceRefused` is
-  # the only transition, why an instance left sitting in "regressed"
-  # forever costs nothing). Read that comment; nothing about the
-  # mechanism differs here.
-  #
-  # WHAT DOES DIFFER: THERE IS NO "investigating" TO PUT THIS BACK INTO.
-  # `Bug::Regress` returns a bug to a state where a person re-examines
-  # WHY the code is wrong, because that question is real for a bug and
-  # was already answered once. Nothing was ever wrong here — deliberate
-  # work went red on CI for the ordinary reasons deliberate work does
-  # (a flake, a merge with `main`, a test the new code itself needed to
-  # update) — so `Improvement::Regress` lands the record in `needs_fix`
-  # instead: not "go investigate," just "this needs attention before it
-  # can be trusted," which is exactly what a human or agent notices and
-  # clears the same way `Bug.Regress`'s own comment describes — a fresh
-  # `Improvement.Land`, carrying whatever new commit addresses it, which
-  # is the SAME event this saga started on and so starts a fresh
-  # instance watching it, the identical mechanism `BugCiWatch`'s own
-  # reuse of `Bug::Fix` already relies on.
+  # The `BugCiWatch` mechanism aimed at deliberate work, dispatching `Improvement::Regress`. That
+  # lands in `needs_fix`, not an investigating state; a fresh `Improvement.Land` clears it and
+  # starts a new watch.
   process_manager "ImprovementCiWatch" do
     correlates_by :"commit.value"
     starts_on Improvement::ImprovementLanded
     ends_on   Clearance::ClearanceGiven
 
-    # `improvement:` — Improvement's OWN reference key
-    # (`Naming.reference_key("Improvement")`), the same alias `bug:`
-    # already is for `Bug::Regress` above. The VALUE is `:number`, the
-    # one field `ImprovementLanded` was made to carry (see `Land`'s own
-    # comment on why it is restated), sitting in this saga's own memory
-    # since the moment it began.
+    # `improvement:` is the reference key; the value is `:number`, which `ImprovementLanded`
+    # carries.
     transition Clearance::ClearanceRefused => "regressed", from: "watching" do
       dispatch Improvement::Regress, with: { improvement: :number }
     end
   end
 
-  # ── the composed reads ───────────────────────────────────────────────
-  #
-  # THE ONE THING A QUERY CANNOT DO IS COUNT. Every question above answers
-  # with rows and leaves the arithmetic to whoever is reading — which is fine
-  # for `queue` (you work the first one) and useless for "how are we doing",
-  # where the whole answer IS the shape of the pile. A rootless report with
-  # `group_by` nests an aggregate own whole table by its own field, so the
-  # count is the size of each group and nobody has to hold twenty numbers in
-  # their head.
-  #
-  # ROOTLESS ON PURPOSE. These centre on no record: there is no one bug whose
-  # view this is. That is exactly the shape `group_by` exists for, and why
-  # these take no id at dispatch.
+  # Rootless reports: `group_by` gives each group's size, which a query's rows cannot, and they
+  # centre on no record so they take no id.
 
-  # The number worth watching is not the total. It is the share of it that
-  # turned out not to be a bug — `withdrawn` beside `verified` says whether
-  # this practice is finding real things or crying wolf, and no single query
-  # can put those two side by side.
+  # `withdrawn` beside `verified` says whether the practice finds real things or cries wolf.
   read_model "BugsByStatus" do
     description "Every bug sorted into what became of it — the tally. The share that is withdrawn, beside the share verified, is the honesty check on the whole practice."
     include Bug
     group_by :status, :reference
   end
 
-  # WHO IS FINDING THINGS, which matters once more than one agent is
-  # sweeping: a submitter with nothing but withdrawn reports is a different
-  # problem from a quiet one.
   read_model "BugsBySubmitter" do
     description "Every bug sorted by who reported it, then by its own reference — what each agent has actually found."
     include Bug
     group_by :submitter, :reference
   end
 
-  # HOW MUCH OF WHAT WE FIND CAN BE FIXED ON THE SPOT. `self_contained`
-  # beside `bigger` is the practice's own fix-rate; `undecided` beside
-  # both is how much judgment is still owed — the same reading
-  # `Bug.Untriaged` gives as rows, as a count.
   read_model "BugsByDisposition" do
     description "Every bug sorted by the call its finder made — self-contained, bigger, or not yet decided — beside its reference. The fix-rate, and the judgment still owed, at a glance."
     include Bug
     group_by :disposition, :reference
   end
 
-  # THE FILING PILE AT A GLANCE. `submitting` rows are calls whose outcome
-  # nobody recorded and `abandoned` rows are ones nothing automatic will
-  # touch again — both are only alarming as a COUNT, which is the reading
-  # the per-status queries cannot give.
   read_model "TicketsByStatus" do
     description "Every ticket sorted by where it got to — stuck filings and abandoned ones are only visible as a count."
     include Ticket
     group_by :status, :reference
   end
 
-  # THE SAME TALLY `BugsByStatus` GIVES, for the sibling ledger — how much
-  # deliberate work is sitting in `needs_fix` is only alarming as a COUNT,
-  # the identical reading `TicketsByStatus`'s own comment gives for a
-  # stuck filing.
   read_model "ImprovementsByStatus" do
     description "Every improvement sorted into what became of it — landed, needing a fix, merged, or closed, at a glance."
     include Improvement
     group_by :status, :number
   end
 
-  # ── what happens without anybody asking ──────────────────────────────
-
-  # THE FILING, DRIVEN. `Raise` records the intent; this makes the call.
-  # Splitting them is what lets a crash between the two leave a row in
-  # `Ticket.Raised` rather than a lie, and it is why the ask is a reaction to
-  # an event rather than something a command does on the side.
-  # THE SUITE ANSWERS THE CLEARANCE. `Start` puts a commit up; the ask runs
-  # the suite; whichever ending comes back records itself. Nothing here reads
-  # a result and decides — the adapter already decided, by answering or
-  # refusing, which is the only branch a policy can express.
-  # THE LOOP CLOSED FROM EITHER END. `Ticket.Close` is the only way a ticket
-  # leaves `filed`, and nothing in this repository can know it happened —
-  # somebody fixes the bug on GitHub and clicks close. So the fact has to
-  # arrive from outside, by whichever route reaches us first, and both routes
-  # already say the same word.
+  # `Ticket.Close` is the only way a ticket leaves `filed`, and only the outside can know it
+  # happened, so the fact arrives by whichever route reaches us first.
   policy "CloseWhenClosedUpstream" do
     on      "Ticket.IssueClosedUpstream"
     trigger Ticket::Close
   end
 
+  # The adapter decides by answering or refusing, the only branch a policy can express.
   policy "ClearOnPass" do
     on      "Clearance.SuitePassed"
     trigger Clearance::Passed
@@ -3196,6 +1983,7 @@ Hecks.bluebook "QualityControl" do
     trigger Clearance::Failed
   end
 
+  # `Raise` and the call are split so a crash leaves a `Ticket.Raised` row rather than a lie.
   policy "FileWhenSubmitted" do
     on      "Ticket.TicketSubmitted"
     trigger Ticket::IssueTracker::File
@@ -3211,11 +1999,7 @@ Hecks.bluebook "QualityControl" do
     trigger Ticket::Refused
   end
 
-  # THREE TRIES. The cap is not here — a policy holds no state and would ask
-  # forever. It is the `given` on `Retry`, reading the `attempts` the refusal
-  # incremented, which is banking's ScheduledPayment shape exactly. Past the
-  # cap the retry refuses, the reaction records that it refused, and the
-  # ticket sits in `Refused` for a person — which is what the report reads.
+  # The cap is the `given` on `Retry`, not here: a policy holds no state and would ask forever.
   policy "AskAgain" do
     on      "Ticket.TicketFilingRefused"
     trigger Ticket::Retry
@@ -3226,31 +2010,12 @@ Hecks.bluebook "QualityControl" do
     trigger Ticket::IssueTracker::File
   end
 
-  # `Raised` MEANS COMPOSED, NOT SENT. Nothing reacts to `TicketRaised` on
-  # purpose — a ticket sits there until somebody decides it goes, which is
-  # what makes `Ticket.Raised` a list worth reading rather than a millisecond
-  # of internal state.
+  # Nothing reacts to `TicketRaised` on purpose: a ticket waits until somebody submits it.
 
-  # THE ROTATION GETS EXACTLY ONE AUTOMATIC REACTION, AND THIS IS IT. "On
-  # SweepConcluded, release the target" was written out and taken back —
-  # a policy carries the EVENT's payload, and `Target.Release` needs the
-  # target's own id, a `next_streak` only the runner can compute, and a
-  # yield score the same; `SweepConcluded` carries none of that, and a
-  # reaction that cannot carry what its target needs refuses at run time
-  # and reads, in the log, as though it had worked. So the runner still
-  # releases (`bin/qa_sweep`, clean path or `--release`).
-  #
-  # `Suspend` IS THE WORKED EXAMPLE OF WHAT A POLICY CAN DO HERE. The
-  # trigger needs only a `Target` id and a reason; `with:` supplies the
-  # reason as a literal, and the id rides in on `CheckSurprised` because
-  # `Sweep::Check::Surprised` RESTATES `target` (its own `TargetRef`
-  # comment — the `Bug.Fix` precedent). `on Sweep::CheckSurprised`, not
-  # `Sweep::Check::…`: an entity command's event is stamped with its
-  # PARENT aggregate (`PolicyInterpreter#policies_for` matches the
-  # qualifier against `event.aggregate`, and `EntityInterpreter` emits
-  # through the parent record) — chess's `on Game::PieceMoved` for a
-  # `Piece` entity's own event is the corpus precedent. `role "System"`
-  # on `Suspend` is what lets a policy fire it at all.
+  # The rotation's one automatic reaction. Releasing on `SweepConcluded` cannot work: that event
+  # carries no target id, `next_streak` or yield score, so `bin/qa_sweep` still releases.
+  # `on Sweep::CheckSurprised`, not `Sweep::Check::...`: an entity command's event is stamped with
+  # its parent aggregate. `Check.Surprised` restates `target` so the id rides in.
   policy "SuspendOnSurprise" do
     on      Sweep::CheckSurprised
     trigger Target::Suspend, with: {

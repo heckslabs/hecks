@@ -2,16 +2,8 @@ Hecks.bluebook "Widgets" do
   vision "A vendored package's own smallest domain: one widget, created then retired — the fewest moving parts that still exercise uses_embryonaut_bluebook end to end (create, refuse, retire, query)."
   supporting
 
-  # THIS FILE LIVES OUTSIDE hecks's OWN lib/ — it ships inside
-  # examples/embryonaut_vendoring_demo/vendor/embryonaut_bluebooks/widgets/
-  # bluebook/, the same place a REAL consumer's `vendor/` directory would
-  # hold a package fetched from github.com/chrisyoung/embryonaut_bluebooks
-  # (lib/hecks/embryonaut_bluebook.rb's own header). Kept inside this repo,
-  # beside the one example domain that attaches it
-  # (uses_embryonaut_bluebook "widgets", ../embryonaut_vendoring_demo.hecksagon),
-  # purely so the corpus/CI proof this domain exists for stays
-  # self-contained — a real vendored package would be a separate,
-  # independently-versioned checkout instead.
+  # Vendored copy kept in this repo so the corpus proof stays self-contained; a real consumer
+  # would check the package out separately under its own vendor/ directory.
   aggregate "Widget" do
     description "One widget: available until retired, never the other way around."
 

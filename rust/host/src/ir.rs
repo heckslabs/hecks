@@ -1,11 +1,5 @@
-// **The IR sidecar, loaded once** — `HECKS_IR_PATH` points at the same
-// `ir.json` `bin/project_rust` already writes beside `metadata.rs` for a
-// domain's own generated module (rust/project/domain_generator.rb's own
-// header on why this exists as a plain file at all: this crate has no
-// path dependency on the kernel crate that embeds the same JSON as a
-// Rust constant, `metadata.rs`'s own `IR_JSON`). Shared between web.rs
-// and dispatch-adjacent callers, both of which need this exact
-// `OnceLock` for the identical reason.
+// The IR sidecar, loaded once from `HECKS_IR_PATH`: this crate has no path
+// dependency on the kernel crate that embeds the same JSON as `IR_JSON`.
 
 use serde_json::Value;
 use std::sync::OnceLock;
@@ -20,31 +14,8 @@ pub fn ir() -> Option<&'static Value> {
     .as_ref()
 }
 
-/// The `(qualified_aggregate, storage_name)` pairs `Exporter.lineage`
-/// (lib/hecks/projector/exporter.rb) exported for this domain — a
-/// binding fact, not part of an aggregate's own canonical shape (see
-/// that method's own header for why), which is exactly why it rides in
-/// `ir.json` as its own top-level `lineage` key rather than nested
-/// under `aggregates`. `domain_ir["name"]` qualifies each bare aggregate
-/// name the same way `Store::instances`'s own keys already are
-/// (`"Domain::Aggregate#id"`), so a caller can build one of those
-/// directly off this list without re-deriving the domain name itself.
-///
-/// Empty (never an error) for a domain with no `lineage` key at all —
-/// every domain generated before this existed, and every domain with
-/// nothing bound to a lineage-capable adapter, look identical here: no
-/// aggregate qualifies, same as today.
-///
-/// **A real call site** — `auth::membership_aggregate` (auth.rs) resolves
-/// `ir.json`'s own `membership` key (`Exporter.membership` / a chapter's
-/// `provides "membership"`) against this list to pick which
-/// lineage-capable aggregate auth.rs's own Member-handling functions
-/// (`member_row_by_email`/`member_rows`/`append_member_state`/
-/// `session_for_member_by_identity`) actually read/write, rather than a
-/// literal `"member"`/`"Member"`. This list itself
-/// is still generic over every lineage-capable aggregate a domain
-/// declares — `membership_aggregate` is the first, but not the only
-/// possible, caller that narrows it down to one.
+/// Aggregates bound to a lineage-capable adapter, as `(qualified_name,
+/// storage_name)` — read from `ir.json`'s own `lineage` key.
 pub fn lineage_capable_aggregates(domain_ir: &Value) -> Vec<(String, String)> {
     let domain_name = domain_ir.get("name").and_then(|v| v.as_str()).unwrap_or_default();
     domain_ir
@@ -64,17 +35,8 @@ pub fn lineage_capable_aggregates(domain_ir: &Value) -> Vec<(String, String)> {
         .unwrap_or_default()
 }
 
-/// Every aggregate's declared persistence adapter name — `Exporter.
-/// persistence` (exporter.rb), a binding fact like `lineage` above, not
-/// part of an aggregate's own canonical shape, riding in `ir.json` as
-/// its own top-level `persistence` key. Unlike `lineage_capable_
-/// aggregates`, this covers every aggregate a domain declares, not just
-/// the lineage-capable ones — `rust/host` has exactly one backend
-/// (Postgres/PostgresEra, `journal.rs`/`dispatch.rs`), and an aggregate
-/// bound to anything else (Heki, Memory, Sqlite, D1, LocalStorage) is
-/// invisible to it: no adapter/backend trait exists here to even notice
-/// the mismatch. See `refuse_unsupported_persistence_adapters` below,
-/// the actual consumer.
+/// Every aggregate's declared persistence adapter, as `(name, adapter)` —
+/// read from `ir.json`'s own `persistence` key.
 pub fn persistence_adapters(domain_ir: &Value) -> Vec<(String, String)> {
     domain_ir
         .get("persistence")
@@ -93,33 +55,12 @@ pub fn persistence_adapters(domain_ir: &Value) -> Vec<(String, String)> {
         .unwrap_or_default()
 }
 
-/// The only persistence adapters `rust/host` has a real backend for
-/// today. Anything else bound in a domain's own `.world` is a silent
-/// gap, not a loud one, without this check — see the function below.
+/// The only persistence adapters `rust/host` has a real backend for — see
+/// `refuse_unsupported_persistence_adapters` below.
 pub const SUPPORTED_PERSISTENCE_ADAPTERS: &[&str] = &["Postgres", "PostgresEra"];
 
-/// Refuses loudly, at boot, if this domain binds any aggregate to a
-/// persistence adapter `rust/host` cannot actually serve — closing a
-/// silent-wrongness gap found by direct trace: examples/banking binds
-/// every aggregate to `Heki` (a local flock+journal file store,
-/// lib/hecks/adapters/driven/heki.rb), which `rust/host` has never had
-/// any code path for. Without this check, `main.rs` boots clean
-/// regardless (Heki is never lineage-capable, so the era/lineage gate
-/// above skips silently too) and `dispatch::handle` proceeds straight
-/// into its own flat Postgres rehydrate-replay path against
-/// `hecks_lambda_journal`/`hecks_lambda_snapshot` — tables seeded empty
-/// for a domain whose real state lives entirely in `.heki` files this
-/// runtime never opens. The result is silent state bifurcation: two
-/// independent, diverging histories for the same nominal domain, with
-/// no error anywhere — a request rust/host serves could report
-/// "not found" for an account Ruby's own store has always had, or
-/// accept a create Ruby would refuse as a duplicate. Refusing at boot
-/// instead trades that for a loud, immediate, correct failure.
-/// The chapter this domain's role checks resolve against — `Exporter.
-/// authorization` (exporter.rb), a binding fact like `lineage`/
-/// `persistence` above, read off `ir.json`'s own top-level
-/// `authorization` key. `None` when the domain attaches nothing that
-/// declares `provides "authorization"` (the key is omitted entirely).
+/// The chapter this domain's role checks resolve against, read from
+/// `ir.json`'s own `authorization` key. `None` when nothing provides it.
 #[derive(Debug, Clone, PartialEq)]
 pub struct AuthorizationProvider {
     /// Qualified grant command, e.g. `Governance::RoleAssignment.Assign`.
@@ -137,13 +78,8 @@ pub fn authorization_provider(domain_ir: &Value) -> Option<AuthorizationProvider
     })
 }
 
-/// The chapter that answers "who may sign in" — `Exporter.membership`
-/// (exporter.rb), a binding fact like `authorization` above, read off
-/// `ir.json`'s own top-level `membership` key. `None` when the domain
-/// attaches nothing that declares `provides "membership"` (the key is
-/// omitted entirely). Replaces the former HECKS_MEMBERSHIP_AGGREGATE
-/// env var: the aggregate is named by what the chapter declares, not
-/// by a deploy-time string.
+/// The chapter that answers "who may sign in", read from `ir.json`'s own
+/// `membership` key. `None` when nothing provides `"membership"`.
 #[derive(Debug, Clone, PartialEq)]
 pub struct MembershipProvider {
     /// Chapter name, e.g. `Membership`.
@@ -152,14 +88,8 @@ pub struct MembershipProvider {
     pub aggregate: String,
 }
 
-/// The aggregates whose dispatched mutations mirror into their era head:
-/// the lineage-capable ones, plus the membership aggregate. Boot mints the
-/// membership aggregate's head so sign-in can read it, but a vendored
-/// chapter's aggregate is not in `lineage.capable_aggregates`, so without
-/// it here a command dispatched on it (a Membership `translates`, such as
-/// a signup's Admit and GrantAccess) would never reach that head. The
-/// membership name is the chapter's qualified name, which is what a kernel
-/// mutation record carries.
+/// Aggregates whose mutations mirror into their era head: the lineage-capable
+/// ones plus the membership aggregate, which is not itself lineage-capable.
 pub fn mirrored_aggregates(domain_ir: &Value) -> std::collections::BTreeSet<String> {
     let mut mirrored: std::collections::BTreeSet<String> =
         lineage_capable_aggregates(domain_ir).into_iter().map(|(qualified, _)| qualified).collect();
@@ -177,12 +107,9 @@ pub fn membership_provider(domain_ir: &Value) -> Option<MembershipProvider> {
     })
 }
 
-/// The chapter that answers "who is this authenticated pair" —
-/// `Exporter.identity` (exporter.rb), a binding fact like `authorization`
-/// above, read off `ir.json`'s own top-level `identity` key. `None` when
-/// the domain attaches nothing that declares `provides "identity"`.
-/// Breaking in 2.0: Link's reference field is `identity`, never
-/// `identity_id` and never `to:`.
+/// The chapter that answers "who is this authenticated pair", read from
+/// `ir.json`'s own `identity` key. `None` when nothing provides `"identity"`.
+/// Link's reference field must stay `identity` — never `identity_id`, never `to:`.
 #[derive(Debug, Clone, PartialEq)]
 pub struct IdentityProvider {
     /// Chapter name, e.g. `Identity`.
@@ -205,12 +132,8 @@ pub fn identity_provider(domain_ir: &Value) -> Option<IdentityProvider> {
     })
 }
 
-/// The chapter that answers the guest newsletter signup —
-/// `Exporter.newsletter` (exporter.rb), a binding fact like `membership`
-/// above, read off `ir.json`'s own top-level `newsletter` key. `None` when
-/// the domain attaches nothing that declares `provides "newsletter"` (the
-/// key is omitted entirely), so a domain without it serves no newsletter
-/// routes.
+/// The chapter that answers the guest newsletter signup, read from
+/// `ir.json`'s own `newsletter` key. `None` when nothing provides it.
 #[derive(Debug, Clone, PartialEq)]
 pub struct NewsletterProvider {
     /// Chapter name, e.g. `Newsletter`.
@@ -236,9 +159,7 @@ impl NewsletterProvider {
 }
 
 /// Whether the domain's own `aggregate`'s `command` declares an argument
-/// named `field`. Lets a route send an optional extra argument only to a
-/// domain whose command actually takes it: a command refuses an argument it
-/// does not declare.
+/// named `field` — so a route only sends an argument the command declares.
 pub fn command_declares(domain_ir: &Value, aggregate: &str, command: &str, field: &str) -> bool {
     let named = |value: &Value, name: &str| value.get("name").and_then(|n| n.as_str()) == Some(name);
     let Some(aggregates) = domain_ir.get("aggregates").and_then(|a| a.as_array()) else {
@@ -267,9 +188,8 @@ pub fn newsletter_provider(domain_ir: &Value) -> Option<NewsletterProvider> {
     })
 }
 
-/// The chapter that declares `provides "newsletter_issues"`, read from the
-/// IR's `newsletter_issues` key (which `bin/project_rust` omits entirely when
-/// nothing declares it), so a domain without it serves no send route.
+/// The chapter that declares `provides "newsletter_issues"`, read from
+/// `ir.json`'s own `newsletter_issues` key. Omitted when nothing declares it.
 #[derive(Debug, Clone, PartialEq)]
 pub struct NewsletterIssuesProvider {
     /// Qualified send command, e.g. `Newsletter::Issue.Send`.
@@ -300,11 +220,8 @@ pub fn newsletter_issues_provider(domain_ir: &Value) -> Option<NewsletterIssuesP
 }
 
 
-/// The chapter that takes payments — `Exporter.payments` (exporter.rb), a
-/// binding fact like `newsletter` above, read off `ir.json`'s own top-level
-/// `payments` key. `None` when the domain attaches nothing that declares
-/// `provides "payments"` (the key is omitted entirely), so a domain without
-/// it serves no checkout, registration-payment or webhook routes.
+/// The chapter that takes payments, read from `ir.json`'s own `payments`
+/// key. `None` when nothing provides it.
 #[derive(Debug, Clone, PartialEq)]
 pub struct PaymentsProvider {
     /// Chapter name, e.g. `Payments`.
@@ -340,10 +257,8 @@ pub fn payments_provider(domain_ir: &Value) -> Option<PaymentsProvider> {
     })
 }
 
-/// The chapter that answers scheduling sessions and taking registrations —
-/// `Exporter.registrations` (exporter.rb), read off `ir.json`'s own top-level
-/// `registrations` key. `None` when nothing the domain attaches declares
-/// `provides "registrations"` (the key is omitted entirely).
+/// The chapter that answers scheduling sessions and taking registrations,
+/// read from `ir.json`'s own `registrations` key. `None` when nothing provides it.
 #[derive(Debug, Clone, PartialEq)]
 pub struct RegistrationsProvider {
     /// Chapter name, e.g. `Studio`.
@@ -359,10 +274,8 @@ pub struct RegistrationsProvider {
 }
 
 impl RegistrationsProvider {
-    /// The names a domain has when it calls its own aggregates `Event` and
-    /// `Registration` and declares no `provides "registrations"` yet — what
-    /// this host used before the capability existed, kept as the fallback so
-    /// a domain that has not declared it keeps working.
+    /// The conventional names for a domain that declares no
+    /// `provides "registrations"` — `Event`/`Registration` under the domain itself.
     pub fn conventional(domain: &str) -> Self {
         Self {
             provider: domain.to_string(),
@@ -386,8 +299,7 @@ impl RegistrationsProvider {
     }
 
     /// The request command's own aggregate and command name without the
-    /// chapter qualifier, e.g. `("Registration", "Request")` — the shape
-    /// `command_declares` looks a command up by in the domain's own IR.
+    /// chapter qualifier, e.g. `("Registration", "Request")`, as `command_declares` expects.
     pub fn request_target(&self) -> Option<(&str, &str)> {
         self.request.rsplit("::").next()?.split_once('.')
     }
@@ -405,15 +317,13 @@ pub fn registrations_provider(domain_ir: &Value) -> Option<RegistrationsProvider
 }
 
 /// The registrations binding of the IR this host loaded, or the
-/// conventional names for `domain` when the IR declares none (or none is
-/// loaded).
+/// conventional names for `domain` when the IR declares none.
 pub fn registrations_binding(domain: &str) -> RegistrationsProvider {
     ir().and_then(registrations_provider).unwrap_or_else(|| RegistrationsProvider::conventional(domain))
 }
 
 /// One command of the payment-processor connection, by the role it plays —
-/// resolved to the declaring chapter's own command name through
-/// `PaymentConnectionProvider::verb`.
+/// resolved through `PaymentConnectionProvider::verb`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ConnectionVerb {
     Connect,
@@ -425,10 +335,8 @@ pub enum ConnectionVerb {
     Disable,
 }
 
-/// The chapter that owns the business's payment-processor connection —
-/// `Exporter.payment_connection` (exporter.rb), read off `ir.json`'s own
-/// top-level `payment_connection` key. `None` when nothing the domain
-/// attaches declares `provides "payment_connection"`.
+/// The chapter that owns the business's payment-processor connection, read
+/// from `ir.json`'s own `payment_connection` key. `None` when nothing provides it.
 #[derive(Debug, Clone, PartialEq)]
 pub struct PaymentConnectionProvider {
     /// Chapter name, e.g. `Studio`.
@@ -445,9 +353,8 @@ pub struct PaymentConnectionProvider {
 }
 
 impl PaymentConnectionProvider {
-    /// The names a domain has when it calls its connection aggregate
-    /// `PaymentConnection` with the commands this host used before the
-    /// capability existed, kept as the fallback.
+    /// The conventional names for a domain that declares no
+    /// `provides "payment_connection"` — `PaymentConnection` under the domain itself.
     pub fn conventional(domain: &str) -> Self {
         let qualified = |command: &str| format!("{domain}::PaymentConnection.{command}");
         Self {
@@ -500,8 +407,7 @@ pub fn payment_connection_provider(domain_ir: &Value) -> Option<PaymentConnectio
 }
 
 /// The payment-connection binding of the IR this host loaded, or the
-/// conventional names for `domain` when the IR declares none (or none is
-/// loaded).
+/// conventional names for `domain` when the IR declares none.
 pub fn payment_connection_binding(domain: &str) -> PaymentConnectionProvider {
     ir().and_then(payment_connection_provider).unwrap_or_else(|| PaymentConnectionProvider::conventional(domain))
 }
@@ -520,6 +426,8 @@ pub fn fixture_payments() -> PaymentsProvider {
     payments_provider(&fixture_ir()).expect("the checkout fixture provides payments")
 }
 
+/// Refuses at boot rather than silently building a second, disjoint history
+/// nothing but this runtime reads while the real state lives elsewhere.
 pub fn refuse_unsupported_persistence_adapters(domain_ir: &Value) -> Result<(), String> {
     let unsupported: Vec<String> = persistence_adapters(domain_ir)
         .into_iter()

@@ -24,12 +24,8 @@ Hecks.bluebook "Translation" do
       invariant("a name says something") { !value.to_s.empty? }
     end
 
-    # ARBITRARY, UNVALIDATED CAPTURE — `convert`'s own `values:` table and
-    # `backfill`'s own `default:` are open-ended (any literal a real
-    # migration needs), the same shape `AggregateBuilder#provenance`/
-    # `CommandBuilder#provenance` already capture as plain, unvalidated
-    # text (`LiteralText`, aggregate.bluebook) rather than a fixed
-    # attribute shape a closed self-hosted record could enumerate.
+    # `convert` values and `backfill` defaults are open-ended literals, so they are held as
+    # unvalidated text, like `provenance` (`LiteralText`, aggregate.bluebook).
     value_object "TranslationLiteralText" do
       attribute :value, String
     end
@@ -60,9 +56,7 @@ Hecks.bluebook "Translation" do
       emits "TranslationAggregateRetired"
     end
 
-    # HOW TRANSLATION IS SPELLED. These rows live with the concept
-    # they describe; SyntaxBoot discovers every aggregate-local seed table.
-    # Contexts represented here: File, Translation.
+    # Syntax seed rows for the words this aggregate spells; SyntaxBoot discovers them.
     value_object "KeywordSeed" do
       attribute :word,          String
       attribute :context,       String, admits: "Syntax::Context"

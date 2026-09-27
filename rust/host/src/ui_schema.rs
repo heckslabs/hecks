@@ -1,32 +1,5 @@
-// **The whole console UI, derived** — a Rust port of the console app's
-// `web/ui_schema.rb`, rule for rule: one live domain IR plus the
-// presentation config (presentation.rs) in, the exact JSON document
-// `GET /api/ui-schema` has always served out — nav, per-collection
-// columns, detail fields, field shapes, lifecycle transitions and
-// create forms.
-//
-// Why a second field-shape walker lives in this crate. web.rs already
-// has one (`resolve_field`/`value_object_field`), and it is not this
-// one: that one mirrors `Hecks::Presentation::FieldShape`, which
-// answers "what HTML input collects this attribute" for this host's own
-// server-rendered forms. This one mirrors `UiSchema.field`, which
-// answers "what SHAPE is this attribute" for a JavaScript client that
-// renders its own inputs, its own table cells and its own detail rows.
-// They agree where the questions coincide (money is `{cents, currency}`
-// in both) and deliberately diverge where they don't: FieldShape
-// unwraps a single-attribute value object into a plain text input and
-// forgets it was ever wrapped, while UiSchema keeps `field: "value"` on
-// the descriptor precisely so the client knows the wire value is
-// `{value: ...}` and not a bare scalar. Collapsing them would mean one
-// of the two consumers reading a shape that was decided for the other.
-//
-// Every deviation would be a bug a person sees — a column that renders
-// "[object Object]", a picker that offers a record the server will
-// refuse, a nav item that lands nowhere. So the port is literal: same
-// dispatch order, same fallbacks, same key names (`targetKey`,
-// `stateFilter`, `sortDefault` — camelCase, because index.html reads
-// them), same "degrade, don't break the page" treatment of a config
-// mistake that `presentation_config.rb` is the strict gate for.
+// A Rust port of `web/ui_schema.rb`: turns a domain IR plus config into
+// the exact JSON `GET /api/ui-schema` serves (nav, columns, forms).
 
 use serde_json::{json, Map, Value};
 use std::collections::HashMap;
@@ -67,13 +40,8 @@ pub fn build(domain_ir: &Value, config: &Value) -> Value {
     })
 }
 
-/// `GET /api/schema`'s own body — every real aggregate, its real
-/// lifecycle states and its real declared queries, each query argument
-/// shaped through the same `field` a create form's own inputs go
-/// through (so a reference argument still earns a real picker). A pure
-/// structural fact with no presentation opinion in it — except the
-/// collection keys the argument shapes point at, which is why it still
-/// takes the config.
+/// `GET /api/schema`'s body: every aggregate's states and declared
+/// queries, with arguments shaped the same as a create form's fields.
 pub fn schema(domain_ir: &Value, config: &Value) -> Value {
     let aggregates = aggregates(domain_ir);
     let key_for = key_for(&aggregates, config);
@@ -116,8 +84,6 @@ pub fn key_for(aggregates: &[&Value], config: &Value) -> KeyFor {
 pub fn aggregates(domain_ir: &Value) -> Vec<&Value> {
     domain_ir.get("aggregates").and_then(|v| v.as_array()).map(|a| a.iter().collect()).unwrap_or_default()
 }
-
-// ---- one collection -------------------------------------------------
 
 fn build_collection(aggregate: &Value, config: &Value, key_for: &KeyFor, by_name: &HashMap<&str, &Value>) -> Value {
     let name = agg_name(aggregate);
@@ -181,9 +147,8 @@ fn build_create(
 ) -> Value {
     let preconditions = agg_cfg.get("preconditions");
     // An identity-derived field is computed server-side at dispatch
-    // (app.rb's `apply_identity!`) — asking a person to type "P-004"
-    // by hand would only invite a collision with what the server was
-    // about to compute anyway.
+    // (`apply_identity!`); asking someone to type "P-004" by hand would
+    // only invite a collision with what the server already computes.
     let identity_field = identity.and_then(|i| i.get("field")).and_then(|v| v.as_str());
     let fields: Vec<Value> = array(command, "attributes")
         .iter()
@@ -226,8 +191,6 @@ fn status_attention(state_cfg: &Value) -> Value {
     Value::Array(out)
 }
 
-// ---- columns and detail fields --------------------------------------
-
 fn build_columns(configured: Option<&Value>, fields: &[Value], aggregate: &Value, by_name: &HashMap<&str, &Value>, key_for: &KeyFor) -> Value {
     let entries = match configured.filter(|v| !v.is_null()) {
         // A configured empty list is a real answer, not "unconfigured"
@@ -249,9 +212,8 @@ fn build_columns(configured: Option<&Value>, fields: &[Value], aggregate: &Value
     Value::Array(entries.iter().map(|entry| column_for(entry, fields, aggregate, by_name, key_for)).collect())
 }
 
-/// `UiSchema.column_for` — a bare string names an attribute and takes
-/// its own derived shape as-is; a hash asks for something that shape
-/// can't say by itself (`as:`, `head:`, `hop:`).
+/// `UiSchema.column_for` — a bare string names an attribute as-is; a
+/// hash asks for something the shape alone can't say (`as:`/`head:`/`hop:`).
 fn column_for(entry: &Value, fields: &[Value], aggregate: &Value, by_name: &HashMap<&str, &Value>, key_for: &KeyFor) -> Value {
     let sort = sort_config(entry);
 
@@ -289,9 +251,8 @@ fn column_for(entry: &Value, fields: &[Value], aggregate: &Value, by_name: &Hash
     merge(overridden, sort)
 }
 
-/// UNCONFIGURED = sortable, ascending first — only a hash entry has
-/// anywhere to carry `sortable:`/`sort_default:` at all, so a plain
-/// string column always takes the generous default.
+/// Unconfigured means sortable ascending — only a hash entry has
+/// anywhere to carry `sortable:`/`sort_default:` at all.
 fn sort_config(entry: &Value) -> Value {
     if !entry.is_object() {
         return json!({"sortable": true, "sortDefault": "asc"});
@@ -343,11 +304,8 @@ fn apply_row_columns_filter(base: Value, entry: &Value) -> Value {
     merge(base, json!({"columns": kept}))
 }
 
-/// Only the rows currently in some state — a `list_of(entity)` field
-/// otherwise shows every element ever appended, removed ones included
-/// (a transition changes the stored element in place, it never drops
-/// it). The frontend does the filtering; this only stamps what to
-/// check per row.
+/// Which rows count as "current" — `list_of` never drops a removed
+/// element, so the frontend filters using what this stamps per row.
 fn apply_row_state_filter(base: Value, entry: &Value, aggregate: &Value) -> Value {
     let Some(state_filter) = entry.get("state_filter").filter(|v| !v.is_null()) else { return base };
     let key = match entry.get("field").and_then(|v| v.as_str()) {
@@ -360,12 +318,8 @@ fn apply_row_state_filter(base: Value, entry: &Value, aggregate: &Value) -> Valu
     merge(base, json!({"stateFilter": {"field": field_name, "value": state_filter}}))
 }
 
-/// **A second hop, for display only** — resolve this reference, then
-/// resolve one of its references, and show what that points at
-/// (Payment carries `invoice_id` but not `client_id`). Falls back to
-/// the plain one-hop field when the config names something that
-/// doesn't resolve: degrade, don't break the page over a mistake that
-/// `presentation_config.rb` is the strict, save-time gate for.
+/// A second hop, for display only — resolves this reference, then one
+/// of its references, falling back to the plain column if it can't.
 fn hop_column(entry: &Value, fields: &[Value], by_name: &HashMap<&str, &Value>, key_for: &KeyFor) -> Value {
     let key = entry.get("field").cloned().unwrap_or(Value::Null);
     let key_name = key.as_str().unwrap_or("");
@@ -396,8 +350,6 @@ fn hop_column(entry: &Value, fields: &[Value], by_name: &HashMap<&str, &Value>, 
     })
 }
 
-// ---- lifecycle ------------------------------------------------------
-
 /// `Lifecycle#states` — the default state, then every state some
 /// transition targets, deduplicated in that order.
 pub(crate) fn lifecycle_states(aggregate: &Value) -> Vec<String> {
@@ -416,9 +368,8 @@ pub(crate) fn lifecycle_states(aggregate: &Value) -> Vec<String> {
     states
 }
 
-/// `from: nil` means "no constraint at all" here — which is why an
-/// unconstrained transition is offered from every state rather than
-/// resolved to one: the honest reading of an edge nothing narrowed.
+/// `from: nil` means no constraint at all — an unconstrained transition
+/// is offered from every state rather than resolved to just one.
 fn build_transitions(aggregate: &Value, others: &[&Value], key_for: &KeyFor, formats: &Value) -> Value {
     let Some(lifecycle) = lifecycle(aggregate) else { return json!({}) };
     let transitions = array(lifecycle, "transitions");
@@ -451,10 +402,8 @@ fn build_transitions(aggregate: &Value, others: &[&Value], key_for: &KeyFor, for
     Value::Object(by_state)
 }
 
-/// A command with no lifecycle transition at all isn't stateless by
-/// omission (Contract's `Revise`, RecurringPayment's `AdvanceCycle`) —
-/// it fires regardless of state. An aggregate with no lifecycle at all
-/// has every non-creating command here, by the same reasoning.
+/// A command with no lifecycle transition fires regardless of state
+/// (Contract's `Revise`); an aggregate with none has every command here.
 fn build_always_available(aggregate: &Value, others: &[&Value], key_for: &KeyFor, formats: &Value) -> Value {
     let transitions = lifecycle(aggregate).map(|l| array(l, "transitions")).unwrap_or(&[]);
     let available: Vec<Value> = others
@@ -479,12 +428,9 @@ fn command_inputs(command: &Value, aggregate: &Value, key_for: &KeyFor, formats:
     Value::Array(array(command, "attributes").iter().map(|a| field(a, aggregate, key_for, formats)).collect())
 }
 
-/// A create-form reference field, told what it may point at — config
-/// says a field must reference a record currently in some state
-/// ("engagement_id must be a demoed Engagement"); this stamps that on
-/// the descriptor so the client can filter its picker, while the
-/// server refuses a dispatch that names one anyway. One config, both
-/// checked.
+/// Stamps a create-form reference field with the state config says it
+/// must point at, so the client's picker can filter what the server
+/// would refuse anyway.
 fn field_with_precondition(attribute: &Value, aggregate: &Value, key_for: &KeyFor, preconditions: Option<&Value>, formats: &Value) -> Value {
     let descriptor = field(attribute, aggregate, key_for, formats);
     if descriptor.get("shape").and_then(|v| v.as_str()) != Some("reference") {
@@ -498,13 +444,8 @@ fn field_with_precondition(attribute: &Value, aggregate: &Value, key_for: &KeyFo
     merge(descriptor, json!({"filterState": state}))
 }
 
-// ---- nav and overview -----------------------------------------------
-
-/// **Declaration order, unless told otherwise** — `nav_order` is a plain
-/// number per aggregate; a nav item earns the lowest order among its
-/// own members when several share one (`nav_group`), and anything
-/// unset keeps its declaration position rather than jumping to either
-/// end.
+/// Declaration order, unless told otherwise — a nav item takes the
+/// lowest `nav_order` among members sharing a `nav_group`.
 fn build_nav(aggregates: &[&Value], config: &Value, key_for: &KeyFor) -> Value {
     struct Group {
         key: String,
@@ -560,10 +501,8 @@ fn build_nav(aggregates: &[&Value], config: &Value, key_for: &KeyFor) -> Value {
     )
 }
 
-/// **Overview stats, as data** — a fold over a collection filtered by a
-/// `where` clause, evaluated client-side against records the frontend
-/// already has: this answers "what does the app look like", never
-/// "what does the data say right now".
+/// Overview stats, as data — a client-side fold over already-loaded
+/// records, not a live query against current data.
 fn build_overview(config: &Value) -> Value {
     let stats: Vec<Value> = dig(config, &["overview", "stats"])
         .and_then(|v| v.as_array())
@@ -582,22 +521,13 @@ fn overview_stat(stat: &Value) -> Value {
     })
 }
 
-// ---- one attribute, described ---------------------------------------
-
 /// `UiSchema.field` — the single place an IR attribute becomes a UI
-/// field descriptor. Called for an aggregate's own attributes (the
-/// detail panel), a command's declared attributes (create form and
-/// transition inputs), and recursively for a value object's own
-/// attributes when it renders as a table row.
-///
-/// `formats` is `collections.<Name>.field_formats`, the one place
-/// config layers a hint on top of a derived shape rather than
-/// replacing it: nothing in the IR marks a lone String as date-shaped
-/// or a lone Float as a percentage the way `{cents, currency}`
-/// unambiguously marks money.
+/// field descriptor, for aggregate fields, command inputs, and nested values.
 pub fn field(attribute: &Value, aggregate: &Value, key_for: &KeyFor, formats: &Value) -> Value {
     let name = attr_name(attribute);
     let ty = type_of(attribute);
+    // `formats` hints on top of the derived shape — nothing else in the
+    // IR marks a lone String as date-shaped, or a lone Float as %.
     let format = formats.get(name).filter(|v| !v.is_null()).cloned();
     let base = json!({
         "key": name,
@@ -605,17 +535,9 @@ pub fn field(attribute: &Value, aggregate: &Value, key_for: &KeyFor, formats: &V
         "optional": attribute.get("optional").and_then(|v| v.as_bool()).unwrap_or(false),
     });
 
-    // The wire value for this key is already decided, whatever the
-    // attribute's own declared type — `to_h` ends `state.merge(id:
-    // @id)`, and `@id` is always the aggregate's already-reduced
-    // scalar identity. Normally that's a new key beside the real one;
-    // an aggregate that names its own identity-bearing attribute
-    // literally `id` collides, and the same key that would hold
-    // `{value: "..."}` holds a bare string instead. Named `id`
-    // specifically — an aggregate identified by some other attribute
-    // (Client's own `reference`) has no such collision, and telling
-    // the client to expect a bare scalar there rendered a live
-    // "[object Object]".
+    // `to_h` merges the reduced identity into `id`; an aggregate whose
+    // own identity attribute is literally named `id` collides with it,
+    // so that key holds a bare scalar here, never `{value: ...}`.
     if name == "id" && identity_heads(aggregate) == ["id"] {
         return merge(base, json!({"shape": "text_value"}));
     }
@@ -635,10 +557,8 @@ pub fn field(attribute: &Value, aggregate: &Value, key_for: &KeyFor, formats: &V
         return merge(base, primitive_shape(ty, format));
     }
 
-    // `aggregate.value_object` is the owning aggregate's own table and
-    // nothing wider — an attribute typed by a value object declared on
-    // some other aggregate falls through here exactly as it does in
-    // Ruby (to the entity check, then to the defensive text_value).
+    // A value object belongs to its own aggregate's table only — one
+    // typed by another aggregate falls through here, exactly as in Ruby.
     if let Some(value_object) = find_value_object(aggregate, ty) {
         if truthy(value_object.get("closed_set")) {
             return merge(base, enum_shape(value_object));
@@ -649,11 +569,9 @@ pub fn field(attribute: &Value, aggregate: &Value, key_for: &KeyFor, formats: &V
         return merge(base, scalar_vo_shape(value_object, aggregate, key_for, formats, format));
     }
 
-    // **An entity, not a value object** — a `list_of` attribute holding
-    // pieces rather than plain values. An entity's attributes answer
-    // the same shape a value object's do, through the same recursion,
-    // so a piece's own `reference_to` earns real reference rendering
-    // with no special case here at all.
+    // An entity, not a value object — a `list_of` of pieces rather than
+    // plain values; a piece's own references render normally through
+    // this same recursion.
     if is_list(attribute) {
         if let Some(entity) = find_entity(aggregate, ty) {
             return merge(base, json!({"shape": "rows", "columns": row_columns(entity, aggregate, key_for, formats)}));
@@ -706,11 +624,8 @@ fn list_shape(value_object: &Value, aggregate: &Value, key_for: &KeyFor, formats
     }
 }
 
-/// A row is a value object's own attributes laid across a table's
-/// width instead of a form's height — the same recursion, just
-/// collapsing a cents+currency pair into one "money" column the way a
-/// scalar money-shaped value object already collapses at the top
-/// level.
+/// A row lays a value object's attributes across a table's width; a
+/// cents+currency pair collapses into one "money" column, as at top level.
 fn row_columns(shape: &Value, aggregate: &Value, key_for: &KeyFor, formats: &Value) -> Value {
     let attributes = array(shape, "attributes");
     let names: Vec<&str> = attributes.iter().map(|a| attr_name(a)).collect();
@@ -732,13 +647,8 @@ fn row_columns(shape: &Value, aggregate: &Value, key_for: &KeyFor, formats: &Val
     )
 }
 
-/// Always carries `field:` — a scalar value object's wire value is
-/// `{<attr name>: ...}`, never the bare scalar (which is what
-/// `primitive_shape` is for, and why it carries no `field:` on
-/// purpose: the client reads that absence as "the raw value is the
-/// scalar"). "value"/"text"/"address" are the names this domain
-/// happens to use; anything else still resolves, because `field:`
-/// names it exactly rather than assuming a fixed vocabulary.
+/// A scalar value object's wire value is `{<attr name>: ...}`, never a
+/// bare scalar — `field:` names that key so the client knows to unwrap it.
 fn single_attr_shape(attribute: &Value, format: Option<Value>) -> Value {
     let name = attr_name(attribute);
     let shape = if numeric(type_of(attribute)) {
@@ -758,8 +668,6 @@ fn single_attr_shape(attribute: &Value, format: Option<Value>) -> Value {
     }
     Value::Object(out)
 }
-
-// ---- IR readers -----------------------------------------------------
 
 pub fn agg_name(aggregate: &Value) -> &str {
     aggregate.get("name").and_then(|v| v.as_str()).unwrap_or("")
@@ -807,9 +715,8 @@ fn find_field<'a>(fields: &'a [Value], key: &str) -> Option<&'a Value> {
     fields.iter().find(|f| f.get("key").and_then(|v| v.as_str()) == Some(key))
 }
 
-/// `Reference<X>` -> `X`, the export's pinned spelling (IR::Reference
-/// #to_s) — the same prefix convention web.rs's own `reference_target`
-/// reads.
+/// `Reference<X>` -> `X` — the export's pinned spelling, the same
+/// prefix convention `web.rs`'s own `reference_target` reads.
 pub fn reference_target(ty: &str) -> Option<String> {
     ty.strip_prefix("Reference<")?.strip_suffix('>').map(String::from)
 }
@@ -851,13 +758,8 @@ fn numeric(ty: &str) -> bool {
     ty == "Integer" || ty == "Float"
 }
 
-// ---- small helpers ---------------------------------------------------
-
-/// `config.dig(...)` with Ruby's own truthiness: a missing key and an
-/// explicit null are both "not configured". An empty array or object
-/// is not — it is a real, configured answer, which is what keeps a
-/// deliberately-empty `columns:` from falling back to the derived
-/// default.
+/// `config.dig(...)` with Ruby truthiness — a missing key and an
+/// explicit null are both "not configured"; `[]`/`{}` are real answers.
 fn dig<'a>(config: &'a Value, path: &[&str]) -> Option<&'a Value> {
     let mut node = config;
     for segment in path {
@@ -882,10 +784,8 @@ fn string_or(config: &Value, key: &str, fallback: &str) -> String {
     config.get(key).and_then(|v| v.as_str()).map(String::from).unwrap_or_else(|| fallback.to_string())
 }
 
-/// Ruby's `Hash#merge`: a key already present keeps its position and
-/// takes the new value; a new key lands at the end. serde_json's
-/// `preserve_order` (IndexMap) gives exactly that, which is what keeps
-/// a column descriptor's own key order identical to Ruby's.
+/// Ruby's `Hash#merge` semantics: an existing key keeps its position,
+/// serde_json's ordered map preserves it the same way Ruby's hash does.
 fn merge(base: Value, extra: Value) -> Value {
     let mut out = match base {
         Value::Object(map) => map,
@@ -898,8 +798,6 @@ fn merge(base: Value, extra: Value) -> Value {
     }
     Value::Object(out)
 }
-
-// ---- naming — Hecks::Naming, ported ---------------------------------
 
 static SNAKE_ACRONYM: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"([A-Z]+)([A-Z][a-z])").expect("a literal pattern must compile"));
@@ -929,20 +827,11 @@ pub fn plural(word: &str) -> String {
 }
 
 /// `UiSchema.humanize_words` — snake_case, then each word capitalized.
-/// Not `Naming.words` (which preserves acronyms): this is the
-/// console's own spelling, and "ATMCard" reads "Atm Card" here exactly
-/// as it does in Ruby.
+/// Not `Naming.words`: "ATMCard" reads "Atm Card" here, as in Ruby.
 fn humanize_words(text: &str) -> String {
-    // Ruby's `String#split("_")` drops trailing empty segments and keeps
-    // leading ones — not a detail worth mirroring in the abstract, but
-    // it is load-bearing here: the state column arrives from stored
-    // config as `{"field": "__state__"}` (a hash, never a bare string),
-    // which misses `column_for`'s own `__state__` branch and gets
-    // humanized literally. Ruby renders that `"  State"`; splitting
-    // Rust's way instead renders `"  State  "`, a visible difference in
-    // every table header in the app. Found by diffing this module's
-    // output against the Ruby engine's for the real Embryonaut domain,
-    // where it was the only disagreement.
+    // Ruby's `String#split("_")` drops trailing empty segments; Rust's
+    // does not. Load-bearing for `"__state__"`, which reaches here
+    // literally and must render `"  State"`, not `"  State  "`.
     let snaked = snake(text);
     let mut words: Vec<&str> = snaked.split('_').collect();
     while words.last() == Some(&"") {
@@ -971,11 +860,8 @@ fn humanize(key: &str) -> String {
 mod tests {
     use super::*;
 
-    // The fixture is Embryonaut-shaped because that is the domain the
-    // Ruby engine actually serves — a Client with a slugged reference,
-    // a Proposal with a real lifecycle and money-shaped line items, an
-    // Invoice that hops through its own client. Each test pins one
-    // rule of ui_schema.rb against it.
+    // Embryonaut-shaped, because that's the domain the Ruby engine
+    // actually serves. Each test below pins one rule of ui_schema.rb.
 
     fn domain() -> Value {
         json!({
@@ -1090,8 +976,6 @@ mod tests {
         field(&attribute, aggregate, &keys(), &Value::Null)
     }
 
-    // ---- naming ----------------------------------------------------
-
     #[test]
     fn a_collection_key_is_the_pluralized_snake_name_unless_config_renames_it() {
         assert_eq!(collection_key(&client(), &json!({})), "clients");
@@ -1119,11 +1003,9 @@ mod tests {
         assert_eq!(humanize_words("RecurringPayment"), "Recurring Payment");
     }
 
-    // The one disagreement a full diff against the Ruby engine turned
-    // up, and the reason `humanize_words` drops trailing empty
-    // segments: Ruby's `String#split("_")` drops them, Rust's does
-    // not, and `"__state__"` is humanized literally often enough to
-    // matter (see the test below for why it reaches here at all).
+    // Pins why `humanize_words` drops trailing empty segments: Ruby's
+    // `String#split("_")` drops them, Rust's does not, and
+    // `"__state__"` reaches here literally often enough to matter.
     #[test]
     fn humanize_words_splits_the_way_ruby_splits_leading_gaps_kept_trailing_dropped() {
         assert_eq!(humanize_words("__state__"), "  State");
@@ -1131,17 +1013,10 @@ mod tests {
         assert_eq!(humanize_words(""), "");
     }
 
-    // A faithful port of a real quirk. `column_for`'s own `__state__`
-    // branch fires for a bare string entry — which is what an
-    // unconfigured collection's derived column list produces. Stored
-    // config never produces one: `presentation_config.rb` reshapes
-    // every column into `{"field": ...}`, so a configured state column
-    // takes the hash branch instead, finds no field descriptor named
-    // `__state__`, and comes out humanized literally with a null
-    // shape. That is what the Ruby engine serves today and what
-    // index.html (which keys off `key === "__state__"`, never the
-    // shape) renders correctly, so this pins the quirk rather than
-    // quietly improving on it — a "fix" here would be a divergence.
+    // A faithful port of a real Ruby quirk: a configured `__state__`
+    // column (always the hash form) misses `column_for`'s bare-string
+    // branch and comes out humanized literally with a null shape —
+    // pinned here, not "fixed", since index.html renders it correctly.
     #[test]
     fn a_state_column_configured_as_a_hash_keeps_the_ruby_engines_own_literal_label() {
         let config = json!({"collections": {"Client": {"columns": [{"field": "name"}, {"field": "__state__"}]}}});
@@ -1152,8 +1027,6 @@ mod tests {
             json!({"key": "__state__", "label": "  State", "shape": null, "sortable": true, "sortDefault": "asc"})
         );
     }
-
-    // ---- field shapes ----------------------------------------------
 
     #[test]
     fn a_single_attribute_value_object_keeps_the_field_its_wire_value_is_wrapped_in() {
@@ -1228,8 +1101,6 @@ mod tests {
         // its real wrapped shape, `field: "value"` and all.
         assert_eq!(field_named(&client(), "reference")["field"], "value");
     }
-
-    // ---- collections ------------------------------------------------
 
     #[test]
     fn an_unconfigured_collection_derives_every_column_plus_the_state_pill() {
@@ -1314,8 +1185,6 @@ mod tests {
         assert_eq!(configured["collections"]["proposals"]["detailFields"][0]["display"], "mono");
     }
 
-    // ---- lifecycle --------------------------------------------------
-
     #[test]
     fn transitions_are_grouped_by_the_state_they_can_fire_from() {
         let schema = build(&domain(), &json!({}));
@@ -1353,8 +1222,6 @@ mod tests {
         assert_eq!(schema["collections"]["ledgers"]["alwaysAvailable"][0]["command"], "post");
     }
 
-    // ---- create forms -----------------------------------------------
-
     #[test]
     fn a_create_form_leaves_out_the_field_the_server_mints_for_itself() {
         let config = json!({"collections": {"Client": {
@@ -1390,8 +1257,6 @@ mod tests {
         assert_eq!(fields[1]["key"], "client");
         assert_eq!(fields[1]["filterState"], "active");
     }
-
-    // ---- nav and overview -------------------------------------------
 
     #[test]
     fn nav_keeps_declaration_order_until_nav_order_says_otherwise() {
@@ -1465,8 +1330,6 @@ mod tests {
         assert_eq!(clients["statusNotes"], json!({"active": "paying"}));
         assert_eq!(clients["statusAttention"], json!(["active"]));
     }
-
-    // ---- /api/schema -------------------------------------------------
 
     #[test]
     fn the_structural_schema_lists_every_state_and_every_query_with_shaped_arguments() {

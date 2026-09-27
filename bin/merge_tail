@@ -1,11 +1,10 @@
 #!/usr/bin/env ruby
 
-# Tail-merge: the one deliberate command. It marks a business event —
-# an old app retiring — never a shape change. One transaction: advance
-# the watermark, interleave the old world's post-cut writes into the
-# head by their recorded global ordinals, audit the result, and roll
-# everything back on any refusal. Records touched by both worlds since
-# the cut refuse until each has an explicit winner:
+# Tail-merge: interleaves the old world's post-cut writes into the
+# live head by their recorded global ordinals, one transaction only.
+#
+# A record touched by both worlds since the cut refuses until it has
+# an explicit winner:
 #
 #   bin/merge_tail <domain> [--winner <id>=old] [--winner <id>=new] ...
 

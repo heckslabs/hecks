@@ -1,19 +1,7 @@
 require "spec_helper"
 
-# The model's shape, held to the language that declares it.
-#
-# Every construct's `emits_ir` restates what `bluebook.bluebook` already
-# says — and the two are allowed to differ, in five specific ways that
-# until now lived only as prose in Ruby comments. A generator cannot be
-# written against prose, so this is those decisions as data: each
-# deviation named, categorised, and checked.
-#
-# The categories are not invented here. Four of the five already exist
-# somewhere: the parent reference is `Construct`'s owner chain, `position`
-# is `contracts.rb`'s own `derived: :walk`, the folds are its
-# `[:folded, ...]` entries, and containment is `syntax.bluebook`'s
-# `context`/`opens` columns. Only "declared but deliberately off the
-# wire" had no home at all.
+# Holds each construct's `emits_ir` to what bluebook.bluebook declares, allowing five
+# named deviations, each categorised and checked.
 RSpec.describe "the model's shape, held to the language" do
   MODEL_CONSTRUCTS = {
     "Bluebook"       => Hecks::Bluebook::Chapter,
@@ -27,15 +15,8 @@ RSpec.describe "the model's shape, held to the language" do
     "ProcessManager" => Hecks::Bluebook::ProcessManager
   }.freeze
 
-  # The deviation tables live in lib, not here. They began as this
-  # spec's own constants, which made the gate the only thing that knew
-  # them — and a generator cannot read a spec. Moved to
-  # Projections::Model::Deviations so the gate and the generator read one
-  # source instead of two that have to agree.
-  # Named for this spec, not `D` — spec/syntax_conformance_spec already
-  # claims that for Bluebook::DSL, and a top-level constant in a spec is
-  # shared with every other spec in the run. Passing alone and failing in
-  # the suite is exactly what that looks like.
+  # Named DEVIATIONS, not `D`: spec/syntax_conformance_spec claims `D`, and a top-level
+  # constant in a spec is shared with every other spec in the run.
   DEVIATIONS = Hecks::Projections::Model::Deviations
 
   MODEL_CONSTRUCTS.each do |name, construct|

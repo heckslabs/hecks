@@ -1,15 +1,7 @@
 require "spec_helper"
 
-# `Rendering.describe` left a `Hecks::Runtime::Value` with no case,
-# falling straight through to Ruby's own `#inspect` and leaking a raw
-# object pointer ("#<Hecks::Runtime::Value:0x...>") into an otherwise
-# correct domain refusal message (an arithmetic op's own amount/current, an
-# Admissibility current, ...). Duck-typed on `respond_to?(:to_h)` rather
-# than naming `Runtime::Value` directly — that class itself requires this
-# file, so naming it here would be circular. These doubles stand in for it:
-# a single-field wrapper (the common VO shape — an amount, an id, a
-# lifecycle field) unwraps to its bare scalar; a genuinely multi-field
-# value renders as its fields' JSON, same as a bare Hash already does.
+# Value-object-like doubles stand in for `Runtime::Value`, which requires the
+# renderer, so it is matched by `respond_to?(:to_h)` and cannot be named here.
 RSpec.describe "Rendering.describe" do
   SingleField = Struct.new(:cents) do
     def to_h = { cents: cents }

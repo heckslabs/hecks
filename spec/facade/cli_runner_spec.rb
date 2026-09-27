@@ -1,11 +1,7 @@
 require "spec_helper"
 
-# The runner behind a projected CLI — parse against the projection, dispatch,
-# and hand back text plus a status. It prints nothing and exits nothing, which
-# is what lets this spec call it directly instead of capturing streams.
-#
-# Against pizzas, so nothing here can pass because the runner happens to know
-# the chapter it was developed beside.
+# The runner behind a projected CLI: returns text plus a status, printing and exiting
+# nothing. Run against pizzas so nothing passes by knowing its own chapter.
 RSpec.describe Hecks::Facade::CliRunner do
   let(:runtime) { boot_in_memory }
 
@@ -52,7 +48,7 @@ RSpec.describe Hecks::Facade::CliRunner do
     end
   end
 
-  # **Both spellings reach the same verb**.
+  # Both spellings reach the same verb.
   describe "naming" do
     it "takes the short form when no other aggregate declares that verb" do
       expect(run("create_pizza", "name=X", "pizza.price_cents.cents=900", "pizza.size.value=small").last).to eq(0)
@@ -122,8 +118,7 @@ RSpec.describe Hecks::Facade::CliRunner do
     end
   end
 
-  # **The refusal is the product** — the chapter's own sentence, and a status a
-  # script can branch on.
+  # A refusal carries the chapter's own sentence and a status a script can branch on.
   describe "refusing" do
     it "hands back the domain's own wording, and a non-zero status" do
       a_pizza
@@ -148,7 +143,6 @@ RSpec.describe Hecks::Facade::CliRunner do
       expect(output).to include("is not Integer")
     end
 
-    # A near miss is worth more than the full list.
     it "suggests what a misspelling nearly named" do
       output, code = run("order.create_piza")
 

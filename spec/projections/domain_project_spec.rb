@@ -2,14 +2,8 @@ require "spec_helper"
 require "json"
 require "tmpdir"
 
-# **The domain-facing verb**. `Projector.call(name, bluebook:, options:)` has
-# existed since §30 but nothing could reach it from a booted domain — the
-# chapter module closed over the one Bluebook every projector wants
-# and never handed it out, so each bin/ projector rebuilt a Registry and
-# reloaded the files to recover what was already in scope.
-#
-# Booted in memory (spec_helper's own boot_in_memory) rather than against
-# examples/pizzas/data — this touches no adapter and should not need one.
+# The domain-facing `project` verb, which hands a projector the booted domain's Bluebook.
+# Booted in memory (boot_in_memory): no adapter is touched.
 RSpec.describe "Domain.project" do
   let(:runtime)  { boot_in_memory }
   let(:bluebook) { runtime.registry.bluebook("Pizzas") }
@@ -23,9 +17,7 @@ RSpec.describe "Domain.project" do
       expect(domain.project(Hecks::Projections::IR)).to eq(bluebook.to_h)
     end
 
-    # The constant spelling is added surface, not a replacement — every
-    # Projector.call(:ir, ...) written before it keeps working, and the
-    # two must not be allowed to mean different things.
+    # The constant spelling must mean the same as Projector.call(:ir, ...).
     it "takes the bare symbol form, and both answer identically" do
       expect(domain.project(:ir)).to eq(domain.project(Hecks::Projections::IR))
     end
@@ -37,9 +29,7 @@ RSpec.describe "Domain.project" do
   end
 
   describe "options" do
-    # `project` knows `out:` and nothing else — everything remaining is
-    # the target's own vocabulary, so a projector can grow an option
-    # without this method learning about it.
+    # `project` knows `out:` only; the rest is the target's own vocabulary.
     it "passes unknown keywords through to the projector untouched" do
       projected = domain.project(Hecks::Projections::OIDC, audience: "https://api.example.com")
 
@@ -81,21 +71,13 @@ RSpec.describe "Domain.project" do
     end
   end
 
-  # The reason `to_ir` is deliberately absent: one verb, and the
-  # canonical serialized form is what `project(IR)` already answers.
+  # `to_ir` is absent on purpose: `project(IR)` already answers the canonical serialized form.
   it "exposes no second way to reach the IR" do
     expect(domain).not_to respond_to(:to_ir)
   end
 
-  # Per-construct projection, and the fail-quiet it closed.
-  #
-  # Every construct emits its own IR (Hecks::IR), so an aggregate is
-  # a legitimate thing to project. But `bluebook:` was only ever a
-  # parameter name — nothing checked what arrived — and a chapter-scoped
-  # projector handed an aggregate did not crash: `StorageShape.project`
-  # reads `domain["aggregates"] || []`, a key an aggregate's IR does not
-  # carry, and answered `{"name" => "Order", "aggregates" => []}`.
-  # Well-formed, confident, wrong.
+  # Handing a chapter-scoped projector an aggregate must raise: `StorageShape.project` would
+  # otherwise read a missing `aggregates` key and answer a well-formed, wrong result.
   describe "an aggregate door" do
     let(:order) do
       runtime
@@ -118,8 +100,6 @@ RSpec.describe "Domain.project" do
     end
   end
 
-  # The tree case, which the output contract was designed for and left
-  # unimplemented until a projection genuinely emitted one.
   describe "emits: :files" do
     it "writes a tree and answers with the paths, rather than one JSON blob" do
       Dir.mktmpdir do |dir|
@@ -142,8 +122,8 @@ RSpec.describe "Domain.project" do
       end
     end
 
-    # The kind is declared, never inferred: a Hash of path => contents and
-    # a Hash that merely holds strings are the same object to Ruby.
+    # The kind is declared, never inferred: a Hash of path => contents and a Hash that merely
+    # holds strings look the same to Ruby.
     it "asks the projection what it emits rather than inspecting the artifact" do
       expect(Hecks::Projector.emits_for(:reference)).to eq(:files)
       expect(Hecks::Projector.emits_for(:vocabulary)).to eq(:artifact)
@@ -151,20 +131,14 @@ RSpec.describe "Domain.project" do
   end
 
   describe "capabilities" do
-    # `requires:` names a module, not a shape word. The capabilities were
-    # already real — Hecks::IR is the ability to emit IR, and
-    # Behaviour::Chapter the ability to answer as a chapter — so a
-    # projection names what it needs rather than a symbol standing in
-    # for it.
+    # `requires:` names a capability module (Hecks::IR, Behaviour::Chapter), not a shape word.
     it "lets a target requiring only the IR capability run on any construct that emits" do
       expect(Hecks::Projections::IR.projection_requires).to eq([Hecks::IR])
       expect { Object.const_get("Pizzas::Order").project(Hecks::Projections::IR) }.not_to raise_error
     end
 
-    # A class-shaped construct extends its capabilities rather than
-    # including them. `is_a?` consults the singleton chain, so one check
-    # covers both shapes — asserting otherwise is what showed the second
-    # check was dead.
+    # Class-shaped constructs extend capabilities; `is_a?` consults the singleton chain, so one
+    # check covers both shapes.
     it "sees a capability a class-shaped construct extends" do
       command = bluebook.aggregate("Order").commands.first
 
@@ -172,9 +146,8 @@ RSpec.describe "Domain.project" do
       expect(Hecks::Projector.capable?(command, Hecks::IR)).to be true
     end
 
-    # Defaulting to the chapter capability is what makes the check safe
-    # for a target written before `requires:` existed — guessing the
-    # permissive answer would preserve the fail-quiet it closes.
+    # Defaulting to the chapter capability keeps the check safe; a permissive default would
+    # preserve the fail-quiet.
     it "defaults an undeclared target to the chapter capability" do
       legacy = Module.new do
         extend Hecks::Projector::Target
@@ -191,11 +164,8 @@ RSpec.describe "Domain.project" do
     end
   end
 
-  # The registry-first path stays available and is what anything
-  # order-sensitive should use — Facade::Namespace.install warns and
-  # keeps a pre-existing constant rather than clobbering it, so a domain
-  # named `Set` never gets a constant at all, and a prior boot's module
-  # can linger on Object.
+  # The registry-first path suits order-sensitive callers: Facade::Namespace.install keeps a
+  # pre-existing constant (a domain named `Set` gets none) and a prior boot's module can linger.
   it "agrees with calling the registry directly, without any constant" do
     expect(Hecks::Projector.call(:oidc, bluebook: bluebook))
       .to eq(domain.project(Hecks::Projections::OIDC))

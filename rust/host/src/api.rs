@@ -1,34 +1,5 @@
-// The console's `/api/*` surface, in this host — the JSON contract
-// the console app's `web/app.rb` serves (its `/api/me`,
-// `/api/presentation`, `/api/ui-schema`, `/api/schema`, `/api/:coll`
-// routes), answered by the Rust Lambda that actually serves that app
-// in production now (`web "Rust"`, web.rs).
-//
-// **Why this exists at all** — the deployed host already refuses an
-// unauthenticated `/api/...` request exactly the way the Ruby engine
-// does (web.rs's `auth_gate`: 401 + `{"error":
-// "Unauthenticated","message":"sign in first"}`), but an authenticated
-// one fell straight through to this host's own `/<Domain>/<aggregate>`
-// router and came back `404 no domain "api" loaded`. The refusal
-// contract matched and the success contract didn't. This module is the
-// success contract.
-//
-// Shapes are the Ruby engine's, key for key. Every response body here
-// is what `app.rb`'s own `json(...)` would have produced for the same
-// request — compact (never pretty-printed, unlike this host's own
-// `/<Domain>/<aggregate>` JSON, which has no Ruby counterpart to agree
-// with), the same error envelope (`{"error": ..., "message": ...}`),
-// the same status codes. A client cannot tell which runtime answered,
-// which is the whole point: index.html is served unchanged.
-//
-// **Routing is flat and exhaustive**. `web::route` hands this module every
-// path under `/api/`, and this module answers all of them — an
-// unmatched one included, as a JSON 404 rather than by falling through
-// to a renderer that would answer HTML. Sinatra's own unmatched-route
-// 404 carries its default HTML page with a `json` content type (its
-// `before` filter sets the header, its 404 handler doesn't); a JSON
-// body is the honest version of the same status, and no client reads
-// that body.
+//! The console's `/api/*` surface: answers `/api/me`, `/api/presentation`,
+//! `/api/ui-schema`, `/api/schema` and `/api/:coll` in the Ruby engine's own shapes.
 
 use crate::auth::Session;
 use crate::dispatch;
@@ -45,13 +16,9 @@ use std::path::Path;
 use tokio::sync::Mutex;
 use tokio_postgres::Client;
 
-/// Every `/api/...` request, answered. `session` is always `Some` in
-/// production — `web::route` runs `auth_gate` first, which refuses an
-/// unauthenticated JSON request with the Ruby engine's own 401 before
-/// this module is reached — but it is threaded through rather than
-/// unwrapped, because `/api/me` is precisely the route whose Ruby
-/// counterpart (`json(session[:member] || {})`) also has an
-/// empty-session branch.
+/// Every `/api/...` request, answered. `session` is `None` only in tests —
+/// `web::route` runs `auth_gate` first in production — but it stays an
+/// `Option` because `/api/me` itself has a real empty-session answer.
 #[allow(clippy::too_many_arguments)]
 pub async fn route(
     domain_ir: &Value,
@@ -68,30 +35,22 @@ pub async fn route(
     match (method, path) {
         ("GET", "/api/me") => ok(&me(session)),
 
-        // **The whole UI, derived** — nav, columns, field shapes,
-        // transitions, create forms, merged with whatever the config
-        // adds. Read fresh every call, same as `/api/presentation`
-        // below and for the same reason: a Settings-screen save has to
-        // be visible on this app's very next request, not after a
-        // restart.
+        // The whole UI, derived: nav, columns, field shapes, transitions,
+        // create forms. Read fresh every call so a Settings-screen save is
+        // visible on the app's very next request.
         ("GET", "/api/ui-schema") => match presentation::load(client, wasm_path, config).await {
             Ok(presentation) => ok(&ui_schema::build(domain_ir, &presentation)),
             Err(e) => internal_error(&e.to_string()),
         },
 
-        // Every real aggregate, its real lifecycle states, every real
-        // query — a pure structural fact with no presentation opinion
-        // in it, which the Settings screen's own list_query picker and
-        // the table's live query picker both read.
+        // Structural facts only, no presentation opinion: aggregates,
+        // lifecycle states, queries.
         ("GET", "/api/schema") => match presentation::load(client, wasm_path, config).await {
             Ok(presentation) => ok(&ui_schema::schema(domain_ir, &presentation)),
             Err(e) => internal_error(&e.to_string()),
         },
 
-        // Read fresh every call, never memoized — a Settings-screen
-        // save has to be visible on the very next request, which is
-        // the same reason app.rb calls `PresentationConfig.load` per
-        // request rather than caching it in a constant.
+        // Read fresh every call, never memoized, for the same reason.
         ("GET", "/api/presentation") => match presentation::load(client, wasm_path, config).await {
             Ok(presentation) => ok(&presentation),
             Err(e) => internal_error(&e.to_string()),
@@ -101,16 +60,9 @@ pub async fn route(
             presentation_save(domain_ir, raw_body, client, wasm_path, config, invoker).await
         }
 
-        // Everything else under `/api/` is a collection route —
-        // `/api/:coll` and `/api/:coll/:id`, the two the Ruby engine
-        // declares last, after its own fixed routes, for the same
-        // reason they are matched last here: `:coll` would otherwise
-        // swallow `me`, `schema` and the rest.
-        //
-        // Segments are percent-decoded, unlike this host's own routes:
-        // a record id here is routinely an email address or a slug the
-        // client sent through `encodeURIComponent`, and Sinatra hands
-        // `params[:id]` to the Ruby engine already decoded.
+        // Collection routes (`/api/:coll[/:id]`), matched last so `:coll`
+        // doesn't swallow `me`/`schema`. Segments are percent-decoded: a
+        // record id is often an email or a slug from `encodeURIComponent`.
         _ => {
             let segments: Vec<String> = path
                 .strip_prefix("/api/")
@@ -137,20 +89,9 @@ pub async fn route(
     }
 }
 
-// ---- /api/:coll, /api/:coll/:id -------------------------------------
-
-/// `GET /api/:coll` — every record, whatever its status: the plain,
-/// generic `.all()` every reference picker, cross-lookup and main table
-/// fetch relies on.
-///
-/// `?query=<name>` names one of this aggregate's own declared queries
-/// and answers with that query's result instead — real domain logic
-/// (`Proposal.Open`'s own `where(status: "sent")`), not a second,
-/// console-side copy of the same filter. Its arguments come from
-/// same-named params. An unknown query name, or a required argument
-/// with nothing in params, degrades to `.all()` rather than erroring —
-/// the same "config mistake, don't break the page" rule the Ruby
-/// engine applies here.
+/// `GET /api/:coll` — every record (`.all()`), or, with `?query=<name>`,
+/// one of the aggregate's declared queries; falls back to `.all()` on an
+/// unknown name or a missing required argument.
 async fn collection_index(
     domain_ir: &Value,
     collection: &str,
@@ -212,17 +153,9 @@ async fn record_show(
     }
 }
 
-/// A collection key is presentation, not domain — `collections.<Name>.
-/// key` renames one (Engagement's own default "engagements" is really
-/// "pipeline"), so this resolves through the same `collection_key`
-/// `/api/ui-schema` hands the client. An unknown key raises the same
-/// `Runtime::NotFound` the Ruby engine raises, with its own message,
-/// rather than a bespoke refusal nothing branches on.
-///
-/// **No lifecycle requirement** — every aggregate has a real repository
-/// regardless, which is the bug the Ruby engine's own `collection_map`
-/// comment records at length: a `select(&:lifecycle)` here once made
-/// every request a lifecycle-less aggregate's nav item issued 404.
+/// A collection key is presentation, not domain (`collections.<Name>.key`
+/// can rename it), so this resolves through the same `collection_key`
+/// `/api/ui-schema` hands the client, regardless of lifecycle.
 fn resolve_collection<'a>(domain_ir: &'a Value, config: &Value, collection: &str) -> Result<&'a Value, Value> {
     ui_schema::aggregates(domain_ir)
         .into_iter()
@@ -298,24 +231,15 @@ async fn named_query_rows(
     };
     match answered.get("rows").filter(|rows| !rows.is_null()) {
         Some(rows) => ok(rows),
-        // A refused query, not a missing one — the Ruby engine lets the
-        // domain refusal out as a 422 through its own DOMAIN_REFUSALS
-        // handler, naming the refusal class. A refused query step also
-        // lands in the kernel's own top-level `refusals` array, which
-        // carries that class as `kind` — so the whole envelope is the
-        // Ruby one, read through the same `domain_refusal` a refused
-        // command goes through.
+        // A refused query, not a missing one — the refusal lands in the
+        // kernel's own top-level `refusals` array, read the same way a
+        // refused command is.
         None => domain_refusal(&result),
     }
 }
 
-/// Same-named params, shaped the way each argument actually wires — a
-/// reference or a plain primitive rides bare; a value-object argument
-/// wraps in its own single field (never assuming every value object
-/// spells that field "value"). Returns `None` — not a partial hash —
-/// the moment a required argument has nothing in params, so the caller
-/// falls back to `.all()` instead of dispatching a query certain to
-/// refuse.
+/// Same-named params, shaped per argument (bare for a reference/primitive,
+/// wrapped for a value object). `None` the moment a required one is missing.
 fn query_args_from_params(aggregate: &Value, named: &Value, params: &HashMap<String, String>) -> Option<Value> {
     let mut args = Map::new();
     for attribute in named.get("attributes").and_then(|v| v.as_array())? {
@@ -354,15 +278,10 @@ fn value_object_field(aggregate: &Value, type_name: &str) -> Option<String> {
 
 // ---- POST /api/:coll, POST /api/:coll/:id/:command -------------------
 
-/// `POST /api/:coll` — the aggregate's one creating command, with the
-/// two things the console does around it that the domain itself
-/// cannot: minting an identity nobody should be asked to type
-/// (`apply_identity!`), and checking a precondition a creating
-/// command's own `given` has no way to express, because a `given` can
-/// only read its own aggregate (`check_preconditions!`). Both are
-/// config, not code — the same `collections.<Name>.identity` /
-/// `.preconditions` entries `/api/ui-schema` already tells the client
-/// about, so the picker only offers what the server will accept.
+/// `POST /api/:coll` — the aggregate's creating command, plus what the
+/// console does around it: minting an identity (`apply_identity`) and
+/// checking a cross-aggregate precondition a `given` can't express
+/// (`check_preconditions`), both driven by `collections.<Name>` config.
 #[allow(clippy::too_many_arguments)]
 async fn collection_create(
     domain_ir: &Value,
@@ -409,24 +328,16 @@ async fn collection_create(
     if !outcome.accepted {
         return domain_refusal(&outcome.result);
     }
-    // The id this call's own command targeted — the first mutation of
-    // the last step, never whichever mutation happens to sit last
-    // there (a policy or saga firing as a side effect pushes further
-    // mutations onto the same step). Same rule web.rs's own
-    // `own_command_target_id` follows, and for the same bug.
+    // The id this call's own command targeted: the first mutation of the
+    // last step, not whichever mutation a side-effect policy pushed on
+    // after it.
     let id = created_id(&outcome.result).unwrap_or_default();
     created_record(domain_ir, aggregate, &outcome.result, &id)
 }
 
-/// `POST /api/:coll/:id/:command` — a mutating (or state-independent
-/// — `Contract.Revise`, `RecurringPayment.AdvanceCycle`) command
-/// against an existing record.
-///
-/// Order matters, and it is the Ruby engine's order: find the record
-/// first (404 if there is none), then check the command name against
-/// what this aggregate can actually dispatch (404 if it can't), then
-/// dispatch. A caller that gets both wrong is told about the record
-/// first, the same way.
+/// `POST /api/:coll/:id/:command` — a command against an existing record.
+/// Order matters: find the record first (404), then the command (404),
+/// then dispatch — the Ruby engine's own order.
 #[allow(clippy::too_many_arguments)]
 async fn command_route(
     domain_ir: &Value,
@@ -474,17 +385,9 @@ async fn command_route(
     created_record(domain_ir, aggregate, &outcome.result, id)
 }
 
-/// `JSON_DOOR.validate_command!` — checked against what a `Handle` can
-/// actually dispatch, which is every command except the creating one
-/// (that one lives on the aggregate itself, reached through
-/// `POST /api/:coll`). Accepting it here would pass this gate clean
-/// and then fail as something far less legible.
-///
-/// The URL carries the snake_cased command name (`accept`,
-/// `advance_cycle`) — the same spelling `/api/ui-schema` hands the
-/// client in every transition's own `command:` — so the match is
-/// against `Naming.snake` of each declared name, never the declared
-/// name itself.
+/// Every command except the creating one, which is reached only through
+/// `POST /api/:coll`. Matched against the snake_cased name
+/// `/api/ui-schema` hands the client, not the declared name itself.
 fn dispatchable_command<'a>(aggregate: &'a Value, wanted: &str) -> Option<&'a Value> {
     ui_schema::commands(aggregate)
         .into_iter()
@@ -500,15 +403,9 @@ fn domain_name(domain_ir: &Value) -> &str {
     domain_ir.get("name").and_then(|v| v.as_str()).unwrap_or("")
 }
 
-/// `parsed_body` — an empty body is an empty argument hash (a
-/// no-argument command posts nothing), and anything that isn't JSON
-/// refuses the way the Ruby engine refuses it.
-///
-/// A body that parses but isn't an object refuses the same way. Ruby
-/// reaches `public_send(command, **args)` with it and dies of a
-/// TypeError — a 500 whose message is about Ruby, not about the
-/// request; this names the real problem at the status code that
-/// describes it.
+/// An empty body is an empty argument hash; anything that isn't a JSON
+/// object refuses (400) rather than reaching the kernel with the wrong
+/// shape.
 fn parsed_body(raw: &str) -> Result<Value, Value> {
     if raw.trim().is_empty() {
         return Ok(json!({}));
@@ -532,10 +429,8 @@ fn created_id(result: &Value) -> Option<String> {
         .map(String::from)
 }
 
-/// The record as it stands after the command — the same materialized
-/// shape every read route answers with, read straight out of the
-/// kernel's own post-dispatch `instances` rather than re-reading the
-/// journal.
+/// The record as it stands after the command, read straight out of the
+/// kernel's post-dispatch `instances` rather than re-reading the journal.
 fn created_record(domain_ir: &Value, aggregate: &Value, result: &Value, id: &str) -> Value {
     let key = format!("{}::{}#{id}", domain_name(domain_ir), ui_schema::agg_name(aggregate));
     match result.get("instances").and_then(|instances| instances.get(&key)) {
@@ -546,16 +441,10 @@ fn created_record(domain_ir: &Value, aggregate: &Value, result: &Value, id: &str
     }
 }
 
-/// A refused command, in the Ruby engine's own envelope — `422` with
-/// `{"error": <refusal class>, "message": <its message>}`. The kernel
-/// names the same classes Ruby does (`kind()`: GivenNotMet,
-/// InvariantViolation, AlreadyExists, NotFound, Unauthorized …, all of
-/// them `Runtime::` classes in `DOMAIN_REFUSALS`), so this envelope is
-/// the Ruby one key for key and name for name.
-///
-/// The last refusal, not the first: `dispatch::handle` replays the
-/// whole rehydrated history, and every step before this call's own
-/// already succeeded once.
+/// A refused command, in the Ruby engine's own envelope (422, refusal
+/// class as `error`). The last refusal, not the first: `dispatch::handle`
+/// replays the whole rehydrated history, and every earlier step already
+/// succeeded once.
 fn domain_refusal(result: &Value) -> Value {
     let last = result.get("refusals").and_then(|r| r.as_array()).and_then(|refusals| refusals.last());
     let Some(last) = last else { return refusal(422, "Refused", "the command was refused") };
@@ -568,19 +457,10 @@ fn domain_refusal(result: &Value) -> Value {
 
 // ---- identity minting ------------------------------------------------
 
-/// **A code, minted** — not typed. `collections.<Name>.identity` names one
-/// of the creating command's own attributes and how to fill it without
-/// asking: `slug` lowercases and hyphenates another submitted field's
-/// value (a client's name becomes its reference); `sequence` counts the
-/// records already there and mints the next prefixed, zero-padded one
-/// (a proposal's number). The hand-written Founder App did this in its
-/// own JS, off the browser's already-loaded item count — it happens
-/// server-side for the same reason everything else did: one true
-/// answer, not one a client has to keep in sync.
-///
-/// Only fires when the field is genuinely missing. `/api/ui-schema`
-/// leaves it out of the create form entirely, but a direct API call
-/// that supplies one is left alone rather than overwritten.
+/// Mints an identity field per `collections.<Name>.identity`: `slug`
+/// derives it from another submitted field, `sequence` pads the next
+/// count. Only fires when the field is genuinely missing; a caller that
+/// supplies one is left alone.
 fn apply_identity(presentation: &Value, aggregate: &Value, args: &mut Value, existing: usize) -> Result<(), Value> {
     let name = ui_schema::agg_name(aggregate);
     let Some(rule) = presentation.get("collections").and_then(|c| c.get(name)).and_then(|c| c.get("identity")) else {
@@ -602,13 +482,9 @@ fn apply_identity(presentation: &Value, aggregate: &Value, args: &mut Value, exi
             let pad = rule.get("pad").and_then(|v| v.as_u64()).unwrap_or(3) as usize;
             Some(format!("{prefix}{:0>pad$}", existing + 1))
         }
-        // **Neither mechanical** — the `port` strategy delegates to the
-        // domain's own `identity_assignment` adapter, a Ruby object
-        // this host has no runtime for at all (ADR 0007: rust/host has
-        // no port/adapter interpreter and is not getting one). Skipping
-        // it silently would dispatch without the identity field and
-        // surface as a confusing domain refusal about a missing
-        // argument; refusing names the real reason.
+        // `port` delegates to a Ruby adapter this host has no runtime for
+        // (ADR 0007); refusing names the real reason rather than
+        // dispatching without the identity field.
         Some("port") => {
             return Err(not_implemented(
                 "this collection mints its identity through the domain's own identity_assignment port, which this                  host has no adapter runtime to call — create through the Ruby console engine, or configure a slug                  or sequence strategy instead",
@@ -673,12 +549,9 @@ fn slugify(text: &str) -> String {
 
 // ---- preconditions ---------------------------------------------------
 
-/// Where "always via a demoed Engagement / an accepted Proposal" stops
-/// **being a comment** — except it is data (`collections.<Name>.
-/// preconditions`), not a hand-written table naming one domain's own
-/// aggregates. A creating command's own `given` can only read its own
-/// aggregate, which is exactly why this lives in the driving adapter
-/// rather than the bluebook.
+/// Cross-aggregate preconditions from `collections.<Name>.preconditions`
+/// config, which a creating command's own `given` can't express because
+/// it can only read its own aggregate.
 async fn check_preconditions(
     domain_ir: &Value,
     presentation: &Value,
@@ -756,12 +629,8 @@ fn precondition_failed(rule: &Value, derived: &str) -> Value {
 
 // ---- sorting ---------------------------------------------------------
 
-/// The shapes `order_expression` (Ruby's own JSONB-path compiler)
-/// already resolves correctly — a plain scalar, the lifecycle field, a
-/// single-attribute value object drill, or a value object with one
-/// numeric member. Deliberately excluded: `money_sum`/`count`/`rows`/
-/// `lines` (a fold over a list) and `reference`/`hop` (a cross-aggregate
-/// join). Those stay client-side rather than sorting wrong.
+/// Column shapes a JSONB order path resolves correctly. A fold over a
+/// list or a cross-aggregate join is excluded and stays client-side.
 const SQL_SORTABLE_SHAPES: &[&str] = &["text_value", "text", "address", "number", "money", "enum", "pill"];
 
 struct SortSpec {
@@ -769,12 +638,9 @@ struct SortSpec {
     descending: bool,
 }
 
-/// `?sort=<column key>&direction=asc|desc` — a runtime value, so it is
-/// checked against this collection's own sortable config (not just
-/// "does the field exist") before it can reach the records. Silently
-/// ignored, falling back to default order, when the column isn't
-/// sortable or its shape can't push to SQL: the client already knows
-/// which shapes it sorts locally instead.
+/// `?sort=<column key>&direction=asc|desc`, checked against this
+/// collection's sortable config. Falls back to default order (`None`)
+/// when the column isn't sortable or its shape can't push to SQL.
 fn resolve_sort(
     domain_ir: &Value,
     config: &Value,
@@ -804,11 +670,7 @@ fn resolve_sort(
     } else {
         key.to_string()
     };
-    // A column key always names a real attribute by the time it gets
-    // here (it matched a field descriptor above), but an aggregate
-    // whose own config named something else entirely would otherwise
-    // sort by a field no record has — the same check Ruby's own
-    // `Postgres#all` makes before it compiles an ORDER BY.
+    // Config could still name a field the aggregate doesn't have.
     if ui_schema::find_attribute(aggregate, &field).is_none() && lifecycle_field(aggregate) != Some(field.as_str()) {
         return None;
     }
@@ -820,13 +682,8 @@ fn lifecycle_field(aggregate: &Value) -> Option<&str> {
     aggregate.get("lifecycle")?.get("field")?.as_str()
 }
 
-/// In memory, not in SQL — this host reads whole aggregates out of the
-/// kernel's own `instances` map, so there is no ORDER BY to push into.
-/// The ordering itself is Postgres's: ascending by default, NULLS LAST
-/// for ascending and NULLS FIRST for descending, and a stable fallback
-/// to the record's own id so a tie never reorders between two requests
-/// (Ruby's own default `ORDER BY id`, which is also what an unsorted
-/// request gets here).
+/// In memory, not SQL: there's no ORDER BY to push into, so this follows
+/// Postgres's own null ordering, with a stable id fallback for ties.
 fn sort_records(records: &mut [(String, Value)], spec: &Option<SortSpec>) {
     match spec {
         None => records.sort_by(|(a, _), (b, _)| a.cmp(b)),
@@ -837,9 +694,8 @@ fn sort_records(records: &mut [(String, Value)], spec: &Option<SortSpec>) {
     }
 }
 
-/// The scalar a JSONB order path would land on: the field itself when
-/// it holds one, the `cents` member of a money-shaped value object, or
-/// a single-attribute value object's own sole member.
+/// The scalar a JSONB order path lands on: the field itself, `cents` for
+/// a money value object, or a single-attribute value object's member.
 fn sort_key<'a>(state: &'a Value, field: &str) -> Option<&'a Value> {
     let value = state.get(field).filter(|v| !v.is_null())?;
     let Some(object) = value.as_object() else { return Some(value) };
@@ -878,18 +734,9 @@ fn compare_values(left: &Value, right: &Value) -> Ordering {
     }
 }
 
-/// `GET /api/me` — `json(session[:member] || {})`, and
-/// `session[:member]` is exactly what the consuming app's own
-/// access-control adapter builds (`session_for`, embryonaut_access_
-/// control.rb): `{"email", "name", "identity_id", "role"}`, in that
-/// order. This host's own `Session` (auth.rs) already carries those
-/// four fields and nothing else, because it was ported from that same
-/// adapter — so this is a rename-free projection, not a translation.
-///
-/// index.html reads `me.name` and `me.role` only, and treats a body
-/// with no `name` as "don't render the signed-in banner" — which is
-/// what makes `{}` (Ruby's own no-session branch) a real, handled
-/// answer rather than a broken one.
+/// `GET /api/me` — `{"email", "name", "identity_id", "role"}` from
+/// `session`, or `{}` with no session, which index.html treats as
+/// "don't render the signed-in banner".
 fn me(session: Option<&Session>) -> Value {
     let Some(session) = session else { return json!({}) };
     json!({
@@ -900,28 +747,10 @@ fn me(session: Option<&Session>) -> Value {
     })
 }
 
-/// `PUT /api/presentation` — `app.rb`'s own `put "/api/presentation"`,
-/// contract for contract: the whole config replaced at once, validated
-/// against this domain's real live shape before anything is written,
-/// and answered with the reloaded config rather than the submitted one.
-///
-/// Four answers, each one the Ruby engine's own:
-///   - 200 with `json(PresentationConfig.load)` on a save.
-///   - 400 `MalformedBody` for a body that isn't a JSON object at all —
-///     `parsed_body`'s answer everywhere else in this file, and the one
-///     case Ruby's own `parsed_body` never reaches because Sinatra has
-///     already failed.
-///   - 422 `{"error": "Malformed", "message": ...}` for a config that
-///     breaks one of `PresentationConfig.validate!`'s rules, message
-///     for message.
-///   - 422 with the kernel's own `kind`/`error` for a real domain
-///     refusal — a tone that got past validation, a row that was never
-///     Declared — the same `domain_refusal` shape every dispatching
-///     route here uses.
-///
-/// And one answer that is not Ruby's, for a case Ruby cannot be in:
-/// 501, unchanged, when this host's kernel carries no ConsoleSettings
-/// chapter at all. That is asked of the kernel, never assumed.
+/// `PUT /api/presentation` — the whole config replaced at once, validated
+/// against this domain's live shape, answered with the reloaded config.
+/// 200 on save; 400 `MalformedBody`; 422 `Malformed` or a domain refusal;
+/// 501 when this host's kernel carries no ConsoleSettings chapter.
 #[allow(clippy::too_many_arguments)]
 async fn presentation_save(
     domain_ir: &Value,
@@ -945,41 +774,25 @@ async fn presentation_save(
     }
 }
 
-// What a host with no `ConsoleSettings` chapter still says.
-//
-// This refusal fires only for a domain whose kernel genuinely has no
-// `ConsoleSettings` chapter — not for this crate generally: `uses_framework
-// "ConsoleSettings"` pulls the chapter into the same registry
-// `bin/project_rust` generates from, and `merged.rs` folds its three
-// aggregates into the one `Store` the single `.wasm` carries — the
-// same way Governance and Identity are already in there, confirmed
-// against the real deployed artifact's own strings.
-//
-// The route dispatches for real whenever the chapter is present. This
-// refusal says which decision is outstanding — attach it — rather than
-// 404-ing as if the route had never existed.
+// Fires only for a domain whose kernel genuinely has no ConsoleSettings
+// chapter; names the decision outstanding rather than 404-ing as if the
+// route never existed.
 const PRESENTATION_WRITE_REFUSAL: &str =
     "this host's kernel carries no ConsoleSettings chapter, so it has no StateStyle/Collection/Overview \
      commands to dispatch, and writing the rows behind its back would skip the invariants those commands \
      enforce. Attach it with `uses_framework \"ConsoleSettings\"` in this domain's own .hecksagon and \
      rebuild the kernel, or save from the Ruby console engine instead.";
 
-// ---- response envelopes — app.rb's own `json`/`halt` shapes ---------
+// ---- response envelopes ---------------------------------------------
 
-/// `json(data)` — `JSON.generate`, compact.
 fn ok(body: &Value) -> Value {
     respond(200, "application/json", &body.to_string())
 }
 
-/// Every "that doesn't exist" case in the Ruby engine surfaces as
-/// `Runtime::NotFound`, which its own `error` handler renders as a 404
-/// with this envelope.
 pub(crate) fn not_found(message: &str) -> Value {
     refusal(404, "NotFound", message)
 }
 
-/// `error do ... status 500; json({error: "InternalError", ...})` —
-/// app.rb's own catch-all.
 pub(crate) fn internal_error(message: &str) -> Value {
     refusal(500, "InternalError", message)
 }
@@ -1388,11 +1201,8 @@ mod tests {
         assert!(args.get("owner").is_none(), "{args}");
     }
 
-    // The one identity strategy this host genuinely cannot run: it
-    // delegates to the domain's own identity_assignment adapter, Ruby
-    // code this crate has no runtime for. Refusing names the reason;
-    // skipping silently would dispatch without the field and surface
-    // as a confusing "absent argument" from the kernel.
+    // Refuses by name rather than dispatching without the field and
+    // surfacing a confusing "absent argument" from the kernel.
     #[test]
     fn a_port_identity_strategy_refuses_in_its_own_words_rather_than_dispatching_without_one() {
         let (aggregate, presentation) = client_with_identity(json!({"field": "reference", "strategy": "port"}));
@@ -1508,17 +1318,10 @@ mod tests {
 
     // ---- both write routes, end to end --------------------------------
     //
-    // Everything above this point is a pure decision tested in
-    // isolation. This one runs the two POST routes for real: a
-    // throwaway Postgres, the real compiled banking kernel, and
-    // banking's own generated IR — the same three pieces `dispatch.rs`'s
-    // own tests use, reached through its test helpers rather than a
-    // second copy of them.
-    //
-    // The scratch database has no ConsoleSettings relations at all, so
-    // the presentation config reads back empty and the collection key
-    // is the derived one ("customers") — which is exactly the shape
-    // every domain but the one console app is in.
+    // Runs the two POST routes for real against a throwaway Postgres and
+    // the compiled banking kernel, reached through `dispatch.rs`'s own
+    // test helpers. No ConsoleSettings relations, so the collection key
+    // is the derived one ("customers").
 
     fn banking_ir() -> Value {
         let path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../dist/banking.ir.json");
@@ -1526,12 +1329,8 @@ mod tests {
             .expect("valid IR")
     }
 
-    /// `checkout_fixture` attaches ConsoleSettings the way a real
-    /// console app does (`uses_framework "ConsoleSettings"` in its own
-    /// `.hecksagon`), so its `.wasm` carries that chapter's kernel —
-    /// which is the whole premise of `PUT /api/presentation`. Built by
-    /// `bin/project_wasm spec/fixtures/rust_host/checkout_fixture`,
-    /// same as `web.rs`'s own checkout routes already use.
+    /// A fixture whose `.wasm` carries a ConsoleSettings chapter, the
+    /// premise `PUT /api/presentation` needs.
     fn console_fixture() -> (std::path::PathBuf, Value) {
         let dist = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../dist");
         let ir = serde_json::from_str(
@@ -1542,10 +1341,8 @@ mod tests {
         (dist.join("checkout_fixture.wasm"), ir)
     }
 
-    /// Every real state styled — `missing_state_entries` refuses a save
-    /// that leaves one out, in both engines. `Event`, `Registration` and
-    /// `PaymentConnection` each carry a lifecycle, so each of their states
-    /// needs an entry.
+    /// Every real state styled, since `missing_state_entries` refuses a
+    /// save that leaves one out.
     fn every_state_styled() -> Value {
         json!({"states": {
             "Event": {"open": {"tone": "good"}, "closed": {"tone": "muted"}},
@@ -1611,14 +1408,11 @@ mod tests {
         assert_eq!(stored["collections"]["Event"]["field_formats"], json!({"capacity": "percent"}));
         assert_eq!(stored["overview"]["stats"][0]["where"], json!({"state": "open"}));
 
-        // …and a fresh read agrees with the save's own answer, which is
-        // what proves the rows are really in the kernel's own store and
-        // not just in the response this call happened to build.
+        // A fresh read agrees, proving the rows are in the kernel's store.
         assert_eq!(presentation::load(&client, &wasm, &lineage).await.expect("a config"), stored);
 
-        // **Saving again is safe** — every present field is re-dispatched,
-        // and a row that already exists is a `Set*`, never a second
-        // `Declare` (which would refuse `AlreadyExists`).
+        // Saving again is safe: an existing row is a `Set*`, never a
+        // second `Declare` (which would refuse `AlreadyExists`).
         let again = presentation_save(&ir, &submitted.to_string(), &client, &wasm, &lineage, &invoker).await;
         assert_eq!(again["statusCode"], 200, "{again}");
         assert_eq!(body(&again), stored);
@@ -1650,8 +1444,7 @@ mod tests {
             "Event.open's tone \"chartreuse\" isn't one of good, warn, danger, muted, accent"
         );
 
-        // **Nothing written** — `validate` runs before the first dispatch,
-        // which is the whole reason it is a separate pass.
+        // Nothing written: `validate` runs before the first dispatch.
         assert_eq!(
             presentation::load(&client, &wasm, &lineage).await.expect("a config"),
             json!({"states": {}, "collections": {}, "overview": {}})
@@ -1679,9 +1472,8 @@ mod tests {
         assert_eq!(body(&refused)["error"], "MalformedBody");
     }
 
-    /// The old 501, still the answer for the case it was always really
-    /// about: banking's kernel carries no ConsoleSettings chapter, and
-    /// this asks it rather than inferring it from anything else.
+    /// Banking's kernel carries no ConsoleSettings chapter, and this
+    /// asks the kernel rather than inferring it from anything else.
     #[tokio::test]
     async fn a_host_whose_kernel_has_no_console_settings_chapter_still_refuses_501() {
         let client = crate::dispatch::tests::scratch_db("rust_host_api_presentation_no_chapter").await;

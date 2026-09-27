@@ -1,44 +1,32 @@
 require "spec_helper"
 require "hecks/fuzzing"
 
-# Declared properties over generated histories — the other half of
-# property-based testing the fuzzer was missing. Two directions, as
-# usual: the standard battery holds over real generated sequences
-# (below), and each property actually fires against a hand-built
-# history that violates it — a property nothing can ever fail is
-# decoration, the same lesson the coverage gates state for
-# declarations.
+# Declared properties over generated histories. Two directions: the
+# standard battery holds over real generated sequences (below), and
+# each property fires against a hand-built history that violates it —
+# a property that can never fail is decoration.
 RSpec.describe "Hecks::Fuzzing::Properties" do
   ROOT_DIR = InMemoryDomain::ROOT unless defined?(ROOT_DIR)
   PROPERTIES_PIZZAS   = File.join(ROOT_DIR, "examples/pizzas")
   PROPERTIES_BANKING  = File.join(ROOT_DIR, "examples/banking")
   PROPERTIES_FIXTURES = File.join(ROOT_DIR, "spec/fixtures")
-  # S17's own fixture, now a real bootable domain (no .hecksagon at all
-  # — Memory by construction) rather than the raw-Kernel.load-only
-  # fixture it was — the only real corpus site anywhere using entity-
-  # owned append/remove/multiply/clamp, item 9's own real target.
+  # A real bootable domain (no .hecksagon — Memory by construction), and
+  # the only corpus site using entity-owned append/remove/multiply/clamp.
   PROPERTIES_ENTITY_MUTATIONS = File.join(ROOT_DIR, "spec/fixtures/entity_list_mutations")
-  # BUG#5's own real target: the only corpus site combining an entity-
-  # owned `:append` (`Board.AddCard`) with a VO-typed appended field
-  # (`sequence`, `CardSequence`-typed) — `PROPERTIES_ENTITY_MUTATIONS`'
-  # own `TaggedList.AddTag` append target fields are bare Strings, so it
-  # never exercised `recompute_append`'s own type-aware coercion at all.
+  # The only corpus site combining an entity-owned :append (Board.AddCard)
+  # with a VO-typed appended field (sequence, CardSequence-typed) — this
+  # exercises recompute_append's type-aware coercion, which bare-String
+  # append targets elsewhere never do.
   PROPERTIES_NESTED_PIECES = File.join(ROOT_DIR, "qa/stress_domains/nested_pieces")
   # The self-hosted meta-domain — Expression + Translation, in that load
-  # order — used only to pin the multi-bluebook regression below. A real
-  # `bin/fuzz` run against this domain (Expression loads first) is what
-  # found it: every genuine `Translation::Map.Seal` refusal read as
-  # unresolvable because `command_for_verb` only ever consulted whichever
-  # bluebook happened to load first.
+  # order — pins a multi-bluebook regression: `command_for_verb` only
+  # consulting whichever bluebook loaded first misread every genuine
+  # `Translation::Map.Seal` refusal as unresolvable.
   PROPERTIES_GRAMMAR = File.join(ROOT_DIR, "lib/hecks/grammar")
   # The one domain whose `group_by` can collide (ADR 0061, decision D1).
   PROPERTIES_GROUP_BY_COLLISION = File.join(ROOT_DIR, "spec/fixtures/rust_project/group_by_collision_fixture")
 
-  # `adapter:` only ever changes which repository the replayed steps run
-  # against (IsolatedBoot's own rebind) — sequence generation itself stays
-  # Memory always (SequenceGenerator's own job is discovering a valid step
-  # list, not observing storage behavior, so paying Sqlite's real-file cost
-  # there buys nothing; see isolated_boot.rb's own `adapter:` doc).
+  # `adapter:` only picks replay's repository; generation always stays Memory (isolated_boot.rb).
   def generated_history(domain, seed, adapter: :memory)
     steps = Hecks::Fuzzing::SequenceGenerator.generate(domain, seed: seed, steps: 25)
     Hecks::Fuzzing::Replay.call(domain, steps, adapter: adapter)
@@ -69,26 +57,17 @@ RSpec.describe "Hecks::Fuzzing::Properties" do
     end
   end
 
-  # PRD 02 — every example above (and every declared property, ever) has
-  # only run against Memory's own hand-written Hash repository. Real
-  # queries go through a genuinely different code path against a real
-  # adapter (SqlQueryBuilder's SQL compilation, not
-  # `Ports::Query::InMemory`'s Ruby comparators) — `spec/adapters/
-  # query_agreement_spec.rb` already found 4 shipped bugs from exactly
-  # this comparison, on a fixed, far smaller, hand-authored corpus. This
-  # runs the identical standard battery a second time, same domains, same
-  # seeds, same properties, against real SQLite instead.
+  # Runs the identical standard battery again, same domains and seeds,
+  # against real SQLite — a genuinely different code path (SqlQueryBuilder
+  # SQL compilation) than Memory's Hash-based Ports::Query::InMemory.
   #
-  # PROPERTIES_ENTITY_MUTATIONS is deliberately excluded: it ships with no
-  # `.hecksagon` at all (Memory by construction, per its own comment
-  # above) — nothing for IsolatedBoot's rebind to rewrite, so an
-  # `adapter: :sqlite` run against it would silently still be Memory,
-  # claiming coverage it does not have.
+  # PROPERTIES_ENTITY_MUTATIONS is excluded: it ships with no .hecksagon
+  # (Memory by construction), so `adapter: :sqlite` would silently stay
+  # Memory, claiming coverage it doesn't have.
   #
-  # Postgres/PostgresEra stay `io: true`-gated, direct-adapter coverage
-  # (`spec/adapters/driven/postgres_*_spec.rb`) — a real server and shared
-  # connection settings have no safe place to come from in an
-  # unconditional, always-on local spec.
+  # Postgres/PostgresEra stay `io: true`-gated (spec/adapters/driven/
+  # postgres_*_spec.rb): a real server has no safe place to come from in
+  # an unconditional, always-on local spec.
   describe "the standard battery, over real generated sequences, against real SQLite" do
     [[PROPERTIES_PIZZAS, 5], [PROPERTIES_BANKING, 5]].each do |domain, seed_count|
       it "holds for #{File.basename(domain)} across #{seed_count} seeds" do
@@ -113,8 +92,7 @@ RSpec.describe "Hecks::Fuzzing::Properties" do
       Hecks::Fuzzing::Replay.call(domain, [])[:bluebooks]
     end
 
-    # Two parts in bin b1, one in b2 — bare strings, as the AccountsByKind
-    # examples below supply theirs.
+    # Two parts in bin b1, one in b2 — bare strings, matching AccountsByKind's shape below.
     def colliding_parts
       {
         "GroupByCollisionFixture::Part#p1" => { bin: "b1", ref: "p1" },
@@ -170,12 +148,9 @@ RSpec.describe "Hecks::Fuzzing::Properties" do
     it "query_answers_match_reference passes agreement, refusals, and read-model asks through" do
       history = { queries: [
         { query: "Pizzas::Order.Expensive", args: {}, rows: [{ id: "M" }], reference_rows: [{ id: "M" }] },
-        # Both engines refused, in agreement — not a finding. Modeled with
-        # both `error:` and `reference_error:` present, the shape `Replay`
-        # itself now builds when each engine is run independently and both
-        # happen to raise (see that file's own comment on why a single
-        # shared begin/rescue would make this indistinguishable from the
-        # one-sided case below).
+        # Both engines refused, in agreement — not a finding, modeled with
+        # both error: and reference_error: present (the shape Replay
+        # produces when both engines raise independently).
         { query: "Pizzas::Order.Expensive", args: {}, error: "refused", reference_error: "refused" },
         { query: "Pizzas.some_read_model", args: {}, rows: [] }
       ] }
@@ -183,15 +158,9 @@ RSpec.describe "Hecks::Fuzzing::Properties" do
       expect(Hecks::Fuzzing::Properties.query_answers_match_reference(history)).to be(true)
     end
 
-    # M23 — the property this feeds needs to be able to fail on a
-    # refusal-shaped divergence, not just a differing row set. Before the
-    # fix, `Replay` shared one begin/rescue across both engines: whichever
-    # engine raised first (always the native one, since it runs first)
-    # discarded any record of the other engine ever having been asked at
-    # all, so an entry like this — one engine refusing where the other
-    # answers — could never even be constructed from a real run, let alone
-    # checked. This proves the property itself, fed the shape `Replay` can
-    # now actually produce, correctly names it.
+    # Pins a refusal-shaped divergence — one engine refusing while the
+    # other answers — as something the property must be able to name,
+    # not something a shared rescue silently discards.
     it "query_answers_match_reference names a refusal-shaped divergence — one engine refused, the other didn't" do
       history = { queries: [
         { query: "Pizzas::Order.Expensive", args: {}, rows: [{ id: "Margherita" }], reference_error: "reference refused" }
@@ -266,19 +235,14 @@ RSpec.describe "Hecks::Fuzzing::Properties" do
       expect(Hecks::Fuzzing::Properties.paging_offset_partitions_correctly(history)).to be(true)
     end
 
-    # HopChain::Proposal.PricedAboveViaEngagement — real fixture corpus,
-    # `where :"engagement/client/status" => "active"; order_by :number;
-    # limit 1` — a `/` hop clause, which the recompute digging as a
-    # local dotted path (nil for every row, 0 eligible) would falsely
-    # flag the runtime's own correct answer, as it did the first time a
-    # generated sequence ever built the full chain (bin/fuzz fixtures,
-    # seed 1 — reproducible on an untouched checkout; see
-    # `Properties#query_eligible_rows`'s own comment). Every field in
-    # the chain is a single-attribute value object (Name/Reference/
-    # Number, each `{value}`), so this also pins that shape ordering and
-    # paging through the recompute. Two directions, same snapshot shape:
-    # the recompute must accept the answer when the hop's far end
-    # genuinely holds, and still name a violation when it doesn't.
+    # HopChain::Proposal.PricedAboveViaEngagement — real corpus, `where
+    # :"engagement/client/status" => "active"` — a `/` hop clause, which a
+    # recompute treating it as a local dotted path would falsely flag as
+    # 0-eligible (see Properties#query_eligible_rows). Every field in the
+    # chain is a single-attribute value object, so this also pins shape
+    # and paging through the recompute. Two directions: accept when the
+    # hop's far end genuinely holds, and still name a violation when it
+    # doesn't.
     it "paging_offset_partitions_correctly resolves a / hop clause the way the live fold does, and passes the answer" do
       instances = {
         "HopChain::Client#juliet"      => { name: { value: "juliet" }, status: "active" },
@@ -456,34 +420,23 @@ RSpec.describe "Hecks::Fuzzing::Properties" do
       expect(Hecks::Fuzzing::Properties.mutations_match_recompute(history)).to be(true)
     end
 
-    # BUG#5 — `qa/stress_domains/nested_pieces` (`NOTES.md`'s own item 3),
-    # found live by `bin/fuzz qa/stress_domains/nested_pieces --seeds 40
-    # --steps 30` (seed 2 shrinks to 3 steps). `Board.AddCard`'s own
-    # `sets :cards, append: { sequence: :sequence }` targets `sequence`,
-    # a `CardSequence`-typed (value-object) field — unlike
-    # `PROPERTIES_ENTITY_MUTATIONS`' own `TaggedList.AddTag` (bare-String
-    # target fields throughout), the first corpus site to combine
-    # entity-owned `:append` with a VO-typed appended field. `821`, a
-    # bare scalar arg — `ValueGenerator#object_for`'s own
-    # `BARE_SCALAR_PROBABILITY` branch, the exact shape seed 2 generated
-    # — is what the real dispatch's own `Interpreting#
-    # coerce_declared_arguments` coerces to `CardSequence`'s sole
-    # attribute (`{ value: 821 }`) before `EntityElement#
-    # appended_to_element` ever runs; this pins that recomputing
-    # independently lands on the same coerced, materialized shape,
-    # rather than comparing the raw `821` against it.
+    # Board.AddCard's `sets :cards, append: { sequence: :sequence }` targets
+    # `sequence`, a CardSequence-typed (value-object) field — unlike
+    # PROPERTIES_ENTITY_MUTATIONS' bare-String append targets, this is the
+    # only corpus site combining an entity-owned :append with a VO-typed
+    # appended field. The real dispatch coerces the bare scalar arg (821)
+    # to CardSequence's sole attribute before EntityElement#
+    # appended_to_element runs; this pins that recomputing independently
+    # lands on that same coerced shape, not the raw scalar.
     it "mutations_match_recompute passes an entity-owned append whose target field is itself " \
        "value-object-typed (BUG#5)" do
       history = { bluebooks:       bluebooks_for(PROPERTIES_NESTED_PIECES),
                   mutation_traces: [
                     { verb:   "NestedPieces::Workspace.Board.AddCard",
                       before: { number: { value: 1 }, label: nil, cards: [] },
-                      # `note: nil` — BUG#12's own fix: `Card.note`
-                      # (`optional: true`) isn't in `AddCard`'s own
-                      # append mapping, but a freshly appended `Card`
-                      # still carries its own key for it, `nil`-valued,
-                      # the same way a fresh aggregate's declared
-                      # attributes already do.
+                      # nil, since Card.note (optional: true) isn't in
+                      # AddCard's append mapping, but a freshly appended
+                      # Card still carries the key, nil-valued regardless.
                       after:  { number: { value: 1 }, label: nil, cards: [{ sequence: { value: 821 }, note: nil }] },
                       args:   { number: { value: 1 }, sequence: 821 } }
                   ] }
@@ -491,18 +444,11 @@ RSpec.describe "Hecks::Fuzzing::Properties" do
       expect(Hecks::Fuzzing::Properties.mutations_match_recompute(history)).to be(true)
     end
 
-    # The single most important check on BUG#5's own fix (see the PR
-    # description this test rides in on): a fix broad enough to stop
-    # false-positiving on a correct VO-typed append must not also go
-    # blind to a genuinely wrong one. Same shape as the passing example
-    # right above — same `before`, same `args`, the identical `821`
-    # BUG#5's own fix now coerces to `{ value: 821 }` — except the real
-    # dispatch's own `after` claims `{ value: 999 }` landed instead, a
-    # real append mismatch unrelated to VO-wrapping. Recomputing
-    # independently still has to coerce `821`, still land on
-    # `{ value: 821 }`, and still disagree with the stored `{ value: 999
-    # }` — proving the fix is comparing coerced-against-coerced, not
-    # simply skipping the field (which would go blind to exactly this).
+    # Same before/args as the passing VO-typed-append example above — the
+    # identical scalar 821 still coerces to { value: 821 } — except this
+    # `after` claims { value: 999 } landed instead, a real mismatch
+    # unrelated to VO-wrapping. Proves the comparison is coerced-against-
+    # coerced, not skipping the field (which would miss exactly this).
     it "mutations_match_recompute still names a genuinely wrong VO-typed append, not merely a coercion artifact" do
       history = { bluebooks:       bluebooks_for(PROPERTIES_NESTED_PIECES),
                   mutation_traces: [
@@ -517,17 +463,11 @@ RSpec.describe "Hecks::Fuzzing::Properties" do
       expect(result).to include("AddCard").and include("append")
     end
 
-    # `:set` — item #ANGLE (Ruby self-correctness track, docs/decisions/
-    # 0056). `NestedPieces::Workspace.Board.Label` (`sets :label`, no
-    # `append:`/`remove:`/`multiply:`/`clamp:`) is the real corpus site:
-    # an entity-owned plain set, coerced through `EntityElement#apply_to_
-    # element`'s `:set` branch (entity_element.rb), the same shape a
-    # generated sequence against `qa/stress_domains/nested_pieces`
-    # already exercises via "the standard battery, over real generated
-    # sequences" above (seed 2's own mutation trace is exactly this
-    # shape — `bin/rspec` need not construct it by hand to prove it
-    # fires against a real domain, only to prove it fires and passes
-    # here in isolation).
+    # NestedPieces::Workspace.Board.Label (`sets :label`, no append/remove/
+    # multiply/clamp) is the real corpus site for an entity-owned plain
+    # set, coerced through EntityElement#apply_to_element's :set branch.
+    # Hand-built here to isolate that one case; the standard battery above
+    # already exercises it against a real generated sequence.
     it "mutations_match_recompute names a plain entity-owned set whose after-state disagrees with the " \
        "recomputed value" do
       history = { bluebooks:       bluebooks_for(PROPERTIES_NESTED_PIECES),
@@ -566,14 +506,11 @@ RSpec.describe "Hecks::Fuzzing::Properties" do
     end
 
     it "guard_refusals_are_declared passes a refusal quoting the command's own declared given through" do
-      # "customer is active" — S10, ADR 0025's named precondition, not
-      # typed on Credit directly any more (Account.given, referenced
-      # back) — but still a real entry in Credit.givens either way,
-      # which is the only thing this property reads. "the account is
-      # open" (this test's own text before S10) is gone from Credit
-      # entirely now — S10 made it a lifecycle guard, `from: "open"`,
-      # which raises LifecycleRefused, never GivenNotMet, so it could
-      # not stand in for "a real given" here even unchanged.
+      # "customer is active" (ADR 0025's named precondition, referenced
+      # from Account.given) is a real entry in Credit.givens, which is
+      # all this property reads. "the account is open" would not fit:
+      # that's a lifecycle guard (`from: "open"`), raising
+      # LifecycleRefused, never GivenNotMet.
       history = { bluebooks: bluebooks_for(PROPERTIES_BANKING),
                   refusals:  [{ verb: "Banking::Account.Credit", error: "Credit refused — customer is active",
                               kind: "Hecks::Runtime::GivenNotMet" }] }
@@ -581,11 +518,9 @@ RSpec.describe "Hecks::Fuzzing::Properties" do
       expect(Hecks::Fuzzing::Properties.guard_refusals_are_declared(history)).to be(true)
     end
 
-    # A `delegates_to` door refuses with its target's own given, in the
-    # door's name — `Roster.Retire` is a pure passthrough to
-    # `Member.Retire`, and "a front-row holder may not retire" is Retire's.
-    # Found live mining chess's history: every refused move through a
-    # door read as undeclared, and no pre-state was admitted.
+    # A delegates_to door refuses with its target's own given, in the
+    # door's name — Roster.Retire passes through to Member.Retire, so
+    # "a front-row holder may not retire" is Retire's own given text.
     it "guard_refusals_are_declared follows a door's delegates_to to the guards that actually refused" do
       history = { bluebooks: bluebooks_for(File.join(ROOT_DIR, "examples/roster")),
                   refusals:  [{ verb:  "Roster::Roster.Retire",
@@ -599,20 +534,16 @@ RSpec.describe "Hecks::Fuzzing::Properties" do
     end
 
     it "guard_refusals_are_declared resolves a refusal against ITS OWN domain, not just the first-loaded one" do
-      # The real regression, pinned exactly as bin/fuzz found it: a
-      # domain under fuzz commonly composes more than one bluebook
-      # (Expression loads before Translation here) — a genuine given
-      # refusal from a non-first domain would read as "no declared
-      # command resolves that verb," purely because command_for_verb would
-      # only consult whichever bluebook happened to load first, never
-      # the refusing verb's own domain.
+      # A domain under fuzz commonly composes more than one bluebook
+      # (Expression loads before Translation here). A genuine given
+      # refusal from a non-first domain would misread as "no declared
+      # command resolves that verb" if command_for_verb only consulted
+      # whichever bluebook loaded first.
       bluebooks = bluebooks_for(PROPERTIES_GRAMMAR)
-      # Expression loads first — the shape the bug needed. Governance
-      # loads last — both Expression's and Translation's hecksagons now
-      # `uses_framework "Governance"` (S8: `role` is only real access
-      # control once Governance can check it), attached after either
-      # chapter itself, since `uses_framework` runs from inside their
-      # own hecksagon blocks.
+      # Expression loads first, Translation second, Governance last —
+      # both hecksagons call uses_framework "Governance" (role is only
+      # real access control once Governance can check it) from inside
+      # their own blocks, so it attaches after either chapter.
       expect(bluebooks.keys).to eq(%w[Expression Translation Governance])
 
       history = { bluebooks: bluebooks,

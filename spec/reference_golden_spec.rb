@@ -1,20 +1,9 @@
 require "spec_helper"
 require "hecks/doc/reference"
 
-# The reference pages must equal what the language declares — the same
-# frozen-file discipline the golden IR carries, aimed at documentation.
-# The tables are projected from the Syntax chapter; the prose is
-# hand-written between markers and harvested through regeneration; and
-# a tree where the two disagree refuses here rather than drifting
-# quietly.
-#
-# Regenerate deliberately, never casually:
-#
-#     bin/reference        (or GOLDEN=rewrite this spec)
-#
-# The second gate is coverage: a live (admitted or deprecated) word with
-# no prose is a word the language ships undocumented, and that is a
-# failure, not a TODO.
+# The reference pages must equal what the language declares: tables are projected from the
+# Syntax chapter, prose is hand-written between markers, and every live word needs prose.
+# Regenerate deliberately with `bin/reference` (or GOLDEN=rewrite).
 RSpec.describe "the DSL reference" do
   REFERENCE_DIR = File.join(InMemoryDomain::ROOT, "docs/implemented/reference").freeze
 
@@ -40,17 +29,8 @@ RSpec.describe "the DSL reference" do
                        missing.join("\n  ")
   end
 
-  # The third gate, and the one the other two cannot stand in for. Prose
-  # is a declaration, and a declaration nothing runs cannot disagree with
-  # the runtime it describes — this repository has shipped a documented
-  # word with no runtime path behind it twice (`read_model`'s
-  # where/order_by/limit/offset, and `role`/`goal` on a command), and in
-  # both cases the sentences were perfectly good sentences.
-  #
-  # **Presence only**. That the examples pass is spec/reference_doctest_spec
-  # .rb's question, over the same pages. Both are needed and neither is
-  # the other: a fence that has never run proves nothing, and a page of
-  # passing fences can still leave half the language unexemplified.
+  # Every live word must carry an example. Prose nothing runs cannot disagree with the
+  # runtime it describes; whether the examples pass is spec/reference_doctest_spec.rb's question.
   it "lets no live word ship unexemplified" do
     missing = Hecks::Doc::Reference.unexemplified(REFERENCE_DIR)
     expect(missing).to be_empty,

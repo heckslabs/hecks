@@ -1,38 +1,5 @@
-// **Payment connection** — the tenant's own link to a payment-processor
-// account, and what checkout does with it. Ported from the Ruby domain
-// service's `/payments/connection/*` routes, `checkout_plan` and webhook
-// handling, so a deploy served by this host behaves the same way as one served
-// by the domain service's Ruby HTTP adapter.
-//
-// A business uses its own Stripe account directly. Its keys are set in the
-// environment (`STRIPE_ACCOUNT_*`) or pasted into the Payments page and saved
-// (`save_keys_route`); an Owner chooses "use this account", and the connection is
-// recorded with the reserved `account_ref` "self". Charges use that account's own
-// key, and nothing here ever holds a secret in the tenant's schema: the
-// connection stores only the reserved ref, the mode and a display name.
-//
-// Saved keys are checked with Stripe, the site creates the webhook in the
-// business's own Stripe account itself, and the keys and the webhook's signing
-// secret go into a Secrets Manager secret (keystore.rs), never into the tenant's
-// schema or a response. Environment keys, where set, win over saved ones.
-// Disconnecting removes the webhook and the saved keys.
-//
-// Who may do what is decided here, not by Governance (no Caller is bound on
-// these routes): an Owner (the membership person's own `role`) connects and
-// disconnects; only an operator (`PAYMENTS_OPERATOR_EMAILS`, an allowlist that is
-// never a tenant role) turns real payments on or off. The person is
-// re-read from the current membership head on every request, so a disabled
-// Owner's old cookie stops working at once.
-//
-// Checkout is decided per request from the connection's lifecycle
-// (`checkout_plan`): no connection, or one that is not enabled, keeps the mock
-// walkthrough; an enabled Stripe connection charges on the business's own account;
-// a paused one (payments were enabled and the account is gone) stops
-// registrations rather than falling back to a fake payment page.
-//
-// The aggregate this drives is `<domain>::PaymentConnection`, singleton with
-// the slug "payments" (spec/fixtures/rust_host/checkout_fixture carries a
-// trimmed copy of it).
+// The tenant's own link to a payment processor and what checkout does with it:
+// a business's own Stripe account, keyed by `<domain>::PaymentConnection` (see `checkout_plan`).
 
 use crate::auth;
 use crate::checkout::STRIPE_API_VERSION;
@@ -59,15 +26,13 @@ pub const SELF_ACCOUNT: &str = "self";
 const DIRECT_DISPLAY_FALLBACK: &str = "Your Stripe account";
 const STRIPE_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(15);
 
-/// This deploy's payment settings, read from the environment once per request
-/// and passed down as a plain value, so a test can build one directly instead of
-/// mutating process-wide env vars. Deliberately not `Debug`: it holds secret keys.
+/// This deploy's payment settings, read once per request as a plain value (so a
+/// test can build one directly). Deliberately not `Debug`: it holds secret keys.
 #[derive(Clone)]
 pub struct PlatformConfig {
     pub site_url: String,
-    /// The public origin Stripe delivers webhooks to: `PAYMENTS_WEBHOOK_BASE_URL`,
-    /// else `site_url`. The webhook the site creates in a business's own Stripe
-    /// account points at `<this>/webhooks/stripe`.
+    /// The public origin Stripe delivers webhooks to (`PAYMENTS_WEBHOOK_BASE_URL`,
+    /// else `site_url`); the webhook the site creates points at `<this>/webhooks/stripe`.
     pub webhook_base_url: String,
     /// Where keys saved from the Payments page live, when this deploy has such a
     /// store (keystore.rs); `None` means keys can only come from the environment.
@@ -79,10 +44,8 @@ pub struct PlatformConfig {
     /// The description Stripe shows beside the webhook endpoint this site
     /// creates: `PAYMENTS_WEBHOOK_DESCRIPTION`, else "<HECKS_DOMAIN> website".
     pub webhook_description: String,
-    /// The business's own Stripe keys, one pair per mode. A mode is available
-    /// once both its secret and publishable key are set. The publishable key is
-    /// the public value the browser needs to mount the embedded payment form;
-    /// unlike the secret key it may appear in a response.
+    /// The business's own Stripe keys, one pair per mode (available once both are
+    /// set). Unlike the secret, the publishable key may safely appear in a response.
     pub direct_test_key: String,
     pub direct_live_key: String,
     pub direct_test_publishable_key: String,
@@ -94,10 +57,8 @@ pub struct PlatformConfig {
     pub operators: Vec<String>,
 }
 
-/// Refuses the boot on AWS when checkout is enabled but
-/// `PAYMENTS_ACCOUNT_SECRET_ID` does not name the secret that holds the
-/// business's keys. Nothing else is checked, so off AWS, or with checkout off,
-/// the host boots as before.
+/// Refuses the boot on AWS when checkout is enabled but `PAYMENTS_ACCOUNT_SECRET_ID`
+/// names no secret; off AWS, or with checkout off, the host boots as usual.
 pub fn check_boot(checkout_enabled: bool) -> Result<(), String> {
     keystore::check_boot(checkout_enabled)
 }
@@ -143,9 +104,8 @@ impl PlatformConfig {
         platform
     }
 
-    /// Reads the key store into `stored` (from its cache when fresh). A store
-    /// that cannot be read leaves only the environment's keys in play, and the
-    /// log line says so without saying anything about the keys.
+    /// Reads the key store into `stored` (from its cache when fresh); a store that
+    /// cannot be read leaves only environment keys, logged without naming any key.
     pub async fn apply_store(&mut self) {
         let Some(store) = self.store.clone() else { return };
         match store.document().await {
@@ -159,9 +119,8 @@ impl PlatformConfig {
         self.store.is_some()
     }
 
-    /// Whether any real Stripe credential exists here: the business's own key
-    /// from the environment, or keys saved from the Payments page. While one
-    /// does, the public mock webhook secret must never verify anything.
+    /// Whether any real Stripe credential exists (environment or saved keys). While
+    /// one does, the public mock webhook secret must never verify anything.
     pub fn has_real_credentials(&self) -> bool {
         let configured = [&self.direct_test_key, &self.direct_live_key].iter().any(|key| !key.is_empty());
         let saved = [&self.stored.test, &self.stored.live].iter().any(|keys| keys.as_ref().is_some_and(|keys| !keys.secret_key.is_empty()));
@@ -243,22 +202,16 @@ pub fn connection(read: &Value, domain: &str) -> Option<Connection> {
 pub enum CheckoutPlan {
     /// No connection, or one that is not enabled: the mock walkthrough.
     Mock,
-    /// Payments are enabled: a charge on the business's own account,
-    /// authenticated with that account's own key. The guest pays in a form
-    /// embedded in the site, which the browser mounts with the matching
-    /// publishable key.
+    /// Payments are enabled: charged on the business's own account with its own
+    /// key; the guest pays in a form embedded in the site via the publishable key.
     Stripe { api_key: String, publishable_key: String },
     /// Payments were enabled and cannot be taken now. Registrations answer
     /// 503; never a fallback to the mock.
     Paused,
 }
 
-/// Decides checkout for this request from the tenant's own connection, never
-/// from a process-wide setting. An enabled connection that is not the business's
-/// own account, whose processor is not one this host can charge, or whose secret
-/// or publishable key is not configured, is paused too: real guests must never
-/// be shown a fake payment page, and the embedded form cannot be mounted without
-/// the publishable key.
+/// Decides checkout per request from the tenant's own connection, never a
+/// process-wide setting; an enabled connection this host cannot actually charge is paused too.
 pub fn checkout_plan(connection: Option<&Connection>, platform: &PlatformConfig) -> CheckoutPlan {
     let Some(connection) = connection else { return CheckoutPlan::Mock };
     match connection.status.as_str() {
@@ -293,8 +246,6 @@ async fn dispatch_on_connection(
     let verb = crate::ir::payment_connection_binding(&config.domain).verb(which).to_string();
     dispatch::handle_routed(client, wasm_path, &verb, json!(CONNECTION_SLUG), facts, None, config, invoker).await
 }
-
-// ---- routes ------------------------------------------------------------
 
 /// Whether `path` belongs to the payments surface.
 pub fn owns(method: &str, path: &str) -> bool {
@@ -384,10 +335,8 @@ async fn connection_response(caller: &Caller, platform: &PlatformConfig, client:
     }
 }
 
-/// The `/payments/connection` routes, for a server-side caller holding the
-/// account cookie. Every answer is JSON, and a missing, invalid
-/// or no-longer-valid session is a 401, never a redirect. `None` for a path
-/// this module does not own.
+/// The `/payments/connection` routes for a caller holding the account cookie; every
+/// answer is JSON, a bad session is 401 not a redirect, and `None` means an unowned path.
 #[allow(clippy::too_many_arguments)]
 pub async fn route(
     method: &str,
@@ -467,11 +416,9 @@ async fn record_connection(
     }
 }
 
-// The business's own account. An Owner either saves keys (`save_keys_route`) or
-// picks a mode whose keys are already in the environment; the answer is the
-// connection JSON. Only the public facts are stored: the reserved account ref,
-// the mode and a display name read with the account's own key. That key is never
-// stored or logged.
+// An Owner either saves keys (`save_keys_route`) or picks a mode with keys already
+// in the environment; only public facts are stored (account ref, mode, display
+// name), and the key itself is never stored or logged.
 #[allow(clippy::too_many_arguments)]
 async fn direct_route(caller: &Caller, raw_body: &str, platform: &PlatformConfig, client: &Mutex<Client>, wasm_path: &Path, config: &LineageConfig, invoker: &dyn LambdaInvoker) -> Value {
     if let Err(response) = require_owner(caller) {
@@ -503,10 +450,9 @@ async fn direct_route(caller: &Caller, raw_body: &str, platform: &PlatformConfig
     record_connection(caller, platform, facts, client, wasm_path, config, invoker).await
 }
 
-// Disconnect. Not enabled: a plain disconnect. Enabled: registrations pause
-// instead, because real guests have paid through this account. Disconnecting
-// the business's own account also takes its webhook out of its Stripe account
-// and deletes the saved keys, so nothing keeps working afterwards.
+// Not enabled: a plain disconnect. Enabled: registrations pause instead, since real
+// guests have paid through this account. Disconnecting the business's own account
+// also removes its webhook and deletes the saved keys.
 async fn disconnect_route(caller: &Caller, platform: &PlatformConfig, client: &Mutex<Client>, wasm_path: &Path, config: &LineageConfig, invoker: &dyn LambdaInvoker) -> Value {
     if let Err(response) = require_owner(caller) {
         return response;
@@ -550,8 +496,6 @@ async fn switch_route(caller: &Caller, which: crate::ir::ConnectionVerb, platfor
     }
 }
 
-// ---- Stripe calls --------------------------------------------------------
-
 fn stripe_http() -> Result<reqwest::Client, String> {
     reqwest::Client::builder().timeout(STRIPE_TIMEOUT).build().map_err(|e| e.to_string())
 }
@@ -576,8 +520,6 @@ async fn own_account_display_name(platform: &PlatformConfig, key: &str) -> Strin
     let name = candidates.into_iter().flatten().find_map(|v| v.as_str().filter(|s| !s.is_empty())).unwrap_or(DIRECT_DISPLAY_FALLBACK).to_string();
     name
 }
-
-// ---- saving the business's own keys --------------------------------------
 
 const KEYS_NOT_ENABLED: &str = "saving keys is not set up on this site";
 const KEY_REFUSED: &str = "Stripe did not accept that key.";
@@ -628,10 +570,9 @@ fn business_name(account: &Value) -> Option<String> {
     candidates.into_iter().flatten().find_map(|v| v.as_str().filter(|s| !s.is_empty())).map(String::from)
 }
 
-// Asks Stripe whether the key works and what the business is called. Only a key
-// Stripe rejects outright is refused here: a restricted key may not be allowed
-// to read the account at all, so that reads as the generic name, and creating
-// the webhook is the real test of its permissions.
+// Asks Stripe whether the key works and what the business is called. A restricted
+// key that cannot read the account gets the generic name, not a refusal here:
+// creating the webhook is the real test of its permissions.
 async fn verify_key(platform: &PlatformConfig, key: &str) -> Result<String, &'static str> {
     let response = stripe_http()
         .map_err(|_| STRIPE_UNREACHABLE)?
@@ -699,11 +640,9 @@ async fn delete_webhook(platform: &PlatformConfig, key: &str, endpoint_id: &str)
     matches!(sent, Ok(response) if response.status().is_success())
 }
 
-// The Payments page's Save: check the keys, have Stripe deliver events to this
-// site, keep the keys and the webhook's signing secret in the store, and record
-// the connection as the business's own account. Saving again while the same
-// account is already connected replaces the keys and the webhook in place.
-// Nothing here answers with, logs or errors with a key.
+// Checks the keys, has Stripe deliver events here, and stores the keys and webhook
+// secret before recording the connection; saving again in place replaces both.
+// Nothing here answers with, logs, or errors with a key.
 #[allow(clippy::too_many_arguments)]
 async fn save_keys_route(caller: &Caller, body: &Value, platform: &PlatformConfig, client: &Mutex<Client>, wasm_path: &Path, config: &LineageConfig, invoker: &dyn LambdaInvoker) -> Value {
     let Some(store) = platform.store.clone() else { return json_error(422, KEYS_NOT_ENABLED) };
@@ -777,10 +716,9 @@ async fn save_keys_route(caller: &Caller, body: &Value, platform: &PlatformConfi
     response
 }
 
-// After an Owner disconnects the business's own account: remove the webhook
-// from its Stripe account and delete the saved keys for that mode. Best effort,
-// logged without any secret; keys that came from the environment are not
-// touched, and neither is Stripe if no webhook was ever saved.
+// After a disconnect: remove the webhook from Stripe and delete the saved keys for
+// that mode, best effort and logged without any secret. Environment keys and Stripe
+// are untouched when nothing was ever saved.
 async fn forget_saved_keys(platform: &PlatformConfig, mode: &str) {
     let Some(store) = platform.store.clone() else { return };
     let saved = match store.refresh().await {

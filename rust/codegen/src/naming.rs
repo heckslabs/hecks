@@ -1,6 +1,4 @@
-//! Port of `rust/project/naming.rb` — read that file's own comments for
-//! the full rationale behind each rule; this mirrors its algorithm
-//! directly, function for function.
+//! Port of `rust/project/naming.rb`, mirrored function for function.
 
 pub fn scalar_rust_type(type_name: &str) -> Option<&'static str> {
     match type_name {
@@ -86,10 +84,8 @@ pub fn valid_domain_mod_name(name: &str) -> bool {
     plain_lower_identifier(name) && !RUST_KEYWORDS.contains(&name) && !CARGO_RESERVED_DOMAIN_NAMES.contains(&name)
 }
 
-/// Port of `RustProjection::Projector.reserved_name_refusal` (BUG#124) —
-/// `None` when every aggregate name and the domain's module name are usable,
-/// else the byte-identical refusal the Ruby generator raises. Aggregates are
-/// checked (and reported) before the domain name, all at once.
+/// `None` when every aggregate name and the domain's module name are usable, else the
+/// refusal text the Ruby generator raises, byte for byte. Aggregates are checked first.
 pub fn reserved_name_refusal(source_label: &str, mod_name: &str, aggregate_names: &[&str]) -> Option<String> {
     let refused: Vec<&str> = aggregate_names
         .iter()
@@ -132,13 +128,8 @@ pub fn rust_ident_field(name: &str) -> String {
     }
 }
 
-/// A closed-set member's value is business text, not a pre-sanitized Rust
-/// identifier — split on any run of non-alphanumeric characters (see
-/// naming.rb's own header on why plain `_`/whitespace splitting broke on
-/// glob-shaped members like `"*.port"`).
-///
-/// `Self` — the one capitalized Rust keyword — is renamed by spelling:
-/// `SelfType` / `SelfValue` (naming.rb's own `closed_set_variant` header).
+/// Variant name for a closed-set member: splits on any run of non-alphanumerics, so
+/// glob-shaped values like `"*.port"` work. `Self` becomes `SelfType` / `SelfValue`.
 pub fn closed_set_variant(value: &str) -> String {
     let variant = value
         .split(|c: char| !c.is_ascii_alphanumeric())
@@ -218,9 +209,7 @@ pub fn fielded_capable_nested(vo: &crate::json::Json) -> bool {
         || vo.get("attributes").map(crate::json::Json::each).unwrap_or(&[]).len() == 1
 }
 
-/// The `Fielded` implementation Ruby emits beside a single-field closed-set
-/// enum. Its generic field surface is the same `"value"` object shape used by
-/// that enum's existing JSON codec.
+/// The `Fielded` impl emitted beside a single-field closed-set enum, exposing `"value"`.
 pub fn emit_closed_set_fielded_impl(vo: &crate::json::Json) -> String {
     let name = rust_ident(vo.get("name").and_then(crate::json::Json::as_str).unwrap_or(""));
     let arms = vo.get("members").map(crate::json::Json::each).unwrap_or(&[]).iter().filter_map(|row| {
@@ -234,18 +223,11 @@ pub fn emit_closed_set_fielded_impl(vo: &crate::json::Json) -> String {
     )
 }
 
-/// A literal mutation-source RHS — mirrors `naming.rb#literal_rhs`. Takes
-/// the already-parsed `crate::ruby_value::Value`-shaped JSON literal
-/// (String/Integer/Float/Bool) this crate reads out of `ir.json`.
+/// A literal mutation-source RHS; `literal` is a String/Integer/Float/Bool read from `ir.json`.
 pub fn literal_rhs(literal: &crate::json::Json) -> String {
     match literal {
         crate::json::Json::String(s) => format!("{}.to_string()", ruby_inspect_string(s)),
-        // `Integer, Float then literal.to_s` — one Ruby case, but `to_s`
-        // renders differently per real type (`0.to_s == "0"`, `0.0.to_s ==
-        // "0.0"`) — kept as two Rust match arms so a whole-number Float
-        // default still renders as a valid `f64` literal (`0.0`, not the
-        // integer-typed `0` that would fail to unify with the `x.as_f64()`
-        // branch it sits beside in `scalar_from_json_expr`'s own output).
+        // Separate arms so a whole-number Float renders as `0.0`, not an integer-typed `0`.
         crate::json::Json::Int(n) => n.to_string(),
         crate::json::Json::Float(_) => literal.to_s(),
         crate::json::Json::Bool(b) => b.to_string(),
@@ -253,10 +235,7 @@ pub fn literal_rhs(literal: &crate::json::Json) -> String {
     }
 }
 
-/// Ruby's `String#inspect` — a double-quoted, backslash/quote-escaped
-/// literal. Shared by every codegen site that needs to embed a Ruby-
-/// literal-shaped string constant in generated Rust text (matching Rust's
-/// own escaping for the common cases both languages agree on).
+/// Ruby's `String#inspect`: a double-quoted, backslash/quote-escaped literal.
 pub fn ruby_inspect_string(s: &str) -> String {
     let mut out = String::with_capacity(s.len() + 2);
     out.push('"');

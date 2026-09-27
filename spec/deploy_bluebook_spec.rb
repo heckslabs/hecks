@@ -3,15 +3,8 @@ require "tmpdir"
 require "fileutils"
 require "open3"
 
-# `lib/hecks/deploy/bluebook/deploy.bluebook`'s own header explains
-# why this domain exists: without it, `deployed_to("AwsLambda")`'s
-# settings would be validated nowhere in the language — a bare
-# `fetch(:region) { abort ... }` chain in bin/project_deploy, the exact
-# raw-Ruby-refusal pattern every other kind of bluebook mistake in this
-# codebase does not use.
-# This asserts the domain itself validates correctly, and that
-# bin/project_deploy genuinely dispatches into it rather than falling
-# back to hand-rolled checks.
+# Deploy settings for deployed_to("AwsLambda") are validated by the Deploy domain itself.
+# Also pins that bin/project_deploy dispatches into it rather than hand-rolled checks.
 RSpec.describe "the self-hosted Deploy bluebook" do
   DEPLOY_DOMAIN = File.expand_path("../lib/hecks/deploy", __dir__)
 
@@ -25,10 +18,7 @@ RSpec.describe "the self-hosted Deploy bluebook" do
       region:   { value: "us-east-1" },
       memory:   { value: 512 },
       timeout:  { value: 10 },
-      # "Postgres"/"None" — bin/project_deploy's own Ruby-side
-      # defaults (deploy_settings.fetch(:database, "Postgres") /
-      # .fetch(:web, "None")) when a domain's own deployed_to("AwsLambda")
-      # names neither — Embryonaut's own live choice either way.
+      # Same defaults bin/project_deploy applies when a domain names neither.
       database: { value: "Postgres" },
       web:      { value: "None" }
     }.merge(overrides)
@@ -44,10 +34,8 @@ RSpec.describe "the self-hosted Deploy bluebook" do
     expect(state[:timeout].value).to eq(10)
   end
 
-  # C3.7 (docs/semantics/bluebook-semantics.md) — a value object's own
-  # required fields are checked before its invariants; an explicit nil
-  # is TypeMismatch now, not the InvariantViolation an empty string
-  # would still reach.
+  # C3.7 (docs/semantics/bluebook-semantics.md): required fields are checked before invariants,
+  # so an explicit nil is TypeMismatch while an empty string reaches the invariant.
   it "refuses an absent region" do
     expect { declare(region: { value: nil }) }
       .to raise_error(Hecks::Runtime::TypeMismatch, /Region\.value expects String, got nil/)
@@ -171,23 +159,13 @@ RSpec.describe "the self-hosted Deploy bluebook" do
       .to raise_error(Hecks::Runtime::InvariantViolation, /a port is at most 65535/)
   end
 
-  # **The end-to-end proof** — bin/project_deploy itself dispatches into
-  # this domain, not a parallel hand-rolled check that happens to agree
-  # with it today and silently drifts tomorrow.
+  # End-to-end: bin/project_deploy must dispatch into this domain, not a parallel check.
   describe "bin/project_deploy, driven through a scratch fixture domain", :io do
-    # `bin/project_deploy` always writes to `<repo_root>/deploy/
-    # <domain_basename>` regardless of where the source domain lives
-    # (`root`/`out_dir` in bin/project_deploy are computed from the
-    # script's own location, not the input path) — so the domain
-    # basename here is deliberately unique and the generated directory
-    # is removed after every run, or each example would leave a real,
-    # permanent `deploy/scratch/` behind in the actual repo.
+    # bin/project_deploy always writes to <repo_root>/deploy/<basename>, wherever the source lives,
+    # so the basename is unique and the generated directory is removed after every run.
     FIXTURE_BASENAME = "deploy_bluebook_spec_fixture".freeze
 
-    # Shared by `run_project_deploy` and the `owner_stack` test below,
-    # which cannot use `run_project_deploy` itself — its `ensure
-    # FileUtils.rm_rf(generated_dir)` deletes the generated Makefile
-    # before that test gets a chance to read it.
+    # Shared with the owner_stack test, which must read the Makefile before cleanup removes it.
     def write_scratch_fixture_bluebook(domain_dir)
       bluebook_dir = File.join(domain_dir, "bluebook")
       FileUtils.mkdir_p(bluebook_dir)
@@ -270,18 +248,9 @@ RSpec.describe "the self-hosted Deploy bluebook" do
       expect(status).to be_success, stderr
     end
 
-    # `owner_stack` — an escape hatch for a real drift already live in
-    # this account: Embryonaut's own stack is "hecksagain-embryonaut"
-    # (a legacy prefix, generated before the "hecks-<name>" convention
-    # existed), not "hecks-embryonaut" the ordinary convention would
-    # compute. Without this, `deploy:`'s own owner-outputs lookup below
-    # would `describe-stacks --stack-name hecks-embryonaut` against a
-    # stack that has never existed and fail before a Shared-mode
-    # domain naming Embryonaut as owner ever got to `sam deploy` at
-    # all. Read straight out of the generated Makefile, not the
-    # `run_project_deploy` helper's own return values (stdout/stderr/
-    # status only — its `ensure FileUtils.rm_rf(generated_dir)` deletes
-    # the files this test needs to inspect before returning).
+    # owner_stack overrides the hecks-<owner> stack-name convention for an owner whose live stack
+    # is named differently. Reads the generated Makefile directly because run_project_deploy
+    # removes it before returning.
     it "uses a declared owner_stack override instead of the ordinary hecks-<owner> convention" do
       root = File.expand_path("..", __dir__)
       generated_dir = File.join(root, "deploy", FIXTURE_BASENAME)
@@ -312,15 +281,9 @@ RSpec.describe "the self-hosted Deploy bluebook" do
       FileUtils.rm_rf(generated_dir)
     end
 
-    # `stack_prefix` — `owner_stack`'s counterpart for this domain's own
-    # names: Embryonaut's live stack, both Lambda functions, and its
-    # Google OAuth secret all carry the legacy "hecksagain-" prefix.
-    # Reads the generated files directly for the same reason the
-    # `owner_stack` test above does. `web_oauth: true` adds what turns
-    # on WebFunction and its Google OAuth secret wiring (a
-    # lambda_handler.rb, a Gemfile.lock pinning pg, and a `.env.local`
-    # with GOOGLE_CLIENT_ID), so the prefix is proven on the second
-    # function and the secret name too, not just the stack.
+    # stack_prefix renames this domain's stack, functions and OAuth secret.
+    # `web_oauth: true` adds the files that enable WebFunction and its secret, so the prefix
+    # is checked on the second function and the secret too.
     def generate_with_world(world_body, web_oauth: false)
       root = File.expand_path("..", __dir__)
       generated_dir = File.join(root, "deploy", FIXTURE_BASENAME)

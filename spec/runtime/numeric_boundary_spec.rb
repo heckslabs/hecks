@@ -1,14 +1,7 @@
 require "spec_helper"
 
-# PRD 05 (numeric-boundary-coverage) — `ValueGenerator::FLOAT_EDGE_CASES`
-# had no NaN, no Infinity, no -0.0, and `INTEGER_EDGE_CASES` had no
-# Bignum: "classic silent-corruption territory," per the PRD's own words,
-# never exercised by a single spec repo-wide before this. Traced each
-# through `Value::Coercion#check_numeric_fields` and
-# `CommandRules::Arithmetic`, real corpus value object (`Banking::
-# ATMCard::DailyFee`, `attribute :amount, Float`), same convention
-# `identifier_numeric_coercion_growth_spec.rb` already established for
-# direct coercion-boundary testing.
+# Non-finite floats and out-of-range integers must be refused at the coercion boundary
+# (`Value::Coercion#check_numeric_fields`), not left to crash later.
 RSpec.describe "numeric boundary values" do
   let(:runtime)      { Hecks.boot(File.join(InMemoryDomain::ROOT, "examples/banking")) }
   let(:atm_card)     { runtime.registry.bluebook("Banking").aggregate("ATMCard") }
@@ -25,18 +18,8 @@ RSpec.describe "numeric boundary values" do
       expect(value[:amount]).to eq(2.5)
     end
 
-    # **The actual finding** — `given.is_a?(expected)` alone is
-    # true for NaN and both Infinities (each really is a Float), so all
-    # three would sail straight through with no refusal at all. Left
-    # unchecked, a NaN reaching `CommandRules::Arithmetic#clamp` crashes
-    # with a raw `ArgumentError` (`comparison of Float with 0 failed` —
-    # confirmed directly: `Float::NAN.clamp(0, 10)` raises, it does not
-    # return), and any non-finite Float reaching `JSON.generate`/
-    # `#to_json` (storage, replay, the `bin/run` contract) crashes with
-    # `JSON::GeneratorError: NaN/Infinity not allowed in JSON` — both a
-    # genuine Ruby-level crash, never a domain refusal, the exact failure
-    # mode this file's own header (`check_numeric_fields`'s doc comment)
-    # already names for a mistyped field.
+    # `is_a?(Float)` alone accepts NaN and Infinity, which would later crash `clamp` and
+    # `JSON.generate` with raw Ruby errors instead of a domain refusal.
     it "refuses NaN as a TypeMismatch, not a downstream ArgumentError/JSON crash" do
       expect { Hecks::Runtime::Value.build(daily_fee, amount: Float::NAN) }
         .to raise_error(Hecks::Runtime::TypeMismatch, /finite/)
@@ -52,10 +35,7 @@ RSpec.describe "numeric boundary values" do
         .to raise_error(Hecks::Runtime::TypeMismatch, /finite/)
     end
 
-    # -0.0 is deliberately not refused — it is finite (`(-0.0).finite?` is
-    # true), round-trips through JSON cleanly (confirmed: `{a: -0.0}
-    # .to_json` => `'{"a":-0.0}'`, no error), and is a legitimate signed-
-    # zero value, not a corruption risk.
+    # -0.0 is finite and round-trips through JSON, so it is deliberately not refused.
     it "still accepts -0.0 — finite, not a corruption risk, unlike NaN/Infinity" do
       value = Hecks::Runtime::Value.build(daily_fee, amount: -0.0)
       expect(value[:amount]).to eq(0.0)
@@ -70,10 +50,8 @@ RSpec.describe "numeric boundary values" do
       expect(clamp(bignum, [0, 10], "fee")).to eq(10)
     end
 
-    # C3.3 (docs/semantics/bluebook-semantics.md) — Integer is signed
-    # 64-bit everywhere; a product that leaves that range is an
-    # evaluation fault, not a Bignum. Ruby's own ceiling-less Integer is
-    # exactly what the clause refuses to lean on.
+    # C3.3 (docs/semantics/bluebook-semantics.md): Integer is signed 64-bit everywhere; a product
+    # outside that range is an evaluation fault, not a Bignum.
     it "multiply that leaves 64 bits is a fault — Ruby's Bignum is not the language's Integer" do
       expect { multiply(2**62, 4, "fee") }
         .to raise_error(Hecks::Bluebook::Expression::EvaluationError,

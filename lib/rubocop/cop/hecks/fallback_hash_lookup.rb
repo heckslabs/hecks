@@ -1,55 +1,15 @@
 module RuboCop
   module Cop
     module Hecks
-      # Flags the exact shape behind 8+ real bugs already fixed one at a
-      # time across this codebase (Tiers 1-5): `holder[a] || holder[b]` —
-      # the same receiver looked up by two different keys, falling back to
-      # the second lookup whenever the first is falsy. `||` cannot tell a
-      # genuinely stored `false` from a missing key — both are falsy in
-      # Ruby — so a real `false` sitting at `holder[a]` is silently
-      # discarded and `holder[b]` (usually absent, so `nil`) is returned
-      # instead. Every one of those 8+ instances was the identical
-      # AST shape with a different pair of keys (most commonly
-      # `h[k.to_sym] || h[k]`, reading a value that could arrive keyed
-      # either by symbol or by string off the wire).
+      # Flags `holder[a] || holder[b]`: the same receiver looked up by two keys, falling back
+      # to the second when the first is falsy.
       #
-      # ## The fix
-      #
-      # The fix this codebase already converged on — see
-      # `lib/hecks/query_specification/field_path.rb#read`, the shared
-      # digger this whole bug class got consolidated behind: check
-      # `key?` first, never fall back through `||`.
-      #
-      #   sym = segment.to_sym
-      #   return current.key?(sym) ? current[sym] : current[segment]
-      #
-      # That method's own comment says it plainly: "`key?` first, never
-      # `||`, because `||` falls through a genuinely-stored `false` to
-      # the other spelling (usually absent) and returns `nil` instead."
-      # This cop exists so the next `holder[a] || holder[b]` gets caught
-      # mechanically, before it becomes bug #9, rather than found by
-      # hand again in a future audit.
-      #
-      # ## Scope
-      #
-      # Scoped to the `[]`/`[]` shape only, deliberately — a receiver
-      # method-call is compared by AST structure (`==`, which ignores
-      # source location), so `hash[a] || hash[b]` is flagged whether
-      # `hash` is a local variable, a method call, or a constant, but
-      # `a[k] || b[k]` (different receivers) and `value || default`
-      # (an ordinary default, not a second lookup at all) are both left
-      # alone — neither one can silently drop a stored `false` the way
-      # a same-receiver double-lookup can.
+      # `||` cannot tell a stored `false` from a missing key, so a real `false` at `holder[a]` is
+      # discarded. Different receivers (`a[k] || b[k]`) and plain defaults are left alone.
       #
       # @example
-      #   # bad — a stored `false` at hash[:active] is discarded
-      #   hash[:active] || hash["active"]
-      #
-      #   # good
-      #   hash.key?(:active) ? hash[:active] : hash["active"]
-      #
-      #   # good — or the shared digger this codebase already has
-      #   Hecks::QuerySpecification::FieldPath.dig(hash, "active")
+      #   hash[:active] || hash["active"]                      # bad
+      #   hash.key?(:active) ? hash[:active] : hash["active"]  # good
       class FallbackHashLookup < Base
         MSG = "`%<receiver>s[...] || %<receiver>s[...]` falls back to the second lookup " \
               "whenever the first is falsy — but `||` cannot tell a genuinely stored `false` " \
@@ -96,3 +56,5 @@ module RuboCop
     end
   end
 end
+
+# AST `==` ignores source location, so two parses of the same receiver compare equal.

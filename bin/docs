@@ -7,20 +7,9 @@
 #   bin/docs examples/banking Account    # one aggregate
 #   bin/docs qa > docs/domains/qa.md     # on disk, if you want it there
 #
-# The same projection `<Domain>.docs` answers with in a console — this is for
-# the times you are not in one. Nothing is written for you: redirect it, so the
-# caller decides where a generated file lands and git decides whether it
-# drifted.
-#
-# Every failure is a sentence, not a backtrace, and not silence. A misspelled
-# aggregate refuses rather than printing nothing and exiting 0, avoiding the
-# silent-wrong-answer shape this repository has already been bitten by twice
-# in its query engine. An agent calling this cannot tell an empty document
-# from an empty domain, so it refuses instead and names what is actually
-# there.
+# Refuses on a misspelled aggregate rather than printing nothing silently.
 
-# The logic is `Hecks::CLI::Document` (lib/hecks/cli/document.rb), which
-# `hecks docs` also runs.
+# Logic lives in `Hecks::CLI::Document`, which `hecks docs` also runs.
 
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
 require "hecks/cli/document"

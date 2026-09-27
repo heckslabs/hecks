@@ -1,49 +1,19 @@
-// **The approval-gate check** — ADR-0030-in-progress step 5. `compute`/
-// `rekey` are the two migration rule kinds with no in-process reference
-// implementation anywhere (`Ports::Persistence::Lineage#translate`'s
-// own header: "compute is deliberately not applied here"); their only
-// verification is the human-approved sample `bin/translation_audit
-// --approve` records. `lineage_manager/minter.rb`'s own gate is what
-// this ports — mint refuses outright without a matching, unstale
-// approval, and this crate's own mint executor (`crate::mint`) must
-// hold itself to the exact same rule before it ever calls `mint_era`.
-//
-// `edge_digest` is the one genuinely delicate piece: it must reproduce
-// `ApprovalDigest.edge_digest`'s own SHA256 byte-for-byte, over the
-// same digest-relevant shape `Exporter.translation_hash`/
-// `translation_aggregate` produce — deliberately not the shape
-// `ir.json`'s own `translations` key carries (that one also has
-// `compiled_state_expression`/`compiled_id_expression` merged in,
-// which must never feed the digest — see `Exporter.
-// compiled_translation_aggregate`'s own header for why: a digest bound
-// to compiled SQL, not just declared rules, would invalidate a valid
-// approval the moment the compiler's own output format changed for
-// any reason). Hand-built key order throughout, same reasoning
-// `storage_shape.rs`'s own canonical serialization already holds
-// itself to — plus, here specifically, `renames` is a genuine JSON
-// object whose key order is meaningful domain data (the DSL's own
-// declaration order), which is why `rust/host/Cargo.toml` now enables
-// `serde_json`'s `preserve_order` feature (see that Cargo.toml comment).
+//! Approval gate for migration edges with compute or rekey rules; ports `minter.rb`'s check.
+//! `edge_digest` must match Ruby's `ApprovalDigest.edge_digest` byte for byte.
 
 use crate::journal;
 use serde_json::Value;
 use sha2::{Digest, Sha256};
 use tokio_postgres::GenericClient;
 
-/// The same digest `Translation::Audit.edge_digest`/`ApprovalDigest.
-/// edge_digest` compute. `edge` is one entry of `ir.json`'s
-/// `translations` array (the compiled shape) — this function reads
-/// only the digest-relevant fields out of it and ignores the two
-/// compiled-SQL fields entirely, exactly as `Exporter.translation_
-/// hash`/`translation_aggregate` (not `compiled_translation_
-/// aggregate`) do on the Ruby side.
+/// SHA256 of an edge's declared rules, identical to Ruby's `ApprovalDigest.edge_digest`.
+/// The compiled-SQL fields of `ir.json` are ignored so a compiler change cannot void an approval.
 pub fn edge_digest(edge: &Value) -> String {
     let digest = Sha256::digest(canonical_edge(edge).as_bytes());
     format!("{digest:x}")
 }
 
-/// `edge.aggregates.any? { |declared| !declared.computes.empty? ||
-/// !declared.rekeys.empty? }` — minter.rb's own gate condition.
+/// Whether any aggregate on `edge` declares a compute or rekey rule.
 pub fn requires_approval(edge: &Value) -> bool {
     edge.get("aggregates").and_then(Value::as_array).into_iter().flatten().any(|aggregate| {
         let non_empty = |key: &str| aggregate.get(key).and_then(Value::as_array).map(|list| !list.is_empty()).unwrap_or(false);
@@ -51,14 +21,11 @@ pub fn requires_approval(edge: &Value) -> bool {
     })
 }
 
-/// The gate itself — `lineage_manager/minter.rb`'s own two-refusal
-/// check, verbatim in structure (not just in message wording): no
-/// approval / wrong digest is one refusal, a stale (journal-advanced-
-/// past-review) approval is the other. A no-op for an edge with no
-/// compute/rekey rule at all — the portable rule kinds need no human
-/// review, mechanically verified instead (Layers 1+2, `crate::mint`'s
-/// own live audit — see that module for the "full parity" decision
-/// this crate holds itself to).
+/// Refuses to mint unless a compute/rekey edge has an approval whose digest matches and whose
+/// reviewed ordinal is the current journal tip. A no-op for edges with neither rule.
+///
+/// # Errors
+/// Fails when the approval is missing, its digest differs, or the journal has moved past it.
 pub async fn check<C: GenericClient>(client: &C, domain: &str, edge: &Value, ordinal: i32) -> anyhow::Result<()> {
     if !requires_approval(edge) {
         return Ok(());
@@ -101,10 +68,7 @@ fn canonical_aggregate(aggregate: &Value) -> String {
     let name = json_string(aggregate.get("name").and_then(Value::as_str).unwrap_or(""));
     let was = aggregate.get("was").and_then(Value::as_str).map(json_string).unwrap_or_else(|| "null".to_string());
 
-    // A genuine JSON object, order-preserving (see this file's own
-    // header on `preserve_order`) — `{old_name: new_name, ...}`,
-    // matching `translation_aggregate`'s own `renames.transform_keys(&
-    // :to_s).transform_values(&:to_s)` exactly.
+    // `renames` key order is declaration order and part of the digest (needs `preserve_order`).
     let renames = join_object(
         aggregate
             .get("renames")
@@ -123,10 +87,6 @@ fn canonical_aggregate(aggregate: &Value) -> String {
     let converts = join_array(aggregate.get("converts").and_then(Value::as_array).into_iter().flatten().map(|c| {
         let from = json_string(c.get("from").and_then(Value::as_str).unwrap_or(""));
         let to = json_string(c.get("to").and_then(Value::as_str).unwrap_or(""));
-        // `values: [[key, value], ...]` -- convert.values.map { |k, v| [k, v] },
-        // already an array of 2-element arrays on the wire, order-preserved
-        // the same way (an array, never reordered regardless of the
-        // serde_json feature flag).
         let values = join_array(c.get("values").and_then(Value::as_array).into_iter().flatten().map(|pair| {
             let pair_items = pair.as_array().map(|p| p.iter().map(raw_json).collect::<Vec<_>>().join(",")).unwrap_or_default();
             format!("[{pair_items}]")
@@ -178,13 +138,7 @@ fn json_string(s: &str) -> String {
     serde_json::to_string(s).expect("a plain &str always serializes")
 }
 
-// `default:` (a backfill's literal value) is untyped JSON -- any scalar
-// or nested structure a bluebook author wrote, not always a string.
-// serde_json's own compact serialization of a parsed `Value` is safe to
-// use here (unlike the hand-built object/array wrapping elsewhere in
-// this file): this is a leaf value with no further key-order question
-// underneath it that this crate's own `preserve_order` feature doesn't
-// already answer once and for all, structurally, for every Value.
+// A backfill `default` is untyped JSON; serde_json's compact form of a `Value` is safe here.
 fn raw_json(value: &Value) -> String {
     serde_json::to_string(value).expect("a parsed Value always re-serializes")
 }
@@ -193,14 +147,8 @@ fn raw_json(value: &Value) -> String {
 mod tests {
     use super::*;
 
-    // **The real cross-check** — not a self-consistent Rust-only fixture
-    // like the three tests below it, but Ruby's own literal output for
-    // a real compute+rekey edge (Hecks::Translation::Audit.
-    // edge_digest, run for real against a bluebook matching mint_and_
-    // seed_lineage_compute.rb's own shape), pasted in verbatim. If
-    // Rust's edge_digest ever disagrees with Ruby's for identical
-    // input, this is the test that catches it — everything else in
-    // this file only proves Rust agrees with itself.
+    // Pins Ruby's literal output for a real compute+rekey edge; the tests below only prove Rust
+    // agrees with itself.
     #[test]
     fn edge_digest_matches_ruby_s_own_output_for_a_real_compute_and_rekey_edge() {
         let edge = serde_json::json!({
@@ -257,24 +205,16 @@ mod tests {
             "domain": "D", "from": "aaa", "to": "bbb", "retired": [],
             "aggregates": [{"name": "W", "was": null, "renames": {"zeta": "1", "alpha": "2"}, "moves": [], "converts": [], "drops": [], "retypes": [], "computes": [], "rekeys": [], "backfills": []}]
         });
-        // A hand-swapped copy with the same pairs, declared in the
-        // opposite order -- if preserve_order weren't wired correctly,
-        // both would parse into the same (alphabetized) map and this
-        // assertion would pass for the wrong reason (order not actually
-        // load-bearing). Constructing via serde_json::from_str (not
-        // json!{}, whose own macro-expansion order this test wants to
-        // stay independent of) proves the actual parse path preserves it.
+        // Parsed from text, not json!{}, so a map that alphabetizes keys fails here instead of
+        // passing vacuously.
         let reordered_text = r#"{"domain":"D","from":"aaa","to":"bbb","retired":[],"aggregates":[{"name":"W","was":null,"renames":{"alpha":"2","zeta":"1"},"moves":[],"converts":[],"drops":[],"retypes":[],"computes":[],"rekeys":[],"backfills":[]}]}"#;
         let reordered: Value = serde_json::from_str(reordered_text).unwrap();
 
         assert_ne!(edge_digest(&ordered), edge_digest(&reordered), "declaration order is meaningful data, not a cosmetic detail a digest may ignore");
     }
 
-    // The gate itself, against real Postgres, real hecks_approvals rows
-    // — no approval refuses; a matching one at the current journal tip
-    // succeeds; a journal write after the approval was reviewed makes
-    // it stale again, refusing exactly as minter.rb's own second
-    // check does.
+    // Against real Postgres: no approval refuses, a matching one at the tip passes, and a later
+    // journal write makes it stale again.
     #[tokio::test]
     async fn check_refuses_without_approval_succeeds_with_one_and_refuses_again_once_stale() {
         use tokio_postgres::NoTls;
@@ -306,14 +246,8 @@ mod tests {
 
         let domain = "ApprovalGateTest";
         crate::mint::ensure_base(&client, domain).await.expect("ensure_base");
-        // ensure_base enables FORCE ROW LEVEL SECURITY but creates no
-        // permitting policy at all (that's advance_era's own job,
-        // normally called from hold_first/mint_era) -- with RLS forced
-        // and zero policies, Postgres denies every insert outright,
-        // even the table owner's. This test writes directly to the
-        // journal (not through a real mint) purely to advance last_
-        // ordinal, so it needs the same policy a real era-1 hold would
-        // already have created.
+        // ensure_base forces RLS without a policy; advance_era adds the one the direct journal
+        // write below needs.
         crate::mint::advance_era(&client, domain, 1).await.expect("advance_era");
 
         let edge = serde_json::json!({
@@ -324,13 +258,10 @@ mod tests {
             }]
         });
 
-        // ── no approval at all: refused ──
         let refused = check(&client, domain, &edge, 2).await;
         assert!(refused.is_err(), "an unapproved compute/rekey edge must refuse to mint");
         assert!(format!("{:#}", refused.unwrap_err()).contains("bin/translation_audit"), "the refusal should name the tool that fixes it");
 
-        // ── record a real, matching approval at the current tip (0, an
-        // empty journal) ──
         let digest = edge_digest(&edge);
         client
             .execute(
@@ -343,7 +274,6 @@ mod tests {
         let allowed = check(&client, domain, &edge, 2).await;
         assert!(allowed.is_ok(), "a real, matching, unstale approval must let the mint proceed: {allowed:?}");
 
-        // ── the journal advances past the reviewed ordinal: stale again ──
         client
             .execute(
                 "INSERT INTO hecks_journal_approval_gate_test (era, aggregate, aggregate_id, operation, state) VALUES (1, 'widget', 'w1', 'save', '{}'::jsonb)",

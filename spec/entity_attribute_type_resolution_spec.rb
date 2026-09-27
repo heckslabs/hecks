@@ -1,18 +1,8 @@
 require "spec_helper"
 require "tmpdir"
 
-# M13 — an entity's attribute types are never resolved as references.
-#
-# Aggregate.Attribute types its `type` argument `reference_to ValueObject` —
-# "attributes must use value-object types" is enforced by reference
-# resolution, not a predicate (that command's own comment). Entity.Attribute
-# carried the identical field as plain text, so an entity attribute naming an
-# undeclared value object — a typo, or a type that was never declared at all —
-# built clean. `entity.bluebook`'s own "Attribute" command now carries the
-# same `reference_to ValueObject, as: :type` Aggregate's does, and an entity
-# attribute whose type names a nested piece routes through a new "Holds"
-# command (mirroring Aggregate.Holds) rather than falling through to the same
-# ValueObject-reference check a plain attribute uses.
+# An entity attribute's type resolves as a reference to a ValueObject, as on Aggregate.
+# A nested piece routes through the "Holds" command instead of that check.
 RSpec.describe "an entity's attribute types" do
   def boot_bluebook(source)
     Dir.mktmpdir do |dir|
@@ -21,10 +11,7 @@ RSpec.describe "an entity's attribute types" do
     end
   end
 
-  # A real Hecks.boot over a real file proves one end-to-end claim: this
-  # bluebook, as a whole, refuses to load. The fixture is the whole point —
-  # it's the literal source Prism reads — so it stays inline rather than
-  # built up dynamically from a shared helper.
+  # The fixture stays inline: it is the literal source Prism reads.
   # rubocop:disable-next RSpec/ExampleLength
   it "refuses an entity attribute naming an undeclared value object" do
     source = <<~BLUEBOOK
@@ -72,8 +59,6 @@ RSpec.describe "an entity's attribute types" do
       .to raise_error(Hecks::Bluebook::DSL::Malformed, /no ValueObject with aggregate, name .*Bogus/)
   end
 
-  # Same rationale as the refusal case just above: one real Hecks.boot over
-  # one literal, inline fixture proving the accepting counterpart claim.
   # rubocop:disable-next RSpec/ExampleLength
   it "accepts an entity attribute naming a value object its own aggregate declares" do
     source = <<~BLUEBOOK

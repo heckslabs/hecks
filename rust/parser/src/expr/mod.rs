@@ -1,25 +1,11 @@
-//! Port of `lib/hecks/bluebook/expression/{evaluator,resolver}.rb`'s
-//! own `parse` step only — not `interpret`/`call` (semantics stay in Ruby
-//! at dispatch time, and identically in `rust/src/kernel/expr.rs` for the
-//! compiled Rust side; this module exists purely so `expr_emitter.rs` can
-//! walk the same AST shape `rust/project/expr_emitter.rb` walks, without
-//! shelling out to Ruby to get it). See the plan's Stage 7 section and
-//! `expr_emitter.rb`'s own header for why this is explicitly in scope:
-//! "small, stable, already-solved."
-//!
-//! This is a straight structural port: every `def parse`/helper in the
-//! two Ruby files has a same-named Rust function here, translated
-//! statement-for-statement, not redesigned. Read the Ruby source
-//! alongside this file if verifying it.
+//! Port of the `parse` step of `expression/{evaluator,resolver}.rb`; evaluation stays elsewhere.
+//! Each Ruby helper has a same-named function here.
 
 pub mod evaluator;
 pub mod resolver;
 
-/// The six comparison operators, in `projection.json`'s own declared
-/// order — order matters: `Evaluator.parse`'s `OPERATORS.each` tries them
-/// in sequence and the first structural match wins (`>=` must be tried
-/// before `>`, `<=` before `<`, so a plain textual scan doesn't misread
-/// `>=` as a bare `>` followed by stray `=`).
+/// A comparison operator. Order in `OPERATORS` matters: the first match wins,
+/// so `>=` and `<=` must precede `>` and `<`.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Operator {
     pub symbol: &'static str,
@@ -41,10 +27,7 @@ pub fn find_operator(symbol: &str) -> Operator {
     *OPERATORS.iter().find(|op| op.symbol == symbol).unwrap_or_else(|| panic!("no such comparison operator {symbol:?}"))
 }
 
-/// Shared by both `evaluator.rb#split_top_level`/`split_comparison` and
-/// `resolver.rb#split_addition` — a depth/quote-aware scan for a
-/// top-level occurrence of `operator`, mirroring `top_level_index`
-/// exactly (including its optional filter block, `accept`).
+/// Index of the first top-level (outside quotes and brackets) `operator` that `accept` allows.
 pub fn top_level_index(expr: &str, operator: &str, accept: impl Fn(usize) -> bool) -> Option<usize> {
     let bytes = expr.as_bytes();
     let op_bytes = operator.as_bytes();
@@ -61,11 +44,7 @@ pub fn top_level_index(expr: &str, operator: &str, accept: impl Fn(usize) -> boo
         } else if ch == b'"' || ch == b'\'' {
             quote = Some(ch);
         } else if ch == b'(' || ch == b'{' {
-            // `{`/`}` count toward depth exactly as `(`/`)` do — Ruby's
-            // own `top_level_index` grew that the day the resolver grew
-            // block-taking `.any?`/`.none?`/`.all?`/`.find { |x| … }`,
-            // so an operator inside a block's predicate is never a
-            // top-level split of the whole expression.
+            // Braces count toward depth so an operator inside a block body is never top-level.
             depth += 1;
         } else if ch == b')' || ch == b'}' {
             depth -= 1;

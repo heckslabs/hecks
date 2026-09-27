@@ -1,11 +1,7 @@
 require "spec_helper"
 
-# A `provides` verb may name a hecksagon port operation
-# ("Aggregate.Port.Operation"), for a capability whose contract kind is
-# `:port_operation`. The hecksagon attaches after the chapter is built, so
-# the chapter only checks the spelling and `Registry#verify!` checks the
-# operation exists. No real capability uses this kind yet, so the specs stub
-# one into the contract table.
+# A `provides` verb of kind `:port_operation` is spelled at build time and checked by verify!,
+# since the hecksagon attaches later. No real capability uses the kind, so it is stubbed.
 RSpec.describe "a provides verb naming a port operation" do
   before do
     stub_const("Hecks::Bluebook::Capabilities::CONTRACTS",

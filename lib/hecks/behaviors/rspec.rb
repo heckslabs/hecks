@@ -1,13 +1,8 @@
 require_relative "../behaviors"
 
-# Hecks::Behaviors::RSpec.describe_file(path) — the shim a consumer's
-# `bundle exec rspec` uses to run `.behaviors` files as ordinary examples,
-# one `it` per test, named by the test's own description string. Same
-# shape `spec/guides_spec.rb` uses for doctested guides: the file is
-# parsed at collection time (cheap — `Behaviors.parse`, no test actually
-# run yet, just enough to know the `it` names), and each test's own
-# `Expectations.run_one` runs lazily inside its own `it`, exactly when
-# rspec actually executes it.
+# Hecks::Behaviors::RSpec.describe_file(path) registers one `it` per test in a `.behaviors` file,
+# so a consumer's `bundle exec rspec` runs it. The file is parsed at collection time; each test
+# runs lazily inside its own `it`.
 #
 #   require "hecks/behaviors/rspec"
 #
@@ -16,19 +11,13 @@ require_relative "../behaviors"
 #   end
 module Hecks
   module Behaviors
-    # See this file's own header above for what `describe_file` does and
-    # how a consumer wires it into their own `bundle exec rspec` run.
+    # Registers one example per test in a `.behaviors` file so a consumer's suite runs it.
     module RSpec
       module_function
 
-      # Parses one `.behaviors` file and registers an rspec example group for it, one
-      # `it` per test named by the test's own description.
+      # Registers an rspec example group for one `.behaviors` file, one `it` per test.
       #
-      # @param path [String] the `.behaviors` file's path
-      # @return [void]
-      # @raise [RuntimeError] not raised by this call itself; wraps `parsed.parse_error`'s
-      #   message and is raised only when rspec later runs the generated "loads without a
-      #   parse error" example, so it surfaces as that example's failure
+      # A parse error surfaces as a failing "loads without a parse error" example.
       def describe_file(path)
         parsed = Behaviors.parse(path)
 

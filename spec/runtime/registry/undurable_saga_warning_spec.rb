@@ -1,19 +1,8 @@
 require "spec_helper"
 require "tmpdir"
 
-# §8 — `verify!` warns, loudly and at boot, when a domain declares a
-# `process_manager` but its resolved `saga_persistence` has no
-# `save_saga` (NULL_SAGA_STORE). Sagas still run correctly in-process
-# on that store; what's missing is durability across a restart — no
-# checkpoint, no rehydration, no compensation replay if the process
-# dies mid-saga. Silent until then, which is exactly the shape ADR
-# 0025 refused for an unchecked `role`. Here the same gap gets a
-# warning rather than a refusal, because — unlike an ungoverned role —
-# running a saga on a non-durable store is something an author chooses
-# on purpose in dev/test (`saga_durability_spec.rb`'s own saga_mutex
-# spec boots the identical Wire fixture on Memory for exactly that
-# reason), so refusing the boot outright would make that legitimate
-# choice impossible.
+# verify! warns, not refuses, when a process_manager's saga store has no save_saga: dev and
+# test legitimately run sagas on Memory (as saga_durability_spec.rb does); a restart loses them.
 RSpec.describe "verify! warning for an undurable process_manager" do
   WIRE_BLUEBOOK = File.join(InMemoryDomain::ROOT, "spec/fixtures/settlement.bluebook") unless defined?(WIRE_BLUEBOOK)
 

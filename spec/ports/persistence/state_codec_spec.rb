@@ -3,12 +3,8 @@ require "tmpdir"
 require "sqlite3"
 require_relative "../../support/persistence_legacy_fixture"
 
-# The state Codec (Phase 2, Track A, PR A2) — one IR-driven spelling of an
-# aggregate's state across the store boundary. The first half pins each
-# shape the codec walks; the second decodes every A1 legacy fixture
-# (spec/fixtures/persistence_legacy/, pinned as today's per-adapter decode
-# by spec/ports/persistence_legacy_decode_spec.rb) through it and asserts
-# one canonical form: old rows still decode, whichever adapter wrote them.
+# The state Codec: pins each shape it walks, then decodes every legacy fixture through it
+# and asserts one canonical form regardless of which adapter wrote the row.
 RSpec.describe Hecks::Ports::Persistence::StateCodec do
   def codec = described_class
   def fixture = PersistenceLegacyFixture
@@ -16,8 +12,7 @@ RSpec.describe Hecks::Ports::Persistence::StateCodec do
   let(:account_ir) { fixture.aggregate("Account") }
   let(:card_payment_ir) { fixture.aggregate("CardPayment") }
 
-  # A value object nested in a value object, and a list of value objects
-  # inside one — shapes banking does not declare.
+  # A value object nested in a value object, and a list of value objects inside one.
   let(:menu_ir) do
     registry = Hecks::Runtime::Registry.new
     Hecks.with_registry(registry) do
@@ -41,8 +36,6 @@ RSpec.describe Hecks::Ports::Persistence::StateCodec do
     end
     registry.bluebook("StateCodecShapes").aggregate("Menu")
   end
-
-  # ── the canonical decoded form of the two seeded records ─────────────
 
   let(:canonical_account) do
     {
@@ -176,9 +169,7 @@ RSpec.describe Hecks::Ports::Persistence::StateCodec do
           .to eq(disputed_by: nil, tags: nil)
       end
 
-      # Why absence is the canonical form: the runtime reads it as "this
-      # record predates the field" (Instance.hydrate_with_defaults, Era
-      # Lineage#translate's backfill, spec/runtime/attribute_absence_spec).
+      # Absence is canonical: the runtime reads it as "this record predates the field".
       it "lets hydration still fill a declared default the record predates" do
         instance = Hecks::Runtime::Instance.new(aggregate: card_payment_ir, id: "AUTH-1",
                                                 state: codec.decode(card_payment_ir, { "account" => "ACC-1" }))
@@ -222,8 +213,6 @@ RSpec.describe Hecks::Ports::Persistence::StateCodec do
     end
   end
 
-  # ── every A1 legacy fixture, through the codec ───────────────────────
-
   describe "decoding the A1 legacy fixtures" do
     around do |example|
       @dir = Dir.mktmpdir("hecks-state-codec-")
@@ -232,9 +221,7 @@ RSpec.describe Hecks::Ports::Persistence::StateCodec do
       FileUtils.remove_entry(@dir) if @dir
     end
 
-    # The raw `state:` the block's adapter call passes `Instance.new` —
-    # the adapter's own decode (through this codec since A3), the same
-    # capture spec/ports/persistence_legacy_decode_spec.rb pins.
+    # The raw `state:` the block's adapter call passes `Instance.new`.
     def decoded_state
       captured = []
       allow(Hecks::Runtime::Instance).to receive(:new).and_wrap_original do |original, **kwargs|
@@ -245,17 +232,14 @@ RSpec.describe Hecks::Ports::Persistence::StateCodec do
       captured.last
     end
 
-    # [label, aggregate IR, raw state, canonical decode] for one adapter.
-    # A SQL head's never-seeded projected field is a NULL column, which
-    # the adapter reads back absent (Sqlite::Codec#projected_only?) — so
-    # every source, head or journal, lands on the one canonical form.
+    # [label, aggregate IR, raw state, canonical decode] for one adapter; a SQL head's
+    # NULL projected column reads back absent, so every source lands on one form.
     def expect_canonical(sources)
       sources.each do |label, ir, raw, expected|
         decoded = codec.decode(ir, raw)
 
         expect(decoded).to eq(expected), "#{label}: decoded #{decoded.inspect}"
-        # The round-trip property: decoding what encode makes of a decode
-        # changes nothing, and encode is exactly a JSON round trip.
+        # decode of an encode changes nothing, and encode is a JSON round trip
         expect(codec.decode(ir, codec.encode(ir, decoded))).to eq(decoded), "#{label}: round trip"
         expect(codec.encode(ir, decoded)).to eq(stringify(decoded)), "#{label}: JSON-ready"
       end

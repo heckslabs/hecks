@@ -1,14 +1,5 @@
-//! The `Policy` construct (`lib/hecks/bluebook/ir/policy.rb`,
-//! `Hecks::Bluebook::DSL::PolicyBuilder`) — `on`/`trigger` filling
-//! `on_event`/`trigger_command`. Confirmed real: pizzas.bluebook's own
-//! `OnPizzaPaymentReceived`, declared directly on the chapter (never
-//! inside an `aggregate` — a policy written on an aggregate is hoisted
-//! onto the chapter by `AggregateBuilder#policy`, `hoisted onto the
-//! chapter by the builder` per `IR::Policy`'s own `aggregate` accessor —
-//! not exercised here, since nothing in pizzas.bluebook writes one that
-//! way). `across` (a cross-domain policy's `target_domain`) is not
-//! exercised either — left to fall through to `not_built_yet` if ever
-//! encountered.
+//! The `Policy` construct: `on`/`trigger` fill `on_event`/`trigger_command`, `across` names the
+//! target domain.
 
 use crate::canonical;
 use crate::diag::{Diagnostic, ParseResult};
@@ -19,16 +10,7 @@ pub fn not_implemented(file: &str, line: usize, word: &str) -> Diagnostic {
     Diagnostic::not_yet_implemented(file, line, format!("Policy.{word}"))
 }
 
-// Stage 4: `across` (a cross-domain policy's `target_domain`) —
-// confirmed real: banking.bluebook's own `NotifyOnClosure`/
-// `ReviewOnFreeze`/`ReviewOnBoxSurrender`/`FlagKeyReturn`. Also newly
-// real: a policy declared inside an `aggregate` (Account's own
-// `ReviewOnFreeze`) — `parse::aggregate` calls this same `parse_body`
-// and hoists the result onto the chapter itself, mirroring
-// `AggregateBuilder#policy`'s own hoist.
-
-/// Parses a `policy "Name" do ... end` body, given the header's already-
-/// read `name`.
+/// Parses a `policy "Name" do ... end` body, given the header's already-read `name`.
 pub fn parse_body(
     file: &str,
     lines: &[SourceLine],
@@ -46,17 +28,7 @@ pub fn parse_body(
         };
 
         match gated.row.word {
-            // ADR 0025, S6 — "events first-class": `on` gained a
-            // `kind: "constant"` argument row alongside its existing
-            // `kind: "text"` one (2026-08-27), same shape `trigger`'s
-            // own pair carries below — `on Account::AccountFrozen`, a
-            // bare constant, now parses the same way `trigger
-            // AccountFreezeReview::Open` already did.
-            // `positional_command_ref` (not `positional_text`) so a
-            // qualified constant's `::` rewrites to `.`, matching
-            // Ruby's own `Naming.event_ref` — same underlying
-            // `build::naming::command_ref` transform either word uses,
-            // named for what it means at each call site.
+            // `::` in a qualified constant rewrites to `.`, matching Ruby's `Naming.event_ref`.
             "on" => {
                 policy.on_event = Some(super::positional_command_ref(
                     file,
@@ -74,11 +46,7 @@ pub fn parse_body(
                     &gated.args,
                     1,
                 )?);
-                // Stage 4: `trigger`'s own `with:` — the projection
-                // between an event's shape and its trigger's. Read by
-                // the same parser `dispatch`'s own `with:` uses; the two
-                // are the same word in two places, and reading them two
-                // ways is how they would drift.
+                // Shares `dispatch`'s `with:` parser so the two cannot drift.
                 policy.with_spec = super::process_manager::parse_with_pairs_opt(&gated.args);
             }
             "across" => {
@@ -91,23 +59,7 @@ pub fn parse_body(
                 )?);
                 policy.expect_undelivered = super::named_flag(&gated.args, "expect_undelivered");
             }
-            // Stage 4: `for_each` (fan-out — one `trigger` per row a
-            // declared query answers) — newly real: banking.bluebook's
-            // own `FreezeAccountsOnSuspension`, which is what a
-            // suspension needs to reach every account a customer holds.
-            // `ir::Policy` and `emit::policy_json` already carried the
-            // field and the `for_each` JSON key; only this arm was
-            // missing, so nothing about the wire format changes.
-            //
-            // Stage 5: `where` — confirmed real: roster.bluebook's own
-            // `OnSeatAssignedHonorFront` (`where { number.value == 1 }`,
-            // a literal `with:`, not a payload field — see roster's own
-            // comment). Same extraction/canonicalization
-            // `parse::command`'s own `given`/`ensures` already use
-            // (`source_body_text` + `canonical::apply`) — `where` just
-            // carries no description the way a `given` does
-            // (`PolicyBuilder#where`'s own signature takes only a
-            // block), so there is no positional text to read first.
+            // Same extraction as `parse::command`'s `given`/`ensures`; `where` has no description.
             "where" => {
                 let raw = super::source_body_text(file, lines, pos, &gated.call.opener)?;
                 policy.where_clause = Some(canonical::apply(&raw));

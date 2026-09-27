@@ -7,82 +7,30 @@ inherit_mode:
 plugins:
   - rubocop-rspec
 
-# LOCAL, THIS-REPO-ONLY COPS — not a published gem, so `require:` (which
-# loads an arbitrary Ruby file, relative to this config) rather than
-# `plugins:` (the gem-based extension API `rubocop-rspec` above uses).
+# Local cops are loaded with `require:` (not `plugins:`) because they are not a gem.
 require:
   - ./lib/rubocop/cop/hecks/fallback_hash_lookup
   - ./lib/rubocop/cop/hecks/thread_shared_ivar_mutation
   - ./lib/rubocop/cop/hecks/sequential_hash_rename_in_loop
 
-# THE MECHANICAL FOLLOW-UP to 8+ real bugs already fixed one at a time
-# across Tiers 1-5: `holder[a] || holder[b]` — the same receiver looked
-# up by two different keys, falling back to the second whenever the
-# first is falsy — silently discards a genuinely stored `false` because
-# `||` cannot tell it apart from a missing key. Not scoped by Include —
-# the cop only matches same-receiver `[]`/`[]` pairs joined by `||`, a
-# shape with no legitimate use anywhere in this codebase (an ordinary
-# `value || default` has a different receiver on each side and is left
-# alone). A full-tree run at wiring time found zero pre-existing
-# offenses, so nothing needed an Exclude entry in .rubocop_todo.yml
-# alongside this. See lib/rubocop/cop/hecks/fallback_hash_lookup.rb's
-# own header and lib/hecks/query_specification/field_path.rb#read for
-# the `key?`-first idiom this codebase already converged on instead.
+# `h[a] || h[b]` on one receiver drops a stored `false`; use `key?` first.
 Hecks/FallbackHashLookup:
   Enabled: true
 
-# `Hecks::Runtime::Dispatcher` and `Hecks::Runtime::Registry` are each ONE
-# object shared across every thread dispatching through it (a Puma worker
-# pool, say) — a plain `@ivar` mutation on either is the exact bug class
-# M20 already found and fixed for real (`@reaction_depth`, moved to
-# `Thread.current[:hecks_reaction_depth]` — see dispatcher.rb's `#reenter`
-# and spec/runtime/dispatcher_spec.rb). This cop is the mechanical
-# follow-up: it flags the NEXT plain ivar mutation added to either class,
-# so the next instance of this bug is caught at lint time rather than
-# found again by a lucky concurrency test. See
-# lib/rubocop/cop/hecks/thread_shared_ivar_mutation.rb and
-# spec/rubocop/cop/hecks/thread_shared_ivar_mutation_spec.rb.
+# Dispatcher and Registry are shared across threads; a plain ivar mutation is a data race.
 Hecks/ThreadSharedIvarMutation:
   Enabled: true
   Include:
     - "lib/hecks/runtime/dispatcher.rb"
     - "lib/hecks/runtime/registry.rb"
-    # `registry/*.rb` — `Verification`/`SagaPersistence` are modules
-    # reopening `class Registry` from a separate file (`registry.rb`'s own
-    # `include Verification`/`include SagaPersistence`), so an ivar
-    # mutation written there is exactly as much "on `Registry`" as one
-    # written directly in registry.rb.
+    # Verification and SagaPersistence reopen Registry, so their ivar writes count too.
     - "lib/hecks/runtime/registry/*.rb"
 
-# THE MECHANICAL FOLLOW-UP to M27 (docs/audits/2026-08-10-main-bug-audit.md,
-# docs/audits/2026-08-11-bug-triage.md; fixed in
-# Hecks::Ports::Persistence::Lineage#apply_renames,
-# lib/hecks/ports/persistence/plugins/era/lineage.rb): `state[new_name] =
-# state.delete(old_name)` run one rule at a time, in a loop, against the
-# SAME hash it reads from, loses data on any swap or chain rename — the
-# first rule's write becomes the second rule's read target before it ever
-# runs. Not scoped by Include like the cop above — this AST shape (same
-# receiver on both sides of `recv[x] = recv.delete(y)`, inside something
-# that iterates) is precise enough on its own that it has no legitimate
-# use anywhere in this codebase; see
-# lib/rubocop/cop/hecks/sequential_hash_rename_in_loop.rb's own header
-# for what it does and does not attempt to catch.
+# `h[new] = h.delete(old)` looped over one hash loses data on swap or chain renames.
 Hecks/SequentialHashRenameInLoop:
   Enabled: true
 
-# LEAN ON PURPOSE — this codebase's own established style is long,
-# deliberate prose comments above methods/modules, module_function-heavy
-# modules, Struct-based value types, and comfortably long lines in both
-# comments and code. Fighting that with strict defaults would produce a
-# noisy gate nobody trusts rather than a real one. Cops are tuned to fit
-# what is already here, not to force a rewrite; anything genuinely
-# pre-existing and out of scope for a first pass lives in
-# .rubocop_todo.yml instead of being silently disabled here.
-# extensionless bin/ scripts (`bin/query_ir`, `bin/reference`, ...) are
-# real Ruby carrying a `#!/usr/bin/env ruby` shebang — Include admits
-# them explicitly since rubocop only recognises a file as Ruby by
-# extension or shebang otherwise, and this repo's own tools deserve the
-# same gate as lib/.
+# Extensionless bin/ scripts are Ruby by shebang only, so Include names them for linting.
 AllCops:
   TargetRubyVersion: 3.3
   NewCops: enable
@@ -92,48 +40,21 @@ AllCops:
   Exclude:
     - "rust/**/*"
     - "vendor/**/*"
-    # GENERATED, DO NOT EDIT (each file's own header says so) —
-    # projected from the language's own meta-domain by bin/project_
-    # vocabulary/bin/project_model/bin/parser_table, byte-pinned by
-    # spec/vocabulary_table_spec.rb, spec/model_generator_spec.rb,
-    # spec/parser_table_spec.rb. Linting the ARTIFACT rather than its
-    # generator just creates permanent drift on the next regen — a
-    # real instance of this found live: autocorrecting
-    # lib/hecks/vocabulary.rb's hash-literal spacing broke
-    # vocabulary_table_spec.rb because the generator itself still
-    # emits the old, un-autocorrected style.
-    #
-    # `**/`-PREFIXED, NOT BARE — a bare relative path here (what these
-    # three entries used to be) silently stopped matching under the
-    # locally-resolved rubocop toolchain: confirmed live, found while
-    # landing an unrelated fix, unrelated to anything these three files'
-    # own generators do — `bundle exec rubocop -c .rubocop.yml` with NO
-    # file arguments (the exact invocation `.githooks/pre-push` runs)
-    # still reported hundreds of offenses in `lib/hecks/vocabulary.rb`
-    # despite it being named right here, while the GLOB entries just
-    # above (`rust/**/*`, `vendor/**/*`) excluded correctly the whole
-    # time. A leading `**/` (an equivalent glob, not a behavior change
-    # — still names the SAME single file, never its same-basename
-    # siblings `lib/hecks/projections/vocabulary.rb`/`lib/hecks/
-    # bluebook/behaviour/policy.rb`) reproducibly excludes it again; a
-    # bare, wildcard-free path is the one shape that stopped working.
+    # The comment sweep's one-off scripts; not framework code.
+    - "**/docs/decisions/*/sweep-kit/**/*"
+    # Generated files: linting the artifact instead of its generator drifts on the next regen.
+    # The `**/` prefix is required; a bare relative path stopped matching under rubocop.
     - "**/lib/hecks/vocabulary.rb"
     - "**/lib/hecks/bluebook/dsl/bootstrap_table.rb"
     - "**/lib/hecks/projections/parser_table.rb"
     - "**/lib/hecks/bluebook/policy.rb"
 
 # frozen_string_literal — this codebase has exactly one file that opts
-# in (Gemfile) and 282 that don't; enforcing it now would be a
-# repo-wide mechanical change with no bug behind it. Left off rather
-# than either fighting every file or granting a blanket exception that
-# defeats the cop's own point.
+# in (Gemfile); enforcing it repo-wide would be churn with no bug behind it.
 Style/FrozenStringLiteralComment:
   Enabled: false
 
-# THE DELIBERATE PROSE. Every real design rationale in this codebase
-# lives in a comment directly above the method/class it explains —
-# long on purpose, sentence-cased on purpose. None of the comment-shape
-# cops below have any signal to offer here.
+# Design rationale lives in long comments above methods, so comment-shape cops stay off.
 Layout/LineLength:
   Max: 130
   AllowedPatterns:
@@ -142,20 +63,14 @@ Layout/LineLength:
 Style/DocumentationMethod:
   Enabled: false
 
-# THIS CODEBASE'S OWN ACTUAL, UNIFORM CONVENTIONS — not preferences
-# imposed on it. Double-quoted strings and table-aligned hash literals
-# are the style essentially everywhere already (14480 and 802 offenses
-# respectively under the cops' own defaults, before this section
-# existed — a mismatched DEFAULT, not a real backlog).
+# Double-quoted strings and table-aligned hashes are already the codebase convention.
 Style/StringLiterals:
   EnforcedStyle: double_quotes
 Layout/HashAlignment:
   EnforcedHashRocketStyle: table
   EnforcedColonStyle: table
 
-# Percent-literal arrays (%w/%i) are not this codebase's habit —
-# quoted literals stay explicit even for short word/symbol lists, and
-# forcing the rewrite adds churn with no correctness behind it.
+# Explicit quoted literals are preferred over %w/%i.
 Style/WordArray:
   Enabled: false
 Style/SymbolArray:
@@ -164,29 +79,15 @@ Style/SymbolArray:
 Style/CommentedKeyword:
   Enabled: false
 
-# module_function IS the pattern (QueryIR, Codemod, Naming, and others
-# all declare a module's entire public surface as function-style calls
-# on purpose, matching how each is actually used — Hecks::QueryIR.
-# constructs(...), never QueryIR.new.constructs(...)).
+# module_function is deliberate: `Hecks::QueryIR.constructs(...)`, never an instance.
 Style/ModuleFunction:
   Enabled: false
 
-# Struct-based value types throughout (Given, Rule, Mutation, ...) —
-# the language's own IR is built from them deliberately, not a lint
-# gap.
+# Struct-based value types are deliberate.
 Style/OpenStructUse:
   Enabled: false
 
-# METRICS — real, but loosened to match already-large, already-correct
-# files (command_builder.rb, aggregate_builder.rb) rather than forcing
-# a split that has nothing to do with this pass. Still catches genuinely
-# NEW runaway complexity going forward. Bumped again for aggregate_
-# builder.rb's real growth from identified_by + has_many/has_one/
-# belongs_to (S6/S9, the identity-and-relationships arc) — same
-# reasoning as the original loosening, not a second one.
-# Bumped once more for postgres_era.rb's in-process half of the era
-# fence (`refuse_superseded_write!`, BUG#24) — nine lines of real guard
-# in the one class that carries eras, same reasoning as above.
+# Limits are loosened to fit large, already-correct builders; they still catch new runaways.
 Metrics/ClassLength:
   Max: 400
 Metrics/ModuleLength:
@@ -205,24 +106,12 @@ Metrics/BlockLength:
   Exclude:
     - "spec/**/*" # RSpec/*Length below owns spec files' block shape instead
 
-# THE SHARED-INTERFACE PATTERN, not a lint gap — every Persistence/Query
-# adapter (Memory, Postgres, D1, Lambda, the mock Stripe adapter, and
-# their spec doubles) implements the SAME keyword-argument constructor
-# or method signature so callers can treat them interchangeably; a given
-# adapter legitimately ignores a kwarg (`settings:`, `root:`, `context:`,
-# `event:`, ...) another adapter needs. Renaming an unused KEYWORD
-# argument (unlike a positional one) changes the method's calling
-# convention for every caller that passes it by name, so autocorrect
-# rightly declines to touch these — paying the offense down means
-# accepting the pattern, not silencing real dead-argument bugs, which
-# this only exempts for kwargs, not positional args.
+# Persistence and query adapters share one kwarg signature, so an adapter may ignore a kwarg.
+# Renaming an unused keyword would break callers that pass it by name.
 Lint/UnusedMethodArgument:
   AllowUnusedKeywordArguments: true
 
-# SPEC-SPECIFIC. This corpus's own specs favor long, descriptive `it`
-# strings and deep-but-meaningful context nesting (domain lifecycle
-# states genuinely nest) — loosened, not disabled, so a real runaway
-# still gets caught.
+# Specs use long `it` strings and deep contexts; limits are loosened, not disabled.
 RSpec/ExampleLength:
   Max: 25
 RSpec/MultipleExpectations:
@@ -234,27 +123,10 @@ RSpec/DescribeClass:
 RSpec/MultipleMemoizedHelpers:
   Max: 12
 
-# Security/Eval and Lint/SuppressedException already have real, named
-# suppressions in this codebase (spec/support/doctest.rb,
-# spec/adapters/driven/postgres_era/*_spec.rb) predating this config —
-# left at their defaults on purpose so those inline
-# `# rubocop:disable` comments keep meaning something, rather than
-# turning the cop off globally and making the inline comments no-ops.
+# Security/Eval and Lint/SuppressedException stay default so inline disables still mean something.
 
-# CONTROL-FLOW-RESTRUCTURING COPS, disabled rather than autocorrected —
-# a real bug found live building this config: autocorrecting
-# `port_operation_builder.rb`'s `if @owner; raise ... unless
-# operation.identity_attribute(@owner); end` merged the nested
-# unless INTO the outer if's condition twice
-# (`if @owner && !operation.identity_attribute(@owner) &&
-# !operation.identity_attribute(@owner)`), a duplicate-condition
-# corruption from Style/SoleNestedConditional's own autocorrect,
-# caught only because the full spec suite (1561 examples) was run
-# after autocorrect and 5 came back red. These cops rewrite the SHAPE
-# of a conditional, not just its formatting — real value when a human
-# applies the suggestion deliberately, too much blind-autocorrect risk
-# to leave enabled-and-unattended in a pre-push gate. Left DISABLED
-# rather than silently relied upon.
+# Control-flow cops are disabled because their autocorrect changes behavior.
+# Style/SoleNestedConditional duplicated a condition when autocorrected.
 Style/SoleNestedConditional:
   Enabled: false
 Style/IfInsideElse:
@@ -264,210 +136,46 @@ Style/Next:
 Style/GuardClause:
   Enabled: false
 
-# A SECOND, DIFFERENT real bug caught the same way:
-# Lint/UnusedBlockArgument's autocorrect renamed `query "ForDecision"
-# do |decision| where decision: :decision end` to `|_decision|` —
-# correct in general (the local variable `decision` is never
-# referenced inside the block body) but wrong here specifically,
-# because QueryBuilder#derive_from_owner! reads the block's own
-# PARAMETER NAME via `block.parameters` reflection, not as a Ruby
-# variable — `spec/dsl_spec.rb`'s own "a query's own block parameter,
-# derived from the owner's already-declared attribute" is built
-# entirely around a parameter name carrying meaning a linter cannot
-# see. Left DISABLED for the same reason as the control-flow cops
-# above: a codebase whose DSL builders read block-parameter names by
-# reflection cannot safely blind-autocorrect "unused" arguments.
+# Lint/UnusedBlockArgument autocorrect renames block params that DSL builders read by
+# reflection (`block.parameters`), which breaks them.
 Lint/UnusedBlockArgument:
   Enabled: false
 
-# A THIRD, WORSE bug from the same blind-autocorrect pass, this one
-# from an RSpec structural cop rather than Style: merging
-# spec/adapters/query_agreement_spec.rb's two separate `before do`
-# blocks into one moved `next unless d1_available?` (originally
-# scoped to just the D1-table-scrubbing block) ahead of the
-# RECORDS.each seeding loop that populates all five engines under
-# test — so on any machine without D1 credentials configured (the
-# common case), the merge silently skipped seeding every record,
-# and every query in the spec started passing "expected: [...],
-# got: []" for the wrong reason entirely. Caught only because the
-# io-tagged suite (spec/adapters/query_agreement_spec.rb --tag io,
-# excluded from the default local run, part of pre-push) was run
-# after autocorrect.
-#
-# THE PATTERN ACROSS ALL FOUR — SoleNestedConditional (a duplicate
-# condition), UnusedBlockArgument (broken DSL reflection),
-# ScatteredSetup (an early-return moved past code that has to run
-# unconditionally), and CombinableLoops (below): every one of them
-# RESTRUCTURES control flow or code ORDER, not just formatting. So
-# rather than keep discovering these one at a time and disabling each
-# newly-found offender, `--autocorrect` in this repo is now run scoped
-# to an explicit ALLOWLIST (Layout/*, plus the two Style cops
-# reconfigured above to match this codebase's own convention) — see
-# the skill/doc note on `bin/... rubocop` usage. Every cop OUTSIDE
-# that allowlist is report-only: a real signal in `.rubocop_todo.yml`
-# and in ordinary `rubocop` runs, never blind-applied.
+# RSpec/ScatteredSetup autocorrect merged two `before` blocks and moved an early `next`
+# ahead of seeding, so spec/adapters/query_agreement_spec.rb silently seeded nothing.
+# Autocorrect is only run for Layout/* and the Style cops configured above.
 RSpec/ScatteredSetup:
   Enabled: false
 
-# THE FOURTH, found paying down .rubocop_todo.yml's backlog: Style/
-# CombinableLoops flags two separate `.each`-shaped loops over the
-# same receiver as one that could be merged, but its `--autocorrect-
-# all` doesn't just interleave the bodies — on
-# lib/hecks/runtime/dispatcher.rb#dispatch it merged `announced.each {
-# ... @policies.react ... }` and a second `announced.each { ...
-# @sagas.advance ... }` into one loop body (a real behavior change:
-# every event's saga now advances before the NEXT event's policies
-# react, rather than every event finishing policy-reaction before any
-# saga advances), and on lib/hecks/bluebook/dsl/aggregate_builder.rb#
-# seal_correction_targets it went further and produced an outright
-# SYNTAX ERROR — the first loop's closing `}` was deleted, the second
-# loop's `@commands.each do |command|` opener was deleted with it, and
-# the final `end` became a stray `}`, leaving `command` referenced
-# with no enclosing block. Caught by the full suite (a plain
-# Lint/Syntax parse failure on the aggregate_builder.rb case; the
-# dispatcher.rb interleaving is subtler and would need a targeted
-# ordering test to catch on its own — not currently proven safe by the
-# suite, just not yet disproven). Disabled rather than autocorrected
-# for the same reason as the three above.
+# Style/CombinableLoops autocorrect merged loops in dispatcher.rb (reordering policies and
+# sagas) and produced a syntax error in aggregate_builder.rb.
 Style/CombinableLoops:
   Enabled: false
 
-# `Security/Eval` exists to catch a web app evaling untrusted external
-# input (a request body, a query param) — arbitrary code execution from
-# outside the process. That threat model doesn't describe this codebase:
-# a `.bluebook` file IS a Ruby DSL script, and turning its text into a
-# loaded Ruby object graph — `Kernel.eval(source, TOPLEVEL_BINDING,
-# path, 1)`, the exact form every real call site here uses — is the one
-# thing this whole gem exists to do, load-bearing rather than
-# incidental. Every site (grep `Kernel\.eval\b` / `\beval(` across
-# lib/bin/spec) evaluates one of two things, never anything else: a
-# `.bluebook` file already sitting on disk in this repository (read via
-# `File.read`/`file.path`, exactly the way `Kernel.load` would load one
-# — `EraGuard#parse_bluebook`, `EraTamper`, `Translation::Reattest`,
-# `PostgresEra::LineageManager` all read a REPO-committed era archive
-# file, never a runtime request), or a hand-authored literal string
-# inside a spec fixture (every `*_growth_spec.rb`'s own `boot` helper,
-# `spec/dsl_spec.rb`'s two deliberately-untraceable-source refusal
-# fixtures — already carry their own `# rubocop:disable Style/
-# EvalWithLocation` comments for the SAME reasoning, one cop over).
-# Neither shape is "untrusted input" in the sense this cop defends
-# against — both are source this codebase itself authored and shipped.
-# Disabled repo-wide rather than scattered across 40+ call sites with
-# the identical rationale copy-pasted at each one.
+# A `.bluebook` file is a Ruby DSL script, so `Kernel.eval` on repo-committed sources or
+# spec fixtures is the gem's job, not an untrusted-input hazard.
 Security/Eval:
   Enabled: false
 
-# `RSpec/BeforeAfterAll` warns that state set up in `before(:all)` isn't
-# automatically rolled back the way rspec-rails' transactional fixtures
-# roll back a `before(:each)` — real advice for an app spec suite backed
-# by a database transaction per example. This gem's suite has no such
-# rollback to lose in the first place (no rspec-rails, no transactional
-# fixtures at all), so the cop's own stated hazard doesn't describe this
-# codebase. Every real `before(:context)`/`after(:context)` site here
-# (grep confirms none use the bare `:all`/`:context` spelling without
-# one) exists for the SAME reason: booting a real Postgres connection, a
-# `cargo build`, or an AWS/deploy dry-run once per file rather than once
-# per example — several sites document this explicitly in their own
-# comments (e.g. spec/construct_spec.rb: "nothing an earlier example
-# does can leak into a later one," because every example is read-only).
-# Converting these to `before(:each)` wouldn't fix a real risk; it would
-# just multiply an expensive real-resource setup by however many
-# examples share the context.
+# The suite has no transactional rollback to lose; `before(:context)` exists to boot
+# Postgres, cargo or deploy dry-runs once per file rather than per example.
 RSpec/BeforeAfterAll:
   Enabled: false
 
-# `RSpec/SpecFilePathFormat` assumes one spec file per class, its path
-# under `spec/` mirroring the class's own namespace path under `lib/`
-# exactly (including the gem's own top-level `hecks/` segment). This
-# repo's spec/ tree deliberately doesn't do that, in three consistent,
-# repo-wide ways, none of them oversights:
-#
-#   1. No redundant `hecks/` prefix — `spec/` is already gem-scoped, so
-#      `spec/router_spec.rb` (not `spec/hecks/router_spec.rb`) covers
-#      `Hecks::Router`, throughout the whole suite.
-#   2. A large class's tests split across SEVERAL topic-named files
-#      rather than one — `RustProjection::Projector` alone has seven:
-#      spec/rust_project/{bridging,closed_set_fielded,constraints,
-#      creates_owner,naming_landmines,queries,reactions_merge}_spec.rb.
-#      Same for `Hecks::Forms::Params`, `Hecks::Ports::Projection::Worker`,
-#      several others — one spec file per CONCERN, not per class.
-#   3. A directory name shorter or plainer than the exact Ruby
-#      namespace — `spec/rust_project/` for `RustProjection::*`,
-#      `spec/adapters/driven/*_spec.rb` for `Hecks::Adapters::*` (the
-#      `driven/` grouping is a directory-only hexagonal-architecture
-#      label; the classes themselves were never nested under a
-#      `Driven` module).
-#
-# A cop built for "one file, one class, one mirrored path" flags all
-# three as violations; none of them are ones a rename should fix.
+# Specs are not one file per class mirroring lib/: no `hecks/` prefix, one file per
+# concern for large classes, and directory names shorter than the namespace.
 RSpec/SpecFilePathFormat:
   Enabled: false
 
-# `Lint/ConstantDefinitionInBlock` and `RSpec/LeakyConstantDeclaration`
-# both flag the SAME shape: a constant assigned directly inside an
-# `RSpec.describe` block. Both exist to catch a specific accident —
-# Ruby constant assignment inside a block always lands at Object (a
-# `describe` block is not a class/module, so it captures its FILE's own
-# lexical scope, at any nesting depth), so two spec files that happen to
-# reuse the same constant name silently share one value, last-loaded
-# wins, and the loser fails somewhere else entirely with no visible
-# connection to the real cause.
-#
-# This codebase already tests for exactly that accident, directly:
-# spec/load_hygiene_spec.rb's own "lets no two spec files disagree about
-# a top-level constant" example scans every *_spec.rb file for colliding
-# constant NAMES with different DEFINITION SITES and fails loudly if one
-# is found — its own header names two real bugs this exact check caught
-# historically. A small, explicit `shared_values` allowlist there
-# (`BANKING_BLUEBOOK`, `ROOT_DIR`, `WIRE_BLUEBOOK`, `SQLITE_ADAPTER`)
-# marks the handful of names deliberately redefined identically across
-# several files; everything else in every spec file is a plain,
-# private, single-file constant.
-#
-# The overwhelming majority of flagged sites are that second kind: a
-# fixture computed once at file-load time (a `File.read`'d .bluebook
-# source, a JSON-parsed corpus, a booted read-only domain) and reused
-# read-only across every example in the file — the identical
-# "expensive setup done once, shared deliberately" reasoning
-# `RSpec/BeforeAfterAll`'s own disable above already documents for
-# `before(:context)`. `RSpec/LeakyConstantDeclaration`'s own suggested
-# fix (`stub_const`) doesn't even apply to this shape: `stub_const`
-# temporarily overrides an EXISTING constant for one example and
-# restores it after — there is no existing value to restore here, the
-# same reasoning `RSpec/RemoveConst`'s own exclude above already
-# documents for spec/router_spec.rb's teardown blocks.
+# Spec constants are file-local fixtures; spec/load_hygiene_spec.rb fails on colliding
+# constant names across spec files, and `stub_const` does not fit a fixture with no
+# prior value.
 Lint/ConstantDefinitionInBlock:
   Enabled: false
 RSpec/LeakyConstantDeclaration:
   Enabled: false
 
-# `RSpec/InstanceVariable` prefers `let`/`let!` over `@ivar` inside a
-# spec. Real, working advice in general — but converting the flagged
-# sites here means either:
-#
-#   1. An ivar bridging a `before(:context)` hook's once-per-file setup
-#      into a per-example accessor (`before(:context) { @aggregate =
-#      ... }` / `let(:aggregate) { @aggregate }`, spec/adapters/driven/
-#      heki_spec.rb's own pattern — the exact shape spec/construct_spec.rb's
-#      own comment documents for the identical reason
-#      `RSpec/BeforeAfterAll`'s disable above covers). Converting THIS to
-#      a bare per-example `let` would silently make the expensive setup
-#      run once per EXAMPLE instead of once per FILE — reintroducing the
-#      exact cost `before(:context)` exists to avoid.
-#   2. An ivar set in an ordinary `before(:each)` hook that runs
-#      UNCONDITIONALLY, often performing real dispatches with side
-#      effects other examples' assertions depend on indirectly (spec/
-#      meta_rules_spec.rb's own `before { @runtime = boot_meta;
-#      @aggregate_id = ...; @runtime.dispatch(...) }`). `let` is LAZY —
-#      converting would make that setup (and its side effects) run only
-#      for examples that happen to reference the resulting accessor by
-#      name, silently skipping it for any example that relies on the
-#      side effect without naming the value — a real behavioral change
-#      dressed up as a style fix, not a mechanical rename.
-#
-# Both shapes are deliberate and already covered by other established,
-# tested guarantees in this suite; a blind rename risks introducing the
-# exact class of silent, order/laziness-dependent bug this whole paydown
-# has spent its effort catching and reverting elsewhere.
+# `let` would rerun `before(:context)` setup per example, or skip unconditional `before`
+# side effects that examples depend on without naming the value.
 RSpec/InstanceVariable:
   Enabled: false

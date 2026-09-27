@@ -1,26 +1,20 @@
 #!/usr/bin/env ruby
 
-# Boots a domain (pizzas on the in-memory adapter by default) and drops into
-# IRB with its door installed, the fastest way to dispatch a real command by
-# hand.
+# Boots a domain (pizzas on Memory by default) and drops into IRB with its
+# door installed, for dispatching a real command by hand.
 #
 #   bin/console [domain]
 #
-# With no argument it boots `examples/pizzas/bluebook/pizzas.bluebook` against
-# the Memory-bound `examples/pizzas/pizzas_behaviors.hecksagon`, so a bare
-# console needs no database server (ADR 0073). Given a domain directory it
-# boots that directory as it is wired, `examples/pizzas` included, which binds
-# `PostgresEra` and so needs Postgres.
+# No argument needs no database (ADR 0073); a domain directory boots as it is
+# wired, which may bind PostgresEra.
 
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
 
 require "hecks"
 require "irb"
 
-# The era/lineage subsystem, `PostgresEra` included, is a persistence plugin
-# core does not require by default (ADR 0033). A domain passed on the command
-# line may bind it, so the console loads it; the Memory default boots with it
-# loaded and never opens a connection.
+# The era/lineage subsystem is a persistence plugin core doesn't require by
+# default (ADR 0033); a domain passed here may bind it.
 require "hecks/ports/persistence/plugins/era"
 
 PIZZAS = File.expand_path("../examples/pizzas", __dir__)

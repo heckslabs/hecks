@@ -2,22 +2,10 @@ require "spec_helper"
 
 # A graph assembled from declarations is the graph the builder makes.
 #
-# `Assembly` takes the hash `to_h` spells and returns the object graph the runtime
-# runs. That makes it the exact inverse of `to_h`, and this holds it to that for
-# every chapter in the tree:
-#
-#     Assembly.call(built.to_h).to_h == built.to_h
-#
-# It is tested against the builder's hash rather than the meta-domain's on purpose.
-# The two are already proven byte-identical and unsorted by spec/round_trip_spec, so
-# feeding the builder's keeps this spec about one thing — whether declarations
-# rebuild into objects faithfully — instead of two.
-#
-# Every chapter, not the four the round trip walks: a shape only one bluebook
-# exercises is exactly the shape a partial corpus lets through.
+# `Assembly` is the inverse of `to_h`: `Assembly.call(built.to_h).to_h == built.to_h`,
+# checked for every chapter in the corpus against the builder's hash.
 RSpec.describe "a graph assembled from declarations" do
-  # Reachable both from the example group, to generate the examples, and from
-  # inside one.
+  # A constant so it is reachable both when generating examples and inside them.
   ASSEMBLY_CORPUS = {
     "Pizzas"     => "examples/pizzas/bluebook/pizzas.bluebook",
     "Banking"    => InMemoryDomain::BANKING_BLUEBOOK_DIR,
@@ -78,26 +66,8 @@ RSpec.describe "a graph assembled from declarations" do
       )
     end
 
-    # Every field the language declares is either assembled or named as derived.
-    #
-    # This is the judge-coverage lesson, in the other direction. A judge with a
-    # hand-written branch per category pays the same price — fourteen verbs the
-    # language declares and the walk never offers — every rule hanging off them
-    # decoration, and nothing red, because a branch that does not exist cannot fail.
-    # An assembler with a method per category is the same shape, so the table is
-    # checked against the language rather than hand-kept: add a field to
-    # bluebook.bluebook and forget to assemble it, and this says so.
-    # Read off the aggregate's own attributes, not only the creating command's
-    # arguments. `Plan#fields` is the latter, and the first draft of this example
-    # used it — so adding `attribute :nickname` to the language's Bluebook passed
-    # unnoticed, because nothing had taught `Declare` to carry it yet. What an
-    # assembly must account for is what the language stores.
-    # S17, ADR 0026 — an entity-owned category (Member, nested under
-    # ValueObject ; Dispatch, nested under Handler, itself entity-owned)
-    # has no top-level aggregate `meta.aggregate` can find any more — it
-    # hangs off its owner's own `.entities` instead, the same place the
-    # runtime itself looks (EntityInterpreter#call). Recurses because the
-    # owner may itself be entity-owned (Handler is, for Dispatch).
+    # Entity-owned categories (Member, Dispatch) have no top-level aggregate; they hang off
+    # their owner's `.entities`, which may itself be entity-owned.
     def construct_for(meta, category, declared)
       return meta.aggregate(category) unless declared.entity_owned
 
@@ -115,16 +85,8 @@ RSpec.describe "a graph assembled from declarations" do
        declared.appends.keys.map(&:to_sym) +
        declared.setters.flat_map { |setter| setter.targets.keys.map(&:to_sym) })
         .uniq
-        # A parent pointer is derived by structure, not by a contract. The
-        # bare field `declared.parent_key` names is the reference to
-        # whatever declares the construct — an aggregate's chapter, a
-        # verb's head, a piece's head, a member's shape — and the
-        # containment tree already knows it, which is precisely how the
-        # assembly walks. An explicit `as:` still keeps its `_id` (Command's
-        # own `entity_id`, kept as data — never the parent link itself,
-        # which mints bare now, ADR 0025) and is excluded the same way.
-        # Requiring thirteen contracts to each restate one would be a list
-        # nobody reads, and the day one went stale it would say nothing.
+        # A parent pointer is derived from containment, not a contract; an explicit `as:` `_id`
+        # stays data but is excluded the same way.
         .reject { |field| field.to_s.end_with?("_id") || field == declared.parent_key&.to_sym }
     end
 
@@ -154,14 +116,8 @@ RSpec.describe "a graph assembled from declarations" do
                          "the language declares #{missing.join(', ')} and the table has no contract for it"
     end
 
-    # PARENT_POINTERS is a list that must remain, so it is pinned. It cannot
-    # be computed in lib without going circular — `owner` is known only by
-    # Entity's own `:parent` claim, and a `:parent` claim is what this list
-    # checks — so it is derived here from the two independent facts it
-    # restates, both directions: every `parent_key` `Plan` reads off the
-    # language, plus every bare word a contract claims `:parent`. A stale
-    # member (the `shape`/`handler` it carried after S17 removed both
-    # fields) or a missing one fails.
+    # PARENT_POINTERS cannot be computed in lib without going circular, so it is derived here
+    # from `Plan`'s parent keys plus every bare word a contract claims `:parent`.
     it "names exactly the parent pointers the language and the contracts state" do
       structural = plan.names.filter_map { |category| plan.category(category).parent_key&.to_sym }
       claimed    = Hecks::Bluebook::Assembly::CONTRACTS.values.flat_map do |contract|
@@ -171,17 +127,8 @@ RSpec.describe "a graph assembled from declarations" do
       expect(Hecks::Bluebook::Assembly::PARENT_POINTERS.sort).to eq((structural + claimed).uniq.sort)
     end
 
-    # Every `derived:` claim is checked, and this is the hole it closes.
-    #
-    # A bare `derived:` list of names is a promise with nobody holding it: the
-    # coverage example above only asks whether a field is accounted for. So
-    # writing `derived: %i[version]` would satisfy it while dropping a chapter's
-    # version in silence — measured, not supposed: declaring a field in the
-    # language and calling it derived left the whole suite green, and only
-    # `spec/golden/ir` moved, which is regenerated on purpose and would have
-    # buried it.
-    #
-    # A claim now has a kind, and every kind can fail.
+    # A bare `derived:` name list is a promise nobody holds, so each claim carries a kind that
+    # can fail: `derived: %i[version]` would otherwise drop a field in silence.
     it "justifies every derived field with a claim that can be false" do
       keys = declaration_keys
 
@@ -198,10 +145,7 @@ RSpec.describe "a graph assembled from declarations" do
                              "#{unjustified.size} derived claim(s) do not hold:\n  #{unjustified.join("\n  ")}"
     end
 
-    # A `case kind` over the closed set of derived-claim kinds the
-    # language declares (:parent, :children, :elsewhere, :walk, an Array
-    # pair) — one place naming what each kind must justify, matching
-    # `fault_in_pair`'s own `case shape` just below for the Array kind.
+    # One place naming what each derived-claim kind must justify.
     def fault_in(category, contract, field, kind, keys)
       case kind
       when :parent
@@ -209,13 +153,8 @@ RSpec.describe "a graph assembled from declarations" do
 
         "no parent names it — a pointer is a *_id or one of #{Hecks::Bluebook::Assembly::PARENT_POINTERS.inspect}"
       when :children
-        # `field` is a pluralized collection name ("dispatches", not
-        # "dispatch"), and naively stripping a trailing "s" mis-singularizes
-        # anything `Naming.plural` pluralized with "es" (dispatch -> dispatches,
-        # not dispatchs) — so this asks the pluralizer, the same one
-        # `Judge#collection_reader` relies on to name the field in the
-        # first place, which category name it belongs to, rather than
-        # guessing the word backward.
+        # `field` is a plural collection name; ask the pluralizer rather than strip an "s"
+        # ("dispatches" would become "dispatchs").
         child = plan.names.find { |name| Hecks::Naming.plural(Hecks::Naming.snake(name)) == field.to_s }
         return nil if plan.category(child)&.parent == category
 
@@ -225,11 +164,7 @@ RSpec.describe "a graph assembled from declarations" do
 
         "elsewhere is allow-listed one at a time, and this is not on the list"
       when :walk
-        # Supplied by the walk, spent on the ordering. A node does not know where it
-        # sits among its siblings, so the walk supplies it and no construct carries
-        # it. The claim is false in the one way that matters : if the ask does not
-        # order by the field then nothing consumes it at all, and calling it derived
-        # would drop a declared field in exactly the silence this gate exists to break.
+        # The walk supplies the field; it is only consumed if the ask orders by it.
         return nil if ordered_by?(category, field)
 
         "#{category}.DeclaredIn does not order by it, so nothing consumes it"
@@ -249,8 +184,7 @@ RSpec.describe "a graph assembled from declarations" do
 
         "#{contract.holder} does not answer to #{target}"
       when :folded
-        # The object(s) it folds into and the member it is, so a mistyped member is
-        # caught too — `[:folded, :order_by, :directionn]` names a key nothing carries.
+        # Check the member too, so a mistyped one (`:directionn`) is caught.
         wanted = Array(target) + [kind[2]].compact
         absent = wanted.reject { |key| keys.include?(key) }
         absent.empty? ? nil : "nothing folds into #{absent.inspect} — no declaration carries those keys"
@@ -258,24 +192,12 @@ RSpec.describe "a graph assembled from declarations" do
       end
     end
 
-    # Whether the category's own way back orders by the field — the proof that a
-    # walk-supplied field is consumed rather than merely stored.
-    #
-    # S17, ADR 0026 — an entity-owned category has no `DeclaredIn` query of
-    # its own to order by any more (there is no top-level aggregate left to
-    # hold one) — its records are consumed as array order instead, inside
-    # the list its owner holds. That is still a real consumer, not a weaker
-    # one: `EntityInterpreter` never reorders a list, and `Reconstruction`
-    # reads it back verbatim (`Array(row[key]).map { ... }`, never sorted).
-    # So a walk-minted field justifies itself here by being the category's
-    # own positional identity — which is exactly the field the walk index
-    # was minted into in the first place (`entity_own_identity`, judge.rb).
+    # Whether the category's own way back orders by the field, proving a walk-supplied field is
+    # consumed. An entity-owned category has no `DeclaredIn` ask; its list order is the
+    # consumer, so the field must be its positional identity.
     def ordered_by?(category, field)
       declared = plan.category(category)
-      # An identity path names the scalar inside its attribute
-      # ("position.value", not "position" — the same reason
-      # `Judge#entity_own_identity` reads only the head) — so the field
-      # this claims for is the path's head, not the path whole.
+      # An identity path like "position.value" claims for its head, "position".
       return declared.identity_paths.map { |path| path.to_s.split(".").first }.include?(field.to_s) if declared.entity_owned
 
       meta = Hecks::Bluebook::MetaValidator.grammar_registry.bluebook("Bluebook")
@@ -284,8 +206,7 @@ RSpec.describe "a graph assembled from declarations" do
       ask&.order_by&.field.to_s == field.to_s
     end
 
-    # Every key a real reconstructed declaration carries, gathered once. A fold has
-    # to land somewhere, and this is what says whether it does.
+    # Every key a real reconstructed declaration carries; a fold must land on one.
     def declaration_keys
       @declaration_keys ||= ASSEMBLY_CORPUS.values.flat_map do |file|
         built = load_chapter(file).bluebook(File.basename(file, ".bluebook").capitalize) ||
@@ -302,11 +223,7 @@ RSpec.describe "a graph assembled from declarations" do
       end
     end
 
-    # The write direction is held to the language too.
-    #
-    # `Readings#rows_for` was nine cases keyed "Category.list" and now reads the
-    # table, so the same question can be asked of it: does every list the language
-    # declares have a way to be offered, and does every shaper the table names exist?
+    # Every list the language declares has a shaper that exists or a reader on the holder.
     it "offers every appendable list, by a shaper that exists or a reader on the holder" do
       unreadable = plan.names.flat_map do |category|
         contract = Hecks::Bluebook::Assembly.contract(category)
@@ -329,12 +246,7 @@ RSpec.describe "a graph assembled from declarations" do
 
     def readings = Hecks::Bluebook::MetaValidator::Readings.instance_methods(false)
 
-    # The read direction, held the same way.
-    #
-    # `Reconstruction` had eleven methods, one per category, each spelling out keys
-    # the table already names. Six read the table now, and the exceptions live in its
-    # `reads:` column — so the same two questions apply: does every read exception
-    # name a key that exists, and does every reader it names exist?
+    # Every `reads:` exception names a key that exists and a reader that exists.
     it "reads every declaration key by a reader that exists, for a key the table names" do
       meta    = Hecks::Bluebook::MetaValidator.grammar_registry.bluebook("Bluebook")
       readers = Hecks::Bluebook::MetaValidator::Reconstruction.private_instance_methods(false) +
@@ -347,9 +259,7 @@ RSpec.describe "a graph assembled from declarations" do
         Hash(contract.reads).filter_map do |key, spec|
           next "#{category}##{key} is read but no field declares it" unless named.include?(key)
 
-          # `[:from, row_key]` names a row key, not a reader — the declaration key and
-          # the language's field are spelled differently for exactly one thing, a
-          # dispatch's bindings. So what it names must be a field of that category.
+          # `[:from, row_key]` names a row key, not a reader; it must be a category field.
           if spec.is_a?(Array) && spec.first == :from
             next nil if stored_fields(meta, category).include?(spec.last)
 
@@ -368,18 +278,8 @@ RSpec.describe "a graph assembled from declarations" do
                         "#{broken.size} read exception(s) do not hold:\n  #{broken.join("\n  ")}"
     end
 
-    # Why the containment is not on the table, measured rather than assumed.
-    #
-    # Folding `aggregate`, `entity` and the chapter would mean the table listing each
-    # one's children — except the plan already knows every parent-child edge, so the
-    # honest version would derive them. It does not work, and this is why: a
-    # category's parent comes from the one `*_id` its creating command carries, and
-    # `Command.Declare` carries `aggregate_id` before `entity_id`. So the plan says an
-    # entity has no children, and a piece's own verbs and asks — the `own` / `within`
-    # partition — is exactly the case a derived walk would have to except.
-    #
-    # Five categories out of six for free and a hand-written exception for the one
-    # that matters is not a fold, it is a fold plus the thing the fold was for.
+    # Containment stays code: `Command.Declare` carries `aggregate_id` before `entity_id`, so
+    # the plan says an entity has no children and a derived walk would need an exception.
     it "cannot derive an entity's children from the plan, which is why containment is code" do
       expect(plan.names.select { |name| plan.category(name).parent == "Entity" }).to be_empty
       expect(plan.category("Command").parent).to eq("Aggregate")
@@ -387,9 +287,7 @@ RSpec.describe "a graph assembled from declarations" do
     end
 
     it "claims nothing the language does not declare" do
-      # The other half of the same failure: a contract for a retired category, or a
-      # field renamed in the language and left behind here, would be dead weight
-      # nothing exercises.
+      # A contract for an undeclared category would be dead weight nothing exercises.
       declared = plan.names
       phantom  = Hecks::Bluebook::Assembly::CONTRACTS.keys - declared
 
@@ -398,8 +296,7 @@ RSpec.describe "a graph assembled from declarations" do
   end
 
   it "gives the assembled head a working graph, not just a bag of fields" do
-    # The graph is what the runtime runs, so an assembled aggregate has to carry
-    # the same verbs, fields and owned shapes the DSL would have built.
+    # The assembled aggregate must carry the verbs, fields and owned shapes the DSL builds.
     built     = load_chapter(ASSEMBLY_CORPUS.fetch("Pizzas")).bluebook("Pizzas")
     assembled = Hecks::Bluebook::Assembly.call(built.to_h)
     pizza     = assembled.aggregate("Order")

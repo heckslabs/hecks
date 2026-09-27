@@ -1,15 +1,5 @@
-//! The `Lifecycle` construct (`lib/hecks/bluebook/ir/lifecycle.rb`).
-//! Not a category of its own in `syntax.bluebook`'s `Keyword.opens` column
-//! — it's a declared fold onto whichever of `Aggregate`/`Entity` opened it
-//! (`lifecycle`'s own row: `opens: ""`, `fills: "state_field"`); Stage 2+
-//! folding logic has to land the built `Lifecycle` on the enclosing
-//! record rather than treat it as independent. `parse::walk_body` still
-//! recurses into `Lifecycle` context the same way any other `do`-body
-//! does — real gating for every `transition` line inside — and reports
-//! this module's own stub once that's done, since Stage 1 builds nothing
-//! regardless of which record a construct eventually folds onto.
-//! Stage 2+ work: `transition ... from: [...]` list expansion (see the
-//! Ruby source's own `expand`).
+//! The `Lifecycle` construct: a fold onto the enclosing Aggregate or Entity, not its own category.
+//! Parses `transition` lines and seals the owner's commands against the lifecycle field.
 
 use crate::diag::{Diagnostic, ParseResult};
 use crate::ir;
@@ -20,11 +10,7 @@ pub fn not_implemented(file: &str, line: usize, word: &str) -> Diagnostic {
     Diagnostic::not_yet_implemented(file, line, format!("Lifecycle.{word}"))
 }
 
-/// Parses a `lifecycle :field, default: "..." do ... end` body — `field`/
-/// `default` are already read at the enclosing (Aggregate/Entity)
-/// context, since `lifecycle`'s own header line is gated there (`opens:
-/// ""` — this is a fold, not its own category, per this module's own
-/// header).
+// `field` and `default` come from the header line, which the enclosing context has already read.
 pub fn parse_body(
     file: &str,
     lines: &[SourceLine],
@@ -79,15 +65,9 @@ pub fn parse_body(
     }
 }
 
-/// `LifecycleBuilder#refuse_ambiguity!` — C5.3 (docs/semantics/
-/// bluebook-semantics.md): two transitions for one command whose `from:`
-/// sets overlap (or where either has no `from:`) were silently
-/// first-wins; refused once the state machine can be read whole. Rows
-/// are already expanded one per `from:` state, so an overlap is one
-/// command reaching two different targets from one `from_state` (`None`
-/// overlaps everything). A `from:` naming a state nothing declares is
-/// not refused — that is a `bin/model_check` reachability finding a
-/// bluebook may exhibit on purpose. Same wording as Ruby's.
+// Refuses one command reaching two targets from overlapping `from:` states (`None` overlaps all).
+// Rows are already expanded one per `from:` state. A `from:` naming an undeclared state is left
+// to `bin/model_check`, since a bluebook may exhibit it on purpose. Wording matches Ruby's.
 fn refuse_ambiguity(file: &str, line: usize, lifecycle: &ir::Lifecycle) -> ParseResult<()> {
     let mut seen: Vec<(&str, Option<&str>, &str)> = Vec::new();
     for row in &lifecycle.transitions {
@@ -111,11 +91,8 @@ fn refuse_ambiguity(file: &str, line: usize, lifecycle: &ir::Lifecycle) -> Parse
     Ok(())
 }
 
-/// `AggregateBuilder::Sealing#seal_lifecycle_guards` + the lifecycle half
-/// of `#seal_mutation_targets` (and `EntityBuilder`'s twins) — C5.3: a
-/// `sets` on the lifecycle field is refused, and a `from:` on an owner
-/// with no lifecycle at all. `owner` is the aggregate or entity name;
-/// `line` the owner's own.
+// Refuses a `sets` on the lifecycle field and a `from:` on an owner with no lifecycle.
+// `owner` is the aggregate or entity name; `line` is the owner's own.
 pub fn seal_commands(
     file: &str,
     line: usize,
@@ -172,12 +149,7 @@ fn text_value(raw: &str) -> String {
     }
 }
 
-/// `from: "available"` (one state) or `from: ["available", "pending"]`
-/// (several, list-expanded — `transition ... from: [...]`, the plan's own
-/// named Stage 2+ derivation, mirroring `Lifecycle#expand`'s `Array(
-/// transition.from)`). Not exercised by pizzas.bluebook (its one
-/// transition names a single `from:`), implemented anyway since both
-/// forms are one small function.
+// Reads `from: "a"` as one state and `from: ["a", "b"]` as a list.
 fn from_values(raw: &str) -> Vec<String> {
     let trimmed = raw.trim();
     if trimmed.starts_with('[') && trimmed.ends_with(']') {

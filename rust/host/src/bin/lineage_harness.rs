@@ -1,44 +1,16 @@
-// The differential-parity harness's Rust side (ADR 0029 step 4) — a
-// small, dedicated binary, deliberately separate from `bootstrap`
-// (src/main.rs), that exercises only the generic lineage read/write
-// path (`journal.rs`'s `read_lineage_head_all`/`_by_id`/
-// `append_lineage_mutation`) against real Postgres, with no WASM
-// kernel, no Lambda runtime, no RDS/TLS ceremony — none of which the
-// lineage path depends on (domain_generator.rb's own manifest comment:
-// "dispatched outside the WASM kernel/InMemoryRepository path
-// entirely"). Reusing `bootstrap`'s `main.rs` for this would mean
-// standing up a `.wasm` module and Lambda-shaped scaffolding to test
-// something that structurally touches neither.
-//
-// `journal.rs` is pulled in via `#[path]` rather than promoting this
-// crate to a lib+bin split — it has zero `crate::` references of its
-// own (confirmed: it only imports `tokio_postgres`), so this is a
-// faithful reuse of the exact same source `bootstrap` compiles, not a
-// fork of it.
-//
-// CLI: `lineage_harness <db_name> <app_role> <domain> <era>` — same
-// positional-arg convention as `tests/fixtures/mint_stale_era.rb`
-// (connection identity as plain args, not a URL — this only ever talks
-// to local/CI Postgres over trust auth, matching journal.rs's own
-// `a_stale_era_write_is_refused_by_postgres_rls_not_this_crate` test).
-//
-// STDIN: `{"operations": [...]}`, one of three shapes per entry:
-//   {"op": "read_all",   "storage_name": "order"}
-//   {"op": "read_by_id", "storage_name": "order", "id": "order-1"}
-//   {"op": "write", "aggregate": "Pizzas::Order", "id": "order-9",
-//    "state": {...}}                        (operation always "save")
-//
-// STDOUT: `{"results": [...]}`, one entry per operation, same order,
-// exit 0 unless the connection itself fails to establish — a
-// per-operation Postgres error (e.g. an RLS refusal) is reported in
-// that operation's own entry, never a process crash, matching the
-// kernel binary's own "clean JSON, exit 0, never a panic" discipline
-// (`rust_conformance_spec.rb`'s own comments hold it to this).
+//! Rust side of the differential-parity harness: generic lineage reads and writes on Postgres.
+//! Usage: `lineage_harness <db_name> <app_role> <domain> <era>`, JSON on stdin and stdout.
+//!
+//! stdin is `{"operations": [...]}`, each one of:
+//!   {"op": "read_all", "storage_name": "order"}
+//!   {"op": "read_by_id", "storage_name": "order", "id": "order-1"}
+//!   {"op": "write", "aggregate": "Pizzas::Order", "id": "order-9", "state": {...}}
+//! stdout is `{"results": [...]}`, one entry per operation in order. A per-operation Postgres
+//! error (such as an RLS refusal) lands in that entry; only a failed connection exits nonzero.
 
-// Reusing the whole file pulls in the flat-journal functions this
-// binary has no use for (it only ever calls the generic lineage
-// functions below) — allowed rather than split, the same call
-// ir.rs:39-48 makes for its own unused-but-real seam.
+// journal.rs has no `crate::` references, so it is shared with `bootstrap` by path, not a lib
+// split.
+// The flat-journal functions it also carries are unused here.
 #[allow(dead_code)]
 #[path = "../journal.rs"]
 mod journal;
@@ -102,10 +74,6 @@ async fn run_one(client: &tokio_postgres::Client, config: &journal::LineageConfi
     }
 }
 
-// `config.domain` (docs/decisions/0059) — the one domain this whole
-// invocation speaks for (the CLI's own `<domain>` positional arg), the
-// same domain-qualification `journal::head_view` now folds into every
-// generic lineage read.
 async fn read_all(client: &tokio_postgres::Client, config: &journal::LineageConfig, operation: &Value) -> anyhow::Result<Value> {
     let storage_name = require_str(operation, "storage_name")?;
     let rows = journal::read_lineage_head_all(client, &config.domain, storage_name).await?;

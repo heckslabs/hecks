@@ -1,11 +1,7 @@
 require "spec_helper"
 
-# Every bluebook in the repo lands in a check — a partition, not a filter.
-# Each one is either inside some Hecks::Corpus kind (and so walked by the
-# model checker, parser parity, the sweep, ...) or sent by a route to the
-# check that owns it instead. A route is not a reason to look away: its
-# destination has to exist and actually name what it receives, and a
-# route with no destination yet is a gap this spec keeps visible.
+# Every bluebook lands in a check: either some Hecks::Corpus kind, or a route to another
+# check whose destination must exist and actually name what it receives.
 RSpec.describe Hecks::Corpus do
   ROUTE_CHECKS = %i[named_in gitignored gap].freeze
 

@@ -3,14 +3,8 @@ require "hecks/bluebook/model_check"
 require "open3"
 require "tmpdir"
 
-# The opt-in `client` profile of the model checker: it refuses the
-# construct that answers wrongly without refusing, and changes nothing when
-# the profile is not asked for.
-#
-# Each rule is tied to the bug it guards by a probe in "rules that retire with
-# their bug": the probe runs the buggy code and asserts it still misbehaves,
-# so the moment the bug is fixed that example fails and names the rule to
-# delete. Delete the rule, its examples here, and its probe together.
+# The opt-in `client` profile of the model checker: refuses a construct that
+# would answer wrong, changing nothing when the profile isn't requested.
 RSpec.describe "the model checker's client profile" do
   SHOP = <<~BLUEBOOK.freeze
     Hecks.bluebook "ClientProfileShop" do
@@ -128,8 +122,8 @@ RSpec.describe "the model checker's client profile" do
       expect(subjects_for(findings, :client_native_read_model)).not_to include("OwnerWidgetCount", "WidgetsByGroup")
     end
 
-    # `bin/model_check` once loaded only the alphabetically first `*.hecksagon` in a directory,
-    # so a `projected_by` in any later one was invisible to this rule.
+    # Pins bin/model_check reading every *.hecksagon in a directory, not just the
+    # alphabetically first, so a later file's projected_by is not invisible to this rule.
     it "is reached from bin/model_check when the projected_by is in a later hecksagon file" do
       Dir.mktmpdir do |root|
         chapters = File.join(root, "shop", "bluebook")
@@ -165,9 +159,8 @@ RSpec.describe "the model checker's client profile" do
     end
   end
 
-  # Each example here runs the buggy code the rule guards and expects it to
-  # still misbehave. When one fails, the bug is fixed: delete the rule named in
-  # the message, its examples above, this probe, and the tracker it cites.
+  # Each example here runs the buggy code a rule guards and expects it to still
+  # misbehave. When one fails, delete the rule it names, its examples above, and this probe.
   describe "rules that retire with their bug" do
     it "client_native_read_model: the readiness doc still lists the missing agreement gate" do
       readiness = File.read(File.join(InMemoryDomain::ROOT, "docs/1.0-readiness.md"))

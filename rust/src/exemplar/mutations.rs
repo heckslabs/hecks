@@ -1,17 +1,5 @@
-// Exemplar shapes for rust/project/mutations.rb — see mod.rs's own
-// header. Every shape here is a single generated statement line
-// (`record.field = ...;`, `record.field.push(...);`, one arithmetic
-// block) — the same single-line-statement risk class as constraints.rs's
-// `admits_check`/`pattern_check`, not the multi-branch structural risk
-// `fielded.rs`'s match arms carried. `sets`'s RHS-computing helpers
-// (`mutation_set_rhs`, `append_field_rhs`, `arithmetic_amount_expr`,
-// mutations.rb) stay plain Ruby, same scoping call as json_codec.rb's
-// own scalar-accessor helpers — the structural risk lives in getting the
-// statement shape right, not in which field a value came from. Every
-// host below takes `record: &mut Tmpl...` as a plain parameter, not
-// `&mut self` — the real generated mutation closures all operate on a
-// `record` binding (`kernel::dispatch`'s own mutation closure
-// signature), never `self`.
+// Exemplar shapes for rust/project/mutations.rb; see mod.rs.
+// Hosts take `record: &mut Tmpl...`, not `&mut self`, as the generated mutation closures do.
 #![allow(dead_code, unused_variables)]
 
 struct TmplElement {
@@ -74,15 +62,8 @@ fn tmpl_mutation_arithmetic_host(record: &mut TmplArithmeticHost) {
     // TMPL:mutation_arithmetic END
 }
 
-// BUG#32 (QualityControl ledger) — `remove:` against an entity-typed
-// list, matched by the entity's own identity field (`tmpl_id_field`)
-// rather than whole-element equality (`Runtime::EntityElement.
-// list_element_match?`'s own comment, Ruby side, gives the full
-// reasoning: an entity is a plain struct, never one comparable whole
-// value the way a value object is). `retain` keeps every element whose
-// identity doesn't match the offered value — the inverse of the
-// `reject { |element| element == value }` shape Ruby's own
-// `MutationApplier#removed`/`EntityElement#removed_from_element` share.
+// `remove:` on an entity list matches on the entity's identity field, not whole-element
+// equality; `retain` keeps every element whose identity differs from the offered value.
 struct TmplRemoveElement {
     tmpl_id_field: i64,
 }

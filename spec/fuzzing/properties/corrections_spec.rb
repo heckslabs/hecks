@@ -1,25 +1,9 @@
 require "spec_helper"
 require "hecks/fuzzing"
 
-# `Hecks::Fuzzing::Properties.corrections_reference_an_emitted_event` —
-# angle-9 (QualityControl ledger `ask backlog`): `corrects` had exactly one
-# declaration anywhere in the corpus (`examples/banking/bluebook/
-# deposit_accounts.bluebook:353`, aggregate-level) and no property in
-# `lib/hecks/fuzzing/properties.rb` ever checked it. This property's real
-# target — an entity-level `corrects` — cannot be reached through a real
-# dispatch at all today: `qa/stress_domains/corrections` (this property's
-# own stress domain, see its NOTES.md) crashes Ruby with
-# `Hecks::Runtime::WiringError` the moment `Ledger.Entry.Amend` is actually
-# dispatched, so every example below builds `history` by hand — the same
-# "Replay.call(domain, [])" zero-step boot `spec/fuzzing/properties_spec.rb`'s
-# own "each property, seen failing" section already uses to get real
-# Aggregate/Command/Entity objects with no dispatch risk at all — rather
-# than replaying real steps.
-#
-# `CORRECTIONS_SPEC_ROOT`/`CORRECTIONS_SPEC_DOMAIN` — distinctive constant
-# names on purpose: spec/load_hygiene_spec.rb refuses two spec files
-# sharing one top-level constant, and `properties_spec.rb` already owns
-# `PROPERTIES_*`.
+# `Properties.corrections_reference_an_emitted_event`. The entity-level examples hand-build
+# `history`: the corrections stress domain raises WiringError when `Ledger.Entry.Amend` dispatches.
+# The constant names are distinctive because spec/load_hygiene_spec.rb refuses shared ones.
 RSpec.describe "Hecks::Fuzzing::Properties.corrections_reference_an_emitted_event" do
   CORRECTIONS_SPEC_ROOT   = InMemoryDomain::ROOT
   CORRECTIONS_SPEC_DOMAIN = File.join(CORRECTIONS_SPEC_ROOT, "qa/stress_domains/corrections")
@@ -29,10 +13,7 @@ RSpec.describe "Hecks::Fuzzing::Properties.corrections_reference_an_emitted_even
     Hecks::Fuzzing::Replay.call(domain, [])[:bluebooks]
   end
 
-  # **The aggregate-level case, real dispatch** — `examples/banking`'s own
-  # `Account.CorrectFee` is the corpus's one working `corrects` command,
-  # so this is the one path in this whole spec that can exercise the
-  # property against a genuine replay rather than a hand-built history.
+  # The corpus's one working `corrects` command, so the one path with a real replay.
   describe "the aggregate-level case (examples/banking, real dispatch)" do
     def unique_reference
       "CORR-#{rand(1_000_000_000)}"
@@ -86,12 +67,8 @@ RSpec.describe "Hecks::Fuzzing::Properties.corrections_reference_an_emitted_even
       history = Hecks::Fuzzing::Replay.call(CORRECTIONS_SPEC_BANKING, steps)
       expect(history[:refusals]).to eq([])
 
-      # **Seeded, not dispatched** — a genuine `CorrectFee` with no preceding
-      # `FeeApplied` refuses (NothingToCorrect) rather than ever landing in
-      # `history[:events]`, so the only way to see this property actually
-      # fire is to strip the preceding event out of an otherwise-real
-      # history by hand, the same "seen failing" technique
-      # `properties_spec.rb` already uses for every other property here.
+      # Seeded, not dispatched: a real `CorrectFee` without `FeeApplied` refuses, so the event
+      # is stripped from an otherwise-real history.
       doctored_events = history[:events].reject { |event| event[:name] == "FeeApplied" }
       doctored = history.merge(events: doctored_events)
 
@@ -102,12 +79,8 @@ RSpec.describe "Hecks::Fuzzing::Properties.corrections_reference_an_emitted_even
     end
   end
 
-  # The entity-level case this property exists to watch. `Ledger.Entry.
-  # Amend` cannot be reached through a real dispatch — see this file's own
-  # header comment — so `history` is entirely hand-built here: real
-  # `Aggregate`/`Entity`/`Command` objects (from a zero-step boot, no
-  # dispatch at all) paired with a hand-written `events` array standing in
-  # for what a working implementation would have produced.
+  # `Ledger.Entry.Amend` cannot be dispatched (see the header), so `history` is hand-built from
+  # real objects of a zero-step boot plus a hand-written `events` array.
   describe "the entity-level case (qa/stress_domains/corrections, hand-built history)" do
     let(:bluebooks) { bluebooks_for(CORRECTIONS_SPEC_DOMAIN) }
 

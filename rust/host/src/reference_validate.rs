@@ -1,50 +1,14 @@
-// Layer 1 of the mint-time audit — structural parity with Ruby's own
-// `Runtime::Instance.new`/`Value.hydrate` (rescued for
-// `InvariantViolation`/`TypeMismatch` by `Translation::Audit::
-// LayerOne`) plus that same module's own lifecycle-field check: every
-// translated record must satisfy its aggregate's declared shape (types,
-// patterns, admits/closed-set) and lifecycle (its state field, if any,
-// must be a value the lifecycle actually reaches). This is what turns a
-// silent shape corruption from a compiled-SQL bug into a refused mint.
-//
-// Generic and IR-driven, matching `rust/host`'s own established
-// discipline (`ir.rs` already reads everything generically via
-// `serde_json::Value`, no per-domain generated type) — reads straight
-// off `ir.json`'s `aggregates[].{attributes,value_objects,entities,
-// lifecycle}`, the same metadata `rust/codegen` already compiles types
-// from, just consumed as data here instead of compiled to Rust source.
-//
-// Custom value-object invariant predicates (`invariants: [{canonical:
-// "cents >= 0", ast: {...}}]`) are checked too, for the operators
-// `expr_json::interpret` actually implements — see that file's own
-// header for exactly which ones, and why the rest cleanly refuse rather
-// than being silently skipped or ported speculatively. Evaluating
-// `canonical` text live needs an executable form of it this crate can
-// run without either (a) a second, independently-written expression interpreter
-// duplicating `rust::kernel::expr` a third time (this codebase's own
-// recurring lesson, most recently ADR 0022's whole reason for existing),
-// or (b) a direct Cargo dependency on the `rust` kernel crate to reuse
-// that interpreter directly — confirmed unsafe to do:
-// `rust/src/generated/mod.rs`'s own `pub mod banking; pub mod
-// compliance; ...` list is not feature-gated (only the `active`
-// re-export is), so depending on that crate at all would statically
-// bake every domain's generated dispatch code into every Lambda's own
-// binary regardless of which `.wasm` it actually loads at runtime — the
-// exact per-domain isolation this crate's own Cargo.toml header holds
-// itself to. `expr_json.rs`'s own `ast:` JSON — the same parsed AST
-// `rust/project/expr_emitter.rb` already builds to emit Rust source
-// literals, serialized by `lib/hecks/bluebook/expression/ast_json.rb`
-// instead — is that build-time export; this file's own `check_value` is
-// the small interpreter that consumes it as data.
+//! Layer 1 of the mint audit: a translated record must fit its aggregate's types, patterns,
+//! admits, invariants and lifecycle. Reads `ir.json` generically, like `ir.rs`.
+
+// Depends on `expr_json`, not the `rust` kernel crate: that crate's generated modules are not
+// feature-gated, so depending on it would link every domain into every Lambda binary.
 
 use crate::expr_json;
 use serde_json::Value;
 use std::collections::HashMap;
 
-/// Every structural violation found in one translated record — empty
-/// means it satisfies its aggregate's own declared shape and lifecycle.
-/// `aggregate_ir` is the aggregate's own node from `ir.json`'s
-/// `aggregates` array (attributes/value_objects/entities/lifecycle).
+/// Every structural violation in one translated record; empty means it satisfies its aggregate.
 pub fn validate(aggregate_ir: &Value, id: &str, state: &Value) -> Vec<String> {
     let name = aggregate_ir.get("name").and_then(Value::as_str).unwrap_or("");
     let value_objects = index_by_name(aggregate_ir, "value_objects");
@@ -106,33 +70,15 @@ fn check_attributes(
     }
 }
 
-/// A value object's own declared `invariant("description") { predicate }`
-/// entries — `vo["invariants"]`, each `{description, canonical, ast}`
-/// (`lib/hecks/bluebook/value_object.rb`'s own `invariants:` IR
-/// emission; `ast` is `expr_json::parse`'s own input, `Expression::
-/// AstJson.emit_predicate`'s output). Fails closed — a malformed `ast`
-/// or an operator `expr_json::interpret` doesn't support yet is pushed
-/// as a real violation, refusing the mint, the same as a genuine
-/// invariant failure would — not silently skipped. That is the
-/// deliberate difference from `check_value`'s own "unrecognized type
-/// name" tolerance just below: an unrecognized type genuinely could be
-/// anything (no information either way, so guessing would risk a false
-/// positive worse than checking nothing), but an invariant this file
-/// knows exists and simply cannot yet evaluate is real, actionable
-/// information — reporting it loudly is what lets an author either
-/// simplify the predicate or wait for `expr_json.rs`'s own coverage to
-/// grow, rather than silently minting past it.
+/// Checks a value object's `invariants` through `expr_json`. Fails closed: a malformed or
+/// unsupported `ast` is a violation, since an invariant that cannot be evaluated must not
+/// be minted past.
 fn check_invariants(aggregate_name: &str, id: &str, attr_name: &str, type_name: &str, value: &Value, vo: &Value, violations: &mut Vec<String>) {
     let Some(invariants) = vo.get("invariants").and_then(Value::as_array) else { return };
 
     for invariant in invariants {
         let description = invariant.get("description").and_then(Value::as_str).unwrap_or("");
-        // No `ast` key at all — an `ir.json` built before this
-        // capability existed (or by a generator this validator doesn't
-        // fully trust yet). Nothing to check against, and no claim this
-        // audit ever made before that it's checking it — not a
-        // violation, unlike a present-but-malformed or present-but-
-        // unsupported `ast`, both of which are.
+        // An older `ir.json` has no `ast`: nothing to check, so not a violation.
         let Some(ast) = invariant.get("ast") else { continue };
 
         let expr = match expr_json::parse(ast) {
@@ -171,17 +117,8 @@ fn check_value(
         let nested = vo.get("attributes").and_then(Value::as_array).cloned().unwrap_or_default();
         let before = violations.len();
         check_attributes(aggregate_name, id, value, &nested, value_objects, entities, violations);
-        // **Structure first, invariant second** — and only when the struct
-        // check found nothing wrong. A value already flagged for a
-        // wrong type/pattern/admits has nothing coherent for its own
-        // `invariant` predicate to say about it either (`cents >= 0`
-        // means nothing once `cents` itself isn't the Integer it's
-        // declared as) — checking anyway would either double-report the
-        // same underlying problem under two different violation
-        // messages, or (worse) `expr_json::interpret` refusing to
-        // compare a non-numeric value would surface as its own separate
-        // "could not be checked" violation, obscuring the real,
-        // first-order type mismatch behind noise.
+        // Invariants run only when the structure check found nothing: a mistyped value would
+        // double-report, or bury the real type error under a "could not be checked".
         if violations.len() == before {
             check_invariants(aggregate_name, id, attr_name, type_name, value, vo, violations);
         }
@@ -193,12 +130,8 @@ fn check_value(
         return;
     }
 
-    // A scalar leaf — String/Integer/Float/Boolean, or a type name this
-    // validator doesn't recognize at all (a domain scalar alias, a
-    // reference/identity type). Unrecognized names are treated as
-    // unconstrained rather than guessed at: a false positive here would
-    // block a real mint, the one failure mode worse than checking
-    // nothing.
+    // A scalar leaf. Unrecognized type names are unconstrained: a false positive would block a
+    // real mint.
     if !scalar_type_matches(type_name, value) {
         violations.push(format!("{aggregate_name}#{id}: {attr_name} is {value}, not a {type_name}"));
         return;
@@ -360,8 +293,7 @@ mod tests {
 
     #[test]
     fn an_invariant_with_no_ast_key_at_all_is_not_checked_and_not_a_violation() {
-        // Backward compatibility with an ir.json built before `ast:`
-        // existed — nothing to evaluate, so nothing claimed.
+        // An `ir.json` built before `ast:` existed: nothing to evaluate, so nothing claimed.
         let mut ir = order_ir();
         ir["value_objects"][0]["invariants"][0].as_object_mut().unwrap().remove("ast");
         let state = json!({ "pizza": { "cents": -500, "size": "large" }, "toppings": [], "status": "available" });

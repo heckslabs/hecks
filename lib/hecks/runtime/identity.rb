@@ -3,58 +3,21 @@ require_relative "value"
 
 module Hecks
   module Runtime
-    # **The scalar an identity path names**.
+    # Resolves an aggregate's or entity's identity string from a command payload.
     #
-    # An identity is declared as a path — `identified_by :number` — and
-    # this is the one place that reads one. It follows the path and nothing else.
-    #
-    # What it replaced was `Value.identifier`, which opened a one-field value
-    # object and took whatever was inside : that let `identified_by :number` pass
-    # for an identity, with the runtime guessing which field had been meant. The
-    # guess is gone. A declaration that names no field is now refused when the
-    # bluebook loads (`an aggregate that is identified names a field`, `an entity
-    # is known by a field`), so by the time anything is dispatched there is
-    # always a path here to follow.
-    #
-    # Usage:
-    #
-    #   Identity.scalar("number.value", account_number_value_object)  # => "acct-1"
-    #
+    # Identity.scalar("number.value", account_number_value_object)  # => "acct-1"
     module Identity
       module_function
 
-      # Reads one key off `hash` by whichever of its Symbol/String spelling
-      # is actually present, favoring the Symbol spelling.
-      #
-      # A hash read that decides which spelling of a key answers by
-      # presence, never by `||` — a bare `||` treats a genuinely-held
-      # `false` the same as an absent key and falls through to the other
-      # spelling, landing on `nil` instead of the real, stored answer.
-      #
-      # @param hash [Hash] the hash to read, potentially keyed by either spelling
-      # @param key [String, Symbol] the key to look up
-      # @return [Object, nil] the value under `key.to_sym` if that key is present,
-      #   otherwise the value under `key` as given; nil if neither is a key of `hash`
+      # Reads `key` from `hash` by whichever Symbol/String spelling is present.
+      # Presence decides, not `||`, so a held `false` is not mistaken for absent.
       def hash_lookup(hash, key)
         sym = key.to_sym
         hash.key?(sym) ? hash[sym] : hash[key]
       end
 
-      # Digs `path`'s fields out of `held`, past the head a caller already
-      # consumed to look `held` up.
-      #
-      # The head names the attribute and is consumed by whoever looked the value
-      # up; what is left is the walk down into it. A path with no fields to walk
-      # — an aggregate that declares no identity and falls back to `id` — hands
-      # back what it was given, because there is nothing declared to dig for.
-      #
-      # @param path [String, Symbol] the dotted identity path (`"number.value"`) or a
-      #   bare head (`:id`); only the segments after the head are walked
-      # @param held [Object] the value already looked up for the path's head — a
-      #   `Runtime::Value`, a Hash, or a plain scalar
-      # @return [Object, nil] `held` unchanged when `path` has no fields past its head;
-      #   otherwise the value found by walking those fields, or nil when a segment
-      #   is missing or the value being dug into is not a Hash
+      # Digs the fields of `path` out of `held`, past the head the caller consumed.
+      # A path with no fields past the head returns `held` unchanged.
       def scalar(path, held)
         _head, *fields = path.to_s.split(".")
         return held if fields.empty?
@@ -64,66 +27,22 @@ module Hecks
         end
       end
 
-      # Derives `construct`'s identity string from `args`, joining every
-      # declared identity part in declaration order.
-      #
-      # The identity is the join of its parts, in declaration order. Shared by
-      # `CommandInterpreter` (an aggregate acting on itself) and
-      # `EntityInterpreter` (a piece addressed through its aggregate) — a piece
-      # declares an identity the same shape a head does, so it derives one the
-      # same way. `construct` answers `identity_paths` / `identity_heads` /
-      # `attribute` (an Aggregate or an Entity, either one) ; `value_owner`
-      # answers for coercion (`Value.for_attribute`'s first argument), which for
-      # an entity is its owning aggregate — an entity's value objects resolve
-      # through the aggregate's namespace, not its own.
-      #
-      # A part the payload does not carry makes the whole identity unresolvable,
-      # rather than half of one. Half an identity names nothing, and joining what
-      # did arrive would silently name a different record on every dispatch — the
-      # precise failure that minting an id caused, arrived at by another road.
-      #
-      # @param construct [Bluebook::Aggregate, Bluebook::Entity] the construct whose
-      #   `identity_paths` are resolved
-      # @param args [Hash{Symbol => Object}] the offered payload to resolve each
-      #   identity path against
-      # @param value_owner [Bluebook::Aggregate, Bluebook::Entity] the construct whose
-      #   namespace a value-object identity part is coerced against; `construct` itself
-      #   unless the caller passes the owning aggregate for an entity
-      # @return [String, nil] the joined identity string, or nil when `construct`
-      #   declares no identity path or any resolved part is nil or blank
+      # Joins every declared identity part of `construct` from `args`, in declaration order.
+      # `value_owner` is the aggregate that coerces value-object parts (an entity's owner).
+      # Returns nil unless every part resolves: half an identity would name a different record.
       def of(construct, args, value_owner: construct)
         paths = construct.identity_paths
         return nil if paths.empty?
 
         parts = paths.map { |path| from(construct, args, path, value_owner: value_owner) }
-        # A blank part names nothing, the same as an absent one — an ID is a
-        # scalar, and "" is not a fact about anything. Checking only `nil?`
-        # would let a canonical text extracted as "" (an expression whose
-        # source did not survive extraction) resolve to a real, empty-string
-        # identity — a record addressable by an id no caller could have meant.
+        # A blank part names nothing, the same as an absent one.
         return nil if parts.any? { |part| part.nil? || (part.respond_to?(:empty?) && part.empty?) }
 
         Naming.identity(parts)
       end
 
-      # Resolves one identity path (or a bare head such as `:id`) against `args`.
-      #
-      # A path digs into the value object that carries the identity, so what is
-      # stored is the scalar inside it rather than the object serialised whole.
-      #
-      # @param construct [Bluebook::Aggregate, Bluebook::Entity] the construct `key` is
-      #   checked against when it is a bare head
-      # @param args [Hash{Symbol => Object}] the offered payload to resolve `key` against
-      # @param key [String, Symbol, nil] the identity path to resolve, dotted
-      #   (`"number.value"`) or bare (`:id`); nil resolves to nil
-      # @param value_owner [Bluebook::Aggregate, Bluebook::Entity] the construct whose
-      #   namespace a value-object head is coerced against; `construct` itself unless
-      #   the caller passes the owning aggregate for an entity
-      # @return [String, Object, nil] the resolved identity text — a String once dug
-      #   through a dotted path or coerced through a declared value-object attribute;
-      #   the raw `args[key]` value, unconverted, when the bare head names no declared
-      #   identity attribute of `construct`; nil when `key` is nil, absent from `args`,
-      #   or a dotted walk finds nothing
+      # Resolves one identity path, dotted or a bare head such as `:id`, against `args`.
+      # A dotted path yields the scalar inside the value object, never the object serialised.
       def from(construct, args, key, value_owner: construct)
         return nil unless key
 
@@ -134,83 +53,28 @@ module Hecks
         unless rest.empty?
           held = args[head]
           held = held.to_h if held.respond_to?(:to_h)
-          # **An ID is always a scalar**. The path says which field carries it, so a
-          # caller may hand that field's value straight over — a string or a
-          # number, never a serialised object. Only a value object that actually
-          # arrived whole has to be opened.
+          # An ID is always a scalar: a caller may pass the carrying field's value directly.
           return held.to_s unless held.is_a?(Hash)
 
           return rest.reduce(held) { |h, f| h.is_a?(Hash) ? hash_lookup(h, f) : nil }&.to_s
         end
 
-        # Coerced against the identity attribute only when the caller actually
-        # named it. A saga addresses an aggregate by its correlation key, and
-        # that key carries the id already resolved — coercing "w1" against a
-        # WireReference asked the caller to pass fields for a value object they
-        # never mentioned.
+        # Coerce only when the caller named the attribute; a saga's key is already resolved.
         attribute = construct.identity_heads.include?(head) ? construct.attribute(head) : nil
         raw       = args[head]
         return raw unless attribute
 
-        # **An ID is always a scalar** — same contract the dotted branch above
-        # already keeps, just reached a different way here: a bare
-        # (undotted) identity path names one of this construct's own
-        # declared attributes directly, and when that attribute's type is
-        # a value object (Translation's own compound `identified_by
-        # :domain, :from, :to`, each typed `TranslationDomainName`/
-        # `TranslationEraName`), `Value.for_attribute` coerces it into a
-        # real single-field Value wrapper — never unwrapped before this,
-        # so `Naming.identity`'s own plain `Array#join` (`Naming.identity`'s
-        # own header: parts must already be scalars) fell through to
-        # Ruby's default `Object#to_s`, leaking a raw, run-to-run-random
-        # memory address (`#<Hecks::Runtime::Value:0x...>`) into
-        # every refusal quoting this identity — found live via bin/fuzz on
-        # the self-hosted "translation" domain (replay_is_deterministic:
-        # the same address never repeats, so two replays of the
-        # identical steps produced different histories the moment a
-        # Translation went missing). `materialize_unwrapped` is the
-        # same single-field-VO-recurses-to-its-bare-scalar helper
-        # `read_model_interpreter.rb` already uses for exactly this
-        # unwrap; passthrough for anything that isn't a Value at all.
+        # Unwrap the coerced value object so `to_s` never leaks an object address into an id.
         Value.materialize_unwrapped(Value.for_attribute(value_owner, attribute, raw)).to_s
       end
 
-      # Renders `construct`'s identity paths for a refusal message.
-      #
-      # How an identity reads when the runtime has to name it in a refusal — the
-      # paths as they were declared, so the message quotes the bluebook back.
-      #
-      # @param construct [Bluebook::Aggregate, Bluebook::Entity] the construct whose
-      #   declared identity paths are rendered
-      # @return [String] `construct`'s identity paths, comma-separated, exactly as declared
+      # Renders the declared identity paths of `construct` for a refusal message.
       def reading(construct)
         construct.identity_paths.join(", ")
       end
 
-      # Resolves the best identity string available for `construct` from `args`,
-      # without raising, for use as a lock key only.
-      #
-      # Best-effort, for a lock key only — `Runtime::AggregateLock`'s own
-      # per-record striping needs some id to key on before dispatch has run
-      # far enough to hydrate for real, so this walks the identical chain
-      # `CommandInterpreter#hydrate_existing`/`#hydrate_prior_or_initial`
-      # and `EntityInterpreter#parent` already use to locate the real
-      # record — but wrapped to never raise. Choosing which Mutex to hold
-      # must never itself become a crash. `nil` means "could not resolve
-      # from the raw, pre-normalized payload this runs against" — the
-      # caller locks by aggregate type alone in that case (coarser, still
-      # correct, just less concurrent).
-      #
-      # @param construct [Bluebook::Aggregate, Bluebook::Entity] the construct being
-      #   located for the lock key
-      # @param args [Hash{Symbol => Object}] the raw, pre-normalized payload to resolve
-      #   an identity from
-      # @param route [Runtime::Routing::Envelope, nil] the call's resolved routing
-      #   envelope, if any; its own `aggregate` identity is tried first
-      # @param reference_key [Symbol, nil] the command's reference-key fallback,
-      #   tried last if given
-      # @return [String, Object, nil] the best-effort identity to lock by, or nil
-      #   when nothing resolves (the caller then locks by aggregate type alone)
+      # Resolves a best-effort identity for `construct` to use as a lock key; never raises.
+      # Returns nil when nothing resolves, and the caller then locks by aggregate type alone.
       def best_effort(construct, args, route = nil, reference_key: nil)
         route&.aggregate ||
           of(construct, args) ||

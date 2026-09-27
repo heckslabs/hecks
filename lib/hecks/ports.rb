@@ -1,15 +1,9 @@
 # Hecks::Ports
 #
-# The runtime's named boundaries. Each port is a file beside this one —
-# `ports/persistence.rb`, `ports/query.rb`, … — and a port with supporting
-# cast keeps it in a same-named directory (`ports/persistence/` holds the
-# binding policy, the journal-translation lineage, the repository factory).
-# The `.port` files beside them are the DSL declarations the meta-validator
-# and the Folder adapter load as data.
+# The runtime's named boundaries; each port is a file under `ports/`.
 
 module Hecks
-  # Declared empty here — each `ports/*.rb` file required below reopens it
-  # to add its own port; see the header comment above for what a port is.
+  # The runtime's named boundaries; each port is a file under `ports/`.
   module Ports
   end
 end

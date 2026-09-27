@@ -1,24 +1,6 @@
-//! `hecks-codegen` — Stage 7 of the 8-stage Rust port plan:
-//! a Rust port of (part of) `rust/project/*.rb`'s IR-to-Rust-source
-//! codegen, standing beside the existing Ruby generator for differential
-//! verification (`spec/codegen_parity_spec.rb`) — not wired into
-//! `bin/project_rust` yet (that's Stage 8).
-//!
-//! See each module's own header for what it ports and why; `prelude.rs`
-//! explains the scoped "prelude" comparison unit this stage's harness
-//! actually verifies byte-exact, and the stage's own report names what's
-//! deliberately not ported yet (commands/mutations/queries/read_models/
-//! reactions/ports/registry/bridging.rb).
-//!
-//! Usage: `hecks-codegen prelude <ir.json> <source_label> <out_dir>` —
-//! reads one chapter's `ir.json`, writes one `<aggregate_name_downcase>.rs`
-//! prelude file per not-skipped aggregate into `out_dir`.
-//!
-//! `#![allow(dead_code)]` — a few `naming.rs` functions (`dispatch_fn_name`,
-//! `reference_target`) are direct ports already sitting ready for the
-//! still-unported commands/mutations slice (a follow-up stage), unused by
-//! today's prelude-only call graph — same convention `rust/src/exemplar/
-//! mod.rs` already uses for its own not-yet-exercised shapes.
+//! `hecks-codegen` — Rust port of the IR-to-Rust-source codegen in `rust/project/*.rb`.
+//! Usage: `hecks-codegen <prelude|domain|full> ...`, one subcommand per function below.
+// Some ported `naming.rs` helpers are not called yet.
 #![allow(dead_code)]
 
 mod attr;
@@ -102,18 +84,10 @@ fn run_prelude(args: &[String]) -> Result<(), String> {
     Ok(())
 }
 
-/// `hecks-codegen domain <ir.json> <source_label> <mod_name> <out_dir>` —
-/// the full per-chapter walk (`domain_generator::generate`, a port of
-/// `DomainGenerator.call`): one `<aggregate>.rs` per generated aggregate,
-/// `registry.rs`, `mod.rs`, and `manifest.json` (the coverage manifest
-/// `bin/rust_coverage` reads — `manifest.rs`). Not written here:
-/// `metadata.rs`/`ir.json` (this subcommand only ever sees already-parsed
-/// `ir.json`, on disk — `bin/project_rust`'s own opt-in orchestration
-/// writes those two straight from the exact bytes `hecks-parse chapter`
-/// already emitted plus a plain `String#inspect` call, never re-derived
-/// here — see that script's own header on why re-serializing JSON in this
-/// crate was judged unnecessary, not merely deferred) — named gaps, not
-/// silently dropped.
+/// `hecks-codegen domain <ir.json> <source_label> <mod_name> <out_dir>` — writes one chapter's
+/// `<aggregate>.rs`, `registry.rs`, `mod.rs` and `manifest.json` into `out_dir`.
+///
+/// `metadata.rs` and `ir.json` are left to `bin/project_rust`.
 fn run_domain(args: &[String]) -> Result<(), String> {
     let [ir_path, source_label, mod_name, out_dir] = args else {
         return Err("usage: hecks-codegen domain <ir.json> <source_label> <mod_name> <out_dir>".to_string());
@@ -127,13 +101,8 @@ fn run_domain(args: &[String]) -> Result<(), String> {
     Ok(())
 }
 
-/// Shared by `run_domain` and `run_full`: writes one chapter's own
-/// `<aggregate>.rs`/`registry.rs`/`mod.rs` into `out_dir`, returning the
-/// `GeneratedDomain` so a multi-chapter caller (`run_full`) can union
-/// its `registry_aggregates`/`query_defs`/`read_model_defs` with every
-/// other chapter's own, the same way `bin/project_rust`'s Ruby
-/// orchestration already unions `RustProjection::DomainGenerator.call`'s
-/// own return Hash across chapters for `merged.rs`.
+/// Writes one chapter's files into `out_dir` and returns the `GeneratedDomain`, so `run_full`
+/// can union the registry, query and read-model definitions across chapters.
 fn write_domain(
     ex: &exemplar::Exemplar,
     ir: &Json,
@@ -141,8 +110,7 @@ fn write_domain(
     mod_name: &str,
     out_dir: &str,
 ) -> Result<domain_generator::GeneratedDomain, String> {
-    // BUG#124 — refused before any file is written, with the same message
-    // `RustProjection::DomainGenerator.call` raises (`naming::reserved_name_refusal`).
+    // Refuse before writing anything; same message as `RustProjection::DomainGenerator.call`.
     let aggregate_names: Vec<&str> = ir
         .get("aggregates")
         .map(Json::each)
@@ -190,29 +158,11 @@ fn puts_blank(out: &mut String) {
     out.push('\n');
 }
 
-/// `hecks-codegen full <out_root> <target_mod_name> <target_source_label>
-/// <target_ir.json> [<chapter_mod_name> <chapter_source_label>
-/// <chapter_ir.json>]...` — stage 8: the Rust-side equivalent of
-/// everything `bin/project_rust`'s own Ruby orchestration does beyond a
-/// single `RustProjection::DomainGenerator.call` (that file's own
-/// header, quoted in the stage 8 plan): the target chapter's own
-/// directory, every attached framework chapter's own directory (each
-/// standalone, via the same `write_domain` a lone `domain` subcommand
-/// call would produce), and finally the target's own `merged.rs` —
-/// one unioned `Store`/`dispatch_by_name` table spanning the target
-/// chapter and every chapter given after it, exactly the shape
-/// `bin/project_rust`'s own `merged_aggregates = target_aggregates +
-/// framework_aggregates` (+ `merged_queries`/`merged_read_models`)
-/// builds today. Calling this with zero trailing chapter triples (just
-/// the target) reproduces `bin/project_rust`'s own meta special case
-/// (`meta_merged_path`) for free — meta attaches no framework chapters
-/// of its own, so "union of one" is exactly its own single-chapter
-/// registry, restated under the `merged.rs` filename every other domain
-/// already gets, same as that script's own comment says.
+/// `hecks-codegen full <out_root> <target_mod_name> <target_source_label> <target_ir.json>
+/// [<chapter_mod_name> <chapter_source_label> <chapter_ir.json>]...`
 ///
-/// Not written here: `metadata.rs`/`ir.json` per directory (the
-/// orchestrator's own job — see `run_domain`'s header). `manifest.json`
-/// is written per directory, by `write_domain`.
+/// Writes the target chapter's directory, each attached chapter's own directory, and the
+/// target's `merged.rs`: one `Store`/`dispatch_by_name` table spanning every chapter given.
 fn run_full(args: &[String]) -> Result<(), String> {
     if args.len() < 4 || (args.len() - 4) % 3 != 0 {
         return Err(
@@ -235,12 +185,7 @@ fn run_full(args: &[String]) -> Result<(), String> {
     let target_out_dir = format!("{out_root}/{target_mod_name}");
     let target_gen = write_domain(&ex, &target_ir, target_source_label, target_mod_name, &target_out_dir)?;
 
-    // `chapter_mod_names.map { |mod_name, chapter_name| [chapter_name,
-    // ...] }` in Ruby — target first (Ruby's seed Hash entry), each
-    // attached chapter appended in the order it's given on the command
-    // line (which `bin/project_rust`'s orchestrator itself derives from
-    // `hecks-parse resolve`'s own `uses_framework` order — file order,
-    // same as `target_registry.bluebooks.keys` would insert them).
+    // Target first, then each attached chapter in command-line order.
     let mut reference_key_pairs: Vec<(String, Vec<String>)> =
         vec![(target_domain_name.clone(), target_gen.registry_aggregates.iter().map(|a| a.name.clone()).collect())];
 
@@ -249,17 +194,8 @@ fn run_full(args: &[String]) -> Result<(), String> {
     let mut merged_read_models = target_gen.read_model_defs;
     let mut merged_process_managers: Vec<Json> = target_ir.get("process_managers").map(Json::each).unwrap_or(&[]).to_vec();
 
-    // **Policies/process managers merge across chapters too** (see
-    // `reactions::emit_merged_policy_table`'s own header for the full
-    // story) — this compiles the target domain's own policies together
-    // with every attached framework chapter's (Governance/Identity,
-    // today), matching `rust/project/reactions.rb`'s own
-    // `emit_merged_policy_table` on the Ruby side, needed once a real
-    // vendored chapter (embryonaut_bluebooks/payments) declared
-    // policies of its own. `chapter_irs` keeps
-    // each attached chapter's own parsed IR alive long enough for
-    // `policy_sources`, below, to borrow its `policies`/`aggregates`
-    // arrays without cloning them.
+    // Policies and process managers merge across chapters; `chapter_irs` keeps each parsed
+    // chapter alive so `policy_sources` can borrow from it.
     let mut chapter_irs: Vec<Json> = Vec::new();
     let mut chapter_domain_names: Vec<String> = Vec::new();
 
@@ -287,11 +223,7 @@ fn run_full(args: &[String]) -> Result<(), String> {
         chapter_irs.push(chapter_ir);
     }
 
-    // One entry per chapter (target first), each carrying exactly what
-    // `emit_merged_policy_table`/`emit_merged_cross_domain_policy_table`
-    // need to qualify that chapter's own policies against its own
-    // domain_name/aggregates, never the target's — the direct port of
-    // `bin/project_rust`'s own `policy_sources` array.
+    // One entry per chapter, so its policies qualify against its own domain and aggregates.
     let policies: Vec<Json> = target_ir.get("policies").map(Json::each).unwrap_or(&[]).to_vec();
     let policy_aggregates: Vec<Json> = target_ir.get("aggregates").map(Json::each).unwrap_or(&[]).to_vec();
 
@@ -322,17 +254,8 @@ fn run_full(args: &[String]) -> Result<(), String> {
     puts_blank(&mut merged_rs);
     puts_str(&mut merged_rs, &reactions::emit_identity_head_table(&ex, &merged_aggregates));
     puts_blank(&mut merged_rs);
-    // R1 (docs/audits/2026-08-11-bug-triage.md) — this hand-curated
-    // section list predates `emit_command_attributes_table` and was
-    // never updated when it landed, unlike `domain_generator.rs`'s own
-    // `generate` (used by every other codegen entry point), which calls
-    // it correctly. Position matches `rust/project/domain_generator.rb`'s
-    // own ordering exactly: identity_head, then entity_identity_head
-    // (BUG#10 — same R1 drift risk, added here to stay in sync with
-    // `domain_generator.rs`'s own `generate` call order), then
-    // command_attributes, then query — `spec/project_rust_pipeline_spec.rb`
-    // compares this file byte-for-byte, so order is load-bearing, not
-    // cosmetic.
+    // Section order must match `rust/project/domain_generator.rb`; the pipeline spec compares
+    // this file byte for byte.
     puts_str(&mut merged_rs, &reactions::emit_entity_identity_head_table(&ex, &merged_aggregates));
     puts_blank(&mut merged_rs);
     puts_str(&mut merged_rs, &reactions::emit_command_attributes_table(&ex, &merged_aggregates));
@@ -353,13 +276,7 @@ fn run_full(args: &[String]) -> Result<(), String> {
     std::fs::write(&merged_path, &merged_rs).map_err(|e| format!("writing {merged_path}: {e}"))?;
     println!("wrote {merged_path}");
 
-    // Appended, not written fresh — `write_domain` already wrote this
-    // directory's own `mod.rs` (metadata/registry/one line per
-    // aggregate module) above; `merged` is a fifth module only the
-    // target directory ever gets (this function's own header —
-    // attached framework chapters stay standalone, no `merged.rs` of
-    // their own), matching `bin/project_rust`'s own
-    // `File.open(mod_path, "a") { f.puts "pub mod merged;" }`.
+    // `write_domain` already wrote `mod.rs`; only the target directory gets a `merged` module.
     let mod_path = format!("{target_out_dir}/mod.rs");
     let mut mod_rs = std::fs::read_to_string(&mod_path).map_err(|e| format!("reading {mod_path}: {e}"))?;
     if !mod_rs.ends_with('\n') {

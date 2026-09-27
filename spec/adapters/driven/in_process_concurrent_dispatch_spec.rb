@@ -1,29 +1,13 @@
 require "hecks"
 require "tmpdir"
 
-# The Heki/memory cousin of spec/adapters/driven/postgres_concurrent_dispatch_spec.rb
-# — same fixture (an "Account" with a state-dependent `Debit`), same
-# invariant (two concurrent $6,000 debits against a $10,000 balance must
-# never both succeed), but modeling the shape these two adapters actually
-# have: process-local data, no second process to model, so "concurrent" here
-# means real `Thread`s inside one process sharing one `Registry` (and so the
-# same adapter instance — `Registry#repository` memoizes), not two separate
-# `boot`s the way the Postgres spec needs.
+# Heki/Memory counterpart of postgres_concurrent_dispatch_spec.rb: two concurrent $6,000 debits
+# against $10,000 must not both succeed. Threads share one Registry, hence one adapter.
 #
-# Neither adapter declares `:optimistic_concurrency` — the mechanism under
-# test here is `Runtime::AggregateLock`'s per-key `Mutex`
-# (`CommandInterpreter#call`/`EntityInterpreter#call`'s own
-# `run_dispatch_order_with_isolation`), not CAS+retry. A correctly-held
-# lock means the second dispatch's own `hydrate` can never even start until
-# the first dispatch's `save` has landed — so, unlike the Postgres spec,
-# there is no window where both threads' `find` calls overlap; proving the
-# lock works means proving that window cannot be forced open, not that a
-# retry recovers from it.
+# The mechanism under test is `Runtime::AggregateLock`'s per-key Mutex, not CAS+retry, so the
+# spec proves the two `find` calls cannot overlap rather than that a retry recovers.
 RSpec.describe "concurrent dispatch against one process-local aggregate (Heki/Memory)" do
-  # One inline bluebook, declared whole — a domain-definition DSL block
-  # read top to bottom as the fixture, not a sequence of independent
-  # steps; splitting it would scatter one readable declaration across
-  # several methods that only make sense read back-to-back.
+  # The bluebook is one DSL block read top to bottom as the fixture; splitting it would scatter it.
   # rubocop:disable-next Metrics/AbcSize
   # rubocop:disable-next Metrics/MethodLength
   def boot_for(adapter_name, dir: nil)
@@ -32,9 +16,7 @@ RSpec.describe "concurrent dispatch against one process-local aggregate (Heki/Me
     Hecks.with_registry(registry) do
       Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
       Kernel.load(InMemoryDomain::EXTRACTION_PORT)
-      # **Memory, always** — same as postgres_concurrent_dispatch_spec.rb's own
-      # `boot`: `registry.verify!` checks a usable default adapter exists
-      # regardless of which one this domain actually binds.
+      # Memory is always loaded: `registry.verify!` needs a usable default adapter.
       Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
       unless adapter_name == "Memory"
         Kernel.load(File.join(InMemoryDomain::ROOT,
@@ -92,9 +74,7 @@ RSpec.describe "concurrent dispatch against one process-local aggregate (Heki/Me
       Hecks.hecksagon("ConcurrencyGap") do
         ConcurrencyGap::Account.persisted_by(adapter_name)
       end
-      # Memory declares no settings fields at all (`memory.adapter`) — no
-      # `Hecks.world` needed, same as `spec_helper.rb`'s own
-      # `boot_in_memory`. Heki needs its own isolated tmpdir per example.
+      # Memory declares no settings, so no `Hecks.world`; Heki needs its own tmpdir per example.
       if adapter_name == "Heki"
         Hecks.world("ConcurrencyGap") do
           persisted_by("Heki") { dir(dir) }
@@ -111,15 +91,8 @@ RSpec.describe "concurrent dispatch against one process-local aggregate (Heki/Me
     dispatcher.registry.repository("ConcurrencyGap", aggregate)
   end
 
-  # Marks the first thread to reach `find` and pauses it briefly, giving a
-  # concurrent dispatch a chance to also reach `find` before it resumes —
-  # the exact race window a missing lock leaves open. Bounded, not a hang:
-  # under a correctly serializing lock, no other thread can ever reach
-  # `find` while the first holds it (the lock wraps the whole dispatch, not
-  # just the read), so the wait simply times out and the first thread
-  # proceeds having genuinely never overlapped with a second reader. A
-  # second/later `find` call never waits at all — it just wakes whichever
-  # first call is still pending and carries on.
+  # Pauses the first thread to reach `find` so a concurrent dispatch could also reach it.
+  # Under a correct lock nobody can, so the wait times out; later calls wake the first, never wait.
   def install_race_window(adapter, timeout: 0.3)
     original_find = adapter.method(:find)
     arrived = Queue.new
@@ -154,11 +127,8 @@ RSpec.describe "concurrent dispatch against one process-local aggregate (Heki/Me
 
       results = Array.new(2) { outcomes.pop }
 
-      # **The invariant**: a $10,000 account can never honor two $6,000
-      # debits. The lock means the second dispatch's own `given` is
-      # checked against the first debit's already-committed balance, not
-      # a stale snapshot — so it refuses for real, via `GivenNotMet`, not
-      # merely "doesn't crash".
+      # A $10,000 account never honors two $6,000 debits: the second `given` sees the committed
+      # balance and refuses via `GivenNotMet`.
       expect(results).to contain_exactly(:succeeded, :refused)
       expect(account_repository(dispatcher).find("a")[:balance].to_h[:cents]).to eq(4_000)
     ensure

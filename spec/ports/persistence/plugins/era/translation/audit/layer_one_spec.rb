@@ -1,31 +1,11 @@
 require "hecks"
 require "hecks/ports/persistence/plugins/era"
 
-# M26 (docs/audits/2026-08-10-main-bug-audit.md,
-# docs/audits/2026-08-11-bug-triage.md) — Layer 1's lifecycle-value check
-# compared a translated record's stored state against `Lifecycle#states`
-# (default + every declared target only). A state legitimately declared
-# solely as a transition's `from:` — a real, reachable value this era's
-# own lifecycle names, just never as anyone's target — was never in that
-# set, so a perfectly valid record holding it was reported as a violation
-# and blocked the mint. `Bluebook::ModelCheck.full_states` is the
-# established fix for this exact hole (see its own comment, and
-# `fuzzing/properties.rb#lifecycle_values_are_declared`, which already
-# uses it for the identical question against a replayed history) — Layer
-# 1 must use the same full set, not re-derive a narrower one.
-#
-# These specs drive `Audit.layer_one!` directly, with a hand-built
-# `Bluebook::Lifecycle`/`StateTransition` pair and a minimal aggregate
-# double — no bluebook DSL boot needed, same convention as
-# layer_two_spec.rb / unfed_report_spec.rb.
+# Layer 1 must accept a state declared only as a transition's `from:`, so it checks against
+# `ModelCheck.full_states` rather than `Lifecycle#states`. Drives `Audit.layer_one!` directly.
 RSpec.describe "Layer 1's lifecycle-value check against the full declared state set" do
-  # `attribute(_name) => nil` makes `Runtime::Instance` skip both
-  # coercion (`Value.hydrate` leaves an unrecognized key's value as-is)
-  # and identity materialization (a nil `attribute` short-circuits
-  # `materialize_identity!` immediately) — exactly what a bare
-  # lifecycle-only fixture needs, without dragging in the rest of the
-  # attribute/value-object machinery `Runtime::Instance` otherwise
-  # expects a real `Bluebook::Aggregate` to answer.
+  # `attribute(_name) => nil` makes `Runtime::Instance` skip coercion and identity
+  # materialization, which a bare lifecycle-only fixture does not need.
   unless defined?(FakeAggregate)
     FakeAggregate = Struct.new(:name, :attributes, :lifecycle) do
       def identified_by = nil
@@ -34,10 +14,7 @@ RSpec.describe "Layer 1's lifecycle-value check against the full declared state 
     end
   end
 
-  # "retired" is declared only as a transition's `from:` — never this
-  # lifecycle's default, and never any transition's target — the exact
-  # shape `Lifecycle#states` cannot see (it answers default+targets),
-  # and `ModelCheck.full_states` can (default+targets+froms).
+  # "retired" appears only as a `from:`, which `Lifecycle#states` misses and `full_states` sees.
   def lifecycle_with_from_only_state
     Hecks::Bluebook::Lifecycle.new(
       field:       :status,

@@ -5,23 +5,7 @@ module Hecks
     # The command behind `bin/docs`, `bin/narrate`, `hecks docs` and `hecks narrate`:
     # one domain's document, projected from its own bluebook, to stdout.
     #
-    # `:docs` answers the usage document a console's `<Domain>.docs` prints; `:narrate`
-    # answers the same chapter read back in English, for the subject-matter expert
-    # (`Projector::NarrateProjector`). Nothing is written for the caller: redirect it,
-    # so the caller decides where a generated file lands and git decides whether it
-    # drifted.
-    #
-    # ## Every failure is a sentence
-    #
-    # A misspelled aggregate refuses by name rather than printing nothing and exiting
-    # 0. A caller cannot tell an empty document from an empty domain, so this refuses
-    # instead and names what is actually there.
-    #
-    # ## Standing in a domain is enough
-    #
-    # `Adapters::Folder#domain_root` walks up for the nearest `.hecksagon`, which makes
-    # the first argument ambiguous. The rule: a directory is a domain, anything else
-    # is an aggregate name, and the two-argument form says which is which.
+    # Nothing is written for the caller: redirect it, so git decides whether it drifted.
     module Document
       # Build output and other trees under a root that hold no domain a caller means.
       # Matched against the path relative to the root, because a substring test
@@ -66,10 +50,8 @@ module Hecks
 
       # Lists every directory under `root` that `Hecks.boot` would accept.
       #
-      # Found by their wiring, not their chapters: a `.hecksagon` is what says "this
-      # is a domain, and here is how its aggregates are stored", while most
-      # `.bluebook` files (era translations, the language's own grammar,
-      # `spec/fixtures`) are not domains anybody boots.
+      # Found by their wiring, not their chapters: a `.hecksagon` says this is a
+      # domain, while most `.bluebook` files (era translations, grammar, fixtures) are not.
       #
       # @param root [String] the directory to search under
       # @return [Array<String>] domain directory paths relative to `root`,

@@ -3,14 +3,8 @@ require "digest"
 module Hecks
   module Adapters
     class Postgres
-      # The DDL: one table per aggregate, a real column per attribute (a
-      # jsonb column per nested/list attribute), an append-only entry
-      # table beside it, the shared events/saga tables — and the automatic
-      # indexing this adapter carries that `PostgresEra` does not (see
-      # docs/implemented/postgres-era-adapter-split-plan.md, governing principle 3:
-      # every field a declared query filters or sorts on is safe to index
-      # directly here, since there is no `head_view` reduction to route
-      # around the way `PostgresEra`'s own cache-table story exists for).
+      # DDL for the aggregate, entry, event and saga tables, plus the automatic
+      # indexes derived from declared queries.
       module SchemaBuilder
         private
 
@@ -19,40 +13,15 @@ module Hecks
           @db.exec(
             "CREATE TABLE IF NOT EXISTS #{quoted_table} (id text PRIMARY KEY#{', ' unless columns.empty?}#{columns.join(', ')})"
           )
-          # **Self-healing, same idiom as `ensure_indexes!` below** —
-          # `CREATE TABLE IF NOT EXISTS` above does not retroactively add a
-          # column to an already-existing table (a committed database from
-          # before optimistic-concurrency CAS existed), so this runs
-          # unconditionally on every boot and no-ops once the column is
-          # there. Adapter bookkeeping only — never listed in
-          # `persisted_fields` (Codec), so it never appears in `decode`'s
-          # domain-state hash or `Instance#to_h`.
+          # CREATE TABLE IF NOT EXISTS never adds a column to an existing table, so
+          # the bookkeeping column is healed on every boot.
           @db.exec("ALTER TABLE #{quoted_table} ADD COLUMN IF NOT EXISTS hecks_version bigint NOT NULL DEFAULT 1")
-          # Same self-healing shape, for domain attributes themselves —
-          # `hecks_version` above only heals the adapter's own bookkeeping
-          # column; a bluebook attribute added (or, via `translations/`,
-          # renamed) after this table already exists is not bookkeeping,
-          # but the identical gap applies: `CREATE TABLE IF NOT EXISTS`
-          # is a no-op against the existing table, so without this a new
-          # attribute boots clean and then dies `PG::UndefinedColumn` on
-          # the first `project` — discovered chaos-testing a live rename
-          # against this adapter (no era, no translation prompt; those
-          # live in `PostgresEra` — this is the plain adapter's own,
-          # simpler contract: "the table always has every column the
-          # bluebook currently declares"). No `NOT NULL`, no `DEFAULT` —
-          # existing rows get SQL NULL for a column they never had a
-          # value for, exactly what a fresh row would get for an unset
-          # optional attribute (`encode_field`'s own nil handling).
+          # Same healing for declared attributes: existing rows get NULL, as an unset
+          # optional attribute would.
           persisted_fields.each do |field|
             @db.exec("ALTER TABLE #{quoted_table} ADD COLUMN IF NOT EXISTS " \
                      "#{quote_ident(field[:name])} #{field[:sql_type]}")
           end
-          # Right here, not a separate step in `Postgres#initialize` —
-          # same idiom Sqlite::SchemaBuilder's own `create_aggregate_table!`
-          # uses: index creation runs unconditionally, right after the
-          # table it indexes exists, the same self-healing shape
-          # `ensure_head_snapshot!`/`ensure_first_head!` already use on
-          # `PostgresEra`'s side.
           ensure_indexes!
         end
 
@@ -68,8 +37,6 @@ module Hecks
           SQL
         end
 
-        # Same DDL as `PostgresEra`'s own — not lineage-specific, copied
-        # verbatim (see docs/implemented/postgres-era-adapter-split-plan.md).
         def create_event_table!
           @db.exec(<<~SQL)
             CREATE TABLE IF NOT EXISTS events (
@@ -83,8 +50,6 @@ module Hecks
           SQL
         end
 
-        # Same DDL as `PostgresEra`'s own — not lineage-specific, copied
-        # verbatim (see docs/implemented/postgres-era-adapter-split-plan.md).
         def create_saga_table!
           @db.exec(<<~SQL)
             CREATE TABLE IF NOT EXISTS hecks_saga_instances (
@@ -98,11 +63,7 @@ module Hecks
               PRIMARY KEY (domain, process_manager, correlation)
             )
           SQL
-          # `CREATE TABLE IF NOT EXISTS` above is a no-op against a table
-          # this same domain already created before this column existed
-          # — the same idiom `rust/host/src/journal.rs`'s own
-          # `sagas_backfilled` column addition already uses, for the
-          # identical reason.
+          # Heals a table created before this column existed.
           @db.exec("ALTER TABLE hecks_saga_instances ADD COLUMN IF NOT EXISTS completed_compensations jsonb " \
                    "NOT NULL DEFAULT '[]'::jsonb")
         end
@@ -113,24 +74,8 @@ module Hecks
           SQL_TYPES.fetch(attr.type, "text")
         end
 
-        # ── automatic indexing ───────────────────────────────────────
-        #
-        # Derived from every declared query's `where`/`order_by` fields —
-        # no bluebook author opts in, matching every other self-healing
-        # schema move this adapter makes. Walks the aggregate's own
-        # queries and each entity's own queries — the same enumeration
-        # `dsl/aggregate_builder.rb`'s own `query_surfaces` walks at
-        # declaration-seal time — but an entity's own fields never
-        # produce an index below: an entity has no table of its own, its
-        # rows live inside a list-typed attribute on the aggregate's own
-        # table (`QueryInterpreter#entity_rows` resolves it that way, and
-        # answers an entity query entirely in memory over `repository.all`
-        # — it never reaches this adapter's own `query` method at all).
-        # Every list-typed attribute is excluded below regardless (see
-        # `index_field!`), so an entity's own field would always resolve
-        # to "skip" anyway. Walked explicitly rather than silently
-        # dropped, so a reader can see entities were considered here, not
-        # forgotten.
+        # Indexes every field a declared query filters or sorts on. Entity queries are
+        # skipped: entities have no table, and their queries run in memory.
         def ensure_indexes!
           query_surfaces.each do |owner, queries|
             next unless owner.equal?(@aggregate)
@@ -149,50 +94,18 @@ module Hecks
           index_field!(query.order_by.field) if query.order_by
         end
 
-        # A `list_of` attribute is never indexed here — this adapter's
-        # own `contains` on a list field compiles to `EXISTS (SELECT 1
-        # FROM jsonb_array_elements(...) ...)` (see `list_contains_clause`
-        # below), a SQL shape neither a plain btree on the raw jsonb
-        # column nor even a GIN jsonb index (`@>`, `?`) accelerates —
-        # Postgres's own GIN jsonb operators match a different SQL shape
-        # than the `EXISTS` + `jsonb_array_elements` this codebase always
-        # compiles a list `contains` to. An index here would be dead
-        # weight, not free correctness, so none is attempted.
+        # A list attribute is never indexed: `contains` compiles to EXISTS over
+        # jsonb_array_elements, which neither a btree nor a GIN jsonb index accelerates.
         def index_field!(field)
-          # A hop path ("owner/field" — `Bluebook::AggregateBuilder`'s own
-          # convention for a field reached by crossing a reference,
-          # `aggregate_builder.rb`'s own `field.to_s.include?("/")`
-          # checks) is never indexed here — same reasoning as `list_of`
-          # below: `query_expression`/`nested_expression` below have no
-          # dialect for this shape at all (they'd compile the whole
-          # "owner/field" string as one bare column/jsonb-path segment,
-          # which is not a real column and errors PG::UndefinedColumn on
-          # `CREATE INDEX`, discovered fuzzing a real Postgres boot of
-          # `examples/banking` — Account's own `projects :customer_status,
-          # from: :"customer.status"` compiles to exactly this shape).
-          # Skipping the index is always safe, the same way skipping a
-          # `list_of` index is: an index is a perf optimization, not
-          # correctness, so "never built" beats "built wrong." Whether a
-          # hop-path field can be queried at all against this adapter is
-          # a separate, still-open question this skip does not answer —
-          # see docs/future-features.md's fuzzer-adapter entry, and
-          # docs/1.0-readiness.md item 2 for this gap's other two
-          # independent failure points (Postgres querying, Rust codegen's
-          # `OpenForSuspendedCustomers` — bin/rust_coverage's own
-          # allowlist) — tracked together, not as three unrelated bugs.
+          # A hop path ("owner/field") has no column or jsonb path to index; it would
+          # fail CREATE INDEX with PG::UndefinedColumn.
           return if field.to_s.include?("/")
 
           name, *_path = field.to_s.split(".")
           attribute = @aggregate.attribute(name)
           return if attribute&.list?
 
-          # The same expression the query itself compiles to — calling
-          # `query_expression`/`plain_column`, the real dialect methods,
-          # rather than a second, hand-rolled derivation of the same
-          # path that could silently drift from it. An index whose
-          # expression doesn't match the planner's own candidate
-          # expression byte-for-byte is invisible to the planner,
-          # created or not.
+          # Built from the query's own expression so the planner can match it byte for byte.
           expression = query_expression(field.to_s)
           if expression == plain_column(name)
             create_plain_index!(name)
@@ -211,13 +124,7 @@ module Hecks
           @db.exec("CREATE INDEX IF NOT EXISTS #{quote_ident(name)} ON #{quoted_table} ((#{expression}))")
         end
 
-        # Postgres identifiers cap at 63 bytes. Hashing table + field
-        # together keeps every generated index name well under that no
-        # matter how long an aggregate or attribute name gets, and keeps
-        # two distinct fields — on the same table or different ones —
-        # from ever colliding, or truncating into the same name the way
-        # a naive `"idx_#{table}_#{field}"` could once either got long
-        # enough.
+        # Hashed so the name stays under Postgres's 63-byte identifier limit and never collides.
         def index_name(field)
           "hecks_idx_#{Digest::SHA256.hexdigest("#{table}:#{field}")[0, 40]}"
         end

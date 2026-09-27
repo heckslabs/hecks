@@ -1,10 +1,7 @@
 require "spec_helper"
 
-# Every cargo feature and every generated Rust module lands in a check —
-# the Rust-facing half of spec/corpus_accounting_spec.rb. A partition, not
-# a filter: each one is an in-repo Rust domain (fuzzed, regenerated,
-# coverage- and parity-checked), a framework or sibling chapter, or sent by
-# `Hecks::Corpus::RUST_ELSEWHERE` to a check that has to exist.
+# Every cargo feature and generated Rust module lands in a check: the Rust-facing half of
+# spec/corpus_accounting_spec.rb.
 RSpec.describe "Hecks::Corpus, Rust-facing" do
   let(:corpus) { Hecks::Corpus }
   let(:root) { Hecks::Corpus::ROOT }
@@ -54,11 +51,7 @@ RSpec.describe "Hecks::Corpus, Rust-facing" do
     end
   end
 
-  # SAME PROOF, `uses_embryonaut_bluebook`'s own side — a vendored
-  # package's chapter name isn't the file's own stem (the framework
-  # check's assumption above), so it's read off the vendored member's own
-  # bluebook header instead of a fixed `lib/hecks/framework/bluebook/`
-  # path.
+  # A vendored chapter's name is not its file stem, so it is read from the bluebook header.
   it "attaches every vendored chapter through some Rust domain's hecksagon" do
     hecksagons = corpus.rust_attachment_hecksagon_text
     vendored_by_stem = corpus.members(:vendored).to_h { |member| [member.stem, member] }
