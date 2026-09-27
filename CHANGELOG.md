@@ -7,6 +7,14 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+**`bin/model_check` loads every `*.hecksagon` in a domain directory, not only the
+first.** It picked the alphabetically first one, so a domain that split its
+wiring across files (a context map beside its own) was checked against part of
+its wiring, and a `projected_by` in a later file was invisible to the client
+profile's native-read-model rule. A real boot loads all of them, and now so does
+this tool. Two corpus domains, `nested_pieces` and `tenant_ledger`, each had a
+second hecksagon that was being ignored; both stay clean with it loaded.
+
 **`bin/model_check --profile client` refuses three constructs that answer wrongly
 without refusing.** A `group_by` that does not cover its aggregate's whole
 identity (rows sharing a key path are silently reduced to the first, on every

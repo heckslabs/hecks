@@ -176,6 +176,33 @@ RSpec.describe "the model checker's client profile" do
       expect(subjects_for(findings, :client_native_read_model)).not_to include("OwnerWidgetCount", "WidgetsByGroup")
     end
 
+    # `bin/model_check` once loaded only the alphabetically first `*.hecksagon` in a directory,
+    # so a `projected_by` in any later one was invisible to this rule.
+    it "is reached from bin/model_check when the projected_by is in a later hecksagon file" do
+      Dir.mktmpdir do |root|
+        chapters = File.join(root, "shop", "bluebook")
+        FileUtils.mkdir_p(chapters)
+        File.write(File.join(chapters, "shop.bluebook"), SHOP)
+        File.write(File.join(chapters, "a_wiring.hecksagon"), <<~RUBY)
+          Hecks.hecksagon "ClientProfileShop" do
+            ClientProfileShop::Owner.persisted_by("Memory")
+            ClientProfileShop::Widget.persisted_by("Memory")
+          end
+        RUBY
+        File.write(File.join(chapters, "shop.hecksagon"), <<~RUBY)
+          Hecks.hecksagon "ClientProfileShop" do
+            projected_by "SqliteProjection"
+          end
+        RUBY
+
+        output, status = Open3.capture2e("bundle", "exec", "ruby", "bin/model_check", "--profile", "client",
+                                         File.join(root, "shop"), chdir: InMemoryDomain::ROOT)
+
+        expect(output).to include("client_native_read_model", "OwnerWidgets")
+        expect(status.exitstatus).to eq(1)
+      end
+    end
+
     it "lists exactly the adapters whose Ruby class implements query_read_model" do
       defining = Dir[File.join(InMemoryDomain::ROOT, "lib/hecks/adapters/**/*.rb")].select do |path|
         File.read(path).match?(/^\s*def query_read_model\b/)
