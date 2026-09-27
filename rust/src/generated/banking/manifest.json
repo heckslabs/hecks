@@ -547,6 +547,31 @@
   },
   {
     "kind": "read_model",
+    "id": "Banking::DisputedPaymentTotal",
+    "generated": true
+  },
+  {
+    "kind": "read_model",
+    "id": "Banking::DisputedPaymentAverage",
+    "generated": true
+  },
+  {
+    "kind": "read_model",
+    "id": "Banking::DisputedPaymentSmallest",
+    "generated": true
+  },
+  {
+    "kind": "read_model",
+    "id": "Banking::DisputedPaymentLargest",
+    "generated": true
+  },
+  {
+    "kind": "read_model",
+    "id": "Banking::DisputedPaymentP95",
+    "generated": true
+  },
+  {
+    "kind": "read_model",
     "id": "Banking::AccountsByKind",
     "generated": true
   },

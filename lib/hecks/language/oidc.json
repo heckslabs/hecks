@@ -237,6 +237,21 @@
       "role": "Language"
     },
     {
+      "scope": "bluebook:read_model.all",
+      "verb": "Bluebook::ReadModel.All",
+      "role": "Language"
+    },
+    {
+      "scope": "bluebook:read_model.any",
+      "verb": "Bluebook::ReadModel.Any",
+      "role": "Language"
+    },
+    {
+      "scope": "bluebook:read_model.avg",
+      "verb": "Bluebook::ReadModel.Avg",
+      "role": "Language"
+    },
+    {
       "scope": "bluebook:read_model.count",
       "verb": "Bluebook::ReadModel.Count",
       "role": "Language"
@@ -257,13 +272,33 @@
       "role": "Language"
     },
     {
+      "scope": "bluebook:read_model.max",
+      "verb": "Bluebook::ReadModel.Max",
+      "role": "Language"
+    },
+    {
       "scope": "bluebook:read_model.median",
       "verb": "Bluebook::ReadModel.Median",
       "role": "Language"
     },
     {
+      "scope": "bluebook:read_model.min",
+      "verb": "Bluebook::ReadModel.Min",
+      "role": "Language"
+    },
+    {
       "scope": "bluebook:read_model.option",
       "verb": "Bluebook::ReadModel.Option",
+      "role": "Language"
+    },
+    {
+      "scope": "bluebook:read_model.percentile",
+      "verb": "Bluebook::ReadModel.Percentile",
+      "role": "Language"
+    },
+    {
+      "scope": "bluebook:read_model.sum",
+      "verb": "Bluebook::ReadModel.Sum",
       "role": "Language"
     },
     {

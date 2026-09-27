@@ -337,6 +337,48 @@
   },
   {
     "kind": "command",
+    "id": "Bluebook::ReadModel.Sum",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Bluebook::ReadModel.Avg",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Bluebook::ReadModel.Min",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Bluebook::ReadModel.Max",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Bluebook::ReadModel.Percentile",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Bluebook::ReadModel.Any",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Bluebook::ReadModel.All",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
     "id": "Bluebook::ReadModel.Option",
     "generated": true,
     "routed": true

@@ -50,7 +50,10 @@ module Hecks
         sagas_rehydrate_cleanly:                          %w[ProcessManager#states ProcessManager#correlates_by
                                                              ProcessManager#starts_on ProcessManager#ends_on],
         fanout_dispatches_once_per_matching_row:          %w[Policy#for_each Policy#where],
-        aggregation_matches_recompute:                    %w[ReadModel#count ReadModel#median_field],
+        aggregation_matches_recompute:                    %w[ReadModel#count ReadModel#median_field ReadModel#sum_field
+                                                             ReadModel#avg_field ReadModel#min_field ReadModel#max_field
+                                                             ReadModel#percentile_field ReadModel#percentile_at
+                                                             ReadModel#any_field ReadModel#all_field],
         stored_records_satisfy_declared_invariants:       %w[Aggregate#invariants Entity#invariants],
         group_by_matches_recompute:                       %w[ReadModel#group_by],
         # A runtime door, not a grammar construct — `Dispatcher#dry_run?` is not

@@ -10,7 +10,8 @@ module RustProjection
     # eligibility below must check its value, not the key's mere presence.
     READ_MODEL_BARE_KEYS = %i[name description reference_name reference_target query_name aggregate_heads
                               wheres order_by offset limit freshness index_hints group_by null_semantics
-                              authorization count median_field].freeze
+                              authorization count median_field sum_field avg_field min_field max_field
+                              percentile_field percentile_at any_field all_field].freeze
 
     # Returns nil if the read model can be generated as-is, otherwise a
     # short reason string naming what's unsupported.
@@ -135,24 +136,116 @@ module RustProjection
       declared_limit_skip_reason(read_model[:limit])
     end
 
-    # `median_field`'s own eligibility, checked after where/order_by/limit
-    # since count/median only reduce the already-filtered row set.
+    # Every reduction beyond `count` (which needs no field), each mapped to whether it admits
+    # only Integer (not Float) or a boolean field — mirrors
+    # Runtime::ReadModelInterpreter::INTEGER_ONLY_REDUCTIONS/BOOLEAN_REDUCTIONS (ADR 0078).
+    AGGREGATION_FIELD_KEYS = %i[median_field sum_field avg_field min_field max_field percentile_field
+                                any_field all_field].freeze
+    INTEGER_ONLY_AGGREGATION_FIELDS = %i[sum_field avg_field].freeze
+    BOOLEAN_AGGREGATION_FIELDS = %i[any_field all_field].freeze
+
+    # A reduction field's own eligibility, checked after where/order_by/limit since a
+    # reduction only reduces the already-filtered row set.
     def aggregation_skip_reason(read_model, aggregates_by_name)
-      return nil unless read_model[:median_field]
+      field_key = AGGREGATION_FIELD_KEYS.find { |key| read_model[key] }
+      return nil unless field_key
 
       target = read_model[:aggregate_heads].find { |head| head[:many] }
       aggregate = aggregates_by_name[target[:aggregate]]
-      return entity_head_skip_reason(target[:aggregate], "median target", "take a median of") unless aggregate
+      word = field_key.to_s.delete_suffix("_field")
+      return entity_head_skip_reason(target[:aggregate], "#{word} target", "reduce") unless aggregate
 
       value_objects_by_name = aggregate[:value_objects].to_h { |vo| [vo[:name], vo] }
-
-      field = read_model[:median_field].to_s
+      field = read_model[field_key].to_s
       kind = query_field_kind(aggregate, field, value_objects_by_name)
-      return skip("median_field", "median names #{field.inspect}, but #{target[:aggregate]} declares no such attribute — not generated yet") if kind == :unknown
-      return skip("median_field", "median names #{field.inspect} on #{target[:aggregate]}, which is not numeric — median needs a numeric " \
+      return skip(field_key.to_s, "#{word} names #{field.inspect}, but #{target[:aggregate]} declares no such attribute — not generated yet") if kind == :unknown
+
+      if BOOLEAN_AGGREGATION_FIELDS.include?(field_key)
+        return nil if query_field_boolean?(aggregate, field, value_objects_by_name)
+
+        return skip(field_key.to_s, "#{word} names #{field.inspect} on #{target[:aggregate]}, which is not boolean — #{word} needs a " \
+               "true/false field — not generated yet")
+      end
+
+      return skip(field_key.to_s, "#{word} names #{field.inspect} on #{target[:aggregate]}, which is not numeric — #{word} needs a numeric " \
              "field (a bare number, or a value object carrying one) — not generated yet") unless kind == :number
 
+      if INTEGER_ONLY_AGGREGATION_FIELDS.include?(field_key)
+        return nil if query_field_numeric_type(aggregate, field, value_objects_by_name) == "Integer"
+
+        return skip(field_key.to_s, "#{word} names #{field.inspect} on #{target[:aggregate]}, which is a Float field — #{word} admits " \
+               "only an Integer field (summing/averaging Floats cannot be made to agree, byte for byte, between " \
+               "Ruby and Rust) — not generated yet")
+      end
+
       nil
+    end
+
+    # Whether a field (or dotted path) reduces specifically to a `TrueClass`/`FalseClass` —
+    # `any`/`all` need this, distinct from `query_field_kind`'s coarser `:other` bucket.
+    def query_field_boolean?(aggregate, field, value_objects_by_name)
+      segments = field.to_s.split(".")
+      attr = aggregate[:attributes].find { |a| a[:name].to_s == segments.first }
+      return false unless attr && !attr[:list]
+
+      query_type_boolean?(attr[:type].to_s, segments[1..] || [], value_objects_by_name)
+    end
+
+    def query_type_boolean?(type_name, segments, value_objects_by_name)
+      if segments.empty?
+        return true if %w[TrueClass FalseClass].include?(type_name)
+        return false if reference_type?(type_name)
+
+        vo = value_objects_by_name[type_name]
+        return false unless vo
+        return query_type_boolean?(vo[:attributes].first[:type].to_s, [], value_objects_by_name) if vo[:attributes].size == 1
+
+        false
+      else
+        vo = value_objects_by_name[type_name]
+        return false unless vo
+
+        member = vo[:attributes].find { |a| a[:name].to_s == segments.first }
+        return false if member.nil? || member[:list]
+
+        query_type_boolean?(member[:type].to_s, segments[1..] || [], value_objects_by_name)
+      end
+    end
+
+    # The winning member's own type name for a numeric field ("the sole numeric member wins",
+    # mirroring `query_vo_collapse_kind`) — "Integer" or "Float" distinctly, where
+    # `query_field_kind`'s own `:number` collapses both; `nil` for anything else. `sum`/`avg`
+    # need the distinction (ADR 0078).
+    def query_field_numeric_type(aggregate, field, value_objects_by_name)
+      segments = field.to_s.split(".")
+      attr = aggregate[:attributes].find { |a| a[:name].to_s == segments.first }
+      return nil unless attr && !attr[:list]
+
+      query_type_numeric_type(attr[:type].to_s, segments[1..] || [], value_objects_by_name)
+    end
+
+    def query_type_numeric_type(type_name, segments, value_objects_by_name)
+      if segments.empty?
+        return type_name if %w[Integer Float].include?(type_name)
+        return nil if reference_type?(type_name)
+
+        vo = value_objects_by_name[type_name]
+        return nil unless vo
+
+        numeric_member = vo[:attributes].find { |a| %w[Integer Float].include?(a[:type].to_s) }
+        return numeric_member[:type].to_s if numeric_member
+        return query_type_numeric_type(vo[:attributes].first[:type].to_s, [], value_objects_by_name) if vo[:attributes].size == 1
+
+        nil
+      else
+        vo = value_objects_by_name[type_name]
+        return nil unless vo
+
+        member = vo[:attributes].find { |a| a[:name].to_s == segments.first }
+        return nil if member.nil? || member[:list]
+
+        query_type_numeric_type(member[:type].to_s, segments[1..] || [], value_objects_by_name)
+      end
     end
 
     # Nested entity names across every aggregate (recursively) — an
@@ -190,7 +283,9 @@ module RustProjection
       heads = read_model[:aggregate_heads]
       return skip("group_by", "declares group_by across #{heads.size} aggregate heads — not generated yet (only a single, rootless head is)") if heads.size != 1
       return skip("group_by", "declares group_by on a NON-rootless read model (reference_to #{read_model[:reference_target]}) — not generated yet") unless read_model[:reference_target].nil?
-      return skip("group_by", "declares group_by alongside count/median — not generated yet") if read_model[:count] || read_model[:median_field]
+      if read_model[:count] || AGGREGATION_FIELD_KEYS.any? { |key| read_model[key] }
+        return skip("group_by", "declares group_by alongside a reduction — not generated yet")
+      end
       return skip("group_by", "declares group_by alongside where/order_by/limit/offset — not generated yet") if Array(read_model[:wheres]).any? || read_model[:order_by] || read_model[:limit] || read_model[:offset]
       return skip("group_by", "declares group_by with an authorize policy — not generated yet") if read_model[:authorization]
 
@@ -335,6 +430,14 @@ module RustProjection
         group_by_fn_body: group_by_fn_name ? emit_group_by_transform(group_by_fn_name, read_model[:name].to_s, aggregates_by_name[read_model[:aggregate_heads].first[:aggregate]], group_by_fields) : nil,
         count: !!read_model[:count],
         median_field: read_model[:median_field] ? read_model[:median_field].to_s : nil,
+        sum_field: read_model[:sum_field] ? read_model[:sum_field].to_s : nil,
+        avg_field: read_model[:avg_field] ? read_model[:avg_field].to_s : nil,
+        min_field: read_model[:min_field] ? read_model[:min_field].to_s : nil,
+        max_field: read_model[:max_field] ? read_model[:max_field].to_s : nil,
+        percentile_field: read_model[:percentile_field] ? read_model[:percentile_field].to_s : nil,
+        percentile_at: read_model[:percentile_field] ? read_model[:percentile_at] : nil,
+        any_field: read_model[:any_field] ? read_model[:any_field].to_s : nil,
+        all_field: read_model[:all_field] ? read_model[:all_field].to_s : nil,
       }
     end
 
@@ -442,6 +545,14 @@ module RustProjection
       group_by = read_model_def[:group_by_fn] ? "Some(#{read_model_def[:group_by_fn]})" : "None"
       count = read_model_def[:count] ? "true" : "false"
       median_field = read_model_def[:median_field] ? "Some(#{read_model_def[:median_field].inspect})" : "None"
+      sum_field = read_model_def[:sum_field] ? "Some(#{read_model_def[:sum_field].inspect})" : "None"
+      avg_field = read_model_def[:avg_field] ? "Some(#{read_model_def[:avg_field].inspect})" : "None"
+      min_field = read_model_def[:min_field] ? "Some(#{read_model_def[:min_field].inspect})" : "None"
+      max_field = read_model_def[:max_field] ? "Some(#{read_model_def[:max_field].inspect})" : "None"
+      percentile_field = read_model_def[:percentile_field] ? "Some(#{read_model_def[:percentile_field].inspect})" : "None"
+      percentile_at = read_model_def[:percentile_at] ? "Some(#{Float(read_model_def[:percentile_at])}_f64)" : "None"
+      any_field = read_model_def[:any_field] ? "Some(#{read_model_def[:any_field].inspect})" : "None"
+      all_field = read_model_def[:all_field] ? "Some(#{read_model_def[:all_field].inspect})" : "None"
 
       <<~RUST.rstrip
         crate::kernel::read_model::ReadModelDef {
@@ -464,6 +575,14 @@ module RustProjection
             group_by: #{group_by},
             count: #{count},
             median_field: #{median_field},
+            sum_field: #{sum_field},
+            avg_field: #{avg_field},
+            min_field: #{min_field},
+            max_field: #{max_field},
+            percentile_field: #{percentile_field},
+            percentile_at: #{percentile_at},
+            any_field: #{any_field},
+            all_field: #{all_field},
         },
       RUST
     end
@@ -511,6 +630,14 @@ module RustProjection
           group_by: None,
           count: false,
           median_field: None,
+          sum_field: None,
+          avg_field: None,
+          min_field: None,
+          max_field: None,
+          percentile_field: None,
+          percentile_at: None,
+          any_field: None,
+          all_field: None,
       },
     RUST
 

@@ -128,13 +128,13 @@ module Hecks
             next unless name && domain == bluebook.name
 
             model = bluebook.read_model(name)
-            next unless model && (model.count? || model.median_field)
+            next unless model&.reducing?
 
             reduced_head = model.aggregate_heads.find { |head| head[:many] }
             next unless reduced_head
 
             rows = eligible_rows(bluebook, asked.fetch(:instances_at), domain, model, reduced_head, asked[:args] || {})
-            expected = model.count? ? rows.length : recompute_median(rows, model.median_field)
+            expected = recompute_reduction(model, rows)
             actual = asked[:rows]&.first&.dig(reduced_head[:as])
             next if actual == expected
 
@@ -143,6 +143,45 @@ module Hecks
           end
 
           offenders.empty? || offenders.join("; ")
+        end
+
+        # ADR 0078's siblings of `count`/`median`, each an independent fold over the same
+        # eligible rows — never reusing ReadModelInterpreter#reduce's own arithmetic, only the
+        # shared field-reading primitives `recompute_median` already relied on.
+        def recompute_reduction(model, rows)
+          return rows.length if model.count?
+          return recompute_median(rows, model.median_field) if model.median_field
+          return recompute_values(rows, model.sum_field).sum if model.sum_field
+          return recompute_avg(rows, model.avg_field) if model.avg_field
+          return recompute_values(rows, model.min_field).min if model.min_field
+          return recompute_values(rows, model.max_field).max if model.max_field
+          return recompute_percentile(rows, model.percentile_field, model.percentile_at) if model.percentile_field
+          return recompute_values(rows, model.any_field).any? if model.any_field
+
+          recompute_values(rows, model.all_field).all?
+        end
+
+        def recompute_values(rows, field)
+          rows.map { |state| Ports::Query::InMemory.comparable(QuerySpecification::FieldPath.dig(state, field)) }.compact
+        end
+
+        def recompute_avg(rows, field)
+          values = recompute_values(rows, field)
+          values.empty? ? nil : values.sum.to_f / values.length
+        end
+
+        # Same linear-interpolation formula as `ReadModelInterpreter#percentile`, written
+        # independently here rather than called, for the same reason `recompute_median`
+        # already is: an oracle that calls the interpreter's own fold agrees with a bug in it
+        # by construction (ADR 0061's `nest_rows` lesson).
+        def recompute_percentile(rows, field, at)
+          values = recompute_values(rows, field).sort
+          return nil if values.empty?
+
+          position = at * (values.length - 1)
+          lower = position.floor
+          fraction = position - lower
+          fraction.zero? ? values[lower] : values[lower] + (fraction * (values[lower + 1] - values[lower]))
         end
 
         # aggregation_matches_recompute's own shape, extended from reducing a

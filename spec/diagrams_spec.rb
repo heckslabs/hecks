@@ -200,12 +200,13 @@ RSpec.describe "the generated diagrams" do
     expect(drawn).to eq(declared)
   end
 
-  it "merges the same aggregate into one node across several read_models — Account feeds five in banking" do
+  it "merges the same aggregate into one node across several read_models — Account feeds ten in banking" do
     diagram = Hecks::Projector.call(:diagrams, bluebook: banking_chapter)["read_models.mmd"]
     account_edges = diagram.lines.count { |line| line.start_with?("    Account[(Account)]") }
     # CustomerPortfolio, ComplianceDashboard, DisputedPaymentCount, DisputedPaymentMedian,
-    # AccountsByKind
-    expect(account_edges).to eq(5)
+    # DisputedPaymentTotal, DisputedPaymentAverage, DisputedPaymentSmallest,
+    # DisputedPaymentLargest, DisputedPaymentP95, AccountsByKind
+    expect(account_edges).to eq(10)
   end
 
   it "labels a count read_model and a median read_model with the shape of their own answer" do

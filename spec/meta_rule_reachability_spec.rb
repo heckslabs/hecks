@@ -125,6 +125,20 @@ RSpec.describe "reachability of the meta-domain's own given/invariant/ensures ru
         "no spec dispatches ReadModel.GroupBy with a blank field name",
     ["given", "ReadModel.Median", "a median field is named"]                                          =>
         "no spec dispatches ReadModel.Median with a blank field name",
+    ["given", "ReadModel.Sum", "a sum field is named"]                                                =>
+        "no spec dispatches ReadModel.Sum with a blank field name",
+    ["given", "ReadModel.Avg", "an avg field is named"]                                               =>
+        "no spec dispatches ReadModel.Avg with a blank field name",
+    ["given", "ReadModel.Min", "a min field is named"]                                                =>
+        "no spec dispatches ReadModel.Min with a blank field name",
+    ["given", "ReadModel.Max", "a max field is named"]                                                =>
+        "no spec dispatches ReadModel.Max with a blank field name",
+    ["given", "ReadModel.Percentile", "a percentile field is named"]                                  =>
+        "no spec dispatches ReadModel.Percentile with a blank field name",
+    ["given", "ReadModel.Any", "an any field is named"]                                               =>
+        "no spec dispatches ReadModel.Any with a blank field name",
+    ["given", "ReadModel.All", "an all field is named"]                                               =>
+        "no spec dispatches ReadModel.All with a blank field name",
     ["given", "ReadModel.Option", "an option is named"]                                               =>
         "no spec dispatches ReadModel.Option with a blank option name",
     ["invariant", "ReadModel::ReadModelName (declared)", "a read model is named"]                     =>

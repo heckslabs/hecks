@@ -49,7 +49,8 @@ module Hecks
         # whose shape is not fixed.
         DYNAMIC_TAIL = {
           "Query"     => %i[options],
-          "ReadModel" => %i[options group_by aggregate_heads count median_field]
+          "ReadModel" => %i[options group_by aggregate_heads count median_field sum_field avg_field
+                            min_field max_field percentile_field percentile_at any_field all_field]
         }.freeze
 
         module_function

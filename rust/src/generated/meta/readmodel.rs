@@ -541,6 +541,13 @@ pub const KEYWORD_SEED: &[KeywordSeed] = &[
     KeywordSeed { word: "group_by", context: "ReadModel", body: "none", inner: "", opens: "", fills: "group_by", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
     KeywordSeed { word: "count", context: "ReadModel", body: "none", inner: "", opens: "", fills: "count", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
     KeywordSeed { word: "median", context: "ReadModel", body: "none", inner: "", opens: "", fills: "median_field", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
+    KeywordSeed { word: "sum", context: "ReadModel", body: "none", inner: "", opens: "", fills: "sum_field", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
+    KeywordSeed { word: "avg", context: "ReadModel", body: "none", inner: "", opens: "", fills: "avg_field", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
+    KeywordSeed { word: "min", context: "ReadModel", body: "none", inner: "", opens: "", fills: "min_field", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
+    KeywordSeed { word: "max", context: "ReadModel", body: "none", inner: "", opens: "", fills: "max_field", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
+    KeywordSeed { word: "percentile", context: "ReadModel", body: "none", inner: "", opens: "", fills: "percentile_field", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
+    KeywordSeed { word: "any", context: "ReadModel", body: "none", inner: "", opens: "", fills: "any_field", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
+    KeywordSeed { word: "all", context: "ReadModel", body: "none", inner: "", opens: "", fills: "all_field", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
     KeywordSeed { word: "where", context: "ReadModel", body: "none", inner: "", opens: "", fills: "options", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
     KeywordSeed { word: "order_by", context: "ReadModel", body: "none", inner: "", opens: "", fills: "options", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
     KeywordSeed { word: "authorize", context: "ReadModel", body: "none", inner: "", opens: "", fills: "options", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
@@ -600,6 +607,14 @@ pub const ARGUMENT_SEED: &[ArgumentSeed] = &[
     ArgumentSeed { keyword: "include", context: "ReadModel", at: "", named: "as", kind: "symbol", required: "false", fills: "as", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "", coerce: "", blank_message: "" },
     ArgumentSeed { keyword: "group_by", context: "ReadModel", at: "1", named: "", kind: "symbol", required: "true", fills: "group_by", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "true", coerce: "", blank_message: "" },
     ArgumentSeed { keyword: "median", context: "ReadModel", at: "1", named: "", kind: "symbol", required: "true", fills: "median_field", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "", coerce: "", blank_message: "" },
+    ArgumentSeed { keyword: "sum", context: "ReadModel", at: "1", named: "", kind: "symbol", required: "true", fills: "sum_field", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "", coerce: "", blank_message: "" },
+    ArgumentSeed { keyword: "avg", context: "ReadModel", at: "1", named: "", kind: "symbol", required: "true", fills: "avg_field", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "", coerce: "", blank_message: "" },
+    ArgumentSeed { keyword: "min", context: "ReadModel", at: "1", named: "", kind: "symbol", required: "true", fills: "min_field", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "", coerce: "", blank_message: "" },
+    ArgumentSeed { keyword: "max", context: "ReadModel", at: "1", named: "", kind: "symbol", required: "true", fills: "max_field", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "", coerce: "", blank_message: "" },
+    ArgumentSeed { keyword: "percentile", context: "ReadModel", at: "1", named: "", kind: "symbol", required: "true", fills: "percentile_field", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "", coerce: "", blank_message: "" },
+    ArgumentSeed { keyword: "percentile", context: "ReadModel", at: "", named: "at", kind: "number", required: "true", fills: "percentile_at", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "", coerce: "", blank_message: "" },
+    ArgumentSeed { keyword: "any", context: "ReadModel", at: "1", named: "", kind: "symbol", required: "true", fills: "any_field", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "", coerce: "", blank_message: "" },
+    ArgumentSeed { keyword: "all", context: "ReadModel", at: "1", named: "", kind: "symbol", required: "true", fills: "all_field", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "", coerce: "", blank_message: "" },
     ArgumentSeed { keyword: "where", context: "ReadModel", at: "1", named: "", kind: "pairs", required: "true", fills: "", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "", coerce: "", blank_message: "" },
     ArgumentSeed { keyword: "order_by", context: "ReadModel", at: "1", named: "", kind: "symbol", required: "true", fills: "field", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "", coerce: "", blank_message: "" },
     ArgumentSeed { keyword: "order_by", context: "ReadModel", at: "2", named: "", kind: "symbol", required: "false", fills: "direction", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "", coerce: "", blank_message: "" },
@@ -652,6 +667,14 @@ pub struct ReadModel {
     pub group_by: Vec<GroupByField>,
     pub count: Option<ReadModelText>,
     pub median_field: Option<ReadModelText>,
+    pub sum_field: Option<ReadModelText>,
+    pub avg_field: Option<ReadModelText>,
+    pub min_field: Option<ReadModelText>,
+    pub max_field: Option<ReadModelText>,
+    pub percentile_field: Option<ReadModelText>,
+    pub percentile_at: Option<ReadModelText>,
+    pub any_field: Option<ReadModelText>,
+    pub all_field: Option<ReadModelText>,
     pub position: Option<Position>,
 }
 
@@ -670,6 +693,14 @@ impl crate::kernel::Fielded for ReadModel {
             "group_by" => Some(Field::Value(Value::List(self.group_by.len()))),
             "count" => self.count.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             "median_field" => self.median_field.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
+            "sum_field" => self.sum_field.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
+            "avg_field" => self.avg_field.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
+            "min_field" => self.min_field.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
+            "max_field" => self.max_field.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
+            "percentile_field" => self.percentile_field.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
+            "percentile_at" => self.percentile_at.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
+            "any_field" => self.any_field.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
+            "all_field" => self.all_field.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             "position" => self.position.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             _ => None,
         }
@@ -705,6 +736,14 @@ impl ReadModel {
         ("group_by".to_string(), crate::kernel::Json::Array(self.group_by.iter().map(|x| x.to_json()).collect())),
         ("count".to_string(), self.count.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
         ("median_field".to_string(), self.median_field.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
+        ("sum_field".to_string(), self.sum_field.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
+        ("avg_field".to_string(), self.avg_field.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
+        ("min_field".to_string(), self.min_field.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
+        ("max_field".to_string(), self.max_field.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
+        ("percentile_field".to_string(), self.percentile_field.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
+        ("percentile_at".to_string(), self.percentile_at.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
+        ("any_field".to_string(), self.any_field.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
+        ("all_field".to_string(), self.all_field.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
         ("position".to_string(), self.position.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
         ])
     }
@@ -727,6 +766,14 @@ if !matches!(v, crate::kernel::Json::Object(_)) {
         group_by: match v.get("group_by").and_then(crate::kernel::Json::as_array) { Some(items) => items.iter().map(|item| GroupByField::from_json(&item.coerce_single_field("field"))).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), },
         count: match v.get("count") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(ReadModelText::from_json(&x.coerce_single_field("value"))?), },
         median_field: match v.get("median_field") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(ReadModelText::from_json(&x.coerce_single_field("value"))?), },
+        sum_field: match v.get("sum_field") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(ReadModelText::from_json(&x.coerce_single_field("value"))?), },
+        avg_field: match v.get("avg_field") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(ReadModelText::from_json(&x.coerce_single_field("value"))?), },
+        min_field: match v.get("min_field") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(ReadModelText::from_json(&x.coerce_single_field("value"))?), },
+        max_field: match v.get("max_field") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(ReadModelText::from_json(&x.coerce_single_field("value"))?), },
+        percentile_field: match v.get("percentile_field") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(ReadModelText::from_json(&x.coerce_single_field("value"))?), },
+        percentile_at: match v.get("percentile_at") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(ReadModelText::from_json(&x.coerce_single_field("value"))?), },
+        any_field: match v.get("any_field") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(ReadModelText::from_json(&x.coerce_single_field("value"))?), },
+        all_field: match v.get("all_field") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(ReadModelText::from_json(&x.coerce_single_field("value"))?), },
         position: match v.get("position") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(Position::from_json(&x.coerce_single_field("value"))?), },
         })
     }
@@ -851,6 +898,14 @@ pub fn dispatch_declare(
             group_by: vec![],
             count: None,
             median_field: None,
+            sum_field: None,
+            avg_field: None,
+            min_field: None,
+            max_field: None,
+            percentile_field: None,
+            percentile_at: None,
+            any_field: None,
+            all_field: None,
             position: args.position.clone(),
         }),
         state_independent: true,
@@ -870,6 +925,14 @@ pub fn dispatch_declare(
             group_by: vec![],
             count: None,
             median_field: None,
+            sum_field: None,
+            avg_field: None,
+            min_field: None,
+            max_field: None,
+            percentile_field: None,
+            percentile_at: None,
+            any_field: None,
+            all_field: None,
             position: args.position.clone(),
         }),
         state_independent: true,
@@ -1536,6 +1599,882 @@ if !unknown.is_empty() {
         command: "Median",
         unknown: &unknown,
         declared: &["median_field"],
+    }.render_args()));
+}
+        Ok(())
+    }
+
+    pub fn refuse_absent_arguments(_v: &crate::kernel::Json) -> Result<(), crate::kernel::Refusal> {
+        Ok(())
+    }
+}
+
+impl crate::kernel::Fielded for SumArgs {
+    fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
+        use crate::kernel::Field;
+        use crate::kernel::Value;
+        match name {
+            "sum_field" => self.sum_field.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
+            _ => None,
+        }
+    }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
+        match name {
+
+            _ => None,
+        }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
+    }
+}
+
+
+#[derive(Debug, Clone)]
+pub struct SumArgs {
+    pub sum_field: Option<ReadModelText>,
+}
+
+pub fn dispatch_sum(
+    repo: &mut impl crate::kernel::Repository<ReadModel>, id: &str, args: SumArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>, tenant_boundary_check: Result<(), crate::kernel::Refusal>,
+) -> crate::kernel::DispatchResult<ReadModel> {
+        if let Some(v) = &args.sum_field { v.check_invariants()?; }
+    let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
+    let seed_projections = crate::kernel::seeded_projections(&with_references, READ_MODEL_PROJECTED_FIELDS);
+
+    crate::kernel::dispatch(
+        repo,
+        crate::kernel::Hydrate::Act { id: id.to_string() },
+        "Sum",
+        "Bluebook::ReadModel",
+        "ReadModel",
+        "bluebook, name.value",
+        &with_references,
+        &[
+            crate::kernel::GivenSpec { description: "a sum field is named", expr: Expr::Not(Box::new(Expr::Empty(Box::new(Expr::ToS(Box::new(Expr::Lookup("sum_field.value"))))))), corrects_event: None },
+        ],
+        None,
+        |record| {
+        record.sum_field = args.sum_field.clone();
+            Ok(())
+        },
+        &[
+
+        ],
+        &readmodel_invariants(),
+        &["SumFieldSet"],
+        args.to_json(),
+        mutations,
+        seed_projections,
+        tenant_boundary_check,
+    )
+}
+
+impl SumArgs {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(
+            vec![        ("sum_field".to_string(), self.sum_field.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),]
+                .into_iter()
+                .filter(|(_, v)| !matches!(v, crate::kernel::Json::Null))
+                .collect(),
+        )
+    }
+}
+
+impl SumArgs {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("SumArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["sum_field", "id", "bluebook", "name"]);
+if !unknown.is_empty() {
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "Sum",
+        unknown: &unknown,
+        declared: &["sum_field"],
+    }.render_args()));
+}
+        let sum_field = match v.get("sum_field") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(ReadModelText::from_json(&x.coerce_single_field("value"))?) };
+        if let Some(v) = &sum_field { v.check_invariants()?; }
+        Ok(Self {
+        sum_field,
+        })
+    }
+}
+
+impl SumArgs {
+    pub fn decode_arguments(v: &crate::kernel::Json) -> Result<(), crate::kernel::Refusal> {
+if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("SumArgs expects an object, got {}", v.inspect())));
+}
+        Ok(())
+    }
+
+    pub fn refuse_unknown_arguments(v: &crate::kernel::Json) -> Result<(), crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["sum_field", "id", "bluebook", "name"]);
+if !unknown.is_empty() {
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "Sum",
+        unknown: &unknown,
+        declared: &["sum_field"],
+    }.render_args()));
+}
+        Ok(())
+    }
+
+    pub fn refuse_absent_arguments(_v: &crate::kernel::Json) -> Result<(), crate::kernel::Refusal> {
+        Ok(())
+    }
+}
+
+impl crate::kernel::Fielded for AvgArgs {
+    fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
+        use crate::kernel::Field;
+        use crate::kernel::Value;
+        match name {
+            "avg_field" => self.avg_field.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
+            _ => None,
+        }
+    }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
+        match name {
+
+            _ => None,
+        }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
+    }
+}
+
+
+#[derive(Debug, Clone)]
+pub struct AvgArgs {
+    pub avg_field: Option<ReadModelText>,
+}
+
+pub fn dispatch_avg(
+    repo: &mut impl crate::kernel::Repository<ReadModel>, id: &str, args: AvgArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>, tenant_boundary_check: Result<(), crate::kernel::Refusal>,
+) -> crate::kernel::DispatchResult<ReadModel> {
+        if let Some(v) = &args.avg_field { v.check_invariants()?; }
+    let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
+    let seed_projections = crate::kernel::seeded_projections(&with_references, READ_MODEL_PROJECTED_FIELDS);
+
+    crate::kernel::dispatch(
+        repo,
+        crate::kernel::Hydrate::Act { id: id.to_string() },
+        "Avg",
+        "Bluebook::ReadModel",
+        "ReadModel",
+        "bluebook, name.value",
+        &with_references,
+        &[
+            crate::kernel::GivenSpec { description: "an avg field is named", expr: Expr::Not(Box::new(Expr::Empty(Box::new(Expr::ToS(Box::new(Expr::Lookup("avg_field.value"))))))), corrects_event: None },
+        ],
+        None,
+        |record| {
+        record.avg_field = args.avg_field.clone();
+            Ok(())
+        },
+        &[
+
+        ],
+        &readmodel_invariants(),
+        &["AvgFieldSet"],
+        args.to_json(),
+        mutations,
+        seed_projections,
+        tenant_boundary_check,
+    )
+}
+
+impl AvgArgs {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(
+            vec![        ("avg_field".to_string(), self.avg_field.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),]
+                .into_iter()
+                .filter(|(_, v)| !matches!(v, crate::kernel::Json::Null))
+                .collect(),
+        )
+    }
+}
+
+impl AvgArgs {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("AvgArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["avg_field", "id", "bluebook", "name"]);
+if !unknown.is_empty() {
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "Avg",
+        unknown: &unknown,
+        declared: &["avg_field"],
+    }.render_args()));
+}
+        let avg_field = match v.get("avg_field") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(ReadModelText::from_json(&x.coerce_single_field("value"))?) };
+        if let Some(v) = &avg_field { v.check_invariants()?; }
+        Ok(Self {
+        avg_field,
+        })
+    }
+}
+
+impl AvgArgs {
+    pub fn decode_arguments(v: &crate::kernel::Json) -> Result<(), crate::kernel::Refusal> {
+if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("AvgArgs expects an object, got {}", v.inspect())));
+}
+        Ok(())
+    }
+
+    pub fn refuse_unknown_arguments(v: &crate::kernel::Json) -> Result<(), crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["avg_field", "id", "bluebook", "name"]);
+if !unknown.is_empty() {
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "Avg",
+        unknown: &unknown,
+        declared: &["avg_field"],
+    }.render_args()));
+}
+        Ok(())
+    }
+
+    pub fn refuse_absent_arguments(_v: &crate::kernel::Json) -> Result<(), crate::kernel::Refusal> {
+        Ok(())
+    }
+}
+
+impl crate::kernel::Fielded for MinArgs {
+    fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
+        use crate::kernel::Field;
+        use crate::kernel::Value;
+        match name {
+            "min_field" => self.min_field.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
+            _ => None,
+        }
+    }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
+        match name {
+
+            _ => None,
+        }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
+    }
+}
+
+
+#[derive(Debug, Clone)]
+pub struct MinArgs {
+    pub min_field: Option<ReadModelText>,
+}
+
+pub fn dispatch_min(
+    repo: &mut impl crate::kernel::Repository<ReadModel>, id: &str, args: MinArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>, tenant_boundary_check: Result<(), crate::kernel::Refusal>,
+) -> crate::kernel::DispatchResult<ReadModel> {
+        if let Some(v) = &args.min_field { v.check_invariants()?; }
+    let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
+    let seed_projections = crate::kernel::seeded_projections(&with_references, READ_MODEL_PROJECTED_FIELDS);
+
+    crate::kernel::dispatch(
+        repo,
+        crate::kernel::Hydrate::Act { id: id.to_string() },
+        "Min",
+        "Bluebook::ReadModel",
+        "ReadModel",
+        "bluebook, name.value",
+        &with_references,
+        &[
+            crate::kernel::GivenSpec { description: "a min field is named", expr: Expr::Not(Box::new(Expr::Empty(Box::new(Expr::ToS(Box::new(Expr::Lookup("min_field.value"))))))), corrects_event: None },
+        ],
+        None,
+        |record| {
+        record.min_field = args.min_field.clone();
+            Ok(())
+        },
+        &[
+
+        ],
+        &readmodel_invariants(),
+        &["MinFieldSet"],
+        args.to_json(),
+        mutations,
+        seed_projections,
+        tenant_boundary_check,
+    )
+}
+
+impl MinArgs {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(
+            vec![        ("min_field".to_string(), self.min_field.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),]
+                .into_iter()
+                .filter(|(_, v)| !matches!(v, crate::kernel::Json::Null))
+                .collect(),
+        )
+    }
+}
+
+impl MinArgs {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("MinArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["min_field", "id", "bluebook", "name"]);
+if !unknown.is_empty() {
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "Min",
+        unknown: &unknown,
+        declared: &["min_field"],
+    }.render_args()));
+}
+        let min_field = match v.get("min_field") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(ReadModelText::from_json(&x.coerce_single_field("value"))?) };
+        if let Some(v) = &min_field { v.check_invariants()?; }
+        Ok(Self {
+        min_field,
+        })
+    }
+}
+
+impl MinArgs {
+    pub fn decode_arguments(v: &crate::kernel::Json) -> Result<(), crate::kernel::Refusal> {
+if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("MinArgs expects an object, got {}", v.inspect())));
+}
+        Ok(())
+    }
+
+    pub fn refuse_unknown_arguments(v: &crate::kernel::Json) -> Result<(), crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["min_field", "id", "bluebook", "name"]);
+if !unknown.is_empty() {
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "Min",
+        unknown: &unknown,
+        declared: &["min_field"],
+    }.render_args()));
+}
+        Ok(())
+    }
+
+    pub fn refuse_absent_arguments(_v: &crate::kernel::Json) -> Result<(), crate::kernel::Refusal> {
+        Ok(())
+    }
+}
+
+impl crate::kernel::Fielded for MaxArgs {
+    fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
+        use crate::kernel::Field;
+        use crate::kernel::Value;
+        match name {
+            "max_field" => self.max_field.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
+            _ => None,
+        }
+    }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
+        match name {
+
+            _ => None,
+        }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
+    }
+}
+
+
+#[derive(Debug, Clone)]
+pub struct MaxArgs {
+    pub max_field: Option<ReadModelText>,
+}
+
+pub fn dispatch_max(
+    repo: &mut impl crate::kernel::Repository<ReadModel>, id: &str, args: MaxArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>, tenant_boundary_check: Result<(), crate::kernel::Refusal>,
+) -> crate::kernel::DispatchResult<ReadModel> {
+        if let Some(v) = &args.max_field { v.check_invariants()?; }
+    let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
+    let seed_projections = crate::kernel::seeded_projections(&with_references, READ_MODEL_PROJECTED_FIELDS);
+
+    crate::kernel::dispatch(
+        repo,
+        crate::kernel::Hydrate::Act { id: id.to_string() },
+        "Max",
+        "Bluebook::ReadModel",
+        "ReadModel",
+        "bluebook, name.value",
+        &with_references,
+        &[
+            crate::kernel::GivenSpec { description: "a max field is named", expr: Expr::Not(Box::new(Expr::Empty(Box::new(Expr::ToS(Box::new(Expr::Lookup("max_field.value"))))))), corrects_event: None },
+        ],
+        None,
+        |record| {
+        record.max_field = args.max_field.clone();
+            Ok(())
+        },
+        &[
+
+        ],
+        &readmodel_invariants(),
+        &["MaxFieldSet"],
+        args.to_json(),
+        mutations,
+        seed_projections,
+        tenant_boundary_check,
+    )
+}
+
+impl MaxArgs {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(
+            vec![        ("max_field".to_string(), self.max_field.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),]
+                .into_iter()
+                .filter(|(_, v)| !matches!(v, crate::kernel::Json::Null))
+                .collect(),
+        )
+    }
+}
+
+impl MaxArgs {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("MaxArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["max_field", "id", "bluebook", "name"]);
+if !unknown.is_empty() {
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "Max",
+        unknown: &unknown,
+        declared: &["max_field"],
+    }.render_args()));
+}
+        let max_field = match v.get("max_field") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(ReadModelText::from_json(&x.coerce_single_field("value"))?) };
+        if let Some(v) = &max_field { v.check_invariants()?; }
+        Ok(Self {
+        max_field,
+        })
+    }
+}
+
+impl MaxArgs {
+    pub fn decode_arguments(v: &crate::kernel::Json) -> Result<(), crate::kernel::Refusal> {
+if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("MaxArgs expects an object, got {}", v.inspect())));
+}
+        Ok(())
+    }
+
+    pub fn refuse_unknown_arguments(v: &crate::kernel::Json) -> Result<(), crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["max_field", "id", "bluebook", "name"]);
+if !unknown.is_empty() {
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "Max",
+        unknown: &unknown,
+        declared: &["max_field"],
+    }.render_args()));
+}
+        Ok(())
+    }
+
+    pub fn refuse_absent_arguments(_v: &crate::kernel::Json) -> Result<(), crate::kernel::Refusal> {
+        Ok(())
+    }
+}
+
+impl crate::kernel::Fielded for PercentileArgs {
+    fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
+        use crate::kernel::Field;
+        use crate::kernel::Value;
+        match name {
+            "percentile_field" => self.percentile_field.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
+            "percentile_at" => self.percentile_at.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
+            _ => None,
+        }
+    }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
+        match name {
+
+            _ => None,
+        }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
+    }
+}
+
+
+#[derive(Debug, Clone)]
+pub struct PercentileArgs {
+    pub percentile_field: Option<ReadModelText>,
+    pub percentile_at: Option<ReadModelText>,
+}
+
+pub fn dispatch_percentile(
+    repo: &mut impl crate::kernel::Repository<ReadModel>, id: &str, args: PercentileArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>, tenant_boundary_check: Result<(), crate::kernel::Refusal>,
+) -> crate::kernel::DispatchResult<ReadModel> {
+        if let Some(v) = &args.percentile_field { v.check_invariants()?; }
+        if let Some(v) = &args.percentile_at { v.check_invariants()?; }
+    let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
+    let seed_projections = crate::kernel::seeded_projections(&with_references, READ_MODEL_PROJECTED_FIELDS);
+
+    crate::kernel::dispatch(
+        repo,
+        crate::kernel::Hydrate::Act { id: id.to_string() },
+        "Percentile",
+        "Bluebook::ReadModel",
+        "ReadModel",
+        "bluebook, name.value",
+        &with_references,
+        &[
+            crate::kernel::GivenSpec { description: "a percentile field is named", expr: Expr::Not(Box::new(Expr::Empty(Box::new(Expr::ToS(Box::new(Expr::Lookup("percentile_field.value"))))))), corrects_event: None },
+        ],
+        None,
+        |record| {
+        record.percentile_field = args.percentile_field.clone();
+        record.percentile_at = args.percentile_at.clone();
+            Ok(())
+        },
+        &[
+
+        ],
+        &readmodel_invariants(),
+        &["PercentileFieldSet"],
+        args.to_json(),
+        mutations,
+        seed_projections,
+        tenant_boundary_check,
+    )
+}
+
+impl PercentileArgs {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(
+            vec![        ("percentile_field".to_string(), self.percentile_field.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
+        ("percentile_at".to_string(), self.percentile_at.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),]
+                .into_iter()
+                .filter(|(_, v)| !matches!(v, crate::kernel::Json::Null))
+                .collect(),
+        )
+    }
+}
+
+impl PercentileArgs {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("PercentileArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["percentile_field", "percentile_at", "id", "bluebook", "name"]);
+if !unknown.is_empty() {
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "Percentile",
+        unknown: &unknown,
+        declared: &["percentile_field", "percentile_at"],
+    }.render_args()));
+}
+        let percentile_field = match v.get("percentile_field") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(ReadModelText::from_json(&x.coerce_single_field("value"))?) };
+        if let Some(v) = &percentile_field { v.check_invariants()?; }
+        let percentile_at = match v.get("percentile_at") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(ReadModelText::from_json(&x.coerce_single_field("value"))?) };
+        if let Some(v) = &percentile_at { v.check_invariants()?; }
+        Ok(Self {
+        percentile_field,
+        percentile_at,
+        })
+    }
+}
+
+impl PercentileArgs {
+    pub fn decode_arguments(v: &crate::kernel::Json) -> Result<(), crate::kernel::Refusal> {
+if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("PercentileArgs expects an object, got {}", v.inspect())));
+}
+        Ok(())
+    }
+
+    pub fn refuse_unknown_arguments(v: &crate::kernel::Json) -> Result<(), crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["percentile_field", "percentile_at", "id", "bluebook", "name"]);
+if !unknown.is_empty() {
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "Percentile",
+        unknown: &unknown,
+        declared: &["percentile_field", "percentile_at"],
+    }.render_args()));
+}
+        Ok(())
+    }
+
+    pub fn refuse_absent_arguments(_v: &crate::kernel::Json) -> Result<(), crate::kernel::Refusal> {
+        Ok(())
+    }
+}
+
+impl crate::kernel::Fielded for AnyArgs {
+    fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
+        use crate::kernel::Field;
+        use crate::kernel::Value;
+        match name {
+            "any_field" => self.any_field.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
+            _ => None,
+        }
+    }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
+        match name {
+
+            _ => None,
+        }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
+    }
+}
+
+
+#[derive(Debug, Clone)]
+pub struct AnyArgs {
+    pub any_field: Option<ReadModelText>,
+}
+
+pub fn dispatch_any(
+    repo: &mut impl crate::kernel::Repository<ReadModel>, id: &str, args: AnyArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>, tenant_boundary_check: Result<(), crate::kernel::Refusal>,
+) -> crate::kernel::DispatchResult<ReadModel> {
+        if let Some(v) = &args.any_field { v.check_invariants()?; }
+    let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
+    let seed_projections = crate::kernel::seeded_projections(&with_references, READ_MODEL_PROJECTED_FIELDS);
+
+    crate::kernel::dispatch(
+        repo,
+        crate::kernel::Hydrate::Act { id: id.to_string() },
+        "Any",
+        "Bluebook::ReadModel",
+        "ReadModel",
+        "bluebook, name.value",
+        &with_references,
+        &[
+            crate::kernel::GivenSpec { description: "an any field is named", expr: Expr::Not(Box::new(Expr::Empty(Box::new(Expr::ToS(Box::new(Expr::Lookup("any_field.value"))))))), corrects_event: None },
+        ],
+        None,
+        |record| {
+        record.any_field = args.any_field.clone();
+            Ok(())
+        },
+        &[
+
+        ],
+        &readmodel_invariants(),
+        &["AnyFieldSet"],
+        args.to_json(),
+        mutations,
+        seed_projections,
+        tenant_boundary_check,
+    )
+}
+
+impl AnyArgs {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(
+            vec![        ("any_field".to_string(), self.any_field.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),]
+                .into_iter()
+                .filter(|(_, v)| !matches!(v, crate::kernel::Json::Null))
+                .collect(),
+        )
+    }
+}
+
+impl AnyArgs {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("AnyArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["any_field", "id", "bluebook", "name"]);
+if !unknown.is_empty() {
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "Any",
+        unknown: &unknown,
+        declared: &["any_field"],
+    }.render_args()));
+}
+        let any_field = match v.get("any_field") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(ReadModelText::from_json(&x.coerce_single_field("value"))?) };
+        if let Some(v) = &any_field { v.check_invariants()?; }
+        Ok(Self {
+        any_field,
+        })
+    }
+}
+
+impl AnyArgs {
+    pub fn decode_arguments(v: &crate::kernel::Json) -> Result<(), crate::kernel::Refusal> {
+if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("AnyArgs expects an object, got {}", v.inspect())));
+}
+        Ok(())
+    }
+
+    pub fn refuse_unknown_arguments(v: &crate::kernel::Json) -> Result<(), crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["any_field", "id", "bluebook", "name"]);
+if !unknown.is_empty() {
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "Any",
+        unknown: &unknown,
+        declared: &["any_field"],
+    }.render_args()));
+}
+        Ok(())
+    }
+
+    pub fn refuse_absent_arguments(_v: &crate::kernel::Json) -> Result<(), crate::kernel::Refusal> {
+        Ok(())
+    }
+}
+
+impl crate::kernel::Fielded for AllArgs {
+    fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
+        use crate::kernel::Field;
+        use crate::kernel::Value;
+        match name {
+            "all_field" => self.all_field.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
+            _ => None,
+        }
+    }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
+        match name {
+
+            _ => None,
+        }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
+    }
+}
+
+
+#[derive(Debug, Clone)]
+pub struct AllArgs {
+    pub all_field: Option<ReadModelText>,
+}
+
+pub fn dispatch_all(
+    repo: &mut impl crate::kernel::Repository<ReadModel>, id: &str, args: AllArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>, tenant_boundary_check: Result<(), crate::kernel::Refusal>,
+) -> crate::kernel::DispatchResult<ReadModel> {
+        if let Some(v) = &args.all_field { v.check_invariants()?; }
+    let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
+    let seed_projections = crate::kernel::seeded_projections(&with_references, READ_MODEL_PROJECTED_FIELDS);
+
+    crate::kernel::dispatch(
+        repo,
+        crate::kernel::Hydrate::Act { id: id.to_string() },
+        "All",
+        "Bluebook::ReadModel",
+        "ReadModel",
+        "bluebook, name.value",
+        &with_references,
+        &[
+            crate::kernel::GivenSpec { description: "an all field is named", expr: Expr::Not(Box::new(Expr::Empty(Box::new(Expr::ToS(Box::new(Expr::Lookup("all_field.value"))))))), corrects_event: None },
+        ],
+        None,
+        |record| {
+        record.all_field = args.all_field.clone();
+            Ok(())
+        },
+        &[
+
+        ],
+        &readmodel_invariants(),
+        &["AllFieldSet"],
+        args.to_json(),
+        mutations,
+        seed_projections,
+        tenant_boundary_check,
+    )
+}
+
+impl AllArgs {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(
+            vec![        ("all_field".to_string(), self.all_field.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),]
+                .into_iter()
+                .filter(|(_, v)| !matches!(v, crate::kernel::Json::Null))
+                .collect(),
+        )
+    }
+}
+
+impl AllArgs {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("AllArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["all_field", "id", "bluebook", "name"]);
+if !unknown.is_empty() {
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "All",
+        unknown: &unknown,
+        declared: &["all_field"],
+    }.render_args()));
+}
+        let all_field = match v.get("all_field") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(ReadModelText::from_json(&x.coerce_single_field("value"))?) };
+        if let Some(v) = &all_field { v.check_invariants()?; }
+        Ok(Self {
+        all_field,
+        })
+    }
+}
+
+impl AllArgs {
+    pub fn decode_arguments(v: &crate::kernel::Json) -> Result<(), crate::kernel::Refusal> {
+if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("AllArgs expects an object, got {}", v.inspect())));
+}
+        Ok(())
+    }
+
+    pub fn refuse_unknown_arguments(v: &crate::kernel::Json) -> Result<(), crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["all_field", "id", "bluebook", "name"]);
+if !unknown.is_empty() {
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "All",
+        unknown: &unknown,
+        declared: &["all_field"],
     }.render_args()));
 }
         Ok(())

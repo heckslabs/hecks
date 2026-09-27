@@ -82,6 +82,91 @@ fn query_vo_collapse_kind(vo: &Json, value_objects_by_name: &HashMap<String, &Js
     FieldKind::Other
 }
 
+/// Whether a field (or dotted path) reduces specifically to a `TrueClass`/`FalseClass` —
+/// `any`/`all` need this, distinct from `query_field_kind`'s coarser `Other` bucket (ADR 0078).
+pub fn query_field_boolean(aggregate: &Json, field: &str, value_objects_by_name: &HashMap<String, &Json>) -> bool {
+    let mut segments = field.split('.');
+    let head = segments.next().unwrap_or("");
+    let rest: Vec<&str> = segments.collect();
+
+    let attrs = aggregate.get("attributes").map(Json::each).unwrap_or(&[]);
+    let Some(attr) = attrs.iter().find(|a| crate::attr::name(a) == head) else { return false };
+    if crate::attr::list(attr) {
+        return false;
+    }
+    query_type_boolean(crate::attr::type_name(attr), &rest, value_objects_by_name)
+}
+
+fn query_type_boolean(type_name: &str, segments: &[&str], value_objects_by_name: &HashMap<String, &Json>) -> bool {
+    if segments.is_empty() {
+        if matches!(type_name, "TrueClass" | "FalseClass") {
+            return true;
+        }
+        if naming::reference_type(type_name) {
+            return false;
+        }
+        let Some(vo) = value_objects_by_name.get(type_name) else { return false };
+        let attrs = vo.get("attributes").map(Json::each).unwrap_or(&[]);
+        if attrs.len() == 1 {
+            return query_type_boolean(crate::attr::type_name(&attrs[0]), &[], value_objects_by_name);
+        }
+        false
+    } else {
+        let Some(vo) = value_objects_by_name.get(type_name) else { return false };
+        let attrs = vo.get("attributes").map(Json::each).unwrap_or(&[]);
+        let Some(member) = attrs.iter().find(|a| crate::attr::name(a) == segments[0]) else { return false };
+        if crate::attr::list(member) {
+            return false;
+        }
+        query_type_boolean(crate::attr::type_name(member), &segments[1..], value_objects_by_name)
+    }
+}
+
+/// The winning member's own type name for a numeric field ("the sole numeric member wins",
+/// mirroring `query_vo_collapse_kind`) — "Integer" or "Float" distinctly, where
+/// `query_field_kind`'s own `Number` collapses both. `sum`/`avg` need the distinction
+/// (ADR 0078).
+pub fn query_field_numeric_type(aggregate: &Json, field: &str, value_objects_by_name: &HashMap<String, &Json>) -> Option<String> {
+    let mut segments = field.split('.');
+    let head = segments.next().unwrap_or("");
+    let rest: Vec<&str> = segments.collect();
+
+    let attrs = aggregate.get("attributes").map(Json::each).unwrap_or(&[]);
+    let attr = attrs.iter().find(|a| crate::attr::name(a) == head)?;
+    if crate::attr::list(attr) {
+        return None;
+    }
+    query_type_numeric_type(crate::attr::type_name(attr), &rest, value_objects_by_name)
+}
+
+fn query_type_numeric_type(type_name: &str, segments: &[&str], value_objects_by_name: &HashMap<String, &Json>) -> Option<String> {
+    if segments.is_empty() {
+        if matches!(type_name, "Integer" | "Float") {
+            return Some(type_name.to_string());
+        }
+        if naming::reference_type(type_name) {
+            return None;
+        }
+        let vo = value_objects_by_name.get(type_name)?;
+        let attrs = vo.get("attributes").map(Json::each).unwrap_or(&[]);
+        if let Some(numeric_member) = attrs.iter().find(|a| matches!(crate::attr::type_name(a), "Integer" | "Float")) {
+            return Some(crate::attr::type_name(numeric_member).to_string());
+        }
+        if attrs.len() == 1 {
+            return query_type_numeric_type(crate::attr::type_name(&attrs[0]), &[], value_objects_by_name);
+        }
+        None
+    } else {
+        let vo = value_objects_by_name.get(type_name)?;
+        let attrs = vo.get("attributes").map(Json::each).unwrap_or(&[]);
+        let member = attrs.iter().find(|a| crate::attr::name(a) == segments[0])?;
+        if crate::attr::list(member) {
+            return None;
+        }
+        query_type_numeric_type(crate::attr::type_name(member), &segments[1..], value_objects_by_name)
+    }
+}
+
 pub fn query_where_skip_reason(where_clause: &Json, aggregate: &Json, value_objects_by_name: &HashMap<String, &Json>) -> Option<SkipReason> {
     let field = where_clause.get("field").map(Json::to_s).unwrap_or_default();
     let kind = query_field_kind(aggregate, &field, value_objects_by_name);
