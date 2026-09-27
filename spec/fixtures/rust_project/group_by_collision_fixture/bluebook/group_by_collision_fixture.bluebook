@@ -1,0 +1,54 @@
+# The smallest domain whose `group_by` can collide (ADR 0061, decision D1).
+# Every corpus `group_by` groups by its aggregate's whole identity, so none
+# can ever have two rows reach one key path. `PartsByBin` groups by a field
+# two parts may share, which is what makes the dispatch-time refusal
+# reachable on both runtimes; `PartsByBinAndRef` covers the identity and is
+# accepted from its declaration. `spec/corpus/rust_conformance/
+# group_by_collision.json` replays both against Ruby and the generated Rust.
+Hecks.bluebook "GroupByCollisionFixture" do
+  vision "The smallest domain where two rows can reach the same group_by key path, and one where they cannot."
+
+  core
+
+  aggregate "Part" do
+    description "One stocked part, addressed by its own reference, kept in one bin."
+
+    identified_by :ref
+    attribute :ref, Ref
+    attribute :bin, Bin
+
+    value_object "Ref" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+      invariant("a part is referenced") { !value.to_s.empty? }
+    end
+
+    value_object "Bin" do
+      attribute :label, String, pattern: '[^ \t\n\r]'
+      invariant("a bin is labelled") { !label.to_s.empty? }
+    end
+
+    command "Stock" do
+      role "Clerk"
+      goal "Stock a part into a bin"
+
+      attribute :ref, Ref
+      attribute :bin, Bin
+      sets :ref
+      sets :bin
+
+      emits "PartStocked"
+    end
+  end
+
+  read_model "PartsByBin" do
+    description "Every part, nested by its bin; two parts in one bin refuse."
+    include Part
+    group_by :bin
+  end
+
+  read_model "PartsByBinAndRef" do
+    description "Every part, nested by its bin and then its own reference; no two parts can collide."
+    include Part
+    group_by :bin, :ref
+  end
+end

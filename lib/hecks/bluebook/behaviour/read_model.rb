@@ -9,6 +9,24 @@ module Hecks
         # @return [Array<Symbol>] each declared `group_by` field's name, in declaration order
         def group_by_fields = @group_by.map { |row| row[:field].to_sym }
 
+        # Reports whether this read model's `group_by` names every identity head
+        # of the aggregate it groups (ADR 0061, decision D1).
+        #
+        # Such a key path cannot be shared by two rows, so it is accepted from the
+        # declaration alone and never checked for a collision at dispatch. Any
+        # other key path is checked per request.
+        #
+        # @param aggregate [Bluebook::Aggregate, nil] the aggregate of this read
+        #   model's one many-side head
+        # @return [Boolean] false when `aggregate` is nil or declares no identity,
+        #   since uniqueness cannot then be shown
+        def groups_by_identity?(aggregate)
+          return false unless aggregate
+
+          identity = Array(aggregate.identity_heads).map(&:to_sym)
+          !identity.empty? && (identity - group_by_fields).empty?
+        end
+
         # `!!` rather than a bare `@count` — the DSL/reconstruction
         # boundary (ReadModel#initialize) already normalises to
         # `true`/`nil`, so this is belt and braces against a future

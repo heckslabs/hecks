@@ -212,7 +212,6 @@ stops a domain reaching the bug unnoticed.
 
 | kind | catches | tracked in |
 |---|---|---|
-| `client_group_by_row_drop` | a `group_by` whose fields do not include the grouped aggregate's whole identity: rows sharing a key path are reduced to the first, on every adapter | [ADR 0061](../../decisions/0061-query-dsl-aggregation-count-sum-group-by.md) |
 | `client_native_read_model` | a rooted read model over an aggregate `projected_by` an adapter that answers natively (only `SqliteProjection` today): SQL when the projection is current, the in-process loop when it is not, and nothing checks they agree | [known gap 2](../../1.0-readiness.md) |
 
 From Ruby, pass `profile: :client` beside the chapter's hecksagon:
