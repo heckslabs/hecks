@@ -1,6 +1,6 @@
 ---
 type: grilling
-status: open
+status: closed
 blocked_by: [01-research-what-escapes-the-gem]
 claimed_by:
 ---
@@ -68,3 +68,11 @@ tools gain outside users.
 5. Are `exe/` names locked as public API under the 1.0 stability promise?
 
 ## Answer
+
+Decided 2026-09-27: an executable plus repo-only dev tooling. First stop the syntax-boot cache
+and the Storehouse log from writing into the gem directory. Then add `exe/hecks` over the
+domain-operator scripts (`run`, `docs`, `narrate`, `ir`, `stores`, `model_check`, `smoke_test`,
+`project_diagrams`, `project_cli`, `mcp`), drop the dev directories from `spec.files`, and make
+the `hecks/corpus` require lazy. A `hecks-dev` gem is revisited only if the dev tools gain
+outside users. Recorded in
+[ADR 0066](../../../decisions/0066-the-gem-ships-a-hecks-executable-and-dev-tooling-stays-in-the-repo.md).

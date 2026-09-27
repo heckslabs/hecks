@@ -1,6 +1,6 @@
 ---
 type: grilling
-status: open
+status: closed
 blocked_by: [04-distribution-shape]
 claimed_by:
 ---
@@ -80,3 +80,11 @@ gitignored location.
    guide?
 
 ## Answer
+
+Decided 2026-09-27: accept the prep plan. The default `bin/console` boots the Memory-bound
+pizzas hecksagon so a bare console needs no Postgres; the README becomes a pitch, a 10-minute
+quickstart within the first 60 lines and a linked glossary, with status and projection material
+moved into doctested guides; `getting-started.md` is fixed in the same change. With the
+distribution decision the gem gives an evaluator the `hecks` command but no sample domain, so
+the quickstart still starts from a clone. Recorded in
+[ADR 0073](../../../decisions/0073-the-newcomer-path-is-a-memory-default-console-and-a-short-readme.md).

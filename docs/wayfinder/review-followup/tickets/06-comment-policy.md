@@ -1,6 +1,6 @@
 ---
 type: grilling
-status: open
+status: closed
 blocked_by: []
 claimed_by:
 ---
@@ -69,3 +69,10 @@ ADR-worthy.
 5. Where should moved rationale live: an ADR per block, `docs/`, or nowhere?
 
 ## Answer
+
+Decided 2026-09-27: accept the prep plan. Extend the history-phrase list and rewrite the flagged
+lines; clear the existing linter violations and wire `bin/standardize_comments --check` into CI;
+add a `long_block` rule with a checked-in baseline so only new or grown blocks fail; trim old
+blocks when a file is touched. No ADR-migration campaign now. The block-length threshold is
+still open. Recorded in
+[ADR 0069](../../../decisions/0069-the-comment-linter-becomes-a-ci-gate-and-bounds-block-length.md).
