@@ -238,6 +238,8 @@ begin
     },
     world: world
   )
+  # Only when the domain declared `smoke true`; otherwise nothing is added.
+  artifact = artifact.merge(Hecks::Projections::Deploy::Smoke.files(deploy_settings, stack_name: infra_name))
 rescue ArgumentError => e
   abort e.message
 end

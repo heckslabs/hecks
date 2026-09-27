@@ -1,0 +1,56 @@
+# Runs the smoke harness against the live site on a schedule and on demand.
+#
+# Emitted by `Hecks::Projections::Deploy::Smoke`; copy it to `.github/workflows/`.
+# The run is safe on production by design: the harness's `SMOKE_MODE=safe` tags every
+# guest address with a sandbox mailbox, so no inbox is ever read or mailed.
+#
+# AWS access is by OIDC, with no long-lived keys. GitHub's own token is exchanged for
+# temporary credentials for a role whose trust policy names only this repository, and
+# whose one permission is `secretsmanager:GetSecretValue` on the single secret below.
+# The role is created once, by hand, outside this stack.
+name: '@@name@@'
+
+on:
+  workflow_dispatch: {}
+  schedule:
+    - cron: '@@schedule@@'
+
+permissions:
+  id-token: write # the OIDC token exchange below
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+@@setup@@
+      - name: Configure AWS credentials (OIDC, no long-lived keys)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: '@@role_arn@@'
+          aws-region: '@@region@@'
+
+      - name: Fetch the signing secret
+        id: secret
+        run: |
+          SECRET=$(aws secretsmanager get-secret-value \
+            --secret-id '@@secret_id@@' \
+            --query SecretString --output text@@secret_field_pipe@@)
+          # Masked in every later log line; the narrow IAM policy is what keeps
+          # the secret contained, this only keeps it out of the logs.
+          echo "::add-mask::$SECRET"
+          echo "value=$SECRET" >> "$GITHUB_OUTPUT"
+
+      - name: Run the smoke test
+        env:
+          SMOKE_MODE: safe
+          SMOKE_SITE_URL: '@@site_url@@'
+          @@secret_env@@: ${{ steps.secret.outputs.value }}
+        run: node @@harness@@ @@config@@
