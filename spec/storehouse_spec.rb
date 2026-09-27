@@ -11,14 +11,17 @@ RSpec.describe Hecks::Storehouse do
   # ("Pizzas") — every example in this file that dispatches/queries/reads
   # state against `runtime` writes to the same file regardless of which
   # example it is, since a fresh in-memory `runtime` per example is not a
-  # fresh log. Wiped before every example so `.follow`'s own assertions
-  # never depend on run order or on what an earlier example happened to log.
-  before { FileUtils.rm_rf(described_class::LOG_ROOT) }
-
+  # fresh log. Each example gets its own empty cache root so `.follow`'s own
+  # assertions never depend on run order or on what an earlier example
+  # happened to log, and never touch the developer's real audit log.
+  let(:cache_root) { Dir.mktmpdir("hecks-storehouse-spec") }
   let(:runtime) { boot_in_memory }
   let(:pizza_args) do
     { name: { value: "Margherita" }, pizza: { price_cents: { cents: 1200 }, size: { value: "large" } } }
   end
+
+  before { allow(Hecks::CacheDir).to receive(:root).and_return(cache_root) }
+  after { FileUtils.rm_rf(cache_root) }
 
   describe ".dispatch" do
     it "issues the command and answers the record's id, state, and events" do
@@ -602,6 +605,26 @@ RSpec.describe Hecks::Storehouse do
 
       expect(result[:ok]).to be false
       expect(result[:error]).to include("declares no aggregate")
+    end
+  end
+
+  describe "the audit log's location" do
+    it "appends JSONL under the cache root, not the gem's own directory" do
+      described_class.record!("Pizzas", tool: "state", summary: "spec", source: nil, outcome: { ok: true })
+
+      path = described_class.log_path("Pizzas")
+      expect(path).to eq(File.join(cache_root, "storehouse", "Pizzas.jsonl"))
+      expect(JSON.parse(File.read(path))).to include("tool" => "state", "ok" => true)
+      expect(path).not_to start_with(File.expand_path("..", __dir__))
+    end
+
+    it "still no-ops when the log cannot be written" do
+      File.write(File.join(cache_root, "storehouse"), "a file where the directory should be")
+
+      expect do
+        described_class.record!("Pizzas", tool: "state", summary: "spec", source: nil, outcome: { ok: true })
+      end.not_to raise_error
+      expect(described_class.log_lines("Pizzas")).to eq([])
     end
   end
 end

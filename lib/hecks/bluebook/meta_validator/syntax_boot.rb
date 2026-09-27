@@ -1,5 +1,6 @@
 require "digest"
 require "fileutils"
+require_relative "../../cache_dir"
 
 module Hecks
   module Bluebook
@@ -146,12 +147,12 @@ module Hecks
         # Fails toward a real boot, never toward a wrong table — same
         # loud-not-silent discipline this codebase already holds CI to
         # (`postgres_io_relevant_changed`'s own header). A missing file, a
-        # corrupt Marshal blob, a permission error, an unwritable `tmp/` —
+        # corrupt Marshal blob, a permission error, an unwritable cache directory —
         # every one of these degrades to "no disk cache today", never to a
-        # crash or a served-but-wrong table. `tmp/` is already gitignored
-        # for exactly this kind of local, disposable-but-useful-while-it-
-        # lasts artifact (`Storehouse::LOG_ROOT`'s own header names the
-        # same convention).
+        # crash or a served-but-wrong table. The cache lives under
+        # `Hecks::CacheDir`, never under the gem's own directory, which is
+        # read-only on an installed gem (`Storehouse.log_root` keeps its
+        # audit log in the same place).
         #
         # **Atomic write, not a lock** — `qa_sweep --all` spawns up to 4
         # children at once, any of which could reach a cold cache
@@ -166,7 +167,10 @@ module Hecks
         # change, the same shape `Storehouse::BOOT_ROOT`'s own
         # `HECKS_STOREHOUSE_ROOT` override uses, for the day this needs to
         # be ruled out while debugging something else entirely.
-        CACHE_DIR = File.expand_path("../../../../tmp/hecks_syntax_boot_cache", __dir__).freeze
+        #
+        # @return [String] the directory cache entries are written to:
+        #   `hecks_syntax_boot_cache` under `Hecks::CacheDir`
+        def cache_dir = Hecks::CacheDir.path("hecks_syntax_boot_cache")
 
         # Reports whether the cross-process disk cache is turned on.
         #
@@ -203,7 +207,7 @@ module Hecks
           return unless disk_cache_enabled?
 
           path = disk_cache_path(chapters)
-          FileUtils.mkdir_p(CACHE_DIR)
+          FileUtils.mkdir_p(cache_dir)
           tmp_path = "#{path}.#{Process.pid}.tmp"
           File.binwrite(tmp_path, Marshal.dump(result))
           File.rename(tmp_path, path)
@@ -217,7 +221,7 @@ module Hecks
         #   chapter]` pairs to key the cache entry on
         # @return [String] the disk cache file path for `chapters`
         def disk_cache_path(chapters)
-          File.join(CACHE_DIR, "#{disk_cache_key(chapters)}.marshal")
+          File.join(cache_dir, "#{disk_cache_key(chapters)}.marshal")
         end
 
         # Builds the cache key for `chapters`.

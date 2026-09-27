@@ -7,6 +7,19 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+**The syntax-boot cache and the Storehouse audit log no longer write into the gem's
+directory.** Both lived under `<gem root>/tmp`, which is read-only on an installed
+gem, so the cache silently switched off and the log silently stopped appending.
+They now live under `Hecks::CacheDir`: `$XDG_CACHE_HOME/hecks`, else
+`~/.cache/hecks`, else `<system temp dir>/hecks-<uid>`, each used only if it is
+owned by the current user and writable by nobody else (the cache is read back with
+`Marshal.load`), with a private per-process directory as the last resort.
+`Storehouse::LOG_ROOT` and `SyntaxBoot::CACHE_DIR` are replaced by
+`Storehouse.log_root` and `SyntaxBoot.cache_dir`, resolved on first use.
+`HECKS_SYNTAX_BOOT_CACHE=off` and `HECKS_STOREHOUSE_ROOT` (the boot confinement
+root, unrelated) are unchanged. Files an earlier version left under `<gem root>/tmp`
+are orphaned and can be deleted. This is step 1 of ADR 0066.
+
 ## [2.7.0] - 2026-09-27
 
 **The Rust host rate-limits public writes, on by default.** `POST /registrations`
