@@ -33,13 +33,17 @@ end
 -->
 
 ```ruby
-order = Order.create_pizza!(name: { value: "Margherita" }, pizza: { price_cents: { cents: 1200 }, size: { value: "large" } })
-order.add_topping!(topping: { value: "Basil" }, amount: { value: 3 })
-order.purchase!(customer_name: { value: "Chris" }, amount: { cents: 1200 })
+order = Order.create_pizza!(name: "Margherita", pizza: { price_cents: { cents: 1200 }, size: "large" })
+order.add_topping!(topping: "Basil", amount: 3)
+order.purchase!(customer_name: "Chris", amount: { cents: 1200 })
 
 order.status             # => "sold"
 order.events.last.name   # => "PizzaPurchased"
 ```
+
+A value object with a single attribute takes a bare scalar (`name:
+"Margherita"` wraps into its one field); one with several fields, like
+`pizza:`, takes an object.
 
 That block runs on every push, claims and all — not an illustration.
 So does every other `ruby`-fenced example in this README and in
@@ -302,7 +306,7 @@ end
 An aggregate, a lifecycle, an invariant, a command, an event — executed:
 
 ```ruby
-account = Account.open!(number: { value: "1001" })
+account = Account.open!(number: "1001")
 account.credit!(amount: { cents: 500, currency: "USD" })
 
 account.balance.to_h                                       # => { cents: 500, currency: "USD" }
@@ -610,8 +614,8 @@ alongside `bin/model_check` and `bin/fuzz`):
 - Query aggregation is partial. A `read_model` can declare `count`,
   `median` and `group_by`, on Ruby and on the generated Rust runtime;
   there is no `sum`, `avg`, `min` or `max`, and a plain `query` reduces
-  nothing. On the in-memory adapter, `group_by` also keeps only the first
-  row when several share a key path — a known defect, written up in
+  nothing. On every adapter and in Rust, `group_by` also keeps only the
+  first row when several share a key path — a known defect, written up in
   [ADR 0061](docs/decisions/0061-query-dsl-aggregation-count-sum-group-by.md).
 - `PostgresEra`'s schema-evolution/translation system works and is
   exercised in CI; the migration/rekey data-loss findings tracked
@@ -667,8 +671,8 @@ No server, no setup — `examples/banking` wires `Heki`, a local
 append-only file, so this works offline on a clean clone:
 
 ```ruby skip
-customer = Customer.register!(reference: { value: "CUST-1001" }, name: { given: "Chris", family: "Young" }, email: { address: "chris@example.com" })
-account  = Account.open!(customer: "CUST-1001", number: { value: "1001" }, kind: { name: "current" }, daily_limit: { cents: 50_000 })
+customer = Customer.register!(reference: "CUST-1001", name: { given: "Chris", family: "Young" }, email: { address: "chris@example.com" })
+account  = Account.open!(customer: "CUST-1001", number: "1001", kind: { name: "current" }, daily_limit: { cents: 50_000 })
 account.credit!(amount: { cents: 500, currency: "USD" }, narrative: { text: "Opening deposit" })
 
 account.balance.to_h    # => { cents: 500, currency: "USD" }
