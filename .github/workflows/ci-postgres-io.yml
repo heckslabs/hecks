@@ -5,14 +5,37 @@ name: CI postgres io (reusable)
 
 on:
   workflow_call:
+    secrets:
+      HECKS_CI_ATTEST_KEY:
+        required: false
 
 jobs:
+  # Same detector-plus-gated-job shape as ci-rspec.yml's own ci_attestation_rspec — see
+  # ci-rust-parser.yml's identical addition for the full comment.
+  ci_attestation_postgres_io:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    if: github.event_name != 'push'
+
+    outputs:
+      attested: ${{ steps.attest.outputs.attested }}
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/check-attestation
+        id: attest
+        with:
+          checks: rspec_postgres_io
+          hmac-key: ${{ secrets.HECKS_CI_ATTEST_KEY }}
+
   rspec_postgres_io:
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
+    needs: ci_attestation_postgres_io
     # Push runs only warm caches; this job keeps none.
-    if: github.event_name != 'push'
+    if: always() && github.event_name != 'push' && (needs.ci_attestation_postgres_io.result != 'success' || needs.ci_attestation_postgres_io.outputs.attested != 'true')
 
     env:
       PGHOST: localhost

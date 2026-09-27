@@ -118,6 +118,8 @@ jobs:
         rspec_rust_codegen_impl,
         rspec_rust_host_impl,
         rspec_fuzzing,
+        rspec_postgres_io_impl,
+        rspec_postgres_io_parallel_impl,
       ]
     # `!= 'push'` alone would also fire on merge_group, where re-signing the queue's own
     # tree helps nothing (nothing re-checks it against itself); `== 'pull_request'` is the
@@ -130,7 +132,8 @@ jobs:
       needs.rspec_impl.result == 'success' && needs.checks_impl.result == 'success' &&
       needs.rspec_rust_io_impl.result == 'success' && needs.rspec_rust_parser_impl.result == 'success' &&
       needs.rspec_rust_codegen_impl.result == 'success' && needs.rspec_rust_host_impl.result == 'success' &&
-      needs.rspec_fuzzing.result == 'success'
+      needs.rspec_fuzzing.result == 'success' &&
+      needs.rspec_postgres_io_impl.result == 'success' && needs.rspec_postgres_io_parallel_impl.result == 'success'
 
     permissions:
       contents: write
@@ -148,7 +151,7 @@ jobs:
           fi
 
           tree=$(git rev-parse HEAD^{tree})
-          checks="doc_coverage,engine_agreement,model_check,rspec,rubocop,rspec_rust_io,rspec_rust_parser,rspec_rust_codegen,rspec_rust_host,rspec_fuzzing,checks_fuzz,checks_fuzz_postgres,checks_fuzz_sqlite,checks_codegen_drift"
+          checks="doc_coverage,engine_agreement,model_check,rspec,rubocop,rspec_rust_io,rspec_rust_parser,rspec_rust_codegen,rspec_rust_host,rspec_fuzzing,checks_fuzz,checks_fuzz_postgres,checks_fuzz_sqlite,checks_codegen_drift,rspec_postgres_io,rspec_postgres_io_parallel"
           hmac=$(printf '%s:%s' "$tree" "$checks" | openssl dgst -sha256 -hmac "$HMAC_KEY" -r | awk '{print $1}')
           note="checks=$checks"$'\n'"hmac=$hmac"
 
@@ -178,9 +181,11 @@ jobs:
           echo "rspec_postgres_io_impl: $RESULT (a skip is expected on ${{ github.event_name }} here: $SKIP_EXPECTED)" >&2
           exit 1
 
-  # Calls ci-postgres-io.yml. No secrets: this lineage has no HMAC attestation step.
+  # Calls ci-postgres-io.yml; secrets are passed explicitly, same as rspec_impl/checks_impl.
   rspec_postgres_io_impl:
     uses: ./.github/workflows/ci-postgres-io.yml
+    secrets:
+      HECKS_CI_ATTEST_KEY: ${{ secrets.HECKS_CI_ATTEST_KEY }}
 
   # Aggregator that keeps `rspec_postgres_io_parallel` the required-status-check name.
   # `if: always()` is required, else a failed call would skip this job.
@@ -205,9 +210,11 @@ jobs:
           echo "rspec_postgres_io_parallel_impl: $RESULT (this call is never expected to skip)" >&2
           exit 1
 
-  # Calls ci-postgres-io-parallel.yml. No secrets: this lineage has no HMAC attestation step.
+  # Calls ci-postgres-io-parallel.yml; secrets are passed explicitly, same as rspec_impl/checks_impl.
   rspec_postgres_io_parallel_impl:
     uses: ./.github/workflows/ci-postgres-io-parallel.yml
+    secrets:
+      HECKS_CI_ATTEST_KEY: ${{ secrets.HECKS_CI_ATTEST_KEY }}
 
   # Aggregator that keeps `rspec_rust_io` the required-status-check name; the work is in
   # ci-rust-io.yml. Each required name has its own reusable-workflow file, since a `uses:` job
