@@ -4,16 +4,38 @@ name: CI rust codegen (reusable)
 
 on:
   workflow_call:
+    secrets:
+      HECKS_CI_ATTEST_KEY:
+        required: false
 
 jobs:
+  # Same detector-plus-gated-job shape as ci-rspec.yml's own ci_attestation_rspec —
+  # see ci-rust-parser.yml's identical addition for the full comment.
+  ci_attestation_rust_codegen:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    if: github.event_name != 'push'
+
+    outputs:
+      attested: ${{ steps.attest.outputs.attested }}
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/check-attestation
+        id: attest
+        with:
+          checks: rspec_rust_codegen
+          hmac-key: ${{ secrets.HECKS_CI_ATTEST_KEY }}
+
   # rust/codegen/ (hecks-codegen), an independent Cargo project; codegen_parity_spec.rb
   # builds it via `build_codegen!`.
   rspec_rust_codegen:
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
-    # Push runs only warm caches.
-    if: github.event_name != 'push'
+    needs: ci_attestation_rust_codegen
+    if: always() && github.event_name != 'push' && (needs.ci_attestation_rust_codegen.result != 'success' || needs.ci_attestation_rust_codegen.outputs.attested != 'true')
 
     # GHCR binary cache; see ci-rust-parser.yml's comment on the identical block.
     permissions:

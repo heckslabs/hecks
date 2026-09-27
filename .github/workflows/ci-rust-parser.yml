@@ -5,8 +5,32 @@ name: CI rust parser (reusable)
 
 on:
   workflow_call:
+    secrets:
+      HECKS_CI_ATTEST_KEY:
+        required: false
 
 jobs:
+  # Same detector-plus-gated-job shape as ci-rspec.yml's own ci_attestation_rspec —
+  # see that file's header and .github/actions/check-attestation's own header for
+  # the full mechanism. ci_attest_write (ci.yml) is what now writes a note this can
+  # match, right after a green pull_request run of every lineage it names.
+  ci_attestation_rust_parser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    if: github.event_name != 'push'
+
+    outputs:
+      attested: ${{ steps.attest.outputs.attested }}
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/check-attestation
+        id: attest
+        with:
+          checks: rspec_rust_parser
+          hmac-key: ${{ secrets.HECKS_CI_ATTEST_KEY }}
+
   # rust/parser/ ("hecks-parse") is an independent Cargo project that never touches
   # the main crate's tree, so this job can run beside rspec_rust_io. The specs
   # build it themselves via `build_parser!`, so no separate build step is needed.
@@ -14,8 +38,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
-    # The cache-warming push run does not need this job.
-    if: github.event_name != 'push'
+    needs: ci_attestation_rust_parser
+    # Runs only when not already attested — see ci-rspec.yml's rspec_shard's own
+    # comment for why both `always()` and `.result != 'success'` are load-bearing.
+    if: always() && github.event_name != 'push' && (needs.ci_attestation_rust_parser.result != 'success' || needs.ci_attestation_rust_parser.outputs.attested != 'true')
 
     # `packages: write` lets this job push to GHCR; `contents: read` keeps checkout
     # working. The calling job in ci.yml must grant the same, since a reusable
