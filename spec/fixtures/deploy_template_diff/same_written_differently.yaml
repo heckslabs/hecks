@@ -1,0 +1,58 @@
+Outputs:
+  BucketName:
+    Value:
+      Ref: Bucket
+  QueueName:
+    Value:
+      Fn::GetAtt: [Queue, QueueName]
+Resources:
+  Distribution:
+    Properties:
+      DistributionConfig:
+        CacheBehaviors:
+          - TargetOriginId: origin
+            PathPattern: /a/*
+          - TargetOriginId: origin
+            PathPattern: /b/*
+        AllowedMethods: [GET, HEAD]
+        Enabled: true
+    Type: AWS::CloudFront::Distribution
+  Repo:
+    Type: AWS::ECR::Repository
+  Task:
+    DependsOn:
+      - Bucket
+      - Queue
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Memory: 512
+      Cpu: "256"
+      ContainerDefinitions:
+        - Environment:
+            - Name: BUCKET
+              Value:
+                Ref: Bucket
+            - Name: QUEUE_URL
+              Value: !Ref Queue
+            - Name: PORT
+              Value: "8080"
+          Image:
+            Fn::Sub: "${Repo.RepositoryUri}:${ImageTag}"
+          Name: web
+  Bucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName:
+        Fn::Sub: "sample-${AWS::AccountId}"
+  Queue:
+    Properties:
+      QueueName: sample-queue
+    Type: AWS::SQS::Queue
+Parameters:
+  OldParameter:
+    Type: String
+  ImageTag:
+    Default: latest
+    Type: String
+Description: Sample stack used to check the template comparer.
+AWSTemplateFormatVersion: '2010-09-09'

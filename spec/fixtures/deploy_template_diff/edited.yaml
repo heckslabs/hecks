@@ -1,0 +1,58 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Sample stack, edited.
+Parameters:
+  ImageTag:
+    Type: String
+    Default: latest
+  NewParameter:
+    Type: Number
+    Default: 1
+Resources:
+  Queue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: sample-queue
+  Topic:
+    Type: AWS::SNS::Topic
+  Task:
+    Type: AWS::ECS::TaskDefinition
+    DependsOn: [Queue, Bucket]
+    Properties:
+      Cpu: 256
+      Memory: 1024
+      ContainerDefinitions:
+        - Name: web
+          Image: !Sub "${Repo.RepositoryUri}:${ImageTag}"
+          Environment:
+            - Name: PORT
+              Value: "8080"
+            - Name: QUEUE_URL
+              Value: !Ref Queue
+            - Name: BUCKET
+              Value: !Sub "${Bucket}"
+            - Name: TOPIC_ARN
+              Value: !Ref Topic
+        - Name: worker
+          Image: worker:latest
+  Bucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub "sample-${AWS::AccountId}"
+  Repo:
+    Type: AWS::ECR::Registry
+  Distribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Enabled: true
+        AllowedMethods: [GET, HEAD]
+        CacheBehaviors:
+          - PathPattern: /b/*
+            TargetOriginId: origin
+          - PathPattern: /a/*
+            TargetOriginId: origin
+Outputs:
+  QueueName:
+    Value: !GetAtt Queue.Arn
+  TopicArn:
+    Value: !Ref Topic
