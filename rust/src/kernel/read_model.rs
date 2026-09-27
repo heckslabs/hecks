@@ -56,6 +56,23 @@ pub type ReadModelLimit = query_ordering::Limit;
 /// A read model's declared `offset N`, applying to `ReadModelDef::filtered_head` alone.
 pub type ReadModelOffset = query_ordering::Offset;
 
+/// One many-side head's own where/order_by/offset/limit. ADR 0055's `on:` lets a read model
+/// with several many-side heads filter/order/page each independently; a read model with exactly
+/// one many-side head and untargeted options still compiles to a single entry here, unchanged
+/// from the shape this carried before ADR 0055 (`filtered_head`/`conditions`/... lived directly
+/// on `ReadModelDef` then, one per whole read model rather than one per head).
+#[derive(Debug, Clone, Copy)]
+pub struct FilteredHead {
+    /// The `ReadModelHead::as_name` this entry's options apply to.
+    pub as_name: &'static str,
+    pub conditions: &'static [QueryCondition],
+    /// `where` clauses that hop through a reference, on this same head.
+    pub reference_hop_conditions: &'static [ReferenceHopCondition],
+    pub order_by: Option<ReadModelOrderBy>,
+    pub offset: Option<ReadModelOffset>,
+    pub limit: Option<ReadModelLimit>,
+}
+
 /// A compiled `report "X" do ... end` block — the read-model analogue of `QueryDef`.
 /// `verb` is the "Domain.Name" wire string a read-model ask is matched against.
 #[derive(Debug, Clone, Copy)]
@@ -65,15 +82,18 @@ pub struct ReadModelDef {
     /// own aggregate's whole table instead of being fetched/matched by a caller-supplied id.
     pub reference_name: Option<&'static str>,
     pub heads: &'static [ReadModelHead],
-    pub filtered_head: Option<&'static str>,
-    pub conditions: &'static [QueryCondition],
-    /// `where` clauses that hop through a reference, on the same head `conditions` applies to.
-    pub reference_hop_conditions: &'static [ReferenceHopCondition],
-    pub order_by: Option<ReadModelOrderBy>,
-    pub offset: Option<ReadModelOffset>,
-    pub limit: Option<ReadModelLimit>,
+    /// One entry per many-side head this read model declares where/order_by/offset/limit for
+    /// (ADR 0055's `on:`) — `&[]` when none do. At most one entry when the read model has a
+    /// single many-side head (the pre-ADR-0055 shape); more than one only when `on:` targets
+    /// distinct heads, since an untargeted option is only legal with a single many-side head
+    /// (`ReadModelBuilder#seal_query_options` refuses any other combination before this table is
+    /// ever built).
+    pub filtered_heads: &'static [FilteredHead],
     /// `authorize policy, tenant: :field` — reuses `named_query::TenantAuth` directly; the
     /// tenant-argument check runs at the same point in `run` as it does for a declared query.
+    /// `on:` doesn't extend to `tenant:` (a deliberate ADR 0055 scope limit — a read model with
+    /// several many-side heads and a declared tenant is refused outright, not attached to one),
+    /// so this is only ever `Some` alongside a single many-side head, the same as before.
     pub authorization: Option<named_query::TenantAuth>,
     /// `group_by :field, ...`, applied to the one `many`-side head this read model declares.
     /// A per-read-model generated function rather than data here, because unwrapping a
@@ -329,12 +349,7 @@ mod snake_alias_tests {
             verb: "Banking.CustomerPortfolio",
             reference_name: Some("reference"),
             heads: &[],
-            filtered_head: None,
-            conditions: &[],
-            reference_hop_conditions: &[],
-            order_by: None,
-            offset: None,
-            limit: None,
+            filtered_heads: &[],
             authorization: None,
             group_by: None,
             count: false,
@@ -465,19 +480,21 @@ mod reference_hop_tests {
             verb: "Banking.OpenForSuspendedCustomers",
             reference_name: None,
             heads: &[ReadModelHead { aggregate: "Banking::Account", as_name: "accounts", many: true, is_root: false, reference_fields: &[] }],
-            filtered_head: Some("accounts"),
-            conditions: &[QueryCondition { field: "status", comparator: query_comparators::QueryComparator::Eq, value: QueryConditionValue::Literal("open") }],
-            reference_hop_conditions: &[ReferenceHopCondition {
-                via_field: "customer",
-                target_aggregate: "Banking::Customer",
-                through: &[],
-                inner_field: "status",
-                inner_comparator: query_comparators::QueryComparator::Eq,
-                inner_value: QueryConditionValue::Literal("suspended"),
+            filtered_heads: &[FilteredHead {
+                as_name: "accounts",
+                conditions: &[QueryCondition { field: "status", comparator: query_comparators::QueryComparator::Eq, value: QueryConditionValue::Literal("open") }],
+                reference_hop_conditions: &[ReferenceHopCondition {
+                    via_field: "customer",
+                    target_aggregate: "Banking::Customer",
+                    through: &[],
+                    inner_field: "status",
+                    inner_comparator: query_comparators::QueryComparator::Eq,
+                    inner_value: QueryConditionValue::Literal("suspended"),
+                }],
+                order_by: None,
+                offset: None,
+                limit: None,
             }],
-            order_by: None,
-            offset: None,
-            limit: None,
             authorization: None,
             group_by: None,
             count: false,
@@ -511,13 +528,20 @@ mod reference_hop_tests {
     #[test]
     fn a_hop_against_an_unscannable_target_aggregate_refuses_cleanly() {
         let mut def = open_for_suspended_customers_def();
-        def.reference_hop_conditions = &[ReferenceHopCondition {
-            via_field: "customer",
-            target_aggregate: "Banking::NoSuchAggregate",
-            through: &[],
-            inner_field: "status",
-            inner_comparator: query_comparators::QueryComparator::Eq,
-            inner_value: QueryConditionValue::Literal("suspended"),
+        def.filtered_heads = &[FilteredHead {
+            as_name: "accounts",
+            conditions: &[QueryCondition { field: "status", comparator: query_comparators::QueryComparator::Eq, value: QueryConditionValue::Literal("open") }],
+            reference_hop_conditions: &[ReferenceHopCondition {
+                via_field: "customer",
+                target_aggregate: "Banking::NoSuchAggregate",
+                through: &[],
+                inner_field: "status",
+                inner_comparator: query_comparators::QueryComparator::Eq,
+                inner_value: QueryConditionValue::Literal("suspended"),
+            }],
+            order_by: None,
+            offset: None,
+            limit: None,
         }];
 
         let err = run(&store(), &def, &Json::obj(vec![])).expect_err("scanning an aggregate this store doesn't declare must refuse, not silently answer empty");
@@ -529,9 +553,7 @@ mod reference_hop_tests {
     #[test]
     fn a_head_with_no_table_of_its_own_reads_as_empty_rather_than_refusing() {
         let mut def = open_for_suspended_customers_def();
-        def.filtered_head = None;
-        def.conditions = &[];
-        def.reference_hop_conditions = &[];
+        def.filtered_heads = &[];
         def.heads = &[
             ReadModelHead { aggregate: "Banking::Account", as_name: "accounts", many: true, is_root: false, reference_fields: &[] },
             ReadModelHead { aggregate: "Banking::LedgerEntry", as_name: "ledger_entries", many: true, is_root: false, reference_fields: &[] },
@@ -717,8 +739,8 @@ pub fn run(store: &impl AggregateScan, def: &ReadModelDef, args: &Json) -> Resul
 
         // Applied before this head's rows go into `projected`, so any later head's own
         // reference-matching sees the filtered rows, not the pre-filter scan.
-        if def.filtered_head == Some(head.as_name) {
-            rows = apply_filtered_head_options(rows, def, args, store)?;
+        if let Some(filtered) = def.filtered_heads.iter().find(|fh| fh.as_name == head.as_name) {
+            rows = apply_filtered_head_options(rows, filtered, args, store)?;
         }
 
         // Recorded so the output loop below knows not to wrap these rows again — the generated
@@ -826,17 +848,17 @@ fn record_matches(record: &Json, head: &ReadModelHead, projected: &[(&'static st
     })
 }
 
-/// The eligible head's own where/order_by/offset/limit. Where-filtering chains
+/// One targeted head's own where/order_by/offset/limit. Where-filtering chains
 /// `repository::filter_entries` per condition; order/limit reuse `query_ordering::apply`
 /// rather than reimplementing the identity-sort/declared-order/limit logic a declared
 /// aggregate query already needs.
 fn apply_filtered_head_options(
     mut rows: Vec<(String, Json)>,
-    def: &ReadModelDef,
+    filtered: &FilteredHead,
     args: &Json,
     store: &impl AggregateScan,
 ) -> Result<Vec<(String, Json)>, Refusal> {
-    for condition in def.conditions {
+    for condition in filtered.conditions {
         let want = match condition.value {
             QueryConditionValue::Literal(text) => Json::Str(text.to_string()),
             QueryConditionValue::NumericLiteral(n) => Json::Num(n),
@@ -845,9 +867,9 @@ fn apply_filtered_head_options(
         rows = repository::filter_entries(rows, condition.field, condition.comparator, &want);
     }
 
-    rows = apply_reference_hops(rows, def.reference_hop_conditions, args, store)?;
+    rows = apply_reference_hops(rows, filtered.reference_hop_conditions, args, store)?;
 
-    Ok(query_ordering::apply(rows, def.order_by.as_ref(), def.offset.as_ref(), def.limit.as_ref(), args))
+    Ok(query_ordering::apply(rows, filtered.order_by.as_ref(), filtered.offset.as_ref(), filtered.limit.as_ref(), args))
 }
 
 /// Folds a `ReferenceHopCondition` chain: one query against the chain's final target picks

@@ -46,7 +46,7 @@ pub fn parse_body(
                 query_derive::refuse_on_target(file, line, "where", &gated.args.named)?;
                 query
                     .wheres
-                    .extend(query_derive::where_clauses(&gated.args.named))
+                    .extend(query_derive::where_clauses(&gated.args.named, None))
             }
             "order_by" => {
                 // The gate already refuses an undeclared `on:`; only `where` needs a check.
@@ -55,13 +55,14 @@ pub fn parse_body(
                     Some((_, text)) => text.trim().trim_start_matches(':').to_string(),
                     None => "asc".to_string(),
                 };
-                query.order_by = Some(ir::OrderBy { field, direction });
+                query.order_by = Some(ir::OrderBy { field, direction, target: None });
             }
             // `positional_constant` only fetches raw text; the gate already checked it is numeric.
             "limit" => {
                 let raw = super::positional_constant(file, line, "limit", &gated.args, 1)?;
                 query.limit = Some(ir::LimitSpec {
                     value: crate::ruby_value::render(&crate::ruby_value::read(raw)),
+                    target: None,
                 });
             }
             word if OPTION_WORDS.contains(&word) => {

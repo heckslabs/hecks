@@ -16,9 +16,16 @@ pub fn apply(
     options: &mut ir::QueryOptions,
 ) -> ParseResult<()> {
     match word {
-        // The value keeps its rendered text whatever its lexical kind; the argument gate
-        // has already refused an undeclared `on:`.
-        "offset" => options.offset = Some(rendered_positional(args, 1)),
+        // The value keeps its rendered text whatever its lexical kind. `on:` is only a
+        // recognized named argument in ReadModel context (ADR 0055); the argument gate has
+        // already refused an undeclared one, so `named_constant` finds nothing for Query.
+        "offset" => {
+            let target = parse::named_constant(args, "on").map(crate::build::naming::demodulise);
+            options.offset = Some(ir::OffsetSpec {
+                value: rendered_positional(args, 1),
+                target,
+            });
+        }
         "cursor" => options.cursor = Some(rendered_positional(args, 1)),
         // Both fields are bare names, without the leading colon.
         "authorize" => {

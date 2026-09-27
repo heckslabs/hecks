@@ -5,7 +5,10 @@ use crate::ir;
 use crate::ruby_value;
 
 /// Splits each `(field, raw-value)` pair into a `WhereClause`; a bare value implies `eq`.
-pub fn where_clauses(pairs: &[(String, String)]) -> Vec<ir::WhereClause> {
+/// `target` (ADR 0055's `on:`, already resolved and demodulised by the caller) applies to
+/// every clause this one `where` call declares — `None` in Query context, or when a ReadModel's
+/// `where` left `on:` off.
+pub fn where_clauses(pairs: &[(String, String)], target: Option<&str>) -> Vec<ir::WhereClause> {
     pairs
         .iter()
         .map(|(field, raw)| {
@@ -16,15 +19,18 @@ pub fn where_clauses(pairs: &[(String, String)]) -> Vec<ir::WhereClause> {
                 field: field.clone(),
                 op,
                 value,
+                target: target.map(str::to_string),
             }
         })
         .collect()
 }
 
-/// Refuses `on:` on `where`, which is not ported yet (ADR 0055).
+/// Refuses `on:` on a Query's `where` — ADR 0055 scopes `on:` to ReadModel only (a plain `query`
+/// has no many-side heads for it to disambiguate between), so this stays a permanent refusal
+/// there, not a not-yet-ported one.
 ///
 /// `where` accepts arbitrary field names as named arguments, so an `on:` target would otherwise
-/// misparse as a comparison on a field called "on"; the other words refuse it by schema.
+/// misparse as a comparison on a field called "on".
 pub fn refuse_on_target(
     file: &str,
     line: usize,

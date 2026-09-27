@@ -1,0 +1,52 @@
+[
+  {
+    "kind": "aggregate",
+    "id": "ReadModelOnTargetFixture::Board",
+    "generated": true
+  },
+  {
+    "kind": "command",
+    "id": "ReadModelOnTargetFixture::Board.Open",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "aggregate",
+    "id": "ReadModelOnTargetFixture::Card",
+    "generated": true
+  },
+  {
+    "kind": "command",
+    "id": "ReadModelOnTargetFixture::Card.Pin",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "ReadModelOnTargetFixture::Card.Close",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "aggregate",
+    "id": "ReadModelOnTargetFixture::Note",
+    "generated": true
+  },
+  {
+    "kind": "command",
+    "id": "ReadModelOnTargetFixture::Note.Stick",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "ReadModelOnTargetFixture::Note.Flag",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "read_model",
+    "id": "ReadModelOnTargetFixture::BoardOverview",
+    "generated": true
+  }
+]

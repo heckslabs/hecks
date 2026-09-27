@@ -56,7 +56,10 @@ Hecks.bluebook "Paging" do
       member keyword: "nulls",  context: "Query", at: "1", named: "", kind: "symbol", required: "true", fills: "mode"
 
       member keyword: "limit",  context: "ReadModel", at: "1", named: "", kind: "number", required: "true", fills: "value"
+      # ADR 0055's `on:`; see projection.bluebook's own "where"/"order_by" ReadModel rows.
+      member keyword: "limit",  context: "ReadModel", at: "",  named: "on", kind: "constant", required: "false", fills: "target"
       member keyword: "offset", context: "ReadModel", at: "1", named: "", kind: "number", required: "true", fills: "value"
+      member keyword: "offset", context: "ReadModel", at: "",  named: "on", kind: "constant", required: "false", fills: "target"
       member keyword: "cursor", context: "ReadModel", at: "1", named: "", kind: "symbol", required: "true", fills: "value"
       member keyword: "nulls",  context: "ReadModel", at: "1", named: "", kind: "symbol", required: "true", fills: "mode"
     end

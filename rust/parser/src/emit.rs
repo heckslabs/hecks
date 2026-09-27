@@ -455,22 +455,33 @@ fn query_json(q: &ir::Query) -> JsonValue {
     JsonValue::Object(pairs)
 }
 
+// `target:` is appended only when set (`WhereClause#to_h`'s own "absent, not null" convention,
+// ADR 0055) so every existing golden IR fixture for a construct that never declares `on:` stays
+// byte-identical.
 fn where_clause_json(w: &ir::WhereClause) -> JsonValue {
-    JsonValue::Object(vec![
+    let mut pairs = vec![
         ("field".to_string(), JsonValue::str(w.field.clone())),
         ("op".to_string(), JsonValue::str(w.op.clone())),
         ("value".to_string(), JsonValue::str(w.value.clone())),
-    ])
+    ];
+    if let Some(target) = &w.target {
+        pairs.push(("target".to_string(), JsonValue::str(target.clone())));
+    }
+    JsonValue::Object(pairs)
 }
 
 fn order_by_json(order_by: &Option<ir::OrderBy>) -> JsonValue {
     order_by
         .as_ref()
         .map(|o| {
-            JsonValue::Object(vec![
+            let mut pairs = vec![
                 ("field".to_string(), JsonValue::str(o.field.clone())),
                 ("direction".to_string(), JsonValue::str(o.direction.clone())),
-            ])
+            ];
+            if let Some(target) = &o.target {
+                pairs.push(("target".to_string(), JsonValue::str(target.clone())));
+            }
+            JsonValue::Object(pairs)
         })
         .unwrap_or(JsonValue::Null)
 }
@@ -478,7 +489,13 @@ fn order_by_json(order_by: &Option<ir::OrderBy>) -> JsonValue {
 fn limit_json(limit: &Option<ir::LimitSpec>) -> JsonValue {
     limit
         .as_ref()
-        .map(|l| JsonValue::Object(vec![("value".to_string(), JsonValue::str(l.value.clone()))]))
+        .map(|l| {
+            let mut pairs = vec![("value".to_string(), JsonValue::str(l.value.clone()))];
+            if let Some(target) = &l.target {
+                pairs.push(("target".to_string(), JsonValue::str(target.clone())));
+            }
+            JsonValue::Object(pairs)
+        })
         .unwrap_or(JsonValue::Null)
 }
 
@@ -486,11 +503,12 @@ fn limit_json(limit: &Option<ir::LimitSpec>) -> JsonValue {
 /// `read_model_json`: pairs in Ruby's field order, only for the options actually declared.
 fn query_options_json(o: &ir::QueryOptions) -> Vec<(String, JsonValue)> {
     let mut pairs = Vec::new();
-    if let Some(value) = &o.offset {
-        pairs.push((
-            "offset".to_string(),
-            JsonValue::Object(vec![("value".to_string(), JsonValue::str(value.clone()))]),
-        ));
+    if let Some(offset) = &o.offset {
+        let mut offset_pairs = vec![("value".to_string(), JsonValue::str(offset.value.clone()))];
+        if let Some(target) = &offset.target {
+            offset_pairs.push(("target".to_string(), JsonValue::str(target.clone())));
+        }
+        pairs.push(("offset".to_string(), JsonValue::Object(offset_pairs)));
     }
     if let Some(value) = &o.cursor {
         pairs.push((

@@ -981,16 +981,9 @@ crate::kernel::read_model::ReadModelDef {
     heads: &[
         crate::kernel::read_model::ReadModelHead { aggregate: "ConsoleSettings::StateStyle", as_name: "state_styles", many: true, is_root: false, reference_fields: &[] },
     ],
-    filtered_head: None,
-    conditions: &[
+    filtered_heads: &[
 
     ],
-    reference_hop_conditions: &[
-
-    ],
-    order_by: None,
-    offset: None,
-    limit: None,
     authorization: None,
     group_by: Some(group_by_styles),
     count: false,
@@ -1010,16 +1003,9 @@ crate::kernel::read_model::ReadModelDef {
     heads: &[
         crate::kernel::read_model::ReadModelHead { aggregate: "ConsoleSettings::Collection", as_name: "collections", many: true, is_root: false, reference_fields: &[] },
     ],
-    filtered_head: None,
-    conditions: &[
+    filtered_heads: &[
 
     ],
-    reference_hop_conditions: &[
-
-    ],
-    order_by: None,
-    offset: None,
-    limit: None,
     authorization: None,
     group_by: Some(group_by_curated),
     count: false,

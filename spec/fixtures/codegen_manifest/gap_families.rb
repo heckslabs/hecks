@@ -10,7 +10,7 @@ module ManifestGapFamilies
     order_by limit offset authorization
     mutation_op state_source set_literal port_attribute_type
     arithmetic clamp set_argument_bridge remove_field corrects_reverses
-    group_by missing_root_head include_undeclared_aggregate median_field multi_target_options include_entity_head
+    group_by missing_root_head include_undeclared_aggregate median_field include_entity_head
   ].freeze
 
   # Mutates `domain_ir` in place, adding one gap per construct family; returns it.
@@ -75,8 +75,6 @@ module ManifestGapFamilies
       read_model("GapMissingRoot", [head("Account", "accounts")], reference_name: "customer", reference_target: "Customer"),
       read_model("GapUndeclared", [head("Nowhere", "nowheres")]),
       read_model("GapMedian", [head("Account", "accounts")], median_field: "nope"),
-      read_model("GapMultiTarget", [head("Account", "accounts"), head("Transfer", "transfers")],
-                 wheres: [where_clause("status", "eq", "\"open\"")]),
       read_model("GapHeadHop", [head("Account", "accounts")], wheres: [where_clause("nope/status", "eq", "\"x\"")]),
       read_model("GapEntityHead", [head(entity_name, "entries")], wheres: [where_clause("status", "eq", "\"x\"")])
     ]

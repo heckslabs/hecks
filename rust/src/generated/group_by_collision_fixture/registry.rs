@@ -257,16 +257,9 @@ crate::kernel::read_model::ReadModelDef {
     heads: &[
         crate::kernel::read_model::ReadModelHead { aggregate: "GroupByCollisionFixture::Part", as_name: "parts", many: true, is_root: false, reference_fields: &[] },
     ],
-    filtered_head: None,
-    conditions: &[
+    filtered_heads: &[
 
     ],
-    reference_hop_conditions: &[
-
-    ],
-    order_by: None,
-    offset: None,
-    limit: None,
     authorization: None,
     group_by: Some(group_by_partsbybin),
     count: false,
@@ -286,16 +279,9 @@ crate::kernel::read_model::ReadModelDef {
     heads: &[
         crate::kernel::read_model::ReadModelHead { aggregate: "GroupByCollisionFixture::Part", as_name: "parts", many: true, is_root: false, reference_fields: &[] },
     ],
-    filtered_head: None,
-    conditions: &[
+    filtered_heads: &[
 
     ],
-    reference_hop_conditions: &[
-
-    ],
-    order_by: None,
-    offset: None,
-    limit: None,
     authorization: None,
     group_by: Some(group_by_partsbybinandref),
     count: false,

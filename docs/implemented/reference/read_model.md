@@ -532,11 +532,12 @@ runtime.query("ReadModelReference.DepotAllParcelsFragile", depot: "dp-1").first[
 ## where
 
 <!-- generated:begin word=where -->
-`where pairs` — fills `options`
+`where pairs, on:` — fills `options`
 
 | argument | kind | required | fills |
 |---|---|---|---|
 | positional 1 | pairs | true |  |
+| `on:` | constant | false | target |
 <!-- generated:end -->
 
 Same eight comparators as a query's `where` (`eq`, `ne`, `gt`, `gte`,
@@ -564,12 +565,13 @@ dashboard[:account][:status]  # => "open"
 ## order_by
 
 <!-- generated:begin word=order_by -->
-`order_by field, direction` — fills `options`
+`order_by field, direction, on:` — fills `options`
 
 | argument | kind | required | fills |
 |---|---|---|---|
 | positional 1 | symbol | true | field |
 | positional 2 | symbol | false | direction |
+| `on:` | constant | false | target |
 <!-- generated:end -->
 
 Same shape as a query's `order_by`, applied to the same one many-side
@@ -654,11 +656,12 @@ capability gate against `Ports::Query.validate!`.
 ## limit
 
 <!-- generated:begin word=limit -->
-`limit value` — fills `options`
+`limit value, on:` — fills `options`
 
 | argument | kind | required | fills |
 |---|---|---|---|
 | positional 1 | number | true | value |
+| `on:` | constant | false | target |
 <!-- generated:end -->
 
 Same shape as a query's `limit`, applied to the same one many-side
@@ -676,11 +679,12 @@ manifest[:depot][:code][:value]  # => "dp-1"
 ## offset
 
 <!-- generated:begin word=offset -->
-`offset value` — fills `options`
+`offset value, on:` — fills `options`
 
 | argument | kind | required | fills |
 |---|---|---|---|
 | positional 1 | number | true | value |
+| `on:` | constant | false | target |
 <!-- generated:end -->
 
 Same shape as a query's `offset`, applied to the same one many-side

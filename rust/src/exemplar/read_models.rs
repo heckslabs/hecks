@@ -1,5 +1,5 @@
 // Exemplar shapes for rust/project/read_models.rb's `emit_read_model_table`
-// — see mod.rs's own header. `ReadModelDef`/`ReadModelHead`/
+// — see mod.rs's own header. `ReadModelDef`/`ReadModelHead`/`FilteredHead`/
 // `ReferenceField` are real kernel types (`rust/src/kernel/read_model.rs`).
 #![allow(dead_code, unused_variables)]
 
@@ -8,6 +8,10 @@
 // rather than a placeholder function call: `ReadModelDef { ... }` is
 // exactly as const-evaluable as `QueryDef { ... }` already is, so the
 // placeholder row is a real literal, substituted wholesale.
+//
+// `filtered_heads` holds one `FilteredHead` per many-side head this read
+// model declares where/order_by/offset/limit for (ADR 0055's `on:`) — a
+// single entry, as here, whenever there's exactly one many-side head.
 // TMPL:read_model_table BEGIN
 pub const READ_MODELS: &[crate::kernel::read_model::ReadModelDef] = &[
 crate::kernel::read_model::ReadModelDef {
@@ -24,27 +28,9 @@ crate::kernel::read_model::ReadModelDef {
             ],
         },
     ],
-    filtered_head: Some("tmpl_as_name"),
-    conditions: &[
-        crate::kernel::QueryCondition {
-            field: "tmpl_field",
-            comparator: crate::kernel::query_comparators::QueryComparator::Eq,
-            value: crate::kernel::QueryConditionValue::Literal("tmpl_literal"),
-        },
+    filtered_heads: &[
+        crate::kernel::read_model::FilteredHead { as_name: "tmpl_as_name", conditions: &[crate::kernel::QueryCondition { field: "tmpl_field", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Literal("tmpl_literal") },], reference_hop_conditions: &[crate::kernel::read_model::ReferenceHopCondition { via_field: "tmpl_via_field", target_aggregate: "tmpl_target_aggregate", through: &[crate::kernel::read_model::HopStep { via_field: "tmpl_via_field", target_aggregate: "tmpl_target_aggregate" }], inner_field: "tmpl_inner_field", inner_comparator: crate::kernel::query_comparators::QueryComparator::Eq, inner_value: crate::kernel::QueryConditionValue::Literal("tmpl_literal") },], order_by: Some(crate::kernel::read_model::ReadModelOrderBy { field: "tmpl_order_field", descending: true, nulls: crate::kernel::query_ordering::NullsMode::Last }), offset: Some(crate::kernel::read_model::ReadModelOffset::Literal(1)), limit: Some(crate::kernel::read_model::ReadModelLimit::Literal(5)) },
     ],
-    reference_hop_conditions: &[
-        crate::kernel::read_model::ReferenceHopCondition {
-            via_field: "tmpl_via_field",
-            target_aggregate: "tmpl_target_aggregate",
-            through: &[crate::kernel::read_model::HopStep { via_field: "tmpl_via_field", target_aggregate: "tmpl_target_aggregate" }],
-            inner_field: "tmpl_inner_field",
-            inner_comparator: crate::kernel::query_comparators::QueryComparator::Eq,
-            inner_value: crate::kernel::QueryConditionValue::Literal("tmpl_literal"),
-        },
-    ],
-    order_by: Some(crate::kernel::read_model::ReadModelOrderBy { field: "tmpl_order_field", descending: true, nulls: crate::kernel::query_ordering::NullsMode::Last }),
-    offset: Some(crate::kernel::read_model::ReadModelOffset::Literal(1)),
-    limit: Some(crate::kernel::read_model::ReadModelLimit::Literal(5)),
     authorization: Some(crate::kernel::named_query::TenantAuth { query_name: "tmpl_query_name", tenant_field: "tmpl_tenant_field", policy: "tmpl_policy" }),
     group_by: None,
     count: false,

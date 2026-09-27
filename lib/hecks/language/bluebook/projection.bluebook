@@ -317,8 +317,14 @@ Hecks.bluebook "Bluebook" do
       member keyword: "any",             context: "ReadModel", at: "1", named: "",        kind: "symbol",   required: "true",  fills: "any_field"
       member keyword: "all",             context: "ReadModel", at: "1", named: "",        kind: "symbol",   required: "true",  fills: "all_field"
       member keyword: "where",           context: "ReadModel", at: "1", named: "",        kind: "pairs",    required: "true",  fills: ""
+      # ADR 0055: which many-side `include`d aggregate (by type) this option applies to —
+      # only recognized here, in ReadModel context, since a plain Query has no such
+      # disambiguation to make (rust/parser's own query_derive::refuse_on_target keeps
+      # refusing it there instead).
+      member keyword: "where",           context: "ReadModel", at: "",  named: "on",      kind: "constant", required: "false", fills: "target"
       member keyword: "order_by",        context: "ReadModel", at: "1", named: "",        kind: "symbol",   required: "true",  fills: "field"
       member keyword: "order_by",        context: "ReadModel", at: "2", named: "",        kind: "symbol",   required: "false", fills: "direction"
+      member keyword: "order_by",        context: "ReadModel", at: "",  named: "on",      kind: "constant", required: "false", fills: "target"
       member keyword: "authorize",       context: "ReadModel", at: "1", named: "",        kind: "symbol",   required: "true",  fills: "policy"
       member keyword: "authorize",       context: "ReadModel", at: "",  named: "tenant",  kind: "symbol",   required: "false", fills: "tenant"
       member keyword: "inspect_query",   context: "ReadModel", at: "1", named: "",        kind: "symbol",   required: "false", fills: "mode"

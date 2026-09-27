@@ -142,8 +142,9 @@ pub struct AuthorizationSpec {
 /// field order must be preserved. Shared by `Query` and `ReadModel`.
 #[derive(Debug, Clone, Default)]
 pub struct QueryOptions {
-    // Already-rendered text, like `LimitSpec.value`.
-    pub offset: Option<String>,
+    pub offset: Option<OffsetSpec>,
+    // Already-rendered text; cursor never gets ADR 0055's `on:` (out of scope — see this
+    // struct's own callers).
     pub cursor: Option<String>,
     pub authorization: Option<AuthorizationSpec>,
     // `None` both when never declared and when `:native`; Ruby drops the default mode key.
@@ -151,22 +152,35 @@ pub struct QueryOptions {
     pub inspection: Option<String>,
 }
 
+/// ADR 0055's `on:` — which many-side `include`d aggregate (by TYPE, demodulised, not by its
+/// `as:` alias) this clause/option applies to. `None` for an untargeted where/order_by/limit/
+/// offset (Query context, or a ReadModel with a single many-side head); real only in ReadModel
+/// context, where a `report` with several many-side heads needs it to say which one.
 #[derive(Debug, Clone, Default)]
 pub struct WhereClause {
     pub field: String,
     pub op: String,
     pub value: String, // Literal::render spelling
+    pub target: Option<String>,
 }
 
 #[derive(Debug, Clone, Default)]
 pub struct OrderBy {
     pub field: String,
     pub direction: String,
+    pub target: Option<String>,
 }
 
 #[derive(Debug, Clone, Default)]
 pub struct LimitSpec {
     pub value: String, // Literal::render spelling
+    pub target: Option<String>,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct OffsetSpec {
+    pub value: String, // Literal::render spelling
+    pub target: Option<String>,
 }
 
 #[derive(Debug, Clone, Default)]
