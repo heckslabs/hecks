@@ -1,6 +1,6 @@
 # The MCP door's caller token waits for a network door or multi-agent wiring, and a tool allowlist comes first
 
-**Status:** Accepted — not yet implemented. Date: 2026-09-27. Nothing below is built. This ADR builds on [ADR 0062](0062-mcp-servers-need-real-authentication-before-any-network-transport.md) and changes none of it: the servers stay stdio-only, and the token design stays as 0062 lays it out.
+**Status:** Accepted — not yet implemented. Date: 2026-09-27. Both triggers below have since been answered by the maintainer (2026-09-27): multi-agent use is near, so decision 2, the allowlist, is being built as its own change; and a network door is wanted, so decision 1's token design is now a prerequisite and is being mapped in `docs/wayfinder/mcp-network-door/`. Nothing in decision 1 is built. This ADR builds on [ADR 0062](0062-mcp-servers-need-real-authentication-before-any-network-transport.md) and changes none of it: the servers stay stdio-only, and the token design stays as 0062 lays it out.
 
 ## Context
 
@@ -31,9 +31,9 @@ Two other facts bear on the timing. `docs/decisions/0066-the-gem-ships-a-hecks-e
 
 ## Open items
 
-- When is multi-agent use near? Is there a date? Without one, the allowlist has no trigger.
-- Which tools count as readers for the allowlist, and is `query` among them?
-- Is a network door wanted at all, or is SSH enough?
+- ~~When is multi-agent use near?~~ Answered 2026-09-27: near enough to build the allowlist now.
+- Which tools count as readers for the allowlist, and is `query` among them? Settled by the build, which classifies each tool by reading its code; the change lists the classification.
+- ~~Is a network door wanted at all, or is SSH enough?~~ Answered 2026-09-27: a network door is wanted. Decision 1's token design is therefore a prerequisite; its open questions are ticketed in `docs/wayfinder/mcp-network-door/`.
 - Do principals live in each domain's Governance or in one identity provider?
 - Should stdio readers require a role, or is "whoever can spawn the door may read" the boundary?
 - Should `HECKS_STOREHOUSE_ROOT` and symlink following be refused rather than documented?
