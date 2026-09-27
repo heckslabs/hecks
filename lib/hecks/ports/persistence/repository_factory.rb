@@ -23,7 +23,10 @@ module Hecks
                                                            superseded_by: registry.superseded_eras[domain.to_s]),
                                  root:      registry.root)
           repository = AppendOnly.new(CodecBoundary.guard!(adapter))
-          recover ? repository.recover! : repository
+          # `:atomic_append` (PostgresEra) means `append` already committed the
+          # projected state in the same transaction as the journal row, so a
+          # boot-time replay through `project` has nothing left to fix up.
+          recover && !repository.capabilities.include?(:atomic_append) ? repository.recover! : repository
         end
       end
     end
