@@ -133,8 +133,11 @@ jobs:
           hmac=$(printf '%s:%s' "$tree" "$checks" | openssl dgst -sha256 -hmac "$HMAC_KEY" -r | awk '{print $1}')
           note="checks=$checks"$'\n'"hmac=$hmac"
 
+          # A notes commit needs an author; the runner carries none by default. Scoped to
+          # this one command (`-c`), not the repo config, since nothing else here commits.
           git fetch origin refs/notes/ci:refs/notes/ci || true
-          git notes --ref=ci add -f -m "$note" "$tree"
+          git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+            notes --ref=ci add -f -m "$note" "$tree"
           git push origin refs/notes/ci
 
   # Aggregator that keeps `rspec_postgres_io` the required-status-check name; the work is in
