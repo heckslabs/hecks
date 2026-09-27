@@ -1,5 +1,16 @@
 # CLAUDE.md
 
+## Session isolation: jj workspaces, not git worktrees
+
+Root is a colocated jj+git repo. Use `jj workspace add <path>` for a new
+session's checkout instead of `git worktree add`; retire with
+`jj workspace forget <name>` and remove the directory.
+
+Push with `git push`, not `jj git push` — jj bypasses git hooks, so
+`.githooks/pre-push` (rspec, fuzzing, model_check, rubocop, CI
+attestation) wouldn't run. Colocation keeps bookmarks synced to git
+branches, so plain `git push` still works.
+
 Comments you write in this repository's Ruby (`lib/`, `bin/`, `spec/`,
 `examples/`) must match `docs/COMMENT_STYLE_GUIDE.md`. In particular:
 
