@@ -1,5 +1,6 @@
 require_relative "../../projector"
 require_relative "shared"
+require_relative "scripts"
 
 module Hecks
   module Projections
@@ -827,7 +828,8 @@ module Hecks
           files["bastion.yaml"] = bastion_yaml if bastion_yaml
           files["Dockerfile"] = dockerfile
           files["Makefile"] = makefile_content
-          files
+          Scripts.extend_files(files, deploy_settings: deploy_settings, infra_name: infra_name,
+                                      stack_name: stack_name, region: region)
         end
 
         # Renders the container's own `DB_HOST`/`DB_NAME`/`DB_SECRET_ARN`

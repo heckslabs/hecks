@@ -4,6 +4,7 @@ require_relative "lineage"
 require_relative "../../../../naming"
 require_relative "../../../../framework"
 require_relative "../../../../runtime/registry"
+require_relative "expected_era"
 
 module Hecks
   module Runtime
