@@ -18,6 +18,14 @@ description: >-
   ubuntu-24.04 ships. Land this as its own PR and watch its first real
   CI run closely — do not chain other changes on top of it before that
   run is seen green.
+
+  PGDATA ON TMPFS, ALSO UNTESTED ON REAL INFRASTRUCTURE — the durability
+  settings below only skip the fsync() call; every write to a page
+  evicted from `shared_buffers`, every WAL segment, every temp file
+  still goes through a real filesystem underneath. Rebuilding the
+  cluster on a tmpfs mount removes that layer too, since the runner's
+  disk is never touched at all. Same rule applies: watch its first real
+  CI run closely before building on it.
 inputs:
   password:
     description: Password to set for the postgres role, matching PGPASSWORD.
@@ -30,6 +38,31 @@ runs:
       shell: bash
       run: |
         set -e
+
+        # IDENTIFY THE CLUSTER COLD — `pg_lsclusters` reads postgresql-
+        # common's own /etc/postgresql/*/*/ registry, so this needs no
+        # running server. Grabbing version+name here (rather than via
+        # `SHOW server_version_num` after start, as before) lets the
+        # tmpfs rebuild below happen before the first start instead of
+        # needing a stop/rebuild/restart cycle.
+        read -r PG_VERSION PG_CLUSTER _ <<<"$(pg_lsclusters | tail -n +2)"
+
+        # REBUILD PGDATA ON TMPFS — `pg_createcluster`/`pg_dropcluster`,
+        # not raw `initdb` directly against the ramdisk, so postgresql-
+        # common's own /etc config-file split and systemd integration
+        # (what `systemctl start postgresql.service` below depends on)
+        # stay intact. The directory is chowned to `postgres` before
+        # `pg_createcluster` runs because a fresh tmpfs mount is
+        # root-owned, and `pg_createcluster` expects to initdb into a
+        # directory it (as the cluster owner) can already write to.
+        RAMDISK=/mnt/pg_ramdisk
+        sudo mkdir -p "$RAMDISK"
+        sudo mount -t tmpfs -o size=4g tmpfs "$RAMDISK"
+        sudo chown postgres:postgres "$RAMDISK"
+        sudo chmod 700 "$RAMDISK"
+        sudo pg_dropcluster --stop "$PG_VERSION" "$PG_CLUSTER"
+        sudo pg_createcluster "$PG_VERSION" "$PG_CLUSTER" --datadir="$RAMDISK"
+
         sudo systemctl start postgresql.service
 
         # WAIT FOR REAL READINESS — systemctl returning doesn't mean the
@@ -41,16 +74,17 @@ runs:
         done
         sudo -u postgres pg_isready -q
 
-        PG_VERSION=$(sudo -u postgres psql -tAc "SHOW server_version_num;" | cut -c1-2)
-
         # DURABILITY OFF, DELIBERATELY — every database this workflow
         # touches is thrown away at the end of the job; nothing here is
         # ever recovered from a crash. `pg_conftool` is the standard
         # Debian/Ubuntu postgresql-common tool for editing
-        # postgresql.conf without hand-parsing it.
-        sudo pg_conftool "$PG_VERSION" main set fsync off
-        sudo pg_conftool "$PG_VERSION" main set synchronous_commit off
-        sudo pg_conftool "$PG_VERSION" main set full_page_writes off
+        # postgresql.conf without hand-parsing it. Kept even with PGDATA
+        # on tmpfs: `full_page_writes off` still shrinks WAL volume, and
+        # `fsync`/`synchronous_commit off` still skip a real syscall per
+        # commit even when the underlying write was already to RAM.
+        sudo pg_conftool "$PG_VERSION" "$PG_CLUSTER" set fsync off
+        sudo pg_conftool "$PG_VERSION" "$PG_CLUSTER" set synchronous_commit off
+        sudo pg_conftool "$PG_VERSION" "$PG_CLUSTER" set full_page_writes off
 
         # Trust for local TCP connections, scoped to this ephemeral runner's own loopback.
         # Prepended, not appended: pg_hba.conf is first-match-wins, and the distro's default
