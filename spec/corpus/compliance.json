@@ -35,14 +35,14 @@
     {
       "verb": "Compliance::PrivacyReview.Open",
       "args": {
-        "domain": { "value": "Lifeadelics::Registration" },
+        "domain": { "value": "Studio::Registration" },
         "attribute_path": { "value": "attendee.medications" }
       }
     },
     {
       "verb": "Compliance::PrivacyReview.Clear",
       "args": {
-        "domain": { "value": "Lifeadelics::Registration" },
+        "domain": { "value": "Studio::Registration" },
         "attribute_path": { "value": "attendee.medications" }
       }
     }
