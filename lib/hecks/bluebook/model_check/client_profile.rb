@@ -21,9 +21,6 @@ module Hecks
       # - `:client_native_read_model` — a read model the SQLite projection
       #   answers natively, where every other path answers it in process
       #   (docs/1.0-readiness.md, "Known gaps at 1.0", item 2).
-      # - `:client_dotted_compute_source` — an era translation `compute` whose
-      #   source is a dotted path, which never fires
-      #   (`Translation::RuleCompiler.compile_compute`).
       module ClientProfile
         # Adapters whose Ruby class implements `query_read_model`, which is what
         # makes `ReadModelInterpreter#project` take the native path. The spec
@@ -32,24 +29,19 @@ module Hecks
 
         GROUP_BY_TRACKER = "docs/decisions/0061-query-dsl-aggregation-count-sum-group-by.md".freeze
         NATIVE_READ_MODEL_TRACKER = "docs/1.0-readiness.md (Known gaps at 1.0, item 2)".freeze
-        DOTTED_COMPUTE_TRACKER = "Translation::RuleCompiler.compile_compute, and the pending example " \
-                                 "\"applies the SQL of a compute whose source is a dotted member\" in " \
-                                 "spec/adapters/driven/postgres_era/migration_data_safety_spec.rb".freeze
 
         module_function
 
-        # Runs every client-profile rule over one chapter and its translations.
+        # Runs every client-profile rule over one chapter.
         #
         # @param bluebook [Bluebook::Chapter] the assembled chapter to check
         # @param hecksagon [Bluebook::Hecksagon, nil] the chapter's sibling wiring file; without
         #   one no aggregate is projected, so the native-read-model rule has nothing to find
-        # @param translations [Array<Bluebook::Translation>] the data translations declared for
-        #   this chapter's domain
         # @return [Array<ModelCheck::Finding>] one error-severity finding per construct refused
-        def call(bluebook, hecksagon: nil, translations: [])
+        def call(bluebook, hecksagon: nil)
           bluebook.read_models.flat_map do |model|
             group_by_findings(bluebook, model) + native_read_model_findings(model, hecksagon)
-          end + dotted_compute_findings(translations)
+          end
         end
 
         # Refuses a `group_by` that cannot prove each of its key paths names one row.
@@ -93,26 +85,6 @@ module Hecks
                    "#{model.reference_target} is projected_by #{bind.adapter.inspect}, so this read model " \
                    "is answered by SQL when the projection is current and by the in-process loop when it " \
                    "is not, and nothing checks the two agree. Tracked in #{NATIVE_READ_MODEL_TRACKER}.")]
-        end
-
-        # Refuses a translation `compute` whose source names a member of a value object.
-        #
-        # `compile_compute` guards the compute with `__s ? '<from>'`, a top-level key test, so a
-        # dotted source never matches, the mint succeeds and the record keeps its old value.
-        #
-        # @param translations [Array<Bluebook::Translation>] the translations to inspect
-        # @return [Array<ModelCheck::Finding>] one finding per dotted-source compute
-        def dotted_compute_findings(translations)
-          translations.flat_map do |translation|
-            translation.aggregates.flat_map do |aggregate|
-              aggregate.computes.select { |compute| compute.from.to_s.include?(".") }.map do |compute|
-                finding(:client_dotted_compute_source, "#{translation.domain}::#{aggregate.name}",
-                        "compute #{compute.from.to_s.inspect} has a dotted source, which the compiled SQL " \
-                        "never matches, so the mint succeeds and leaves the old value in place. " \
-                        "Tracked in #{DOTTED_COMPUTE_TRACKER}.")
-              end
-            end
-          end
         end
 
         # Reports whether a model's shape sends it down the native path in `#project`.

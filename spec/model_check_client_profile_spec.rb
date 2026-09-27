@@ -1,10 +1,9 @@
 require "spec_helper"
 require "hecks/bluebook/model_check"
-require "hecks/ports/persistence/plugins/era/translation/rule_compiler"
 require "open3"
 require "tmpdir"
 
-# The opt-in `client` profile of the model checker: it refuses three
+# The opt-in `client` profile of the model checker: it refuses two
 # constructs that answer wrongly without refusing, and changes nothing when
 # the profile is not asked for.
 #
@@ -76,7 +75,7 @@ RSpec.describe "the model checker's client profile" do
     end
   BLUEBOOK
 
-  def build(projection: nil, translation: nil)
+  def build(projection: nil)
     registry = Hecks::Runtime::Registry.new
     Hecks.with_registry(registry) do
       Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
@@ -89,32 +88,20 @@ RSpec.describe "the model checker's client profile" do
         ClientProfileShop::Widget.persisted_by("Memory")
         projected_by(projection) if projection
       end
-      eval(translation, TOPLEVEL_BINDING, "client_profile_shop.translation") if translation
     end
     registry
   end
 
   def profiled(registry, profile: :client)
     chapter = registry.bluebooks.values.first
-    Hecks::Bluebook::ModelCheck.call(chapter, hecksagon: registry.hecksagon(chapter.name), profile: profile,
-                                              translations: registry.translations)
+    Hecks::Bluebook::ModelCheck.call(chapter, hecksagon: registry.hecksagon(chapter.name), profile: profile)
   end
 
   def subjects_for(findings, kind) = findings.select { |finding| finding.kind == kind }.map(&:subject)
 
-  def translation_source(source_field)
-    <<~RUBY
-      Hecks.data_translation("ClientProfileShop", from: "aaaaaa", to: "bbbbbb") do
-        aggregate("Widget") do
-          compute #{source_field.inspect}, to: "price.cents", sql: "1"
-        end
-      end
-    RUBY
-  end
-
   describe "without the profile" do
     it "adds no finding and leaves the others as they were" do
-      registry = build(projection: "SqliteProjection", translation: translation_source("price.cents"))
+      registry = build(projection: "SqliteProjection")
 
       chapter = registry.bluebooks.values.first
       plain = profiled(registry, profile: nil)
@@ -213,47 +200,6 @@ RSpec.describe "the model checker's client profile" do
     end
   end
 
-  describe "dotted compute source (Translation::RuleCompiler.compile_compute)" do
-    it "refuses a compute whose source is a dotted member" do
-      findings = profiled(build(translation: translation_source("price.cents")))
-
-      expect(subjects_for(findings, :client_dotted_compute_source)).to eq(["ClientProfileShop::Widget"])
-      expect(findings.find { |f| f.kind == :client_dotted_compute_source }.message)
-        .to include('"price.cents"', "migration_data_safety_spec.rb")
-    end
-
-    it "is silent when the source is a top-level field" do
-      findings = profiled(build(translation: translation_source("price_cents")))
-
-      expect(subjects_for(findings, :client_dotted_compute_source)).to be_empty
-    end
-
-    # `Folder#load_bluebooks` reads only `*.bluebook`, so before the profile
-    # `bin/model_check` never saw a domain's `translations/` directory.
-    it "is reached from bin/model_check, which loads a domain's translations directory" do
-      Dir.mktmpdir do |root|
-        chapters = File.join(root, "shop", "bluebook")
-        FileUtils.mkdir_p(File.join(chapters, "translations"))
-        File.write(File.join(chapters, "shop.bluebook"), SHOP)
-        File.write(File.join(chapters, "shop.hecksagon"), <<~RUBY)
-          Hecks.hecksagon "ClientProfileShop" do
-            ClientProfileShop::Owner.persisted_by("Memory")
-            ClientProfileShop::Widget.persisted_by("Memory")
-          end
-        RUBY
-        File.write(File.join(chapters, "translations", "2-bbbbbb.bluebook"), translation_source("price.cents"))
-
-        plain, = Open3.capture2e("bundle", "exec", "ruby", "bin/model_check", File.join(root, "shop"), chdir: InMemoryDomain::ROOT)
-        profiled_output, status = Open3.capture2e("bundle", "exec", "ruby", "bin/model_check", "--profile", "client",
-                                                  File.join(root, "shop"), chdir: InMemoryDomain::ROOT)
-
-        expect(plain).not_to include("client_")
-        expect(profiled_output).to include("client_dotted_compute_source", "ClientProfileShop::Widget")
-        expect(status.exitstatus).to eq(1)
-      end
-    end
-  end
-
   # Each example here runs the buggy code the rule guards and expects it to
   # still misbehave. When one fails, the bug is fixed: delete the rule named in
   # the message, its examples above, this probe, and the tracker it cites.
@@ -274,17 +220,6 @@ RSpec.describe "the model checker's client profile" do
                            "docs/1.0-readiness.md no longer lists known gap 2 as open. If native and in-process " \
                            "read models are now checked for agreement, delete ClientProfile#native_read_model_findings, " \
                            "its examples, and this probe."
-    end
-
-    it "client_dotted_compute_source: compile_compute still tests a dotted source as a top-level key" do
-      compute = Hecks::Bluebook::TranslationCompute.new("price.cents", "price.cents", "1")
-
-      sql = Hecks::Translation::RuleCompiler.compile_compute("state", compute)
-
-      expect(sql).to include("__s ? 'price.cents'"),
-                     "compile_compute no longer guards a dotted source with a top-level key test. Delete " \
-                     "ClientProfile#dotted_compute_findings, its examples, this probe, and the pending example " \
-                     "in spec/adapters/driven/postgres_era/migration_data_safety_spec.rb."
     end
   end
 end

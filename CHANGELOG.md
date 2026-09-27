@@ -7,6 +7,24 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+**A PostgresEra `compute` whose source is a dotted member now fires.** The
+compiled SQL tested for the source with `__s ? 'price.cents'`, a top-level key of
+that literal name, so the rule never matched, the mint succeeded and the record
+kept its old value. `Translation::RuleCompiler.compile_compute` now reads the
+source as a path through `hecks_tr_extract`, the way the destination already went
+through `path_literal`. The author's SQL still sees the whole record as `__s` and
+the source's value as text under a column named by the source as declared
+(`"price.cents"` for a dotted one), so SQL written for an undotted source is
+unchanged. The pending example in `migration_data_safety_spec.rb` now passes, and
+the client profile's `client_dotted_compute_source` rule is removed with its
+probe; `bin/model_check` no longer loads `translations/` under the profile and
+`ModelCheck.call` no longer takes `translations:`, since that rule was their only
+reader. **Behavior change for migrated records:** a mint over an edge with a
+dotted-source `compute` now converts the member instead of carrying the old value
+through. The Rust host runs the same compiled SQL from the domain's exported
+`ir.json`, so it picks the fix up once that IR is exported again with this
+release.
+
 ## [2.7.0] - 2026-09-27
 
 **The Rust host rate-limits public writes, on by default.** `POST /registrations`

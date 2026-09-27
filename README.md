@@ -620,10 +620,7 @@ alongside `bin/model_check` and `bin/fuzz`):
   parent attribute from the equivalence gate) are fixed and
   live-verified against real Postgres as of 2026-08-27 — see
   `docs/future-features.md`'s "Bug audits" section for the specifics
-  and what's *not* independently re-checked yet. One related gap is
-  recorded and unfixed: a `compute` whose source is a dotted member
-  never fires in the compiled SQL, so the mint succeeds and the record
-  keeps its old value.
+  and what's *not* independently re-checked yet.
 - Rust codegen runs a proven subset of `read_model` queries (see
   [Projections](#projections-rust-and-webassembly) above for its shape); one outside
   that subset is refused in Rust with a "not generated for this domain"

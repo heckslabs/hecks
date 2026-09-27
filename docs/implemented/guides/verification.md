@@ -199,7 +199,7 @@ being named, never by being silenced.
 ### The `client` profile — refusing what answers wrongly without refusing
 
 A client domain must not reach a path that returns a wrong result
-without saying so. Three such paths are documented and still open, so
+without saying so. Two such paths are documented and still open, so
 `model_check` has an opt-in profile that turns each into an error:
 
 ```sh
@@ -214,25 +214,19 @@ stops a domain reaching the bug unnoticed.
 |---|---|---|
 | `client_group_by_row_drop` | a `group_by` whose fields do not include the grouped aggregate's whole identity: rows sharing a key path are reduced to the first, on every adapter | [ADR 0061](../../decisions/0061-query-dsl-aggregation-count-sum-group-by.md) |
 | `client_native_read_model` | a rooted read model over an aggregate `projected_by` an adapter that answers natively (only `SqliteProjection` today): SQL when the projection is current, the in-process loop when it is not, and nothing checks they agree | [known gap 2](../../1.0-readiness.md) |
-| `client_dotted_compute_source` | an era translation `compute` whose source is a dotted path: the compiled SQL tests a top-level key of that literal name, so it never fires and the mint succeeds | the pending example in `migration_data_safety_spec.rb` |
 
-From Ruby, pass `profile: :client` and the domain's data translations,
-which belong to the registry rather than the chapter, the same way the
-hecksagon is passed:
+From Ruby, pass `profile: :client` beside the chapter's hecksagon:
 
 ```ruby
 registry = runtime.registry
 client = Hecks::Bluebook::ModelCheck.call(chapter, hecksagon: registry.hecksagon(chapter.name),
-                                                   profile: :client, translations: registry.translations)
+                                                   profile: :client)
 
 client.map(&:kind).grep(/\Aclient_/)   # => []
 ```
 
-This domain declares no read model and no translation, so the profile has
-nothing to refuse here.
-
-Under `--profile`, `bin/model_check` also loads each domain's
-`translations/` directory, which an unprofiled run leaves alone.
+This domain declares no read model, so the profile has nothing to refuse
+here.
 
 Each rule retires with its bug. `spec/model_check_client_profile_spec.rb`
 holds a probe per rule that runs the buggy code and fails when it stops
