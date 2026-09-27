@@ -1,5 +1,21 @@
 # CLAUDE.md
 
+## Session isolation: jj workspaces, not git worktrees
+
+The repo root (`~/Projects/hecks`) is a colocated jj+git repo (`.jj`
+alongside `.git`). For a new session's isolated checkout, use
+`jj workspace add <path>` instead of `git worktree add` — same idea (an
+independent working copy sharing this repo's history), native to jj.
+Retire one with `jj workspace forget <name>` when done, then remove its
+directory.
+
+Push with plain `git push`, not `jj git push`. `.githooks/pre-push` runs
+a real local quality gate (rspec, fuzzing, model_check, rubocop) plus a
+CI speed-up attestation note, and jj talks to the git backend directly
+rather than shelling out to `git push` — so `jj git push` silently skips
+that hook. Colocation keeps jj bookmarks synced to real git branches, so
+`git push origin <branch>` works normally and still fires the hook.
+
 Comments you write in this repository's Ruby (`lib/`, `bin/`, `spec/`,
 `examples/`) must match `docs/COMMENT_STYLE_GUIDE.md`. In particular:
 
