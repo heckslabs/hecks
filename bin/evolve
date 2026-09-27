@@ -7,7 +7,7 @@
 #   bin/evolve admit   <word> --context Aggregate  proposed -> admitted
 #   bin/evolve deprecate <word> --context X        admitted -> deprecated
 #   bin/evolve retire  <word> --context X          deprecated/admitted -> retired
-#   bin/evolve rename  <word> --context X --to NEW
+#   bin/evolve rename  <word> --context X --to new
 #
 # Arguments follow the same lifecycle, addressed by --at or --named:
 

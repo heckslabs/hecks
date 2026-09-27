@@ -87,12 +87,10 @@ module Hecks
         # Declares that this aggregate holds its own kept-fresh copy of a field reached through
         # a reference, so a rule can read it locally instead of reaching across the boundary.
         #
-        # `from:` names the local reference, not the target aggregate, so two references to
-        # the same aggregate can each carry their own projection; the target field's own
-        # existence is checked later, by `validate_projected_fields!`.
+        # `from:` names the local reference, not the target aggregate, so two references to the
+        # same aggregate can each carry their own projection.
         #
-        # @param name [Symbol, String] the local field's name this aggregate projects the
-        #   remote value into
+        # @param name [Symbol, String] the local field receiving the projected remote value
         # @param from [Symbol, String] the local reference and remote field, dotted, such as
         #   `:"customer.status"`
         # @return [Array<Bluebook::ProjectedField>] every projected field declared so far, this
@@ -117,15 +115,13 @@ module Hecks
         # Under `MetaValidator.shadow_parsing?`, routes to the collapsing single-reference
         # form instead, so frozen era text keeps its original meaning.
         #
-        # @param type [Module, Symbol, String] the related aggregate's plural name, a bare
-        #   constant
+        # @param type [Module, Symbol, String] the related aggregate's plural name, a bare constant
         # @param as [Symbol, nil] the attribute's name; nil derives it from `type`
         # @param legacy_options [Hash] must be empty outside shadow-parsing; under
         #   shadow-parsing, `:optional` is read for the legacy single-reference form
         # @return [void]
-        # @raise [Bluebook::DSL::Malformed] outside shadow-parsing, if `legacy_options` is
-        #   non-empty; may also raise from `relationship_attribute` if the derived name is
-        #   already declared
+        # @raise [Bluebook::DSL::Malformed] outside shadow-parsing, if non-empty, or if the
+        #   derived name is already declared
         def has_many_impl(type, as: nil, **legacy_options)
           return legacy_has_many(type, as: as, optional: legacy_options.fetch(:optional, false)) if MetaValidator.shadow_parsing?
 
@@ -212,21 +208,14 @@ module Hecks
           @policies << reaction
         end
 
-        # Declares a value object on this aggregate, either as a block of `attribute` lines or
-        # (the `type` shorthand) as a single `:value` attribute.
-        #
-        # `type` routes through the same `attribute_impl` the block form's own `attribute`
-        # line reaches, so an inline `one_of`/`list_of` synthesises its closed set the same way.
+        # Declares a value object: a block of `attribute` lines, or (the `type` shorthand) a
+        # single `:value` attribute.
         #
         # @param name [String] the value object's name
-        # @param type [Module, nil] the bare shorthand's single attribute type; mutually
-        #   exclusive with `block`
-        # @yield the value object body of `attribute`/`invariant`/`one_of` lines; mutually
-        #   exclusive with `type`
-        # @return [Array<Bluebook::ValueObject>] this aggregate's own value objects, including
-        #   this one and any closed sets its attributes synthesised
-        # @raise [Bluebook::DSL::Malformed] if both `type` and a block are given, or the body
-        #   fails any check the value object language or its builder raises
+        # @param type [Module, nil] the bare shorthand's attribute type; exclusive with `block`
+        # @yield the `attribute`/`invariant`/`one_of` body; exclusive with `type`
+        # @return [Array<Bluebook::ValueObject>] this one, plus any closed sets synthesised
+        # @raise [Bluebook::DSL::Malformed] if both `type` and a block are given, or the body fails
         def value_object(name, type = nil, &block)
           if type && block
             raise Malformed,
@@ -259,25 +248,16 @@ module Hecks
           @pending_commands << [name, from, block]
         end
 
-        # Declares a rule this aggregate's own commands must satisfy, or references one a
-        # sibling aggregate in the chapter already declared.
+        # Declares a rule this aggregate's own commands must satisfy, or references a sibling's.
+        # `declared_by:` disambiguates a bare reference when two aggregates share a description.
         #
-        # Bare (no block) resolves against `@chapter_named_givens`; `declared_by:` picks
-        # between candidates when the same description names two different predicates
-        # chapter-wide, and is otherwise omitted (ADR 0025).
-        #
-        # @param description [String] the rule's description; also the name a sibling aggregate
-        #   references it by when no block is given
-        # @param declared_by [Module, Symbol, String, nil] disambiguates which aggregate's own
-        #   rule to reference, a bare constant, when more than one shares `description`; only
-        #   meaningful with no block
+        # @param description [String] the rule's description; also its name for a sibling reference
+        # @param declared_by [Module, Symbol, String, nil] which aggregate's rule; only meaningful
+        #   with no block
         # @yield the predicate body; evaluated for its extracted source, never called directly
         # @return [void]
-        # @raise [Bluebook::DSL::Malformed] if given a block whose source cannot be extracted;
-        #   given no block, the description is immediately ambiguous between more than one
-        #   already-loaded aggregate with no `declared_by` to disambiguate; an unresolved
-        #   reference defers instead, and may still raise once the whole chapter has loaded, if
-        #   it then resolves to none or more than one candidate
+        # @raise [Bluebook::DSL::Malformed] if the source can't be extracted, or a bare reference
+        #   resolves to none or more than one candidate once the chapter has loaded
         def given_impl(description, declared_by: nil, &predicate)
           return reference_named_chapter_given(description, declared_by: declared_by) unless predicate
 
@@ -384,16 +364,8 @@ module Hecks
         end
 
         # Evaluates an `aggregate` block against a fresh builder and returns the built aggregate.
+        # The `chapter_*` params thread the chapter-wide and entity-scoped given pools through.
         #
-        # @param name [String] the aggregate's name
-        # @param chapter_named_givens [Hash{String => Hash{String => Bluebook::Given}}] the
-        #   chapter-wide given pool
-        # @param chapter_pending_givens [Array<Hash>] unresolved chapter-wide bare given
-        #   references
-        # @param chapter_entity_named_givens [Hash{String => Hash{String => Bluebook::Given}}]
-        #   the chapter-wide, entity-scoped given pool
-        # @param chapter_entity_pending_givens [Array<Hash>] unresolved chapter-wide,
-        #   entity-scoped bare given references
         # @yield the aggregate body, evaluated with the builder as `self`; may be omitted
         # @return [Bluebook::Aggregate] the built aggregate
         # @raise [Bluebook::DSL::Malformed] if the body fails any check `#build` raises

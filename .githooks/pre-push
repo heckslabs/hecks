@@ -6,12 +6,10 @@
 # Install:  git config core.hooksPath .githooks
 # Bypass:   git push --no-verify   (say why — a red suite is a real answer)
 #
-# ROOT comes from `git rev-parse --show-toplevel`, not `dirname "$0"`: with an absolute
-# core.hooksPath every worktree runs this one file, and `dirname` would test the wrong tree.
-#
-# Each check logs to its own file under WORKDIR and results print in a fixed order after
-# `wait`. Exit codes are read from the .exit files, and every check is reported even if an
-# earlier one failed.
+# ROOT comes from `git rev-parse --show-toplevel`, not `dirname "$0"`, since an absolute
+# core.hooksPath makes every worktree run this one file. Each check logs to its own file
+# under WORKDIR; results print in a fixed order after `wait`, every check reported even
+# if an earlier one failed.
 
 ROOT=$(git rev-parse --show-toplevel)
 WORKDIR=$(mktemp -d)
@@ -70,6 +68,7 @@ run_check engine_agreement "$ROOT/bin/check_engine_agreement" &
 run_check model_check "$ROOT/bin/model_check" &
 run_check doc_coverage "$ROOT/bin/doc_coverage" &
 run_check rubocop bundle exec rubocop -c .rubocop.yml &
+run_check comment_blocks bundle exec bin/standardize_comments --check lib bin spec examples --only long_block &
 
 wait
 
@@ -144,11 +143,20 @@ if [ "$(exit_of rubocop)" -ne 0 ]; then
   fail=1
 fi
 
+printf '\n[pre-push] comment blocks — no run of comment lines past ADR 0075'"'"'s cap\n\n'
+
+cat "$WORKDIR/comment_blocks.log"
+if [ "$(exit_of comment_blocks)" -ne 0 ]; then
+  printf '\n[pre-push] BLOCKED — a comment block ran past the cap (bin/standardize_comments --only long_block).\n'
+  printf '           Shorten it, or push with --no-verify and say why.\n\n'
+  fail=1
+fi
+
 if [ "$fail" -ne 0 ]; then
   exit 1
 fi
 
-printf '\n[pre-push] suite green, fuzzer green, engines agree, model checks clean, every word exemplified, rubocop clean.\n\n'
+printf '\n[pre-push] suite green, fuzzer green, engines agree, model checks clean, every word exemplified, rubocop clean, comments in bounds.\n\n'
 
 # Attestation: a git note under refs/notes/ci, keyed by HEAD^{tree} and carrying an HMAC
 # signed with the keychain key hecks-ci-attest-key, tells CI which checks it can skip.

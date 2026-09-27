@@ -182,21 +182,14 @@ module Hecks
       end
 
       # Splits a mixed dispatch (receiver identity plus declared facts, e.g.
-      # `to: { file: 2, rank: 2 }`) into the dispatcher's strict `to:`/`with:`
-      # envelope via `ReactionInvocation.build`; a port operation's own input
-      # already spells `to:`/`with:` and passes through unchanged instead.
+      # `to: { file: 2, rank: 2 }`) into the dispatcher's strict `to:`/`with:` envelope.
       #
-      # @param runtime [Runtime::Dispatcher, Runtime::RemoteDispatcher] the suite's
-      #   booted runtime
+      # @param runtime [Runtime::Dispatcher, Runtime::RemoteDispatcher] the suite's booted runtime
       # @param verb [String] the command's dotted FQN, or a port operation's
-      # @param args [Hash{Symbol => Object}] the command's (or setup's) facts, mixing
-      #   receiver identity and declared arguments
-      # @return [Runtime::Dispatcher::Result, Runtime::RemoteDispatcher::Result] the
-      #   dispatch's own result
-      # @raise [Runtime::UnknownVerb] if `verb` is not fully qualified or names an
-      #   undeclared domain, aggregate, command, entity or port operation
-      # @raise [StandardError] any class in `Runtime::DOMAIN_REFUSALS` when the
-      #   domain refuses the call
+      # @param args [Hash{Symbol => Object}] the facts, mixing identity and declared arguments
+      # @return [Runtime::Dispatcher::Result, Runtime::RemoteDispatcher::Result] the dispatch result
+      # @raise [Runtime::UnknownVerb] if `verb` names an undeclared construct
+      # @raise [StandardError] any `Runtime::DOMAIN_REFUSALS` class, when the domain refuses
       def dispatch_command(runtime, verb, args)
         return runtime.dispatch_flat(verb, args) if port_operation?(runtime, verb)
 

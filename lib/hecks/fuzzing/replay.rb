@@ -22,19 +22,14 @@ module Hecks
       # any other DOMAIN_REFUSAL proves the guard itself did not fire.
       GUARD_REFUSAL_CLASSES = [Runtime::GivenNotMet, Runtime::LifecycleRefused].freeze
 
-      # Replays +steps+ against a fresh boot of +domain_path+ and returns the
-      # observable history as a Hash. The oracle snapshots taken inside the loop
-      # (reaction_mark, fan_out_snapshot, guard_check, mutation_trace) are each
-      # timed relative to dispatch; do not reorder them.
+      # Replays +steps+ against a fresh boot of +domain_path+. The oracle snapshots taken
+      # inside the loop are timed relative to dispatch; do not reorder them.
       #
       # @param domain_path [String] filesystem path to the domain directory to replay
-      # @param steps [Array<Hash>] the step list to dispatch, any-keyed
       # @param adapter [Symbol] persistence adapter to boot the copy with
       # @param database [String, nil] PostgresEra database name (required for :postgres_era)
-      # @param schema [String, nil] PostgresEra schema name (required for :postgres_era)
       # @param self_consistency [Boolean] also run SelfConsistency.check before returning
-      # @return [Hash] the replay history: instances, events, refusals, reactions, sagas,
-      #   queries, and diagnostic oracle traces
+      # @return [Hash] instances, events, refusals, reactions, sagas, queries, oracle traces
       # rubocop:disable-next Metrics/AbcSize
       # rubocop:disable-next Metrics/CyclomaticComplexity
       # rubocop:disable-next Metrics/MethodLength
