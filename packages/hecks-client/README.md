@@ -288,7 +288,7 @@ routes (it started with `HECKS_CHECKOUT_DOMAIN` naming its domain) to check the
 
 The package version equals `Hecks::VERSION` and is released together with the
 gem; `spec/hecks_client_version_spec.rb` fails when they differ, and
-`bin/release_gem` refuses to push the gem while they do. When
+`bin/release` (and `bin/release_gem` on its own) refuses to publish while they do. When
 `lib/hecks/version.rb` changes, bump the package in the same change:
 
 ```sh
@@ -296,15 +296,23 @@ cd packages/hecks-client
 npm version <version> --no-git-tag-version   # also updates package-lock.json
 ```
 
-`bin/release_gem` publishes the gem only. Publish the package from this
-directory once the gem is out (until the first publish, the tag install above is
-the way to consume it). npm is restricting tokens that bypass two-factor
-authentication, so publish from an account that can answer the prompt or set up
-trusted publishing, rather than relying on a long-lived token:
+`bin/release` publishes the package after the gem, from this directory, with a
+publish token held in 1Password: the "publish token" field on the "npmmjs"
+login item in the Hecks vault (`release/npm_publish.env` names the vault, item
+and field, and can be edited; the one-time setup is in the header of
+`bin/release`). It
+skips a version npm already has, so `bin/release --npm-only` finishes a release
+whose gem step already succeeded. npm is restricting tokens that bypass
+two-factor authentication, so the durable setup is a token that requires a
+one-time code, supplied from the same login item. To publish by hand instead
+(`prepack` builds `dist/` first):
 
 ```sh
-npm publish --access public   # `prepack` builds dist/ first
+npm publish --access public
 ```
+
+Until the first publish, the tag install above is the way to consume the
+package.
 
 The steps as a whole are under "Releasing" in the repository's
 `CONTRIBUTING.md`.

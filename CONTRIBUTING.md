@@ -217,15 +217,31 @@ an issue first — see the templates under `.github/ISSUE_TEMPLATE/`.
    (`npm version X.Y.Z --no-git-tag-version` in `packages/hecks-client`,
    which also updates its lockfile); `spec/hecks_client_version_spec.rb`
    fails until it matches.
-2. Once that PR merges to `main`, tag the merge commit
-   (`git tag -a vX.Y.Z <sha>`) and push the tag.
-3. Run `bin/release_gem` to build and push to rubygems.org. It refuses
-   to run while `packages/hecks-client` is at another version than the
-   gem. It pulls the push API key from 1Password (`op run`, Touch
-   ID-gated) rather than a credentials file on disk — see the script's
-   header comment for one-time setup.
-4. Publish the client from its own directory: `npm publish --access
-   public` in `packages/hecks-client` (its `prepack` step builds it).
-   `bin/release_gem` does not do this. The `hecks` npm organization
-   exists; the first publish is still to come, and until then the
-   package's README describes installing from the release tag.
+2. Once that PR merges to `main`, check out `main`, pull, and run
+   `bin/release --dry-run` to see every check and build pass with nothing
+   tagged or published. Then run `bin/release`. It refuses unless the
+   checkout is a clean `main` equal to `origin/main`, the gem and
+   `packages/hecks-client` are at one version, and `CHANGELOG.md` has a
+   heading for it. It asks RubyGems and npm what is already published and
+   skips that, so if a run stops partway (say npm fails after the gem is
+   out) run it again, or `bin/release --npm-only`. In order, it:
+   - creates the annotated tag `vX.Y.Z` on the merge commit and pushes it;
+   - runs `bin/release_gem` to build the gem and push it to rubygems.org;
+   - publishes `@hecks/client` with `npm publish --access public` (its
+     `prepack` step builds it).
+
+   It asks before the tag and before publishing (`--yes` answers for you;
+   `--gem-only` and `--npm-only` narrow it). Both pushes pull their
+   credentials from 1Password (`op run`, Touch ID-gated) rather than a
+   file on disk: the npm token is the "publish token" field on the "npmmjs"
+   login item in the Hecks vault, next to the "RubyGems API Key" item
+   (`release/npm_publish.env` names the vault, item and field, and can be
+   edited; `release/gem_push.env` does the same for the RubyGems key). The
+   one-time setup is in the header comments of `bin/release` (npm) and
+   `bin/release_gem` (RubyGems). The `hecks` npm organization exists; until
+   the first publish, the package's README describes installing from the
+   release tag.
+
+   Manual fallback, if `bin/release` cannot be used: tag the merge commit
+   (`git tag -a vX.Y.Z <sha>` and push it), run `bin/release_gem`, then
+   run `npm publish --access public` in `packages/hecks-client`.

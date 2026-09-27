@@ -7,6 +7,18 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+**`bin/release` performs the whole release.** After the release PR merges, one
+command tags the merge commit, publishes the gem through `bin/release_gem`, and
+publishes `@hecks/client` to npm with a token held in 1Password
+(`release/npm_publish.env`). It refuses unless the checkout is a clean `main`
+equal to `origin/main`, the gem and the client are at one version, and the
+changelog has a heading for it. It asks RubyGems and npm what is already
+published and skips that, so a run that stopped between the gem and the package
+is finished by running it again (or `bin/release --npm-only`). `--dry-run` runs
+every check and build without tagging, pushing or publishing, `--gem-only` and
+`--npm-only` narrow it, and `--yes` answers its confirmations. The logic is
+`Hecks::Release::Runner`; `bin/release_gem` still works alone.
+
 **The Rust host rate-limits public writes, on by default.** `POST /registrations`
 and `POST /newsletter/subscribers` are limited per client address (10 subscribes
 and 15 registrations an hour by default) and answer 429 with `Retry-After` past
