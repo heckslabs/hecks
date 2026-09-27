@@ -1,6 +1,6 @@
 ---
 type: grilling
-status: open
+status: closed
 blocked_by: []
 claimed_by:
 ---
@@ -65,3 +65,12 @@ an outside contributor's PR would be reviewed.
 7. Fix the stale hook description in `verification.md` as part of this?
 
 ## Answer
+
+Decided 2026-09-27, in the maintainer's own words. The maintainer reads every diff before merge.
+The repo does not claim agent-run reviews as a step, because nothing records them. Zero
+required approvals is intentional for a single-maintainer repo, and a pull request from an
+outside author gets the maintainer's personal review before it is queued. `CONTRIBUTING.md`
+gets a "How this project is built and reviewed" section stating those positions beside what the
+repo and GitHub prove (AI co-author trailers on most commits, nine required checks through the
+merge queue, a bypassable pre-push gate, no recorded GitHub reviews). Recorded in
+[ADR 0074](../../../decisions/0074-contributing-states-how-changes-are-built-reviewed-and-what-ci-proves.md).

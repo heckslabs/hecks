@@ -1,6 +1,6 @@
 ---
 type: grilling
-status: open
+status: closed
 blocked_by: []
 claimed_by:
 ---
@@ -72,3 +72,10 @@ network transport for stdio and a prerequisite only for a network door.
 6. Should the Rust host's body-asserted `role` be decided together, for parity?
 
 ## Answer
+
+Decided 2026-09-27: no shared secret and no signed token now. The token is designed once, as
+ADR 0062 lays it out, when a network door or multi-agent wiring is real. A per-tool capability
+allowlist (readers only, no `dispatch`, `domain:` or `behaviors`) is added if multi-agent use is
+near. Independent of network transport for stdio, a prerequisite only for a network door.
+Recorded in
+[ADR 0072](../../../decisions/0072-the-mcp-door-token-waits-for-a-real-need-and-a-tool-allowlist-comes-first.md).

@@ -1,6 +1,6 @@
 ---
 type: prototype
-status: open
+status: closed
 blocked_by: []
 claimed_by:
 ---
@@ -66,3 +66,9 @@ implicit rule ever hurts, react to sketch 2 first.
 4. Is a cross-runtime pin fixture wanted?
 
 ## Answer
+
+Decided 2026-09-27: close as already shipped and add no new syntax. Follow-ups: confirm with one
+live bare-scalar call on each runtime, sweep the README and the pizzas and banking examples to
+the bare form (keeping `{ value: ... }` only where a document teaches that shape), and add a
+cross-runtime fixture pinning single-field bare-scalar acceptance. Recorded in
+[ADR 0067](../../../decisions/0067-a-single-attribute-value-object-takes-a-bare-scalar.md).

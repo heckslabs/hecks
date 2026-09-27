@@ -1,6 +1,6 @@
 ---
 type: grilling
-status: open
+status: closed
 blocked_by: []
 claimed_by:
 ---
@@ -77,3 +77,10 @@ run a service. Cut or defer the authority and ontology arc until then, and keep 
 5. Willing to cut the UL, onboarding and ISO arc outright rather than defer it?
 
 ## Answer
+
+Decided 2026-09-27: a standalone rules service. Exit test: an outside team defines a bluebook,
+deploys the host to their own account and calls it from a non-Ruby client with only the docs.
+Rails is a fast-follow once one outsider has run a service; the UL, onboarding, ISO and
+OIDC-provider work is deferred until the exit test passes; the `group_by`, `sum` and
+dotted-`compute` fixes are kept. Recorded in
+[ADR 0071](../../../decisions/0071-the-first-external-target-is-a-standalone-rules-service.md).
