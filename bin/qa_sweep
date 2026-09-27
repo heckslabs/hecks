@@ -33,6 +33,15 @@ require "securerandom"
 ROOT = File.expand_path("..", __dir__)
 require_relative "../spec/support/rust_conformance_helpers"
 
+# A stored `Target.path` is either relative to this repo's root (the common case) or an absolute
+# path to a real external checkout. `File.join(ROOT, path)` does not special-case an absolute
+# second argument the way `File.expand_path` does, so an absolute path would otherwise be
+# silently mangled into `ROOT + "/" + path`, which never resolves. Matches
+# `bin/qa_discover_external_domains`'s own normalization.
+def resolve_target_path(path)
+  path.start_with?("/") ? File.expand_path(path) : File.expand_path(path, ROOT)
+end
+
 # QA_SWEEP_TRACE=1 prints a per-phase stderr timer; each print is the delta since the previous
 # mark.
 QA_TRACE = ENV["QA_SWEEP_TRACE"] == "1"
@@ -495,7 +504,7 @@ def run_parity_wave(runtime, wave1, seeds_override, adversarial, role_draw, dry_
   clean_refs = wave1.select { |r| r[:exit_status] == EXIT_OK }.map { |r| r[:target] }
   rows       = q(runtime, "Target.All").select { |row| clean_refs.include?(row[:reference][:value]) }
   eligible   = rows.select do |row|
-    capabilities = Hecks::Fuzzing::TargetCapabilities.infer(File.join(ROOT, row[:path][:value]), rust_dir: RUST_DIR)
+    capabilities = Hecks::Fuzzing::TargetCapabilities.infer(resolve_target_path(row[:path][:value]), rust_dir: RUST_DIR)
     Hecks::Fuzzing::TargetCapabilities.eligible?(:persistence_parity, capabilities)
   end
   candidates = eligible.map { |row| row[:reference][:value] }
@@ -522,7 +531,7 @@ def run_deferred_wave(runtime, wave1, mode, seeds_override, adversarial, role_dr
   clean_refs = wave1.select { |r| r[:exit_status] == EXIT_OK }.map { |r| r[:target] }
   rows       = q(runtime, "Target.All").select { |row| clean_refs.include?(row[:reference][:value]) }
   eligible   = rows.select do |row|
-    capabilities = Hecks::Fuzzing::TargetCapabilities.infer(File.join(ROOT, row[:path][:value]), rust_dir: RUST_DIR)
+    capabilities = Hecks::Fuzzing::TargetCapabilities.infer(resolve_target_path(row[:path][:value]), rust_dir: RUST_DIR)
     Hecks::Fuzzing::TargetCapabilities.eligible?(mode, capabilities)
   end
   candidates = eligible.map { |row| row[:reference][:value] }
@@ -635,7 +644,7 @@ end
 target_row       = pick_target_row(runtime, target_ref)
 target_reference = target_row[:reference][:value]
 target_path      = target_row[:path][:value]
-domain_path = File.join(ROOT, target_path)
+domain_path = resolve_target_path(target_path)
 
 abort "target #{target_reference.inspect} names a path that does not exist on disk: #{domain_path}" \
   unless File.directory?(domain_path)

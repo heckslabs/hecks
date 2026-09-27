@@ -35,12 +35,30 @@ end
 GEMFILE_PATTERN      = /gem\s*\(?\s*["']hecks["']/
 GEMFILE_LOCK_PATTERN = /^\s+hecks\s+\(/
 
-def depends_on_hecks?(repo_root)
-  gemfile = File.join(repo_root, "Gemfile")
-  lockfile = File.join(repo_root, "Gemfile.lock")
+def depends_on_hecks?(dir)
+  gemfile = File.join(dir, "Gemfile")
+  lockfile = File.join(dir, "Gemfile.lock")
 
   (File.file?(gemfile) && File.read(gemfile).match?(GEMFILE_PATTERN)) ||
     (File.file?(lockfile) && File.read(lockfile).match?(GEMFILE_LOCK_PATTERN))
+end
+
+# A monorepo's real hecks-dependent Ruby app can live below the sibling repo's own top level (a
+# nested `Gemfile` there, not one at `repo_root`). Checked against the candidate's own directory
+# first, then each ancestor up to and including `repo_root`, so the common case — the dependency
+# declared at `repo_root` itself — still answers exactly as it always has.
+def depends_on_hecks_anywhere_above?(entity_dir, repo_root)
+  root = File.expand_path(repo_root)
+  dir = File.expand_path(entity_dir)
+  loop do
+    return true if depends_on_hecks?(dir)
+    return false if dir == root
+
+    parent = File.dirname(dir)
+    return false if parent == dir # filesystem root reached without finding repo_root
+
+    dir = parent
+  end
 end
 
 # repo_root itself is depth 0, so a project that is one domain at its own
@@ -142,19 +160,21 @@ candidates = []
 skipped_no_hecks = []
 
 sibling_repos.each do |repo_path|
-  unless depends_on_hecks?(repo_path)
-    skipped_no_hecks << repo_path
-    next
-  end
+  repo_name = File.basename(repo_path)
+  found_hecks_dependent_candidate = false
 
   bluebook_shaped_dirs(repo_path, options[:max_depth]).each do |entity_dir, entity_name|
+    next unless depends_on_hecks_anywhere_above?(entity_dir, repo_path)
+
+    found_hecks_dependent_candidate = true
     absolute = File.expand_path(entity_dir)
     next if known_paths.include?(absolute)
 
-    repo_name = File.basename(repo_path)
     reference = "#{repo_name}/#{entity_name}"
     candidates << { repo: repo_name, reference: reference, path: absolute }
   end
+
+  skipped_no_hecks << repo_path unless found_hecks_dependent_candidate
 end
 
 candidates.sort_by! { |c| [c[:repo], c[:reference]] }
