@@ -71,7 +71,9 @@
             }
           ],
           "closed_set": false,
-          "members": []
+          "members": [
+
+          ]
         },
         {
           "name": "Cents",
@@ -87,9 +89,13 @@
               "relationship": null
             }
           ],
-          "invariants": [],
+          "invariants": [
+
+          ],
           "closed_set": false,
-          "members": []
+          "members": [
+
+          ]
         }
       ],
       "commands": [
@@ -120,8 +126,12 @@
               "relationship": null
             }
           ],
-          "givens": [],
-          "ensures": [],
+          "givens": [
+
+          ],
+          "ensures": [
+
+          ],
           "mutations": [
             {
               "target": "code",
@@ -174,20 +184,40 @@
           }
         }
       ],
-      "preconditions": [],
-      "projected_fields": [],
+      "preconditions": [
+
+      ],
+      "projected_fields": [
+
+      ],
       "lifecycle": null,
-      "entities": [],
-      "queries": [],
-      "ports": [],
+      "entities": [
+
+      ],
+      "queries": [
+
+      ],
+      "ports": [
+
+      ],
       "provenance": null
     }
   ],
-  "read_models": [],
-  "policies": [],
-  "process_managers": [],
-  "attaches_to": [],
-  "provides": [],
+  "read_models": [
+
+  ],
+  "policies": [
+
+  ],
+  "process_managers": [
+
+  ],
+  "attaches_to": [
+
+  ],
+  "provides": [
+
+  ],
   "canonical_form": [
     {
       "strategy": "collapse_whitespace",
@@ -205,7 +235,9 @@
     }
   ],
   "lineage": {
-    "capable_aggregates": []
+    "capable_aggregates": [
+
+    ]
   },
   "persistence": {
     "aggregates": [
@@ -216,6 +248,8 @@
       }
     ]
   },
-  "translations": [],
+  "translations": [
+
+  ],
   "source_text": "# Pins the order of the existence check and invariant enforcement: `Vault.Open` is both\n# `complete_state?` and `state_independent?`, and its aggregate invariant can fail at creation.\n#\n# Opening twice under the same `code`, the second time with a negative `balance`, must answer\n# `InvariantViolation`, not `AlreadyExists`: the deferred existence check runs at `step_save`,\n# after `enforce_invariants`. Running the check first would flip the answer.\n#\n# Dispatched against both engines by\n# spec/corpus/rust_conformance/bug28_ensures_and_invariant_before_atomic_put_existence_check.json\nHecks.bluebook \"Bug28ExistenceFixture\" do\n  vision \"The smallest domain pairing a state-independent creating command with a genuinely-falsifiable aggregate invariant — the existence-vs-invariant ordering pair BUG#28's own real corpus example (Account.Open) can't exercise today.\"\n\n  core\n\n  aggregate \"Vault\" do\n    description \"A vault holding a starting balance, addressed by its own code — the balance is never defaulted, so its own invariant is genuinely checkable at creation.\"\n\n    identified_by :code\n\n    attribute :code, VaultCode\n    attribute :balance, Cents\n\n    value_object \"VaultCode\" do\n      attribute :value, String, pattern: '[^ \\t\\n\\r]'\n      invariant(\"a code is not blank\") { !value.to_s.empty? }\n    end\n\n    value_object \"Cents\" do\n      attribute :value, Integer\n    end\n\n    invariant(\"a vault's balance never goes negative\") { balance.value >= 0 }\n\n    command \"Open\" do\n      goal \"Open a vault with a starting balance\"\n\n      attribute :code, VaultCode\n      attribute :balance, Cents\n\n      sets :code\n      sets :balance\n\n      emits \"VaultOpened\"\n    end\n  end\nend\n"
 }

@@ -61,7 +61,9 @@
             }
           ],
           "closed_set": false,
-          "members": []
+          "members": [
+
+          ]
         }
       ],
       "commands": [
@@ -82,8 +84,12 @@
               "relationship": null
             }
           ],
-          "givens": [],
-          "ensures": [],
+          "givens": [
+
+          ],
+          "ensures": [
+
+          ],
           "mutations": [
             {
               "target": "reference",
@@ -102,13 +108,25 @@
           "provenance": null
         }
       ],
-      "invariants": [],
-      "preconditions": [],
-      "projected_fields": [],
+      "invariants": [
+
+      ],
+      "preconditions": [
+
+      ],
+      "projected_fields": [
+
+      ],
       "lifecycle": null,
-      "entities": [],
-      "queries": [],
-      "ports": [],
+      "entities": [
+
+      ],
+      "queries": [
+
+      ],
+      "ports": [
+
+      ],
       "provenance": null
     },
     {
@@ -186,7 +204,9 @@
             }
           ],
           "closed_set": false,
-          "members": []
+          "members": [
+
+          ]
         },
         {
           "name": "CardPosition",
@@ -227,7 +247,9 @@
             }
           ],
           "closed_set": false,
-          "members": []
+          "members": [
+
+          ]
         }
       ],
       "commands": [
@@ -268,8 +290,12 @@
               "relationship": "reference_to"
             }
           ],
-          "givens": [],
-          "ensures": [],
+          "givens": [
+
+          ],
+          "ensures": [
+
+          ],
           "mutations": [
             {
               "target": "board",
@@ -310,10 +336,18 @@
           "role": "Organizer",
           "goal": "Mark a card done",
           "references": "Card",
-          "attributes": [],
-          "givens": [],
-          "ensures": [],
-          "mutations": [],
+          "attributes": [
+
+          ],
+          "givens": [
+
+          ],
+          "ensures": [
+
+          ],
+          "mutations": [
+
+          ],
           "emits": [
             "CardClosed"
           ],
@@ -321,9 +355,15 @@
           "provenance": null
         }
       ],
-      "invariants": [],
-      "preconditions": [],
-      "projected_fields": [],
+      "invariants": [
+
+      ],
+      "preconditions": [
+
+      ],
+      "projected_fields": [
+
+      ],
       "lifecycle": {
         "field": "status",
         "default": "open",
@@ -335,9 +375,15 @@
           }
         ]
       },
-      "entities": [],
-      "queries": [],
-      "ports": [],
+      "entities": [
+
+      ],
+      "queries": [
+
+      ],
+      "ports": [
+
+      ],
       "provenance": null
     },
     {
@@ -405,7 +451,9 @@
             }
           ],
           "closed_set": false,
-          "members": []
+          "members": [
+
+          ]
         }
       ],
       "commands": [
@@ -436,8 +484,12 @@
               "relationship": "reference_to"
             }
           ],
-          "givens": [],
-          "ensures": [],
+          "givens": [
+
+          ],
+          "ensures": [
+
+          ],
           "mutations": [
             {
               "target": "board",
@@ -469,10 +521,18 @@
           "role": "Organizer",
           "goal": "Flag a note for follow-up",
           "references": "Note",
-          "attributes": [],
-          "givens": [],
-          "ensures": [],
-          "mutations": [],
+          "attributes": [
+
+          ],
+          "givens": [
+
+          ],
+          "ensures": [
+
+          ],
+          "mutations": [
+
+          ],
           "emits": [
             "NoteFlagged"
           ],
@@ -480,9 +540,15 @@
           "provenance": null
         }
       ],
-      "invariants": [],
-      "preconditions": [],
-      "projected_fields": [],
+      "invariants": [
+
+      ],
+      "preconditions": [
+
+      ],
+      "projected_fields": [
+
+      ],
       "lifecycle": {
         "field": "flag",
         "default": "clear",
@@ -494,9 +560,15 @@
           }
         ]
       },
-      "entities": [],
-      "queries": [],
-      "ports": [],
+      "entities": [
+
+      ],
+      "queries": [
+
+      ],
+      "ports": [
+
+      ],
       "provenance": null
     }
   ],
@@ -547,17 +619,27 @@
           "many": true
         }
       ],
-      "group_by": [],
+      "group_by": [
+
+      ],
       "offset": {
         "value": "1",
         "target": "Note"
       }
     }
   ],
-  "policies": [],
-  "process_managers": [],
-  "attaches_to": [],
-  "provides": [],
+  "policies": [
+
+  ],
+  "process_managers": [
+
+  ],
+  "attaches_to": [
+
+  ],
+  "provides": [
+
+  ],
   "canonical_form": [
     {
       "strategy": "collapse_whitespace",
@@ -575,7 +657,9 @@
     }
   ],
   "lineage": {
-    "capable_aggregates": []
+    "capable_aggregates": [
+
+    ]
   },
   "persistence": {
     "aggregates": [
@@ -596,6 +680,8 @@
       }
     ]
   },
-  "translations": [],
+  "translations": [
+
+  ],
   "source_text": "# Smallest domain reaching ADR 0055's `on:` codegen path: a read model with TWO many-side\n# heads, each independently filtered/ordered/paged by its own on:-targeted where/order_by/\n# limit/offset — the shape rust/project/read_models.rb's `multi_target_options` used to refuse\n# outright. Round-tripped by spec/rust_conformance_spec.rb.\nHecks.bluebook \"ReadModelOnTargetFixture\" do\n  vision \"The smallest domain where a read model's several many-side heads each need their own where/order_by/limit/offset, not one shared across all of them.\"\n\n  core\n\n  aggregate \"Board\" do\n    description \"A board holding cards and notes, addressed by its own reference.\"\n\n    identified_by :reference\n    attribute :reference, BoardReference\n\n    value_object \"BoardReference\" do\n      attribute :value, String, pattern: '[^ \\t\\n\\r]'\n      invariant(\"a board is referenced\") { !value.to_s.empty? }\n    end\n\n    command \"Open\" do\n      role \"Organizer\"\n      goal \"Start an empty board\"\n\n      attribute :reference, BoardReference\n      sets :reference\n\n      emits \"BoardOpened\"\n    end\n  end\n\n  aggregate \"Card\" do\n    description \"One card pinned to a board, with a status and a position.\"\n\n    reference_to Board\n    attribute :reference, CardReference\n    attribute :position, CardPosition\n\n    identified_by :reference\n\n    lifecycle :status, default: \"open\" do\n      transition \"Close\" => \"done\", from: \"open\"\n    end\n\n    value_object \"CardReference\" do\n      attribute :value, String, pattern: '[^ \\t\\n\\r]'\n      invariant(\"a card is referenced\") { !value.to_s.empty? }\n    end\n\n    value_object \"CardPosition\" do\n      attribute :value, Integer\n      invariant(\"a card position is not negative\") { value >= 0 }\n    end\n\n    command \"Pin\" do\n      role \"Organizer\"\n      goal \"Pin a fresh card onto a board, at a position\"\n\n      sets :board\n      attribute :reference, CardReference\n      sets :reference\n      attribute :position, CardPosition\n      sets :position\n\n      emits \"CardPinned\"\n    end\n\n    command \"Close\", from: \"open\" do\n      role \"Organizer\"\n      goal \"Mark a card done\"\n\n      reference_to Card\n\n      emits \"CardClosed\"\n    end\n  end\n\n  aggregate \"Note\" do\n    description \"One sticky note attached to a board, flagged or not.\"\n\n    reference_to Board\n    attribute :reference, NoteReference\n\n    identified_by :reference\n\n    lifecycle :flag, default: \"clear\" do\n      transition \"Flag\" => \"flagged\", from: \"clear\"\n    end\n\n    value_object \"NoteReference\" do\n      attribute :value, String, pattern: '[^ \\t\\n\\r]'\n      invariant(\"a note is referenced\") { !value.to_s.empty? }\n    end\n\n    command \"Stick\" do\n      role \"Organizer\"\n      goal \"Stick a fresh note onto a board\"\n\n      sets :board\n      attribute :reference, NoteReference\n      sets :reference\n\n      emits \"NoteStuck\"\n    end\n\n    command \"Flag\", from: \"clear\" do\n      role \"Organizer\"\n      goal \"Flag a note for follow-up\"\n\n      reference_to Note\n\n      emits \"NoteFlagged\"\n    end\n  end\n\n  # Two many-side heads (Card, Note), each with its own on:-targeted where/order_by/limit/\n  # offset — the shape a single shared filter can't express (ADR 0055).\n  read_model \"BoardOverview\" do\n    description \"A board, its own open cards ordered by position and capped at two, and its own flagged notes, one page in — each many-side collection filtered/ordered/paged independently.\"\n    reference_to Board\n    include Board\n    include Card, as: :cards\n    include Note, as: :notes\n\n    where(status: \"open\", on: Card)\n    order_by :position, on: Card\n    limit 2, on: Card\n\n    where(flag: \"flagged\", on: Note)\n    offset 1, on: Note\n  end\nend\n"
 }

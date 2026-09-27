@@ -71,7 +71,9 @@
             }
           ],
           "closed_set": false,
-          "members": []
+          "members": [
+
+          ]
         },
         {
           "name": "Bin",
@@ -109,7 +111,9 @@
             }
           ],
           "closed_set": false,
-          "members": []
+          "members": [
+
+          ]
         }
       ],
       "commands": [
@@ -140,8 +144,12 @@
               "relationship": null
             }
           ],
-          "givens": [],
-          "ensures": [],
+          "givens": [
+
+          ],
+          "ensures": [
+
+          ],
           "mutations": [
             {
               "target": "ref",
@@ -169,13 +177,25 @@
           "provenance": null
         }
       ],
-      "invariants": [],
-      "preconditions": [],
-      "projected_fields": [],
+      "invariants": [
+
+      ],
+      "preconditions": [
+
+      ],
+      "projected_fields": [
+
+      ],
       "lifecycle": null,
-      "entities": [],
-      "queries": [],
-      "ports": [],
+      "entities": [
+
+      ],
+      "queries": [
+
+      ],
+      "ports": [
+
+      ],
       "provenance": null
     }
   ],
@@ -186,7 +206,9 @@
       "reference_name": null,
       "reference_target": null,
       "query_name": "parts_by_bin",
-      "wheres": [],
+      "wheres": [
+
+      ],
       "order_by": null,
       "limit": null,
       "aggregate_heads": [
@@ -208,7 +230,9 @@
       "reference_name": null,
       "reference_target": null,
       "query_name": "parts_by_bin_and_ref",
-      "wheres": [],
+      "wheres": [
+
+      ],
       "order_by": null,
       "limit": null,
       "aggregate_heads": [
@@ -228,10 +252,18 @@
       ]
     }
   ],
-  "policies": [],
-  "process_managers": [],
-  "attaches_to": [],
-  "provides": [],
+  "policies": [
+
+  ],
+  "process_managers": [
+
+  ],
+  "attaches_to": [
+
+  ],
+  "provides": [
+
+  ],
   "canonical_form": [
     {
       "strategy": "collapse_whitespace",
@@ -249,7 +281,9 @@
     }
   ],
   "lineage": {
-    "capable_aggregates": []
+    "capable_aggregates": [
+
+    ]
   },
   "persistence": {
     "aggregates": [
@@ -260,6 +294,8 @@
       }
     ]
   },
-  "translations": [],
+  "translations": [
+
+  ],
   "source_text": "# The smallest domain whose group_by can collide (ADR 0061, decision D1):\n# PartsByBin groups by a field two parts may share (dispatch-time refusal);\n# PartsByBinAndRef covers the identity and is always accepted.\nHecks.bluebook \"GroupByCollisionFixture\" do\n  vision \"The smallest domain where two rows can reach the same group_by key path, and one where they cannot.\"\n\n  core\n\n  aggregate \"Part\" do\n    description \"One stocked part, addressed by its own reference, kept in one bin.\"\n\n    identified_by :ref\n    attribute :ref, Ref\n    attribute :bin, Bin\n\n    value_object \"Ref\" do\n      attribute :value, String, pattern: '[^ \\t\\n\\r]'\n      invariant(\"a part is referenced\") { !value.to_s.empty? }\n    end\n\n    value_object \"Bin\" do\n      attribute :label, String, pattern: '[^ \\t\\n\\r]'\n      invariant(\"a bin is labelled\") { !label.to_s.empty? }\n    end\n\n    command \"Stock\" do\n      role \"Clerk\"\n      goal \"Stock a part into a bin\"\n\n      attribute :ref, Ref\n      attribute :bin, Bin\n      sets :ref\n      sets :bin\n\n      emits \"PartStocked\"\n    end\n  end\n\n  read_model \"PartsByBin\" do\n    description \"Every part, nested by its bin; two parts in one bin refuse.\"\n    include Part\n    group_by :bin\n  end\n\n  read_model \"PartsByBinAndRef\" do\n    description \"Every part, nested by its bin and then its own reference; no two parts can collide.\"\n    include Part\n    group_by :bin, :ref\n  end\nend\n"
 }
