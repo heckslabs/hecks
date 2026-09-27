@@ -7,6 +7,80 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+**The Rust host rate-limits public writes, on by default.** `POST /registrations`
+and `POST /newsletter/subscribers` are limited per client address (10 subscribes
+and 15 registrations an hour by default) and answer 429 with `Retry-After` past
+the limit. The address is the TCP peer unless the request came through a trusted
+proxy, in which case `X-Forwarded-For` is walked from the right, so a typed
+leftmost entry is never used. Trust is set with `HECKS_TRUSTED_PROXIES`,
+`HECKS_TRUSTED_PROXY_HOPS`, and `HECKS_PROXY_AUTH_HEADER` with
+`HECKS_PROXY_AUTH_SECRET`; `HECKS_RATE_LIMIT=off` turns it off. **A deploy behind
+a proxy or load balancer must set the trust variables**, otherwise every visitor
+shares the proxy's bucket. The host logs `rate_limit_untrusted_proxy` when it sees
+that shape. State is per process, so the effective limit is per task.
+
+**The host's payments key store no longer has a built-in secret name.**
+`PAYMENTS_ACCOUNT_SECRET_ID` is now required on AWS when checkout is enabled, and
+the host refuses to boot without it instead of falling back to a fixed name. The
+webhook description sent to the payment processor is a new setting,
+`PAYMENTS_WEBHOOK_DESCRIPTION`, defaulting to `<HECKS_DOMAIN> website`. The host
+also serves two public seat reads, `GET /events/seats` and
+`GET /events/<slug>/seats`, returning capacity, seats taken and seats left from
+the one seat-holding table in Rust, so a site no longer needs its own copy of the
+rule.
+
+**`@hecks/client` is a JavaScript package for the host protocol.** `packages/hecks-client`
+holds `HostClient` (`read`, `dispatch`, `apply`), the answer readers `text`,
+`whole`, `optionalWhole`, `instancesOf` and `refusalOf`, a resilient fetch with
+retry and a last-good fallback, a client for the host's `/payments/connection`
+routes with the pasted-keys parser, and a verifier for the account token the host
+mints. The domain name, service URL and cookie name are parameters, and no role is
+sent unless the caller sets one. Its version tracks `Hecks::VERSION`;
+`bin/release_gem` refuses to release when they differ, and a `client-contract`
+workflow runs the package against a live host.
+
+**Vendoring, the gem-pin check, the schema dump proof and the boot fix move into
+Hecks.** `Hecks::Vendoring` and `Hecks::EmbryonautBluebook.vendor!` (command line:
+`bin/vendor_bluebook`) pin one package at a release tag or commit, write
+`VENDORED_COMMIT` and, for a release pin, `bluebook.lock`, and refuse a downgrade or
+a storage-shape change on a patch bump; the loader's error now names the command.
+`Hecks::Release::GemPin` refuses a Gemfile or lockfile that resolves Hecks from a
+path or git source and checks the version exists on the registry.
+`Hecks::Ports::Persistence::PostgresDump` dumps one schema, restores it into a
+scratch database and compares row counts, with the password kept out of argv.
+**Fixed:** `Hecks.boot` now loads the era plugin when a hecksagon binds
+`PostgresEra`. Before, a domain that did not require the plugin first booted with
+its era gates (including the superuser write-fence refusal) silently missing.
+
+**Worlds can declare `default_database` and `default_adapter`.** They apply a
+persistence adapter and a database to every aggregate and chapter that does not
+name its own, replacing the same block repeated per chapter. A chapter's own bind
+or `database` still wins, an environment overlay replaces either default, and a
+world that names neither behaves as before. `examples/compliance` uses both.
+
+**The deploy projections gain opt-in hosting tooling.** `hosting_scripts true` under
+`deployed_to("AwsFargate")` adds `deploy-service.sh`, `smoke-after-deploy.sh`, a
+`hosting.mk` that pins the Hecks release the image is built from, and an
+`expected-era` list; `bin/check_era <url> <file>` compares a host's `GET /version`
+with it. `smoke true` adds a generic smoke harness and workflow template, and
+`bin/smoke_http` checks that a receiver refuses an unsigned, mis-signed or altered
+delivery and answers a repeat idempotently. A `preview` setting generates
+`preview.yaml` and `preview.sh` for one isolated stack per branch. A block inside
+a bind's world settings is now recorded as a nested hash instead of being ignored.
+Nothing changes for a world that opts into none of them. `bin/shape <dir>` prints
+the era label of every domain in a directory.
+
+**Removed.** `deploy/banking/` and the production overlay under `examples/banking`
+are gone: that recipe describes a live stack that shares another stack's network
+and database, so it lives with that stack's owner, and `examples/banking` stays the
+generic deploy example. `bin/rust_coverage` no longer carries a fallback that
+derived a manifest from source; every generated module ships a `manifest.json`.
+
+**Client names are gone from the tree.** Comments, tests, fixtures, corpus values,
+ADRs and this file no longer name any client project; where a fixture needed a
+domain name it now uses a neutral one. Released entries below are reworded to say
+"a client site" without changing what they record.
+
 ## [2.6.0] - 2026-09-26
 
 **`bin/model_check --profile client` refuses three constructs that answer wrongly
