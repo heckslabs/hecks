@@ -541,7 +541,7 @@ module Hecks
       # every Paging-attached word (limit/offset/cursor/nulls) because
       # something called it inside this exact window.
       #
-      # SyntaxBoot.call no longer uses this. Gating its cache on "the
+      # SyntaxBoot.call does not use this. Gating its cache on "the
       # whole registry is finished" meant nothing was cached for the
       # entire window, and the window is not narrow — every word routed
       # through `word_gate_dispatch` while the language judged itself

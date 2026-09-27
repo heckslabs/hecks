@@ -243,7 +243,7 @@ module Hecks
 
         # S17, ADR 0026 — Handler is a genuine entity now, nested under
         # ProcessManager (`entity "Handler"`, reaction.bluebook). Neither
-        # `position` nor `handler` is a stored field any more: a saga
+        # `position` nor `handler` is a stored field: a saga
         # answers each event once, so `event_type` is Handler's own real,
         # non-positional identity (no walk-minted `position` to derive),
         # and the process manager it belongs to is structural now — which
@@ -429,10 +429,10 @@ module Hecks
         # A member's pairs are an open map, which is why Member is its own root in
         # the language. The IR keeps them as a plain hash on the value object, so
         # they are assembled with their shape rather than as a construct.
-        # S17, ADR 0026 — Member is a genuine entity now, nested under
-        # ValueObject (`entity "Member"`, shape.bluebook). It no longer
-        # holds a `shape` field at all (that was the free-text, un-parsed
-        # spelling a standalone root once needed ; an entity's element is
+        # S17, ADR 0026 — Member is a genuine entity, nested under
+        # ValueObject (`entity "Member"`, shape.bluebook). It holds no
+        # `shape` field at all (a free-text, un-parsed spelling would suit
+        # only a standalone root ; an entity's element is
         # never serialized as text) — only `position` (walk-minted, see
         # `entity_own_identity`, judge.rb) and `pairs` (still an open map,
         # still one row per entry, still why a value object cannot hold it

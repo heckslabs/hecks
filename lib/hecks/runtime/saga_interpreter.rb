@@ -425,7 +425,7 @@ module Hecks
       #
       # A compensation that is itself refused does not unwind again, and needs no
       # flag to stop it: the state moves to the compensating leg's to_state before
-      # its dispatches run, so a second refusal finds the instance no longer in
+      # its dispatches run, so a second refusal finds the instance already out of
       # from_state and records that instead. The check is the guard.
       def unwind(process_manager, event, instance, correlation, domain)
         return unless instance && process_manager.handles?(REFUSED)

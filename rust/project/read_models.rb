@@ -624,14 +624,14 @@ module RustProjection
         limit: eligible_as && read_model[:limit] ? emit_read_model_limit(read_model[:limit]) : nil,
         authorization: eligible_as ? emit_query_authorization(read_model[:name], read_model[:authorization]) : nil,
         group_by_fn: group_by_fn_name,
-        group_by_fn_body: group_by_fn_name ? emit_group_by_transform(group_by_fn_name, aggregates_by_name[read_model[:aggregate_heads].first[:aggregate]], group_by_fields) : nil,
+        group_by_fn_body: group_by_fn_name ? emit_group_by_transform(group_by_fn_name, read_model[:name].to_s, aggregates_by_name[read_model[:aggregate_heads].first[:aggregate]], group_by_fields) : nil,
         count: !!read_model[:count],
         median_field: read_model[:median_field] ? read_model[:median_field].to_s : nil,
       }
     end
 
     # The generated function `ReadModelDef.group_by` names by value
-    # (`fn(Vec<(String, Json)>) -> Json`) — `kernel/read_model.rs`'s own
+    # (`fn(Vec<(String, Json)>) -> Result<Json, Refusal>`) — `kernel/read_model.rs`'s own
     # header on why this can't be one more data-driven field the way
     # `offset`/`order_by` already are: which field is a single-attribute
     # value object is a TYPE-LEVEL fact this generator has at Ruby-codegen
@@ -662,8 +662,9 @@ module RustProjection
     # through to the `_ => v` pass-through already below. `kernel::
     # read_model::nest` (hand-written once, purely structural — no type
     # knowledge needed for grouping/stripping itself) does the actual
-    # nesting.
-    def emit_group_by_transform(fn_name, aggregate, group_by_fields)
+    # nesting, and refuses two rows reaching one leaf unless
+    # `group_by_leaf_check` found the key path covering the identity.
+    def emit_group_by_transform(fn_name, read_model_name, aggregate, group_by_fields)
       value_objects_by_name = aggregate[:value_objects].to_h { |vo| [vo[:name].to_s, vo] }
       lifecycle_field = aggregate[:lifecycle] && aggregate[:lifecycle][:field].to_s
       fields = aggregate[:attributes] + Projector.projected_field_pseudo_attributes(aggregate)
@@ -676,9 +677,10 @@ module RustProjection
       end.join("\n                    ")
 
       fields_literal = "&[#{group_by_fields.map(&:inspect).join(', ')}]"
+      leaf_check = group_by_leaf_check(read_model_name, aggregate, group_by_fields)
 
       <<~RUST.rstrip
-        pub fn #{fn_name}(rows: Vec<(String, crate::kernel::Json)>) -> crate::kernel::Json {
+        pub fn #{fn_name}(rows: Vec<(String, crate::kernel::Json)>) -> Result<crate::kernel::Json, crate::kernel::Refusal> {
             let unwrapped: Vec<crate::kernel::Json> = rows
                 .into_iter()
                 .map(|(id, record)| {
@@ -701,9 +703,20 @@ module RustProjection
                     }
                 })
                 .collect();
-            crate::kernel::read_model::nest(unwrapped, #{fields_literal})
+            crate::kernel::read_model::nest(unwrapped, #{fields_literal}, #{leaf_check})
         }
       RUST
+    end
+
+    # `Behaviour::ReadModel#groups_by_identity?`, read off the IR: a key path
+    # naming every identity head of the grouped aggregate cannot collide, so
+    # its leaves go unchecked; any other refuses a second row (ADR 0061,
+    # decision D1). `identified_by` in the IR holds the identity paths.
+    def group_by_leaf_check(read_model_name, aggregate, group_by_fields)
+      identity = Array(aggregate[:identified_by]).map { |path| path.to_s.split(".").first }.uniq
+      return "crate::kernel::read_model::LeafCheck::IdentityCovered" if identity.any? && (identity - group_by_fields).empty?
+
+      "crate::kernel::read_model::LeafCheck::RefuseCollision(#{read_model_name.inspect})"
     end
 
     # `Value.materialize_unwrapped`, ported directly — a single-attribute

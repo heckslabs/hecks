@@ -89,7 +89,7 @@ module Hecks
       # matches by the element's own minted identity string directly instead
       # (`element_identity`, below) — the routing envelope already resolved
       # which element it means, so re-deriving `wants` from `args` would be
-      # redundant at best and wrong if `args` no longer carries that identity
+      # redundant at best and wrong if `args` does not carry that identity
       # at all.
       # Locate, then copy-before-mutate, in that order — see the "one
       # level deeper" comment below on why the copy has to happen exactly

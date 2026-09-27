@@ -1,7 +1,8 @@
 # Query-DSL aggregation (`count` / `sum` / `group_by`) — the gap is narrower than reported, and one part of it is a defect
 
-**Status:** Proposed — draft for review. Design only; nothing in this document
-is implemented, and no code changes with it. It answers item 11 of an outside
+**Status:** Accepted — decision D1 (Option 1, the `group_by` collision refusal on
+Ruby and Rust with the identity shortcut) is implemented; Options 2 and 3 remain
+designs, gated on a consumer. It answers item 11 of an outside
 production-readiness review ("the query DSL has no aggregation"), whose premise
 turns out to be partly stale, and it recommends against adding the full
 `count/sum/avg/min/max` set. The one thing it recommends doing now is a bug fix,

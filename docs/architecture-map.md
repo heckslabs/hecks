@@ -45,7 +45,7 @@ rust/
 someone still writes by hand — everything else (`generated/`, the
 parser tables, the type shapes) is projected from the same canonical
 IR the Ruby runtime reads. See [Projections: Rust and
-WebAssembly](../README.md#projections-rust-and-webassembly) for what
+WebAssembly](implemented/guides/projections.md) for what
 that buys, and [Running a
 runtime](implemented/guides/running-a-runtime.md) for the
 field-by-field contract a third dispatch runtime would need.

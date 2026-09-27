@@ -1,6 +1,7 @@
 require "json"
 require "fileutils"
 require "time"
+require_relative "cache_dir"
 require_relative "facade/command_request"
 require_relative "facade/json_door"
 require_relative "naming"
@@ -8,7 +9,7 @@ require_relative "projector"
 require_relative "runtime/errors"
 
 module Hecks
-  # **The bus, not a door** — `docs/hecks-survey-what-we-wish-we-had.md` and
+  # **The bus, not a door** — `docs/archive/hecks-survey-what-we-wish-we-had.md` and
   # `docs/future-features.md` both name the sibling project's own
   # "Storehouse" the single highest-priority gap this repo had: "no
   # per-command tool... the bluebook is the contract, the [door] just
@@ -90,19 +91,24 @@ module Hecks
   module Storehouse
     module_function
 
-    # The same closed set `docs/hecks-survey-what-we-wish-we-had.md`'s
+    # The same closed set `docs/archive/hecks-survey-what-we-wish-we-had.md`'s
     # `SourceTag` names — who dispatched, not what. Optional: a caller
     # that omits it gets `source: nil` recorded, honestly, rather than a
     # guessed default.
     SOURCE_TAGS = %w[process-manager operator hook sidequest-agent cascade daemon].freeze
 
-    # **The bus's own audit trail** — a JSONL file per domain, one line per
-    # `dispatch`/`query`/`state`/dry-run call, `follow` tails it back.
-    # `tmp/`, not the domain's own directory: this is the bus's record
-    # of what was asked of it, not part of the domain's own persisted
-    # state, and `tmp/` is already gitignored for exactly this kind of
-    # local, disposable-but-useful-while-it-lasts file.
-    LOG_ROOT = File.expand_path("../../tmp/storehouse", __dir__)
+    # Names the directory holding the bus's own audit trail.
+    #
+    # The trail is a JSONL file per domain, one line per
+    # `dispatch`/`query`/`state`/dry-run call, and `follow` tails it back.
+    # It is kept under `Hecks::CacheDir`, not the domain's own directory: this is
+    # the bus's record of what was asked of it, not part of the domain's own
+    # persisted state, and not the gem's own directory either, which is
+    # read-only on an installed gem.
+    #
+    # @return [String] the absolute path of the `storehouse` directory under
+    #   the cache root
+    def log_root = Hecks::CacheDir.path("storehouse")
 
     # The root every `domain:`/`under:` must resolve under — the project
     # directory by default, `HECKS_STOREHOUSE_ROOT` to widen or move it.
@@ -321,9 +327,9 @@ module Hecks
     #
     # @param domain_name [String, Symbol, #to_s] the domain name
     # @return [String] the absolute path to that domain's JSONL log file, under
-    #   `LOG_ROOT`
+    #   `log_root`
     def log_path(domain_name)
-      File.join(LOG_ROOT, "#{domain_name.to_s.gsub(/[^A-Za-z0-9_-]/, '_')}.jsonl")
+      File.join(log_root, "#{domain_name.to_s.gsub(/[^A-Za-z0-9_-]/, '_')}.jsonl")
     end
 
     # Appends one call's outcome to its domain's audit log.
@@ -351,7 +357,7 @@ module Hecks
       entry = { time: Time.now.utc.iso8601, tool: tool, verb: verb, summary: summary, source: source,
                 role: role, actor_id: actor_id,
                 ok: outcome[:ok], id: outcome[:id], error: outcome[:error], events: outcome[:events] }.compact
-      FileUtils.mkdir_p(LOG_ROOT)
+      FileUtils.mkdir_p(log_root)
       File.open(log_path(domain_name), "a") { |f| f.puts(JSON.generate(entry)) }
     rescue StandardError
       nil

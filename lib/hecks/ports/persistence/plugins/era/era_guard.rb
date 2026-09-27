@@ -131,7 +131,7 @@ module Hecks
       # Normal parse first, shadow only as a fallback — never shadow-parsing
       # unconditionally. A handful of DSL
       # defaults fork on `MetaValidator.shadow_parsing?` for a reason
-      # that has nothing to do with syntax the live grammar can no longer
+      # that has nothing to do with syntax the live grammar cannot
       # read at all (`identified_by { }`, `belongs_to`, `has_one`,
       # `has_many` — genuinely removed spellings, exactly what shadow-
       # parsing exists to keep readable): `reference_to`'s own default
@@ -158,7 +158,7 @@ module Hecks
       # interpretation, the same one `label_of`/`mint_hash` on the same
       # source text always computes, whoever's asking. Only on a
       # `Malformed` refusal — the one signal that actually means "this
-      # spelling doesn't exist anymore" — fall back to the legacy
+      # spelling is not in the live grammar" — fall back to the legacy
       # grammar. Any other exception (a
       # genuine syntax error, an unrelated validation refusal) propagates
       # unchanged; swallowing it here to retry under shadow mode would

@@ -151,7 +151,7 @@ module Hecks
       #                         Entity's contract claims `owner: :parent`
       #
       # `shape` and `handler` are not on this list — S17 (ADR 0026) made Member and
-      # Dispatch nested entities, so neither is a parent field any more the way
+      # Dispatch nested entities, so neither is a parent field the way
       # `owner` is. `spec/assembly_spec` derives this set from `Plan` and the
       # contracts directly and fails on any drift, rather than trusting this list to
       # stay in sync with a second hand-written copy kept by the model generator.

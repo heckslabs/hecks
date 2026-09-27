@@ -24835,6 +24835,20 @@
             [
               [
                 "refusal",
+                "InvariantViolation"
+              ],
+              [
+                "site",
+                "group_by_collision"
+              ],
+              [
+                "template",
+                "{read_model} groups by {fields}, but rows {ids} share {key} — a group_by leaf holds one row; add a field that tells them apart"
+              ]
+            ],
+            [
+              [
+                "refusal",
                 "Unauthorized"
               ],
               [
@@ -28711,6 +28725,142 @@
               [
                 "argument",
                 "admits"
+              ],
+              [
+                "shape",
+                "scalar"
+              ],
+              [
+                "quoting",
+                "none"
+              ],
+              [
+                "separator",
+                ""
+              ],
+              [
+                "sorted",
+                false
+              ],
+              [
+                "when_empty",
+                ""
+              ]
+            ],
+            [
+              [
+                "refusal",
+                "InvariantViolation"
+              ],
+              [
+                "site",
+                "group_by_collision"
+              ],
+              [
+                "argument",
+                "read_model"
+              ],
+              [
+                "shape",
+                "scalar"
+              ],
+              [
+                "quoting",
+                "none"
+              ],
+              [
+                "separator",
+                ""
+              ],
+              [
+                "sorted",
+                false
+              ],
+              [
+                "when_empty",
+                ""
+              ]
+            ],
+            [
+              [
+                "refusal",
+                "InvariantViolation"
+              ],
+              [
+                "site",
+                "group_by_collision"
+              ],
+              [
+                "argument",
+                "fields"
+              ],
+              [
+                "shape",
+                "list"
+              ],
+              [
+                "quoting",
+                "none"
+              ],
+              [
+                "separator",
+                ", "
+              ],
+              [
+                "sorted",
+                false
+              ],
+              [
+                "when_empty",
+                ""
+              ]
+            ],
+            [
+              [
+                "refusal",
+                "InvariantViolation"
+              ],
+              [
+                "site",
+                "group_by_collision"
+              ],
+              [
+                "argument",
+                "ids"
+              ],
+              [
+                "shape",
+                "list"
+              ],
+              [
+                "quoting",
+                "inspect"
+              ],
+              [
+                "separator",
+                ", "
+              ],
+              [
+                "sorted",
+                true
+              ],
+              [
+                "when_empty",
+                ""
+              ]
+            ],
+            [
+              [
+                "refusal",
+                "InvariantViolation"
+              ],
+              [
+                "site",
+                "group_by_collision"
+              ],
+              [
+                "argument",
+                "key"
               ],
               [
                 "shape",

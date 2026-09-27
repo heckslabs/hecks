@@ -272,7 +272,7 @@ module Hecks
         # types the consumer inlines. `uses_embryonaut_bluebook` only loads
         # the package's `.bluebook` files — persistence, Governance, and the
         # anti-corruption layer (`translates` field mapping) live on a named
-        # sibling hecksagon the CONSUMER must declare. Without that hexagon
+        # sibling hecksagon the consumer must declare. Without that hexagon
         # the package has no wiring of its own, and cross-context field
         # mapping has nowhere to be written. Breaking in 2.0: attaching a
         # vendored chapter without `Hecks.hecksagon "PackageName"` refuses
@@ -311,7 +311,7 @@ module Hecks
         # An explicit `bounded` mark on a consumer chapter always needs an
         # ACL — at least one `translates` block. Any field can be mapped;
         # the BC does not list which. `uses_framework` / `uses_embryonaut_bluebook`
-        # mark the ATTACHED chapter bounded (module wrap, no Object shortcut)
+        # mark the attached chapter bounded (module wrap, no Object shortcut)
         # and require the sibling hecksagon above; they do not require a
         # `translates` on that sibling unless the consumer also wrote `bounded`.
         # rust/host Google sign-in reads `ir.json`'s `membership` and
@@ -393,22 +393,22 @@ module Hecks
           bluebook_ir.aggregates.flat_map { |aggregate| aggregate.commands + aggregate.entities.flat_map(&:commands) }
         end
 
-        # TWO UNRELATED PACKAGES, ONE CHAPTER NAME BY COINCIDENCE — the
+        # Two unrelated packages, one chapter name by coincidence — the
         # real risk `Registry#bluebook_sources` exists to catch (found
         # live: a stale `vendor/hecksagain` fork's own copy of Governance/
         # Identity/Deploy, still reachable on 4 consuming apps' own load
         # paths alongside the real gem). `BluebookBuilder.build`'s own
-        # accumulation (several files declaring the SAME chapter name ON
-        # PURPOSE — `lib/hecks/language/bluebook/*.bluebook` all open
+        # accumulation (several files declaring the same chapter name on
+        # purpose — `lib/hecks/language/bluebook/*.bluebook` all open
         # `Hecks.bluebook "Bluebook"`) is never touched here — that merge
-        # stays unconditional, checked only AFTER every file has loaded,
+        # stays unconditional, checked only after every file has loaded,
         # the same "check the merged final result once" timing
         # `refuse_ungoverned_roles!` already uses and for the same reason
         # (a check against an incomplete load can never see the real
         # shape). What distinguishes intentional accumulation from
-        # coincidence is PACKAGE ROOT, not file identity: files a real
+        # coincidence is package root, not file identity: files a real
         # gemspec or a `vendor/` boundary already treats as one unit are
-        # expected to share a name; files from two DIFFERENT roots never
+        # expected to share a name; files from two different roots never
         # legitimately do.
         def refuse_cross_package_bluebook_merge!
           @bluebook_sources.each do |name, paths|
@@ -424,9 +424,9 @@ module Hecks
           end
         end
 
-        # THE NEAREST BOUNDARY A PATH ALREADY BELONGS TO — a real
-        # gemspec (this IS a package, whatever depends on it or vendors
-        # it), or a bare `vendor/` path component, treated as its OWN
+        # The nearest boundary a path already belongs to — a real
+        # gemspec (this is a package, whatever depends on it or vendors
+        # it), or a bare `vendor/` path component, treated as its own
         # root regardless of what gemspec might sit above it: vendored
         # code should never be considered "the same package" as whatever
         # it's vendored into, even when nothing else marks the boundary.

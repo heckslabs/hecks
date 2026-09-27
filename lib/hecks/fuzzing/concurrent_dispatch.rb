@@ -234,7 +234,7 @@ module Hecks
         repository.capabilities.include?(:cross_process_lock)
       rescue StandardError => e
         # Still `false` — a verb this boot cannot resolve is not raced on a
-        # guess — but no longer silent: `check` needs to tell "nothing here
+        # guess — but never silent: `check` needs to tell "nothing here
         # declares a cross-process lock" from "asking broke".
         probe_errors << "#{verb}: #{e.class}: #{e.message}"
         false

@@ -916,11 +916,11 @@ module Hecks
         # C3.8 — the boundary check for an attribute whose type is a bare
         # primitive rather than a value object: `Integer`/`Float` by exact
         # numeric class (`NUMERIC`), `String`/booleans by rejecting only a
-        # composite shape (`COMPOSITE_SHAPES`) — not the same as
+        # composite shape (`COMPOSITE_SHAPES`) — a looser test than
         # `check_scalar_shapes` holds a value object's own `String` field to
-        # any more (QualityControl BUG#125 tightened that one to also refuse
+        # (QualityControl BUG#125 has that one also refuse
         # a non-string scalar; a bare `String` argument here still admits
-        # any other scalar, left exactly as it was — a bare-primitive
+        # any other scalar — a bare-primitive
         # attribute was never part of BUG#125's own investigation or fix,
         # and whether it needs the same tightening, and against what real
         # Judge dependency if any, is still open); worded by the same

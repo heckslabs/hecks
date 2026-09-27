@@ -258,6 +258,25 @@ an ungrouped row is still a `{ cents: }`:
 by_kind["savings"]["rm-a2"][:daily_limit]  # => 10000
 ```
 
+A leaf holds one row. When two rows reach the same full key path, the ask
+refuses with `InvariantViolation` rather than keeping one of them
+([ADR 0061](../../decisions/0061-query-dsl-aggregation-count-sum-group-by.md),
+decision D1). The refusal names the read model, its `group_by`, the
+colliding ids and the shared key path, in the same words on Ruby and on
+the generated Rust runtime. A read model grouped `group_by :bin` over two
+parts in bin `b1` answers:
+
+```text
+PartsByBin groups by bin, but rows "p1", "p2" share bin = b1 — a group_by leaf holds one row; add a field that tells them apart
+```
+
+The refusal depends on the data: the same read model answers while every
+key path holds one row and refuses from the first request after a second
+row reaches one. A key path that names every identity field of the grouped
+aggregate cannot be shared by two rows, so it is accepted from the
+declaration and never checked; `AccountsByKind` is one, since `number` is
+`Account`'s identity.
+
 ## count
 
 <!-- generated:begin word=count -->

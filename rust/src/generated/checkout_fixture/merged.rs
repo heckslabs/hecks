@@ -902,7 +902,7 @@ pub fn check_query_args(verb: &str, args: &crate::kernel::Json) -> Result<(), cr
     }
 }
 
-pub fn group_by_styles(rows: Vec<(String, crate::kernel::Json)>) -> crate::kernel::Json {
+pub fn group_by_styles(rows: Vec<(String, crate::kernel::Json)>) -> Result<crate::kernel::Json, crate::kernel::Refusal> {
     let unwrapped: Vec<crate::kernel::Json> = rows
         .into_iter()
         .map(|(id, record)| {
@@ -929,10 +929,10 @@ pub fn group_by_styles(rows: Vec<(String, crate::kernel::Json)>) -> crate::kerne
             }
         })
         .collect();
-    crate::kernel::read_model::nest(unwrapped, &["agg", "state"])
+    crate::kernel::read_model::nest(unwrapped, &["agg", "state"], crate::kernel::read_model::LeafCheck::IdentityCovered)
 }
 
-pub fn group_by_curated(rows: Vec<(String, crate::kernel::Json)>) -> crate::kernel::Json {
+pub fn group_by_curated(rows: Vec<(String, crate::kernel::Json)>) -> Result<crate::kernel::Json, crate::kernel::Refusal> {
     let unwrapped: Vec<crate::kernel::Json> = rows
         .into_iter()
         .map(|(id, record)| {
@@ -971,7 +971,7 @@ pub fn group_by_curated(rows: Vec<(String, crate::kernel::Json)>) -> crate::kern
             }
         })
         .collect();
-    crate::kernel::read_model::nest(unwrapped, &["agg"])
+    crate::kernel::read_model::nest(unwrapped, &["agg"], crate::kernel::read_model::LeafCheck::IdentityCovered)
 }
 
 pub const READ_MODELS: &[crate::kernel::read_model::ReadModelDef] = &[

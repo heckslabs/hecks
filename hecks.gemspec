@@ -22,7 +22,20 @@ Gem::Specification.new do |spec|
   # Dir.glob, not `git ls-files` — this has to build the same way inside a
   # Bundler git checkout as it does in a plain working copy, and the former
   # is not guaranteed to carry a usable .git directory.
-  spec.files = Dir.chdir(__dir__) { Dir.glob("lib/**/*", File::FNM_DOTMATCH).select { |f| File.file?(f) } }
+  #
+  # The dev tooling stays in the repository (ADR 0066): these read or
+  # rewrite `examples/`, `qa/`, `spec/`, `rust/` or `docs/`, which an
+  # install does not carry, and nothing `lib/hecks.rb` loads requires them.
+  # spec/gemspec_packaging_spec.rb holds both halves of that.
+  dev_tooling = %r{\Alib/hecks/(fuzzing/|fuzzing\.rb\z|bench/|bench\.rb\z|corpus\.rb\z|codemod\.rb\z|
+                   query_ir\.rb\z|grammar/evolve\.rb\z|doc/)}x
+  spec.files = Dir.chdir(__dir__) do
+    (Dir.glob("lib/**/*", File::FNM_DOTMATCH) + ["exe/hecks"])
+      .select { |f| File.file?(f) }
+      .grep_v(dev_tooling)
+  end
+  spec.bindir      = "exe"
+  spec.executables = ["hecks"]
   spec.require_paths = ["lib"]
 
   spec.metadata["allowed_push_host"] = "https://rubygems.org"

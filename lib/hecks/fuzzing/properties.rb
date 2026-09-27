@@ -223,11 +223,10 @@ module Hecks
                                      "finish being built",
         "ValueObject#rows"        => "closed-set membership is checked in value/admission.rb, the second half of the same " \
                                      "one construction door",
-        # S17, ADR 0026 — Member is a genuine entity now (nested under
+        # S17, ADR 0026 — Member is a genuine entity (nested under
         # ValueObject), so this reads "Member#pairs", not "Member#shape" —
-        # the free-text, un-parsed spelling a standalone root once needed
-        # no longer exists at all, an entity's own element is never
-        # serialized as text. "ValueObject#members" is the same fact
+        # there is no free-text, un-parsed spelling, since an entity's own
+        # element is never serialized as text. "ValueObject#members" is the same fact
         # "ValueObject#rows" already counts, seen from the other side — a
         # value object cannot declare admitted rows without a members list
         # to hold them, and vice versa.

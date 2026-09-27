@@ -422,7 +422,7 @@ module Hecks
         end
       end
 
-      # Drops transitions whose own command no longer exists, then whatever that
+      # Drops transitions whose own command does not exist, then whatever that
       # leaves unreachable from the default state; clears `"lifecycle"` outright
       # once no transition survives.
       #
