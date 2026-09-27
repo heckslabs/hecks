@@ -296,19 +296,27 @@ cd packages/hecks-client
 npm version <version> --no-git-tag-version   # also updates package-lock.json
 ```
 
-`bin/release` publishes the package after the gem, from this directory, with a
-publish token held in 1Password: the "publish token" field on the "npmjs.com"
-item in the Hecks vault (`release/npm_publish.env` names the vault, item and
-field, and can be edited; the one-time setup is in the header of
-`bin/release`). It skips a version npm already has, so `bin/release --npm-only`
-finishes a release whose gem step already succeeded. The token must be a
-granular token scoped Read and write to the `@hecks` scope with "Bypass
-two-factor authentication" enabled: the account's second factor is a passkey,
-so a token that requires a one-time code cannot publish (npm answers EOTP).
-The publish passes `--auth-type=web` as an interactive fallback: if npm does
-ask for a passkey or security key, it prints an approval link and waits.
-Publishing from CI without a prompt needs npm trusted publishing, which is not
-set up yet. To publish by hand instead (`prepack` builds `dist/` first):
+Pushing the release tag starts `.github/workflows/publish-client.yml`, which
+publishes the package with npm trusted publishing: a short-lived identity
+token from the workflow run, so no npm token and no one-time code is stored
+anywhere. `bin/release` pushes the tag, publishes the gem, and waits for the
+package to appear on npm (`bin/release --npm-only` waits again after a
+re-run; a version npm already has is skipped).
+
+One-time setup, by an owner of the `@hecks` scope, once the package exists:
+on npmjs.com, package `@hecks/client` > Settings > Trusted Publisher > GitHub
+Actions > organization or user `heckslabs`, repository `hecks`, workflow
+filename `publish-client.yml`, environment blank.
+
+The first publish, before that can be configured, and any emergency when CI is
+down, is `bin/release --npm-local`. It publishes from this machine with a
+token held in 1Password: the "publish token" field on the "npmjs.com" item in
+the Hecks vault (`release/npm_publish.env` names the vault, item and field;
+the setup is in the header of `bin/release`). That token must be a granular
+token scoped Read and write to the `@hecks` scope with "Bypass two-factor
+authentication" enabled, and short-lived: the account's second factor is a
+passkey, so a token that requires a one-time code cannot publish (npm answers
+`EOTP`). To publish by hand instead (`prepack` builds `dist/` first):
 
 ```sh
 npm publish --access public

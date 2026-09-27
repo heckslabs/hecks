@@ -15,7 +15,7 @@ RSpec.describe "bin/release" do
     stdout, _stderr, status = run_release("--help")
 
     expect(status.exitstatus).to eq(0)
-    expect(stdout).to include("Usage: bin/release", "--dry-run", "--gem-only", "--npm-only", "--yes")
+    expect(stdout).to include("Usage: bin/release", "--dry-run", "--gem-only", "--npm-only", "--npm-local", "--no-wait", "--yes")
   end
 
   it "exits 2 on an unknown flag, printing the usage" do
@@ -36,5 +36,18 @@ RSpec.describe "bin/release" do
 
     expect(status.exitstatus).to eq(2)
     expect(stderr).to include("cannot be combined")
+  end
+
+  it "exits 2 when --no-wait is combined with --npm-local" do
+    _stdout, stderr, status = run_release("--no-wait", "--npm-local")
+
+    expect(status.exitstatus).to eq(2)
+    expect(stderr).to include("--no-wait")
+  end
+
+  it "exits 2 when --gem-only is combined with --npm-local" do
+    _stdout, _stderr, status = run_release("--gem-only", "--npm-local")
+
+    expect(status.exitstatus).to eq(2)
   end
 end

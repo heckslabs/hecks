@@ -7,21 +7,25 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
-**`bin/release` performs the whole release.** After the release PR merges, one
-command tags the merge commit, publishes the gem through `bin/release_gem`, and
-publishes `@hecks/client` to npm with a token held in 1Password
-(`release/npm_publish.env`). It refuses unless the checkout is a clean `main`
-equal to `origin/main`, the gem and the client are at one version, and the
-changelog has a heading for it. It asks RubyGems and npm what is already
-published and skips that, so a run that stopped between the gem and the package
-is finished by running it again (or `bin/release --npm-only`). `--dry-run` runs
-every check and build without tagging, pushing or publishing, `--gem-only` and
-`--npm-only` narrow it, and `--yes` answers its confirmations. The npm step
-needs a granular token that bypasses two-factor authentication, since the
-account's second factor is a passkey; if npm asks for one anyway it prints an
-approval link and waits. Publishing from CI without a prompt needs npm trusted
-publishing, which is not set up. The logic is
-`Hecks::Release::Runner`; `bin/release_gem` still works alone.
+**`bin/release` performs the whole release, and CI publishes `@hecks/client`.**
+After the release PR merges, one command tags the merge commit and publishes the
+gem through `bin/release_gem`. Pushing the tag starts the new
+`publish-client.yml` workflow, which publishes the package to npm with trusted
+publishing (no token, no one-time code, with provenance) after checking that the
+tag names the package's and the gem's version; `bin/release` waits for the
+version to appear on npm (every 15 seconds, up to 10 minutes; `--no-wait` skips
+it). It refuses unless the checkout is a clean `main` equal to `origin/main`, the
+gem and the client are at one version, and the changelog has a heading for it. It
+asks RubyGems and npm what is already published and skips that, so a run that
+stopped partway is finished by running it again. `--dry-run` runs every check and
+build without tagging, pushing or publishing, `--gem-only` and `--npm-only`
+narrow it, and `--yes` answers its confirmations. Trusted publishing is set up
+once on npmjs.com, after the package exists (package settings, Trusted
+Publisher, GitHub Actions, `heckslabs/hecks`, `publish-client.yml`); until then,
+and when CI is down, `--npm-local` publishes from the machine with a
+short-lived bypass-two-factor token from 1Password, since the account's second
+factor is a passkey. The logic is `Hecks::Release::Runner`; `bin/release_gem`
+still works alone.
 
 ## [2.7.0] - 2026-09-27
 

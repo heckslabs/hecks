@@ -223,32 +223,49 @@ an issue first — see the templates under `.github/ISSUE_TEMPLATE/`.
    checkout is a clean `main` equal to `origin/main`, the gem and
    `packages/hecks-client` are at one version, and `CHANGELOG.md` has a
    heading for it. It asks RubyGems and npm what is already published and
-   skips that, so if a run stops partway (say npm fails after the gem is
-   out) run it again, or `bin/release --npm-only`. In order, it:
+   skips that, so if a run stops partway, run it again. In order, it:
    - creates the annotated tag `vX.Y.Z` on the merge commit and pushes it;
    - runs `bin/release_gem` to build the gem and push it to rubygems.org;
-   - publishes `@hecks/client` with `npm publish --access public` (its
-     `prepack` step builds it).
+   - waits for CI to publish `@hecks/client`. Pushing the tag starts
+     `.github/workflows/publish-client.yml`, which publishes the package
+     with npm trusted publishing (no token, no code). `bin/release` says
+     so, then checks npm every 15 seconds for up to 10 minutes and reports
+     success, or the timeout with the run to look at
+     (`gh run list --workflow publish-client.yml`). `--no-wait` skips the
+     wait.
 
-   It asks before the tag and before publishing (`--yes` answers for you;
-   `--gem-only` and `--npm-only` narrow it). Both pushes pull their
-   credentials from 1Password (`op run`, Touch ID-gated) rather than a
-file on disk: the npm token is the "publish token" field on the
-"npmjs.com" item in the Hecks vault, next to the "RubyGems API Key" item
-(`release/npm_publish.env` names the vault, item and field, and can be
-edited; `release/gem_push.env` does the same for the RubyGems key). The
-one-time setup is in the header comments of `bin/release` (npm) and
-`bin/release_gem` (RubyGems). The npm token must be a granular token
-scoped Read and write to the `@hecks` scope with "Bypass two-factor
-authentication" enabled: the account's second factor is a passkey, so a
-token that requires a one-time code cannot publish (npm answers EOTP).
-The publish passes `--auth-type=web` as an interactive fallback: if npm
-does ask for a passkey or security key, it prints an approval link and
-waits. Publishing from CI without a prompt needs npm trusted publishing,
-which is not set up yet. The `hecks` npm organization exists; until the
-first publish, the package's README describes installing from the
-release tag.
+   It asks before the tag and before publishing the gem (`--yes` answers
+   for you). `--gem-only` skips the npm step; `--npm-only` skips the gem,
+   so on its own it just waits for CI's publish again (use it after
+   re-running the workflow with `gh workflow run publish-client.yml -f
+   tag=vX.Y.Z`).
+
+   The gem's push key comes from 1Password (`op run`, Touch ID-gated;
+   `release/gem_push.env`), and its one-time setup is in the header of
+   `bin/release_gem`.
+
+   One-time setup for CI publishing, by an owner of the `@hecks` scope on
+   npmjs.com, possible only once the package exists: package
+   `@hecks/client` > Settings > Trusted Publisher > GitHub Actions >
+   organization or user `heckslabs`, repository `hecks`, workflow filename
+   `publish-client.yml`, environment blank.
+
+   `--npm-local` is the fallback, and how the first publish is made
+   (before a trusted publisher can exist): it publishes `@hecks/client`
+   from this machine with a token from 1Password instead of leaving it to
+   CI (with `--npm-only` it publishes only the package). The token is the
+   "publish token" field on the "npmjs.com" item in the Hecks vault, next
+   to the "RubyGems API Key" item (`release/npm_publish.env` names the
+   vault, item and field, and can be edited). It must be a granular token
+   scoped Read and write to the `@hecks` scope with "Bypass two-factor
+   authentication" enabled, and short-lived: the account's second factor
+   is a passkey, so a token that requires a one-time code cannot publish
+   (npm answers `EOTP`). The header of `bin/release` has the setup. The
+   publish passes `--auth-type=web` as an interactive fallback: if npm
+   does ask for a passkey or security key, it prints an approval link and
+   waits.
 
    Manual fallback, if `bin/release` cannot be used: tag the merge commit
-   (`git tag -a vX.Y.Z <sha>` and push it), run `bin/release_gem`, then
-   run `npm publish --access public` in `packages/hecks-client`.
+   (`git tag -a vX.Y.Z <sha>` and push it, which starts the CI publish),
+   run `bin/release_gem`, and if CI cannot publish, run
+   `npm publish --access public` in `packages/hecks-client`.
