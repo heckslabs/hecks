@@ -100,8 +100,10 @@ one to review first.
 
 The two ADR 0072 triggers were answered on 2026-09-27: multi-agent use is near (so the
 allowlist is built, #880) and a network door is wanted. The network door is its own map,
-[docs/wayfinder/mcp-network-door/](../mcp-network-door/map.md); two of its questions are decided
-([ADR 0076](../../decisions/0076-the-network-door-is-a-separate-service-and-principals-live-in-each-domains-governance.md)).
+[docs/wayfinder/mcp-network-door/](../mcp-network-door/map.md); all six of its questions are decided
+([ADR 0076](../../decisions/0076-the-network-door-is-a-separate-service-and-principals-live-in-each-domains-governance.md)
+and [ADR 0077](../../decisions/0077-the-network-door-speaks-http-and-takes-a-signed-short-lived-token.md)),
+and nothing of it is built.
 
 Still open, and not something a build session can finish: merging the PRs, and finding an
 outside team for ADR 0071's exit test.

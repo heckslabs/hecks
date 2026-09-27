@@ -1,6 +1,6 @@
 ---
 type: grilling
-status: open
+status: closed
 blocked_by: []
 claimed_by:
 ---
@@ -25,3 +25,10 @@ stdio door unchanged (recorded in
 **Still open:** the network transport it speaks, where TLS ends, how it is reached in a
 deployment like the Fargate shape, what it refuses at the network edge before any token check,
 and whether it shares tool implementations with the stdio door or only their contract.
+
+Then decided 2026-09-27: the transport is MCP over HTTP (streamable, with server-sent events where
+a stream is needed), with TLS ended by the platform's load balancer in front of the door service,
+and the door refuses anything but its own MCP paths before any token check. Recorded in
+[ADR 0077](../../../decisions/0077-the-network-door-speaks-http-and-takes-a-signed-short-lived-token.md).
+Whether the door shares tool implementations with the stdio door or only their contract was not
+asked and is left to the build.

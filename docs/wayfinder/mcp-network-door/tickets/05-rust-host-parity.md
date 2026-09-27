@@ -1,6 +1,6 @@
 ---
 type: grilling
-status: open
+status: closed
 blocked_by: [04-composing-with-governance]
 claimed_by:
 ---
@@ -18,3 +18,9 @@ with one shared rule held byte-identical in CI like the other cross-runtime rule
 Rust host does with a token it cannot verify.
 
 ## Answer
+
+Decided 2026-09-27: no. The token check does not reach the host's internal protocol. The host keeps
+trusting that protocol only from loopback, and the network door verifies tokens itself before it
+calls the runtime; parity is the door's own rule, held identical for Ruby and Rust callers, and not
+a change to the host now. Recorded in
+[ADR 0077](../../../decisions/0077-the-network-door-speaks-http-and-takes-a-signed-short-lived-token.md).

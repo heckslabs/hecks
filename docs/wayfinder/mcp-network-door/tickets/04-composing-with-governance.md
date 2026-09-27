@@ -1,6 +1,6 @@
 ---
 type: grilling
-status: open
+status: closed
 blocked_by: [01-where-principals-live]
 claimed_by:
 ---
@@ -18,3 +18,10 @@ whether the read tools, which take no role today, require a verified principal o
 door, and whether a token can narrow a principal's roles below what Governance grants.
 
 ## Answer
+
+Decided 2026-09-27: the verified principal replaces `role:` and `actor_id:`. A request that still
+sends either is refused with a clear message, and even the read tools require a verified
+principal. This is stricter than the stdio door, on purpose. Recorded in
+[ADR 0077](../../../decisions/0077-the-network-door-speaks-http-and-takes-a-signed-short-lived-token.md).
+Whether a token can narrow a principal's roles below what Governance grants was not asked and is
+left to the build.

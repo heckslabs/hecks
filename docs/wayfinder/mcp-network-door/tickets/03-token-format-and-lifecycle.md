@@ -1,6 +1,6 @@
 ---
 type: grilling
-status: open
+status: closed
 blocked_by: [01-where-principals-live]
 claimed_by:
 ---
@@ -17,3 +17,9 @@ static secret is accepted by ADR 0062 only for a single operator with no per-pri
 say whether that case is in or out of scope.
 
 ## Answer
+
+Decided 2026-09-27: a signed, short-lived bearer token. An HMAC-signed token naming the principal,
+an audience and an expiry, in the same family as the host's signed session cookie; the key is held
+in the platform's secrets store and rotated; revocation is by expiry plus a deny list. Recorded in
+[ADR 0077](../../../decisions/0077-the-network-door-speaks-http-and-takes-a-signed-short-lived-token.md).
+The exact claims, the rotation interval and where the deny list lives are left to the build.

@@ -27,8 +27,16 @@ and [ADR 0072](../../decisions/0072-the-mcp-door-token-waits-for-a-real-need-and
 
 ## Decisions so far
 
+All six tickets are decided (2026-09-27), so the destination is reached: the design is specific
+enough for a build to start. What the build still has to settle is under "Not yet specified" and
+in the open items of [ADR 0077](../../decisions/0077-the-network-door-speaks-http-and-takes-a-signed-short-lived-token.md).
+
 - [Where principals live](tickets/01-where-principals-live.md) — each domain's own Governance; no separate identity provider. [ADR 0076](../../decisions/0076-the-network-door-is-a-separate-service-and-principals-live-in-each-domains-governance.md).
-- [Transport, and where the door runs](tickets/02-transport-and-where-it-runs.md) — partly decided, still open: it is a separate service ([ADR 0076](../../decisions/0076-the-network-door-is-a-separate-service-and-principals-live-in-each-domains-governance.md)); transport and TLS are not decided.
+- [Transport, and where the door runs](tickets/02-transport-and-where-it-runs.md) — a separate service ([ADR 0076](../../decisions/0076-the-network-door-is-a-separate-service-and-principals-live-in-each-domains-governance.md)) speaking MCP over HTTP with TLS at the edge ([ADR 0077](../../decisions/0077-the-network-door-speaks-http-and-takes-a-signed-short-lived-token.md)).
+- [Token format and lifecycle](tickets/03-token-format-and-lifecycle.md) — a signed, short-lived HMAC bearer token naming principal, audience and expiry; revocation by expiry plus a deny list. [ADR 0077](../../decisions/0077-the-network-door-speaks-http-and-takes-a-signed-short-lived-token.md).
+- [Composing with Governance](tickets/04-composing-with-governance.md) — the verified principal replaces `role:` and `actor_id:`, a request still sending either is refused, and readers need a principal too. [ADR 0077](../../decisions/0077-the-network-door-speaks-http-and-takes-a-signed-short-lived-token.md).
+- [Rust host parity](tickets/05-rust-host-parity.md) — the host is unchanged (loopback-only internal protocol); the door verifies tokens itself. [ADR 0077](../../decisions/0077-the-network-door-speaks-http-and-takes-a-signed-short-lived-token.md).
+- [What must be tested before it ships](tickets/06-what-must-be-tested-before-it-ships.md) — forged, expired, wrong-audience and revoked tokens, a request carrying `role:` or `actor_id:`, and an unrouted path; in-process and on a real listener; a failure blocks the door's release only. [ADR 0077](../../decisions/0077-the-network-door-speaks-http-and-takes-a-signed-short-lived-token.md).
 
 ## Not yet specified
 
