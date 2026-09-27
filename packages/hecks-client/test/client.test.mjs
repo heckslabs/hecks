@@ -96,7 +96,14 @@ describe("reaching the domain", () => {
   it("counts a request that outlives timeoutMs as unreachable", async () => {
     const hangs = (_url, req) =>
       new Promise((_resolve, reject) => req.signal.addEventListener("abort", () => reject(req.signal.reason)));
-    await assert.rejects(clientFor(hangs, { timeoutMs: 20 }).read(), DomainUnavailable);
+    // AbortSignal.timeout's timer does not keep the event loop alive on every Node version,
+    // and this fake fetch has no socket, so hold the loop open until the timeout has fired.
+    const keepAlive = setTimeout(() => {}, 2000);
+    try {
+      await assert.rejects(clientFor(hangs, { timeoutMs: 20 }).read(), DomainUnavailable);
+    } finally {
+      clearTimeout(keepAlive);
+    }
   });
 
   it("looks the global fetch up on each call when none is injected", async () => {
