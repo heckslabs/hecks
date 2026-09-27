@@ -5,8 +5,32 @@ name: CI rust host (reusable)
 
 on:
   workflow_call:
+    secrets:
+      HECKS_CI_ATTEST_KEY:
+        required: false
 
 jobs:
+  # Same detector-plus-gated-job shape as ci-rspec.yml's own ci_attestation_rspec —
+  # see ci-rust-parser.yml's identical addition for the full comment. One detector
+  # for both jobs below: they're one required check (rspec_rust_host), so one note
+  # entry covers both.
+  ci_attestation_rust_host:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    if: github.event_name != 'push'
+
+    outputs:
+      attested: ${{ steps.attest.outputs.attested }}
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/check-attestation
+        id: attest
+        with:
+          checks: rspec_rust_host
+          hmac-key: ${{ secrets.HECKS_CI_ATTEST_KEY }}
+
   # rust/host/ is the only Cargo project here that needs Postgres. The lineage spec
   # mints across a real era boundary in its own scratch database, created and
   # dropped by the spec, so no provisioning step is needed.
@@ -23,8 +47,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
-    # The cache-warming push run does not need this job.
-    if: github.event_name != 'push'
+    needs: ci_attestation_rust_host
+    if: always() && github.event_name != 'push' && (needs.ci_attestation_rust_host.result != 'success' || needs.ci_attestation_rust_host.outputs.attested != 'true')
 
     env:
       PGHOST: localhost
@@ -69,7 +93,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
-    if: github.event_name != 'push'
+    needs: ci_attestation_rust_host
+    if: always() && github.event_name != 'push' && (needs.ci_attestation_rust_host.result != 'success' || needs.ci_attestation_rust_host.outputs.attested != 'true')
 
     env:
       PGHOST: localhost
