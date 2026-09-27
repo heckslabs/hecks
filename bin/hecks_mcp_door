@@ -62,6 +62,22 @@
 # this file; adding one (HTTP, a socket reachable off-box) needs an
 # authentication layer in front of it first — see
 # `docs/decisions/0062-mcp-servers-need-real-authentication-before-any-network-transport.md`.
+#
+# **Reader mode** — whoever spawns the door can narrow it with
+# `HECKS_DOOR_TOOLS=readers` and `HECKS_DOOR_DOMAINS=<dir>[:<dir>...]`
+# (`Hecks::McpDoorScope`, ADR 0072 decision 2). A reader door serves only
+# `Hecks::McpDoorScope::READER_TOOLS` (`query`, `events`, `state`,
+# `catalog`, `describe`, `validate`, `domains`, `history`, `follow`),
+# lists only those in `tools/list`, and refuses `dispatch` (so `dry_run`
+# and `steps` too), `behaviors` and any other name with an answer that
+# names the mode. Its `domain:` must resolve to one of the named
+# directories, checked before anything boots, so no other domain's Ruby is
+# loaded. The door keeps no domain loaded between calls, so the named list
+# is the whole allowed set. This limits what one spawned agent can reach;
+# it identifies no one and is not authentication. The names sit outside
+# `HECKS_MCP_*` because the stdio guard refuses every name in that prefix
+# but the transport, and that refusal belongs to ADR 0062. With neither
+# variable set, the door serves every tool as described above.
 
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
 require "hecks/mcp_stdio_guard"
@@ -70,12 +86,18 @@ Hecks::McpStdioGuard.enforce_stdio!(server: "hecks-mcp-door")
 require "hecks"
 require "json"
 
+DOOR_SCOPE = Hecks::McpDoorScope.start!(server: "hecks-mcp-door")
+
 Hecks::McpStdioGuard.warn!(
   server: "hecks-mcp-door",
   notes:  [
     "Identity is self-asserted: role:/actor_id: are claims made by the caller and are not verified.",
     "state, events, history, follow, describe, catalog and query run with no role check at all.",
-    "domain: boots real Ruby under #{Hecks::Storehouse::BOOT_ROOT}; anyone who can write to stdin can run it."
+    *(if DOOR_SCOPE.restricted?
+        DOOR_SCOPE.notes
+      else
+        ["domain: boots real Ruby under #{Hecks::Storehouse::BOOT_ROOT}; anyone who can write to stdin can run it."]
+      end)
   ]
 )
 
@@ -293,9 +315,13 @@ TOOLS = [
 #
 # @param domain [String] the domain directory, e.g. `"examples/banking"`
 # @return [Runtime::Dispatcher, Runtime::RemoteDispatcher] the booted domain
-# @raise [Runtime::TypeMismatch] if `domain` resolves outside `Storehouse::BOOT_ROOT`
+# @raise [Runtime::TypeMismatch] if `domain` resolves outside `Storehouse::BOOT_ROOT`, or,
+#   on a reader door, outside `HECKS_DOOR_DOMAINS`
 # @raise [Runtime::WiringError] if the domain fails to boot
-def boot(domain) = Hecks.boot(Hecks::Storehouse.confine!(domain, "domain"), install_facade: false)
+def boot(domain)
+  Hecks.boot(Hecks::Storehouse.confine!(DOOR_SCOPE.admit_domain!(domain), "domain"),
+             install_facade: false)
+end
 
 # A closed-set dispatch table, one `when` per MCP tool name — each branch
 # is a single delegation to `Hecks::Storehouse`, and the size here is the
@@ -349,7 +375,7 @@ def call_tool(name, args)
   when "describe"
     Hecks::Storehouse.describe(runtime: boot(args["domain"]), aggregate: args["aggregate"])
   when "validate"
-    Hecks::Storehouse.validate(domain: args["domain"], deep: args["deep"] == true)
+    Hecks::Storehouse.validate(domain: DOOR_SCOPE.admit_domain!(args["domain"]), deep: args["deep"] == true)
   when "domains"
     Hecks::Storehouse.domains(under: args["under"] || "examples")
   when "history"
@@ -370,6 +396,18 @@ rescue StandardError => e
   # MCP-level `isError`, so args calling agent reads one shape for every
   # outcome.
   { ok: false, error: "#{e.class}: #{e.message}" }
+end
+
+# Runs one MCP tool call if this door's mode serves it, and refuses it otherwise.
+#
+# @param name [String] the tool name from the `tools/call` request
+# @param args [Hash{String => Object}] the tool's JSON arguments
+# @return [Hash{Symbol => Object}] the `call_tool` result, or `DOOR_SCOPE.refusal(name)`
+#   when a reader door does not serve `name`
+def answer_tool(name, args)
+  return DOOR_SCOPE.refusal(name) unless DOOR_SCOPE.permits_tool?(name)
+
+  call_tool(name, args)
 end
 
 # Wraps a `call_tool` payload in the MCP `tools/call` result shape.
@@ -421,9 +459,9 @@ def handle(request)
   when "notifications/initialized"
     nil # a notification — no id, no response
   when "tools/list"
-    send_response(id, { tools: TOOLS })
+    send_response(id, { tools: TOOLS.select { |tool| DOOR_SCOPE.permits_tool?(tool[:name]) } })
   when "tools/call"
-    send_response(id, tool_result(call_tool(params["name"], params["arguments"] || {})))
+    send_response(id, tool_result(answer_tool(params["name"], params["arguments"] || {})))
   when "ping"
     send_response(id, {})
   else

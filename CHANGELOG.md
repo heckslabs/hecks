@@ -71,6 +71,22 @@ owned by the current user and writable by nobody else (the cache is read back wi
 root, unrelated) are unchanged. Files an earlier version left under `<gem root>/tmp`
 are orphaned and can be deleted. This is step 1 of ADR 0066.
 
+**`bin/hecks_mcp_door` has a reader mode.** Whoever spawns the door can set
+`HECKS_DOOR_TOOLS=readers` and `HECKS_DOOR_DOMAINS=<dir>[:<dir>...]` (ADR 0072,
+decision 2). A reader door serves only `query`, `events`, `state`, `catalog`,
+`describe`, `validate`, `domains`, `history` and `follow`, lists only those in
+`tools/list`, and refuses `dispatch` (with `dry_run` and `steps`), `behaviors`
+and any other tool with an answer that names the mode. A call's `domain:` must
+resolve to one of the named directories, and is checked before anything boots,
+so no other domain's Ruby is loaded. The startup warning says when the door is
+in reader mode. The door refuses to start on an unknown `HECKS_DOOR_*` name, a
+mode other than `readers`, reader mode without domains, domains without reader
+mode, or a named domain outside the boot root. With neither variable set the
+door behaves exactly as before. This limits what one spawned agent can reach;
+it identifies no one, adds no token or secret, and is not authentication. The
+settings sit outside `HECKS_MCP_*`, which the stdio guard keeps for the
+transport alone (ADR 0062). The logic is `Hecks::McpDoorScope`.
+
 **`bin/release` performs the whole release, and CI publishes `@hecks/client`.**
 After the release PR merges, one command tags the merge commit and publishes the
 gem through `bin/release_gem`. Pushing the tag starts the new
