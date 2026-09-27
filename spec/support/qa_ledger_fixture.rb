@@ -85,18 +85,29 @@ module QaLedgerFixture
       FileUtils.remove_entry(@root) if @root
     end
 
-    # A fresh schema before every example, so no rows leak between examples.
+    # Clears rows before every example so none leak between examples, via `truncate`
+    # rather than dropping and recreating the schema: dropping it would invalidate
+    # `#boot`'s memoized connection below, which stays bound to the same tables for a
+    # whole file's lifetime. Measured: dropping/recreating the schema itself costs under
+    # 20ms — a `#boot` call costs ~0.3-0.4s, almost entirely re-parsing the same static
+    # bluebook domain, so paying that once per file instead of once per example is the
+    # real saving here. A no-op the first time this runs, before `#boot` has provisioned
+    # any tables yet.
     def reset!
       scrub = PG.connect(dbname: @database)
-      scrub.exec("DROP SCHEMA public CASCADE")
-      scrub.exec("CREATE SCHEMA public")
+      tables = scrub.exec("SELECT tablename FROM pg_tables WHERE schemaname = 'public'").map { |row| row["tablename"] }
+      unless tables.empty?
+        quoted = tables.map { |table| scrub.quote_ident(table) }.join(", ")
+        scrub.exec("TRUNCATE #{quoted} RESTART IDENTITY CASCADE")
+      end
       scrub.close
-      QaLedgerRole.own_public!(@database)
     end
 
-    # Boots in-process to seed or read rows; the script under test always runs as a subprocess.
+    # Boots in-process to seed or read rows; the script under test always runs as a
+    # subprocess. Memoized, since the domain this boots never changes within one spec
+    # file's lifetime — see `#reset!`'s own comment for the cost this avoids repeating.
     def boot
-      Hecks.boot(@dir)
+      @boot ||= Hecks.boot(@dir)
     end
 
     # The subprocess environment; `QA_SWEEP_DOMAIN_DIR` is the seam the `bin/qa_*` scripts honour.

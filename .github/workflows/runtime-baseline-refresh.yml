@@ -1,0 +1,111 @@
+name: Refresh rspec runtime baselines (scheduled)
+
+# Keeps .github/postgres_io_runtime_baseline.log and .github/rspec_runtime_baseline.log —
+# the only grouping input the 8-way sharded CI jobs bin-pack from, per
+# ci-postgres-io-parallel.yml's own header comment — from going stale. A stale baseline
+# doesn't just cost total suite time: it actively worsens the max-shard "long pole", since
+# the packer keeps a file's shard allocation pinned to whatever it cost the last time the
+# baseline was refreshed, even after a real fix changes that file's actual cost (this is
+# exactly what happened after #898 sped up bin/qa_tick — the packer kept budgeting the old,
+# slower time for those specs until #900 manually refreshed the baseline).
+#
+# SCHEDULED, NOT PER-MERGE — the postgres-io legs only run on `pull_request`/`merge_group`
+# (never on `push`, see ci-postgres-io-parallel.yml's own `if:`), so a refresh triggered by
+# "every merge" would have its own commit go through the merge queue too, producing its own
+# (slightly different, real CI variance) timings — a steady trickle of near-identical
+# refresh PRs from pure noise, not real signal. Weekly is a deliberate choice to keep this
+# bounded.
+#
+# WHY A COMMITTED FILE, NOT A LIVE RESTORE-PER-LEG CACHE — already tried and reverted (see
+# ci-postgres-io-parallel.yml's own comment on the non-atomicity a restored per-leg cache
+# caused on PR #677, where two legs split 337 files two different ways because their caches
+# were not restored from the same state). Every leg must compute its 8-way split from
+# byte-identical input, so the only safe way to update it is a single, atomic git commit.
+on:
+  schedule:
+    - cron: "17 6 * * 1" # Monday 06:17 UTC — an arbitrary off-peak minute, not import-worthy
+  workflow_dispatch: {} # for a manual run without waiting for Monday
+
+concurrency:
+  group: rspec-runtime-baseline-refresh
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: ./.github/actions/setup-ruby
+
+      # `bin/refresh_rspec_runtime_baseline --from-run` refuses (aborts) a non-`success` run,
+      # and separately skips (warns, does not abort) a family whose artifact set is
+      # incomplete — the rspec-runtime-group family runs on every merge_group/pull_request,
+      # but the postgres-io family is itself gated by `postgres_io_relevant_changed` and can
+      # be entirely absent from a given run. Walking recent merge_group runs here, checking
+      # each one's own job list, finds the newest run that actually has both families —
+      # passing the newest run unconditionally would frequently hand the script one that
+      # only refreshes the rspec-runtime-group side and silently never touches the
+      # postgres-io side for weeks.
+      - name: Find the most recent merge-queue run with real postgres-io shard data
+        id: find_run
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -e
+          candidates=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow ci.yml --event merge_group \
+            --status success --limit 20 --json databaseId --jq '.[].databaseId')
+
+          run_id=""
+          for candidate in $candidates; do
+            shard_conclusion=$(gh run view "$candidate" --repo "$GITHUB_REPOSITORY" --json jobs \
+              --jq '.jobs[] | select(.name == "rspec_postgres_io_parallel_impl / rspec_postgres_io_parallel_shard (1)") | .conclusion')
+            if [ "$shard_conclusion" = "success" ]; then
+              run_id="$candidate"
+              break
+            fi
+          done
+
+          if [ -z "$run_id" ]; then
+            echo "no recent merge-queue run exercised the postgres-io shards — nothing to refresh from this week" >&2
+          fi
+          echo "run_id=$run_id" >> "$GITHUB_OUTPUT"
+
+      - name: Refresh the committed baselines
+        if: steps.find_run.outputs.run_id != ''
+        run: bin/refresh_rspec_runtime_baseline --from-run ${{ steps.find_run.outputs.run_id }}
+
+      # Auto-merge, not a human-reviewed PR — this is a scoped, mechanical, data-only change
+      # (two generated log files, no code or spec content), the same class of change a
+      # person would rubber-stamp without reading every line anyway. `bin/refresh_rspec_
+      # runtime_baseline`'s own safety checks (above) are what actually gate correctness.
+      - name: Open and auto-merge a PR if the baselines changed
+        if: steps.find_run.outputs.run_id != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ steps.find_run.outputs.run_id }}
+        run: |
+          set -e
+          if git diff --quiet -- .github/postgres_io_runtime_baseline.log .github/rspec_runtime_baseline.log; then
+            echo "baselines already match run $RUN_ID — nothing to do"
+            exit 0
+          fi
+
+          branch="scheduled-runtime-baseline-refresh-$(date -u +%Y%m%d)"
+          git checkout -b "$branch"
+          git -c user.name="hecks-ci-bot" -c user.email="ci-bot@users.noreply.github.com" \
+            commit -am "Scheduled refresh of rspec runtime baselines (run $RUN_ID)"
+          git push origin "$branch"
+
+          pr_url=$(gh pr create --repo "$GITHUB_REPOSITORY" \
+            --title "Scheduled refresh of rspec runtime baselines" \
+            --body "Automated weekly refresh of .github/postgres_io_runtime_baseline.log and .github/rspec_runtime_baseline.log from merge-queue run $RUN_ID. Data-only: no code or spec content changed. See bin/refresh_rspec_runtime_baseline's own header for what these files drive.")
+          gh pr merge "$pr_url" --auto --squash
