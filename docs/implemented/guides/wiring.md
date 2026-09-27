@@ -346,8 +346,12 @@ scripts.extend_files({ "Makefile" => "" }, deploy_settings: {}, **common).keys  
 The settings, with their defaults, are documented on
 `Hecks::Projections::Deploy::Scripts`. `bin/check_era <url> expected-era`
 compares the era a running host reports with that file and exits 1 when it
-is not listed. The scripts never read the stack template, so a container,
-ECR repository or parameter name set here has to match it.
+is not listed. The scripts take their containers, ECR repositories and
+image-tag parameters from the same resolved settings the stack template is
+rendered from (the world's `domain_container` and `containers`), never from a
+second list, so `deploy-service.sh` names exactly what `template.yaml`
+defines. The generated `Makefile`'s `deploy` follows a renamed domain
+container's repository and image-tag parameter the same way.
 
 The other opt-in files below share its rule: nothing is generated for a block
 that does not ask, so a stack that never mentions them is unchanged.

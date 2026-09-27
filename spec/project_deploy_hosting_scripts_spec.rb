@@ -2,6 +2,7 @@ require "tmpdir"
 require "fileutils"
 require "open3"
 require "yaml"
+require "hecks/projections/deploy/template_diff"
 
 # The hosting scripts `deployed_to("AwsFargate")` can opt in to
 # (`hosting_scripts true`): generated for real through `bin/project_deploy
@@ -81,6 +82,35 @@ RSpec.describe "bin/project_deploy — Fargate hosting scripts", :io do
     [status, stderr]
   end
 
+  def template_of(files) = Hecks::Projections::Deploy::TemplateDiff::Loader.load(files["template.yaml"])
+
+  # Reads the generated template's task definition into container name =>
+  # its ECR repository name and the parameter holding its image tag.
+  def template_containers(files)
+    resources = template_of(files).fetch("Resources")
+    repositories = resources.select { |_id, resource| resource["Type"] == "AWS::ECR::Repository" }
+                            .transform_values { |resource| resource["Properties"]["RepositoryName"] }
+    task = resources.values.find { |resource| resource["Type"] == "AWS::ECS::TaskDefinition" }
+    task["Properties"]["ContainerDefinitions"].to_h do |container|
+      repository_id, parameter = container["Image"]["Fn::Sub"].match(/\$\{(\w+)\.RepositoryUri\}:\$\{(\w+)\}/).captures
+      [container["Name"], { repository: repositories.fetch(repository_id), parameter: parameter }]
+    end
+  end
+
+  # Checks that deploy-service.sh accepts exactly the template's containers and
+  # resolves each to the repository and parameter the template defines.
+  def expect_script_to_match_template(files, defined)
+    script = files["deploy-service.sh"]
+    parameters = template_of(files).fetch("Parameters").keys
+
+    expect(script).to include("SERVICES='#{defined.keys.join(' ')}'")
+    expect(script.scan(/^\s+\S+\) ECR_REPOSITORY=/).size).to eq(defined.size)
+    defined.each do |name, names|
+      expect(script).to include("#{name}) ECR_REPOSITORY=#{names[:repository]}; CFN_PARAM_KEY=#{names[:parameter]} ;;")
+      expect(parameters).to include(names[:parameter])
+    end
+  end
+
   def opted_in(extra = "")
     <<~SETTINGS + extra
       hosting_scripts true
@@ -115,7 +145,7 @@ RSpec.describe "bin/project_deploy — Fargate hosting scripts", :io do
       files = { "Makefile" => "x" }
 
       result = Hecks::Projections::Deploy::Scripts.extend_files(
-        files, deploy_settings: { region: "no such region" }, infra_name: "a", stack_name: "a", region: "no such region"
+        files, deploy_settings: { region: "no such region" }, plan: nil, stack_name: "a", region: "no such region"
       )
 
       expect(result).to equal(files)
@@ -185,20 +215,77 @@ RSpec.describe "bin/project_deploy — Fargate hosting scripts", :io do
       end
     end
 
-    it "maps every container to its repository and image tag parameter" do
-      settings = opted_in(<<~SETTINGS)
-        containers ["web", "cms-admin", "domain"]
-        ecr_repositories "domain" => "acme-domain-image"
-        image_tag_parameters "web" => "SiteTag"
-      SETTINGS
-      generate(settings) do |files, _|
-        script = files["deploy-service.sh"]
+    it "names exactly the containers, repositories and tag parameters the template defines" do
+      generate(opted_in) do |files, _|
+        defined = template_containers(files)
 
-        expect(script).to include("SERVICES='web cms-admin domain'")
-        expect(script).to include("web) ECR_REPOSITORY=#{HOSTING_FIXTURE_BASENAME}-web; CFN_PARAM_KEY=SiteTag ;;")
-        expect(script).to include("cms-admin) ECR_REPOSITORY=#{HOSTING_FIXTURE_BASENAME}-cms-admin;",
-                                  "CFN_PARAM_KEY=CmsAdminImageTag ;;")
-        expect(script).to include("domain) ECR_REPOSITORY=acme-domain-image; CFN_PARAM_KEY=DomainImageTag ;;")
+        expect(defined.keys).to eq([HOSTING_FIXTURE_BASENAME])
+        expect_script_to_match_template(files, defined)
+      end
+    end
+
+    describe "with several containers" do
+      let(:multi_container_settings) do
+        opted_in(<<~SETTINGS)
+          domain_container name: "core", repository: "acme-core-image", image_tag_parameter: "CoreTag"
+          containers [
+            { name: "web", repository: "acme-web", port: 3000, health_path: "/health", image_tag_parameter: "SiteTag" },
+            { name: "cms-admin", repository: "acme-cms-admin" }
+          ]
+          routes [{ container: "web", paths: ["/site/*"], priority: 10 }]
+        SETTINGS
+      end
+
+      it "follows the template's hash-shaped containers and domain_container" do
+        generate(multi_container_settings) do |files, _|
+          defined = template_containers(files)
+
+          expect(defined).to eq(
+            "core"      => { repository: "acme-core-image", parameter: "CoreTag" },
+            "web"       => { repository: "acme-web", parameter: "SiteTag" },
+            "cms-admin" => { repository: "acme-cms-admin", parameter: "CmsAdminImageTag" }
+          )
+          expect(files["deploy-service.sh"]).to include("SERVICES='core web cms-admin'")
+          expect_script_to_match_template(files, defined)
+        end
+      end
+
+      it "makes the Makefile push the domain image to the repository and parameter the template names" do
+        generate(multi_container_settings) do |files, _|
+          makefile = files["Makefile"]
+
+          expect(makefile).to include("docker build --platform linux/arm64 -t acme-core-image:$(IMAGE_TAG)")
+          expect(makefile).to include(".amazonaws.com/acme-core-image:$(IMAGE_TAG)")
+          expect(makefile).to include("--parameter-overrides CoreTag=$(IMAGE_TAG)")
+          expect(makefile).not_to match(%r{\bImageTag=|amazonaws\.com/#{HOSTING_FIXTURE_BASENAME}:})
+          expect(files["hosting.mk"]).to include("SERVICE         ?= core")
+        end
+      end
+
+      it "refuses the container name list the scripts used to take" do
+        status, stderr = refusal(opted_in("containers [\"web\"]\n"))
+
+        expect(status).not_to be_success
+        expect(stderr).to include("containers[0] must be a hash")
+      end
+    end
+
+    it "takes the cluster and service the template names when the world renames them" do
+      generate(opted_in("names cluster: \"acme-shared-cluster\", service: \"acme-shared-svc\"\n")) do |files, _|
+        resources = template_of(files).fetch("Resources").values
+        cluster = resources.find { |resource| resource["Type"] == "AWS::ECS::Cluster" }
+        service = resources.find { |resource| resource["Type"] == "AWS::ECS::Service" }
+
+        expect(files["deploy-service.sh"]).to include("CLUSTER=#{cluster['Properties']['ClusterName']}",
+                                                      "ECS_SERVICE=#{service['Properties']['ServiceName']}")
+        expect(files["deploy-service.sh"]).to include("CLUSTER=acme-shared-cluster", "ECS_SERVICE=acme-shared-svc")
+      end
+    end
+
+    it "leaves the default Makefile deploy on ImageTag and the domain-named repository" do
+      generate(opted_in) do |files, _|
+        expect(files["Makefile"]).to include("-t #{HOSTING_FIXTURE_BASENAME}:$(IMAGE_TAG)",
+                                             "--parameter-overrides ImageTag=$(IMAGE_TAG)")
       end
     end
 

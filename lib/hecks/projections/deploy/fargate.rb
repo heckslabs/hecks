@@ -787,17 +787,17 @@ module Hecks
             # linux/arm64, not the generator's old amd64 default — has to
             # match RuntimePlatform/the binary this Makefile's own build:
             # step just cross-compiled, above.
-            \tdocker build --platform linux/arm64 -t #{infra_name}:$(IMAGE_TAG) .
+            \tdocker build --platform linux/arm64 -t #{domain_container.repository_name}:$(IMAGE_TAG) .
 
             .PHONY: docker-push
             docker-push: ecr-login
             \tACCOUNT_ID=$$(aws sts get-caller-identity --query Account --output text); \\
-            \t\tdocker tag #{infra_name}:$(IMAGE_TAG) $$ACCOUNT_ID.dkr.ecr.$(REGION).amazonaws.com/#{infra_name}:$(IMAGE_TAG); \\
-            \t\tdocker push $$ACCOUNT_ID.dkr.ecr.$(REGION).amazonaws.com/#{infra_name}:$(IMAGE_TAG)
+            \t\tdocker tag #{domain_container.repository_name}:$(IMAGE_TAG) $$ACCOUNT_ID.dkr.ecr.$(REGION).amazonaws.com/#{domain_container.repository_name}:$(IMAGE_TAG); \\
+            \t\tdocker push $$ACCOUNT_ID.dkr.ecr.$(REGION).amazonaws.com/#{domain_container.repository_name}:$(IMAGE_TAG)
 
             .PHONY: deploy
             deploy: docker-build docker-push
-            #{shared ? "\t@echo \"Looking up #{owner_stack_name}'s shared VpcId/PrivateSubnetAId/PrivateSubnetBId/PublicSubnetId/BastionSubnetId/FunctionSecurityGroupId/DatabaseEndpoint/DatabaseSecretArn outputs to pass as $(STACK)'s Owning* parameters...\"\n\tOWNER_VPC_ID=$$(aws cloudformation describe-stacks --stack-name #{owner_stack_name} --query \"Stacks[0].Outputs[?OutputKey=='VpcId'].OutputValue\" --output text); \\\n\t\tOWNER_SUBNET_A_ID=$$(aws cloudformation describe-stacks --stack-name #{owner_stack_name} --query \"Stacks[0].Outputs[?OutputKey=='PrivateSubnetAId'].OutputValue\" --output text); \\\n\t\tOWNER_SUBNET_B_ID=$$(aws cloudformation describe-stacks --stack-name #{owner_stack_name} --query \"Stacks[0].Outputs[?OutputKey=='PrivateSubnetBId'].OutputValue\" --output text); \\\n\t\tOWNER_PUBLIC_SUBNET_A_ID=$$(aws cloudformation describe-stacks --stack-name #{owner_stack_name} --query \"Stacks[0].Outputs[?OutputKey=='PublicSubnetId'].OutputValue\" --output text); \\\n\t\tOWNER_PUBLIC_SUBNET_B_ID=$$(aws cloudformation describe-stacks --stack-name #{owner_stack_name} --query \"Stacks[0].Outputs[?OutputKey=='BastionSubnetId'].OutputValue\" --output text); \\\n\t\tOWNER_SG_ID=$$(aws cloudformation describe-stacks --stack-name #{owner_stack_name} --query \"Stacks[0].Outputs[?OutputKey=='FunctionSecurityGroupId'].OutputValue\" --output text); \\\n\t\tOWNER_DB_HOST=$$(aws cloudformation describe-stacks --stack-name #{owner_stack_name} --query \"Stacks[0].Outputs[?OutputKey=='DatabaseEndpoint'].OutputValue\" --output text); \\\n\t\tOWNER_DB_SECRET_ARN=$$(aws cloudformation describe-stacks --stack-name #{owner_stack_name} --query \"Stacks[0].Outputs[?OutputKey=='DatabaseSecretArn'].OutputValue\" --output text); \\\n\t\taws cloudformation deploy --template-file template.yaml --stack-name $(STACK) --region $(REGION) --capabilities CAPABILITY_IAM \\\n\t\t\t--parameter-overrides ImageTag=$(IMAGE_TAG) OwningVpcId=$$OWNER_VPC_ID OwningSubnetAId=$$OWNER_SUBNET_A_ID OwningSubnetBId=$$OWNER_SUBNET_B_ID OwningPublicSubnetAId=$$OWNER_PUBLIC_SUBNET_A_ID OwningPublicSubnetBId=$$OWNER_PUBLIC_SUBNET_B_ID OwningSecurityGroupId=$$OWNER_SG_ID OwningDatabaseEndpoint=$$OWNER_DB_HOST OwningDatabaseSecretArn=$$OWNER_DB_SECRET_ARN" : "\taws cloudformation deploy --template-file template.yaml --stack-name $(STACK) --region $(REGION) --capabilities CAPABILITY_IAM --parameter-overrides ImageTag=$(IMAGE_TAG)"}
+            #{shared ? "\t@echo \"Looking up #{owner_stack_name}'s shared VpcId/PrivateSubnetAId/PrivateSubnetBId/PublicSubnetId/BastionSubnetId/FunctionSecurityGroupId/DatabaseEndpoint/DatabaseSecretArn outputs to pass as $(STACK)'s Owning* parameters...\"\n\tOWNER_VPC_ID=$$(aws cloudformation describe-stacks --stack-name #{owner_stack_name} --query \"Stacks[0].Outputs[?OutputKey=='VpcId'].OutputValue\" --output text); \\\n\t\tOWNER_SUBNET_A_ID=$$(aws cloudformation describe-stacks --stack-name #{owner_stack_name} --query \"Stacks[0].Outputs[?OutputKey=='PrivateSubnetAId'].OutputValue\" --output text); \\\n\t\tOWNER_SUBNET_B_ID=$$(aws cloudformation describe-stacks --stack-name #{owner_stack_name} --query \"Stacks[0].Outputs[?OutputKey=='PrivateSubnetBId'].OutputValue\" --output text); \\\n\t\tOWNER_PUBLIC_SUBNET_A_ID=$$(aws cloudformation describe-stacks --stack-name #{owner_stack_name} --query \"Stacks[0].Outputs[?OutputKey=='PublicSubnetId'].OutputValue\" --output text); \\\n\t\tOWNER_PUBLIC_SUBNET_B_ID=$$(aws cloudformation describe-stacks --stack-name #{owner_stack_name} --query \"Stacks[0].Outputs[?OutputKey=='BastionSubnetId'].OutputValue\" --output text); \\\n\t\tOWNER_SG_ID=$$(aws cloudformation describe-stacks --stack-name #{owner_stack_name} --query \"Stacks[0].Outputs[?OutputKey=='FunctionSecurityGroupId'].OutputValue\" --output text); \\\n\t\tOWNER_DB_HOST=$$(aws cloudformation describe-stacks --stack-name #{owner_stack_name} --query \"Stacks[0].Outputs[?OutputKey=='DatabaseEndpoint'].OutputValue\" --output text); \\\n\t\tOWNER_DB_SECRET_ARN=$$(aws cloudformation describe-stacks --stack-name #{owner_stack_name} --query \"Stacks[0].Outputs[?OutputKey=='DatabaseSecretArn'].OutputValue\" --output text); \\\n\t\taws cloudformation deploy --template-file template.yaml --stack-name $(STACK) --region $(REGION) --capabilities CAPABILITY_IAM \\\n\t\t\t--parameter-overrides #{domain_container.tag_parameter}=$(IMAGE_TAG) OwningVpcId=$$OWNER_VPC_ID OwningSubnetAId=$$OWNER_SUBNET_A_ID OwningSubnetBId=$$OWNER_SUBNET_B_ID OwningPublicSubnetAId=$$OWNER_PUBLIC_SUBNET_A_ID OwningPublicSubnetBId=$$OWNER_PUBLIC_SUBNET_B_ID OwningSecurityGroupId=$$OWNER_SG_ID OwningDatabaseEndpoint=$$OWNER_DB_HOST OwningDatabaseSecretArn=$$OWNER_DB_SECRET_ARN" : "\taws cloudformation deploy --template-file template.yaml --stack-name $(STACK) --region $(REGION) --capabilities CAPABILITY_IAM --parameter-overrides #{domain_container.tag_parameter}=$(IMAGE_TAG)"}
             \t$(MAKE) mint-era
 
             #{shared ? <<~SHAREDMINT.rstrip : <<~OWNMINT.rstrip
@@ -868,12 +868,12 @@ module Hecks
             infra_name: infra_name, stack_name: stack_name, stack_prefix: stack_prefix, region: region,
             cpu: cpu, memory: memory, db_name: shared ? owner_db_name : db_name,
             owner_stack: shared ? owner_stack_name : nil, name: infra_name, port: port,
-            image: "#{infra_name}:latest", domain: declared_domain_name, web: target.state[:web].value,
+            image: "#{domain_container.repository_name}:latest", domain: declared_domain_name, web: target.state[:web].value,
             wasm_path: "/usr/local/bin/#{domain_name}.wasm", ir_path: "/usr/local/bin/#{domain_name}.ir.json",
             schema: hecks_schema
           }
           files.merge!(Preview.call(deploy_settings: deploy_settings, main: preview_main))
-          Scripts.extend_files(files, deploy_settings: deploy_settings, infra_name: infra_name,
+          Scripts.extend_files(files, deploy_settings: deploy_settings, plan: plan,
                                       stack_name: stack_name, region: region)
         end
 
