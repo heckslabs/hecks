@@ -34,9 +34,13 @@ require_relative "hecks/storehouse"
 require_relative "hecks/mcp_stdio_guard"
 require_relative "hecks/mcp_door_scope"
 require_relative "hecks/framework"
-require_relative "hecks/corpus"
 require_relative "hecks/vendoring"
 require_relative "hecks/embryonaut_bluebook"
+
+# Repository-only tooling: the corpus table walks `examples/`, `qa/` and
+# `spec/`, which only a checkout has, so it loads on first use and the
+# packaged gem leaves it out (ADR 0066).
+Hecks.autoload(:Corpus, File.expand_path("hecks/corpus", __dir__))
 
 # The root namespace and public facade of the whole DSL/runtime: `Hecks.boot`/
 # `.boot_files` assemble a running domain from `.bluebook`/`.hecksagon`/

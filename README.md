@@ -63,6 +63,13 @@ gem install hecks
 Or in a Gemfile: `gem "hecks"`. See [Quickstart](#quickstart) below to
 go from a bare install to a running domain.
 
+The gem installs a `hecks` command for a domain you supply: `run`,
+`docs`, `narrate`, `ir`, `stores`, `model_check`, `smoke_test`,
+`project_diagrams`, `project_cli`, and `mcp` (the MCP door, over stdio
+only). `hecks` lists them and `hecks <command> --help` prints one's
+usage. Each runs the same code as its `bin/` script in a clone (`mcp`
+is `bin/hecks_mcp_door`).
+
 ## Why
 
 Take one real rule — "a pizza may carry at most 10 toppings." In a
@@ -653,9 +660,10 @@ before assuming a capability exists that isn't demonstrated above.
 
 ## Quickstart
 
-`gem install hecks` gets you the runtime, but the examples and docs
-below live in the repository, so cloning it is still the fastest way
-to try the whole thing:
+`gem install hecks` gets you the runtime and the `hecks` command
+(`hecks run <domain>`, `hecks docs <domain>`, …), but the examples and
+docs below live in the repository, so cloning it is still the fastest
+way to try the whole thing:
 
 ```sh
 git clone https://github.com/heckslabs/hecks
