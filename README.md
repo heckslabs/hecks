@@ -729,6 +729,7 @@ Beyond the guides and the DSL reference:
   and `rust/` directory layout, and the dependency direction the split
   follows.
 - **[The tools](docs/tools.md)** — every `bin/` script, one line each.
+- **[Running a rules service](docs/running-a-rules-service.md)** — from a bluebook to a deployed API, with the auth caveats.
 - **Resolution rules** — the exact algorithm behind every piece of DSL
   sugar that lets a bluebook omit something the runtime can derive:
   [overview](docs/resolution-rules/README.md),
