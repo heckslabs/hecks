@@ -169,7 +169,7 @@ async fn verify_id_token(id_token: &str, client_id: &str) -> Result<Claims, Stri
 
 /// The cookie name the account token travels in when a deploy names none.
 /// A deploy whose site already sends a different name pins it with
-/// `HECKS_SESSION_COOKIE` (lifeadelics sets `lifeadelics_session`).
+/// `HECKS_SESSION_COOKIE`.
 pub const DEFAULT_ACCOUNT_COOKIE: &str = "hecks_session";
 
 /// The pure half of `account_cookie_name`, unit-tested apart from the env
@@ -194,7 +194,7 @@ pub fn account_cookie_name() -> String {
 }
 
 // A flat, HMAC-signed claim -- ported behavior-for-behavior from
-// lifeadelics/adapters/http_server.rb's own sign_token/verify_token
+// a client site's Ruby http_server adapter's own sign_token/verify_token
 // (that file's own comment: "not a JWT library, since there's exactly
 // one shape to sign"). Minted after a Google sign-in and verified by
 // /accounts/me and /accounts/sso-token. Deliberately separate from

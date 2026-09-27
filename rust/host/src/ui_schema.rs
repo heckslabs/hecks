@@ -1,4 +1,4 @@
-// **The whole console UI, derived** — a Rust port of embryonaut_console's
+// **The whole console UI, derived** — a Rust port of the console app's
 // `web/ui_schema.rb`, rule for rule: one live domain IR plus the
 // presentation config (presentation.rs) in, the exact JSON document
 // `GET /api/ui-schema` has always served out — nav, per-collection
@@ -979,7 +979,7 @@ mod tests {
 
     fn domain() -> Value {
         json!({
-            "name": "EmbryonautFoundersApp",
+            "name": "SampleApp",
             "aggregates": [
                 {
                     "name": "Client",
@@ -1444,7 +1444,7 @@ mod tests {
     fn a_domain_with_no_config_at_all_still_builds_a_whole_schema() {
         let schema = build(&domain(), &json!({}));
 
-        assert_eq!(schema["domain"], "EmbryonautFoundersApp");
+        assert_eq!(schema["domain"], "SampleApp");
         assert_eq!(schema["overview"], json!({"stats": []}));
         assert_eq!(schema["collections"]["clients"]["label"], "Client");
         assert_eq!(schema["collections"]["clients"]["nounSing"], "client");

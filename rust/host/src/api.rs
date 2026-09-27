@@ -1,5 +1,5 @@
 // The console's `/api/*` surface, in this host — the JSON contract
-// embryonaut_console's `web/app.rb` serves (its `/api/me`,
+// the console app's `web/app.rb` serves (its `/api/me`,
 // `/api/presentation`, `/api/ui-schema`, `/api/schema`, `/api/:coll`
 // routes), answered by the Rust Lambda that actually serves that app
 // in production now (`web "Rust"`, web.rs).
@@ -1065,7 +1065,7 @@ mod tests {
 
     fn domain() -> Value {
         json!({
-            "name": "EmbryonautFoundersApp",
+            "name": "SampleApp",
             "aggregates": [
                 {
                     "name": "Client",
@@ -1419,7 +1419,7 @@ mod tests {
 
     fn precondition_domain() -> Value {
         json!({
-            "name": "EmbryonautFoundersApp",
+            "name": "SampleApp",
             "aggregates": [
                 {
                     "name": "Contract",
@@ -1448,7 +1448,7 @@ mod tests {
 
     #[test]
     fn a_precondition_passes_when_the_target_is_already_in_the_named_state() {
-        let instances = json!({"EmbryonautFoundersApp::Proposal#P-001": {"status": "accepted"}});
+        let instances = json!({"SampleApp::Proposal#P-001": {"status": "accepted"}});
         let rule = json!({"field": "proposal_id", "state": "accepted"});
 
         assert!(check_precondition(&precondition_domain(), &contract(), &rule, &json!({"proposal_id": "P-001"}), &instances).is_ok());
@@ -1456,7 +1456,7 @@ mod tests {
 
     #[test]
     fn a_precondition_refuses_when_the_target_is_in_some_other_state() {
-        let instances = json!({"EmbryonautFoundersApp::Proposal#P-001": {"status": "sent"}});
+        let instances = json!({"SampleApp::Proposal#P-001": {"status": "sent"}});
         let rule = json!({"field": "proposal_id", "state": "accepted"});
 
         let refusal = check_precondition(&precondition_domain(), &contract(), &rule, &json!({"proposal_id": "P-001"}), &instances)
@@ -1472,7 +1472,7 @@ mod tests {
     #[test]
     fn a_precondition_uses_its_own_configured_message_when_it_has_one() {
         let rule = json!({"field": "proposal_id", "state": "accepted", "message": "the proposal hasn't been accepted yet"});
-        let instances = json!({"EmbryonautFoundersApp::Proposal#P-001": {"status": "sent"}});
+        let instances = json!({"SampleApp::Proposal#P-001": {"status": "sent"}});
 
         let refusal = check_precondition(&precondition_domain(), &contract(), &rule, &json!({"proposal_id": "P-001"}), &instances)
             .expect_err("refuses");
