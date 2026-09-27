@@ -199,19 +199,33 @@ module Hecks
         # Fills defaults for a nested-entity element via `Instance.default_for`, which is
         # independently tested. No-op unless `target` names an entity under `owner`
         # (`owner.entities`, not `aggregate.entities`).
+        #
+        # A value-object element type (the more common shape: `list_of` a plain composite,
+        # not a nested entity) defaults the other way real dispatch does — through
+        # `Runtime::Value.apply_defaults`, the exact primitive `EntityElement#appended_to_
+        # element`'s own `Value.build` call uses. Without this branch, a caller-omitted,
+        # VO-declared `default:` field is left out of the recomputed element entirely,
+        # disagreeing with real dispatch's fully-defaulted one.
         def fill_recompute_declared_defaults(aggregate, owner, target, fields)
           return fields unless target
 
           element_type = owner&.attribute(target)&.type
-          entity = element_type && owner.entities.find { |piece| piece.hecks_name == element_type.to_s }
-          return fields unless entity
+          return fields unless element_type
 
-          entity.attributes.each do |attribute|
-            next if fields.key?(attribute.name)
+          entity = owner.entities.find { |piece| piece.hecks_name == element_type.to_s }
+          if entity
+            entity.attributes.each do |attribute|
+              next if fields.key?(attribute.name)
 
-            fields[attribute.name] = attribute.list? ? [] : Runtime::Instance.default_for(aggregate, attribute)
+              fields[attribute.name] = attribute.list? ? [] : Runtime::Instance.default_for(aggregate, attribute)
+            end
+            return fields
           end
-          fields
+
+          value_object = aggregate.value_object(element_type)
+          return fields unless value_object
+
+          Runtime::Value.apply_defaults(value_object, fields)
         end
 
         # Resolves one appended field's value from its declared source.
@@ -232,8 +246,13 @@ module Hecks
         end
 
         # Re-derives `MutationApplier#removed`: removes every value-equal element.
+        # `Value.materialize` first: once `args` arrives normalized (replay.rb's
+        # `build_mutation_trace`), a composite `remove:` source is already a built
+        # `Runtime::Value` with its own declared defaults filled — comparing it
+        # unmaterialized against `current`'s plain Hashes would never match, wrongly
+        # keeping an element real dispatch correctly removed.
         def recompute_remove(current, source, args)
-          target = symbolize_deep(resolve_mutation_source(source, args))
+          target = symbolize_deep(Runtime::Value.materialize(resolve_mutation_source(source, args)))
           Array(current).reject { |element| symbolize_deep(element) == target }
         end
 

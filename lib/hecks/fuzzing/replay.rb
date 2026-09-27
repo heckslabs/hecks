@@ -343,6 +343,16 @@ module Hecks
         command = entity&.command(entity_command_name)
         return nil unless command&.mutations&.any?
 
+        # Same idiom as build_guard_check above: real dispatch normalizes args
+        # (step_normalize_args) before apply_mutations ever runs, coercing a declared
+        # payload attribute into its command's shape — a composite argument's own
+        # `Value.build` fills that shape's declared defaults along the way. Recomputing
+        # a mutation against the raw fuzzed args instead would disagree with real
+        # dispatch whenever a caller omitted a defaulted field, the same false-divergence
+        # shape build_guard_check guards against for the guard check.
+        args = Runtime::CommandInterpreter.new(runtime.registry, rules: Runtime::CommandRules.new(runtime.registry))
+                                          .send(:normalize_args, aggregate, command, args)
+
         reference_key = command.references.to_s.empty? ? nil : Naming.reference_key(command.references)
         parent_id = Runtime::Identity.of(aggregate, args) ||
                     Runtime::Identity.from(aggregate, args, :id) ||
