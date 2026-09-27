@@ -43,6 +43,10 @@ module Hecks
       # @param percentile_at [Float, nil] the rank `percentile_field` interpolates, `0.0..1.0`
       # @param any_field [Symbol, nil] the boolean field it reduces to "is any row true"
       # @param all_field [Symbol, nil] the boolean field it reduces to "are all rows true"
+      # One keyword per wire field: `Assembly::Build`/`Reconstruction` construct this
+      # generically off the contract's own flat field list (contracts.rb), so grouping
+      # the reductions into a nested object would break that reflection.
+      # rubocop:disable-next Metrics/ParameterLists
       def initialize(name:, description: nil, reference_name: nil, reference_target: nil, aggregate_heads: [],
                      group_by: [], count: nil, median_field: nil, sum_field: nil, avg_field: nil,
                      min_field: nil, max_field: nil, percentile_field: nil, percentile_at: nil,
@@ -56,7 +60,30 @@ module Hecks
         @aggregate_heads  = aggregate_heads
         # Rows are `{field: :agg}` hashes, the same shape as `aggregate_heads`.
         @group_by         = group_by
-        # Stays nil (never false) when undeclared: the Judge skips setters whose source is nil.
+        assign_reductions(count: count, median_field: median_field, sum_field: sum_field, avg_field: avg_field,
+                          min_field: min_field, max_field: max_field, percentile_field: percentile_field,
+                          percentile_at: percentile_at, any_field: any_field, all_field: all_field)
+      end
+
+      # Every reduction is omitted from the export, not nil, when undeclared, so
+      # existing read models keep their wire shape.
+      #
+      # @return [Hash] the declared emission, with `aggregate_heads`/`group_by` rows
+      #   stringified, each reduction merged in only when declared, and
+      #   `extra_options_to_h`'s own dynamic tail merged last
+      def to_h
+        super
+          .merge(aggregate_heads: @aggregate_heads.map { |head| head.merge(as: head[:as].to_s) })
+          .merge(group_by: @group_by.map { |row| row.merge(field: row[:field].to_s) })
+          .merge(reduction_pairs)
+          .merge(extra_options_to_h)
+      end
+
+      private
+
+      # Stays nil (never false) when undeclared: the Judge skips setters whose source is nil.
+      def assign_reductions(count:, median_field:, sum_field:, avg_field:, min_field:, max_field:,
+                            percentile_field:, percentile_at:, any_field:, all_field:)
         @count            = count ? true : nil
         @median_field     = median_field&.to_sym
         @sum_field        = sum_field&.to_sym
@@ -69,29 +96,19 @@ module Hecks
         @all_field        = all_field&.to_sym
       end
 
-      # Every reduction is omitted from the export, not nil, when undeclared, so
-      # existing read models keep their wire shape.
-      #
-      # @return [Hash] the declared emission, with `aggregate_heads`/`group_by` rows
-      #   stringified, each reduction merged in only when declared, and
-      #   `extra_options_to_h`'s own dynamic tail merged last
-      def to_h
-        reductions = {}
-        reductions[:count] = true if @count
-        reductions[:median_field] = @median_field.to_s if @median_field
-        reductions[:sum_field] = @sum_field.to_s if @sum_field
-        reductions[:avg_field] = @avg_field.to_s if @avg_field
-        reductions[:min_field] = @min_field.to_s if @min_field
-        reductions[:max_field] = @max_field.to_s if @max_field
-        reductions[:percentile_field] = @percentile_field.to_s if @percentile_field
-        reductions[:percentile_at] = @percentile_at if @percentile_field
-        reductions[:any_field] = @any_field.to_s if @any_field
-        reductions[:all_field] = @all_field.to_s if @all_field
-        super
-          .merge(aggregate_heads: @aggregate_heads.map { |head| head.merge(as: head[:as].to_s) })
-          .merge(group_by: @group_by.map { |row| row.merge(field: row[:field].to_s) })
-          .merge(reductions)
-          .merge(extra_options_to_h)
+      def reduction_pairs
+        pairs = {}
+        pairs[:count] = true if @count
+        pairs[:median_field] = @median_field.to_s if @median_field
+        pairs[:sum_field] = @sum_field.to_s if @sum_field
+        pairs[:avg_field] = @avg_field.to_s if @avg_field
+        pairs[:min_field] = @min_field.to_s if @min_field
+        pairs[:max_field] = @max_field.to_s if @max_field
+        pairs[:percentile_field] = @percentile_field.to_s if @percentile_field
+        pairs[:percentile_at] = @percentile_at if @percentile_field
+        pairs[:any_field] = @any_field.to_s if @any_field
+        pairs[:all_field] = @all_field.to_s if @all_field
+        pairs
       end
     end
   end

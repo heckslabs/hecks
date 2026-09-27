@@ -916,6 +916,9 @@ RSpec.describe "a read model's query options" do
       expect(runtime.query("Banking.disputed_payment_largest", account: "acct-sum-empty").first[:card_payments]).to be_nil
     end
 
+    # The full Banking boot is the fixture for this refusal; trimming it would lose
+    # the real-domain shape (a genuine non-numeric field on a real aggregate).
+    # rubocop:disable-next RSpec/ExampleLength
     it "refuses a sum field that is not an Integer, at query time" do
       registry = Hecks::Runtime::Registry.new
       Hecks.with_registry(registry) do
@@ -989,6 +992,10 @@ RSpec.describe "a read model's query options" do
   end
 
   context "with any and all" do
+    # A whole fresh domain (aggregate, command, two read models) is the fixture for
+    # any/all — no aggregate in the real Banking corpus has a bare boolean field yet.
+    # rubocop:disable-next Metrics/AbcSize
+    # rubocop:disable-next Metrics/MethodLength
     def build_with_boolean_reductions(adapter: "Memory")
       registry = Hecks::Runtime::Registry.new
       Hecks.with_registry(registry) do

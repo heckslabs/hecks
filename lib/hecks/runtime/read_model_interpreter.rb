@@ -11,6 +11,17 @@ module Hecks
     # Interprets one declared `read_model`: resolves its `include`d heads and applies any
     # `group_by` or reduction (`REDUCTION_WORD`), preferring a native SQLite path when it can.
     class ReadModelInterpreter
+      # The word each non-`count` reduction ivar reads back as in a refusal message.
+      REDUCTION_WORD = {
+        median_field: "median", sum_field: "sum", avg_field: "avg", min_field: "min",
+        max_field: "max", percentile_field: "percentile", any_field: "any", all_field: "all"
+      }.freeze
+
+      # `sum`/`avg` refuse a Float field (ADR 0078): summing floats cannot be made to agree,
+      # byte for byte, between Ruby and Rust, so v1 admits only the Integer case.
+      INTEGER_ONLY_REDUCTIONS = %i[sum_field avg_field].freeze
+      BOOLEAN_REDUCTIONS = %i[any_field all_field].freeze
+
       # @param registry [Runtime::Registry] the booted registry whose repositories
       #   this interpreter reads
       def initialize(registry) = @registry = registry
@@ -192,17 +203,6 @@ module Hecks
                                          ids: rows.map { |row| row[:id] },
                                          key: path.map { |field, value| "#{field} = #{value}" }.join(", "))
       end
-
-      # The word each non-`count` reduction ivar reads back as in a refusal message.
-      REDUCTION_WORD = {
-        median_field: "median", sum_field: "sum", avg_field: "avg", min_field: "min",
-        max_field: "max", percentile_field: "percentile", any_field: "any", all_field: "all"
-      }.freeze
-
-      # `sum`/`avg` refuse a Float field (ADR 0078): summing floats cannot be made to agree,
-      # byte for byte, between Ruby and Rust, so v1 admits only the Integer case.
-      INTEGER_ONLY_REDUCTIONS = %i[sum_field avg_field].freeze
-      BOOLEAN_REDUCTIONS = %i[any_field all_field].freeze
 
       # Resolves a reduction's single many-side head, raising on a field that doesn't
       # exist or has the wrong type rather than comparing garbage.

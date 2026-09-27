@@ -51,11 +51,13 @@ RSpec.describe "the judge's coverage of the language" do
 
       read_model "HoldersFlagged" do
         include Holder
+
         any :flagged
       end
 
       read_model "HoldersAllFlagged" do
         include Holder
+
         all :flagged
       end
     end
