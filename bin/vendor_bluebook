@@ -1,0 +1,23 @@
+#!/usr/bin/env ruby
+
+# Vendors one package of the bluebook registry into a consuming project,
+# pinned to a release or a commit. The whole command is
+# `Hecks::EmbryonautBluebook::VendorCli`; this file only puts it on a path.
+#
+#   bin/vendor_bluebook payments@1.2.0 --from ../embryonaut_bluebooks
+#   bin/vendor_bluebook payments                  # the newest payments-v* release
+#   bin/vendor_bluebook payments@9f2c1ab          # a bare commit: marker only, no lock
+#
+# `--from` defaults to $EMBRYONAUT_BLUEBOOKS_SRC and `--root` to the current
+# directory. The files land in vendor/embryonaut_bluebooks/<package>/bluebook/,
+# with VENDORED_COMMIT and, for a release, bluebook.lock beside them.
+#
+# The gem ships lib/ only, so a consuming project carries its own copy of
+# this three-line script, or runs the command directly:
+#
+#   bundle exec ruby -rhecks -e 'exit Hecks::EmbryonautBluebook::VendorCli.run(ARGV)' payments@1.2.0
+
+require_relative "../lib/hecks"
+require_relative "../lib/hecks/embryonaut_bluebook/vendor_cli"
+
+exit Hecks::EmbryonautBluebook::VendorCli.run(ARGV)

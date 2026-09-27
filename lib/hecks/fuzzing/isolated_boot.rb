@@ -200,8 +200,8 @@ module Hecks
         end
       end
 
-      # Rewrites every `.hecksagon` in the copy to bind through Memory and drops its
-      # `.world` files, so the boot needs no settings at all.
+      # Rewrites every `.hecksagon` in the copy to bind through Memory and replaces its
+      # `.world` files with a `default_adapter "Memory"` one, so the boot needs no settings.
       #
       # @param copy [String] the isolated copy's root directory
       # @return [void]
@@ -219,8 +219,11 @@ module Hecks
         # `data/<table>.db` under `root:` when unset — the same
         # zero-config default Memory gets from having no `.world` at
         # all), so the simplest correct fix for either target is
-        # dropping `.world` from the copy entirely.
-        Dir.glob(File.join(copy, "**", "*.world")).each { |path| File.delete(path) }
+        # dropping the shipped `.world` from the copy. What replaces it is
+        # only a `default_adapter`, so an aggregate the hecksagon leaves
+        # unbound (the real world's `default_adapter` bound it) still lands on
+        # this mode's adapter — see `write_default_worlds!`.
+        write_default_worlds!(copy, "Memory")
       end
 
       # Same dance as memory, one adapter over — `Adapters::Sqlite#
@@ -237,7 +240,7 @@ module Hecks
       def rebind_to_sqlite!(copy)
         rewrite_bindings!(copy, "SqlitePersistence")
         strip_translations!(copy)
-        Dir.glob(File.join(copy, "**", "*.world")).each { |path| File.delete(path) }
+        write_default_worlds!(copy, "SqlitePersistence")
       end
 
       # **The expensive one** — Postgres has no zero-config default the way
@@ -292,6 +295,7 @@ module Hecks
         write_worlds!(copy, "hecks_fuzz_postgres.world") do |name|
           <<~WORLD
             Hecks.world "#{name}" do
+              default_adapter "Postgres"
               persisted_by("Postgres") do
                 database "#{database}"
                 schema "#{schema}"
@@ -299,6 +303,7 @@ module Hecks
             end
           WORLD
         end
+        write_unbound_chapter_worlds!(copy)
       end
 
       # Admin connection lives outside the tmp copy entirely — same as
@@ -442,6 +447,7 @@ module Hecks
         write_worlds!(copy, "hecks_fuzz_postgres_era.world") do |name|
           <<~WORLD
             Hecks.world "#{name}" do
+              default_adapter "PostgresEra"
               persisted_by("PostgresEra") do
                 database "#{database}"
                 schema "#{schema}"
@@ -449,6 +455,54 @@ module Hecks
               end
             end
           WORLD
+        end
+        write_unbound_chapter_worlds!(copy)
+      end
+
+      # Replaces every `.world` in the copy with one that declares only `default_adapter`,
+      # so the copy needs no settings and an aggregate its hecksagon leaves unbound
+      # (a chapter whose real world bound it through `default_adapter`) persists through
+      # `adapter_name` like every bound one.
+      #
+      # @param copy [String] the isolated copy's root directory
+      # @param adapter_name [String] the persistence adapter every unbound aggregate falls
+      #   back to, such as `"Memory"` or `"SqlitePersistence"`
+      # @return [void]
+      def write_default_worlds!(copy, adapter_name)
+        write_worlds!(copy, "hecks_fuzz_default.world") do |name|
+          <<~WORLD
+            Hecks.world "#{name}" do
+              default_adapter "#{adapter_name}"
+            end
+          WORLD
+        end
+      end
+
+      # Gives every chapter no hecksagon names a world of its own that falls back to Memory.
+      #
+      # A chapter with a bluebook and no hecksagon block (the framework's Privacy) has no
+      # bind, and the worlds `write_worlds!` wrote declare a `default_adapter` that needs a
+      # `database`: left alone, the chapter resolves that adapter through the project's
+      # world with no connection and the boot refuses (`WiringError ... needs a database
+      # connection`). It persisted through Memory before those worlds carried a
+      # `default_adapter`, and a chapter's own world's default wins over the project's, so
+      # this keeps it there.
+      #
+      # @param copy [String] the isolated copy's root directory
+      # @return [void]
+      def write_unbound_chapter_worlds!(copy)
+        named = Dir.glob(File.join(copy, "**", "*.hecksagon")).flat_map do |path|
+          File.read(path).scan(/Hecks\.hecksagon\s+"([^"]+)"/).flatten
+        end
+        bluebooks = Dir.glob(File.join(copy, "**", "*.bluebook")).group_by { |path| File.dirname(path) }
+        bluebooks.each do |dir, files|
+          unbound = files.flat_map { |path| File.read(path).scan(/Hecks\.bluebook[\s(]+"([^"]+)"/).flatten }
+                         .uniq - named
+          named.concat(unbound)
+          next if unbound.empty?
+
+          worlds = unbound.map { |name| %(Hecks.world "#{name}" do\n  default_adapter "Memory"\nend\n) }
+          File.write(File.join(dir, "hecks_fuzz_unbound.world"), worlds.join("\n"))
         end
       end
 

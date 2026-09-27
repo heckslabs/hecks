@@ -1,0 +1,58 @@
+#!/usr/bin/env ruby
+
+# Checks the era a running host reports against an allow-list file, after a
+# roll. The host's own `GET /version` document names the era it booted on
+# (rust/host/src/server.rs); the file lists the eras that should be running,
+# one per line (see Hecks::Runtime::EraCheck::ExpectedEra for the format).
+#
+#   bin/check_era <url> <expected-era-file> [--timeout=<seconds>]
+#
+# `<url>` is the host's base URL, or its `/version` URL itself.
+#
+# Exit codes:
+#    0  the reported era is on the list, or the list names none and the host
+#       reports one
+#    1  the host reports an era that is not on the list
+#    2  bad usage, or the file cannot be read
+#    3  the host could not be reached, or did not answer a version document
+#
+# The check only reads: it makes one GET request and never writes anywhere.
+# It is a different question from the boot-time gate (`EraCheck.check!`), which
+# decides against the store whether a host may run at all; this one compares
+# what an already-running host says with what the operator expects.
+
+require_relative "../lib/hecks/ports/persistence/plugins/era/expected_era"
+
+timeout = 10
+args = ARGV.reject do |arg|
+  next false unless arg.start_with?("--timeout=")
+
+  timeout = arg.delete_prefix("--timeout=").to_f
+  true
+end
+url, file = args
+usage = "usage: bin/check_era <url> <expected-era-file> [--timeout=<seconds>]"
+unless url && file && args.size == 2 && timeout.positive?
+  warn usage
+  exit 2
+end
+
+begin
+  verdict = Hecks::Runtime::EraCheck::ExpectedEra.check(url, file, timeout: timeout)
+rescue Errno::ENOENT, Errno::EACCES => e
+  warn "cannot read #{file}: #{e.message}"
+  exit 2
+rescue Hecks::Runtime::EraCheck::ExpectedEra::Unreachable, Hecks::Runtime::EraCheck::ExpectedEra::BadResponse => e
+  warn "era check failed: #{e.message}"
+  exit 3
+end
+
+case verdict.status
+when :match
+  puts "era #{verdict.era} is expected (#{verdict.allowed.join(', ')})"
+when :unlisted
+  puts "host reports era #{verdict.era}; #{file} lists no era, so nothing was compared"
+else
+  warn "host reports era #{verdict.era}, which is not in #{file} (expected: #{verdict.allowed.join(', ')})"
+  exit 1
+end

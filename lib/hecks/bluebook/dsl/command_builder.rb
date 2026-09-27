@@ -22,7 +22,7 @@ module Hecks
         # same as an absent `to:` and falls through to `from` (also
         # absent), so `then_set :accepted, to: false` raised "names no
         # operation" for the one value most likely to be written that way
-        # (a boolean flip). Confirmed real, live: miette's
+        # (a boolean flip). Confirmed real, live: an external project's
         # dream_interpretation.bluebook (`then_set :accepted, to: false`)
         # and transparency.bluebook (`then_set :always, to: false`). TODO
         # upstream via bin/evolve.
@@ -262,7 +262,7 @@ module Hecks
         # era keeps booting, which is the whole point of the rename column.
         #
         # Vendored addition, not (yet) upstream hecks: `then_set
-        # :target, from: :source_field` (hecks_conception/miette, found
+        # :target, from: :source_field` (an external project, found
         # live in body/doctor/bluebook/doctor.bluebook) -- semantically
         # identical to `to:` (copy this argument/field into the target),
         # different word. TODO upstream via bin/evolve (migration plan
@@ -271,7 +271,7 @@ module Hecks
         #
         # Vendored addition, not (yet) upstream hecks (migration plan
         # task 4, i106 in-DSL math): `multiply:`/`clamp:` -- per-tick organ
-        # math (miette's body/organs/bluebook: strength decays ×0.98,
+        # math (an external project's organ bluebook: strength decays ×0.98,
         # weight/strength clamp to [0, 1]), moved into the bluebook itself
         # from shell-side awk. `multiply:` mirrors
         # increment/decrement's shape exactly (a Numeric amount, applied

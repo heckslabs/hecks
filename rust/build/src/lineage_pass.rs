@@ -13,7 +13,9 @@
 //! `rust/codegen` themselves.
 //!
 //! **The one fact needed per aggregate**: which adapter its sole authoritative
-//! `persisted_by` bind names (`Ports::Persistence::BindingPolicy.resolve`),
+//! `persisted_by` bind names (`Ports::Persistence::BindingPolicy.resolve`) —
+//! or, for an aggregate the hecksagon leaves out, the `default_adapter` the
+//! target chapter's own world declares —
 //! checked against which adapters declare `lineage_capable? = true`
 //! (`EraCheck.lineage_capable?`) — read off both sources the same "plain
 //! text scanning of a file, not DSL execution" way `resolve::header_
@@ -30,8 +32,11 @@ use crate::json::Json;
 /// (no `.hecksagon` file at all) means every aggregate is unbound —
 /// `BindingPolicy.default_binding`'s own "Memory" answer, never
 /// lineage-capable — so `capable_aggregates` comes back empty without
-/// this function needing to special-case it.
-pub fn run(ir: &mut Json, hecksagon_path: Option<&Path>, root: &Path) -> Result<(), String> {
+/// this function needing to special-case it. An unbound aggregate takes the
+/// `default_adapter` `world_path` declares for the target chapter instead of
+/// "Memory" (`BindingPolicy.resolve`'s own order: the hecksagon's bind, then
+/// the world's default, then the framework's in-memory fallback).
+pub fn run(ir: &mut Json, hecksagon_path: Option<&Path>, world_path: Option<&Path>, root: &Path) -> Result<(), String> {
     let binds = match hecksagon_path {
         Some(path) => {
             let text = std::fs::read_to_string(path).map_err(|e| format!("reading {}: {e}", path.display()))?;
@@ -39,6 +44,15 @@ pub fn run(ir: &mut Json, hecksagon_path: Option<&Path>, root: &Path) -> Result<
         }
         None => HashMap::new(),
     };
+    let chapter_name = ir.get("name").and_then(Json::as_str).unwrap_or_default().to_string();
+    let fallback_adapter = match world_path {
+        Some(path) => {
+            let text = std::fs::read_to_string(path).map_err(|e| format!("reading {}: {e}", path.display()))?;
+            default_adapter_name(&text, &chapter_name)
+        }
+        None => None,
+    }
+    .unwrap_or_else(|| "Memory".to_string());
     let capable_adapters = lineage_capable_adapter_names(root)?;
 
     // Collected up front, not read live off `ir` while building the
@@ -57,7 +71,7 @@ pub fn run(ir: &mut Json, hecksagon_path: Option<&Path>, root: &Path) -> Result<
     let capable_aggregates: Vec<Json> = aggregate_names
         .into_iter()
         .filter(|name| {
-            let adapter_name = binds.get(name.as_str()).map(String::as_str).unwrap_or("Memory");
+            let adapter_name = binds.get(name.as_str()).map(String::as_str).unwrap_or(fallback_adapter.as_str());
             capable_adapters.iter().any(|a| a == adapter_name)
         })
         .map(|name| {
@@ -106,6 +120,47 @@ fn persistence_binds(text: &str) -> HashMap<String, String> {
     }
 
     binds
+}
+
+/// `default_adapter "Adapter"` inside the `Hecks.world "<chapter>"` block —
+/// the same narrow text scan `persistence_binds` is, for the one world word
+/// that changes which adapter an unbound aggregate resolves to. A `.world`
+/// file may hold several worlds (one per chapter), so only lines after the
+/// target chapter's own `Hecks.world` opener count; a later `default_adapter`
+/// in the same block wins, as it does in the Ruby builder. `None` when the
+/// block declares none.
+fn default_adapter_name(text: &str, chapter: &str) -> Option<String> {
+    let mut in_target_world = false;
+    let mut found = None;
+
+    for line in text.lines() {
+        if let Some(opened) = world_opener_name(line) {
+            in_target_world = opened == chapter;
+            continue;
+        }
+        if !in_target_world {
+            continue;
+        }
+
+        let Some(rest) = line.trim_start().strip_prefix("default_adapter") else { continue };
+        if !rest.starts_with(char::is_whitespace) {
+            continue;
+        }
+        let Some(open_quote) = rest.find('"') else { continue };
+        let quoted = &rest[open_quote + 1..];
+        let Some(close_quote) = quoted.find('"') else { continue };
+        found = Some(quoted[..close_quote].to_string());
+    }
+
+    found
+}
+
+/// The chapter name a `Hecks.world "Name" do` (or `Hecks.world("Name")`) line
+/// opens, `None` for any other line.
+fn world_opener_name(line: &str) -> Option<String> {
+    let rest = line.strip_prefix("Hecks.world")?;
+    let quoted = &rest[rest.find('"')? + 1..];
+    Some(quoted[..quoted.find('"')?].to_string())
 }
 
 /// Which adapters carry eras — read off their own source, the same
@@ -281,6 +336,14 @@ mod tests {
         let binds = persistence_binds(text);
         assert_eq!(binds.get("Customer").map(String::as_str), Some("Heki"));
         assert_eq!(binds.get("Statement"), None);
+    }
+
+    #[test]
+    fn reads_the_default_adapter_of_the_target_chapters_own_world_only() {
+        let text = "Hecks.world \"Alpha\" do\n  # default_adapter \"Heki\"\n  default_adapter \"PostgresEra\"\nend\n\nHecks.world(\"Beta\") do\n  default_adapter \"Memory\"\nend\n";
+        assert_eq!(default_adapter_name(text, "Alpha"), Some("PostgresEra".to_string()));
+        assert_eq!(default_adapter_name(text, "Beta"), Some("Memory".to_string()));
+        assert_eq!(default_adapter_name(text, "Gamma"), None);
     }
 
     #[test]

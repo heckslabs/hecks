@@ -31,7 +31,7 @@
 tmp/
 vendor/bundle/
 # `sam build`'s own local build output, under every deploy/<stack>/ —
-# never committed, matching how deploy/banking's own tracked tree
+# never committed, matching how deploy/quality-control-webhook's own tracked tree
 # already holds only the 4 files bin/project_deploy itself generates
 # (template.yaml, Makefile, samconfig.toml, bastion.yaml), never a
 # local build's own artifacts. Found live: qa's own dispatch "None"
@@ -39,10 +39,11 @@ vendor/bundle/
 # real from a checkout that also runs `git status`, so nothing had
 # needed this entry before.
 .aws-sam/
-# lifeadelics's recipe is generated from its own repo's .world file
-# (bin/project_deploy <its domain> --out=<its repo>); a copy under this
-# repo's deploy/ goes stale and leaks a client into hecks.
-/deploy/lifeadelics/
+# banking's recipe is the recipe of a live stack that belongs to the
+# organisation running it, generated from its own environment overlay;
+# it is kept in that organisation's repo, and a copy under this repo's
+# deploy/ goes stale. The generic example is examples/banking itself.
+/deploy/banking/
 coverage/
 .claude/*
 # Skills are project knowledge, not session scratch — tracked so any

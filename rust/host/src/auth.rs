@@ -169,7 +169,7 @@ async fn verify_id_token(id_token: &str, client_id: &str) -> Result<Claims, Stri
 
 /// The cookie name the account token travels in when a deploy names none.
 /// A deploy whose site already sends a different name pins it with
-/// `HECKS_SESSION_COOKIE` (lifeadelics sets `lifeadelics_session`).
+/// `HECKS_SESSION_COOKIE`.
 pub const DEFAULT_ACCOUNT_COOKIE: &str = "hecks_session";
 
 /// The pure half of `account_cookie_name`, unit-tested apart from the env
@@ -194,7 +194,7 @@ pub fn account_cookie_name() -> String {
 }
 
 // A flat, HMAC-signed claim -- ported behavior-for-behavior from
-// lifeadelics/adapters/http_server.rb's own sign_token/verify_token
+// a client site's Ruby http_server adapter's own sign_token/verify_token
 // (that file's own comment: "not a JWT library, since there's exactly
 // one shape to sign"). Minted after a Google sign-in and verified by
 // /accounts/me and /accounts/sso-token. Deliberately separate from
@@ -1033,6 +1033,24 @@ mod tests {
         let token = account_token("s3cret", "chris@example.com", 0);
         std::thread::sleep(std::time::Duration::from_secs(1));
         assert_eq!(verify_account_token("s3cret", &token), None);
+    }
+
+    // The known-answer vector packages/hecks-client's account token tests
+    // check too (test/accountToken.test.mjs): a fixed payload, so both sides
+    // agree on the exact bytes a token carries, not only that each round-trips.
+    #[test]
+    fn account_token_matches_the_known_answer_vector() {
+        let payload = r#"{"email":"chris@example.com","exp":4102444800}"#;
+        let encoded = base64_encode(payload.as_bytes());
+        assert_eq!(encoded, "eyJlbWFpbCI6ImNocmlzQGV4YW1wbGUuY29tIiwiZXhwIjo0MTAyNDQ0ODAwfQ");
+        assert_eq!(sign("s3cret", &encoded), "143ebe224b067f9744b509937358bb39a87ed30df06aaec594934b85a288cade");
+        let token = sign_test_token("s3cret", &encoded);
+        assert_eq!(verify_account_token("s3cret", &token).as_deref(), Some("chris@example.com"));
+        // account_token writes the same payload shape: keys in sorted order, no spaces.
+        let minted = account_token("s3cret", "chris@example.com", 60);
+        let (minted_payload, _) = minted.rsplit_once('.').unwrap();
+        let claims: Value = serde_json::from_slice(&base64_decode(minted_payload)).unwrap();
+        assert_eq!(String::from_utf8(base64_decode(minted_payload)).unwrap(), format!(r#"{{"email":"chris@example.com","exp":{}}}"#, claims["exp"]));
     }
 
     #[test]

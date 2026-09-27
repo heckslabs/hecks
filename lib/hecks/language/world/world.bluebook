@@ -4,8 +4,10 @@ Hecks.bluebook "World" do
 
     identified_by WorldName, as: :domain
 
-    attribute :realm,  Realm
-    attribute :latest, Latest
+    attribute :realm,            Realm
+    attribute :latest,           Latest
+    attribute :default_database, DefaultDatabase
+    attribute :default_adapter,  DefaultAdapter
 
     value_object "WorldName" do
       attribute :value, String
@@ -22,6 +24,22 @@ Hecks.bluebook "World" do
       invariant("a latest version says something") { !value.to_s.empty? }
     end
 
+    # The connection every chapter's database-taking persistence adapter
+    # uses unless that chapter's own world says otherwise — a world's
+    # per-chapter `persisted_by ... database` block, written once.
+    value_object "DefaultDatabase" do
+      attribute :value, String
+      invariant("a default database says something") { !value.to_s.empty? }
+    end
+
+    # The persistence adapter every aggregate binds to unless its own
+    # chapter's hecksagon binds it — between an explicit bind and the
+    # framework's in-memory fallback.
+    value_object "DefaultAdapter" do
+      attribute :value, String
+      invariant("a default adapter names an adapter") { !value.to_s.empty? }
+    end
+
     command "Declare" do
       role "Deployment"
       goal "Open a world for a domain"
@@ -29,10 +47,14 @@ Hecks.bluebook "World" do
       attribute :domain, WorldName
       attribute :realm,  Realm, optional: true
       attribute :latest, Latest, optional: true
+      attribute :default_database, DefaultDatabase, optional: true
+      attribute :default_adapter,  DefaultAdapter,  optional: true
 
       sets :domain
       sets :realm
       sets :latest
+      sets :default_database
+      sets :default_adapter
 
       emits "WorldDeclared"
     end
@@ -55,6 +77,12 @@ Hecks.bluebook "World" do
       member word: "world",           context: "File",     body: "keywords", inner: "World",          opens: "World",          fills: ""
       member word: "realm",           context: "World",     body: "none", inner: "", opens: "", fills: "realm", calls: "realm_impl"
       member word: "latest",          context: "World",     body: "none", inner: "", opens: "", fills: "latest", calls: "latest_impl"
+      # THE TWO CROSS-CHAPTER DEFAULTS — the same connection string and the
+      # same persistence adapter every chapter of a project repeats, written
+      # once. A chapter's own world (`persisted_by ... database`) and its own
+      # hecksagon bind still win; see docs/implemented/reference/world.md.
+      member word: "default_database", context: "World", body: "none", inner: "", opens: "", fills: "default_database", calls: "default_database_impl"
+      member word: "default_adapter",  context: "World", body: "none", inner: "", opens: "", fills: "default_adapter", calls: "default_adapter_impl"
 
     end
 
@@ -78,6 +106,8 @@ Hecks.bluebook "World" do
       member keyword: "world",           context: "File", at: "1", named: "", kind: "text", required: "true", fills: "domain"
       member keyword: "realm",           context: "World", at: "1", named: "", kind: "text", required: "true", fills: "realm"
       member keyword: "latest",          context: "World", at: "1", named: "", kind: "text", required: "true", fills: "latest"
+      member keyword: "default_database", context: "World", at: "1", named: "", kind: "text", required: "true", fills: "default_database"
+      member keyword: "default_adapter",  context: "World", at: "1", named: "", kind: "text", required: "true", fills: "default_adapter"
 
     end
   end

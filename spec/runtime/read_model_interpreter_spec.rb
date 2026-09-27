@@ -265,7 +265,7 @@ RSpec.describe "a read model's query options" do
   end
 
   # The real gap this session closes (ADR 0055) — a `NovelSummary`-shaped
-  # read model (children-of-the-light's own production use, four
+  # read model (a client project's own production use, four
   # many-side includes around one root, wanting to filter exactly one) —
   # without `on:`, `where`/`order_by`/`limit`/`offset` would refuse
   # outright the moment a read model declared more than one many-side

@@ -5,11 +5,15 @@ Hecks.hecksagon "Compliance" do
   # file's own header two files up), so this attaches AND binds
   # Governance itself, the same sibling shape banking.hecksagon uses.
   uses_framework "Governance"
-  Compliance::AccountFreezeReview.persisted_by("PostgresEra")
-  Compliance::BoxSurrenderReview.persisted_by("PostgresEra")
-  Compliance::PrivacyReview.persisted_by("PostgresEra")
+
+  # NO PER-AGGREGATE BINDS — compliance.world's own `default_adapter
+  # "PostgresEra"` binds every aggregate this hecksagon leaves out, so
+  # AccountFreezeReview, BoxSurrenderReview and PrivacyReview all persist
+  # there without a line each.
 end
 
+# Governance binds Memory explicitly, which wins over compliance.world's
+# `default_adapter` for this chapter.
 Hecks.hecksagon "Governance" do
   Governance::RoleAssignment.persisted_by("Memory")
   Governance::RoleTransition.persisted_by("Memory")

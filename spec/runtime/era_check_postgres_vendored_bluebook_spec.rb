@@ -5,7 +5,7 @@ require_relative "../support/postgres_probe"
 require_relative "../support/fenced_owner"
 
 # The multi-bluebook / PostgresEra gap, found live against a real,
-# private project (children-of-the-light) attaching a vendored chapter
+# private client project attaching a vendored chapter
 # via `uses_embryonaut_bluebook`: PostgresEra's own era-1 self-mint for
 # the second bluebook loaded into a registry wrote the first (target)
 # bluebook's own source text into `hecks_eras.held_text` — not the

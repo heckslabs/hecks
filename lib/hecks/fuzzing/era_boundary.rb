@@ -82,7 +82,7 @@ module Hecks
           return not_applicable("#{bluebook.name} is bound to #{adapter_name}, not PostgresEra")
         end
 
-        settings = registry.world(bluebook.name)&.for_binding(Hecks::Ports::Persistence::VERB, adapter_name) || {}
+        settings = registry.binding_settings(bluebook.name, Hecks::Ports::Persistence::VERB, adapter_name)
         db = Hecks::Adapters::PostgresEra.connect_for(bluebook.name, settings)
         begin
           lineage = Hecks::Adapters::PostgresEra::Lineage.new(db, bluebook.name)

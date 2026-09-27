@@ -793,7 +793,7 @@ module Hecks
 
         # **Typo detection, deliberately weaker** — `known_domains` can only
         # ever be a monorepo-scoped heuristic: a real external hecks
-        # consumer's own domain (this repo's own embryonaut/lifeadelics-
+        # consumer's own domain (this repo's own embryonaut client-
         # shaped case) lives in a genuinely separate repository this
         # corpus scan can never see, so a target this check cannot find
         # is "unknown to THIS corpus," never proof of a typo. A target

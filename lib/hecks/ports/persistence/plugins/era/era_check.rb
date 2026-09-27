@@ -4,6 +4,7 @@ require_relative "lineage"
 require_relative "../../../../naming"
 require_relative "../../../../framework"
 require_relative "../../../../runtime/registry"
+require_relative "expected_era"
 
 module Hecks
   module Runtime
@@ -295,7 +296,7 @@ module Hecks
                 "it could be found (checked #{directory.inspect} and the framework registry)"
         end
 
-        settings = registry.world(bluebook.name)&.for_binding(Ports::Persistence::VERB, adapter_name) || {}
+        settings = registry.binding_settings(bluebook.name, Ports::Persistence::VERB, adapter_name)
         registry.adapter_class(adapter_name).era_check!(
           registry: registry, bluebook: bluebook, current_text: current_text, settings: settings,
           directory: directory

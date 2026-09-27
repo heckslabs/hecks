@@ -146,7 +146,7 @@ else
   def json_shaped(payload) = JSON.parse(JSON.generate(payload), symbolize_names: true)
 
   # `root:` — without it, a domain declaring `uses_embryonaut_bluebook`
-  # (lifeadelics is the first real one) refuses here with "needs a
+  # (a client site is the first real one) refuses here with "needs a
   # registry with a root to vendor from": EmbryonautBluebook.load!
   # resolves `<root>/vendor/embryonaut_bluebooks/<name>/bluebook/` off
   # this registry's own root, same as any other boot
@@ -217,6 +217,13 @@ else
     # as before this line existed.
     Dir.glob(File.join(bluebook_directory, "*.hecksagon")).each { |file| Kernel.load(file) }
 
+    # Every .world file too — a world's `default_adapter` binds the
+    # aggregates a hecksagon leaves out (`BindingPolicy.resolve`), which
+    # `Exporter.persistence`/`lineage` ask below. Loaded after the
+    # hecksagons, as `Vocabulary`'s own "LoadOrder" has it; a domain with no
+    # `.world` file, or one declaring no default, is unchanged.
+    Dir.glob(File.join(bluebook_directory, "*.world")).each { |file| Kernel.load(file) }
+
     # Environment overlay — mirrors `Adapters::Folder#load_domain`'s own
     # `environment:` handling (folder.rb), which this hand-rolled
     # registry build never called at all. A domain that splits
@@ -226,7 +233,7 @@ else
     # own base .hecksagon, so this generator's registry landed with
     # none merged in either, and `BindingPolicy.resolve` raised "no
     # persisted_by bind" for every such aggregate — confirmed live
-    # building lifeadelics (the first domain to combine this split with
+    # building a client site (the first domain to combine this split with
     # a real Rust/Lambda deploy) for its Aurora cutover.
     #
     # Default is mechanical, not a deploy-time guess: if the domain
@@ -354,7 +361,7 @@ else
   # basename: that guess is only right when the containing directory
   # happens to be named after the domain (every in-repo example is),
   # and is simply wrong for a real external project laid out with its
-  # domain folder literally called "domain" (lifeadelics) — confirmed
+  # domain folder literally called "domain" (a client site) — confirmed
   # live, `Errno::ENOENT` on `.../domain/bluebook/domain.bluebook`,
   # building this exact domain for its Aurora-cutover deploy.
   # `source_text_for` finds the file(s) that actually declare the
@@ -576,7 +583,7 @@ else
   # across chapters now — recovered, not new: compiling only the target
   # domain's own left this invisible (the comment here once claimed
   # "Governance/Identity declare none today... not attempted by this
-  # pass") until lifeadelics vendored
+  # pass") until a client site vendored
   # a chapter (embryonaut_bluebooks/payments) that does declare real
   # ones — found live, its own PaymentGateway.Succeeded port operation
   # dispatching cleanly but never triggering the Payment.Succeed its own

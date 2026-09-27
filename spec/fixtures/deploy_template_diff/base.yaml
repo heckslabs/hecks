@@ -1,0 +1,53 @@
+# A small stack written with CloudFormation short forms, the way the deploy
+# generator writes them.
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Sample stack used to check the template comparer.
+Parameters:
+  ImageTag:
+    Type: String
+    Default: latest
+  OldParameter:
+    Type: String
+Resources:
+  Queue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: sample-queue
+  Bucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub "sample-${AWS::AccountId}"
+  Task:
+    Type: AWS::ECS::TaskDefinition
+    DependsOn: [Queue, Bucket]
+    Properties:
+      Cpu: "256"
+      Memory: 512
+      ContainerDefinitions:
+        - Name: web
+          Image: !Sub "${Repo.RepositoryUri}:${ImageTag}"
+          Environment:
+            - Name: PORT
+              Value: "8080"
+            - Name: QUEUE_URL
+              Value: !Ref Queue
+            - Name: BUCKET
+              Value: !Sub "${Bucket}"
+  Repo:
+    Type: AWS::ECR::Repository
+  Distribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Enabled: true
+        AllowedMethods: [GET, HEAD]
+        CacheBehaviors:
+          - PathPattern: /a/*
+            TargetOriginId: origin
+          - PathPattern: /b/*
+            TargetOriginId: origin
+Outputs:
+  QueueName:
+    Value: !GetAtt Queue.QueueName
+  BucketName:
+    Value: !Ref Bucket

@@ -12,10 +12,13 @@ module Hecks
     module Persistence
       module Plugins
         # ADR 0033 — requiring this file is installing the plugin. Nothing in
-        # Hecks core requires it; an app that binds `PostgresEra`, or wants
-        # schema-translation support at all, requires it explicitly — the
-        # same shape every adapter-specific spec fixture already uses to
-        # load one particular `.adapter` file rather than all of them.
+        # Hecks core requires it. A boot loads it on demand for a domain that
+        # binds `PostgresEra` (`Runtime::Loader.load_bound_adapters!` resolves the
+        # adapter, which autoloads this file, before the gates are collected). An
+        # app that wants schema-translation support without binding `PostgresEra`
+        # requires it explicitly, the same shape every adapter-specific spec
+        # fixture already uses to load one particular `.adapter` file rather than
+        # all of them.
         module Era
           module_function
 

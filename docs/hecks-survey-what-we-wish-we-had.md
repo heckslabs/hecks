@@ -5,14 +5,14 @@ older, larger sibling that now depends on hecks via its Gemfile) to answer
 one question: *what does it have that we wish we had — especially Storehouse?*
 
 Every item is marked for how real it is over there. A lot of hecks is
-conception-only (`hecks_conception/` bluebooks that describe intent) or is
+conception-only (`conception/` bluebooks that describe intent) or is
 currently broken by the cutover to our gem, and it would be a mistake to envy
 vapor. Where a claim was verifiable it was verified: binaries were run,
 processes listed, stores read.
 
 ## The one-paragraph framing
 
-hecks is a sprawling *organism* — a persistent agent ("Miette") with a modelled
+hecks is a sprawling *organism* — a persistent agent (named in that project) with a modelled
 body, daemons, hooks, a corpus of ~156 bluebooks describing its own machinery.
 hecks is the clean *core* that organism now runs on. Almost nothing we
 envy is a language feature; the language here is stricter and better. What
@@ -37,8 +37,8 @@ Storehouse is three things wearing one name:
    gem: `dispatch query state catalog describe list validate macrophage
    governed-door behaviors conceive-behaviors statusline`. One line of JSON per
    call. This is what the MCP shells out to.
-3. **A corpus of bluebooks** in `hecks_conception/storehouse/` and
-   `hecks_conception/aggregates/storehouse/`: `Dispatch` (the bus),
+3. **A corpus of bluebooks** in `conception/storehouse/` and
+   `conception/aggregates/storehouse/`: `Dispatch` (the bus),
    `Lexicon` (index of every callable phrase), `Query` (read side),
    `CommandBus` (an app-scoped HTTP slice), `Story` (ordered steps as
    executable composition), `Primitive` (every kernel-floor dispatcher as a
@@ -272,10 +272,10 @@ most-specific-wins. That cascade alone would collapse our N repeated
 ## Sources
 
 hecks paths, all under `~/Projects/hecks`: `CLAUDE.md`, `README.md`,
-`hecks_conception/aggregates/storehouse/bluebook/storehouse.bluebook`,
-`hecks_conception/storehouse/bluebook/{command_bus,dispatch,lexicon,query,story}.bluebook`,
-`hecks_conception/aggregates/framework/{event_sourcing,hexagon,session,handler_registry,audit,agent_inbox,sidequest,tool_cache,mindstream,process_health}/bluebook/`,
-`hecks_conception/aggregates/language/grammar/bluebook/{driving,hexagon,extraction,behaviors_conception,morphology}.bluebook`,
-`hecks_conception/docs/{sprint12-architecture-decision.md,designs/event-sourcing-lineage.md,flows-design.md}`,
+`conception/aggregates/storehouse/bluebook/storehouse.bluebook`,
+`conception/storehouse/bluebook/{command_bus,dispatch,lexicon,query,story}.bluebook`,
+`conception/aggregates/framework/{event_sourcing,hexagon,session,handler_registry,audit,agent_inbox,sidequest,tool_cache,mindstream,process_health}/bluebook/`,
+`conception/aggregates/language/grammar/bluebook/{driving,hexagon,extraction,behaviors_conception,morphology}.bluebook`,
+`conception/docs/{sprint12-architecture-decision.md,designs/event-sourcing-lineage.md,flows-design.md}`,
 `tooling/storehouse-mcp/`, `tooling/git-hooks/`, `hecks_runtime/`,
-`inbox/i768.md`–`i781.md`, `~/Projects/miette/self/settings.json` (hooks).
+`inbox/i768.md`–`i781.md`, the agent's own `settings.json` (hooks).

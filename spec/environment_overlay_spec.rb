@@ -4,7 +4,7 @@ require "tmpdir"
 # Recovered, then generalized — see Runtime::Loader.boot's own comment
 # for the full provenance: `environment:` and `uses_embryonaut_bluebook`
 # existed on a prior commit of this repo (933d1dd), were vendored out to
-# a real consumer (lifeadelics/domain), and were then lost from this
+# a real downstream consumer project, and were then lost from this
 # repo's own reachable history entirely — no branch here reached that
 # commit. Ported forward from the consumer's vendor snapshot (the only
 # surviving copy), reworked against current main's own Hecksagon/World

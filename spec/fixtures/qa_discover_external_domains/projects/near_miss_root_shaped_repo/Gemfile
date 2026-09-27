@@ -1,7 +1,7 @@
 source "https://rubygems.org"
 # hecksagain aliases its own module to `Hecks` for DSL readability
 # (`Hecks = Hecksagain`) but is NOT the real hecks gem — the exact
-# situation `~/Projects/embryonautfoundersapp` is in for real: a
+# situation a real client project is in: a
 # root-shaped bluebook file that reads `Hecks.bluebook`, backed by a
 # vendored hecksagain, not a dependency on `hecks` itself. Must stay
 # excluded here the same way near_miss_repo (nested shape) already is.

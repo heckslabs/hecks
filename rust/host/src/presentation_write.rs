@@ -1,5 +1,5 @@
 // **The console's own presentation config, written** — the Rust-native
-// counterpart to embryonaut_console's `web/presentation_config.rb`
+// counterpart to the console app's `web/presentation_config.rb`
 // `.save!`, serving `PUT /api/presentation`.
 //
 // It is the same two halves that file has, in the same order, for the

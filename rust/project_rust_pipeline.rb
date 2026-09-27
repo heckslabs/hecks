@@ -109,7 +109,7 @@ module RustProjectPipeline
     # (bin/project_rust) never sets this on a framework chapter's own
     # sidecar either; confirmed no lineage difference on identity/
     # governance's own ir.json when this pipeline was first verified.
-    target_ir_text = derive_lineage(target_ir_text, hecksagon_path)
+    target_ir_text = derive_lineage(target_ir_text, hecksagon_path, sibling_world_path(domain, target_mod_name))
 
     # EVERY OTHER CHAPTER `uses_framework` NAMES — same real chapters
     # `bin/project_rust`'s own default path pulls in via
@@ -278,14 +278,17 @@ module RustProjectPipeline
   # unbound — `BindingPolicy.default_binding`'s own "Memory" answer, never
   # lineage-capable, so `capable_aggregates` is simply empty; matches the
   # DEFAULT path's own behavior for a hecksagon-less domain without this
-  # file needing to special-case it.
-  def derive_lineage(ir_text, hecksagon_path)
+  # file needing to special-case it. An aggregate the hecksagon leaves
+  # unbound takes the `default_adapter` the target chapter's own `.world`
+  # declares instead of "Memory" — `BindingPolicy.resolve`'s own order.
+  def derive_lineage(ir_text, hecksagon_path, world_path = nil)
     ir = JSON.parse(ir_text, symbolize_names: true)
     binds = hecksagon_path ? persistence_binds(hecksagon_path) : {}
+    fallback = (world_path && default_adapter_name(world_path, ir[:name])) || "Memory"
     capable_adapters = lineage_capable_adapter_names
 
     capable = ir[:aggregates].select do |aggregate|
-      adapter_name = binds.fetch(aggregate[:name], "Memory")
+      adapter_name = binds.fetch(aggregate[:name], fallback)
       capable_adapters.include?(adapter_name)
     end
 
@@ -317,6 +320,34 @@ module RustProjectPipeline
       binds[Regexp.last_match(1)] = Regexp.last_match(2)
     end
     binds
+  end
+
+  # The target's own `.world` file, if it has one — named for the domain the
+  # same way its `.hecksagon` is.
+  def sibling_world_path(domain, target_mod_name)
+    path = File.join(domain, "bluebook", "#{target_mod_name}.world")
+    path if File.exist?(path)
+  end
+
+  # `default_adapter "Adapter"` inside the `Hecks.world "<chapter>"` block —
+  # the same narrow text scan `persistence_binds` is, for the one world word
+  # that changes which adapter an unbound aggregate resolves to. A `.world`
+  # file may hold several worlds (one per chapter), so only lines after the
+  # target chapter's own `Hecks.world` opener count; a later
+  # `default_adapter` in the same block wins, as it does in the Ruby
+  # builder. `rust/build/src/lineage_pass.rs::default_adapter_name` is the
+  # line-for-line Rust twin.
+  def default_adapter_name(world_path, chapter)
+    in_target_world = false
+    found = nil
+    File.foreach(world_path) do |line|
+      if (opened = line[/\AHecks\.world[^"]*"([^"]*)"/, 1])
+        in_target_world = opened == chapter
+      elsif in_target_world && (name = line[/\A\s*default_adapter\s+"([^"]*)"/, 1])
+        found = name
+      end
+    end
+    found
   end
 
   # Which adapters actually carry eras — read off their own source, the

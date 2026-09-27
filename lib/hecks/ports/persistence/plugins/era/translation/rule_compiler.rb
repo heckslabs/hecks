@@ -64,7 +64,7 @@ module Hecks
         # real, live gap for any new required value-object member with no
         # source data at all — `compute` cannot fill it either, since its
         # own guard requires a real, already-present field to consume
-        # (found live: lifeadelics' Attendee redesign, commit 4326dcd,
+        # (found live: a client site's Attendee redesign, commit 4326dcd,
         # needed exactly this and had nothing that worked).
         declared.backfills.each do |backfill|
           expression = compile_backfill(expression, backfill)

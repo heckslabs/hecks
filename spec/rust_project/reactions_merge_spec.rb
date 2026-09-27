@@ -10,7 +10,7 @@ require_relative "../../rust/project/reactions"
 # attached/vendored chapter's own. Invisible until a domain vendored a
 # chapter that actually declares policies (Governance/Identity, the only
 # framework chapters exercised before this, declare none) — found live
-# generating lifeadelics' vendored embryonaut_bluebooks/payments:
+# generating a client project's vendored embryonaut_bluebooks/payments:
 # `OnPaymentConfirmedByProcessor`'s own trigger never fired against the
 # merged Store, even though payments/registry.rs's own standalone table
 # had it all along. Tested directly here, same reasoning

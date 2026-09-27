@@ -7,7 +7,7 @@ module Hecks
       # deployment declares apart from the domain (`Privacy::Marking`, or a
       # `has_phi(readable_by:)` chain in a `.hecksagon`) and handed in as
       # `options[:markings]`. A marking names an aggregate by its qualified
-      # name (`"Lifeadelics::Registration"`) and a field by its dotted path
+      # name (`"Site::Registration"`) and a field by its dotted path
       # (`"attendee.medications"`). Its category is spoken as the acronym it
       # is, uppercased and never reworded, because the category vocabulary is
       # the deployment's own and open-ended.

@@ -30,6 +30,7 @@ mod mint;
 mod payments;
 mod presentation;
 mod presentation_write;
+mod rate_limit;
 mod reference_transform;
 mod reference_validate;
 mod resend;
@@ -168,6 +169,9 @@ async fn main() -> Result<(), Error> {
     // exactly today's behavior, unchanged.
     let domain = std::env::var("HECKS_DOMAIN").map_err(|_| "HECKS_DOMAIN is required")?;
     let schema = std::env::var("HECKS_SCHEMA").ok().filter(|s| !s.is_empty());
+    // Checkout on AWS keeps the business's payment keys in a named Secrets
+    // Manager secret; refuse before touching the database when none is named.
+    payments::check_boot(web::checkout_enabled(std::env::var("HECKS_CHECKOUT_DOMAIN").ok().as_deref(), &domain))?;
 
     // RDS Postgres refuses a plain NoTls connection by default (real,
     // live error: "no pg_hba.conf entry ... no encryption") -- and
@@ -252,7 +256,7 @@ async fn main() -> Result<(), Error> {
     // needed created this way (their own schemas were already created
     // by `make mint-era`'s Ruby-side tunnel boot before their Lambda's
     // own first real invocation ever ran) — found live deploying
-    // lifeadelics, the first Shared-mode domain whose Lambda genuinely
+    // a client site, the first Shared-mode domain whose Lambda genuinely
     // raced a still-nonexistent schema: `SET search_path` to a schema
     // that doesn't exist yet succeeds in Postgres (search_path accepts
     // any name), so the first real failure only surfaced one step
@@ -363,7 +367,7 @@ async fn main() -> Result<(), Error> {
             // this crate only ever did it while minting, so a host that
             // matched an existing era's label wrote its first mutation
             // into a head-snapshot table nobody had created. Found live
-            // on embryonautfoundersapp, whose era 2 was minted by Ruby
+            // on a client site, whose era 2 was minted by Ruby
             // under the pre-ADR-0059 unqualified names: every
             // domain-qualified snapshot in that database stopped at era
             // 1, and no write of any kind could succeed.
@@ -499,7 +503,8 @@ async fn main() -> Result<(), Error> {
             serde_json::json!({ "mode": "serve", "domain": &lineage_config.domain, "era": &my_label, "boot_ms": boot_started.elapsed().as_millis() as u64 }),
         );
         let version = server::version_body(&my_label, &my_hash, std::env::var("HECKS_BUILD").ok().as_deref());
-        let state = server::ServerState { client, wasm_path, lineage_config, invoker };
+        let limits = Arc::new(rate_limit::RateLimits::from_env());
+        let state = server::ServerState { client, wasm_path, lineage_config, invoker, limits };
         return server::serve(state, version).await;
     }
 

@@ -123,7 +123,7 @@ module Hecks
           amount = unwrap_single_numeric_field(amount) if amount.is_a?(Value)
 
           # Widened from Integer to Numeric (migration plan task 4, i106):
-          # miette's organ math increments a Float (`increment: 0.02`) --
+          # an external project's organ math increments a Float (`increment: 0.02`) --
           # the raw, non-value-object path only ever mattered for Integer
           # counters before this corpus existed. Integer stays the common
           # case; Float is now accepted the same way.
@@ -192,7 +192,7 @@ module Hecks
           amount_fields  = amount.to_h
           # Widened from Integer to Numeric -- see #arithmetic's own
           # comment. A synthesised value-object wrapper around a bare
-          # Float attribute (miette's Synapse#strength, auto-wrapped per
+          # Float attribute (an external project's Synapse#strength, auto-wrapped per
           # Part 3a's "bare primitives forbidden" finding) lands here as
           # a one-Float-field Value exactly the way a one-Integer-field
           # Value already did.

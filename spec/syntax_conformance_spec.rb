@@ -171,16 +171,21 @@ RSpec.describe "the declared syntax" do
       # whichever port a domain declares, not a closed set this table
       # could enumerate. Same boundary as .hecksagon's Const.verb(...)
       # form, named in syntax.bluebook's own comment on the `world` row.
-      method_missing: "the open port-verb settings catch-all — .world's adapter-binding " \
-                      "vocabulary is per-application, not a fixed set the language can enumerate",
+      method_missing:        "the open port-verb settings catch-all — .world's adapter-binding " \
+                             "vocabulary is per-application, not a fixed set the language can enumerate",
+      # `default_database_impl`/`default_adapter_impl` — the same shape
+      # `realm_impl` has in the "*" table: what the word's `calls:` row
+      # forwards to, not a second word.
+      default_database_impl: "WorldBuilder's own real implementation, called by GenericDispatch's calls:",
+      default_adapter_impl:  "WorldBuilder's own real implementation, called by GenericDispatch's calls:",
       # `record_binding` (#143) — extracted from the old `method_missing`
       # body so `WorldConstProxy`'s own aggregate-qualified verb calls
       # (`Pizzas::Order.charged_by(...)`) share the identical write path
       # the bare top-level spelling above already used. Not a word
       # itself, same reasoning as `attribute_impl` in the "*" table
       # below — the thing a word's own dispatch calls, not a second word.
-      record_binding: "the shared @settings write path both the bare and aggregate-qualified " \
-                      "bind spellings call into — not a word of its own"
+      record_binding:        "the shared @settings write path both the bare and aggregate-qualified " \
+                             "bind spellings call into — not a word of its own"
     },
     "*"         => {
       build:              "the builder's closing act, called by self.build",

@@ -60,7 +60,7 @@ module RustProjection
     # here — Governance/Identity declare none today... not attempted by
     # this pass" (that comment's own words). Governance/Identity really
     # don't declare any, so the gap was invisible until a domain vendored
-    # a chapter that DOES — found live, generating lifeadelics' vendored
+    # a chapter that does — found live, generating a client site's vendored
     # embryonaut_bluebooks/payments: `Payments::Payment.PaymentGateway
     # .Succeeded` (a real, generated, correctly-dispatchable port
     # operation — dispatch_by_name already routes it fine) emitted

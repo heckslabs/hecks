@@ -41,7 +41,7 @@ impl std::fmt::Display for SignatureError {
 
 // Stripe's own documented scheme (docs.stripe.com/webhooks#verify-
 // manually), ported from `Stripe::Webhook.construct_event` (the Ruby
-// gem, called directly from adapters/http_server.rb) rather than
+// gem, called directly from the Ruby HTTP adapter) rather than
 // reinvented: header shape "t=<unix ts>,v1=<hex hmac>[,v1=<hex
 // hmac>...]" (more than one v1 during a secret-rotation window — any
 // match is accepted, same as the gem), signed payload is exactly
@@ -104,13 +104,12 @@ fn constant_time_eq(a: &[u8], b: &[u8]) -> bool {
     a.iter().zip(b.iter()).fold(0u8, |acc, (x, y)| acc | (x ^ y)) == 0
 }
 
-// **The mock outbound side** — Lifeadelics' OWN `LocalCheckout` adapter
-// (adapters/local_checkout/local_checkout.rb), not hecks' generic
-// MockStripeAdapter (mock_stripe_adapter.rb's `create_session`, which
-// instant-skips straight to `success_url` with nothing for a guest to
-// see). LocalCheckout hands back a URL to THIS SITE'S OWN
-// `/pay/<registration_id>.html` page (src/pages/pay/[registrationId].astro)
-// — a real page showing what's owed, with a "Pay"/"Cancel" a guest
+// **The mock outbound side** — a site-owned local checkout adapter, not
+// hecks' generic MockStripeAdapter (mock_stripe_adapter.rb's
+// `create_session`, which instant-skips straight to `success_url` with
+// nothing for a guest to see). The local adapter hands back a URL to the
+// site's own `/pay/<registration_id>.html` page — a real page showing
+// what's owed, with a "Pay"/"Cancel" a guest
 // actually clicks, before the browser ever reaches success_url/
 // cancel_url. Still entirely fake underneath: that page's "Pay" button
 // calls this same host's own POST /registrations/:id/complete
@@ -126,10 +125,10 @@ pub fn mock_checkout_session(registration_id: &str, success_url: &str, cancel_ur
     url.to_string()
 }
 
-// **The outbound side** — adapters/stripe_connect/stripe_connect.rb's own
-// `create_session`, same line item the Ruby version builds: currency
-// hardcoded "usd" (same as Ruby — lifeadelics' own Event::Money value object
-// carries no currency at all, see lifeadelics.bluebook's own comment on it),
+// **The outbound side** — the Ruby Stripe adapter's own `create_session`,
+// same line item the Ruby version builds: currency hardcoded "usd" (same as
+// Ruby — the site's own Event::Money value object carries no currency at
+// all),
 // one line item, quantity 1, and the same metadata key ("registration_id")
 // web.rs's own webhook route reads back to recover which Payment/
 // Registration this session belongs to.
@@ -244,7 +243,7 @@ mod tests {
 
     #[test]
     fn mock_checkout_session_matches_local_checkouts_own_pay_page_shape() {
-        // local_checkout.rb's own real output, same three parts: this
+        // The Ruby local checkout adapter's own real output, same three parts: this
         // site's own /pay/<registration_id>.html page, with success_url
         // and cancel_url riding along as encoded query params.
         let url = mock_checkout_session(

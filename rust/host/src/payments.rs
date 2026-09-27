@@ -1,8 +1,8 @@
 // **Payment connection** — the tenant's own link to a payment-processor
 // account, and what checkout does with it. Ported from the Ruby domain
 // service's `/payments/connection/*` routes, `checkout_plan` and webhook
-// handling (lifeadelics/adapters/http_server.rb) so a deploy served by this
-// host, not the Sinatra adapter, behaves the same way.
+// handling, so a deploy served by this host behaves the same way as one served
+// by the domain service's Ruby HTTP adapter.
 //
 // A business uses its own Stripe account directly. Its keys are set in the
 // environment (`STRIPE_ACCOUNT_*`) or pasted into the Payments page and saved
@@ -76,6 +76,9 @@ pub struct PlatformConfig {
     /// until then.
     pub stored: Arc<StoredDocument>,
     pub api_base: String,
+    /// The description Stripe shows beside the webhook endpoint this site
+    /// creates: `PAYMENTS_WEBHOOK_DESCRIPTION`, else "<HECKS_DOMAIN> website".
+    pub webhook_description: String,
     /// The business's own Stripe keys, one pair per mode. A mode is available
     /// once both its secret and publishable key are set. The publishable key is
     /// the public value the browser needs to mount the embedded payment form;
@@ -91,6 +94,23 @@ pub struct PlatformConfig {
     pub operators: Vec<String>,
 }
 
+/// Refuses the boot on AWS when checkout is enabled but
+/// `PAYMENTS_ACCOUNT_SECRET_ID` does not name the secret that holds the
+/// business's keys. Nothing else is checked, so off AWS, or with checkout off,
+/// the host boots as before.
+pub fn check_boot(checkout_enabled: bool) -> Result<(), String> {
+    keystore::check_boot(checkout_enabled)
+}
+
+/// The webhook endpoint's description: the configured text when it is not
+/// blank, else "<domain> website".
+fn webhook_description(configured: Option<&str>, domain: &str) -> String {
+    match configured.map(str::trim).filter(|text| !text.is_empty()) {
+        Some(text) => text.to_string(),
+        None => format!("{domain} website"),
+    }
+}
+
 impl PlatformConfig {
     pub fn from_env() -> Self {
         let var = |name: &str| std::env::var(name).unwrap_or_default();
@@ -102,6 +122,7 @@ impl PlatformConfig {
             store: keystore::default_store(),
             stored: Arc::new(StoredDocument::default()),
             api_base: STRIPE_API_BASE.to_string(),
+            webhook_description: webhook_description(std::env::var("PAYMENTS_WEBHOOK_DESCRIPTION").ok().as_deref(), &var("HECKS_DOMAIN")),
             direct_test_key: var("STRIPE_ACCOUNT_TEST_KEY"),
             direct_live_key: var("STRIPE_ACCOUNT_LIVE_KEY"),
             direct_test_publishable_key: var("STRIPE_ACCOUNT_TEST_PUBLISHABLE_KEY"),
@@ -565,7 +586,6 @@ const WEBHOOK_PERMISSION: &str = "That key can't create the webhook. In Stripe, 
 const WEBHOOK_FAILED: &str = "Stripe could not set up the payment webhook. Please try again.";
 const STORE_FAILED: &str = "The keys could not be stored, so nothing was saved. Please try again.";
 const WEBHOOK_EVENTS: [&str; 3] = ["checkout.session.completed", "checkout.session.expired", "charge.refunded"];
-const WEBHOOK_DESCRIPTION: &str = "Lifeadelics website";
 
 // A copy of `platform` with the key store read again, for a response that must
 // show the keys just saved or removed.
@@ -644,7 +664,7 @@ enum WebhookError {
 // answer, so it is captured here and nowhere else. Only the status is logged.
 async fn create_webhook(platform: &PlatformConfig, key: &str) -> Result<(String, String), WebhookError> {
     let url = format!("{}/webhooks/stripe", platform.webhook_base_url);
-    let mut params: Vec<(String, String)> = vec![("url".into(), url), ("description".into(), WEBHOOK_DESCRIPTION.into())];
+    let mut params: Vec<(String, String)> = vec![("url".into(), url), ("description".into(), platform.webhook_description.clone())];
     params.extend(WEBHOOK_EVENTS.iter().enumerate().map(|(index, event)| (format!("enabled_events[{index}]"), event.to_string())));
     let response = stripe_http()
         .map_err(|_| WebhookError::Other)?
@@ -789,6 +809,7 @@ pub(crate) fn test_platform() -> PlatformConfig {
         store: None,
         stored: Arc::new(StoredDocument::default()),
         api_base: "http://127.0.0.1:9".to_string(),
+        webhook_description: "Test Domain website".to_string(),
         direct_test_key: String::new(),
         direct_live_key: String::new(),
         direct_test_publishable_key: String::new(),

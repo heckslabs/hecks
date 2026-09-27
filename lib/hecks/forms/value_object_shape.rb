@@ -2,7 +2,7 @@ module Hecks
   module Forms
     # The value-object classification every consumer of a resolved VO
     # shape needs, spelled once — `field_shape.rb` (a command's own
-    # form), `ui_schema.rb` (embryonaut_console's table/detail-panel
+    # form), `ui_schema.rb` (the console app's table/detail-panel
     # renderer, a separate app, not this repo), and
     # `adapters/driven/sql_query_builder.rb` (a query's own ORDER BY/
     # where compiler) each grew their own copy of "is this VO money-

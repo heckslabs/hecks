@@ -545,7 +545,7 @@ module RustProjection
               # all whenever the REAL field carries a `default:` — the
               # generated `from_json` just falls through to that default,
               # silently discarding the caller's actual input. Found live
-              # dispatching `EmbryonautFoundersApp::Member.Admit` through
+              # dispatching `SampleApp::Member.Admit` through
               # this exact generated code: `units: {"value": 100000}`
               # saved as `{"count": 0}`, with `refusals` empty — a real,
               # silent-wrong-data class of bug, not a caller mistake this

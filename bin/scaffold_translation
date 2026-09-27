@@ -33,7 +33,7 @@ Hecks.with_registry(registry) do
   # domain that splits `persisted_by` per environment declares none in
   # its base `.hecksagon` at all, so `BindingPolicy.resolve` raised "no
   # persisted_by bind" for `bluebook.aggregates.first` here too —
-  # confirmed live scaffolding lifeadelics' own era-1-to-current
+  # confirmed live scaffolding a client site's own era-1-to-current
   # translation. Same opt-in, same reasoning: a silent no-op for every
   # other domain, which never sets this.
   if (target_environment = ENV.fetch("HECKS_PROJECT_ENVIRONMENT", nil))
@@ -65,7 +65,7 @@ if capable
   # looking those up under the bypassed name would find nothing at all.
   settings = registry.world(bluebook.name)&.for_binding(Hecks::Ports::Persistence::VERB, adapter_name) || {}
   # `HECKS_SCHEMA` — a Shared-mode domain's `.world` file deliberately
-  # declares no `schema` of its own (lifeadelics.world's own comment:
+  # declares no `schema` of its own (that site's own `.world` comment:
   # "the AWS Lambda's own HECKS_SCHEMA... is what actually scopes
   # production; this local default is for anyone booting
   # `environment: production` outside Lambda, which nothing does today").

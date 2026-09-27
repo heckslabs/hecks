@@ -112,14 +112,14 @@ RSpec.describe Hecks::Fuzzing::TargetCapabilities do
         .to be(false)
     end
 
-    it "reads the shape embryonaut_platform's hecksagon has" do
+    it "reads the shape a managed-platform hecksagon has" do
       text = <<~RUBY
         adapter = "PostgresEra"
 
-        Hecks.hecksagon "EmbryonautPlatform" do
+        Hecks.hecksagon "ManagedPlatform" do
           uses_framework "Governance"
-          EmbryonautPlatform::Client.persisted_by(adapter)
-          EmbryonautPlatform::ManagedSite.persisted_by(adapter)
+          ManagedPlatform::Client.persisted_by(adapter)
+          ManagedPlatform::ManagedSite.persisted_by(adapter)
         end
 
         Hecks.hecksagon "Governance" do

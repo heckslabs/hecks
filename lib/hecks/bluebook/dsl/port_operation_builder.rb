@@ -34,7 +34,7 @@ module Hecks
         # only external facts with attribute" the refusal message
         # describes) rather than folding `to:` into identity_attribute's
         # existing Reference-attribute scan, which every operation already
-        # in the corpus (Banking, pizzas, lifeadelics' own vendored
+        # in the corpus (Banking, pizzas, a client site's own vendored
         # PaymentGateway) still relies on unchanged.
         #
         # @param name [String] the operation's name

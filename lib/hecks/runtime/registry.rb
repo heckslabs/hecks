@@ -1,5 +1,6 @@
 require_relative "registry/verification"
 require_relative "registry/saga_persistence"
+require_relative "registry/world_defaults"
 require_relative "outbox"
 require_relative "../naming"
 
@@ -10,10 +11,12 @@ module Hecks
     # The collections a boot gathers — bluebooks, hexagons, ports, adapters,
     # worlds, the logs — and how a repository is resolved from them. The
     # wiring gate lives in registry/verification.rb, saga persistence
-    # resolution in registry/saga_persistence.rb.
+    # resolution in registry/saga_persistence.rb, and a `.world`'s project-wide
+    # defaults in registry/world_defaults.rb.
     class Registry
       include Verification
       include SagaPersistence
+      include WorldDefaults
 
       attr_reader :root, :bluebooks, :hecksagons, :ports, :adapters, :worlds, :event_log,
                   :reaction_log, :saga_log, :saga_instances, :translations, :saga_mutex,
@@ -257,7 +260,7 @@ module Hecks
       # entry into a real `Privacy::Marking.Mark` once a dispatcher exists.
       #
       # @param domain [String] the marked attribute's own aggregate FQN, e.g.
-      #   `"Lifeadelics::Registration"`
+      #   `"Site::Registration"`
       # @param attribute_path [String] the dotted path within that aggregate, e.g.
       #   `"attendee.medications"`
       # @param category [String] the marking's own sensitivity category, e.g. `"phi"`
@@ -593,7 +596,7 @@ module Hecks
       #   concatenated, `base` then `overlay`
       def merge_hecksagons(base, overlay)
         # Same-name blocks concatenate regardless of which file they came
-        # from (`lifeadelics.hecksagon`, `context_map.hecksagon`, an
+        # from (`site.hecksagon`, `context_map.hecksagon`, an
         # environment overlay). Order-independent: list facts uniq, so
         # loading context_map before or after the domain file is the same
         # merged hecksagon. Binds stay concatenated (BindingPolicy still
@@ -610,8 +613,8 @@ module Hecks
       end
 
       # Recovered and generalized — see `add_world`'s own comment. `realm`/
-      # `latest` are scalars, so the overlay's value wins when present,
-      # else the base's survives; `settings` is a shallow merge keyed by
+      # `latest`, `default_database` and `default_adapter` are scalars, so the overlay's
+      # value wins when present, else the base's survives; `settings` is a shallow merge keyed by
       # verb (and `"verb:adapter"`) — an overlay entry for a key the base
       # also declares replaces that key's whole resolved hash (the same
       # all-or-nothing shape `WorldBuilder#method_missing` already builds
@@ -623,10 +626,12 @@ module Hecks
       #   present, and `settings` shallow-merged, `overlay`'s keys winning
       def merge_worlds(base, overlay)
         Bluebook::World.new(
-          domain:   base.domain,
-          realm:    overlay.realm || base.realm,
-          latest:   overlay.latest || base.latest,
-          settings: base.settings.merge(overlay.settings)
+          domain:           base.domain,
+          realm:            overlay.realm || base.realm,
+          latest:           overlay.latest || base.latest,
+          settings:         base.settings.merge(overlay.settings),
+          default_database: overlay.default_database || base.default_database,
+          default_adapter:  overlay.default_adapter || base.default_adapter
         )
       end
     end

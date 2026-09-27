@@ -47,7 +47,7 @@ module Hecks
       #
       # @param dispatcher [Runtime::Dispatcher, Runtime::RemoteDispatcher] the booted
       #   dispatcher both the lookup query and the `Shred` dispatch run through
-      # @param domain [String] the subject's own domain FQN, e.g. `"Lifeadelics::Registration"`
+      # @param domain [String] the subject's own domain FQN, e.g. `"Site::Registration"`
       # @param subject_id [String] the data subject to erase
       # @return [Boolean] true when a live key was found and shredded by this call; false
       #   when no `SubjectKey` record exists for this subject, or it was already shredded

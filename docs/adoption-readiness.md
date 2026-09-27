@@ -29,7 +29,7 @@ pre-1.0, no stability promise implied by semver convention.
 lineage of **980 commits**. The first is:
 
 ```
-13fd8faa 2026-07-25 15:42:31 -0700  Miette <miette@embryonaut.ai>
+13fd8faa 2026-07-25 15:42:31 -0700  Agent Account <agent@example.com>
 "feat: hecksagain 01 — the first vertical slice, Ruby as source of truth"
 ```
 
@@ -60,22 +60,22 @@ real `bluebook/` folder with `.bluebook`/`.hecksagon`/`.world` files.
 uniq -c | sort -rn` gives:
 
 ```
- 856  Miette <miette@embryonaut.ai>
+ 856  Agent Account <agent@example.com>
   71  Chris Young <belleboche@gmail.com>
   45  Chris Young <chris@trusona.com>
    8  Claude <noreply@anthropic.com>
 ```
 
-Total: 980. Treating `Miette` (856) and `Claude` (8) as agent-attributed
+Total: 980. Treating the agent account (856) and `Claude` (8) as agent-attributed
 authorship: **864 / 980 = 88.2%**. This *confirms* the "~88%" figure rather
 than contradicting it — computed independently, not restated.
 
 The more interesting finding is what the repo does *not* say: nothing in
-this checkout explains who or what "Miette" is. There is no `CLAUDE.md` at
+this checkout explains who or what that agent account is. There is no `CLAUDE.md` at
 the repo root, no mention in README, no CONTRIBUTING file. The only clue
 anywhere in this repo is one sentence in
 `docs/hecks-survey-what-we-wish-we-had.md:15` — itself an internal-audience
-document (see §2) — which in passing calls Miette "a persistent agent"
+document (see §2) — which in passing calls it "a persistent agent"
 belonging to a *different*, non-public project. An outside evaluator reading
 `git log` will see that 87% of the codebase's authorship traces to an
 identity that the repo itself never introduces, with an `@embryonaut.ai`
@@ -109,8 +109,8 @@ below.
 **A finding beyond the prompt's checklist, worth surfacing here because it
 belongs in "what the public artifact says":** `deploy/` is tracked in git
 and contains generated SAM deploy targets for five names, not two:
-`banking`, `pizzas` (the public examples), and **`embryonaut`,
-`lifeadelics`, `lifeadelics-demo`** — three names that correspond to nothing
+`banking`, `pizzas` (the public examples), and **`embryonaut`
+plus two client-site names** — three names that correspond to nothing
 in `examples/`. `deploy/embryonaut/{Makefile,bastion.yaml,samconfig.toml,
 template.yaml}` are real, checked-in, generated deployment artifacts (region
 `us-east-1`, live Lambda config) for a domain the repo never defines
@@ -128,7 +128,7 @@ This is a transparency/narrative gap, not a security one.)
 that contains the real backstory, and it is unambiguous once you know to
 look for it:
 
-> "hecks is a sprawling *organism* — a persistent agent ('Miette') with a
+> "hecks is a sprawling *organism* — a persistent agent (named in the source) with a
 > modelled body, daemons, hooks, a corpus of ~156 bluebooks describing its
 > own machinery. hecks is the clean *core* that organism now runs on."
 > (line 17-18)
@@ -138,7 +138,7 @@ look for it:
 
 So the document itself confirms the shape the task described: this repo is
 the extracted, cleaned core; a larger predecessor project depends on it via
-a Gemfile; that predecessor is where "Miette," the daemons, and the
+a Gemfile; that predecessor is where that agent, the daemons, and the
 Storehouse tooling actually live, in a **private fork**
 (`hecks-hecksagain`, named explicitly at line 27). None of this is stated
 anywhere a newcomer would naturally look — README, gemspec description, or
@@ -178,13 +178,13 @@ retired in favor of the excerpt recommended below.
    discoverable from `deploy/embryonaut/` and the `.world` example on
    README line 356 — hiding it in prose while it's visible in the tree
    is worse than naming it). If the maintainer is *not* comfortable naming
-   the company, then `deploy/embryonaut/`, `deploy/lifeadelics*/`, and the
+   the company, then `deploy/embryonaut/`, the client-site deploy directories, and the
    `owner "Embryonaut"` comment in the README's own Banking `.world`
    example (line 356) need to be scrubbed or genericized — right now the
    repo half-discloses this by accident, which is the worst of both
    options.
 
-3. **Who/what "Miette" is, and why 88% of commits carry that authorship.**
+3. **Who/what the agent account is, and why 88% of commits carry that authorship.**
    This is a **CONTRIBUTING.md** (currently absent) concern more than a
    README concern — a "How this project is built" section stating plainly
    that most commits are produced by an AI coding agent under human
@@ -239,7 +239,7 @@ twice, that Storehouse lives outside this repo:
 
 and the closing "Sources" section lists only paths under the sibling
 project (`~/Projects/hecks`, `tooling/storehouse-mcp/`, `hecks_runtime/`) —
-none of which exist in this repository (confirmed: no `hecks_conception/`,
+none of which exist in this repository (confirmed: no conception-corpus directory,
 `hecks_runtime/`, or `tooling/` directory anywhere in this checkout).
 
 **Does the README state plainly what is and isn't in this public repo?**
@@ -330,7 +330,7 @@ confused or feeling misled.
    reviewer treats as a proxy for overall care.
 
 7. **Decide, deliberately, what to do with `deploy/embryonaut/` and
-   `deploy/lifeadelics*/`.** (M, needs a product decision, not just an
+   the client-site deploy directories.** (M, needs a product decision, not just an
    edit.) Either name and own it in the new README section (item 1) or
    remove/genericize the tracked deploy configs. Currently the repo
    half-discloses real customer names by accident, which is worse than
@@ -523,7 +523,7 @@ other specs, not this one, and were not expected to appear here.
   factual inconsistency, not just a narrative gap.
 
 - **`deploy/` tracks real, named non-example deploy targets** —
-  `embryonaut`, `lifeadelics`, `lifeadelics-demo` — alongside the two
+  `embryonaut` and two client-site names — alongside the two
   public examples (`banking`, `pizzas`). Confirmed via `git ls-files
   deploy/*/` (3-4 tracked files per directory: `Makefile`,
   `samconfig.toml`, `template.yaml`, and `bastion.yaml` where present). No

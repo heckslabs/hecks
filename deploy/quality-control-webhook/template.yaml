@@ -230,10 +230,10 @@ Resources:
           # matching this stack's own name), a question `infra_name`
           # answers and a domain's own business identity does not.
           # Real, live, and confirmed the hard way: this was still
-          # wired to `declared_domain_name` when EmbryonautFoundersApp
+          # wired to `declared_domain_name` when a client app
           # first deployed, and WebFunction immediately threw
           # `ResourceNotFoundException: Function not found:
-          # hecks-embryonautfoundersapp` on every read AND on the
+          # hecks-<domain>` on every read AND on the
           # Google OAuth callback itself — a real signed-in user hit
           # this within minutes of the deploy that introduced it.
           DOMAIN_NAME: quality-control-webhook

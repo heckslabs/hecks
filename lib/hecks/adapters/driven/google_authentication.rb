@@ -6,7 +6,7 @@ module Hecks
   module Adapters
     # **Google's own OIDC handshake** — the `authentication` port's one real
     # implementation today. Consolidates what was hand-rolled per-app
-    # (an embryonaut_console `google_auth.rb` did this on its own) into
+    # (a console app's `google_auth.rb` did this on its own) into
     # one adapter, so any hecks-based app gets Google sign-in for free, the
     # same "one adapter, reusable everywhere" value every other adapter
     # in this directory already has.

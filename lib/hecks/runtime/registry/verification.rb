@@ -17,10 +17,12 @@ module Hecks
         # @raise [Runtime::WiringError] if a bind names an undeclared aggregate, an
         #   adapter cannot satisfy its port's verb or declared `answers`, a world
         #   setting names a field its adapter does not declare, the default adapter
-        #   is unusable, a command declares a role with no authorization provider
-        #   attached, or a membership chapter is loaded with no identity chapter
+        #   is unusable, a world's `default_adapter` is not a persistence adapter, a
+        #   command declares a role with no authorization provider attached, or a
+        #   membership chapter is loaded with no identity chapter
         def verify!
           verify_default_adapter!
+          verify_world_defaults!
           verify_singleton_port_answers!
           refuse_cross_package_bluebook_merge!
           refuse_membership_without_identity!

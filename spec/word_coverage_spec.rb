@@ -209,12 +209,12 @@ RSpec.describe "every live DSL word, used somewhere real" do
                                            "it is a real declaration the scanner is not pointed at.",
     "formerly_known_as (Bluebook)"      =>
                                            "no bluebook in THIS repository's own corpus renames itself — real, external " \
-                                           "use is what this word is for: embryonautfoundersapp.bluebook (the sibling " \
-                                           "embryonaut_console repo) declares `formerly_known_as \"Embryonaut\"` for real, " \
-                                           "bridging real production journal/era/approval rows the day it deployed under " \
-                                           "the new name. Written up in docs/implemented/reference/bluebook.md's " \
-                                           "own section, naming " \
-                                           "the consumer, per principle 4's own wording.",
+                                           "use is what this word is for: a downstream client project's bluebook (a separate " \
+                                           "repository, outside this one) declares `formerly_known_as` with its previous " \
+                                           "domain name for real, bridging real production journal/era/approval rows the " \
+                                           "day it deployed under the new name. Written up in " \
+                                           "docs/implemented/reference/bluebook.md's own section, describing " \
+                                           "the external consumer, per principle 4's own wording.",
     "bounded (Hecksagon)"               =>
                                            "a consumer-owned mark; framework and vendored packages get it automatically " \
                                            "from uses_framework / uses_embryonaut_bluebook and never write the word. No " \

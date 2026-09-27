@@ -1,6 +1,6 @@
 // The outbound side of a newsletter send: one email handed to Resend's REST
 // API (https://resend.com/docs/api-reference/emails/send-email). The Ruby
-// counterpart is lifeadelics' adapters/resend/resend.rb; both answer the same
+// counterpart is the site's own Resend adapter; both answer the same
 // `deliver` question, ok or not with a message id, so the send loop never
 // knows which provider it is talking to.
 //

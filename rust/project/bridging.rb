@@ -371,7 +371,7 @@ module RustProjection
         # and takes a different path when it's false; this was the one
         # caller that called literal_hash_rhs on the raw, possibly-
         # partial declared default UNCONDITIONALLY — found live,
-        # generating lifeadelics' vendored payments.bluebook, the first
+        # generating a client site's vendored payments.bluebook, the first
         # domain in the corpus to declare a Hash default that leans on
         # its own VO's per-field defaults rather than naming every
         # field explicitly. Ruby's own runtime (Coercion#build) already

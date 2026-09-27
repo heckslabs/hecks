@@ -418,7 +418,7 @@ pub struct LineageConfig {
     /// `capable_aggregates: []`, so `mint` provisions no head snapshots
     /// at all — while `era` was `Some`, so every write tried to upsert
     /// one anyway and died on `relation ... does not exist`. Found live:
-    /// embryonautfoundersapp, whose `hecks_lambda_journal` was empty
+    /// A client site, whose `hecks_lambda_journal` was empty
     /// because no write it ever attempted could succeed.
     pub mirrored: Option<std::collections::BTreeSet<String>>,
 }

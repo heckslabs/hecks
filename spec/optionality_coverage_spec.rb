@@ -72,7 +72,7 @@ RSpec.describe "every nullable field the wire carries, actually filled" do
   # end to end) -- just not by any of this file's golden-tracked corpus
   # members. `spec/parser_coverage_spec.rb`'s own PENDING_PAIRS already
   # names this exact gap by hand ("a domain rename is live in production
-  # per memory -- Embryonaut->EmbryonautFoundersApp -- but no .bluebook in
+  # per memory -- a client project's domain rename -- but no .bluebook in
   # this codebase's own tracked corpus declares one"): declaring one on a
   # golden fixture here would flip that claim false and hand Rust parity a
   # keyword `rust/parser/src/parse/chapter.rs` itself says still "falls

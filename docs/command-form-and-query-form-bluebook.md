@@ -125,7 +125,7 @@ offer for "which account."
 becomes an HTML input shape — shared by both words equally, since a
 command's own attribute and a query's own parameter resolve to the exact
 same shape. It's the piece the prior prototype in this repo
-(`embryonaut_console`'s `ui_schema.rb` + `presentation.yml`, vendored
+(a client console project's `ui_schema.rb` + `presentation.yml`, vendored
 under `deploy/embryonaut/.aws-sam/build/...` — see the survey that grounded
 this design) fell short of: everything that wasn't a number or a
 closed-set VO fell back to `<input type="text">`, even when a `pattern`

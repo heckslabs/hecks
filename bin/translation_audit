@@ -46,7 +46,7 @@ begin
     # comment first): `load_domain` already supports an environment
     # overlay, this tool just never asked it for one, so a domain
     # whose `persisted_by` binds live only in `bluebook/environments/
-    # *.hecksagon` (lifeadelics) got "no persisted_by bind" here too.
+    # *.hecksagon` (a client site) got "no persisted_by bind" here too.
     loading.load_domain(directory, environment: ENV.fetch("HECKS_PROJECT_ENVIRONMENT", nil))
   end
 rescue Hecks::Bluebook::DSL::Malformed => e

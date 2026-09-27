@@ -4,10 +4,9 @@ require "tmpdir"
 require_relative "../support/postgres_probe"
 require_relative "../support/fenced_owner"
 
-# The storage-name collision, found live against a real, private project
-# (children-of-the-light) — a domain at era 12 of its own schema history
-# (`ChildrenOfTheLight`, its own real `aggregate "Note"`) attaching a
-# second, small, vendored bluebook chapter via `uses_embryonaut_bluebook
+# The storage-name collision, found live against a real, private client
+# project — a domain at era 12 of its own schema history (its own real
+# `aggregate "Note"`) attaching a second, small, vendored bluebook chapter via `uses_embryonaut_bluebook
 # "notes"` (`Notes`, its own unrelated `aggregate "Note"`), both bound to
 # PostgresEra against the same Postgres database.
 #
@@ -598,7 +597,7 @@ RSpec.describe "PostgresEra domain-qualifies head_view/head_snapshot/matview (do
 
         # Target's own real data is still there, still correctly
         # translated — the actual claim the live bug's own field report
-        # made about children-of-the-light's real historical notes.
+        # made about that project's real historical notes.
         target_rows = dispatcher.query("Target::Note.All")
         expect(target_rows.map { |r| r[:heading][:value] }).to eq(["Original Title"])
 

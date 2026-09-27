@@ -104,14 +104,32 @@ RSpec.describe "the stdio MCP servers" do
     end
   end
 
+  # The pizzas example as a copy under `root_dir`, bound to Memory instead of the PostgresEra its
+  # own hecksagon and world name. The door boots whatever binds a domain declares, so the door
+  # examples below run against this copy: they prove the door's refusals and framing, which need no
+  # database, and a job with no Postgres must be able to run them.
+  def memory_pizzas_under(root_dir)
+    target = File.join(root_dir, "pizzas")
+    FileUtils.cp_r(File.join(root, "examples/pizzas/bluebook"), target)
+    FileUtils.rm_f(File.join(target, "pizzas.world"))
+    hecksagon = File.join(target, "pizzas.hecksagon")
+    File.write(hecksagon, File.read(hecksagon).gsub('persisted_by("PostgresEra")', 'persisted_by("Memory")'))
+    "pizzas"
+  end
+
   describe "bin/hecks_mcp_door" do
+    let(:sandbox_root) { Dir.mktmpdir("hecks-mcp-door-root") }
+
+    after { FileUtils.rm_rf(sandbox_root) }
+
     it "warns, refuses a role-gated dispatch with no role, runs a query, and refuses a domain outside the root" do
+      domain = memory_pizzas_under(sandbox_root)
       run = run_over_pipes(
         door,
-        [tool_call(1, "dispatch", { domain: "examples/pizzas", command: "create_pizza",
-                                         summary: "spec", args: {} }),
-         tool_call(2, "query", { domain: "examples/pizzas", question: "available", summary: "spec" }),
-         tool_call(3, "catalog", { domain: "/tmp/outside_the_root" })]
+        [tool_call(1, "dispatch", { domain: domain, command: "create_pizza", summary: "spec", args: {} }),
+         tool_call(2, "query", { domain: domain, question: "available", summary: "spec" }),
+         tool_call(3, "catalog", { domain: "/tmp/outside_the_root" })],
+        env: { "HECKS_STOREHOUSE_ROOT" => sandbox_root }
       )
       results = run[:responses].to_h { |response| [response["id"], response["result"]] }
       refusal = JSON.parse(results[1]["content"].first["text"])

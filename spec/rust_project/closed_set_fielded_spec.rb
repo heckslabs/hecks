@@ -9,7 +9,7 @@ require_relative "../../rust/project/fielded"
 # `Fielded` impl at all, so a `given` clause naming a closed-set-typed
 # attribute (`processor: Processor`, a `one_of:` VO) could never resolve
 # it — no domain in the corpus (banking/pizzas/compliance) ever declared
-# a `given` over one before lifeadelics' vendored embryonaut_bluebooks/
+# a `given` over one before a client project's vendored embryonaut_bluebooks/
 # payments (`Payment::Succeed`'s "the processor matches..."). Found live:
 # `dispatch_operation_paymentgateway_succeeded` refusing with "cannot
 # resolve \"processor\" — no such attribute or argument" even though the

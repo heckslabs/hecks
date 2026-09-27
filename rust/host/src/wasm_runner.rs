@@ -18,7 +18,7 @@
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
-use std::sync::{Mutex, OnceLock};
+use std::sync::{Arc, Mutex, OnceLock};
 use tokio::io::{AsyncRead, AsyncWrite};
 use wasmtime::{Engine, Linker, Module, Store};
 use wasmtime_wasi::cli::{IsTerminal, StdinStream, StdoutStream};
@@ -77,34 +77,68 @@ impl StdoutStream for StepsOut {
 // the same path, forever. Found live, in this crate's own `cargo test`:
 // one test binary genuinely dispatches against two different domains'
 // `.wasm` files in the same process (dispatch.rs's own banking.wasm
-// fixtures alongside web.rs's lifeadelics.wasm ones, run concurrently
+// fixtures alongside web.rs's own site wasm ones, run concurrently
 // by cargo test's own thread pool) — whichever path happened to compile
 // first silently won for every subsequent call regardless of its own
-// `wasm_path` argument, so a banking dispatch got lifeadelics' compiled
+// `wasm_path` argument, so a banking dispatch got a client site's compiled
 // module back and refused every real Banking verb as "unknown command."
 // `Engine`/`Module` are both cheap-`Clone` (wasmtime's own docs: each
 // wraps an `Arc` internally), so caching owned clones per path costs
 // nothing beyond the HashMap entry itself.
-static ENGINE_AND_MODULE: OnceLock<Mutex<HashMap<PathBuf, (Engine, Module)>>> = OnceLock::new();
+static ENGINE_AND_MODULE: OnceLock<Mutex<HashMap<PathBuf, Arc<Compiled>>>> = OnceLock::new();
 
+/// One path's compiled module, empty until the first call for that path
+/// has compiled it. The cell's own lock is the single-flight gate: callers
+/// for the same path queue on it while one of them compiles.
+type Compiled = Mutex<Option<(Engine, Module)>>;
+
+/// Compiles `wasm_path` once per process, however many callers ask at the
+/// same time.
+///
+/// Compiling is the one slow step here (seconds in an unoptimized build,
+/// and it takes every core it is given), and the first requests to a
+/// freshly booted host all arrive before it finishes. Letting each of
+/// them compile its own copy, as an earlier version did, made a burst of
+/// cold requests slower than one compile by the size of the burst; on a
+/// small machine a client that retried after its own timeout kept adding
+/// compiles faster than they finished, and no request was ever answered.
+/// So the callers for one path wait on the first one's compile instead,
+/// and a compile that fails leaves the cell empty for the next caller to
+/// retry. Different paths do not wait on each other.
 fn engine_and_module(wasm_path: &Path) -> anyhow::Result<(Engine, Module)> {
     let cache = ENGINE_AND_MODULE.get_or_init(|| Mutex::new(HashMap::new()));
+    let cell = Arc::clone(cache.lock().unwrap().entry(wasm_path.to_path_buf()).or_default());
 
-    if let Some((engine, module)) = cache.lock().unwrap().get(wasm_path) {
+    let mut compiled = cell.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+    if let Some((engine, module)) = compiled.as_ref() {
         return Ok((engine.clone(), module.clone()));
     }
-
     let engine = Engine::default();
     let module = Module::from_file(&engine, wasm_path)?;
-    // A lost race is harmless, not wasted work to avoid — two calls for
-    // the same new path, both missing the check above, would each
-    // compile once; `entry(...).or_insert_with` just keeps whichever
-    // one gets the lock first and drops the other's Engine/Module,
-    // same "simpler and just as correct as coordinating who compiles"
-    // reasoning the original single-slot version already held to.
-    let mut cache = cache.lock().unwrap();
-    let entry = cache.entry(wasm_path.to_path_buf()).or_insert_with(|| (engine, module));
-    Ok((entry.0.clone(), entry.1.clone()))
+    #[cfg(test)]
+    COMPILED_PATHS.lock().unwrap().push(wasm_path.to_path_buf());
+    *compiled = Some((engine.clone(), module.clone()));
+    Ok((engine, module))
+}
+
+/// Every path `engine_and_module` has compiled, one entry per compile, so
+/// a test can tell one compile from a burst of them.
+#[cfg(test)]
+static COMPILED_PATHS: Mutex<Vec<PathBuf>> = Mutex::new(Vec::new());
+
+/// How many times `wasm_path` has been compiled in this process.
+#[cfg(test)]
+pub(crate) fn compile_count(wasm_path: &Path) -> usize {
+    COMPILED_PATHS.lock().unwrap().iter().filter(|compiled| compiled.as_path() == wasm_path).count()
+}
+
+/// Compiles `wasm_path` now, so the first request served does not pay for
+/// it. The host calls this once at boot, before it starts listening: a
+/// client's first read then meets a compiled module rather than a compile
+/// longer than its own timeout. Errors when the file is missing or is not
+/// a valid module.
+pub fn warm(wasm_path: &Path) -> anyhow::Result<()> {
+    engine_and_module(wasm_path).map(|_| ())
 }
 
 /// Runs `wasm_path` (a wasm32-wasip1 module speaking the `{"steps"}` ->
@@ -148,4 +182,62 @@ pub fn run(wasm_path: &Path, input: &str) -> anyhow::Result<String> {
 
     drop(store);
     Ok(String::from_utf8(stdout_pipe.contents().to_vec())?)
+}
+
+#[cfg(test)]
+pub(crate) mod tests {
+    use super::*;
+
+    /// A copy of the checkout fixture wasm at a path no other test uses, so
+    /// its first call is a real cold compile whatever order tests run in.
+    pub(crate) fn cold_copy_of_fixture(name: &str) -> PathBuf {
+        let source = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../dist/checkout_fixture.wasm");
+        let dir = std::env::temp_dir().join(format!("hecks_wasm_runner_{}_{name}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let copy = dir.join("checkout_fixture.wasm");
+        std::fs::copy(&source, &copy).expect("bin/project_wasm writes checkout_fixture.wasm");
+        copy
+    }
+
+    /// The first requests to a booted host all arrive before its compile
+    /// finishes. Each used to compile its own copy, so a burst cost the
+    /// burst's size in compiles and, on a small machine, never finished.
+    #[test]
+    fn a_burst_of_cold_callers_compiles_the_module_once() {
+        let path = cold_copy_of_fixture("burst");
+        let callers: Vec<_> = (0..8)
+            .map(|_| {
+                let path = path.clone();
+                std::thread::spawn(move || engine_and_module(&path).map(|_| ()))
+            })
+            .collect();
+        for caller in callers {
+            caller.join().unwrap().unwrap();
+        }
+        assert_eq!(compile_count(&path), 1);
+    }
+
+    #[test]
+    fn a_warmed_module_is_not_compiled_again_by_the_first_run() {
+        let path = cold_copy_of_fixture("warm");
+        warm(&path).unwrap();
+        assert_eq!(compile_count(&path), 1);
+
+        let answer = run(&path, r#"{"steps": []}"#).unwrap();
+        assert!(answer.contains("instances"), "got {answer}");
+        assert_eq!(compile_count(&path), 1, "run reused the warmed module");
+    }
+
+    #[test]
+    fn a_module_that_fails_to_compile_is_retried_by_the_next_caller() {
+        let path = cold_copy_of_fixture("retry");
+        let good = std::fs::read(&path).unwrap();
+        std::fs::write(&path, b"not a wasm module").unwrap();
+        assert!(warm(&path).is_err());
+        assert_eq!(compile_count(&path), 0);
+
+        std::fs::write(&path, good).unwrap();
+        warm(&path).unwrap();
+        assert_eq!(compile_count(&path), 1);
+    }
 }

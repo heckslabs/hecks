@@ -354,6 +354,26 @@
           "pattern": null,
           "relationship": null,
           "type": "Latest"
+        },
+        {
+          "admits": null,
+          "default": null,
+          "list": false,
+          "name": "default_database",
+          "optional": false,
+          "pattern": null,
+          "relationship": null,
+          "type": "DefaultDatabase"
+        },
+        {
+          "admits": null,
+          "default": null,
+          "list": false,
+          "name": "default_adapter",
+          "optional": false,
+          "pattern": null,
+          "relationship": null,
+          "type": "DefaultAdapter"
         }
       ],
       "commands": [
@@ -388,6 +408,26 @@
               "pattern": null,
               "relationship": null,
               "type": "Latest"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "default_database",
+              "optional": true,
+              "pattern": null,
+              "relationship": null,
+              "type": "DefaultDatabase"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "default_adapter",
+              "optional": true,
+              "pattern": null,
+              "relationship": null,
+              "type": "DefaultAdapter"
             }
           ],
           "emits": [
@@ -428,6 +468,24 @@
                 "name": "latest"
               },
               "target": "latest"
+            },
+            {
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "default_database"
+              },
+              "target": "default_database"
+            },
+            {
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "default_adapter"
+              },
+              "target": "default_adapter"
             }
           ],
           "name": "Declare",
@@ -581,6 +639,86 @@
 
           ],
           "name": "Latest"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "value",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+            {
+              "ast": {
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "value"
+                      ]
+                    }
+                  }
+                },
+                "op": "not"
+              },
+              "canonical": "!value.to_s.empty?",
+              "description": "a default database says something"
+            }
+          ],
+          "members": [
+
+          ],
+          "name": "DefaultDatabase"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "value",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+            {
+              "ast": {
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "value"
+                      ]
+                    }
+                  }
+                },
+                "op": "not"
+              },
+              "canonical": "!value.to_s.empty?",
+              "description": "a default adapter names an adapter"
+            }
+          ],
+          "members": [
+
+          ],
+          "name": "DefaultAdapter"
         },
         {
           "attributes": [
@@ -774,6 +912,66 @@
               [
                 "calls",
                 "latest_impl"
+              ]
+            ],
+            [
+              [
+                "word",
+                "default_database"
+              ],
+              [
+                "context",
+                "World"
+              ],
+              [
+                "body",
+                "none"
+              ],
+              [
+                "inner",
+                ""
+              ],
+              [
+                "opens",
+                ""
+              ],
+              [
+                "fills",
+                "default_database"
+              ],
+              [
+                "calls",
+                "default_database_impl"
+              ]
+            ],
+            [
+              [
+                "word",
+                "default_adapter"
+              ],
+              [
+                "context",
+                "World"
+              ],
+              [
+                "body",
+                "none"
+              ],
+              [
+                "inner",
+                ""
+              ],
+              [
+                "opens",
+                ""
+              ],
+              [
+                "fills",
+                "default_adapter"
+              ],
+              [
+                "calls",
+                "default_adapter_impl"
               ]
             ]
           ],
@@ -1025,6 +1223,66 @@
               [
                 "fills",
                 "latest"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "default_database"
+              ],
+              [
+                "context",
+                "World"
+              ],
+              [
+                "at",
+                1
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "text"
+              ],
+              [
+                "required",
+                true
+              ],
+              [
+                "fills",
+                "default_database"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "default_adapter"
+              ],
+              [
+                "context",
+                "World"
+              ],
+              [
+                "at",
+                1
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "text"
+              ],
+              [
+                "required",
+                true
+              ],
+              [
+                "fills",
+                "default_adapter"
               ]
             ]
           ],

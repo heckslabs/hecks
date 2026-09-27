@@ -29,7 +29,7 @@ module Hecks
       # exist precisely so a domain whose AWS identity predates a rename
       # keeps targeting the stack that is actually live rather than
       # standing up a second, empty one beside it. A real one:
-      # embryonautfoundersapp deploys as `hecksagain-embryonaut`, and no
+      # a client site deploys under a fixed stack name, and no
       # value of `domain` (or of `DOMAIN_NAME`, the deployed-Lambda
       # override callers already pass) can make this computation produce
       # a name with no dash after "hecks". Every Ruby-side read and

@@ -97,9 +97,10 @@ module Hecks
       include Hecks::IR
       include Behaviour::World
 
-      emits_ir(domain: :domain, realm: :realm, latest: :latest, settings: :settings)
+      emits_ir(domain: :domain, realm: :realm, latest: :latest, settings: :settings,
+               default_database: :default_database, default_adapter: :default_adapter)
 
-      attr_reader :domain, :realm, :latest, :settings
+      attr_reader :domain, :realm, :latest, :settings, :default_database, :default_adapter
 
       # @param domain [String, Symbol] the domain this world configures
       # @param realm [String, Symbol, nil] the declared realm/version marker, or `nil`
@@ -108,11 +109,18 @@ module Hecks
       #   if none is declared
       # @param settings [Hash] the declared adapter bind settings, keyed by verb and,
       #   for a qualified entry, `"verb:adapter"`
-      def initialize(domain:, realm: nil, latest: nil, settings: {})
-        @domain   = domain.to_s
-        @realm    = realm&.to_s
-        @latest   = latest&.to_s
-        @settings = settings
+      # @param default_database [String, nil] the connection every chapter's
+      #   database-taking persistence adapter uses unless its own settings name one,
+      #   or `nil` if none is declared
+      # @param default_adapter [String, nil] the persistence adapter every aggregate
+      #   binds to unless its chapter's hecksagon binds it, or `nil` if none is declared
+      def initialize(domain:, realm: nil, latest: nil, settings: {}, default_database: nil, default_adapter: nil)
+        @domain           = domain.to_s
+        @realm            = realm&.to_s
+        @latest           = latest&.to_s
+        @settings         = settings
+        @default_database = default_database&.to_s
+        @default_adapter  = default_adapter&.to_s
       end
     end
   end

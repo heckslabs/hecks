@@ -215,7 +215,7 @@ A domain is more than its `.bluebook`: ports are declared in `.hecksagon` and re
 | worlds | `latest` | corpus use, or exemption |
 | hecksagon | `subscribe` | corpus use, or exemption |
 | classification | `generic` | corpus use |
-| rename | `formerly_known_as` | exemption — used on Embryonaut → EmbryonautFoundersApp |
+| rename | `formerly_known_as` | exemption — used on a client domain's rename |
 
 All eleven are implemented, unlike the three inert words. This is under-exercise, not vaporware.
 

@@ -20,15 +20,16 @@ Hecks.world "Banking" do
     region "us-east-1"
     memory 512
     timeout 10
-    # THE STOREHOUSE — no RDS/VPC of Banking's own. Borrows another
+    # The shared-database mode: no RDS/VPC of Banking's own. Borrows another
     # domain's already-live instance instead, isolated by its own
     # native Postgres schema (banking.*, created directly by this
     # domain's own provisioning on deploy). `owner` is that other
-    # domain; a real deployment names its owner stack and its own
-    # stack prefix in an environment overlay
-    # (environments/production.world, generated with
-    # `bin/project_deploy examples/banking --environment=production`),
-    # so this file stays generic.
+    # domain; a real deployment that needs a specific owner stack or
+    # stack prefix layers them in an environment overlay
+    # (environments/<name>.world, applied with
+    # `bin/project_deploy examples/banking --environment=<name>`), so
+    # this file stays generic and the overlay stays with whoever runs
+    # the deployment.
     database "Shared"
     owner "Platform"
   end
