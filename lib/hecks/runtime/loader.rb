@@ -200,7 +200,7 @@ module Hecks
         registry.verify!
 
         gates.register(:saga_rehydration, ->(reg, _dir) { reg.rehydrate_sagas! }, phase: :post_verify) if
-          registry.hecksagons.each_key.any? { |domain| registry.saga_persistence(domain) != Ports::Persistence::NULL_SAGA_STORE }
+          registry.saga_domains.any? { |domain| registry.saga_persistence(domain) != Ports::Persistence::NULL_SAGA_STORE }
         gates.run!(:post_verify, registry, directory)
         gates
       end

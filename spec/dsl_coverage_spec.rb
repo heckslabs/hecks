@@ -84,10 +84,12 @@ RSpec.describe "the DSL surface is fully covered" do
       # `realm`/`latest` -> `*_impl` — item #13's full metaprogrammed
       # dispatch (slice 5), reached through WordGate#word_gate_dispatch
       # now, called explicitly from this class's own method_missing.
+      # `default_database`/`default_adapter` are the same shape, added
+      # for the project-wide defaults (spec/world_defaults_spec.rb).
       # `record_binding` — extracted from the old `method_missing` body
       # (#143) so `WorldConstProxy`'s own aggregate-qualified verb calls
       # share the same write path the bare top-level spelling uses.
-      %i[realm_impl latest_impl method_missing record_binding]
+      %i[realm_impl latest_impl default_database_impl default_adapter_impl method_missing record_binding]
     ],
     "SettingsCollector"           => [
       Hecks::Bluebook::DSL::SettingsCollector,

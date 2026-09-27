@@ -1490,7 +1490,7 @@ bastion_yaml = shared ? nil : Shared.bastion_yaml(
           # `Hecks::Bluebook::Behaviour::World#for_binding` nor
           # `PostgresEra.connect_for` ever reads `ENV["DATABASE_URL"]` or
           # `ENV["HECKS_SCHEMA"]` — both scripts call
-          # `registry.world(bluebook.name)&.for_binding(...)`, a pure hash lookup
+          # `registry.binding_settings(...)`, a pure hash lookup
           # against whatever literal `database "..."` string #{domain}'s own
           # `.world` file declares. Without `db_env_blind:` below, this whole
           # recipe would stand up a real bastion, punch a live 5432 ingress rule

@@ -306,6 +306,16 @@ the projector inventory) to generate a self-contained SAM template,
 build Makefile, and bastion config — its own VPC and RDS Postgres
 instance, no secret typed anywhere.
 
+A project that attaches many chapters does not have to repeat that
+`persisted_by ... database` block in a world per chapter, nor a
+`persisted_by` line per aggregate in a hecksagon per chapter. The
+project's own world can say both once — `default_adapter "PostgresEra"`
+binds every aggregate no hecksagon binds, and `default_database "..."`
+supplies the `database` of every bound adapter that takes one — and a
+chapter's own bind or settings still win. `examples/compliance` does
+exactly this; the [world reference](../reference/world.md) has the
+resolution order.
+
 ## Writing your own port or adapter
 
 Everything above reached for a port and an adapter the library already

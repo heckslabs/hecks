@@ -30,8 +30,8 @@ module Hecks
         #   lacks `append`, `project` or `entries`
         def build(registry, domain, aggregate, bind, recover: true, settings_verb: VERB)
           registry.check_verb(bind)
-          settings = (registry.world(domain)&.for_binding(settings_verb, bind.adapter) || {})
-                     .reject { |key, _| key.to_sym == :role }
+          settings = registry.binding_settings(domain, settings_verb, bind.adapter)
+                             .reject { |key, _| key.to_sym == :role }
           registry.check_settings(bind, settings)
           # The domain, the resolved era, and (for an old checkout) the era
           # that superseded it ride along after the declared-settings

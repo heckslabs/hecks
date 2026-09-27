@@ -1,7 +1,16 @@
 Hecks.world "Compliance" do
   realm "Examples"
+  # THE PROJECT-WIDE DEFAULTS — one connection and one persistence adapter,
+  # declared once for every chapter this boot loads instead of a block per
+  # chapter and a bind per aggregate. `default_adapter` binds each aggregate
+  # compliance.hecksagon leaves out; `default_database` supplies the
+  # `database` of every bound adapter that takes one (PostgresEra here,
+  # Governance's Memory does not). A chapter's own settings and binds
+  # still win: the block below sets only what is specific to this one.
+  default_adapter "PostgresEra"
+  default_database "postgres://localhost/hecks_compliance"
+
   persisted_by("PostgresEra") do
-    database "postgres://localhost/hecks_compliance"
     # a local example run as your shell's default (usually superuser)
     # Postgres user — see examples/pizzas/bluebook/pizzas.world's own
     # comment on this line; the deployed stack's RDS master user is not
