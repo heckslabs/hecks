@@ -276,6 +276,8 @@ async fn auth_route(
 
         ("POST", "/members/role") => Some(set_member_role_route(domain_ir, raw_body, cookies, secret, client, config).await),
 
+        ("POST", "/members/delete") => Some(set_member_deleted_route(domain_ir, raw_body, cookies, secret, client, config).await),
+
         // The tenant's payment connection: same gate as the checkout routes,
         // since only the HECKS_CHECKOUT_DOMAIN domain carries one — any
         // other domain served by this binary falls through as unknown.
@@ -492,6 +494,39 @@ async fn set_member_disabled_route(
         Ok(auth::DisableOutcome::SelfDisable) => json_error(403, "you can't disable your own admin access"),
         Ok(auth::DisableOutcome::UnknownPerson) => json_error(404, "no member with that email"),
         Ok(auth::DisableOutcome::LastAdmin) => json_error(409, "there must always be at least one admin"),
+        Err(e) => json_error(500, &format!("members update failed: {e}")),
+    }
+}
+
+// POST /members/delete: soft-deletes an already-disabled member — the row
+// stays in the journal (nothing here is ever erased), but the Users page
+// stops listing it. Requires disable first, same "are you sure" step that
+// already gates removing someone's access at all.
+async fn set_member_deleted_route(
+    domain_ir: &Value,
+    raw_body: &str,
+    cookies: &HashMap<String, String>,
+    secret: &str,
+    client: &Mutex<Client>,
+    config: &LineageConfig,
+) -> Value {
+    let json_error = |status: u16, message: &str| respond(status, "application/json", &json!({"error": message}).to_string());
+
+    let Some(caller) = cookies.get(&auth::account_cookie_name()).and_then(|token| auth::verify_account_token(secret, token)) else {
+        return json_error(401, "not logged in");
+    };
+
+    let body: Value = serde_json::from_str(raw_body).unwrap_or(Value::Null);
+    let email = body.get("email").and_then(|v| v.as_str()).map(|s| s.trim().to_string()).unwrap_or_default();
+    if email.is_empty() {
+        return json_error(400, "an email is required");
+    }
+
+    match auth::set_person_deleted(client, config, domain_ir, &caller, &email).await {
+        Ok(auth::DeleteOutcome::Done) => respond(200, "application/json", &json!({"deleted": email.to_lowercase()}).to_string()),
+        Ok(auth::DeleteOutcome::CallerNotAdmin) => json_error(403, "admins only"),
+        Ok(auth::DeleteOutcome::UnknownPerson) => json_error(404, "no member with that email"),
+        Ok(auth::DeleteOutcome::NotDisabled) => json_error(409, "disable this admin first"),
         Err(e) => json_error(500, &format!("members update failed: {e}")),
     }
 }
