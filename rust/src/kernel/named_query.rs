@@ -89,7 +89,7 @@ pub fn run_cross_domain(
     for condition in def.conditions {
         let want = match condition.value {
             QueryConditionValue::Literal(text) => Json::Str(text.to_string()),
-            QueryConditionValue::NumericLiteral(n) => Json::Num(n),
+            QueryConditionValue::NumericLiteral(n) => Json::Num(n, None),
             QueryConditionValue::Arg(name) => args.get(name).cloned().unwrap_or(Json::Null),
         };
         entries =
@@ -146,7 +146,7 @@ pub fn run_entity(store: &impl AggregateScan, def: &EntityQueryDef, args: &Json)
     for condition in def.conditions {
         let want = match condition.value {
             QueryConditionValue::Literal(text) => Json::Str(text.to_string()),
-            QueryConditionValue::NumericLiteral(n) => Json::Num(n),
+            QueryConditionValue::NumericLiteral(n) => Json::Num(n, None),
             QueryConditionValue::Arg(name) => args.get(name).cloned().unwrap_or(Json::Null),
         };
         entries = repository::filter_entries(entries, condition.field, condition.comparator, &want);
@@ -177,7 +177,7 @@ fn comparable(value: Option<&Json>) -> Option<&Json> {
 fn compare_comparable(a: Option<&Json>, b: Option<&Json>) -> std::cmp::Ordering {
     use std::cmp::Ordering;
     match (a, b) {
-        (Some(Json::Num(x)), Some(Json::Num(y))) => x.partial_cmp(y).unwrap_or(Ordering::Equal),
+        (Some(Json::Num(x, _)), Some(Json::Num(y, _))) => x.partial_cmp(y).unwrap_or(Ordering::Equal),
         (Some(Json::Str(x)), Some(Json::Str(y))) => x.cmp(y),
         (None | Some(Json::Null), None | Some(Json::Null)) => Ordering::Equal,
         (None | Some(Json::Null), _) => Ordering::Less,

@@ -3,16 +3,42 @@
 
 use super::Refusal;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone)]
 pub enum Json {
     Object(Vec<(String, Json)>),
     Array(Vec<Json>),
     Str(String),
-    Num(f64),
+    /// The second field is the exact source text (BUG#147) — set only when the literal's
+    /// magnitude means the `f64` approximation would not reproduce it, e.g. an integer past
+    /// `f64`'s ~53-bit exact range. `None` for anything the `f64` already renders exactly,
+    /// which is every ordinary number and everything built in memory (`Json::float`, an
+    /// arithmetic result, a codegen literal). Never set for `Float`: Ruby's own `Float` is the
+    /// same IEEE 754 binary64 as Rust's, so there is no cross-language precision gap to close.
+    Num(f64, Option<String>),
     /// A declared-Float value: always written with a decimal point (`10.0`), unlike `Num`.
     Float(f64),
     Bool(bool),
     Null,
+}
+
+impl PartialEq for Json {
+    /// The source text (`Num`'s second field) is provenance, not part of the value: two `Num`s
+    /// compare equal by magnitude, exactly as they did before that field existed. When both
+    /// sides carry exact text, comparing the text avoids the `f64` rounding that put them there
+    /// in the first place; otherwise the numeric comparison is unchanged.
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Json::Object(a), Json::Object(b)) => a == b,
+            (Json::Array(a), Json::Array(b)) => a == b,
+            (Json::Str(a), Json::Str(b)) => a == b,
+            (Json::Num(_, Some(araw)), Json::Num(_, Some(braw))) => araw == braw,
+            (Json::Num(a, _), Json::Num(b, _)) => a == b,
+            (Json::Float(a), Json::Float(b)) => a == b,
+            (Json::Bool(a), Json::Bool(b)) => a == b,
+            (Json::Null, Json::Null) => true,
+            _ => false,
+        }
+    }
 }
 
 /// A `Json` as a `Fielded`, for evaluating a policy's `where { ... }` against an event payload.
@@ -25,7 +51,7 @@ impl super::Fielded for Json {
             Json::Object(_) => Field::Nested(found),
             Json::Array(items) => Field::Value(Value::List(items.len())),
             Json::Str(s) => Field::Value(Value::Str(s.clone())),
-            Json::Num(n) => match integral_i64(*n) {
+            Json::Num(n, raw) => match exact_i64(*n, raw) {
                 Some(i) => Field::Value(Value::Int(i)),
                 None => Field::Value(Value::Float(*n)),
             },
@@ -48,7 +74,7 @@ impl super::Fielded for Json {
                     Json::Object(_) => Field::Nested(item),
                     Json::Array(inner) => Field::Value(Value::List(inner.len())),
                     Json::Str(s) => Field::Value(Value::Str(s.clone())),
-                    Json::Num(n) => match integral_i64(*n) {
+                    Json::Num(n, raw) => match exact_i64(*n, raw) {
                         Some(i) => Field::Value(Value::Int(i)),
                         None => Field::Value(Value::Float(*n)),
                     },
@@ -82,8 +108,11 @@ impl Json {
         Json::Str(s.into())
     }
 
+    /// The raw text is always the exact `i64`, not derived from the `f64` cast: `i as f64`
+    /// itself rounds near the `i64` boundaries, which would otherwise reintroduce BUG#147's
+    /// class of loss for an in-range value built straight from a Rust integer.
     pub fn int(i: i64) -> Json {
-        Json::Num(i as f64)
+        Json::Num(i as f64, Some(i.to_string()))
     }
 
     pub fn float(f: f64) -> Json {
@@ -147,7 +176,7 @@ impl Json {
             Json::Str(s) => s.clone(),
             Json::Null => String::new(),
             Json::Bool(b) => b.to_string(),
-            Json::Num(n) if n.fract() == 0.0 && n.abs() < 1e15 => format!("{}", *n as i64),
+            Json::Num(n, _) if n.fract() == 0.0 && n.abs() < 1e15 => format!("{}", *n as i64),
             _ => self.to_json_string(),
         }
     }
@@ -160,16 +189,19 @@ impl Json {
     }
 
     /// `None` for a fractional number or one outside `i64`, never a truncation or saturation.
+    ///
+    /// Reads the exact source text first (BUG#147): a whole number between `f64`'s ~53-bit exact
+    /// range and `i64::MAX` round-trips through `f64` inexactly even though it fits in `i64`.
     pub fn as_i64(&self) -> Option<i64> {
         match self {
-            Json::Num(n) => integral_i64(*n),
+            Json::Num(n, raw) => exact_i64(*n, raw),
             _ => None,
         }
     }
 
     pub fn as_f64(&self) -> Option<f64> {
         match self {
-            Json::Num(n) | Json::Float(n) => Some(*n),
+            Json::Num(n, _) | Json::Float(n) => Some(*n),
             _ => None,
         }
     }
@@ -282,18 +314,21 @@ impl Json {
     /// Stringifies a scalar leaf as an identity component.
     ///
     /// An empty string refuses, as `Runtime::Identity.of` treats a blank part as absent.
-    /// Numbers past `i64` print as the float's digits rather than a clamped value.
+    /// A number past `i64` prints its exact source digits (BUG#147), never a clamped or
+    /// `f64`-rounded value: an identity component is routing data, never arithmetic, and Ruby
+    /// carries it at its full, arbitrary-precision magnitude.
     pub fn to_id_component(&self) -> Result<String, Refusal> {
         match self {
             Json::Str(s) if s.is_empty() => {
                 Err(Refusal::TypeMismatch("identity component must not be empty".to_string()))
             }
             Json::Str(s) => Ok(s.clone()),
-            Json::Num(n) => match integral_i64(*n) {
+            Json::Num(n, raw) => match exact_i64(*n, raw) {
                 // In range: a plain integer, as Ruby prints it.
                 Some(i) => Ok(i.to_string()),
-                // Out of range or fractional: the float's digits; `as i64` would saturate.
-                None => Ok(n.to_string()),
+                // Out of range or fractional: the exact source text when there is one (a
+                // Bignum past i64), else the float's own digits; `as i64` would saturate.
+                None => Ok(raw.clone().unwrap_or_else(|| n.to_string())),
             },
             Json::Bool(b) => Ok(b.to_string()),
             other => Err(Refusal::TypeMismatch(format!("cannot use {other:?} as an identity component"))),
@@ -348,13 +383,10 @@ impl Json {
                 out.push(']');
             }
             Json::Str(s) => write_escaped_string(s, out),
-            Json::Num(n) => {
-                if n.fract() == 0.0 && n.abs() < 1e15 {
-                    out.push_str(&(*n as i64).to_string());
-                } else {
-                    out.push_str(&n.to_string());
-                }
-            }
+            // The exact source text wins when there is one (BUG#147): re-deriving digits from
+            // `n` would re-round a value the `f64` approximation already lost precision on.
+            Json::Num(_, Some(raw)) => out.push_str(raw),
+            Json::Num(n, None) => out.push_str(&canonical_integer_digits(*n)),
             // Always a decimal point (`10.0`), as Ruby's Float#to_json; `Num` must not grow one.
             Json::Float(n) => {
                 let rendered = n.to_string();
@@ -377,6 +409,30 @@ fn integral_i64(n: f64) -> Option<i64> {
         Some(n as i64)
     } else {
         None
+    }
+}
+
+/// A `Num`'s exact `i64` value, when it has one (BUG#147).
+///
+/// Prefers the source text: `f64` only represents every integer exactly up to 2^53, so a whole
+/// number with more digits than that — while still well within `i64` — can already round to the
+/// wrong `i64` via `integral_i64`'s `f64` path alone. Parsing the original digits sidesteps that
+/// gap; `raw` is `None` for anything short enough that the gap never opens, so this is the same
+/// answer `integral_i64` already gave for every value the old, one-field `Num` could represent.
+fn exact_i64(n: f64, raw: &Option<String>) -> Option<i64> {
+    raw.as_deref().and_then(|r| r.parse::<i64>().ok()).or_else(|| integral_i64(n))
+}
+
+/// The digits `write` prints for a `Num` with no exact source text: whichever of the two
+/// renderings `write`/`to_id_component` have always used is faithful to `n` itself.
+///
+/// Shared with `parse_number`, which compares a literal's digits against this same rendering to
+/// decide whether the literal needs to keep its source text at all.
+fn canonical_integer_digits(n: f64) -> String {
+    if n.fract() == 0.0 && n.abs() < 1e15 {
+        (n as i64).to_string()
+    } else {
+        n.to_string()
     }
 }
 
@@ -415,16 +471,61 @@ mod integral_i64_tests {
     #[test]
     fn as_i64_refuses_out_of_range_where_the_old_cast_would_have_saturated() {
         // Pins the regression: a huge number must not saturate to `Some(i64::MAX)`.
-        let huge = Json::Num(1e30);
+        let huge = Json::Num(1e30, None);
         assert_eq!(huge.as_i64(), None);
     }
 
     #[test]
     fn to_id_component_reflects_true_magnitude_instead_of_a_clamped_one() {
-        let huge = Json::Num(1e30);
+        let huge = Json::Num(1e30, None);
         let id = huge.to_id_component().expect("numbers are always usable as an id component");
         assert_ne!(id, i64::MAX.to_string(), "must not silently clamp to i64::MAX");
         assert!(id.starts_with('1'), "should reflect the real magnitude, got {id:?}");
+    }
+
+    #[test]
+    fn parse_preserves_a_huge_integers_exact_digits_past_f64_precision() {
+        // BUG#147: 2^100 (2**100, the fuzzer's own INTEGER_EDGE_CASES bignum), and the
+        // signed 31-digit repro from Roster::Roster.AddSeat's routing_key mutation.
+        for literal in ["-1267650600228229401496703205376", "1267650600228229401496703205376"] {
+            let parsed = Json::parse(literal).expect("a bare JSON integer parses");
+            assert_eq!(parsed.to_json_string(), literal, "re-emitted JSON must not lose a single digit");
+            assert_eq!(
+                parsed.to_id_component().unwrap(),
+                literal,
+                "an identity component must carry the caller's exact digits, not a rounded f64"
+            );
+            // Genuinely out of i64's range: still correctly refused, not silently truncated.
+            assert_eq!(parsed.as_i64(), None);
+        }
+    }
+
+    #[test]
+    fn parse_preserves_a_whole_number_between_f64s_exact_range_and_i64_max() {
+        // 2^60: fits comfortably in `i64`, but has more digits than `f64` can hold exactly, so
+        // the naive `s.parse::<f64>()` path alone already rounds it to the wrong integer.
+        let literal = "1152921504606846977"; // 2^60 + 1
+        let parsed = Json::parse(literal).expect("a bare JSON integer parses");
+        assert_eq!(parsed.as_i64(), Some(1_152_921_504_606_846_977));
+        assert_eq!(parsed.to_json_string(), literal);
+        assert_eq!(parsed.to_id_component().unwrap(), literal);
+    }
+
+    #[test]
+    fn parse_leaves_an_ordinary_integer_undisturbed() {
+        // No source text is retained when the f64 path was already exact — same value either way.
+        let parsed = Json::parse("42").unwrap();
+        assert_eq!(parsed, Json::Num(42.0, None));
+        assert_eq!(parsed.to_json_string(), "42");
+    }
+
+    #[test]
+    fn a_bignum_and_an_ordinary_number_are_still_comparable_and_never_falsely_equal() {
+        let huge = Json::parse("1267650600228229401496703205376").unwrap();
+        let other_huge = Json::parse("1267650600228229401496703205377").unwrap();
+        assert_ne!(huge, other_huge, "different bignums must not collide via f64 rounding");
+        assert_eq!(huge, Json::parse("1267650600228229401496703205376").unwrap());
+        assert_ne!(huge, Json::Num(5.0, None));
     }
 
     #[test]
@@ -478,7 +579,7 @@ mod value_object_shape_tests {
             refusal_text(&Json::Str("Ada".into())),
             "name is a PersonName — pass its fields as an object, not \"Ada\""
         );
-        assert_eq!(refusal_text(&Json::Num(7.0)), "name is a PersonName — pass its fields as an object, not 7");
+        assert_eq!(refusal_text(&Json::Num(7.0, None)), "name is a PersonName — pass its fields as an object, not 7");
     }
 
     #[test]
@@ -665,6 +766,14 @@ impl<'a> Parser<'a> {
                 s.push(self.chars.next().unwrap());
             }
         }
-        s.parse::<f64>().map(Json::Num).map_err(|e| format!("bad number {s:?}: {e}"))
+        let value: f64 = s.parse().map_err(|e| format!("bad number {s:?}: {e}"))?;
+        // A plain integer literal keeps its exact source digits (BUG#147) whenever `write`'s own
+        // rendering of the parsed `f64` would not reproduce them — i.e. whenever the round trip
+        // through `f64` has already lost precision, whether or not the value still fits `i64`.
+        // A literal with a `.`/exponent is a genuine `Float`, and Ruby's `Float` is the same
+        // `f64` Rust's is, so there is nothing to preserve there.
+        let is_plain_integer = !s.contains('.') && !s.contains(['e', 'E']);
+        let raw = if is_plain_integer && canonical_integer_digits(value) != s { Some(s) } else { None };
+        Ok(Json::Num(value, raw))
     }
 }

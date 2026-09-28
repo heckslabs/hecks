@@ -235,7 +235,7 @@ fn sum(rows: &[(String, Json)], field: &'static str) -> Json {
         .map(query_comparators::comparable)
         .filter(|value| !matches!(value, Json::Null))
         .fold(0.0, |acc, value| acc + query_comparators::as_f64(&value));
-    Json::Num(total)
+    Json::Num(total, None)
 }
 
 /// The mean of the declared Integer field across `rows`; `Json::Null` on no rows — a rate of
@@ -406,7 +406,7 @@ mod nest_tests {
 
     #[test]
     fn names_every_level_of_a_multi_field_key_path() {
-        let row = |id: &str| Json::obj(vec![("bin", Json::str("b1")), ("shelf", Json::Num(2.0)), ("id", Json::str(id))]);
+        let row = |id: &str| Json::obj(vec![("bin", Json::str("b1")), ("shelf", Json::Num(2.0, None)), ("id", Json::str(id))]);
 
         let err = nest(vec![row("p1"), row("p2")], &["bin", "shelf"], LeafCheck::RefuseCollision("PartsByShelf")).expect_err("same bin and shelf");
 
@@ -596,7 +596,7 @@ mod reference_hop_tests {
     #[test]
     fn an_entity_query_flattens_every_owners_list_ordered_by_parent_then_identity() {
         fn withdrawal(sequence: f64, state: &str) -> Json {
-            Json::obj(vec![("sequence", Json::obj(vec![("value", Json::Num(sequence))])), ("state", Json::str(state))])
+            Json::obj(vec![("sequence", Json::obj(vec![("value", Json::Num(sequence, None))])), ("state", Json::str(state))])
         }
         let cards = FakeStore {
             domain: "Banking",
@@ -767,7 +767,7 @@ pub fn run(store: &impl AggregateScan, def: &ReadModelDef, args: &Json) -> Resul
             // way an ordinary head's rows are.
             (def.group_by.expect("grouped_heads is only ever populated when def.group_by is Some"))(rows)?
         } else if many && def.count {
-            Json::Num(rows.len() as f64)
+            Json::Num(rows.len() as f64, None)
         } else if many && def.median_field.is_some() {
             median(&rows, def.median_field.expect("checked by the branch guard"))
         } else if many && def.sum_field.is_some() {
@@ -861,7 +861,7 @@ fn apply_filtered_head_options(
     for condition in filtered.conditions {
         let want = match condition.value {
             QueryConditionValue::Literal(text) => Json::Str(text.to_string()),
-            QueryConditionValue::NumericLiteral(n) => Json::Num(n),
+            QueryConditionValue::NumericLiteral(n) => Json::Num(n, None),
             QueryConditionValue::Arg(name) => args.get(name).cloned().unwrap_or(Json::Null),
         };
         rows = repository::filter_entries(rows, condition.field, condition.comparator, &want);
@@ -884,7 +884,7 @@ pub(super) fn apply_reference_hops(
     for hop in hops {
         let inner_want = match hop.inner_value {
             QueryConditionValue::Literal(text) => Json::Str(text.to_string()),
-            QueryConditionValue::NumericLiteral(n) => Json::Num(n),
+            QueryConditionValue::NumericLiteral(n) => Json::Num(n, None),
             QueryConditionValue::Arg(name) => args.get(name).cloned().unwrap_or(Json::Null),
         };
         let scan = |aggregate: &str| {

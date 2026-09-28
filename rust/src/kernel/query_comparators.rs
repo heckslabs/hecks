@@ -53,13 +53,13 @@ pub fn none_in_state_matches(cross_domain: &[(&str, &dyn super::AggregateScan)],
 
 /// gt/gte/lt/lte are numeric-only; anything else is silently false, never a refusal.
 fn ordered(held: &Json, want: &Json) -> bool {
-    matches!(held, Json::Num(_) | Json::Float(_)) && matches!(want, Json::Num(_) | Json::Float(_))
+    matches!(held, Json::Num(_, _) | Json::Float(_)) && matches!(want, Json::Num(_, _) | Json::Float(_))
 }
 
 /// Only called after `ordered` has gated the comparison, so the NaN fallback is unreachable.
 pub(crate) fn as_f64(value: &Json) -> f64 {
     match value {
-        Json::Num(n) | Json::Float(n) => *n,
+        Json::Num(n, _) | Json::Float(n) => *n,
         _ => f64::NAN,
     }
 }
@@ -68,8 +68,10 @@ pub(crate) fn as_f64(value: &Json) -> f64 {
 pub(crate) fn to_s(value: &Json) -> String {
     match value {
         Json::Str(s) => s.clone(),
-        Json::Num(n) if n.fract() == 0.0 && n.abs() < 1e15 => (*n as i64).to_string(),
-        Json::Num(n) => n.to_string(),
+        // The exact source text wins when there is one (BUG#147) — see `Json::write`.
+        Json::Num(_, Some(raw)) => raw.clone(),
+        Json::Num(n, None) if n.fract() == 0.0 && n.abs() < 1e15 => (*n as i64).to_string(),
+        Json::Num(n, None) => n.to_string(),
         // Ruby's `Float#to_s` always shows a decimal point (`10.0`).
         Json::Float(n) => {
             let rendered = n.to_string();
@@ -92,7 +94,7 @@ pub(crate) fn to_s(value: &Json) -> String {
 pub fn comparable(value: &Json) -> Json {
     let Json::Object(fields) = value else { return value.clone() };
 
-    if let Some((_, numeric)) = fields.iter().find(|(_, v)| matches!(v, Json::Num(_) | Json::Float(_))) {
+    if let Some((_, numeric)) = fields.iter().find(|(_, v)| matches!(v, Json::Num(_, _) | Json::Float(_))) {
         return numeric.clone();
     }
     if fields.len() == 1 {
