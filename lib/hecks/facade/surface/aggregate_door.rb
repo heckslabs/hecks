@@ -95,13 +95,24 @@ module Hecks
             current = Hecks.current_registry&.bluebook(domain)&.aggregate(aggregate.hecks_name) or
               raise Bluebook::DSL::Malformed, "#{fqn}.port(#{name.inspect}) called outside a boot"
 
-            domain_port = Bluebook::DSL::ConstShim.with(->(const) { const }) do
+            built = Bluebook::DSL::ConstShim.with(->(const) { const }) do
               Bluebook::DSL::DomainPortBuilder.build(name, owner: current.hecks_name, &block)
             end
-            domain_port.operations.each do |operation|
+
+            # A `verb`-shaped port is a plain `Port`, the same struct `Hecks.port` registers —
+            # it belongs to no aggregate IR the way an operations-shaped `DomainPort` does, so
+            # it takes the registry's `add_port` directly. Mirrors `DSL::BindingProxy#port`,
+            # which handles the identical shape on a domain's FIRST in-process boot (before
+            # this facade constant exists); this method is what a REPEAT boot reaches instead.
+            if built.is_a?(Bluebook::Port)
+              Hecks.current_registry.add_port(built)
+              return self
+            end
+
+            built.operations.each do |operation|
               operation.attributes.select(&:reference?).each { |attribute| attribute.type.declared_in = current }
             end
-            current.add_port(domain_port)
+            current.add_port(built)
             self
           end
 
