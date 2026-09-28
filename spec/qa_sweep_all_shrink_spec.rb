@@ -21,4 +21,22 @@ RSpec.describe "bin/qa_sweep --all", :io do
     shrunk_file = stdout[%r{^file:        (tmp/qa-shrunk/\S+-differential\.json)$}, 1]
     expect(JSON.parse(File.read(File.join(InMemoryDomain::ROOT, shrunk_file))).fetch("steps").size).to eq(shrunk_to.to_i)
   end
+
+  # `bin/qa_discover_external_domains` suggests `repo/entity`-shaped references for an external
+  # domain (e.g. `lifeadelics/lifeadelics`). `write_shrunk!` folds that `/` into the shrunk-repro
+  # filename, and `FileUtils.mkdir_p` only creates `tmp/qa-shrunk` itself, not the extra directory
+  # segment an embedded `/` would otherwise imply, so the filename component is sanitized before
+  # `File.write` runs. The reference itself keeps its `/` in the ledger; only the filename derived
+  # from it changes.
+  it "shrinks a finding for a target whose reference contains a `/`, without an ENOENT on write" do
+    identify_targets!("vendor/found_one" => "spec/fixtures/qa_sweep_all_found_fixture")
+
+    stdout, _stderr, status = run_qa_sweep("--all", "--seeds", "1", "--no-parity")
+
+    expect(status.exitstatus).to eq(2)
+    shrunk_file = stdout[%r{^file:        (tmp/qa-shrunk/\S+-differential\.json)$}, 1]
+    expect(shrunk_file).not_to be_nil, stdout
+    expect(shrunk_file).to start_with("tmp/qa-shrunk/SW-vendor-found_one-")
+    expect(JSON.parse(File.read(File.join(InMemoryDomain::ROOT, shrunk_file))).fetch("steps")).not_to be_empty
+  end
 end

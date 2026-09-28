@@ -42,6 +42,15 @@ def resolve_target_path(path)
   path.start_with?("/") ? File.expand_path(path) : File.expand_path(path, ROOT)
 end
 
+# A target reference may itself contain `/` (`bin/qa_discover_external_domains` suggests
+# `repo/entity`-shaped references for an external domain), but every reference also gets folded
+# into a single filename component — a log prefix, a shrunk-repro filename, a coverage-corpus
+# filename. Left raw, an embedded `/` is read as an extra path segment that nothing creates,
+# breaking the write. This never changes what is stored as the `Target`/`Sweep` reference itself.
+def filesystem_safe_component(reference)
+  reference.gsub(/[^A-Za-z0-9_.-]/, "-")
+end
+
 # QA_SWEEP_TRACE=1 prints a per-phase stderr timer; each print is the delta since the previous
 # mark.
 QA_TRACE = ENV["QA_SWEEP_TRACE"] == "1"
@@ -337,7 +346,7 @@ def spawn_sweep_child(target_reference, seeds_override, steps_override, adversar
                       modes:, role_draw: 0.0, dry_run: 0.0, parity: false)
   # Unlinked at once: the open fd stays readable, nothing is left on disk, and no fixed path
   # collides.
-  log = Tempfile.new(["qa_sweep-#{target_reference}-", ".log"])
+  log = Tempfile.new(["qa_sweep-#{filesystem_safe_component(target_reference)}-", ".log"])
   log.unlink
 
   args = [target_reference]
@@ -1132,7 +1141,7 @@ end
 def write_shrunk!(shrunk, sweep_reference, feature, seed)
   dir = File.join(ROOT, "tmp/qa-shrunk")
   FileUtils.mkdir_p(dir)
-  path = File.join(dir, "#{sweep_reference}-#{shrunk[:mode]}.json")
+  path = File.join(dir, "#{filesystem_safe_component(sweep_reference)}-#{shrunk[:mode]}.json")
   File.write(path, JSON.pretty_generate(name:  "#{feature}-#{shrunk[:mode]}-shrunk",
                                         note:  "bin/qa_sweep #{sweep_reference} seed #{seed}, shrunk from " \
                                                "#{shrunk[:original_size]} steps",
@@ -1148,7 +1157,7 @@ end
 COVERAGE_CORPUS_DIR = ENV.fetch("QA_SWEEP_COVERAGE_CORPUS_DIR", File.join(ROOT, "tmp/qa-coverage-corpus"))
 
 def coverage_corpus_path(target_reference, mode)
-  File.join(COVERAGE_CORPUS_DIR, "#{target_reference}-#{mode}.json")
+  File.join(COVERAGE_CORPUS_DIR, "#{filesystem_safe_component(target_reference)}-#{mode}.json")
 end
 
 # Nil when nothing was ever saved for this (target, mode), or the file cannot be parsed — either
