@@ -404,7 +404,6 @@ pub async fn provision(
     let (Some(role), false) = (role, already_linked) else {
         return Ok(None);
     };
-    let identity_id = uuid::Uuid::new_v4().to_string();
 
     // Uses this domain's declared identity provider (`ir::identity_provider`),
     // never a hard-coded chapter. Link's reference field is `identity`, not
@@ -413,27 +412,48 @@ pub async fn provision(
         anyhow::bail!("this domain attaches no chapter that provides \"identity\" — cannot register or link an identity");
     };
 
-    // `None` on every dispatch below: this is system-initiated
-    // provisioning, not a caller-submitted command, so there is no
-    // caller role to assert.
-    let register = dispatch::handle(
-        client, wasm_path, &identity.register,
-        json!({"identity_id": {"value": identity_id}}), None, config, invoker,
-    ).await?;
-    if !register.accepted {
-        anyhow::bail!("{} refused: {}", identity.register, register.result);
-    }
+    // Reuse an Identity already registered+linked for this (issuer, subject)
+    // instead of always minting a fresh one. Register, link and the Member's
+    // own identity_id write below are three separate, non-transactional
+    // steps; a process restart or a retried callback between them used to
+    // leave an orphaned Identity (registered and externally linked, but
+    // never reaching the Member) while a later call minted yet another
+    // identity_id for the same Google account and wrote *that* onto the
+    // Member instead — the two permanently disagreeing from then on, so
+    // every subsequent sign-in resolved an identity_id the Member's
+    // already_linked guard above never recognized as unlinked. Resolving
+    // first makes a retry converge onto the earlier attempt's identity
+    // instead of accumulating another orphan.
+    let identity_id = match resolve_identity_from_head(client, domain_ir, issuer, subject).await? {
+        Some(existing) => existing,
+        None => {
+            let identity_id = uuid::Uuid::new_v4().to_string();
 
-    let link_external = dispatch::handle(
-        client, wasm_path, &identity.link,
-        json!({
-            "identity": identity_id, "key": {"value": format!("{issuer}:{subject}")},
-            "issuer": {"value": issuer}, "subject": {"value": subject},
-        }), None, config, invoker,
-    ).await?;
-    if !link_external.accepted {
-        anyhow::bail!("{} refused: {}", identity.link, link_external.result);
-    }
+            // `None` on every dispatch below: this is system-initiated
+            // provisioning, not a caller-submitted command, so there is no
+            // caller role to assert.
+            let register = dispatch::handle(
+                client, wasm_path, &identity.register,
+                json!({"identity_id": {"value": identity_id}}), None, config, invoker,
+            ).await?;
+            if !register.accepted {
+                anyhow::bail!("{} refused: {}", identity.register, register.result);
+            }
+
+            let link_external = dispatch::handle(
+                client, wasm_path, &identity.link,
+                json!({
+                    "identity": identity_id, "key": {"value": format!("{issuer}:{subject}")},
+                    "issuer": {"value": issuer}, "subject": {"value": subject},
+                }), None, config, invoker,
+            ).await?;
+            if !link_external.accepted {
+                anyhow::bail!("{} refused: {}", identity.link, link_external.result);
+            }
+
+            identity_id
+        }
+    };
 
     // The grant verb this domain's declared authorization provider names
     // (`ir::authorization_provider`), never a hard-coded chapter.
