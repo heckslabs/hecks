@@ -1078,7 +1078,7 @@ pub fn dispatch_replace_entries(
         None,
         |record| {
         let replaced_entries = args.entries.clone();
-        for (i, e) in replaced_entries.iter().enumerate() { if replaced_entries[..i].iter().any(|prior| prior.sequence == e.sequence) { let offered = format!("{:?}", e.sequence.value); return Err(crate::kernel::Refusal::AlreadyExists(crate::kernel::refusal_wording::AlreadyExistsEntityDuplicateArgs { entity: "Entry", aggregate: "Ledger", identity: "sequence.value", offered: &[offered.as_str()] }.render_args())); } }
+        for (i, e) in replaced_entries.iter().enumerate() { if replaced_entries[..i].iter().any(|prior| prior.sequence == e.sequence) { let offered_0 = format!("{:?}", e.sequence.value); let offered = [offered_0.as_str()]; return Err(crate::kernel::Refusal::AlreadyExists(crate::kernel::refusal_wording::AlreadyExistsEntityDuplicateArgs { entity: "Entry", aggregate: "Ledger", identity: "sequence.value", offered: &offered }.render_args())); } }
         record.entries = replaced_entries;
             Ok(())
         },
