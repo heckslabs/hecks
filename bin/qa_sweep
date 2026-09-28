@@ -822,11 +822,21 @@ else
   mode   = :ruby_only
 end
 
+# Safe under concurrent callers: several sweeps can reach this at once (the parity wave runs up to
+# `QualityControlDials::SWEEP_MAX_PARALLEL` targets in parallel), so the existence check below is
+# only a fast-path optimization — the actual safety net is rescuing the create's own race, since
+# two processes can both see the database missing and both attempt `CREATE DATABASE`. Postgres
+# reports that race two different ways: a `duplicate_database` error (42P04) from its own
+# pre-create name check, or, when two backends run that check at nearly the same instant, a raw
+# `unique_violation` (23505) on `pg_database`'s name index once both proceed to insert.
 def ensure_scratch_database!(name)
   admin = PG.connect(dbname: "postgres")
   exists = admin.exec_params("SELECT 1 FROM pg_database WHERE datname = $1", [name]).ntuples.positive?
   admin.exec(%(CREATE DATABASE "#{name}")) unless exists
-  admin.close
+rescue PG::DuplicateDatabase, PG::UniqueViolation
+  nil
+ensure
+  admin&.close
 end
 
 # The scratch database is a fixed name, created if missing and never dropped (a concurrent sweep
