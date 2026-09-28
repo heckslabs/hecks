@@ -404,7 +404,6 @@ pub async fn provision(
     let (Some(role), false) = (role, already_linked) else {
         return Ok(None);
     };
-    let identity_id = uuid::Uuid::new_v4().to_string();
 
     // Uses this domain's declared identity provider (`ir::identity_provider`),
     // never a hard-coded chapter. Link's reference field is `identity`, not
@@ -413,27 +412,48 @@ pub async fn provision(
         anyhow::bail!("this domain attaches no chapter that provides \"identity\" — cannot register or link an identity");
     };
 
-    // `None` on every dispatch below: this is system-initiated
-    // provisioning, not a caller-submitted command, so there is no
-    // caller role to assert.
-    let register = dispatch::handle(
-        client, wasm_path, &identity.register,
-        json!({"identity_id": {"value": identity_id}}), None, config, invoker,
-    ).await?;
-    if !register.accepted {
-        anyhow::bail!("{} refused: {}", identity.register, register.result);
-    }
+    // Reuse an Identity already registered+linked for this (issuer, subject)
+    // instead of always minting a fresh one. Register, link and the Member's
+    // own identity_id write below are three separate, non-transactional
+    // steps; a process restart or a retried callback between them used to
+    // leave an orphaned Identity (registered and externally linked, but
+    // never reaching the Member) while a later call minted yet another
+    // identity_id for the same Google account and wrote *that* onto the
+    // Member instead — the two permanently disagreeing from then on, so
+    // every subsequent sign-in resolved an identity_id the Member's
+    // already_linked guard above never recognized as unlinked. Resolving
+    // first makes a retry converge onto the earlier attempt's identity
+    // instead of accumulating another orphan.
+    let identity_id = match resolve_identity_from_head(client, domain_ir, issuer, subject).await? {
+        Some(existing) => existing,
+        None => {
+            let identity_id = uuid::Uuid::new_v4().to_string();
 
-    let link_external = dispatch::handle(
-        client, wasm_path, &identity.link,
-        json!({
-            "identity": identity_id, "key": {"value": format!("{issuer}:{subject}")},
-            "issuer": {"value": issuer}, "subject": {"value": subject},
-        }), None, config, invoker,
-    ).await?;
-    if !link_external.accepted {
-        anyhow::bail!("{} refused: {}", identity.link, link_external.result);
-    }
+            // `None` on every dispatch below: this is system-initiated
+            // provisioning, not a caller-submitted command, so there is no
+            // caller role to assert.
+            let register = dispatch::handle(
+                client, wasm_path, &identity.register,
+                json!({"identity_id": {"value": identity_id}}), None, config, invoker,
+            ).await?;
+            if !register.accepted {
+                anyhow::bail!("{} refused: {}", identity.register, register.result);
+            }
+
+            let link_external = dispatch::handle(
+                client, wasm_path, &identity.link,
+                json!({
+                    "identity": identity_id, "key": {"value": format!("{issuer}:{subject}")},
+                    "issuer": {"value": issuer}, "subject": {"value": subject},
+                }), None, config, invoker,
+            ).await?;
+            if !link_external.accepted {
+                anyhow::bail!("{} refused: {}", identity.link, link_external.result);
+            }
+
+            identity_id
+        }
+    };
 
     // The grant verb this domain's declared authorization provider names
     // (`ir::authorization_provider`), never a hard-coded chapter.
@@ -508,6 +528,14 @@ fn is_disabled(state: &Value) -> bool {
     state.get("disabled").and_then(|v| v.as_bool()).unwrap_or(false)
 }
 
+// A deleted person's row is never erased (this is an append-only journal,
+// same as every other aggregate here) — "deleted" only means all_people
+// stops listing it. There is deliberately no undelete route: re-admitting
+// the same email starts a fresh row rather than reviving this one.
+fn is_deleted(state: &Value) -> bool {
+    state.get("deleted").and_then(|v| v.as_bool()).unwrap_or(false)
+}
+
 // The role name a membership row holds, if any.
 fn role_of(state: &Value) -> Option<&str> {
     state.get("role").and_then(|v| v.get("value")).and_then(|v| v.as_str())
@@ -570,6 +598,7 @@ pub async fn all_people(client: &Mutex<Client>, domain_ir: &Value) -> anyhow::Re
     Ok(member_rows(client, domain_ir)
         .await?
         .into_iter()
+        .filter(|(_, state)| !is_deleted(state))
         .map(|(_, state)| {
             let role = role_of(&state);
             let linked = state.get("identity_id").and_then(|v| v.get("value")).is_some();
@@ -650,6 +679,64 @@ pub async fn set_person_disabled(
     .await?;
     txn.commit().await?;
     Ok(DisableOutcome::Done)
+}
+
+/// What `set_person_deleted` decided.
+#[derive(Debug, PartialEq, Eq)]
+pub enum DeleteOutcome {
+    /// The person is now deleted (or already was).
+    Done,
+    /// The caller is not an active Admin.
+    CallerNotAdmin,
+    /// No person with that email exists.
+    UnknownPerson,
+    /// `target` must be disabled first — deleting an active admin outright
+    /// skips the "are you sure" step disabling them already forces.
+    NotDisabled,
+}
+
+/// Soft-deletes an already-disabled `target` on `caller`'s behalf: the row
+/// stays in the journal (nothing here is ever erased) but `all_people` stops
+/// listing it. Locked with other membership writes the same as disable/role.
+pub async fn set_person_deleted(
+    client: &Mutex<Client>,
+    config: &LineageConfig,
+    domain_ir: &Value,
+    caller: &str,
+    target: &str,
+) -> anyhow::Result<DeleteOutcome> {
+    let (aggregate_name, storage_name) = membership_aggregate(domain_ir)?;
+    let domain = domain_ir.get("name").and_then(|v| v.as_str()).unwrap_or("");
+    let (caller, target) = (caller.trim().to_lowercase(), target.trim().to_lowercase());
+
+    let mut guard = client.lock().await;
+    let txn = guard.transaction().await?;
+    txn.execute("SELECT pg_advisory_xact_lock(hashtext('hecks_ordinal:' || $1))", &[&config.domain]).await?;
+    let rows = journal::read_lineage_head_all(&txn, domain, &storage_name).await?;
+
+    if !rows.iter().any(|(id, state)| id.to_lowercase() == caller && is_active_admin(state)) {
+        return Ok(DeleteOutcome::CallerNotAdmin);
+    }
+    let Some((id, state)) = rows.iter().find(|(id, _)| id.to_lowercase() == target) else {
+        return Ok(DeleteOutcome::UnknownPerson);
+    };
+    if is_deleted(state) {
+        return Ok(DeleteOutcome::Done);
+    }
+    if !is_disabled(state) {
+        return Ok(DeleteOutcome::NotDisabled);
+    }
+
+    let mut new_state = state.clone();
+    new_state["deleted"] = json!(true);
+    journal::append_lineage_mutation(
+        &txn,
+        config,
+        &journal::Mutation { aggregate: &aggregate_name, id, operation: "save", state: &new_state },
+    )
+    .await?;
+    txn.commit().await?;
+    Ok(DeleteOutcome::Done)
 }
 
 /// What `set_person_role` decided.
