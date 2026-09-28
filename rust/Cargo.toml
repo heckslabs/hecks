@@ -6,6 +6,7 @@
 # `--no-default-features --features <name>`.
 [features]
 default = ["read_model_on_target_fixture"]
+composite_line_ledger = []
 read_model_on_target_fixture = []
 group_by_collision_fixture = []
 compliance = []

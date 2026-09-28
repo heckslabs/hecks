@@ -1548,6 +1548,7 @@ pub fn dispatch_entity_handler_dispatch(
         ],
         None,
         |record| {
+        if record.dispatches.iter().any(|e| e.command_name == args.command_name.clone() && e.position == args.position.clone()) { let offered_0 = format!("{:?}", args.command_name.clone().value); let offered_1 = format!("{:?}", args.position.clone().value); let offered = [offered_0.as_str(), offered_1.as_str()]; return Err(crate::kernel::Refusal::AlreadyExists(crate::kernel::refusal_wording::AlreadyExistsEntityDuplicateArgs { entity: "Dispatch", aggregate: "Handler", identity: "command_name.value, position.value", offered: &offered }.render_args())); }
         record.dispatches.push(Dispatch { command_name: args.command_name.clone(), position: args.position.clone(), with_spec: Vec::new(), compensates_with_spec: Vec::new(), compensates_command_name: None });
             Ok(())
         },
@@ -2090,6 +2091,7 @@ pub fn dispatch_handler(
         ],
         None,
         |record| {
+        if record.handlers.iter().any(|e| e.event_type == args.event_type.clone() && e.from_state == args.from_state.clone()) { let offered_0 = format!("{:?}", args.event_type.clone().value); let offered_1 = format!("{:?}", args.from_state.clone().value); let offered = [offered_0.as_str(), offered_1.as_str()]; return Err(crate::kernel::Refusal::AlreadyExists(crate::kernel::refusal_wording::AlreadyExistsEntityDuplicateArgs { entity: "Handler", aggregate: "ProcessManager", identity: "event_type.value, from_state.value", offered: &offered }.render_args())); }
         record.handlers.push(Handler { event_type: args.event_type.clone(), from_state: args.from_state.clone(), to_state: args.to_state.clone(), dispatches: Vec::new() });
             Ok(())
         },

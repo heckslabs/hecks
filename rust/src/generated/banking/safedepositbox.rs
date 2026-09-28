@@ -1540,6 +1540,7 @@ pub fn dispatch_log_visit(
         ],
         Some(crate::kernel::TransitionCheck { field: "status", from_states: &["rented"] }),
         |record| {
+        if record.visits.iter().any(|e| e.date == args.date.clone() && e.sequence == args.sequence.clone()) { let offered_0 = format!("{:?}", args.date.clone().value); let offered_1 = format!("{:?}", args.sequence.clone().value); let offered = [offered_0.as_str(), offered_1.as_str()]; return Err(crate::kernel::Refusal::AlreadyExists(crate::kernel::refusal_wording::AlreadyExistsEntityDuplicateArgs { entity: "Visit", aggregate: "SafeDepositBox", identity: "date.value, sequence.value", offered: &offered }.render_args())); }
         record.visits.push(Visit { date: args.date.clone(), sequence: args.sequence.clone(), note: args.note.clone(), state: "logged".to_string() });
             Ok(())
         },

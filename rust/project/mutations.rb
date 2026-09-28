@@ -88,36 +88,91 @@ module RustProjection
     end
 
     # Guard for a whole-list `:set` of entities: refuses duplicate identities pairwise.
-    # Returns `[guard_text, effective_rhs]`; composite identities are left unguarded.
+    # Returns `[guard_text, effective_rhs]`. Every `identified_by` head is compared at once (not
+    # just the first), so a composite identity is guarded the same as a single-field one — see
+    # `check_entity_collision` in `entity_element.rb` (Ruby's runtime `heads.all?`).
     def entity_list_replace_guard(aggregate, target_attr, target_field, rhs, value_objects_by_name)
       entity = aggregate[:entities].find { |e| e[:name] == target_attr[:type] }
-      return ["", rhs] unless entity && entity[:identified_by]&.size == 1
+      return ["", rhs] unless entity && entity[:identified_by]&.any?
 
-      id_head = entity[:identified_by].first.to_s.split(".").first
-      id_attr = entity[:attributes].find { |a| a[:name].to_s == id_head }
-      return ["", rhs] unless id_attr
+      checks = []
+      offered_exprs = []
+      entity[:identified_by].each do |path|
+        id_head = path.to_s.split(".").first
+        id_attr = entity[:attributes].find { |a| a[:name].to_s == id_head }
+        return ["", rhs] unless id_attr
 
-      id_field  = rust_ident_field(id_attr[:name])
-      # Single-field unwrap, so `format!` prints the bare scalar as Ruby's refusal wording does.
-      id_vo = value_objects_by_name[id_attr[:type]]
-      offered_expr =
-        if id_vo && !id_vo[:closed_set] && id_vo[:attributes].size == 1
-          "e.#{id_field}.#{rust_ident_field(id_vo[:attributes].first[:name])}"
-        else
-          "e.#{id_field}"
-        end
+        id_field = rust_ident_field(id_attr[:name])
+        checks << "prior.#{id_field} == e.#{id_field}"
+
+        # Single-field unwrap, so `format!` prints the bare scalar as Ruby's refusal wording does.
+        id_vo = value_objects_by_name[id_attr[:type]]
+        offered_exprs <<
+          if id_vo && !id_vo[:closed_set] && id_vo[:attributes].size == 1
+            "e.#{id_field}.#{rust_ident_field(id_vo[:attributes].first[:name])}"
+          else
+            "e.#{id_field}"
+          end
+      end
+
       local_var = "replaced_#{target_field}"
       entity_lit    = entity[:name].to_s.inspect
       aggregate_lit = aggregate[:name].to_s.inspect
       identity_lit  = entity[:identified_by].join(", ").inspect
+      condition = checks.join(" && ")
+      offered_lets = offered_exprs.each_with_index.map { |expr, i| "let offered_#{i} = format!(\"{:?}\", #{expr});" }
+      offered_refs = offered_exprs.each_index.map { |i| "offered_#{i}.as_str()" }
       guard =
         "let #{local_var} = #{rhs};\n        " \
-        "for (i, e) in #{local_var}.iter().enumerate() { if #{local_var}[..i].iter().any(|prior| prior.#{id_field} == e.#{id_field}) " \
-        "{ let offered = format!(\"{:?}\", #{offered_expr}); " \
+        "for (i, e) in #{local_var}.iter().enumerate() { if #{local_var}[..i].iter().any(|prior| #{condition}) " \
+        "{ #{offered_lets.join(' ')} let offered = [#{offered_refs.join(', ')}]; " \
         "return Err(crate::kernel::Refusal::AlreadyExists(crate::kernel::refusal_wording::AlreadyExistsEntityDuplicateArgs " \
         "{ entity: #{entity_lit}, aggregate: #{aggregate_lit}, identity: #{identity_lit}, " \
-        "offered: &[offered.as_str()] }.render_args())); } }\n        "
+        "offered: &offered }.render_args())); } }\n        "
       [guard, local_var]
+    end
+
+    # The composite-identity twin of the single-field collision guard inlined in
+    # `emit_mutation_line_body`'s `append` branch: builds a duplicate check across every
+    # `identified_by` head at once (`e.batch == ... && e.sequence == ...`), matching
+    # `EntityElement.check_entity_collision`'s `heads.all?` on the Ruby runtime side. Called only
+    # once every head is confirmed present in the append's own `fields` map (composite identities
+    # never mint). Kept byte-for-byte with `rust/codegen/src/mutations.rs`'s
+    # `composite_append_collision_guard`.
+    def composite_append_collision_guard(heads, fields, entity, command, value_objects_by_name, aggregate, target_field, identified_by)
+      checks = []
+      offered_exprs = []
+      heads.each do |head|
+        field_attr = entity[:attributes].find { |a| a[:name].to_s == head }
+        _, source = fields.find { |field_name, _| field_name.to_s == head }
+        rhs = append_field_rhs(source, field_attr, command, value_objects_by_name, aggregate)
+        id_field = rust_ident_field(head)
+        checks << "e.#{id_field} == #{rhs}"
+
+        # Unwrap a single-field identity component so `offered` prints the bare scalar, as
+        # `Rendering.describe` does; Debug-printing the value object would give
+        # `LineSequence { value: 654 }`.
+        vo = value_objects_by_name[field_attr[:type]]
+        offered_exprs <<
+          if vo && !vo[:closed_set] && vo[:attributes].size == 1
+            "#{rhs}.#{rust_ident_field(vo[:attributes].first[:name])}"
+          else
+            rhs
+          end
+      end
+
+      entity_lit    = entity[:name].to_s.inspect
+      aggregate_lit = aggregate[:name].to_s.inspect
+      identity_lit  = identified_by.join(", ").inspect
+      condition = checks.join(" && ")
+      offered_lets = offered_exprs.each_with_index.map { |expr, i| "let offered_#{i} = format!(\"{:?}\", #{expr});" }
+      offered_refs = offered_exprs.each_index.map { |i| "offered_#{i}.as_str()" }
+
+      "if record.#{target_field}.iter().any(|e| #{condition}) " \
+      "{ #{offered_lets.join(' ')} let offered = [#{offered_refs.join(', ')}]; " \
+      "return Err(crate::kernel::Refusal::AlreadyExists(crate::kernel::refusal_wording::AlreadyExistsEntityDuplicateArgs " \
+      "{ entity: #{entity_lit}, aggregate: #{aggregate_lit}, identity: #{identity_lit}, " \
+      "offered: &offered }.render_args())); }\n        "
     end
 
     # Why an `append` can't be generated: an unresolvable element, an undeclared field, a source
@@ -483,35 +538,50 @@ module RustProjection
         collision_guard = ""
         if entity
           present = mutation[:fields].keys.map(&:to_s)
-          id_attr, id_vo = entity_identity_mint(entity, value_objects_by_name)
-          if id_attr && !present.include?(id_attr[:name].to_s)
-            # One past the highest identity held, never `len() + 1`, which repeats after a
-            # shrink (C4.5).
-            id_field = rust_ident_field(id_attr[:name])
-            vo_field = rust_ident_field(id_vo[:attributes].first[:name])
-            mint = "#{rust_ident(id_attr[:type])} { #{vo_field}: record.#{target_field}.iter().map(|e| e.#{id_field}.#{vo_field}).max().unwrap_or(0) + 1 }"
-            fields_assignment << "#{rust_ident_field(id_attr[:name])}: #{mint}"
-            present << id_attr[:name].to_s
-          elsif id_attr && entity[:identified_by].size == 1
-            # Caller-supplied identity: refuse a duplicate (`check_entity_collision`), matching
-            # rust/codegen byte for byte. Composite identities are excluded: only the first head
-            # is seen, so elements sharing it would be false duplicates.
-            id_field = rust_ident_field(id_attr[:name])
-            _, source = mutation[:fields].find { |field_name, _| field_name.to_s == id_attr[:name].to_s }
-            field_attr = entity[:attributes].find { |a| a[:name].to_s == id_attr[:name].to_s }
-            id_rhs = append_field_rhs(source, field_attr, command, value_objects_by_name, aggregate)
-            entity_lit = entity[:name].to_s.inspect
-            aggregate_lit = aggregate[:name].to_s.inspect
-            identity_lit = entity[:identified_by].join(", ").inspect
-            # Single-field unwrap so `format!` prints the bare scalar; `id_vo` is non-nil here.
-            offered_field = rust_ident_field(id_vo[:attributes].first[:name])
-            offered_expr = "#{id_rhs}.#{offered_field}"
-            collision_guard =
-              "if record.#{target_field}.iter().any(|e| e.#{id_field} == #{id_rhs}) " \
-              "{ let offered = format!(\"{:?}\", #{offered_expr}); " \
-              "return Err(crate::kernel::Refusal::AlreadyExists(crate::kernel::refusal_wording::AlreadyExistsEntityDuplicateArgs " \
-              "{ entity: #{entity_lit}, aggregate: #{aggregate_lit}, identity: #{identity_lit}, " \
-              "offered: &[offered.as_str()] }.render_args())); }\n        "
+          identified_by = Array(entity[:identified_by])
+          if identified_by.size > 1
+            # Composite identity: minting a partial key makes no sense, so every head must
+            # already be caller-supplied (as `Venue.AddLine`'s `append: { batch: :batch,
+            # sequence: :sequence }` does). Refuse a duplicate across the WHOLE tuple, the way
+            # `EntityElement.check_entity_collision`'s `heads.all?` does — this branch used to be
+            # skipped outright for any composite identity, so two elements sharing every identity
+            # component went through unrefused. Root cause of this bug.
+            heads = identified_by.map { |path| path.to_s.split(".").first }
+            if heads.all? { |head| present.include?(head) }
+              collision_guard = composite_append_collision_guard(heads, mutation[:fields], entity, command,
+                                                                   value_objects_by_name, aggregate, target_field,
+                                                                   identified_by)
+            end
+          else
+            id_attr, id_vo = entity_identity_mint(entity, value_objects_by_name)
+            if id_attr && !present.include?(id_attr[:name].to_s)
+              # One past the highest identity held, never `len() + 1`, which repeats after a
+              # shrink (C4.5).
+              id_field = rust_ident_field(id_attr[:name])
+              vo_field = rust_ident_field(id_vo[:attributes].first[:name])
+              mint = "#{rust_ident(id_attr[:type])} { #{vo_field}: record.#{target_field}.iter().map(|e| e.#{id_field}.#{vo_field}).max().unwrap_or(0) + 1 }"
+              fields_assignment << "#{rust_ident_field(id_attr[:name])}: #{mint}"
+              present << id_attr[:name].to_s
+            elsif id_attr
+              # Caller-supplied single-field identity: refuse a duplicate
+              # (`check_entity_collision`), matching rust/codegen byte for byte.
+              id_field = rust_ident_field(id_attr[:name])
+              _, source = mutation[:fields].find { |field_name, _| field_name.to_s == id_attr[:name].to_s }
+              field_attr = entity[:attributes].find { |a| a[:name].to_s == id_attr[:name].to_s }
+              id_rhs = append_field_rhs(source, field_attr, command, value_objects_by_name, aggregate)
+              entity_lit = entity[:name].to_s.inspect
+              aggregate_lit = aggregate[:name].to_s.inspect
+              identity_lit = identified_by.join(", ").inspect
+              # Single-field unwrap so `format!` prints the bare scalar; `id_vo` is non-nil here.
+              offered_field = rust_ident_field(id_vo[:attributes].first[:name])
+              offered_expr = "#{id_rhs}.#{offered_field}"
+              collision_guard =
+                "if record.#{target_field}.iter().any(|e| e.#{id_field} == #{id_rhs}) " \
+                "{ let offered = format!(\"{:?}\", #{offered_expr}); " \
+                "return Err(crate::kernel::Refusal::AlreadyExists(crate::kernel::refusal_wording::AlreadyExistsEntityDuplicateArgs " \
+                "{ entity: #{entity_lit}, aggregate: #{aggregate_lit}, identity: #{identity_lit}, " \
+                "offered: &[offered.as_str()] }.render_args())); }\n        "
+            end
           end
           if entity[:lifecycle] && !present.include?(entity[:lifecycle][:field].to_s)
             fields_assignment << "#{rust_ident_field(entity[:lifecycle][:field])}: #{entity[:lifecycle][:default].inspect}.to_string()"

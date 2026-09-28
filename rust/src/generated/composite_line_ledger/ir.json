@@ -1,0 +1,785 @@
+{
+  "ir_version": 1,
+  "name": "CompositeLineLedger",
+  "version": null,
+  "vision": "A generated domain that puts has_default and composite_piece together.",
+  "classification": "core",
+  "formerly_known_as": null,
+  "aggregates": [
+    {
+      "name": "Venue",
+      "description": "A generated venue.",
+      "identified_by": [
+        "code.value"
+      ],
+      "attributes": [
+        {
+          "name": "code",
+          "type": "VenueCode",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
+          "name": "lines",
+          "type": "Line",
+          "list": true,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        }
+      ],
+      "value_objects": [
+        {
+          "name": "VenueCode",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": "[^ \\t\\n\\r]",
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "a VenueCode is not blank",
+              "canonical": "!value.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "value"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        },
+        {
+          "name": "VenueScore",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "Integer",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        },
+        {
+          "name": "LineSequence",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "Integer",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "a LineSequence is positive",
+              "canonical": "value.positive?",
+              "ast": {
+                "op": "sign_test",
+                "cmp": {
+                  "less_than": true,
+                  "equal": true,
+                  "negated": true
+                },
+                "receiver": {
+                  "op": "lookup",
+                  "path": [
+                    "value"
+                  ]
+                }
+              }
+            }
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        },
+        {
+          "name": "LineBatch",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": "[^ \\t\\n\\r]",
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "a LineBatch is not blank",
+              "canonical": "!value.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "value"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        },
+        {
+          "name": "LineLabel",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": "[^ \\t\\n\\r]",
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "a LineLabel is not blank",
+              "canonical": "!value.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "value"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        },
+        {
+          "name": "VenuePriority",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+
+          ],
+          "closed_set": true,
+          "members": [
+            [
+              [
+                "value",
+                "red"
+              ]
+            ],
+            [
+              [
+                "value",
+                "amber"
+              ]
+            ],
+            [
+              [
+                "value",
+                "green"
+              ]
+            ]
+          ]
+        }
+      ],
+      "commands": [
+        {
+          "name": "Open",
+          "role": null,
+          "goal": "Open it",
+          "references": null,
+          "attributes": [
+            {
+              "name": "code",
+              "type": "VenueCode",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [
+
+          ],
+          "ensures": [
+
+          ],
+          "mutations": [
+            {
+              "target": "code",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "code"
+              }
+            }
+          ],
+          "emits": [
+            "VenueOpened"
+          ],
+          "from": null,
+          "provenance": null
+        },
+        {
+          "name": "Rescore",
+          "role": null,
+          "goal": "Rescore it",
+          "references": "Venue",
+          "attributes": [
+            {
+              "name": "amount",
+              "type": "VenueScore",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [
+
+          ],
+          "ensures": [
+
+          ],
+          "mutations": [
+
+          ],
+          "emits": [
+            "VenueRescored"
+          ],
+          "from": null,
+          "provenance": null
+        },
+        {
+          "name": "AddLine",
+          "role": null,
+          "goal": "AddLine it",
+          "references": "Venue",
+          "attributes": [
+            {
+              "name": "batch",
+              "type": "LineBatch",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "sequence",
+              "type": "LineSequence",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [
+
+          ],
+          "ensures": [
+
+          ],
+          "mutations": [
+            {
+              "target": "lines",
+              "op": "append",
+              "sign": "",
+              "fields": {
+                "batch": ":batch",
+                "sequence": ":sequence"
+              }
+            }
+          ],
+          "emits": [
+            "VenueLineAdded"
+          ],
+          "from": null,
+          "provenance": null
+        },
+        {
+          "name": "Prioritize",
+          "role": null,
+          "goal": "Prioritize it",
+          "references": "Venue",
+          "attributes": [
+            {
+              "name": "priority",
+              "type": "VenuePriority",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [
+
+          ],
+          "ensures": [
+
+          ],
+          "mutations": [
+
+          ],
+          "emits": [
+            "VenuePrioritized"
+          ],
+          "from": null,
+          "provenance": null
+        }
+      ],
+      "invariants": [
+
+      ],
+      "preconditions": [
+
+      ],
+      "projected_fields": [
+
+      ],
+      "lifecycle": null,
+      "entities": [
+        {
+          "name": "Line",
+          "description": "A generated line.",
+          "identified_by": [
+            "batch.value",
+            "sequence.value"
+          ],
+          "attributes": [
+            {
+              "name": "batch",
+              "type": "LineBatch",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "sequence",
+              "type": "LineSequence",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "label",
+              "type": "LineLabel",
+              "list": false,
+              "default": null,
+              "optional": true,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "commands": [
+            {
+              "name": "Label",
+              "role": null,
+              "goal": "Label it",
+              "references": null,
+              "attributes": [
+                {
+                  "name": "label",
+                  "type": "LineLabel",
+                  "list": false,
+                  "default": null,
+                  "optional": false,
+                  "pattern": null,
+                  "admits": null,
+                  "relationship": null
+                }
+              ],
+              "givens": [
+
+              ],
+              "ensures": [
+
+              ],
+              "mutations": [
+                {
+                  "target": "label",
+                  "op": "set",
+                  "sign": "",
+                  "source": {
+                    "kind": "argument",
+                    "name": "label"
+                  }
+                }
+              ],
+              "emits": [
+                "VenueLineLabeled"
+              ],
+              "from": null,
+              "provenance": null
+            }
+          ],
+          "queries": [
+
+          ],
+          "entities": [
+
+          ],
+          "preconditions": [
+
+          ],
+          "invariants": [
+
+          ],
+          "lifecycle": null
+        }
+      ],
+      "queries": [
+
+      ],
+      "ports": [
+
+      ],
+      "provenance": null
+    },
+    {
+      "name": "Hangar",
+      "description": "A generated hangar.",
+      "identified_by": [
+        "code.value"
+      ],
+      "attributes": [
+        {
+          "name": "code",
+          "type": "HangarCode",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        }
+      ],
+      "value_objects": [
+        {
+          "name": "HangarCode",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": "[^ \\t\\n\\r]",
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "a HangarCode is not blank",
+              "canonical": "!value.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "value"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        },
+        {
+          "name": "HangarScore",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "Integer",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        }
+      ],
+      "commands": [
+        {
+          "name": "Open",
+          "role": null,
+          "goal": "Open it",
+          "references": null,
+          "attributes": [
+            {
+              "name": "code",
+              "type": "HangarCode",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [
+
+          ],
+          "ensures": [
+
+          ],
+          "mutations": [
+            {
+              "target": "code",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "code"
+              }
+            }
+          ],
+          "emits": [
+            "HangarOpened"
+          ],
+          "from": null,
+          "provenance": null
+        },
+        {
+          "name": "Reopen",
+          "role": null,
+          "goal": "Reopen it",
+          "references": "Hangar",
+          "attributes": [
+
+          ],
+          "givens": [
+
+          ],
+          "ensures": [
+
+          ],
+          "mutations": [
+
+          ],
+          "emits": [
+            "HangarReopened"
+          ],
+          "from": null,
+          "provenance": null
+        },
+        {
+          "name": "Rescore",
+          "role": "Manager",
+          "goal": "Rescore it",
+          "references": "Hangar",
+          "attributes": [
+            {
+              "name": "amount",
+              "type": "HangarScore",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [
+
+          ],
+          "ensures": [
+
+          ],
+          "mutations": [
+
+          ],
+          "emits": [
+            "HangarRescored"
+          ],
+          "from": null,
+          "provenance": null
+        }
+      ],
+      "invariants": [
+
+      ],
+      "preconditions": [
+
+      ],
+      "projected_fields": [
+
+      ],
+      "lifecycle": null,
+      "entities": [
+
+      ],
+      "queries": [
+
+      ],
+      "ports": [
+
+      ],
+      "provenance": null
+    }
+  ],
+  "read_models": [
+
+  ],
+  "policies": [
+
+  ],
+  "process_managers": [
+
+  ],
+  "attaches_to": [
+
+  ],
+  "provides": [
+
+  ],
+  "canonical_form": [
+    {
+      "strategy": "collapse_whitespace",
+      "source_token": "",
+      "replacement": "",
+      "boundary": "none",
+      "position": "1"
+    },
+    {
+      "strategy": "replace",
+      "source_token": ".length",
+      "replacement": ".size",
+      "boundary": "word",
+      "position": "2"
+    }
+  ],
+  "lineage": {
+    "capable_aggregates": [
+
+    ]
+  },
+  "persistence": {
+    "aggregates": [
+      {
+        "name": "Venue",
+        "storage_name": "venue",
+        "adapter": "Memory"
+      },
+      {
+        "name": "Hangar",
+        "storage_name": "hangar",
+        "adapter": "Memory"
+      }
+    ]
+  },
+  "translations": [
+
+  ],
+  "source_text": "# GENERATED by Hecks::Fuzzing::DomainGenerator — seed 556518, forms has_default, composite_piece. Not hand-written; see bin/qa_generated_domains.\nHecks.bluebook \"CompositeLineLedger\" do\n  vision \"A generated domain that puts has_default and composite_piece together.\"\n\n  core\n\n  aggregate \"Venue\" do\n    description \"A generated venue.\"\n\n    identified_by :code\n    attribute :code, VenueCode\n    attribute :lines, list_of(Line)\n\n    value_object \"VenueCode\" do\n      attribute :value, String, pattern: '[^ \\t\\n\\r]'\n      invariant(\"a VenueCode is not blank\") { !value.to_s.empty? }\n    end\n\n    value_object \"VenueScore\" do\n      attribute :value, Integer\n    end\n\n    value_object \"LineSequence\" do\n      attribute :value, Integer\n      invariant(\"a LineSequence is positive\") { value.positive? }\n    end\n\n    value_object \"LineBatch\" do\n      attribute :value, String, pattern: '[^ \\t\\n\\r]'\n      invariant(\"a LineBatch is not blank\") { !value.to_s.empty? }\n    end\n\n    value_object \"LineLabel\" do\n      attribute :value, String, pattern: '[^ \\t\\n\\r]'\n      invariant(\"a LineLabel is not blank\") { !value.to_s.empty? }\n    end\n\n    value_object \"VenuePriority\" do\n      attribute :value, String, one_of: [\"red\", \"amber\", \"green\"]\n    end\n\n    entity \"Line\" do\n      description \"A generated line.\"\n      identified_by :batch, :sequence\n      attribute :batch, LineBatch\n      attribute :sequence, LineSequence\n      attribute :label, LineLabel, optional: true\n\n      command \"Label\" do\n        goal \"Label it\"\n        attribute :label, LineLabel\n        sets :label\n        emits \"VenueLineLabeled\"\n      end\n    end\n\n    command \"Open\" do\n      goal \"Open it\"\n      attribute :code, VenueCode\n      sets :code\n      emits \"VenueOpened\"\n    end\n\n    command \"Rescore\" do\n      goal \"Rescore it\"\n      reference_to Venue\n      attribute :amount, VenueScore\n      emits \"VenueRescored\"\n    end\n\n    command \"AddLine\" do\n      goal \"AddLine it\"\n      reference_to Venue\n      attribute :batch, LineBatch\n      attribute :sequence, LineSequence\n      sets :lines, append: { batch: :batch, sequence: :sequence }\n      emits \"VenueLineAdded\"\n    end\n\n    command \"Prioritize\" do\n      goal \"Prioritize it\"\n      reference_to Venue\n      attribute :priority, VenuePriority\n      emits \"VenuePrioritized\"\n    end\n  end\n\n  aggregate \"Hangar\" do\n    description \"A generated hangar.\"\n\n    identified_by :code\n    attribute :code, HangarCode\n\n    value_object \"HangarCode\" do\n      attribute :value, String, pattern: '[^ \\t\\n\\r]'\n      invariant(\"a HangarCode is not blank\") { !value.to_s.empty? }\n    end\n\n    value_object \"HangarScore\" do\n      attribute :value, Integer\n    end\n\n    command \"Open\" do\n      goal \"Open it\"\n      attribute :code, HangarCode\n      sets :code\n      emits \"HangarOpened\"\n    end\n\n    command \"Reopen\" do\n      goal \"Reopen it\"\n      reference_to Hangar\n      emits \"HangarReopened\"\n    end\n\n    command \"Rescore\" do\n      role \"Manager\"\n      goal \"Rescore it\"\n      reference_to Hangar\n      attribute :amount, HangarScore\n      emits \"HangarRescored\"\n    end\n  end\nend\n"
+}

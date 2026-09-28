@@ -47,6 +47,9 @@ pub fn entity_identity_mint<'a>(entity: &'a Json, value_objects_by_name: &HashMa
 /// Returns the duplicate-identity guard for a whole-list `set`, and the right-hand side to assign.
 ///
 /// A missing identity needs no guard: the generated `Entity::from_json` already refuses it.
+/// Every `identified_by` head is compared at once (not just the first), so a composite identity
+/// is guarded the same as a single-field one — see `check_entity_collision` in
+/// `entity_element.rb` (Ruby's `heads.all?`).
 pub fn entity_list_replace_guard<'a>(aggregate: &Json, target_attr: &Json, target_field: &str, rhs: &str, value_objects_by_name: &HashMap<String, &'a Json>) -> (String, String) {
     let target_type = crate::attr::type_name(target_attr);
     let entity = aggregate.get("entities").map(Json::each).unwrap_or(&[]).iter().find(|e| e.get("name").and_then(Json::as_str) == Some(target_type));
@@ -55,29 +58,36 @@ pub fn entity_list_replace_guard<'a>(aggregate: &Json, target_attr: &Json, targe
         None => return (String::new(), rhs.to_string()),
     };
     let identified_by = entity.get("identified_by").map(Json::each).unwrap_or(&[]);
-    if identified_by.len() != 1 {
+    if identified_by.is_empty() {
         return (String::new(), rhs.to_string());
     }
 
-    let id_path = identified_by[0].as_str().unwrap_or_default();
-    let id_head = id_path.split('.').next().unwrap_or_default();
     let attrs = entity.get("attributes").map(Json::each).unwrap_or(&[]);
-    let id_attr = match attrs.iter().find(|a| crate::attr::name(a) == id_head) {
-        Some(a) => a,
-        None => return (String::new(), rhs.to_string()),
-    };
+    let mut checks = Vec::new();
+    let mut offered_exprs = Vec::new();
+    for path in identified_by {
+        let id_head = path.to_s().split('.').next().unwrap_or_default().to_string();
+        let id_attr = match attrs.iter().find(|a| crate::attr::name(a) == id_head) {
+            Some(a) => a,
+            None => return (String::new(), rhs.to_string()),
+        };
+        let id_field = naming::rust_ident_field(crate::attr::name(id_attr));
+        checks.push(format!("prior.{id_field} == e.{id_field}"));
 
-    let id_field = naming::rust_ident_field(crate::attr::name(id_attr));
-    // Unwrap a single-field identity so `offered` prints the bare scalar, as `Rendering.describe`
-    // does; Debug-printing the value object would give `EntrySequence { value: 1 }`.
-    let id_vo = value_objects_by_name.get(crate::attr::type_name(id_attr)).copied();
-    let offered_expr = match id_vo {
-        Some(vo) if !vo.get("closed_set").map(Json::as_bool).unwrap_or(false) && vo.get("attributes").map(Json::each).unwrap_or(&[]).len() == 1 => {
-            let inner = naming::rust_ident_field(crate::attr::name(&vo.get("attributes").map(Json::each).unwrap_or(&[])[0]));
-            format!("e.{id_field}.{inner}")
-        }
-        _ => format!("e.{id_field}"),
-    };
+        // Unwrap a single-field identity so `offered` prints the bare scalar, as
+        // `Rendering.describe` does; Debug-printing the value object would give
+        // `EntrySequence { value: 1 }`.
+        let id_vo = value_objects_by_name.get(crate::attr::type_name(id_attr)).copied();
+        let offered_expr = match id_vo {
+            Some(vo) if !vo.get("closed_set").map(Json::as_bool).unwrap_or(false) && vo.get("attributes").map(Json::each).unwrap_or(&[]).len() == 1 => {
+                let inner = naming::rust_ident_field(crate::attr::name(&vo.get("attributes").map(Json::each).unwrap_or(&[])[0]));
+                format!("e.{id_field}.{inner}")
+            }
+            _ => format!("e.{id_field}"),
+        };
+        offered_exprs.push(offered_expr);
+    }
+
     let local_var = format!("replaced_{target_field}");
     let entity_name = entity.get("name").and_then(Json::as_str).unwrap_or_default();
     let aggregate_name = aggregate.get("name").and_then(Json::as_str).unwrap_or_default();
@@ -85,10 +95,80 @@ pub fn entity_list_replace_guard<'a>(aggregate: &Json, target_attr: &Json, targe
     let entity_lit = naming::ruby_inspect_string(entity_name);
     let aggregate_lit = naming::ruby_inspect_string(aggregate_name);
     let identity_lit = naming::ruby_inspect_string(&identity_reading);
+    let condition = checks.join(" && ");
+    let offered_lets: Vec<String> = offered_exprs.iter().enumerate().map(|(i, expr)| format!("let offered_{i} = format!(\"{{:?}}\", {expr});")).collect();
+    let offered_refs: Vec<String> = (0..offered_exprs.len()).map(|i| format!("offered_{i}.as_str()")).collect();
     let guard = format!(
-        "let {local_var} = {rhs};\n        for (i, e) in {local_var}.iter().enumerate() {{ if {local_var}[..i].iter().any(|prior| prior.{id_field} == e.{id_field}) {{ let offered = format!(\"{{:?}}\", {offered_expr}); return Err(crate::kernel::Refusal::AlreadyExists(crate::kernel::refusal_wording::AlreadyExistsEntityDuplicateArgs {{ entity: {entity_lit}, aggregate: {aggregate_lit}, identity: {identity_lit}, offered: &[offered.as_str()] }}.render_args())); }} }}\n        "
+        "let {local_var} = {rhs};\n        for (i, e) in {local_var}.iter().enumerate() {{ if {local_var}[..i].iter().any(|prior| {condition}) {{ {} let offered = [{}]; return Err(crate::kernel::Refusal::AlreadyExists(crate::kernel::refusal_wording::AlreadyExistsEntityDuplicateArgs {{ entity: {entity_lit}, aggregate: {aggregate_lit}, identity: {identity_lit}, offered: &offered }}.render_args())); }} }}\n        ",
+        offered_lets.join(" "), offered_refs.join(", ")
     );
     (guard, local_var)
+}
+
+/// The composite-identity twin of the single-field collision guard inlined in
+/// `emit_mutation_line_body`'s `append` branch: builds a duplicate check across every
+/// `identified_by` head at once (`e.batch == ... && e.sequence == ...`), matching
+/// `EntityElement.check_entity_collision`'s `heads.all?` on the Ruby side. Called only once every
+/// head is confirmed present in the append's own `fields` map (composite identities never mint).
+#[allow(clippy::too_many_arguments)]
+fn composite_append_collision_guard(
+    heads: &[String],
+    fields: &[(String, String)],
+    element_attrs: &[Json],
+    command: &Json,
+    value_objects_by_name: &HashMap<String, &Json>,
+    target_field: &str,
+    entity: &Json,
+    aggregate: &Json,
+    identified_by: &[Json],
+) -> String {
+    let mut checks = Vec::new();
+    let mut offered_exprs = Vec::new();
+    for head in heads {
+        let field_attr = element_attrs
+            .iter()
+            .find(|a| crate::attr::name(a) == head.as_str())
+            .expect("composite identity head must be a declared element attribute");
+        let (_, source) = fields
+            .iter()
+            .find(|(k, _)| k == head)
+            .expect("composite identity head must be in the append's own field map");
+        let rhs = append_field_rhs(source, field_attr, command, value_objects_by_name);
+        let id_field = naming::rust_ident_field(head);
+        checks.push(format!("e.{id_field} == {rhs}"));
+
+        // Unwrap a single-field identity component so `offered` prints the bare scalar, as
+        // `Rendering.describe` does; Debug-printing the value object would give
+        // `LineSequence { value: 654 }`.
+        let vo = value_objects_by_name.get(crate::attr::type_name(field_attr)).copied();
+        let offered_expr = match vo {
+            Some(vo) if !vo.get("closed_set").map(Json::as_bool).unwrap_or(false) && vo.get("attributes").map(Json::each).unwrap_or(&[]).len() == 1 => {
+                let inner = naming::rust_ident_field(crate::attr::name(&vo.get("attributes").map(Json::each).unwrap_or(&[])[0]));
+                format!("{rhs}.{inner}")
+            }
+            _ => rhs,
+        };
+        offered_exprs.push(offered_expr);
+    }
+
+    let entity_name = entity.get("name").and_then(Json::as_str).unwrap_or_default();
+    let aggregate_name = aggregate.get("name").and_then(Json::as_str).unwrap_or_default();
+    let identity_reading = identified_by.iter().map(Json::to_s).collect::<Vec<_>>().join(", ");
+    let entity_lit = naming::ruby_inspect_string(entity_name);
+    let aggregate_lit = naming::ruby_inspect_string(aggregate_name);
+    let identity_lit = naming::ruby_inspect_string(&identity_reading);
+    let condition = checks.join(" && ");
+    let offered_lets: Vec<String> = offered_exprs
+        .iter()
+        .enumerate()
+        .map(|(i, expr)| format!("let offered_{i} = format!(\"{{:?}}\", {expr});"))
+        .collect();
+    let offered_refs: Vec<String> = (0..offered_exprs.len()).map(|i| format!("offered_{i}.as_str()")).collect();
+
+    format!(
+        "if record.{target_field}.iter().any(|e| {condition}) {{ {} let offered = [{}]; return Err(crate::kernel::Refusal::AlreadyExists(crate::kernel::refusal_wording::AlreadyExistsEntityDuplicateArgs {{ entity: {entity_lit}, aggregate: {aggregate_lit}, identity: {identity_lit}, offered: &offered }}.render_args())); }}\n        ",
+        offered_lets.join(" "), offered_refs.join(", ")
+    )
 }
 
 /// Inverse of `appended_fields`' spelling: a leading `:` is a command argument, else a literal.
@@ -508,7 +588,20 @@ fn emit_mutation_line_body(
             let mut collision_guard = String::new();
             if let Some(entity) = entity {
                 let mut present: Vec<String> = fields.iter().map(|(k, _)| k.clone()).collect();
-                if let Some((id_attr, id_vo)) = entity_identity_mint(entity, value_objects_by_name) {
+                let identified_by = entity.get("identified_by").map(Json::each).unwrap_or(&[]);
+                if identified_by.len() > 1 {
+                    // Composite identity: minting a partial key makes no sense, so every head must
+                    // already be caller-supplied (as `Venue.AddLine`'s `append: { batch: :batch,
+                    // sequence: :sequence }` does). Refuse a duplicate across the WHOLE tuple, the
+                    // way `EntityElement.check_entity_collision`'s `heads.all?` does — this branch
+                    // used to be skipped outright for any composite identity (its comment read
+                    // "Composite identities are excluded"), so two elements sharing every identity
+                    // component went through unrefused. Root cause of this bug.
+                    let heads: Vec<String> = identified_by.iter().map(|p| p.to_s().split('.').next().unwrap_or_default().to_string()).collect();
+                    if heads.iter().all(|h| present.iter().any(|p| p == h)) {
+                        collision_guard = composite_append_collision_guard(&heads, &fields, element_attrs, command, value_objects_by_name, target_field, entity, aggregate, identified_by);
+                    }
+                } else if let Some((id_attr, id_vo)) = entity_identity_mint(entity, value_objects_by_name) {
                     let id_name = crate::attr::name(id_attr);
                     if !present.iter().any(|p| p == id_name) {
                         let id_vo_attrs = id_vo.get("attributes").map(Json::each).unwrap_or(&[]);
@@ -521,10 +614,9 @@ fn emit_mutation_line_body(
                         );
                         fields_assignment.push(format!("{}: {mint}", naming::rust_ident_field(id_name)));
                         present.push(id_name.to_string());
-                    } else if entity.get("identified_by").map(Json::each).unwrap_or(&[]).len() == 1 {
+                    } else {
                         // Caller-supplied single-field identity: refuse a duplicate, which would
-                        // be unaddressable later. Composite identities are excluded; sharing one
-                        // head does not make two elements duplicates.
+                        // be unaddressable later.
                         let id_field = naming::rust_ident_field(id_name);
                         let id_rhs = fields
                             .iter()
@@ -539,7 +631,7 @@ fn emit_mutation_line_body(
                             .expect("caller-supplied identity field must be in the append's own field map");
                         let entity_name = entity.get("name").and_then(Json::as_str).unwrap_or_default();
                         let aggregate_name = aggregate.get("name").and_then(Json::as_str).unwrap_or_default();
-                        let identity_reading = entity.get("identified_by").map(Json::each).unwrap_or(&[]).iter().map(Json::to_s).collect::<Vec<_>>().join(", ");
+                        let identity_reading = identified_by.iter().map(Json::to_s).collect::<Vec<_>>().join(", ");
                         let entity_lit = naming::ruby_inspect_string(entity_name);
                         let aggregate_lit = naming::ruby_inspect_string(aggregate_name);
                         let identity_lit = naming::ruby_inspect_string(&identity_reading);
