@@ -85,7 +85,7 @@ fn order_key(record: &Json, field: &str) -> Json {
 // Codegen only lets a declared field resolve to a number or a string, homogeneous per field.
 fn compare_comparable(a: &Json, b: &Json) -> std::cmp::Ordering {
     match (a, b) {
-        (Json::Num(x) | Json::Float(x), Json::Num(y) | Json::Float(y)) => {
+        (Json::Num(x, _) | Json::Float(x), Json::Num(y, _) | Json::Float(y)) => {
             x.partial_cmp(y).unwrap_or(std::cmp::Ordering::Equal)
         }
         (Json::Str(x), Json::Str(y)) => x.cmp(y),
