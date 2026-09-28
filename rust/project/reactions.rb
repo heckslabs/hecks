@@ -185,7 +185,7 @@ module RustProjection
       when Integer
         "crate::kernel::Json::int(#{value})"
       when Float
-        "crate::kernel::Json::Num(#{value}f64)"
+        "crate::kernel::Json::Num(#{value}f64, None)"
       when true, false
         "crate::kernel::Json::Bool(#{value})"
       when nil

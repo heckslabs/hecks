@@ -197,7 +197,7 @@ fn json_literal_expr(value: &Literal) -> String {
         }
         Literal::Str(s) => format!("crate::kernel::Json::Str({}.to_string())", naming::ruby_inspect_string(s)),
         Literal::Int(n) => format!("crate::kernel::Json::int({n})"),
-        Literal::Float(n) => format!("crate::kernel::Json::Num({}f64)", ruby_float_text(*n)),
+        Literal::Float(n) => format!("crate::kernel::Json::Num({}f64, None)", ruby_float_text(*n)),
         Literal::Bool(b) => format!("crate::kernel::Json::Bool({b})"),
         Literal::Nil => "crate::kernel::Json::Null".to_string(),
         other => panic!("unsupported with: literal {other:?} — json_literal_expr doesn't cover this shape"),
