@@ -48,7 +48,7 @@ end
 # filename. Left raw, an embedded `/` is read as an extra path segment that nothing creates,
 # breaking the write. This never changes what is stored as the `Target`/`Sweep` reference itself.
 def filesystem_safe_component(reference)
-  reference.gsub(%r{[^A-Za-z0-9_.-]}, "-")
+  reference.gsub(/[^A-Za-z0-9_.-]/, "-")
 end
 
 # QA_SWEEP_TRACE=1 prints a per-phase stderr timer; each print is the delta since the previous
