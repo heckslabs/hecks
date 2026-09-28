@@ -7,6 +7,25 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+## [2.9.0] - 2026-09-28
+
+**Feature: `POST /members/delete` soft-deletes a disabled member.**
+The route was missing from 2.8.0, so a deployed 2.8.0 host answered it with the
+auth gate's `Unauthenticated` 401. It mirrors `set_person_disabled`: locked against
+concurrent membership writes, caller must be an active admin, the target must
+already be disabled, and the row stays in the journal with a deleted flag that the
+member list filters out.
+
+**Fix: `auth::provision` reuses an existing Identity for the same issuer and subject**
+instead of minting an orphan on every retry, so an interrupted first sign-in
+converges on the earlier attempt's identity.
+
+**Behavior change: Postgres and SQLite journal recovery and compaction.**
+`PostgresEra` skips the boot-time `recover!` replay, replay recovery is bounded by a
+per-table checkpoint, and journal compaction (ADR 0079) is available behind a gate.
+Other changes since 2.8.0 are QA tooling, CI attestation and read-model reductions
+(`sum`, `avg`, `min`, `max`, `percentile`, `any`, `all`).
+
 ## [2.8.0] - 2026-09-27
 
 **Security: the Fargate host no longer runs a command or a read from an outside caller's body.**
