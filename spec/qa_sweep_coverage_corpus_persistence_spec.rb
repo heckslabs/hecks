@@ -63,6 +63,22 @@ RSpec.describe "bin/qa_sweep coverage corpus persistence", :io do
     expect(saved).to include("corpus", "seen", "verb_hits", "declared_verbs")
   end
 
+  # `bin/qa_discover_external_domains` suggests `repo/entity`-shaped references for an external
+  # domain (e.g. `lifeadelics/lifeadelics`); `coverage_corpus_path` folds that `/` into a filename,
+  # and `FileUtils.mkdir_p(@corpus_dir)` never creates a matching subdirectory for it, so the
+  # filename component is sanitized before the write runs. The reference itself keeps its `/` in
+  # the ledger — only the filename derived from it changes.
+  it "sanitizes a `/` in the target reference so the corpus file lands inside the corpus dir" do
+    identify_targets!("vendor/fresh_corpus_target" => @target_domain_relpath)
+    corpus_path = File.join(@corpus_dir, "vendor-fresh_corpus_target-ruby_only.json")
+    expect(File.exist?(corpus_path)).to be(false)
+
+    stdout, _stderr, status = run_qa_sweep_with_corpus_dir("vendor/fresh_corpus_target", "--modes", "ruby_only")
+    expect(status.exitstatus).to eq(0), stdout
+    expect(File.exist?(corpus_path)).to be(true)
+    expect(Dir.exist?(File.join(@corpus_dir, "vendor"))).to be(false)
+  end
+
   it "keeps a target's primary-mode and persistence-parity-mode corpora in separate files" do
     identify_targets!("parity_corpus_target" => @pg_target_domain_relpath)
 
