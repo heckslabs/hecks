@@ -102,8 +102,8 @@ module Hecks
             # A `verb`-shaped port is a plain `Port`, the same struct `Hecks.port` registers —
             # it belongs to no aggregate IR the way an operations-shaped `DomainPort` does, so
             # it takes the registry's `add_port` directly. Mirrors `DSL::BindingProxy#port`,
-            # which handles the identical shape on a domain's FIRST in-process boot (before
-            # this facade constant exists); this method is what a REPEAT boot reaches instead.
+            # which handles the identical shape on a domain's first in-process boot (before
+            # this facade constant exists); this method is what a repeat boot reaches instead.
             if built.is_a?(Bluebook::Port)
               Hecks.current_registry.add_port(built)
               return self

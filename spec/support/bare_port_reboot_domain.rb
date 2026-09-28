@@ -3,7 +3,7 @@ require "fileutils"
 
 # A minimal domain whose aggregate declares a bare-verb driven port (`verb "..."`, no
 # operations) — the shape `DomainPortBuilder#build` turns into a plain `Bluebook::Port`
-# rather than a `DomainPort`. `DSL::BindingProxy#port` (hit on a domain's FIRST in-process
+# rather than a `DomainPort`. `DSL::BindingProxy#port` (hit on a domain's first in-process
 # boot, before its aggregate facade constant exists) and `HecksagonBuilder#port_impl` both
 # guard for that shape with `built.is_a?(Port)`. `Facade::Surface::AggregateDoor`'s own
 # `:port` singleton method — hit once the aggregate's facade constant already exists, e.g.
