@@ -92,6 +92,44 @@ Hecks.hecksagon "Hecks" do
     end
   end
 
+  Hecks::Build.port "RustToolchain" do
+    asks "Generate", to: Build do
+      attribute :run, BuildKey
+      answers "BuildAnswered"
+      refuses "BuildRefused"
+    end
+
+    asks "Wasm", to: Build do
+      attribute :run, BuildKey
+      answers "BuildAnswered"
+      refuses "BuildRefused"
+    end
+
+    asks "BrowserWasm", to: Build do
+      attribute :run, BuildKey
+      answers "BuildAnswered"
+      refuses "BuildRefused"
+    end
+
+    asks "Conform", to: Build do
+      attribute :run, BuildKey
+      answers "BuildAnswered"
+      refuses "BuildRefused"
+    end
+
+    asks "Replay", to: Build do
+      attribute :run, BuildKey
+      answers "BuildAnswered"
+      refuses "BuildRefused"
+    end
+
+    asks "Audit", to: Build do
+      attribute :run, BuildKey
+      answers "BuildAnswered"
+      refuses "BuildRefused"
+    end
+  end
+
   Hecks::Operation.port "HostHttp" do
     asks "Probe", to: Operation do
       attribute :run, OperationKey

@@ -16,7 +16,9 @@ require "tmpdir"
 
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
 
-GENERATED_ROOT = File.expand_path("../rust/src/generated", __dir__)
+# HECKS_RUST_DIR names the workspace the domain was generated in; unset, this checkout's rust/.
+RUST_DIR = ENV.fetch("HECKS_RUST_DIR", File.expand_path("../rust", __dir__))
+GENERATED_ROOT = File.join(RUST_DIR, "src/generated")
 
 codegen_flags, positional = ARGV.partition { |arg| arg.start_with?("--codegen") }
 codegen = codegen_flags.empty? ? "ruby" : codegen_flags.last.delete_prefix("--codegen=")
@@ -159,7 +161,7 @@ if codegen == "rust"
                                                             "bin/project_rust for this domain to write it"
   scratch = Dir.mktmpdir("rust-coverage-codegen-")
   at_exit { FileUtils.rm_rf(scratch) }
-  codegen_dir = File.expand_path("../rust/codegen", __dir__)
+  codegen_dir = File.join(RUST_DIR, "codegen")
   out_dir = File.join(scratch, domain)
   output, status = Open3.capture2e("cargo", "run", "--quiet", "--", "domain", ir_path, domain, domain, out_dir,
                                    chdir: codegen_dir)
@@ -172,7 +174,7 @@ end
 
 ir, findings = coverage_findings(mod_dir)
 
-# IMPLEMENTED requires both generated and routed (where routing applies);
+# A construct is implemented only when generated and routed (where routing applies);
 # a `dispatch_*` that compiles but nothing can call is not "working," so
 # `routed: false` buckets like `generated: false`.
 implemented, remainder = findings.partition { |f| f[:generated] && f[:routed] != false }

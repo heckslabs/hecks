@@ -30,9 +30,15 @@ def run_subprocess(cmd, stdin_data)
   stdout
 end
 
+# HECKS_RUST_DIR names the workspace whose build to run, and CARGO_TARGET_DIR where its output
+# went; unset, this checkout's rust/ and rust/target.
+def rust_dir = ENV.fetch("HECKS_RUST_DIR", File.expand_path("../rust", __dir__))
+
+def target_dir = ENV.fetch("CARGO_TARGET_DIR", File.join(rust_dir, "target"))
+
 def native_binary
   %w[release debug]
-    .map { |profile| File.expand_path("../rust/target/#{profile}/rust", __dir__) }
+    .map { |profile| File.join(target_dir, profile, "rust") }
     .find { |path| File.executable?(path) }
 end
 
@@ -74,7 +80,7 @@ their_json =
     require_relative "../spec/support/rust_conformance_helpers"
     builder = Object.new.extend(RustConformanceHelpers)
     feature = File.basename(domain.chomp("/"))
-    bin = builder.build_rust_for(feature, File.expand_path("../rust", __dir__)) or
+    bin = builder.build_rust_for(feature, rust_dir) or
     abort "no `#{feature}` feature in rust/Cargo.toml — run bin/project_rust #{domain} first"
     run_subprocess([bin], File.read(script))
   when /\.wasm\z/

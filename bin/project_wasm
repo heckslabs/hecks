@@ -15,6 +15,12 @@ domain = ARGV.shift or abort "usage: bin/project_wasm <domain>"
 root = File.expand_path("..", __dir__)
 target_mod_name = File.basename(domain)
 
+# HECKS_RUST_DIR names the workspace to build in (the Custodian's Build sets it to a copy of the
+# packaged workspace); unset, it is this checkout's own rust/. CARGO_TARGET_DIR keeps build output
+# where the caller put it, and by default beside the workspace.
+rust_dir = ENV.fetch("HECKS_RUST_DIR", File.join(root, "rust"))
+target_dir = ENV.fetch("CARGO_TARGET_DIR", File.join(rust_dir, "target"))
+
 # HECKS_PARSER=rust with HECKS_CODEGEN=rust (as in bin/project_rust) delegates to hecks-build,
 # whose build_wasm runs the same steps below and writes the same rust/dist outputs.
 if ENV["HECKS_PARSER"] == "rust" && ENV["HECKS_CODEGEN"] == "rust"
@@ -44,10 +50,14 @@ end
 # rust/src/generated/, which would dirty tracked files. HECKS_RUST_DIR points it at the copy;
 # CARGO_TARGET_DIR keeps build output and the dependency cache in rust/target.
 require "fileutils"
-scratch = File.join(root, "tmp", "project_wasm", "rust")
+scratch = if ENV.key?("HECKS_RUST_DIR")
+  File.join(rust_dir, "scratch", "project_wasm")
+else
+  File.join(root, "tmp", "project_wasm", "rust")
+end
 FileUtils.rm_rf(scratch)
 FileUtils.mkdir_p(scratch)
-%w[Cargo.toml Cargo.lock src].each { |entry| FileUtils.cp_r(File.join(root, "rust", entry), scratch) }
+%w[Cargo.toml Cargo.lock src].each { |entry| FileUtils.cp_r(File.join(rust_dir, entry), scratch) }
 
 puts "== regenerating #{scratch}/src/generated/ for #{domain} =="
 system({ "HECKS_RUST_DIR" => scratch }, File.join(root, "bin", "project_rust"), domain, exception: true)
@@ -56,14 +66,14 @@ puts "== cargo build --release --target wasm32-wasip1 =="
 Dir.chdir(scratch) do
   # `rustup run`, not bare `cargo`: a Homebrew cargo earlier on PATH never saw
   # `rustup target add` and fails with "can't find crate for `std`".
-  system({ "CARGO_TARGET_DIR" => File.join(root, "rust", "target") },
+  system({ "CARGO_TARGET_DIR" => target_dir },
          "rustup", "run", "stable", "cargo", "build", "--release", "--target", "wasm32-wasip1", exception: true)
 end
 
-dist_dir = File.join(root, "rust", "dist")
+dist_dir = File.join(rust_dir, "dist")
 FileUtils.mkdir_p(dist_dir)
 
-built = File.join(root, "rust", "target", "wasm32-wasip1", "release", "rust.wasm")
+built = File.join(target_dir, "wasm32-wasip1", "release", "rust.wasm")
 out   = File.join(dist_dir, "#{target_mod_name}.wasm")
 FileUtils.cp(built, out)
 

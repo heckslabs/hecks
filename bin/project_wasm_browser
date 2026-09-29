@@ -14,7 +14,10 @@ Hecks::ThreeZero.notice("project_wasm_browser")
 domain = ARGV.shift or abort "usage: bin/project_wasm_browser <domain>"
 
 root = File.expand_path("..", __dir__)
-web_dir = File.join(root, "rust", "web")
+# HECKS_RUST_DIR names the workspace to build in, as for bin/project_wasm; unset, this
+# checkout's own rust/.
+rust_dir = ENV.fetch("HECKS_RUST_DIR", File.join(root, "rust"))
+web_dir = File.join(rust_dir, "web")
 target_mod_name = File.basename(domain)
 
 unless system("rustup target list --installed 2>/dev/null | grep -qx wasm32-unknown-unknown")
@@ -52,11 +55,11 @@ Dir.chdir(web_dir) do
   system("rustup", "run", "stable", "cargo", "build", "--release", "--target", "wasm32-unknown-unknown", exception: true)
 end
 
-out_dir = File.join(root, "rust", "dist", "browser", target_mod_name)
+out_dir = File.join(rust_dir, "dist", "browser", target_mod_name)
 require "fileutils"
 FileUtils.mkdir_p(out_dir)
 
-built = File.join(web_dir, "target", "wasm32-unknown-unknown", "release", "rust_web.wasm")
+built = File.join(ENV.fetch("CARGO_TARGET_DIR", File.join(web_dir, "target")), "wasm32-unknown-unknown", "release", "rust_web.wasm")
 puts "== wasm-bindgen --target web =="
 system("wasm-bindgen", "--target", "web", "--out-dir", out_dir, "--out-name", target_mod_name, built, exception: true)
 

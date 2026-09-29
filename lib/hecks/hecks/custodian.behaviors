@@ -104,4 +104,34 @@ Hecks.behaviors "Custodian" do
     input domain: { value: "/no/such/domain" }, run: { value: "compact" }, confirm: { value: true }
     expect emits: %w[HekiCompactionRequested EraRefused EraAbandoned]
   end
+
+  test "ProjectRust refuses a domain whose name cannot be a Rust module" do
+    tests "ProjectRust", on: "Build"
+    input domain: { value: "examples/Pizzas" }, run: { value: "rust" }
+    expect refused: "must match"
+  end
+
+  test "ProjectRust keeps a domain that is not there as a faulted build" do
+    tests "ProjectRust", on: "Build"
+    input domain: { value: "no/such/domain" }, run: { value: "rust" }
+    expect emits: %w[RustProjectionRequested BuildRefused BuildFaulted]
+  end
+
+  test "CheckConformance refuses a script that is not named" do
+    tests "CheckConformance", on: "Build"
+    input domain: { value: "examples/pizzas" }, run: { value: "conform" }
+    expect refused: "script"
+  end
+
+  test "FuzzConformance refuses a count that is not positive" do
+    tests "FuzzConformance", on: "Build"
+    input domain: { value: "examples/pizzas" }, artifact: { value: "native" }, run: { value: "fuzz" }, seeds: { value: 0 }
+    expect refused: "a count is positive"
+  end
+
+  test "BuildWasm refuses a build that is not named" do
+    tests "BuildWasm", on: "Build"
+    input domain: { value: "examples/pizzas" }, run: { value: "" }
+    expect refused: "must match"
+  end
 end

@@ -20,6 +20,8 @@ RSpec.describe "the Hecks command table through the launcher" do
     settlement abandoned scaffold_translation audit_translation attestation compaction
     vendor revendor pinning unpinned
     project_cli serve_mcp ended stopped
+    project_rust build_wasm build_browser_wasm check_conformance fuzz_conformance
+    check_coverage_allowlist rust_coverage result faulted
   ].freeze
 
   SHELF_BLUEBOOK = <<~RUBY.freeze
@@ -438,6 +440,97 @@ RSpec.describe "the Hecks command table through the launcher" do
 
       expect(served).to eq([["--stdio"]])
       expect(ended_of("mcp-1").dig("output", "value")).to eq("mcp door closed")
+    end
+  end
+
+  # A fake shell stands in for the toolchain, so each verb is journaled and asked without a build.
+  describe "the Build verbs" do
+    let(:asked) { [] }
+
+    def result_of(run)
+      JSON.parse(run_verb("result", run).first).first
+    end
+
+    def toolchain_says(out: "", err: "", ok: true)
+      status = Struct.new(:success?, :exitstatus).new(ok, ok ? 0 : 1)
+      answer = Struct.new(:out, :err, :status) { def ok? = status.success? }.new(out, err, status)
+      log = asked
+      Hecks::Adapters::RustToolchain.shell = Object.new.tap do |shell|
+        shell.define_singleton_method(:capture) do |*command, **|
+          log << command.drop(1).then { |script, *rest| [File.basename(script), *rest] }
+          answer
+        end
+      end
+    end
+
+    after { Hecks::Adapters::RustToolchain.shell = nil }
+
+    it "project_rust asks the toolchain to generate the domain and keeps what it reported" do
+      toolchain_says(out: "wrote rust/src/generated/shelf/mod.rs\n")
+
+      out, status = run_verb("project_rust", @shelf, "run=rust-1")
+
+      expect(status).to eq(0)
+      expect(JSON.parse(out).fetch("events")).to eq(["RustProjectionRequested"])
+      expect(asked).to eq([["project_rust", @shelf]])
+      row = result_of("rust-1")
+      expect(row.fetch("status")).to eq("completed")
+      expect(row.dig("output", "value")).to include("shelf/mod.rs")
+    end
+
+    it "keeps a build the toolchain refused as faulted, with its reason, and faulted lists it" do
+      toolchain_says(err: "wasm32-wasip1 isn't installed for this toolchain\n", ok: false)
+
+      run_verb("build_wasm", @shelf, "run=wasm-1")
+
+      row = result_of("wasm-1")
+      expect(row.fetch("status")).to eq("faulted")
+      expect(row.dig("refusal", "value")).to include("wasm32-wasip1 isn't installed")
+      expect(JSON.parse(run_verb("faulted").first).map { |build| build.dig("run", "value") }).to include("wasm-1")
+    end
+
+    it "build_browser_wasm, check_conformance, fuzz_conformance and check_coverage_allowlist each ask their own script" do
+      toolchain_says
+      steps = File.join(@dir, "steps.json")
+
+      run_verb("build_browser_wasm", @shelf, "run=browser-1")
+      run_verb("check_conformance", @shelf, "script=#{steps}", "run=conform-1", "artifact=native")
+      run_verb("fuzz_conformance", @shelf, "artifact=native", "run=fuzz-1", "seeds=3")
+      run_verb("check_coverage_allowlist", "run=allow-1")
+
+      expect(asked).to eq([["project_wasm_browser", @shelf],
+                           ["rust_conformance", @shelf, steps, "native"],
+                           ["rust_conformance_fuzz", @shelf, "native", "3", "25"],
+                           ["rust_coverage", "--check-allowlist"]])
+    end
+
+    it "answers rust_coverage as a report and writes no journal entry of its own" do
+      toolchain_says(out: "#{'=' * 72}\nShelf - 2 constructs\n")
+      before = @hecks.registry.event_log.to_a.size
+
+      out, status = run_verb("rust_coverage", "shelf", "codegen=rust")
+
+      expect(status).to eq(0)
+      expect(out).to include("Shelf - 2 constructs")
+      expect(asked).to eq([["rust_coverage", "shelf", "--codegen=rust"]])
+      expect(@hecks.registry.event_log.to_a.size).to eq(before)
+    end
+
+    it "refuses a domain whose name cannot be a Rust module before anything is asked" do
+      toolchain_says
+
+      out, status = run_verb("project_rust", "Shelf", "run=rust-2")
+
+      expect(status).to eq(1)
+      expect(out).to include("must match")
+      expect(asked).to be_empty
+    end
+
+    it "refuses a rust_coverage codegen that is neither ruby nor rust" do
+      out, status = run_verb("rust_coverage", "shelf", "codegen=go")
+
+      expect(status).to eq(1)
+      expect(out).to include("must match")
     end
   end
 
