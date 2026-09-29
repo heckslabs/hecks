@@ -10,6 +10,9 @@
 # (`Hecks::Fuzzing::FormCensus`). Compared against the ledger's Target.path rows unless --against.
 # "Nothing new" can also mean the domain's form is not yet named in `FormCensus::FORMS`.
 
+require_relative "../lib/hecks/three_zero"
+Hecks::ThreeZero.notice("qa_domain_novelty")
+
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
 
 require "hecks"

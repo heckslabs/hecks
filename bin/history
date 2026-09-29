@@ -5,6 +5,9 @@
 #
 #   bin/history <domain>
 
+require_relative "../lib/hecks/three_zero"
+Hecks::ThreeZero.notice("history")
+
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
 
 require "hecks"

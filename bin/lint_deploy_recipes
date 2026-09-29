@@ -8,6 +8,9 @@
 #
 # Exits 0 when clean; exits 1 with a report otherwise.
 
+require_relative "../lib/hecks/three_zero"
+Hecks::ThreeZero.notice("lint_deploy_recipes")
+
 require "tmpdir"
 require "fileutils"
 require "open3"

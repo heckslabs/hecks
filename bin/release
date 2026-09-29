@@ -7,6 +7,9 @@
 #   bin/release --dry-run    # every check and build, nothing tagged or published
 #   bin/release              # tag, gem, then wait for CI to publish the client
 
+require_relative "../lib/hecks/three_zero"
+Hecks::ThreeZero.notice("release")
+
 $LOAD_PATH.unshift(File.expand_path("../lib", __dir__))
 
 require "optparse"

@@ -6,6 +6,9 @@
 #
 #   bin/release_gem   (pushes the version lib/hecks/version.rb declares)
 
+require_relative "../lib/hecks/three_zero"
+Hecks::ThreeZero.notice("release_gem")
+
 require "fileutils"
 
 ROOT_DIR = File.expand_path("..", __dir__)

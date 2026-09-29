@@ -6,6 +6,9 @@
 #   bin/ir <domain> [--translations]
 #   bin/ir --meta                     the self-hosted language's own IR
 
+require_relative "../lib/hecks/three_zero"
+Hecks::ThreeZero.notice("ir")
+
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
 require "hecks/cli/ir"
 

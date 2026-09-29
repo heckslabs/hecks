@@ -4,6 +4,9 @@
 # Checks Rust comments against docs/COMMENT_STYLE_GUIDE_RUST.md, fixing the
 # mechanical categories with --fix. Not a CI gate; run by hand.
 
+require_relative "../lib/hecks/three_zero"
+Hecks::ThreeZero.notice("standardize_comments_rust")
+
 require "json"
 require "optparse"
 load File.join(__dir__, "standardize_comments")

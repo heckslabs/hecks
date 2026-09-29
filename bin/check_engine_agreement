@@ -3,6 +3,9 @@
 # Fails when a query engine re-grows its own comparator dispatch, or when a declared
 # comparator lacks a shared Comparison case or a cross-engine agreement spec. Grep-based.
 
+require_relative "../lib/hecks/three_zero"
+Hecks::ThreeZero.notice("check_engine_agreement")
+
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
 require "hecks"
 

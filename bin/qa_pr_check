@@ -11,6 +11,9 @@
 # A commit's Clearance is minted once and never re-asked; pending checks are skipped, since
 # the CI port has no way to say "ask again later".
 
+require_relative "../lib/hecks/three_zero"
+Hecks::ThreeZero.notice("qa_pr_check")
+
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
 
 require "hecks"

@@ -10,6 +10,9 @@
 # QA_REPO_DIR picks the checkout for the repo steps; QA_SWEEP_DOMAIN_DIR is inherited.
 # It never logs bugs, releases holds or opens PRs; those stay with a person or agent.
 
+require_relative "../lib/hecks/three_zero"
+Hecks::ThreeZero.notice("qa_tick")
+
 require "open3"
 require "rbconfig"
 

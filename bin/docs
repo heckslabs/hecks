@@ -11,6 +11,9 @@
 
 # Logic lives in `Hecks::CLI::Document`, which `hecks docs` also runs.
 
+require_relative "../lib/hecks/three_zero"
+Hecks::ThreeZero.notice("docs")
+
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
 require "hecks/cli/document"
 

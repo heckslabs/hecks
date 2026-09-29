@@ -5,6 +5,9 @@
 #
 #   bin/rust_conformance_fuzz <domain> <native|path/to/module.wasm> [seeds] [steps]
 
+require_relative "../lib/hecks/three_zero"
+Hecks::ThreeZero.notice("rust_conformance_fuzz")
+
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
 
 require "hecks"

@@ -13,6 +13,9 @@
 #   bin/rust_conformance <domain> <script.json> build
 #     Builds the domain's own Cargo feature (its directory basename) and runs that binary.
 
+require_relative "../lib/hecks/three_zero"
+Hecks::ThreeZero.notice("rust_conformance")
+
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
 
 require "hecks"

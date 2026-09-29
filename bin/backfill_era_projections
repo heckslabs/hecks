@@ -5,6 +5,9 @@
 #
 #   bin/backfill_era_projections <domain path>
 
+require_relative "../lib/hecks/three_zero"
+Hecks::ThreeZero.notice("backfill_era_projections")
+
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
 
 require "hecks"

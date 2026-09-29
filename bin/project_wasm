@@ -7,6 +7,9 @@
 #
 # Produces rust/dist/<domain>.wasm; run with `wasmtime run rust/dist/<domain>.wasm < script.json`.
 
+require_relative "../lib/hecks/three_zero"
+Hecks::ThreeZero.notice("project_wasm")
+
 domain = ARGV.shift or abort "usage: bin/project_wasm <domain>"
 
 root = File.expand_path("..", __dir__)

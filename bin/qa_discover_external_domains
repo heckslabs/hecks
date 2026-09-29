@@ -8,6 +8,9 @@
 #   bin/qa_discover_external_domains --max-depth 4
 #   bin/qa_discover_external_domains --known-path <path> ...   # bypass the ledger read
 
+require_relative "../lib/hecks/three_zero"
+Hecks::ThreeZero.notice("qa_discover_external_domains")
+
 require "open3"
 require "json"
 

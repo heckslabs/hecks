@@ -1,0 +1,119 @@
+# Each bin/ script and exe/hecks route, and the hecks 3.0 form that replaces it (ADR 0080, section 7).
+---
+argument_gate_matrix: hecks argument_gate_matrix [--confirm] (writes only with --confirm)
+backfill_era_projections: hecks backfill_projections <domain>
+behaviors: hecks run_behaviors <path>
+bench: hecks bench [domains=pizzas,banking] [targets=] [iterations=1000] [warmup=200]
+  [runs=3] [rust_binary=] [format=markdown] [output=]
+canonicalise: hecks canonicalise <file.json>
+check_engine_agreement: hecks check_engine_agreement
+check_era: hecks check_era <url> expected=era-file [timeout=10]
+codemod_hoist_local_givens: hecks hoist_local_givens --confirm
+codemod_implicit_append_fields: hecks drop_implicit_append_fields --confirm
+compact: hecks compact <domain> [aggregates=A,B] --confirm
+console: hecks console [domain]
+corpus: hecks rust_domains; hecks regen_order; hecks corpus_rust_coverage
+deploy_template_diff: hecks deploy diff before=a.yaml after=b.yaml [--json] [--strict]
+doc_coverage: hecks measure_doc_coverage
+docs: hecks docs [domain] [aggregate=Name]
+evolve: hecks word_status; hecks propose <word> context=X [body=none] [inner=] [opens=]
+  [fills=]; hecks rename <word> context=X to=Y; hecks propose_argument <word> context=X
+  kind=K [required=false] [at=N] [named=] [pairs_shape=]; the rest take <word> context=X
+expression_projection: hecks project_expression_tables [--stdout]
+follow: hecks follow <domain> [aggregate=Name] [interval=0.5] [--from-now]
+fuzz: hecks fuzz [domain] [seeds=20] [steps=30] [workers=] [adapter=memory]
+generate: hecks generate_sequence <domain> [seed=1] [steps=30] [adversarial=0.0]
+hecks_mcp_door: hecks mcp
+hecks_query_ir_mcp: hecks serve_query_ir_mcp
+heki_compact: hecks compact_heki <domain> [aggregates=A,B] --confirm
+history: hecks history <domain>
+ir: hecks ir [domain] [--translations] [--meta]
+lint_deploy_recipes: hecks deploy lint [makefiles=a,b]
+merge_tail: hecks merge_tail <domain> winners=id:old,id:new --confirm
+model_check: hecks model_check [domains=a,b] [--strict] [profile=client]
+narrate: hecks narrate [domain] [aggregate=Name]
+pattern-cases: hecks record_pattern_cases
+present: hecks present [port=4567]
+project: hecks refresh_projections <domain>
+project_bootstrap_table: hecks project_bootstrap_table
+project_cli: hecks project_cli [domains=a,b]
+project_deploy: hecks deploy project <domain> [tenant=] [schema=] [out=] [environment=]
+project_diagrams: hecks project_diagrams <domain> chapter=Name
+project_field_hints: hecks project_field_hints
+project_glossary: hecks glossary <domain> chapter=Name
+project_kernel_capabilities: hecks project_kernel_capabilities
+project_model: hecks project_model
+project_oidc: hecks deploy project_oidc [domains=a,b]
+project_parser_table: hecks project_parser_table
+project_refusal_wording: hecks project_refusal_wording
+project_reserved_names: hecks project_reserved_names
+project_rust: hecks project_rust <domain>
+project_rust_vocabulary: hecks project_rust_vocabulary
+project_tenant: hecks deploy provision <domain_dir> slug=s domain= realm= schema=
+  database= [adapter=PostgresEra]
+project_vocabulary: hecks project_vocabulary
+project_wasm: hecks build_wasm <domain>
+project_wasm_browser: hecks build_browser_wasm <domain>
+qa_concurrency_racer: not user-facing; ProcessPool starts it with domain= database=
+  schema= verb= args=
+qa_discover_external_domains: hecks quality_control discover_external_domains [projects_dir=~/Projects]
+  [max_depth=3] [known_paths=a,b]
+qa_domain_novelty: hecks quality_control judge_novelty <domain> against=a,b
+qa_generated_domains: hecks quality_control check_generated_domains [domains=3] [start=]
+  [forms=a,b] [seeds=5] [steps=25] [adversarial=0.3] [--rust] [shrink_budget=200]
+  [domain_shrink_budget=40] [promote=dir name=N] [--from-dials] [blueprint=] [sources=a,b]
+qa_log_bug: hecks quality_control log_bug sweep= title= demonstration= symptom= expectation=
+  submitter= triage=self_contained [tags=a,b] [reproduced=yes]
+qa_mine_combinations: hecks quality_control mine_combinations [candidates=3] [--rust]
+  [seeds=5] [steps=25] [adversarial=0.3] [repair_rounds=1] [agent=cmd] [from=dir]
+  [against=a,b] [--brief]
+qa_open_pr: hecks quality_control open_patch bug=BUG#n title=… [body=]; hecks quality_control
+  open_improvement angle=ANGLE-n title=… [body=]
+qa_postgres_migrate: hecks quality_control migrate_ledger domain_dir= heki_dir= [aggregates=A,B]
+  --confirm
+qa_postgres_role: hecks quality_control create_ledger_role <database> [role=hecks_qa]
+qa_pr_check: hecks quality_control check_pull_requests
+qa_seed_angles: hecks quality_control seed_angles
+qa_seed_targets: hecks quality_control seed_targets
+qa_sweep: hecks quality_control sweep [target] [--all] [seeds=] [steps=] [adversarial=]
+  [role_draw=] [dry_run_share=] [self_consistency=] [modes=a,b] [--persistence-parity]
+  [--no-parity]; hecks quality_control release_target <target> notes=text
+qa_tick: hecks quality_control tick
+query_ir: hecks ir_constructs [names=a,b]; hecks ir_duplicates [domains=a,b] [--meta];
+  hecks ir_impact name=N field=F
+reattest_era: hecks reattest <domain> era=N --confirm
+reference: hecks project_reference
+refresh_rspec_runtime_baseline: hecks refresh_runtime_baseline [workers=6] [from_run=ID]
+regen_codegen_domains: hecks regenerate_corpus [--check]
+regenerate_persistence_legacy_fixtures: hecks regenerate_legacy_fixtures --confirm
+release: hecks publish [--gem-only] [--npm-only] [--npm-local] [--no-wait] --confirm
+  (without --confirm, the old --dry-run)
+release_gem: hecks publish_gem --confirm
+rspec_io_parallel_files: hecks list_io_parallel_specs exclude=REGEX [tags=] [check=file]
+  [write=file]
+rspec_shard_files: hecks shard_specs group=1 groups=N [runtime_log=]
+run: hecks run [domain] script=steps.json, or hecks run [domain] <verb> name=value
+  …
+rust_conformance: hecks check_conformance <domain> script=steps.json [artifact=native]
+rust_conformance_fuzz: hecks fuzz_conformance <domain> artifact=native [seeds=10]
+  [steps=25]
+rust_coverage: hecks rust_coverage <module> [codegen=ruby]; hecks check_coverage_allowlist
+rust_kernel_coverage: hecks measure_kernel_coverage
+scaffold_translation: hecks scaffold_translation <domain>
+seed_semantics_corpus: hecks seed_semantics_corpus
+shape: hecks shape <domain>
+smoke_http: hecks smoke_http path=/p secret=… [url=] [header=] [scheme=timestamped]
+  [payload=] [payload_file=] [health_path=] [state_path=]
+smoke_test: hecks smoke_test [domain]
+spec_example: hecks run_spec_example file=path example=text
+standardize_comments: hecks report_comments paths=a,b [only=] [--json] [top=20]; hecks
+  check_comments paths=…; hecks fix_comments paths=… --confirm; hecks write_comment_baseline
+  --confirm; hecks check_comments_unchanged ref=REF
+standardize_comments_rust: hecks report_rust_comments paths=…; hecks check_rust_comments
+  paths=…; hecks fix_rust_comments paths=… --confirm
+statements: hecks statements <domain> chapter=Name
+stores: hecks stores <domain>
+stress_concurrency_specs: hecks stress_concurrency [runs=30] [parallel=] [seed_start=1]
+translation_audit: hecks audit_translation <domain>; hecks approve_translation <domain>
+  --confirm
+vendor_bluebook: hecks vendor <package[@version]> [from=path] [root=path]

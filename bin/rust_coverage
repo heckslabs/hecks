@@ -6,6 +6,9 @@
 #   bin/rust_coverage <domain> [--codegen=ruby|rust]
 #   bin/rust_coverage --check-allowlist
 
+require_relative "../lib/hecks/three_zero"
+Hecks::ThreeZero.notice("rust_coverage")
+
 require "fileutils"
 require "json"
 require "open3"

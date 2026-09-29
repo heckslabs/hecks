@@ -14,6 +14,9 @@
 # by `bin/qa_generated_domains --source`, whose report is this script's report.
 # Exit 0: all clean. 2: a finding (see .claude/skills/hecks_qa/SKILL.md). 1: operational error.
 
+require_relative "../lib/hecks/three_zero"
+Hecks::ThreeZero.notice("qa_mine_combinations")
+
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
 
 require "hecks"

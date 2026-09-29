@@ -13,6 +13,9 @@
 # `status != "retired"` givens evaluate through, since that would wedge every later boot.
 # Recover a broken file with `git checkout -- lib/hecks/bluebook/expression/projection.json`.
 
+require_relative "../lib/hecks/three_zero"
+Hecks::ThreeZero.notice("expression_projection")
+
 require "json"
 require "tempfile"
 

@@ -10,6 +10,9 @@
 # A directory prints every domain's label (files in subdirectories are
 # not read).
 
+require_relative "../lib/hecks/three_zero"
+Hecks::ThreeZero.notice("shape")
+
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
 
 require "hecks"

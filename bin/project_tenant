@@ -13,6 +13,9 @@
 #   bin/project_tenant <domain-directory> <slug> --domain=name --realm=name \
 #     --schema=name --database=name [--adapter=PostgresEra]
 
+require_relative "../lib/hecks/three_zero"
+Hecks::ThreeZero.notice("project_tenant")
+
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
 require "hecks"
 # --adapter=PostgresEra needs the era persistence plugin (ADR 0033).

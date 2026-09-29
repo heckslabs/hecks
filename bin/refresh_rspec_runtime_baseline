@@ -12,6 +12,9 @@
 # every leg uploaded one; a partial set would skew the split. Runner seconds differ from a
 # laptop's, so a local baseline misses subprocess-heavy specs. The local mode refuses a red run.
 
+require_relative "../lib/hecks/three_zero"
+Hecks::ThreeZero.notice("refresh_rspec_runtime_baseline")
+
 require "fileutils"
 require "json"
 require "open3"

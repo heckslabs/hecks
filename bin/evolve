@@ -18,6 +18,9 @@
 
 # Mutating commands regenerate the golden and run the gates; a failing gate restores every file.
 
+require_relative "../lib/hecks/three_zero"
+Hecks::ThreeZero.notice("evolve")
+
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
 require "hecks/grammar/evolve"
 

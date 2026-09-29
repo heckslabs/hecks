@@ -7,6 +7,9 @@
 #
 # Single-runtime on purpose; the cross-runtime differential is spec/rust_conformance_fuzz_spec.rb.
 
+require_relative "../lib/hecks/three_zero"
+Hecks::ThreeZero.notice("fuzz")
+
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
 
 require "hecks"

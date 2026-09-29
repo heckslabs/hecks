@@ -5,6 +5,9 @@
 #
 #   bin/qa_postgres_role <database> [--role <role>]   # role defaults to hecks_qa
 
+require_relative "../lib/hecks/three_zero"
+Hecks::ThreeZero.notice("qa_postgres_role")
+
 require "pg"
 
 def usage_and_exit(message = nil)

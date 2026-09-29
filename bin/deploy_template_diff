@@ -7,6 +7,9 @@
 #
 # Exit status: 0 no diff, 1 diff, 2 bad input.
 
+require_relative "../lib/hecks/three_zero"
+Hecks::ThreeZero.notice("deploy_template_diff")
+
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
 require "optparse"
 require "hecks/projections/deploy/template_diff"

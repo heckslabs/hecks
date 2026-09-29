@@ -10,6 +10,9 @@
 
 # The logic is `Hecks::CLI::Run` (lib/hecks/cli/run.rb), which `hecks run` also runs.
 
+require_relative "../lib/hecks/three_zero"
+Hecks::ThreeZero.notice("run")
+
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
 
 require "hecks/cli/run"

@@ -3,6 +3,9 @@
 # Reruns the thread-safety specs under many seeds, several OS processes at a time.
 # A clean run shows only "not in this many tries", never "impossible".
 
+require_relative "../lib/hecks/three_zero"
+Hecks::ThreeZero.notice("stress_concurrency_specs")
+
 require "etc"
 require "open3"
 require "fileutils"

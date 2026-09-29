@@ -11,6 +11,9 @@
 # A fix is written only when it leaves the file's non-comment tokens unchanged.
 # CI runs `--check lib/hecks` as a gate (.github/workflows/ci-checks.yml).
 
+require_relative "../lib/hecks/three_zero"
+Hecks::ThreeZero.notice("standardize_comments")
+
 require "English"
 require "json"
 require "optparse"

@@ -12,6 +12,9 @@
 # Only aggregates with a `<storage_name>.heki` file in <heki_data_dir> are considered; trailing
 # names (`hecks_name` or `storage_name`) narrow further.
 
+require_relative "../lib/hecks/three_zero"
+Hecks::ThreeZero.notice("qa_postgres_migrate")
+
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
 
 require "hecks"

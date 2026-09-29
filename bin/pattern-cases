@@ -1,4 +1,7 @@
 #!/usr/bin/env ruby
+require_relative "../lib/hecks/three_zero"
+Hecks::ThreeZero.notice("pattern-cases")
+
 require "json"
 
 # Records expected match results for `pattern:` cases, read by spec/pattern_subset_spec.rb.

@@ -4,4 +4,7 @@
 #
 #   bin/project_refusal_wording
 
+require_relative "../lib/hecks/three_zero"
+Hecks::ThreeZero.notice("project_refusal_wording")
+
 exec File.expand_path("project_rust_vocabulary", __dir__), *ARGV

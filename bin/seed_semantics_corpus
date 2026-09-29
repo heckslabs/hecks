@@ -10,6 +10,9 @@
 # The seeded expectation is the definition, not a recording: both runtimes are compared to it.
 # `occurred_at` is stripped from events (C7.3/C9.1); refusals keep verb, error and kind (C8.2).
 
+require_relative "../lib/hecks/three_zero"
+Hecks::ThreeZero.notice("seed_semantics_corpus")
+
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
 
 require "json"

@@ -12,6 +12,9 @@
 # demonstration must still look like runnable code, not prose.
 # Exit 0: logged, with `logged BUG#n …` as the last stdout line. Exit 1: refused, nothing written.
 
+require_relative "../lib/hecks/three_zero"
+Hecks::ThreeZero.notice("qa_log_bug")
+
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
 
 require "hecks"

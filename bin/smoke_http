@@ -12,6 +12,9 @@
 #
 # Prefer SMOKE_WEBHOOK_SECRET over `--secret`: an argument shows in `ps`.
 
+require_relative "../lib/hecks/three_zero"
+Hecks::ThreeZero.notice("smoke_http")
+
 require "net/http"
 require "openssl"
 require "json"

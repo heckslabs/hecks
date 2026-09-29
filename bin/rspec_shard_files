@@ -10,6 +10,9 @@
 #
 # Usage: bin/rspec_shard_files <group 1-indexed> <num_groups> [runtime_log_path]
 
+require_relative "../lib/hecks/three_zero"
+Hecks::ThreeZero.notice("rspec_shard_files")
+
 require "parallel_tests/test/runner"
 
 group_arg, num_groups_arg, runtime_log = ARGV

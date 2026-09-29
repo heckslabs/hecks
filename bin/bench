@@ -10,6 +10,9 @@
 #
 # Targets that need an unreachable Postgres or a missing `cargo` are skipped.
 
+require_relative "../lib/hecks/three_zero"
+Hecks::ThreeZero.notice("bench")
+
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
 
 require "hecks"

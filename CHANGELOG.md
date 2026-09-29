@@ -7,6 +7,10 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+**Notice: what changes in 3.0.0 (ADR 0080).** 3.0.0 removes every `bin/` script. Each becomes a command on the Hecks domain, run through the generated `hecks` launcher, and `exe/hecks` takes new argument forms. 2.10 changes no behavior; it only says what is coming:
+- **Scripts and routes.** Each `bin/` script and `exe/hecks` route prints its 3.0.0 form to stderr, for example "bin/compact is removed in 3.0.0; it becomes `hecks compact <domain> [aggregates=A,B] --confirm`". It prints only when stderr is a terminal, so pipes, CI logs and the MCP stdio doors see nothing, and `HECKS_NO_3_0_NOTICE` silences it everywhere.
+- **Generated deploy files.** Files from `bin/project_deploy` carry a comment naming the 3.0.0 form of each `bin/` script they call, so regenerate them before upgrading.
+
 ## [2.9.0] - 2026-09-28
 
 **Feature: `POST /members/delete` soft-deletes a disabled member.**

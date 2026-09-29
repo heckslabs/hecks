@@ -13,6 +13,9 @@
 #
 #   bin/rspec_io_parallel_files '<exclude-pattern regex>' -- --tag io --tag ~fuzzing
 
+require_relative "../lib/hecks/three_zero"
+Hecks::ThreeZero.notice("rspec_io_parallel_files")
+
 require "json"
 require "open3"
 

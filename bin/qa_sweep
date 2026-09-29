@@ -14,6 +14,9 @@
 # Exit codes: 0 clean; 1 operational error; 2 found something (the sweep stays open and the
 # target is suspended by the ledger's SuspendOnSurprise policy until a person runs --release).
 
+require_relative "../lib/hecks/three_zero"
+Hecks::ThreeZero.notice("qa_sweep")
+
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
 
 require "hecks"

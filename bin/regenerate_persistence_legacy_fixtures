@@ -5,6 +5,9 @@
 #
 #   bin/regenerate_persistence_legacy_fixtures
 
+require_relative "../lib/hecks/three_zero"
+Hecks::ThreeZero.notice("regenerate_persistence_legacy_fixtures")
+
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
 require_relative "../spec/support/persistence_legacy_fixture"
 require "hecks/ports/persistence/plugins/era"

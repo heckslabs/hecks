@@ -3,6 +3,9 @@
 # MCP server exposing Hecks::QueryIR's queries as tools, over newline-delimited JSON-RPC on stdio.
 # Stdio only and unauthenticated (ADR 0062); query logic lives in lib/hecks/query_ir.rb.
 
+require_relative "../lib/hecks/three_zero"
+Hecks::ThreeZero.notice("hecks_query_ir_mcp")
+
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
 require "hecks/mcp_stdio_guard"
 Hecks::McpStdioGuard.enforce_stdio!(server: "hecks-query-ir")

@@ -4,6 +4,9 @@
 # Checks that an example exists; spec/reference_doctest_spec.rb checks that it passes.
 # `ruby skip` fences and hidden `<!-- doctest:boot -->` blocks do not count as examples.
 
+require_relative "../lib/hecks/three_zero"
+Hecks::ThreeZero.notice("doc_coverage")
+
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
 require "hecks"
 require "hecks/doc/reference"

@@ -108,6 +108,8 @@ module Hecks
     # @raise [SystemExit] when the subcommand exits the process itself
     def dispatch(name, argv)
       program = "hecks #{name}"
+      require_relative "three_zero"
+      ThreeZero.route_notice(name)
       case name
       when "run"
         require_relative "cli/run"

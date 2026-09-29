@@ -5,6 +5,9 @@
 #   bin/statements <domain-path> <ChapterName>
 #   bin/statements examples/pizzas Pizzas
 
+require_relative "../lib/hecks/three_zero"
+Hecks::ThreeZero.notice("statements")
+
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
 
 require "hecks"

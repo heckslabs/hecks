@@ -6,6 +6,9 @@
 #
 #   bin/project_bootstrap_table
 
+require_relative "../lib/hecks/three_zero"
+Hecks::ThreeZero.notice("project_bootstrap_table")
+
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
 
 require "hecks"

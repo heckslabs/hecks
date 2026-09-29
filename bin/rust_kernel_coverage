@@ -7,6 +7,9 @@
 # Existence is checked instead of a marker comment, which can be pasted into the wrong file.
 # QueryComparator is absent on purpose: it is one flat file with no per-variant files to check.
 
+require_relative "../lib/hecks/three_zero"
+Hecks::ThreeZero.notice("rust_kernel_coverage")
+
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
 
 require "hecks"

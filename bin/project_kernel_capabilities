@@ -10,6 +10,9 @@
 #
 #   bin/project_kernel_capabilities
 
+require_relative "../lib/hecks/three_zero"
+Hecks::ThreeZero.notice("project_kernel_capabilities")
+
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
 
 require "hecks"

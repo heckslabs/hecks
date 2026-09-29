@@ -12,6 +12,9 @@
 #   open http://localhost:4567/Banking/Account/Overdrawn.html       # a query view
 #   curl  http://localhost:4567/Banking/Account/Debit               # the command's shape, as JSON
 
+require_relative "../lib/hecks/three_zero"
+Hecks::ThreeZero.notice("present")
+
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
 
 require "hecks/forms"

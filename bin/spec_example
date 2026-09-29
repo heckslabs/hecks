@@ -7,6 +7,9 @@
 #
 # The exit status is RSpec's own: 0 when every example passed.
 
+require_relative "../lib/hecks/three_zero"
+Hecks::ThreeZero.notice("spec_example")
+
 require "rspec/core"
 
 abort "usage: bin/spec_example <spec_file> <example description substring>" if ARGV.length != 2

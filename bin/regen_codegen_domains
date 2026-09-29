@@ -12,6 +12,9 @@
 #                                      # diff under rust/src/generated/ or
 #                                      # rust/Cargo.toml (what CI runs)
 
+require_relative "../lib/hecks/three_zero"
+Hecks::ThreeZero.notice("regen_codegen_domains")
+
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
 require "hecks/corpus"
 

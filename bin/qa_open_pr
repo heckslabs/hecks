@@ -12,6 +12,9 @@
 # Idempotent: an open PR is not re-created and a recorded number is not re-recorded.
 # `QA_REPO_DIR` picks the checkout `git` runs in, so a spec can use a throwaway repo and fake `gh`.
 
+require_relative "../lib/hecks/three_zero"
+Hecks::ThreeZero.notice("qa_open_pr")
+
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
 
 require "hecks"

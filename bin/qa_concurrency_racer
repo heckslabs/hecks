@@ -9,6 +9,9 @@
 #
 # Prints one line, "succeeded", "refused" or "crashed:<class>: <message>", and always exits 0.
 
+require_relative "../lib/hecks/three_zero"
+Hecks::ThreeZero.notice("qa_concurrency_racer")
+
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
 
 require "hecks"

@@ -10,6 +10,9 @@
 # a missing overlay is an error, never a silent no-op. `--out=<dir>` writes
 # the generated recipe elsewhere, for a domain that lives in a client's repo.
 
+require_relative "../lib/hecks/three_zero"
+Hecks::ThreeZero.notice("project_deploy")
+
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
 require "hecks"
 require "fileutils"
@@ -165,6 +168,8 @@ rescue ArgumentError => e
   abort e.message
 end
 
+# Name the 3.0.0 form of every bin/ script the generated Makefile and scripts call.
+artifact = Hecks::ThreeZero.annotate_deploy_files(artifact)
 written = Hecks::Projector.write(artifact, out_dir, as: :files)
 
 written.each { |path| puts "wrote #{path}" }

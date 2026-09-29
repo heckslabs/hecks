@@ -5,6 +5,9 @@
 #
 #   bin/check_era <url> <expected-era-file> [--timeout=<seconds>]
 
+require_relative "../lib/hecks/three_zero"
+Hecks::ThreeZero.notice("check_era")
+
 require_relative "../lib/hecks/ports/persistence/plugins/era/expected_era"
 
 timeout = 10
