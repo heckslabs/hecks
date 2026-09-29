@@ -82,7 +82,7 @@ The language chapters serve both audiences: clients' domains run on them, and ma
 
 QualityControl's chapter, hecksagon and adapters move from `qa/bluebook/` and `qa/adapters/` into `lib/hecks/quality_control/` so they ship with the rest. What belongs to this repository's QA practice stays in `qa/`: the `.world` file naming the ledger database, `settings.yml`, the stress domains and the specs. The QA ledger keeps its PostgresEra era and tables, because they are keyed by the chapter name, which does not change.
 
-Two chapters are named Translation today; section 5 merges them before Translation is attached.
+Two chapters are named Translation today; section 6 merges them before Translation is attached.
 
 Some chapters stay out on purpose:
 
@@ -105,7 +105,21 @@ end
 
 `attaches` stands for the attaching word; see Open items.
 
-### 5. One Translation chapter
+### 5. Handles on the hand-written floor
+
+The Bluebook chapter's own vision names what stays hand-written: "the interpreter — evaluating a predicate held as data — and IO". That floor is not modelled as behaviour, but Hecks keeps a record of every part of it, so each part can be listed and asked about through `hecks`.
+
+| Part of the floor | Handle | Held by | For |
+| --- | --- | --- | --- |
+| Driven adapters: Memory, Heki, Sqlite, Postgres, PostgresEra, D1, Lambda and the rest | Their `.adapter` declarations, which `lib/hecks/adapters/driven/` already holds, load as records of the attached Adapter chapter. What a domain today only learns at boot, such as whether an adapter can save saga state, is stated in the declaration and becomes a query. | Adapter chapter | Both |
+| Framework members: Governance, Identity, Privacy, Compliance, ConsoleSettings | A catalog read from `Hecks::Framework.members` and `Hecks::Framework.providers_of`: which members exist and which capability each provides. Hecks reads them; it does not attach or own them. | Custodian, Package | Clients |
+| A running Rust host | What a running `rust/host` reports about itself: its gem version and its era. `check_era` reads it through the HostHttp adapter. | Custodian, Host | Clients |
+| The Rust kernel | The capability tables `project_kernel_capabilities` generates, and how far the kernel covers the grammar (`rust_kernel_coverage`). | Codebase, Kernel | Maintainers |
+| The engine: parser, IR, facade, `CliRunner`, meta-validator | Read-only queries on the root Hecks aggregate: the gem version (`Hecks::VERSION`), the IR version (`Bluebook::Chapter::IR_VERSION`), and the state of the syntax-boot cache. The engine is what boots bluebooks, so it cannot be one. | Root | Both |
+
+The Hecks domain's own adapters (InProcessBoot, JournalStore, RustToolchain and the rest in this ADR) get `.adapter` declarations too, so they appear in the same list as the built-in ones.
+
+### 6. One Translation chapter
 
 Two chapters are named Translation, and they are two halves of one concept:
 
@@ -130,7 +144,7 @@ What changes with it:
 
 No data moves: the grammar chapter persists to Memory and keeps no records, and neither chapter has an IR golden.
 
-### 6. Where each script goes
+### 7. Where each script goes
 
 | Bluebook or part | Aggregate | Scripts |
 | --- | --- | --- |
@@ -142,9 +156,10 @@ No data moves: the grammar chapter persists to Memory and keeps no records, and 
 | Custodian | Build | `project_rust`, `project_wasm`, `project_wasm_browser`, `rust_coverage`, `rust_conformance`, `rust_conformance_fuzz` |
 | Custodian | Fuzzing | `fuzz`, `generate`, `bench` |
 | Deploy (existing) | Deploy | `project_deploy`, `lint_deploy_recipes`, `deploy_template_diff`, `project_oidc`, `project_tenant` |
-| Codebase | Language | `project_model`, `project_vocabulary`, `project_rust_vocabulary`, `project_refusal_wording`, `project_reserved_names`, `project_parser_table`, `project_bootstrap_table`, `project_kernel_capabilities`, `project_field_hints`, `expression_projection`, `reference`, `evolve` |
+| Codebase | Language | `project_model`, `project_vocabulary`, `project_rust_vocabulary`, `project_refusal_wording`, `project_reserved_names`, `project_parser_table`, `project_bootstrap_table`, `project_field_hints`, `expression_projection`, `reference`, `evolve` |
 | Codebase | Regeneration | `regen_codegen_domains` |
-| Codebase | Conformance | `rust_kernel_coverage`, `check_engine_agreement`, `doc_coverage`, `argument_gate_matrix` |
+| Codebase | Kernel | `project_kernel_capabilities`, `rust_kernel_coverage` |
+| Codebase | Conformance | `check_engine_agreement`, `doc_coverage`, `argument_gate_matrix` |
 | Codebase | Style | `standardize_comments`, `standardize_comments_rust`, `canonicalise` |
 | Codebase | Codemod | `codemod_hoist_local_givens`, `codemod_implicit_append_fields` |
 | Codebase | TestSuite | `rspec_shard_files`, `rspec_io_parallel_files`, `refresh_rspec_runtime_baseline`, `spec_example`, `stress_concurrency_specs`, `regenerate_persistence_legacy_fixtures`, `seed_semantics_corpus`, `pattern-cases` |
@@ -158,7 +173,7 @@ Building for the Rust host is split by the same test. Custodian's Build generate
 
 `project_refusal_wording` is an alias for `project_rust_vocabulary`; it becomes a second name for the same Language command, not a command of its own.
 
-### 7. QualityControl
+### 8. QualityControl
 
 The rules hand-coded in `qa_open_pr` and `qa_pr_check` become `given`s on `Patch.Open` and `Improvement.Open`: the branch-prefix check, the per-day PR cap, a fix commit being an ancestor of `HEAD`, and the angle being under investigation. Their `git` and `gh` calls move into a `GitPr` adapter. The declared `IssueTracker` port gets a bound adapter.
 
@@ -193,6 +208,7 @@ The rules hand-coded in `qa_open_pr` and `qa_pr_check` become `given`s on `Patch
 ## Open items
 
 - What Custodian's Build compiles against outside a checkout. `project_rust` and `project_wasm` build on the Rust kernel crate under `rust/`, which the gem does not package (`spec.files` is `lib/**` plus `exe/hecks`), and client domains deploying to `rust/host` build from a hecks checkout today. Either the gem carries the kernel sources, or the RustToolchain adapter fetches the crate at the gem's own tag.
+- Whether the `.adapter` language can already state what an adapter supports (saga state, transactions, the outbox), or needs a word for it before those become queries.
 - How the checkout `given` tells a hecks checkout from an installed gem: the presence of `rust/` and `spec/`, a marker file, or the gem's own install path.
 - If a Ruby deployment ever needs a smaller footprint on disk, Deploy prunes the unloaded tooling when it builds the image, instead of the gem leaving it out.
 - The word that attaches a chapter. `uses_framework` loads only from `lib/hecks/framework/bluebook/` and `uses_embryonaut_bluebook` only from the vendored registry; attaching a chapter from its own directory needs a new hecksagon word or a way to register the attached chapters as members.
