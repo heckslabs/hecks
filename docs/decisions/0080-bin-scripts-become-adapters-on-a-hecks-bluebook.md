@@ -89,7 +89,7 @@ The language chapters serve both audiences: clients' domains run on them, and ma
 
 QualityControl's chapter, hecksagon and adapters move from `qa/bluebook/` and `qa/adapters/` into `lib/hecks/quality_control/` so they ship with the rest. What belongs to this repository's QA practice stays in `qa/`: the `.world` file naming the ledger database, `settings.yml`, the stress domains and the specs. The QA ledger keeps its PostgresEra era and tables, because they are keyed by the chapter name, which does not change.
 
-Two chapters are named Translation today; section 6 merges them before Translation is attached.
+Two chapters are named Translation today; Hecks attaches only the language's (section 6).
 
 Some chapters stay out on purpose:
 
@@ -141,54 +141,130 @@ Three rules keep the Hecks domain beside a client domain, not in front of it:
 2. **The Hecks domain reaches a target domain only through the DomainRuntime port.** It boots and operates on another domain the way any adapter-driven caller would, and never through the runtime's internals.
 3. **Booting the Hecks domain depends on no Hecks command.** It boots the way any domain boots, without `exe/hecks` or any of its own verbs. The committed `exe/hecks` stays the bootstrap, so regenerating the launcher never needs a working launcher.
 
-### 6. One Translation chapter
+### 6. Translation: attach the language's chapter only
 
-Two chapters are named Translation, and they are two halves of one concept:
+Two chapters are named Translation: the grammar's register of rule kinds (`lib/hecks/grammar/translation.bluebook`) and the language's meta-model of an edge file (`lib/hecks/language/translation/`). They are two halves of one concept, and [ADR 0082](0082-the-two-translation-chapters-become-one.md) merges them.
 
-- `lib/hecks/grammar/translation.bluebook` is the register of rule kinds. A `Rule` moves from proposed to admitted to retired and must execute in at least two targets before it is admitted. Its `Map` aggregate is an edge between two eras.
-- `lib/hecks/language/translation/` is the meta-model of one `translations/*.bluebook` edge file: the `Translation` aggregate (domain, from era, to era) and `TranslationAggregate` with its typed rule lists. `MetaValidator` loads it into the shared grammar registry, and `TranslationJudge` dispatches to it.
-
-They overlap. `Rule.Kind` repeats the language chapter's rule words, held equal only by `spec/translation_vocabulary_conformance_spec.rb`, and `Map` duplicates the `Translation` aggregate. They have never shared a registry: `Hecks::Grammar.grammar_chapters` loads the grammar chapter alone. That separation is the only reason the shared name works today, and attaching both to Hecks would end it.
-
-They become one chapter, spread over files the way `lib/hecks/language/bluebook/` is:
-
-- `grammar/translation.bluebook` moves to `lib/hecks/language/translation/rule.bluebook` and keeps opening `Hecks.bluebook "Translation"`.
-- `Map` folds into `Translation` and `TranslationAggregate`, so an edge has one aggregate.
-- `Rule` is where rule kinds are declared. The language chapter's rule words read from it, so the conformance spec that holds two lists equal is no longer needed.
-- The `Translation` block in `lib/hecks/grammar/grammar.hecksagon` goes; the merged chapter is wired where the language chapter already is.
-
-What changes with it:
-
-- `Hecks::Grammar.grammar_chapters`, and the globs in `lib/hecks/codemod.rb` and `lib/hecks/corpus.rb`, point at the new file.
-- `spec/parser_parity_spec.rb` parses Translation as a chapter of several files.
-- The corpus replay `spec/corpus/translation.json` loses its `Translation::Map.*` verbs in favour of the edge aggregate's.
-- SyntaxBoot's disk cache is keyed over every chapter in the shared registry, so the merge invalidates it once.
-
-No data moves: the grammar chapter persists to Memory and keeps no records, and neither chapter has an IR golden.
+3.0 does not wait for that. Hecks attaches only the language's Translation chapter. The grammar chapter stays unattached, as it is today, since it only ever loads alone in `Hecks::Grammar.grammar_chapters`. The names never meet, so nothing is renamed.
 
 ### 7. Where each script goes
 
-| Bluebook or part | Aggregate | Scripts |
+Every script becomes one or more commands or queries, named for the domain action (section 12). The launcher column shows the 3.0 form; the Hecks domain's own verbs are bare, and an attached chapter's verbs follow its name (`hecks quality_control …`, `hecks deploy …`). `<x>` is the positional identifying argument, `--flag` a boolean, `name=value` everything else. Destructive commands dry-run without `--confirm`.
+
+**Custodian, for clients**
+
+| Script | Aggregate · command | Launcher |
 | --- | --- | --- |
-| Custodian | Introspection | `ir`, `shape`, `stores`, `history`, `statements`, `narrate`, `docs`, `project_diagrams`, `project_glossary`, `model_check` |
-| Custodian | Operation | `run`, `project`, `behaviors`, `console`, `follow`, `smoke_test`, `smoke_http` |
-| Custodian | Host | `check_era` |
-| Custodian | Era | `merge_tail`, `reattest_era`, `backfill_era_projections`, `scaffold_translation`, `translation_audit`, `compact`, `heki_compact` |
-| Custodian | Package | `vendor_bluebook` |
-| Custodian | Door | `project_cli`, `hecks_mcp_door` |
-| Custodian | Build | `project_rust`, `project_wasm`, `project_wasm_browser`, `rust_coverage`, `rust_conformance`, `rust_conformance_fuzz` |
-| Custodian | Fuzzing | `fuzz`, `generate`, `bench` |
-| Deploy (existing) | Deploy | `project_deploy`, `lint_deploy_recipes`, `deploy_template_diff`, `project_oidc`, `project_tenant` |
-| Codebase | Language | `project_model`, `project_vocabulary`, `project_rust_vocabulary`, `project_refusal_wording`, `project_reserved_names`, `project_parser_table`, `project_bootstrap_table`, `project_field_hints`, `expression_projection`, `reference`, `evolve` |
-| Codebase | Regeneration | `regen_codegen_domains` |
-| Codebase | Kernel | `project_kernel_capabilities`, `rust_kernel_coverage` |
-| Codebase | Conformance | `check_engine_agreement`, `doc_coverage`, `argument_gate_matrix` |
-| Codebase | Style | `standardize_comments`, `standardize_comments_rust`, `canonicalise` |
-| Codebase | Codemod | `codemod_hoist_local_givens`, `codemod_implicit_append_fields` |
-| Codebase | TestSuite | `rspec_shard_files`, `rspec_io_parallel_files`, `refresh_rspec_runtime_baseline`, `spec_example`, `stress_concurrency_specs`, `regenerate_persistence_legacy_fixtures`, `seed_semantics_corpus`, `pattern-cases` |
-| Codebase | Corpus | `corpus`, `query_ir`, `hecks_query_ir_mcp`, `present` |
-| Codebase | Publishing | `release`, `release_gem` |
-| QualityControl (existing) | as listed per script | `qa_tick`, `qa_sweep`, `qa_pr_check`, `qa_open_pr`, `qa_log_bug`, `qa_seed_angles`, `qa_seed_targets`, `qa_generated_domains`, `qa_mine_combinations`, `qa_domain_novelty`, `qa_discover_external_domains`, `qa_postgres_migrate`, `qa_postgres_role`, `qa_concurrency_racer` |
+| `ir` | Introspection · IR (query) | `hecks ir [domain] [--translations] [--meta]` |
+| `shape` | Introspection · Shape (query) | `hecks shape <domain>` |
+| `stores` | Introspection · Stores (query) | `hecks stores <domain>` |
+| `history` | Introspection · History (query) | `hecks history <domain>` |
+| `statements` | Introspection · Statements (query) | `hecks statements <domain> chapter=Name` |
+| `narrate` | Introspection · Narrative (query) | `hecks narrative [domain] [aggregate=Name]` |
+| `docs` | Introspection · Document (query) | `hecks document [domain] [aggregate=Name]` |
+| `project_diagrams` | Introspection · Diagrams (query) | `hecks diagrams <domain> chapter=Name` |
+| `project_glossary` | Introspection · Glossary (query) | `hecks glossary <domain> chapter=Name` |
+| `model_check` | Introspection · ModelCheck | `hecks model_check [domains=a,b] [--strict] [profile=client]` |
+| `run` | Operation · Run | `hecks run [domain] script=steps.json`, or `hecks run [domain] <verb> name=value …` |
+| `project` | Operation · RefreshProjections | `hecks refresh_projections <domain>` |
+| `behaviors` | Operation · RunBehaviors | `hecks run_behaviors <path>` |
+| `console` | Operation · OpenConsole | `hecks console [domain]` |
+| `follow` | Operation · Follow (query, streams) | `hecks follow <domain> [aggregate=Name] [interval=0.5] [--from-now]` |
+| `smoke_test` | Operation · SmokeTest | `hecks smoke_test [domain]` |
+| `smoke_http` | Operation · SmokeHttp | `hecks smoke_http path=/p secret=… [url=] [header=] [scheme=timestamped] [payload=] [payload_file=] [health_path=] [state_path=]` |
+| `check_era` | Host · CheckEra | `hecks check_era <url> expected=era-file [timeout=10]` |
+| `merge_tail` | Era · MergeTail | `hecks merge_tail <domain> winners=id:old,id:new --confirm` |
+| `reattest_era` | Era · Reattest | `hecks reattest <domain> era=N --confirm` |
+| `backfill_era_projections` | Era · BackfillProjections | `hecks backfill_projections <domain>` |
+| `scaffold_translation` | Era · ScaffoldTranslation (query) | `hecks scaffold_translation <domain>` |
+| `translation_audit` | Era · AuditTranslation (query) and Era · ApproveTranslation | `hecks audit_translation <domain>`; `hecks approve_translation <domain> --confirm` |
+| `compact` | Era · Compact | `hecks compact <domain> [aggregates=A,B] --confirm` |
+| `heki_compact` | Era · CompactHeki | `hecks compact_heki <domain> [aggregates=A,B] --confirm` |
+| (new) | Era · HoldFirst | `hecks hold_first <domain> --confirm` |
+| `vendor_bluebook` | Package · Vendor | `hecks vendor <package[@version]> [from=path] [root=path]` |
+| `project_cli` | Door · ProjectCli | `hecks project_cli [domains=a,b]` |
+| `hecks_mcp_door` | Door · ServeMcp | `hecks serve_mcp` (stdio) |
+| `project_rust` | Build · ProjectRust | `hecks project_rust <domain>` |
+| `project_wasm` | Build · BuildWasm | `hecks build_wasm <domain>` |
+| `project_wasm_browser` | Build · BuildBrowserWasm | `hecks build_browser_wasm <domain>` |
+| `rust_coverage` | Build · RustCoverage (query) and Build · CheckCoverageAllowlist | `hecks rust_coverage <module> [codegen=ruby]`; `hecks check_coverage_allowlist` |
+| `rust_conformance` | Build · CheckConformance | `hecks check_conformance <domain> script=steps.json [artifact=native]` |
+| `rust_conformance_fuzz` | Build · FuzzConformance | `hecks fuzz_conformance <domain> artifact=native [seeds=10] [steps=25]` |
+| `fuzz` | Fuzzing · Fuzz | `hecks fuzz [domain] [seeds=20] [steps=30] [workers=] [adapter=memory]` |
+| `generate` | Fuzzing · GenerateSequence (query) | `hecks generate_sequence <domain> [seed=1] [steps=30] [adversarial=0.0]` |
+| `bench` | Fuzzing · Bench | `hecks bench [domains=pizzas,banking] [targets=] [iterations=1000] [warmup=200] [runs=3] [rust_binary=] [format=markdown] [output=]` |
+
+**Deploy, for clients** (attached chapter)
+
+| Script | Aggregate · command | Launcher |
+| --- | --- | --- |
+| `project_deploy` | Deploy · Project | `hecks deploy project <domain> [tenant=] [schema=] [out=] [environment=]` |
+| `lint_deploy_recipes` | Deploy · Lint | `hecks deploy lint [makefiles=a,b]` |
+| `deploy_template_diff` | Deploy · Diff (query) | `hecks deploy diff before=a.yaml after=b.yaml [--json] [--strict]` |
+| `project_oidc` | Deploy · ProjectOidc | `hecks deploy project_oidc [domains=a,b]` |
+| `project_tenant` | Tenant · Provision | `hecks deploy provision <domain_dir> slug=s domain= realm= schema= database= [adapter=PostgresEra]` |
+
+**Codebase, for maintaining Hecks**
+
+| Script | Aggregate · command | Launcher |
+| --- | --- | --- |
+| `project_model` | Language · ProjectModel | `hecks project_model` |
+| `project_vocabulary` | Language · ProjectVocabulary | `hecks project_vocabulary` |
+| `project_rust_vocabulary` | Language · ProjectRustVocabulary | `hecks project_rust_vocabulary` |
+| `project_refusal_wording` | the same command, a second name | `hecks project_refusal_wording` |
+| `project_reserved_names` | Language · ProjectReservedNames | `hecks project_reserved_names` |
+| `project_parser_table` | Language · ProjectParserTable | `hecks project_parser_table` |
+| `project_bootstrap_table` | Language · ProjectBootstrapTable | `hecks project_bootstrap_table` |
+| `project_field_hints` | Language · ProjectFieldHints | `hecks project_field_hints` |
+| `expression_projection` | Language · ProjectExpressionTables | `hecks project_expression_tables [--stdout]` |
+| `reference` | Language · ProjectReference | `hecks project_reference` |
+| `evolve` | Language · WordStatus (query); Propose, Admit, Deprecate, Retire, Rename; ProposeArgument, AdmitArgument, DeprecateArgument, RetireArgument | `hecks word_status`; `hecks propose <word> context=X [body=none] [inner=] [opens=] [fills=]`; `hecks rename <word> context=X to=Y`; `hecks propose_argument <word> context=X kind=K [required=false] [at=N] [named=] [pairs_shape=]`; the rest take `<word> context=X` |
+| `project_kernel_capabilities` | Kernel · ProjectCapabilities | `hecks project_kernel_capabilities` |
+| `rust_kernel_coverage` | Kernel · MeasureCoverage | `hecks measure_kernel_coverage` |
+| `check_engine_agreement` | Conformance · CheckEngineAgreement | `hecks check_engine_agreement` |
+| `doc_coverage` | Conformance · MeasureDocCoverage | `hecks measure_doc_coverage` |
+| `argument_gate_matrix` | Conformance · ArgumentGateMatrix | `hecks argument_gate_matrix [--confirm]` (writes only with `--confirm`) |
+| `regen_codegen_domains` | Regeneration · RegenerateCorpus | `hecks regenerate_corpus [--check]` |
+| `standardize_comments` | Style · ReportComments (query), CheckComments, FixComments, WriteCommentBaseline, CheckCommentsUnchanged | `hecks report_comments paths=a,b [only=] [--json] [top=20]`; `hecks check_comments paths=…`; `hecks fix_comments paths=… --confirm`; `hecks write_comment_baseline --confirm`; `hecks check_comments_unchanged ref=REF` |
+| `standardize_comments_rust` | Style · ReportRustComments (query), CheckRustComments, FixRustComments | `hecks report_rust_comments paths=…`; `hecks check_rust_comments paths=…`; `hecks fix_rust_comments paths=… --confirm` |
+| `canonicalise` | Style · Canonicalise | `hecks canonicalise <file.json>` |
+| `codemod_hoist_local_givens` | Codemod · HoistLocalGivens | `hecks hoist_local_givens --confirm` |
+| `codemod_implicit_append_fields` | Codemod · DropImplicitAppendFields | `hecks drop_implicit_append_fields --confirm` |
+| `rspec_shard_files` | TestSuite · ShardSpecs (query) | `hecks shard_specs group=1 groups=N [runtime_log=]` |
+| `rspec_io_parallel_files` | TestSuite · ListIoParallelSpecs (query) | `hecks list_io_parallel_specs exclude=REGEX [tags=] [check=file] [write=file]` |
+| `refresh_rspec_runtime_baseline` | TestSuite · RefreshRuntimeBaseline | `hecks refresh_runtime_baseline [workers=6] [from_run=ID]` |
+| `spec_example` | TestSuite · RunSpecExample | `hecks run_spec_example file=path example=text` |
+| `stress_concurrency_specs` | TestSuite · StressConcurrency | `hecks stress_concurrency [runs=30] [parallel=] [seed_start=1]` |
+| `regenerate_persistence_legacy_fixtures` | TestSuite · RegenerateLegacyFixtures | `hecks regenerate_legacy_fixtures --confirm` |
+| `seed_semantics_corpus` | TestSuite · SeedSemanticsCorpus | `hecks seed_semantics_corpus` |
+| `pattern-cases` | TestSuite · RecordPatternCases | `hecks record_pattern_cases` |
+| `corpus` | Corpus · RustDomains, RegenOrder, RustCoverage (queries) | `hecks rust_domains`; `hecks regen_order`; `hecks corpus_rust_coverage` |
+| `query_ir` | Corpus · IrConstructs, IrDuplicates, IrImpact (queries) | `hecks ir_constructs [names=a,b]`; `hecks ir_duplicates [domains=a,b] [--meta]`; `hecks ir_impact name=N field=F` |
+| `hecks_query_ir_mcp` | Corpus · ServeQueryIrMcp | `hecks serve_query_ir_mcp` (stdio) |
+| `present` | Corpus · Present | `hecks present [port=4567]` |
+| `release` | Publishing · Publish | `hecks publish [--gem-only] [--npm-only] [--npm-local] [--no-wait] --confirm` (without `--confirm`, the old `--dry-run`) |
+| `release_gem` | Publishing · PublishGem | `hecks publish_gem --confirm` |
+
+**QualityControl, for maintainers** (attached chapter)
+
+| Script | Aggregate · command | Launcher |
+| --- | --- | --- |
+| `qa_tick` | Sweep · Tick | `hecks quality_control tick` |
+| `qa_sweep` | Sweep · Run, and Target · Release | `hecks quality_control sweep [target] [--all] [seeds=] [steps=] [adversarial=] [role_draw=] [dry_run_share=] [self_consistency=] [modes=a,b] [--persistence-parity] [--no-parity]`; `hecks quality_control release_target <target> notes=text` |
+| `qa_pr_check` | Clearance · CheckPullRequests | `hecks quality_control check_pull_requests` |
+| `qa_open_pr` | Patch · Open, and Improvement · Open | `hecks quality_control open_patch bug=BUG#n title=… [body=]`; `hecks quality_control open_improvement angle=ANGLE-n title=… [body=]` |
+| `qa_log_bug` | Bug · Log | `hecks quality_control log_bug sweep= title= demonstration= symptom= expectation= submitter= triage=self_contained [tags=a,b] [reproduced=yes]` |
+| `qa_seed_angles` | Angle · Seed | `hecks quality_control seed_angles` |
+| `qa_seed_targets` | Target · Seed | `hecks quality_control seed_targets` |
+| `qa_generated_domains` | Target · CheckGeneratedDomains | `hecks quality_control check_generated_domains [domains=3] [start=] [forms=a,b] [seeds=5] [steps=25] [adversarial=0.3] [--rust] [shrink_budget=200] [domain_shrink_budget=40] [promote=dir name=N] [--from-dials] [blueprint=] [sources=a,b]` |
+| `qa_mine_combinations` | Target · MineCombinations | `hecks quality_control mine_combinations [candidates=3] [--rust] [seeds=5] [steps=25] [adversarial=0.3] [repair_rounds=1] [agent=cmd] [from=dir] [against=a,b] [--brief]` |
+| `qa_domain_novelty` | Target · JudgeNovelty (query) | `hecks quality_control judge_novelty <domain> against=a,b` |
+| `qa_discover_external_domains` | Target · DiscoverExternalDomains (query) | `hecks quality_control discover_external_domains [projects_dir=~/Projects] [max_depth=3] [known_paths=a,b]` |
+| `qa_postgres_migrate` | Sweep · MigrateLedgerFromHeki | `hecks quality_control migrate_ledger domain_dir= heki_dir= [aggregates=A,B] --confirm` |
+| `qa_postgres_role` | Sweep · CreateLedgerRole | `hecks quality_control create_ledger_role <database> [role=hecks_qa]` |
+| `qa_concurrency_racer` | Sweep · Race (run only as a child process) | not user-facing; ProcessPool starts it with `domain= database= schema= verb= args=` |
+
+Internal flags that exist only for one tool to call itself (`qa_generated_domains --check/--binary/--match`) become a child command the ProcessPool adapter starts, not launcher arguments. Where a script's usage header disagreed with its code, the table follows the code.
 
 Publishing goes to Codebase rather than Custodian because it publishes this repository's gem, so it only runs in a checkout. The Release it advances lives in the root (section 5).
 
@@ -198,7 +274,7 @@ Building for the Rust host is split by the same test. Custodian's Build generate
 
 ### 8. QualityControl
 
-The rules hand-coded in `qa_open_pr` and `qa_pr_check` move onto `Patch.Open` and `Improvement.Open`. Three are `given`s today: the branch prefix (a `pattern:` on the branch), the bug being fixed and the angle being under investigation (givens that read through the reference, as `customer.status == "active"` does in the banking example). The other two follow [ADR 0081](0081-commands-declare-the-outside-facts-they-need-and-a-rule-across-records-gets-an-aggregate-that-owns-it.md), and stay in the `GitPr` adapter until it lands:
+The rules hand-coded in `qa_open_pr` and `qa_pr_check` move onto `Patch.Open` and `Improvement.Open`. Three are `given`s today: the branch prefix (a `pattern:` on the branch), the bug being fixed and the angle being under investigation (givens that read through the reference, as `customer.status == "active"` does in the banking example). The other two follow [ADR 0081](0081-commands-declare-the-outside-facts-they-need-and-a-rule-across-records-gets-an-aggregate-that-owns-it.md), and stay in the `GitPr` adapter until it lands in a 3.x minor after 3.0:
 
 - **The per-day PR cap** becomes a `DailyQuota` aggregate, identified by date, from which each `Patch.Open` takes a slot.
 - **"The fix commit is an ancestor of `HEAD`"** becomes a fact `Patch.Open` declares and the `GitPr` adapter answers at dispatch. Their `git` and `gh` calls move into a `GitPr` adapter. The declared `IssueTracker` port gets a bound adapter.
@@ -209,16 +285,29 @@ Under [ADR 0068](0068-releases-keep-their-pace-and-state-a-two-tier-promise.md) 
 
 - `exe/hecks` stops being a hand-written router and becomes the generated launcher. The command names stay, but arguments are projected from the bluebook by `CliRunner`, so flags and argument order change.
 - `bin/` goes. `Makefile`s that `project_deploy` generated in client repositories call `bin/<name>` and stop working until they are regenerated.
-- A domain whose chapter is named `Hecks` collides with the new Hecks domain.
-- `Translation::Map` is removed by the Translation merge.
+- `Hecks` becomes a reserved chapter name. A client chapter named `Hecks` is refused at boot with a message to rename it, through the reserved-names check `project_reserved_names` already maintains.
 - The gem's contents change: everything ships (section 3).
 
 ADR 0068's rule 4 gives a break that reaches an installed client site one release of warning where a warning is possible. The two parts that reach client sites get one:
 
-- **The last 2.x minor warns.** `exe/hecks` accepts the old argument forms and prints the new form beside each result, and `project_deploy` regenerates Makefiles against `hecks <verb>` while the old `bin/` paths still resolve. Each warning names 3.0.0 as the removal version.
+- **The last 2.x minor warns, as text only.** The new forms exist only in 3.0, so 2.x cannot run them. Instead each old command prints the form it becomes (for example "in 3.0: `hecks compact pizzas --confirm`"), and `project_deploy` notes in each Makefile it generates which `bin/` calls change. Each warning names 3.0.0 as the removal version.
 - **3.0.0 removes them.** The old argument forms and every `bin/` path go.
 
-Inside this repository the move is still one pass: there is never a second way for a maintainer to run a tool. Client pins move to `3.0.0` explicitly, because deploys pin exactly (ADR 0068, rule 3). 3.0.0 is the first release the root's Release aggregate records.
+Inside this repository the move is one pull request, so there is never a second way for a maintainer to run a tool. It is built as ordered commits, each keeping the whole suite green, so it can be reviewed and bisected one step at a time:
+
+1. The runtime-boundary guard spec.
+2. The launcher changes (section 12) and routing to attached chapters.
+3. The Hecks root, with the DomainRuntime and Workspace adapters.
+4. Custodian's aggregates, one commit each.
+5. Codebase's aggregates, one commit each.
+6. Attaching the language chapters, Tenancy and Deploy.
+7. Moving QualityControl into `lib/hecks/quality_control/`.
+8. Packaging the Rust workspace, and the gemspec.
+9. The generated `exe/hecks`.
+10. CI workflows, hooks and docs, pointed at the new commands.
+11. Deleting `bin/`.
+
+ Client pins move to `3.0.0` explicitly, because deploys pin exactly (ADR 0068, rule 3). 3.0.0 is the first release the root's Release aggregate records.
 
 ### 10. Details the layout settles
 
@@ -249,7 +338,7 @@ Inside this repository the move is still one pass: there is never a second way f
   - Holding the first era is its own Era command, `HoldFirst`, which an operator runs on purpose or the first boot runs as it does today.
 - **Where each part persists.** Each part binds its store in its world file, as any domain does:
   - **Custodian, for clients:** Sqlite under the client project's `.hecks/` directory by default, so a check's history lives beside the domain it checks.
-  - **Codebase, in this repository:** the same PostgresEra database as the QualityControl ledger, which CI can already reach, so history is shared across machines and CI runs.
+  - **Codebase, in this repository:** CI runs on main and in the merge queue journal to the same PostgresEra database as the QualityControl ledger, so history is shared. Pull-request runs use Memory and report without journaling, so no pull request's code gets database credentials. A maintainer's local runs journal to Sqlite under `.hecks/`, as a client's do.
   - **QualityControl:** unchanged, on PostgresEra.
 - **An adapter declares what it supports, in the port's own terms.** Today a `.adapter` declares only its `port`, `field`s and `secrets`, and what an adapter can do is found at runtime by asking the class (a missing `save_saga` produces a boot warning that saga state is lost on restart). Four pieces replace that:
   - **Optional operations.** A port marks some of its operations optional, such as `SaveSaga`, `LoadSaga` and `AppendOutbox` on the persistence port, and an adapter lists the optional ones it `implements`. A capability is an operation the port already defines, so no new vocabulary is needed.
@@ -258,6 +347,15 @@ Inside this repository the move is still one pass: there is never a second way f
   - **Conformance.** Every optional operation and guarantee has a shared conformance suite, and declaring one enrolls the adapter in it, as the adapter-parity specs do today. Boot also checks that the class implements each declared operation. A false claim fails CI instead of production.
 
   The Adapter aggregate records `implements` and `guarantees`, so "which bound adapters cannot do what this domain needs" is a query.
+- **Where the specs live.** Specs follow what they test:
+  - A command's behavior (its givens, events and refusals) lives in `.behaviors` files beside its bluebook, such as `lib/hecks/hecks/custodian.behaviors`, as `examples/pizzas/bluebook/pizzas.behaviors` does today.
+  - Each adapter capability's shared conformance suite lives at `spec/adapters/conformance/<capability>_spec.rb`, and every adapter that declares the capability runs it.
+  - An adapter's own IO lives in `spec/adapters/driven/<adapter>_spec.rb`, where the existing adapters' specs already are. That includes the `io: true` specs for anything that needs a real `git`, `cargo` or Postgres.
+  - QualityControl's specs move with it out of `qa/`, into `.behaviors` beside `lib/hecks/quality_control/`.
+- **The runtime-boundary guard spec comes first.** `spec/hecks_domain_boundary_spec.rb` lands as the first commit of the implementation, before `lib/hecks/hecks/` exists, so the boundary is guarded from the start. It asserts three things:
+  - After `require "hecks"`, no file under `lib/hecks/hecks/` is in `$LOADED_FEATURES`.
+  - Booting a client domain and dispatching one command through `Hecks::Facade::CliRunner`, as a generated launcher does, loads nothing under `lib/hecks/hecks/` either.
+  - That boot's registry holds no `Hecks` chapter, and holds one only when the client's hecksagon says `attaches "Hecks"`.
 - **Rules found inline become givens.** On Release: releasing from `main` equal to `origin/main` on a clean tree, the client package version matching the gem's, a CHANGELOG heading for the version, and an existing tag pointing at the release commit. On Deploy: `--schema` requiring `--tenant`, and the adapter being AwsLambda or AwsFargate.
 
 ### 11. The adapters, from a scan of the code
@@ -313,6 +411,27 @@ Environment variables are read by 25 scripts; they become world configuration, n
 - the Rack app `present` serves (`Forms::App`)
 - the existing CI webhook
 
+### 12. Commands and arguments
+
+- **Commands are named for the domain action,** such as `Era.Compact`, `Era.MergeTail` and `Build.BuildWasm`. The launcher shows the snake form (`hecks compact`). The old script names survive only in the 2.x warnings, which point at the 3.0 form.
+- **The launcher accepts three argument forms,** in every generated launcher, clients' included. All three add to what launchers accept today and remove nothing:
+  - the first identifying argument, positionally (`hecks compact pizzas`)
+  - booleans as `--name` (`--confirm`, `--strict`)
+  - everything else as `name=value`, as today; a list is comma-separated
+- **Destructive commands dry-run unless confirmed.** `--confirm` is an argument and the command's `given` requires it before anything changes. It replaces `--force`, `--accept`, `--approve`, `--write` and `--yes`. `qa_sweep`'s fractional `--dry-run` becomes `dry_run_share`.
+- **A flag that picks a mode becomes its own command.** `standardize_comments --fix` becomes `FixComments`, `corpus --rust-domains` becomes `RustDomains`, and `evolve`'s ten subcommands become ten commands. Each gets its own givens and events, so `FixComments` can require `--confirm` while `CheckComments` does not.
+- **A query needs `ask` only when a command shares its name.** Otherwise the bare name answers (`hecks ir`, `hecks history pizzas`).
+- **A flag used only for one tool to call itself becomes a child command,** started by the ProcessPool adapter and absent from the launcher's help.
+
+### 13. Era operations in production
+
+Today the host mints eras and checks approvals itself, at every boot (ADR 0030). The Ruby era tools reach a production database only from a laptop, through a temporary bastion and an SSM tunnel that `make mint-era` sets up. For a domain on a shared database, not even that is generated. `merge_tail`, `compact`, `heki_compact`, `reattest_era` and `backfill_era_projections` have no production path at all, although the host's own tamper refusal tells an operator to run `reattest_era`. A shared-database domain also cannot approve an edge in production. An edge with compute or rekey rules would therefore stop it booting.
+
+- **Custodian's database-touching commands run as a one-off task inside the VPC.** Build produces a small ops image from the pinned gem. Deploy runs one Custodian command in it as a one-off ECS task beside the database (`hecks deploy run_era <domain> <command> …`), following the pattern previews already use for database setup. RDS stays private, and no laptop needs a tunnel. A laptop tunnel remains for rehearsing against a scratch database.
+- **The host stays runtime only.** It keeps minting and checking approvals at boot, and serves nothing for Custodian beyond `GET /version`.
+- **Each operation has one owner.** The host mints a host-run domain; Custodian never does. Custodian owns what an operator starts: approving an edge, re-attesting, merging a tail, compacting, backfilling and holding the first era. The mint's audit and the approval digest stay implemented in both languages, held together by the existing parity specs.
+- **Shared-database domains get the same path,** which gives them their first way to approve an edge in production.
+
 ## Consequences
 
 - Checks and lifecycle actions leave a history in the journal, so a regression such as the runtime baseline going stale shows up as an event instead of passing unnoticed.
@@ -335,20 +454,13 @@ Environment variables are read by 25 scripts; they become world configuration, n
 - **Splitting Custodian from Codebase by what ships.** Rejected once everything ships: the only difference left is who the command is for, and splitting by packaging had put client needs such as building a domain's wasm behind the checkout refusal.
 - **Keeping Codebase and QualityControl out of the gem** (ADR 0066's split, with the gemspec filter excluding `codebase.bluebook`, a second `codebase.hecksagon` and `adapters/codebase/`). Rejected: keeping deployments small is already handled by not loading the tooling and by Rust images, and the split cost a second hecksagon for one domain, file-level packaging rules, and two kinds of install that boot different domains.
 - **Merging Bluebook, Deploy and QualityControl into the Hecks chapter** (`QualityControl::Patch` becoming `Hecks::Patch`, and so on). Rejected: the QA ledger's era and tables are keyed by the chapter name and would need a data migration, and renaming the self-hosted Bluebook chapter reaches into the meta-validator.
-- **Renaming the grammar chapter to `TranslationGrammar`** instead of merging. A few lines of change, and it would unblock attaching. Rejected: it keeps two lists of rule kinds and two edge aggregates, held together by a spec instead of by the model.
+- **Merging the two Translation chapters as part of this ADR.** Rejected: it is a language change with its own risks, now [ADR 0082](0082-the-two-translation-chapters-become-one.md); this ADR only needs the names not to collide.
 - **Attaching the framework members too** (Governance, Identity, Privacy, Compliance, ConsoleSettings). Rejected: they are libraries application domains use; Hecks uses Governance rather than owning it.
 - **All aggregates in a single `hecks.bluebook` file.** Rejected: fourteen aggregates in one file is hard to read; the root, Custodian and Codebase files each hold one concern.
 - **Repository-level directories, like `qa/`.** Rejected in favour of `lib/hecks/`, so everything ships and sits beside the runtime it operates on.
-- **Phased migration** (Release first, then checks, then Codebase). Rejected in favour of one pass, so the repository never has two ways to run the same tool. The only overlap is the one 2.x release of warnings ADR 0068 requires for client sites (section 9).
+- **Phased migration** (Release first, then checks, then Codebase, across several releases or pull requests). Rejected in favour of one pull request of ordered commits (section 9), so the repository never has two ways to run the same tool. The 2.x warning release only prints text; it runs nothing new.
 - **Leave the scripts as they are.** Rejected: results keep leaving no history, and the rules stay out of the model.
 
 ## Open items
 
-- A guard spec for the runtime boundary (section 5). It asserts three things:
-  - `lib/hecks.rb` never loads `lib/hecks/hecks/`.
-  - The `CliRunner` path a client domain's launcher uses never loads `lib/hecks/hecks/` either.
-  - A client domain's boot registry never contains the Hecks chapter, unless the client attaches it explicitly.
-- If a Ruby deployment ever needs a smaller footprint on disk, Deploy prunes the unloaded tooling when it builds the image, instead of the gem leaving it out.
-- The exact command names and arguments for each script, written out per aggregate before the migration starts.
-- Whether `rust/host` needs any of Custodian, or whether it stays Ruby-only operational tooling.
-- Where the new bluebooks' specs live: beside each bluebook as `.behaviors` files, or under `spec/`.
+- The ops image's contents and size, and whether it is built per domain or once per gem version.

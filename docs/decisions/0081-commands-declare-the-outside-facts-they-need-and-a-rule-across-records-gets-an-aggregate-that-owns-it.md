@@ -1,6 +1,6 @@
 # Commands declare the outside facts they need, and a rule across records gets an aggregate that owns it
 
-**Status:** Proposed. Date: 2026-09-28. Builds on item 5 of `docs/HECKS_IMPLEMENTATION_PLAN.md` (identity generation and replay) and stage 2 of its execution pipeline, "Runtime enrichment (UUIDs, clock, caller, external facts)". Unblocks two QualityControl rules in [ADR 0080](0080-bin-scripts-become-adapters-on-a-hecks-bluebook.md). Nothing below is built yet.
+**Status:** Proposed. Date: 2026-09-28. Builds on item 5 of `docs/HECKS_IMPLEMENTATION_PLAN.md` (identity generation and replay) and stage 2 of its execution pipeline, "Runtime enrichment (UUIDs, clock, caller, external facts)". Unblocks two QualityControl rules in [ADR 0080](0080-bin-scripts-become-adapters-on-a-hecks-bluebook.md). Ships in a 3.x minor after 3.0: every change here is additive, so it needs no major version. Nothing below is built yet.
 
 ## Context
 
