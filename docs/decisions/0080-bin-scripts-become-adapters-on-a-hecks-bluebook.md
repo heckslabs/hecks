@@ -192,10 +192,10 @@ The rules hand-coded in `qa_open_pr` and `qa_pr_check` become `given`s on `Patch
 
 ## Open items
 
-- What Custodian's Build compiles against outside a checkout. `project_rust` and `project_wasm` build on the Rust kernel crate under `rust/`, which the gem does not package (`spec.files` is `lib/**` plus `exe/hecks`), and clients such as Lifeadelics build from a hecks checkout today. Either the gem carries the kernel sources, or the RustToolchain adapter fetches the crate at the gem's own tag.
+- What Custodian's Build compiles against outside a checkout. `project_rust` and `project_wasm` build on the Rust kernel crate under `rust/`, which the gem does not package (`spec.files` is `lib/**` plus `exe/hecks`), and client domains deploying to `rust/host` build from a hecks checkout today. Either the gem carries the kernel sources, or the RustToolchain adapter fetches the crate at the gem's own tag.
 - How the checkout `given` tells a hecks checkout from an installed gem: the presence of `rust/` and `spec/`, a marker file, or the gem's own install path.
 - If a Ruby deployment ever needs a smaller footprint on disk, Deploy prunes the unloaded tooling when it builds the image, instead of the gem leaving it out.
-- The word that attaches a chapter. `uses_framework` loads only from `lib/hecks/framework/bluebook/` and `uses_embryonaut_bluebook` only from the vendored registry; attaching a chapter from its own directory needs a new hecksagon word or a way to register these three as members.
+- The word that attaches a chapter. `uses_framework` loads only from `lib/hecks/framework/bluebook/` and `uses_embryonaut_bluebook` only from the vendored registry; attaching a chapter from its own directory needs a new hecksagon word or a way to register the attached chapters as members.
 - Whether `Hecks::Facade::CliRunner` routes to an attached chapter's verbs (`hecks quality_control log_bug`). Today a launcher serves the first bluebook the boot registers.
 - Which store each part persists to. A shared history of CI checks needs a durable store that CI can reach. Local runs may use Sqlite under `Hecks::CacheDir`.
 - The exact command names and arguments for each script, written out per aggregate before the migration starts.
