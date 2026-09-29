@@ -105,19 +105,26 @@ end
 
 `attaches` stands for the attaching word; see Open items.
 
-### 5. Handles on the hand-written floor
+### 5. The hand-written floor, and the aggregates around it
 
-The Bluebook chapter's own vision names what stays hand-written: "the interpreter — evaluating a predicate held as data — and IO". That floor is not modelled as behaviour, but Hecks keeps a record of every part of it, so each part can be listed and asked about through `hecks`.
+The Bluebook chapter's own vision names what stays hand-written: "the interpreter — evaluating a predicate held as data — and IO". The floor is only that. The parser's output, the IR and the meta-validator's judgments are already modelled: "Loading a domain becomes dispatching commands into this meta-domain; the IR it stores must equal the IR the DSL builder produces." They are the attached Bluebook chapter's aggregates.
 
-| Part of the floor | Handle | Held by | For |
-| --- | --- | --- | --- |
-| Driven adapters: Memory, Heki, Sqlite, Postgres, PostgresEra, D1, Lambda and the rest | Their `.adapter` declarations, which `lib/hecks/adapters/driven/` already holds, load as records of the attached Adapter chapter. What a domain today only learns at boot, such as whether an adapter can save saga state, is stated in the declaration and becomes a query. | Adapter chapter | Both |
-| Framework members: Governance, Identity, Privacy, Compliance, ConsoleSettings | A catalog read from `Hecks::Framework.members` and `Hecks::Framework.providers_of`: which members exist and which capability each provides. Hecks reads them; it does not attach or own them. | Custodian, Package | Clients |
-| A running Rust host | What a running `rust/host` reports about itself: its gem version and its era. `check_era` reads it through the HostHttp adapter. | Custodian, Host | Clients |
-| The Rust kernel | The capability tables `project_kernel_capabilities` generates, and how far the kernel covers the grammar (`rust_kernel_coverage`). | Codebase, Kernel | Maintainers |
-| The engine: parser, IR, facade, `CliRunner`, meta-validator | Read-only queries on the root Hecks aggregate: the gem version (`Hecks::VERSION`), the IR version (`Bluebook::Chapter::IR_VERSION`), and the state of the syntax-boot cache. The engine is what boots bluebooks, so it cannot be one. | Root | Both |
+Around the floor, every part that has identity and changing state becomes an aggregate, so its changes are journaled like any other domain's:
 
-The Hecks domain's own adapters (InProcessBoot, JournalStore, RustToolchain and the rest in this ADR) get `.adapter` declarations too, so they appear in the same list as the built-in ones.
+| Aggregate | Held by | Identified by | State and lifecycle | Takes over |
+| --- | --- | --- | --- | --- |
+| Release | Root | gem version | tagged → published → verified; carries the IR version (`Bluebook::Chapter::IR_VERSION`) it shipped | `Hecks::VERSION` as the record of what is running and what was shipped |
+| SyntaxBootCache | Root | digest of the grammar chapters | fresh → stale → rebuilt; `Invalidate`, `Rebuild` | the on-disk cache under `Hecks::CacheDir`, whose invalidations are silent today |
+| Host | Custodian | stack or URL | `Observe` records the version and era a running `rust/host` reports; emits `EraChanged` | `check_era`, which becomes a command on it |
+| FrameworkMember | Custodian | member name | the capabilities it provides | `Hecks::Framework.members` and `providers_of`, read as records; Hecks catalogs members without attaching them |
+| Kernel | Codebase | kernel version | the capability tables and a coverage result per run | `project_kernel_capabilities`, `rust_kernel_coverage` |
+| Adapter | Adapter chapter (exists) | adapter name | gains what the adapter supports, such as saving saga state, which a domain today only learns from a warning at boot | the `.adapter` declarations `lib/hecks/adapters/driven/` already holds |
+
+The Hecks domain's own adapters (InProcessBoot, JournalStore, RustToolchain and the rest in this ADR) get `.adapter` declarations too, so they appear beside the built-in ones.
+
+Release moves to the root because every install has a version, and "what am I running" and "what did we ship" become one record. The steps that publish a release (tagging, pushing to RubyGems and npm) stay in Codebase as Publishing, and advance the root's Release through its lifecycle.
+
+What stays code is the interpreter and the IO inside each adapter.
 
 ### 6. One Translation chapter
 
@@ -150,7 +157,8 @@ No data moves: the grammar chapter persists to Memory and keeps no records, and 
 | --- | --- | --- |
 | Custodian | Introspection | `ir`, `shape`, `stores`, `history`, `statements`, `narrate`, `docs`, `project_diagrams`, `project_glossary`, `model_check` |
 | Custodian | Operation | `run`, `project`, `behaviors`, `console`, `follow`, `smoke_test`, `smoke_http` |
-| Custodian | Era | `check_era`, `merge_tail`, `reattest_era`, `backfill_era_projections`, `scaffold_translation`, `translation_audit`, `compact`, `heki_compact` |
+| Custodian | Host | `check_era` |
+| Custodian | Era | `merge_tail`, `reattest_era`, `backfill_era_projections`, `scaffold_translation`, `translation_audit`, `compact`, `heki_compact` |
 | Custodian | Package | `vendor_bluebook` |
 | Custodian | Door | `project_cli`, `hecks_mcp_door` |
 | Custodian | Build | `project_rust`, `project_wasm`, `project_wasm_browser`, `rust_coverage`, `rust_conformance`, `rust_conformance_fuzz` |
@@ -164,10 +172,10 @@ No data moves: the grammar chapter persists to Memory and keeps no records, and 
 | Codebase | Codemod | `codemod_hoist_local_givens`, `codemod_implicit_append_fields` |
 | Codebase | TestSuite | `rspec_shard_files`, `rspec_io_parallel_files`, `refresh_rspec_runtime_baseline`, `spec_example`, `stress_concurrency_specs`, `regenerate_persistence_legacy_fixtures`, `seed_semantics_corpus`, `pattern-cases` |
 | Codebase | Corpus | `corpus`, `query_ir`, `hecks_query_ir_mcp`, `present` |
-| Codebase | Release | `release`, `release_gem` |
+| Codebase | Publishing | `release`, `release_gem` |
 | QualityControl (existing) | as listed per script | `qa_tick`, `qa_sweep`, `qa_pr_check`, `qa_open_pr`, `qa_log_bug`, `qa_seed_angles`, `qa_seed_targets`, `qa_generated_domains`, `qa_mine_combinations`, `qa_domain_novelty`, `qa_discover_external_domains`, `qa_postgres_migrate`, `qa_postgres_role`, `qa_concurrency_racer` |
 
-Release goes to Codebase rather than Custodian because it publishes this repository's gem, so it only runs in a checkout.
+Publishing goes to Codebase rather than Custodian because it publishes this repository's gem, so it only runs in a checkout. The Release it advances lives in the root (section 5).
 
 Building for the Rust host is split by the same test. Custodian's Build generates and compiles one domain, the way a client deploying to `rust/host` does, and checks that build against the Ruby engine: `rust_conformance` replays a script through both, `rust_conformance_fuzz` does the same with generated sequences, and `rust_coverage` reports which of the domain's constructs are routed. Codebase's Regeneration rebuilds every corpus domain's committed output, which only this repository has, and Codebase's Conformance keeps the checks on the language itself (the kernel, the query engines, the reference docs).
 
