@@ -9,7 +9,7 @@ module Hecks
     # The `JournalStore` port's adapter: reaches the era plugin and the persistence adapters on an
     # operator's behalf, to examine a domain's journal, change it, or read how it stands.
     #
-    # `examine` reports the facts Custodian's `Era.Admit` holds against the request, `apply` makes
+    # `examine` reports the facts Custodian's `Era.Permit` holds against the request, `apply` makes
     # an admitted change, and the queries (`scaffold_translation`, `audit_translation`,
     # `attestation`, `compaction`) answer without writing. Every method reuses the era plugin's
     # own logic (`LineageManager`, `Lineage`, `Translation::*`); only the entry point moved.

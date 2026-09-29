@@ -11,7 +11,7 @@ require_relative "../git"
 module Hecks
   module Adapters
     class JournalStore
-      # The changes the journal store makes once `Era.Admit` has let one through.
+      # The changes the journal store makes once `Era.Permit` has let one through.
       #
       # The rules that need no database are `given`s of the Era commands. What stays here is what
       # only the database can enforce: the connection's write fence, the per-domain advisory lock

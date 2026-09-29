@@ -9,11 +9,10 @@ Hecks::ThreeZero.notice("project_vocabulary")
 
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
 
-require "hecks"
+require "hecks/projection_files"
 
-chapter = Hecks::Bluebook::MetaValidator.grammar_registry.bluebook("Bluebook")
-out     = File.expand_path("../lib/hecks/vocabulary.rb", __dir__)
-
-puts "wrote #{Hecks::Projector.write(
-  Hecks::Projector.call(:vocabulary, bluebook: chapter), out
-)}"
+begin
+  puts Hecks::ProjectionFiles.write(:vocabulary)
+rescue Hecks::ProjectionFiles::Refused => e
+  abort e.message
+end

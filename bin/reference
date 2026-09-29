@@ -11,18 +11,14 @@ Hecks::ThreeZero.notice("reference")
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
 
 require "hecks"
+require "hecks/projection_files"
 
 root      = File.expand_path("..", __dir__)
 directory = File.join(root, "docs/implemented/reference")
-chapter   = Hecks::Bluebook::MetaValidator.grammar_registry.bluebook("Bluebook")
 
-written = Hecks::Projector.write(
-  Hecks::Projector.call(:reference, bluebook: chapter, options: { from: directory }),
-  directory, as: :files
-)
-Hecks::Doc::Reference.write_readme!(root)
+written = Hecks::ProjectionFiles.write(:reference, root: root)
 
-puts "wrote #{written.size} pages to docs/implemented/reference/, and regenerated README.md's own indexes"
+puts "wrote #{written.size - 1} pages to docs/implemented/reference/, and regenerated README.md's own indexes"
 
 # Both coverage gates, reported together; bin/doc_coverage asks the same as an exit status.
 {

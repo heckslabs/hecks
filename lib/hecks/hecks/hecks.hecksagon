@@ -153,4 +153,20 @@ Hecks.hecksagon "Hecks" do
       refuses "OperationRefused"
     end
   end
+
+  # Codebase: every ask goes to the SourceTree port, which examines the working tree before it
+  # carries a request out.
+  Hecks::LanguageRun.port "SourceTree" do
+    asks "Examine", to: LanguageRun do
+      attribute :run, RunKey
+      answers "LanguageExamined"
+      refuses "LanguageRefused"
+    end
+
+    asks "Perform", to: LanguageRun do
+      attribute :run, RunKey
+      answers "LanguageAnswered"
+      refuses "LanguageRefused"
+    end
+  end
 end

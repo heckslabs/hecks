@@ -337,8 +337,8 @@ RSpec.describe "the Hecks command table through the launcher" do
 
       expect(status).to eq(0)
       expect(JSON.parse(out).fetch("refused_reactions").first)
-        .to include("policy" => "AdmitWhenExamined",
-                    "reason" => "Admit refused — no projection reads the journal that would be emptied")
+        .to include("policy" => "PermitWhenExamined",
+                    "reason" => "Permit refused — no projection reads the journal that would be emptied")
       expect(settlement_of("compact-2").fetch("status")).to eq("requested")
     end
 

@@ -1,0 +1,617 @@
+Hecks.bluebook "Hecks" do
+  # Codebase: working on this repository. Each aggregate here is a concern only a maintainer of
+  # Hecks runs, and every one of them needs a hecks checkout (ADR 0080, section 2). A request
+  # follows the journaled-command shape of Custodian: it is recorded, the SourceTree port is asked
+  # to examine the tree, `Accept` holds the one rule every Codebase change shares (the working tree
+  # is a hecks checkout, hecks.gemspec beside lib/), and only an accepted request is carried out.
+  # A command that rewrites tracked files reports drift and writes only when it is confirmed.
+  #
+  # The records are named for the run, as ModelCheckRun is, because several of the table's
+  # concerns share a name with a module the gem already owns.
+
+  # The language: the tables the Bluebook chapter declares and everything projected from them. A
+  # projection reports drift from the committed files and writes only when it is confirmed; an
+  # evolution edits the syntax tables, regenerates the golden and holds the gates, and only when
+  # confirmed (without it, the edit is rehearsed in memory and nothing is written).
+  aggregate "LanguageRun" do
+    description "One change to the language's own tables, or one reading of where its words stand."
+
+    attribute :run,         RunKey
+    attribute :operation,   Operation, optional: true
+    attribute :confirm,     Switch, optional: true
+    attribute :stdout,      Switch, optional: true
+    attribute :word,        Word, optional: true
+    attribute :context,     Context, optional: true
+    attribute :body,        Body, optional: true
+    attribute :inner,       Fill, optional: true
+    attribute :opens,       Fill, optional: true
+    attribute :fills,       Fill, optional: true
+    attribute :new_name,    Word, optional: true
+    attribute :kind,        Kind, optional: true
+    attribute :required,    Flag, optional: true
+    attribute :at,          Position, optional: true
+    attribute :named,       Fill, optional: true
+    attribute :pairs_shape, Shape, optional: true
+    attribute :checkout,    Switch, optional: true
+    attribute :report,      Report, optional: true
+    attribute :refusal,     Report, optional: true
+    identified_by :run
+
+    value_object "RunKey" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+
+      invariant("a run is named") { !value.to_s.empty? }
+    end
+
+    value_object "Operation" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+    end
+
+    value_object "Switch" do
+      attribute :value, Boolean
+    end
+
+    value_object "Report" do
+      attribute :value, String
+    end
+
+    # A keyword of the language, or the keyword an argument belongs to.
+    value_object "Word" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+
+      invariant("a word is named") { !value.to_s.empty? }
+    end
+
+    # The part of the language a word is a word in.
+    value_object "Context" do
+      attribute :value, String, pattern: '^[A-Za-z][A-Za-z0-9_]*$'
+    end
+
+    # What a word's block holds.
+    value_object "Body" do
+      attribute :value, String, pattern: '^(none|keywords|source|rows)$'
+    end
+
+    # A cell of a table row; empty when the row leaves it blank.
+    value_object "Fill" do
+      attribute :value, String, pattern: '^[^\t\n\r]*$'
+    end
+
+    # What an argument is.
+    value_object "Kind" do
+      attribute :value, String, pattern: '^(text|symbol|number|flag|literal|constant|pairs|list)$'
+    end
+
+    # Whether an argument is required.
+    value_object "Flag" do
+      attribute :value, String, pattern: '^(true|false)$'
+    end
+
+    # An argument's place, counted from zero.
+    value_object "Position" do
+      attribute :value, String, pattern: '^[0-9]*$'
+    end
+
+    # How a pairs argument is read, such as verbatim.
+    value_object "Shape" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+    end
+
+    lifecycle :status, default: "requested" do
+      transition "Accept"   => "accepted",  from: "requested"
+      transition "Complete" => "completed", from: "accepted"
+      transition "Fault"    => "faulted",   from: %w[requested accepted]
+    end
+
+    command "ProjectModel" do
+      role "Maintainer"
+      goal "Project the model's holding half from the language that declares it"
+
+      attribute :run,     RunKey
+      attribute :confirm, Switch, optional: true
+
+      sets :run
+      sets :confirm
+      sets :operation, to: "project_model"
+
+      emits ProjectModelRequested
+    end
+
+    command "ProjectVocabulary" do
+      role "Maintainer"
+      goal "Project the language's closed sets into the vocabulary"
+
+      attribute :run,     RunKey
+      attribute :confirm, Switch, optional: true
+
+      sets :run
+      sets :confirm
+      sets :operation, to: "project_vocabulary"
+
+      emits ProjectVocabularyRequested
+    end
+
+    command "ProjectRustVocabulary" do
+      role "Maintainer"
+      goal "Project the vocabulary tables into the Rust kernel, one enum a table"
+
+      attribute :run,     RunKey
+      attribute :confirm, Switch, optional: true
+
+      sets :run
+      sets :confirm
+      sets :operation, to: "project_rust_vocabulary"
+
+      emits ProjectRustVocabularyRequested
+    end
+
+    command "ProjectRefusalWording" do
+      role "Maintainer"
+      goal "Project the refusal template table, a second name of ProjectRustVocabulary"
+
+      attribute :run,     RunKey
+      attribute :confirm, Switch, optional: true
+
+      sets :run
+      sets :confirm
+      sets :operation, to: "project_rust_vocabulary"
+
+      emits ProjectRefusalWordingRequested
+    end
+
+    command "ProjectReservedNames" do
+      role "Maintainer"
+      goal "Project the Rust and Cargo reserved words into the codegen and build crates"
+
+      attribute :run,     RunKey
+      attribute :confirm, Switch, optional: true
+
+      sets :run
+      sets :confirm
+      sets :operation, to: "project_reserved_names"
+
+      emits ProjectReservedNamesRequested
+    end
+
+    command "ProjectParserTable" do
+      role "Maintainer"
+      goal "Project the Rust parser's keyword table"
+
+      attribute :run,     RunKey
+      attribute :confirm, Switch, optional: true
+
+      sets :run
+      sets :confirm
+      sets :operation, to: "project_parser_table"
+
+      emits ProjectParserTableRequested
+    end
+
+    command "ProjectBootstrapTable" do
+      role "Maintainer"
+      goal "Project the DSL's bootstrap-window fallbacks from the keyword rows"
+
+      attribute :run,     RunKey
+      attribute :confirm, Switch, optional: true
+
+      sets :run
+      sets :confirm
+      sets :operation, to: "project_bootstrap_table"
+
+      emits ProjectBootstrapTableRequested
+    end
+
+    command "ProjectFieldHints" do
+      role "Maintainer"
+      goal "Project the host's form-field hints"
+
+      attribute :run,     RunKey
+      attribute :confirm, Switch, optional: true
+
+      sets :run
+      sets :confirm
+      sets :operation, to: "project_field_hints"
+
+      emits ProjectFieldHintsRequested
+    end
+
+    command "ProjectExpressionTables" do
+      role "Maintainer"
+      goal "Project the expression machinery's operator and normalisation tables"
+
+      attribute :stdout,  Switch, optional: true
+      attribute :run,     RunKey
+      attribute :confirm, Switch, optional: true
+
+      sets :stdout
+      sets :run
+      sets :confirm
+      sets :operation, to: "project_expression_tables"
+
+      emits ProjectExpressionTablesRequested
+    end
+
+    command "ProjectReference" do
+      role "Maintainer"
+      goal "Regenerate the DSL reference from the Syntax chapter, keeping the committed prose"
+
+      attribute :run,     RunKey
+      attribute :confirm, Switch, optional: true
+
+      sets :run
+      sets :confirm
+      sets :operation, to: "project_reference"
+
+      emits ProjectReferenceRequested
+    end
+
+    command "Propose" do
+      role "Maintainer"
+      goal "Enter a keyword row, proposed: it reaches no projection until admitted"
+
+      attribute :word,    Word
+      attribute :context, Context
+      attribute :body,    Body, optional: true
+      attribute :inner,   Fill, optional: true
+      attribute :opens,   Fill, optional: true
+      attribute :fills,   Fill, optional: true
+      attribute :run,     RunKey
+      attribute :confirm, Switch, optional: true
+
+      sets :word
+      sets :context
+      sets :body
+      sets :inner
+      sets :opens
+      sets :fills
+      sets :run
+      sets :confirm
+      sets :operation, to: "propose"
+
+      emits ProposeRequested
+    end
+
+    command "Admit" do
+      role "Maintainer"
+      goal "Move a proposed keyword row to admitted"
+
+      attribute :word,    Word
+      attribute :context, Context
+      attribute :run,     RunKey
+      attribute :confirm, Switch, optional: true
+
+      sets :word
+      sets :context
+      sets :run
+      sets :confirm
+      sets :operation, to: "admit"
+
+      emits AdmitRequested
+    end
+
+    command "Deprecate" do
+      role "Maintainer"
+      goal "Move an admitted keyword row to deprecated"
+
+      attribute :word,    Word
+      attribute :context, Context
+      attribute :run,     RunKey
+      attribute :confirm, Switch, optional: true
+
+      sets :word
+      sets :context
+      sets :run
+      sets :confirm
+      sets :operation, to: "deprecate"
+
+      emits DeprecateRequested
+    end
+
+    command "Retire" do
+      role "Maintainer"
+      goal "Move a deprecated or admitted keyword row to retired"
+
+      attribute :word,    Word
+      attribute :context, Context
+      attribute :run,     RunKey
+      attribute :confirm, Switch, optional: true
+
+      sets :word
+      sets :context
+      sets :run
+      sets :confirm
+      sets :operation, to: "retire"
+
+      emits RetireRequested
+    end
+
+    command "Rename" do
+      role "Maintainer"
+      goal "Respell a keyword row; the old spelling keeps parsing"
+
+      attribute :word,     Word
+      attribute :context,  Context
+      attribute :new_name, Word
+      attribute :run,      RunKey
+      attribute :confirm,  Switch, optional: true
+
+      sets :word
+      sets :context
+      sets :new_name
+      sets :run
+      sets :confirm
+      sets :operation, to: "rename"
+
+      emits RenameRequested
+    end
+
+    command "ProposeArgument" do
+      role "Maintainer"
+      goal "Enter an argument row of a keyword, proposed"
+
+      attribute :word,        Word
+      attribute :context,     Context
+      attribute :kind,        Kind
+      attribute :required,    Flag, optional: true
+      attribute :at,          Position, optional: true
+      attribute :named,       Fill, optional: true
+      attribute :fills,       Fill, optional: true
+      attribute :pairs_shape, Shape, optional: true
+      attribute :run,         RunKey
+      attribute :confirm,     Switch, optional: true
+
+      sets :word
+      sets :context
+      sets :kind
+      sets :required
+      sets :at
+      sets :named
+      sets :fills
+      sets :pairs_shape
+      sets :run
+      sets :confirm
+      sets :operation, to: "propose_argument"
+
+      emits ProposeArgumentRequested
+    end
+
+    command "AdmitArgument" do
+      role "Maintainer"
+      goal "Move a proposed argument row to admitted"
+
+      attribute :word,    Word
+      attribute :context, Context
+      attribute :at,      Position, optional: true
+      attribute :named,   Fill, optional: true
+      attribute :run,     RunKey
+      attribute :confirm, Switch, optional: true
+
+      sets :word
+      sets :context
+      sets :at
+      sets :named
+      sets :run
+      sets :confirm
+      sets :operation, to: "admit_argument"
+
+      emits AdmitArgumentRequested
+    end
+
+    command "DeprecateArgument" do
+      role "Maintainer"
+      goal "Move an admitted argument row to deprecated"
+
+      attribute :word,    Word
+      attribute :context, Context
+      attribute :at,      Position, optional: true
+      attribute :named,   Fill, optional: true
+      attribute :run,     RunKey
+      attribute :confirm, Switch, optional: true
+
+      sets :word
+      sets :context
+      sets :at
+      sets :named
+      sets :run
+      sets :confirm
+      sets :operation, to: "deprecate_argument"
+
+      emits DeprecateArgumentRequested
+    end
+
+    command "RetireArgument" do
+      role "Maintainer"
+      goal "Move a deprecated or admitted argument row to retired"
+
+      attribute :word,    Word
+      attribute :context, Context
+      attribute :at,      Position, optional: true
+      attribute :named,   Fill, optional: true
+      attribute :run,     RunKey
+      attribute :confirm, Switch, optional: true
+
+      sets :word
+      sets :context
+      sets :at
+      sets :named
+      sets :run
+      sets :confirm
+      sets :operation, to: "retire_argument"
+
+      emits RetireArgumentRequested
+    end
+
+    # What the tree reported about itself, held against every request: nothing here runs
+    # outside a hecks checkout (hecks.gemspec beside lib/).
+    command "Accept" do
+      role "System"
+      goal "Let a request through only when the working tree is a hecks checkout"
+
+      reference_to LanguageRun
+      attribute :checkout, Switch
+
+      given("needs a hecks checkout: hecks.gemspec stands beside lib/") { checkout.value }
+
+      sets :checkout
+
+      emits LanguageAccepted
+    end
+
+    command "Complete" do
+      role "System"
+      goal "Record that the request was carried out, and what it reported"
+
+      reference_to LanguageRun
+      attribute :report, Report
+
+      sets :report
+
+      emits LanguageCompleted
+    end
+
+    command "Fault" do
+      role "System"
+      goal "Record that the request was refused or could not be carried out, and why"
+
+      reference_to LanguageRun
+      attribute :refusal, Report
+
+      sets :refusal
+
+      emits LanguageFaulted
+    end
+
+    query "LanguageOutcome" do
+      description "How one request ended: its status, and what it reported or why it failed."
+      attribute :run, RunKey
+      where(run: :run)
+      order_by :run
+    end
+
+    query "LanguageFaulted" do
+      description "Every request that was refused or could not be carried out."
+      where(status: "faulted")
+      order_by :run
+    end
+
+    query "WordStatus" do
+      description "Where every word of the language stands: the ones not simply admitted, and the renamed."
+      answered_by "SourceTree"
+    end
+  end
+
+  policy "ExamineWhenProjectModelRequested" do
+    on      "LanguageRun.ProjectModelRequested"
+    trigger LanguageRun::SourceTree::Examine, with: { run: :run }
+  end
+
+  policy "ExamineWhenProjectVocabularyRequested" do
+    on      "LanguageRun.ProjectVocabularyRequested"
+    trigger LanguageRun::SourceTree::Examine, with: { run: :run }
+  end
+
+  policy "ExamineWhenProjectRustVocabularyRequested" do
+    on      "LanguageRun.ProjectRustVocabularyRequested"
+    trigger LanguageRun::SourceTree::Examine, with: { run: :run }
+  end
+
+  policy "ExamineWhenProjectRefusalWordingRequested" do
+    on      "LanguageRun.ProjectRefusalWordingRequested"
+    trigger LanguageRun::SourceTree::Examine, with: { run: :run }
+  end
+
+  policy "ExamineWhenProjectReservedNamesRequested" do
+    on      "LanguageRun.ProjectReservedNamesRequested"
+    trigger LanguageRun::SourceTree::Examine, with: { run: :run }
+  end
+
+  policy "ExamineWhenProjectParserTableRequested" do
+    on      "LanguageRun.ProjectParserTableRequested"
+    trigger LanguageRun::SourceTree::Examine, with: { run: :run }
+  end
+
+  policy "ExamineWhenProjectBootstrapTableRequested" do
+    on      "LanguageRun.ProjectBootstrapTableRequested"
+    trigger LanguageRun::SourceTree::Examine, with: { run: :run }
+  end
+
+  policy "ExamineWhenProjectFieldHintsRequested" do
+    on      "LanguageRun.ProjectFieldHintsRequested"
+    trigger LanguageRun::SourceTree::Examine, with: { run: :run }
+  end
+
+  policy "ExamineWhenProjectExpressionTablesRequested" do
+    on      "LanguageRun.ProjectExpressionTablesRequested"
+    trigger LanguageRun::SourceTree::Examine, with: { run: :run }
+  end
+
+  policy "ExamineWhenProjectReferenceRequested" do
+    on      "LanguageRun.ProjectReferenceRequested"
+    trigger LanguageRun::SourceTree::Examine, with: { run: :run }
+  end
+
+  policy "ExamineWhenProposeRequested" do
+    on      "LanguageRun.ProposeRequested"
+    trigger LanguageRun::SourceTree::Examine, with: { run: :run }
+  end
+
+  policy "ExamineWhenAdmitRequested" do
+    on      "LanguageRun.AdmitRequested"
+    trigger LanguageRun::SourceTree::Examine, with: { run: :run }
+  end
+
+  policy "ExamineWhenDeprecateRequested" do
+    on      "LanguageRun.DeprecateRequested"
+    trigger LanguageRun::SourceTree::Examine, with: { run: :run }
+  end
+
+  policy "ExamineWhenRetireRequested" do
+    on      "LanguageRun.RetireRequested"
+    trigger LanguageRun::SourceTree::Examine, with: { run: :run }
+  end
+
+  policy "ExamineWhenRenameRequested" do
+    on      "LanguageRun.RenameRequested"
+    trigger LanguageRun::SourceTree::Examine, with: { run: :run }
+  end
+
+  policy "ExamineWhenProposeArgumentRequested" do
+    on      "LanguageRun.ProposeArgumentRequested"
+    trigger LanguageRun::SourceTree::Examine, with: { run: :run }
+  end
+
+  policy "ExamineWhenAdmitArgumentRequested" do
+    on      "LanguageRun.AdmitArgumentRequested"
+    trigger LanguageRun::SourceTree::Examine, with: { run: :run }
+  end
+
+  policy "ExamineWhenDeprecateArgumentRequested" do
+    on      "LanguageRun.DeprecateArgumentRequested"
+    trigger LanguageRun::SourceTree::Examine, with: { run: :run }
+  end
+
+  policy "ExamineWhenRetireArgumentRequested" do
+    on      "LanguageRun.RetireArgumentRequested"
+    trigger LanguageRun::SourceTree::Examine, with: { run: :run }
+  end
+
+  policy "AcceptLanguageWhenExamined" do
+    on      "LanguageRun.LanguageExamined"
+    trigger LanguageRun::Accept, with: { checkout: :checkout }
+  end
+
+  policy "PerformLanguageWhenAccepted" do
+    on      "LanguageRun.LanguageAccepted"
+    trigger LanguageRun::SourceTree::Perform, with: { run: :run }
+  end
+
+  policy "RecordLanguageOutcome" do
+    on      "LanguageRun.LanguageAnswered"
+    trigger LanguageRun::Complete, with: { report: :report }
+  end
+
+  policy "RecordLanguageFault" do
+    on      "LanguageRun.LanguageRefused"
+    trigger LanguageRun::Fault, with: { refusal: :refusal }
+  end
+end

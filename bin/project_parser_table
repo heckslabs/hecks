@@ -9,13 +9,10 @@ Hecks::ThreeZero.notice("project_parser_table")
 
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
 
-require "hecks"
-require "fileutils"
+require "hecks/projection_files"
 
-chapter = Hecks::Bluebook::MetaValidator.grammar_registry.bluebook("Bluebook")
-out     = File.expand_path("../rust/parser/src/keywords.rs", __dir__)
-FileUtils.mkdir_p(File.dirname(out))
-
-puts "wrote #{Hecks::Projector.write(
-  Hecks::Projector.call(:parser_table, bluebook: chapter), out
-)}"
+begin
+  puts Hecks::ProjectionFiles.write(:parser_table)
+rescue Hecks::ProjectionFiles::Refused => e
+  abort e.message
+end

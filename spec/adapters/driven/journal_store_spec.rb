@@ -442,11 +442,11 @@ RSpec.describe Hecks::Adapters::JournalStore, :io do
 
       out, = run_verb("merge_tail", @domain, "run=merge-1", "--confirm")
       expect(JSON.parse(out).fetch("refused_reactions").first.fetch("reason"))
-        .to eq("Admit refused — an era beyond the first stands before a tail is merged")
+        .to eq("Permit refused — an era beyond the first stands before a tail is merged")
 
       again, = run_verb("hold_first", @domain, "run=first-2", "--confirm")
       expect(JSON.parse(again).fetch("refused_reactions").first.fetch("reason"))
-        .to eq("Admit refused — no era is held yet")
+        .to eq("Permit refused — no era is held yet")
     end
 
     it "words the store-keeps-eras rule for a domain on Memory" do
@@ -458,7 +458,7 @@ RSpec.describe Hecks::Adapters::JournalStore, :io do
       out, = run_verb("backfill_projections", @domain, "run=backfill-1")
 
       expect(JSON.parse(out).fetch("refused_reactions").first.fetch("reason"))
-        .to eq("Admit refused — the store keeps eras")
+        .to eq("Permit refused — the store keeps eras")
     end
   end
 

@@ -8,7 +8,7 @@ module Hecks
   module Adapters
     class JournalStore
       # The facts the journal store reports about a change before it is made, for the rules of
-      # Custodian's `Era.Admit` to hold against. Nothing here writes: an examination reads the
+      # Custodian's `Era.Permit` to hold against. Nothing here writes: an examination reads the
       # domain and its journal and answers numbers and yes-or-no.
       module Examination
         # What every fact is until an examination finds otherwise.

@@ -1,0 +1,43 @@
+Hecks.behaviors "Codebase" do
+  vision "A request to work on this repository is recorded, the tree is examined, and only a hecks checkout lets it through."
+
+  loads "hecks.bluebook", "custodian.bluebook", "codebase.bluebook", "context_map.hecksagon", "hecks.hecksagon"
+
+  test "ProjectModel reports what the language projects, and keeps the answer" do
+    tests "ProjectModel", on: "LanguageRun"
+    input run: { value: "model" }
+    expect emits: %w[ProjectModelRequested LanguageExamined LanguageAccepted LanguageAnswered LanguageCompleted]
+  end
+
+  test "ProjectRefusalWording is a second name that carries out the same projection" do
+    tests "ProjectRefusalWording", on: "LanguageRun"
+    input run: { value: "wording" }
+    expect emits: %w[ProjectRefusalWordingRequested LanguageExamined LanguageAccepted LanguageAnswered LanguageCompleted]
+  end
+
+  test "Propose rehearses a new word and writes nothing without confirm" do
+    tests "Propose", on: "LanguageRun"
+    input word: { value: "no_such_word" }, context: { value: "Aggregate" }, run: { value: "propose" }
+    expect emits: %w[ProposeRequested LanguageExamined LanguageAccepted LanguageAnswered LanguageCompleted]
+  end
+
+  test "Propose refuses a body the language does not have" do
+    tests "Propose", on: "LanguageRun"
+    input word: { value: "no_such_word" }, context: { value: "Aggregate" }, body: { value: "everything" },
+          run: { value: "propose" }
+    expect refused: "must match"
+  end
+
+  test "Admit keeps a word that is not declared as a faulted request" do
+    tests "Admit", on: "LanguageRun"
+    input word: { value: "no_such_word" }, context: { value: "Aggregate" }, run: { value: "admit" }
+    expect emits: %w[AdmitRequested LanguageExamined LanguageAccepted LanguageRefused LanguageFaulted]
+  end
+
+  test "ProposeArgument refuses a kind of argument the language does not have" do
+    tests "ProposeArgument", on: "LanguageRun"
+    input word: { value: "no_such_word" }, context: { value: "Aggregate" }, kind: { value: "blob" },
+          run: { value: "argument" }
+    expect refused: "must match"
+  end
+end

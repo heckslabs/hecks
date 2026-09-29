@@ -17,7 +17,7 @@ deploy_template_diff: hecks deploy diff before=a.yaml after=b.yaml [--json] [--s
 doc_coverage: hecks measure_doc_coverage
 docs: hecks docs [domain] [aggregate=Name]
 evolve: hecks word_status; hecks propose <word> context=X [body=none] [inner=] [opens=]
-  [fills=]; hecks rename <word> context=X to=Y; hecks propose_argument <word> context=X
+  [fills=]; hecks rename <word> context=X new_name=Y; hecks propose_argument <word> context=X
   kind=K [required=false] [at=N] [named=] [pairs_shape=]; the rest take <word> context=X
 expression_projection: hecks project_expression_tables [--stdout]
 follow: hecks follow <domain> [aggregate=Name] [interval=0.5] [--from-now]

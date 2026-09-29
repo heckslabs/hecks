@@ -741,13 +741,13 @@ policy "RecordTheEra" do
     end
 
     lifecycle :status, default: "requested" do
-      transition "Admit"    => "admitted", from: "requested"
+      transition "Permit"   => "admitted", from: "requested"
       transition "Settle"   => "settled",  from: "admitted"
       transition "Abandon"  => "refused",  from: %w[requested admitted]
     end
 
     # The seven requests. Each records what was asked and names its operation; the journal store
-    # then examines the domain and reports facts (`EraExamined`), `Admit` holds the rules that need
+    # then examines the domain and reports facts (`EraExamined`), `Permit` holds the rules that need
     # those facts, and only an admitted change is made (`EraChanged`). A change that changes
     # something needs an explicit `--confirm`.
     command "HoldFirst" do
@@ -891,7 +891,7 @@ policy "RecordTheEra" do
     end
 
     # The facts the journal store reported, held against the change that was asked for.
-    command "Admit" do
+    command "Permit" do
       role "System"
       goal "Let a change through only when what was found in the journal allows it"
 
@@ -943,7 +943,7 @@ policy "RecordTheEra" do
       sets :rehearsal_needed
       sets :rehearsal_recorded
 
-      emits EraAdmitted
+      emits EraPermitted
     end
 
     command "Settle" do
@@ -1047,17 +1047,17 @@ policy "RecordTheEra" do
     trigger Era::JournalStore::Examine, with: { run: :run }
   end
 
-  policy "AdmitWhenExamined" do
+  policy "PermitWhenExamined" do
     on      "Era.EraExamined"
-    trigger Era::Admit, with: {
+    trigger Era::Permit, with: {
       capable: :capable, held: :held, forks: :forks, contested: :contested, edges: :edges,
       bound: :bound, candidates: :candidates, audited: :audited,
       rehearsal_needed: :rehearsal_needed, rehearsal_recorded: :rehearsal_recorded
     }
   end
 
-  policy "ChangeWhenAdmitted" do
-    on      "Era.EraAdmitted"
+  policy "ChangeWhenPermitted" do
+    on      "Era.EraPermitted"
     trigger Era::JournalStore::Apply, with: { run: :run }
   end
 
