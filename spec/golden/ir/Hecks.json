@@ -201,7 +201,7 @@
           "attributes": [
 
           ],
-          "description": null,
+          "description": "Every version that was tagged, published and verified.",
           "limit": null,
           "name": "Shipped",
           "order_by": {
@@ -403,7 +403,7 @@
           "attributes": [
 
           ],
-          "description": null,
+          "description": "Every cache whose grammar changed under it and is not yet rebuilt.",
           "limit": null,
           "name": "Stale",
           "order_by": {

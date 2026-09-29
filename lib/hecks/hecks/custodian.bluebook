@@ -1,0 +1,93 @@
+Hecks.bluebook "Hecks" do
+  # Custodian: operating any domain. Each aggregate here is a concern a client runs against
+  # their own domain (ADR 0080, section 2).
+
+  aggregate "Introspection" do
+    description "A look at a booted domain, answered by the runtime without changing anything."
+
+    attribute :domain, DomainPath
+    identified_by :domain
+
+    value_object "DomainPath" do
+      attribute :value, String, pattern: '[^\t\n\r]'
+
+      invariant("a domain is named by its path") { !value.to_s.empty? }
+    end
+
+    value_object "ChapterName" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+
+      invariant("a chapter is named") { !value.to_s.empty? }
+    end
+
+    value_object "AggregateName" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+
+      invariant("an aggregate is named") { !value.to_s.empty? }
+    end
+
+    # Each query below is answered by the DomainRuntime port's adapter: the domain is booted
+    # in-process and the answer is the exact text the matching bin script printed.
+
+    query "Ir" do
+      description "The IR a domain's boot produces, as JSON: what golden specs pin and an era hashes."
+      attribute :domain,       DomainPath, optional: true
+      attribute :translations, Boolean,    optional: true
+      attribute :meta,         Boolean,    optional: true
+      answered_by "DomainRuntime"
+    end
+
+    query "Shape" do
+      description "The storage shape an era's label is minted from: a bluebook file or a directory of them."
+      attribute :domain, DomainPath
+      answered_by "DomainRuntime"
+    end
+
+    query "Stores" do
+      description "Every aggregate's current records: the head, not the journal."
+      attribute :domain, DomainPath
+      answered_by "DomainRuntime"
+    end
+
+    query "History" do
+      description "Every journal entry a domain's append-only adapters hold: the whole write history."
+      attribute :domain, DomainPath
+      answered_by "DomainRuntime"
+    end
+
+    query "Statements" do
+      description "A chapter's declared facts, as plain English sentences."
+      attribute :domain,  DomainPath
+      attribute :chapter, ChapterName
+      answered_by "DomainRuntime"
+    end
+
+    query "Narrate" do
+      description "A domain read back in English, whole or for one aggregate."
+      attribute :domain,    DomainPath,    optional: true
+      attribute :aggregate, AggregateName, optional: true
+      answered_by "DomainRuntime"
+    end
+
+    query "Docs" do
+      description "A domain's usage document, whole or for one aggregate."
+      attribute :domain,    DomainPath,    optional: true
+      attribute :aggregate, AggregateName, optional: true
+      answered_by "DomainRuntime"
+    end
+
+    query "ProjectDiagrams" do
+      description "A chapter's Mermaid diagrams, as file names mapped to their text; nothing is written."
+      attribute :domain,  DomainPath
+      attribute :chapter, ChapterName
+      answered_by "DomainRuntime"
+    end
+
+    query "Glossary" do
+      description "A chapter's Ubiquitous Language glossary, as file names mapped to their text; nothing is written."
+      attribute :domain,  DomainPath
+      attribute :chapter, ChapterName
+      answered_by "DomainRuntime"
+    end
+  end
+end

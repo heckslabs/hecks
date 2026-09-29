@@ -1,3 +1,6 @@
+# `require_relative` is needed because the `.adapter` glob never loads the sibling `.rb`.
+require_relative "in_process_boot"
+
 Hecks.adapter "InProcessBoot" do
-  port "domain_runtime"
+  port "DomainRuntime"
 end

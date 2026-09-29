@@ -1,0 +1,90 @@
+require "spec_helper"
+require "tmpdir"
+require "fileutils"
+require "json"
+
+# Custodian's Introspection, reached the way `hecks <verb>` reaches it: the Hecks domain boots,
+# the launcher resolves a bare query name, and the DomainRuntime port's adapter answers.
+RSpec.describe "hecks introspection through the launcher" do
+  INTROSPECTED_BLUEBOOK = <<~RUBY.freeze
+    Hecks.bluebook "Shelf" do
+      vision "Books on a shelf."
+
+      aggregate "Book" do
+        description "A book."
+
+        attribute :title, Title
+        identified_by :title
+
+        value_object "Title" do
+          attribute :value, String, pattern: '[^ \\t\\n\\r]'
+          invariant("a book is titled") { !value.to_s.empty? }
+        end
+
+        command "Shelve" do
+          attribute :title, Title
+          sets :title
+          emits Shelved
+        end
+      end
+    end
+  RUBY
+
+  INTROSPECTED_HECKSAGON = <<~RUBY.freeze
+    Hecks.hecksagon "Shelf" do
+      persisted_by "Memory"
+    end
+  RUBY
+
+  before(:all) do
+    @dir = Dir.mktmpdir("introspected")
+    FileUtils.mkdir_p(File.join(@dir, "bluebook"))
+    File.write(File.join(@dir, "bluebook/shelf.bluebook"), INTROSPECTED_BLUEBOOK)
+    File.write(File.join(@dir, "bluebook/shelf.hecksagon"), INTROSPECTED_HECKSAGON)
+    @hecks = Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/hecks"), install_facade: false)
+  end
+
+  after(:all) { FileUtils.rm_rf(@dir) }
+
+  def run_verb(*argv)
+    Hecks::Facade::CliRunner.call(runtime: @hecks, argv: argv, program: "hecks")
+  end
+
+  it "answers a document as its own text, not as a JSON string inside JSON" do
+    out, status = run_verb("statements", @dir, "chapter=Shelf")
+
+    expect(status).to eq(0)
+    expect(out).to include("A book is titled.")
+    expect(out).not_to start_with("[")
+  end
+
+  it "answers a JSON document as that JSON, byte for byte what the adapter returns" do
+    out, status = run_verb("stores", @dir)
+
+    expect(status).to eq(0)
+    expect(out).to eq(Hecks::Adapters::InProcessBoot.new.stores(domain: @dir))
+  end
+
+  it "answers files as a JSON map, and writes none" do
+    before = Dir.glob(File.join(@dir, "**/*")).sort
+    out, status = run_verb("glossary", @dir, "chapter=Shelf")
+
+    expect(status).to eq(0)
+    expect(JSON.parse(out).first.fetch("files")).not_to be_empty
+    expect(Dir.glob(File.join(@dir, "**/*")).sort).to eq(before)
+  end
+
+  it "words a missing domain as a refusal, not a backtrace" do
+    out, status = run_verb("stores", "/no/such/domain")
+
+    expect(status).to eq(1)
+    expect(out).to include("no such domain")
+  end
+
+  it "reads without writing: the Hecks domain's event log stays empty" do
+    run_verb("stores", @dir)
+    run_verb("narrate", @dir)
+
+    expect(@hecks.registry.event_log.to_a).to be_empty
+  end
+end

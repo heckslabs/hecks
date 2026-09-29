@@ -62,6 +62,7 @@ Hecks.bluebook "Hecks" do
     end
 
     query "Shipped" do
+      description "Every version that was tagged, published and verified."
       where(state: "verified")
       order_by :version
     end
@@ -104,6 +105,7 @@ Hecks.bluebook "Hecks" do
     end
 
     query "Stale" do
+      description "Every cache whose grammar changed under it and is not yet rebuilt."
       where(state: "stale")
       order_by :digest
     end

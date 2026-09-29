@@ -14,6 +14,9 @@ module Hecks
       example:   "examples/*",
       stress:    "qa/stress_domains/*",
       semantics: "spec/corpus/semantics/domains/*",
+      # The Hecks domain (ADR 0080): its chapters share one namespace and one hecksagon, so
+      # they load together, as a directory, never file by file.
+      hecks:     "lib/hecks/hecks",
       # A package vendored via `uses_embryonaut_bluebook` — nested inside the
       # consuming example's own checkout, not this gem's own framework/bluebook/.
       vendored:  "examples/*/vendor/embryonaut_bluebooks/*"
@@ -29,7 +32,6 @@ module Hecks
       language:  "lib/hecks/language/**/*.bluebook",
       deploy:    "lib/hecks/deploy/bluebook/*.bluebook",
       tenancy:   "lib/hecks/tenancy/bluebook/*.bluebook",
-      hecks:     "lib/hecks/hecks/*.bluebook",
       fixture:   "spec/fixtures/**/*.bluebook"
     }.freeze
 

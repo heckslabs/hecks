@@ -74,7 +74,7 @@ module Hecks
 
         if spec[:kind] == :query
           rows = runtime.query(spec[:verb], **args)
-          return [JSON.pretty_generate(rows.map { |row| JsonDoor.materialize(row) }), 0]
+          return [text_answer(rows) || JSON.pretty_generate(rows.map { |row| JsonDoor.materialize(row) }), 0]
         end
 
         # Answers with only this verb's outcome; a full store dump is every record there is.
@@ -92,6 +92,20 @@ module Hecks
       rescue *Runtime::DOMAIN_REFUSALS => e
         # The refusal is the chapter's own sentence, verbatim.
         [e.message, 1]
+      end
+
+      # The text a query answered by a port gave, when that is the whole answer.
+      #
+      # An adapter that answers a String yields the single row `{ answered: text }`; printing it
+      # raw keeps a document (JSON, Markdown, sentences) readable and pipeable instead of quoted
+      # inside another JSON document.
+      #
+      # @param rows [Array<Hash>] the query's rows
+      # @return [String, nil] the text, or nil when the rows are anything else
+      def text_answer(rows)
+        return unless rows.length == 1 && rows.first.keys == [:answered] && rows.first[:answered].is_a?(String)
+
+        rows.first[:answered]
       end
 
       # Fills in a `now` argument the caller left out, from the clock port; an explicit one wins.
