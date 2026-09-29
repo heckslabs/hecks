@@ -125,7 +125,7 @@ Around the floor, every part that has identity and changing state becomes an agg
 | Host | Custodian | stack or URL | `Observe` records the version and era a running `rust/host` reports; emits `EraChanged` | `check_era`, which becomes a command on it |
 | FrameworkMember | Custodian | member name | the capabilities it provides | `Hecks::Framework.members` and `providers_of`, read as records; Hecks catalogs members without attaching them |
 | Kernel | Codebase | kernel version | the capability tables and a coverage result per run | `project_kernel_capabilities`, `rust_kernel_coverage` |
-| Adapter | Adapter chapter (exists) | adapter name | gains what the adapter supports, such as saving saga state, which a domain today only learns from a warning at boot | the `.adapter` declarations `lib/hecks/adapters/driven/` already holds |
+| Adapter | Adapter chapter (exists) | adapter name | gains the optional port operations it `implements` and the `guarantees` it gives (section 10), which a domain today only learns from a warning at boot | the `.adapter` declarations `lib/hecks/adapters/driven/` already holds |
 
 The Hecks domain's own adapters (InProcessBoot, JournalStore, RustToolchain and the rest in this ADR) get `.adapter` declarations too, so they appear beside the built-in ones.
 
@@ -251,7 +251,13 @@ Inside this repository the move is still one pass: there is never a second way f
   - **Custodian, for clients:** Sqlite under the client project's `.hecks/` directory by default, so a check's history lives beside the domain it checks.
   - **Codebase, in this repository:** the same PostgresEra database as the QualityControl ledger, which CI can already reach, so history is shared across machines and CI runs.
   - **QualityControl:** unchanged, on PostgresEra.
-- **An adapter states what it supports.** The `.adapter` language gains a `supports` word, for example `supports :saga_state, :transactions, :outbox`, recorded on the Adapter aggregate. Boot checks the declaration against the class: a declared capability the class does not implement refuses, and an implemented one left undeclared warns. The boot warning a domain gets today, when its adapter cannot save saga state, becomes a query answered from the declarations: which bound adapters do not support what this domain's process managers need.
+- **An adapter declares what it supports, in the port's own terms.** Today a `.adapter` declares only its `port`, `field`s and `secrets`, and what an adapter can do is found at runtime by asking the class (a missing `save_saga` produces a boot warning that saga state is lost on restart). Four pieces replace that:
+  - **Optional operations.** A port marks some of its operations optional, such as `SaveSaga`, `LoadSaga` and `AppendOutbox` on the persistence port, and an adapter lists the optional ones it `implements`. A capability is an operation the port already defines, so no new vocabulary is needed.
+  - **Guarantees.** Qualities that are not operations, such as atomic saves across aggregates, ordered appends, durability and optimistic locking, are a closed set the port declares. Each adapter states which it gives: `guarantees :atomic_save, :durable`.
+  - **Needs.** A domain's needs mostly come from its IR: a process manager needs `SaveSaga` and `LoadSaga`, and a policy with an effect needs `AppendOutbox`. Where the IR cannot tell, a hecksagon states a need on the binding: `persisted_by "Heki", requires: :durable`. Boot matches needs against declarations and refuses a binding that falls short, the way a chapter's `provides` is matched to its users. Today's saga warning becomes that refusal.
+  - **Conformance.** Every optional operation and guarantee has a shared conformance suite, and declaring one enrolls the adapter in it, as the adapter-parity specs do today. Boot also checks that the class implements each declared operation. A false claim fails CI instead of production.
+
+  The Adapter aggregate records `implements` and `guarantees`, so "which bound adapters cannot do what this domain needs" is a query.
 - **Rules found inline become givens.** On Release: releasing from `main` equal to `origin/main` on a clean tree, the client package version matching the gem's, a CHANGELOG heading for the version, and an existing tag pointing at the release commit. On Deploy: `--schema` requiring `--tenant`, and the adapter being AwsLambda or AwsFargate.
 
 ### 11. The adapters, from a scan of the code
