@@ -1,6 +1,7 @@
 Hecks.hecksagon "Hecks" do
   uses_framework "Governance"
-  persisted_by "Memory"
+  # Persistence is not bound here: hecks.world's `default_adapter` binds every aggregate, so
+  # environments/memory.world can swap the whole domain without a double bind.
 
   # The outside a journaled Custodian command reaches: each port names what its adapter does,
   # and every ask is answered with the record's own arguments or refused with a reason.

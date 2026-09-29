@@ -10,6 +10,7 @@ end
 
 require "hecks"
 require_relative "support/ci_skip_backstop"
+require_relative "support/hecks_memory_environment"
 
 # A push runs the pre-push hook with GIT_DIR and friends exported, and every
 # `git` the suite starts inherits them. Specs build scratch repositories and

@@ -1,6 +1,7 @@
 # Sibling bounded-context hecksagons.
 # Same-name blocks merge with hecks.hecksagon, order-independent.
 
+# Governance's aggregates take their store from governance.world's `default_adapter`, the same
+# way the Hecks chapter's do, so the memory overlay swaps them together.
 Hecks.hecksagon "Governance" do
-  persisted_by "Memory"
 end

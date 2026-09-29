@@ -31,7 +31,7 @@ module Hecks
         Hecks.with_registry(registry) do
           loading.load_library
           loading.load_project(root)
-          loading.load_domain(directory, environment: environment)
+          loading.load_domain(directory, environment: selected_environment(environment))
         end
 
         run_boot_gates!(registry, directory)
@@ -39,6 +39,18 @@ module Hecks
         redrive_outbox!(dispatcher)
         seed_privacy_markings!(dispatcher, registry)
         install_facade ? bind_runtime(dispatcher) : dispatcher
+      end
+
+      # The overlay a boot loads: the caller's own choice, else the `HECKS_ENVIRONMENT`
+      # variable, else none. A domain with no `environments/<name>.*` files ignores either.
+      #
+      # @param environment [String, nil] the overlay name a caller passed to `boot`
+      # @return [String, nil] `environment`, or the variable's value; nil when both are absent
+      def self.selected_environment(environment)
+        return environment if environment
+
+        named = ENV["HECKS_ENVIRONMENT"].to_s.strip
+        named.empty? ? nil : named
       end
 
       # Redrives pending outbox rows after the dispatcher and saga
@@ -90,7 +102,7 @@ module Hecks
         Hecks.with_registry(registry) do
           loading.load_library
           loading.load_project(root)
-          loading.load_selected(files, environment: environment)
+          loading.load_selected(files, environment: selected_environment(environment))
         end
 
         run_boot_gates!(registry, directory)
@@ -117,7 +129,8 @@ module Hecks
         gates
       end
 
-      # Resolves the Ruby implementation of every adapter a hecksagon binds.
+      # Resolves the Ruby implementation of every adapter a hecksagon binds, and of every
+      # `default_adapter` a world names (a chapter that binds nothing takes its world's).
       # An adapter's implementation can register its own persistence plugin as
       # a side effect of loading (e.g. `PostgresEra`) — resolving here, before
       # gates are collected, is what registers those plugins' gates without
@@ -130,6 +143,11 @@ module Hecks
           rescue WiringError
             next
           end
+        end
+        registry.worlds.each_value do |world|
+          registry.adapter_class(world.default_adapter) if world.default_adapter
+        rescue WiringError
+          next
         end
       end
 

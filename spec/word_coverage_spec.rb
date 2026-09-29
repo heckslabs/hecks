@@ -19,6 +19,7 @@ RSpec.describe "every live DSL word, used somewhere real" do
     # The Hecks domain (ADR 0080): the first real users of `namespace` and `attaches`.
     File.join(InMemoryDomain::ROOT, "lib/hecks/hecks", "*.bluebook"),
     File.join(InMemoryDomain::ROOT, "lib/hecks/hecks", "*.hecksagon"),
+    File.join(InMemoryDomain::ROOT, "lib/hecks/hecks", "**", "*.world"),
     # Stress domains: real domains the QA rotation sweeps, not invented
     # fixtures. spec/fixtures stays out — those are invented for one spec.
     File.join(InMemoryDomain::ROOT, "qa/stress_domains", "*", "**", "*.bluebook"),

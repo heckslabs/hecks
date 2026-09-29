@@ -21,6 +21,7 @@ spec/check_era_spec.rb
 spec/cli_spec.rb
 spec/deploy_bluebook_spec.rb
 spec/gemspec_packaging_spec.rb
+spec/hecks_journal_survives_spec.rb
 spec/lint_deploy_recipes_spec.rb
 spec/load_hygiene_spec.rb
 spec/ports/persistence_contract_spec.rb
