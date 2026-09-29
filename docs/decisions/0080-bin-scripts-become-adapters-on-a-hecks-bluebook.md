@@ -133,6 +133,14 @@ Release moves to the root because every install has a version, and "what am I ru
 
 What stays code is the interpreter and the IO inside each adapter.
 
+#### The Hecks door wraps operations on the runtime, never the runtime's own dispatch
+
+Three rules keep the Hecks domain beside a client domain, not in front of it:
+
+1. **A client's commands never pass through the Hecks domain.** A client domain's generated launcher and `rust/host` call the runtime directly. A client's command takes no extra hop, writes no second journal entry, and depends on neither the Hecks domain's store nor its version.
+2. **The Hecks domain reaches a target domain only through the DomainRuntime port.** It boots and operates on another domain the way any adapter-driven caller would, and never through the runtime's internals.
+3. **Booting the Hecks domain depends on no Hecks command.** It boots the way any domain boots, without `exe/hecks` or any of its own verbs. The committed `exe/hecks` stays the bootstrap, so regenerating the launcher never needs a working launcher.
+
 ### 6. One Translation chapter
 
 Two chapters are named Translation, and they are two halves of one concept:
@@ -235,11 +243,60 @@ Inside this repository the move is still one pass: there is never a second way f
     - an approval whose digest matches the edge and whose ordinal matches the tip
     - exactly one edge leaving the era
   - *The era capability check* is pasted into five scripts although `EraCheck.lineage_capable?` exists; it becomes one given, "the store keeps eras".
-- **The adapter list, checked against the code:**
-  - **Release.** Release calls `git`, the RubyGems API and `gem`, `npm`, and the filesystem. It never runs `gh`; the command appears only in hint text. It also needs a SecretVault adapter (1Password `op run`), the existing `clock` port, and the Terminal adapter for its y/N confirmations.
-  - **Deploy.** Deploy makes no AWS, Docker or `make` calls from Ruby. `project_deploy` renders the Makefile and scripts, and those run `aws`, `docker` and the rest when an operator runs them. Deploy therefore needs only Workspace and TenantProvisioning (which writes an environment's `.world` file). Lint runs `make` as a subprocess to check recipes, and that is Deploy's one other adapter.
-  - **Environment variables** (`HECKS_PROJECT_ENVIRONMENT`, `HECKS_SCHEMA`) are read through the world configuration rather than inline.
 - **Rules found inline become givens.** On Release: releasing from `main` equal to `origin/main` on a clean tree, the client package version matching the gem's, a CHANGELOG heading for the version, and an existing tag pointing at the release commit. On Deploy: `--schema` requiring `--tenant`, and the adapter being AwsLambda or AwsFargate.
+
+### 11. The adapters, from a scan of the code
+
+This list comes from a static scan, not an estimate. The scan starts from each of the 92 scripts and follows `require`/`require_relative` into `lib/` and `qa/`, recording every subprocess, network, database, file, environment, clock, randomness, terminal and process-control call with its file and line. It then resolves by hand every call whose command is built at runtime, and every subprocess helper (`git(...)`, `gh(...)`, `Release::Runner::Commands`, `Vendoring::GitSource`). The core runtime that `require "hecks"` loads is scanned once, separately, since every script shares it.
+
+**Driven adapters the scripts need:**
+
+| Port | Adapter wraps | Scripts that reach it |
+| --- | --- | --- |
+| Git | `git` | `qa_open_pr`, `qa_tick`, `qa_mine_combinations`, `regen_codegen_domains`, `standardize_comments`, `bench` (commit id), `release` (preflight, tagging), `vendor_bluebook` (`git archive`, through `Vendoring::GitSource`) |
+| GitHub | `gh` | `qa_open_pr`, `qa_pr_check`, `refresh_rspec_runtime_baseline` |
+| GemRegistry | `gem build`, `gem push`, the RubyGems versions API over `curl` | `release`, `release_gem` |
+| NpmRegistry | `npm ci`, `npm publish`, `npm view` | `release` |
+| SecretVault | 1Password `op run` | `release`, `release_gem` |
+| RustToolchain | `cargo`, `rustup`, `wasm-bindgen`, `wasmtime`, and the binaries they build (`hecks-build`, the parser, each domain's binary) | `project_rust`, `project_wasm`, `project_wasm_browser`, `rust_coverage`, `rust_conformance`, `rust_conformance_fuzz`, `fuzz`, `bench`, `qa_generated_domains` |
+| RubyChild | `bundle exec ruby` / `bundle exec rspec`, `ruby` | `corpus`, `evolve`, `lint_deploy_recipes`, `rust_coverage`, `rspec_io_parallel_files`, `stress_concurrency_specs`, `refresh_rspec_runtime_baseline`, `qa_concurrency_racer`, `qa_discover_external_domains`, `qa_domain_novelty`, `qa_generated_domains`, `qa_mine_combinations`, `qa_sweep`, `qa_tick` |
+| TestRunner | `RSpec::Core::Runner` in process | `spec_example` |
+| Agent | `claude -p` (`QA_MINER_AGENT` overrides) | `qa_mine_combinations` |
+| Shell | `sh -c`, `rsync`, `tar` | `qa_log_bug` (a bug's demonstration), `qa_generated_domains`, `vendor_bluebook` |
+| PgAdmin | `PG.connect` outside the persistence adapters: roles, scratch databases | `qa_postgres_role`, `fuzz`, `bench`, `qa_sweep`, `regenerate_persistence_legacy_fixtures` |
+| SqliteFixture | `sqlite3` and `SQLite3::Database` | `regenerate_persistence_legacy_fixtures` |
+| HostHttp | `Net::HTTP` | `check_era`, `smoke_http` |
+| ProcessPool | `fork`, `Process.wait`, signal traps | `fuzz`, `follow`, `qa_mine_combinations`, `qa_sweep`, `qa_tick`, `regen_codegen_domains` |
+| Terminal | IRB, stdin, y/N prompts | `console`, `run`, `release`, `standardize_comments`, `bench` |
+| Workspace | file writes (52 scripts) and reads (68) | most scripts; SourceTree is the part that rewrites tracked source |
+| `clock` (exists) | `Time.now`, `sleep` | `fuzz`, `bench`, `release`, `smoke_http`, `qa_open_pr`, `qa_sweep`, `qa_tick`, `qa_seed_angles`, `qa_generated_domains`, `qa_mine_combinations` |
+
+Environment variables are read by 25 scripts; they become world configuration, not an adapter. The fuzzing generators' `Random` is seeded and deterministic, so it is logic, not IO.
+
+**RubyChild mostly disappears.** Most `bundle exec ruby bin/<name>` calls are one hecks tool running another. Once both are commands on the same domain, the call becomes a dispatch. It stays a subprocess only where isolation is the point: the concurrency racer, the stress specs, and checking a generated domain in a clean process.
+
+**What the scan rules out:**
+
+- **Aws.** No script calls AWS. `project_deploy` renders a Makefile and scripts, and those run `aws`, `docker` and `sam` when an operator runs them. The runtime's one AWS SDK call is inside the Lambda persistence adapter.
+- **Make.** `lint_deploy_recipes` runs `ruby bin/project_deploy` and reads the generated Makefile as text; nothing runs `make`.
+- **GitHub for Release.** Release never runs `gh`; the command appears only in hint text.
+- **GemRegistry for `qa_discover_external_domains`.** It runs `bundle`, not `gem`.
+
+**Already adapters in the runtime** (reached through `Hecks.boot`, used by Custodian's DomainRuntime and JournalStore):
+
+- the persistence adapters: Memory, Heki, Sqlite, Postgres with its outbox, PostgresEra, D1 over HTTP, Lambda over the AWS SDK
+- `SystemClock`, `SecureRandomIdentity`, `InProcessKeyVault`, `GoogleAuthentication`
+- the `TenantProvisioner` file write
+- the storehouse log and the syntax-boot cache under `Hecks::CacheDir`
+
+`Ports::Persistence::PostgresDump` runs `pg_dump` and `pg_restore`, but no script reaches it.
+
+**Driving adapters:**
+
+- the generated `exe/hecks`
+- the two MCP stdio doors (`hecks_mcp_door`, `hecks_query_ir_mcp`)
+- the Rack app `present` serves (`Forms::App`)
+- the existing CI webhook
 
 ## Consequences
 
@@ -271,6 +328,11 @@ Inside this repository the move is still one pass: there is never a second way f
 - **Leave the scripts as they are.** Rejected: results keep leaving no history, and the rules stay out of the model.
 
 ## Open items
+
+- A guard spec for the runtime boundary (section 5). It asserts three things:
+  - `lib/hecks.rb` never loads `lib/hecks/hecks/`.
+  - The `CliRunner` path a client domain's launcher uses never loads `lib/hecks/hecks/` either.
+  - A client domain's boot registry never contains the Hecks chapter, unless the client attaches it explicitly.
 
 - Whether the `.adapter` language can already state what an adapter supports (saga state, transactions, the outbox), or needs a word for it before those become queries.
 - If a Ruby deployment ever needs a smaller footprint on disk, Deploy prunes the unloaded tooling when it builds the image, instead of the gem leaving it out.
