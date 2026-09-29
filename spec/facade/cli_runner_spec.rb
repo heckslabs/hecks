@@ -70,6 +70,14 @@ RSpec.describe Hecks::Facade::CliRunner do
       expect(answer.dig("state", "pizza", "price_cents", "cents")).to eq(1200)
     end
 
+    it "reaches an existing record through a bare word, the verb's first argument" do
+      a_pizza
+      output, code = run("order.add_topping", "Margherita", "topping=Basil", "amount=3")
+
+      expect(code).to eq(0)
+      expect(JSON.parse(output).dig("state", "toppings").length).to eq(1)
+    end
+
     it "reaches an existing record through id" do
       a_pizza
       output, code = run("order.add_topping", "id=Margherita", "topping=Basil", "amount=3")
@@ -104,6 +112,14 @@ RSpec.describe Hecks::Facade::CliRunner do
     it "answers rows, materialised out of their value objects" do
       a_pizza("Bare")
       output, code = run("ask", "order.available")
+
+      expect(code).to eq(0)
+      expect(JSON.parse(output).map { |row| row.dig("name", "value") }).to include("Bare")
+    end
+
+    it "answers a question by its bare name when no command shares it" do
+      a_pizza("Bare")
+      output, code = run("available")
 
       expect(code).to eq(0)
       expect(JSON.parse(output).map { |row| row.dig("name", "value") }).to include("Bare")

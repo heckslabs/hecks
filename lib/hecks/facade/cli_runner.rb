@@ -36,6 +36,9 @@ module Hecks
         name   = argv.first
         return [cli[:usage], 1] if name.nil?
 
+        # A question answers to its bare name too; `ask` is needed only when a command shares it.
+        asking ||= !cli[:names][:command].key?(name) && cli[:names][:question].key?(name)
+
         # The alias map lets `create_pizza` and `order.create_pizza` reach the same verb.
         pool = asking ? cli[:questions] : cli[:verbs]
         key  = cli[:names][asking ? :question : :command][name]

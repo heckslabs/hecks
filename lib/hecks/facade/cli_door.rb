@@ -13,10 +13,11 @@ module Hecks
       #   # => { reference: { value: "A-1" }, sequence: { value: 99 } }
       #
       # @param spec [Hash{Symbol => Object}] one verb's entry from `Projector::CliProjector`
-      # @param pairs [Array<String>] the words after the verb; a path may be the short form
-      #   of a single-field value object (`reference` for `reference.value`)
+      # @param pairs [Array<String>] the words after the verb: `name=value` pairs, where a path may
+      #   be the short form of a single-field value object (`reference` for `reference.value`);
+      #   `--name` for a Boolean; and at most one bare word, which fills the verb's first argument
       # @return [Hash{Symbol => Object}] the arguments nested by path, leaves cast to type
-      # @raise [Runtime::NotFound] if a pair has no `=` or names a path the verb lacks
+      # @raise [Runtime::NotFound] if a path, flag or bare word does not fit the verb
       # @raise [Runtime::TypeMismatch] if a value does not parse as its Integer or Float
       def arguments(spec, pairs)
         # Extra accepted arguments stay out of help, which teaches only to=....
@@ -24,7 +25,7 @@ module Hecks
           [argument[:path], argument]
         end
 
-        pairs.each_with_object({}) do |pair, args|
+        normalize(spec, pairs, options).each_with_object({}) do |pair, args|
           path, value = split(pair)
           # key? rather than `||`, so the lookup below honors the same spelling `full` chose.
           full     = options.key?(path) ? path : expand(path, options)
@@ -34,6 +35,42 @@ module Hecks
 
           bury(args, full.split("."), cast(value, argument[:type]))
         end
+      end
+
+      # Rewrites the short forms into `name=value`: `--name` for a Boolean, `--name=value` as
+      # `name=value`, and one bare word as the verb's first argument (`to` for a command on an
+      # existing aggregate, the first attribute for one that creates).
+      def normalize(spec, words, options)
+        bare = words.reject { |word| word.include?("=") || word.start_with?("--") }
+        raise Runtime::NotFound, too_many_bare(bare) if bare.length > 1
+
+        words.map do |word|
+          next word.delete_prefix("--") if word.start_with?("--") && word.include?("=")
+          next flag(word.delete_prefix("--"), options) if word.start_with?("--")
+
+          bare.include?(word) ? positional(word, spec) : word
+        end
+      end
+
+      # A `--name` flag, as the `name=true` pair it stands for.
+      def flag(name, options)
+        path = options.key?(name) ? name : expand(name, options)
+        return "#{path}=true" if options.dig(path, :type) == "Boolean"
+
+        raise Runtime::NotFound, "--#{name} is a flag, but this verb has no Boolean argument #{name.inspect}"
+      end
+
+      # The one bare word, as a pair for the verb's first argument.
+      def positional(word, spec)
+        first = spec[:arguments].first
+        return "#{first[:path]}=#{word}" if first
+
+        raise Runtime::NotFound, "#{word.inspect} is not name=value, and this verb takes no arguments"
+      end
+
+      # Words the refusal for more than one unnamed argument.
+      def too_many_bare(bare)
+        "only one argument may go unnamed, not #{bare.map(&:inspect).join(', ')}; name the rest as name=value"
       end
 
       # Cuts one word at its first `=`, so a value may itself contain `=`.

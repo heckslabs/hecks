@@ -67,15 +67,43 @@ RSpec.describe Hecks::Facade::CliDoor do
     end
   end
 
+  describe "the 3.0 short forms" do
+    it "fills the verb's first argument from one bare word" do
+      expect(described_class.arguments(spec, ["A-1", "sequence=99"])).to eq(id: "A-1", sequence: { value: 99 })
+    end
+
+    it "reads --name as true for a Boolean" do
+      expect(described_class.arguments(spec, ["--wanted"])).to eq(wanted: true)
+    end
+
+    it "reads --name=value as name=value" do
+      expect(described_class.arguments(spec, ["--reference=BUG#1"])).to eq(reference: { value: "BUG#1" })
+    end
+
+    it "still reads plain name=value exactly as before" do
+      expect(described_class.arguments(spec, ["id=A-1", "wanted=no"])).to eq(id: "A-1", wanted: false)
+    end
+  end
+
   describe "refusals" do
     it "names an argument the verb does not take, and lists the ones it does" do
       expect { described_class.arguments(spec, ["hwo=x"]) }
         .to raise_error(Hecks::Runtime::NotFound, /no argument "hwo".*this verb takes .*id/m)
     end
 
-    it "refuses a bare word that is not name=value" do
-      expect { described_class.arguments(spec, ["reference"]) }
-        .to raise_error(Hecks::Runtime::NotFound, /is not name=value/)
+    it "refuses more than one bare word, asking for the rest by name" do
+      expect { described_class.arguments(spec, %w[A-1 B-2]) }
+        .to raise_error(Hecks::Runtime::NotFound, /only one argument may go unnamed/)
+    end
+
+    it "refuses a bare word for a verb that takes no arguments" do
+      expect { described_class.arguments({ arguments: [] }, ["A-1"]) }
+        .to raise_error(Hecks::Runtime::NotFound, /is not name=value, and this verb takes no arguments/)
+    end
+
+    it "refuses a flag for an argument that is not Boolean" do
+      expect { described_class.arguments(spec, ["--reference"]) }
+        .to raise_error(Hecks::Runtime::NotFound, /--reference is a flag, but this verb has no Boolean/)
     end
 
     it "keeps an = inside the value" do
