@@ -40,13 +40,13 @@ lib/hecks/hecks/
   hecks                 the launcher project_cli generates
 ```
 
-| Part | Files | Runs | Holds |
-| --- | --- | --- | --- |
-| Root | `hecks.bluebook` | Anywhere | The framework itself: its vision and version |
-| Custodian | `custodian.bluebook` | Anywhere | Operating any domain: introspection, running, eras and journals, packages, doors |
-| Codebase | `codebase.bluebook`, `adapters/codebase/` | In a hecks checkout; refuses elsewhere | Working on this repository: language self-hosting, Rust generation, conformance, style, codemods, test suite, fuzzing, release |
+| Part | Files | For | Runs | Holds |
+| --- | --- | --- | --- | --- |
+| Root | `hecks.bluebook` | Everyone | Anywhere | The framework itself: its vision and version |
+| Custodian | `custodian.bluebook` | Clients running their own domains | Anywhere | Looking at a domain, running it, building it for the Rust host, fuzzing it, caring for its stored data, vendoring bluebooks, entry points |
+| Codebase | `codebase.bluebook`, `adapters/codebase/` | Maintainers of Hecks | In a hecks checkout; refuses elsewhere | Evolving the language, Rust/Ruby conformance, comment style and codemods, test suite tooling, corpus-wide regeneration, releasing the gem |
 
-The split into files is for reading, not for packaging: all of it ships. Because `project_cli` names a launcher after its bluebook, the generated launcher is `hecks`, and `exe/hecks` becomes that launcher instead of a hand-written router. Verbs are the Hecks commands directly, for example `hecks verify_engine_agreement` or `hecks merge_tail`.
+The split is by audience, not by packaging: all of it ships. The test for where a command goes is whether a client would run it against their own domain. If so it is Custodian's, even when Hecks maintainers also use it; if it only makes sense on this repository, it is Codebase's. Because `project_cli` names a launcher after its bluebook, the generated launcher is `hecks`, and `exe/hecks` becomes that launcher instead of a hand-written router. Verbs are the Hecks commands directly, for example `hecks verify_engine_agreement` or `hecks merge_tail`.
 
 A script whose concern already has a bluebook joins that bluebook instead: the `qa_*` scripts go to QualityControl and the deploy scripts go to Deploy.
 
@@ -64,19 +64,21 @@ Keeping a deployment small does not depend on the package:
 
 The Hecks domain also takes in every chapter that describes the framework itself: the language declared in itself, Tenancy, Deploy and QualityControl. Each stays a chapter of its own: it keeps its name, its namespace (`QualityControl::Patch`, `Deploy::Tenant`, `Bluebook::Aggregate`), its store and its directory. The Hecks hecksagon attaches them the way `uses_framework` attaches Governance, and cross-chapter reactions go through `translates`.
 
-| Group | Chapter | Lives in | Runs |
-| --- | --- | --- | --- |
-| Language | Bluebook | `lib/hecks/language/bluebook/` | Anywhere |
-| Language | Paging (extends Bluebook through `attaches_to`, comes with it) | `lib/hecks/language/bluebook/attaches/` | Anywhere |
-| Language | Hecksagon | `lib/hecks/language/hecksagon/` | Anywhere |
-| Language | World | `lib/hecks/language/world/` | Anywhere |
-| Language | Adapter | `lib/hecks/language/adapter.bluebook` | Anywhere |
-| Language | Port | `lib/hecks/language/port.bluebook` | Anywhere |
-| Language | Translation | `lib/hecks/language/translation/` | Anywhere |
-| Language | Expression | `lib/hecks/grammar/expression.bluebook` | Anywhere |
-| Runtime | Tenancy | `lib/hecks/tenancy/bluebook/` | Anywhere |
-| Operations | Deploy | `lib/hecks/deploy/bluebook/` | Anywhere |
-| Operations | QualityControl | `lib/hecks/quality_control/`, moved from `qa/` | In a hecks checkout |
+| Group | Chapter | Lives in | For | Runs |
+| --- | --- | --- | --- | --- |
+| Language | Bluebook | `lib/hecks/language/bluebook/` | Both | Anywhere |
+| Language | Paging (extends Bluebook through `attaches_to`, comes with it) | `lib/hecks/language/bluebook/attaches/` | Both | Anywhere |
+| Language | Hecksagon | `lib/hecks/language/hecksagon/` | Both | Anywhere |
+| Language | World | `lib/hecks/language/world/` | Both | Anywhere |
+| Language | Adapter | `lib/hecks/language/adapter.bluebook` | Both | Anywhere |
+| Language | Port | `lib/hecks/language/port.bluebook` | Both | Anywhere |
+| Language | Translation | `lib/hecks/language/translation/` | Both | Anywhere |
+| Language | Expression | `lib/hecks/grammar/expression.bluebook` | Both | Anywhere |
+| Runtime | Tenancy | `lib/hecks/tenancy/bluebook/` | Clients | Anywhere |
+| Operations | Deploy | `lib/hecks/deploy/bluebook/` | Clients | Anywhere |
+| Operations | QualityControl | `lib/hecks/quality_control/`, moved from `qa/` | Maintainers | In a hecks checkout |
+
+The language chapters serve both audiences: clients' domains run on them, and maintainers change them.
 
 QualityControl's chapter, hecksagon and adapters move from `qa/bluebook/` and `qa/adapters/` into `lib/hecks/quality_control/` so they ship with the rest. What belongs to this repository's QA practice stays in `qa/`: the `.world` file naming the ledger database, `settings.yml`, the stress domains and the specs. The QA ledger keeps its PostgresEra era and tables, because they are keyed by the chapter name, which does not change.
 
@@ -137,19 +139,22 @@ No data moves: the grammar chapter persists to Memory and keeps no records, and 
 | Custodian | Era | `check_era`, `merge_tail`, `reattest_era`, `backfill_era_projections`, `scaffold_translation`, `translation_audit`, `compact`, `heki_compact` |
 | Custodian | Package | `vendor_bluebook` |
 | Custodian | Door | `project_cli`, `hecks_mcp_door` |
+| Custodian | Build | `project_rust`, `project_wasm`, `project_wasm_browser`, `rust_coverage`, `rust_conformance`, `rust_conformance_fuzz` |
+| Custodian | Fuzzing | `fuzz`, `generate`, `bench` |
 | Deploy (existing) | Deploy | `project_deploy`, `lint_deploy_recipes`, `deploy_template_diff`, `project_oidc`, `project_tenant` |
 | Codebase | Language | `project_model`, `project_vocabulary`, `project_rust_vocabulary`, `project_refusal_wording`, `project_reserved_names`, `project_parser_table`, `project_bootstrap_table`, `project_kernel_capabilities`, `project_field_hints`, `expression_projection`, `reference`, `evolve` |
-| Codebase | RustBuild | `project_rust`, `project_wasm`, `project_wasm_browser`, `regen_codegen_domains` |
-| Codebase | Conformance | `rust_conformance`, `rust_conformance_fuzz`, `rust_coverage`, `rust_kernel_coverage`, `check_engine_agreement`, `doc_coverage`, `argument_gate_matrix` |
+| Codebase | Regeneration | `regen_codegen_domains` |
+| Codebase | Conformance | `rust_kernel_coverage`, `check_engine_agreement`, `doc_coverage`, `argument_gate_matrix` |
 | Codebase | Style | `standardize_comments`, `standardize_comments_rust`, `canonicalise` |
 | Codebase | Codemod | `codemod_hoist_local_givens`, `codemod_implicit_append_fields` |
 | Codebase | TestSuite | `rspec_shard_files`, `rspec_io_parallel_files`, `refresh_rspec_runtime_baseline`, `spec_example`, `stress_concurrency_specs`, `regenerate_persistence_legacy_fixtures`, `seed_semantics_corpus`, `pattern-cases` |
-| Codebase | Fuzzing | `fuzz`, `generate`, `bench` |
 | Codebase | Corpus | `corpus`, `query_ir`, `hecks_query_ir_mcp`, `present` |
 | Codebase | Release | `release`, `release_gem` |
 | QualityControl (existing) | as listed per script | `qa_tick`, `qa_sweep`, `qa_pr_check`, `qa_open_pr`, `qa_log_bug`, `qa_seed_angles`, `qa_seed_targets`, `qa_generated_domains`, `qa_mine_combinations`, `qa_domain_novelty`, `qa_discover_external_domains`, `qa_postgres_migrate`, `qa_postgres_role`, `qa_concurrency_racer` |
 
 Release goes to Codebase rather than Custodian because it publishes this repository's gem, so it only runs in a checkout.
+
+Building for the Rust host is split by the same test. Custodian's Build generates and compiles one domain, the way a client deploying to `rust/host` does, and checks that build against the Ruby engine: `rust_conformance` replays a script through both, `rust_conformance_fuzz` does the same with generated sequences, and `rust_coverage` reports which of the domain's constructs are routed. Codebase's Regeneration rebuilds every corpus domain's committed output, which only this repository has, and Codebase's Conformance keeps the checks on the language itself (the kernel, the query engines, the reference docs).
 
 `project_refusal_wording` is an alias for `project_rust_vocabulary`; it becomes a second name for the same Language command, not a command of its own.
 
@@ -175,6 +180,7 @@ The rules hand-coded in `qa_open_pr` and `qa_pr_check` become `given`s on `Patch
 - **Hand-written launchers per command.** Keeps `bin/<name>` as a short script that dispatches one verb. Rejected: `project_cli` already generates a launcher from the bluebook, and hand-written ones drift from it.
 - **One bluebook per concern** (Release, RuntimeBaseline, LanguageContract, DocCoverage, Codemod, and so on). Rejected: it produces a dozen front doors and a dozen hecksagons with the same wiring.
 - **Custodian and Codebase as two separate bluebooks.** Rejected: two launchers beside `exe/hecks`, and no domain for the framework itself.
+- **Splitting Custodian from Codebase by what ships.** Rejected once everything ships: the only difference left is who the command is for, and splitting by packaging had put client needs such as building a domain's wasm behind the checkout refusal.
 - **Keeping Codebase and QualityControl out of the gem** (ADR 0066's split, with the gemspec filter excluding `codebase.bluebook`, a second `codebase.hecksagon` and `adapters/codebase/`). Rejected: keeping deployments small is already handled by not loading the tooling and by Rust images, and the split cost a second hecksagon for one domain, file-level packaging rules, and two kinds of install that boot different domains.
 - **Merging Bluebook, Deploy and QualityControl into the Hecks chapter** (`QualityControl::Patch` becoming `Hecks::Patch`, and so on). Rejected: the QA ledger's era and tables are keyed by the chapter name and would need a data migration, and renaming the self-hosted Bluebook chapter reaches into the meta-validator.
 - **Renaming the grammar chapter to `TranslationGrammar`** instead of merging. A few lines of change, and it would unblock attaching. Rejected: it keeps two lists of rule kinds and two edge aggregates, held together by a spec instead of by the model.
@@ -186,6 +192,7 @@ The rules hand-coded in `qa_open_pr` and `qa_pr_check` become `given`s on `Patch
 
 ## Open items
 
+- What Custodian's Build compiles against outside a checkout. `project_rust` and `project_wasm` build on the Rust kernel crate under `rust/`, which the gem does not package (`spec.files` is `lib/**` plus `exe/hecks`), and clients such as Lifeadelics build from a hecks checkout today. Either the gem carries the kernel sources, or the RustToolchain adapter fetches the crate at the gem's own tag.
 - How the checkout `given` tells a hecks checkout from an installed gem: the presence of `rust/` and `spec/`, a marker file, or the gem's own install path.
 - If a Ruby deployment ever needs a smaller footprint on disk, Deploy prunes the unloaded tooling when it builds the image, instead of the gem leaving it out.
 - The word that attaches a chapter. `uses_framework` loads only from `lib/hecks/framework/bluebook/` and `uses_embryonaut_bluebook` only from the vendored registry; attaching a chapter from its own directory needs a new hecksagon word or a way to register these three as members.
