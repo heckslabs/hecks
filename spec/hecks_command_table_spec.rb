@@ -5,7 +5,8 @@ require "json"
 require "socket"
 
 # ADR 0080, section 7: every row of the command table resolves in the launcher. Each verb of
-# Custodian's Introspection and Operation (and the ModelCheck the table puts beside them) answers
+# Custodian's Introspection, Operation, Host and Package (and the ModelCheck the table puts beside
+# them) answers
 # `--help`, and the journaled ones are then run the way `hecks <verb>` runs them.
 RSpec.describe "the Hecks command table through the launcher" do
   # Introspection's queries and the verbs of ModelCheckRun and Operation, as the launcher spells
@@ -15,6 +16,7 @@ RSpec.describe "the Hecks command table through the launcher" do
     model_check verdict flagged
     run refresh_projections run_behaviors open_console smoke_test smoke_http outcome failed follow
     check_era recheck standing drifted
+    vendor revendor pinning unpinned
   ].freeze
 
   SHELF_BLUEBOOK = <<~RUBY.freeze
@@ -270,6 +272,41 @@ RSpec.describe "the Hecks command table through the launcher" do
 
       expect(status).to eq(1)
       expect(out).to include("already exists")
+    end
+  end
+
+  describe "the Package verbs" do
+    def pinning_of(package)
+      JSON.parse(run_verb("pinning", package).first).first
+    end
+
+    it "vendor keeps a source that is not there as a refused pinning, and unpinned lists it" do
+      run_verb("vendor", "payments@1.2.0", "from=#{File.join(@dir, 'nowhere')}", "root=#{@dir}")
+
+      row = pinning_of("payments@1.2.0")
+      expect(row.fetch("status")).to eq("refused")
+      expect(row.dig("refusal", "value")).to include("no source repository")
+      expect(JSON.parse(run_verb("unpinned").first).map { |package| package.dig("package", "value") })
+        .to include("payments@1.2.0")
+    end
+
+    it "vendors a release from a registry, and revendors the same spelling", :io do
+      require_relative "support/registry_repo"
+      registry = RegistryRepo.new(File.join(@dir, "registry"))
+      registry.write("widgets/bluebook.yml"              => "name: widgets\nversion: 1.0.0\nsummary: Widgets.\n",
+                     "widgets/bluebook/widgets.bluebook" => RegistryRepo.widgets_bluebook)
+      registry.commit("widgets 1.0.0")
+      registry.tag("widgets-v1.0.0")
+      project = File.join(@dir, "project")
+
+      run_verb("vendor", "widgets", "from=#{registry.path}", "root=#{project}")
+      row = pinning_of("widgets")
+      expect(row.fetch("status")).to eq("vendored")
+      expect(row.dig("report", "value")).to include("widgets 1.0.0")
+      expect(File.exist?(File.join(project, "vendor/embryonaut_bluebooks/widgets/bluebook.lock"))).to be(true)
+
+      run_verb("revendor", "widgets", "from=#{registry.path}", "root=#{project}")
+      expect(pinning_of("widgets").fetch("status")).to eq("vendored")
     end
   end
 

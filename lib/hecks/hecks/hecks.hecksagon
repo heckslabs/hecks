@@ -54,6 +54,14 @@ Hecks.hecksagon "Hecks" do
     end
   end
 
+  Hecks::Package.port "Git" do
+    asks "Pin", to: Package do
+      attribute :package, PackageRef
+      answers "PackagePinned"
+      refuses "PinRefused"
+    end
+  end
+
   Hecks::Operation.port "HostHttp" do
     asks "Probe", to: Operation do
       attribute :run, OperationKey

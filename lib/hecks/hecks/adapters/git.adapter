@@ -1,0 +1,6 @@
+# `require_relative` is needed because the `.adapter` glob never loads the sibling `.rb`.
+require_relative "git"
+
+Hecks.adapter "Git" do
+  port "Git"
+end

@@ -50,4 +50,16 @@ Hecks.behaviors "Custodian" do
     input host: { value: "http://127.0.0.1:1" }, expected: { value: "eras.txt" }, timeout: { value: 0.0 }
     expect refused: "timeout is positive"
   end
+
+  test "Vendor keeps a source that is not there as a refused pinning" do
+    tests "Vendor", on: "Package"
+    input package: { value: "payments@1.2.0" }, from: { value: "/no/such/registry" }
+    expect emits: %w[VendorRequested PinRefused VendoringRefused]
+  end
+
+  test "Vendor refuses a package name that is not a directory name" do
+    tests "Vendor", on: "Package"
+    input package: { value: "Payments" }
+    expect refused: "must match"
+  end
 end

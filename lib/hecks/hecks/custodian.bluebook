@@ -649,4 +649,127 @@ policy "RecordTheEra" do
     on      "Host.HostRefused"
     trigger Host::Lose, with: { refusal: :refusal }
   end
+
+  aggregate "Package" do
+    description "One package of the bluebook registry, vendored into a project and pinned."
+
+    attribute :package, PackageRef
+    attribute :from,    Location, optional: true
+    attribute :root,    Location, optional: true
+    attribute :report,  Report,   optional: true
+    attribute :refusal, Report,   optional: true
+    identified_by :package
+
+    # `name` for the newest release, `name@1.2.0` for one release, `name@9f2c1ab` for a commit.
+    value_object "PackageRef" do
+      attribute :value, String, pattern: '^[a-z][a-z0-9_]*(@[^ \t\n\r]+)?$'
+
+      invariant("a package is named") { !value.to_s.empty? }
+    end
+
+    # A directory: the source repository (`from`), or the project the files land in (`root`).
+    value_object "Location" do
+      attribute :value, String, pattern: '[^\t\n\r]'
+    end
+
+    value_object "Report" do
+      attribute :value, String
+    end
+
+    lifecycle :status, default: "requested" do
+      transition "Revendor" => "requested", from: %w[vendored refused]
+      transition "Complete" => "vendored",  from: "requested"
+      transition "Abandon"  => "refused",   from: "requested"
+    end
+
+    # `hecks vendor <package[@version]> [from=path] [root=path]`. The record is named by what was
+    # asked for, so a release is one record; vendoring the same spelling again is `hecks revendor`.
+    # `from` defaults to $EMBRYONAUT_BLUEBOOKS_SRC and `root` to the current directory, both read by
+    # the adapter.
+    command "Vendor" do
+      role "Operator"
+      goal "Pin a package of the bluebook registry into this project, at a release or a commit"
+
+      attribute :package, PackageRef
+      attribute :from,    Location, optional: true
+      attribute :root,    Location, optional: true
+
+      sets :package
+      sets :from
+      sets :root
+
+      emits VendorRequested
+    end
+
+    command "Revendor" do
+      role "Operator"
+      goal "Pin a package that was vendored before again, for the newest release or the same one"
+
+      reference_to Package
+      attribute :from, Location, optional: true
+      attribute :root, Location, optional: true
+
+      sets :from
+      sets :root
+
+      emits RevendorRequested
+    end
+
+    command "Complete" do
+      role "System"
+      goal "Record that the package was pinned, and what changed"
+
+      reference_to Package
+      attribute :report, Report
+
+      sets :report
+
+      emits PackageVendored
+    end
+
+    command "Abandon" do
+      role "System"
+      goal "Record that the package could not be pinned, and why"
+
+      reference_to Package
+      attribute :refusal, Report
+
+      sets :refusal
+
+      emits VendoringRefused
+    end
+
+    query "Pinning" do
+      description "What vendoring one package did: its status, and the report or the refusal."
+      attribute :package, PackageRef
+      where(package: :package)
+      order_by :package
+    end
+
+    query "Unpinned" do
+      description "Every package the last vendoring of which was refused."
+      where(status: "refused")
+      order_by :package
+    end
+  end
+
+  policy "PinWhenVendored" do
+    on      "Package.VendorRequested"
+    trigger Package::Git::Pin, with: { package: :package }
+  end
+
+  policy "PinWhenRevendored" do
+    on      "Package.RevendorRequested"
+    trigger Package::Git::Pin, with: { package: :package }
+  end
+
+  policy "RecordThePinning" do
+    on      "Package.PackagePinned"
+    trigger Package::Complete, with: { report: :report }
+  end
+
+  policy "RecordTheRefusedPin" do
+    on      "Package.PinRefused"
+    trigger Package::Abandon, with: { refusal: :refusal }
+  end
 end
