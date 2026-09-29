@@ -1,3 +1,6 @@
+# `require_relative` is needed because the `.adapter` glob never loads the sibling `.rb`.
+require_relative "local_files"
+
 Hecks.adapter "LocalFiles" do
-  port "workspace"
+  port "Workspace"
 end

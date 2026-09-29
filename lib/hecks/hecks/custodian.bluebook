@@ -772,4 +772,129 @@ policy "RecordTheEra" do
     on      "Package.PinRefused"
     trigger Package::Abandon, with: { refusal: :refusal }
   end
+
+  aggregate "Door" do
+    description "A way into the framework opened for a project: its launchers, or an MCP server."
+
+    attribute :run,     DoorKey
+    attribute :domains, DomainList, optional: true
+    attribute :stdio,   Switch,     optional: true
+    attribute :output,  Note,       optional: true
+    attribute :refusal, Note,       optional: true
+    identified_by :run
+
+    value_object "DoorKey" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+
+      invariant("a door is named") { !value.to_s.empty? }
+    end
+
+    # Domain directories under the project, comma separated.
+    value_object "DomainList" do
+      attribute :value, String, pattern: '[^\t\n\r]'
+    end
+
+    value_object "Switch" do
+      attribute :value, Boolean
+    end
+
+    value_object "Note" do
+      attribute :value, String
+    end
+
+    lifecycle :status, default: "requested" do
+      transition "Finish" => "finished", from: "requested"
+      transition "Stop"   => "stopped",  from: "requested"
+    end
+
+    # Writes a launcher beside each domain. It replaces the generated launcher already there and
+    # deletes nothing, so it runs without `confirm` (`hecks project_cli` never asked for one).
+    command "ProjectCli" do
+      role "Operator"
+      goal "Write a command-line launcher beside each domain of this project"
+
+      attribute :run,     DoorKey
+      attribute :domains, DomainList, optional: true
+
+      sets :run
+      sets :domains
+
+      emits LaunchersRequested
+    end
+
+    # A stdio server runs until its client closes stdin, so it cannot be asked and answered
+    # quickly like the others. The command records that the door was started; the Terminal
+    # adapter hands the process over to the door and answers when it closes, as OpenConsole
+    # does for a console. The launcher spells it `serve_mcp`; the `mcp` spelling exe/hecks ships
+    # today stays with its router until the launcher is generated.
+    command "ServeMcp" do
+      role "Operator"
+      goal "Serve the storehouse bus to an MCP client over stdio until it closes"
+
+      attribute :run,   DoorKey
+      attribute :stdio, Switch, optional: true
+
+      sets :run
+      sets :stdio
+
+      emits McpRequested
+    end
+
+    command "Finish" do
+      role "System"
+      goal "Record that the door did its work, or was closed, and what it said"
+
+      reference_to Door
+      attribute :output, Note
+
+      sets :output
+
+      emits DoorFinished
+    end
+
+    command "Stop" do
+      role "System"
+      goal "Record that the door could not be opened, and why"
+
+      reference_to Door
+      attribute :refusal, Note
+
+      sets :refusal
+
+      emits DoorStopped
+    end
+
+    query "Ended" do
+      description "How one door ended: its status, and what it said or why it stopped."
+      attribute :run, DoorKey
+      where(run: :run)
+      order_by :run
+    end
+
+    query "Stopped" do
+      description "Every door that could not be opened."
+      where(status: "stopped")
+      order_by :run
+    end
+  end
+
+  policy "WriteWhenRequested" do
+    on      "Door.LaunchersRequested"
+    trigger Door::Workspace::Write, with: { run: :run }
+  end
+
+  policy "ServeWhenRequested" do
+    on      "Door.McpRequested"
+    trigger Door::Terminal::Serve, with: { run: :run }
+  end
+
+  policy "RecordTheDoor" do
+    on      "Door.DoorAnswered"
+    trigger Door::Finish, with: { output: :output }
+  end
+
+  policy "RecordTheStoppedDoor" do
+    on      "Door.DoorRefused"
+    trigger Door::Stop, with: { refusal: :refusal }
+  end
 end

@@ -62,6 +62,22 @@ Hecks.hecksagon "Hecks" do
     end
   end
 
+  Hecks::Door.port "Workspace" do
+    asks "Write", to: Door do
+      attribute :run, DoorKey
+      answers "DoorAnswered"
+      refuses "DoorRefused"
+    end
+  end
+
+  Hecks::Door.port "Terminal" do
+    asks "Serve", to: Door do
+      attribute :run, DoorKey
+      answers "DoorAnswered"
+      refuses "DoorRefused"
+    end
+  end
+
   Hecks::Operation.port "HostHttp" do
     asks "Probe", to: Operation do
       attribute :run, OperationKey

@@ -1,18 +1,24 @@
 # frozen_string_literal: true
 
+require_relative "console_capture"
 require_relative "../../cli/console"
 
 module Hecks
   module Adapters
-    # The `Terminal` port's adapter: the interactive session an operator types into.
+    # The `Terminal` port's adapter: the sessions an operator or a program drives through stdin and
+    # stdout, an IRB console (`open`) or the stdio MCP door (`serve`).
     #
-    # The journal records that a session was opened and how it ended, not what was typed in it.
-    # IRB is started here and nowhere else; a caller that must not open a real session (a spec)
-    # replaces the launcher with `Terminal.launcher=`.
+    # The journal records that a session was opened and how it ended, not what was said in it.
+    # Each starts here and nowhere else; a caller that must not open a real session (a spec)
+    # replaces the launcher with `Terminal.launcher=` or the server with `Terminal.server=`.
     class Terminal
       class << self
         # @return [#call, nil] starts the interactive session; IRB when nil
         attr_accessor :launcher
+
+        # @return [#call, nil] serves MCP over stdio, given the arguments after the command;
+        #   `Hecks::CLI::Mcp.call` when nil
+        attr_accessor :server
       end
 
       # Accepts the arguments every driven adapter is built with and keeps none of them.
@@ -36,6 +42,33 @@ module Hecks
 
         { output: { value: "console session ended (#{domain || 'pizzas'})" } }
       end
+
+      # Hands the process over to the MCP door until the client closes stdin. The door writes its
+      # JSON-RPC on stdout, so nothing here is captured, and the launcher's own answer follows
+      # only once the client is gone.
+      #
+      # @param held [Hash] the `Door` record: `stdio` (whether `--stdio` was given)
+      # @return [Hash{Symbol => Hash}] `output:` a one-line note that the door closed
+      # @raise [ConsoleCapture::Failure] when the process is not set up for stdio: the door
+      #   refused to start, and said why on stderr
+      def serve(**held)
+        argv = plain(held[:stdio]) ? ["--stdio"] : []
+        server = self.class.server
+        if server
+          server.call(argv)
+        else
+          require_relative "../../cli/mcp"
+          CLI::Mcp.call(argv)
+        end
+
+        { output: { value: "mcp door closed" } }
+      rescue SystemExit => e
+        raise ConsoleCapture::Failure, "the mcp door refused to start (status #{e.status}); see stderr"
+      end
+
+      private
+
+      def plain(argument) = argument.is_a?(Hash) ? argument[:value] : argument
     end
   end
 end

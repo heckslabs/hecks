@@ -5,8 +5,8 @@ require "json"
 require "socket"
 
 # ADR 0080, section 7: every row of the command table resolves in the launcher. Each verb of
-# Custodian's Introspection, Operation, Host and Package (and the ModelCheck the table puts beside
-# them) answers
+# Custodian's Introspection, Operation, Host, Package and Door (and the ModelCheck the table
+# puts beside them) answers
 # `--help`, and the journaled ones are then run the way `hecks <verb>` runs them.
 RSpec.describe "the Hecks command table through the launcher" do
   # Introspection's queries and the verbs of ModelCheckRun and Operation, as the launcher spells
@@ -17,6 +17,7 @@ RSpec.describe "the Hecks command table through the launcher" do
     run refresh_projections run_behaviors open_console smoke_test smoke_http outcome failed follow
     check_era recheck standing drifted
     vendor revendor pinning unpinned
+    project_cli serve_mcp ended stopped
   ].freeze
 
   SHELF_BLUEBOOK = <<~RUBY.freeze
@@ -307,6 +308,48 @@ RSpec.describe "the Hecks command table through the launcher" do
 
       run_verb("revendor", "widgets", "from=#{registry.path}", "root=#{project}")
       expect(pinning_of("widgets").fetch("status")).to eq("vendored")
+    end
+  end
+
+  describe "the Door verbs" do
+    def ended_of(run)
+      JSON.parse(run_verb("ended", run).first).first
+    end
+
+    around do |example|
+      Dir.chdir(@dir) { example.run }
+    end
+
+    it "project_cli writes a launcher beside each domain of the current directory and keeps what it wrote" do
+      out, status = run_verb("project_cli", "run=launchers-1")
+
+      expect(status).to eq(0)
+      expect(JSON.parse(out).fetch("events")).to eq(["LaunchersRequested"])
+      row = ended_of("launchers-1")
+      expect(row.fetch("status")).to eq("finished")
+      expect(row.dig("output", "value")).to include("shelf/shelf  ->  Shelf")
+      expect(File.executable?(File.join(@shelf, "shelf"))).to be(true)
+    end
+
+    it "project_cli keeps a domain it cannot boot as a stopped door" do
+      run_verb("project_cli", "run=launchers-2", "domains=nowhere")
+
+      expect(ended_of("launchers-2").fetch("status")).to eq("stopped")
+      expect(JSON.parse(run_verb("stopped").first).map { |door| door.dig("run", "value") }).to include("launchers-2")
+    end
+
+    it "serve_mcp hands the process to the door through the Terminal adapter and keeps that it closed" do
+      served = []
+      Hecks::Adapters::Terminal.server = ->(argv) { served << argv }
+
+      begin
+        run_verb("serve_mcp", "run=mcp-1", "--stdio")
+      ensure
+        Hecks::Adapters::Terminal.server = nil
+      end
+
+      expect(served).to eq([["--stdio"]])
+      expect(ended_of("mcp-1").dig("output", "value")).to eq("mcp door closed")
     end
   end
 
