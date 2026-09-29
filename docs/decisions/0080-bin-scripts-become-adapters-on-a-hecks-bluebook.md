@@ -183,7 +183,10 @@ Building for the Rust host is split by the same test. Custodian's Build generate
 
 ### 8. QualityControl
 
-The rules hand-coded in `qa_open_pr` and `qa_pr_check` move onto `Patch.Open` and `Improvement.Open`. Three are `given`s today: the branch prefix (a `pattern:` on the branch), the bug being fixed and the angle being under investigation (givens that read through the reference, as `customer.status == "active"` does in the banking example). Two need constructs the language does not have yet and stay in the `GitPr` adapter until it does: the per-day PR cap needs a given that counts records since a clock-relative time, and "the fix commit is an ancestor of `HEAD`" needs a given that consults a port. Their `git` and `gh` calls move into a `GitPr` adapter. The declared `IssueTracker` port gets a bound adapter.
+The rules hand-coded in `qa_open_pr` and `qa_pr_check` move onto `Patch.Open` and `Improvement.Open`. Three are `given`s today: the branch prefix (a `pattern:` on the branch), the bug being fixed and the angle being under investigation (givens that read through the reference, as `customer.status == "active"` does in the banking example). The other two follow [ADR 0081](0081-commands-declare-the-outside-facts-they-need-and-a-rule-across-records-gets-an-aggregate-that-owns-it.md), and stay in the `GitPr` adapter until it lands:
+
+- **The per-day PR cap** becomes a `DailyQuota` aggregate, identified by date, from which each `Patch.Open` takes a slot.
+- **"The fix commit is an ancestor of `HEAD`"** becomes a fact `Patch.Open` declares and the `GitPr` adapter answers at dispatch. Their `git` and `gh` calls move into a `GitPr` adapter. The declared `IssueTracker` port gets a bound adapter.
 
 ### 9. This ships as 3.0.0
 
