@@ -54,6 +54,13 @@ A script whose concern already has a bluebook joins that bluebook instead: the `
 
 Everything in this ADR ships in the gem: the Hecks domain with Codebase and its adapters, every attached chapter including QualityControl, and the development tooling ADR 0066 kept out (`fuzzing/`, `bench/`, `corpus.rb`, `codemod.rb`, `query_ir.rb`, `grammar/evolve.rb`, `doc/`). The `dev_tooling` filter in `hecks.gemspec` goes, and `spec/gemspec_packaging_spec.rb` changes from asserting that those files are absent to asserting that `lib/hecks.rb` never loads them.
 
+The gem also packages the Rust workspace, so a client can build their own domain for `rust/host` from an installed gem:
+
+- **What ships.** `rust/Cargo.toml`, `Cargo.lock` and the crates a domain build uses: the kernel (`rust/src/` without `generated/`), `codegen/`, `parser/`, `host/`, `project/`, `build/`, `web/` and `lsp/`. About 4 MB of source.
+- **What stays out.** `target/` build output, `rust/tests/`, and the generated corpus domains in `rust/src/generated/` (about 10 MB) with their Cargo features. The packaged workspace is a clean kernel that knows no domains.
+- **A build never writes into the gem.** `project_rust` works by writing a domain's code into `rust/src/generated/` and adding a feature for it to `Cargo.toml`. Custodian's Build therefore copies the packaged workspace into the client project, keyed by gem version (for example `.hecks/rust/<version>/`), generates the domain there, and points `CARGO_TARGET_DIR` there. The RustToolchain adapter does the copying. In a hecks checkout, Codebase's Regeneration keeps writing corpus domains into the checkout's own `rust/`.
+- **The kernel version is the gem version.** A domain built with hecks 3.0.0 compiles against the 3.0.0 kernel, so the Release aggregate and the Kernel aggregate name the same version.
+
 Keeping a deployment small does not depend on the package:
 
 - **Shipping is not loading.** The Hecks domain boots only when `exe/hecks` runs, never from `lib/hecks.rb`. A Ruby deployment that requires `hecks` and boots its own domain loads none of Custodian, Codebase, QualityControl or the tooling; they are files on disk.
@@ -214,7 +221,8 @@ Inside this repository the move is still one pass: there is never a second way f
 - Some scripts are processes by nature: `console` and `follow` are interactive, `qa_concurrency_racer` and `stress_concurrency_specs` must run as separate OS processes, and `qa_tick` forks other steps. Their commands exist, but the adapter behind them still starts the process or session, and the journal records that it ran, not what the session did.
 - `project_cli` generates every launcher, including `hecks` itself, and `project_cli` is itself a Hecks command. The generated `exe/hecks` is committed, so the cycle only matters when regenerating it: the previous `exe/hecks` produces the next one.
 - The Hecks domain boots only when `exe/hecks` runs, never from `lib/hecks.rb`, so boot cost for an ordinary domain does not change.
-- The gem grows by the tooling ADR 0066 left out plus the new domain. That is disk, not memory: none of it loads unless `exe/hecks` runs.
+- The gem grows by the tooling ADR 0066 left out, the new domain and about 4 MB of Rust source. That is disk, not memory: none of it loads unless `exe/hecks` runs.
+- `spec/gemspec_packaging_spec.rb` asserts that the Rust workspace ships without `target/`, `rust/tests/` or any generated corpus domain, and that `lib/hecks.rb` loads none of the tooling.
 - An installed gem's `hecks --help` lists the Codebase and QualityControl verbs too, each refusing with "needs a hecks checkout" when run outside one.
 - The publish adapters (RubyGems, npm) ship in every copy of the gem. They hold no credentials; publishing still needs the maintainer's own keys, and the checkout `given` refuses first.
 
@@ -235,7 +243,7 @@ Inside this repository the move is still one pass: there is never a second way f
 
 ## Open items
 
-- What Custodian's Build compiles against outside a checkout. `project_rust` and `project_wasm` build on the Rust kernel crate under `rust/`, which the gem does not package (`spec.files` is `lib/**` plus `exe/hecks`), and client domains deploying to `rust/host` build from a hecks checkout today. Either the gem carries the kernel sources, or the RustToolchain adapter fetches the crate at the gem's own tag.
+- Whether `rust/host` images build from the packaged gem instead of a hecks git tag, now that the gem carries the workspace.
 - Whether the `.adapter` language can already state what an adapter supports (saga state, transactions, the outbox), or needs a word for it before those become queries.
 - How the checkout `given` tells a hecks checkout from an installed gem: the presence of `rust/` and `spec/`, a marker file, or the gem's own install path.
 - If a Ruby deployment ever needs a smaller footprint on disk, Deploy prunes the unloaded tooling when it builds the image, instead of the gem leaving it out.
