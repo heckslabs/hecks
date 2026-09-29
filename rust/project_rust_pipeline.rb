@@ -109,7 +109,10 @@ module RustProjectPipeline
     meta_files = Hecks::Bluebook::MetaValidator::GRAMMAR_FILES
     meta_ir_text = derive_append_optionals(run_capture!(PARSER_BIN, "chapter", "--chapter", "Bluebook", *meta_files))
 
-    out_root = File.expand_path("../rust/src/generated", __dir__)
+    # `HECKS_RUST_DIR` picks the crate to project into, as it does for bin/project_rust's
+    # Ruby path; unset, it is this repository's own `rust/`.
+    rust_dir = ENV.fetch("HECKS_RUST_DIR", File.expand_path("../rust", __dir__))
+    out_root = File.join(rust_dir, "src/generated")
     FileUtils.mkdir_p(out_root)
     # Only this run's own directories are cleared — other domains coexist
     # on disk.
@@ -343,7 +346,8 @@ module RustProjectPipeline
     end
     puts "wrote #{root_mod_path}"
 
-    cargo_toml_path = File.expand_path("../rust/Cargo.toml", __dir__)
+    # The crate's own Cargo.toml, two levels above src/generated — the one `HECKS_RUST_DIR` chose.
+    cargo_toml_path = File.expand_path("../../Cargo.toml", out_root)
     cargo_toml = File.read(cargo_toml_path)
     unless cargo_toml.include?("[features]")
       cargo_toml = cargo_toml.sub(/\A/, <<~TOML)

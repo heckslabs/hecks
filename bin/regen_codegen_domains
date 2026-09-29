@@ -8,14 +8,16 @@
 # If the domain set or sort rule changes, re-run and commit the output; never hand-edit stamps.
 #
 #   bin/regen_codegen_domains         # discover, regenerate, print the plan
-#   bin/regen_codegen_domains --check # same, then fail on any resulting
-#                                      # diff under rust/src/generated/ or
-#                                      # rust/Cargo.toml (what CI runs)
+#   bin/regen_codegen_domains --check # regenerate into a scratch crate; fail on any difference
+#
+# --check never writes the working tree: it runs beside the parallel suite, which reads Cargo.toml.
 
 require_relative "../lib/hecks/three_zero"
 Hecks::ThreeZero.notice("regen_codegen_domains")
 
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
+require "fileutils"
+require "tmpdir"
 require "hecks/corpus"
 
 # Forks so the child inherits the memoized grammar registry instead of rebuilding it.
@@ -30,6 +32,22 @@ def project_rust_in_fork(project_rust, domain)
   _, status = Process.wait2(pid)
   abort "bin/regen_codegen_domains: bin/project_rust #{domain} failed (#{status.inspect})" unless status.success?
   puts
+end
+
+# A scratch crate: copies of the generated tree and Cargo.toml, all bin/project_rust writes.
+def scratch_crate(repo_root)
+  scratch = Dir.mktmpdir("regen-codegen-check")
+  FileUtils.mkdir_p(File.join(scratch, "src"))
+  FileUtils.cp_r(File.join(repo_root, "rust/src/generated"), File.join(scratch, "src/generated"))
+  FileUtils.cp(File.join(repo_root, "rust/Cargo.toml"), scratch)
+  scratch
+end
+
+# The gate: the scratch projection must match the generated sources and Cargo.toml on disk.
+def matches_scratch?(scratch)
+  pairs = [["rust/src/generated", File.join(scratch, "src/generated")],
+           ["rust/Cargo.toml", File.join(scratch, "Cargo.toml")]]
+  pairs.all? { |on_disk, projected| system("git", "diff", "--no-index", "--exit-code", "--", on_disk, projected) }
 end
 
 # `meta` is never in the list: Hecks::Corpus::RUST_ELSEWHERE routes it to
@@ -49,6 +67,10 @@ Dir.chdir(repo_root) do
   domains.each { |d| puts "  #{d}" }
   puts
 
+  # A check projects into a scratch copy of the crate; the forked children inherit HECKS_RUST_DIR.
+  scratch = ARGV.include?("--check") && scratch_crate(repo_root)
+  ENV["HECKS_RUST_DIR"] = scratch if scratch
+
   # Build the memoized grammar registry once and fork per domain; run one at a time,
   # in order, because the shared outputs depend on which domain ran last.
   require "hecks"
@@ -56,8 +78,9 @@ Dir.chdir(repo_root) do
   Hecks::Bluebook::MetaValidator.grammar_registry
   domains.each { |domain| project_rust_in_fork(File.join(repo_root, "bin/project_rust"), domain) }
 
-  next unless ARGV.include?("--check")
+  next unless scratch
 
-  # The gate: diff the generated sources and the Cargo.toml default feature project_rust rewrites.
-  system("git", "diff", "--exit-code", "--", "rust/src/generated/", "rust/Cargo.toml", exception: true)
+  same = matches_scratch?(scratch)
+  FileUtils.rm_rf(scratch)
+  exit(1) unless same
 end
