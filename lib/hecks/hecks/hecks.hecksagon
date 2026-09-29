@@ -225,4 +225,32 @@ Hecks.hecksagon "Hecks" do
       refuses "StyleRefused"
     end
   end
+
+  Hecks::CodemodRun.port "SourceTree" do
+    asks "Examine", to: CodemodRun do
+      attribute :run, RunKey
+      answers "CodemodExamined"
+      refuses "CodemodRefused"
+    end
+
+    asks "Perform", to: CodemodRun do
+      attribute :run, RunKey
+      answers "CodemodAnswered"
+      refuses "CodemodRefused"
+    end
+  end
+
+  Hecks::TestSuiteRun.port "SourceTree" do
+    asks "Examine", to: TestSuiteRun do
+      attribute :run, RunKey
+      answers "TestSuiteExamined"
+      refuses "TestSuiteRefused"
+    end
+
+    asks "Perform", to: TestSuiteRun do
+      attribute :run, RunKey
+      answers "TestSuiteAnswered"
+      refuses "TestSuiteRefused"
+    end
+  end
 end

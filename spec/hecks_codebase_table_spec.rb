@@ -62,13 +62,33 @@ RSpec.describe "the Codebase rows of the ADR command table" do
     ["standardize_comments_rust", "StyleRun", "CheckRustComments", "check_rust_comments",
      { args: %w[paths=rust] }],
     ["standardize_comments_rust", "StyleRun", "FixRustComments", "fix_rust_comments", { args: %w[paths=rust] }],
-    ["canonicalise", "StyleRun", "Canonicalise", "canonicalise", { args: %w[doc.json] }]
+    ["canonicalise", "StyleRun", "Canonicalise", "canonicalise", { args: %w[doc.json] }],
+    ["codemod_hoist_local_givens", "CodemodRun", "HoistLocalGivens", "hoist_local_givens"],
+    ["codemod_implicit_append_fields", "CodemodRun", "DropImplicitAppendFields", "drop_implicit_append_fields"],
+    ["rspec_shard_files", "TestSuiteRun", "ShardSpecs", "shard_specs", { args: %w[group=1 groups=2], query: true }],
+    ["rspec_io_parallel_files", "TestSuiteRun", "ListIoParallelSpecs", "list_io_parallel_specs",
+     { args: %w[exclude=x], query: true }],
+    ["rspec_io_parallel_files", "TestSuiteRun", "WriteIoParallelSpecList", "write_io_parallel_spec_list",
+     { args:    %w[exclude=x write=list.txt],
+       renamed: "the table folds write= into the listing query; a query never writes, so writing the " \
+                "committed list is its own confirmed command" }],
+    ["refresh_rspec_runtime_baseline", "TestSuiteRun", "RefreshRuntimeBaseline", "refresh_runtime_baseline"],
+    ["spec_example", "TestSuiteRun", "RunSpecExample", "run_spec_example",
+     { args: %w[file=spec/a_spec.rb example=hello] }],
+    ["stress_concurrency_specs", "TestSuiteRun", "StressConcurrency", "stress_concurrency"],
+    ["regenerate_persistence_legacy_fixtures", "TestSuiteRun", "RegenerateLegacyFixtures",
+     "regenerate_legacy_fixtures"],
+    ["seed_semantics_corpus", "TestSuiteRun", "SeedSemanticsCorpus", "seed_semantics_corpus"],
+    ["pattern-cases", "TestSuiteRun", "RecordPatternCases", "record_pattern_cases",
+     { query: true, renamed: "the table lists it beside the commands; it prints JSON and writes " \
+                             "nothing (the script's output is redirected by the caller), so it is a query" }]
   ].map do |script, aggregate, name, verb, extra|
     CodebaseRow.new(script: script, aggregate: aggregate, name: name, verb: verb, **(extra || {}))
   end.freeze
 
   # The aggregates this spec covers so far, each of which must hold at least one row.
-  CODEBASE_AGGREGATES = %w[LanguageRun KernelRun ConformanceRun RegenerationRun StyleRun].freeze
+  CODEBASE_AGGREGATES = %w[LanguageRun KernelRun ConformanceRun RegenerationRun StyleRun CodemodRun
+                           TestSuiteRun].freeze
 
   before(:all) do
     @hecks = Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/hecks"), install_facade: false)

@@ -1062,8 +1062,8 @@ Hecks.bluebook "Hecks" do
   end
 
   # Style: the comment style guides (Ruby and Rust) and the canonical form of a JSON document. A
-  # check finds every violation; a fix rewrites files, so it lists what it would rewrite unless it is
-  # confirmed. The baseline of tolerated long blocks is written only when confirmed.
+  # check finds every violation; a fix rewrites files, so it lists what it would rewrite unless
+  # it is confirmed. The baseline of tolerated long blocks is written only when confirmed.
   aggregate "StyleRun" do
     description "One check or fix of comment style, or one document written with its keys in order."
 
@@ -1373,5 +1373,475 @@ Hecks.bluebook "Hecks" do
   policy "RecordStyleFault" do
     on      "StyleRun.StyleRefused"
     trigger StyleRun::Fault, with: { refusal: :refusal }
+  end
+
+  # Codemod: the mechanical rewrites of the example bluebooks. Each one edits tracked files, so
+  # unconfirmed it rehearses the edit (the script reboots every bluebook and puts the files back)
+  # and reports what it would change; the files stay changed only when it is confirmed.
+  aggregate "CodemodRun" do
+    description "One rewrite of the example bluebooks by a codemod, or the rehearsal of it."
+
+    attribute :run,       RunKey
+    attribute :operation, Operation, optional: true
+    attribute :confirm,   Switch, optional: true
+    attribute :checkout,  Switch, optional: true
+    attribute :report,    Report, optional: true
+    attribute :refusal,   Report, optional: true
+    identified_by :run
+
+    value_object "RunKey" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+
+      invariant("a run is named") { !value.to_s.empty? }
+    end
+
+    value_object "Operation" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+    end
+
+    value_object "Switch" do
+      attribute :value, Boolean
+    end
+
+    value_object "Report" do
+      attribute :value, String
+    end
+
+    lifecycle :status, default: "requested" do
+      transition "Accept"   => "accepted",  from: "requested"
+      transition "Complete" => "completed", from: "accepted"
+      transition "Fault"    => "faulted",   from: %w[requested accepted]
+    end
+
+    command "HoistLocalGivens" do
+      role "Maintainer"
+      goal "Hoist a given that several commands of one owner repeat into one owner-level given"
+
+      attribute :run,     RunKey
+      attribute :confirm, Switch, optional: true
+
+      sets :run
+      sets :confirm
+      sets :operation, to: "hoist_local_givens"
+
+      emits HoistLocalGivensRequested
+    end
+
+    command "DropImplicitAppendFields" do
+      role "Maintainer"
+      goal "Drop an attribute line that only repeats what an append target element declares"
+
+      attribute :run,     RunKey
+      attribute :confirm, Switch, optional: true
+
+      sets :run
+      sets :confirm
+      sets :operation, to: "drop_implicit_append_fields"
+
+      emits DropImplicitAppendFieldsRequested
+    end
+
+    # What the tree reported about itself, held against every request: nothing here runs
+    # outside a hecks checkout (hecks.gemspec beside lib/).
+    command "Accept" do
+      role "System"
+      goal "Let a request through only when the working tree is a hecks checkout"
+
+      reference_to CodemodRun
+      attribute :checkout, Switch
+
+      given("needs a hecks checkout: hecks.gemspec stands beside lib/") { checkout.value }
+
+      sets :checkout
+
+      emits CodemodAccepted
+    end
+
+    command "Complete" do
+      role "System"
+      goal "Record that the request was carried out, and what it reported"
+
+      reference_to CodemodRun
+      attribute :report, Report
+
+      sets :report
+
+      emits CodemodCompleted
+    end
+
+    command "Fault" do
+      role "System"
+      goal "Record that the request was refused or could not be carried out, and why"
+
+      reference_to CodemodRun
+      attribute :refusal, Report
+
+      sets :refusal
+
+      emits CodemodFaulted
+    end
+
+    query "CodemodOutcome" do
+      description "How one request ended: its status, and what it reported or why it failed."
+      attribute :run, RunKey
+      where(run: :run)
+      order_by :run
+    end
+
+    query "CodemodFaulted" do
+      description "Every request that was refused or could not be carried out."
+      where(status: "faulted")
+      order_by :run
+    end
+  end
+
+  policy "ExamineWhenHoistLocalGivensRequested" do
+    on      "CodemodRun.HoistLocalGivensRequested"
+    trigger CodemodRun::SourceTree::Examine, with: { run: :run }
+  end
+
+  policy "ExamineWhenDropImplicitAppendFieldsRequested" do
+    on      "CodemodRun.DropImplicitAppendFieldsRequested"
+    trigger CodemodRun::SourceTree::Examine, with: { run: :run }
+  end
+
+  policy "AcceptCodemodWhenExamined" do
+    on      "CodemodRun.CodemodExamined"
+    trigger CodemodRun::Accept, with: { checkout: :checkout }
+  end
+
+  policy "PerformCodemodWhenAccepted" do
+    on      "CodemodRun.CodemodAccepted"
+    trigger CodemodRun::SourceTree::Perform, with: { run: :run }
+  end
+
+  policy "RecordCodemodOutcome" do
+    on      "CodemodRun.CodemodAnswered"
+    trigger CodemodRun::Complete, with: { report: :report }
+  end
+
+  policy "RecordCodemodFault" do
+    on      "CodemodRun.CodemodRefused"
+    trigger CodemodRun::Fault, with: { refusal: :refusal }
+  end
+
+  # TestSuite: the tooling around this repository's specs. Listings of which files a shard or a
+  # job runs are pure reads; refreshing the committed timings, rewriting the persistence fixtures
+  # and writing the committed spec list change tracked files and need --confirm; a stress run
+  # and a single example only run specs and write nothing tracked.
+  aggregate "TestSuiteRun" do
+    description "One piece of work on the test suite: a listing, a baseline, a run or a fixture rewrite."
+
+    attribute :run,         RunKey
+    attribute :operation,   Operation, optional: true
+    attribute :confirm,     Switch, optional: true
+    attribute :workers,     Count, optional: true
+    attribute :from_run,    RunId, optional: true
+    attribute :file,        FilePath, optional: true
+    attribute :example,     ExampleText, optional: true
+    attribute :runs,        Count, optional: true
+    attribute :parallel,    Count, optional: true
+    attribute :seed_start,  Count, optional: true
+    attribute :fixture,     FixtureName, optional: true
+    attribute :exclude,     ExcludePattern, optional: true
+    attribute :tags,        TagArguments, optional: true
+    attribute :write,       FilePath, optional: true
+    attribute :group,       Count, optional: true
+    attribute :groups,      Count, optional: true
+    attribute :runtime_log, FilePath, optional: true
+    attribute :check,       FilePath, optional: true
+    attribute :checkout,    Switch, optional: true
+    attribute :report,      Report, optional: true
+    attribute :refusal,     Report, optional: true
+    identified_by :run
+
+    value_object "RunKey" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+
+      invariant("a run is named") { !value.to_s.empty? }
+    end
+
+    value_object "Operation" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+    end
+
+    value_object "Switch" do
+      attribute :value, Boolean
+    end
+
+    value_object "Report" do
+      attribute :value, String
+    end
+
+    # How many, always at least one.
+    value_object "Count" do
+      attribute :value, Integer
+
+      invariant("a count is positive") { value > 0 }
+    end
+
+    # A CI run's number.
+    value_object "RunId" do
+      attribute :value, String, pattern: '^[0-9]+$'
+    end
+
+    # A file, relative to the checkout or absolute.
+    value_object "FilePath" do
+      attribute :value, String, pattern: '[^\t\n\r]'
+
+      invariant("a file is named") { !value.to_s.empty? }
+    end
+
+    # Part of an example's description.
+    value_object "ExampleText" do
+      attribute :value, String, pattern: '[^\t\n\r]'
+
+      invariant("an example is named") { !value.to_s.empty? }
+    end
+
+    # The name of a semantics-corpus fixture.
+    value_object "FixtureName" do
+      attribute :value, String, pattern: '^[a-z0-9_]+$'
+    end
+
+    # A regular expression naming the specs to leave out.
+    value_object "ExcludePattern" do
+      attribute :value, String, pattern: '[^\t\n\r]'
+    end
+
+    # The tag filter, as the test runner spells it.
+    value_object "TagArguments" do
+      attribute :value, String, pattern: '^[^\t\n\r]+$'
+    end
+
+    lifecycle :status, default: "requested" do
+      transition "Accept"   => "accepted",  from: "requested"
+      transition "Complete" => "completed", from: "accepted"
+      transition "Fault"    => "faulted",   from: %w[requested accepted]
+    end
+
+    command "RefreshRuntimeBaseline" do
+      role "Maintainer"
+      goal "Regenerate the committed runtime baselines the sharded jobs group from"
+
+      attribute :workers,  Count, optional: true
+      attribute :from_run, RunId, optional: true
+      attribute :run,      RunKey
+      attribute :confirm,  Switch, optional: true
+
+      sets :workers
+      sets :from_run
+      sets :run
+      sets :confirm
+      sets :operation, to: "refresh_runtime_baseline"
+
+      emits RefreshRuntimeBaselineRequested
+    end
+
+    command "RunSpecExample" do
+      role "Maintainer"
+      goal "Run one spec file filtered to one example, through the test runner in this process"
+
+      attribute :file,    FilePath
+      attribute :example, ExampleText
+      attribute :run,     RunKey
+
+      sets :file
+      sets :example
+      sets :run
+      sets :operation, to: "run_spec_example"
+
+      emits RunSpecExampleRequested
+    end
+
+    command "StressConcurrency" do
+      role "Maintainer"
+      goal "Rerun the thread-safety specs under many seeds, several processes at a time"
+
+      attribute :runs,       Count, optional: true
+      attribute :parallel,   Count, optional: true
+      attribute :seed_start, Count, optional: true
+      attribute :run,        RunKey
+
+      sets :runs
+      sets :parallel
+      sets :seed_start
+      sets :run
+      sets :operation, to: "stress_concurrency"
+
+      emits StressConcurrencyRequested
+    end
+
+    command "RegenerateLegacyFixtures" do
+      role "Maintainer"
+      goal "Regenerate the persistence legacy fixtures through the real adapters"
+
+      attribute :run,     RunKey
+      attribute :confirm, Switch, optional: true
+
+      sets :run
+      sets :confirm
+      sets :operation, to: "regenerate_legacy_fixtures"
+
+      emits RegenerateLegacyFixturesRequested
+    end
+
+    command "SeedSemanticsCorpus" do
+      role "Maintainer"
+      goal "Fill the expected outcome of every semantics fixture that lacks one, or re-seed one"
+
+      attribute :fixture, FixtureName, optional: true
+      attribute :run,     RunKey
+
+      sets :fixture
+      sets :run
+      sets :operation, to: "seed_semantics_corpus"
+
+      emits SeedSemanticsCorpusRequested
+    end
+
+    command "WriteIoParallelSpecList" do
+      role "Maintainer"
+      goal "Write the committed list of the spec files a tag filter selects"
+
+      attribute :exclude, ExcludePattern
+      attribute :tags,    TagArguments, optional: true
+      attribute :write,   FilePath
+      attribute :run,     RunKey
+      attribute :confirm, Switch, optional: true
+
+      sets :exclude
+      sets :tags
+      sets :write
+      sets :run
+      sets :confirm
+      sets :operation, to: "write_io_parallel_spec_list"
+
+      emits WriteIoParallelSpecListRequested
+    end
+
+    # What the tree reported about itself, held against every request: nothing here runs
+    # outside a hecks checkout (hecks.gemspec beside lib/).
+    command "Accept" do
+      role "System"
+      goal "Let a request through only when the working tree is a hecks checkout"
+
+      reference_to TestSuiteRun
+      attribute :checkout, Switch
+
+      given("needs a hecks checkout: hecks.gemspec stands beside lib/") { checkout.value }
+
+      sets :checkout
+
+      emits TestSuiteAccepted
+    end
+
+    command "Complete" do
+      role "System"
+      goal "Record that the request was carried out, and what it reported"
+
+      reference_to TestSuiteRun
+      attribute :report, Report
+
+      sets :report
+
+      emits TestSuiteCompleted
+    end
+
+    command "Fault" do
+      role "System"
+      goal "Record that the request was refused or could not be carried out, and why"
+
+      reference_to TestSuiteRun
+      attribute :refusal, Report
+
+      sets :refusal
+
+      emits TestSuiteFaulted
+    end
+
+    query "TestSuiteOutcome" do
+      description "How one request ended: its status, and what it reported or why it failed."
+      attribute :run, RunKey
+      where(run: :run)
+      order_by :run
+    end
+
+    query "TestSuiteFaulted" do
+      description "Every request that was refused or could not be carried out."
+      where(status: "faulted")
+      order_by :run
+    end
+
+    query "ShardSpecs" do
+      description "The spec files one group of a runtime-balanced split runs."
+      attribute :group, Count
+      attribute :groups, Count
+      attribute :runtime_log, FilePath, optional: true
+      answered_by "SourceTree"
+    end
+
+    query "ListIoParallelSpecs" do
+      description "The spec files with an example a tag filter selects."
+      attribute :exclude, ExcludePattern
+      attribute :tags, TagArguments, optional: true
+      attribute :check, FilePath, optional: true
+      answered_by "SourceTree"
+    end
+
+    query "RecordPatternCases" do
+      description "The expected match results of the pattern cases, as JSON."
+      answered_by "SourceTree"
+    end
+  end
+
+  policy "ExamineWhenRefreshRuntimeBaselineRequested" do
+    on      "TestSuiteRun.RefreshRuntimeBaselineRequested"
+    trigger TestSuiteRun::SourceTree::Examine, with: { run: :run }
+  end
+
+  policy "ExamineWhenRunSpecExampleRequested" do
+    on      "TestSuiteRun.RunSpecExampleRequested"
+    trigger TestSuiteRun::SourceTree::Examine, with: { run: :run }
+  end
+
+  policy "ExamineWhenStressConcurrencyRequested" do
+    on      "TestSuiteRun.StressConcurrencyRequested"
+    trigger TestSuiteRun::SourceTree::Examine, with: { run: :run }
+  end
+
+  policy "ExamineWhenRegenerateLegacyFixturesRequested" do
+    on      "TestSuiteRun.RegenerateLegacyFixturesRequested"
+    trigger TestSuiteRun::SourceTree::Examine, with: { run: :run }
+  end
+
+  policy "ExamineWhenSeedSemanticsCorpusRequested" do
+    on      "TestSuiteRun.SeedSemanticsCorpusRequested"
+    trigger TestSuiteRun::SourceTree::Examine, with: { run: :run }
+  end
+
+  policy "ExamineWhenWriteIoParallelSpecListRequested" do
+    on      "TestSuiteRun.WriteIoParallelSpecListRequested"
+    trigger TestSuiteRun::SourceTree::Examine, with: { run: :run }
+  end
+
+  policy "AcceptTestSuiteWhenExamined" do
+    on      "TestSuiteRun.TestSuiteExamined"
+    trigger TestSuiteRun::Accept, with: { checkout: :checkout }
+  end
+
+  policy "PerformTestSuiteWhenAccepted" do
+    on      "TestSuiteRun.TestSuiteAccepted"
+    trigger TestSuiteRun::SourceTree::Perform, with: { run: :run }
+  end
+
+  policy "RecordTestSuiteOutcome" do
+    on      "TestSuiteRun.TestSuiteAnswered"
+    trigger TestSuiteRun::Complete, with: { report: :report }
+  end
+
+  policy "RecordTestSuiteFault" do
+    on      "TestSuiteRun.TestSuiteRefused"
+    trigger TestSuiteRun::Fault, with: { refusal: :refusal }
   end
 end

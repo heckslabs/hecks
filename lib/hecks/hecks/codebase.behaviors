@@ -108,4 +108,41 @@ Hecks.behaviors "Codebase" do
     input file: { value: "/no/such/file.json" }, run: { value: "canonical" }
     expect emits: %w[CanonicaliseRequested StyleExamined StyleAccepted StyleRefused StyleFaulted]
   end
+
+  test "HoistLocalGivens refuses a run that is not named" do
+    tests "HoistLocalGivens", on: "CodemodRun"
+    input run: { value: "" }
+    expect refused: "must match"
+  end
+
+  test "RunSpecExample keeps a spec file that is not there as a faulted request" do
+    tests "RunSpecExample", on: "TestSuiteRun"
+    input file: { value: "spec/no_such_spec.rb" }, example: { value: "works" }, run: { value: "example" }
+    expect emits: %w[RunSpecExampleRequested TestSuiteExamined TestSuiteAccepted TestSuiteRefused TestSuiteFaulted]
+  end
+
+  test "StressConcurrency refuses a count of zero runs" do
+    tests "StressConcurrency", on: "TestSuiteRun"
+    input runs: { value: 0 }, run: { value: "stress" }
+    expect refused: "a count is positive"
+  end
+
+  test "RefreshRuntimeBaseline refuses a run that is not a number" do
+    tests "RefreshRuntimeBaseline", on: "TestSuiteRun"
+    input from_run: { value: "latest" }, run: { value: "baseline" }
+    expect refused: "must match"
+  end
+
+  test "RegenerateLegacyFixtures reports what it would rewrite, and rewrites nothing, without confirm" do
+    tests "RegenerateLegacyFixtures", on: "TestSuiteRun"
+    input run: { value: "fixtures" }
+    expect emits: %w[RegenerateLegacyFixturesRequested TestSuiteExamined TestSuiteAccepted TestSuiteAnswered
+                     TestSuiteCompleted]
+  end
+
+  test "SeedSemanticsCorpus refuses a fixture name that is not a file name" do
+    tests "SeedSemanticsCorpus", on: "TestSuiteRun"
+    input fixture: { value: "Not A Name" }, run: { value: "seed" }
+    expect refused: "must match"
+  end
 end

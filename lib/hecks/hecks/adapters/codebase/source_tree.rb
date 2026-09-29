@@ -6,6 +6,8 @@ require_relative "kernel_tables"
 require_relative "conformance"
 require_relative "regeneration"
 require_relative "style"
+require_relative "codemods"
+require_relative "test_suite"
 
 module Hecks
   module Adapters
@@ -79,7 +81,35 @@ module Hecks
         report("report_rust_comments", args)
       end
 
+      # @param args [Hash] the query's arguments: `group`, `groups`, `runtime_log`
+      # @return [String] the spec files one group of a runtime-balanced split runs, one per line
+      # @raise [Codebase::Tree::NeedsCheckout] when the tree is not a hecks checkout
+      # @raise [ConsoleCapture::Failure] when the script refuses its arguments
+      def shard_specs(**args)
+        test_suite("shard_specs", args)
+      end
+
+      # @param args [Hash] the query's arguments: `exclude`, `tags`, `check`
+      # @return [String] the spec files with an example the tag filter selects, one per line
+      # @raise [Codebase::Tree::NeedsCheckout] when the tree is not a hecks checkout
+      # @raise [ConsoleCapture::Failure] when the list is stale, or the script refuses its arguments
+      def list_io_parallel_specs(**args)
+        test_suite("list_io_parallel_specs", args)
+      end
+
+      # @return [String] the expected match results of the pattern cases, as JSON
+      # @raise [Codebase::Tree::NeedsCheckout] when the tree is not a hecks checkout
+      def record_pattern_cases(**)
+        test_suite("record_pattern_cases", {})
+      end
+
       private
+
+      def test_suite(operation, args)
+        tree.require_checkout!
+        plain_args = args.transform_values { |value| plain(value) }
+        Codebase::TestSuite.report(operation, plain_args, tree, shell: self.class.shell)
+      end
 
       def report(operation, args)
         tree.require_checkout!
@@ -89,7 +119,7 @@ module Hecks
 
       # The task families, each carrying out the operations it lists.
       FAMILIES = [Codebase::Language, Codebase::KernelTables, Codebase::Conformance, Codebase::Regeneration,
-                  Codebase::Style].freeze
+                  Codebase::Style, Codebase::Codemods, Codebase::TestSuite].freeze
       private_constant :FAMILIES
 
       def tree = Codebase::Tree.new

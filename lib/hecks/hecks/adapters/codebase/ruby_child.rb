@@ -39,6 +39,22 @@ module Hecks
           raise ConsoleCapture::Failure, printed(result, "ended with status #{result.status.exitstatus}")
         end
 
+        # Runs `bin/<script>` with the arguments and answers only what it printed to stdout, for a
+        # script whose stdout is its data and whose stderr is progress.
+        #
+        # @param script [String] the script's name in `bin/`
+        # @param args [Array<String>] its arguments
+        # @param env [Hash{String => String}] variables to set for it
+        # @return [String] its stdout, without the trailing newline
+        # @raise [ConsoleCapture::Failure] when it ends with a non-zero status; the message is
+        #   everything it printed
+        def read(script, *, env: {})
+          result = capture(script, *, env: env)
+          return result.out.chomp if result.ok?
+
+          raise ConsoleCapture::Failure, printed(result, "ended with status #{result.status.exitstatus}")
+        end
+
         # Runs `bin/<script>` with the arguments and hands back how it ended.
         #
         # @param script [String] the script's name in `bin/`
