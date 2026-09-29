@@ -212,6 +212,35 @@ ADR 0068's rule 4 gives a break that reaches an installed client site one releas
 
 Inside this repository the move is still one pass: there is never a second way for a maintainer to run a tool. Client pins move to `3.0.0` explicitly, because deploys pin exactly (ADR 0068, rule 3). 3.0.0 is the first release the root's Release aggregate records.
 
+### 10. Details the layout settles
+
+- **`rust/host` images build from the packaged gem.** An image installs the exact gem version (deploys pin exactly, ADR 0068 rule 3) and runs Custodian's Build, instead of building from a tag of this repository. Builds from a checkout still work the same way, for testing unreleased changes.
+- **The attaching word is `attaches`, resolved by chapter name.** `Hecks::Framework.members` generalizes into an index of every chapter the gem carries, so a hecksagon names a chapter and never a path. `uses_framework` keeps its narrower meaning (a bounded context with governance). The launcher reads a first argument that names an attached chapter as that chapter (`hecks quality_control log_bug`); the Hecks domain's own verbs stay bare (`hecks merge_tail`).
+- **A checkout is a working tree with `hecks.gemspec` beside `lib/`.** The package carries `lib/`, `exe/hecks` and the Rust workspace but never `hecks.gemspec`, so the check cannot mistake an install for a checkout. `rust/` no longer tells them apart, since it ships.
+- **JournalStore keeps the guards the database must enforce, and the rest become `given`s on Era commands.**
+  - *Stay in the adapter* (transactional or database-level, and already named methods):
+    - digest verification on every read (`EraStore#verify_integrity!`)
+    - append-only re-attestation
+    - the per-domain advisory lock with its timeout
+    - the superuser write fence and the refusal of writes to a superseded era
+    - rollback when the audit before COMMIT fails
+    - the monotonic `compacted_through` floor
+    - the row-level-security DELETE check
+  - *Become givens* (the adapter supplies the facts: digests, the tip, conflicts, the projection floor):
+    - explicit acceptance to re-attest, where `--accept` is today
+    - explicit confirmation to compact, where `--force` is today
+    - a named winner for every conflicting id in a tail merge
+    - an era beyond the first before a merge
+    - no projection reading a Heki journal before it is compacted to empty
+    - an approval whose digest matches the edge and whose ordinal matches the tip
+    - exactly one edge leaving the era
+  - *The era capability check* is pasted into five scripts although `EraCheck.lineage_capable?` exists; it becomes one given, "the store keeps eras".
+- **The adapter list, checked against the code:**
+  - **Release.** Release calls `git`, the RubyGems API and `gem`, `npm`, and the filesystem. It never runs `gh`; the command appears only in hint text. It also needs a SecretVault adapter (1Password `op run`), the existing `clock` port, and the Terminal adapter for its y/N confirmations.
+  - **Deploy.** Deploy makes no AWS, Docker or `make` calls from Ruby. `project_deploy` renders the Makefile and scripts, and those run `aws`, `docker` and the rest when an operator runs them. Deploy therefore needs only Workspace and TenantProvisioning (which writes an environment's `.world` file). Lint runs `make` as a subprocess to check recipes, and that is Deploy's one other adapter.
+  - **Environment variables** (`HECKS_PROJECT_ENVIRONMENT`, `HECKS_SCHEMA`) are read through the world configuration rather than inline.
+- **Rules found inline become givens.** On Release: releasing from `main` equal to `origin/main` on a clean tree, the client package version matching the gem's, a CHANGELOG heading for the version, and an existing tag pointing at the release commit. On Deploy: `--schema` requiring `--tenant`, and the adapter being AwsLambda or AwsFargate.
+
 ## Consequences
 
 - Checks and lifecycle actions leave a history in the journal, so a regression such as the runtime baseline going stale shows up as an event instead of passing unnoticed.
@@ -243,12 +272,9 @@ Inside this repository the move is still one pass: there is never a second way f
 
 ## Open items
 
-- Whether `rust/host` images build from the packaged gem instead of a hecks git tag, now that the gem carries the workspace.
 - Whether the `.adapter` language can already state what an adapter supports (saga state, transactions, the outbox), or needs a word for it before those become queries.
-- How the checkout `given` tells a hecks checkout from an installed gem: the presence of `rust/` and `spec/`, a marker file, or the gem's own install path.
 - If a Ruby deployment ever needs a smaller footprint on disk, Deploy prunes the unloaded tooling when it builds the image, instead of the gem leaving it out.
-- The word that attaches a chapter. `uses_framework` loads only from `lib/hecks/framework/bluebook/` and `uses_embryonaut_bluebook` only from the vendored registry; attaching a chapter from its own directory needs a new hecksagon word or a way to register the attached chapters as members.
-- Whether `Hecks::Facade::CliRunner` routes to an attached chapter's verbs (`hecks quality_control log_bug`). Today a launcher serves the first bluebook the boot registers.
+- Two defects the survey of the store scripts found, to fix with the move or before it: `bin/compact` does not yet apply ADR 0079's per-projection floor, and `translation_audit` and `scaffold_translation` write to the store (`hold_first!`) while reading.
 - Which store each part persists to. A shared history of CI checks needs a durable store that CI can reach. Local runs may use Sqlite under `Hecks::CacheDir`.
 - The exact command names and arguments for each script, written out per aggregate before the migration starts.
 - Whether `rust/host` needs any of Custodian, or whether it stays Ruby-only operational tooling.
