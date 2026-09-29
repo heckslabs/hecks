@@ -1,4 +1,5 @@
 require_relative "../naming"
+require_relative "adapter_lookup"
 require_relative "../ports/query"
 require_relative "../ports/query/ordering"
 require_relative "../query_specification/field_path"
@@ -33,6 +34,8 @@ module Hecks
 
         declared = declared_query(aggregate, query_name)
         args = normalize_args(aggregate, declared, args)
+        return answered_by_port(aggregate, declared, args) if declared.answered_by
+
         declared = TenantScope.apply(declared, args)
         # Applied after TenantScope so its tenant clause rides through as an ordinary
         # local clause; it is deliberately not propagated into the hop's inner query.
@@ -66,12 +69,31 @@ module Hecks
 
         declared = declared_query(aggregate, query_name)
         args = normalize_args(aggregate, declared, args)
+        # No records to interpret: the adapter is the only answer there is.
+        return answered_by_port(aggregate, declared, args) if declared.answered_by
+
         declared = TenantScope.apply(declared, args)
         reference_interpret(@registry.repository(domain, aggregate).all, declared, args,
                             domain: domain, shape: aggregate)
       end
 
       private
+
+      # Asks the query's port for the answer, by the query's snake-cased name, handing it plain
+      # data. A Hash answers as one row and any other non-Array answer as `{ answered: answer }`.
+      # The aggregate's records are never read.
+      def answered_by_port(aggregate, declared, args)
+        asked   = "#{aggregate.hecks_name}.#{declared.name}"
+        adapter = AdapterLookup.call(@registry, declared.answered_by.port, asked: asked)
+        method  = Naming.snake(declared.name)
+        unless adapter.respond_to?(method)
+          raise WiringError, "#{adapter.class} implements the #{declared.answered_by.port} port but not " \
+                             "##{method}, which answers #{asked}"
+        end
+
+        answer = adapter.public_send(method, **Value.materialize(args))
+        Freezer.deep(answer.is_a?(Array) ? answer : [answer.is_a?(Hash) ? answer : { answered: answer }])
+      end
 
       def declared_query(aggregate, query_name)
         aggregate.query(query_name) ||

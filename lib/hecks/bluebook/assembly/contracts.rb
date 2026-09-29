@@ -104,7 +104,8 @@ module Hecks
             cursor:         [:cursor,          [:option, :cursor]],
             null_semantics: [:null_semantics,  [:option, :null_semantics]],
             authorization:  [:authorization,   [:option, :authorization]],
-            inspection:     [:inspection,      [:option, :inspection]]
+            inspection:     [:inspection,      [:option, :inspection]],
+            answered_by:    [:answered_by,     [:option, :answered_by]]
           },
           rows: { wheres: :where_rows, options: :option_rows },
           reads: { attributes: [:each, :shape_field], wheres: [:each, :where_clause],
@@ -113,11 +114,11 @@ module Hecks
             position:    :walk,
             order_field: [:folded, :order_by, :field],
             order_way:   [:folded, :order_by, :direction],
-            options:     [:folded, %i[offset cursor null_semantics authorization inspection], nil]
+            options:     [:folded, %i[offset cursor null_semantics authorization inspection answered_by], nil]
           }
         ),
 
-        "Entity"         => Contract.new(
+        "Entity"       => Contract.new(
           holder: Entity, make: :declare,
           fields: {
             name:          [:name,          :plain],

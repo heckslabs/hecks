@@ -173,6 +173,7 @@ Hecks.bluebook "Bluebook" do
       member word: "order_by",        context: "Query", body: "none", inner: "", opens: "", fills: "order_field", calls: "order_by_impl"
       member word: "authorize",       context: "Query", body: "none", inner: "", opens: "", fills: "options", calls: "authorize_impl"
       member word: "inspect_query",   context: "Query", body: "none", inner: "", opens: "", fills: "options"
+      member word: "answered_by",     context: "Query", body: "none", inner: "", opens: "", fills: "options"
 
     end
 
@@ -210,6 +211,7 @@ Hecks.bluebook "Bluebook" do
       member keyword: "authorize",       context: "Query", at: "1", named: "",         kind: "symbol",   required: "true",  fills: "policy"
       member keyword: "authorize",       context: "Query", at: "",  named: "tenant",   kind: "symbol",   required: "false", fills: "tenant"
       member keyword: "inspect_query",   context: "Query", at: "1", named: "",         kind: "symbol",   required: "false", fills: "mode"
+      member keyword: "answered_by",     context: "Query", at: "1", named: "",         kind: "text",     required: "true",  fills: "port"
 
     end
   end

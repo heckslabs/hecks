@@ -81,6 +81,11 @@ RSpec.describe "every live DSL word, used somewhere real" do
   # entry is a verified finding, not an assumption. The check below
   # flags one as stale once the corpus grows to cover it.
   EXEMPT = {
+    "answered_by (Query)"               =>
+                                           "its first real users are the Introspection queries in " \
+                                           "lib/hecks/hecks/custodian.bluebook, which ADR 0080's 3.0 build adds in commit 4; " \
+                                           "that commit drops this exemption. spec/query_answered_by_spec.rb covers the word " \
+                                           "meanwhile.",
     "attaches (Hecksagon)"              =>
                                            "its first real user is the `attaches` line in lib/hecks/hecks/hecks.hecksagon, " \
                                            "which ADR 0080's 3.0 build adds when Hecks attaches the language chapters " \

@@ -477,6 +477,7 @@ pub const KEYWORD_SEED: &[KeywordSeed] = &[
     KeywordSeed { word: "order_by", context: "Query", body: "none", inner: "", opens: "", fills: "order_field", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
     KeywordSeed { word: "authorize", context: "Query", body: "none", inner: "", opens: "", fills: "options", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
     KeywordSeed { word: "inspect_query", context: "Query", body: "none", inner: "", opens: "", fills: "options", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
+    KeywordSeed { word: "answered_by", context: "Query", body: "none", inner: "", opens: "", fills: "options", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
 ];
 
 impl KeywordSeed {
@@ -542,6 +543,7 @@ pub const ARGUMENT_SEED: &[ArgumentSeed] = &[
     ArgumentSeed { keyword: "authorize", context: "Query", at: "1", named: "", kind: "symbol", required: "true", fills: "policy", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "", coerce: "", blank_message: "" },
     ArgumentSeed { keyword: "authorize", context: "Query", at: "", named: "tenant", kind: "symbol", required: "false", fills: "tenant", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "", coerce: "", blank_message: "" },
     ArgumentSeed { keyword: "inspect_query", context: "Query", at: "1", named: "", kind: "symbol", required: "false", fills: "mode", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "", coerce: "", blank_message: "" },
+    ArgumentSeed { keyword: "answered_by", context: "Query", at: "1", named: "", kind: "text", required: "true", fills: "port", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "", coerce: "", blank_message: "" },
 ];
 
 impl ArgumentSeed {

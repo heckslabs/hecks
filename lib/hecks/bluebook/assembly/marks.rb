@@ -146,7 +146,8 @@ module Hecks
           cursor:         [QuerySpecification::Common::CursorSpec,        %i[value]],
           null_semantics: [QuerySpecification::Common::NullSemantics,     []],
           authorization:  [QuerySpecification::Common::AuthorizationSpec, %i[policy tenant]],
-          inspection:     [QuerySpecification::Common::InspectionSpec,    []]
+          inspection:     [QuerySpecification::Common::InspectionSpec,    []],
+          answered_by:    [QuerySpecification::Common::AnsweredBySpec,    []]
         }.freeze
 
         # The DSL declares these as symbols (`nulls :last`) and `to_h` spells them with
