@@ -3,6 +3,7 @@
 require "stringio"
 require_relative "shell"
 require_relative "console_capture"
+require_relative "codebase/publishing"
 require_relative "../../vendoring/git_environment"
 require_relative "../../embryonaut_bluebook/vendor_cli"
 
@@ -28,8 +29,8 @@ module Hecks
       # @param args [Array<String>] the git subcommand and its arguments
       # @param chdir [String, nil] the directory to run in
       # @return [Shell::Result] what git said and how it ended
-      def capture(*args, chdir: nil)
-        @shell.capture("git", *args, env: Vendoring::GitEnvironment.clean, chdir: chdir)
+      def capture(*, chdir: nil)
+        @shell.capture("git", *, env: Vendoring::GitEnvironment.clean, chdir: chdir)
       end
 
       # Vendors one package of the bluebook registry into a project, pinned to a release or a
@@ -71,6 +72,17 @@ module Hecks
         raise ConsoleCapture::Failure, "git has no user.name or user.email configured to approve as" if who.empty?
 
         who
+      end
+
+      # The facts a release of this repository is judged by: branch, tree, versions, changelog and
+      # where a tag stands. The rules that judge them are the givens of `PublishingRun.Clear`.
+      #
+      # @param held [Hash] the `PublishingRun` record: `operation`
+      # @return [Hash] each fact, as `Codebase::ReleaseFacts` reads it
+      # @raise [ConsoleCapture::Failure] when git or a file cannot be read
+      def survey(**held)
+        commands = Codebase::Publishing.commands || Hecks::Release::Runner::Commands.new
+        Codebase::ReleaseFacts.new(Codebase::Tree.new, commands: commands).gather(plain(held[:operation]))
       end
 
       private

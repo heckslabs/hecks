@@ -1,5 +1,5 @@
-require "fileutils"
 require_relative "commands"
+require "hecks/hecks/adapters/codebase/gem_registry"
 
 module Hecks
   module Release
@@ -14,6 +14,7 @@ module Hecks
           @root = root
           @commands = commands
           @console = console
+          @registry = Hecks::Adapters::Codebase::GemRegistry.new(root: root, commands: commands)
         end
 
         # Pushes the gem, or with `dry_run` only builds it.
@@ -33,9 +34,7 @@ module Hecks
 
         def build_only(version)
           @console.say("Dry run: building hecks-#{version}.gem (nothing is pushed)...")
-          @commands.run!("gem", "build", "hecks.gemspec", chdir: @root)
-        ensure
-          FileUtils.rm_f(File.join(@root, "hecks-#{version}.gem"))
+          @registry.build_only!(version)
         end
       end
     end

@@ -2063,4 +2063,296 @@ Hecks.bluebook "Hecks" do
     on      "CorpusRun.CorpusRefused"
     trigger CorpusRun::Fault, with: { refusal: :refusal }
   end
+
+  # Publishing: cutting a release of this gem. The run holds the facts the Git adapter surveyed
+  # (branch, tree, versions, changelog, tag), and `Accept` holds the rules that let a release go
+  # ahead: the adapter supplies the facts and the givens decide. Only an accepted run is carried
+  # out, and without --confirm it is the old dry run: every check and build, nothing tagged,
+  # pushed or published. A real run advances the root Release: tagged, published, verified.
+  aggregate "PublishingRun" do
+    description "One release of the gem, or the rehearsal of it: judged by the facts, then carried out."
+
+    attribute :run,            RunKey
+    attribute :operation,      Operation, optional: true
+    attribute :confirm,        Switch, optional: true
+    attribute :gem_only,       Switch, optional: true
+    attribute :npm_only,       Switch, optional: true
+    attribute :npm_local,      Switch, optional: true
+    attribute :no_wait,        Switch, optional: true
+    attribute :checkout,       Switch, optional: true
+    attribute :branch,         Word, optional: true
+    attribute :on_origin,      Switch, optional: true
+    attribute :clean,          Switch, optional: true
+    attribute :version,        Version, optional: true
+    attribute :client_version, Version, optional: true
+    attribute :changelog,      Switch, optional: true
+    attribute :tag_state,      Word, optional: true
+    attribute :head,           Word, optional: true
+    attribute :ir_version,     Version, optional: true
+    attribute :ships_from,     Checkout, optional: true
+    attribute :tagged,         Switch, optional: true
+    attribute :published,      Switch, optional: true
+    attribute :verified,       Switch, optional: true
+    attribute :report,         Report, optional: true
+    attribute :refusal,        Report, optional: true
+    identified_by :run
+
+    value_object "RunKey" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+
+      invariant("a run is named") { !value.to_s.empty? }
+    end
+
+    value_object "Operation" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+    end
+
+    value_object "Switch" do
+      attribute :value, Boolean
+    end
+
+    value_object "Report" do
+      attribute :value, String
+    end
+
+    # One word of a fact: a branch, a commit, whether a tag stands.
+    value_object "Word" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+    end
+
+    value_object "Version" do
+      attribute :value, String, pattern: '^[0-9]+[.][0-9]+[.][0-9]+'
+    end
+
+    # The working tree the release is cut from.
+    value_object "Checkout" do
+      attribute :path, String
+    end
+
+    lifecycle :status, default: "requested" do
+      transition "Accept"     => "accepted",  from: "requested"
+      transition "AcceptGem"  => "accepted",  from: "requested"
+      transition "Complete"   => "completed", from: "accepted"
+      transition "Fault"      => "faulted",   from: %w[requested accepted]
+    end
+
+    command "Publish" do
+      role "Maintainer"
+      goal "Tag the merged release commit, publish the gem, and get the client package published"
+
+      attribute :gem_only,  Switch, optional: true
+      attribute :npm_only,  Switch, optional: true
+      attribute :npm_local, Switch, optional: true
+      attribute :no_wait,   Switch, optional: true
+      attribute :run,       RunKey
+      attribute :confirm,   Switch, optional: true
+
+      sets :gem_only
+      sets :npm_only
+      sets :npm_local
+      sets :no_wait
+      sets :run
+      sets :confirm
+      sets :operation, to: "publish"
+
+      emits PublishRequested
+    end
+
+    command "PublishGem" do
+      role "Maintainer"
+      goal "Build the gem and push it to the gem registry, with the key the vault holds"
+
+      attribute :run,     RunKey
+      attribute :confirm, Switch, optional: true
+
+      sets :run
+      sets :confirm
+      sets :operation, to: "publish_gem"
+
+      emits PublishGemRequested
+    end
+
+    # What the tree reported about itself, and the facts the Git adapter surveyed, held against the
+    # rules of a release. Nothing here runs outside a hecks checkout (hecks.gemspec beside lib/).
+    command "Accept" do
+      role "System"
+      goal "Let a release go ahead only in a hecks checkout, and only when the facts satisfy every rule"
+
+      reference_to PublishingRun
+      attribute :checkout,       Switch
+      attribute :branch,         Word
+      attribute :on_origin,      Switch
+      attribute :clean,          Switch
+      attribute :version,        Version
+      attribute :client_version, Version
+      attribute :changelog,      Switch
+      attribute :tag_state,      Word
+      attribute :head,           Word
+      attribute :ir_version,     Version
+      attribute :ships_from,     Checkout
+
+      given("needs a hecks checkout: hecks.gemspec stands beside lib/") { checkout.value }
+      given("a release is cut from main: switch to main first") { branch.value == "main" }
+      given("main is origin/main: merge the release PR, then pull") { on_origin.value }
+      given("the working tree is clean: commit or discard changes first") { clean.value }
+      given("the client package is at the gem's version: bump the package first") do
+        client_version.value == version.value
+      end
+      given("CHANGELOG.md has a heading for the version: add the release entry") { changelog.value }
+      given("a tag for the version points at the release commit, not elsewhere") do
+        tag_state.value != "elsewhere"
+      end
+
+      sets :checkout
+      sets :branch
+      sets :on_origin
+      sets :clean
+      sets :version
+      sets :client_version
+      sets :changelog
+      sets :tag_state
+      sets :head
+      sets :ir_version
+      sets :ships_from
+
+      emits PublishingAccepted
+    end
+
+    # release_gem's one rule: the client package is released beside the gem at the same version.
+    command "AcceptGem" do
+      role "System"
+      goal "Let a gem push go ahead only in a hecks checkout, with the client package at the gem's version"
+
+      reference_to PublishingRun
+      attribute :checkout,       Switch
+      attribute :version,        Version
+      attribute :client_version, Version
+      attribute :ir_version,     Version
+      attribute :ships_from,     Checkout
+
+      given("needs a hecks checkout: hecks.gemspec stands beside lib/") { checkout.value }
+      given("the client package is at the gem's version: bump the package first") do
+        client_version.value == version.value
+      end
+
+      sets :checkout
+      sets :version
+      sets :client_version
+      sets :ir_version
+      sets :ships_from
+
+      emits GemAccepted
+    end
+
+    command "Complete" do
+      role "System"
+      goal "Record that the release was carried out, what it did, and what it reported"
+
+      reference_to PublishingRun
+      attribute :report,    Report
+      attribute :tagged,    Switch
+      attribute :published, Switch
+      attribute :verified,  Switch
+
+      sets :report
+      sets :tagged
+      sets :published
+      sets :verified
+
+      emits PublishingCompleted
+    end
+
+    command "Fault" do
+      role "System"
+      goal "Record that the request was refused or could not be carried out, and why"
+
+      reference_to PublishingRun
+      attribute :refusal, Report
+
+      sets :refusal
+
+      emits PublishingFaulted
+    end
+
+    query "PublishingOutcome" do
+      description "How one request ended: its status, and what it reported or why it failed."
+      attribute :run, RunKey
+      where(run: :run)
+      order_by :run
+    end
+
+    query "PublishingFaulted" do
+      description "Every request that was refused or could not be carried out."
+      where(status: "faulted")
+      order_by :run
+    end
+  end
+
+  policy "ExaminePublishingWhenPublishRequested" do
+    on      "PublishingRun.PublishRequested"
+    trigger PublishingRun::SourceTree::Examine, with: { run: :run }
+  end
+
+  policy "ExaminePublishingWhenPublishGemRequested" do
+    on      "PublishingRun.PublishGemRequested"
+    trigger PublishingRun::SourceTree::Examine, with: { run: :run }
+  end
+
+  policy "AcceptTheReleaseWhenExamined" do
+    on      "PublishingRun.PublishingExamined"
+    where   { operation.value == "publish" }
+    trigger PublishingRun::Accept, with: { checkout: :checkout, branch: :branch, on_origin: :on_origin,
+                                           clean: :clean, version: :version, client_version: :client_version,
+                                           changelog: :changelog, tag_state: :tag_state, head: :head,
+                                           ir_version: :ir_version, ships_from: :ships_from }
+  end
+
+  policy "AcceptTheGemWhenExamined" do
+    on      "PublishingRun.PublishingExamined"
+    where   { operation.value == "publish_gem" }
+    trigger PublishingRun::AcceptGem, with: { checkout: :checkout, version: :version,
+                                              client_version: :client_version, ir_version: :ir_version,
+                                              ships_from: :ships_from }
+  end
+
+  policy "PerformPublishingWhenAccepted" do
+    on      "PublishingRun.PublishingAccepted"
+    trigger PublishingRun::SourceTree::Perform, with: { run: :run }
+  end
+
+  policy "PerformPublishingWhenGemAccepted" do
+    on      "PublishingRun.GemAccepted"
+    trigger PublishingRun::SourceTree::Perform, with: { run: :run }
+  end
+
+  # A real run advances the root Release: tagged when the tag was made, published when a registry
+  # took the gem, verified when every registry in scope lists the version.
+  policy "RecordTheTagWhenPublished" do
+    on      "PublishingRun.PublishingAnswered"
+    where   { tagged.value }
+    trigger Release::Tag, with: { version: :version, ir_version: :ir_version, ships_from: :ships_from }
+  end
+
+  policy "RecordThePublishingWhenPublished" do
+    on      "PublishingRun.PublishingAnswered"
+    where   { published.value }
+    trigger Release::MarkPublished, with: { version: :version }
+  end
+
+  policy "RecordTheVerificationWhenPublished" do
+    on      "PublishingRun.PublishingAnswered"
+    where   { verified.value }
+    trigger Release::Verify, with: { version: :version }
+  end
+
+  policy "RecordPublishingOutcome" do
+    on      "PublishingRun.PublishingAnswered"
+    trigger PublishingRun::Complete, with: { report: :report, tagged: :tagged, published: :published,
+                                             verified: :verified }
+  end
+
+  policy "RecordPublishingFault" do
+    on      "PublishingRun.PublishingRefused"
+    trigger PublishingRun::Fault, with: { refusal: :refusal }
+  end
 end

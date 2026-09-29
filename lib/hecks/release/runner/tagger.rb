@@ -11,6 +11,12 @@ module Hecks
           @git = git
           @console = console
           @dry_run = dry_run
+          @changed = false
+        end
+
+        # @return [Boolean] whether this run created or pushed the tag, for real
+        def changed?
+          @changed
         end
 
         # Brings the tag to the state described above, saying what it did; returns
@@ -26,7 +32,24 @@ module Hecks
 
           create(tag, facts.sha) unless local
           push(tag)
+          @changed = true
           true
+        end
+
+        # @param tag [String] the tag, such as `v3.0.0`
+        # @return [String, nil] the commit the tag points at in this checkout, or nil when absent
+        def local_commit(tag)
+          result = @git.capture("rev-parse", "-q", "--verify", "refs/tags/#{tag}^{commit}")
+          result.success? ? result.stdout.strip : nil
+        end
+
+        # @param tag [String] the tag, such as `v3.0.0`
+        # @return [String, nil] the commit the tag points at on origin, or nil when it is not there
+        # @raise [Refusal] when the remote's tags cannot be listed
+        def remote_commit(tag)
+          listing = @git.read("ls-remote", "--tags", "origin", "refs/tags/#{tag}", "refs/tags/#{tag}^{}")
+          shas = listing.lines.to_h { |line| line.split.then { |sha, ref| [ref, sha] } }
+          shas.fetch("refs/tags/#{tag}^{}") { shas["refs/tags/#{tag}"] }
         end
 
         private
@@ -62,17 +85,6 @@ module Hecks
                            "git push origin :refs/tags/#{tag}) and re-run, otherwise main has moved since the release " \
                            "and the missing package must be published from a checkout of #{tag}"
           end
-        end
-
-        def local_commit(tag)
-          result = @git.capture("rev-parse", "-q", "--verify", "refs/tags/#{tag}^{commit}")
-          result.success? ? result.stdout.strip : nil
-        end
-
-        def remote_commit(tag)
-          listing = @git.read("ls-remote", "--tags", "origin", "refs/tags/#{tag}", "refs/tags/#{tag}^{}")
-          shas = listing.lines.to_h { |line| line.split.then { |sha, ref| [ref, sha] } }
-          shas.fetch("refs/tags/#{tag}^{}") { shas["refs/tags/#{tag}"] }
         end
       end
     end

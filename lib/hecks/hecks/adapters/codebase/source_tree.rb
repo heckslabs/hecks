@@ -9,6 +9,8 @@ require_relative "style"
 require_relative "codemods"
 require_relative "test_suite"
 require_relative "corpus_tasks"
+require_relative "publishing"
+require_relative "../git"
 
 module Hecks
   module Adapters
@@ -35,18 +37,26 @@ module Hecks
       # @param root [String, nil] unused
       def initialize(aggregate: nil, settings: {}, root: nil); end
 
-      # Reports whether the working tree is a hecks checkout.
+      # Reports whether the working tree is a hecks checkout. For a release it also reports the
+      # facts the Git adapter surveys, since a release's rules are judged with the checkout rule.
       #
-      # @param _held [Hash] the record, which holds nothing this needs
-      # @return [Hash{Symbol => Hash}] `checkout:` whether hecks.gemspec stands beside lib/
-      def examine(**_held)
-        { checkout: { value: tree.checkout? } }
+      # @param held [Hash] the record: `operation`
+      # @return [Hash{Symbol => Hash}] `checkout:` whether hecks.gemspec stands beside lib/, and for
+      #   a release the facts to judge
+      def examine(**held)
+        answer = { checkout: { value: tree.checkout? } }
+        operation = plain(held[:operation])
+        return answer unless Codebase::Publishing::OPERATIONS.include?(operation)
+
+        facts = tree.checkout? ? Git.new.survey(**held) : Codebase::Publishing.no_facts(operation)
+        answer.merge(facts)
       end
 
       # Carries out the operation an accepted request names.
       #
       # @param held [Hash] the record: `operation` and every argument the request set
-      # @return [Hash{Symbol => Hash}] `report:` what was found, or done
+      # @return [Hash{Symbol => Hash}] `report:` what was found, or done; a task that does more
+      #   than report (a release) answers its own fields, `report:` among them
       # @raise [Codebase::Tree::NeedsCheckout] when the tree is not a hecks checkout
       # @raise [ConsoleCapture::Failure] when no family carries the operation out, or it refuses
       def perform(**held)
@@ -56,7 +66,8 @@ module Hecks
         raise ConsoleCapture::Failure, "no task carries out #{operation.inspect}" unless family
 
         args = held.except(:operation)
-        { report: { value: family.call(operation, args, tree, shell: self.class.shell || Shell.new) } }
+        done = family.call(operation, args, tree, shell: self.class.shell || Shell.new)
+        done.is_a?(Hash) ? done : { report: { value: done } }
       end
 
       # @return [String] where every word of the language stands
@@ -167,7 +178,7 @@ module Hecks
 
       # The task families, each carrying out the operations it lists.
       FAMILIES = [Codebase::Language, Codebase::KernelTables, Codebase::Conformance, Codebase::Regeneration,
-                  Codebase::Style, Codebase::Codemods, Codebase::TestSuite, Codebase::CorpusTasks].freeze
+                  Codebase::Style, Codebase::Codemods, Codebase::TestSuite, Codebase::CorpusTasks, Codebase::Publishing].freeze
       private_constant :FAMILIES
 
       def tree = Codebase::Tree.new

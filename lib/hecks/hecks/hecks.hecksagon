@@ -267,4 +267,18 @@ Hecks.hecksagon "Hecks" do
       refuses "CorpusRefused"
     end
   end
+
+  Hecks::PublishingRun.port "SourceTree" do
+    asks "Examine", to: PublishingRun do
+      attribute :run, RunKey
+      answers "PublishingExamined"
+      refuses "PublishingRefused"
+    end
+
+    asks "Perform", to: PublishingRun do
+      attribute :run, RunKey
+      answers "PublishingAnswered"
+      refuses "PublishingRefused"
+    end
+  end
 end

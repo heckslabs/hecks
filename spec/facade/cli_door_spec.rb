@@ -76,6 +76,13 @@ RSpec.describe Hecks::Facade::CliDoor do
       expect(described_class.arguments(spec, ["--wanted"])).to eq(wanted: true)
     end
 
+    it "reads a dashed flag as the argument spelled with underscores" do
+      dashed = { arguments: [{ path: "gem_only", type: "Boolean" }, { path: "seed_start", type: "Integer" }] }
+
+      expect(described_class.arguments(dashed, ["--gem-only", "--seed-start=3"]))
+        .to eq(gem_only: true, seed_start: 3)
+    end
+
     it "reads --name=value as name=value" do
       expect(described_class.arguments(spec, ["--reference=BUG#1"])).to eq(reference: { value: "BUG#1" })
     end

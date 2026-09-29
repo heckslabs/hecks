@@ -24,8 +24,8 @@ Hecks.bluebook "Hecks" do
     end
 
     lifecycle :state, default: "tagged" do
-      transition "Publish" => "published", from: "tagged"
-      transition "Verify"  => "verified",  from: "published"
+      transition "MarkPublished" => "published", from: "tagged"
+      transition "Verify"        => "verified",  from: "published"
     end
 
     command "Tag" do
@@ -43,7 +43,7 @@ Hecks.bluebook "Hecks" do
       emits Tagged
     end
 
-    command "Publish", from: "tagged" do
+    command "MarkPublished", from: "tagged" do
       role "Maintainer"
       goal "Record that a tagged version reached the gem registry"
 

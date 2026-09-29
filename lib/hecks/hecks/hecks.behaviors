@@ -9,8 +9,8 @@ Hecks.behaviors "Hecks" do
     expect state: "tagged"
   end
 
-  test "Publish advances a tagged release" do
-    tests "Publish", on: "Release"
+  test "MarkPublished advances a tagged release" do
+    tests "MarkPublished", on: "Release"
     setup  "Tag", version: { value: "3.0.0" }, ir_version: { value: "1.0.0" }, ships_from: { path: "/work/hecks" }
     input  version: { value: "3.0.0" }
     expect emits: ["Published"]

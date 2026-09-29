@@ -130,7 +130,7 @@
           "mutations": [
 
           ],
-          "name": "Publish",
+          "name": "MarkPublished",
           "provenance": null,
           "references": "Release",
           "role": "Maintainer"
@@ -174,7 +174,7 @@
         "field": "state",
         "transitions": [
           {
-            "command": "Publish",
+            "command": "MarkPublished",
             "from_state": "tagged",
             "to_state": "published"
           },

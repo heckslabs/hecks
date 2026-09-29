@@ -45,15 +45,24 @@ module Hecks
         raise Runtime::NotFound, too_many_bare(bare) if bare.length > 1
 
         words.map do |word|
-          next word.delete_prefix("--") if word.start_with?("--") && word.include?("=")
+          next underscored(word.delete_prefix("--"), options) if word.start_with?("--") && word.include?("=")
           next flag(word.delete_prefix("--"), options) if word.start_with?("--")
 
           bare.include?(word) ? positional(word, spec) : word
         end
       end
 
-      # A `--name` flag, as the `name=true` pair it stands for.
+      # A `name=value` pair whose name is spelled with dashes (`seed-start=3`), as the argument
+      # spelled with underscores, unless an argument is named with the dashes.
+      def underscored(pair, options)
+        name, value = pair.split("=", 2)
+        options.key?(name) ? pair : "#{name.tr('-', '_')}=#{value}"
+      end
+
+      # A `--name` flag, as the `name=true` pair it stands for. A dashed name (`--gem-only`) is the
+      # argument spelled with underscores (`gem_only`).
       def flag(name, options)
+        name = name.tr("-", "_") unless options.key?(name) || options.keys.any? { |key| key.start_with?("#{name}.") }
         path = options.key?(name) ? name : expand(name, options)
         return "#{path}=true" if options.dig(path, :type) == "Boolean"
 

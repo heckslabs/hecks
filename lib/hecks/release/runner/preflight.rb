@@ -28,6 +28,14 @@ module Hecks
           @tools = tools
         end
 
+        # Refuses when a tool the release runs is not installed.
+        #
+        # @return [void]
+        # @raise [Refusal] naming the tool and how to install it
+        def check_tools!
+          check_tools
+        end
+
         # Runs every check; the first refusal stops it.
         def check!
           check_tools

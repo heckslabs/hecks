@@ -157,4 +157,16 @@ Hecks.behaviors "Codebase" do
     input run: { value: "" }
     expect refused: "must match"
   end
+
+  test "Publish refuses a run that is not named" do
+    tests "Publish", on: "PublishingRun"
+    input run: { value: "" }
+    expect refused: "must match"
+  end
+
+  test "PublishGem refuses a run that is not named" do
+    tests "PublishGem", on: "PublishingRun"
+    input run: { value: "" }
+    expect refused: "must match"
+  end
 end
