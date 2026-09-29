@@ -49,6 +49,20 @@ RSpec.describe Hecks::Facade::CliRunner do
   end
 
   # Both spellings reach the same verb.
+  describe "routing to another chapter" do
+    it "speaks to a chapter the domain attaches when the first word names it" do
+      output, code = run("governance")
+
+      expect(code).to eq(0)
+      expect(output).to start_with("Governance").and include("bin/run governance <verb>")
+    end
+
+    it "keeps to the domain's own chapter otherwise" do
+      output, = run
+      expect(output).not_to start_with("Governance")
+    end
+  end
+
   describe "naming" do
     it "takes the short form when no other aggregate declares that verb" do
       expect(run("create_pizza", "name=X", "pizza.price_cents.cents=900", "pizza.size.value=small").last).to eq(0)

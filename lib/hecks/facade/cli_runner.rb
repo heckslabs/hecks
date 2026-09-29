@@ -13,7 +13,7 @@ module Hecks
       module_function
 
       # Runs one command line against a booted domain and answers the text to print.
-      # Only the first bluebook in the registry, the booted domain's own, is projected.
+      # The booted domain's own chapter is projected, or an attached one its first word names.
       #
       # @param runtime [Runtime::Dispatcher, Runtime::RemoteDispatcher] the booted domain
       # @param argv [Array<String>] an optional `ask`, the verb or question name, then
@@ -23,8 +23,8 @@ module Hecks
       # @raise [Runtime::WiringError] if a repository or the clock adapter cannot be resolved
       # @raise [Runtime::StaleWrite] if concurrent writers beat the command through every retry
       def call(runtime:, argv:, program: "bin/run")
-        bluebook = runtime.registry.bluebooks.values.first
-        cli      = Projector.call(:cli, bluebook: bluebook, options: { program: program })
+        bluebook, argv, program = chapter_for(runtime, argv, program)
+        cli = Projector.call(:cli, bluebook: bluebook, options: { program: program })
 
         name = argv.first
         return [cli[:usage], 0] if name.nil? || %w[--help -h help].include?(name)
@@ -53,6 +53,18 @@ module Hecks
         end
 
         dispatch(runtime, spec, name, rest, program, asking)
+      end
+
+      # The chapter a command line speaks to: the booted domain's own, or, when the first word
+      # names a chapter its hecksagon attaches or uses as a framework member (`deploy`,
+      # `governance`), that chapter, with the word dropped and added to the program name.
+      def chapter_for(runtime, argv, program)
+        own      = runtime.registry.bluebooks.values.first
+        attached = Array(runtime.registry.hecksagon(own.name)&.member_chapters)
+        target   = attached.find { |name| Naming.snake(name) == argv.first }
+        return [own, argv, program] unless target
+
+        [runtime.registry.bluebook(target), argv[1..], "#{program} #{argv.first}"]
       end
 
       # Parses one resolved verb's arguments, runs it as a query or command, and turns the
