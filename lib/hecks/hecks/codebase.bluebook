@@ -2345,10 +2345,19 @@ Hecks.bluebook "Hecks" do
     trigger Release::Verify, with: { version: :version }
   end
 
+  # A release that stopped after a real step (the tag pushed, the gem published) still records the
+  # steps it took on the root Release, then ends as a fault carrying what the release said.
   policy "RecordPublishingOutcome" do
     on      "PublishingRun.PublishingAnswered"
+    where   { succeeded.value }
     trigger PublishingRun::Complete, with: { report: :report, tagged: :tagged, published: :published,
                                              verified: :verified }
+  end
+
+  policy "RecordPublishingShortfall" do
+    on      "PublishingRun.PublishingAnswered"
+    where   { succeeded.value == false }
+    trigger PublishingRun::Fault, with: { refusal: :report }
   end
 
   policy "RecordPublishingFault" do

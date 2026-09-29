@@ -77,6 +77,28 @@ RSpec.describe "publishing a release" do
       expect(launch("shipped").first).to include(version)
     end
 
+    it "records the steps taken before a failure, and a rerun that finds nothing left verifies" do
+      registry_lists_the_gem_after_the_push!
+      commands.fail_run("op")
+
+      launch("publish", "run=partial", "--npm-local", "--confirm")
+
+      expect(outcome("partial")).to include('"status": "faulted"', "npm publish failed")
+      expect(launch("shipped").first).not_to include(version)
+
+      rerun = ReleaseSpecSupport::RecordingCommands.new(sha: sha, version: version)
+      rerun.answer("curl", "-fsS", stdout: JSON.generate([{ "number" => version }]))
+      rerun.answer("npm", "view", stdout: "#{version}\n")
+      rerun.answer("git", "rev-parse", "-q", "--verify", "refs/tags/v#{version}^{commit}", stdout: "#{sha}\n")
+      rerun.answer("git", "ls-remote", stdout: "#{sha}\trefs/tags/v#{version}^{}\n")
+      Hecks::Adapters::Codebase::Publishing.commands = rerun
+
+      launch("publish", "run=rerun", "--npm-local", "--confirm")
+
+      expect(outcome("rerun")).to include('"status": "completed"', "Nothing to publish")
+      expect(launch("shipped").first).to include(version)
+    end
+
     it "refuses to release from a branch that is not main, and does nothing" do
       commands.answer("git", "rev-parse", "--abbrev-ref", "HEAD", stdout: "feature\n")
 

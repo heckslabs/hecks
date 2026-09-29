@@ -73,17 +73,18 @@ module Hecks
         # @param tree [Tree] the checkout
         # @param commands [#capture, #run!] starts each process
         # @return [Hash] what the release did
-        # @raise [ConsoleCapture::Failure] when the release does not finish
+        # @raise [ConsoleCapture::Failure] when the release stops before any real step; one that
+        #   stops after a real step answers, with `succeeded` false, so the steps are recorded
         def publish(args, tree, commands)
           out = StringIO.new
           err = StringIO.new
           runner = release(args, tree, commands, out, err)
           status = runner.call
           text = [out.string, err.string].map(&:strip).reject(&:empty?).join("\n")
-          raise ConsoleCapture::Failure, text unless status.zero?
+          raise ConsoleCapture::Failure, text if !status.zero? && runner.steps.empty?
 
           outcome(text, args, tagged: runner.steps.include?(:tagged), published: runner.steps.include?(:gem),
-                            verified: runner.verified)
+                              verified: runner.verified, succeeded: status.zero?)
         end
 
         # @return [Hecks::Release::Runner] the release, over the facts the run was cleared by
@@ -130,10 +131,10 @@ module Hecks
         end
 
         # @return [Hash] the answer the journal records: a report, what was done, and the release
-        def outcome(text, args, tagged:, published:, verified:)
+        def outcome(text, args, tagged:, published:, verified:, succeeded: true)
           { report: { value: text }, tagged: { value: tagged }, published: { value: published },
-            verified: { value: verified }, version: { value: args[:version] },
-          ir_version: { value: args[:ir_version] }, ships_from: args[:ships_from] }
+            verified: { value: verified }, succeeded: { value: succeeded }, version: { value: args[:version] },
+            ir_version: { value: args[:ir_version] }, ships_from: args[:ships_from] }
         end
       end
     end

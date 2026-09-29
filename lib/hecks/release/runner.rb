@@ -166,6 +166,11 @@ module Hecks
         published
       end
 
+      # The steps this run's flags put in scope, whether or not a registry already lists them.
+      def in_scope
+        [(:gem if @options.gem?), (:npm if @options.npm?)].compact
+      end
+
       def ci_publishes?(pending)
         pending.include?(:npm) && !@options.npm_local?
       end
@@ -180,6 +185,7 @@ module Hecks
       def publish(facts, pending)
         if pending.empty?
           @console.say("Nothing to publish for #{facts.version}.")
+          @verified = registries_list?(facts.version, in_scope) unless @options.dry_run
           return 0
         end
         return declined unless @options.dry_run || publish_confirmed?(facts.version, pending)

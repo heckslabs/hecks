@@ -25,7 +25,7 @@ Hecks.bluebook "Hecks" do
 
     lifecycle :state, default: "tagged" do
       transition "MarkPublished" => "published", from: "tagged"
-      transition "Verify"        => "verified",  from: "published"
+      transition "Verify"        => "verified",  from: %w[published verified]
     end
 
     command "Tag" do
@@ -52,7 +52,7 @@ Hecks.bluebook "Hecks" do
       emits Published
     end
 
-    command "Verify", from: "published" do
+    command "Verify", from: %w[published verified] do
       role "Maintainer"
       goal "Record that the published version installs and boots"
 

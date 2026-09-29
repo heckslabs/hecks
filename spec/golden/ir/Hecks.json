@@ -145,7 +145,10 @@
           "ensures": [
 
           ],
-          "from": "published",
+          "from": [
+            "published",
+            "verified"
+          ],
           "givens": [
 
           ],
@@ -181,6 +184,11 @@
           {
             "command": "Verify",
             "from_state": "published",
+            "to_state": "verified"
+          },
+          {
+            "command": "Verify",
+            "from_state": "verified",
             "to_state": "verified"
           }
         ]
