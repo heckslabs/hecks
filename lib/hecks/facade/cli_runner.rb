@@ -80,12 +80,14 @@ module Hecks
         # Answers with only this verb's outcome; a full store dump is every record there is.
         request = CommandRequest.normalize(args, receiver:        spec[:receiver],
                                                  legacy_receiver: spec[:legacy_receiver])
+        seen   = reactions_seen(runtime)
         handle = runtime.dispatch_flat(spec[:verb], request)
-        return [JSON.pretty_generate(answered(handle)), 0] if handle.state.nil?
+        refused = refused_reactions(runtime, seen)
+        return [JSON.pretty_generate(answered(handle).merge(refused)), 0] if handle.state.nil?
 
-        [JSON.pretty_generate(id:     handle.id,
-                              state:  JsonDoor.materialize(handle.state),
-                              events: handle.events.map(&:name)), 0]
+        [JSON.pretty_generate({ id:     handle.id,
+                                state:  JsonDoor.materialize(handle.state),
+                                events: handle.events.map(&:name) }.merge(refused)), 0]
       rescue Runtime::NotFound, Runtime::TypeMismatch => e
         # A bad argument and a missing record both need the same next step: read the help.
         ["#{e.message}\n\n  #{program} #{'ask ' if asking}#{name} --help", 1]
@@ -117,6 +119,28 @@ module Hecks
         return args if args.key?(:now)
 
         args.merge(now: { value: Ports::Clock.now(runtime.registry) })
+      end
+
+      # How many reactions the runtime has logged, so a later look sees what one dispatch caused.
+      def reactions_seen(runtime) = runtime.respond_to?(:reactions) ? runtime.reactions.size : 0
+
+      # The reactions one dispatch caused that the domain refused, as `refused_reactions:`.
+      #
+      # A policy's trigger that a `given` refuses is not the command's own refusal: the command
+      # has already persisted. Without this the answer would say nothing of it, and only the
+      # reaction log would hold the reason. A defect (a crash) is warned elsewhere.
+      #
+      # @param runtime [Runtime::Dispatcher, Runtime::RemoteDispatcher] the booted domain
+      # @param seen [Integer] `reactions_seen` from before the dispatch
+      # @return [Hash] `refused_reactions:` each with the `policy`, its `trigger` and the `reason`;
+      #   empty when every reaction was delivered
+      def refused_reactions(runtime, seen)
+        return {} unless runtime.respond_to?(:reactions)
+
+        refused = runtime.reactions.drop(seen).select { |entry| entry[:delivered] == false && !entry[:defect] }
+        return {} if refused.empty?
+
+        { refused_reactions: refused.map { |entry| entry.slice(:policy, :trigger, :reason) } }
       end
 
       # Shapes a port operation's outcome, which has no state: each event with its full payload.

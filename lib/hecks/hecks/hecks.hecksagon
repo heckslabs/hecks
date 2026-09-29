@@ -54,6 +54,20 @@ Hecks.hecksagon "Hecks" do
     end
   end
 
+  Hecks::Era.port "JournalStore" do
+    asks "Examine", to: Era do
+      attribute :run, RunKey
+      answers "EraExamined"
+      refuses "EraRefused"
+    end
+
+    asks "Apply", to: Era do
+      attribute :run, RunKey
+      answers "EraChanged"
+      refuses "EraRefused"
+    end
+  end
+
   Hecks::Package.port "Git" do
     asks "Pin", to: Package do
       attribute :package, PackageRef

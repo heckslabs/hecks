@@ -122,6 +122,32 @@ RSpec.describe Hecks::Facade::CliRunner do
     end
   end
 
+  # A reaction a domain's own given refused is only on the reaction log; the answer names it.
+  describe "reactions a domain refused" do
+    let(:reactions) do
+      [{ policy: "Seen", trigger: "D::Old", delivered: false, reason: "before this dispatch" },
+       { policy: "Delivered", trigger: "D::Ok", delivered: true },
+       { policy: "Refused", trigger: "D::Admit", delivered: false, reason: "Admit refused — a given" },
+       { policy: "Crashed", trigger: "D::Boom", delivered: false, reason: "nil", defect: true }]
+    end
+    let(:logged) { Struct.new(:reactions).new(reactions) }
+
+    it "names each refusal one dispatch caused, and leaves out what was delivered or crashed" do
+      expect(described_class.refused_reactions(logged, 1)).to eq(
+        refused_reactions: [{ policy: "Refused", trigger: "D::Admit", reason: "Admit refused — a given" }]
+      )
+    end
+
+    it "adds nothing when every reaction was delivered, or the runtime keeps no log" do
+      expect(described_class.refused_reactions(logged, 4)).to eq({})
+      expect(described_class.refused_reactions(Object.new, 0)).to eq({})
+    end
+
+    it "leaves a dispatch that caused no refusal answered exactly as before" do
+      expect(JSON.parse(a_pizza.first)).not_to have_key("refused_reactions")
+    end
+  end
+
   describe "asking" do
     it "answers rows, materialised out of their value objects" do
       a_pizza("Bare")

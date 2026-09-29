@@ -5,7 +5,7 @@ require "json"
 require "socket"
 
 # ADR 0080, section 7: every row of the command table resolves in the launcher. Each verb of
-# Custodian's Introspection, Operation, Host, Package and Door (and the ModelCheck the table
+# Custodian's Introspection, Operation, Host, Era, Package and Door (and the ModelCheck the table
 # puts beside them) answers
 # `--help`, and the journaled ones are then run the way `hecks <verb>` runs them.
 RSpec.describe "the Hecks command table through the launcher" do
@@ -16,6 +16,8 @@ RSpec.describe "the Hecks command table through the launcher" do
     model_check verdict flagged
     run refresh_projections run_behaviors open_console smoke_test smoke_http outcome failed follow
     check_era recheck standing drifted
+    hold_first merge_tail reattest backfill_projections compact compact_heki approve_translation
+    settlement abandoned scaffold_translation audit_translation attestation compaction
     vendor revendor pinning unpinned
     project_cli serve_mcp ended stopped
   ].freeze
@@ -273,6 +275,92 @@ RSpec.describe "the Hecks command table through the launcher" do
 
       expect(status).to eq(1)
       expect(out).to include("already exists")
+    end
+  end
+
+  describe "the Era verbs" do
+    HEKI_FIXTURE = File.join(InMemoryDomain::ROOT, "spec/fixtures/heki_compact_fixture/bluebook").freeze
+    BANKING_EXAMPLE = File.join(InMemoryDomain::ROOT, "examples/banking/bluebook").freeze
+
+    def settlement_of(run)
+      JSON.parse(run_verb("settlement", run).first).first
+    end
+
+    def seeded_heki(name)
+      target = File.join(@dir, name)
+      FileUtils.cp_r(HEKI_FIXTURE, target)
+      runtime = Hecks.boot(target, install_facade: false)
+      aggregate = runtime.registry.bluebook("HekiCompactFixture").aggregate("Gadget")
+      repository = runtime.registry.repository("HekiCompactFixture", aggregate)
+      3.times do |i|
+        built = Hecks::Runtime::Instance.new(aggregate: aggregate, id: "g1")
+        built[:name] = Hecks::Runtime::Value.for(aggregate, :name, { value: "g1" })
+        built[:label] = Hecks::Runtime::Value.for(aggregate, :label, { value: "label#{i}" })
+        repository.save(built)
+      end
+      target
+    end
+
+    it "refuses every change that changes something until it is confirmed, and records nothing" do
+      %w[hold_first merge_tail compact compact_heki approve_translation].each do |verb|
+        out, status = run_verb(verb, @shelf, "run=unconfirmed-#{verb}")
+
+        expect(status).to eq(1)
+        expect(out).to include("is confirmed")
+        expect(run_verb("settlement", "unconfirmed-#{verb}").first).not_to include("unconfirmed")
+      end
+      expect(run_verb("reattest", @shelf, "era=1", "run=unconfirmed-reattest").last).to eq(1)
+    end
+
+    it "previews a compaction, then compacts once confirmed, and keeps what was done" do
+      target = seeded_heki("heki-compact")
+
+      expect(run_verb("compaction", target).first).to include("DRY RUN gadget: would discard 3 journal entries")
+
+      out, status = run_verb("compact_heki", target, "run=compact-1", "--confirm")
+      expect(status).to eq(0)
+      expect(JSON.parse(out).fetch("events")).to eq(["HekiCompactionRequested"])
+      row = settlement_of("compact-1")
+      expect(row.fetch("status")).to eq("settled")
+      expect(row.dig("report", "value")).to include("COMPACTED gadget: discarded 3 journal entries")
+      expect(File.size(File.join(@dir, "data", "gadget.heki.journal"))).to eq(0)
+    end
+
+    it "does not compact a journal a projection reads, and says why beside the request" do
+      target = File.join(@dir, "banking")
+      FileUtils.cp_r(BANKING_EXAMPLE, target)
+
+      out, status = run_verb("compact_heki", target, "run=compact-2", "--confirm")
+
+      expect(status).to eq(0)
+      expect(JSON.parse(out).fetch("refused_reactions").first)
+        .to include("policy" => "AdmitWhenExamined",
+                    "reason" => "Admit refused — no projection reads the journal that would be emptied")
+      expect(settlement_of("compact-2").fetch("status")).to eq("requested")
+    end
+
+    it "keeps a domain that is not there as a refused change, with the reason" do
+      run_verb("compact", File.join(@dir, "nowhere"), "run=compact-3", "--confirm")
+
+      row = settlement_of("compact-3")
+      expect(row.fetch("status")).to eq("refused")
+      expect(row.dig("refusal", "value")).to include("no such domain")
+      expect(JSON.parse(run_verb("abandoned").first).map { |change| change.dig("run", "value") })
+        .to include("compact-3")
+    end
+
+    it "words a domain that holds no era as an answer, and never holds one to answer" do
+      out, status = run_verb("audit_translation", @shelf)
+
+      expect(status).to eq(1)
+      expect(out).to include("Shelf is bound to Memory, which holds no eras")
+    end
+
+    it "takes winners as id:old,id:new and refuses a malformed list" do
+      out, status = run_verb("merge_tail", @shelf, "run=merge-1", "winners=a1", "--confirm")
+
+      expect(status).to eq(1)
+      expect(out).to include("must match")
     end
   end
 

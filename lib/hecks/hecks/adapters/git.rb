@@ -59,6 +59,20 @@ module Hecks
         { report: { value: out.string } }
       end
 
+      # Who the repository at a directory commits as: its configured name and email.
+      #
+      # @param chdir [String, nil] a directory inside the repository; the current one when nil
+      # @return [String] `Name <email>`, or whichever half is configured
+      # @raise [ConsoleCapture::Failure] when git has neither a name nor an email configured
+      def identity(chdir: nil)
+        name  = capture("config", "user.name", chdir: chdir).out.strip
+        email = capture("config", "user.email", chdir: chdir).out.strip
+        who = [name, (email.empty? ? nil : "<#{email}>")].compact.reject(&:empty?).join(" ")
+        raise ConsoleCapture::Failure, "git has no user.name or user.email configured to approve as" if who.empty?
+
+        who
+      end
+
       private
 
       def plain(argument) = argument.is_a?(Hash) ? argument[:value] : argument

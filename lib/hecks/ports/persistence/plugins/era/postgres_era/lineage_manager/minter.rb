@@ -2,6 +2,7 @@ require_relative "../../../../../../runtime/registry"
 require_relative "../../storage_shape"
 require_relative "../../translation/audit"
 require_relative "../../translation/scaffold"
+require_relative "../../translation/approval_file"
 
 module Hecks
   module Adapters
@@ -20,7 +21,7 @@ module Hecks
             ordinal = latest[:ordinal] + 1
 
             edge = resolve_edge!(registry, bluebook, lineage, latest, label, ordinal, directory)
-            ensure_compute_rekey_approved!(bluebook, lineage, edge, ordinal)
+            ensure_compute_rekey_approved!(bluebook, lineage, edge, ordinal, directory: directory)
             check_coverage!(registry, bluebook, shadow(latest[:held_text]), edge)
 
             chain = edge_chain(registry, bluebook, lineage.eras, label)
@@ -54,22 +55,32 @@ module Hecks
             edge
           end
 
-          # Refuses a mint whose edge carries a compute or rekey rule without a recorded,
-          # edge-matching, journal-current approval.
+          # Refuses a mint whose edge carries a compute or rekey rule without an approval.
           #
-          # A compute or rekey's only verification is a human-approved audit sample.
-          def ensure_compute_rekey_approved!(bluebook, lineage, edge, ordinal)
-            return unless edge.aggregates.any? { |declared| !declared.computes.empty? || !declared.rekeys.empty? }
+          # A compute or rekey's only verification is a human-approved audit sample. Two approvals
+          # satisfy it: one recorded in the journal that matches the edge and the journal's current
+          # tip, or a committed `translations/<edge>.approval` that matches the edge's digest and
+          # records a passed rehearsal. A committed approval that applies is written into the
+          # journal, so the journal stays the single history.
+          def ensure_compute_rekey_approved!(bluebook, lineage, edge, ordinal, directory: nil)
+            return unless Translation::ApprovalFile.needs_rehearsal?(edge)
 
             approval = lineage.approval_for(from: edge.from, to: edge.to)
-            unless approval && approval[:edge_digest] == Translation::Audit.edge_digest(edge)
+            digest = Translation::Audit.edge_digest(edge)
+            tip = lineage.last_ordinal
+            return if approval && approval[:edge_digest] == digest && approval[:reviewed_ordinal] == tip
+
+            if Translation::ApprovalFile.applicable(directory, edge)
+              lineage.record_approval!(from: edge.from, to: edge.to, edge_digest: digest)
+              return
+            end
+
+            unless approval && approval[:edge_digest] == digest
               raise Runtime::WiringError,
                     "cannot mint era #{ordinal} of #{bluebook.name}: this edge carries a compute or rekey " \
                     "rule, and the audit's human-approved sample is its only verification — run " \
                     "bin/translation_audit with --approve, then boot again"
             end
-            tip = lineage.last_ordinal
-            return unless approval[:reviewed_ordinal] != tip
 
             raise Runtime::WiringError,
                   "cannot mint era #{ordinal} of #{bluebook.name}: the journal advanced past the approved " \

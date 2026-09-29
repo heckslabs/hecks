@@ -216,6 +216,12 @@ else
     Hecks::Projector::Exporter.translations(target_registry).select { |edge| edge[:domain] == target_domain_name }
   )
 
+  # Approvals committed beside the edges (`translations/<edge>.approval`, written by
+  # `hecks approve_translation`). The host applies each at boot when its digest is the edge's
+  # and, for a compute or rekey edge, it records a rehearsal that passed; omitted when none exist.
+  committed_approvals = Hecks::Translation::ApprovalFile.read_all(bluebook_directory)
+  target_ir[:approvals] = json_shaped(committed_approvals) unless committed_approvals.empty?
+
   # The raw bluebook source text — a binding fact like lineage/translations
   # above, not part of `bluebook.to_h`'s canonical IR (ADR 0001), but one
   # a future Rust-side mint needs verbatim: `hecks_eras.held_text` is this

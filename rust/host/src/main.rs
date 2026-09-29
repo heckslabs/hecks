@@ -303,7 +303,8 @@ async fn main() -> Result<(), Error> {
                 // than one, matched against the raw ir.json edge
                 // (digest-relevant shape) by the same from/to pair.
                 let raw_edges = ir.get("translations").and_then(serde_json::Value::as_array).cloned().unwrap_or_default();
-                let approval_phase = log::phase_with("approval_check", serde_json::json!({ "edges": chain.len() }));
+                let committed_approvals = approval::committed(ir);
+                let approval_phase = log::phase_with("approval_check", serde_json::json!({ "edges": chain.len(), "committed": committed_approvals.len() }));
                 for edge in &chain {
                     let Some(raw_edge) = raw_edges.iter().find(|candidate| {
                         candidate.get("domain").and_then(serde_json::Value::as_str) == Some(domain.as_str())
@@ -312,7 +313,7 @@ async fn main() -> Result<(), Error> {
                     }) else {
                         return Err(format!("cannot boot: {domain}'s edge {} -> {} vanished between parsing and approval-checking it", edge.from, edge.to).into());
                     };
-                    approval::check(&client, &domain, raw_edge, ordinal).await.map_err(|e| format!("{e:#}"))?;
+                    approval::check(&client, &domain, raw_edge, ordinal, &committed_approvals).await.map_err(|e| format!("{e:#}"))?;
                 }
                 approval_phase.end();
 

@@ -560,6 +560,26 @@ pub async fn approval_for<C: GenericClient>(
     Ok(row.map(|row| Approval { edge_digest: row.get("edge_digest"), reviewed_ordinal: row.get("reviewed_ordinal") }))
 }
 
+/// Writes an approval into the journal, bound to the journal's tip as it stands, as
+/// `LineageStore#record_approval!` does; how a committed approval joins the single history.
+pub async fn record_approval<C: GenericClient>(
+    client: &C,
+    domain: &str,
+    from_label: &str,
+    to_label: &str,
+    edge_digest: &str,
+) -> anyhow::Result<()> {
+    let tip = last_ordinal(client, domain).await?;
+    client
+        .execute(
+            "INSERT INTO hecks_approvals (domain, from_label, to_label, edge_digest, reviewed_ordinal) \
+             VALUES ($1, $2, $3, $4, $5)",
+            &[&domain, &from_label, &to_label, &edge_digest, &tip],
+        )
+        .await?;
+    Ok(())
+}
+
 /// The journal's high-water ordinal — what a fresh approval binds to and
 /// what a mint transaction captures as the new era's watermark.
 pub async fn last_ordinal<C: GenericClient>(client: &C, domain: &str) -> anyhow::Result<i64> {
