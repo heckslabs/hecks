@@ -243,6 +243,15 @@ Inside this repository the move is still one pass: there is never a second way f
     - an approval whose digest matches the edge and whose ordinal matches the tip
     - exactly one edge leaving the era
   - *The era capability check* is pasted into five scripts although `EraCheck.lineage_capable?` exists; it becomes one given, "the store keeps eras".
+- **Compaction waits for ADR 0079's floor.** `bin/compact` deletes up to the aggregate's own checkpoint only, not ADR 0079's per-projection floor (the minimum `entry_count` across every bound projection). Era's `Compact` command lands with or after ADR 0079 and carries its floor as a given ("every bound projection has caught up past the target"), with JournalStore supplying the projection positions as facts. Until then, `Compact` refuses for any aggregate with a bound projection, as `heki_compact` already does.
+- **Reading never writes.** `translation_audit` and `scaffold_translation` hold era 1 (`hold_first!`) when they find an empty lineage, so running an audit changes the store. The move splits that apart:
+  - The audit and scaffold are queries. On an empty lineage they answer "no era held yet" and change nothing.
+  - Holding the first era is its own Era command, `HoldFirst`, which an operator runs on purpose or the first boot runs as it does today.
+- **Where each part persists.** Each part binds its store in its world file, as any domain does:
+  - **Custodian, for clients:** Sqlite under the client project's `.hecks/` directory by default, so a check's history lives beside the domain it checks.
+  - **Codebase, in this repository:** the same PostgresEra database as the QualityControl ledger, which CI can already reach, so history is shared across machines and CI runs.
+  - **QualityControl:** unchanged, on PostgresEra.
+- **An adapter states what it supports.** The `.adapter` language gains a `supports` word, for example `supports :saga_state, :transactions, :outbox`, recorded on the Adapter aggregate. Boot checks the declaration against the class: a declared capability the class does not implement refuses, and an implemented one left undeclared warns. The boot warning a domain gets today, when its adapter cannot save saga state, becomes a query answered from the declarations: which bound adapters do not support what this domain's process managers need.
 - **Rules found inline become givens.** On Release: releasing from `main` equal to `origin/main` on a clean tree, the client package version matching the gem's, a CHANGELOG heading for the version, and an existing tag pointing at the release commit. On Deploy: `--schema` requiring `--tenant`, and the adapter being AwsLambda or AwsFargate.
 
 ### 11. The adapters, from a scan of the code
@@ -333,11 +342,7 @@ Environment variables are read by 25 scripts; they become world configuration, n
   - `lib/hecks.rb` never loads `lib/hecks/hecks/`.
   - The `CliRunner` path a client domain's launcher uses never loads `lib/hecks/hecks/` either.
   - A client domain's boot registry never contains the Hecks chapter, unless the client attaches it explicitly.
-
-- Whether the `.adapter` language can already state what an adapter supports (saga state, transactions, the outbox), or needs a word for it before those become queries.
 - If a Ruby deployment ever needs a smaller footprint on disk, Deploy prunes the unloaded tooling when it builds the image, instead of the gem leaving it out.
-- Two defects the survey of the store scripts found, to fix with the move or before it: `bin/compact` does not yet apply ADR 0079's per-projection floor, and `translation_audit` and `scaffold_translation` write to the store (`hold_first!`) while reading.
-- Which store each part persists to. A shared history of CI checks needs a durable store that CI can reach. Local runs may use Sqlite under `Hecks::CacheDir`.
 - The exact command names and arguments for each script, written out per aggregate before the migration starts.
 - Whether `rust/host` needs any of Custodian, or whether it stays Ruby-only operational tooling.
 - Where the new bluebooks' specs live: beside each bluebook as `.behaviors` files, or under `spec/`.
