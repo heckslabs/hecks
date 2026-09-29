@@ -614,4 +614,316 @@ Hecks.bluebook "Hecks" do
     on      "LanguageRun.LanguageRefused"
     trigger LanguageRun::Fault, with: { refusal: :refusal }
   end
+
+  # The Rust kernel: the capability enums the hand-written kernel is matched against, and the check
+  # that every attribute shape and expression-operator category the grammar admits has its file.
+  aggregate "KernelRun" do
+    description "One projection of the Rust kernel's capability enums, or one measure of their coverage."
+
+    attribute :run,       RunKey
+    attribute :operation, Operation, optional: true
+    attribute :confirm,   Switch, optional: true
+    attribute :checkout,  Switch, optional: true
+    attribute :report,    Report, optional: true
+    attribute :refusal,   Report, optional: true
+    identified_by :run
+
+    value_object "RunKey" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+
+      invariant("a run is named") { !value.to_s.empty? }
+    end
+
+    value_object "Operation" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+    end
+
+    value_object "Switch" do
+      attribute :value, Boolean
+    end
+
+    value_object "Report" do
+      attribute :value, String
+    end
+
+    lifecycle :status, default: "requested" do
+      transition "Accept"   => "accepted",  from: "requested"
+      transition "Complete" => "completed", from: "accepted"
+      transition "Fault"    => "faulted",   from: %w[requested accepted]
+    end
+
+    command "ProjectKernelCapabilities" do
+      role "Maintainer"
+      goal "Project the capability enums the hand-written Rust kernel is matched against"
+
+      attribute :run,     RunKey
+      attribute :confirm, Switch, optional: true
+
+      sets :run
+      sets :confirm
+      sets :operation, to: "project_kernel_capabilities"
+
+      emits ProjectKernelCapabilitiesRequested
+    end
+
+    command "MeasureKernelCoverage" do
+      role "Maintainer"
+      goal "Check that every capability the grammar admits has its hand-written kernel file"
+
+      attribute :run, RunKey
+
+      sets :run
+      sets :operation, to: "measure_kernel_coverage"
+
+      emits MeasureKernelCoverageRequested
+    end
+
+    # What the tree reported about itself, held against every request: nothing here runs
+    # outside a hecks checkout (hecks.gemspec beside lib/).
+    command "Accept" do
+      role "System"
+      goal "Let a request through only when the working tree is a hecks checkout"
+
+      reference_to KernelRun
+      attribute :checkout, Switch
+
+      given("needs a hecks checkout: hecks.gemspec stands beside lib/") { checkout.value }
+
+      sets :checkout
+
+      emits KernelAccepted
+    end
+
+    command "Complete" do
+      role "System"
+      goal "Record that the request was carried out, and what it reported"
+
+      reference_to KernelRun
+      attribute :report, Report
+
+      sets :report
+
+      emits KernelCompleted
+    end
+
+    command "Fault" do
+      role "System"
+      goal "Record that the request was refused or could not be carried out, and why"
+
+      reference_to KernelRun
+      attribute :refusal, Report
+
+      sets :refusal
+
+      emits KernelFaulted
+    end
+
+    query "KernelOutcome" do
+      description "How one request ended: its status, and what it reported or why it failed."
+      attribute :run, RunKey
+      where(run: :run)
+      order_by :run
+    end
+
+    query "KernelFaulted" do
+      description "Every request that was refused or could not be carried out."
+      where(status: "faulted")
+      order_by :run
+    end
+  end
+
+  policy "ExamineWhenProjectKernelCapabilitiesRequested" do
+    on      "KernelRun.ProjectKernelCapabilitiesRequested"
+    trigger KernelRun::SourceTree::Examine, with: { run: :run }
+  end
+
+  policy "ExamineWhenMeasureKernelCoverageRequested" do
+    on      "KernelRun.MeasureKernelCoverageRequested"
+    trigger KernelRun::SourceTree::Examine, with: { run: :run }
+  end
+
+  policy "AcceptKernelWhenExamined" do
+    on      "KernelRun.KernelExamined"
+    trigger KernelRun::Accept, with: { checkout: :checkout }
+  end
+
+  policy "PerformKernelWhenAccepted" do
+    on      "KernelRun.KernelAccepted"
+    trigger KernelRun::SourceTree::Perform, with: { run: :run }
+  end
+
+  policy "RecordKernelOutcome" do
+    on      "KernelRun.KernelAnswered"
+    trigger KernelRun::Complete, with: { report: :report }
+  end
+
+  policy "RecordKernelFault" do
+    on      "KernelRun.KernelRefused"
+    trigger KernelRun::Fault, with: { refusal: :refusal }
+  end
+
+  # Conformance: the checks on the language itself. Each finds every disagreement and refuses with
+  # them all, so a check that fails is recorded as faulted with what it found. The argument-gate
+  # matrix rewrites a committed matrix and its fixtures, so it only reports unless it is confirmed.
+  aggregate "ConformanceRun" do
+    description "One check that the engines, the reference docs and the argument gates agree with the language."
+
+    attribute :run,       RunKey
+    attribute :operation, Operation, optional: true
+    attribute :confirm,   Switch, optional: true
+    attribute :checkout,  Switch, optional: true
+    attribute :report,    Report, optional: true
+    attribute :refusal,   Report, optional: true
+    identified_by :run
+
+    value_object "RunKey" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+
+      invariant("a run is named") { !value.to_s.empty? }
+    end
+
+    value_object "Operation" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+    end
+
+    value_object "Switch" do
+      attribute :value, Boolean
+    end
+
+    value_object "Report" do
+      attribute :value, String
+    end
+
+    lifecycle :status, default: "requested" do
+      transition "Accept"   => "accepted",  from: "requested"
+      transition "Complete" => "completed", from: "accepted"
+      transition "Fault"    => "faulted",   from: %w[requested accepted]
+    end
+
+    command "CheckEngineAgreement" do
+      role "Maintainer"
+      goal "Check that the query engines route every comparator through the one shared implementation"
+
+      attribute :run, RunKey
+
+      sets :run
+      sets :operation, to: "check_engine_agreement"
+
+      emits CheckEngineAgreementRequested
+    end
+
+    command "MeasureDocCoverage" do
+      role "Maintainer"
+      goal "Check that every live word of the language has prose and a running example in the reference"
+
+      attribute :run, RunKey
+
+      sets :run
+      sets :operation, to: "measure_doc_coverage"
+
+      emits MeasureDocCoverageRequested
+    end
+
+    command "ArgumentGateMatrix" do
+      role "Maintainer"
+      goal "Generate the argument-gate ordering matrix; rewrite it and its fixtures only when confirmed"
+
+      attribute :run,     RunKey
+      attribute :confirm, Switch, optional: true
+
+      sets :run
+      sets :confirm
+      sets :operation, to: "argument_gate_matrix"
+
+      emits ArgumentGateMatrixRequested
+    end
+
+    # What the tree reported about itself, held against every request: nothing here runs
+    # outside a hecks checkout (hecks.gemspec beside lib/).
+    command "Accept" do
+      role "System"
+      goal "Let a request through only when the working tree is a hecks checkout"
+
+      reference_to ConformanceRun
+      attribute :checkout, Switch
+
+      given("needs a hecks checkout: hecks.gemspec stands beside lib/") { checkout.value }
+
+      sets :checkout
+
+      emits ConformanceAccepted
+    end
+
+    command "Complete" do
+      role "System"
+      goal "Record that the request was carried out, and what it reported"
+
+      reference_to ConformanceRun
+      attribute :report, Report
+
+      sets :report
+
+      emits ConformanceCompleted
+    end
+
+    command "Fault" do
+      role "System"
+      goal "Record that the request was refused or could not be carried out, and why"
+
+      reference_to ConformanceRun
+      attribute :refusal, Report
+
+      sets :refusal
+
+      emits ConformanceFaulted
+    end
+
+    query "ConformanceOutcome" do
+      description "How one request ended: its status, and what it reported or why it failed."
+      attribute :run, RunKey
+      where(run: :run)
+      order_by :run
+    end
+
+    query "ConformanceFaulted" do
+      description "Every request that was refused or could not be carried out."
+      where(status: "faulted")
+      order_by :run
+    end
+  end
+
+  policy "ExamineWhenCheckEngineAgreementRequested" do
+    on      "ConformanceRun.CheckEngineAgreementRequested"
+    trigger ConformanceRun::SourceTree::Examine, with: { run: :run }
+  end
+
+  policy "ExamineWhenMeasureDocCoverageRequested" do
+    on      "ConformanceRun.MeasureDocCoverageRequested"
+    trigger ConformanceRun::SourceTree::Examine, with: { run: :run }
+  end
+
+  policy "ExamineWhenArgumentGateMatrixRequested" do
+    on      "ConformanceRun.ArgumentGateMatrixRequested"
+    trigger ConformanceRun::SourceTree::Examine, with: { run: :run }
+  end
+
+  policy "AcceptConformanceWhenExamined" do
+    on      "ConformanceRun.ConformanceExamined"
+    trigger ConformanceRun::Accept, with: { checkout: :checkout }
+  end
+
+  policy "PerformConformanceWhenAccepted" do
+    on      "ConformanceRun.ConformanceAccepted"
+    trigger ConformanceRun::SourceTree::Perform, with: { run: :run }
+  end
+
+  policy "RecordConformanceOutcome" do
+    on      "ConformanceRun.ConformanceAnswered"
+    trigger ConformanceRun::Complete, with: { report: :report }
+  end
+
+  policy "RecordConformanceFault" do
+    on      "ConformanceRun.ConformanceRefused"
+    trigger ConformanceRun::Fault, with: { refusal: :refusal }
+  end
 end

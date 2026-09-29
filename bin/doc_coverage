@@ -13,30 +13,13 @@ require "hecks/doc/reference"
 
 directory = File.join(File.expand_path("..", __dir__), "docs/implemented/reference")
 
-undocumented  = Hecks::Doc::Reference.undocumented(directory)
-unexemplified = Hecks::Doc::Reference.unexemplified(directory)
-
-# Prints one gap section; a word missing both kinds is listed twice, one repair each.
-#
-# @return [Boolean] true if `words` was empty and nothing was printed
-def report(words, owed)
-  return true if words.empty?
-
-  puts "#{words.size} live #{words.size == 1 ? 'word carries' : 'words carry'} #{owed}:"
-  words.each { |word| puts "  #{word}" }
-  puts
-  false
-end
-
-clean = [
-  report(undocumented, "no prose — write their sections"),
-  report(unexemplified, "no running example — write one in each word's own section")
-].all?
+clean, report = Hecks::Doc::Reference.coverage_report(directory)
 
 if clean
-  puts "every live word carries prose and a running example."
+  puts report
   exit 0
 end
 
+puts report
 warn "docs/implemented/reference/ is behind the language. Regenerate with bin/reference to see the words in place."
 exit 1

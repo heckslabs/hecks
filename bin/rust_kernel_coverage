@@ -12,29 +12,16 @@ Hecks::ThreeZero.notice("rust_kernel_coverage")
 
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
 
-require "hecks"
-require "hecks/grammar"
-require "hecks/runtime/value/coercion"
+require "hecks/kernel_capabilities"
 
 ROOT = File.expand_path("..", __dir__)
 
-def check(category_dir, names, source)
-  names.map do |name|
-    path = File.join(ROOT, "rust/src/kernel", category_dir, "#{name}.rs")
-    { name: name, path: path, present: File.file?(path), source: source }
-  end
-end
-
-rows = check("attribute_shapes", Hecks::Runtime::Value::Coercion::SHAPES,
-             "Coercion::SHAPES") +
-       check("expression_operators", Hecks::Grammar.admitted_operators.map { |op| op[:category] }.uniq,
-             "Grammar.admitted_operators's own category field")
-
-missing = rows.reject { |row| row[:present] }
+rows = Hecks::KernelCapabilities.coverage(root: ROOT)
+missing = rows.reject(&:present)
 
 rows.each do |row|
-  mark = row[:present] ? "OK  " : "MISS"
-  puts "#{mark}  #{row[:path].sub("#{ROOT}/", '')}  (#{row[:source]}: #{row[:name].inspect})"
+  mark = row.present ? "OK  " : "MISS"
+  puts "#{mark}  #{row.path.sub("#{ROOT}/", '')}  (#{row.source}: #{row.name.inspect})"
 end
 
 if missing.empty?
@@ -46,5 +33,5 @@ end
 
 warn "\n#{missing.size} capability file(s) missing — the grammar admits these but no hand-written " \
      "Rust interpretation exists for them yet:"
-missing.each { |row| warn "  #{row[:path].sub("#{ROOT}/", '')}" }
+missing.each { |row| warn "  #{row.path.sub("#{ROOT}/", '')}" }
 exit 1

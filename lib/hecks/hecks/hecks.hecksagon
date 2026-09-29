@@ -169,4 +169,32 @@ Hecks.hecksagon "Hecks" do
       refuses "LanguageRefused"
     end
   end
+
+  Hecks::KernelRun.port "SourceTree" do
+    asks "Examine", to: KernelRun do
+      attribute :run, RunKey
+      answers "KernelExamined"
+      refuses "KernelRefused"
+    end
+
+    asks "Perform", to: KernelRun do
+      attribute :run, RunKey
+      answers "KernelAnswered"
+      refuses "KernelRefused"
+    end
+  end
+
+  Hecks::ConformanceRun.port "SourceTree" do
+    asks "Examine", to: ConformanceRun do
+      attribute :run, RunKey
+      answers "ConformanceExamined"
+      refuses "ConformanceRefused"
+    end
+
+    asks "Perform", to: ConformanceRun do
+      attribute :run, RunKey
+      answers "ConformanceAnswered"
+      refuses "ConformanceRefused"
+    end
+  end
 end

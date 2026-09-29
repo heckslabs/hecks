@@ -46,11 +46,25 @@ RSpec.describe "the Codebase rows of the ADR command table" do
     CodebaseRow.new(script: "evolve",                  aggregate: "LanguageRun", name: "DeprecateArgument",      verb: "deprecate_argument",
                     args: %w[word context=Aggregate]),
     CodebaseRow.new(script: "evolve",                  aggregate: "LanguageRun", name: "RetireArgument",         verb: "retire_argument",
-                    args: %w[word context=Aggregate])
+                    args: %w[word context=Aggregate]),
+    CodebaseRow.new(script: "project_kernel_capabilities", aggregate: "KernelRun", name: "ProjectKernelCapabilities",
+                    verb: "project_kernel_capabilities",
+                    renamed: "the table names the command ProjectCapabilities; the verb it gives is " \
+                             "project_kernel_capabilities, and a launcher verb is the command's snake name"),
+    CodebaseRow.new(script: "rust_kernel_coverage",    aggregate: "KernelRun", name: "MeasureKernelCoverage",
+                    verb: "measure_kernel_coverage",
+                    renamed: "the table names the command MeasureCoverage; the verb it gives is " \
+                             "measure_kernel_coverage"),
+    CodebaseRow.new(script: "check_engine_agreement",  aggregate: "ConformanceRun", name: "CheckEngineAgreement",
+                    verb: "check_engine_agreement"),
+    CodebaseRow.new(script: "doc_coverage",            aggregate: "ConformanceRun", name: "MeasureDocCoverage",
+                    verb: "measure_doc_coverage"),
+    CodebaseRow.new(script: "argument_gate_matrix",    aggregate: "ConformanceRun", name: "ArgumentGateMatrix",
+                    verb: "argument_gate_matrix")
   ].freeze
 
   # The aggregates this spec covers so far, each of which must hold at least one row.
-  CODEBASE_AGGREGATES = %w[LanguageRun].freeze
+  CODEBASE_AGGREGATES = %w[LanguageRun KernelRun ConformanceRun].freeze
 
   before(:all) do
     @hecks = Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/hecks"), install_facade: false)

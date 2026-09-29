@@ -2,6 +2,8 @@
 
 require_relative "tree"
 require_relative "language"
+require_relative "kernel_tables"
+require_relative "conformance"
 
 module Hecks
   module Adapters
@@ -62,7 +64,7 @@ module Hecks
       private
 
       # The task families, each carrying out the operations it lists.
-      FAMILIES = [Codebase::Language].freeze
+      FAMILIES = [Codebase::Language, Codebase::KernelTables, Codebase::Conformance].freeze
       private_constant :FAMILIES
 
       def tree = Codebase::Tree.new

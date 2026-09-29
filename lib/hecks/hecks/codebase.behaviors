@@ -40,4 +40,36 @@ Hecks.behaviors "Codebase" do
           run: { value: "argument" }
     expect refused: "must match"
   end
+
+  test "ProjectKernelCapabilities reports what the grammar projects, and keeps the answer" do
+    tests "ProjectKernelCapabilities", on: "KernelRun"
+    input run: { value: "kernel" }
+    expect emits: %w[ProjectKernelCapabilitiesRequested KernelExamined KernelAccepted KernelAnswered KernelCompleted]
+  end
+
+  test "MeasureKernelCoverage keeps a complete kernel as a completed measure" do
+    tests "MeasureKernelCoverage", on: "KernelRun"
+    input run: { value: "coverage" }
+    expect emits: %w[MeasureKernelCoverageRequested KernelExamined KernelAccepted KernelAnswered KernelCompleted]
+  end
+
+  test "CheckEngineAgreement keeps agreeing engines as a completed check" do
+    tests "CheckEngineAgreement", on: "ConformanceRun"
+    input run: { value: "engines" }
+    expect emits: %w[CheckEngineAgreementRequested ConformanceExamined ConformanceAccepted ConformanceAnswered
+                     ConformanceCompleted]
+  end
+
+  test "MeasureDocCoverage keeps a covered reference as a completed measure" do
+    tests "MeasureDocCoverage", on: "ConformanceRun"
+    input run: { value: "docs" }
+    expect emits: %w[MeasureDocCoverageRequested ConformanceExamined ConformanceAccepted ConformanceAnswered
+                     ConformanceCompleted]
+  end
+
+  test "ArgumentGateMatrix refuses a run that is not named" do
+    tests "ArgumentGateMatrix", on: "ConformanceRun"
+    input run: { value: "" }
+    expect refused: "must match"
+  end
 end

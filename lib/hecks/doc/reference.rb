@@ -360,6 +360,23 @@ module Hecks
         live_words(directory).reject { |_word, _context, prose| exemplified?(prose) }
                              .map { |word, context, _| name_of(word, context) }
       end
+
+      # Both coverage gates, worded for a person: each gap section lists the words that owe it,
+      # and a word missing both kinds is listed twice, one repair each.
+      #
+      # @param directory [String] the reference pages
+      # @return [Array(Boolean, String)] whether every live word is covered, and what to print
+      def coverage_report(directory)
+        gaps = [[undocumented(directory), "no prose — write their sections"],
+                [unexemplified(directory), "no running example — write one in each word's own section"]]
+        sections = gaps.reject { |words, _| words.empty? }.map do |words, owed|
+          head = "#{words.size} live #{words.size == 1 ? 'word carries' : 'words carry'} #{owed}:\n"
+          "#{head}#{words.map { |word| "  #{word}\n" }.join}\n"
+        end
+        return [true, "every live word carries prose and a running example."] if sections.empty?
+
+        [false, sections.join]
+      end
     end
   end
 end
