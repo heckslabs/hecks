@@ -437,6 +437,10 @@ Production follows the database-migrations model, the direction ADR 0030 already
 - **The tunnel stays as break-glass only.** `make mint-era`'s bastion and tunnel remain for incidents, documented as such, and are never part of a normal deploy.
 - **Locally and against rehearsal databases,** Custodian's Era commands still act directly on the store, as the scripts do today.
 
+- **An approval lives beside its edge,** as `translations/<edge>.approval`, holding the edge's digest, who approved it and when. A reviewer sees the edge and its approval in the same diff.
+- **A committed approval binds to the edge's digest, not to the journal's tip.** Today an approval must also match the journal's current tip (`approval.rs`), which a committed file cannot know, since production keeps writing between the commit and the deploy. The rehearsal takes over what the tip check did, confirming the edge applies cleanly to real data. Until the 3.x rehearsal gate exists, a committed approval for an edge with compute or rekey rules also requires a rehearsal the approver records by hand in the approval file.
+- **The rehearsal gate restores the latest automated RDS snapshot** into a scratch database, boots the host against it in rehearsal mode (as `mint_harness` does today), and the deploy requires a green run for any deploy that carries era work. No standing copy of production is kept.
+
 What lands when:
 
 - **3.0:** the committed approval. `hecks approve_translation <domain> --confirm` writes an approval file, and the host reads committed approvals at boot as well as journal rows. That closes the one gap that can stop a domain booting, for shared-database domains included.
@@ -473,5 +477,5 @@ What lands when:
 
 ## Open items
 
-- The committed decision files' format and location in a domain's repository, and how the host finds them at boot.
-- How the rehearsal gate runs in a deploy: which snapshot, and where its result is recorded.
+- The approval file's exact format, and the format of committed attestations and tail-merge winners in 3.x.
+- Where a rehearsal's result is recorded so a deploy can require it.
