@@ -11,6 +11,8 @@ RSpec.describe "the Custodian rows of the ADR command table" do
   # (`ModelCheckRun`, `Era`).
   CustodianRow = Struct.new(:script, :aggregate, :name, :verb, :renamed, keyword_init: true)
 
+  CUSTODIAN_LAUNCHER_NAMES = { "open_console" => "console", "serve_mcp" => "mcp" }.freeze
+
   CUSTODIAN_ROWS = [
     CustodianRow.new(script: "ir",                       aggregate: "Introspection", name: "Ir",                     verb: "ir"),
     CustodianRow.new(script: "shape",                    aggregate: "Introspection", name: "Shape",                  verb: "shape"),
@@ -80,7 +82,8 @@ RSpec.describe "the Custodian rows of the ADR command table" do
       out, status = Hecks::Facade::CliRunner.call(runtime: @hecks, argv: [row.verb, "--help"], program: "hecks")
 
       expect(status).to eq(0)
-      expect(out).to start_with(row.verb)
+      # The help names the command as the launcher lists it (hecks.world `names`).
+      expect(out).to start_with(CUSTODIAN_LAUNCHER_NAMES.fetch(row.verb, row.verb))
     end
   end
 

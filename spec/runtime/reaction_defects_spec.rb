@@ -43,6 +43,7 @@ RSpec.describe "a reaction that cannot be delivered" do
       attr_reader :reaction_log
 
       define_method(:initialize) { @reaction_log = [] }
+      define_method(:log_reaction) { |record| @reaction_log << record }
       define_method(:bluebook) { |_domain| bluebook }
       define_method(:bluebooks) { { "Reflex" => bluebook } }
     end.new

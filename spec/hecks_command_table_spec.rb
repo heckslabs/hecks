@@ -11,6 +11,8 @@ require "socket"
 RSpec.describe "the Hecks command table through the launcher" do
   # Introspection's queries and the verbs of ModelCheckRun and Operation, as the launcher spells
   # them.
+  COMMAND_LAUNCHER_NAMES = { "open_console" => "console", "serve_mcp" => "mcp" }.freeze
+
   CUSTODIAN_VERBS = %w[
     ir shape stores history statements narrate docs project_diagrams glossary
     model_check verdict flagged
@@ -112,7 +114,7 @@ RSpec.describe "the Hecks command table through the launcher" do
       out, status = run_verb(verb, "--help")
 
       expect(status).to eq(0)
-      expect(out).to start_with(verb)
+      expect(out).to start_with(COMMAND_LAUNCHER_NAMES.fetch(verb, verb))
     end
   end
 

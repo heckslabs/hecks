@@ -17,6 +17,9 @@ module Hecks
       include SagaPersistence
       include WorldDefaults
 
+      # The thread-local key under which open reaction collections are kept.
+      REACTION_SINKS = :hecks_reaction_sinks
+
       attr_reader :root, :bluebooks, :hecksagons, :ports, :adapters, :worlds, :event_log,
                   :reaction_log, :saga_log, :saga_instances, :translations, :saga_mutex,
                   :saga_dispatch_log, :policy_dispatch_log, :bluebook_sources,
@@ -371,6 +374,32 @@ module Hecks
       #   append-only contract (`append`, `project`, `entries`) requires
       def repository(domain, aggregate)
         @repositories[[domain.to_s, aggregate.hecks_name]] ||= Ports::Persistence.repository(self, domain, aggregate)
+      end
+
+      # Records one policy reaction on the shared log, and on every collection open on this
+      # thread (see `collecting_reactions`).
+      #
+      # @param record [Hash{Symbol => Object}] the reaction's outcome
+      # @return [void]
+      # rubocop:disable-next Hecks/ThreadSharedIvarMutation
+      def log_reaction(record)
+        @reaction_log << record
+        Array(Thread.current[REACTION_SINKS]).each { |sink| sink << record }
+      end
+
+      # Collects the reactions logged on this thread while the block runs, so one dispatch
+      # reads exactly its own even when other threads dispatch on the same registry. Nested
+      # dispatches (a reaction that dispatches) each collect, and the outer one sees theirs too.
+      #
+      # @yield [Array<Hash>] the collection, filled as reactions are logged
+      # @return [Object] what the block returns
+      def collecting_reactions
+        sinks = (Thread.current[REACTION_SINKS] ||= [])
+        sink  = []
+        sinks << sink
+        yield sink
+      ensure
+        sinks&.delete_if { |candidate| candidate.equal?(sink) }
       end
 
       # Clears everything a dispatch produced (logs, saga instances, repositories); leaves

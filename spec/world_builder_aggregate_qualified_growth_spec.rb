@@ -9,7 +9,7 @@ RSpec.describe "WorldBuilder aggregate-qualified bind mirror" do
     qualified = build_world do
       realm "Examples"
       latest "v1"
-      Widgets::Thing.persisted_by("Heki") do
+      WorldGrowthProbe::Thing.persisted_by("Heki") do
         dir "data"
       end
     end
@@ -29,7 +29,7 @@ RSpec.describe "WorldBuilder aggregate-qualified bind mirror" do
     world = build_world do
       realm "Examples"
       latest "v1"
-      Widgets::Thing.projected_by("SqliteProjection") do
+      WorldGrowthProbe::Thing.projected_by("SqliteProjection") do
         database "data/thing.sqlite3"
       end
     end

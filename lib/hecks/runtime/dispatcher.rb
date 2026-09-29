@@ -19,7 +19,18 @@ module Hecks
     class Dispatcher
       MAX_REACTION_DEPTH = 5
 
-      Result = Struct.new(:verb, :instance, :events, :execution_plan, :persistence_outcome, keyword_init: true) do
+      Result = Struct.new(:verb, :instance, :events, :execution_plan, :persistence_outcome,
+                          :refused_reactions, keyword_init: true) do
+        # Lists the policy reactions this dispatch caused that the domain refused.
+        #
+        # A policy's trigger that a `given` or invariant refuses does not undo the command that
+        # fired it, which has already persisted, so the outcome above stays a success. The
+        # refusal is recorded here instead of vanishing into the reaction log.
+        #
+        # @return [Array<Hash{Symbol => Object}>] one `{ policy:, trigger:, reason: }` per refused
+        #   reaction, oldest first; empty when every reaction was delivered
+        def refused_reactions = self[:refused_reactions] || []
+
         # Reads the identity of the record the dispatch settled on.
         #
         # @return [String, nil] the record's identity; nil for a port operation (no record)
@@ -126,6 +137,14 @@ module Hecks
       end
 
       def dispatch_invocation(verb, to:, with:, saga_correlation:, flat:)
+        @registry.collecting_reactions do |reactions|
+          dispatch_collecting(verb, reactions, to: to, with: with, saga_correlation: saga_correlation, flat: flat)
+        end
+      end
+      private :dispatch_invocation
+
+      # One dispatch, with `reactions` receiving every reaction its events cause.
+      def dispatch_collecting(verb, reactions, to:, with:, saga_correlation:, flat:)
         domain, aggregate_name, command_name = parse(verb)
         aggregate = resolve_aggregate(domain, aggregate_name, verb)
 
@@ -161,9 +180,19 @@ module Hecks
         react(announced, domain, aggregate, outbox_rows)
 
         Result.new(verb: verb, instance: instance, events: announced,
-                   execution_plan: execution_plan, persistence_outcome: persistence_outcome)
+                   execution_plan: execution_plan, persistence_outcome: persistence_outcome,
+                   refused_reactions: refused_from(reactions))
       end
-      private :dispatch_invocation
+      private :dispatch_collecting
+
+      # The reactions among `logged` that the domain refused, as plain facts.
+      #
+      # A crash in a reaction is a defect, not a refusal, and is warned where it happens.
+      def refused_from(logged)
+        logged.select { |entry| entry[:delivered] == false && !entry[:defect] }
+              .map { |entry| entry.slice(:policy, :trigger, :reason) }
+      end
+      private :refused_from
 
       # Runs the policy and saga reactions owed because `announced` committed.
       #

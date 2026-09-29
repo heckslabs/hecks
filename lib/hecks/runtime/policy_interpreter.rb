@@ -39,7 +39,7 @@ module Hecks
           next if result.nil?
 
           # A for_each policy answers an array; Array(...) would explode a record Hash.
-          (result.is_a?(Array) ? result : [result]).each { |record| @registry.reaction_log << record }
+          (result.is_a?(Array) ? result : [result]).each { |record| @registry.log_reaction(record) }
         end
       end
 

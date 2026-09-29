@@ -17,7 +17,8 @@ module Hecks
       #
       # @param bluebook [Bluebook::Chapter] the booted domain to project
       # @param options [Hash{Symbol => Object}] `:program` (default `"bin/run"`) for the usage
-      #   text; `:verb` and `:ask` select one verb's `--help` text
+      #   text; `:verb` and `:ask` select one verb's `--help` text; `:names` maps a launcher
+      #   name to the command it stands for (`{ "mcp" => "serve_mcp" }`)
       # @return [Hash{Symbol => Object}] `:verbs`, `:questions`, `:names` (alias tables) and
       #   `:usage` (pre-rendered help text)
       # @raise [Bluebook::DSL::Malformed] if two verbs project to the same command-line name
@@ -51,8 +52,7 @@ module Hecks
         end
 
         # The display name is the shortest unambiguous one; both spellings are accepted.
-        shorten(verbs)
-        shorten(questions)
+        display_names([verbs, questions], options[:names])
 
         { verbs: verbs, questions: questions,
           names: { command: aliases(verbs), question: aliases(questions) },
@@ -72,11 +72,48 @@ module Hecks
         end
       end
 
-      # Maps every accepted spelling (full name and `:short`) to the full name.
+      # Sets the display name of every spec in each map: shortened, then renamed by `names`.
+      #
+      # @param maps [Array<Hash{String => Hash}>] the verb and question maps, mutated in place
+      # @param names [Hash, nil] the chapter's launcher names
+      # @return [void]
+      def display_names(maps, names)
+        maps.each do |specs|
+          shorten(specs)
+          rename(specs, names)
+        end
+      end
+
+      # Gives a command the launcher name a chapter's `names` table assigns it.
+      #
+      # The alias replaces the short name in help, so it is listed once; the spelling it
+      # replaced keeps working (`:short_was`, read by `aliases`). A table entry naming no
+      # command in `specs` belongs to the other namespace and is skipped.
+      #
+      # @param specs [Hash{String => Hash}] the verb or question map, mutated in place
+      # @param names [Hash{String, Symbol => String, Symbol}, nil] launcher name to command name
+      # @return [void]
+      # @raise [Bluebook::DSL::Malformed] if a launcher name is already another command's name
+      def rename(specs, names)
+        Hash(names).each do |launcher_name, command|
+          found = specs.find { |key, spec| [key, spec[:short]].include?(command.to_s) }
+          next unless found
+
+          taken = specs.values.any? { |spec| spec[:short] == launcher_name.to_s }
+          raise Bluebook::DSL::Malformed, "launcher name #{launcher_name.to_s.inspect} is already a command" if taken
+
+          found.last[:short_was] = found.last[:short]
+          found.last[:short]     = launcher_name.to_s
+        end
+      end
+
+      # Maps every accepted spelling (full name, `:short` and a renamed command's old short
+      # name) to the full name.
       def aliases(specs)
         specs.each_with_object({}) do |(name, spec), map|
           map[name]         = name
           map[spec[:short]] = name
+          map[spec[:short_was]] = name if spec[:short_was]
         end
       end
 

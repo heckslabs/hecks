@@ -151,3 +151,26 @@ and [the retired first Rust
 runtime](../rust-experiment.md) for why hand-writing a
 second implementation was tried and abandoned before this
 generate-and-check architecture replaced it.
+
+## Launcher options a world file switches on
+
+A generated launcher accepts `verb name=value`, `--flag` booleans and one positional first
+argument in every domain. A domain's `.world` can add more with a free-form `launcher` setting:
+
+```text
+launcher "Launcher", run_keys: true,
+                     failure_states: %w[flagged failed],
+                     names: { "mcp" => "serve_mcp" }
+```
+
+- `run_keys` mints the `run` key of a creating command given none, through the identity port,
+  and answers it as `run`. An explicit `run=` wins.
+- `names` gives a command the name the launcher lists; the internal spelling keeps working.
+- `failure_states` names the lifecycle states `--wait` treats as a failure. `--wait` re-reads
+  the record after its reactions ran, prints its final state and events, and exits 1 in a
+  failure state. A verb that declares its own `wait` argument keeps it.
+
+A policy reaction the domain refused does not undo the command that fired it. The answer lists
+it under `refused_reactions`, read from the dispatch result (`Dispatcher::Result`). Each
+dispatch collects its own reactions per thread, so concurrent dispatches on one runtime do not
+mix them.

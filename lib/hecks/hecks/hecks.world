@@ -20,8 +20,16 @@
 # PostgresEra versions the storage shape. Once a database holds an era, a later change to this
 # domain's shape needs a translation edge, kept in `translations/` beside the bluebook; an
 # edge is written only when such a change is made.
+#
+# **launcher** switches on the opt-in parts of the generated `hecks` launcher (see
+# `Facade::LauncherOptions`): `run_keys` mints a `run` key for a creating command given none,
+# `failure_states` are the lifecycle states `--wait` reports as exit 1 (every failure state the
+# chapter's lifecycles declare), and `names` gives a command the launcher name clients type.
 Hecks.world "Hecks" do
   realm "Hecks"
   default_adapter "PostgresEra"
   default_database ENV.fetch("HECKS_DATABASE", "postgres://hecks@localhost/hecks")
+  launcher "Launcher", run_keys: true,
+                       failure_states: %w[flagged failed drifted unreachable refused faulted halted],
+                       names: { "mcp" => "serve_mcp", "console" => "open_console" }
 end

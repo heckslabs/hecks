@@ -2,6 +2,7 @@ require "json"
 require_relative "cli_door"
 require_relative "command_request"
 require_relative "json_door"
+require_relative "launcher_options"
 require_relative "../projector"
 require_relative "../ports/clock"
 
@@ -24,7 +25,9 @@ module Hecks
       # @raise [Runtime::StaleWrite] if concurrent writers beat the command through every retry
       def call(runtime:, argv:, program: "bin/run")
         bluebook, argv, program = chapter_for(runtime, argv, program)
-        cli = Projector.call(:cli, bluebook: bluebook, options: { program: program })
+        launcher = LauncherOptions.settings(runtime, bluebook.name)
+        options  = { program: program, names: launcher && launcher[:names] }
+        cli = Projector.call(:cli, bluebook: bluebook, options: options)
 
         name = argv.first
         return [cli[:usage], 0] if name.nil? || %w[--help -h help].include?(name)
@@ -48,11 +51,11 @@ module Hecks
         rest = argv[1..]
         if rest.include?("--help")
           help = Projector.call(:cli, bluebook: bluebook,
-                                      options:  { program: program, verb: name, ask: asking })[:usage]
+                                      options:  options.merge(verb: name, ask: asking))[:usage]
           return [help, 0]
         end
 
-        dispatch(runtime, spec, name, rest, program, asking)
+        dispatch(runtime, spec, name, rest, program, asking, bluebook: bluebook, launcher: launcher)
       end
 
       # The chapter a command line speaks to: the booted domain's own, or, when the first word
@@ -69,7 +72,11 @@ module Hecks
 
       # Parses one resolved verb's arguments, runs it as a query or command, and turns the
       # outcome, or the domain's refusal, into `[json_or_message, status]`.
-      def dispatch(runtime, spec, name, rest, program, asking)
+      #
+      # @param bluebook [Bluebook::Chapter] the chapter the verb belongs to
+      # @param launcher [Hash, nil] the chapter's `launcher` world setting; nil when not opted in
+      def dispatch(runtime, spec, name, rest, program, asking, bluebook: nil, launcher: nil)
+        rest, wait = LauncherOptions.take_wait(spec, rest) if launcher
         args = stamp_time(runtime, spec, CliDoor.arguments(spec, rest))
 
         if spec[:kind] == :query
@@ -77,23 +84,56 @@ module Hecks
           return [text_answer(rows) || JSON.pretty_generate(rows.map { |row| JsonDoor.materialize(row) }), 0]
         end
 
+        args, minted = LauncherOptions.run_key(runtime, spec, args, launcher)
         # Answers with only this verb's outcome; a full store dump is every record there is.
         request = CommandRequest.normalize(args, receiver:        spec[:receiver],
                                                  legacy_receiver: spec[:legacy_receiver])
-        seen   = reactions_seen(runtime)
         handle = runtime.dispatch_flat(spec[:verb], request)
-        refused = refused_reactions(runtime, seen)
-        return [JSON.pretty_generate(answered(handle).merge(refused)), 0] if handle.state.nil?
+        extra  = refused_answer(handle)
+        extra  = { run: minted }.merge(extra) if minted
+        return settled(runtime, spec, handle, bluebook, launcher, extra) if wait
+        return [JSON.pretty_generate(answered(handle).merge(extra)), 0] if handle.state.nil?
 
         [JSON.pretty_generate({ id:     handle.id,
                                 state:  JsonDoor.materialize(handle.state),
-                                events: handle.events.map(&:name) }.merge(refused)), 0]
+                                events: handle.events.map(&:name) }.merge(extra)), 0]
       rescue Runtime::NotFound, Runtime::TypeMismatch => e
         # A bad argument and a missing record both need the same next step: read the help.
         ["#{e.message}\n\n  #{program} #{'ask ' if asking}#{name} --help", 1]
       rescue *Runtime::DOMAIN_REFUSALS => e
         # The refusal is the chapter's own sentence, verbatim.
         [e.message, 1]
+      end
+
+      # The answer `--wait` gives: the record re-read from its repository after every reaction
+      # has run, with all its events, and a status of 1 when its lifecycle ended in a failure state.
+      #
+      # @return [Array(String, Integer)] the JSON and the status
+      def settled(runtime, spec, handle, bluebook, launcher, extra)
+        return [JSON.pretty_generate(answered(handle).merge(extra)), 0] if handle.state.nil?
+
+        aggregate = aggregate_of(bluebook, spec)
+        state     = reread(runtime, bluebook, aggregate, handle) || handle.state
+        fqn       = "#{bluebook.name}::#{aggregate&.hecks_name}"
+        events    = runtime.events.select { |event| event.aggregate == fqn && event.id == handle.id }
+        answer    = { id: handle.id, state: JsonDoor.materialize(state),
+                      events: (events.empty? ? handle.events : events).map(&:name) }.merge(extra)
+        [JSON.pretty_generate(answer), LauncherOptions.failed?(aggregate, state, launcher) ? 1 : 0]
+      end
+
+      # The aggregate a top-level command belongs to; nil for an entity command or a port.
+      def aggregate_of(bluebook, spec)
+        head = spec[:verb].split("::", 2).last
+        return if head.count(".") != 1
+
+        bluebook.aggregates.find { |aggregate| aggregate.hecks_name == head.split(".").first }
+      end
+
+      # The record as its repository holds it now, or nil when it cannot be read.
+      def reread(runtime, bluebook, aggregate, handle)
+        return unless aggregate && runtime.respond_to?(:registry)
+
+        runtime.registry.repository(bluebook.name, aggregate)&.find(handle.id)&.to_h
       end
 
       # The text a query answered by a port gave, when that is the whole answer.
@@ -121,26 +161,18 @@ module Hecks
         args.merge(now: { value: Ports::Clock.now(runtime.registry) })
       end
 
-      # How many reactions the runtime has logged, so a later look sees what one dispatch caused.
-      def reactions_seen(runtime) = runtime.respond_to?(:reactions) ? runtime.reactions.size : 0
-
       # The reactions one dispatch caused that the domain refused, as `refused_reactions:`.
       #
       # A policy's trigger that a `given` refuses is not the command's own refusal: the command
-      # has already persisted. Without this the answer would say nothing of it, and only the
-      # reaction log would hold the reason. A defect (a crash) is warned elsewhere.
+      # has already persisted. The dispatch result carries them (`Result#refused_reactions`);
+      # without this the answer would say nothing of it. A defect (a crash) is warned elsewhere.
       #
-      # @param runtime [Runtime::Dispatcher, Runtime::RemoteDispatcher] the booted domain
-      # @param seen [Integer] `reactions_seen` from before the dispatch
+      # @param handle [Runtime::Dispatcher::Result, Runtime::RemoteDispatcher::Result] the outcome
       # @return [Hash] `refused_reactions:` each with the `policy`, its `trigger` and the `reason`;
-      #   empty when every reaction was delivered
-      def refused_reactions(runtime, seen)
-        return {} unless runtime.respond_to?(:reactions)
-
-        refused = runtime.reactions.drop(seen).select { |entry| entry[:delivered] == false && !entry[:defect] }
-        return {} if refused.empty?
-
-        { refused_reactions: refused.map { |entry| entry.slice(:policy, :trigger, :reason) } }
+      #   empty when every reaction was delivered (or the runtime is remote and keeps no log)
+      def refused_answer(handle)
+        refused = handle.respond_to?(:refused_reactions) ? handle.refused_reactions : []
+        refused.empty? ? {} : { refused_reactions: refused }
       end
 
       # Shapes a port operation's outcome, which has no state: each event with its full payload.

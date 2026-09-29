@@ -22,6 +22,12 @@ module Hecks
         # bare-constant resolver every other chapter's `Domain::Aggregate` goes through. While the
         # chapter named Hecks builds its hecksagon, a missing constant on `Hecks` is one of that
         # chapter's aggregates; at any other time it is the ordinary `NameError`.
+        #
+        # A chapter aggregate named like a module the gem really defines (`Hecks::Release`) never
+        # reaches `const_missing`: the real module answers. `HecksagonBuilder.build` therefore
+        # takes every such module off `Hecks` while the chapter's hecksagon builds and puts it
+        # back afterwards (see `HecksagonBuilder.shadowed`). This is build-time only: nothing
+        # else runs during a hecksagon build, so nothing observes the module missing.
         module ChapterConstants
           # @param name [Symbol] the missing constant
           # @return [Bluebook::DSL::BindingProxy] a proxy for that aggregate while building
@@ -150,14 +156,47 @@ module Hecks
           previous_name  = building
           self.collector = builder.binds
           self.building  = domain.to_s
+          hidden = previous_name == "Hecks" ? {} : shadowed(domain)
           begin
             ConstShim.with(resolver) { builder.instance_eval(&block) } if block
           ensure
+            restore_shadowed(hidden)
             self.collector = previous
             self.building  = previous_name
           end
 
           builder.build
+        end
+
+        # Takes off `Hecks` each real module a chapter aggregate shares its name with, so the
+        # name reaches `ChapterConstants#const_missing`. Only the chapter named Hecks has this
+        # collision; a nested build of it leaves the outer build's shadows in place.
+        #
+        # @param domain [String, Symbol] the chapter whose hecksagon is being built
+        # @return [Hash{Symbol => Object}] what was taken off, by name: the module, or the
+        #   autoload path when the constant had not loaded yet
+        def self.shadowed(domain)
+          return {} unless domain.to_s == "Hecks"
+
+          chapter = Hecks.current_registry&.bluebook("Hecks")
+          names   = chapter ? chapter.aggregates.map { |aggregate| aggregate.hecks_name.to_sym } : []
+          names.select { |name| Hecks.const_defined?(name, false) }.to_h do |name|
+            pending = Hecks.autoload?(name)
+            held    = pending ? [:autoload, pending] : [:module, Hecks.const_get(name, false)]
+            Hecks.send(:remove_const, name)
+            [name, held]
+          end
+        end
+
+        # Puts back what `shadowed` took off.
+        #
+        # @param hidden [Hash{Symbol => Array}] `shadowed`'s answer
+        # @return [void]
+        def self.restore_shadowed(hidden)
+          hidden.each do |name, (kind, held)|
+            Hecks.send(:remove_const, name) if Hecks.const_defined?(name, false)
+            kind == :autoload ? Hecks.autoload(name, held) : Hecks.const_set(name, held)
+          end
         end
       end
     end

@@ -122,25 +122,22 @@ RSpec.describe Hecks::Facade::CliRunner do
     end
   end
 
-  # A reaction a domain's own given refused is only on the reaction log; the answer names it.
+  # A reaction a domain's own given refused is on the dispatch result; the answer names it.
   describe "reactions a domain refused" do
-    let(:reactions) do
-      [{ policy: "Seen", trigger: "D::Old", delivered: false, reason: "before this dispatch" },
-       { policy: "Delivered", trigger: "D::Ok", delivered: true },
-       { policy: "Refused", trigger: "D::Admit", delivered: false, reason: "Admit refused — a given" },
-       { policy: "Crashed", trigger: "D::Boom", delivered: false, reason: "nil", defect: true }]
-    end
-    let(:logged) { Struct.new(:reactions).new(reactions) }
-
-    it "names each refusal one dispatch caused, and leaves out what was delivered or crashed" do
-      expect(described_class.refused_reactions(logged, 1)).to eq(
-        refused_reactions: [{ policy: "Refused", trigger: "D::Admit", reason: "Admit refused — a given" }]
-      )
+    def result_with(refused)
+      Hecks::Runtime::Dispatcher::Result.new(verb: "D::A.Go", instance: nil, events: [],
+                                             refused_reactions: refused)
     end
 
-    it "adds nothing when every reaction was delivered, or the runtime keeps no log" do
-      expect(described_class.refused_reactions(logged, 4)).to eq({})
-      expect(described_class.refused_reactions(Object.new, 0)).to eq({})
+    it "names each refusal the dispatch result carries" do
+      refused = [{ policy: "Refused", trigger: "D::Admit", reason: "Admit refused — a given" }]
+
+      expect(described_class.refused_answer(result_with(refused))).to eq(refused_reactions: refused)
+    end
+
+    it "adds nothing when every reaction was delivered, or the result is a remote one" do
+      expect(described_class.refused_answer(result_with([]))).to eq({})
+      expect(described_class.refused_answer(Struct.new(:events).new([]))).to eq({})
     end
 
     it "leaves a dispatch that caused no refusal answered exactly as before" do
