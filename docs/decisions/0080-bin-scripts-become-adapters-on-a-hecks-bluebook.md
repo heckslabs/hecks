@@ -183,7 +183,7 @@ Building for the Rust host is split by the same test. Custodian's Build generate
 
 ### 8. QualityControl
 
-The rules hand-coded in `qa_open_pr` and `qa_pr_check` become `given`s on `Patch.Open` and `Improvement.Open`: the branch-prefix check, the per-day PR cap, a fix commit being an ancestor of `HEAD`, and the angle being under investigation. Their `git` and `gh` calls move into a `GitPr` adapter. The declared `IssueTracker` port gets a bound adapter.
+The rules hand-coded in `qa_open_pr` and `qa_pr_check` move onto `Patch.Open` and `Improvement.Open`. Three are `given`s today: the branch prefix (a `pattern:` on the branch), the bug being fixed and the angle being under investigation (givens that read through the reference, as `customer.status == "active"` does in the banking example). Two need constructs the language does not have yet and stay in the `GitPr` adapter until it does: the per-day PR cap needs a given that counts records since a clock-relative time, and "the fix commit is an ancestor of `HEAD`" needs a given that consults a port. Their `git` and `gh` calls move into a `GitPr` adapter. The declared `IssueTracker` port gets a bound adapter.
 
 ### 9. This ships as 3.0.0
 
