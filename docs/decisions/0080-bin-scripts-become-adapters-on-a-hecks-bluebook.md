@@ -185,6 +185,23 @@ Building for the Rust host is split by the same test. Custodian's Build generate
 
 The rules hand-coded in `qa_open_pr` and `qa_pr_check` become `given`s on `Patch.Open` and `Improvement.Open`: the branch-prefix check, the per-day PR cap, a fix commit being an ancestor of `HEAD`, and the angle being under investigation. Their `git` and `gh` calls move into a `GitPr` adapter. The declared `IssueTracker` port gets a bound adapter.
 
+### 9. This ships as 3.0.0
+
+Under [ADR 0068](0068-releases-keep-their-pace-and-state-a-two-tier-promise.md) a major version means a breaking DSL or runtime change with a CHANGELOG `Breaking:` entry, and this ADR makes several:
+
+- `exe/hecks` stops being a hand-written router and becomes the generated launcher. The command names stay, but arguments are projected from the bluebook by `CliRunner`, so flags and argument order change.
+- `bin/` goes. `Makefile`s that `project_deploy` generated in client repositories call `bin/<name>` and stop working until they are regenerated.
+- A domain whose chapter is named `Hecks` collides with the new Hecks domain.
+- `Translation::Map` is removed by the Translation merge.
+- The gem's contents change: everything ships (section 3).
+
+ADR 0068's rule 4 gives a break that reaches an installed client site one release of warning where a warning is possible. The two parts that reach client sites get one:
+
+- **The last 2.x minor warns.** `exe/hecks` accepts the old argument forms and prints the new form beside each result, and `project_deploy` regenerates Makefiles against `hecks <verb>` while the old `bin/` paths still resolve. Each warning names 3.0.0 as the removal version.
+- **3.0.0 removes them.** The old argument forms and every `bin/` path go.
+
+Inside this repository the move is still one pass: there is never a second way for a maintainer to run a tool. Client pins move to `3.0.0` explicitly, because deploys pin exactly (ADR 0068, rule 3). 3.0.0 is the first release the root's Release aggregate records.
+
 ## Consequences
 
 - Checks and lifecycle actions leave a history in the journal, so a regression such as the runtime baseline going stale shows up as an event instead of passing unnoticed.
@@ -210,7 +227,7 @@ The rules hand-coded in `qa_open_pr` and `qa_pr_check` become `given`s on `Patch
 - **Attaching the framework members too** (Governance, Identity, Privacy, Compliance, ConsoleSettings). Rejected: they are libraries application domains use; Hecks uses Governance rather than owning it.
 - **All aggregates in a single `hecks.bluebook` file.** Rejected: fourteen aggregates in one file is hard to read; the root, Custodian and Codebase files each hold one concern.
 - **Repository-level directories, like `qa/`.** Rejected in favour of `lib/hecks/`, so everything ships and sits beside the runtime it operates on.
-- **Phased migration** (Release first, then checks, then Codebase). Rejected in favour of one pass, so the repository never has two ways to run the same tool.
+- **Phased migration** (Release first, then checks, then Codebase). Rejected in favour of one pass, so the repository never has two ways to run the same tool. The only overlap is the one 2.x release of warnings ADR 0068 requires for client sites (section 9).
 - **Leave the scripts as they are.** Rejected: results keep leaving no history, and the rules stay out of the model.
 
 ## Open items
