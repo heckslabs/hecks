@@ -233,7 +233,7 @@ module Hecks
       # @return [Bluebook::Chapter, nil] the chapter that answers `domain`'s role
       #   checks, or nil if none does
       def authorization_provider_for(domain)
-        names = [domain.to_s, *Array(hecksagon(domain)&.framework_members)]
+        names = [domain.to_s, *Array(hecksagon(domain)&.member_chapters)]
         names.filter_map { |name| bluebook(name) }
              .find { |chapter| chapter.provides?(Bluebook::Capabilities::AUTHORIZATION) }
       end
@@ -254,7 +254,7 @@ module Hecks
       # @return [Bluebook::Chapter, nil] the chapter that answers `domain`'s identity
       #   questions, or nil if none does
       def identity_provider_for(domain)
-        names = [domain.to_s, *Array(hecksagon(domain)&.framework_members)]
+        names = [domain.to_s, *Array(hecksagon(domain)&.member_chapters)]
         attached = names.filter_map { |name| bluebook(name) }
                         .find { |chapter| chapter.provides?(Bluebook::Capabilities::IDENTITY) }
         return attached if attached
@@ -350,7 +350,7 @@ module Hecks
       def vendored_provider_for(domain, capability)
         hexagon = hecksagon(domain)
         vendored = Array(hexagon&.vendored_bluebooks).map { |name| Naming.pascal(name) }
-        names = [domain.to_s, *Array(hexagon&.framework_members), *vendored]
+        names = [domain.to_s, *Array(hexagon&.member_chapters), *vendored]
         attached = names.filter_map { |name| bluebook(name) }
                         .find { |chapter| chapter.provides?(capability) }
         return attached if attached
@@ -469,6 +469,7 @@ module Hecks
           subscriptions:      (base.subscriptions + overlay.subscriptions).uniq,
           framework_members:  (base.framework_members + overlay.framework_members).uniq,
           vendored_bluebooks: (base.vendored_bluebooks + overlay.vendored_bluebooks).uniq,
+          attached_chapters:  (base.attached_chapters + overlay.attached_chapters).uniq,
           bounded:            base.bounded? || overlay.bounded?,
           translates:         (base.translates + overlay.translates).uniq
         )

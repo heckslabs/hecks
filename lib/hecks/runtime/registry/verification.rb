@@ -180,14 +180,14 @@ module Hecks
           end
         end
 
-        # `uses_framework` loads a bounded context; the consumer must declare the sibling
-        # hecksagon that is its ACL (Governance/Identity/Privacy already do).
+        # `uses_framework` and `attaches` load a bounded context; the consumer must declare the
+        # sibling hecksagon that is its ACL (Governance/Identity/Privacy already do).
         def refuse_unwired_framework_members!(hexagon)
-          Array(hexagon.framework_members).each do |member|
+          hexagon.member_chapters.each do |member|
             next if hecksagon(member)
 
             raise WiringError,
-                  "#{hexagon.domain} attaches framework member #{member.inspect} " \
+                  "#{hexagon.domain} attaches #{member.inspect} " \
                   "(bounded context) but never declared Hecks.hecksagon " \
                   "#{member.inspect} — put that sibling (and any `translates` " \
                   "ACL) in context_map.hecksagon; same-name blocks merge, " \

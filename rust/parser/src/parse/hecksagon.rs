@@ -63,7 +63,7 @@ pub fn apply(
         if let LineShape::Call(call) = lex::classify(file, &line)? {
             if !matches!(
                 call.word.as_str(),
-                "port" | "subscribe" | "uses_framework" | "uses_embryonaut_bluebook" | "translates" | "bounded" | "end"
+                "port" | "subscribe" | "uses_framework" | "uses_embryonaut_bluebook" | "attaches" | "translates" | "bounded" | "end"
             ) {
                 *pos += 1;
                 if matches!(call.opener, Opener::DoBlock { .. }) {
@@ -117,6 +117,11 @@ pub fn apply(
                     )?);
                 }
                 "subscribe" => {}
+                // A chapter the gem carries, attached by name (ADR 0080); only the Ruby runtime
+                // loads it, so its one argument is checked and then dropped like `subscribe`.
+                "attaches" => {
+                    super::positional_text(file, gated.line.number, "attaches", &gated.args, 1)?;
+                }
                 // Consumer-owned bounded-context mark; a wiring fact, dropped like `subscribe`.
                 "bounded" => {}
                 _ => {

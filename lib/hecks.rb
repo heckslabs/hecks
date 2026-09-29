@@ -42,6 +42,9 @@ require_relative "hecks/embryonaut_bluebook"
 # packaged gem leaves it out (ADR 0066).
 Hecks.autoload(:Corpus, File.expand_path("hecks/corpus", __dir__))
 
+# The chapters a hecksagon can `attaches` by name (ADR 0080); loads on first use.
+Hecks.autoload(:Chapters, File.expand_path("hecks/chapters", __dir__))
+
 # Root namespace and public facade of the DSL/runtime: `Hecks.boot`/`.boot_files`
 # assemble a running domain from `.bluebook`/`.hecksagon`/`.world` files.
 module Hecks

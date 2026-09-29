@@ -13,7 +13,7 @@ module Hecks
           attr_accessor :collector
         end
 
-        attr_reader :binds, :subscriptions, :framework_members, :vendored_bluebooks
+        attr_reader :binds, :subscriptions, :framework_members, :vendored_bluebooks, :attached_chapters
 
         def initialize(domain)
           @domain             = domain
@@ -21,6 +21,7 @@ module Hecks
           @subscriptions      = []
           @framework_members  = []
           @vendored_bluebooks = []
+          @attached_chapters  = []
           @bounded            = false
           @translates         = []
         end
@@ -52,6 +53,16 @@ module Hecks
           # Marks the chapter bounded, same as `uses_framework`; the directory name Pascal-cases
           # to the chapter name (`"membership"` → `Membership`).
           Hecks.current_registry&.mark_bounded(Hecks::Naming.pascal(name.to_s))
+        end
+
+        # Attaches a chapter the gem carries (the language, Expression, Tenancy, Deploy) by name
+        # and loads its files into the registry. Marked bounded like a framework member, since
+        # this hecksagon is its anti-corruption layer.
+        def attaches(name)
+          require_relative "../../chapters"
+          @attached_chapters << name.to_s
+          Hecks::Chapters.load!(name)
+          Hecks.current_registry&.mark_bounded(name.to_s)
         end
 
         # Declares a port at the hecksagon's root — the chapter as a whole, not one aggregate.
@@ -90,7 +101,7 @@ module Hecks
         def build
           Hecksagon.new(domain: @domain, binds: @binds, subscriptions: @subscriptions,
                         framework_members: @framework_members, vendored_bluebooks: @vendored_bluebooks,
-                        bounded: @bounded, translates: @translates)
+                        attached_chapters: @attached_chapters, bounded: @bounded, translates: @translates)
         end
 
         # Records any verb the grammar doesn't own as a domain-wide default bind, e.g. bare

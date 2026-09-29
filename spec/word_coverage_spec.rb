@@ -78,6 +78,10 @@ RSpec.describe "every live DSL word, used somewhere real" do
   # entry is a verified finding, not an assumption. The check below
   # flags one as stale once the corpus grows to cover it.
   EXEMPT = {
+    "attaches (Hecksagon)"              =>
+                                           "its first real user is lib/hecks/hecks/hecks.hecksagon, which ADR 0080's 3.0 " \
+                                           "build adds a few commits later; that commit adds the file to CORPUS_GLOBS and " \
+                                           "drops this exemption. spec/hecksagon_attaches_spec.rb covers the word meanwhile.",
     "cursor (Query)"                    =>
                                            "refused unconditionally at build (QueryBuilder#seal_cursor) — no interpreter " \
                                            "implements cursor pagination, so any real declaration would refuse the bluebook " \

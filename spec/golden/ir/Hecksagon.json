@@ -1249,6 +1249,16 @@
           "pattern": null,
           "relationship": null,
           "type": "VendoredBluebook"
+        },
+        {
+          "admits": null,
+          "default": null,
+          "list": true,
+          "name": "attached_chapters",
+          "optional": false,
+          "pattern": null,
+          "relationship": null,
+          "type": "AttachedChapter"
         }
       ],
       "commands": [
@@ -1405,6 +1415,45 @@
             }
           ],
           "name": "UsesEmbryonautBluebook",
+          "provenance": null,
+          "references": null,
+          "role": "Deployment"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "chapter",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "AttachedChapter"
+            }
+          ],
+          "emits": [
+            "ChapterAttached"
+          ],
+          "ensures": [
+
+          ],
+          "from": null,
+          "givens": [
+
+          ],
+          "goal": "Attach a chapter the gem carries to this hecksagon, by name",
+          "mutations": [
+            {
+              "fields": {
+                "value": ":chapter"
+              },
+              "op": "append",
+              "sign": "",
+              "target": "attached_chapters"
+            }
+          ],
+          "name": "Attaches",
           "provenance": null,
           "references": null,
           "role": "Deployment"
@@ -1595,6 +1644,46 @@
 
           ],
           "name": "VendoredBluebook"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "value",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+            {
+              "ast": {
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "value"
+                      ]
+                    }
+                  }
+                },
+                "op": "not"
+              },
+              "canonical": "!value.to_s.empty?",
+              "description": "an attached chapter is named"
+            }
+          ],
+          "members": [
+
+          ],
+          "name": "AttachedChapter"
         },
         {
           "attributes": [
@@ -1806,6 +1895,32 @@
               [
                 "fills",
                 "vendored_bluebooks"
+              ]
+            ],
+            [
+              [
+                "word",
+                "attaches"
+              ],
+              [
+                "context",
+                "Hecksagon"
+              ],
+              [
+                "body",
+                "none"
+              ],
+              [
+                "inner",
+                ""
+              ],
+              [
+                "opens",
+                ""
+              ],
+              [
+                "fills",
+                "attached_chapters"
               ]
             ],
             [
@@ -2169,6 +2284,36 @@
               [
                 "fills",
                 "vendored_bluebooks"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "attaches"
+              ],
+              [
+                "context",
+                "Hecksagon"
+              ],
+              [
+                "at",
+                1
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "text"
+              ],
+              [
+                "required",
+                true
+              ],
+              [
+                "fills",
+                "attached_chapters"
               ]
             ],
             [

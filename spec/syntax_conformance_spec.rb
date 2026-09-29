@@ -98,6 +98,7 @@ RSpec.describe "the declared syntax" do
       subscriptions:      "the builder's own collected subscription strings, read by whoever owns them",
       framework_members:  "the builder's own collected framework-member names, read by whoever owns them",
       vendored_bluebooks: "the builder's own collected vendored-embryonaut-bluebook names, read by whoever owns them",
+      attached_chapters:  "the builder's own collected attached-chapter names, read by whoever owns them",
       # The open verb catch-all: `persisted_by "Heki"` bare reaches
       # HecksagonBuilder#method_missing — the verb is whichever bind-shaped
       # word a domain declares, not a closed set this table could enumerate.

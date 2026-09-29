@@ -183,6 +183,29 @@ A release must also be a real one: the `<package>/bluebook.yml` at the tag has t
 
 A domain that binds `PostgresEra` needs no `require "hecks/ports/persistence/plugins/era"` of its own: `Hecks.boot` resolves every adapter a hecksagon binds before it collects the boot gates, which loads the era plugin and registers its gates. Requiring the plugin by hand is only for a program that wants translation support without binding `PostgresEra`.
 
+## attaches
+
+<!-- generated:begin word=attaches -->
+`attaches attached_chapters` — fills `attached_chapters`
+
+| argument | kind | required | fills |
+|---|---|---|---|
+| positional 1 | text | true | attached_chapters |
+<!-- generated:end -->
+
+Attaches a chapter hecks itself carries, by name: one of the chapters of the language itself (`Bluebook`, `Hecksagon`, `World`, `Adapter`, `Port`, `Translation`, `Paging`), `Expression`, `Tenancy` or `Deploy`. It works like `uses_framework`:
+- It loads the files of the chapter into the registry, from their real location, even when the chapter spans several files.
+- It records the name on the hecksagon that asked for it.
+- It marks the chapter a bounded context, so the attaching hecksagon also declares a `Hecks.hecksagon` block for that chapter, and persistence is bound there as for any other chapter.
+
+`Framework` members stay with `uses_framework`, and a name hecks does not carry refuses, listing the names it does. The chapters on offer:
+
+```ruby
+Hecks::Chapters.index.keys.sort  # => ["Adapter", "Bluebook", "Deploy", "Expression", "Hecksagon", "Paging", "Port", "Tenancy", "Translation", "World"]
+```
+
+The Hecks domain (ADR 0080) is its main user, attaching the language, Tenancy and Deploy so one `hecks` launcher reaches all of their verbs.
+
 ## port
 
 <!-- generated:begin word=port -->
