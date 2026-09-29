@@ -50,7 +50,36 @@ An installed gem boots the root and Custodian; a checkout boots all three. Becau
 
 A script whose concern already has a bluebook joins that bluebook instead: the `qa_*` scripts go to QualityControl and the deploy scripts go to Deploy.
 
-### 3. Where each script goes
+### 3. Hecks attaches Bluebook, Deploy and QualityControl as chapters
+
+The Hecks domain also takes in the three domains the framework already has. Each stays a chapter of its own: it keeps its name, its namespace (`QualityControl::Patch`, `Deploy::Tenant`, `Bluebook::Aggregate`), its store and its directory. The Hecks hecksagon attaches them the way `uses_framework` attaches Governance, and cross-chapter reactions go through `translates`.
+
+| Chapter | Stays in | Attached from | Ships |
+| --- | --- | --- | --- |
+| Bluebook (the language, declared in itself) | `lib/hecks/language/bluebook/` | `hecks.hecksagon` | Yes |
+| Deploy | `lib/hecks/deploy/bluebook/` | `hecks.hecksagon` | Yes |
+| QualityControl | `qa/bluebook/` | `codebase.hecksagon` | No |
+
+QualityControl is attached from `codebase.hecksagon` so an installed gem, which has no `qa/`, never tries to load it. The QA ledger keeps its PostgresEra era and tables, because they are keyed by the chapter name, which does not change.
+
+The one `hecks` launcher reaches every chapter's verbs, for example `hecks quality_control log_bug` or `hecks deploy lint`. No chapter gets a launcher of its own.
+
+```ruby
+# lib/hecks/hecks/hecks.hecksagon
+Hecks.hecksagon "Hecks" do
+  attaches "Bluebook"
+  attaches "Deploy"
+end
+
+# lib/hecks/hecks/codebase.hecksagon
+Hecks.hecksagon "Hecks" do
+  attaches "QualityControl"
+end
+```
+
+`attaches` stands for the attaching word; see Open items.
+
+### 4. Where each script goes
 
 | Bluebook or part | Aggregate | Scripts |
 | --- | --- | --- |
@@ -75,7 +104,7 @@ Release goes to Codebase rather than Custodian because it publishes this reposit
 
 `project_refusal_wording` is an alias for `project_rust_vocabulary`; it becomes a second name for the same Language command, not a command of its own.
 
-### 4. QualityControl
+### 5. QualityControl
 
 The rules hand-coded in `qa_open_pr` and `qa_pr_check` become `given`s on `Patch.Open` and `Improvement.Open`: the branch-prefix check, the per-day PR cap, a fix commit being an ancestor of `HEAD`, and the angle being under investigation. Their `git` and `gh` calls move into a `GitPr` adapter. The declared `IssueTracker` port gets a bound adapter.
 
@@ -95,6 +124,7 @@ The rules hand-coded in `qa_open_pr` and `qa_pr_check` become `given`s on `Patch
 - **Hand-written launchers per command.** Keeps `bin/<name>` as a short script that dispatches one verb. Rejected: `project_cli` already generates a launcher from the bluebook, and hand-written ones drift from it.
 - **One bluebook per concern** (Release, RuntimeBaseline, LanguageContract, DocCoverage, Codemod, and so on). Rejected: it produces a dozen front doors and a dozen hecksagons with the same wiring.
 - **Custodian and Codebase as two separate bluebooks.** Rejected: two launchers beside `exe/hecks`, and no domain for the framework itself. As parts of one Hecks bluebook they keep the ship/no-ship split, and the launcher is the executable the gem already ships.
+- **Merging Bluebook, Deploy and QualityControl into the Hecks chapter** (`QualityControl::Patch` becoming `Hecks::Patch`, and so on). Rejected: the QA ledger's era and tables are keyed by the chapter name and would need a data migration, and renaming the self-hosted Bluebook chapter reaches into the meta-validator.
 - **All aggregates in a single `hecks.bluebook` file.** Rejected: the gem filter works on files, so the repository-only aggregates need files of their own.
 - **Repository-level directories, like `qa/`.** Rejected in favour of `lib/hecks/hecks/`, so the shipped part sits beside the runtime it operates on and the gemspec filter decides what ships.
 - **Phased migration** (Release first, then checks, then Codebase). Rejected in favour of one pass, so the repository never has two ways to run the same tool.
@@ -103,6 +133,8 @@ The rules hand-coded in `qa_open_pr` and `qa_pr_check` become `given`s on `Patch
 ## Open items
 
 - Whether the loader accepts two `*.hecksagon` files that both configure `Hecks`, or whether `codebase.hecksagon` needs a small change to the loader so it can add to the root wiring.
+- The word that attaches a chapter. `uses_framework` loads only from `lib/hecks/framework/bluebook/` and `uses_embryonaut_bluebook` only from the vendored registry; attaching a chapter from its own directory needs a new hecksagon word or a way to register these three as members.
+- Whether `Hecks::Facade::CliRunner` routes to an attached chapter's verbs (`hecks quality_control log_bug`). Today a launcher serves the first bluebook the boot registers.
 - Which store each part persists to. A shared history of CI checks needs a durable store that CI can reach. Local runs may use Sqlite under `Hecks::CacheDir`.
 - The exact command names and arguments for each script, written out per aggregate before the migration starts.
 - Whether `rust/host` needs any of Custodian, or whether it stays Ruby-only operational tooling.
