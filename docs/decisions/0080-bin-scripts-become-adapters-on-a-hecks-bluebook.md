@@ -160,9 +160,9 @@ Every script becomes one or more commands or queries, named for the domain actio
 | `stores` | Introspection · Stores (query) | `hecks stores <domain>` |
 | `history` | Introspection · History (query) | `hecks history <domain>` |
 | `statements` | Introspection · Statements (query) | `hecks statements <domain> chapter=Name` |
-| `narrate` | Introspection · Narrative (query) | `hecks narrative [domain] [aggregate=Name]` |
-| `docs` | Introspection · Document (query) | `hecks document [domain] [aggregate=Name]` |
-| `project_diagrams` | Introspection · Diagrams (query) | `hecks diagrams <domain> chapter=Name` |
+| `narrate` | Introspection · Narrative (query) | `hecks narrate [domain] [aggregate=Name]` |
+| `docs` | Introspection · Document (query) | `hecks docs [domain] [aggregate=Name]` |
+| `project_diagrams` | Introspection · Diagrams (query) | `hecks project_diagrams <domain> chapter=Name` |
 | `project_glossary` | Introspection · Glossary (query) | `hecks glossary <domain> chapter=Name` |
 | `model_check` | Introspection · ModelCheck | `hecks model_check [domains=a,b] [--strict] [profile=client]` |
 | `run` | Operation · Run | `hecks run [domain] script=steps.json`, or `hecks run [domain] <verb> name=value …` |
@@ -183,7 +183,7 @@ Every script becomes one or more commands or queries, named for the domain actio
 | (new) | Era · HoldFirst | `hecks hold_first <domain> --confirm` |
 | `vendor_bluebook` | Package · Vendor | `hecks vendor <package[@version]> [from=path] [root=path]` |
 | `project_cli` | Door · ProjectCli | `hecks project_cli [domains=a,b]` |
-| `hecks_mcp_door` | Door · ServeMcp | `hecks serve_mcp` (stdio) |
+| `hecks_mcp_door` | Door · ServeMcp | `hecks mcp` (stdio) |
 | `project_rust` | Build · ProjectRust | `hecks project_rust <domain>` |
 | `project_wasm` | Build · BuildWasm | `hecks build_wasm <domain>` |
 | `project_wasm_browser` | Build · BuildBrowserWasm | `hecks build_browser_wasm <domain>` |
@@ -290,7 +290,7 @@ Under [ADR 0068](0068-releases-keep-their-pace-and-state-a-two-tier-promise.md) 
 
 ADR 0068's rule 4 gives a break that reaches an installed client site one release of warning where a warning is possible. The two parts that reach client sites get one:
 
-- **The last 2.x minor warns, as text only.** The new forms exist only in 3.0, so 2.x cannot run them. Instead each old command prints the form it becomes (for example "in 3.0: `hecks compact pizzas --confirm`"), and `project_deploy` notes in each Makefile it generates which `bin/` calls change. Each warning names 3.0.0 as the removal version.
+- **2.10.0, the last 2.x minor, warns, as text only.** The new forms exist only in 3.0, so 2.x cannot run them. Instead each old command prints the form it becomes (for example "in 3.0: `hecks compact pizzas --confirm`"), and `project_deploy` notes in each Makefile it generates which `bin/` calls change. Each warning names 3.0.0 as the removal version.
 - **3.0.0 removes them.** The old argument forms and every `bin/` path go.
 
 Inside this repository the move is one pull request, so there is never a second way for a maintainer to run a tool. It is built as ordered commits, each keeping the whole suite green, so it can be reviewed and bisected one step at a time:
@@ -414,6 +414,7 @@ Environment variables are read by 25 scripts; they become world configuration, n
 ### 12. Commands and arguments
 
 - **Commands are named for the domain action,** such as `Era.Compact`, `Era.MergeTail` and `Build.BuildWasm`. The launcher shows the snake form (`hecks compact`). The old script names survive only in the 2.x warnings, which point at the 3.0 form.
+- **The ten names `exe/hecks` already ships keep their launcher form:** `run`, `docs`, `narrate`, `ir`, `stores`, `model_check`, `smoke_test`, `project_diagrams`, `project_cli` and `mcp` (ADR 0066). Clients already type them, so only their argument forms change.
 - **The launcher accepts three argument forms,** in every generated launcher, clients' included. All three add to what launchers accept today and remove nothing:
   - the first identifying argument, positionally (`hecks compact pizzas`)
   - booleans as `--name` (`--confirm`, `--strict`)
@@ -423,14 +424,23 @@ Environment variables are read by 25 scripts; they become world configuration, n
 - **A query needs `ask` only when a command shares its name.** Otherwise the bare name answers (`hecks ir`, `hecks history pizzas`).
 - **A flag used only for one tool to call itself becomes a child command,** started by the ProcessPool adapter and absent from the launcher's help.
 
-### 13. Era operations in production
+### 13. Era operations in production: decide in the repository, apply at deploy
 
-Today the host mints eras and checks approvals itself, at every boot (ADR 0030). The Ruby era tools reach a production database only from a laptop, through a temporary bastion and an SSM tunnel that `make mint-era` sets up. For a domain on a shared database, not even that is generated. `merge_tail`, `compact`, `heki_compact`, `reattest_era` and `backfill_era_projections` have no production path at all, although the host's own tamper refusal tells an operator to run `reattest_era`. A shared-database domain also cannot approve an edge in production. An edge with compute or rekey rules would therefore stop it booting.
+Today the host mints eras and checks approvals itself, at every boot (ADR 0030). The Ruby era tools reach a production database only from a laptop, through a temporary bastion and an SSM tunnel that `make mint-era` sets up. For a domain on a shared database, not even that is generated. `merge_tail`, `compact`, `heki_compact`, `reattest_era` and `backfill_era_projections` have no production path at all, although the host's own tamper refusal tells an operator to run `reattest_era`. A shared-database domain also cannot approve an edge in production, so an edge with compute or rekey rules would stop it booting.
 
-- **Custodian's database-touching commands run as a one-off task inside the VPC.** Build produces a small ops image from the pinned gem. Deploy runs one Custodian command in it as a one-off ECS task beside the database (`hecks deploy run_era <domain> <command> …`), following the pattern previews already use for database setup. RDS stays private, and no laptop needs a tunnel. A laptop tunnel remains for rehearsing against a scratch database.
-- **The host stays runtime only.** It keeps minting and checking approvals at boot, and serves nothing for Custodian beyond `GET /version`.
-- **Each operation has one owner.** The host mints a host-run domain; Custodian never does. Custodian owns what an operator starts: approving an edge, re-attesting, merging a tail, compacting, backfilling and holding the first era. The mint's audit and the approval digest stay implemented in both languages, held together by the existing parity specs.
-- **Shared-database domains get the same path,** which gives them their first way to approve an edge in production.
+Production follows the database-migrations model, the direction ADR 0030 already took for minting. Nothing reaches into a production database from outside.
+
+- **Human decisions are committed files.** Approving an edge, re-attesting an era and choosing tail-merge winners each write a file into the domain's repository through a Custodian command. The file is reviewed in the pull request and ships with the deploy. Its author, reviewer and commit are the audit record.
+- **The host applies them at boot,** as it mints today. One task applies them under the existing per-domain lock, before the service takes traffic. Only quick, bounded work runs at boot: minting, approvals, attestations and backfilling projections.
+- **Compaction runs in the host as a background job,** never at boot. ADR 0079's per-projection floor gates it, and the world file switches it on.
+- **Each deploy that carries era work is rehearsed first,** against a snapshot with the full era chain, and the deploy requires the rehearsal to pass. Boot-time work that was not rehearsed that way has already hung a production boot once.
+- **The tunnel stays as break-glass only.** `make mint-era`'s bastion and tunnel remain for incidents, documented as such, and are never part of a normal deploy.
+- **Locally and against rehearsal databases,** Custodian's Era commands still act directly on the store, as the scripts do today.
+
+What lands when:
+
+- **3.0:** the committed approval. `hecks approve_translation <domain> --confirm` writes an approval file, and the host reads committed approvals at boot as well as journal rows. That closes the one gap that can stop a domain booting, for shared-database domains included.
+- **3.x:** committed attestations and tail-merge winners, backfill at boot, background compaction, and the rehearsal gate.
 
 ## Consequences
 
@@ -463,4 +473,5 @@ Today the host mints eras and checks approvals itself, at every boot (ADR 0030).
 
 ## Open items
 
-- The ops image's contents and size, and whether it is built per domain or once per gem version.
+- The committed decision files' format and location in a domain's repository, and how the host finds them at boot.
+- How the rehearsal gate runs in a deploy: which snapshot, and where its result is recorded.
