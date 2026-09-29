@@ -17,6 +17,7 @@ module Hecks
             vision:            [:vision,         :plain],
             classification:    [:classification, :plain],
             formerly_known_as: [:formerly_known_as, :plain],
+            namespace:         [:namespace, :plain],
             attaches_to:       [:attaches_to, :plain],
             provides:          [:provides, :plain]
           },

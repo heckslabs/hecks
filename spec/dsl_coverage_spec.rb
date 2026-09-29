@@ -17,8 +17,10 @@ RSpec.describe "the DSL surface is fully covered" do
     ],
     "BluebookBuilder"             => [
       Hecks::Bluebook::DSL::BluebookBuilder,
-      # `attaches_to`/`aggregate` are covered by their `_impl` dispatch targets.
-      %i[vision formerly_known_as attaches_to_impl provides_impl core supporting generic aggregate_impl report read_model policy
+      # `attaches_to`/`aggregate` are covered by their `_impl` dispatch targets; `namespace` is
+      # tested in spec/chapter_namespace_spec.rb.
+      %i[vision formerly_known_as namespace attaches_to_impl provides_impl core supporting generic aggregate_impl report
+         read_model policy
          process_manager classification resolve_pending_chapter_givens! resolve_pending_chapter_entity_givens!]
     ],
     "AggregateBuilder"            => [

@@ -5,6 +5,7 @@
   "vision": "A generated domain that puts composite_piece and multi_emit together.",
   "classification": "core",
   "formerly_known_as": null,
+  "namespace": null,
   "aggregates": [
     {
       "name": "Kiosk",

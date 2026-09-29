@@ -91,6 +91,8 @@ RSpec.describe "reachability of the meta-domain's own given/invariant/ensures ru
         "closed-set invariant; no spec dispatches a classification outside the three-member set",
     ["invariant", "Bluebook::Version (declared)", "a version says something"]                         =>
         "presence invariant on a bluebook's version; no spec dispatches one blank",
+    ["invariant", "Bluebook::ChapterNamespace (declared)", "a namespace is a constant path"]      =>
+        "shape invariant; spec/chapter_namespace_spec.rb builds valid namespaces, none dispatches a malformed one",
     ["invariant", "Bluebook::FormerlyKnownAs (declared)", "a formerly_known_as says something"]       =>
         "presence invariant; no spec dispatches a blank formerly_known_as entry",
     ["invariant", "Bluebook::AttachesToContext (declared)", "an attachment names a context"]          =>

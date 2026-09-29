@@ -5,6 +5,7 @@
   "vision": "A referral is issued by a member, who was sponsored by a sponsor — three aggregates in a reference chain, built to walk every hop the runtime's reference machinery has (a one-hop and a two-hop given, a two-hop where, and a reference re-pointed through a plain value object so only the settled-state check can catch a dangling one) on both engines at once.",
   "classification": "core",
   "formerly_known_as": null,
+  "namespace": null,
   "aggregates": [
     {
       "name": "Sponsor",

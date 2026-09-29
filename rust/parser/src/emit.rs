@@ -82,6 +82,7 @@ pub fn bluebook_json(bb: &ir::Bluebook) -> JsonValue {
             "formerly_known_as".to_string(),
             JsonValue::opt_str(&bb.formerly_known_as),
         ),
+        ("namespace".to_string(), JsonValue::opt_str(&bb.namespace)),
         (
             "aggregates".to_string(),
             JsonValue::Array(bb.aggregates.iter().map(aggregate_json).collect()),

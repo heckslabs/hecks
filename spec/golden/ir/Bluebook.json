@@ -3923,6 +3923,16 @@
         {
           "admits": null,
           "default": null,
+          "list": false,
+          "name": "namespace",
+          "optional": false,
+          "pattern": null,
+          "relationship": null,
+          "type": "ChapterNamespace"
+        },
+        {
+          "admits": null,
+          "default": null,
           "list": true,
           "name": "normalisations",
           "optional": false,
@@ -4003,6 +4013,16 @@
               "pattern": null,
               "relationship": null,
               "type": "FormerlyKnownAs"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "namespace",
+              "optional": true,
+              "pattern": null,
+              "relationship": null,
+              "type": "ChapterNamespace"
             }
           ],
           "emits": [
@@ -4061,6 +4081,15 @@
                 "name": "formerly_known_as"
               },
               "target": "formerly_known_as"
+            },
+            {
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "namespace"
+              },
+              "target": "namespace"
             }
           ],
           "name": "Declare",
@@ -4758,6 +4787,45 @@
           "invariants": [
             {
               "ast": {
+                "flags": "",
+                "op": "matches_regex",
+                "pattern": "\\A[A-Z][A-Za-z0-9_]*(::[A-Z][A-Za-z0-9_]*)*\\z",
+                "receiver": {
+                  "op": "to_s",
+                  "receiver": {
+                    "op": "lookup",
+                    "path": [
+                      "value"
+                    ]
+                  }
+                }
+              },
+              "canonical": "value.to_s.match?(/\\A[A-Z][A-Za-z0-9_]*(::[A-Z][A-Za-z0-9_]*)*\\z/)",
+              "description": "a namespace is a constant path"
+            }
+          ],
+          "members": [
+
+          ],
+          "name": "ChapterNamespace"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "value",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+            {
+              "ast": {
                 "expr": {
                   "op": "empty",
                   "receiver": {
@@ -4965,6 +5033,32 @@
               [
                 "fills",
                 "formerly_known_as"
+              ]
+            ],
+            [
+              [
+                "word",
+                "namespace"
+              ],
+              [
+                "context",
+                "Bluebook"
+              ],
+              [
+                "body",
+                "none"
+              ],
+              [
+                "inner",
+                ""
+              ],
+              [
+                "opens",
+                ""
+              ],
+              [
+                "fills",
+                "namespace"
               ]
             ],
             [
@@ -5500,6 +5594,36 @@
               [
                 "fills",
                 "formerly_known_as"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "namespace"
+              ],
+              [
+                "context",
+                "Bluebook"
+              ],
+              [
+                "at",
+                1
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "text"
+              ],
+              [
+                "required",
+                true
+              ],
+              [
+                "fills",
+                "namespace"
               ]
             ],
             [
@@ -31078,6 +31202,7 @@
   "formerly_known_as": null,
   "ir_version": 1,
   "name": "Bluebook",
+  "namespace": null,
   "policies": [
 
   ],

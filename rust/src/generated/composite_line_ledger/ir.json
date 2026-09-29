@@ -5,6 +5,7 @@
   "vision": "A generated domain that puts has_default and composite_piece together.",
   "classification": "core",
   "formerly_known_as": null,
+  "namespace": null,
   "aggregates": [
     {
       "name": "Venue",

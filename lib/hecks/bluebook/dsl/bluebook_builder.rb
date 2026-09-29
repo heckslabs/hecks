@@ -65,6 +65,13 @@ module Hecks
         # @return [String] `value`, stringified, as stored
         def formerly_known_as(value) = @formerly_known_as = value.to_s
 
+        # Names the Ruby module the chapter's constants install under instead of its own name,
+        # such as `namespace "Hecks::Domain"` for a chapter that would otherwise collide.
+        #
+        # @param value [String] a constant path, such as `"Hecks::Domain"`
+        # @return [String] `value`, stringified, as stored
+        def namespace(value) = @namespace = value.to_s
+
         # Names a core grammar context this chapter's sub-language extends (ADR 0026).
         # Variadic and accumulates across calls, like `identified_by`/`group_by`.
         #
@@ -197,6 +204,7 @@ module Hecks
                                            process_managers: @process_managers,
                                            classification: @classification,
                                            formerly_known_as: @formerly_known_as,
+                                           namespace: @namespace,
                                            attaches_to: @attaches_to || [],
                                            provides: @provides || [])
 

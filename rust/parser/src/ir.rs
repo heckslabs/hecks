@@ -344,6 +344,8 @@ pub struct Bluebook {
     // `formerly_known_as "OldName"`: always `None` today because `parse/chapter.rs` refuses it,
     // but the key is emitted on every chapter.
     pub formerly_known_as: Option<String>,
+    // `namespace "Hecks::Domain"`: the Ruby module the chapter installs under (ADR 0080).
+    pub namespace: Option<String>,
     pub aggregates: Vec<Aggregate>,
     pub read_models: Vec<ReadModel>,
     pub policies: Vec<Policy>,
@@ -363,6 +365,7 @@ impl Default for Bluebook {
             vision: None,
             classification: None,
             formerly_known_as: None,
+            namespace: None,
             aggregates: Vec::new(),
             read_models: Vec::new(),
             policies: Vec::new(),

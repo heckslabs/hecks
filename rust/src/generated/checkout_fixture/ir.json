@@ -5,6 +5,7 @@
   "vision": "Scheduled sessions people register for, paid through a Payments chapter sharing one reference.",
   "classification": "core",
   "formerly_known_as": null,
+  "namespace": null,
   "aggregates": [
     {
       "name": "Event",

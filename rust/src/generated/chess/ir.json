@@ -5,6 +5,7 @@
   "vision": "A chess game: pieces with no life outside the board that holds them, a status that only ever moves one legal way at a time, and turn order and check enforced by declaration rather than a hand-written engine.",
   "classification": "supporting",
   "formerly_known_as": null,
+  "namespace": null,
   "aggregates": [
     {
       "name": "Game",

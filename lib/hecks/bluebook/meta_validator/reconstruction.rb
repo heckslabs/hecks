@@ -24,6 +24,7 @@ module Hecks
             vision:            text(@chapter[:vision]),
             classification:    text(@chapter[:classification]),
             formerly_known_as: text(@chapter[:formerly_known_as]),
+            namespace:         text(@chapter[:namespace]),
             attaches_to:       attached_contexts(@chapter),
             provides:          provisions(@chapter),
             aggregates:        declared("Aggregate", chapter_id).map { |row| aggregate(row) },

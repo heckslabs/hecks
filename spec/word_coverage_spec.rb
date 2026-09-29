@@ -78,6 +78,11 @@ RSpec.describe "every live DSL word, used somewhere real" do
   # entry is a verified finding, not an assumption. The check below
   # flags one as stale once the corpus grows to cover it.
   EXEMPT = {
+    "namespace (Bluebook)"              =>
+                                           "its first real user is lib/hecks/hecks/hecks.bluebook, which declares " \
+                                           "namespace \"Hecks::Domain\"; " \
+                                           "ADR 0080s 3.0 build adds it next, and that commit drops this exemption. " \
+                                           "spec/chapter_namespace_spec.rb covers the word meanwhile.",
     "attaches (Hecksagon)"              =>
                                            "its first real user is lib/hecks/hecks/hecks.hecksagon, which ADR 0080's 3.0 " \
                                            "build adds a few commits later; that commit adds the file to CORPUS_GLOBS and " \

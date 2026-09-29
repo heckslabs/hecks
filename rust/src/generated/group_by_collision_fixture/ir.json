@@ -5,6 +5,7 @@
   "vision": "The smallest domain where two rows can reach the same group_by key path, and one where they cannot.",
   "classification": "core",
   "formerly_known_as": null,
+  "namespace": null,
   "aggregates": [
     {
       "name": "Part",

@@ -5,6 +5,7 @@
   "vision": "Collect a payment through a processor and record what the processor said happened.",
   "classification": "core",
   "formerly_known_as": null,
+  "namespace": null,
   "aggregates": [
     {
       "name": "Payment",

@@ -24,6 +24,9 @@ module Hecks
         # differing only by their old name can't hash identically at the
         # meta-validator's cache key (`SHA256(JSON(bluebook.to_h))`).
         formerly_known_as: :formerly_known_as,
+        # The Ruby module the chapter's constants install under, when it is not the chapter's
+        # own name (the Hecks domain nests under `Hecks::Domain`); nil for every other chapter.
+        namespace:         :namespace,
         aggregates:        many(:aggregates),
         read_models:       many(:read_models),
         policies:          many(:policies),
@@ -53,7 +56,7 @@ module Hecks
       end
 
       attr_reader :name, :version, :vision, :aggregates, :policies, :process_managers,
-                  :classification, :read_models, :ports, :formerly_known_as, :attaches_to, :provides
+                  :classification, :read_models, :ports, :formerly_known_as, :namespace, :attaches_to, :provides
 
       # @param policies [Array<Bluebook::Policy>] every reaction declared across the
       #   chapter's own aggregates, hoisted here
@@ -61,7 +64,7 @@ module Hecks
       #   its project's own domain model, or `nil` if undeclared
       def initialize(name:, version: nil, vision: nil, aggregates: [], policies: [],
                      process_managers: [], classification: nil, read_models: [], formerly_known_as: nil,
-                     attaches_to: [], provides: [])
+                     namespace: nil, attaches_to: [], provides: [])
         @policies         = policies
         @process_managers = process_managers
         @name       = name.to_s
@@ -73,6 +76,7 @@ module Hecks
         @read_models = read_models
         @classification = classification&.to_s
         @formerly_known_as = formerly_known_as&.to_s
+        @namespace   = namespace&.to_s
         @attaches_to = Array(attaches_to).map(&:to_s)
         @provides    = Array(provides).map { |row| Provision.from(row) }
         settle

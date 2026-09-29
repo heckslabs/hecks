@@ -31,7 +31,10 @@ module Hecks
       def install(dispatcher)
         dispatcher.registry.bluebooks.each_value do |bluebook|
           chapter = chapter_module(dispatcher, bluebook)
-          Namespace.install(Object, bluebook.name, chapter)
+          Namespace.install(*placement(bluebook), chapter)
+          # A namespaced chapter keeps its aggregates inside its namespace: top-level
+          # shortcuts would bring back the collisions the namespace exists to avoid.
+          next if bluebook.namespace
 
           bluebook.aggregates.each do |aggregate|
             next if aggregate.hecks_name == bluebook.name
@@ -40,6 +43,21 @@ module Hecks
           end
         end
         dispatcher
+      end
+
+      # Where a chapter's module installs: `Object::<name>`, or the constant path its
+      # `namespace` names, creating any missing parent modules along the way.
+      #
+      # @param bluebook [Bluebook::Chapter] the chapter being installed
+      # @return [Array(Module, String)] the parent module and the constant name within it
+      def placement(bluebook)
+        return [Object, bluebook.name] unless bluebook.namespace
+
+        *parents, leaf = bluebook.namespace.split("::")
+        parent = parents.reduce(Object) do |outer, name|
+          outer.const_defined?(name, false) ? outer.const_get(name, false) : outer.const_set(name, Module.new)
+        end
+        [parent, leaf]
       end
     end
   end
