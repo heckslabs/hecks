@@ -111,24 +111,6 @@ RSpec.describe "every live DSL word, used somewhere real" do
                                            "corpus use under a different spelling would mean inventing a second inbound " \
                                            "integration this codebase does not otherwise need, for a word that changes " \
                                            "nothing about what the runtime does once declared.",
-    "verb (DomainPort)"                 =>
-                                           "every resource port a real domain here needs (persisted_by/projected_by/" \
-                                           "opened_by) is a framework-level default, never a project's own `port \"X\" do " \
-                                           "verb \"...\" end` — nothing in examples/ or lib/hecks/framework/ needs a " \
-                                           "swappable resource port of its own. writing-an-adapter.md's own worked example " \
-                                           "is the closest this repo has, and it is a guide, not a corpus member.",
-    "asks (DomainPort)"                 =>
-                                           "the OUTBOUND port direction (the domain asking the outside a question and " \
-                                           "reading back an answer/refusal) has no real external integration modeled " \
-                                           "anywhere in this corpus — every real port here (pizzas' PaymentGateway) is " \
-                                           "inbound (`operation`). ADR 0025's own count claimed this passed; re-checked " \
-                                           "against the current corpus while writing this spec and found it does not — a " \
-                                           "real, previously-unnoticed drift, not a fact carried over from the ADR.",
-    "answers (PortOperation)"           =>
-                                           "same finding as asks (DomainPort) — an `asks` operation's own happy ending, " \
-                                           "and there is no real `asks` operation to carry one.",
-    "refuses (PortOperation)"           =>
-                                           "same finding as asks (DomainPort) — an `asks` operation's own refused ending.",
     "attaches_to (Bluebook)"            =>
                                            "genuinely, load-bearingly used for real — lib/hecks/language/bluebook/" \
                                            "attaches/paging.bluebook declares `attaches_to \"Query\", \"ReadModel\"`, read " \

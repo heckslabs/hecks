@@ -1,4 +1,56 @@
 Hecks.hecksagon "Hecks" do
   uses_framework "Governance"
   persisted_by "Memory"
+
+  # The outside a journaled Custodian command reaches: each port names what its adapter does,
+  # and every ask is answered with the record's own arguments or refused with a reason.
+  Hecks::ModelCheckRun.port "DomainRuntime" do
+    asks "Check", to: ModelCheckRun do
+      attribute :run, RunKey
+      answers "ModelCheckAnswered"
+      refuses "ModelCheckRefused"
+    end
+  end
+
+  Hecks::Operation.port "DomainRuntime" do
+    asks "Execute", to: Operation do
+      attribute :run, OperationKey
+      answers "OperationAnswered"
+      refuses "OperationRefused"
+    end
+
+    asks "Refresh", to: Operation do
+      attribute :run, OperationKey
+      answers "OperationAnswered"
+      refuses "OperationRefused"
+    end
+
+    asks "Verify", to: Operation do
+      attribute :run, OperationKey
+      answers "OperationAnswered"
+      refuses "OperationRefused"
+    end
+
+    asks "Smoke", to: Operation do
+      attribute :run, OperationKey
+      answers "OperationAnswered"
+      refuses "OperationRefused"
+    end
+  end
+
+  Hecks::Operation.port "Terminal" do
+    asks "Open", to: Operation do
+      attribute :run, OperationKey
+      answers "OperationAnswered"
+      refuses "OperationRefused"
+    end
+  end
+
+  Hecks::Operation.port "HostHttp" do
+    asks "Probe", to: Operation do
+      attribute :run, OperationKey
+      answers "OperationAnswered"
+      refuses "OperationRefused"
+    end
+  end
 end

@@ -6,6 +6,7 @@ require_relative "../../../hecks"
 # reads `Runtime::StorageShape` from it (ADR 0033).
 require_relative "../../ports/persistence/plugins/era"
 require_relative "../../cli/stores"
+require_relative "in_process_operations"
 
 module Hecks
   module Adapters
@@ -17,7 +18,12 @@ module Hecks
     # instead. Arguments arrive materialized, so a value object is `{ value: "x" }`. A domain or
     # chapter that cannot be found raises `Runtime::NotFound`, which the launcher words as a
     # refusal.
+    #
+    # It also answers the asks of journaled commands (`InProcessOperations`): a model check, a run,
+    # a projection refresh, a behaviors run, a smoke test and a bounded follow.
     class InProcessBoot
+      include InProcessOperations
+
       # Accepts the arguments every driven adapter is built with and keeps none of them.
       #
       # @param aggregate [Object, nil] unused

@@ -11,6 +11,25 @@ module Hecks
 
         class << self
           attr_accessor :collector
+
+          # @return [String, nil] the name of the chapter whose hecksagon is being built
+          attr_accessor :building
+        end
+
+        # Lets the Hecks chapter's own hecksagon spell its aggregates `Hecks::Operation`.
+        #
+        # `Hecks` is the gem's real module, so a bare `Hecks::Operation` never reaches the
+        # bare-constant resolver every other chapter's `Domain::Aggregate` goes through. While the
+        # chapter named Hecks builds its hecksagon, a missing constant on `Hecks` is one of that
+        # chapter's aggregates; at any other time it is the ordinary `NameError`.
+        module ChapterConstants
+          # @param name [Symbol] the missing constant
+          # @return [Bluebook::DSL::BindingProxy] a proxy for that aggregate while building
+          def const_missing(name)
+            return super unless HecksagonBuilder.building == "Hecks" && HecksagonBuilder.collector
+
+            BindingProxy.new("Hecks::#{name}", HecksagonBuilder.collector)
+          end
         end
 
         attr_reader :binds, :subscriptions, :framework_members, :vendored_bluebooks, :attached_chapters
@@ -128,11 +147,14 @@ module Hecks
           resolver = ->(name) { BindingProxy.namespace(name, builder.binds) }
 
           previous       = collector
+          previous_name  = building
           self.collector = builder.binds
+          self.building  = domain.to_s
           begin
             ConstShim.with(resolver) { builder.instance_eval(&block) } if block
           ensure
             self.collector = previous
+            self.building  = previous_name
           end
 
           builder.build
@@ -141,3 +163,5 @@ module Hecks
     end
   end
 end
+
+Hecks.singleton_class.prepend(Hecks::Bluebook::DSL::HecksagonBuilder::ChapterConstants)

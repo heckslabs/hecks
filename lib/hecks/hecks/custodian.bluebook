@@ -90,4 +90,393 @@ Hecks.bluebook "Hecks" do
       answered_by "DomainRuntime"
     end
   end
+
+  # A journaled command whose work happens outside the runtime (ADR 0080, section 11). Every
+  # command below that runs something follows this one shape, so later aggregates copy it:
+  #
+  #   1. A creating command records the request as a record in state "requested" and emits.
+  #   2. A policy on that event triggers an ask on one of the record's ports. The runtime hands
+  #      the port's adapter the whole record, so the adapter does all the IO, and only there.
+  #   3. The adapter answers (a hash named like a command's arguments) or raises (its message
+  #      is the refusal). One policy per outcome re-enters the record with a command that stores it.
+  #
+  # The ports are declared in hecks.hecksagon; each adapter is in adapters/.
+
+  aggregate "ModelCheckRun" do
+    description "One static analysis over domains' models, and what it found: a check's history."
+
+    attribute :run,     RunKey
+    attribute :domains, DomainList,  optional: true
+    attribute :profile, ProfileName, optional: true
+    attribute :strict,  Switch,      optional: true
+    attribute :report,  Report,      optional: true
+    attribute :refusal, Report,      optional: true
+    identified_by :run
+
+    value_object "RunKey" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+
+      invariant("a run is named") { !value.to_s.empty? }
+    end
+
+    value_object "DomainList" do
+      attribute :value, String, pattern: '[^\t\n\r]'
+    end
+
+    value_object "ProfileName" do
+      attribute :value, String, pattern: '^client$'
+    end
+
+    value_object "Switch" do
+      attribute :value, Boolean
+    end
+
+    value_object "Report" do
+      attribute :value, String
+    end
+
+    lifecycle :status, default: "requested" do
+      transition "Pass" => "clean",   from: "requested"
+      transition "Flag" => "flagged", from: "requested"
+    end
+
+    command "ModelCheck" do
+      role "Operator"
+      goal "Check domains for dead states and unreachable steps, and keep the verdict"
+
+      attribute :run,     RunKey
+      attribute :domains, DomainList,  optional: true
+      attribute :profile, ProfileName, optional: true
+      attribute :strict,  Switch,      optional: true
+
+      sets :run
+      sets :domains
+      sets :profile
+      sets :strict
+
+      emits ModelCheckRequested
+    end
+
+    command "Pass" do
+      role "System"
+      goal "Record that the analysis left no error"
+
+      reference_to ModelCheckRun
+      attribute :report, Report
+
+      sets :report
+
+      emits ModelCheckPassed
+    end
+
+    command "Flag" do
+      role "System"
+      goal "Record that the analysis found something, or could not run, and what it said"
+
+      reference_to ModelCheckRun
+      attribute :refusal, Report
+
+      sets :refusal
+
+      emits ModelCheckFlagged
+    end
+
+    # `hecks model_check` answers once the request is recorded, so the verdict is read here.
+    query "Verdict" do
+      description "What one check found: its status, and the report or the reason it could not run."
+      attribute :run, RunKey
+      where(run: :run)
+      order_by :run
+    end
+
+    query "Flagged" do
+      description "Every check that left a finding or could not run."
+      where(status: "flagged")
+      order_by :run
+    end
+  end
+
+  policy "AnalyseWhenRequested" do
+    on      "ModelCheckRun.ModelCheckRequested"
+    trigger ModelCheckRun::DomainRuntime::Check, with: { run: :run }
+  end
+
+  policy "RecordTheClean" do
+    on      "ModelCheckRun.ModelCheckAnswered"
+    trigger ModelCheckRun::Pass, with: { report: :report }
+  end
+
+  policy "RecordTheFlag" do
+    on      "ModelCheckRun.ModelCheckRefused"
+    trigger ModelCheckRun::Flag, with: { refusal: :refusal }
+  end
+
+  aggregate "Operation" do
+    description "One thing an operator ran against a domain, and how it ended."
+
+    attribute :run,          OperationKey
+    attribute :subject,      Subject,    optional: true
+    attribute :script,       Script,     optional: true
+    attribute :verb,         Verb,       optional: true
+    attribute :arguments,    list_of(Word), optional: true
+    attribute :url,          Address,    optional: true
+    attribute :path,         RoutePath,  optional: true
+    attribute :header,       HeaderName, optional: true
+    attribute :scheme,       Scheme,     optional: true
+    attribute :payload,      Payload,    optional: true
+    attribute :payload_file, PayloadFile, optional: true
+    attribute :health_path,  RoutePath,  optional: true
+    attribute :state_path,   RoutePath,  optional: true
+    attribute :output,       Output,     optional: true
+    attribute :refusal,      Output,     optional: true
+    identified_by :run
+
+    value_object "OperationKey" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+
+      invariant("an operation is named") { !value.to_s.empty? }
+    end
+
+    # What the operation acts on: a domain directory, or a behaviors file or directory.
+    value_object "Subject" do
+      attribute :value, String, pattern: '[^\t\n\r]'
+    end
+
+    value_object "Script" do
+      attribute :value, String
+    end
+
+    value_object "Verb" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+    end
+
+    # One `name=value` word of the verb a run dispatches.
+    value_object "Word" do
+      attribute :value, String
+    end
+
+    value_object "Address" do
+      attribute :value, String, pattern: '^https?://'
+    end
+
+    value_object "RoutePath" do
+      attribute :value, String, pattern: '^/'
+    end
+
+    value_object "HeaderName" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+    end
+
+    value_object "Scheme" do
+      attribute :value, String, pattern: '^(timestamped|sha256|hex)$'
+    end
+
+    value_object "Payload" do
+      attribute :value, String
+    end
+
+    value_object "PayloadFile" do
+      attribute :value, String, pattern: '[^\t\n\r]'
+    end
+
+    value_object "Output" do
+      attribute :value, String
+    end
+
+    lifecycle :status, default: "requested" do
+      transition "Succeed" => "succeeded", from: "requested"
+      transition "Fail"    => "failed",    from: "requested"
+    end
+
+    # Runs one verb, or a JSON step list, against the domain: `hecks run [domain] script=steps.json`
+    # or `hecks run [domain] verb=create_pizza arguments=name.value=Margherita`. The signing secret
+    # for SmokeHttp is never an argument: it is read from SMOKE_WEBHOOK_SECRET.
+    command "Run" do
+      role "Operator"
+      goal "Dispatch a verb or a step list against a domain and keep what it reported"
+
+      attribute :run,     OperationKey
+      attribute :subject, Subject,       optional: true
+      attribute :script,  Script,        optional: true
+      attribute :verb,    Verb,          optional: true
+      attribute :arguments, list_of(Word), optional: true
+
+      sets :run
+      sets :subject
+      sets :script
+      sets :verb
+      sets :arguments
+
+      emits RunRequested
+    end
+
+    command "RefreshProjections" do
+      role "Operator"
+      goal "Bring every read-model projection of a domain up to date now"
+
+      attribute :run,     OperationKey
+      attribute :subject, Subject
+
+      sets :run
+      sets :subject
+
+      emits ProjectionsRefreshRequested
+    end
+
+    command "RunBehaviors" do
+      role "Operator"
+      goal "Run a domain's behavior tests and keep the verdict"
+
+      attribute :run,     OperationKey
+      attribute :subject, Subject
+
+      sets :run
+      sets :subject
+
+      emits BehaviorsRequested
+    end
+
+    command "OpenConsole" do
+      role "Operator"
+      goal "Open an interactive console on a domain"
+
+      attribute :run,     OperationKey
+      attribute :subject, Subject, optional: true
+
+      sets :run
+      sets :subject
+
+      emits ConsoleRequested
+    end
+
+    command "SmokeTest" do
+      role "Operator"
+      goal "Dispatch one synthesized call per command and report of a wired domain"
+
+      attribute :run,     OperationKey
+      attribute :subject, Subject, optional: true
+
+      sets :run
+      sets :subject
+
+      emits SmokeTestRequested
+    end
+
+    command "SmokeHttp" do
+      role "Operator"
+      goal "Check that a running service refuses bad signatures and accepts a good one"
+
+      attribute :run,          OperationKey
+      attribute :url,          Address,     optional: true
+      attribute :path,         RoutePath
+      attribute :header,       HeaderName,  optional: true
+      attribute :scheme,       Scheme,      optional: true
+      attribute :payload,      Payload,     optional: true
+      attribute :payload_file, PayloadFile, optional: true
+      attribute :health_path,  RoutePath,   optional: true
+      attribute :state_path,   RoutePath,   optional: true
+
+      sets :run
+      sets :url
+      sets :path
+      sets :header
+      sets :scheme
+      sets :payload
+      sets :payload_file
+      sets :health_path
+      sets :state_path
+
+      emits SmokeHttpRequested
+    end
+
+    command "Succeed" do
+      role "System"
+      goal "Record that the operation ended well, and what it reported"
+
+      reference_to Operation
+      attribute :output, Output
+
+      sets :output
+
+      emits OperationSucceeded
+    end
+
+    command "Fail" do
+      role "System"
+      goal "Record that the operation was refused or found a problem, and what it said"
+
+      reference_to Operation
+      attribute :refusal, Output
+
+      sets :refusal
+
+      emits OperationFailed
+    end
+
+    query "Outcome" do
+      description "How one operation ended: its status, and what it reported or why it failed."
+      attribute :run, OperationKey
+      where(run: :run)
+      order_by :run
+    end
+
+    query "Failed" do
+      description "Every operation that was refused or found a problem."
+      where(status: "failed")
+      order_by :run
+    end
+
+    # A launcher answers once, so a follow is a bounded poll: it answers the entries past `since`
+    # and a `cursor` to pass as the next `since`, waiting up to `wait` seconds for the first one.
+    query "Follow" do
+      description "A domain's persisted event log past a cursor, for tailing it call by call."
+      attribute :domain,    Subject
+      attribute :aggregate, Verb,    optional: true
+      attribute :since,     Integer, optional: true
+      attribute :from_now,  Boolean, optional: true
+      attribute :wait,      Integer, optional: true
+      attribute :interval,  Float,   optional: true
+      answered_by "DomainRuntime"
+    end
+  end
+
+  policy "RunWhenRequested" do
+    on      "Operation.RunRequested"
+    trigger Operation::DomainRuntime::Execute, with: { run: :run }
+  end
+
+  policy "RefreshWhenRequested" do
+    on      "Operation.ProjectionsRefreshRequested"
+    trigger Operation::DomainRuntime::Refresh, with: { run: :run }
+  end
+
+  policy "VerifyWhenRequested" do
+    on      "Operation.BehaviorsRequested"
+    trigger Operation::DomainRuntime::Verify, with: { run: :run }
+  end
+
+  policy "SmokeWhenRequested" do
+    on      "Operation.SmokeTestRequested"
+    trigger Operation::DomainRuntime::Smoke, with: { run: :run }
+  end
+
+  policy "OpenWhenRequested" do
+    on      "Operation.ConsoleRequested"
+    trigger Operation::Terminal::Open, with: { run: :run }
+  end
+
+  policy "ProbeWhenRequested" do
+    on      "Operation.SmokeHttpRequested"
+    trigger Operation::HostHttp::Probe, with: { run: :run }
+  end
+
+  policy "RecordTheOutput" do
+    on      "Operation.OperationAnswered"
+    trigger Operation::Succeed, with: { output: :output }
+  end
+
+  policy "RecordTheFailure" do
+    on      "Operation.OperationRefused"
+    trigger Operation::Fail, with: { refusal: :refusal }
+  end
 end

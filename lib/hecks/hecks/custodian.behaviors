@@ -1,0 +1,35 @@
+Hecks.behaviors "Custodian" do
+  vision "A check and an operation are recorded as requested before anything outside is asked."
+
+  loads "hecks.bluebook", "custodian.bluebook", "context_map.hecksagon", "hecks.hecksagon"
+
+  test "ModelCheck records the request, runs the analysis and keeps a clean verdict" do
+    tests "ModelCheck", on: "ModelCheckRun"
+    input run: { value: "nightly" }, domains: { value: "examples/pizzas" }
+    expect emits: %w[ModelCheckRequested ModelCheckAnswered ModelCheckPassed]
+  end
+
+  test "ModelCheck refuses a profile it does not know" do
+    tests "ModelCheck", on: "ModelCheckRun"
+    input run: { value: "nightly" }, profile: { value: "strictest" }
+    expect refused: "must match"
+  end
+
+  test "Run keeps a verb the domain refused as a failed operation" do
+    tests "Run", on: "Operation"
+    input run: { value: "seed" }, subject: { value: "examples/pizzas" }, verb: { value: "create_pizza" }
+    expect emits: %w[RunRequested OperationRefused OperationFailed]
+  end
+
+  test "SmokeHttp refuses a scheme it cannot sign with" do
+    tests "SmokeHttp", on: "Operation"
+    input run: { value: "hook" }, path: { value: "/webhooks/events" }, scheme: { value: "md5" }
+    expect refused: "must match"
+  end
+
+  test "SmokeHttp refuses a path that is not a route" do
+    tests "SmokeHttp", on: "Operation"
+    input run: { value: "hook" }, path: { value: "webhooks" }
+    expect refused: "must match"
+  end
+end

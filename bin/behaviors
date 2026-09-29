@@ -6,49 +6,13 @@
 #   bin/behaviors path/to/domain.behaviors
 #   bin/behaviors path/to/directory              # sweeps **/*.behaviors
 
+# The logic is `Hecks::CLI::Behaviors` (lib/hecks/cli/behaviors.rb), which Custodian's
+# `Operation.RunBehaviors` also runs.
+
 require_relative "../lib/hecks/three_zero"
 Hecks::ThreeZero.notice("behaviors")
 
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
+require "hecks/cli/behaviors"
 
-require "hecks"
-require "hecks/behaviors"
-
-USAGE = "usage: bin/behaviors <file.behaviors | directory>".freeze
-
-target = ARGV.first or abort USAGE
-abort "no such file or directory: #{target}" unless File.exist?(target)
-
-def report_file(result)
-  puts result.path
-  if result.parse_error
-    puts "  PARSE ERROR — #{result.parse_error}"
-    return
-  end
-
-  result.runs.each do |run|
-    marker = { pass: "ok", fail: "FAIL", error: "ERROR" }.fetch(run.status)
-    puts "  #{marker.ljust(5)} #{run.description}"
-    puts "        #{run.message}" if run.message
-  end
-end
-
-def bad?(summary)
-  ((summary[:failed] || 0) + (summary[:errored] || 0) + (summary[:parse_errors] || 0)).positive?
-end
-
-if File.directory?(target)
-  sweep = Hecks::Behaviors.run_all(target)
-  sweep.files.each { |file| report_file(file) }
-  s = sweep.summary
-  puts
-  puts "#{sweep.files_swept} file(s) swept — #{s[:total]} test(s): " \
-       "#{s[:passed]} passed, #{s[:failed]} failed, #{s[:errored]} errored, " \
-       "#{s[:parse_errors]} file(s) failed to parse"
-  exit(bad?(s) ? 1 : 0)
-else
-  result = Hecks::Behaviors.run(target)
-  report_file(result)
-  summary = Hecks::Behaviors.summarize([result])
-  exit(bad?(summary) ? 1 : 0)
-end
+Hecks::CLI::Behaviors.call(ARGV, program: "bin/behaviors")
