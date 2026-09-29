@@ -8,6 +8,7 @@ require_relative "regeneration"
 require_relative "style"
 require_relative "codemods"
 require_relative "test_suite"
+require_relative "corpus_tasks"
 
 module Hecks
   module Adapters
@@ -103,12 +104,59 @@ module Hecks
         test_suite("record_pattern_cases", {})
       end
 
+      # @return [String] the feature and directory of every domain with a Rust feature
+      # @raise [Codebase::Tree::NeedsCheckout] when the tree is not a hecks checkout
+      def rust_domains(**)
+        corpus("rust_domains", {})
+      end
+
+      # @return [String] the directories regeneration walks, in the order it walks them
+      # @raise [Codebase::Tree::NeedsCheckout] when the tree is not a hecks checkout
+      def regen_order(**)
+        corpus("regen_order", {})
+      end
+
+      # @return [String] whether each generated Rust module is covered
+      # @raise [Codebase::Tree::NeedsCheckout] when the tree is not a hecks checkout
+      # @raise [ConsoleCapture::Failure] when a module is not covered
+      def corpus_rust_coverage(**)
+        corpus("corpus_rust_coverage", {})
+      end
+
+      # @param args [Hash] the query's arguments: `names`
+      # @return [String] each IR construct's diff from its meta-domain
+      # @raise [Codebase::Tree::NeedsCheckout] when the tree is not a hecks checkout
+      def ir_constructs(**args)
+        corpus("ir_constructs", args)
+      end
+
+      # @param args [Hash] the query's arguments: `domains`, `meta`
+      # @return [String] the rules declared more than once
+      # @raise [Codebase::Tree::NeedsCheckout] when the tree is not a hecks checkout
+      def ir_duplicates(**args)
+        corpus("ir_duplicates", args)
+      end
+
+      # @param args [Hash] the query's arguments: `name`, `field`
+      # @return [String] which propagation touchpoints already show the field
+      # @raise [Codebase::Tree::NeedsCheckout] when the tree is not a hecks checkout
+      # @raise [ConsoleCapture::Failure] when the construct is not one
+      def ir_impact(**args)
+        corpus("ir_impact", args)
+      end
+
       private
 
       def test_suite(operation, args)
         tree.require_checkout!
         plain_args = args.transform_values { |value| plain(value) }
         Codebase::TestSuite.report(operation, plain_args, tree, shell: self.class.shell)
+      end
+
+      def corpus(operation, args)
+        tree.require_checkout!
+        plain_args = args.transform_values { |value| plain(value) }
+        Codebase::CorpusTasks.report(operation, plain_args, tree, shell: self.class.shell)
       end
 
       def report(operation, args)
@@ -119,7 +167,7 @@ module Hecks
 
       # The task families, each carrying out the operations it lists.
       FAMILIES = [Codebase::Language, Codebase::KernelTables, Codebase::Conformance, Codebase::Regeneration,
-                  Codebase::Style, Codebase::Codemods, Codebase::TestSuite].freeze
+                  Codebase::Style, Codebase::Codemods, Codebase::TestSuite, Codebase::CorpusTasks].freeze
       private_constant :FAMILIES
 
       def tree = Codebase::Tree.new

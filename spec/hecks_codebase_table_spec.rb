@@ -81,14 +81,24 @@ RSpec.describe "the Codebase rows of the ADR command table" do
     ["seed_semantics_corpus", "TestSuiteRun", "SeedSemanticsCorpus", "seed_semantics_corpus"],
     ["pattern-cases", "TestSuiteRun", "RecordPatternCases", "record_pattern_cases",
      { query: true, renamed: "the table lists it beside the commands; it prints JSON and writes " \
-                             "nothing (the script's output is redirected by the caller), so it is a query" }]
+                             "nothing (the script's output is redirected by the caller), so it is a query" }],
+    ["corpus", "CorpusRun", "RustDomains", "rust_domains", { query: true }],
+    ["corpus", "CorpusRun", "RegenOrder", "regen_order", { query: true }],
+    ["corpus", "CorpusRun", "CorpusRustCoverage", "corpus_rust_coverage",
+     { query: true, renamed: "the table names the query RustCoverage; Build already has one, " \
+                             "so it is CorpusRustCoverage, as the launcher column says" }],
+    ["query_ir", "CorpusRun", "IrConstructs", "ir_constructs", { query: true }],
+    ["query_ir", "CorpusRun", "IrDuplicates", "ir_duplicates", { query: true }],
+    ["query_ir", "CorpusRun", "IrImpact", "ir_impact", { args: %w[name=Entity field=given], query: true }],
+    ["hecks_query_ir_mcp", "CorpusRun", "ServeQueryIrMcp", "serve_query_ir_mcp"],
+    ["present", "CorpusRun", "Present", "present"]
   ].map do |script, aggregate, name, verb, extra|
     CodebaseRow.new(script: script, aggregate: aggregate, name: name, verb: verb, **(extra || {}))
   end.freeze
 
   # The aggregates this spec covers so far, each of which must hold at least one row.
   CODEBASE_AGGREGATES = %w[LanguageRun KernelRun ConformanceRun RegenerationRun StyleRun CodemodRun
-                           TestSuiteRun].freeze
+                           TestSuiteRun CorpusRun].freeze
 
   before(:all) do
     @hecks = Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/hecks"), install_facade: false)

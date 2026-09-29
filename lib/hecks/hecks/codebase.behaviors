@@ -145,4 +145,16 @@ Hecks.behaviors "Codebase" do
     input fixture: { value: "Not A Name" }, run: { value: "seed" }
     expect refused: "must match"
   end
+
+  test "Present refuses a port that is not one" do
+    tests "Present", on: "CorpusRun"
+    input port: { value: 70_000 }, run: { value: "present" }
+    expect refused: "a port is 1 to 65535"
+  end
+
+  test "ServeQueryIrMcp refuses a run that is not named" do
+    tests "ServeQueryIrMcp", on: "CorpusRun"
+    input run: { value: "" }
+    expect refused: "must match"
+  end
 end

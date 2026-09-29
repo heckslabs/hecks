@@ -253,4 +253,18 @@ Hecks.hecksagon "Hecks" do
       refuses "TestSuiteRefused"
     end
   end
+
+  Hecks::CorpusRun.port "SourceTree" do
+    asks "Examine", to: CorpusRun do
+      attribute :run, RunKey
+      answers "CorpusExamined"
+      refuses "CorpusRefused"
+    end
+
+    asks "Perform", to: CorpusRun do
+      attribute :run, RunKey
+      answers "CorpusAnswered"
+      refuses "CorpusRefused"
+    end
+  end
 end

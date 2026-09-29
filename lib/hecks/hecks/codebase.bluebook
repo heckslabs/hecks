@@ -1844,4 +1844,223 @@ Hecks.bluebook "Hecks" do
     on      "TestSuiteRun.TestSuiteRefused"
     trigger TestSuiteRun::Fault, with: { refusal: :refusal }
   end
+
+  # Corpus: what this repository's committed domains are, and what the language's own IR holds.
+  # Every question about them is a pure read, answered by the SourceTree port: which domains carry
+  # a Rust feature, the order they regenerate in, whether each generated module is covered, and the
+  # structural queries over the IR. Two commands open a long-running door: the query MCP server
+  # on stdio and the forms app on a local port; each is recorded, runs until it is closed, and
+  # answers when it ends.
+  aggregate "CorpusRun" do
+    description "One look at the corpus and the language's IR, or one server opened on them."
+
+    attribute :run,       RunKey
+    attribute :operation, Operation, optional: true
+    attribute :confirm,   Switch, optional: true
+    attribute :names,     NameList, optional: true
+    attribute :domains,   PathList, optional: true
+    attribute :meta,      Switch, optional: true
+    attribute :name,      ConstructName, optional: true
+    attribute :field,     FieldName, optional: true
+    attribute :port,      Port, optional: true
+    attribute :checkout,  Switch, optional: true
+    attribute :report,    Report, optional: true
+    attribute :refusal,   Report, optional: true
+    identified_by :run
+
+    value_object "RunKey" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+
+      invariant("a run is named") { !value.to_s.empty? }
+    end
+
+    value_object "Operation" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+    end
+
+    value_object "Switch" do
+      attribute :value, Boolean
+    end
+
+    value_object "Report" do
+      attribute :value, String
+    end
+
+    # Construct names, comma separated.
+    value_object "NameList" do
+      attribute :value, String, pattern: '^[A-Za-z][A-Za-z0-9_]*(,[A-Za-z][A-Za-z0-9_]*)*$'
+    end
+
+    # Domain directories, comma separated.
+    value_object "PathList" do
+      attribute :value, String, pattern: '^[^ \t\n\r,]+(,[^ \t\n\r,]+)*$'
+    end
+
+    # The name of one IR construct.
+    value_object "ConstructName" do
+      attribute :value, String, pattern: '^[A-Za-z][A-Za-z0-9_]*$'
+    end
+
+    # The name of one field of a construct.
+    value_object "FieldName" do
+      attribute :value, String, pattern: '^[a-z][a-z0-9_]*$'
+    end
+
+    # A local port a server listens on.
+    value_object "Port" do
+      attribute :value, Integer
+
+      invariant("a port is 1 to 65535") { value >= 1 && value <= 65535 }
+    end
+
+    lifecycle :status, default: "requested" do
+      transition "Accept"   => "accepted",  from: "requested"
+      transition "Complete" => "completed", from: "accepted"
+      transition "Fault"    => "faulted",   from: %w[requested accepted]
+    end
+
+    command "ServeQueryIrMcp" do
+      role "Maintainer"
+      goal "Serve the IR queries to an MCP client over stdio until it closes"
+
+      attribute :run, RunKey
+
+      sets :run
+      sets :operation, to: "serve_query_ir_mcp"
+
+      emits ServeQueryIrMcpRequested
+    end
+
+    command "Present" do
+      role "Maintainer"
+      goal "Serve the banking example's rendered forms and views on a local port until stopped"
+
+      attribute :port, Port, optional: true
+      attribute :run,  RunKey
+
+      sets :port
+      sets :run
+      sets :operation, to: "present"
+
+      emits PresentRequested
+    end
+
+    # What the tree reported about itself, held against every request: nothing here runs
+    # outside a hecks checkout (hecks.gemspec beside lib/).
+    command "Accept" do
+      role "System"
+      goal "Let a request through only when the working tree is a hecks checkout"
+
+      reference_to CorpusRun
+      attribute :checkout, Switch
+
+      given("needs a hecks checkout: hecks.gemspec stands beside lib/") { checkout.value }
+
+      sets :checkout
+
+      emits CorpusAccepted
+    end
+
+    command "Complete" do
+      role "System"
+      goal "Record that the request was carried out, and what it reported"
+
+      reference_to CorpusRun
+      attribute :report, Report
+
+      sets :report
+
+      emits CorpusCompleted
+    end
+
+    command "Fault" do
+      role "System"
+      goal "Record that the request was refused or could not be carried out, and why"
+
+      reference_to CorpusRun
+      attribute :refusal, Report
+
+      sets :refusal
+
+      emits CorpusFaulted
+    end
+
+    query "CorpusOutcome" do
+      description "How one request ended: its status, and what it reported or why it failed."
+      attribute :run, RunKey
+      where(run: :run)
+      order_by :run
+    end
+
+    query "CorpusFaulted" do
+      description "Every request that was refused or could not be carried out."
+      where(status: "faulted")
+      order_by :run
+    end
+
+    query "RustDomains" do
+      description "The feature and directory of every domain with a Rust feature."
+      answered_by "SourceTree"
+    end
+
+    query "RegenOrder" do
+      description "The directories regeneration walks, in the order it walks them."
+      answered_by "SourceTree"
+    end
+
+    query "CorpusRustCoverage" do
+      description "Whether every generated Rust module is routed by its domain."
+      answered_by "SourceTree"
+    end
+
+    query "IrConstructs" do
+      description "The structural diff of each IR construct from its meta-domain."
+      attribute :names, NameList, optional: true
+      answered_by "SourceTree"
+    end
+
+    query "IrDuplicates" do
+      description "The rules declared more than once across the corpus."
+      attribute :domains, PathList, optional: true
+      attribute :meta, Switch, optional: true
+      answered_by "SourceTree"
+    end
+
+    query "IrImpact" do
+      description "Which propagation touchpoints of a construct's field already show it."
+      attribute :name, ConstructName
+      attribute :field, FieldName
+      answered_by "SourceTree"
+    end
+  end
+
+  policy "ExamineWhenServeQueryIrMcpRequested" do
+    on      "CorpusRun.ServeQueryIrMcpRequested"
+    trigger CorpusRun::SourceTree::Examine, with: { run: :run }
+  end
+
+  policy "ExamineWhenPresentRequested" do
+    on      "CorpusRun.PresentRequested"
+    trigger CorpusRun::SourceTree::Examine, with: { run: :run }
+  end
+
+  policy "AcceptCorpusWhenExamined" do
+    on      "CorpusRun.CorpusExamined"
+    trigger CorpusRun::Accept, with: { checkout: :checkout }
+  end
+
+  policy "PerformCorpusWhenAccepted" do
+    on      "CorpusRun.CorpusAccepted"
+    trigger CorpusRun::SourceTree::Perform, with: { run: :run }
+  end
+
+  policy "RecordCorpusOutcome" do
+    on      "CorpusRun.CorpusAnswered"
+    trigger CorpusRun::Complete, with: { report: :report }
+  end
+
+  policy "RecordCorpusFault" do
+    on      "CorpusRun.CorpusRefused"
+    trigger CorpusRun::Fault, with: { refusal: :refusal }
+  end
 end
