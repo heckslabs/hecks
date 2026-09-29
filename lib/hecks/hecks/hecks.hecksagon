@@ -46,6 +46,14 @@ Hecks.hecksagon "Hecks" do
     end
   end
 
+  Hecks::Host.port "HostHttp" do
+    asks "Fetch", to: Host do
+      attribute :host, Address
+      answers "EraReported"
+      refuses "HostRefused"
+    end
+  end
+
   Hecks::Operation.port "HostHttp" do
     asks "Probe", to: Operation do
       attribute :run, OperationKey

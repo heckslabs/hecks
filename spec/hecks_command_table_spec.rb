@@ -2,6 +2,7 @@ require "spec_helper"
 require "tmpdir"
 require "fileutils"
 require "json"
+require "socket"
 
 # ADR 0080, section 7: every row of the command table resolves in the launcher. Each verb of
 # Custodian's Introspection and Operation (and the ModelCheck the table puts beside them) answers
@@ -13,6 +14,7 @@ RSpec.describe "the Hecks command table through the launcher" do
     ir shape stores history statements narrate docs project_diagrams glossary
     model_check verdict flagged
     run refresh_projections run_behaviors open_console smoke_test smoke_http outcome failed follow
+    check_era recheck standing drifted
   ].freeze
 
   SHELF_BLUEBOOK = <<~RUBY.freeze
@@ -72,6 +74,7 @@ RSpec.describe "the Hecks command table through the launcher" do
     write("shelf/bluebook/shelf.hecksagon", SHELF_HECKSAGON)
     write("shelf/bluebook/shelf.behaviors", SHELF_BEHAVIORS)
     write("clean/bluebook/clean.bluebook", CLEAN_BLUEBOOK.sub('"Shelf"', '"Clean"'))
+    write("eras.txt", "abc123\n")
     write("clean/bluebook/clean.hecksagon", SHELF_HECKSAGON.sub('"Shelf"', '"Clean"'))
     @hecks = Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/hecks"), install_facade: false)
   end
@@ -222,6 +225,56 @@ RSpec.describe "the Hecks command table through the launcher" do
       expect(status).to eq(1)
       expect(out).to include("no such domain")
     end
+  end
+
+  describe "the Host verbs" do
+    it "check_era keeps a host that cannot be reached as unreachable, with the reason" do
+      run_verb("check_era", "http://127.0.0.1:1", "expected=#{File.join(@dir, 'eras.txt')}")
+
+      row = standing_of("http://127.0.0.1:1")
+      expect(row.fetch("status")).to eq("unreachable")
+      expect(row.dig("refusal", "value")).to include("could not be reached")
+    end
+
+    it "keeps the era a host reports, flags a drift, and rechecks the same host", :io do
+      server = TCPServer.new("127.0.0.1", 0)
+      thread = Thread.new do
+        loop do
+          client = server.accept
+          while (line = client.gets) && line != "\r\n"; end
+          body = JSON.generate(era: "abc123", version: "3.0.0")
+          client.write("HTTP/1.1 200 OK\r\nContent-Length: #{body.bytesize}\r\nConnection: close\r\n\r\n#{body}")
+          client.close
+        end
+      end
+      url = "http://127.0.0.1:#{server.addr[1]}"
+      write("eras-ok.txt", "abc123\n")
+      write("eras-old.txt", "def456\n")
+
+      run_verb("check_era", url, "expected=#{File.join(@dir, 'eras-ok.txt')}")
+      row = standing_of(url)
+      expect([row.fetch("status"), row.dig("era", "value"), row.dig("version", "value")])
+        .to eq(["observed", "abc123", "3.0.0"])
+
+      run_verb("recheck", url, "expected=#{File.join(@dir, 'eras-old.txt')}")
+      expect(standing_of(url).fetch("status")).to eq("drifted")
+      expect(JSON.parse(run_verb("drifted").first).map { |host| host.dig("host", "value") }).to include(url)
+    ensure
+      thread&.kill
+      server&.close
+    end
+
+    it "refuses a second check of a host that is already recorded" do
+      run_verb("check_era", "http://127.0.0.1:2", "expected=#{File.join(@dir, 'eras.txt')}")
+      out, status = run_verb("check_era", "http://127.0.0.1:2", "expected=#{File.join(@dir, 'eras.txt')}")
+
+      expect(status).to eq(1)
+      expect(out).to include("already exists")
+    end
+  end
+
+  def standing_of(url)
+    JSON.parse(run_verb("standing", url).first).first
   end
 
   def capture_stdout

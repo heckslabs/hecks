@@ -50,4 +50,80 @@ RSpec.describe Hecks::Adapters::HostHttp do
     server&.close
     File.delete(file) if file && File.exist?(file)
   end
+
+  describe "#fetch" do
+    # A stub host answering every request with a `/version` document.
+    def serve(era:, version: "3.0.0")
+      server = TCPServer.new("127.0.0.1", 0)
+      thread = Thread.new do
+        loop do
+          client = server.accept
+          while (line = client.gets) && line != "\r\n"; end
+          body = JSON.generate(era: era, version: version)
+          client.write("HTTP/1.1 200 OK\r\nContent-Length: #{body.bytesize}\r\nConnection: close\r\n\r\n#{body}")
+          client.close
+        end
+      end
+      yield "http://127.0.0.1:#{server.addr[1]}"
+    ensure
+      thread&.kill
+      server&.close
+    end
+
+    def eras(text)
+      file = File.join(Dir.tmpdir, "hecks-eras-#{Process.pid}-#{rand(1_000_000)}.txt")
+      File.write(file, text)
+      yield file
+    ensure
+      File.delete(file) if file && File.exist?(file)
+    end
+
+    it "answers the era and version a host reports, with the verdict on a listed era", :io do
+      serve(era: "abc123") do |url|
+        eras("# eras\nabc123\n") do |file|
+          answer = adapter.fetch(host: { value: url }, expected: { value: file })
+
+          expect(answer.transform_values { |field| field[:value] }).to eq(
+            era: "abc123", version: "3.0.0", verdict: "match", report: "era abc123 is expected (abc123)"
+          )
+        end
+      end
+    end
+
+    it "answers a mismatch instead of refusing it, so the record keeps what the host reported", :io do
+      serve(era: "abc123") do |url|
+        eras("def456\n") do |file|
+          answer = adapter.fetch(host: { value: url }, expected: { value: file }, timeout: { value: 2.0 })
+
+          expect(answer.dig(:verdict, :value)).to eq("mismatch")
+          expect(answer.dig(:era, :value)).to eq("abc123")
+        end
+      end
+    end
+
+    it "answers unlisted when the file names no era", :io do
+      serve(era: "abc123") do |url|
+        eras("# none\n") do |file|
+          expect(adapter.fetch(host: { value: url }, expected: { value: file }).dig(:verdict, :value))
+            .to eq("unlisted")
+        end
+      end
+    end
+
+    it "refuses a host that cannot be reached" do
+      eras("abc123\n") do |file|
+        expect { adapter.fetch(host: { value: "http://127.0.0.1:1" }, expected: { value: file }) }
+          .to raise_error(Hecks::Runtime::EraCheck::ExpectedEra::Unreachable, /could not be reached/)
+      end
+    end
+
+    it "refuses an allow-list file that is not there" do
+      expect { adapter.fetch(host: { value: "http://127.0.0.1:1" }, expected: { value: "/no/such/eras" }) }
+        .to raise_error(Errno::ENOENT)
+    end
+
+    it "refuses when no file was named" do
+      expect { adapter.fetch(host: { value: "http://127.0.0.1:1" }) }.to raise_error(ArgumentError, /allow-list/)
+    end
+  end
 end

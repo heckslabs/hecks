@@ -479,4 +479,174 @@ Hecks.bluebook "Hecks" do
     on      "Operation.OperationRefused"
     trigger Operation::Fail, with: { refusal: :refusal }
   end
+
+  aggregate "Host" do
+    description "A running rust/host, and the version and era it last reported."
+
+    attribute :host,     Address
+    attribute :expected, ExpectedFile,  optional: true
+    attribute :timeout,  Seconds,       optional: true
+    attribute :era,      EraId,         optional: true
+    attribute :version,  VersionText,   optional: true
+    attribute :report,   Report,        optional: true
+    attribute :refusal,  Report,        optional: true
+    identified_by :host
+
+    value_object "Address" do
+      attribute :value, String, pattern: '^https?://'
+    end
+
+    # The file listing the eras that should be running, one per line.
+    value_object "ExpectedFile" do
+      attribute :value, String, pattern: '[^\t\n\r]'
+    end
+
+    value_object "Seconds" do
+      attribute :value, Float
+
+      invariant("a timeout is positive") { value > 0 }
+    end
+
+    value_object "EraId" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+    end
+
+    value_object "VersionText" do
+      attribute :value, String
+    end
+
+    value_object "Verdict" do
+      attribute :value, String, pattern: '^(match|unlisted|mismatch)$'
+    end
+
+    value_object "Report" do
+      attribute :value, String
+    end
+
+    lifecycle :status, default: "requested" do
+      transition "Recheck" => "requested",   from: %w[observed drifted unreachable]
+      transition "Observe" => "observed",    from: "requested"
+      transition "Drift"   => "drifted",     from: "requested"
+      transition "Lose"    => "unreachable", from: "requested"
+    end
+
+# `hecks check_era <url> expected=era-file [timeout=10]` records the first check of a host under
+# its URL. A host is one record, and a creating command cannot repeat an identity, so a later
+# check of the same host is `hecks recheck <url> expected=era-file`. Both are read with
+# `hecks standing <url>`.
+command "CheckEra" do
+      role "Operator"
+      goal "Ask a running host which era it reports, and keep whether it is one that should be running"
+
+      attribute :host,     Address
+      attribute :expected, ExpectedFile
+      attribute :timeout,  Seconds, optional: true
+
+      sets :host
+      sets :expected
+      sets :timeout
+
+      emits EraCheckRequested
+    end
+
+command "Recheck" do
+  role "Operator"
+  goal "Ask a host already checked which era it reports now"
+
+  reference_to Host
+  attribute :expected, ExpectedFile
+  attribute :timeout,  Seconds, optional: true
+
+  sets :expected
+  sets :timeout
+
+  emits EraRecheckRequested
+end
+
+# The host reported an era the list accepts, or a list that names none.
+    command "Observe" do
+      role "System"
+      goal "Record the version and era a running host reported"
+
+      reference_to Host
+      attribute :era,     EraId
+      attribute :version, VersionText
+      attribute :report,  Report
+
+      sets :era
+      sets :version
+      sets :report
+
+      emits EraObserved
+    end
+
+    # The host reported an era that is not on the list: the finding the roll must stop on.
+    command "Drift" do
+      role "System"
+      goal "Record that a running host reports an era that should not be running"
+
+      reference_to Host
+      attribute :era,     EraId
+      attribute :version, VersionText
+      attribute :report,  Report
+
+      sets :era
+      sets :version
+      sets :report
+
+      emits EraDrifted
+    end
+
+    command "Lose" do
+      role "System"
+      goal "Record that the host could not be reached, or answered no era, and what was said"
+
+      reference_to Host
+      attribute :refusal, Report
+
+      sets :refusal
+
+      emits HostLost
+    end
+
+    query "Standing" do
+      description "What one check of a host found: its status, era and version, or why it failed."
+      attribute :host, Address
+      where(host: :host)
+      order_by :host
+    end
+
+    query "Drifted" do
+      description "Every host that reported an era that should not be running."
+      where(status: "drifted")
+      order_by :host
+    end
+  end
+
+  policy "FetchWhenChecked" do
+    on      "Host.EraCheckRequested"
+    trigger Host::HostHttp::Fetch, with: { host: :host }
+  end
+
+policy "FetchWhenRechecked" do
+  on      "Host.EraRecheckRequested"
+  trigger Host::HostHttp::Fetch, with: { host: :host }
+end
+
+policy "RecordTheEra" do
+    on      "Host.EraReported"
+    where   { verdict.value != "mismatch" }
+    trigger Host::Observe, with: { era: :era, version: :version, report: :report }
+  end
+
+  policy "RecordTheDrift" do
+    on      "Host.EraReported"
+    where   { verdict.value == "mismatch" }
+    trigger Host::Drift, with: { era: :era, version: :version, report: :report }
+  end
+
+  policy "RecordTheLostHost" do
+    on      "Host.HostRefused"
+    trigger Host::Lose, with: { refusal: :refusal }
+  end
 end

@@ -5,41 +5,13 @@
 #
 #   bin/check_era <url> <expected-era-file> [--timeout=<seconds>]
 
+# The logic is `Hecks::CLI::CheckEra` (lib/hecks/cli/check_era.rb), which Custodian's
+# `Host.CheckEra` also runs.
+
 require_relative "../lib/hecks/three_zero"
 Hecks::ThreeZero.notice("check_era")
 
-require_relative "../lib/hecks/ports/persistence/plugins/era/expected_era"
+$LOAD_PATH.unshift File.expand_path("../lib", __dir__)
+require "hecks/cli/check_era"
 
-timeout = 10
-args = ARGV.reject do |arg|
-  next false unless arg.start_with?("--timeout=")
-
-  timeout = arg.delete_prefix("--timeout=").to_f
-  true
-end
-url, file = args
-usage = "usage: bin/check_era <url> <expected-era-file> [--timeout=<seconds>]"
-unless url && file && args.size == 2 && timeout.positive?
-  warn usage
-  exit 2
-end
-
-begin
-  verdict = Hecks::Runtime::EraCheck::ExpectedEra.check(url, file, timeout: timeout)
-rescue Errno::ENOENT, Errno::EACCES => e
-  warn "cannot read #{file}: #{e.message}"
-  exit 2
-rescue Hecks::Runtime::EraCheck::ExpectedEra::Unreachable, Hecks::Runtime::EraCheck::ExpectedEra::BadResponse => e
-  warn "era check failed: #{e.message}"
-  exit 3
-end
-
-case verdict.status
-when :match
-  puts "era #{verdict.era} is expected (#{verdict.allowed.join(', ')})"
-when :unlisted
-  puts "host reports era #{verdict.era}; #{file} lists no era, so nothing was compared"
-else
-  warn "host reports era #{verdict.era}, which is not in #{file} (expected: #{verdict.allowed.join(', ')})"
-  exit 1
-end
+exit Hecks::CLI::CheckEra.run(ARGV)

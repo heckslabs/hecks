@@ -3,10 +3,12 @@
 require "stringio"
 require_relative "console_capture"
 require_relative "../../cli/smoke_http"
+require_relative "../../cli/check_era"
 
 module Hecks
   module Adapters
-    # The `HostHttp` port's adapter: talks HTTP to a running service on an operator's behalf.
+    # The `HostHttp` port's adapter: talks HTTP to a running service on an operator's behalf, to
+    # sign a webhook against it (`probe`) or to read the era it reports (`fetch`).
     #
     # The signing secret is read from `SMOKE_WEBHOOK_SECRET` and never from a command argument,
     # so it is not written to the journal or shown by `ps`.
@@ -34,6 +36,25 @@ module Hecks
         raise ConsoleCapture::Failure, out.string.strip unless status.zero?
 
         { output: { value: out.string } }
+      end
+
+      # Reads the version and era a running `rust/host` reports and compares the era with an
+      # allow-list file. A mismatch is an answer, not a refusal: the record keeps what was found.
+      #
+      # @param held [Hash] the `Host` record: `host` (the base URL), `expected` (the allow-list
+      #   file) and `timeout` (seconds; 10 when absent)
+      # @return [Hash{Symbol => Hash}] `era:`, `version:`, `verdict:` (`match`, `unlisted` or
+      #   `mismatch`) and `report:` (the sentence `bin/check_era` prints)
+      # @raise [ArgumentError] if no allow-list file was named
+      # @raise [Errno::ENOENT] if the allow-list file cannot be read
+      # @raise [Runtime::EraCheck::ExpectedEra::Unreachable] if the host cannot be reached
+      # @raise [Runtime::EraCheck::ExpectedEra::BadResponse] if it answers no era
+      def fetch(**held)
+        file = plain(held[:expected]) or raise ArgumentError, "no allow-list file to compare the era with"
+        finding = CLI::CheckEra.assess(plain(held[:host]), file, timeout: (plain(held[:timeout]) || 10).to_f)
+
+        { era: { value: finding.verdict.era }, version: { value: finding.version },
+          verdict: { value: finding.verdict.status.to_s }, report: { value: finding.line } }
       end
 
       private
