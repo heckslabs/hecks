@@ -15,56 +15,60 @@ RSpec.describe "the Codebase rows of the ADR command table" do
   # The aggregates are named for the run, as ModelCheckRun is: the table's Language, Kernel,
   # Conformance, Regeneration and Style are concerns, and some share a name with a module the gem
   # already owns.
+  # Each row: script, aggregate, command or query, verb, and what the row needs beyond a run key.
   CODEBASE_ROWS = [
-    CodebaseRow.new(script: "project_model",           aggregate: "LanguageRun", name: "ProjectModel",           verb: "project_model"),
-    CodebaseRow.new(script: "project_vocabulary",      aggregate: "LanguageRun", name: "ProjectVocabulary",      verb: "project_vocabulary"),
-    CodebaseRow.new(script: "project_rust_vocabulary", aggregate: "LanguageRun", name: "ProjectRustVocabulary",  verb: "project_rust_vocabulary"),
-    CodebaseRow.new(script: "project_refusal_wording", aggregate: "LanguageRun", name: "ProjectRefusalWording",  verb: "project_refusal_wording",
-                    renamed: "the table calls it the same command under a second name; it is a second command " \
-                             "that carries out the same operation, since a verb has one name"),
-    CodebaseRow.new(script: "project_reserved_names",  aggregate: "LanguageRun", name: "ProjectReservedNames",   verb: "project_reserved_names"),
-    CodebaseRow.new(script: "project_parser_table",    aggregate: "LanguageRun", name: "ProjectParserTable",     verb: "project_parser_table"),
-    CodebaseRow.new(script: "project_bootstrap_table", aggregate: "LanguageRun", name: "ProjectBootstrapTable",  verb: "project_bootstrap_table"),
-    CodebaseRow.new(script: "project_field_hints",     aggregate: "LanguageRun", name: "ProjectFieldHints",      verb: "project_field_hints"),
-    CodebaseRow.new(script: "expression_projection",   aggregate: "LanguageRun", name: "ProjectExpressionTables", verb: "project_expression_tables"),
-    CodebaseRow.new(script: "reference",               aggregate: "LanguageRun", name: "ProjectReference",       verb: "project_reference"),
-    CodebaseRow.new(script: "evolve",                  aggregate: "LanguageRun", name: "WordStatus",             verb: "word_status", query: true),
-    CodebaseRow.new(script: "evolve",                  aggregate: "LanguageRun", name: "Propose",                verb: "propose",
-                    args: %w[word context=Aggregate]),
-    CodebaseRow.new(script: "evolve",                  aggregate: "LanguageRun", name: "Admit",                  verb: "admit",
-                    args: %w[word context=Aggregate]),
-    CodebaseRow.new(script: "evolve",                  aggregate: "LanguageRun", name: "Deprecate",              verb: "deprecate",
-                    args: %w[word context=Aggregate]),
-    CodebaseRow.new(script: "evolve",                  aggregate: "LanguageRun", name: "Retire",                 verb: "retire",
-                    args: %w[word context=Aggregate]),
-    CodebaseRow.new(script: "evolve",                  aggregate: "LanguageRun", name: "Rename",                 verb: "rename",
-                    args: %w[word context=Aggregate new_name=other]),
-    CodebaseRow.new(script: "evolve",                  aggregate: "LanguageRun", name: "ProposeArgument",        verb: "propose_argument",
-                    args: %w[word context=Aggregate kind=text]),
-    CodebaseRow.new(script: "evolve",                  aggregate: "LanguageRun", name: "AdmitArgument",          verb: "admit_argument",
-                    args: %w[word context=Aggregate]),
-    CodebaseRow.new(script: "evolve",                  aggregate: "LanguageRun", name: "DeprecateArgument",      verb: "deprecate_argument",
-                    args: %w[word context=Aggregate]),
-    CodebaseRow.new(script: "evolve",                  aggregate: "LanguageRun", name: "RetireArgument",         verb: "retire_argument",
-                    args: %w[word context=Aggregate]),
-    CodebaseRow.new(script: "project_kernel_capabilities", aggregate: "KernelRun", name: "ProjectKernelCapabilities",
-                    verb: "project_kernel_capabilities",
-                    renamed: "the table names the command ProjectCapabilities; the verb it gives is " \
-                             "project_kernel_capabilities, and a launcher verb is the command's snake name"),
-    CodebaseRow.new(script: "rust_kernel_coverage",    aggregate: "KernelRun", name: "MeasureKernelCoverage",
-                    verb: "measure_kernel_coverage",
-                    renamed: "the table names the command MeasureCoverage; the verb it gives is " \
-                             "measure_kernel_coverage"),
-    CodebaseRow.new(script: "check_engine_agreement",  aggregate: "ConformanceRun", name: "CheckEngineAgreement",
-                    verb: "check_engine_agreement"),
-    CodebaseRow.new(script: "doc_coverage",            aggregate: "ConformanceRun", name: "MeasureDocCoverage",
-                    verb: "measure_doc_coverage"),
-    CodebaseRow.new(script: "argument_gate_matrix",    aggregate: "ConformanceRun", name: "ArgumentGateMatrix",
-                    verb: "argument_gate_matrix")
-  ].freeze
+    ["project_model", "LanguageRun", "ProjectModel", "project_model"],
+    ["project_vocabulary", "LanguageRun", "ProjectVocabulary", "project_vocabulary"],
+    ["project_rust_vocabulary", "LanguageRun", "ProjectRustVocabulary", "project_rust_vocabulary"],
+    ["project_refusal_wording", "LanguageRun", "ProjectRefusalWording", "project_refusal_wording",
+     { renamed: "the table calls it the same command under a second name; it is a second command " \
+                "that carries out the same operation, since a verb has one name" }],
+    ["project_reserved_names", "LanguageRun", "ProjectReservedNames", "project_reserved_names"],
+    ["project_parser_table", "LanguageRun", "ProjectParserTable", "project_parser_table"],
+    ["project_bootstrap_table", "LanguageRun", "ProjectBootstrapTable", "project_bootstrap_table"],
+    ["project_field_hints", "LanguageRun", "ProjectFieldHints", "project_field_hints"],
+    ["expression_projection", "LanguageRun", "ProjectExpressionTables", "project_expression_tables"],
+    ["reference", "LanguageRun", "ProjectReference", "project_reference"],
+    ["evolve", "LanguageRun", "WordStatus", "word_status", { query: true }],
+    ["evolve", "LanguageRun", "Propose", "propose", { args: %w[word context=Aggregate] }],
+    ["evolve", "LanguageRun", "Admit", "admit", { args: %w[word context=Aggregate] }],
+    ["evolve", "LanguageRun", "Deprecate", "deprecate", { args: %w[word context=Aggregate] }],
+    ["evolve", "LanguageRun", "Retire", "retire", { args: %w[word context=Aggregate] }],
+    ["evolve", "LanguageRun", "Rename", "rename", { args: %w[word context=Aggregate new_name=other] }],
+    ["evolve", "LanguageRun", "ProposeArgument", "propose_argument",
+     { args: %w[word context=Aggregate kind=text] }],
+    ["evolve", "LanguageRun", "AdmitArgument", "admit_argument", { args: %w[word context=Aggregate] }],
+    ["evolve", "LanguageRun", "DeprecateArgument", "deprecate_argument", { args: %w[word context=Aggregate] }],
+    ["evolve", "LanguageRun", "RetireArgument", "retire_argument", { args: %w[word context=Aggregate] }],
+    ["project_kernel_capabilities", "KernelRun", "ProjectKernelCapabilities", "project_kernel_capabilities",
+     { renamed: "the table names the command ProjectCapabilities; the verb it gives is " \
+                "project_kernel_capabilities, and a launcher verb is the command's snake name" }],
+    ["rust_kernel_coverage", "KernelRun", "MeasureKernelCoverage", "measure_kernel_coverage",
+     { renamed: "the table names the command MeasureCoverage; the verb it gives is " \
+                "measure_kernel_coverage" }],
+    ["check_engine_agreement", "ConformanceRun", "CheckEngineAgreement", "check_engine_agreement"],
+    ["doc_coverage", "ConformanceRun", "MeasureDocCoverage", "measure_doc_coverage"],
+    ["argument_gate_matrix", "ConformanceRun", "ArgumentGateMatrix", "argument_gate_matrix"],
+    ["regen_codegen_domains", "RegenerationRun", "RegenerateCorpus", "regenerate_corpus"],
+    ["standardize_comments", "StyleRun", "ReportComments", "report_comments",
+     { args: %w[paths=lib], query: true }],
+    ["standardize_comments", "StyleRun", "CheckComments", "check_comments", { args: %w[paths=lib] }],
+    ["standardize_comments", "StyleRun", "FixComments", "fix_comments", { args: %w[paths=lib] }],
+    ["standardize_comments", "StyleRun", "WriteCommentBaseline", "write_comment_baseline"],
+    ["standardize_comments", "StyleRun", "CheckCommentsUnchanged", "check_comments_unchanged",
+     { args: %w[ref=main] }],
+    ["standardize_comments_rust", "StyleRun", "ReportRustComments", "report_rust_comments",
+     { args: %w[paths=rust], query: true }],
+    ["standardize_comments_rust", "StyleRun", "CheckRustComments", "check_rust_comments",
+     { args: %w[paths=rust] }],
+    ["standardize_comments_rust", "StyleRun", "FixRustComments", "fix_rust_comments", { args: %w[paths=rust] }],
+    ["canonicalise", "StyleRun", "Canonicalise", "canonicalise", { args: %w[doc.json] }]
+  ].map do |script, aggregate, name, verb, extra|
+    CodebaseRow.new(script: script, aggregate: aggregate, name: name, verb: verb, **(extra || {}))
+  end.freeze
 
   # The aggregates this spec covers so far, each of which must hold at least one row.
-  CODEBASE_AGGREGATES = %w[LanguageRun KernelRun ConformanceRun].freeze
+  CODEBASE_AGGREGATES = %w[LanguageRun KernelRun ConformanceRun RegenerationRun StyleRun].freeze
 
   before(:all) do
     @hecks = Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/hecks"), install_facade: false)
@@ -123,7 +127,7 @@ RSpec.describe "the Codebase rows of the ADR command table" do
       accept = aggregate.commands.find { |command| command.hecks_name == "Accept" }
 
       expect(accept).not_to be_nil, "#{aggregate.hecks_name} has no Accept"
-      expect(accept.givens.map(&:to_s).join).to include("needs a hecks checkout")
+      expect(accept.givens.join).to include("needs a hecks checkout")
     end
   end
 end

@@ -12,7 +12,10 @@ RSpec.describe Hecks::Adapters::Codebase::Conformance do
     Class.new do
       attr_reader :asked
 
-      def initialize(status = 0) = (@status = status; @asked = [])
+      def initialize(status = 0)
+        (@status = status
+         @asked = [])
+      end
 
       def capture(*command, env: {}, chdir: nil)
         @asked << { command: command, env: env, chdir: chdir }

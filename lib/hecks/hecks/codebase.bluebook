@@ -926,4 +926,452 @@ Hecks.bluebook "Hecks" do
     on      "ConformanceRun.ConformanceRefused"
     trigger ConformanceRun::Fault, with: { refusal: :refusal }
   end
+
+  # Regeneration: rebuilding every corpus domain's committed output, which only this repository has.
+  # A check projects into a scratch crate and never writes the tree; without --confirm the run is
+  # that check, so the tracked generated files change only when the regeneration is confirmed.
+  aggregate "RegenerationRun" do
+    description "One regeneration of every corpus domain's committed Rust output, or the check that it is current."
+
+    attribute :run,       RunKey
+    attribute :operation, Operation, optional: true
+    attribute :confirm,   Switch, optional: true
+    attribute :check,     Switch, optional: true
+    attribute :checkout,  Switch, optional: true
+    attribute :report,    Report, optional: true
+    attribute :refusal,   Report, optional: true
+    identified_by :run
+
+    value_object "RunKey" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+
+      invariant("a run is named") { !value.to_s.empty? }
+    end
+
+    value_object "Operation" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+    end
+
+    value_object "Switch" do
+      attribute :value, Boolean
+    end
+
+    value_object "Report" do
+      attribute :value, String
+    end
+
+    lifecycle :status, default: "requested" do
+      transition "Accept"   => "accepted",  from: "requested"
+      transition "Complete" => "completed", from: "accepted"
+      transition "Fault"    => "faulted",   from: %w[requested accepted]
+    end
+
+    command "RegenerateCorpus" do
+      role "Maintainer"
+      goal "Regenerate every corpus domain's Rust output, or with check only compare it with the tree"
+
+      attribute :check,   Switch, optional: true
+      attribute :run,     RunKey
+      attribute :confirm, Switch, optional: true
+
+      sets :check
+      sets :run
+      sets :confirm
+      sets :operation, to: "regenerate_corpus"
+
+      emits RegenerateCorpusRequested
+    end
+
+    # What the tree reported about itself, held against every request: nothing here runs
+    # outside a hecks checkout (hecks.gemspec beside lib/).
+    command "Accept" do
+      role "System"
+      goal "Let a request through only when the working tree is a hecks checkout"
+
+      reference_to RegenerationRun
+      attribute :checkout, Switch
+
+      given("needs a hecks checkout: hecks.gemspec stands beside lib/") { checkout.value }
+
+      sets :checkout
+
+      emits RegenerationAccepted
+    end
+
+    command "Complete" do
+      role "System"
+      goal "Record that the request was carried out, and what it reported"
+
+      reference_to RegenerationRun
+      attribute :report, Report
+
+      sets :report
+
+      emits RegenerationCompleted
+    end
+
+    command "Fault" do
+      role "System"
+      goal "Record that the request was refused or could not be carried out, and why"
+
+      reference_to RegenerationRun
+      attribute :refusal, Report
+
+      sets :refusal
+
+      emits RegenerationFaulted
+    end
+
+    query "RegenerationOutcome" do
+      description "How one request ended: its status, and what it reported or why it failed."
+      attribute :run, RunKey
+      where(run: :run)
+      order_by :run
+    end
+
+    query "RegenerationFaulted" do
+      description "Every request that was refused or could not be carried out."
+      where(status: "faulted")
+      order_by :run
+    end
+  end
+
+  policy "ExamineWhenRegenerateCorpusRequested" do
+    on      "RegenerationRun.RegenerateCorpusRequested"
+    trigger RegenerationRun::SourceTree::Examine, with: { run: :run }
+  end
+
+  policy "AcceptRegenerationWhenExamined" do
+    on      "RegenerationRun.RegenerationExamined"
+    trigger RegenerationRun::Accept, with: { checkout: :checkout }
+  end
+
+  policy "PerformRegenerationWhenAccepted" do
+    on      "RegenerationRun.RegenerationAccepted"
+    trigger RegenerationRun::SourceTree::Perform, with: { run: :run }
+  end
+
+  policy "RecordRegenerationOutcome" do
+    on      "RegenerationRun.RegenerationAnswered"
+    trigger RegenerationRun::Complete, with: { report: :report }
+  end
+
+  policy "RecordRegenerationFault" do
+    on      "RegenerationRun.RegenerationRefused"
+    trigger RegenerationRun::Fault, with: { refusal: :refusal }
+  end
+
+  # Style: the comment style guides (Ruby and Rust) and the canonical form of a JSON document. A
+  # check finds every violation; a fix rewrites files, so it lists what it would rewrite unless it is
+  # confirmed. The baseline of tolerated long blocks is written only when confirmed.
+  aggregate "StyleRun" do
+    description "One check or fix of comment style, or one document written with its keys in order."
+
+    attribute :run,       RunKey
+    attribute :operation, Operation, optional: true
+    attribute :confirm,   Switch, optional: true
+    attribute :paths,     PathList, optional: true
+    attribute :only,      CategoryList, optional: true
+    attribute :json,      Switch, optional: true
+    attribute :top,       Top, optional: true
+    attribute :ref,       Ref, optional: true
+    attribute :file,      FilePath, optional: true
+    attribute :checkout,  Switch, optional: true
+    attribute :report,    Report, optional: true
+    attribute :refusal,   Report, optional: true
+    identified_by :run
+
+    value_object "RunKey" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+
+      invariant("a run is named") { !value.to_s.empty? }
+    end
+
+    value_object "Operation" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+    end
+
+    value_object "Switch" do
+      attribute :value, Boolean
+    end
+
+    value_object "Report" do
+      attribute :value, String
+    end
+
+    # Files or directories, comma separated.
+    value_object "PathList" do
+      attribute :value, String, pattern: '^[^ \t\n\r,]+(,[^ \t\n\r,]+)*$'
+    end
+
+    # Violation categories, comma separated.
+    value_object "CategoryList" do
+      attribute :value, String, pattern: '^[a-z_]+(,[a-z_]+)*$'
+    end
+
+    # How many rows a report lists.
+    value_object "Top" do
+      attribute :value, Integer
+
+      invariant("a count is positive") { value > 0 }
+    end
+
+    # A revision a code comparison is made against.
+    value_object "Ref" do
+      attribute :value, String, pattern: '^[^ \t\n\r]+$'
+    end
+
+    # A JSON file.
+    value_object "FilePath" do
+      attribute :value, String, pattern: '[^\t\n\r]'
+
+      invariant("a file is named") { !value.to_s.empty? }
+    end
+
+    lifecycle :status, default: "requested" do
+      transition "Accept"   => "accepted",  from: "requested"
+      transition "Complete" => "completed", from: "accepted"
+      transition "Fault"    => "faulted",   from: %w[requested accepted]
+    end
+
+    command "CheckComments" do
+      role "Maintainer"
+      goal "List every comment that breaks the Ruby style guide"
+
+      attribute :paths, PathList
+      attribute :only,  CategoryList, optional: true
+      attribute :run,   RunKey
+
+      sets :paths
+      sets :only
+      sets :run
+      sets :operation, to: "check_comments"
+
+      emits CheckCommentsRequested
+    end
+
+    command "FixComments" do
+      role "Maintainer"
+      goal "Rewrite the mechanical Ruby comment violations"
+
+      attribute :paths,   PathList
+      attribute :only,    CategoryList, optional: true
+      attribute :run,     RunKey
+      attribute :confirm, Switch, optional: true
+
+      sets :paths
+      sets :only
+      sets :run
+      sets :confirm
+      sets :operation, to: "fix_comments"
+
+      emits FixCommentsRequested
+    end
+
+    command "WriteCommentBaseline" do
+      role "Maintainer"
+      goal "Record every long comment block as tolerated, for lib/hecks unless paths are named"
+
+      attribute :paths,   PathList, optional: true
+      attribute :run,     RunKey
+      attribute :confirm, Switch, optional: true
+
+      sets :paths
+      sets :run
+      sets :confirm
+      sets :operation, to: "write_comment_baseline"
+
+      emits WriteCommentBaselineRequested
+    end
+
+    command "CheckCommentsUnchanged" do
+      role "Maintainer"
+      goal "Prove an edit was comment-only: no file's code differs from the ref"
+
+      attribute :ref,   Ref
+      attribute :paths, PathList, optional: true
+      attribute :run,   RunKey
+
+      sets :ref
+      sets :paths
+      sets :run
+      sets :operation, to: "check_comments_unchanged"
+
+      emits CheckCommentsUnchangedRequested
+    end
+
+    command "CheckRustComments" do
+      role "Maintainer"
+      goal "List every comment that breaks the Rust style guide"
+
+      attribute :paths, PathList
+      attribute :only,  CategoryList, optional: true
+      attribute :run,   RunKey
+
+      sets :paths
+      sets :only
+      sets :run
+      sets :operation, to: "check_rust_comments"
+
+      emits CheckRustCommentsRequested
+    end
+
+    command "FixRustComments" do
+      role "Maintainer"
+      goal "Rewrite the mechanical Rust comment violations"
+
+      attribute :paths,   PathList
+      attribute :only,    CategoryList, optional: true
+      attribute :run,     RunKey
+      attribute :confirm, Switch, optional: true
+
+      sets :paths
+      sets :only
+      sets :run
+      sets :confirm
+      sets :operation, to: "fix_rust_comments"
+
+      emits FixRustCommentsRequested
+    end
+
+    command "Canonicalise" do
+      role "Maintainer"
+      goal "Write a JSON document with every object's keys sorted"
+
+      attribute :file, FilePath
+      attribute :run,  RunKey
+
+      sets :file
+      sets :run
+      sets :operation, to: "canonicalise"
+
+      emits CanonicaliseRequested
+    end
+
+    # What the tree reported about itself, held against every request: nothing here runs
+    # outside a hecks checkout (hecks.gemspec beside lib/).
+    command "Accept" do
+      role "System"
+      goal "Let a request through only when the working tree is a hecks checkout"
+
+      reference_to StyleRun
+      attribute :checkout, Switch
+
+      given("needs a hecks checkout: hecks.gemspec stands beside lib/") { checkout.value }
+
+      sets :checkout
+
+      emits StyleAccepted
+    end
+
+    command "Complete" do
+      role "System"
+      goal "Record that the request was carried out, and what it reported"
+
+      reference_to StyleRun
+      attribute :report, Report
+
+      sets :report
+
+      emits StyleCompleted
+    end
+
+    command "Fault" do
+      role "System"
+      goal "Record that the request was refused or could not be carried out, and why"
+
+      reference_to StyleRun
+      attribute :refusal, Report
+
+      sets :refusal
+
+      emits StyleFaulted
+    end
+
+    query "StyleOutcome" do
+      description "How one request ended: its status, and what it reported or why it failed."
+      attribute :run, RunKey
+      where(run: :run)
+      order_by :run
+    end
+
+    query "StyleFaulted" do
+      description "Every request that was refused or could not be carried out."
+      where(status: "faulted")
+      order_by :run
+    end
+
+    query "ReportComments" do
+      description "The Ruby comment violations, as summary tables, a list or JSON."
+      attribute :paths, PathList
+      attribute :only, CategoryList, optional: true
+      attribute :json, Switch, optional: true
+      attribute :top, Top, optional: true
+      answered_by "SourceTree"
+    end
+
+    query "ReportRustComments" do
+      description "The Rust comment violations, as summary tables, a list or JSON."
+      attribute :paths, PathList
+      attribute :only, CategoryList, optional: true
+      attribute :json, Switch, optional: true
+      attribute :top, Top, optional: true
+      answered_by "SourceTree"
+    end
+  end
+
+  policy "ExamineWhenCheckCommentsRequested" do
+    on      "StyleRun.CheckCommentsRequested"
+    trigger StyleRun::SourceTree::Examine, with: { run: :run }
+  end
+
+  policy "ExamineWhenFixCommentsRequested" do
+    on      "StyleRun.FixCommentsRequested"
+    trigger StyleRun::SourceTree::Examine, with: { run: :run }
+  end
+
+  policy "ExamineWhenWriteCommentBaselineRequested" do
+    on      "StyleRun.WriteCommentBaselineRequested"
+    trigger StyleRun::SourceTree::Examine, with: { run: :run }
+  end
+
+  policy "ExamineWhenCheckCommentsUnchangedRequested" do
+    on      "StyleRun.CheckCommentsUnchangedRequested"
+    trigger StyleRun::SourceTree::Examine, with: { run: :run }
+  end
+
+  policy "ExamineWhenCheckRustCommentsRequested" do
+    on      "StyleRun.CheckRustCommentsRequested"
+    trigger StyleRun::SourceTree::Examine, with: { run: :run }
+  end
+
+  policy "ExamineWhenFixRustCommentsRequested" do
+    on      "StyleRun.FixRustCommentsRequested"
+    trigger StyleRun::SourceTree::Examine, with: { run: :run }
+  end
+
+  policy "ExamineWhenCanonicaliseRequested" do
+    on      "StyleRun.CanonicaliseRequested"
+    trigger StyleRun::SourceTree::Examine, with: { run: :run }
+  end
+
+  policy "AcceptStyleWhenExamined" do
+    on      "StyleRun.StyleExamined"
+    trigger StyleRun::Accept, with: { checkout: :checkout }
+  end
+
+  policy "PerformStyleWhenAccepted" do
+    on      "StyleRun.StyleAccepted"
+    trigger StyleRun::SourceTree::Perform, with: { run: :run }
+  end
+
+  policy "RecordStyleOutcome" do
+    on      "StyleRun.StyleAnswered"
+    trigger StyleRun::Complete, with: { report: :report }
+  end
+
+  policy "RecordStyleFault" do
+    on      "StyleRun.StyleRefused"
+    trigger StyleRun::Fault, with: { refusal: :refusal }
+  end
 end

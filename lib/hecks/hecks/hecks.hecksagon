@@ -197,4 +197,32 @@ Hecks.hecksagon "Hecks" do
       refuses "ConformanceRefused"
     end
   end
+
+  Hecks::RegenerationRun.port "SourceTree" do
+    asks "Examine", to: RegenerationRun do
+      attribute :run, RunKey
+      answers "RegenerationExamined"
+      refuses "RegenerationRefused"
+    end
+
+    asks "Perform", to: RegenerationRun do
+      attribute :run, RunKey
+      answers "RegenerationAnswered"
+      refuses "RegenerationRefused"
+    end
+  end
+
+  Hecks::StyleRun.port "SourceTree" do
+    asks "Examine", to: StyleRun do
+      attribute :run, RunKey
+      answers "StyleExamined"
+      refuses "StyleRefused"
+    end
+
+    asks "Perform", to: StyleRun do
+      attribute :run, RunKey
+      answers "StyleAnswered"
+      refuses "StyleRefused"
+    end
+  end
 end

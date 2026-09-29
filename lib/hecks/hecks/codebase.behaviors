@@ -72,4 +72,40 @@ Hecks.behaviors "Codebase" do
     input run: { value: "" }
     expect refused: "must match"
   end
+
+  test "RegenerateCorpus refuses a run that is not named" do
+    tests "RegenerateCorpus", on: "RegenerationRun"
+    input run: { value: "" }
+    expect refused: "must match"
+  end
+
+  test "CheckComments keeps a file with no violations as a completed check" do
+    tests "CheckComments", on: "StyleRun"
+    input paths: { value: "lib/hecks/canonical_json.rb" }, run: { value: "clean" }
+    expect emits: %w[CheckCommentsRequested StyleExamined StyleAccepted StyleAnswered StyleCompleted]
+  end
+
+  test "CheckComments refuses a list of paths that is not one" do
+    tests "CheckComments", on: "StyleRun"
+    input paths: { value: "lib, spec" }, run: { value: "paths" }
+    expect refused: "must match"
+  end
+
+  test "FixComments lists what it would rewrite, and writes nothing, without confirm" do
+    tests "FixComments", on: "StyleRun"
+    input paths: { value: "lib/hecks/canonical_json.rb" }, run: { value: "fix" }
+    expect emits: %w[FixCommentsRequested StyleExamined StyleAccepted StyleAnswered StyleCompleted]
+  end
+
+  test "CheckCommentsUnchanged refuses a ref with a space in it" do
+    tests "CheckCommentsUnchanged", on: "StyleRun"
+    input ref: { value: "not a ref" }, run: { value: "unchanged" }
+    expect refused: "must match"
+  end
+
+  test "Canonicalise keeps a file that is not there as a faulted request" do
+    tests "Canonicalise", on: "StyleRun"
+    input file: { value: "/no/such/file.json" }, run: { value: "canonical" }
+    expect emits: %w[CanonicaliseRequested StyleExamined StyleAccepted StyleRefused StyleFaulted]
+  end
 end

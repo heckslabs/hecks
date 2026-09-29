@@ -32,11 +32,11 @@ module Hecks
         # @return [String] what it wrote to stdout, and to stderr when there was any
         # @raise [ConsoleCapture::Failure] when it ends with a non-zero status; the message is
         #   everything it printed
-        def answer(script, *args, env: {})
-          result = capture(script, *args, env: env)
-          raise ConsoleCapture::Failure, printed(result) unless result.ok?
+        def answer(script, *, env: {})
+          result = capture(script, *, env: env)
+          return printed(result) if result.ok?
 
-          printed(result)
+          raise ConsoleCapture::Failure, printed(result, "ended with status #{result.status.exitstatus}")
         end
 
         # Runs `bin/<script>` with the arguments and hands back how it ended.
@@ -45,15 +45,15 @@ module Hecks
         # @param args [Array<String>] its arguments
         # @param env [Hash{String => String}] variables to set for it
         # @return [Shell::Result] its output and status
-        def capture(script, *args, env: {})
-          @shell.capture(RbConfig.ruby, @tree.path("bin", script), *args, env: QUIET.merge(env), chdir: @tree.root)
+        def capture(script, *, env: {})
+          @shell.capture(RbConfig.ruby, @tree.path("bin", script), *, env: QUIET.merge(env), chdir: @tree.root)
         end
 
         private
 
-        def printed(result)
+        def printed(result, otherwise = "")
           text = [result.out, result.err].map(&:strip).reject(&:empty?).join("\n")
-          text.empty? ? "ended with status #{result.status.exitstatus}" : text
+          text.empty? ? otherwise : text
         end
       end
     end

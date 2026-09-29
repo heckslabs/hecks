@@ -36,7 +36,7 @@ module Hecks
       require "hecks/runtime/value/coercion"
       kernel = File.join(root, "rust/src/kernel")
       content = {
-        File.join(kernel, "attribute_shapes/mod.rs") => shapes_module,
+        File.join(kernel, "attribute_shapes/mod.rs")     => shapes_module,
         File.join(kernel, "expression_operators/mod.rs") => operators_module
       }
       ProjectionFiles::Result.new(content, [])

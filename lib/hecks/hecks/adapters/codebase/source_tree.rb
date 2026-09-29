@@ -4,6 +4,8 @@ require_relative "tree"
 require_relative "language"
 require_relative "kernel_tables"
 require_relative "conformance"
+require_relative "regeneration"
+require_relative "style"
 
 module Hecks
   module Adapters
@@ -61,10 +63,33 @@ module Hecks
         Codebase::Language.word_status
       end
 
+      # @param args [Hash] the query's arguments: `paths`, `only`, `json`, `top`
+      # @return [String] the Ruby comment violations, as the linter reports them
+      # @raise [Codebase::Tree::NeedsCheckout] when the tree is not a hecks checkout
+      # @raise [ConsoleCapture::Failure] when the linter refuses its arguments
+      def report_comments(**args)
+        report("report_comments", args)
+      end
+
+      # @param args [Hash] the query's arguments: `paths`, `only`, `json`, `top`
+      # @return [String] the Rust comment violations, as the linter reports them
+      # @raise [Codebase::Tree::NeedsCheckout] when the tree is not a hecks checkout
+      # @raise [ConsoleCapture::Failure] when the linter refuses its arguments
+      def report_rust_comments(**args)
+        report("report_rust_comments", args)
+      end
+
       private
 
+      def report(operation, args)
+        tree.require_checkout!
+        plain_args = args.transform_values { |value| plain(value) }
+        Codebase::Style.report(operation, plain_args, tree, shell: self.class.shell)
+      end
+
       # The task families, each carrying out the operations it lists.
-      FAMILIES = [Codebase::Language, Codebase::KernelTables, Codebase::Conformance].freeze
+      FAMILIES = [Codebase::Language, Codebase::KernelTables, Codebase::Conformance, Codebase::Regeneration,
+                  Codebase::Style].freeze
       private_constant :FAMILIES
 
       def tree = Codebase::Tree.new

@@ -46,7 +46,7 @@ RSpec.describe Hecks::Adapters::Codebase::KernelTables do
         other = Hecks::Adapters::Codebase::Tree.new(root: dir)
 
         expect { kernel("measure_kernel_coverage", {}, on: other) }
-          .to raise_error(failure, /MISS  rust\/src\/kernel\/attribute_shapes\/.*\n.*capability file\(s\) missing/m)
+          .to raise_error(failure, %r{MISS  rust/src/kernel/attribute_shapes/.*\n.*capability file\(s\) missing}m)
         expect(Dir.children(dir)).to be_empty
       end
     end

@@ -6,22 +6,7 @@
 require_relative "../lib/hecks/three_zero"
 Hecks::ThreeZero.notice("canonicalise")
 
-require "json"
+$LOAD_PATH.unshift File.expand_path("../lib", __dir__)
+require "hecks/canonical_json"
 
-# Recursively sorts every Hash's keys within a parsed JSON document, so that key order —
-# which is not semantics — never shows up as diff noise.
-#
-# @param node [Object] a value from `JSON.parse`: `Hash`, `Array`, or a JSON scalar
-# @return [Object] the same shape with every nested `Hash`'s keys sorted by their string form
-def sort_deep(node)
-  case node
-  when Hash
-    node.sort_by { |key, _| key.to_s }.to_h { |key, value| [key, sort_deep(value)] }
-  when Array
-    node.map { |item| sort_deep(item) }
-  else
-    node
-  end
-end
-
-puts JSON.pretty_generate(sort_deep(JSON.parse(File.read(ARGV.fetch(0)))))
+puts Hecks::CanonicalJson.pretty(File.read(ARGV.fetch(0)))
