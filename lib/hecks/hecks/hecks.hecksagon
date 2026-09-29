@@ -130,6 +130,22 @@ Hecks.hecksagon "Hecks" do
     end
   end
 
+  Hecks::FuzzRun.port "ProcessPool" do
+    asks "Sweep", to: FuzzRun do
+      attribute :run, FuzzKey
+      answers "FuzzAnswered"
+      refuses "FuzzRefused"
+    end
+  end
+
+  Hecks::FuzzRun.port "RustToolchain" do
+    asks "Measure", to: FuzzRun do
+      attribute :run, FuzzKey
+      answers "FuzzAnswered"
+      refuses "FuzzRefused"
+    end
+  end
+
   Hecks::Operation.port "HostHttp" do
     asks "Probe", to: Operation do
       attribute :run, OperationKey

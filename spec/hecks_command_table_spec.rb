@@ -22,6 +22,7 @@ RSpec.describe "the Hecks command table through the launcher" do
     project_cli serve_mcp ended stopped
     project_rust build_wasm build_browser_wasm check_conformance fuzz_conformance
     check_coverage_allowlist rust_coverage result faulted
+    fuzz bench conclusion halted generate_sequence
   ].freeze
 
   SHELF_BLUEBOOK = <<~RUBY.freeze
@@ -531,6 +532,90 @@ RSpec.describe "the Hecks command table through the launcher" do
 
       expect(status).to eq(1)
       expect(out).to include("must match")
+    end
+  end
+
+  # A fake pool stands in for the child processes, so each verb is journaled and asked without one.
+  describe "the Fuzzing verbs" do
+    let(:started) { [] }
+
+    def conclusion_of(run)
+      JSON.parse(run_verb("conclusion", run).first).first
+    end
+
+    def pool_says(output, ok: true)
+      log = started
+      finished = Struct.new(:output, :ok?).new(output, ok)
+      status = Struct.new(:success?, :exitstatus).new(ok, ok ? 0 : 1)
+      Hecks::Adapters::ProcessPool.starter = lambda do |command, _env, _chdir|
+        log << [File.basename(command[1]), *command.drop(2)]
+        Hecks::Adapters::ProcessPool::Finished.new(finished.output, status)
+      end
+      Hecks::Adapters::RustToolchain.pool = Object.new.tap do |pool|
+        pool.define_singleton_method(:run) do |command, **|
+          log << [File.basename(command[1]), *command.drop(2)]
+          finished
+        end
+      end
+    end
+
+    after do
+      Hecks::Adapters::ProcessPool.starter = nil
+      Hecks::Adapters::RustToolchain.pool = nil
+    end
+
+    it "fuzz asks the pool for a sweep and keeps what it printed" do
+      pool_says("CLEAN — no generated sequence broke a property or the interpreter.\n")
+
+      out, status = run_verb("fuzz", @shelf, "run=sweep-1", "seeds=4", "steps=6", "adapter=memory")
+
+      expect(status).to eq(0)
+      expect(JSON.parse(out).fetch("events")).to eq(["FuzzRequested"])
+      expect(started).to eq([["fuzz", @shelf, "--seeds", "4", "--steps", "6", "--adapter", "memory"]])
+      row = conclusion_of("sweep-1")
+      expect(row.fetch("status")).to eq("concluded")
+      expect(row.dig("report", "value")).to start_with("CLEAN")
+    end
+
+    it "keeps a sweep that found something as halted, and halted lists it" do
+      pool_says("FUZZ FOUND SOMETHING.\n", ok: false)
+
+      run_verb("fuzz", @shelf, "run=sweep-2")
+
+      expect(conclusion_of("sweep-2").fetch("status")).to eq("halted")
+      expect(JSON.parse(run_verb("halted").first).map { |sweep| sweep.dig("run", "value") }).to include("sweep-2")
+    end
+
+    it "refuses a sweep of zero seeds before anything is asked" do
+      pool_says("CLEAN\n")
+
+      out, status = run_verb("fuzz", @shelf, "run=sweep-3", "seeds=0")
+
+      expect(status).to eq(1)
+      expect(out).to include("a count is positive")
+      expect(started).to be_empty
+    end
+
+    it "bench asks the toolchain to measure with the flags it was given, and keeps the report" do
+      pool_says("| target | ops/s |\n")
+
+      run_verb("bench", "run=bench-1", "domains=pizzas", "iterations=10", "warmup=0", "runs=1", "format=json")
+
+      expect(started).to eq([["bench", "--domain", "pizzas", "--iterations", "10", "--warmup", "0", "--runs", "1",
+                              "--format", "json"]])
+      expect(conclusion_of("bench-1").dig("report", "value")).to include("ops/s")
+    end
+
+    it "generate_sequence answers a replayable script, and writes no journal entry of its own" do
+      before = @hecks.registry.event_log.to_a.size
+
+      out, status = run_verb("generate_sequence", @shelf, "seed=2", "steps=4")
+
+      expect(status).to eq(0)
+      script = JSON.parse(out)
+      expect(script.fetch("name")).to eq("shelf-generated")
+      expect(script.fetch("steps")).to all(include("verb"))
+      expect(@hecks.registry.event_log.to_a.size).to eq(before)
     end
   end
 

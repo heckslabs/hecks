@@ -1554,4 +1554,209 @@ policy "RecordTheEra" do
     on      "Build.BuildRefused"
     trigger Build::Fault, with: { refusal: :refusal }
   end
+
+  # Named for the run, as ModelCheckRun is: `Hecks::Fuzzing` is the fuzzing toolkit's own module,
+  # so a hecksagon could not spell an aggregate of that name.
+  aggregate "FuzzRun" do
+    description "One fuzz sweep or benchmark, and how it ended; and the generated sequences it replays."
+
+    attribute :domain,     DomainPath,  optional: true
+    attribute :run,        FuzzKey
+    attribute :seeds,      Count,       optional: true
+    attribute :steps,      Count,       optional: true
+    attribute :workers,    Count,       optional: true
+    attribute :adapter,    Persistence, optional: true
+    attribute :domains,    NameList,    optional: true
+    attribute :targets,    NameList,    optional: true
+    attribute :iterations, Count,       optional: true
+    attribute :warmup,     Warmup,      optional: true
+    attribute :runs,       Count,       optional: true
+    attribute :rust_binary, BinaryPath, optional: true
+    attribute :format,     Format,      optional: true
+    attribute :output,     OutputPath,  optional: true
+    attribute :report,     Report,      optional: true
+    attribute :refusal,    Report,      optional: true
+    identified_by :run
+
+    value_object "FuzzKey" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+
+      invariant("a sweep is named") { !value.to_s.empty? }
+    end
+
+    # A domain directory; a sweep with none covers every domain of a hecks checkout.
+    value_object "DomainPath" do
+      attribute :value, String, pattern: '[^\t\n\r]'
+
+      invariant("a domain is named by its path") { !value.to_s.empty? }
+    end
+
+    value_object "Count" do
+      attribute :value, Integer
+
+      invariant("a count is positive") { value > 0 }
+    end
+
+    value_object "Warmup" do
+      attribute :value, Integer
+
+      invariant("a warmup is not negative") { value >= 0 }
+    end
+
+    # Which persistence every ephemeral boot of a sweep uses.
+    value_object "Persistence" do
+      attribute :value, String, pattern: '^(memory|sqlite|postgres)$'
+    end
+
+    # Names, comma separated: benchmark domains, or the targets to measure.
+    value_object "NameList" do
+      attribute :value, String, pattern: '^[^ \t\n\r,]+(,[^ \t\n\r,]+)*$'
+    end
+
+    value_object "BinaryPath" do
+      attribute :value, String, pattern: '[^\t\n\r]'
+    end
+
+    value_object "Format" do
+      attribute :value, String, pattern: '^(markdown|json)$'
+    end
+
+    value_object "OutputPath" do
+      attribute :value, String, pattern: '[^\t\n\r]'
+    end
+
+    value_object "Report" do
+      attribute :value, String
+    end
+
+    lifecycle :status, default: "requested" do
+      transition "Conclude" => "concluded", from: "requested"
+      transition "Halt"     => "halted",    from: "requested"
+    end
+
+    # A sweep replays generated command and query sequences and checks properties over each.
+    # A finding is shrunk and saved under `tmp/fuzz-failures/`, and ends the run as halted, with
+    # what was found. Sweeping every domain of a checkout needs a hecks checkout; a client names
+    # the domain. The sweep runs in child processes started through the ProcessPool adapter, so an
+    # interrupt reaches the workers.
+    command "Fuzz" do
+      role "Operator"
+      goal "Fuzz a domain with generated sequences and keep whether anything broke a property"
+
+      attribute :domain,  DomainPath,  optional: true
+      attribute :run,     FuzzKey
+      attribute :seeds,   Count,       optional: true
+      attribute :steps,   Count,       optional: true
+      attribute :workers, Count,       optional: true
+      attribute :adapter, Persistence, optional: true
+
+      sets :domain
+      sets :run
+      sets :seeds
+      sets :steps
+      sets :workers
+      sets :adapter
+
+      emits FuzzRequested
+    end
+
+    # Measures each persistence adapter, and the Rust binary when there is one to build or use.
+    # The report is kept in this record, which the Hecks domain binds to Memory: keeping a
+    # domain's benchmark history beside it, in Sqlite under the project's `.hecks/`, is decided
+    # with the persistence binding for Custodian, not here. `output` also writes the full JSON.
+    command "Bench" do
+      role "Operator"
+      goal "Measure command throughput and latency for each target, and keep the report"
+
+      attribute :run,         FuzzKey
+      attribute :domains,     NameList,   optional: true
+      attribute :targets,     NameList,   optional: true
+      attribute :iterations,  Count,      optional: true
+      attribute :warmup,      Warmup,     optional: true
+      attribute :runs,        Count,      optional: true
+      attribute :rust_binary, BinaryPath, optional: true
+      attribute :format,      Format,     optional: true
+      attribute :output,      OutputPath, optional: true
+
+      sets :run
+      sets :domains
+      sets :targets
+      sets :iterations
+      sets :warmup
+      sets :runs
+      sets :rust_binary
+      sets :format
+      sets :output
+
+      emits BenchRequested
+    end
+
+    command "Conclude" do
+      role "System"
+      goal "Record that the sweep or benchmark ended well, and what it reported"
+
+      reference_to FuzzRun
+      attribute :report, Report
+
+      sets :report
+
+      emits FuzzConcluded
+    end
+
+    command "Halt" do
+      role "System"
+      goal "Record that the sweep found something or the benchmark could not run, and what it said"
+
+      reference_to FuzzRun
+      attribute :refusal, Report
+
+      sets :refusal
+
+      emits FuzzHalted
+    end
+
+    query "Conclusion" do
+      description "How one sweep or benchmark ended: its status, and what it reported or found."
+      attribute :run, FuzzKey
+      where(run: :run)
+      order_by :run
+    end
+
+    query "Halted" do
+      description "Every sweep that found something and every benchmark that could not run."
+      where(status: "halted")
+      order_by :run
+    end
+
+    # The generator `hecks fuzz` draws from, on its own: one valid dispatch sequence as a
+    # replayable script. `adversarial` is the fraction of steps mutated to be refused; 0 is off.
+    query "GenerateSequence" do
+      description "One generated, valid dispatch sequence for a domain, as a script `hecks run` replays."
+      attribute :domain,      DomainPath
+      attribute :seed,        Integer,    optional: true
+      attribute :steps,       Integer,    optional: true
+      attribute :adversarial, Float,      optional: true
+      answered_by "DomainRuntime"
+    end
+  end
+
+  policy "SweepWhenRequested" do
+    on      "FuzzRun.FuzzRequested"
+    trigger FuzzRun::ProcessPool::Sweep, with: { run: :run }
+  end
+
+  policy "MeasureWhenRequested" do
+    on      "FuzzRun.BenchRequested"
+    trigger FuzzRun::RustToolchain::Measure, with: { run: :run }
+  end
+
+  policy "RecordTheSweep" do
+    on      "FuzzRun.FuzzAnswered"
+    trigger FuzzRun::Conclude, with: { report: :report }
+  end
+
+  policy "RecordTheFinding" do
+    on      "FuzzRun.FuzzRefused"
+    trigger FuzzRun::Halt, with: { refusal: :refusal }
+  end
 end

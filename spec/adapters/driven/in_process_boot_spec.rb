@@ -113,6 +113,22 @@ RSpec.describe Hecks::Adapters::InProcessBoot do
     expect(Dir.glob(File.join(@dir, "**/*")).sort).to eq(before)
   end
 
+  it "answers one generated sequence as a replayable script, the same one for the same seed" do
+    script = JSON.parse(adapter.generate_sequence(domain: domain, seed: 3, steps: 5))
+
+    expect(script.fetch("name")).to eq("#{File.basename(@dir)}-generated")
+    expect(script.fetch("note")).to include("seed 3, 5 steps requested")
+    expect(script.fetch("steps")).to all(include("verb"))
+    expect(adapter.generate_sequence(domain: domain, seed: 3, steps: 5))
+      .to eq(adapter.generate_sequence(domain: @dir, seed: 3, steps: 5))
+  end
+
+  it "generates from seed 1 and 30 steps unless told otherwise, and refuses a missing domain" do
+    expect(JSON.parse(adapter.generate_sequence(domain: domain)).fetch("note")).to include("seed 1, 30 steps")
+    expect { adapter.generate_sequence(domain: { value: "/no/such/domain" }) }
+      .to raise_error(Hecks::Runtime::NotFound, /no such domain/)
+  end
+
   it "refuses a domain or chapter that cannot be found" do
     expect { adapter.stores(domain: { value: "/no/such/domain" }) }.to raise_error(Hecks::Runtime::NotFound, /no such domain/)
     expect { adapter.statements(domain: domain, chapter: { value: "Nope" }) }

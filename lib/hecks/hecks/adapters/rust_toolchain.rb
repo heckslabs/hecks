@@ -4,6 +4,7 @@ require "rbconfig"
 require_relative "shell"
 require_relative "console_capture"
 require_relative "rust_workspace"
+require_relative "process_pool"
 
 module Hecks
   module Adapters
@@ -21,7 +22,15 @@ module Hecks
                   conform: "rust_conformance", replay: "rust_conformance_fuzz",
                   coverage: "rust_coverage" }.freeze
 
+      # `bin/bench`'s flag for each `FuzzRun` field a benchmark takes.
+      BENCH_FLAGS = { "--domain" => :domains, "--targets" => :targets, "--iterations" => :iterations,
+                      "--warmup" => :warmup, "--runs" => :runs, "--rust-binary" => :rust_binary,
+                      "--format" => :format, "--output" => :output }.freeze
+
       class << self
+        # @return [#run, nil] starts the long-running benchmark; a `ProcessPool` when nil
+        attr_accessor :pool
+
         # @return [#capture, nil] starts each child; a `Shell` when nil. A spec replaces it, so no
         #   toolchain is needed to test what is asked of it.
         attr_accessor :shell
@@ -96,6 +105,25 @@ module Hecks
       # @raise [ConsoleCapture::Failure] when a rule excuses nothing
       def audit(**_held)
         child(:coverage, ["--check-allowlist"])
+      end
+
+      # Measures command throughput and latency for each target, building the Rust binary in the
+      # workspace when it is a target and none was named. The benchmark can run for minutes, so it
+      # starts through `ProcessPool`, which passes an interrupt on to it.
+      #
+      # @param held [Hash] the `FuzzRun` record: `domains`, `targets`, `iterations`, `warmup`,
+      #   `runs`, `rust_binary`, `format` and `output` (a file the full JSON is also written to)
+      # @return [Hash{Symbol => Hash}] `report:` what the benchmark printed
+      # @raise [ConsoleCapture::Failure] when it could not run, or the install has no Rust workspace
+      def measure(**held)
+        flags = BENCH_FLAGS.filter_map { |flag, key| [flag, plain(held[key]).to_s] unless plain(held[key]).nil? }
+        env = (self.class.workspace || RustWorkspace.new).environment.merge("HECKS_NO_3_0_NOTICE" => "1")
+        finished = (self.class.pool || ProcessPool.new).run([RbConfig.ruby, script("bench"), *flags.flatten], env: env)
+        raise ConsoleCapture::Failure, finished.output.strip unless finished.ok?
+
+        { report: { value: finished.output } }
+      rescue RustWorkspace::Unavailable => e
+        raise ConsoleCapture::Failure, e.message
       end
 
       # Reports whether each construct of a generated module has a routed implementation.
