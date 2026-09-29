@@ -50,24 +50,43 @@ An installed gem boots the root and Custodian; a checkout boots all three. Becau
 
 A script whose concern already has a bluebook joins that bluebook instead: the `qa_*` scripts go to QualityControl and the deploy scripts go to Deploy.
 
-### 3. Hecks attaches Bluebook, Deploy and QualityControl as chapters
+### 3. Hecks attaches the framework's own chapters
 
-The Hecks domain also takes in the three domains the framework already has. Each stays a chapter of its own: it keeps its name, its namespace (`QualityControl::Patch`, `Deploy::Tenant`, `Bluebook::Aggregate`), its store and its directory. The Hecks hecksagon attaches them the way `uses_framework` attaches Governance, and cross-chapter reactions go through `translates`.
+The Hecks domain also takes in every chapter that describes the framework itself: the language declared in itself, Tenancy, Deploy and QualityControl. Each stays a chapter of its own: it keeps its name, its namespace (`QualityControl::Patch`, `Deploy::Tenant`, `Bluebook::Aggregate`), its store and its directory. The Hecks hecksagon attaches them the way `uses_framework` attaches Governance, and cross-chapter reactions go through `translates`.
 
-| Chapter | Stays in | Attached from | Ships |
-| --- | --- | --- | --- |
-| Bluebook (the language, declared in itself) | `lib/hecks/language/bluebook/` | `hecks.hecksagon` | Yes |
-| Deploy | `lib/hecks/deploy/bluebook/` | `hecks.hecksagon` | Yes |
-| QualityControl | `qa/bluebook/` | `codebase.hecksagon` | No |
+| Group | Chapter | Stays in | Attached from | Ships |
+| --- | --- | --- | --- | --- |
+| Language | Bluebook | `lib/hecks/language/bluebook/` | `hecks.hecksagon` | Yes |
+| Language | Paging (extends Bluebook through `attaches_to`) | `lib/hecks/language/bluebook/attaches/` | comes with Bluebook | Yes |
+| Language | Hecksagon | `lib/hecks/language/hecksagon/` | `hecks.hecksagon` | Yes |
+| Language | World | `lib/hecks/language/world/` | `hecks.hecksagon` | Yes |
+| Language | Adapter | `lib/hecks/language/adapter.bluebook` | `hecks.hecksagon` | Yes |
+| Language | Port | `lib/hecks/language/port.bluebook` | `hecks.hecksagon` | Yes |
+| Language | Translation | `lib/hecks/language/translation/` | `hecks.hecksagon` | Yes |
+| Language | Expression | `lib/hecks/grammar/expression.bluebook` | `hecks.hecksagon` | Yes |
+| Runtime | Tenancy | `lib/hecks/tenancy/bluebook/` | `hecks.hecksagon` | Yes |
+| Operations | Deploy | `lib/hecks/deploy/bluebook/` | `hecks.hecksagon` | Yes |
+| Operations | QualityControl | `qa/bluebook/` | `codebase.hecksagon` | No |
 
 QualityControl is attached from `codebase.hecksagon` so an installed gem, which has no `qa/`, never tries to load it. The QA ledger keeps its PostgresEra era and tables, because they are keyed by the chapter name, which does not change.
+
+Two chapters are named Translation today; section 4 merges them before Translation is attached.
+
+Some chapters stay out on purpose:
+
+- The framework members (Governance, Identity, Privacy, Compliance, ConsoleSettings) are libraries application domains attach. Hecks uses Governance the way QualityControl does; it does not own them.
+- The QA stress domains under `qa/stress_domains/` are subjects QualityControl rotates through, not part of the framework.
+- Test fixtures (`rust/parser/tests/fixtures/`, the `Fixture*` chapters) are inputs to specs.
 
 The one `hecks` launcher reaches every chapter's verbs, for example `hecks quality_control log_bug` or `hecks deploy lint`. No chapter gets a launcher of its own.
 
 ```ruby
 # lib/hecks/hecks/hecks.hecksagon
 Hecks.hecksagon "Hecks" do
-  attaches "Bluebook"
+  uses_framework "Governance"
+
+  attaches "Bluebook", "Hecksagon", "World", "Adapter", "Port", "Translation", "Expression"
+  attaches "Tenancy"
   attaches "Deploy"
 end
 
@@ -79,7 +98,32 @@ end
 
 `attaches` stands for the attaching word; see Open items.
 
-### 4. Where each script goes
+### 4. One Translation chapter
+
+Two chapters are named Translation, and they are two halves of one concept:
+
+- `lib/hecks/grammar/translation.bluebook` is the register of rule kinds. A `Rule` moves from proposed to admitted to retired and must execute in at least two targets before it is admitted. Its `Map` aggregate is an edge between two eras.
+- `lib/hecks/language/translation/` is the meta-model of one `translations/*.bluebook` edge file: the `Translation` aggregate (domain, from era, to era) and `TranslationAggregate` with its typed rule lists. `MetaValidator` loads it into the shared grammar registry, and `TranslationJudge` dispatches to it.
+
+They overlap. `Rule.Kind` repeats the language chapter's rule words, held equal only by `spec/translation_vocabulary_conformance_spec.rb`, and `Map` duplicates the `Translation` aggregate. They have never shared a registry: `Hecks::Grammar.grammar_chapters` loads the grammar chapter alone. That separation is the only reason the shared name works today, and attaching both to Hecks would end it.
+
+They become one chapter, spread over files the way `lib/hecks/language/bluebook/` is:
+
+- `grammar/translation.bluebook` moves to `lib/hecks/language/translation/rule.bluebook` and keeps opening `Hecks.bluebook "Translation"`.
+- `Map` folds into `Translation` and `TranslationAggregate`, so an edge has one aggregate.
+- `Rule` is where rule kinds are declared. The language chapter's rule words read from it, so the conformance spec that holds two lists equal is no longer needed.
+- The `Translation` block in `lib/hecks/grammar/grammar.hecksagon` goes; the merged chapter is wired where the language chapter already is.
+
+What changes with it:
+
+- `Hecks::Grammar.grammar_chapters`, and the globs in `lib/hecks/codemod.rb` and `lib/hecks/corpus.rb`, point at the new file.
+- `spec/parser_parity_spec.rb` parses Translation as a chapter of several files.
+- The corpus replay `spec/corpus/translation.json` loses its `Translation::Map.*` verbs in favour of the edge aggregate's.
+- SyntaxBoot's disk cache is keyed over every chapter in the shared registry, so the merge invalidates it once.
+
+No data moves: the grammar chapter persists to Memory and keeps no records, and neither chapter has an IR golden.
+
+### 5. Where each script goes
 
 | Bluebook or part | Aggregate | Scripts |
 | --- | --- | --- |
@@ -104,7 +148,7 @@ Release goes to Codebase rather than Custodian because it publishes this reposit
 
 `project_refusal_wording` is an alias for `project_rust_vocabulary`; it becomes a second name for the same Language command, not a command of its own.
 
-### 5. QualityControl
+### 6. QualityControl
 
 The rules hand-coded in `qa_open_pr` and `qa_pr_check` become `given`s on `Patch.Open` and `Improvement.Open`: the branch-prefix check, the per-day PR cap, a fix commit being an ancestor of `HEAD`, and the angle being under investigation. Their `git` and `gh` calls move into a `GitPr` adapter. The declared `IssueTracker` port gets a bound adapter.
 
@@ -125,6 +169,8 @@ The rules hand-coded in `qa_open_pr` and `qa_pr_check` become `given`s on `Patch
 - **One bluebook per concern** (Release, RuntimeBaseline, LanguageContract, DocCoverage, Codemod, and so on). Rejected: it produces a dozen front doors and a dozen hecksagons with the same wiring.
 - **Custodian and Codebase as two separate bluebooks.** Rejected: two launchers beside `exe/hecks`, and no domain for the framework itself. As parts of one Hecks bluebook they keep the ship/no-ship split, and the launcher is the executable the gem already ships.
 - **Merging Bluebook, Deploy and QualityControl into the Hecks chapter** (`QualityControl::Patch` becoming `Hecks::Patch`, and so on). Rejected: the QA ledger's era and tables are keyed by the chapter name and would need a data migration, and renaming the self-hosted Bluebook chapter reaches into the meta-validator.
+- **Renaming the grammar chapter to `TranslationGrammar`** instead of merging. A few lines of change, and it would unblock attaching. Rejected: it keeps two lists of rule kinds and two edge aggregates, held together by a spec instead of by the model.
+- **Attaching the framework members too** (Governance, Identity, Privacy, Compliance, ConsoleSettings). Rejected: they are libraries application domains use; Hecks uses Governance rather than owning it.
 - **All aggregates in a single `hecks.bluebook` file.** Rejected: the gem filter works on files, so the repository-only aggregates need files of their own.
 - **Repository-level directories, like `qa/`.** Rejected in favour of `lib/hecks/hecks/`, so the shipped part sits beside the runtime it operates on and the gemspec filter decides what ships.
 - **Phased migration** (Release first, then checks, then Codebase). Rejected in favour of one pass, so the repository never has two ways to run the same tool.
