@@ -33,7 +33,9 @@ RSpec.describe "the IR the builder produces, frozen" do
     "Expression" => "lib/hecks/grammar/expression.bluebook",
     "TillRoom"   => "spec/fixtures/till.bluebook",
     "Wire"       => "spec/fixtures/settlement.bluebook",
-    "Reflex"     => "spec/fixtures/reflex.bluebook"
+    "Reflex"     => "spec/fixtures/reflex.bluebook",
+    # The first chapter to declare `namespace`, so the golden corpus carries that field set.
+    "Hecks"      => "lib/hecks/hecks/hecks.bluebook"
   }.freeze
 
   # Language chapters come from the bootstrap registry: judging one while loading it would recurse.

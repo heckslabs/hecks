@@ -1,0 +1,4 @@
+Hecks.hecksagon "Hecks" do
+  uses_framework "Governance"
+  persisted_by "Memory"
+end

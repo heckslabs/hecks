@@ -1,0 +1,6 @@
+# Sibling bounded-context hecksagons.
+# Same-name blocks merge with hecks.hecksagon, order-independent.
+
+Hecks.hecksagon "Governance" do
+  persisted_by "Memory"
+end

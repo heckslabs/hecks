@@ -1,0 +1,3 @@
+Hecks.adapter "LocalFiles" do
+  port "workspace"
+end

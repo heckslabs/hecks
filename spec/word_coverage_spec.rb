@@ -16,6 +16,9 @@ RSpec.describe "every live DSL word, used somewhere real" do
     File.join(InMemoryDomain::ROOT, "lib/hecks/grammar", "*.bluebook"),
     File.join(InMemoryDomain::ROOT, "lib/hecks/framework/bluebook", "*.bluebook"),
     File.join(InMemoryDomain::ROOT, "lib/hecks/framework/bluebook", "*.hecksagon"),
+    # The Hecks domain (ADR 0080): the first real users of `namespace` and `attaches`.
+    File.join(InMemoryDomain::ROOT, "lib/hecks/hecks", "*.bluebook"),
+    File.join(InMemoryDomain::ROOT, "lib/hecks/hecks", "*.hecksagon"),
     # Stress domains: real domains the QA rotation sweeps, not invented
     # fixtures. spec/fixtures stays out — those are invented for one spec.
     File.join(InMemoryDomain::ROOT, "qa/stress_domains", "*", "**", "*.bluebook"),
@@ -78,16 +81,12 @@ RSpec.describe "every live DSL word, used somewhere real" do
   # entry is a verified finding, not an assumption. The check below
   # flags one as stale once the corpus grows to cover it.
   EXEMPT = {
-    "namespace (Bluebook)"              =>
-                                           "its first real user is lib/hecks/hecks/hecks.bluebook, which declares " \
-                                           "namespace \"Hecks::Domain\"; " \
-                                           "ADR 0080s 3.0 build adds it next, and that commit drops this exemption. " \
-                                           "spec/chapter_namespace_spec.rb covers the word meanwhile.",
     "attaches (Hecksagon)"              =>
-                                           "its first real user is lib/hecks/hecks/hecks.hecksagon, which ADR 0080's 3.0 " \
-                                           "build adds a few commits later; that commit adds the file to CORPUS_GLOBS and " \
-                                           "drops this exemption. spec/hecksagon_attaches_spec.rb covers the word meanwhile.",
-    "cursor (Query)"                    =>
+                                           "its first real user is the `attaches` line in lib/hecks/hecks/hecks.hecksagon, " \
+                                           "which ADR 0080's 3.0 build adds when Hecks attaches the language chapters " \
+                                           "(commit 6 of 11); that commit drops this exemption. " \
+                                           "spec/hecksagon_attaches_spec.rb covers the word meanwhile.",
+    "cursor (Query)"                  =>
                                            "refused unconditionally at build (QueryBuilder#seal_cursor) — no interpreter " \
                                            "implements cursor pagination, so any real declaration would refuse the bluebook " \
                                            "that carried it. \"A real chapter uses cursor\" and \"the corpus builds\" are " \

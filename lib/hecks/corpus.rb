@@ -29,6 +29,7 @@ module Hecks
       language:  "lib/hecks/language/**/*.bluebook",
       deploy:    "lib/hecks/deploy/bluebook/*.bluebook",
       tenancy:   "lib/hecks/tenancy/bluebook/*.bluebook",
+      hecks:     "lib/hecks/hecks/*.bluebook",
       fixture:   "spec/fixtures/**/*.bluebook"
     }.freeze
 
@@ -134,7 +135,7 @@ module Hecks
 
     # Every kind bin/model_check walks: excludes language/deploy (checked
     # elsewhere) and anything a route already sends to its own destination.
-    MODEL_CHECK_KINDS = %i[example grammar framework vendored qa stress fixture].freeze
+    MODEL_CHECK_KINDS = %i[example grammar framework vendored qa stress fixture hecks].freeze
 
     # Every corpus member `bin/model_check` and `spec/model_check_spec.rb` walk.
     #

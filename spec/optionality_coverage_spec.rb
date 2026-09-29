@@ -16,8 +16,6 @@ RSpec.describe "every nullable field the wire carries, actually filled" do
   # formerly_known_as: real and dispatch/boot-tested outside the golden corpus
   #   (spec/dsl_spec.rb, spec/adapters/driven/postgres_era/domain_rename_spec.rb).
   ALLOWED_UNSET = {
-    "namespace"         => "real and tested outside the golden corpus (spec/chapter_namespace_spec.rb) until " \
-                           "lib/hecks/hecks/hecks.bluebook declares namespace \"Hecks::Domain\" (ADR 0080)",
     "where"             => "new Policy surface, dispatch-tested inline -- see this file's own comment",
     "where_ast"         => "derived from `where`, so null exactly where `where` is (above); its shape is " \
                            "pinned against the Chess corpus by spec/expression_ast_spec.rb",
