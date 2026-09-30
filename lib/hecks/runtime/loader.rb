@@ -11,6 +11,10 @@ module Hecks
     # Boots a domain: loads its bluebook directory into a fresh Registry, runs
     # every boot gate, and hands back the bound Dispatcher (or RemoteDispatcher).
     class Loader
+      # Default for a boot's `environment:` keyword: read `HECKS_ENVIRONMENT`. An explicit
+      # `nil` means no overlay, whatever the variable holds.
+      FROM_ENV = :from_env
+
       # Boots `path`: loads its bluebook directory into a fresh Registry, runs
       # every registered boot gate, and returns the bound dispatcher. Pass
       # `install_facade: false` to skip the `Widget::Item.Add(...)` global
@@ -18,11 +22,12 @@ module Hecks
       #
       # @param path [String] a domain directory to boot
       # @param shared [String, nil] shared ports/adapters root; nil walks up from `path`
-      # @param environment [String, nil] environment overlay loaded after the domain; nil for none
+      # @param environment [String, nil] environment overlay loaded after the domain; defaults
+      #   to `HECKS_ENVIRONMENT`, and an explicit nil loads none
       # @return [Runtime::Dispatcher, Runtime::RemoteDispatcher] the booted dispatcher
       # @raise [Errno::ENOENT] if `path` names no domain directory
       # @raise [Runtime::WiringError] if a boot gate finds a wiring problem
-      def self.boot(path, shared: nil, install_facade: true, environment: nil)
+      def self.boot(path, shared: nil, install_facade: true, environment: FROM_ENV)
         loading   = Ports::Loading.bootstrap
         directory = loading.bluebook_directory(path)
         root      = loading.shared_root(shared, directory)
@@ -41,13 +46,14 @@ module Hecks
         install_facade ? bind_runtime(dispatcher) : dispatcher
       end
 
-      # The overlay a boot loads: the caller's own choice, else the `HECKS_ENVIRONMENT`
-      # variable, else none. A domain with no `environments/<name>.*` files ignores either.
+      # The overlay a boot loads: the caller's own choice (nil meaning none), else the
+      # `HECKS_ENVIRONMENT` variable when the caller left the keyword at its default. A domain
+      # with no `environments/<name>.*` files ignores either.
       #
-      # @param environment [String, nil] the overlay name a caller passed to `boot`
-      # @return [String, nil] `environment`, or the variable's value; nil when both are absent
+      # @param environment [String, nil, Symbol] the overlay a caller passed, or `FROM_ENV`
+      # @return [String, nil] the overlay name; nil for none
       def self.selected_environment(environment)
-        return environment if environment
+        return environment unless environment == FROM_ENV
 
         named = ENV["HECKS_ENVIRONMENT"].to_s.strip
         named.empty? ? nil : named
@@ -89,10 +95,11 @@ module Hecks
       #
       # @param paths [Array<String>, String] the exact file paths to boot, in load order
       # @param shared [String, nil] shared ports/adapters root; nil walks up from the first path
-      # @param environment [String, nil] environment overlay loaded after the named files
+      # @param environment [String, nil] environment overlay loaded after the named files;
+      #   defaults to `HECKS_ENVIRONMENT`, and an explicit nil loads none
       # @return [Runtime::Dispatcher, Runtime::RemoteDispatcher] the booted dispatcher
       # @raise [Runtime::WiringError] if a boot gate finds a wiring problem
-      def self.boot_files(paths, shared: nil, install_facade: true, environment: nil)
+      def self.boot_files(paths, shared: nil, install_facade: true, environment: FROM_ENV)
         loading   = Ports::Loading.bootstrap
         files     = Array(paths).map { |path| File.expand_path(path) }
         directory = File.dirname(files.first)

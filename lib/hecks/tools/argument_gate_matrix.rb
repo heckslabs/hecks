@@ -251,7 +251,7 @@ module Hecks
         dropped = []
         DOMAINS.each do |domain|
           Hecks::Fuzzing::IsolatedBoot.call(File.join(root, domain)) do |copy|
-            runtime = Hecks.boot(copy)
+            runtime = Hecks.boot(copy, environment: nil)
             chapters = runtime.registry.bluebooks.keys
             chapter = chapters.find { |name| candidates(runtime, name).any? } || chapters.first
             candidates(runtime, chapter).each do |row|

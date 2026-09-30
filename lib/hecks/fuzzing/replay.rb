@@ -39,7 +39,7 @@ module Hecks
         # chosen adapter, since a Postgres-bound domain's real store lives outside the
         # copied directory and can't be reached by resetting data/ alone.
         IsolatedBoot.call(domain_path, adapter: adapter, database: database, schema: schema) do |copy|
-          runtime = Hecks.boot(copy)
+          runtime = Hecks.boot(copy, environment: nil)
 
           refusals        = []
           queries         = []

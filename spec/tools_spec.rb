@@ -81,6 +81,27 @@ RSpec.describe Hecks::Tools do
     end
   end
 
+  describe "the scripts the codebase adapters name" do
+    before { require "hecks/hecks/adapters/deploy_toolchain" }
+
+    let(:shell) { instance_double(Hecks::Adapters::Shell) }
+    let(:child) { Hecks::Adapters::Codebase::RubyChild.new(Hecks::Adapters::Codebase::Tree.new(root: root), shell: shell) }
+    let(:named) do
+      [Hecks::Adapters::Codebase::Style, Hecks::Adapters::Codebase::Codemods, Hecks::Adapters::DeployToolchain]
+        .flat_map { |adapter| adapter::SCRIPTS.values }
+        .grep(String)
+        .select { |name| described_class.tool?(name) }
+    end
+
+    it "runs every one that lives in Hecks::Tools in this process, so it survives `bin/` going away" do
+      expect(named).not_to be_empty
+      allow(described_class).to receive(:run).and_return(0)
+      expect(shell).not_to receive(:capture)
+
+      named.each { |name| expect(child.capture(name).ok?).to be(true) }
+    end
+  end
+
   describe "the `project_*` generators over `ProjectionFiles`" do
     it "prints what a projection wrote, and aborts with the reason when it is refused" do
       allow(Hecks::ProjectionFiles).to receive(:write).with(:vocabulary, root: Hecks::ProjectionFiles::ROOT)

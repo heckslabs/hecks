@@ -40,7 +40,7 @@ module Hecks
       end
 
       def boot_error(domain_path)
-        IsolatedBoot.call(domain_path) { |copy| Hecks.boot(copy) }
+        IsolatedBoot.call(domain_path) { |copy| Hecks.boot(copy, environment: nil) }
         nil
       rescue StandardError, ScriptError => e
         "#{e.class}: #{e.message.lines.first&.strip}"

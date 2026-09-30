@@ -10,24 +10,43 @@ module Hecks
         include WordGate
 
         class << self
-          attr_accessor :collector
+          # The bind collector of the build running on this thread; thread-local, so a build
+          # on another thread never sees it.
+          #
+          # @return [Array, nil] the binds the running build collects into
+          def collector = Thread.current.thread_variable_get(:hecks_hecksagon_collector)
+
+          # @param value [Array, nil] the binds the running build collects into
+          def collector=(value)
+            Thread.current.thread_variable_set(:hecks_hecksagon_collector, value)
+          end
 
           # @return [String, nil] the name of the chapter whose hecksagon is being built
-          attr_accessor :building
+          def building = Thread.current.thread_variable_get(:hecks_hecksagon_building)
+
+          # @param value [String, nil] the name of the chapter whose hecksagon is being built
+          def building=(value)
+            Thread.current.thread_variable_set(:hecks_hecksagon_building, value)
+          end
+
+          # @return [Hash, nil] the modules this thread's build has taken off `Hecks`
+          def hidden_modules = Thread.current.thread_variable_get(:hecks_hecksagon_hidden)
+
+          # @param value [Hash, nil] the modules this thread's build has taken off `Hecks`
+          def hidden_modules=(value)
+            Thread.current.thread_variable_set(:hecks_hecksagon_hidden, value)
+          end
         end
 
         # Lets the Hecks chapter's own hecksagon spell its aggregates `Hecks::Operation`.
         #
-        # `Hecks` is the gem's real module, so a bare `Hecks::Operation` never reaches the
-        # bare-constant resolver every other chapter's `Domain::Aggregate` goes through. While the
-        # chapter named Hecks builds its hecksagon, a missing constant on `Hecks` is one of that
-        # chapter's aggregates; at any other time it is the ordinary `NameError`.
+        # While the chapter named Hecks builds its hecksagon, a missing constant on `Hecks` is
+        # one of that chapter's aggregates; at any other time it is the ordinary `NameError`.
         #
-        # A chapter aggregate named like a module the gem really defines (`Hecks::Release`) never
-        # reaches `const_missing`: the real module answers. `HecksagonBuilder.build` therefore
-        # takes every such module off `Hecks` while the chapter's hecksagon builds and puts it
-        # back afterwards (see `HecksagonBuilder.shadowed`). This is build-time only: nothing
-        # else runs during a hecksagon build, so nothing observes the module missing.
+        # A real module of the same name (`Hecks::Release`) would answer first, so
+        # `HecksagonBuilder.build` takes each off `Hecks` while the block runs (see `shadowed`).
+        # `attaches` loads whole chapters inside the block; the shadow lifts around each load
+        # (see `with_real_modules`), so loaded code sees the real modules.
         module ChapterConstants
           # @param name [Symbol] the missing constant
           # @return [Bluebook::DSL::BindingProxy] a proxy for that aggregate while building
@@ -87,7 +106,7 @@ module Hecks
         def attaches(name)
           require_relative "../../chapters"
           @attached_chapters << name.to_s
-          Hecks::Chapters.load!(name)
+          self.class.with_real_modules { Hecks::Chapters.load!(name) }
           Hecks.current_registry&.mark_bounded(name.to_s)
         end
 
@@ -157,11 +176,14 @@ module Hecks
           previous_name  = building
           self.collector = builder.binds
           self.building  = domain.to_s
+          previous_hidden = hidden_modules
           hidden = previous_name == "Hecks" ? {} : shadowed(domain)
+          self.hidden_modules = hidden.empty? ? previous_hidden : hidden
           begin
             ConstShim.with(resolver) { builder.instance_eval(&block) } if block
           ensure
             restore_shadowed(hidden)
+            self.hidden_modules = previous_hidden
             self.collector = previous
             self.building  = previous_name
           end
@@ -186,6 +208,28 @@ module Hecks
             held    = pending ? [:autoload, pending] : [:module, Hecks.const_get(name, false)]
             Hecks.send(:remove_const, name)
             [name, held]
+          end
+        end
+
+        # Runs the block with every module the running build shadowed back on `Hecks`, and a
+        # missing `Hecks::X` an ordinary `NameError`, then shadows them again. A chapter loaded
+        # from inside the hecksagon block is ordinary code, not the hecksagon's own vocabulary.
+        # A no-op when nothing is shadowed.
+        #
+        # @yield the code that must see `Hecks`'s real modules
+        # @return [Object] the block's result
+        def self.with_real_modules
+          hidden = hidden_modules
+          return yield if hidden.nil? || hidden.empty?
+
+          name = building
+          restore_shadowed(hidden)
+          self.building = nil
+          begin
+            yield
+          ensure
+            self.building = name
+            hidden.replace(shadowed(name))
           end
         end
 
