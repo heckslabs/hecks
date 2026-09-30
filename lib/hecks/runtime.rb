@@ -46,7 +46,7 @@ module Hecks
       # @param environment [String, nil] the environment name for `Adapters::Folder#load_domain`
       # @return [Runtime::Dispatcher, Runtime::RemoteDispatcher] the dispatcher bound
       #   to the booted domain
-      def boot(path, shared: nil, install_facade: true, environment: nil)
+      def boot(path, shared: nil, install_facade: true, environment: Runtime::Loader::FROM_ENV)
         Loader.boot(path, shared: shared, install_facade: install_facade, environment: environment)
       end
 
@@ -58,7 +58,7 @@ module Hecks
       # @param environment [String, nil] the environment name for the selected-file loader
       # @return [Runtime::Dispatcher, Runtime::RemoteDispatcher] the dispatcher bound
       #   to the booted domain
-      def boot_files(paths, shared: nil, install_facade: true, environment: nil)
+      def boot_files(paths, shared: nil, install_facade: true, environment: Runtime::Loader::FROM_ENV)
         Loader.boot_files(paths, shared: shared, install_facade: install_facade, environment: environment)
       end
 

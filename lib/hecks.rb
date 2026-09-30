@@ -51,15 +51,15 @@ module Hecks
 
   class << self
     # Boots a domain from `path`, assembling a running dispatcher from its
-    # `.bluebook`/`.hecksagon`/`.world` files. hecks never reads ENV itself —
-    # a caller resolves its own env var name and passes it as `environment`.
+    # `.bluebook`/`.hecksagon`/`.world` files. `environment` defaults to
+    # the `HECKS_ENVIRONMENT` variable; pass a name to choose one, or `nil` for none.
     # @param path [String] path to a domain directory, or a file inside one
     # @param shared [String, nil] a shared-root override; see `Runtime::Loader.boot`
     # @param install_facade [Boolean] install the `Widget::Item.Add`-style facade
     # @param environment [String, nil] env name; its `.hecksagon`/`.world` overlay,
-    #   if present, loads after the domain's own
+    #   if present, loads after the domain's own. Defaults to `HECKS_ENVIRONMENT`; nil loads none
     # @return [Runtime::Dispatcher, Runtime::RemoteDispatcher] dispatcher bound to the domain
-    def boot(path, shared: nil, install_facade: true, environment: nil)
+    def boot(path, shared: nil, install_facade: true, environment: Runtime::Loader::FROM_ENV)
       Runtime.boot(path, shared: shared, install_facade: install_facade, environment: environment)
     end
 
@@ -71,7 +71,7 @@ module Hecks
     # @param install_facade [Boolean] install the `Widget::Item.Add`-style facade
     # @param environment [String, nil] environment name passed to the selected-file loader
     # @return [Runtime::Dispatcher, Runtime::RemoteDispatcher] dispatcher bound to the domain
-    def boot_files(paths, shared: nil, install_facade: true, environment: nil)
+    def boot_files(paths, shared: nil, install_facade: true, environment: Runtime::Loader::FROM_ENV)
       Runtime.boot_files(paths, shared: shared, install_facade: install_facade, environment: environment)
     end
 

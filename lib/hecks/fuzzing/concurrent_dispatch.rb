@@ -62,7 +62,7 @@ module Hecks
         lockable = []
         probe_errors = []
         boot_preserving_schema(domain_path, database: database, schema: schema) do |copy|
-          runtime = Hecks.boot(copy)
+          runtime = Hecks.boot(copy, environment: nil)
           verbs.each do |verb|
             lockable << verb if verb_cross_process_lockable?(runtime, verb, probe_errors)
           end
@@ -105,7 +105,7 @@ module Hecks
       def reference_outcomes(domain_path, setup_steps, race_step, database:, schema:)
         outcomes = []
         IsolatedBoot.call(domain_path, adapter: :postgres_era, database: database, schema: schema) do |copy|
-          runtime = Hecks.boot(copy)
+          runtime = Hecks.boot(copy, environment: nil)
           dispatch_all!(runtime, setup_steps)
           outcomes << dispatch_one(runtime, race_step)
           outcomes << dispatch_one(runtime, race_step)
@@ -121,7 +121,7 @@ module Hecks
       # Postgres connection, which corrupted it when tried here.
       def concurrent_outcomes(domain_path, setup_steps, race_step, database:, schema:)
         IsolatedBoot.call(domain_path, adapter: :postgres_era, database: database, schema: schema) do |copy|
-          dispatch_all!(Hecks.boot(copy), setup_steps)
+          dispatch_all!(Hecks.boot(copy, environment: nil), setup_steps)
         end
 
         root = File.expand_path("../../..", __dir__)
