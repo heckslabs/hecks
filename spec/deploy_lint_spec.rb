@@ -171,7 +171,7 @@ RSpec.describe "hecks deploy lint", :io do
 
     it "prints its usage for --help" do
       expect { expect(Hecks::Tools::DeployRecipeLint.main(["--help"])).to eq(0) }
-        .to output(/usage: .*lint_deploy_recipes/).to_stdout
+        .to output(/usage: hecks deploy lint/).to_stdout
     end
   end
 
