@@ -1,3 +1,4 @@
+require_relative "support/project_deploy_runner"
 require "tmpdir"
 require "fileutils"
 require "open3"
@@ -5,7 +6,7 @@ require "hecks/projections/deploy/template_diff"
 
 # Two promises: no multi-container settings renders the single-container
 # golden stack; setting them renders one task with several containers, routed by path.
-RSpec.describe "bin/project_deploy — a multi-container deployed_to(\"AwsFargate\") stack", :io do
+RSpec.describe "hecks deploy project — a multi-container deployed_to(\"AwsFargate\") stack", :io do
   FARGATE_STACK_ROOT_DIR = File.expand_path("..", __dir__)
   FARGATE_STACK_GOLDEN_DIR = File.join(__dir__, "fixtures", "deploy_fargate_golden")
   FARGATE_STACK_FIXTURE_NAME = "scratch_fixture".freeze
@@ -151,8 +152,7 @@ RSpec.describe "bin/project_deploy — a multi-container deployed_to(\"AwsFargat
       File.write(File.join(bluebook_dir, "#{FARGATE_STACK_FIXTURE_NAME}.world"), world_body)
       File.write(File.join(domain, ".env.local"), env_local) if env_local
       out = File.join(dir, "out")
-      _stdout, stderr, status = Open3.capture3("ruby", File.join(FARGATE_STACK_ROOT_DIR, "bin/project_deploy"), domain,
-                                               "--out=#{out}")
+      _stdout, stderr, status = ProjectDeployRunner.run(domain, "--out=#{out}", root: FARGATE_STACK_ROOT_DIR)
       return [nil, stderr] unless status.success?
 
       files = Dir.children(out).to_h do |name|

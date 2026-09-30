@@ -5,6 +5,7 @@
   "vision": "A generic admin console's own curated UI facts — nav, columns, state tones, which rows a detail panel shows — as real dispatched data instead of a hand-rewritten YAML file. A UI opinion the DOMAIN it's pointed at has no way to answer, never a business record; see the console app's own presentation_config.rb for the fuller story.",
   "classification": "supporting",
   "formerly_known_as": null,
+  "namespace": null,
   "aggregates": [
     {
       "name": "StateStyle",

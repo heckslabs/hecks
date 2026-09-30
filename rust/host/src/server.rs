@@ -42,6 +42,11 @@ pub async fn dispatch_body(
         return Ok(result);
     }
 
+    // A query step reads current state and writes nothing to the journal.
+    if body.get("query").is_some() {
+        return Ok(crate::query_step::answer(&body, crate::ir::ir(), &config.domain, client, wasm_path).await?);
+    }
+
     let verb = body
         .get("verb")
         .and_then(|v| v.as_str())

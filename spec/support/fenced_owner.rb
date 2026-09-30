@@ -5,8 +5,8 @@ require "pg"
 #
 # The role owns the database because a PostgresEra boot provisions tables, policies and schemas.
 # One `ROLE` serves every caller and is never dropped: `parallel_rspec` runs files concurrently,
-# creation swallows the race-loser's error (see bin/qa_postgres_role), and dropping it would fail
-# while another spec's database still hangs off it.
+# creation swallows the race-loser's error (see hecks quality_control create_ledger_role), and
+# dropping it would fail while another spec's database still hangs off it.
 module FencedOwner
   ROLE = "hecks_spec_owner".freeze
 

@@ -22,8 +22,17 @@ mod expr_json;
 #[path = "../reference_validate.rs"]
 mod reference_validate;
 #[allow(dead_code)]
+#[path = "../approval.rs"]
+mod approval;
+#[allow(dead_code)]
 #[path = "../mint.rs"]
 mod mint;
+
+// The shared modules' Postgres tests connect through `crate::test_pg`, so the harness's own test
+// build carries the same connection-string helpers.
+#[cfg(test)]
+#[path = "../test_pg.rs"]
+mod test_pg;
 
 use serde_json::{json, Value};
 use std::collections::HashMap;
@@ -42,8 +51,15 @@ async fn main() -> anyhow::Result<()> {
     let ir_text = std::fs::read_to_string(ir_path).map_err(|e| anyhow::anyhow!("reading {ir_path}: {e}"))?;
     let ir: Value = serde_json::from_str(&ir_text).map_err(|e| anyhow::anyhow!("parsing {ir_path}: {e}"))?;
 
-    let conn_string = format!("host=localhost dbname={db_name} user={owner_role}");
-    let (client, connection) = tokio_postgres::connect(&conn_string, NoTls).await?;
+    // A server that wants a password over TCP gets it from PGPASSWORD, as libpq would read it.
+    // Built field by field, not spliced into a connection string, so a password with a space,
+    // quote or backslash reaches the server as typed.
+    let mut config = tokio_postgres::Config::new();
+    config.host("localhost").dbname(db_name).user(owner_role);
+    if let Ok(password) = std::env::var("PGPASSWORD") {
+        config.password(password);
+    }
+    let (client, connection) = config.connect(NoTls).await?;
     tokio::spawn(async move {
         if let Err(err) = connection.await {
             eprintln!("postgres connection error: {err:#}");
@@ -90,8 +106,21 @@ async fn main() -> anyhow::Result<()> {
             let chain = mint::edge_chain(&edges, &labels)
                 .map_err(|e| anyhow::anyhow!("drifted from era {from_ordinal} ({from_label}) to {my_label} with no covering edge -- {e}"))?;
 
-            // Approval-gate checks are not wired in: no fixture declares a compute/rekey rule.
+            // The same gate the host runs: a compute/rekey edge mints only on an approval, from the
+            // journal or committed in ir.json's `approvals`.
             let raw_edges = ir.get("translations").and_then(Value::as_array).cloned().unwrap_or_default();
+            let committed_approvals = approval::committed(&ir);
+            for edge in &chain {
+                // An edge with no raw entry fails closed, as the host does, and never skips the gate.
+                let Some(raw_edge) = raw_edges.iter().find(|candidate| {
+                    candidate.get("domain").and_then(Value::as_str) == Some(domain.as_str())
+                        && candidate.get("from").and_then(Value::as_str) == Some(edge.from.as_str())
+                        && candidate.get("to").and_then(Value::as_str) == Some(edge.to.as_str())
+                }) else {
+                    anyhow::bail!("cannot boot: {domain}'s edge {} -> {} vanished between parsing and approval-checking it", edge.from, edge.to);
+                };
+                approval::check(&client, domain, raw_edge, ordinal, &committed_approvals).await?;
+            }
             let watermarks: HashMap<i32, Option<i64>> = held.iter().map(|h| (h.ordinal, h.watermark)).collect();
             mint::audit_before_mint(&client, domain, &ir, &aggregates, ordinal, &chain, &raw_edges, &watermarks).await?;
 

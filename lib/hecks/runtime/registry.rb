@@ -17,6 +17,9 @@ module Hecks
       include SagaPersistence
       include WorldDefaults
 
+      # The thread-local key under which open reaction collections are kept.
+      REACTION_SINKS = :hecks_reaction_sinks
+
       attr_reader :root, :bluebooks, :hecksagons, :ports, :adapters, :worlds, :event_log,
                   :reaction_log, :saga_log, :saga_instances, :translations, :saga_mutex,
                   :saga_dispatch_log, :policy_dispatch_log, :bluebook_sources,
@@ -37,6 +40,7 @@ module Hecks
         @translations = []
         @event_log    = []
         @reaction_log = []
+        @reaction_events = {}.compare_by_identity
         @saga_log = []
         # Recorded at hecksagon-build time (AggregateDoor#mark_sensitive); Loader.boot's
         # post-dispatch step turns each entry into a real Privacy::Marking.Mark, idempotently.
@@ -101,6 +105,17 @@ module Hecks
       # @param item [Bluebook::Chapter] the loaded, judged chapter
       # @return [Bluebook::Chapter] `item`, unchanged
       def add_bluebook(item) = @bluebooks[item.name] = item
+
+      # Drops a chapter and the open builder and source record that accumulated it, so the
+      # chapter can be loaded again from nothing.
+      #
+      # @param name [String, Symbol] the chapter name to forget
+      # @return [void]
+      def forget_chapter(name)
+        @bluebooks.delete(name.to_s)
+        @bluebook_builders.delete(name.to_s)
+        @bluebook_sources.delete(name.to_s)
+      end
 
       # Tracks which .bluebook file(s) contributed to a chapter name (a boot-time loading
       # fact, never Rust-mirrored) so refuse_cross_package_bluebook_merge! can catch two
@@ -233,7 +248,7 @@ module Hecks
       # @return [Bluebook::Chapter, nil] the chapter that answers `domain`'s role
       #   checks, or nil if none does
       def authorization_provider_for(domain)
-        names = [domain.to_s, *Array(hecksagon(domain)&.framework_members)]
+        names = [domain.to_s, *Array(hecksagon(domain)&.member_chapters)]
         names.filter_map { |name| bluebook(name) }
              .find { |chapter| chapter.provides?(Bluebook::Capabilities::AUTHORIZATION) }
       end
@@ -254,7 +269,7 @@ module Hecks
       # @return [Bluebook::Chapter, nil] the chapter that answers `domain`'s identity
       #   questions, or nil if none does
       def identity_provider_for(domain)
-        names = [domain.to_s, *Array(hecksagon(domain)&.framework_members)]
+        names = [domain.to_s, *Array(hecksagon(domain)&.member_chapters)]
         attached = names.filter_map { |name| bluebook(name) }
                         .find { |chapter| chapter.provides?(Bluebook::Capabilities::IDENTITY) }
         return attached if attached
@@ -350,7 +365,7 @@ module Hecks
       def vendored_provider_for(domain, capability)
         hexagon = hecksagon(domain)
         vendored = Array(hexagon&.vendored_bluebooks).map { |name| Naming.pascal(name) }
-        names = [domain.to_s, *Array(hexagon&.framework_members), *vendored]
+        names = [domain.to_s, *Array(hexagon&.member_chapters), *vendored]
         attached = names.filter_map { |name| bluebook(name) }
                         .find { |chapter| chapter.provides?(capability) }
         return attached if attached
@@ -373,6 +388,43 @@ module Hecks
         @repositories[[domain.to_s, aggregate.hecks_name]] ||= Ports::Persistence.repository(self, domain, aggregate)
       end
 
+      # Records one policy reaction on the shared log, and on every collection open on this
+      # thread (see `collecting_reactions`).
+      #
+      # The event that triggered a reaction is kept beside the log, not in the record: the record
+      # is the byte-for-byte shape the Rust kernel also writes.
+      #
+      # @param record [Hash{Symbol => Object}] the reaction's outcome
+      # @param event [String, Integer, nil] identity of the event instance the reaction answered
+      # @return [void]
+      # rubocop:disable-next Hecks/ThreadSharedIvarMutation
+      def log_reaction(record, event: nil)
+        @reaction_log << record
+        @reaction_events[record] = event if event
+        Array(Thread.current[REACTION_SINKS]).each { |sink| sink << record }
+      end
+
+      # The identity of the event instance a logged reaction answered.
+      #
+      # @param record [Hash{Symbol => Object}] a record `log_reaction` was given
+      # @return [String, Integer, nil] nil for a record logged without its event
+      def reaction_event(record) = @reaction_events[record]
+
+      # Collects the reactions logged on this thread while the block runs, so one dispatch
+      # reads exactly its own even when other threads dispatch on the same registry. Nested
+      # dispatches (a reaction that dispatches) each collect, and the outer one sees theirs too.
+      #
+      # @yield [Array<Hash>] the collection, filled as reactions are logged
+      # @return [Object] what the block returns
+      def collecting_reactions
+        sinks = (Thread.current[REACTION_SINKS] ||= [])
+        sink  = []
+        sinks << sink
+        yield sink
+      ensure
+        sinks&.delete_if { |candidate| candidate.equal?(sink) }
+      end
+
       # Clears everything a dispatch produced (logs, saga instances, repositories); leaves
       # what booting the files produced (bluebooks, hecksagons, ports, adapters, worlds,
       # resolved eras) untouched.
@@ -386,6 +438,7 @@ module Hecks
       def reset_runtime_state!
         @event_log.clear
         @reaction_log.clear
+        @reaction_events.clear
         @saga_log.clear
         @saga_dispatch_log.clear
         @policy_dispatch_log.clear
@@ -469,6 +522,7 @@ module Hecks
           subscriptions:      (base.subscriptions + overlay.subscriptions).uniq,
           framework_members:  (base.framework_members + overlay.framework_members).uniq,
           vendored_bluebooks: (base.vendored_bluebooks + overlay.vendored_bluebooks).uniq,
+          attached_chapters:  (base.attached_chapters + overlay.attached_chapters).uniq,
           bounded:            base.bounded? || overlay.bounded?,
           translates:         (base.translates + overlay.translates).uniq
         )

@@ -15,6 +15,12 @@ module Hecks
           @assume_yes = assume_yes
         end
 
+        # @return [IO] where progress goes
+        attr_reader :out
+
+        # @return [IO] where refusals and failures go
+        attr_reader :err
+
         # Prints a progress line.
         #
         # @param text [String] the line

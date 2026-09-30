@@ -1,0 +1,163 @@
+require "tmpdir"
+require "fileutils"
+require "open3"
+require "rbconfig"
+require "hecks/ports/persistence/plugins/era"
+require_relative "support/postgres_probe"
+require_relative "support/fenced_owner"
+
+# `hecks deploy provision` (Hecks::Tools::TenantProvisioning) runs as a subprocess against a
+# tmpdir fixture, and what it generated is read back.
+RSpec.describe "hecks deploy provision", :io do
+  # The child's whole program: the tool the launcher's `deploy provision` runs. A prefixed
+  # constant name: a bare one collides with another spec's (caught by load_hygiene_spec.rb).
+  TENANT_CHILD = 'require "hecks/tools"; Hecks::Tools.script("project_tenant", ARGV)'.freeze
+  DB = "hecks_project_tenant_spec".freeze
+  # The overlay binds the database by URL as a non-superuser owner: PostgresEra refuses to boot
+  # as a superuser (see support/fenced_owner.rb).
+  DB_URL = FencedOwner.url(DB)
+
+  def fixture(dir)
+    File.write(File.join(dir, "scratch.bluebook"), <<~BLUEBOOK)
+      Hecks.bluebook "Scratch" do
+        vision "one aggregate, enough to exercise tenant provisioning end to end"
+        core
+
+        aggregate "Widget" do
+          description "a widget"
+          identified_by :ref
+
+          value_object "Ref" do
+            attribute :value, String
+            invariant("a widget has a ref") { !value.to_s.empty? }
+          end
+
+          attribute :ref, Ref
+
+          command "Make" do
+            role "Someone"
+            goal "make a widget"
+            attribute :ref, Ref
+            emits "WidgetMade"
+          end
+
+          query "All" do
+          end
+        end
+      end
+    BLUEBOOK
+    File.write(File.join(dir, "scratch.hecksagon"), <<~HECKSAGON)
+      Hecks.hecksagon "Scratch" do
+        uses_framework "Governance"
+        Scratch::Widget.persisted_by("PostgresEra")
+      end
+    HECKSAGON
+    File.write(File.join(dir, "context_map.hecksagon"), InMemoryDomain::GOVERNANCE_POSTGRES_ERA_HECKSAGON)
+    File.write(File.join(dir, "scratch.world"), <<~WORLD)
+      Hecks.world "Scratch" do
+        realm "ScratchDefault"
+      end
+    WORLD
+    File.write(File.join(dir, "governance.world"), InMemoryDomain.governance_postgres_era_world(DB_URL))
+  end
+
+  def run_project_tenant(dir, slug, **opts)
+    args = [RbConfig.ruby, "-I", File.join(InMemoryDomain::ROOT, "lib"), "-e", TENANT_CHILD, "--", dir, slug]
+    opts.each { |k, v| args << "--#{k}=#{v}" }
+    Open3.capture3(*args, chdir: InMemoryDomain::ROOT)
+  end
+
+  before(:context) do
+    skip_message = "no local Postgres reachable" unless PostgresProbe.available?
+    @skip = skip_message
+    next if skip_message
+
+    admin = PG.connect(dbname: "postgres")
+    admin.exec("DROP DATABASE IF EXISTS #{DB} WITH (FORCE)")
+    admin.exec("CREATE DATABASE #{DB}")
+    admin.close
+    FencedOwner.own!(DB)
+  end
+
+  after(:context) do
+    next if @skip
+
+    admin = PG.connect(dbname: "postgres")
+    admin.exec("DROP DATABASE IF EXISTS #{DB} WITH (FORCE)")
+    admin.close
+  end
+
+  it "validates, provisions the schema, writes the overlay, and boots for real" do
+    skip @skip if @skip
+
+    Dir.mktmpdir do |dir|
+      fixture(dir)
+
+      out, err, status = run_project_tenant(
+        dir, "acme", domain: "Scratch", realm: "Acme", schema: "acme", database: DB_URL
+      )
+      expect(status).to be_success, "stdout: #{out}\nstderr: #{err}"
+      expect(out).to include("wrote #{File.join(dir, 'environments/acme.world')}")
+      expect(out).to include('booted Scratch for tenant "acme"')
+      expect(out).to include("tenant_capable?")
+
+      overlay = File.read(File.join(dir, "environments/acme.world"))
+      expect(overlay).to include('realm "Acme"')
+      expect(overlay).to include("database \"#{DB_URL}\"")
+      expect(overlay).to include('schema   "acme"')
+    end
+  end
+
+  it "is idempotent — a second run for the same tenant is a safe no-op, not an error" do
+    skip @skip if @skip
+
+    Dir.mktmpdir do |dir|
+      fixture(dir)
+
+      run_project_tenant(dir, "acme", domain: "Scratch", realm: "Acme", schema: "acme", database: DB_URL)
+      _out, _err, status = run_project_tenant(dir, "acme", domain: "Scratch", realm: "Acme", schema: "acme", database: DB_URL)
+
+      expect(status).to be_success
+    end
+  end
+
+  it "keeps two tenants it provisions completely apart, through the real overlays it wrote" do
+    skip @skip if @skip
+
+    Dir.mktmpdir do |dir|
+      fixture(dir)
+
+      run_project_tenant(dir, "acme", domain: "Scratch", realm: "Acme", schema: "acme", database: DB_URL)
+      run_project_tenant(dir, "bloom", domain: "Scratch", realm: "Bloom", schema: "bloom", database: DB_URL)
+
+      acme  = Hecks.boot(dir, environment: "acme", install_doors: false)
+      bloom = Hecks.boot(dir, environment: "bloom", install_doors: false)
+
+      register = Hecks::Bluebook::ProjectRegister.new
+      register.register([acme.registry.bluebook("Scratch")], acme.registry, acme, dir)
+      register.register([bloom.registry.bluebook("Scratch")], bloom.registry, bloom, dir)
+
+      router = Hecks::Router.new(register)
+      router.dispatch("Acme::Scratch::Widget.Make", ref: { value: "acme-provisioned-for-real" })
+
+      expect(router.query("Acme::Scratch::Widget.all").map { |w| w[:ref][:value] }).to eq(["acme-provisioned-for-real"])
+      expect(router.query("Bloom::Scratch::Widget.all")).to eq([])
+    end
+  end
+
+  it "refuses a malformed tenant before writing or connecting to anything" do
+    skip @skip if @skip
+
+    Dir.mktmpdir do |dir|
+      fixture(dir)
+
+      _out, err, status = run_project_tenant(
+        dir, "Not A Slug", domain: "Scratch", realm: "Bad", schema: "acme", database: DB_URL
+      )
+
+      expect(status).not_to be_success
+      expect(err).to include("is invalid")
+      expect(File.exist?(File.join(dir, "environments/not a slug.world"))).to be false
+    end
+  end
+end

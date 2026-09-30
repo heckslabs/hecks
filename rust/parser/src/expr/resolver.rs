@@ -49,6 +49,22 @@ pub enum Resolver {
     ArrayLiteral(Vec<Resolver>),
     /// `receiver.any? { |param| predicate }` and siblings; the body is parsed as a predicate.
     BlockPredicate { mode: BlockMode, receiver: Box<Resolver>, param: String, predicate: Box<Evaluator> },
+    /// `receiver.match?(/pattern/flags)`: the pattern text is kept verbatim.
+    MatchesRegex { receiver: Box<Resolver>, pattern: String, flags: String },
+    /// `receiver.present?` (`negated: false`) or `receiver.blank?` (`negated: true`).
+    Presence { receiver: Box<Resolver>, negated: bool },
+    /// `receiver.set?` (`negated: false`) or `receiver.unset?` (`negated: true`): only `!nil?`.
+    Assignment { receiver: Box<Resolver>, negated: bool },
+    /// `receiver.split("sep")`: the separator is sliced verbatim between the quotes.
+    Split { receiver: Box<Resolver>, separator: String },
+    /// `receiver.first`.
+    First(Box<Resolver>),
+    /// `receiver.last`.
+    Last(Box<Resolver>),
+    /// `receiver.start_with?("substring")`.
+    StartsWith { receiver: Box<Resolver>, substring: String },
+    /// `receiver.end_with?("substring")`.
+    EndsWith { receiver: Box<Resolver>, substring: String },
     /// `receiver.find { |param| predicate }.a.b`.
     Find { receiver: Box<Resolver>, param: String, predicate: Box<Evaluator>, path: Vec<String> },
 }
@@ -106,6 +122,39 @@ pub fn parse(expr: &str) -> Resolver {
 
     if let Some(inner) = strip_suffix_dotted(expr, "size") {
         return Resolver::Size(Box::new(parse(inner)));
+    }
+
+    if let Some((receiver, pattern, flags)) = match_regex(expr) {
+        return Resolver::MatchesRegex { receiver: Box::new(parse(receiver)), pattern: pattern.to_string(), flags: flags.to_string() };
+    }
+
+    for (suffix, negated) in [("present?", false), ("blank?", true)] {
+        if let Some(inner) = strip_suffix_dotted(expr, suffix) {
+            return Resolver::Presence { receiver: Box::new(parse(inner)), negated };
+        }
+    }
+    for (suffix, negated) in [("set?", false), ("unset?", true)] {
+        if let Some(inner) = strip_suffix_dotted(expr, suffix) {
+            return Resolver::Assignment { receiver: Box::new(parse(inner)), negated };
+        }
+    }
+
+    if let Some((receiver, separator)) = match_string_call(expr, "split") {
+        return Resolver::Split { receiver: Box::new(parse(receiver)), separator: separator.to_string() };
+    }
+
+    if let Some(inner) = strip_suffix_dotted(expr, "first") {
+        return Resolver::First(Box::new(parse(inner)));
+    }
+    if let Some(inner) = strip_suffix_dotted(expr, "last") {
+        return Resolver::Last(Box::new(parse(inner)));
+    }
+
+    if let Some((receiver, substring)) = match_string_call(expr, "start_with?") {
+        return Resolver::StartsWith { receiver: Box::new(parse(receiver)), substring: substring.to_string() };
+    }
+    if let Some((receiver, substring)) = match_string_call(expr, "end_with?") {
+        return Resolver::EndsWith { receiver: Box::new(parse(receiver)), substring: substring.to_string() };
     }
 
     // Last before the `Lookup` catch-all, matching `resolver.rb`.
@@ -218,11 +267,12 @@ fn matching_brace(expr: &str, start: usize) -> Option<usize> {
     None
 }
 
-/// Strips a trailing `.suffix`, requiring a non-empty remainder.
+/// Strips a trailing `.suffix`, requiring a non-empty remainder. A newline in the remainder
+/// refuses, as Ruby's newline-blind `(.+)` does for every pattern but `match?`'s `/m` one.
 fn strip_suffix_dotted<'a>(expr: &'a str, suffix: &str) -> Option<&'a str> {
     let marker = format!(".{suffix}");
     let prefix = expr.strip_suffix(marker.as_str())?;
-    if prefix.is_empty() {
+    if prefix.is_empty() || prefix.contains('\n') {
         None
     } else {
         Some(prefix)
@@ -316,6 +366,32 @@ fn match_suffix<'a>(expr: &'a str, suffixes: &[&'a str]) -> Option<(&'a str, &'a
     None
 }
 
+/// Hand-matched `/\A(.+)\.match\?\(\/(.*)\/([a-z]*)\)\z/m`: the receiver is the longest prefix
+/// (at least one character) that leaves a `/pattern/flags)` tail, the flags lowercase letters.
+fn match_regex(expr: &str) -> Option<(&str, &str, &str)> {
+    const MARKER: &str = ".match?(/";
+    let body = expr.strip_suffix(')')?;
+    let close = body.rfind('/')?;
+    let flags = &body[close + 1..];
+    if !flags.bytes().all(|b| b.is_ascii_lowercase()) {
+        return None;
+    }
+    let index = body[..close + 1].rmatch_indices(MARKER).map(|(i, _)| i).find(|i| *i > 0 && i + MARKER.len() <= close)?;
+    Some((&expr[..index], &body[index + MARKER.len()..close], flags))
+}
+
+/// Hand-matched `/\A(.+)\.NAME\("([^"]*)"\)\z/`: the argument holds no quote, so the last `"`
+/// opens it and `.NAME(` must sit directly before that quote.
+fn match_string_call<'a>(expr: &'a str, name: &str) -> Option<(&'a str, &'a str)> {
+    let body = expr.strip_suffix("\")")?;
+    let open = body.rfind('"')?;
+    let receiver = body[..open].strip_suffix(format!(".{name}(").as_str())?;
+    if receiver.is_empty() || receiver.contains('\n') {
+        return None;
+    }
+    Some((receiver, &body[open + 1..]))
+}
+
 /// Splits at the rightmost `marker` when the expression ends in `)`.
 fn match_call<'a>(expr: &'a str, marker: &str) -> Option<(&'a str, &'a str)> {
     if !expr.ends_with(')') {
@@ -323,4 +399,99 @@ fn match_call<'a>(expr: &'a str, marker: &str) -> Option<(&'a str, &'a str)> {
     }
     let index = expr.rfind(marker)?;
     Some((&expr[..index], &expr[index + marker.len()..expr.len() - 1]))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn regex_parts(node: Resolver) -> (Resolver, String, String) {
+        match node {
+            Resolver::MatchesRegex { receiver, pattern, flags } => (*receiver, pattern, flags),
+            other => panic!("expected MatchesRegex, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn parses_match_with_its_pattern_kept_verbatim() {
+        let text = r"value.to_s.match?(/\A[A-Z][A-Za-z0-9_]*(::[A-Z][A-Za-z0-9_]*)*\z/)";
+        let (receiver, pattern, flags) = regex_parts(parse(text));
+
+        assert!(matches!(receiver, Resolver::ToS(_)));
+        assert_eq!(pattern, r"\A[A-Z][A-Za-z0-9_]*(::[A-Z][A-Za-z0-9_]*)*\z");
+        assert_eq!(flags, "");
+    }
+
+    #[test]
+    fn keeps_the_flags_and_a_slash_inside_the_pattern() {
+        let (_, pattern, flags) = regex_parts(parse("name.match?(/a\\/b/i)"));
+
+        assert_eq!(pattern, "a\\/b");
+        assert_eq!(flags, "i");
+    }
+
+    #[test]
+    fn leaves_a_call_that_is_not_a_regex_match_a_lookup() {
+        assert!(matches!(parse("name.match?(other)"), Resolver::Lookup(_)));
+    }
+
+    /// The emitted JSON with its pretty-printing whitespace removed (no test string has spaces).
+    fn compact(text: &str) -> String {
+        crate::emit::write(&crate::expr::ast_json::emit_predicate(text)).split_whitespace().collect()
+    }
+
+    #[test]
+    fn present_and_blank_are_one_node_told_apart_by_negated() {
+        assert!(matches!(parse("name.present?"), Resolver::Presence { negated: false, .. }));
+        assert!(matches!(parse("name.blank?"), Resolver::Presence { negated: true, .. }));
+    }
+
+    #[test]
+    fn set_and_unset_are_one_node_told_apart_by_negated() {
+        assert!(matches!(parse("note.set?"), Resolver::Assignment { negated: false, .. }));
+        assert!(matches!(parse("note.unset?"), Resolver::Assignment { negated: true, .. }));
+    }
+
+    #[test]
+    fn split_keeps_its_separator_verbatim_and_chains_into_first_and_last() {
+        let Resolver::First(inner) = parse("path.split(\"/\").first") else { panic!("expected First") };
+        let Resolver::Split { receiver, separator } = *inner else { panic!("expected Split") };
+        assert_eq!(separator, "/");
+        assert!(matches!(*receiver, Resolver::Lookup(_)));
+        assert!(matches!(parse("path.split(\"::\").last"), Resolver::Last(_)));
+    }
+
+    #[test]
+    fn start_and_end_with_take_a_quoted_argument() {
+        let Resolver::StartsWith { substring, .. } = parse("branch.value.start_with?(\"qa/\")") else { panic!() };
+        assert_eq!(substring, "qa/");
+        let Resolver::EndsWith { substring, .. } = parse("name.end_with?(\"x, y\")") else { panic!() };
+        assert_eq!(substring, "x, y");
+    }
+
+    #[test]
+    fn a_call_without_a_quoted_argument_stays_a_lookup() {
+        assert!(matches!(parse("name.start_with?(prefix)"), Resolver::Lookup(_)));
+        assert!(matches!(parse("name.split(sep)"), Resolver::Lookup(_)));
+        assert!(matches!(parse("name.split(\"a\"b\")"), Resolver::Lookup(_)));
+    }
+
+    #[test]
+    fn emits_ruby_key_order_for_each_new_node() {
+        let a = r#"{"op":"lookup","path":["a"]}"#;
+        let cases = [
+            ("a.present?", format!(r#"{{"op":"presence","receiver":{a},"negated":false}}"#)),
+            ("a.blank?", format!(r#"{{"op":"presence","receiver":{a},"negated":true}}"#)),
+            ("a.set?", format!(r#"{{"op":"assignment","receiver":{a},"negated":false}}"#)),
+            ("a.unset?", format!(r#"{{"op":"assignment","receiver":{a},"negated":true}}"#)),
+            ("a.split(\"/\")", format!(r#"{{"op":"split","receiver":{a},"separator":"/"}}"#)),
+            ("a.first", format!(r#"{{"op":"first","receiver":{a}}}"#)),
+            ("a.last", format!(r#"{{"op":"last","receiver":{a}}}"#)),
+            ("a.start_with?(\"x\")", format!(r#"{{"op":"starts_with","receiver":{a},"substring":"x"}}"#)),
+            ("a.end_with?(\"y\")", format!(r#"{{"op":"ends_with","receiver":{a},"substring":"y"}}"#)),
+        ];
+        for (text, expected) in cases {
+            assert_eq!(compact(text), expected, "{text}");
+        }
+    }
 }

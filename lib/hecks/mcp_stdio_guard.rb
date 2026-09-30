@@ -1,8 +1,8 @@
 require "socket"
 
 module Hecks
-  # Startup gate for the stdio MCP servers in `bin/`: refuses network sockets, extra flags and
-  # unknown `HECKS_MCP_*` variables. It is not authentication (ADR 0062).
+  # Startup gate for the stdio MCP servers `hecks mcp` runs: refuses network sockets, extra
+  # flags and unknown `HECKS_MCP_*` variables. It is not authentication (ADR 0062).
   module McpStdioGuard
     ACCEPTED_ARGS = %w[--stdio].freeze
     ENV_PREFIX    = "HECKS_MCP_".freeze

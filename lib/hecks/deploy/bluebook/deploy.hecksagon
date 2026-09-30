@@ -2,15 +2,52 @@
 Hecks.hecksagon "Deploy" do
   persisted_by "Memory"
 
-  # `bin/project_tenant` dispatches this after `Tenant.Declare` validates; `directory` is a real
-  # filesystem path, which `Tenant`'s declared `domain` name cannot supply.
+  # `Tenant.Provision` and `Tenant.Reprovision` dispatch this through their policies; `directory` is a real filesystem path, which `Tenant`'s
+  # declared `domain` name cannot supply. `adapter` may be left to the record, which leaves it to
+  # the adapter's PostgresEra.
   Deploy::Tenant.port "TenantProvisioning" do
-    asks "Provision", to: Tenant do
+    asks "WriteOverlay", to: Tenant do
       attribute :database,  DatabaseName
-      attribute :adapter,   AdapterName
+      attribute :adapter,   AdapterName, optional: true
       attribute :directory, DirectoryPath
       answers "TenantProvisioned"
       refuses "ProvisioningRefused"
+    end
+  end
+
+  # Each run below asks the DeployToolchain adapter, which the Hecks domain supplies
+  # (lib/hecks/hecks/adapters/deploy_toolchain.rb): the outside a recipe, a lint, a comparison or
+  # a manifest reaches. Every ask is answered with the record's own arguments or refused with
+  # a reason.
+  Deploy::Recipe.port "DeployToolchain" do
+    asks "Generate", to: Recipe do
+      attribute :run, RunKey
+      answers "RecipeAnswered"
+      refuses "RecipeRefused"
+    end
+  end
+
+  Deploy::MakefileCheck.port "DeployToolchain" do
+    asks "Scan", to: MakefileCheck do
+      attribute :run, RunKey
+      answers "LintAnswered"
+      refuses "LintRefused"
+    end
+  end
+
+  Deploy::TemplateComparison.port "DeployToolchain" do
+    asks "Compare", to: TemplateComparison do
+      attribute :run, RunKey
+      answers "ComparisonAnswered"
+      refuses "ComparisonUnreadable"
+    end
+  end
+
+  Deploy::OidcManifest.port "DeployToolchain" do
+    asks "Manifest", to: OidcManifest do
+      attribute :run, RunKey
+      answers "ManifestAnswered"
+      refuses "ManifestRefused"
     end
   end
 end

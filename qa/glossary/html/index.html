@@ -411,6 +411,10 @@ section.searching .terms { border-top: 0; margin-top: 0.8rem; }
 <h3>Discard</h3>
 <p>Decide a lead is not worth the practice&#39;s time, and say why. Done by the qa engineer.</p>
 </article>
+<article class="term" id="document">
+<h3>Document</h3>
+<p>Made up of text (text).</p>
+</article>
 <article class="term" id="instant">
 <h3>Instant</h3>
 <p>A whole number.</p>
@@ -432,6 +436,10 @@ section.searching .terms { border-top: 0; margin-top: 0.8rem; }
 <article class="term" id="resolved">
 <h3>Resolved</h3>
 <p>Leads already acted on, one way or the other — built into something real, or discarded with a reason. Read beside Backlog for the practice&#39;s own hit rate.</p>
+</article>
+<article class="term" id="seed">
+<h3>Seed</h3>
+<p>Propose the practice&#39;s starting leads that are not on file yet; a lead already chased down is proposed, investigated and built in one pass.</p>
 </article></div>
 </section>
 <section id="bug">
@@ -461,6 +469,7 @@ section.searching .terms { border-top: 0; margin-top: 0.8rem; }
     investigating --&gt; paused: Pause
     logged --&gt; withdrawn: Withdraw
     investigating --&gt; withdrawn: Withdraw
+    paused --&gt; withdrawn: Withdraw
     fixed --&gt; investigating: Regress
     verified --&gt; investigating: Regress
     paused --&gt; investigating: Revisit</pre>
@@ -784,6 +793,10 @@ section.searching .terms { border-top: 0; margin-top: 0.8rem; }
 <h3>All</h3>
 <p>Every CI run ever recorded, one per commit.</p>
 </article>
+<article class="term" id="check-pull-requests">
+<h3>Check pull requests</h3>
+<p>Check CI for every PR the ledger tracks as open, a Patch or an Improvement: retire one GitHub reports merged or closed, and start a clearance for each unsettled head commit.</p>
+</article>
 <article class="term" id="clearance-given">
 <h3>Clearance given</h3>
 <p>Recorded after <a href="#passed">Passed</a>.</p>
@@ -799,6 +812,10 @@ section.searching .terms { border-top: 0; margin-top: 0.8rem; }
 <article class="term" id="commit-ref-1">
 <h3>Commit ref</h3>
 <p>Text.</p>
+</article>
+<article class="term" id="document-1">
+<h3>Document</h3>
+<p>Made up of text (text).</p>
 </article>
 <article class="term" id="failed">
 <h3>Failed</h3>
@@ -943,7 +960,7 @@ section.searching .terms { border-top: 0; margin-top: 0.8rem; }
 </article>
 <article class="term" id="open-the-list">
 <h3>Open (the list)</h3>
-<p>Every PR we&#39;ve landed for deliberate, non-bugfix work that&#39;s still open, by number — bin/qa_pr_check&#39;s own second worklist, the same shape Patch.Open already gives for a bug&#39;s own fix. For each of these, ask gh for exactly this number&#39;s CI status; nothing here is a guess.</p>
+<p>Every PR we&#39;ve landed for deliberate, non-bugfix work that&#39;s still open, by number — hecks quality_control check_pull_requests&#39;s own second worklist, the same shape Patch.Open already gives for a bug&#39;s own fix. For each of these, ask gh for exactly this number&#39;s CI status; nothing here is a guess.</p>
 </article>
 <article class="term" id="opened-since">
 <h3>Opened since</h3>
@@ -1011,7 +1028,7 @@ section.searching .terms { border-top: 0; margin-top: 0.8rem; }
 </article>
 <article class="term" id="open-the-list-1">
 <h3>Open (the list)</h3>
-<p>Every PR we&#39;ve opened that&#39;s still open, by number — bin/qa_pr_check&#39;s own worklist. For each of these, ask gh for exactly this number&#39;s CI status; nothing here is a guess.</p>
+<p>Every PR we&#39;ve opened that&#39;s still open, by number — hecks quality_control check_pull_requests&#39;s own worklist. For each of these, ask gh for exactly this number&#39;s CI status; nothing here is a guess.</p>
 </article>
 <article class="term" id="opened-since-1">
 <h3>Opened since</h3>
@@ -1076,7 +1093,7 @@ section.searching .terms { border-top: 0; margin-top: 0.8rem; }
     sweeping --&gt; abandoned: Abandon</pre>
 </figure>
 <p class="caption">Always true</p>
-<ul class="rules"><li>A Sweep references a Target.</li><li>A Sweep has many checks.</li><li>A sweep is referenced.</li><li>A sweep says who ran it.</li><li>A check count is not negative.</li><li>A waiver count is not negative.</li><li>A sweep says what it learned, in at least 40 characters.</li><li>A waived gate says why.</li><li>A gate is waived by a person, never by the loop.</li><li>A waiver is signed.</li><li>A check sequence is positive.</li><li>A check names what it put to the system.</li><li>A check says what it expected.</li></ul>
+<ul class="rules"><li>A Sweep references a Target.</li><li>A Sweep has many checks.</li><li>A sweep is referenced.</li><li>A sweep says who ran it.</li><li>A check count is not negative.</li><li>A waiver count is not negative.</li><li>A sweep says what it learned, in at least 40 characters.</li><li>A waived gate says why.</li><li>A gate is waived by a person, never by the loop.</li><li>A waiver is signed.</li><li>A check sequence is positive.</li><li>A check names what it put to the system.</li><li>A check says what it expected.</li><li>A domain is named by its path.</li><li>A data directory is named by its path.</li><li>A database is named.</li><li>A role is named.</li><li>A schema is named.</li><li>A step names its verb.</li><li>A step carries its arguments, `{}` for none.</li></ul>
 <div class="terms">
 <article class="term" id="abandon">
 <h3>Abandon</h3>
@@ -1129,6 +1146,29 @@ section.searching .terms { border-top: 0; margin-top: 0.8rem; }
 <h3>Conclude</h3>
 <p>End a pass and say what it taught. Done by the qa engineer.</p>
 </article>
+<article class="term" id="create-ledger-role">
+<h3>Create ledger role</h3>
+<p>Create the ordinary Postgres role the ledger connects as and make it own the database; idempotent, and refuses a superuser or BYPASSRLS role, which the era write-fence cannot bind.</p>
+</article>
+<article class="term" id="data-path">
+<h3>Data path</h3>
+<p>Text.</p>
+<p class="rule">Always true: a data directory is named by its path.</p>
+</article>
+<article class="term" id="database-name">
+<h3>Database name</h3>
+<p>Text.</p>
+<p class="rule">Always true: a database is named.</p>
+</article>
+<article class="term" id="document-2">
+<h3>Document</h3>
+<p>Made up of text (text).</p>
+</article>
+<article class="term" id="domain-path">
+<h3>Domain path</h3>
+<p>Text.</p>
+<p class="rule">Always true: a domain is named by its path.</p>
+</article>
 <article class="term" id="engineer-1">
 <h3>Engineer</h3>
 <p>Text.</p>
@@ -1159,6 +1199,10 @@ section.searching .terms { border-top: 0; margin-top: 0.8rem; }
 <h3>Listing</h3>
 <p>Text.</p>
 </article>
+<article class="term" id="migrate-ledger-from-heki">
+<h3>Migrate ledger from heki</h3>
+<p>Copy each aggregate&#39;s current state from a Heki data directory into the repository the domain&#39;s bindings name today; a dry run unless `--force` is in the arguments, and an id held under a different state is always refused.</p>
+</article>
 <article class="term" id="observation">
 <h3>Observation</h3>
 <p>Text.</p>
@@ -1167,9 +1211,37 @@ section.searching .terms { border-top: 0; margin-top: 0.8rem; }
 <h3>Open</h3>
 <p>Begin a pass over one chapter. Done by the qa engineer.</p>
 </article>
+<article class="term" id="race">
+<h3>Race</h3>
+<p>One racer of a concurrent dispatch: boot a domain against a schema and dispatch one step; the answer is `succeeded`, `refused` or `crashed:&lt;class&gt;: &lt;message&gt;`.</p>
+</article>
 <article class="term" id="remake">
 <h3>Remake</h3>
 <p>Put a settled check back, against a system that has since changed. Done by the qa engineer.</p>
+</article>
+<article class="term" id="role-name">
+<h3>Role name</h3>
+<p>Text.</p>
+<p class="rule">Always true: a role is named.</p>
+</article>
+<article class="term" id="run">
+<h3>Run</h3>
+<p>One claim, sweep, conclude and release cycle against a target (the rotation&#39;s pick when none is named), or every waiting target with `--all`; the first surprised check ends it with a report.</p>
+</article>
+<article class="term" id="schema-name">
+<h3>Schema name</h3>
+<p>Text.</p>
+<p class="rule">Always true: a schema is named.</p>
+</article>
+<article class="term" id="step-arguments">
+<h3>Step arguments</h3>
+<p>Text.</p>
+<p class="rule">Always true: a step carries its arguments, `{}` for none.</p>
+</article>
+<article class="term" id="step-verb">
+<h3>Step verb</h3>
+<p>Text.</p>
+<p class="rule">Always true: a step names its verb.</p>
 </article>
 <article class="term" id="subject">
 <h3>Subject</h3>
@@ -1218,6 +1290,10 @@ section.searching .terms { border-top: 0; margin-top: 0.8rem; }
 <h3>Target ref</h3>
 <p>Text.</p>
 </article>
+<article class="term" id="tick">
+<h3>Tick</h3>
+<p>One QA tick: a clean tree, a rebase on origin/main, the PR check, a sweep of the whole rotation and the generated domains, then one report. It never logs a bug, releases a hold or opens a PR.</p>
+</article>
 <article class="term" id="unsettled-check">
 <h3>Unsettled (check)</h3>
 <p>Record a check that ran and settled nothing. Done by the qa engineer.</p>
@@ -1248,6 +1324,10 @@ section.searching .terms { border-top: 0; margin-top: 0.8rem; }
 <h3>Waiver reason</h3>
 <p>Text.</p>
 <p class="rule">Always true: a waived gate says why.</p>
+</article>
+<article class="term" id="words">
+<h3>Words</h3>
+<p>Text.</p>
 </article></div>
 </section>
 <section id="target">
@@ -1276,7 +1356,7 @@ section.searching .terms { border-top: 0; margin-top: 0.8rem; }
     shelved --&gt; waiting: Restore</pre>
 </figure>
 <p class="caption">Always true</p>
-<ul class="rules"><li>A target is referenced.</li><li>A target says where it is.</li><li>An instant is not before the epoch.</li><li>A sweep time is not before the epoch.</li><li>A streak is not negative.</li><li>Shelving a target says why.</li><li>A mode is named.</li><li>A yield score is not negative.</li><li>A staleness window is positive.</li></ul>
+<ul class="rules"><li>A target is referenced.</li><li>A target says where it is.</li><li>An instant is not before the epoch.</li><li>A sweep time is not before the epoch.</li><li>A streak is not negative.</li><li>Shelving a target says why.</li><li>A mode is named.</li><li>A yield score is not negative.</li><li>A staleness window is positive.</li><li>A domain is named by its path.</li></ul>
 <div class="terms">
 <article class="term" id="all-6">
 <h3>All</h3>
@@ -1291,6 +1371,10 @@ section.searching .terms { border-top: 0; margin-top: 0.8rem; }
 <p>Text.</p>
 <p class="rule">Always true: a mode is named.</p>
 </article>
+<article class="term" id="check-generated-domains">
+<h3>Check generated domains</h3>
+<p>Generate domains nobody wrote and check them the way the rotation does: a domain that does not boot is invalid, never a finding.</p>
+</article>
 <article class="term" id="claim-1">
 <h3>Claim</h3>
 <p>Take the next chapter in the rotation, or one whose holder has gone quiet. Done by the qa engineer.</p>
@@ -1299,6 +1383,19 @@ section.searching .terms { border-top: 0; margin-top: 0.8rem; }
 <h3>Clean streak</h3>
 <p>A whole number.</p>
 <p class="rule">Always true: a streak is not negative.</p>
+</article>
+<article class="term" id="discover-external-domains">
+<h3>Discover external domains</h3>
+<p>Sibling-repo domains that already depend on the hecks gem but are not enrolled yet; it reports and never enrols.</p>
+</article>
+<article class="term" id="document-3">
+<h3>Document</h3>
+<p>Made up of text (text).</p>
+</article>
+<article class="term" id="domain-path-1">
+<h3>Domain path</h3>
+<p>Text.</p>
+<p class="rule">Always true: a domain is named by its path.</p>
 </article>
 <article class="term" id="eligible-for">
 <h3>Eligible for</h3>
@@ -1321,6 +1418,14 @@ section.searching .terms { border-top: 0; margin-top: 0.8rem; }
 <p>A whole number.</p>
 <p class="rule">Always true: an instant is not before the epoch.</p>
 </article>
+<article class="term" id="judge-novelty">
+<h3>Judge novelty</h3>
+<p>Whether a new stress domain puts two forms together on one aggregate that no existing target does: the gate before it becomes a target.</p>
+</article>
+<article class="term" id="mine-combinations">
+<h3>Mine combinations</h3>
+<p>Ask an agent to mine the adversarial corpus for new domain combinations, then check the ones that boot; opt-in, since an agent call costs money.</p>
+</article>
 <article class="term" id="release">
 <h3>Release</h3>
 <p>Hand a chapter back to the rotation, stamped with when, what this pass was worth, and how the clean streak moves. Done by the qa engineer.</p>
@@ -1336,6 +1441,10 @@ section.searching .terms { border-top: 0; margin-top: 0.8rem; }
 <article class="term" id="rotation">
 <h3>Rotation</h3>
 <p>Whose turn it is — waiting chapters, least recently swept first. The one reason this aggregate exists. Raw ordering only — see Hecks::Fuzzing::RotationPriority for the yield-weighted pick built on top of these same rows.</p>
+</article>
+<article class="term" id="seed-1">
+<h3>Seed</h3>
+<p>Identify every corpus domain as a rotation target, printing each one&#39;s inferred capabilities; one already on file is skipped.</p>
 </article>
 <article class="term" id="shelve">
 <h3>Shelve</h3>
@@ -1356,7 +1465,7 @@ section.searching .terms { border-top: 0; margin-top: 0.8rem; }
 </article>
 <article class="term" id="suspended">
 <h3>Suspended</h3>
-<p>Chapters a check surprised, waiting for a person — each with the reason the policy wrote. Nothing automatic touches these; bin/qa_sweep &lt;target&gt; --release --notes is how one comes back.</p>
+<p>Chapters a check surprised, waiting for a person — each with the reason the policy wrote. Nothing automatic touches these; hecks quality_control ask run &lt;target&gt; --release --notes is how one comes back.</p>
 </article>
 <article class="term" id="swept-in">
 <h3>Swept in</h3>
@@ -1410,6 +1519,10 @@ section.searching .terms { border-top: 0; margin-top: 0.8rem; }
 <h3>Untouched</h3>
 <p>Never swept at all — zero is the epoch and means nobody has looked. The gap no count of checks can show you, because an unswept chapter leaves no rows anywhere.</p>
 </article>
+<article class="term" id="words-1">
+<h3>Words</h3>
+<p>Text.</p>
+</article>
 <article class="term" id="yield-score">
 <h3>Yield score</h3>
 <p>A whole number.</p>
@@ -1437,6 +1550,8 @@ section.searching .terms { border-top: 0; margin-top: 0.8rem; }
     submitting --&gt; filed: Filed
     submitting --&gt; refused: Refused
     refused --&gt; submitting: Retry
+    raised --&gt; abandoned: Abandon
+    submitting --&gt; abandoned: Abandon
     refused --&gt; abandoned: Abandon
     filed --&gt; closed: Close</pre>
 </figure>

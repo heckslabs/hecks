@@ -1,0 +1,51 @@
+# Fixture for the resolver's text and presence nodes: each of present?/blank?/set?/unset?,
+# split, first, last, start_with? and end_with? appears in a rule so `hecks-parse` and the
+# Ruby exporter must emit the same AST for it.
+Hecks.bluebook "ExpressionNodes" do
+  vision "One rule per resolver node kind, compared byte for byte between the two parsers."
+  core
+
+  aggregate "Label" do
+    description "A label whose rules exercise every text and presence expression node."
+
+    identified_by :name
+
+    attribute :name, Name
+    attribute :path, Path
+    attribute :note, Note
+
+    value_object "Name" do
+      attribute :value, String
+      invariant("a name is present") { value.present? }
+      invariant("a name is not blank") { !value.blank? }
+      invariant("a name starts with a letter prefix") { value.start_with?("L-") }
+      invariant("a name does not end with a dot") { !value.end_with?(".") }
+    end
+
+    value_object "Path" do
+      attribute :value, String
+      invariant("a path has a first segment") { value.split("/").first.present? }
+      invariant("a path has a last segment") { value.split("/").last == "leaf" }
+    end
+
+    value_object "Note" do
+      attribute :text, String
+    end
+
+    command "Rename" do
+      role "Editor"
+      goal "Rename a label"
+
+      reference_to Label
+      attribute :name, Name
+      attribute :note, Note, optional: true
+
+      given("a note is supplied") { note.set? }
+      given("no note is withheld") { !note.unset? }
+      given("the name carries a colon prefix") { name.start_with?("L:") || name.end_with?("!") }
+      sets :name
+
+      emits "LabelRenamed"
+    end
+  end
+end

@@ -1,0 +1,7 @@
+# The Governance chapter's connection when the Hecks domain attaches it: boot reads a world
+# named for the chapter, not for the consuming domain. It is the same database hecks.world
+# names, so one journal holds both; environments/memory.world swaps it to Memory too.
+Hecks.world "Governance" do
+  default_adapter "PostgresEra"
+  default_database ENV.fetch("HECKS_DATABASE", "postgres://hecks@localhost/hecks")
+end

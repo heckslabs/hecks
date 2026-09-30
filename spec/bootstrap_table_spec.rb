@@ -5,7 +5,7 @@ require "spec_helper"
 RSpec.describe "the generated bootstrap table" do
   let(:table) { Hecks::Bluebook::DSL::BootstrapTable }
 
-  it "is exactly what bin/project_bootstrap_table would regenerate right now" do
+  it "is exactly what hecks project_bootstrap_table would regenerate right now" do
     committed = File.read(File.join(InMemoryDomain::ROOT, "lib/hecks/bluebook/dsl/bootstrap_table.rb"))
 
     projected = Hecks::Projector.call(
@@ -14,7 +14,7 @@ RSpec.describe "the generated bootstrap table" do
     )
 
     expect(projected).to eq(committed),
-                         "bootstrap_table.rb has drifted from the Keyword rows — run bin/project_bootstrap_table"
+                         "bootstrap_table.rb has drifted from the Keyword rows — run hecks project_bootstrap_table"
   end
 
   it "needs no part of the framework loaded to be read" do

@@ -17,6 +17,7 @@ module Hecks
             vision:            [:vision,         :plain],
             classification:    [:classification, :plain],
             formerly_known_as: [:formerly_known_as, :plain],
+            namespace:         [:namespace, :plain],
             attaches_to:       [:attaches_to, :plain],
             provides:          [:provides, :plain]
           },
@@ -97,6 +98,7 @@ module Hecks
             wheres:         [:wheres,          [:each, :where_clause]],
             order_by:       [:order_by,        :order_by],
             limit:          [:limit,           :limit],
+            returns:        [:returns,         :plain],
             # Held by the language as an open map, so every one of these reads the
             # same way and a ninth option needs no new field on either side.
             offset:         [:offset,          [:option, :offset]],

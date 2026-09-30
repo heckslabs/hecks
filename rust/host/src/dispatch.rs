@@ -466,7 +466,7 @@ pub(crate) mod tests {
     // `cargo test`'s default parallelism doesn't race two tests against
     // the same journal table.
     pub(crate) async fn scratch_db(name: &str) -> Mutex<Client> {
-        let (admin, conn) = tokio_postgres::connect("host=localhost dbname=postgres", NoTls)
+        let (admin, conn) = tokio_postgres::connect(&crate::test_pg::conninfo("postgres"), NoTls)
             .await
             .expect("connect to postgres");
         tokio::spawn(async move {
@@ -482,7 +482,7 @@ pub(crate) mod tests {
             .unwrap();
 
         let (client, conn) =
-            tokio_postgres::connect(&format!("host=localhost dbname={name}"), NoTls)
+            tokio_postgres::connect(&crate::test_pg::conninfo(&name), NoTls)
                 .await
                 .expect("connect to scratch db");
         tokio::spawn(async move {

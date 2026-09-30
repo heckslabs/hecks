@@ -9,7 +9,7 @@ to ad hoc scripts.
 
 ## The storehouse door
 
-`bin/hecks_mcp_door` (backed by `Hecks::Storehouse`,
+`hecks mcp` (backed by `Hecks::Storehouse`,
 `lib/hecks/storehouse.rb`, tested by `spec/storehouse_spec.rb`) is an
 MCP server exposing one bus, the [storehouse](../../../README.md#storehouse),
 for *every* booted domain: `dispatch`
@@ -62,12 +62,12 @@ refused, as data, and the call that names a role goes through.
 
 Identity here is self-asserted by whoever is calling, not authenticated
 — this bus checks a stated `role`/`actor_id` consistently, it does not
-verify who is actually on the other end (see `bin/hecks_mcp_door`'s
+verify who is actually on the other end (see `hecks mcp`'s
 header for what that does and does not guard against). Every
 domain-scoped tool's `domain:`/`under:` is confined to
 `Hecks::Storehouse::BOOT_ROOT` (the project directory by default) —
 `Hecks.boot` loads real Ruby, and this bus refuses to boot one from
-outside its own root. `bin/hecks_query_ir_mcp` is a smaller, older,
+outside its own root. `hecks serve_query_ir_mcp` is a smaller, older,
 read-only sibling exposing structural queries over the language itself
 (`lib/hecks/query_ir.rb`) — meta-tooling for working on hecks, not on a
 business domain. Both speak MCP over stdio only and refuse to start

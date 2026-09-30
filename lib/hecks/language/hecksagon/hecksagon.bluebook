@@ -7,6 +7,7 @@ Hecks.bluebook "Hecksagon" do
     attribute :subscriptions,      list_of(Subscription)
     attribute :framework_members,  list_of(FrameworkMember)
     attribute :vendored_bluebooks, list_of(VendoredBluebook)
+    attribute :attached_chapters,  list_of(AttachedChapter)
 
     value_object "HecksagonName" do
       attribute :value, String
@@ -28,6 +29,12 @@ Hecks.bluebook "Hecksagon" do
     value_object "VendoredBluebook" do
       attribute :value, String
       invariant("a vendored bluebook is named") { !value.to_s.empty? }
+    end
+
+    # A chapter the gem carries (the language, Expression, Tenancy, Deploy) this hecksagon attaches.
+    value_object "AttachedChapter" do
+      attribute :value, String
+      invariant("an attached chapter is named") { !value.to_s.empty? }
     end
 
     command "Declare" do
@@ -74,6 +81,17 @@ Hecks.bluebook "Hecksagon" do
       emits "VendoredBluebookAttached"
     end
 
+    command "Attaches" do
+      role "Deployment"
+      goal "Attach a chapter the gem carries to this hecksagon, by name"
+
+      attribute :chapter, AttachedChapter
+
+      sets :attached_chapters, append: { value: :chapter }
+
+      emits "ChapterAttached"
+    end
+
     # Keyword rows for File and Hecksagon; SyntaxBoot discovers every aggregate-local seed table.
     value_object "KeywordSeed" do
       attribute :word,          String
@@ -91,6 +109,7 @@ Hecks.bluebook "Hecksagon" do
       member word: "subscribe",       context: "Hecksagon", body: "none", inner: "", opens: "", fills: "subscriptions"
       member word: "uses_framework",  context: "Hecksagon", body: "none", inner: "", opens: "", fills: "framework_members"
       member word: "uses_embryonaut_bluebook", context: "Hecksagon", body: "none", inner: "", opens: "", fills: "vendored_bluebooks"
+      member word: "attaches",        context: "Hecksagon", body: "none", inner: "", opens: "", fills: "attached_chapters"
       member word: "port",            context: "Hecksagon",     body: "keywords", inner: "DomainPort",    opens: "DomainPort",    fills: "", calls: "port_impl"
       # A cross-domain reaction wired here rather than in the bluebook; reuses the Policy context.
       # No `calls:` — HecksagonBuilder#translates is an ordinary method, found before `word_gate`.
@@ -121,6 +140,7 @@ Hecks.bluebook "Hecksagon" do
       member keyword: "subscribe",       context: "Hecksagon", at: "1", named: "", kind: "text", required: "true", fills: "subscriptions"
       member keyword: "uses_framework",  context: "Hecksagon", at: "1", named: "", kind: "text", required: "true", fills: "framework_members"
       member keyword: "uses_embryonaut_bluebook", context: "Hecksagon", at: "1", named: "", kind: "text", required: "true", fills: "vendored_bluebooks"
+      member keyword: "attaches",        context: "Hecksagon", at: "1", named: "", kind: "text", required: "true", fills: "attached_chapters"
       member keyword: "port",            context: "Hecksagon", at: "1", named: "", kind: "text", required: "true", fills: "name"
       member keyword: "translates",      context: "Hecksagon", at: "1", named: "", kind: "text", required: "true", fills: "name"
 

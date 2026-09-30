@@ -517,7 +517,7 @@ pub async fn held_eras<C: GenericClient>(client: &C, domain: &str) -> anyhow::Re
                 if &digest != stored {
                     anyhow::bail!(
                         "cannot boot {domain}: era {ordinal}'s held text does not match its own recorded digest \
-                         — this row was edited outside the lineage tooling; run bin/reattest_era to acknowledge \
+                         — this row was edited outside the lineage tooling; run hecks reattest to acknowledge \
                          the change and re-seal it (Runtime::EraTamper's own recovery path)"
                     );
                 }
@@ -560,6 +560,26 @@ pub async fn approval_for<C: GenericClient>(
     Ok(row.map(|row| Approval { edge_digest: row.get("edge_digest"), reviewed_ordinal: row.get("reviewed_ordinal") }))
 }
 
+/// Writes an approval into the journal, bound to the journal's tip as it stands, as
+/// `LineageStore#record_approval!` does; how a committed approval joins the single history.
+pub async fn record_approval<C: GenericClient>(
+    client: &C,
+    domain: &str,
+    from_label: &str,
+    to_label: &str,
+    edge_digest: &str,
+) -> anyhow::Result<()> {
+    let tip = last_ordinal(client, domain).await?;
+    client
+        .execute(
+            "INSERT INTO hecks_approvals (domain, from_label, to_label, edge_digest, reviewed_ordinal) \
+             VALUES ($1, $2, $3, $4, $5)",
+            &[&domain, &from_label, &to_label, &edge_digest, &tip],
+        )
+        .await?;
+    Ok(())
+}
+
 /// The journal's high-water ordinal — what a fresh approval binds to and
 /// what a mint transaction captures as the new era's watermark.
 pub async fn last_ordinal<C: GenericClient>(client: &C, domain: &str) -> anyhow::Result<i64> {
@@ -596,7 +616,7 @@ mod lineage_tests {
         // The fenced app role — the same connection shape a real deployed
         // rust/host uses (never the table-owning role, which bypasses RLS).
         let (client, connection) =
-            tokio_postgres::connect(&format!("host=localhost dbname={db} user={app_role}"), NoTls)
+            tokio_postgres::connect(&crate::test_pg::conninfo_as(&db, &app_role), NoTls)
                 .await
                 .expect("connect as the app role");
         tokio::spawn(async move {
@@ -657,7 +677,7 @@ mod lineage_tests {
         // Owner-authenticated: hecks_eras/hecks_approvals aren't grantable
         // to the app role by design — only the mint path reads them, not
         // the RLS-fenced data path the test above exists to prove.
-        let (client, connection) = tokio_postgres::connect(&format!("host=localhost dbname={db} user={owner_role}"), NoTls)
+        let (client, connection) = tokio_postgres::connect(&crate::test_pg::conninfo_as(&db, &owner_role), NoTls)
             .await
             .expect("connect as owner");
         tokio::spawn(async move {
@@ -693,7 +713,7 @@ mod lineage_tests {
     // a bare existence check can't.
     #[tokio::test]
     async fn current_era_tells_unminted_apart_from_stale_and_finds_the_live_ordinal() {
-        let (client, connection) = tokio_postgres::connect("host=localhost dbname=postgres", NoTls)
+        let (client, connection) = tokio_postgres::connect(&crate::test_pg::conninfo("postgres"), NoTls)
             .await
             .expect("connect to postgres");
         tokio::spawn(async move {
@@ -748,7 +768,7 @@ mod lineage_tests {
     // reproducing Ruby's mint path; that correctness is lineage_spec.rb's job.
     #[tokio::test]
     async fn read_lineage_head_reads_any_aggregates_view_generically() {
-        let (client, connection) = tokio_postgres::connect("host=localhost dbname=postgres", NoTls)
+        let (client, connection) = tokio_postgres::connect(&crate::test_pg::conninfo("postgres"), NoTls)
             .await
             .expect("connect to postgres");
         tokio::spawn(async move {
@@ -808,7 +828,7 @@ mod lineage_tests {
 
     #[tokio::test]
     async fn record_dead_letter_writes_a_real_durable_row() {
-        let (client, connection) = tokio_postgres::connect("host=localhost dbname=postgres", NoTls)
+        let (client, connection) = tokio_postgres::connect(&crate::test_pg::conninfo("postgres"), NoTls)
             .await
             .expect("connect to postgres");
         tokio::spawn(async move {

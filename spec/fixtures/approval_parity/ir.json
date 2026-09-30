@@ -1,0 +1,63 @@
+{
+  "translations": [
+    {
+      "domain": "LedgerCompute",
+      "from": "aaaaaa",
+      "to": "bbbbbb",
+      "retired": [
+
+      ],
+      "aggregates": [
+        {
+          "name": "Account",
+          "was": null,
+          "renames": {
+          },
+          "moves": [
+
+          ],
+          "converts": [
+
+          ],
+          "drops": [
+
+          ],
+          "retypes": [
+
+          ],
+          "computes": [
+            {
+              "from": "score",
+              "to": "doubled",
+              "sql": "jsonb_build_object('value', (score::jsonb->>'value')::int * 2)"
+            }
+          ],
+          "rekeys": [
+            {
+              "sql": "state->>'kind'"
+            }
+          ],
+          "backfills": [
+
+          ],
+          "compiled_state_expression": "(SELECT CASE WHEN (__x).present THEN hecks_tr_insert((__x).remaining, ARRAY['doubled']::text[], to_jsonb((jsonb_build_object('value', (score::jsonb->>'value')::int * 2))), 'compute score to: doubled') ELSE __s END FROM (SELECT (state) AS __s) __outer, LATERAL (SELECT hecks_tr_extract(__s, ARRAY['score']::text[]) AS __x) __extract, LATERAL (SELECT (__s #>> ARRAY['score']::text[]) AS \"score\") __fields)",
+          "compiled_id_expression": "(SELECT (state->>'kind') FROM (SELECT (state) AS __s) __outer)"
+        }
+      ]
+    }
+  ],
+  "approvals": [
+    {
+      "edge": "aaaaaa-bbbbbb",
+      "edge_digest": "3803f00c11d5c613d2abb4f289a8a668e5885d2f36681134e509ed98408d520c",
+      "approved_by": "Ada <ada@example.com>",
+      "approved_at": "2026-09-28T12:30:00Z",
+      "rehearsal": {
+        "snapshot": "rds:ledger-2026-09-28",
+        "host_version": "3.0.0",
+        "result": "pass",
+        "at": "2026-09-28T12:00:00Z"
+      }
+    }
+  ]
+}

@@ -1,7 +1,0 @@
-#!/usr/bin/env ruby
-
-# Alias for bin/project_rust_vocabulary, which generates the refusal template table.
-#
-#   bin/project_refusal_wording
-
-exec File.expand_path("project_rust_vocabulary", __dir__), *ARGV

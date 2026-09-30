@@ -5,6 +5,7 @@
   "vision": "The smallest domain where a read model's several many-side heads each need their own where/order_by/limit/offset, not one shared across all of them.",
   "classification": "core",
   "formerly_known_as": null,
+  "namespace": null,
   "aggregates": [
     {
       "name": "Board",

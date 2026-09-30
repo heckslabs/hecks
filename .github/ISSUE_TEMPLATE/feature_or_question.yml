@@ -43,7 +43,7 @@ body:
         - New DSL keyword/argument
         - New resolution rule (DSL sugar the runtime could derive)
         - Behavior of an existing construct
-        - Tooling (bin/*, verification, docs generation)
+        - Tooling (exe/hecks verbs, verification, docs generation)
         - Rust runtime / codegen
         - Question — not proposing a change
     validations:

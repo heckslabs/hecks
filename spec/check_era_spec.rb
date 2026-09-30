@@ -2,13 +2,14 @@ require "socket"
 require "json"
 require "tmpdir"
 require "open3"
+require "rbconfig"
 require "hecks/ports/persistence/plugins/era/expected_era"
 
-# `bin/check_era` and the library under it, against a stub host that serves
+# `hecks check_era` (Hecks::CLI::CheckEra) and the library under it, against a stub host that serves
 # `GET /version` the way rust/host's `version_router` does. The stub is a
 # bare TCPServer on an ephemeral port: it answers one canned response per
 # connection and records what was requested.
-RSpec.describe "bin/check_era", :io do
+RSpec.describe "hecks check_era", :io do
   def era_check = Hecks::Runtime::EraCheck::ExpectedEra
 
   # A stub host answering every request with `status` and `body`.
@@ -64,7 +65,12 @@ RSpec.describe "bin/check_era", :io do
     end
   end
 
-  def run(*args) = Open3.capture3("ruby", File.join(root, "bin/check_era"), *args)
+  # The child's whole program: the library entry point that `hecks check_era` runs.
+  def run(*args)
+    entry = '$LOAD_PATH.unshift(File.join(Dir.pwd, "lib")); require "hecks/cli/check_era"; ' \
+            "exit Hecks::CLI::CheckEra.run(ARGV)"
+    Open3.capture3(RbConfig.ruby, "-e", entry, "--", *args, chdir: root)
+  end
 
   describe "the allow-list file" do
     it "reads one era per line, ignoring comments and blanks" do

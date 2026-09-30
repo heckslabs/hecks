@@ -139,7 +139,10 @@ module Hecks
         run = lambda do
           Hecks.with_registry(scratch) do
             loading.load_library
-            Kernel.eval(source, TOPLEVEL_BINDING, path, 1)
+            # Held text of a chapter spread over files is several blocks in one string, each
+            # opening the same chapter: judge once after all of them, as a directory load does.
+            Hecks::Bluebook::MetaValidator.defer { Kernel.eval(source, TOPLEVEL_BINDING, path, 1) }
+            Hecks::Bluebook::MetaValidator.judge_deferred!(scratch)
           end
         end
         shadow ? Hecks::Bluebook::MetaValidator.while_shadow_parsing(&run) : run.call

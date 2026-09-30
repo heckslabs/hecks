@@ -98,8 +98,8 @@ RSpec.describe "multitenancy: interleaved random writes stay isolated" do
         write_domain(dir, adapter: "Memory", tenant_settings: { "acme" => {}, "bloom" => {} })
 
         dispatchers = {
-          "acme"  => Hecks.boot(dir, environment: "acme", install_facade: false),
-          "bloom" => Hecks.boot(dir, environment: "bloom", install_facade: false)
+          "acme"  => Hecks.boot(dir, environment: "acme", install_doors: false),
+          "bloom" => Hecks.boot(dir, environment: "bloom", install_doors: false)
         }
 
         expected = interleave(dispatchers, seed: seed, steps: 40)
@@ -138,8 +138,8 @@ RSpec.describe "multitenancy: interleaved random writes stay isolated" do
           )
 
           dispatchers = {
-            "acme"  => Hecks.boot(dir, environment: "acme", install_facade: false),
-            "bloom" => Hecks.boot(dir, environment: "bloom", install_facade: false)
+            "acme"  => Hecks.boot(dir, environment: "acme", install_doors: false),
+            "bloom" => Hecks.boot(dir, environment: "bloom", install_doors: false)
           }
 
           expected = interleave(dispatchers, seed: seed, steps: 25)

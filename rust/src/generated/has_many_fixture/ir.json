@@ -5,6 +5,7 @@
   "vision": "The smallest domain that reaches has_many's own Rust codegen path: one aggregate holding a list of references to another, set wholesale by one command.",
   "classification": "core",
   "formerly_known_as": null,
+  "namespace": null,
   "aggregates": [
     {
       "name": "Member",

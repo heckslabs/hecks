@@ -1,7 +1,7 @@
 # Build-time generator: turns one domain's canonical IR into Rust source under rust/src/generated/.
 # The compiled binary never parses or interprets bluebooks.
 #
-#   bin/project_rust <domain>
+#   hecks project_rust <domain>
 #
 # The IR arrives JSON-shaped, so mutation ops, targets and attribute names are Strings; compare
 # them with `.to_s`. Commands the kernel cannot express are skipped loudly, by name and reason.

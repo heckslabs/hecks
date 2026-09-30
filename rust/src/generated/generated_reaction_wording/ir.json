@@ -5,6 +5,7 @@
   "vision": "A generated domain that puts has_query and has_entity together.",
   "classification": "core",
   "formerly_known_as": null,
+  "namespace": null,
   "aggregates": [
     {
       "name": "Desk",

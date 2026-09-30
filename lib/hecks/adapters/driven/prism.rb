@@ -1,3 +1,4 @@
+require "monitor"
 require "prism"
 require_relative "../../bluebook/expression/canonical_form"
 
@@ -13,6 +14,16 @@ module Hecks
       # False positive for Style/MutableConstant.
       # rubocop:disable-next Style/MutableConstant
       TREES = {}
+
+      # The first block node starting on each line, per parsed tree (by identity), built by one
+      # walk of the tree the first time a block in its file is looked up. Dropped with its tree
+      # by #forget/#forget_all.
+      BLOCKS_BY_LINE = {}.compare_by_identity
+
+      # Guards `TREES` and `BLOCKS_BY_LINE` together, so a parse or an index build never
+      # interleaves with a `forget` that drops the same tree. Reentrant: `block_node_at`
+      # calls `tree_for` under it.
+      LOCK = Monitor.new
 
       module_function
 
@@ -47,14 +58,25 @@ module Hecks
       # @return [Prism::BlockNode, nil] the first block node found starting on `line`, or nil
       #   if none does
       def block_node_at(file, line)
-        found = nil
-        walk(tree_for(file)) do |node|
-          next unless node.is_a?(::Prism::BlockNode)
-          next unless node.location.start_line == line
-
-          found ||= node
+        LOCK.synchronize do
+          tree = tree_for(file)
+          BLOCKS_BY_LINE[tree] ||= blocks_by_line(tree)
+          BLOCKS_BY_LINE[tree][line]
         end
-        found
+      end
+
+      # Indexes a tree's block nodes by the line they start on, keeping the first in walk order.
+      #
+      # @param tree [Prism::ProgramNode] a parsed file's root node
+      # @return [Hash{Integer => Prism::BlockNode}] block node by 1-based start line
+      def blocks_by_line(tree)
+        index = {}
+        walk(tree) do |node|
+          next unless node.is_a?(::Prism::BlockNode)
+
+          index[node.location.start_line] ||= node
+        end
+        index
       end
 
       # Parses a file with `prism`, caching the result for the life of the process.
@@ -65,7 +87,7 @@ module Hecks
         # ::Prism.parse_file reads the file at the C-extension level, bypassing
         # Ruby's File/IO layer — invisible to tools that virtualize the filesystem
         # there (e.g. tebako's memfs). Read through File.read first so they intercept it.
-        TREES[file] ||= ::Prism.parse(File.read(file)).value
+        LOCK.synchronize { TREES[file] ||= ::Prism.parse(File.read(file)).value }
       end
 
       # Drops one file from the process-wide parse cache, for a caller (`Hecks::Codemod`)
@@ -74,12 +96,23 @@ module Hecks
       # @param file [String] the file path to drop from the cache
       # @return [Prism::ProgramNode, nil] the cached tree that was removed, or nil if
       #   nothing was cached for `file`
-      def forget(file) = TREES.delete(file)
+      def forget(file)
+        LOCK.synchronize do
+          tree = TREES.delete(file)
+          BLOCKS_BY_LINE.delete(tree)
+          tree
+        end
+      end
 
       # Drops every cached parse tree.
       #
       # @return [Hash] the now-empty cache
-      def forget_all = TREES.clear
+      def forget_all
+        LOCK.synchronize do
+          BLOCKS_BY_LINE.clear
+          TREES.clear
+        end
+      end
 
       # Visits `node` and every descendant depth-first, calling `visit` on each.
       #

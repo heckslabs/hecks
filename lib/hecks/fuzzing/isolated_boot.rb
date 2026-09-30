@@ -1,6 +1,8 @@
 require "fileutils"
 require "tmpdir"
 require "securerandom"
+require_relative "outside_world"
+require_relative "../runtime/adapter_lookup"
 
 module Hecks
   module Fuzzing
@@ -11,6 +13,10 @@ module Hecks
 
       # Copies `domain_path` to a tmpdir, rebinds its persistence to `adapter`, and
       # yields the copy's root. `:postgres` is expensive: use smaller seed/step counts.
+      #
+      # The block runs with `OutsideWorld` standing in for every adapter a port or a port-answered
+      # query reaches: a fuzz or replay checks the domain's own rules, and the adapters of the
+      # chapters that drive tools would run shells and write files from a generated sequence.
       def call(domain_path, adapter: :memory, database: nil, schema: nil, scratch: {})
         Dir.mktmpdir("hecks-fuzz") do |tmp|
           copy = File.join(tmp, File.basename(domain_path))
@@ -24,7 +30,7 @@ module Hecks
           else raise ArgumentError,
                      "unknown fuzz adapter #{adapter.inspect} — :memory, :sqlite, :postgres, or :postgres_era"
           end
-          yield copy
+          Runtime::AdapterLookup.standing_in(OutsideWorld) { yield copy }
         end
       end
 
@@ -144,7 +150,7 @@ module Hecks
 
         db = PG.connect(dbname: database)
         # Quiet on purpose: an ordinary DROP CASCADE NOTICEs per dropped object, which
-        # would bury bin/fuzz's own output on every boot after the first.
+        # would bury hecks fuzz's own output on every boot after the first.
         db.exec("SET client_min_messages = warning")
         quoted = db.quote_ident(schema)
         db.exec("DROP SCHEMA IF EXISTS #{quoted} CASCADE")
@@ -155,7 +161,8 @@ module Hecks
       # `:postgres_era` is the only mode that exercises era/lineage-bound SQL; plain
       # `:postgres` never touches that machinery. Unlike `:postgres`, there's no shared
       # scratch constant here — `database:`/`schema:` are required keyword args because
-      # the caller (`bin/qa_sweep --persistence-parity`) owns that database's lifecycle.
+      # the caller (`hecks quality_control ask run --persistence-parity`) owns that database's
+      # lifecycle.
       def rebind_to_postgres_era!(copy, database:, schema:)
         require "pg"
         if database.to_s.empty? || schema.to_s.empty?
@@ -284,7 +291,8 @@ module Hecks
       def rewrite_bindings!(copy, adapter_name)
         Dir.glob(File.join(copy, "**", "*.hecksagon")).each do |path|
           lines = File.readlines(path).grep_v(/\bprojected_by\s*\(?\s*"/)
-          bind = /persisted_by\s*\(?\s*(?:"[^"]+"|[a-z_]\w*)\s*\)?/
+          # Horizontal space only: a newline ends the statement, and the next one must stay.
+          bind = /persisted_by[ \t]*\(?[ \t]*(?:"[^"]+"|[a-z_]\w*)[ \t]*\)?/
           File.write(path, lines.join.gsub(bind, "persisted_by(\"#{adapter_name}\")"))
         end
       end

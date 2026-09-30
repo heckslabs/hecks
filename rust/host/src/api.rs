@@ -1325,7 +1325,7 @@ mod tests {
 
     fn banking_ir() -> Value {
         let path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../dist/banking.ir.json");
-        serde_json::from_str(&std::fs::read_to_string(path).expect("bin/project_wasm writes banking.ir.json beside the wasm"))
+        serde_json::from_str(&std::fs::read_to_string(path).expect("hecks build_wasm writes banking.ir.json beside the wasm"))
             .expect("valid IR")
     }
 
@@ -1335,7 +1335,7 @@ mod tests {
         let dist = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../dist");
         let ir = serde_json::from_str(
             &std::fs::read_to_string(dist.join("checkout_fixture.ir.json"))
-                .expect("bin/project_wasm writes checkout_fixture.ir.json beside the wasm"),
+                .expect("hecks build_wasm writes checkout_fixture.ir.json beside the wasm"),
         )
         .expect("valid IR");
         (dist.join("checkout_fixture.wasm"), ir)

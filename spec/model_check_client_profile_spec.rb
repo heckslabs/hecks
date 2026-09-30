@@ -122,9 +122,9 @@ RSpec.describe "the model checker's client profile" do
       expect(subjects_for(findings, :client_native_read_model)).not_to include("OwnerWidgetCount", "WidgetsByGroup")
     end
 
-    # Pins bin/model_check reading every *.hecksagon in a directory, not just the
+    # Pins hecks model_check reading every *.hecksagon in a directory, not just the
     # alphabetically first, so a later file's projected_by is not invisible to this rule.
-    it "is reached from bin/model_check when the projected_by is in a later hecksagon file" do
+    it "is reached from hecks model_check when the projected_by is in a later hecksagon file" do
       Dir.mktmpdir do |root|
         chapters = File.join(root, "shop", "bluebook")
         FileUtils.mkdir_p(chapters)
@@ -141,7 +141,7 @@ RSpec.describe "the model checker's client profile" do
           end
         RUBY
 
-        output, status = Open3.capture2e("bundle", "exec", "ruby", "bin/model_check", "--profile", "client",
+        output, status = Open3.capture2e("bundle", "exec", "ruby", "exe/hecks", "model_check", "--profile", "client",
                                          File.join(root, "shop"), chdir: InMemoryDomain::ROOT)
 
         expect(output).to include("client_native_read_model", "OwnerWidgets")

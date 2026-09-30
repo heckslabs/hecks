@@ -1,44 +1,31 @@
+# The deprecated alias shim: `Hecks::Facade` is now `Hecks::Doors` and `Doors::Surface` is
+# `Doors::RubyDoor`. Both old constants still resolve and warn; they are removed in
+# `Hecks::Doors::REMOVAL`.
+require_relative "doors"
+
+# The root namespace; this file holds only the deprecated aliases.
 module Hecks
-  # The class-free public surface, installed per boot by `Runtime::Loader.bind_runtime`.
-  module Facade
-  end
+  # Resolves the constants that now live in `Doors` under their old names, warning on each use.
+  #
+  # Extended onto `Hecks` and `Hecks::Doors`, ahead of `Module#const_missing`.
+  module DoorsAliases
+    # Old constant name mapped to the new one, per namespace that carried it.
+    RENAMED = { Hecks => { Facade: "Hecks::Doors" }, Hecks::Doors => { Surface: "Hecks::Doors::RubyDoor" } }.freeze
 
-  # Installs facade constants at top level, replacing only what it installed itself.
-  # A constant owned by user code or the stdlib is left alone with a warning.
-  module Namespace
-    # A live registry, mutated by `install`, so it cannot be frozen.
-    # rubocop:disable-next Style/MutableConstant
-    GENERATED = {}
-
-    module_function
-
-    # Sets `container::name` to `value`, replacing only a constant this module installed.
+    # Answers a renamed constant with its replacement and a warning; anything else
+    # goes to the next `const_missing`.
     #
-    # @param container [Module] the namespace to define the constant in
-    # @param name [String, Symbol] the constant name
-    # @param value [Module] the facade module to install
-    # @return [Object] `value` when installed, else the foreign constant left in place
-    # @raise [NameError] if `name` is not a valid constant name
-    def install(container, name, value)
-      name = name.to_s
+    # @param name [Symbol] the missing constant
+    # @return [Module] the replacement module
+    def const_missing(name)
+      target = RENAMED.fetch(self, {})[name]
+      return super unless target
 
-      if container.const_defined?(name, false)
-        current = container.const_get(name)
-        unless GENERATED[[container, name]].equal?(current)
-          warn "[hecks] #{name} is already defined — leaving it alone"
-          return current
-        end
-        container.send(:remove_const, name)
-      end
-
-      container.const_set(name, value)
-      GENERATED[[container, name]] = value
-      value
+      warn "[hecks] #{self}::#{name} is deprecated and is removed in #{Hecks::Doors::REMOVAL}; use #{target}"
+      Object.const_get(target)
     end
   end
-end
 
-require_relative "facade/handle"
-require_relative "facade/surface"
-require_relative "facade/command_request"
-require_relative "facade/json_door"
+  extend DoorsAliases
+  Doors.extend(DoorsAliases)
+end

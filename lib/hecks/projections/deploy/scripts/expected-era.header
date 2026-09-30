@@ -13,5 +13,5 @@
 # The id is what the host reports at GET /version, the same id the era mint
 # prints. Compare a live host with this file:
 #
-#   bin/check_era https://host.example expected-era
+#   hecks check_era host=https://host.example expected=expected-era --wait
 #   make check-era URL=https://host.example

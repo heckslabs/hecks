@@ -11,7 +11,7 @@
 # under WORKDIR; results print in a fixed order after `wait`, every check reported even
 # if an earlier one failed.
 #
-# `codegen_drift` catches a Bluebook `given` changing with nobody rerunning `bin/project_rust`
+# `codegen_drift` catches a Bluebook `given` changing with nobody rerunning `hecks project_rust`
 # (ADR 0057) — CI's own `checks_codegen_drift` only runs on `pull_request`/`merge_group`, not a
 # plain push, so this is the one local backstop.
 
@@ -20,6 +20,11 @@ WORKDIR=$(mktemp -d)
 trap 'rm -rf "$WORKDIR"' EXIT
 
 cd "$ROOT"
+
+# `hecks` commands journal to the Hecks domain's database unless told otherwise; a push check
+# has no use for one, so it runs on Memory, as a pull-request run does in CI.
+HECKS_ENVIRONMENT=${HECKS_ENVIRONMENT:-memory}
+export HECKS_ENVIRONMENT
 
 # Tag-only pushes skip the suite when every pushed ref is a tag on a commit already reachable
 # from a remote-tracking branch. Pushed refs arrive on stdin, not in $1/$2.
@@ -68,12 +73,12 @@ fi
 run_check rspec bundle exec parallel_rspec spec -n "$RSPEC_WORKERS" &
 run_check fuzzing bundle exec rspec spec/fuzzing --tag fuzzing &
 run_check query_agreement bundle exec rspec spec/adapters/query_agreement_spec.rb --tag io &
-run_check engine_agreement "$ROOT/bin/check_engine_agreement" &
-run_check model_check "$ROOT/bin/model_check" &
-run_check doc_coverage "$ROOT/bin/doc_coverage" &
+run_check engine_agreement bundle exec exe/hecks check_engine_agreement --wait &
+run_check model_check bundle exec exe/hecks model_check --wait &
+run_check doc_coverage bundle exec exe/hecks measure_doc_coverage --wait &
 run_check rubocop bundle exec rubocop -c .rubocop.yml &
-run_check codegen_drift bundle exec bin/regen_codegen_domains --check &
-run_check comment_blocks bundle exec bin/standardize_comments --check lib bin spec examples --only long_block &
+run_check codegen_drift bundle exec exe/hecks regenerate_corpus --check --wait &
+run_check comment_blocks bundle exec exe/hecks check_comments paths=lib,spec,examples only=long_block --wait &
 
 wait
 
@@ -153,7 +158,7 @@ printf '\n[pre-push] codegen drift — committed rust/src/generated/ must match 
 cat "$WORKDIR/codegen_drift.log"
 if [ "$(exit_of codegen_drift)" -ne 0 ]; then
   printf '\n[pre-push] BLOCKED — regenerating hits a diff, so the committed Rust is stale.\n'
-  printf '           Run `bundle exec bin/regen_codegen_domains`, commit the result, or\n'
+  printf '           Run `bundle exec exe/hecks regenerate_corpus --confirm`, commit the result, or\n'
   printf '           push with --no-verify and say why.\n\n'
   fail=1
 fi
@@ -162,7 +167,7 @@ printf '\n[pre-push] comment blocks — no run of comment lines past ADR 0075'"'
 
 cat "$WORKDIR/comment_blocks.log"
 if [ "$(exit_of comment_blocks)" -ne 0 ]; then
-  printf '\n[pre-push] BLOCKED — a comment block ran past the cap (bin/standardize_comments --only long_block).\n'
+  printf '\n[pre-push] BLOCKED — a comment block ran past the cap (hecks check_comments only=long_block).\n'
   printf '           Shorten it, or push with --no-verify and say why.\n\n'
   fail=1
 fi

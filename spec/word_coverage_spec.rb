@@ -16,6 +16,10 @@ RSpec.describe "every live DSL word, used somewhere real" do
     File.join(InMemoryDomain::ROOT, "lib/hecks/grammar", "*.bluebook"),
     File.join(InMemoryDomain::ROOT, "lib/hecks/framework/bluebook", "*.bluebook"),
     File.join(InMemoryDomain::ROOT, "lib/hecks/framework/bluebook", "*.hecksagon"),
+    # The Hecks domain (ADR 0080): the first real users of `namespace` and `attaches`.
+    File.join(InMemoryDomain::ROOT, "lib/hecks/hecks", "*.bluebook"),
+    File.join(InMemoryDomain::ROOT, "lib/hecks/hecks", "*.hecksagon"),
+    File.join(InMemoryDomain::ROOT, "lib/hecks/hecks", "**", "*.world"),
     # Stress domains: real domains the QA rotation sweeps, not invented
     # fixtures. spec/fixtures stays out — those are invented for one spec.
     File.join(InMemoryDomain::ROOT, "qa/stress_domains", "*", "**", "*.bluebook"),
@@ -49,6 +53,8 @@ RSpec.describe "every live DSL word, used somewhere real" do
 
       File.foreach(path).any? do |line|
         next false if line.lstrip.start_with?("#")
+        # An attribute that happens to be named like a word (`attribute :cursor, Integer`) is data.
+        next false if line.match?(/\A\s*attribute\s+:#{Regexp.escape(word)}\b/)
 
         match = line.match(pattern)
         match && !inside_quotes?(line, match.begin(0))
@@ -103,24 +109,6 @@ RSpec.describe "every live DSL word, used somewhere real" do
                                            "corpus use under a different spelling would mean inventing a second inbound " \
                                            "integration this codebase does not otherwise need, for a word that changes " \
                                            "nothing about what the runtime does once declared.",
-    "verb (DomainPort)"                 =>
-                                           "every resource port a real domain here needs (persisted_by/projected_by/" \
-                                           "opened_by) is a framework-level default, never a project's own `port \"X\" do " \
-                                           "verb \"...\" end` — nothing in examples/ or lib/hecks/framework/ needs a " \
-                                           "swappable resource port of its own. writing-an-adapter.md's own worked example " \
-                                           "is the closest this repo has, and it is a guide, not a corpus member.",
-    "asks (DomainPort)"                 =>
-                                           "the OUTBOUND port direction (the domain asking the outside a question and " \
-                                           "reading back an answer/refusal) has no real external integration modeled " \
-                                           "anywhere in this corpus — every real port here (pizzas' PaymentGateway) is " \
-                                           "inbound (`operation`). ADR 0025's own count claimed this passed; re-checked " \
-                                           "against the current corpus while writing this spec and found it does not — a " \
-                                           "real, previously-unnoticed drift, not a fact carried over from the ADR.",
-    "answers (PortOperation)"           =>
-                                           "same finding as asks (DomainPort) — an `asks` operation's own happy ending, " \
-                                           "and there is no real `asks` operation to carry one.",
-    "refuses (PortOperation)"           =>
-                                           "same finding as asks (DomainPort) — an `asks` operation's own refused ending.",
     "attaches_to (Bluebook)"            =>
                                            "genuinely, load-bearingly used for real — lib/hecks/language/bluebook/" \
                                            "attaches/paging.bluebook declares `attaches_to \"Query\", \"ReadModel\"`, read " \
@@ -185,14 +173,7 @@ RSpec.describe "every live DSL word, used somewhere real" do
                                            "`unresolved` is a deliberate failure marker (TranslationAggregateBuilder#" \
                                            "unresolved always raises Malformed) — a real declaration exists only to be " \
                                            "refused, the same structural-impossibility shape `cursor (Query)` above " \
-                                           "already is, never to succeed and land in a corpus record.",
-    "translates (Hecksagon)"            =>
-                                           "used for real in lib/hecks/tenancy/bluebook/tenancy.hecksagon, a tooling-" \
-                                           "internal domain (booted centrally, never uses_framework-attached) in the " \
-                                           "same category CORPUS_GLOBS above already excludes for lib/hecks/deploy — " \
-                                           "neither is an example domain, a grammar chapter, or a framework member. " \
-                                           "Also directly, independently tested in spec/hecksagon_translates_spec.rb, " \
-                                           "which proves it builds a real Policy and fires end to end, not just parses."
+                                           "already is, never to succeed and land in a corpus record."
   }.freeze
 
   it "gives every declared word a real corpus use or a written, named exemption" do

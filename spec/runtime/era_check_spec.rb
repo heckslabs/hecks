@@ -59,7 +59,7 @@ RSpec.describe "the era check at boot" do
     begin
       Dir.mktmpdir do |root|
         source = "Hecks.bluebook \"Shaped\" do\n  vision \"an em dash — right here\"\nend\n"
-        File.write(File.join(root, "a.bluebook"), source)
+        File.write(File.join(root, "a.bluebook"), source, encoding: "UTF-8")
 
         bluebook = Struct.new(:name).new("Shaped")
         expect(Hecks::Runtime::EraCheck.source_text_for(bluebook, root)).to eq(source)
@@ -80,6 +80,20 @@ RSpec.describe "the era check at boot" do
 
       bluebook = Struct.new(:name).new("Shaped")
       expect(Hecks::Runtime::EraCheck.source_text_for(bluebook, root)).to eq("#{first}\n#{second}")
+    end
+  end
+
+  # A domain that attaches a chapter the gem carries (the QA ledger, QualityControl) holds no
+  # file for it: the era reads the chapter's own files, wherever the gem keeps them.
+  it "reads an attached chapter's source from the files the gem carries it in" do
+    Dir.mktmpdir do |root|
+      File.write(File.join(root, "quality_control.hecksagon"), "# wiring only\n")
+
+      bluebook = Struct.new(:name).new("QualityControl")
+      text = Hecks::Runtime::EraCheck.source_text_for(bluebook, root)
+
+      expect(text).to eq(File.read(File.join(InMemoryDomain::ROOT, "lib/hecks/quality_control/quality_control.bluebook"),
+                                   encoding: "UTF-8"))
     end
   end
 
@@ -191,6 +205,43 @@ RSpec.describe "the era check at boot" do
         Hecks::Runtime::WiringError,
         /no longer projects to the shape frozen for era 1.*retroactively redefine what era 1 meant/m
       )
+    end
+  end
+
+  describe "the shape verdict `Era.Permit`'s givens hold, which never raises" do
+    it "answers every way an edited text can stand against the frozen shape" do
+      Dir.mktmpdir do |root|
+        projection = shaped_projection(root)
+        stored_hash = Hecks::Runtime::StorageShape.mint_hash(shaped_bluebook(root))
+        cosmetic = "# an operator fixed a typo in a comment\n#{ERA_V1}"
+        broken = "Hecks.bluebook \"Shaped\" do\n  ((((\nend\n"
+        verdict = lambda do |text, **stored|
+          Hecks::Translation::Reattest.verdict(text: text, stored_hash: nil, **stored)
+        end
+
+        expect(verdict.call(cosmetic, stored_projection: projection)).to eq(:cosmetic)
+        expect(verdict.call(cosmetic, stored_hash: stored_hash)).to eq(:cosmetic)
+        expect(verdict.call(ERA_DRIFTED, stored_projection: projection)).to eq(:changed)
+        expect(verdict.call(ERA_DRIFTED, stored_hash: stored_hash)).to eq(:changed)
+        expect(verdict.call(cosmetic)).to eq(:unnamed)
+        expect(verdict.call(broken, stored_projection: projection)).to eq(:unloadable)
+      end
+    end
+
+    it "is what shape_guard! raises on: the same words for a hash-named era" do
+      Dir.mktmpdir do |root|
+        stored_hash = Hecks::Runtime::StorageShape.mint_hash(shaped_bluebook(root))
+        label = Hecks::Runtime::StorageShape::LABEL_LENGTH
+
+        expect do
+          Hecks::Translation::Reattest.shape_guard!(
+            domain: "Shaped", ordinal: 1, text: ERA_DRIFTED, stored_hash: stored_hash
+          )
+        end.to raise_error(
+          Hecks::Runtime::WiringError,
+          /its name #{stored_hash[0, label]} was minted from a different shape.*retroactively redefine/m
+        )
+      end
     end
   end
 

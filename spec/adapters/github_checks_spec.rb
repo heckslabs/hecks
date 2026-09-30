@@ -1,16 +1,18 @@
 require "hecks"
-require_relative "../../qa/adapters/github_checks"
+require_relative "../../lib/hecks/quality_control/adapters/github_checks"
 
 # Transport only: `Open3.capture3` is stubbed so the suite never shells out to a real `gh`.
 # The exact `gh api` argv and the green/red parsing run for real.
 RSpec.describe Hecks::Adapters::GithubChecks do
   SHA = "4f2a19c8340fc53aa931933cb6587288698f51d".freeze
 
+  def api_path(page = 1)
+    "repos/{owner}/{repo}/commits/#{SHA}/check-runs?per_page=100&page=#{page}"
+  end
+
   def stub_gh(stdout, success: true)
     status = instance_double(Process::Status, success?: success)
-    allow(Open3).to receive(:capture3)
-      .with("gh", "api", "repos/{owner}/{repo}/commits/#{SHA}/check-runs")
-      .and_return([stdout, "", status])
+    allow(Open3).to receive(:capture3).with("gh", "api", api_path).and_return([stdout, "", status])
   end
 
   def check_run(name, status: "completed", conclusion: "success")
@@ -89,11 +91,37 @@ RSpec.describe Hecks::Adapters::GithubChecks do
     it "raises when the gh call does not succeed" do
       status = instance_double(Process::Status, success?: false)
       allow(Open3).to receive(:capture3)
-        .with("gh", "api", "repos/{owner}/{repo}/commits/#{SHA}/check-runs")
+        .with("gh", "api", api_path)
         .and_return(["", "gh: no such commit", status])
 
       expect { adapter.run(commit: { value: SHA }) }
         .to raise_error(/gh api check-runs failed for #{SHA}: gh: no such commit/)
+    end
+
+    it "raises a clear error when gh is not installed" do
+      allow(Open3).to receive(:capture3).and_raise(Errno::ENOENT)
+
+      expect { adapter.run(commit: { value: SHA }) }.to raise_error(RuntimeError, /gh is not installed/)
+    end
+  end
+
+  describe "pagination" do
+    it "reads every page so a red run past the first 100 is caught" do
+      status = instance_double(Process::Status, success?: true)
+      page1 = runs_json(*(0...100).map { |i| check_run("ok#{i}") })
+      page2 = runs_json(check_run("late-red", conclusion: "failure"))
+      allow(Open3).to receive(:capture3).with("gh", "api", api_path(1)).and_return([page1, "", status])
+      allow(Open3).to receive(:capture3).with("gh", "api", api_path(2)).and_return([page2, "", status])
+
+      expect { adapter.run(commit: { value: SHA }) }.to raise_error(/1 of 101 checks failed.*late-red/)
+    end
+  end
+
+  describe "sha validation" do
+    it "refuses a value that is not a sha before it reaches the API path" do
+      expect(Open3).not_to receive(:capture3)
+
+      expect { adapter.run(commit: { value: "abc/../../user" }) }.to raise_error(/not a commit sha/)
     end
   end
 

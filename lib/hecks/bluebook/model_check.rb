@@ -51,8 +51,31 @@ module Hecks
         findings.concat(rust_reserved_name_findings(domain_name: bluebook.name,
                                                     aggregate_names: bluebook.aggregates.map(&:hecks_name),
                                                     rust_target: rust_target, strict: strict))
+        findings.concat(external_query_findings(bluebook, rust_target: rust_target))
         findings.concat(ClientProfile.call(bluebook, hecksagon: hecksagon)) if profile == :client
         findings
+      end
+
+      # Flags a query the hecksagon binds to a port's adapter. Only the Ruby runtime asks an
+      # adapter for an answer; a Rust host would find nothing behind the query.
+      #
+      # @param bluebook [Bluebook::Chapter] the assembled chapter, its hecksagon's ports attached
+      # @param rust_target [Boolean] whether this domain has a real Rust target; a domain without
+      #   one is not checked, since nothing but the Ruby runtime serves it
+      # @return [Array<Finding>] one :external_query error per bound query, none off a Rust target
+      def external_query_findings(bluebook, rust_target: false)
+        return [] unless rust_target
+
+        bluebook.aggregates.flat_map do |aggregate|
+          aggregate.ports.flat_map do |port|
+            port.answered_queries.map do |answer|
+              Finding.new(kind: :external_query, severity: :error,
+                          subject: "#{aggregate.hecks_name}.#{answer.name}",
+                          message: "the #{port.name} port's adapter answers this query, and only the Ruby " \
+                                   "runtime asks an adapter — the Rust host cannot serve it")
+            end
+          end
+        end
       end
 
       # Flags an aggregate or domain name that collides with a Rust keyword or reserved

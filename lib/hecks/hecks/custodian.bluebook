@@ -1,0 +1,1847 @@
+Hecks.bluebook "Hecks" do
+  # Custodian: operating any domain. Each aggregate here is a concern a client runs against
+  # their own domain (ADR 0080, section 2).
+
+  aggregate "Introspection" do
+    description "A look at a booted domain, answered by the runtime without changing anything."
+
+    attribute :domain, DomainPath
+    identified_by :domain
+
+    value_object "DomainPath" do
+      attribute :value, String, pattern: '[^\t\n\r]'
+
+      invariant("a domain is named by its path") { !value.to_s.empty? }
+    end
+
+    value_object "ChapterName" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+
+      invariant("a chapter is named") { !value.to_s.empty? }
+    end
+
+    value_object "AggregateName" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+
+      invariant("an aggregate is named") { !value.to_s.empty? }
+    end
+
+    # Each query below is answered by the DomainRuntime port's adapter: the domain is booted
+    # in-process and the answer is the exact text the matching bin script printed.
+
+    # An answer that is one document of text, exactly as the tool that produced it wrote it.
+    value_object "Document" do
+      attribute :text, String
+    end
+
+    query "Ir" do
+      description "The IR a domain's boot produces, as JSON: what golden specs pin and an era hashes."
+      attribute :domain,       DomainPath, optional: true
+      attribute :translations, Boolean,    optional: true
+      attribute :meta,         Boolean,    optional: true
+      returns Document
+    end
+
+    query "Shape" do
+      description "The storage shape an era's label is minted from: a bluebook file or a directory of them."
+      attribute :domain, DomainPath
+      returns Document
+    end
+
+    query "Stores" do
+      description "Every aggregate's current records: the head, not the journal."
+      attribute :domain, DomainPath
+      returns Document
+    end
+
+    query "History" do
+      description "Every journal entry a domain's append-only adapters hold: the whole write history."
+      attribute :domain, DomainPath
+      returns Document
+    end
+
+    query "Statements" do
+      description "A chapter's declared facts, as plain English sentences."
+      attribute :domain,  DomainPath
+      attribute :chapter, ChapterName
+      returns Document
+    end
+
+    query "Narrate" do
+      description "A domain read back in English, whole or for one aggregate."
+      attribute :domain,    DomainPath,    optional: true
+      attribute :aggregate, AggregateName, optional: true
+      returns Document
+    end
+
+    query "Docs" do
+      description "A domain's usage document, whole or for one aggregate."
+      attribute :domain,    DomainPath,    optional: true
+      attribute :aggregate, AggregateName, optional: true
+      returns Document
+    end
+
+    # One file a projection would have written, held as its name and its text.
+    value_object "ProjectedFile" do
+      attribute :name, String
+      attribute :text, String
+    end
+
+    query "ProjectDiagrams" do
+      description "A chapter's Mermaid diagrams, as file names mapped to their text; nothing is written."
+      attribute :domain,  DomainPath
+      attribute :chapter, ChapterName
+      returns list_of(ProjectedFile)
+    end
+
+    query "Glossary" do
+      description "A chapter's Ubiquitous Language glossary, as file names mapped to their text; nothing is written."
+      attribute :domain,  DomainPath
+      attribute :chapter, ChapterName
+      returns list_of(ProjectedFile)
+    end
+  end
+
+  # A journaled command whose work happens outside the runtime (ADR 0080, section 11). Every
+  # command below that runs something follows this one shape, so later aggregates copy it:
+  #
+  #   1. A creating command records the request as a record in state "requested" and emits.
+  #   2. A policy on that event triggers an ask on one of the record's ports. The runtime hands
+  #      the port's adapter the whole record, so the adapter does all the IO, and only there.
+  #   3. The adapter answers (a hash named like a command's arguments) or raises (its message
+  #      is the refusal). One policy per outcome re-enters the record with a command that stores it.
+  #
+  # The ports are declared in hecks.hecksagon; each adapter is in adapters/.
+
+  aggregate "ModelCheckRun" do
+    description "One static analysis over domains' models, and what it found: a check's history."
+
+    attribute :run,     RunKey
+    attribute :domains, DomainList,  optional: true
+    attribute :profile, ProfileName, optional: true
+    attribute :strict,  Switch,      optional: true
+    attribute :report,  Report,      optional: true
+    attribute :refusal, Report,      optional: true
+    identified_by :run
+
+    value_object "RunKey" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+
+      invariant("a run is named") { !value.to_s.empty? }
+    end
+
+    value_object "DomainList" do
+      attribute :value, String, pattern: '[^\t\n\r]'
+    end
+
+    value_object "ProfileName" do
+      attribute :value, String, pattern: '^client$'
+    end
+
+    value_object "Switch" do
+      attribute :value, Boolean
+    end
+
+    value_object "Report" do
+      attribute :value, String
+    end
+
+    lifecycle :status, default: "requested" do
+      transition "Pass" => "clean",   from: "requested"
+      transition "Flag" => "flagged", from: "requested"
+    end
+
+    command "ModelCheck" do
+      role "Operator"
+      goal "Check domains for dead states and unreachable steps, and keep the verdict"
+
+      attribute :run,     RunKey
+      attribute :domains, DomainList,  optional: true
+      attribute :profile, ProfileName, optional: true
+      attribute :strict,  Switch,      optional: true
+
+      sets :run
+      sets :domains
+      sets :profile
+      sets :strict
+
+      emits ModelCheckRequested
+    end
+
+    command "Pass" do
+      role "System"
+      goal "Record that the analysis left no error"
+
+      reference_to ModelCheckRun
+      attribute :report, Report
+
+      sets :report
+
+      emits ModelCheckPassed
+    end
+
+    command "Flag" do
+      role "System"
+      goal "Record that the analysis found something, or could not run, and what it said"
+
+      reference_to ModelCheckRun
+      attribute :refusal, Report
+
+      sets :refusal
+
+      emits ModelCheckFlagged
+    end
+
+    # `hecks model_check` answers once the request is recorded, so the verdict is read here.
+    query "Verdict" do
+      description "What one check found: its status, and the report or the reason it could not run."
+      attribute :run, RunKey
+      where(run: :run)
+      order_by :run
+    end
+
+    query "Flagged" do
+      description "Every check that left a finding or could not run."
+      where(status: "flagged")
+      order_by :run
+    end
+  end
+
+  policy "AnalyseWhenRequested" do
+    on      "ModelCheckRun.ModelCheckRequested"
+    trigger ModelCheckRun::DomainRuntime::Check, with: { run: :run }
+  end
+
+  policy "RecordTheClean" do
+    on      "ModelCheckRun.ModelCheckAnswered"
+    trigger ModelCheckRun::Pass, with: { report: :report }
+  end
+
+  policy "RecordTheFlag" do
+    on      "ModelCheckRun.ModelCheckRefused"
+    trigger ModelCheckRun::Flag, with: { refusal: :refusal }
+  end
+
+  aggregate "Operation" do
+    description "One thing an operator ran against a domain, and how it ended."
+
+    attribute :run,          OperationKey
+    attribute :subject,      Subject,    optional: true
+    attribute :script,       Script,     optional: true
+    attribute :verb,         Verb,       optional: true
+    attribute :arguments,    list_of(Word), optional: true
+    attribute :url,          Address,    optional: true
+    attribute :path,         RoutePath,  optional: true
+    attribute :header,       HeaderName, optional: true
+    attribute :scheme,       Scheme,     optional: true
+    attribute :payload,      Payload,    optional: true
+    attribute :payload_file, PayloadFile, optional: true
+    attribute :health_path,  RoutePath,  optional: true
+    attribute :state_path,   RoutePath,  optional: true
+    attribute :output,       Output,     optional: true
+    attribute :refusal,      Output,     optional: true
+    identified_by :run
+
+    value_object "OperationKey" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+
+      invariant("an operation is named") { !value.to_s.empty? }
+    end
+
+    # What the operation acts on: a domain directory, or a behaviors file or directory.
+    value_object "Subject" do
+      attribute :value, String, pattern: '[^\t\n\r]'
+    end
+
+    value_object "Script" do
+      attribute :value, String
+    end
+
+    value_object "Verb" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+    end
+
+    # One `name=value` word of the verb a run dispatches.
+    value_object "Word" do
+      attribute :value, String
+    end
+
+    value_object "Address" do
+      attribute :value, String, pattern: '^https?://'
+    end
+
+    value_object "RoutePath" do
+      attribute :value, String, pattern: '^/'
+    end
+
+    value_object "HeaderName" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+    end
+
+    value_object "Scheme" do
+      attribute :value, String, pattern: '^(timestamped|sha256|hex)$'
+    end
+
+    value_object "Payload" do
+      attribute :value, String
+    end
+
+    value_object "PayloadFile" do
+      attribute :value, String, pattern: '[^\t\n\r]'
+    end
+
+    value_object "Output" do
+      attribute :value, String
+    end
+
+    lifecycle :status, default: "requested" do
+      transition "Succeed" => "succeeded", from: "requested"
+      transition "Fail"    => "failed",    from: "requested"
+    end
+
+    # Runs one verb, or a JSON step list, against the domain: `hecks run [domain] script=steps.json`
+    # or `hecks run [domain] verb=create_pizza arguments=name.value=Margherita`. The signing secret
+    # for SmokeHttp is never an argument: it is read from SMOKE_WEBHOOK_SECRET.
+    command "Run" do
+      role "Operator"
+      goal "Dispatch a verb or a step list against a domain and keep what it reported"
+
+      attribute :run,     OperationKey
+      attribute :subject, Subject,       optional: true
+      attribute :script,  Script,        optional: true
+      attribute :verb,    Verb,          optional: true
+      attribute :arguments, list_of(Word), optional: true
+
+      given("exactly one of a script and a verb is named: pass script= or verb=, not both") do
+        (script.set? && verb.unset?) || (script.unset? && verb.set?)
+      end
+
+      sets :run
+      sets :subject
+      sets :script
+      sets :verb
+      sets :arguments
+
+      emits RunRequested
+    end
+
+    command "RefreshProjections" do
+      role "Operator"
+      goal "Bring every read-model projection of a domain up to date now"
+
+      attribute :run,     OperationKey
+      attribute :subject, Subject
+
+      sets :run
+      sets :subject
+
+      emits ProjectionsRefreshRequested
+    end
+
+    command "RunBehaviors" do
+      role "Operator"
+      goal "Run a domain's behavior tests and keep the verdict"
+
+      attribute :run,     OperationKey
+      attribute :subject, Subject
+
+      sets :run
+      sets :subject
+
+      emits BehaviorsRequested
+    end
+
+    command "OpenConsole" do
+      role "Operator"
+      goal "Open an interactive console on a domain"
+
+      attribute :run,     OperationKey
+      attribute :subject, Subject, optional: true
+
+      sets :run
+      sets :subject
+
+      emits ConsoleRequested
+    end
+
+    command "SmokeTest" do
+      role "Operator"
+      goal "Dispatch one synthesized call per command and report of a wired domain"
+
+      attribute :run,     OperationKey
+      attribute :subject, Subject, optional: true
+
+      sets :run
+      sets :subject
+
+      emits SmokeTestRequested
+    end
+
+    command "SmokeHttp" do
+      role "Operator"
+      goal "Check that a running service refuses bad signatures and accepts a good one"
+
+      attribute :run,          OperationKey
+      attribute :url,          Address,     optional: true
+      attribute :path,         RoutePath
+      attribute :header,       HeaderName,  optional: true
+      attribute :scheme,       Scheme,      optional: true
+      attribute :payload,      Payload,     optional: true
+      attribute :payload_file, PayloadFile, optional: true
+      attribute :health_path,  RoutePath,   optional: true
+      attribute :state_path,   RoutePath,   optional: true
+
+      sets :run
+      sets :url
+      sets :path
+      sets :header
+      sets :scheme
+      sets :payload
+      sets :payload_file
+      sets :health_path
+      sets :state_path
+
+      emits SmokeHttpRequested
+    end
+
+    command "Succeed" do
+      role "System"
+      goal "Record that the operation ended well, and what it reported"
+
+      reference_to Operation
+      attribute :output, Output
+
+      sets :output
+
+      emits OperationSucceeded
+    end
+
+    command "Fail" do
+      role "System"
+      goal "Record that the operation was refused or found a problem, and what it said"
+
+      reference_to Operation
+      attribute :refusal, Output
+
+      sets :refusal
+
+      emits OperationFailed
+    end
+
+    query "Outcome" do
+      description "How one operation ended: its status, and what it reported or why it failed."
+      attribute :run, OperationKey
+      where(run: :run)
+      order_by :run
+    end
+
+    query "Failed" do
+      description "Every operation that was refused or found a problem."
+      where(status: "failed")
+      order_by :run
+    end
+
+    # A follow's answer: the count to pass back as `since`, the entries past it, and when it looked.
+    value_object "Tail" do
+      attribute :cursor,   Integer
+      attribute :events,   list_of(FollowedEvent)
+      attribute :taken_at, String
+    end
+
+    # One entry of a persisted event log; the payload is its JSON text, since a value object
+    # holds no free-form map.
+    value_object "FollowedEvent" do
+      attribute :name,        String
+      attribute :aggregate,   String
+      attribute :id,          String
+      attribute :payload,     String
+      attribute :occurred_at, String
+    end
+
+    # A launcher answers once, so a follow is a bounded poll: it answers the entries past `since`
+    # and a `cursor` to pass as the next `since`, waiting up to `wait` seconds for the first one.
+    query "Follow" do
+      description "A domain's persisted event log past a cursor, for tailing it call by call."
+      attribute :domain,    Subject
+      attribute :aggregate, Verb,    optional: true
+      attribute :since,     Integer, optional: true
+      attribute :from_now,  Boolean, optional: true
+      attribute :wait,      Integer, optional: true
+      attribute :interval,  Float,   optional: true
+      returns Tail
+    end
+  end
+
+  policy "RunWhenRequested" do
+    on      "Operation.RunRequested"
+    trigger Operation::DomainRuntime::Execute, with: { run: :run }
+  end
+
+  policy "RefreshWhenRequested" do
+    on      "Operation.ProjectionsRefreshRequested"
+    trigger Operation::DomainRuntime::Refresh, with: { run: :run }
+  end
+
+  policy "VerifyWhenRequested" do
+    on      "Operation.BehaviorsRequested"
+    trigger Operation::DomainRuntime::Verify, with: { run: :run }
+  end
+
+  policy "SmokeWhenRequested" do
+    on      "Operation.SmokeTestRequested"
+    trigger Operation::DomainRuntime::Smoke, with: { run: :run }
+  end
+
+  policy "OpenWhenRequested" do
+    on      "Operation.ConsoleRequested"
+    trigger Operation::Terminal::Open, with: { run: :run }
+  end
+
+  policy "ProbeWhenRequested" do
+    on      "Operation.SmokeHttpRequested"
+    trigger Operation::HostHttp::Probe, with: { run: :run }
+  end
+
+  policy "RecordTheOutput" do
+    on      "Operation.OperationAnswered"
+    trigger Operation::Succeed, with: { output: :output }
+  end
+
+  policy "RecordTheFailure" do
+    on      "Operation.OperationRefused"
+    trigger Operation::Fail, with: { refusal: :refusal }
+  end
+
+  aggregate "Host" do
+    description "A running rust/host, and the version and era it last reported."
+
+    attribute :host,     Address
+    attribute :expected, ExpectedFile,  optional: true
+    attribute :timeout,  Seconds,       optional: true
+    attribute :era,      EraId,         optional: true
+    attribute :version,  VersionText,   optional: true
+    attribute :report,   Report,        optional: true
+    attribute :refusal,  Report,        optional: true
+    identified_by :host
+
+    value_object "Address" do
+      attribute :value, String, pattern: '^https?://'
+    end
+
+    # The file listing the eras that should be running, one per line.
+    value_object "ExpectedFile" do
+      attribute :value, String, pattern: '[^\t\n\r]'
+    end
+
+    value_object "Seconds" do
+      attribute :value, Float
+
+      invariant("a timeout is positive") { value > 0 }
+    end
+
+    value_object "EraId" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+    end
+
+    value_object "VersionText" do
+      attribute :value, String
+    end
+
+    value_object "Verdict" do
+      attribute :value, String, pattern: '^(match|unlisted|mismatch)$'
+    end
+
+    value_object "Report" do
+      attribute :value, String
+    end
+
+    lifecycle :status, default: "requested" do
+      transition "Recheck" => "requested",   from: %w[observed drifted unreachable]
+      transition "Observe" => "observed",    from: "requested"
+      transition "Drift"   => "drifted",     from: "requested"
+      transition "Lose"    => "unreachable", from: "requested"
+    end
+
+# `hecks check_era <url> expected=era-file [timeout=10]` records the first check of a host under
+# its URL. A host is one record, and a creating command cannot repeat an identity, so a later
+# check of the same host is `hecks recheck <url> expected=era-file`. Both are read with
+# `hecks standing <url>`.
+command "CheckEra" do
+      role "Operator"
+      goal "Ask a running host which era it reports, and keep whether it is one that should be running"
+
+      attribute :host,     Address
+      attribute :expected, ExpectedFile
+      attribute :timeout,  Seconds, optional: true
+
+      sets :host
+      sets :expected
+      sets :timeout
+
+      emits EraCheckRequested
+    end
+
+command "Recheck" do
+  role "Operator"
+  goal "Ask a host already checked which era it reports now"
+
+  reference_to Host
+  attribute :expected, ExpectedFile
+  attribute :timeout,  Seconds, optional: true
+
+  sets :expected
+  sets :timeout
+
+  emits EraRecheckRequested
+end
+
+# The host reported an era the list accepts, or a list that names none.
+    command "Observe" do
+      role "System"
+      goal "Record the version and era a running host reported"
+
+      reference_to Host
+      attribute :era,     EraId
+      attribute :version, VersionText
+      attribute :report,  Report
+
+      sets :era
+      sets :version
+      sets :report
+
+      emits EraObserved
+    end
+
+    # The host reported an era that is not on the list: the finding the roll must stop on.
+    command "Drift" do
+      role "System"
+      goal "Record that a running host reports an era that should not be running"
+
+      reference_to Host
+      attribute :era,     EraId
+      attribute :version, VersionText
+      attribute :report,  Report
+
+      sets :era
+      sets :version
+      sets :report
+
+      emits EraDrifted
+    end
+
+    command "Lose" do
+      role "System"
+      goal "Record that the host could not be reached, or answered no era, and what was said"
+
+      reference_to Host
+      attribute :refusal, Report
+
+      sets :refusal
+
+      emits HostLost
+    end
+
+    query "Standing" do
+      description "What one check of a host found: its status, era and version, or why it failed."
+      attribute :host, Address
+      where(host: :host)
+      order_by :host
+    end
+
+    query "Drifted" do
+      description "Every host that reported an era that should not be running."
+      where(status: "drifted")
+      order_by :host
+    end
+  end
+
+  policy "FetchWhenChecked" do
+    on      "Host.EraCheckRequested"
+    trigger Host::HostHttp::Fetch, with: { host: :host }
+  end
+
+policy "FetchWhenRechecked" do
+  on      "Host.EraRecheckRequested"
+  trigger Host::HostHttp::Fetch, with: { host: :host }
+end
+
+policy "RecordTheEra" do
+    on      "Host.EraReported"
+    where   { verdict.value != "mismatch" }
+    trigger Host::Observe, with: { era: :era, version: :version, report: :report }
+  end
+
+  policy "RecordTheDrift" do
+    on      "Host.EraReported"
+    where   { verdict.value == "mismatch" }
+    trigger Host::Drift, with: { era: :era, version: :version, report: :report }
+  end
+
+  policy "RecordTheLostHost" do
+    on      "Host.HostRefused"
+    trigger Host::Lose, with: { refusal: :refusal }
+  end
+
+  aggregate "Era" do
+    description "One change to a domain's journal of eras, and how it ended: a store's upkeep."
+
+    attribute :run,                 RunKey
+    attribute :domain,              DomainPath
+    attribute :operation,           OperationName, optional: true
+    attribute :winners,             WinnerList,    optional: true
+    attribute :era,                 Ordinal,       optional: true
+    attribute :aggregates,          AggregateList, optional: true
+    attribute :confirm,             Switch,        optional: true
+    attribute :snapshot,            Snapshot,      optional: true
+    attribute :host_version,        HostVersion,   optional: true
+    attribute :rehearsal,           Verdict,       optional: true
+    attribute :rehearsed_at,        Moment,        optional: true
+    attribute :capable,             Switch,        optional: true
+    attribute :held,                Count,         optional: true
+    attribute :forks,               Count,         optional: true
+    attribute :contested,           Count,         optional: true
+    attribute :edges,               Count,         optional: true
+    attribute :bound,               Count,         optional: true
+    attribute :candidates,          Count,         optional: true
+    attribute :audited,             Switch,        optional: true
+    attribute :rehearsal_needed,    Switch,        optional: true
+    attribute :rehearsal_recorded,  Switch,        optional: true
+    attribute :drifted,             Switch,        optional: true
+    attribute :loadable,            Switch,        optional: true
+    attribute :shape_kept,          Switch,        optional: true
+    attribute :report,              Report,        optional: true
+    attribute :refusal,             Report,        optional: true
+    identified_by :run
+
+    value_object "RunKey" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+
+      invariant("a change is named") { !value.to_s.empty? }
+    end
+
+    # The domain whose journal is changed: its directory.
+    value_object "DomainPath" do
+      attribute :value, String, pattern: '[^\t\n\r]'
+    end
+
+    value_object "OperationName" do
+      attribute :value, String,
+                pattern: '^(hold_first|merge_tail|reattest|backfill_projections|compact|compact_heki|approve_translation)$'
+    end
+
+    # `id:old,id:new`: which world's record wins for each id both worlds touched since the cut.
+    value_object "WinnerList" do
+      attribute :value, String, pattern: '^[^ \t\n\r,]+:(old|new)(,[^ \t\n\r,]+:(old|new))*$'
+    end
+
+    value_object "Ordinal" do
+      attribute :value, Integer
+
+      invariant("an era is counted from one") { value > 0 }
+    end
+
+    # Aggregate names, comma separated; every aggregate that keeps a journal when absent.
+    value_object "AggregateList" do
+      attribute :value, String, pattern: '[^\t\n\r]'
+    end
+
+    value_object "Switch" do
+      attribute :value, Boolean
+    end
+
+    value_object "Count" do
+      attribute :value, Integer
+    end
+
+    # The rehearsal a compute or rekey edge is approved on: the snapshot it ran against, the host
+    # that ran it, whether it passed, and when.
+    value_object "Snapshot" do
+      attribute :value, String, pattern: '[^\t\n\r]'
+    end
+
+    value_object "HostVersion" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+    end
+
+    value_object "Verdict" do
+      attribute :value, String, pattern: '^(pass|fail)$'
+    end
+
+    value_object "Moment" do
+      attribute :value, String, pattern: '^[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[^ \t\n\r]+$'
+    end
+
+    value_object "Report" do
+      attribute :value, String
+    end
+
+    lifecycle :status, default: "requested" do
+      transition "Permit"   => "admitted", from: "requested"
+      transition "Settle"   => "settled",  from: "admitted"
+      transition "Abandon"  => "refused",  from: %w[requested admitted]
+    end
+
+    # The seven requests. Each records what was asked and names its operation; the journal store
+    # then examines the domain and reports facts (`EraExamined`), `Permit` holds the rules that need
+    # those facts, and only an admitted change is made (`EraChanged`). A change that changes
+    # something needs an explicit `--confirm`.
+    command "HoldFirst" do
+      role "Operator"
+      goal "Hold the first era of a domain that holds none, as its first boot would"
+
+      attribute :domain,  DomainPath
+      attribute :run,     RunKey
+      attribute :confirm, Switch, optional: true
+
+      given("holding the first era is confirmed") { confirm.value == true }
+
+      sets :domain
+      sets :run
+      sets :confirm
+      sets :operation, to: "hold_first"
+
+      emits FirstEraRequested
+    end
+
+    command "MergeTail" do
+      role "Operator"
+      goal "Interleave the old world's writes since the cut into the live head, by their ordinals"
+
+      attribute :domain,  DomainPath
+      attribute :run,     RunKey
+      attribute :winners, WinnerList, optional: true
+      attribute :confirm, Switch,     optional: true
+
+      given("the merge is confirmed") { confirm.value == true }
+
+      sets :domain
+      sets :run
+      sets :winners
+      sets :confirm
+      sets :operation, to: "merge_tail"
+
+      emits TailMergeRequested
+    end
+
+    command "Reattest" do
+      role "Operator"
+      goal "Freeze an era's held text as it now stands, after a person has read it"
+
+      attribute :domain,  DomainPath
+      attribute :era,     Ordinal
+      attribute :run,     RunKey
+      attribute :confirm, Switch, optional: true
+
+      given("the text is accepted as the era's own") { confirm.value == true }
+
+      sets :domain
+      sets :era
+      sets :run
+      sets :confirm
+      sets :operation, to: "reattest"
+
+      emits ReattestRequested
+    end
+
+    command "BackfillProjections" do
+      role "Operator"
+      goal "Store the shape every held era froze with, for the eras that predate it"
+
+      attribute :domain, DomainPath
+      attribute :run,    RunKey
+
+      sets :domain
+      sets :run
+      sets :operation, to: "backfill_projections"
+
+      emits BackfillRequested
+    end
+
+    command "Compact" do
+      role "Operator"
+      goal "Delete the journal entries a Postgres or Sqlite aggregate has already projected"
+
+      attribute :domain,     DomainPath
+      attribute :aggregates, AggregateList, optional: true
+      attribute :run,        RunKey
+      attribute :confirm,    Switch, optional: true
+
+      given("the compaction is confirmed") { confirm.value == true }
+
+      sets :domain
+      sets :aggregates
+      sets :run
+      sets :confirm
+      sets :operation, to: "compact"
+
+      emits CompactionRequested
+    end
+
+    command "CompactHeki" do
+      role "Operator"
+      goal "Empty a Heki aggregate's journal, keeping the snapshot"
+
+      attribute :domain,     DomainPath
+      attribute :aggregates, AggregateList, optional: true
+      attribute :run,        RunKey
+      attribute :confirm,    Switch, optional: true
+
+      given("the compaction is confirmed") { confirm.value == true }
+
+      sets :domain
+      sets :aggregates
+      sets :run
+      sets :confirm
+      sets :operation, to: "compact_heki"
+
+      emits HekiCompactionRequested
+    end
+
+    # Writes `translations/<edge>.approval` beside the edge, for the host to apply at its next
+    # boot. An edge with a compute or rekey rule also needs the rehearsal a person ran by hand.
+    command "ApproveTranslation" do
+      role "Operator"
+      goal "Approve the edge that leads a domain's latest era to its current shape, in a committed file"
+
+      attribute :domain,       DomainPath
+      attribute :run,          RunKey
+      attribute :confirm,      Switch,      optional: true
+      attribute :snapshot,     Snapshot,    optional: true
+      attribute :host_version, HostVersion, optional: true
+      attribute :rehearsal,    Verdict,     optional: true
+      attribute :rehearsed_at, Moment,      optional: true
+
+      given("the approval is confirmed") { confirm.value == true }
+
+      sets :domain
+      sets :run
+      sets :confirm
+      sets :snapshot
+      sets :host_version
+      sets :rehearsal
+      sets :rehearsed_at
+      sets :operation, to: "approve_translation"
+
+      emits ApprovalRequested
+    end
+
+    # The facts the journal store reported, held against the change that was asked for.
+    command "Permit" do
+      role "System"
+      goal "Let a change through only when what was found in the journal allows it"
+
+      reference_to Era
+      attribute :capable,            Switch
+      attribute :held,               Count
+      attribute :forks,              Count
+      attribute :contested,          Count
+      attribute :edges,              Count
+      attribute :bound,              Count
+      attribute :candidates,         Count
+      attribute :audited,            Switch
+      attribute :rehearsal_needed,   Switch
+      attribute :rehearsal_recorded, Switch
+      attribute :drifted,            Switch
+      attribute :loadable,           Switch
+      attribute :shape_kept,         Switch
+
+      given("the store keeps eras") do
+        capable.value || operation.value == "compact" || operation.value == "compact_heki"
+      end
+      given("no era is held yet") { operation.value != "hold_first" || held.value == 0 }
+      given("an era beyond the first stands before a tail is merged") do
+        operation.value != "merge_tail" || held.value > 1
+      end
+      given("exactly one edge leaves each era") { operation.value != "merge_tail" || forks.value == 0 }
+      given("every record both worlds touched has a named winner") do
+        operation.value != "merge_tail" || contested.value == 0
+      end
+      given("an aggregate matches") do
+        (operation.value != "compact" && operation.value != "compact_heki") || candidates.value > 0
+      end
+      given("no projection reads the journal that would be emptied") do
+        (operation.value != "compact" && operation.value != "compact_heki") || bound.value == 0
+      end
+      given("exactly one edge leaves the latest era") do
+        operation.value != "approve_translation" || edges.value == 1
+      end
+      given("the audit passed") { operation.value != "approve_translation" || audited.value }
+      given("a rehearsal that passed is recorded for an edge with a compute or rekey rule") do
+        operation.value != "approve_translation" || !rehearsal_needed.value || rehearsal_recorded.value
+      end
+      given("the held text no longer matches its digest: there is nothing to re-attest") do
+        operation.value != "reattest" || drifted.value
+      end
+      given("the edited text loads as a bluebook: restore a loadable text") do
+        operation.value != "reattest" || loadable.value
+      end
+      given("the edit kept the era's shape, not just its text: restore a text with the original shape") do
+        operation.value != "reattest" || shape_kept.value
+      end
+
+      sets :capable
+      sets :held
+      sets :forks
+      sets :contested
+      sets :edges
+      sets :bound
+      sets :candidates
+      sets :audited
+      sets :rehearsal_needed
+      sets :rehearsal_recorded
+      sets :drifted
+      sets :loadable
+      sets :shape_kept
+
+      emits EraPermitted
+    end
+
+    command "Settle" do
+      role "System"
+      goal "Record that the admitted change was made, and what it did"
+
+      reference_to Era
+      attribute :report, Report
+
+      sets :report
+
+      emits EraSettled
+    end
+
+    command "Abandon" do
+      role "System"
+      goal "Record that the change was refused, or could not be made, and why"
+
+      reference_to Era
+      attribute :refusal, Report
+
+      sets :refusal
+
+      emits EraAbandoned
+    end
+
+    query "Settlement" do
+      description "What one change did: its status, and the report or the reason it was refused."
+      attribute :run, RunKey
+      where(run: :run)
+      order_by :run
+    end
+
+    query "Abandoned" do
+      description "Every change that was refused or could not be made."
+      where(status: "refused")
+      order_by :run
+    end
+
+    # An answer that is one document of text, exactly as the tool that produced it wrote it.
+    value_object "Document" do
+      attribute :text, String
+    end
+
+    # The reads that used to write. None holds an era or names one: a domain that holds no era
+    # answers "no era held yet", and `hold_first` is the only thing that holds the first.
+    query "ScaffoldTranslation" do
+      description "The edge file that would lead the latest held era to the current shape."
+      attribute :domain, DomainPath
+      returns Document
+    end
+
+    query "AuditTranslation" do
+      description "The audit of the edge that leads the latest held era to the current shape."
+      attribute :domain, DomainPath
+      returns Document
+    end
+
+    query "Attestation" do
+      description "An era's held text as it now stands, and whether it still matches its digest."
+      attribute :domain, DomainPath
+      attribute :era,    Ordinal
+      returns Document
+    end
+
+    query "Compaction" do
+      description "What compacting the domain's journals would delete, without deleting it."
+      attribute :domain,     DomainPath
+      attribute :aggregates, AggregateList, optional: true
+      returns Document
+    end
+  end
+
+  policy "ExamineWhenFirstEraRequested" do
+    on      "Era.FirstEraRequested"
+    trigger Era::JournalStore::Examine, with: { run: :run }
+  end
+
+  policy "ExamineWhenTailMergeRequested" do
+    on      "Era.TailMergeRequested"
+    trigger Era::JournalStore::Examine, with: { run: :run }
+  end
+
+  policy "ExamineWhenReattestRequested" do
+    on      "Era.ReattestRequested"
+    trigger Era::JournalStore::Examine, with: { run: :run }
+  end
+
+  policy "ExamineWhenBackfillRequested" do
+    on      "Era.BackfillRequested"
+    trigger Era::JournalStore::Examine, with: { run: :run }
+  end
+
+  policy "ExamineWhenCompactionRequested" do
+    on      "Era.CompactionRequested"
+    trigger Era::JournalStore::Examine, with: { run: :run }
+  end
+
+  policy "ExamineWhenHekiCompactionRequested" do
+    on      "Era.HekiCompactionRequested"
+    trigger Era::JournalStore::Examine, with: { run: :run }
+  end
+
+  policy "ExamineWhenApprovalRequested" do
+    on      "Era.ApprovalRequested"
+    trigger Era::JournalStore::Examine, with: { run: :run }
+  end
+
+  policy "PermitWhenExamined" do
+    on      "Era.EraExamined"
+    trigger Era::Permit, with: {
+      capable: :capable, held: :held, forks: :forks, contested: :contested, edges: :edges,
+      bound: :bound, candidates: :candidates, audited: :audited,
+      rehearsal_needed: :rehearsal_needed, rehearsal_recorded: :rehearsal_recorded,
+      drifted: :drifted, loadable: :loadable, shape_kept: :shape_kept
+    }
+  end
+
+  # `Permit` refuses when a rule is unmet and emits nothing, so this reaction is its complement:
+  # it holds the same rules negated, so an examined change that is not let through is abandoned
+  # rather than left `requested`.
+  policy "AbandonWhenNotPermitted" do
+    on      "Era.EraExamined"
+    where do
+      (!capable.value && operation.value != "compact" && operation.value != "compact_heki") ||
+        (operation.value == "hold_first" && held.value != 0) ||
+        (operation.value == "merge_tail" && (held.value <= 1 || forks.value != 0 || contested.value != 0)) ||
+        ((operation.value == "compact" || operation.value == "compact_heki") &&
+          (candidates.value <= 0 || bound.value != 0)) ||
+        (operation.value == "approve_translation" &&
+          (edges.value != 1 || !audited.value || (rehearsal_needed.value && !rehearsal_recorded.value))) ||
+        (operation.value == "reattest" && (!drifted.value || !loadable.value || !shape_kept.value))
+    end
+    trigger Era::Abandon, with: { refusal: "the journal's facts do not admit this change" }
+  end
+
+  policy "ChangeWhenPermitted" do
+    on      "Era.EraPermitted"
+    trigger Era::JournalStore::Apply, with: { run: :run }
+  end
+
+  policy "RecordTheChange" do
+    on      "Era.EraChanged"
+    trigger Era::Settle, with: { report: :report }
+  end
+
+  policy "RecordTheRefusedChange" do
+    on      "Era.EraRefused"
+    trigger Era::Abandon, with: { refusal: :refusal }
+  end
+
+  aggregate "Package" do
+    description "One package of the bluebook registry, vendored into a project and pinned."
+
+    attribute :package, PackageRef
+    attribute :from,    Location, optional: true
+    attribute :root,    Location, optional: true
+    attribute :report,  Report,   optional: true
+    attribute :refusal, Report,   optional: true
+    identified_by :package
+
+    # `name` for the newest release, `name@1.2.0` for one release, `name@9f2c1ab` for a commit.
+    value_object "PackageRef" do
+      attribute :value, String, pattern: '^[a-z][a-z0-9_]*(@[^ \t\n\r]+)?$'
+
+      invariant("a package is named") { !value.to_s.empty? }
+    end
+
+    # A directory: the source repository (`from`), or the project the files land in (`root`).
+    value_object "Location" do
+      attribute :value, String, pattern: '[^\t\n\r]'
+    end
+
+    value_object "Report" do
+      attribute :value, String
+    end
+
+    lifecycle :status, default: "requested" do
+      transition "Revendor" => "requested", from: %w[vendored refused]
+      transition "Complete" => "vendored",  from: "requested"
+      transition "Abandon"  => "refused",   from: "requested"
+    end
+
+    # `hecks vendor <package[@version]> [from=path] [root=path]`. The record is named by what was
+    # asked for, so a release is one record; vendoring the same spelling again is `hecks revendor`.
+    # `from` defaults to $EMBRYONAUT_BLUEBOOKS_SRC and `root` to the current directory, both read by
+    # the adapter.
+    command "Vendor" do
+      role "Operator"
+      goal "Pin a package of the bluebook registry into this project, at a release or a commit"
+
+      attribute :package, PackageRef
+      attribute :from,    Location, optional: true
+      attribute :root,    Location, optional: true
+
+      sets :package
+      sets :from
+      sets :root
+
+      emits VendorRequested
+    end
+
+    command "Revendor" do
+      role "Operator"
+      goal "Pin a package that was vendored before again, for the newest release or the same one"
+
+      reference_to Package
+      attribute :from, Location, optional: true
+      attribute :root, Location, optional: true
+
+      sets :from
+      sets :root
+
+      emits RevendorRequested
+    end
+
+    command "Complete" do
+      role "System"
+      goal "Record that the package was pinned, and what changed"
+
+      reference_to Package
+      attribute :report, Report
+
+      sets :report
+
+      emits PackageVendored
+    end
+
+    command "Abandon" do
+      role "System"
+      goal "Record that the package could not be pinned, and why"
+
+      reference_to Package
+      attribute :refusal, Report
+
+      sets :refusal
+
+      emits VendoringRefused
+    end
+
+    query "Pinning" do
+      description "What vendoring one package did: its status, and the report or the refusal."
+      attribute :package, PackageRef
+      where(package: :package)
+      order_by :package
+    end
+
+    query "Unpinned" do
+      description "Every package the last vendoring of which was refused."
+      where(status: "refused")
+      order_by :package
+    end
+  end
+
+  policy "PinWhenVendored" do
+    on      "Package.VendorRequested"
+    trigger Package::Git::Pin, with: { package: :package }
+  end
+
+  policy "PinWhenRevendored" do
+    on      "Package.RevendorRequested"
+    trigger Package::Git::Pin, with: { package: :package }
+  end
+
+  policy "RecordThePinning" do
+    on      "Package.PackagePinned"
+    trigger Package::Complete, with: { report: :report }
+  end
+
+  policy "RecordTheRefusedPin" do
+    on      "Package.PinRefused"
+    trigger Package::Abandon, with: { refusal: :refusal }
+  end
+
+  # A run record for opening a door onto the framework, not a door: the doors live in `Hecks::Doors`.
+  aggregate "Door" do
+    description "A way into the framework opened for a project: its launchers, or an MCP server."
+
+    attribute :run,     DoorKey
+    attribute :domains, DomainList, optional: true
+    attribute :stdio,   Switch,     optional: true
+    attribute :output,  Note,       optional: true
+    attribute :refusal, Note,       optional: true
+    identified_by :run
+
+    value_object "DoorKey" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+
+      invariant("a door is named") { !value.to_s.empty? }
+    end
+
+    # Domain directories under the project, comma separated.
+    value_object "DomainList" do
+      attribute :value, String, pattern: '[^\t\n\r]'
+    end
+
+    value_object "Switch" do
+      attribute :value, Boolean
+    end
+
+    value_object "Note" do
+      attribute :value, String
+    end
+
+    lifecycle :status, default: "requested" do
+      transition "Finish" => "finished", from: "requested"
+      transition "Stop"   => "stopped",  from: "requested"
+    end
+
+    # Writes a launcher beside each domain. It replaces the generated launcher already there and
+    # deletes nothing, so it runs without `confirm` (`hecks project_cli` never asked for one).
+    command "ProjectCli" do
+      role "Operator"
+      goal "Write a command-line launcher beside each domain of this project"
+
+      attribute :run,     DoorKey
+      attribute :domains, DomainList, optional: true
+
+      sets :run
+      sets :domains
+
+      emits LaunchersRequested
+    end
+
+    # A stdio server runs until its client closes stdin, so it cannot be asked and answered
+    # quickly like the others. The command records that the door was started; the Terminal
+    # adapter hands the process over to the door and answers when it closes, as OpenConsole
+    # does for a console. The launcher spells it `serve_mcp`; the `mcp` spelling exe/hecks ships
+    # today stays with its router until the launcher is generated.
+    command "ServeMcp" do
+      role "Operator"
+      goal "Serve the storehouse bus to an MCP client over stdio until it closes"
+
+      attribute :run,   DoorKey
+      attribute :stdio, Switch, optional: true
+
+      sets :run
+      sets :stdio
+
+      emits McpRequested
+    end
+
+    command "Finish" do
+      role "System"
+      goal "Record that the door did its work, or was closed, and what it said"
+
+      reference_to Door
+      attribute :output, Note
+
+      sets :output
+
+      emits DoorFinished
+    end
+
+    command "Stop" do
+      role "System"
+      goal "Record that the door could not be opened, and why"
+
+      reference_to Door
+      attribute :refusal, Note
+
+      sets :refusal
+
+      emits DoorStopped
+    end
+
+    query "Ended" do
+      description "How one door ended: its status, and what it said or why it stopped."
+      attribute :run, DoorKey
+      where(run: :run)
+      order_by :run
+    end
+
+    query "Stopped" do
+      description "Every door that could not be opened."
+      where(status: "stopped")
+      order_by :run
+    end
+  end
+
+  policy "WriteWhenRequested" do
+    on      "Door.LaunchersRequested"
+    trigger Door::Workspace::Write, with: { run: :run }
+  end
+
+  policy "ServeWhenRequested" do
+    on      "Door.McpRequested"
+    trigger Door::Terminal::Serve, with: { run: :run }
+  end
+
+  policy "RecordTheDoor" do
+    on      "Door.DoorAnswered"
+    trigger Door::Finish, with: { output: :output }
+  end
+
+  policy "RecordTheStoppedDoor" do
+    on      "Door.DoorRefused"
+    trigger Door::Stop, with: { refusal: :refusal }
+  end
+
+  aggregate "Build" do
+    description "One build of a domain for the Rust host, or a check of that build against Ruby."
+
+    attribute :run,      BuildKey
+    attribute :domain,   DomainPath, optional: true
+    attribute :script,   ScriptPath, optional: true
+    attribute :artifact, Artifact,   optional: true
+    attribute :seeds,    Count,      optional: true
+    attribute :steps,    Count,      optional: true
+    attribute :output,   Report,     optional: true
+    attribute :refusal,  Report,     optional: true
+    identified_by :run
+
+    value_object "BuildKey" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+
+      invariant("a build is named") { !value.to_s.empty? }
+    end
+
+    # A domain directory. Its last part is also a Rust module and a Cargo feature, so it is a
+    # lowercase identifier; the toolchain refuses the reserved words the pattern cannot.
+    value_object "DomainPath" do
+      attribute :value, String, pattern: '(^|/)[a-z][a-z0-9_]*/?$'
+    end
+
+    # A generated module: the directory name a domain was built as.
+    value_object "ModuleName" do
+      attribute :value, String, pattern: '^[a-z][a-z0-9_]*$'
+    end
+
+    # A JSON file of steps for a domain to replay.
+    value_object "ScriptPath" do
+      attribute :value, String, pattern: '[^\t\n\r]'
+    end
+
+    # What a build is replayed through: `native`, `build` (the domain's own feature), a `.wasm`
+    # module, or a binary.
+    value_object "Artifact" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+    end
+
+    value_object "Count" do
+      attribute :value, Integer
+
+      invariant("a count is positive") { value > 0 }
+    end
+
+    value_object "CodegenName" do
+      attribute :value, String, pattern: '^(ruby|rust)$'
+    end
+
+    value_object "Report" do
+      attribute :value, String
+    end
+
+    lifecycle :status, default: "requested" do
+      transition "Complete" => "completed", from: "requested"
+      transition "Fault"    => "faulted",   from: "requested"
+    end
+
+    # Writes the domain's Rust source and a Cargo feature for it into the build workspace: the
+    # checkout's own `rust/`, or a copy of the packaged workspace under `.hecks/rust/<version>/`.
+    # Nothing is ever written into the installed gem.
+    command "ProjectRust" do
+      role "Operator"
+      goal "Generate a domain's Rust source for the Rust host"
+
+      attribute :domain, DomainPath
+      attribute :run,    BuildKey
+
+      sets :domain
+      sets :run
+
+      emits RustProjectionRequested
+    end
+
+    command "BuildWasm" do
+      role "Operator"
+      goal "Compile a domain to a WASI module a runtime such as wasmtime can run"
+
+      attribute :domain, DomainPath
+      attribute :run,    BuildKey
+
+      sets :domain
+      sets :run
+
+      emits WasmBuildRequested
+    end
+
+    command "BuildBrowserWasm" do
+      role "Operator"
+      goal "Compile a domain to an ES module a browser can import"
+
+      attribute :domain, DomainPath
+      attribute :run,    BuildKey
+
+      sets :domain
+      sets :run
+
+      emits BrowserWasmBuildRequested
+    end
+
+    # Without an artifact it answers Ruby's own result, which saved to a file becomes a pinned
+    # expectation; with one it compares Ruby's result with that artifact's.
+    command "CheckConformance" do
+      role "Operator"
+      goal "Replay a script through Ruby and a Rust build of the domain and compare what each did"
+
+      attribute :domain,   DomainPath
+      attribute :script,   ScriptPath
+      attribute :run,      BuildKey
+      attribute :artifact, Artifact, optional: true
+
+      sets :domain
+      sets :script
+      sets :run
+      sets :artifact
+
+      emits ConformanceRequested
+    end
+
+    command "FuzzConformance" do
+      role "Operator"
+      goal "Replay generated sequences through Ruby and a Rust build of the domain and compare them"
+
+      attribute :domain,   DomainPath
+      attribute :artifact, Artifact
+      attribute :run,      BuildKey
+      attribute :seeds,    Count, optional: true
+      attribute :steps,    Count, optional: true
+
+      sets :domain
+      sets :artifact
+      sets :run
+      sets :seeds
+      sets :steps
+
+      emits ConformanceFuzzRequested
+    end
+
+    command "CheckCoverageAllowlist" do
+      role "Operator"
+      goal "Check that every rule excusing a Rust coverage gap still excuses a real one"
+
+      attribute :run, BuildKey
+
+      sets :run
+
+      emits CoverageAllowlistRequested
+    end
+
+    command "Complete" do
+      role "System"
+      goal "Record that the build or check ended well, and what it reported"
+
+      reference_to Build
+      attribute :output, Report
+
+      sets :output
+
+      emits BuildCompleted
+    end
+
+    command "Fault" do
+      role "System"
+      goal "Record that the build or check was refused or found a difference, and what it said"
+
+      reference_to Build
+      attribute :refusal, Report
+
+      sets :refusal
+
+      emits BuildFaulted
+    end
+
+    query "Result" do
+      description "How one build or check ended: its status, and what it reported or why it failed."
+      attribute :run, BuildKey
+      where(run: :run)
+      order_by :run
+    end
+
+    query "Faulted" do
+      description "Every build or check that was refused or found a difference."
+      where(status: "faulted")
+      order_by :run
+    end
+
+    # An answer that is one document of text, exactly as the tool that produced it wrote it.
+    value_object "Document" do
+      attribute :text, String
+    end
+
+    query "RustCoverage" do
+      description "Whether each construct of a generated module has a routed Rust implementation."
+      attribute :module_name, ModuleName
+      attribute :codegen,     CodegenName, optional: true
+      returns Document
+    end
+  end
+
+  policy "GenerateWhenRequested" do
+    on      "Build.RustProjectionRequested"
+    trigger Build::RustToolchain::Generate, with: { run: :run }
+  end
+
+  policy "CompileWasmWhenRequested" do
+    on      "Build.WasmBuildRequested"
+    trigger Build::RustToolchain::Wasm, with: { run: :run }
+  end
+
+  policy "CompileBrowserWasmWhenRequested" do
+    on      "Build.BrowserWasmBuildRequested"
+    trigger Build::RustToolchain::BrowserWasm, with: { run: :run }
+  end
+
+  policy "ConformWhenRequested" do
+    on      "Build.ConformanceRequested"
+    trigger Build::RustToolchain::Conform, with: { run: :run }
+  end
+
+  policy "ReplayWhenRequested" do
+    on      "Build.ConformanceFuzzRequested"
+    trigger Build::RustToolchain::Replay, with: { run: :run }
+  end
+
+  policy "AuditWhenRequested" do
+    on      "Build.CoverageAllowlistRequested"
+    trigger Build::RustToolchain::Audit, with: { run: :run }
+  end
+
+  policy "RecordTheBuild" do
+    on      "Build.BuildAnswered"
+    trigger Build::Complete, with: { output: :output }
+  end
+
+  policy "RecordTheFault" do
+    on      "Build.BuildRefused"
+    trigger Build::Fault, with: { refusal: :refusal }
+  end
+
+  # Named for the run, as ModelCheckRun is: `Hecks::Fuzzing` is the fuzzing toolkit's own module,
+  # so a hecksagon could not spell an aggregate of that name.
+  aggregate "FuzzRun" do
+    description "One fuzz sweep or benchmark, and how it ended; and the generated sequences it replays."
+
+    attribute :domain,     DomainPath,  optional: true
+    attribute :run,        FuzzKey
+    attribute :seeds,      Count,       optional: true
+    attribute :steps,      Count,       optional: true
+    attribute :workers,    Count,       optional: true
+    attribute :adapter,    Persistence, optional: true
+    attribute :domains,    NameList,    optional: true
+    attribute :targets,    NameList,    optional: true
+    attribute :iterations, Count,       optional: true
+    attribute :warmup,     Warmup,      optional: true
+    attribute :runs,       Count,       optional: true
+    attribute :rust_binary, BinaryPath, optional: true
+    attribute :format,     Format,      optional: true
+    attribute :output,     OutputPath,  optional: true
+    attribute :report,     Report,      optional: true
+    attribute :refusal,    Report,      optional: true
+    identified_by :run
+
+    value_object "FuzzKey" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+
+      invariant("a sweep is named") { !value.to_s.empty? }
+    end
+
+    # A domain directory; a sweep with none covers every domain of a hecks checkout.
+    value_object "DomainPath" do
+      attribute :value, String, pattern: '[^\t\n\r]'
+
+      invariant("a domain is named by its path") { !value.to_s.empty? }
+    end
+
+    value_object "Count" do
+      attribute :value, Integer
+
+      invariant("a count is positive") { value > 0 }
+    end
+
+    value_object "Warmup" do
+      attribute :value, Integer
+
+      invariant("a warmup is not negative") { value >= 0 }
+    end
+
+    # Which persistence every ephemeral boot of a sweep uses.
+    value_object "Persistence" do
+      attribute :value, String, pattern: '^(memory|sqlite|postgres)$'
+    end
+
+    # Names, comma separated: benchmark domains, or the targets to measure.
+    value_object "NameList" do
+      attribute :value, String, pattern: '^[^ \t\n\r,]+(,[^ \t\n\r,]+)*$'
+    end
+
+    value_object "BinaryPath" do
+      attribute :value, String, pattern: '[^\t\n\r]'
+    end
+
+    value_object "Format" do
+      attribute :value, String, pattern: '^(markdown|json)$'
+    end
+
+    value_object "OutputPath" do
+      attribute :value, String, pattern: '[^\t\n\r]'
+    end
+
+    value_object "Report" do
+      attribute :value, String
+    end
+
+    lifecycle :status, default: "requested" do
+      transition "Conclude" => "concluded", from: "requested"
+      transition "Halt"     => "halted",    from: "requested"
+    end
+
+    # A sweep replays generated command and query sequences and checks properties over each.
+    # A finding is shrunk and saved under `tmp/fuzz-failures/`, and ends the run as halted, with
+    # what was found. Sweeping every domain of a checkout needs a hecks checkout; a client names
+    # the domain. The sweep runs in child processes started through the ProcessPool adapter, so an
+    # interrupt reaches the workers.
+    command "Fuzz" do
+      role "Operator"
+      goal "Fuzz a domain with generated sequences and keep whether anything broke a property"
+
+      attribute :domain,  DomainPath,  optional: true
+      attribute :run,     FuzzKey
+      attribute :seeds,   Count,       optional: true
+      attribute :steps,   Count,       optional: true
+      attribute :workers, Count,       optional: true
+      attribute :adapter, Persistence, optional: true
+
+      sets :domain
+      sets :run
+      sets :seeds
+      sets :steps
+      sets :workers
+      sets :adapter
+
+      emits FuzzRequested
+    end
+
+    # Measures each persistence adapter, and the Rust binary when there is one to build or use.
+    # The report is kept in this record, which the Hecks domain binds to Memory: keeping a
+    # domain's benchmark history beside it, in Sqlite under the project's `.hecks/`, is decided
+    # with the persistence binding for Custodian, not here. `output` also writes the full JSON.
+    command "Bench" do
+      role "Operator"
+      goal "Measure command throughput and latency for each target, and keep the report"
+
+      attribute :run,         FuzzKey
+      attribute :domains,     NameList,   optional: true
+      attribute :targets,     NameList,   optional: true
+      attribute :iterations,  Count,      optional: true
+      attribute :warmup,      Warmup,     optional: true
+      attribute :runs,        Count,      optional: true
+      attribute :rust_binary, BinaryPath, optional: true
+      attribute :format,      Format,     optional: true
+      attribute :output,      OutputPath, optional: true
+
+      sets :run
+      sets :domains
+      sets :targets
+      sets :iterations
+      sets :warmup
+      sets :runs
+      sets :rust_binary
+      sets :format
+      sets :output
+
+      emits BenchRequested
+    end
+
+    command "Conclude" do
+      role "System"
+      goal "Record that the sweep or benchmark ended well, and what it reported"
+
+      reference_to FuzzRun
+      attribute :report, Report
+
+      sets :report
+
+      emits FuzzConcluded
+    end
+
+    command "Halt" do
+      role "System"
+      goal "Record that the sweep found something or the benchmark could not run, and what it said"
+
+      reference_to FuzzRun
+      attribute :refusal, Report
+
+      sets :refusal
+
+      emits FuzzHalted
+    end
+
+    query "Conclusion" do
+      description "How one sweep or benchmark ended: its status, and what it reported or found."
+      attribute :run, FuzzKey
+      where(run: :run)
+      order_by :run
+    end
+
+    query "Halted" do
+      description "Every sweep that found something and every benchmark that could not run."
+      where(status: "halted")
+      order_by :run
+    end
+
+    # An answer that is one document of text, exactly as the tool that produced it wrote it.
+    value_object "Document" do
+      attribute :text, String
+    end
+
+    # The generator `hecks fuzz` draws from, on its own: one valid dispatch sequence as a
+    # replayable script. `adversarial` is the fraction of steps mutated to be refused; 0 is off.
+    query "GenerateSequence" do
+      description "One generated, valid dispatch sequence for a domain, as a script `hecks run` replays."
+      attribute :domain,      DomainPath
+      attribute :seed,        Integer,    optional: true
+      attribute :steps,       Integer,    optional: true
+      attribute :adversarial, Float,      optional: true
+      returns Document
+    end
+  end
+
+  policy "SweepWhenRequested" do
+    on      "FuzzRun.FuzzRequested"
+    trigger FuzzRun::ProcessPool::Sweep, with: { run: :run }
+  end
+
+  policy "MeasureWhenRequested" do
+    on      "FuzzRun.BenchRequested"
+    trigger FuzzRun::RustToolchain::Measure, with: { run: :run }
+  end
+
+  policy "RecordTheSweep" do
+    on      "FuzzRun.FuzzAnswered"
+    trigger FuzzRun::Conclude, with: { report: :report }
+  end
+
+  policy "RecordTheFinding" do
+    on      "FuzzRun.FuzzRefused"
+    trigger FuzzRun::Halt, with: { refusal: :refusal }
+  end
+end

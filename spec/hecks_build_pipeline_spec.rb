@@ -12,7 +12,6 @@ RSpec.describe "hecks-build (rust/build) pipeline parity", :io do
   HB_ROOT = InMemoryDomain::ROOT
   HB_GENERATED_ROOT = File.join(HB_ROOT, "rust/src/generated")
   HB_CARGO_TOML = File.join(HB_ROOT, "rust/Cargo.toml")
-  HB_PROJECT_RUST = File.join(HB_ROOT, "bin/project_rust")
   HECKS_BUILD_DIR = File.join(HB_ROOT, "rust/build")
   HECKS_BUILD_BINARY = File.join(HECKS_BUILD_DIR, "target", "debug", "hecks-build")
 
@@ -48,8 +47,8 @@ RSpec.describe "hecks-build (rust/build) pipeline parity", :io do
 
   def run_project_rust_opt_in!(domain)
     env = { "PATH" => ENV.fetch("PATH", nil), "HECKS_PARSER" => "rust", "HECKS_CODEGEN" => "rust" }
-    _out, err, status = Open3.capture3(env, HB_PROJECT_RUST, domain, chdir: HB_ROOT)
-    raise "bin/project_rust (opt-in) #{domain} failed:\n#{err}" unless status.success?
+    _out, err, status = Open3.capture3(env, *RepoTool.argv("project_rust"), domain, chdir: HB_ROOT)
+    raise "hecks project_rust (opt-in) #{domain} failed:\n#{err}" unless status.success?
   end
 
   def run_hecks_build!(domain)
@@ -102,8 +101,8 @@ RSpec.describe "hecks-build (rust/build) pipeline parity", :io do
     end
   end
 
-  describe "bin/project_wasm, opted into the all-Rust pipeline" do
-    # Opted in, bin/project_wasm must delegate to `hecks-build --wasm` and yield the same .wasm.
+  describe "hecks build_wasm, opted into the all-Rust pipeline" do
+    # Opted in, hecks build_wasm must delegate to `hecks-build --wasm` and yield the same .wasm.
     def run_hecks_build_wasm!(domain)
       _out, err, status = Open3.capture3({ "PATH" => ENV.fetch("PATH", nil) }, HECKS_BUILD_BINARY, domain, "--wasm",
                                          chdir: HB_ROOT)
@@ -118,8 +117,8 @@ RSpec.describe "hecks-build (rust/build) pipeline parity", :io do
       direct_wasm = File.binread(dist_wasm)
 
       env = { "PATH" => ENV.fetch("PATH", nil), "HECKS_PARSER" => "rust", "HECKS_CODEGEN" => "rust" }
-      _out, err, status = Open3.capture3(env, "ruby", "bin/project_wasm", domain, chdir: HB_ROOT)
-      raise "bin/project_wasm (opt-in) #{domain} failed:\n#{err}" unless status.success?
+      _out, err, status = Open3.capture3(env, *RepoTool.argv("project_wasm"), domain, chdir: HB_ROOT)
+      raise "hecks build_wasm (opt-in) #{domain} failed:\n#{err}" unless status.success?
 
       expect(File.binread(dist_wasm)).to eq(direct_wasm)
     end

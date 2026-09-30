@@ -1,0 +1,390 @@
+Hecks.hecksagon "Hecks" do
+  uses_framework "Governance"
+
+  # The chapters the gem carries: the language declared in itself (Paging comes with Bluebook),
+  # Expression, Tenancy, Deploy and QualityControl (which brings its own ports and adapters).
+  %w[Bluebook Hecksagon World Adapter Port Translation Expression Tenancy Deploy QualityControl]
+    .each { |chapter| attaches chapter }
+  # Persistence is not bound here: hecks.world's `default_adapter` binds every aggregate, so
+  # environments/memory.world can swap the whole domain without a double bind.
+
+  # The outside a journaled Custodian command reaches: each port names what its adapter does,
+  # and every ask is answered with the record's own arguments or refused with a reason.
+  Hecks::ModelCheckRun.port "DomainRuntime" do
+    asks "Check", to: ModelCheckRun do
+      attribute :run, RunKey
+      answers "ModelCheckAnswered"
+      refuses "ModelCheckRefused"
+    end
+  end
+
+  Hecks::Operation.port "DomainRuntime" do
+    asks "Execute", to: Operation do
+      attribute :run, OperationKey
+      answers "OperationAnswered"
+      refuses "OperationRefused"
+    end
+
+    asks "Refresh", to: Operation do
+      attribute :run, OperationKey
+      answers "OperationAnswered"
+      refuses "OperationRefused"
+    end
+
+    asks "Verify", to: Operation do
+      attribute :run, OperationKey
+      answers "OperationAnswered"
+      refuses "OperationRefused"
+    end
+
+    asks "Smoke", to: Operation do
+      attribute :run, OperationKey
+      answers "OperationAnswered"
+      refuses "OperationRefused"
+    end
+
+    answers_query "Follow"
+  end
+
+  Hecks::Operation.port "Terminal" do
+    asks "Open", to: Operation do
+      attribute :run, OperationKey
+      answers "OperationAnswered"
+      refuses "OperationRefused"
+    end
+  end
+
+  Hecks::Host.port "HostHttp" do
+    asks "Fetch", to: Host do
+      attribute :host, Address
+      answers "EraReported"
+      refuses "HostRefused"
+    end
+  end
+
+  Hecks::Era.port "JournalStore" do
+    asks "Examine", to: Era do
+      attribute :run, RunKey
+      answers "EraExamined"
+      refuses "EraRefused"
+    end
+
+    asks "Apply", to: Era do
+      attribute :run, RunKey
+      answers "EraChanged"
+      refuses "EraRefused"
+    end
+
+    answers_query "ScaffoldTranslation"
+    answers_query "AuditTranslation"
+    answers_query "Attestation"
+    answers_query "Compaction"
+  end
+
+  Hecks::Package.port "Git" do
+    asks "Pin", to: Package do
+      attribute :package, PackageRef
+      answers "PackagePinned"
+      refuses "PinRefused"
+    end
+  end
+
+  Hecks::Door.port "Workspace" do
+    asks "Write", to: Door do
+      attribute :run, DoorKey
+      answers "DoorAnswered"
+      refuses "DoorRefused"
+    end
+  end
+
+  Hecks::Door.port "Terminal" do
+    asks "Serve", to: Door do
+      attribute :run, DoorKey
+      answers "DoorAnswered"
+      refuses "DoorRefused"
+    end
+  end
+
+  Hecks::Build.port "RustToolchain" do
+    asks "Generate", to: Build do
+      attribute :run, BuildKey
+      answers "BuildAnswered"
+      refuses "BuildRefused"
+    end
+
+    asks "Wasm", to: Build do
+      attribute :run, BuildKey
+      answers "BuildAnswered"
+      refuses "BuildRefused"
+    end
+
+    asks "BrowserWasm", to: Build do
+      attribute :run, BuildKey
+      answers "BuildAnswered"
+      refuses "BuildRefused"
+    end
+
+    asks "Conform", to: Build do
+      attribute :run, BuildKey
+      answers "BuildAnswered"
+      refuses "BuildRefused"
+    end
+
+    asks "Replay", to: Build do
+      attribute :run, BuildKey
+      answers "BuildAnswered"
+      refuses "BuildRefused"
+    end
+
+    asks "Audit", to: Build do
+      attribute :run, BuildKey
+      answers "BuildAnswered"
+      refuses "BuildRefused"
+    end
+
+    answers_query "RustCoverage"
+  end
+
+  Hecks::FuzzRun.port "ProcessPool" do
+    asks "Sweep", to: FuzzRun do
+      attribute :run, FuzzKey
+      answers "FuzzAnswered"
+      refuses "FuzzRefused"
+    end
+  end
+
+  Hecks::FuzzRun.port "RustToolchain" do
+    asks "Measure", to: FuzzRun do
+      attribute :run, FuzzKey
+      answers "FuzzAnswered"
+      refuses "FuzzRefused"
+    end
+  end
+
+  Hecks::Operation.port "HostHttp" do
+    asks "Probe", to: Operation do
+      attribute :run, OperationKey
+      answers "OperationAnswered"
+      refuses "OperationRefused"
+    end
+  end
+
+  # Codebase: every ask goes to the SourceTree port, which examines the working tree before it
+  # carries a request out.
+  Hecks::LanguageRun.port "SourceTree" do
+    asks "Examine", to: LanguageRun do
+      attribute :run, RunKey
+      answers "LanguageExamined"
+      refuses "LanguageRefused"
+    end
+
+    asks "Perform", to: LanguageRun do
+      attribute :run, RunKey
+      answers "LanguageAnswered"
+      refuses "LanguageRefused"
+    end
+
+    answers_query "WordStatus"
+  end
+
+  Hecks::KernelRun.port "SourceTree" do
+    asks "Examine", to: KernelRun do
+      attribute :run, RunKey
+      answers "KernelExamined"
+      refuses "KernelRefused"
+    end
+
+    asks "Perform", to: KernelRun do
+      attribute :run, RunKey
+      answers "KernelAnswered"
+      refuses "KernelRefused"
+    end
+  end
+
+  Hecks::ConformanceRun.port "SourceTree" do
+    asks "Examine", to: ConformanceRun do
+      attribute :run, RunKey
+      answers "ConformanceExamined"
+      refuses "ConformanceRefused"
+    end
+
+    asks "Perform", to: ConformanceRun do
+      attribute :run, RunKey
+      answers "ConformanceAnswered"
+      refuses "ConformanceRefused"
+    end
+  end
+
+  Hecks::RegenerationRun.port "SourceTree" do
+    asks "Examine", to: RegenerationRun do
+      attribute :run, RunKey
+      answers "RegenerationExamined"
+      refuses "RegenerationRefused"
+    end
+
+    asks "Perform", to: RegenerationRun do
+      attribute :run, RunKey
+      answers "RegenerationAnswered"
+      refuses "RegenerationRefused"
+    end
+  end
+
+  Hecks::StyleRun.port "SourceTree" do
+    asks "Examine", to: StyleRun do
+      attribute :run, RunKey
+      answers "StyleExamined"
+      refuses "StyleRefused"
+    end
+
+    asks "Perform", to: StyleRun do
+      attribute :run, RunKey
+      answers "StyleAnswered"
+      refuses "StyleRefused"
+    end
+
+    answers_query "ReportComments"
+    answers_query "ReportRustComments"
+  end
+
+  Hecks::CodemodRun.port "SourceTree" do
+    asks "Examine", to: CodemodRun do
+      attribute :run, RunKey
+      answers "CodemodExamined"
+      refuses "CodemodRefused"
+    end
+
+    asks "Perform", to: CodemodRun do
+      attribute :run, RunKey
+      answers "CodemodAnswered"
+      refuses "CodemodRefused"
+    end
+  end
+
+  Hecks::TestSuiteRun.port "SourceTree" do
+    asks "Examine", to: TestSuiteRun do
+      attribute :run, RunKey
+      answers "TestSuiteExamined"
+      refuses "TestSuiteRefused"
+    end
+
+    asks "Perform", to: TestSuiteRun do
+      attribute :run, RunKey
+      answers "TestSuiteAnswered"
+      refuses "TestSuiteRefused"
+    end
+
+    answers_query "ShardSpecs"
+    answers_query "ListIoParallelSpecs"
+    answers_query "RecordPatternCases"
+  end
+
+  Hecks::CorpusRun.port "SourceTree" do
+    asks "Examine", to: CorpusRun do
+      attribute :run, RunKey
+      answers "CorpusExamined"
+      refuses "CorpusRefused"
+    end
+
+    asks "Perform", to: CorpusRun do
+      attribute :run, RunKey
+      answers "CorpusAnswered"
+      refuses "CorpusRefused"
+    end
+
+    answers_query "RustDomains"
+    answers_query "RegenOrder"
+    answers_query "CorpusRustCoverage"
+    answers_query "IrConstructs"
+    answers_query "IrDuplicates"
+    answers_query "IrImpact"
+  end
+
+  Hecks::PublishingRun.port "SourceTree" do
+    asks "Examine", to: PublishingRun do
+      attribute :run, RunKey
+      answers "PublishingExamined"
+      refuses "PublishingRefused"
+    end
+
+    asks "Perform", to: PublishingRun do
+      attribute :run, RunKey
+      answers "PublishingAnswered"
+      refuses "PublishingRefused"
+    end
+  end
+
+  # Deploy, attached above: its bluebook loads without deploy.hecksagon, so the outside its
+  # commands reach is named here as well. TenantProvisioning writes a tenant's overlay world;
+  # DeployToolchain generates and checks a recipe and projects the OIDC manifests.
+  Deploy::Tenant.port "TenantProvisioning" do
+    asks "WriteOverlay", to: Tenant do
+      attribute :database,  DatabaseName
+      attribute :adapter,   AdapterName, optional: true
+      attribute :directory, DirectoryPath
+      answers "TenantProvisioned"
+      refuses "ProvisioningRefused"
+    end
+  end
+
+  Deploy::Recipe.port "DeployToolchain" do
+    asks "Generate", to: Recipe do
+      attribute :run, RunKey
+      answers "RecipeAnswered"
+      refuses "RecipeRefused"
+    end
+  end
+
+  Deploy::MakefileCheck.port "DeployToolchain" do
+    asks "Scan", to: MakefileCheck do
+      attribute :run, RunKey
+      answers "LintAnswered"
+      refuses "LintRefused"
+    end
+  end
+
+  Deploy::TemplateComparison.port "DeployToolchain" do
+    asks "Compare", to: TemplateComparison do
+      attribute :run, RunKey
+      answers "ComparisonAnswered"
+      refuses "ComparisonUnreadable"
+    end
+  end
+
+  Deploy::OidcManifest.port "DeployToolchain" do
+    asks "Manifest", to: OidcManifest do
+      attribute :run, RunKey
+      answers "ManifestAnswered"
+      refuses "ManifestRefused"
+    end
+  end
+
+  # Queries answered from outside the domain. The bluebook declares the question and the value
+  # object its answer takes (`returns`) and never says who answers it; each `answers_query` here
+  # binds it to the port's adapter. The queries on the ports above (Follow, the Era readings,
+  # WordStatus and the rest) are bound the same way.
+  Hecks::Introspection.port "DomainRuntime" do
+    answers_query "Ir"
+    answers_query "Shape"
+    answers_query "Stores"
+    answers_query "History"
+    answers_query "Statements"
+    answers_query "Narrate"
+    answers_query "Docs"
+    answers_query "ProjectDiagrams"
+    answers_query "Glossary"
+  end
+
+  Hecks::FuzzRun.port "DomainRuntime" do
+    answers_query "GenerateSequence"
+  end
+end
+
+# The one seam where Deploy's "Tenant" (a validated request) becomes Tenancy's "Tenant" (a fact),
+# as tenancy.hecksagon declares it for the chapters booted on their own: `hecks deploy provision`
+# registers the tenant it provisioned. It sits here, after `attaches` has loaded both chapters.
+Hecks.hecksagon "Tenancy" do
+  translates "RegisterProvisionedTenant" do
+    on Tenant::TenantProvisioned
+    trigger Tenant::Register, with: { slug: :slug, domain: :domain, realm: :realm, schema: :schema }
+  end
+end

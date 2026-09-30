@@ -6,7 +6,7 @@ require "tmpdir"
 require_relative "support/postgres_probe"
 require_relative "support/rust_conformance_helpers"
 
-# `bin/bench` is a measurement tool, not a gate, so nothing here asserts a speed. What is
+# `hecks bench` is a measurement tool, not a gate, so nothing here asserts a speed. What is
 # held is that the harness still runs end to end in a tiny configuration, refuses what it
 # should, reports what it measured, and skips an unavailable target instead of failing.
 RSpec.describe Hecks::Bench do
@@ -188,7 +188,7 @@ RSpec.describe Hecks::Bench do
       err = quiet
 
       expect(described_class.run(%w[--targets ruby:heki], out: quiet, err: err)).to eq(2)
-      expect(err.string).to include("bin/bench: unknown target")
+      expect(err.string).to include("hecks bench: unknown target")
       expect(described_class.run(%w[--nonsense], out: quiet, err: err)).to eq(2)
     end
   end

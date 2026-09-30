@@ -16,13 +16,15 @@ unless db_name && owner_role && app_role
   abort "usage: mint_and_seed_lineage_compute.rb <db_name> <owner_role> <app_role>"
 end
 
+# A role the test connects as later needs the admin password when the server asks for one.
+LOGIN_CLAUSE = ENV["PGPASSWORD"] ? "LOGIN PASSWORD '#{ENV["PGPASSWORD"].gsub("'", "''")}'" : "LOGIN"
 admin = PG.connect(dbname: "postgres")
 admin.exec("DROP DATABASE IF EXISTS #{db_name} WITH (FORCE)")
 admin.exec("CREATE DATABASE #{db_name}")
 admin.exec("DROP ROLE IF EXISTS #{owner_role}")
-admin.exec("CREATE ROLE #{owner_role} LOGIN")
+admin.exec("CREATE ROLE #{owner_role} #{LOGIN_CLAUSE}")
 admin.exec("DROP ROLE IF EXISTS #{app_role}")
-admin.exec("CREATE ROLE #{app_role} LOGIN")
+admin.exec("CREATE ROLE #{app_role} #{LOGIN_CLAUSE}")
 admin.close
 
 grant = PG.connect(dbname: db_name)

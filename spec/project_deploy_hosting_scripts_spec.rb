@@ -1,3 +1,4 @@
+require_relative "support/project_deploy_runner"
 require "tmpdir"
 require "fileutils"
 require "open3"
@@ -5,11 +6,11 @@ require "yaml"
 require "hecks/projections/deploy/template_diff"
 
 # The hosting scripts `deployed_to("AwsFargate")` can opt in to
-# (`hosting_scripts true`): generated for real through `bin/project_deploy
+# (`hosting_scripts true`): generated for real through `hecks deploy project
 # --out`, the way project_deploy_fargate_spec.rb drives the base target, then
 # read back off disk. A world that does not opt in must generate exactly what
 # it generated before the scripts existed.
-RSpec.describe "bin/project_deploy — Fargate hosting scripts", :io do
+RSpec.describe "hecks deploy project — Fargate hosting scripts", :io do
   HOSTING_FIXTURE_BASENAME = "project_deploy_hosting_spec_fixture".freeze
 
   def root = File.expand_path("..", __dir__)
@@ -61,7 +62,7 @@ RSpec.describe "bin/project_deploy — Fargate hosting scripts", :io do
   end
 
   def run_deploy(extra, out)
-    Open3.capture3("ruby", File.join(root, "bin/project_deploy"), write_domain(world(extra)), "--out=#{out}")
+    ProjectDeployRunner.run(write_domain(world(extra)), "--out=#{out}", root: root)
   end
 
   # Generates into a scratch --out directory, once per distinct `extra`, and
@@ -70,7 +71,7 @@ RSpec.describe "bin/project_deploy — Fargate hosting scripts", :io do
     out, files = HOSTING_GENERATED[extra] ||= begin
       out = File.join(HOSTING_SCRATCH, "out-#{HOSTING_GENERATED.size}")
       _stdout, stderr, status = run_deploy(extra, out)
-      raise "bin/project_deploy failed: #{stderr}" unless status.success?
+      raise "hecks deploy project failed: #{stderr}" unless status.success?
 
       [out, Dir.children(out).to_h { |name| [name, File.read(File.join(out, name))] }]
     end

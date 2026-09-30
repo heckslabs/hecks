@@ -1,0 +1,124 @@
+Hecks.bluebook "Hecks" do
+  vision "What this install is, what version it runs, and whether its grammar cache can be trusted."
+  namespace "Hecks::Domain"
+
+  aggregate "Release" do
+    description "One gem version: the record of what is running and what was shipped."
+
+    attribute :version,    Version
+    attribute :ir_version, Version
+    attribute :ships_from, Checkout, optional: true
+
+    identified_by :version
+
+    value_object "Version" do
+      attribute :value, String, pattern: '^[0-9]+[.][0-9]+[.][0-9]+'
+
+      invariant("a version is present") { !value.to_s.empty? }
+    end
+
+    value_object "Checkout" do
+      attribute :path, String
+
+      invariant("a checkout is a working tree with hecks.gemspec beside lib/") { !path.to_s.empty? }
+    end
+
+    lifecycle :state, default: "tagged" do
+      transition "MarkPublished" => "published", from: "tagged"
+      transition "Verify"        => "verified",  from: %w[published verified]
+    end
+
+    command "Tag" do
+      role "Maintainer"
+      goal "Record a version as tagged, with the IR version it carries"
+
+      attribute :version,    Version
+      attribute :ir_version, Version
+      attribute :ships_from, Checkout
+
+      sets :version
+      sets :ir_version
+      sets :ships_from
+
+      emits Tagged
+    end
+
+    command "MarkPublished", from: "tagged" do
+      role "Maintainer"
+      goal "Record that a tagged version reached the gem registry"
+
+      reference_to Release
+
+      emits Published
+    end
+
+    command "Verify", from: %w[published verified] do
+      role "Maintainer"
+      goal "Record that the published version installs and boots"
+
+      reference_to Release
+
+      emits Verified
+    end
+
+    query "Shipped" do
+      description "Every version that was tagged, published and verified."
+      where(state: "verified")
+      order_by :version
+    end
+  end
+
+  aggregate "SyntaxBootCache" do
+    description "The grammar chapters' on-disk boot cache, keyed by a digest of the chapters it was built from."
+
+    attribute :digest, Digest
+
+    identified_by :digest
+
+    value_object "Digest" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+
+      invariant("a digest is present") { !value.to_s.empty? }
+    end
+
+    lifecycle :state, default: "fresh" do
+      transition "Invalidate" => "stale", from: "fresh"
+      transition "Rebuild"    => "fresh", from: "stale"
+    end
+
+    command "Record" do
+      role "Maintainer"
+      goal "Record a boot cache as built from the grammar chapters that hash to this digest"
+
+      attribute :digest, Digest
+
+      sets :digest
+
+      emits CacheRecorded
+    end
+
+    command "Invalidate", from: "fresh" do
+      role "Maintainer"
+      goal "Record that the grammar changed under the cache"
+
+      reference_to SyntaxBootCache
+
+      emits CacheInvalidated
+    end
+
+    command "Rebuild", from: "stale" do
+      role "Maintainer"
+      goal "Record that the cache was rebuilt from the current grammar"
+
+      reference_to SyntaxBootCache
+
+      emits CacheRebuilt
+    end
+
+    query "Stale" do
+      description "Every cache whose grammar changed under it and is not yet rebuilt."
+      where(state: "stale")
+      order_by :digest
+    end
+  end
+end

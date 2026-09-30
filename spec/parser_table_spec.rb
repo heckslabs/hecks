@@ -1,16 +1,12 @@
 require "spec_helper"
 
-# `bin/project_parser_table` has no `.rb` extension, so it is loaded with Kernel.load; its
-# `$PROGRAM_NAME == __FILE__` guard keeps the file write from firing.
-Kernel.load(File.expand_path("../bin/project_parser_table", __dir__))
-
 # Fails when rust/parser/src/keywords.rs drifts from the syntax tables: regenerates the file
 # in memory and compares it with the committed one.
 RSpec.describe "the generated parser table" do
   let(:committed_path) { File.expand_path("../rust/parser/src/keywords.rs", __dir__) }
 
-  it "is exactly what bin/project_parser_table would regenerate from the aggregate-local syntax tables right now" do
-    expect(File).to exist(committed_path), "rust/parser/src/keywords.rs is missing — run bin/project_parser_table"
+  it "is exactly what `hecks project_parser_table` would regenerate from the aggregate-local syntax tables right now" do
+    expect(File).to exist(committed_path), "rust/parser/src/keywords.rs is missing — run hecks project_parser_table"
 
     committed = File.read(committed_path)
     regenerated = Hecks::Projector.call(
@@ -19,7 +15,7 @@ RSpec.describe "the generated parser table" do
     )
 
     expect(committed).to eq(regenerated),
-                         "rust/parser/src/keywords.rs is stale — run bin/project_parser_table and commit the result"
+                         "rust/parser/src/keywords.rs is stale — run hecks project_parser_table and commit the result"
   end
 
   it "declares at least one row (a real, non-empty grammar table)" do

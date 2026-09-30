@@ -10,15 +10,18 @@ RSpec.describe "the DSL surface is fully covered" do
   COVERED = {
     "Hecks (module surface)"      => [
       Hecks.singleton_class,
-      # `boot_files` is Loader.boot_files's explicit-file sibling of `boot`; `behaviors`
-      # is opt-in but becomes a real singleton method once anything requires it.
-      %i[boot boot_files with_registry bluebook hecksagon port adapter world data_translation current_registry
+      # `boot_files` is Loader.boot_files's explicit-file sibling of `boot`; `describe` is its
+      # declarations-only sibling; `behaviors` is opt-in but becomes a real singleton method
+      # once anything requires it.
+      %i[boot boot_files describe with_registry bluebook hecksagon port adapter world data_translation current_registry
          as_caller behaviors]
     ],
     "BluebookBuilder"             => [
       Hecks::Bluebook::DSL::BluebookBuilder,
-      # `attaches_to`/`aggregate` are covered by their `_impl` dispatch targets.
-      %i[vision formerly_known_as attaches_to_impl provides_impl core supporting generic aggregate_impl report read_model policy
+      # `attaches_to`/`aggregate` are covered by their `_impl` dispatch targets; `namespace` is
+      # tested in spec/chapter_namespace_spec.rb.
+      %i[vision formerly_known_as namespace attaches_to_impl provides_impl core supporting generic aggregate_impl report
+         read_model policy
          process_manager classification resolve_pending_chapter_givens! resolve_pending_chapter_entity_givens!]
     ],
     "AggregateBuilder"            => [
@@ -50,7 +53,7 @@ RSpec.describe "the DSL surface is fully covered" do
       # `tells`/`asks` are `_impl` dispatch targets; both "operation" and "tells"
       # Keyword rows name `tells_impl` in `calls:`, so `operation` is not a
       # directly-defined method here.
-      %i[tells_impl asks_impl verb signal answers]
+      %i[tells_impl asks_impl answers_query_impl verb signal answers]
     ],
     "PortOperationBuilder"        => [
       Hecks::Bluebook::DSL::PortOperationBuilder,
@@ -88,8 +91,9 @@ RSpec.describe "the DSL surface is fully covered" do
       Hecks::Bluebook::DSL::HecksagonBuilder,
       # `port` is covered by `port_impl`. `translates` has no `_impl` split — Ruby's
       # own method lookup finds it directly — and is tested in spec/hecksagon_translates_spec.rb.
+      # `attaches` is tested in spec/hecksagon_attaches_spec.rb.
       %i[binds subscribe subscriptions port_impl uses_framework framework_members
-         uses_embryonaut_bluebook vendored_bluebooks translates bounded method_missing]
+         uses_embryonaut_bluebook vendored_bluebooks attaches attached_chapters translates bounded method_missing]
     ],
     "TranslationBuilder"          => [
       Hecks::Bluebook::DSL::TranslationBuilder,

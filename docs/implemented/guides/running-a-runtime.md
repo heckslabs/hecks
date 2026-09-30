@@ -4,7 +4,7 @@ A port is a second implementation of dispatch — a runtime, likely in a
 different language, that accepts the same commands and queries a
 bluebook declares and produces the same refusals and events a real
 boot of it would. One exists: `rust/` (Cargo crate + Ruby generator,
-`bin/project_rust` the driver — see `docs/implemented/decisions/0011-rust-compiles-types-interprets-dispatch.md`
+`hecks project_rust` the driver — see `docs/implemented/decisions/0011-rust-compiles-types-interprets-dispatch.md`
 for the architecture decision, and `docs/HECKS_IMPLEMENTATION_PLAN.md`
 §8 for its current, honestly-scoped status). This page is what running
 it, extending it to a new domain construct, or starting an analogous
@@ -36,7 +36,7 @@ also a report from having tried the alternative first.
 ## Getting the IR
 
 The IR is `Hecks::Bluebook#to_h`, per aggregate, per bluebook —
-the same shape `spec/golden/ir/*.json` pins and `bin/ir` prints.
+the same shape `spec/golden/ir/*.json` pins and `hecks ir` prints.
 `Hecks::Projector::Exporter.call(registry)` returns it as a real
 Ruby `Hash`, keyed by bluebook name; `.json(registry)` wraps it in
 `JSON.pretty_generate` for a file or a pipe. Boot the domain the same
@@ -67,7 +67,7 @@ end
 ```ruby
 ir = Hecks::Projector::Exporter.call(runtime.registry).fetch("Banking")
 
-ir.keys # => [:ir_version, :name, :version, :vision, :classification, :formerly_known_as, :aggregates, :read_models, :policies, :process_managers, :attaches_to, :provides, :canonical_form]
+ir.keys # => [:ir_version, :name, :version, :vision, :classification, :formerly_known_as, :namespace, :aggregates, :read_models, :policies, :process_managers, :attaches_to, :provides, :canonical_form]
 ```
 
 Every key below is a real Ruby `Symbol`, not a JSON string — `Exporter.call`
@@ -89,7 +89,7 @@ ir[:ir_version] # => 1
 ir[:version]    # => "v1"
 ```
 
-If your build step shells out instead of running in-process, `bin/ir
+If your build step shells out instead of running in-process, `hecks ir
 <domain>` prints the same thing — with one trap: booting a domain's
 *real* `.hecksagon` (as opposed to the Memory wiring above) may wire a
 Postgres-backed adapter, and Postgres's own `NOTICE` lines land on the
@@ -733,7 +733,7 @@ This is exactly the split `rust/` runs on, not a hypothetical: `Expr`
 and `interpret()` (`rust/src/kernel/expr.rs`) are the generic
 READING/behavior half, hand-written once; `dispatch()`
 (`rust/src/kernel/dispatch.rs`) is the generic per-command orchestration,
-also hand-written once; `bin/project_rust` (driving `rust/project.rb`)
+also hand-written once; `hecks project_rust` (driving `rust/project.rb`)
 is the small, per-command WRITING glue this paragraph names as the one
 place generation still earns its keep — real Rust struct literals and
 `Vec::push` calls, generated because constructing a specific type has

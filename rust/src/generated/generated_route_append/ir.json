@@ -5,6 +5,7 @@
   "vision": "A generated domain that puts list_attr and multi_emit together.",
   "classification": "core",
   "formerly_known_as": null,
+  "namespace": null,
   "aggregates": [
     {
       "name": "Hangar",

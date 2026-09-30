@@ -3,9 +3,9 @@ require "tmpdir"
 require "hecks/fuzzing/domain_generator"
 require_relative "support/qa_mine_combinations_helpers"
 
-# `bin/qa_mine_combinations` as a real subprocess with `--agent` set to a fake agent;
+# `hecks quality_control mine_combinations` as a real subprocess with `--agent` set to a fake agent;
 # the plumbing is under test, not the agent. Check and repair rounds are in sibling specs.
-RSpec.describe "bin/qa_mine_combinations" do
+RSpec.describe "hecks quality_control mine_combinations" do
   include QaMineCombinationsHelpers
 
   it "prints the agent's brief — unmet pairs, corpus, bug history — and stops, with --brief" do
@@ -26,8 +26,8 @@ RSpec.describe "bin/qa_mine_combinations" do
   end
 
   it "is opt-in: neither the tick nor the dials ever run it" do
-    tick  = File.read(File.join(InMemoryDomain::ROOT, "bin/qa_tick"))
-    dials = File.read(File.join(InMemoryDomain::ROOT, "qa/bluebook/quality_control.bluebook"))
+    tick  = File.read(File.join(InMemoryDomain::ROOT, "lib/hecks/quality_control/cli/qa_tick.rb"))
+    dials = File.read(File.join(InMemoryDomain::ROOT, "lib/hecks/quality_control/quality_control.bluebook"))
 
     expect(tick).not_to match(/^[^#]*qa_mine_combinations/)
     expect(dials).not_to include("qa_mine_combinations")

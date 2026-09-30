@@ -5,7 +5,7 @@ Words available inside `port do ... end`.
 
 *The tables on this page are generated from the language's own
 aggregate-local syntax tables (`lib/hecks/language/**/*.bluebook`)
-by `bin/reference` — do not edit inside the markers. The prose
+by `hecks project_reference` — do not edit inside the markers. The prose
 between them is hand-written and survives regeneration.*
 <!-- generated:end -->
 
@@ -26,11 +26,17 @@ Hecks.bluebook "DomainPortReference" do
 
     value_object("Waybill") { attribute :value, String }
     value_object("Note")    { attribute :text,  String }
+    value_object("Position") { attribute :at, String }
 
     command "Book" do
       sets :waybill
       sets :note
       emits "ShipmentBooked"
+    end
+
+    query "Whereabouts" do
+      attribute :waybill, Waybill
+      returns Position
     end
   end
 end
@@ -49,6 +55,10 @@ class RefCarrier
     raise "no service to that address" if args[:waybill].to_s.include?("remote")
 
     { "price" => { "cents" => 1_200 } }
+  end
+
+  def whereabouts(**)
+    { at: "the depot" }
   end
 end
 
@@ -69,6 +79,8 @@ Hecks.hecksagon("DomainPortReference") do
       attribute :waybill, Hecks::Bluebook::Reference.new("Shipment")
       emits "DeliveryReported"
     end
+
+    answers_query "Whereabouts"
   end
 
   # A PORT IS A `verb` OR ONE-OR-MORE `operation`s, never both — so the
@@ -278,5 +290,46 @@ runtime.registry.ports["Ledger"].signal  # => :reply
 
 ```ruby
 runtime.registry.ports["extraction"].answers  # => [:canonical]
+```
+
+## answers_query
+
+<!-- generated:begin word=answers_query -->
+`answers_query name` — fills `answered_queries`
+
+| argument | kind | required | fills |
+|---|---|---|---|
+| positional 1 | text | true | name |
+<!-- generated:end -->
+
+Binds one of the aggregate's own queries to this port's adapter, so the answer comes from
+outside the domain instead of from stored records. The bluebook owns the meaning: the `query`
+declares the question and the shape of its answer, `returns Position`, a value object of the
+aggregate (`returns list_of(Position)` for many rows). It never names a port or an adapter; the
+hecksagon does, here, and says nothing else. The hecksagon owns the capability (who can obtain the
+answer), the world owns the configuration.
+
+The adapter bound to the port is asked by the query's snake-cased name, with the query's
+arguments as plain data. Each row it answers is built as the returned value object, so an answer
+that is not that shape (a missing field, a wrong type, a broken invariant, an extra key) is
+refused with a `TypeMismatch`, `InvariantViolation` or `UnknownArgument` that names the query,
+before it enters the domain. The aggregate is never read and no event is written. The answer is
+not in the journal, so it cannot be replayed; a query that wants to say when it was taken declares
+`attribute :taken_at, String` in its value object and the adapter fills it from the clock port.
+
+A query has exactly one answer path. It is derived from the aggregate's records when it declares
+a `where`, `order_by`, `limit` or `offset` (or takes no arguments and lists every record) and
+returns nothing; it is answered from outside when it `returns` a value object and is bound here.
+Booting refuses a query with no path (a `returns` nothing binds, or arguments that select
+nothing), with two (bound twice, or bound and also filtering records), a binding that names a
+query the aggregate does not declare, and a bound query whose port has no adapter, two, or one
+that lacks the method.
+
+A behaviors file swaps the adapter without touching the bluebook: it loads a sibling
+`adapters/` folder whose adapter implements the same port with canned answers.
+
+```ruby
+where = runtime.query("DomainPortReference::Shipment.Whereabouts", waybill: { value: "wb-1" }).first
+where  # => { at: "the depot" }
 ```
 

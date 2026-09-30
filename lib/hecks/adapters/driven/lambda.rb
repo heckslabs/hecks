@@ -38,7 +38,7 @@ module Hecks
         function = setting(settings, :function, nil)
         # `domain` only prefixes the instances lookup; the function to call is named by
         # DOMAIN_NAME (set in a deployed Lambda, where root is always /var/task), else by
-        # root's basename, which matches bin/project_deploy's stack name on a local boot.
+        # root's basename, which matches hecks deploy project's stack name on a local boot.
         function_domain = ENV["DOMAIN_NAME"] || (root ? File.basename(root) : domain)
         @client = Client.new(domain: function_domain, region: region, function: function)
         @prefix = "#{domain}::#{aggregate.hecks_name}#"

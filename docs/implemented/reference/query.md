@@ -5,7 +5,7 @@ Words available inside `query do ... end`.
 
 *The tables on this page are generated from the language's own
 aggregate-local syntax tables (`lib/hecks/language/**/*.bluebook`)
-by `bin/reference` — do not edit inside the markers. The prose
+by `hecks project_reference` — do not edit inside the markers. The prose
 between them is hand-written and survives regeneration.*
 <!-- generated:end -->
 
@@ -65,6 +65,10 @@ Hecks.bluebook "QueryReference" do
     value_object("Tag")     { attribute :value, String }
     value_object("Species") { attribute :value, String }
     value_object("Count")   { attribute :value, Integer }
+    value_object("Census") do
+      attribute :species, String
+      attribute :total,   Integer
+    end
 
     command "Log" do
       attribute :warden,    Warden
@@ -94,6 +98,12 @@ Hecks.bluebook "QueryReference" do
       nulls :last
     end
 
+    # Answered by an adapter, not by the sightings on file: `returns` says in what shape.
+    query "TallyBySpecies" do
+      description "How many of each species the field guide counts."
+      returns list_of(Census)
+    end
+
     # A HOP — a field on the warden, not on the sighting.
     query "ByOffDutyWarden" do
       description "Sightings still filed against a warden who has stood down."
@@ -105,9 +115,20 @@ end
 ```
 
 ```ruby boot
+class RefFieldGuide
+  def tally_by_species = [{ species: "heron", total: 3 }, { species: "ibis", total: 1 }]
+end
+
+Hecks::Adapters.const_set(:RefFieldGuide, RefFieldGuide) unless Hecks::Adapters.const_defined?(:RefFieldGuide, false)
+Hecks.adapter("RefFieldGuide") { port "FieldGuide" }
+
 Hecks.hecksagon("QueryReference") do
   QueryReference::Warden.persisted_by("Memory")
   QueryReference::Sighting.persisted_by("Memory")
+
+  QueryReference::Sighting.port "FieldGuide" do
+    answers_query "TallyBySpecies"
+  end
 end
 ```
 
@@ -238,7 +259,7 @@ Customer's own field, not anything the querying aggregate declares
 itself; `where(:"customer.status" => ...)` never hops, whatever
 `customer` names — it dead-ends the same way any dotted path onto a
 non-value-object does. The hop's own segment name is the same one
-`Facade::Handle`'s reference accessors answer to (`account.customer` in
+`Doors::Handle`'s reference accessors answer to (`account.customer` in
 Ruby, `:"customer/status"` in a query — one name, both places),
 multi-hop chains read left to right (`:"engagement/client/status"`),
 and a hop is `where`-only — `order_by` through a hop is refused
@@ -415,6 +436,40 @@ query itself does and would not exercise any path this doctest above
 doesn't already. The honest gap is upstream of the DSL word — an
 adapter that actually implements `inspect_query` is what would give
 this a real corpus use worth having.
+
+## returns
+
+<!-- generated:begin word=returns -->
+`returns type` — fills `returns`
+
+| argument | kind | required | fills |
+|---|---|---|---|
+| positional 1 | constant | true | type |
+<!-- generated:end -->
+
+Names the value object of the owning aggregate that shapes this query's answer, and so
+says that something outside the domain answers it: `returns Position` for one row,
+`returns list_of(Position)` for many. A query that returns nothing is answered with the
+aggregate's own rows, from its stored records. The hecksagon binds a returned query to a
+port with `answers_query` (see the DomainPort page); the shape lives here, in the bluebook,
+because it is the meaning of the answer. Each row an adapter answers is built as the value
+object, so its typed attributes, `pattern:`, `admits:` and invariants all apply, and a
+wrong-shaped answer is refused before it enters the domain.
+
+`Sighting.TallyBySpecies` returns a list of `Census` rows, a value object beside it, and the
+`FieldGuide` port's adapter answers them:
+
+```ruby
+runtime.query("QueryReference::Sighting.TallyBySpecies").map { |row| [row[:species], row[:total]] }  # => [["heron", 3], ["ibis", 1]]
+```
+
+The declaration reads back from the aggregate:
+
+```ruby
+sighting = runtime.registry.bluebook("QueryReference").aggregate("Sighting")
+tally = sighting.queries.find { |query| query.hecks_name == "TallyBySpecies" }
+[tally.returns, tally.returns_list?]  # => ["list_of(Census)", true]
+```
 
 ## limit
 

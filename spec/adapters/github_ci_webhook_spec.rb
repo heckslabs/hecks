@@ -2,7 +2,7 @@ require "spec_helper"
 require "rack/test"
 require "openssl"
 require "json"
-require_relative "../../qa/adapters/github_ci_webhook"
+require_relative "../../lib/hecks/quality_control/adapters/github_ci_webhook"
 
 # Push sibling of spec/adapters/github_checks_spec.rb: posts a signed HTTP
 # request at #call(env) and runs QualityControl end to end, for real.
@@ -14,7 +14,7 @@ RSpec.describe "GitHub CI webhook, end to end" do
   # Not QC_ROOT — that name belongs to spec/quality_control_spec.rb, and a
   # spec-file top-level constant lands on Object regardless of nesting
   # depth (spec/load_hygiene_spec.rb catches exactly this collision).
-  WEBHOOK_QC_ROOT = File.join(InMemoryDomain::ROOT, "qa/bluebook").freeze
+  WEBHOOK_QC_ROOT = File.join(InMemoryDomain::ROOT, "lib/hecks/quality_control").freeze
 
   module FixedClock
     module_function
@@ -59,24 +59,11 @@ RSpec.describe "GitHub CI webhook, end to end" do
         QualityControl::Angle.persisted_by("Memory")
         QualityControl::Ticket.persisted_by("Memory")
         QualityControl::Clearance.persisted_by("Memory")
-
-        QualityControl::Ticket.port "IssueTracker" do
-          asks "File", to: Ticket do
-            answers "IssueFiled"
-            refuses "IssueFilingRefused"
-          end
-          tells "Closed", to: Ticket do
-            emits "IssueClosedUpstream"
-          end
-        end
-
-        QualityControl::Clearance.port "CI" do
-          asks "Run", to: Clearance do
-            answers "SuitePassed"
-            refuses "SuiteFailed"
-          end
-        end
       end
+      # The chapter's own ports and the adapters behind its tool queries, so the IssueTracker, CI
+      # and tool-query bindings are the real ones.
+      Kernel.load(File.join(WEBHOOK_QC_ROOT, "quality_control.ports.hecksagon"))
+      Dir[File.join(WEBHOOK_QC_ROOT, "adapters/*_tools.adapter")].each { |file| Kernel.load(file) }
       sibling_governance!
     end
 
@@ -202,6 +189,40 @@ RSpec.describe "GitHub CI webhook, end to end" do
       a_fixed_bug(a_sweep(a_target), "2222222")
 
       post_webhook(check_suite_payload("2222222", conclusion: "cancelled"))
+
+      expect(JSON.parse(last_response.body)["status"]).to eq("red")
+    end
+  end
+
+  describe "check_suites from several GitHub Apps for one commit" do
+    def with_app(payload, slug)
+      payload["check_suite"]["app"] = { "id" => 1, "slug" => slug, "name" => slug }
+      payload
+    end
+
+    it "does not clear the commit on a passing suite from another app" do
+      a_fixed_bug(a_sweep(a_target), "8888888")
+
+      post_webhook(with_app(check_suite_payload("8888888", conclusion: "success"), "some-other-app"))
+
+      expect(JSON.parse(last_response.body)["ignored"]).to include("some-other-app")
+      expect(runtime.query("QualityControl::Clearance.All")).to be_empty
+    end
+
+    it "lets the failing Actions suite settle red after another app's passing suite" do
+      a_fixed_bug(a_sweep(a_target), "9999999")
+
+      post_webhook(with_app(check_suite_payload("9999999", conclusion: "success"), "some-other-app"))
+      post_webhook(check_suite_payload("9999999", conclusion: "failure"))
+
+      expect(JSON.parse(last_response.body)["status"]).to eq("red")
+    end
+
+    it "holds red when another app fails before Actions passes" do
+      a_fixed_bug(a_sweep(a_target), "aaaaaaa")
+
+      post_webhook(with_app(check_suite_payload("aaaaaaa", conclusion: "failure"), "some-other-app"))
+      post_webhook(check_suite_payload("aaaaaaa", conclusion: "success"))
 
       expect(JSON.parse(last_response.body)["status"]).to eq("red")
     end

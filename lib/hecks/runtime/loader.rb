@@ -1,4 +1,4 @@
-require_relative "../facade/surface"
+require_relative "../doors/ruby_door"
 require_relative "../ports/loading"
 require_relative "../ports/persistence"
 require_relative "dispatcher"
@@ -11,18 +11,23 @@ module Hecks
     # Boots a domain: loads its bluebook directory into a fresh Registry, runs
     # every boot gate, and hands back the bound Dispatcher (or RemoteDispatcher).
     class Loader
+      # Default for a boot's `environment:` keyword: read `HECKS_ENVIRONMENT`. An explicit
+      # `nil` means no overlay, whatever the variable holds.
+      FROM_ENV = :from_env
+
       # Boots `path`: loads its bluebook directory into a fresh Registry, runs
       # every registered boot gate, and returns the bound dispatcher. Pass
-      # `install_facade: false` to skip the `Widget::Item.Add(...)` global
+      # `install_doors: false` to skip the `Widget::Item.Add(...)` global
       # facade sugar (only a caller dispatching by FQN string needs to).
       #
       # @param path [String] a domain directory to boot
       # @param shared [String, nil] shared ports/adapters root; nil walks up from `path`
-      # @param environment [String, nil] environment overlay loaded after the domain; nil for none
+      # @param environment [String, nil] environment overlay loaded after the domain; defaults
+      #   to `HECKS_ENVIRONMENT`, and an explicit nil loads none
       # @return [Runtime::Dispatcher, Runtime::RemoteDispatcher] the booted dispatcher
       # @raise [Errno::ENOENT] if `path` names no domain directory
       # @raise [Runtime::WiringError] if a boot gate finds a wiring problem
-      def self.boot(path, shared: nil, install_facade: true, environment: nil)
+      def self.boot(path, shared: nil, install_doors: true, install_facade: nil, environment: FROM_ENV)
         loading   = Ports::Loading.bootstrap
         directory = loading.bluebook_directory(path)
         root      = loading.shared_root(shared, directory)
@@ -31,14 +36,55 @@ module Hecks
         Hecks.with_registry(registry) do
           loading.load_library
           loading.load_project(root)
-          loading.load_domain(directory, environment: environment)
+          loading.load_domain(directory, environment: selected_environment(environment))
         end
 
         run_boot_gates!(registry, directory)
         dispatcher = dispatcher_for(registry)
         redrive_outbox!(dispatcher)
         seed_privacy_markings!(dispatcher, registry)
-        install_facade ? bind_runtime(dispatcher) : dispatcher
+        Doors.install?(install_doors, install_facade) ? bind_runtime(dispatcher) : dispatcher
+      end
+
+      # What `describe` answers: the loaded declarations and nothing bound to run them.
+      Described = Struct.new(:registry)
+
+      # Loads `path`'s declarations into a fresh Registry and stops: no boot gate runs, no
+      # persistence adapter is resolved or bound, nothing connects to a database.
+      #
+      # This is what answers a question about the domain's own shape (its verbs, arguments and
+      # usage) in any environment, including one where the bound adapter cannot load.
+      #
+      # @param path [String] a domain directory to read
+      # @param shared [String, nil] shared ports/adapters root; nil walks up from `path`
+      # @param environment [String, nil] environment overlay loaded after the domain
+      # @return [Described] answers `registry` like a booted dispatcher does
+      # @raise [Errno::ENOENT] if `path` names no domain directory
+      def self.describe(path, shared: nil, environment: FROM_ENV)
+        loading   = Ports::Loading.bootstrap
+        directory = loading.bluebook_directory(path)
+        root      = loading.shared_root(shared, directory)
+        registry  = Registry.new(root: File.dirname(directory))
+
+        Hecks.with_registry(registry) do
+          loading.load_library
+          loading.load_project(root)
+          loading.load_domain(directory, environment: selected_environment(environment))
+        end
+        Described.new(registry)
+      end
+
+      # The overlay a boot loads: the caller's own choice (nil meaning none), else the
+      # `HECKS_ENVIRONMENT` variable when the caller left the keyword at its default. A domain
+      # with no `environments/<name>.*` files ignores either.
+      #
+      # @param environment [String, nil, Symbol] the overlay a caller passed, or `FROM_ENV`
+      # @return [String, nil] the overlay name; nil for none
+      def self.selected_environment(environment)
+        return environment unless environment == FROM_ENV
+
+        named = ENV["HECKS_ENVIRONMENT"].to_s.strip
+        named.empty? ? nil : named
       end
 
       # Redrives pending outbox rows after the dispatcher and saga
@@ -77,10 +123,11 @@ module Hecks
       #
       # @param paths [Array<String>, String] the exact file paths to boot, in load order
       # @param shared [String, nil] shared ports/adapters root; nil walks up from the first path
-      # @param environment [String, nil] environment overlay loaded after the named files
+      # @param environment [String, nil] environment overlay loaded after the named files;
+      #   defaults to `HECKS_ENVIRONMENT`, and an explicit nil loads none
       # @return [Runtime::Dispatcher, Runtime::RemoteDispatcher] the booted dispatcher
       # @raise [Runtime::WiringError] if a boot gate finds a wiring problem
-      def self.boot_files(paths, shared: nil, install_facade: true, environment: nil)
+      def self.boot_files(paths, shared: nil, install_doors: true, install_facade: nil, environment: FROM_ENV)
         loading   = Ports::Loading.bootstrap
         files     = Array(paths).map { |path| File.expand_path(path) }
         directory = File.dirname(files.first)
@@ -90,12 +137,12 @@ module Hecks
         Hecks.with_registry(registry) do
           loading.load_library
           loading.load_project(root)
-          loading.load_selected(files, environment: environment)
+          loading.load_selected(files, environment: selected_environment(environment))
         end
 
         run_boot_gates!(registry, directory)
         dispatcher = dispatcher_for(registry)
-        install_facade ? bind_runtime(dispatcher) : dispatcher
+        Doors.install?(install_doors, install_facade) ? bind_runtime(dispatcher) : dispatcher
       end
 
       # Runs every registered boot gate against `registry`, in order:
@@ -117,7 +164,8 @@ module Hecks
         gates
       end
 
-      # Resolves the Ruby implementation of every adapter a hecksagon binds.
+      # Resolves the Ruby implementation of every adapter a hecksagon binds, and of every
+      # `default_adapter` a world names (a chapter that binds nothing takes its world's).
       # An adapter's implementation can register its own persistence plugin as
       # a side effect of loading (e.g. `PostgresEra`) — resolving here, before
       # gates are collected, is what registers those plugins' gates without
@@ -130,6 +178,11 @@ module Hecks
           rescue WiringError
             next
           end
+        end
+        registry.worlds.each_value do |world|
+          registry.adapter_class(world.default_adapter) if world.default_adapter
+        rescue WiringError
+          next
         end
       end
 
@@ -169,7 +222,7 @@ module Hecks
       # `dispatcher`. The binding lives in the facade's own modules, not a
       # class-level global, so two boots in one process don't share one name.
       def self.bind_runtime(dispatcher)
-        Facade::Surface.install(dispatcher)
+        Doors::RubyDoor.install(dispatcher)
         dispatcher
       end
     end

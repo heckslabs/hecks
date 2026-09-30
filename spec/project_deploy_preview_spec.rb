@@ -1,3 +1,4 @@
+require_relative "support/project_deploy_runner"
 require "tmpdir"
 require "fileutils"
 require "open3"
@@ -529,7 +530,7 @@ RSpec.describe Hecks::Projections::Deploy::Preview do
     end
   end
 
-  describe "through bin/project_deploy", :io do
+  describe "through hecks deploy project", :io do
     let(:root) { File.expand_path("..", __dir__) }
     let(:basename) { "project_deploy_preview_spec_fixture" }
     let(:out_dir) { Dir.mktmpdir("preview-out") }
@@ -587,9 +588,8 @@ RSpec.describe Hecks::Projections::Deploy::Preview do
       FileUtils.mkdir_p(bluebook_dir)
       File.write(File.join(bluebook_dir, "#{basename}.bluebook"), PREVIEW_SPEC_BLUEBOOK)
       File.write(File.join(bluebook_dir, "#{basename}.world"), world_body)
-      _out, err, status = Open3.capture3("ruby", File.join(root, "bin/project_deploy"),
-                                         File.join(work_dir, basename), "--out=#{out_dir}")
-      raise "bin/project_deploy failed: #{err}" unless status.success?
+      _out, err, status = ProjectDeployRunner.run(File.join(work_dir, basename), "--out=#{out_dir}", root: root)
+      raise "hecks deploy project failed: #{err}" unless status.success?
 
       Dir.children(out_dir).to_h { |name| [name, File.read(File.join(out_dir, name))] }
     end

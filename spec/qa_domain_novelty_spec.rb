@@ -1,17 +1,17 @@
 require "spec_helper"
-require "open3"
+require_relative "support/qa_lib_cli"
 require "hecks/fuzzing/form_census"
 
-# `bin/qa_domain_novelty` as a subprocess over fixture domains and `--against`: does a new
-# stress domain combine two declared forms on one aggregate that no existing target does?
-RSpec.describe "bin/qa_domain_novelty" do
+# `hecks quality_control judge_novelty` as a subprocess over fixture domains and
+# `--against`: does a new stress domain combine two declared forms on one aggregate that no
+# existing target does?
+RSpec.describe "hecks quality_control judge_novelty" do
   NOVELTY_FIXTURES = File.join(InMemoryDomain::ROOT, "spec/fixtures/qa_domain_novelty").freeze
   BASELINE = File.join(NOVELTY_FIXTURES, "baseline").freeze
   HOPPER   = File.join(NOVELTY_FIXTURES, "hopper").freeze
 
   def run_novelty(*args)
-    Open3.capture3("bundle", "exec", "ruby", File.join(InMemoryDomain::ROOT, "bin/qa_domain_novelty"), *args,
-                   chdir: InMemoryDomain::ROOT)
+    QaLibCli.capture3("qa_domain_novelty", *args)
   end
 
   it "names the pairs a candidate meets that the existing targets do not, and exits 0" do
@@ -63,7 +63,7 @@ RSpec.describe "bin/qa_domain_novelty" do
     _out, err, status = run_novelty
 
     expect(status.exitstatus).to eq(2)
-    expect(err).to include("usage: bin/qa_domain_novelty")
+    expect(err).to include("usage: hecks quality_control judge_novelty")
   end
 
   # The worked example: pins the census to `qa/stress_domains/referral_chain`, whose forms

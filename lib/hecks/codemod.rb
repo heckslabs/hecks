@@ -21,6 +21,75 @@ module Hecks
 
     def self.export_json(registry) = Hecks::Projector::Exporter.json(registry)
 
+    # Text that stands in for a file while a dry run judges an edit.
+    #
+    # `Kernel.load` evaluates the staged text in place of the file, under the file's own path, so
+    # a codemod can boot the edited bluebook without writing a tracked file: a dry run that is
+    # interrupted, or read by a parallel process, leaves the checkout exactly as it was.
+    module Shadow
+      # Prepended to `Kernel`'s singleton: loads staged text when there is any for the file.
+      module Loader
+        # @param file [String] the path being loaded
+        # @return [Boolean] true, as `Kernel.load` answers
+        def load(file, *)
+          text = Shadow.texts[file.to_s]
+          return super unless text
+
+          Hecks::Adapters::Prism::TREES[file.to_s] = ::Prism.parse(text).value
+          eval(text, TOPLEVEL_BINDING.dup, file.to_s, 1)
+          true
+        end
+      end
+      Kernel.singleton_class.prepend(Loader)
+
+      module_function
+
+      # @return [Hash{String => String}] the staged text by absolute path
+      def texts = (@texts ||= {})
+
+      # Stages `text` as `file`'s contents and drops the file's cached parse.
+      #
+      # @param file [String] the path the text stands in for
+      # @param text [String] the staged source
+      # @return [String] the text
+      def put(file, text)
+        Hecks::Adapters::Prism.forget(file)
+        texts[file] = text
+      end
+
+      # Stops standing in for `file`.
+      #
+      # @param file [String] the path to read from disk again
+      # @return [void]
+      def drop(file)
+        texts.delete(file)
+        Hecks::Adapters::Prism.forget(file)
+      end
+
+      # @return [Boolean] whether any text is staged
+      def active? = !texts.empty?
+    end
+
+    # Puts `text` where `file`'s next load will find it: on disk, or (a dry run) staged in memory.
+    #
+    # @param file [String] the bluebook's path
+    # @param text [String] the new source
+    # @param dry_run [Boolean] whether to leave the file untouched
+    # @return [void]
+    def self.stage(file, text, dry_run:)
+      dry_run ? Shadow.put(file, text) : File.write(file, text)
+    end
+
+    # Undoes `stage`: rewrites the original, or stops staging.
+    #
+    # @param file [String] the bluebook's path
+    # @param original [String] the source as it was on disk
+    # @param dry_run [Boolean] whether the edit was only staged
+    # @return [void]
+    def self.unstage(file, original, dry_run:)
+      dry_run ? Shadow.drop(file) : File.write(file, original)
+    end
+
     # Forgets each path's cached AST first — a stale tree after editing a file
     # misreports that file's own source locations.
     def self.load_bluebook(path)
@@ -169,7 +238,7 @@ module Hecks
             original_text = live[target_file]
             text, = apply_many(original_text, [candidate])
             live[target_file] = text
-            File.write(target_file, text)
+            Codemod.stage(target_file, text, dry_run: dry_run)
             after_json, error = Codemod.safely do
               Codemod.export_json(Codemod.load_bluebook(bluebook_files))
             end
@@ -178,12 +247,12 @@ module Hecks
               applied_by_file[target_file] << candidate
             elsif after_json == before_json
               live[target_file] = original_text
-              File.write(target_file, original_text)
+              Codemod.unstage(target_file, original_text, dry_run: dry_run)
               Codemod.safely { Codemod.load_bluebook(bluebook_files) }
               applied_by_file[target_file] << candidate
             else
               live[target_file] = original_text
-              File.write(target_file, original_text)
+              Codemod.unstage(target_file, original_text, dry_run: dry_run)
               Codemod.safely { Codemod.load_bluebook(bluebook_files) }
               reason = error ? "reboot raised after edit (#{error}) — reverted" : "IR changed after edit — reverted"
               results[:skipped] << { file: target_file, reason: reason, candidates: [@label.call(candidate)] }
@@ -224,22 +293,22 @@ module Hecks
           text, = apply_many(live_meta[target_file], [candidate])
           original_text = live_meta[target_file]
           live_meta[target_file] = text
-          Codemod::META_FILES.each { |f| File.write(f, live_meta[f]) }
+          Codemod::META_FILES.each { |f| Codemod.stage(f, live_meta[f], dry_run: dry_run) }
 
-          # Dry run still writes and reboots for real, then reverts after — so
-          # the next candidate is judged against the true original state.
+          # A dry run stages the text in memory and reboots from it, then drops it — so the next
+          # candidate is judged against the true original state and no file is written.
           after_meta, error = Codemod.safely { Codemod.boot_meta }
 
           if after_meta == before_meta && !dry_run
             applied_by_file[target_file] << candidate
           elsif after_meta == before_meta # dry-run, safe — revert, but count as applied
             live_meta[target_file] = original_text
-            File.write(target_file, original_text)
+            Codemod::META_FILES.each { |f| Codemod.unstage(f, live_meta[f], dry_run: dry_run) }
             Codemod.safely { Codemod.boot_meta }
             applied_by_file[target_file] << candidate
           else
             live_meta[target_file] = original_text
-            File.write(target_file, original_text)
+            Codemod::META_FILES.each { |f| Codemod.unstage(f, live_meta[f], dry_run: dry_run) }
             Codemod.safely { Codemod.boot_meta } # resync memoized state to the reverted text
             reason = error ? "reboot raised (#{error})" : "IR changed"
             results[:skipped] << { file: "meta-domain", reason: reason, candidates: [@label.call(candidate)] }

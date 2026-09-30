@@ -5,6 +5,7 @@
   "vision": "A ledger of entries where one entry can be corrected after the fact — corrects declared on the entity owning the entry, not the aggregate, for the first time in the corpus — with a saga and a count read model watching the correction, and a remove-then-append sequence on the same entity list.",
   "classification": "core",
   "formerly_known_as": null,
+  "namespace": null,
   "aggregates": [
     {
       "name": "Ledger",

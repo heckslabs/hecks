@@ -14,6 +14,7 @@ module Hecks
           # @raise [Bluebook::DSL::ProcessManagerBuilder::InvalidProcessManager] if a
           #   `correlates_by` resolves to something other than a scalar field
           def validate_assembled!(bluebook)
+            validate_not_the_gem_module!(bluebook)
             # an attribute type references its Shape, so an undeclared value object
             # fails resolution
             validate_reference_value_objects!(bluebook.aggregates)
@@ -289,6 +290,15 @@ module Hecks
           # chapter level because seeing a cycle needs every end declared (ADR 0025). Catches
           # any ring length; self-reference stays legal, and a cross-chapter target is a
           # dangling name, not an edge.
+          # A chapter's constants install under its name, or its `namespace`; landing in the
+          # gem's own `Hecks` module would shadow the gem's modules (ADR 0080), so it refuses.
+          def validate_not_the_gem_module!(bluebook)
+            return unless (bluebook.namespace || bluebook.name) == "Hecks"
+
+            raise Malformed, "#{bluebook.name}'s constants would install in the gem's own Hecks module — " \
+                             "declare a namespace, such as namespace \"Hecks::Domain\", or rename the chapter"
+          end
+
           def validate_no_bidirectional_references!(aggregates)
             edges = aggregates.to_h do |aggregate|
               [aggregate.hecks_name, aggregate.reference_targets.uniq.reject { |target| target == aggregate.hecks_name }]

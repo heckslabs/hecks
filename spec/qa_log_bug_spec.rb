@@ -1,10 +1,11 @@
 require "hecks"
 require "hecks/ports/persistence/plugins/era"
 require_relative "support/qa_ledger_fixture"
+require_relative "support/qa_lib_cli"
 
-# `bin/qa_log_bug` run as a real subprocess against a disposable PostgresEra ledger
+# `hecks quality_control log` run as a real subprocess against a disposable PostgresEra ledger
 # (spec/support/qa_ledger_fixture.rb); see qa_sweep_all_fixture.rb for why not Memory.
-RSpec.describe "bin/qa_log_bug", :io do
+RSpec.describe "hecks quality_control log", :io do
   before(:all) do
     skip "no reachable Postgres — start one to run this spec" unless PostgresProbe.available?
 
@@ -21,9 +22,9 @@ RSpec.describe "bin/qa_log_bug", :io do
   end
 
   def log_bug(demonstration, *extra)
-    @ledger.run("qa_log_bug", "--sweep", "SW-1", "--title", "as: is accepted and does nothing",
-                "--demonstration", demonstration, "--symptom", "accepted silently", "--expectation", "refused",
-                "--submitter", "Claude QA", *extra)
+    QaLibCli.run(@ledger, "qa_log_bug", "--sweep", "SW-1", "--title", "as: is accepted and does nothing",
+                 "--demonstration", demonstration, "--symptom", "accepted silently", "--expectation", "refused",
+                 "--submitter", "Claude QA", *extra)
   end
 
   def bugs_on_file
@@ -119,8 +120,9 @@ RSpec.describe "bin/qa_log_bug", :io do
     expect(status.exitstatus).to eq(1)
     expect(stderr).to include("--triage is required")
 
-    _stdout, stderr, status = @ledger.run("qa_log_bug", "--sweep", "SW-nope", "--title", "t", "--demonstration", "exit 1",
-                                          "--symptom", "s", "--expectation", "e", "--submitter", "x", "--triage", "bigger")
+    _stdout, stderr, status = QaLibCli.run(@ledger, "qa_log_bug", "--sweep", "SW-nope", "--title", "t",
+                                           "--demonstration", "exit 1", "--symptom", "s", "--expectation", "e",
+                                           "--submitter", "x", "--triage", "bigger")
     expect(status.exitstatus).to eq(1)
     expect(stderr).to include("no such sweep")
     expect(bugs_on_file).to be_empty

@@ -170,6 +170,7 @@ RSpec.describe Hecks::Forms::App do
 
               query("BySpecs") do
                 attribute :items, list_of(Item)
+                limit 10
               end
             end
           end

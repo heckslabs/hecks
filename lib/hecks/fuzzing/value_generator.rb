@@ -118,7 +118,7 @@ module Hecks
       # Generates a value for one Ruby-primitive-typed attribute.
       #
       # @param type_name [String] the primitive type name: `"String"`, `"Integer"`,
-      #   `"Float"`, `"TrueClass"`, or `"FalseClass"`
+      #   `"Float"`, `"Boolean"`, `"TrueClass"`, or `"FalseClass"`
       # @param random [Random] the RNG driving every draw this call makes
       # @param name [String, nil] a name hint (attribute name, optionally
       #   context-prefixed) that draws an email-/currency-shaped string or a
@@ -130,7 +130,7 @@ module Hecks
         when "String"  then string_value(random, name: name)
         when "Integer" then integer_value(random, name: name)
         when "Float"   then float_value(random)
-        when "TrueClass", "FalseClass" then random.rand(2).zero?
+        when "TrueClass", "FalseClass", "Boolean" then random.rand(2).zero?
         else raise ArgumentError, "ValueGenerator does not know primitive type #{type_name.inspect}"
         end
       end

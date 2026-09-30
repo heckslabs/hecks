@@ -32,32 +32,34 @@ module Hecks
         subscriptions:      -> { subscriptions.map(&:to_s) },
         framework_members:  -> { framework_members.map(&:to_s) },
         vendored_bluebooks: -> { vendored_bluebooks.map(&:to_s) },
-        bounded:            :bounded,
+        attached_chapters:  -> { attached_chapters.map(&:to_s) },
+        bounded:            :bounded?,
         translates:         -> { translates.map(&:to_s) }
       )
 
       attr_reader :domain, :binds, :subscriptions, :framework_members, :vendored_bluebooks,
-                  :translates
+                  :attached_chapters, :translates
 
       # @param domain [String, Symbol] the domain this hecksagon wires
       # @param binds [Array<Bluebook::Bind>] the declared adapter binds
       # @param subscriptions [Array<String, Symbol>] the external events this domain
       #   subscribes to
-      # @param framework_members [Array<String, Symbol>] the framework members
-      #   (`Governance`, `Identity`, ...) this domain attaches
+      # @param framework_members [Array<String, Symbol>] attached framework members (`Governance`)
       # @param vendored_bluebooks [Array<String, Symbol>] the vendored embryonaut
       #   bluebook package names this domain attaches
+      # @param attached_chapters [Array<String, Symbol>] chapters the gem carries, attached by name
       # @param bounded [Boolean] whether this chapter is an explicit bounded context
       #   (consumer-owned; `uses_framework` / `uses_embryonaut_bluebook` mark
       #   attached chapters bounded on the registry instead)
       # @param translates [Array<String>] names of `translates` ACL blocks declared here
       def initialize(domain:, binds: [], subscriptions: [], framework_members: [],
-                     vendored_bluebooks: [], bounded: false, translates: [])
+                     vendored_bluebooks: [], attached_chapters: [], bounded: false, translates: [])
         @domain             = domain.to_s
         @binds              = binds
         @subscriptions      = subscriptions
         @framework_members  = framework_members
         @vendored_bluebooks = vendored_bluebooks
+        @attached_chapters  = attached_chapters
         @bounded            = bounded ? true : false
         @translates         = Array(translates).map(&:to_s)
       end
@@ -66,6 +68,12 @@ module Hecks
       #
       # @return [Boolean] whether `bounded` was declared on this block
       def bounded? = @bounded
+
+      # Every chapter this hecksagon brings into its domain's registry: framework members and
+      # attached chapters alike, which resolve the same way.
+      #
+      # @return [Array<String>] the chapters' names, framework members first
+      def member_chapters = (framework_members + attached_chapters).map(&:to_s)
     end
 
     # The built form of a `.world` file, produced by `DSL::WorldBuilder`.

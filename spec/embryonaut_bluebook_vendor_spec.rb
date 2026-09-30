@@ -215,11 +215,11 @@ RSpec.describe Hecks::EmbryonautBluebook, ".vendor!" do
   end
 
   describe "the loader's own refusal" do
-    it "points at bin/vendor_bluebook when nothing is vendored" do
+    it "points at hecks vendor when nothing is vendored" do
       registry = Hecks::Runtime::Registry.new(root: root)
 
       expect { described_class.load!("widgets", registry: registry) }
-        .to raise_error(Hecks::Runtime::WiringError, %r{bin/vendor_bluebook widgets})
+        .to raise_error(Hecks::Runtime::WiringError, /hecks vendor widgets/)
     end
   end
 

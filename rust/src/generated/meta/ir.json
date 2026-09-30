@@ -5,6 +5,7 @@
   "vision": "The bluebook language, declared in itself. Loading a domain becomes dispatching commands into this meta-domain ; the IR it stores must equal the IR the DSL builder produces. The floor that stays hand-written is the interpreter — evaluating a predicate held as data — and IO.",
   "classification": "core",
   "formerly_known_as": null,
+  "namespace": null,
   "aggregates": [
     {
       "name": "Aggregate",
@@ -3932,6 +3933,16 @@
           "relationship": null
         },
         {
+          "name": "namespace",
+          "type": "ChapterNamespace",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
           "name": "normalisations",
           "type": "NormalisationRule",
           "list": true,
@@ -4366,6 +4377,45 @@
           ]
         },
         {
+          "name": "ChapterNamespace",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "a namespace is a constant path",
+              "canonical": "value.to_s.match?(/\\A[A-Z][A-Za-z0-9_]*(::[A-Z][A-Za-z0-9_]*)*\\z/)",
+              "ast": {
+                "op": "matches_regex",
+                "receiver": {
+                  "op": "to_s",
+                  "receiver": {
+                    "op": "lookup",
+                    "path": [
+                      "value"
+                    ]
+                  }
+                },
+                "pattern": "\\A[A-Z][A-Za-z0-9_]*(::[A-Z][A-Za-z0-9_]*)*\\z",
+                "flags": ""
+              }
+            }
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        },
+        {
           "name": "AttachesToContext",
           "attributes": [
             {
@@ -4590,6 +4640,32 @@
               [
                 "fills",
                 "formerly_known_as"
+              ]
+            ],
+            [
+              [
+                "word",
+                "namespace"
+              ],
+              [
+                "context",
+                "Bluebook"
+              ],
+              [
+                "body",
+                "none"
+              ],
+              [
+                "inner",
+                ""
+              ],
+              [
+                "opens",
+                ""
+              ],
+              [
+                "fills",
+                "namespace"
               ]
             ],
             [
@@ -5125,6 +5201,36 @@
               [
                 "fills",
                 "formerly_known_as"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "namespace"
+              ],
+              [
+                "context",
+                "Bluebook"
+              ],
+              [
+                "at",
+                1
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "text"
+              ],
+              [
+                "required",
+                true
+              ],
+              [
+                "fills",
+                "namespace"
               ]
             ],
             [
@@ -6150,6 +6256,16 @@
               "pattern": null,
               "admits": null,
               "relationship": null
+            },
+            {
+              "name": "namespace",
+              "type": "ChapterNamespace",
+              "list": false,
+              "default": null,
+              "optional": true,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
             }
           ],
           "givens": [
@@ -6202,6 +6318,15 @@
               "source": {
                 "kind": "argument",
                 "name": "formerly_known_as"
+              }
+            },
+            {
+              "target": "namespace",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "namespace"
               }
             }
           ],
@@ -18909,6 +19034,16 @@
           "relationship": null
         },
         {
+          "name": "returns",
+          "type": "QueryText",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
           "name": "wheres",
           "type": "Filter",
           "list": true,
@@ -19529,6 +19664,32 @@
               [
                 "fills",
                 "options"
+              ]
+            ],
+            [
+              [
+                "word",
+                "returns"
+              ],
+              [
+                "context",
+                "Query"
+              ],
+              [
+                "body",
+                "none"
+              ],
+              [
+                "inner",
+                ""
+              ],
+              [
+                "opens",
+                ""
+              ],
+              [
+                "fills",
+                "returns"
               ]
             ]
           ]
@@ -20217,6 +20378,36 @@
                 "fills",
                 "mode"
               ]
+            ],
+            [
+              [
+                "keyword",
+                "returns"
+              ],
+              [
+                "context",
+                "Query"
+              ],
+              [
+                "at",
+                1
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "constant"
+              ],
+              [
+                "required",
+                true
+              ],
+              [
+                "fills",
+                "type"
+              ]
             ]
           ]
         }
@@ -20290,6 +20481,16 @@
             },
             {
               "name": "limit",
+              "type": "QueryText",
+              "list": false,
+              "default": null,
+              "optional": true,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "returns",
               "type": "QueryText",
               "list": false,
               "default": null,
@@ -20377,6 +20578,15 @@
               "source": {
                 "kind": "argument",
                 "name": "limit"
+              }
+            },
+            {
+              "target": "returns",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "returns"
               }
             },
             {

@@ -101,14 +101,41 @@ module Hecks
           )
         end
 
+        class << self
+          # The builder whose block is being evaluated, so an aggregate door a facade already
+          # installed (a repeat boot in one process) can record a qualified bind into it.
+          #
+          # @return [Bluebook::DSL::WorldBuilder, nil] nil outside a `.world` block
+          attr_reader :current
+        end
+
         # Wraps `instance_eval` in `ConstShim`'s resolver: without it, an aggregate-qualified
         # verb call raises `NameError`, since the bare constant has nothing to resolve to.
+        # A bare name resolves to a namespace whose `::` reaches the proxy; a qualified path
+        # (`Pizzas::Order`, handed over by an installed facade chapter's `const_missing`)
+        # is already the aggregate, so it resolves to the proxy itself.
+        #
+        # @param domain [String] the domain the world belongs to
+        # @yield the world's DSL block
+        # @return [Bluebook::World] the judged world
         def self.build(domain, &block)
           builder  = new(domain)
-          resolver = ->(_domain) { WorldConstProxy.namespace(builder) }
-          ConstShim.with(resolver) { builder.instance_eval(&block) } if block
+          resolver = lambda do |name|
+            name.to_s.include?("::") ? WorldConstProxy.new(builder) : WorldConstProxy.namespace(builder)
+          end
+          evaluate(builder, resolver, &block) if block
           builder.build
         end
+
+        # @api private
+        def self.evaluate(builder, resolver, &block)
+          previous = @current
+          @current = builder
+          ConstShim.with(resolver) { builder.instance_eval(&block) }
+        ensure
+          @current = previous
+        end
+        private_class_method :evaluate
 
         private
 

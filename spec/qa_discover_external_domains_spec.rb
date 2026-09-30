@@ -1,9 +1,9 @@
 require "spec_helper"
-require "open3"
+require_relative "support/qa_lib_cli"
 
-# `bin/qa_discover_external_domains` — rotation-widening discovery over
+# `hecks quality_control discover_external_domains` — rotation-widening discovery over
 # `~/Projects`; `--known-path` bypasses the real ledger so this proves the script itself.
-RSpec.describe "bin/qa_discover_external_domains" do
+RSpec.describe "hecks quality_control discover_external_domains" do
   # Not `FIXTURES` — spec/runtime/storage_shape_spec.rb already owns that
   # name; every spec loads into one process, so reusing it silently reads whichever file loaded
   # last.
@@ -11,9 +11,8 @@ RSpec.describe "bin/qa_discover_external_domains" do
     File.join(InMemoryDomain::ROOT, "spec/fixtures/qa_discover_external_domains/projects").freeze
 
   def run_discover(*args)
-    Open3.capture3("bundle", "exec", "ruby", File.join(InMemoryDomain::ROOT, "bin/qa_discover_external_domains"),
-                   "--projects-dir", DISCOVER_EXTERNAL_DOMAINS_FIXTURES, "--known-path",
-                   "/nowhere-already-identified", *args, chdir: InMemoryDomain::ROOT)
+    QaLibCli.capture3("qa_discover_external_domains", "--projects-dir", DISCOVER_EXTERNAL_DOMAINS_FIXTURES,
+                      "--known-path", "/nowhere-already-identified", *args)
   end
 
   it "reports the one bluebook-shaped, hecks-dependent domain in the qualifying sibling, with its enroll command" do
@@ -22,7 +21,7 @@ RSpec.describe "bin/qa_discover_external_domains" do
     expect(status.exitstatus).to eq(0), "stdout:\n#{out}\nstderr:\n#{err}"
     expect(out).to include("qualifying_sibling/widgets")
     expect(out).to include(File.join(DISCOVER_EXTERNAL_DOMAINS_FIXTURES, "qualifying_sibling/widgets"))
-    expect(out).to include("bin/run qa/bluebook identify reference=qualifying_sibling/widgets " \
+    expect(out).to include("hecks run qa/bluebook identify reference=qualifying_sibling/widgets " \
                            "path=#{File.join(DISCOVER_EXTERNAL_DOMAINS_FIXTURES, 'qualifying_sibling/widgets')}")
   end
 
@@ -91,7 +90,7 @@ RSpec.describe "bin/qa_discover_external_domains" do
     expect(status.exitstatus).to eq(0), "stdout:\n#{out}\nstderr:\n#{err}"
     expect(out).to include("root_shaped_sibling/root_shaped_sibling")
     expect(out).to include(File.join(DISCOVER_EXTERNAL_DOMAINS_FIXTURES, "root_shaped_sibling"))
-    expect(out).to include("bin/run qa/bluebook identify reference=root_shaped_sibling/root_shaped_sibling " \
+    expect(out).to include("hecks run qa/bluebook identify reference=root_shaped_sibling/root_shaped_sibling " \
                            "path=#{File.join(DISCOVER_EXTERNAL_DOMAINS_FIXTURES, 'root_shaped_sibling')}")
     expect(out).not_to include("root_shaped_sibling/adapters")
   end
@@ -124,26 +123,22 @@ RSpec.describe "bin/qa_discover_external_domains" do
     expect(status.exitstatus).to eq(0), "stdout:\n#{out}\nstderr:\n#{err}"
     expect(out).to include("monorepo_sibling/app")
     expect(out).to include(File.join(DISCOVER_EXTERNAL_DOMAINS_FIXTURES, "monorepo_sibling/app"))
-    expect(out).to include("bin/run qa/bluebook identify reference=monorepo_sibling/app " \
+    expect(out).to include("hecks run qa/bluebook identify reference=monorepo_sibling/app " \
                            "path=#{File.join(DISCOVER_EXTERNAL_DOMAINS_FIXTURES, 'monorepo_sibling/app')}")
     skipped_line = out[/^no hecks dependency, skipped:.*$/]
     expect(skipped_line.to_s).not_to include("monorepo_sibling")
   end
 
   it "exits 1 with usage on an unknown flag" do
-    _out, err, status = Open3.capture3("bundle", "exec", "ruby",
-                                       File.join(InMemoryDomain::ROOT, "bin/qa_discover_external_domains"),
-                                       "--nonsense", chdir: InMemoryDomain::ROOT)
+    _out, err, status = QaLibCli.capture3("qa_discover_external_domains", "--nonsense")
 
     expect(status.exitstatus).to eq(1)
-    expect(err).to include("usage: bin/qa_discover_external_domains")
+    expect(err).to include("usage: hecks quality_control discover_external_domains")
   end
 
   it "exits 1 when --projects-dir does not exist" do
-    _out, err, status = Open3.capture3("bundle", "exec", "ruby",
-                                       File.join(InMemoryDomain::ROOT, "bin/qa_discover_external_domains"),
-                                       "--projects-dir", "/definitely-not-a-real-path", "--known-path", "/x",
-                                       chdir: InMemoryDomain::ROOT)
+    _out, err, status = QaLibCli.capture3("qa_discover_external_domains", "--projects-dir",
+                                          "/definitely-not-a-real-path", "--known-path", "/x")
 
     expect(status.exitstatus).to eq(1)
     expect(err).to include("is not a directory")

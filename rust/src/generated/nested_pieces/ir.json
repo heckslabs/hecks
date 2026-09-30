@@ -5,6 +5,7 @@
   "vision": "A workspace holding boards, each holding cards — two real levels of entity nesting, stressing whether the addressing-identity-vs-existence ordering question (BUG#3) recurs at a hop this corpus has never actually reached before.",
   "classification": "core",
   "formerly_known_as": null,
+  "namespace": null,
   "aggregates": [
     {
       "name": "Workspace",

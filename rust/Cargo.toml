@@ -1,5 +1,5 @@
 # Selects which domain's generated module `generated::active` re-exports
-# (rust/src/generated/mod.rs); bin/project_rust adds an entry per generated
+# (rust/src/generated/mod.rs); hecks project_rust adds an entry per generated
 # domain and never removes one, since a domain's own directory is the
 # source of truth for whether it still exists. `default` tracks whichever
 # domain was generated most recently; any other stays reachable via

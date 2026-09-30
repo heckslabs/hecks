@@ -16,11 +16,11 @@ has to re-verify by hand.
 git clone https://github.com/heckslabs/hecks
 cd hecks
 bundle install
-bin/console          # boots the pizzas example, drops you into IRB with its door installed
+bundle exec hecks console   # boots the pizzas example, drops you into IRB with its door installed
 ```
 
 Postgres is optional for most of the codebase — the suite and
-`bin/console` both default to the in-memory adapter. You only need a
+`hecks console` both default to the in-memory adapter. You only need a
 local Postgres for `PostgresEra`-flavored specs and the schema-evolution
 guide's own live example; those specs check their own reachability and
 skip themselves quietly if nothing answers on `localhost`.
@@ -62,7 +62,7 @@ git config core.hooksPath .githooks
 ```
 
 It runs the parallel suite, `spec/fuzzing`, the query-agreement `io`
-spec, the engine-agreement check, `bin/model_check`, `bin/doc_coverage`
+spec, the engine-agreement check, `hecks model_check`, `hecks measure_doc_coverage`
 and `rubocop`, concurrently, and reports the results in a fixed order. Bypass with `git push --no-verify` only when you mean to,
 and say why in the push (or the PR).
 
@@ -127,21 +127,29 @@ PR that touches a `.bluebook`, the DSL builder, the runtime, or the
 IR:
 
 ```sh
-bin/model_check                          # static analysis over the IR — unreachable states,
-                                          # dead transitions, sagas nothing reaches
-bin/fuzz                                  # generated command/query sequences, checked against
-                                          # declared properties and interpreter crashes
-bin/doc_coverage                          # every live DSL word ships with a running example
-bin/run examples/banking spec/corpus/banking.json   # the refusals someone already decided must hold
+bundle exec hecks model_check           # static analysis over the IR — unreachable states,
+                                        # dead transitions, sagas nothing reaches
+bundle exec hecks fuzz                  # generated command/query sequences, checked against
+                                        # declared properties and interpreter crashes
+bundle exec hecks measure_doc_coverage  # every live DSL word ships with a running example
+bundle exec hecks run examples/banking spec/corpus/banking.json   # the refusals someone already decided must hold
 ```
 
-`bin/run` and `bin/model_check` are also subcommands of the gem's
-`hecks` command, along with `docs`, `narrate`, `ir`, `stores`,
-`smoke_test`, `project_diagrams`, `project_cli` and `mcp`
-(`bin/hecks_mcp_door`). Those `bin/` scripts are thin wrappers over
-`lib/hecks/cli/`, so a change to one goes there. The fuzzing, bench,
-corpus, codemod, query IR, grammar evolve and doc reference tooling is
-repository-only and left out of the packaged gem (`hecks.gemspec`).
+The `hecks` command is the one entry point for all of this. Its verbs are
+the commands of the `Hecks` chapter (`lib/hecks/hecks/`), and its
+attached chapters add theirs (`hecks deploy project`, `hecks quality_control
+…`); `hecks` lists them and `hecks <verb> --help` prints one's usage.
+`run`, `model_check`, `docs`, `narrate`, `ir`, `stores`, `smoke_test`,
+`project_diagrams`, `project_cli` and `mcp` ship in the installed gem; the
+Codebase verbs (`regenerate_corpus`, `check_comments`, `measure_doc_coverage`,
+`publish` and the rest) need a checkout of this repository and refuse
+without one. The logic lives under `lib/hecks/cli/` and `lib/hecks/tools/`,
+so a change to a command goes there; there is no `bin/` directory. The fuzzing, bench,
+corpus, codemod, query IR, grammar evolve and doc reference tooling ships in
+the gem but loads only when a command asks for it; `require "hecks"` loads
+none of it (`spec/gemspec_packaging_spec.rb`). The gem also ships `rust/`,
+without `target/`, `rust/tests/` or `rust/src/generated/`; `Build` copies it to
+`.hecks/rust/<version>/` in the client project and never writes into the gem.
 
 `spec/ir_golden_spec.rb` freezes the builder's `to_h` output per corpus
 member. If your change is a deliberate shape change (not a bug), you
@@ -166,12 +174,12 @@ request's own CI builds and runs the conformance suite, and the merge
 queue runs it again against main's current tip before anything lands. If
 you do touch anything
 that changes what gets generated (`rust/project/*.rb`,
-`bin/project_rust`, the kernel's hand-written half under
+`hecks project_rust`, the kernel's hand-written half under
 `rust/src/kernel/`), and you have `cargo` installed, run it yourself
 before you find out from CI:
 
 ```sh
-bundle exec bin/project_rust examples/banking
+bundle exec hecks project_rust examples/banking
 cd rust && cargo build --release && cargo test --lib
 ```
 
@@ -227,7 +235,7 @@ above:
 - the whole suite, and the fuzzing specs;
 - the Postgres and Rust `io` specs, against real databases and a real Rust
   build;
-- `bin/model_check`, the engine-agreement check, `bin/doc_coverage` and
+- `hecks model_check`, the engine-agreement check, `hecks measure_doc_coverage` and
   `rubocop`;
 - the Ruby/Rust parity specs and the golden IR (`spec/codegen_parity_spec.rb`,
   `spec/parser_parity_spec.rb`, `spec/rust_conformance_spec.rb`,
@@ -251,10 +259,10 @@ code.
 - `bundle exec rubocop -c .rubocop.yml` clean.
 - If you touched a `.bluebook` file that ships as part of the
   language's own definition (`lib/hecks/language/`) or added a DSL
-  word: `bin/doc_coverage` clean, and a real prose section in
+  word: `hecks measure_doc_coverage` clean, and a real prose section in
   `docs/implemented/reference/` — not the `TODO` sentinel — with a
   runnable example.
-- If you touched a lifecycle, saga, or policy: `bin/model_check` clean.
+- If you touched a lifecycle, saga, or policy: `hecks model_check` clean.
 - A short note on *why*, not just *what* — this repo's own comments
   (Gemfile, `.rubocop.yml`, `.githooks/pre-push`) are the house style
   for that: explain the reasoning that would otherwise get silently
@@ -299,31 +307,31 @@ an issue first — see the templates under `.github/ISSUE_TEMPLATE/`.
    a major carries a `Breaking:` entry, and a minor that changes how a
    running system behaves carries a `Behavior change` entry.
 2. Once that PR merges to `main`, check out `main`, pull, and run
-   `bin/release --dry-run` to see every check and build pass with nothing
-   tagged or published. Then run `bin/release`. It refuses unless the
+   `hecks publish` (no `--confirm`) to see every check and build pass with
+   nothing tagged or published. Then run `hecks publish --confirm`. It refuses unless the
    checkout is a clean `main` equal to `origin/main`, the gem and
    `packages/hecks-client` are at one version, and `CHANGELOG.md` has a
    heading for it. It asks RubyGems and npm what is already published and
    skips that, so if a run stops partway, run it again. In order, it:
    - creates the annotated tag `vX.Y.Z` on the merge commit and pushes it;
-   - runs `bin/release_gem` to build the gem and push it to rubygems.org;
+   - runs `hecks publish_gem` to build the gem and push it to rubygems.org;
    - waits for CI to publish `@hecks/client`. Pushing the tag starts
      `.github/workflows/publish-client.yml`, which publishes the package
-     with npm trusted publishing (no token, no code). `bin/release` says
+     with npm trusted publishing (no token, no code). `hecks publish` says
      so, then checks npm every 15 seconds for up to 10 minutes and reports
      success, or the timeout with the run to look at
      (`gh run list --workflow publish-client.yml`). `--no-wait` skips the
      wait.
 
-   It asks before the tag and before publishing the gem (`--yes` answers
-   for you). `--gem-only` skips the npm step; `--npm-only` skips the gem,
+   Without `--confirm` it only reports what it would do; `--confirm` is what
+   tags and publishes. `--gem-only` skips the npm step; `--npm-only` skips the gem,
    so on its own it just waits for CI's publish again (use it after
    re-running the workflow with `gh workflow run publish-client.yml -f
    tag=vX.Y.Z`).
 
    The gem's push key comes from 1Password (`op run`, Touch ID-gated;
    `release/gem_push.env`), and its one-time setup is in the header of
-   `bin/release_gem`.
+   `lib/hecks/cli/release_gem.rb`.
 
    One-time setup for CI publishing, by an owner of the `@hecks` scope on
    npmjs.com, possible only once the package exists: package
@@ -331,7 +339,7 @@ an issue first — see the templates under `.github/ISSUE_TEMPLATE/`.
    organization or user `heckslabs`, repository `hecks`, workflow filename
    `publish-client.yml`, environment blank.
 
-   `--npm-local` is the fallback, and how the first publish is made
+   `--npm-local` (an option of `hecks publish`) is the fallback, and how the first publish is made
    (before a trusted publisher can exist): it publishes `@hecks/client`
    from this machine with a token from 1Password instead of leaving it to
    CI (with `--npm-only` it publishes only the package). The token is the
@@ -341,12 +349,12 @@ an issue first — see the templates under `.github/ISSUE_TEMPLATE/`.
    scoped Read and write to the `@hecks` scope with "Bypass two-factor
    authentication" enabled, and short-lived: the account's second factor
    is a passkey, so a token that requires a one-time code cannot publish
-   (npm answers `EOTP`). The header of `bin/release` has the setup. The
+   (npm answers `EOTP`). The header of `lib/hecks/cli/release.rb` has the setup. The
    publish passes `--auth-type=web` as an interactive fallback: if npm
    does ask for a passkey or security key, it prints an approval link and
    waits.
 
-   `bin/release` does not create the GitHub Release. Once the tag is
+   `hecks publish` does not create the GitHub Release. Once the tag is
    pushed, create it with the version's own `CHANGELOG.md` section as its
    notes, so the Releases page lists every tag. Mark it Latest only when it
    is the newest version:
@@ -356,7 +364,7 @@ an issue first — see the templates under `.github/ISSUE_TEMPLATE/`.
    gh release create vX.Y.Z --title "hecks X.Y.Z" --notes-file notes.md --verify-tag --latest
    ```
 
-   Manual fallback, if `bin/release` cannot be used: tag the merge commit
+   Manual fallback, if `hecks publish` cannot be used: tag the merge commit
    (`git tag -a vX.Y.Z <sha>` and push it, which starts the CI publish),
-   run `bin/release_gem`, and if CI cannot publish, run
+   run `hecks publish_gem --confirm`, and if CI cannot publish, run
    `npm publish --access public` in `packages/hecks-client`.

@@ -2,9 +2,9 @@ require "hecks"
 require "hecks/ports/persistence/plugins/era"
 require_relative "support/qa_sweep_all_fixture"
 
-# `bin/qa_sweep --all` `dry_runs` comparison surface.
+# `qa_sweep --all` `dry_runs` comparison surface.
 # Own throwaway database: `hecks_qa_sweep_all_dry_run_spec`.
-RSpec.describe "bin/qa_sweep --all", :io do
+RSpec.describe "qa_sweep --all", :io do
   include_context "with a qa_sweep_all fixture", "hecks_qa_sweep_all_dry_run_spec"
 
   # `--dry-run 1` makes the Ruby side of `qa_sweep_all_dry_run_fixture` produce nothing, so the

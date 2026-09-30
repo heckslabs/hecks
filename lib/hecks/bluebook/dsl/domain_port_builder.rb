@@ -23,6 +23,7 @@ module Hecks
           @operations       = []
           @signal           = :reply
           @answers          = []
+          @answered_queries = []
           @legacy_bare_port = legacy_bare_port
         end
 
@@ -58,6 +59,30 @@ module Hecks
           @operations << PortOperationBuilder.build(name, to: to, owner: @owner, direction: :outbound, &)
         end
 
+        # Declares that this port's adapter answers one of the owning aggregate's queries.
+        #
+        # The bluebook declares the question and the shape of its answer (`returns`) and never
+        # says who answers it; this binds it. The adapter is asked by the query's snake-cased
+        # name with its arguments. The aggregate's stored records are never read.
+        #
+        # @param name [String] the query's name, as the aggregate declares it
+        # @param removed [Hash] any keyword at all; the binding takes only the name
+        # @return [Array<Bluebook::QueryAnswer>] every binding declared so far, this one last
+        # @raise [Bluebook::DSL::Malformed] if a keyword such as `shape:` is written, or the query
+        #   is already bound on this port
+        def answers_query_impl(name, **removed)
+          unless removed.empty?
+            raise Malformed, "answers_query #{name.inspect} takes only the query's name — the shape " \
+                             "of its answer is the query's own `returns`, declared in the bluebook " \
+                             "(#{removed.keys.join(', ')} is not a word here)"
+          end
+          if @answered_queries.any? { |answer| answer.name == name.to_s }
+            raise Malformed, "#{@name} binds #{name} twice — a query has one answer"
+          end
+
+          @answered_queries << QueryAnswer.new(name: name)
+        end
+
         # Names the verb aggregates call this port by, making it a driven `Port` rather than a
         # `DomainPort` of operations. A port is one shape or the other, never both.
         #
@@ -83,10 +108,11 @@ module Hecks
         #
         # @return [Bluebook::Port, Bluebook::DomainPort] a `Port` when the body named a `verb`
         #   (or was empty under `legacy_bare_port:`), otherwise a `DomainPort` of its operations
+        #   and answered queries
         # @raise [Bluebook::DSL::Malformed] if the body declares both a verb and operations,
         #   declares neither without `legacy_bare_port:`, or the port language refuses the `Port`
         def build
-          if @verb && !@operations.empty?
+          if @verb && !(@operations.empty? && @answered_queries.empty?)
             raise Malformed,
                   "#{@name} declares both a verb and operations — a port is one or the other, not both"
           end
@@ -96,9 +122,11 @@ module Hecks
                                                     answers: @answers))
           end
 
-          raise Malformed, "#{@name} declares no verb and no operations" if @operations.empty?
+          if @operations.empty? && @answered_queries.empty?
+            raise Malformed, "#{@name} declares no verb and no operations, and answers no query"
+          end
 
-          DomainPort.new(name: @name, operations: @operations)
+          DomainPort.new(name: @name, operations: @operations, answered_queries: @answered_queries)
         end
 
         # Evaluates a `port` block against a fresh builder and returns whichever shape it declared.

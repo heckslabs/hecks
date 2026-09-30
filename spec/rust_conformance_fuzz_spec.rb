@@ -20,7 +20,7 @@ RSpec.describe "Rust conformance, over generated sequences (native binary)", :io
   # example fails once the domain agrees and the entry must be deleted.
   RUST_FUZZ_PENDING = {}.freeze
 
-  # A total spread across DOMAINS, so a longer domain list adds no wall-clock.
+  # A total spread across `DOMAINS`, so a longer domain list adds no wall-clock.
   # `SEEDS=` sets a per-domain count instead; keep it modest, each seed spawns a subprocess.
   SEED_BUDGET = 80
   SEEDS_PER_DOMAIN = Integer(ENV["SEEDS"] || (SEED_BUDGET.to_f / DOMAINS.size).ceil)
@@ -45,7 +45,7 @@ RSpec.describe "Rust conformance, over generated sequences (native binary)", :io
         pending RUST_FUZZ_PENDING.fetch(File.basename(domain)) if RUST_FUZZ_PENDING.key?(File.basename(domain))
         feature = File.basename(domain).downcase
         binary = build_rust_for(feature)
-        skip "rust/Cargo.toml has no #{feature} feature — run bin/project_rust for it first" unless binary
+        skip "rust/Cargo.toml has no #{feature} feature — run hecks project_rust for it first" unless binary
 
         gaps = Hecks::Fuzzing::RustGapManifest.for_binary(binary)
         divergences = []
@@ -124,7 +124,7 @@ RSpec.describe "Rust conformance, over generated sequences (native binary)", :io
           end
         end
 
-        # A divergence is a finding: shrink it with `bin/fuzz shrink <domain> <seed>` first.
+        # A divergence is a finding: shrink it with `hecks fuzz shrink <domain> <seed>` first.
         # Printed so the seed and field are not buried in a large diff.
         message = divergences.map do |d|
           "seed #{d[:seed]} — #{d[:field]}" +
@@ -133,7 +133,7 @@ RSpec.describe "Rust conformance, over generated sequences (native binary)", :io
 
         expect(divergences).to be_empty, "#{divergences.size} divergence(s) found — reproduce with " \
                                          "`SEEDS=1 bundle exec rspec` after isolating the seed below, " \
-                                         "then shrink with bin/fuzz:\n#{message}"
+                                         "then shrink with hecks fuzz:\n#{message}"
       end
     end
   end

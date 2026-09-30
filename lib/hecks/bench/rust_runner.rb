@@ -7,7 +7,8 @@ module Hecks
     # Times the native Rust binary through `rust --serve`, one JSON step per line.
     # Timings include two pipe crossings and the binary's own JSON parse; start-up is excluded.
     module RustRunner
-      RUST_DIR = File.expand_path("../../../rust", __dir__)
+      # HECKS_RUST_DIR names the workspace to build in; unset, this checkout's own rust/.
+      RUST_DIR = ENV.fetch("HECKS_RUST_DIR") { File.expand_path("../../../rust", __dir__) }
 
       FLOOR_SAMPLES = 500
 

@@ -6,7 +6,7 @@ Hecks.hecksagon "Tenancy" do
   # `with:` is required: the event payload also carries the port's dispatch-time args, which
   # `Register` does not declare and would refuse.
   #
-  # Check with `bin/model_check lib/hecks/deploy lib/hecks/tenancy` in one run; alone, the
+  # Check with `hecks model_check lib/hecks/deploy lib/hecks/tenancy` in one run; alone, the
   # reaction to a foreign event reads as a deaf policy.
   translates "RegisterProvisionedTenant" do
     on Tenant::TenantProvisioned

@@ -12,7 +12,7 @@ module Hecks
       # as `Value.for`, `Value.build`, and so on.
       module Coercion
         # The complete set of attribute value shapes. Mirrored by hand into a
-        # generated Rust enum (bin/project_kernel_capabilities) — adding a shape
+        # generated Rust enum (hecks project_kernel_capabilities) — adding a shape
         # here without a matching Rust file leaves the kernel unaware of it.
         SHAPES = %i[scalar list optional composite].freeze
 
@@ -309,6 +309,7 @@ module Hecks
           check_required_fields(value_object, fields)
           admit_member(value_object, fields)
           check_admitted(value_object, fields)
+          check_list_shapes(value_object, fields)
           check_numeric_fields(value_object, fields)
           check_scalar_shapes(value_object, fields)
           check_patterns(value_object, fields)
@@ -453,6 +454,26 @@ module Hecks
                                            known_by: known_by(attribute))
         end
 
+        # A list argument is an Array whatever its element type, so a lone scalar offered for
+        # it is refused; nil stays legitimate, as for any optional argument. The single-element
+        # form belongs to the `append`/`remove` effects, which take one element and are
+        # coerced against the aggregate's own list, never through this gate.
+        #
+        # @param command [#hecks_name] what `attribute` is declared on, named in a refusal
+        # @param attribute [Bluebook::Attribute] the attribute to check; a no-op unless list-typed
+        #   (a `has_many` reference list has its own refusal)
+        # @param value [Object] the offered value
+        # @return [void]
+        # @raise [Runtime::TypeMismatch] if `value` is neither nil nor an Array
+        def refuse_scalar_list(command, attribute, value)
+          return unless attribute.list? && !attribute.reference? && !value.nil? && !value.is_a?(Array)
+
+          raise TypeMismatch, RefusalWording.render_site(
+            "TypeMismatch", "numeric_field", type: command.hecks_name, field: attribute.name,
+            expected: "list_of(#{attribute.type})", offered: Rendering.describe(value)
+          )
+        end
+
         # "an object" for the Hash/Value shape; `Rendering.describe` otherwise —
         # the same rendering every other TypeMismatch in this file uses.
         #
@@ -518,7 +539,7 @@ module Hecks
 
         # Converts a derived numeric identity string back before `check_numeric_fields` runs.
         private def coerce_identifier(field, identifier)
-          return identifier unless identifier.is_a?(String) && NUMERIC.key?(field.type.to_s)
+          return identifier unless identifier.is_a?(String) && FieldChecks::NUMERIC.key?(field.type.to_s)
 
           case field.type.to_s
           when "Integer" then Integer(identifier)
@@ -536,139 +557,6 @@ module Hecks
         # @return [String] `fields`, sorted by key name and JSON-encoded
         def canonical_fields(fields)
           JSON.generate(fields.sort_by { |name, _| name.to_s }.to_h)
-        end
-
-        # C3.8 boundary check — refuses a mistyped argument before it breaks a predicate.
-        private def check_bare_primitive(owner, attribute, value)
-          type = attribute.type.to_s
-          expected = NUMERIC[type]
-          mistyped = if expected
-                       !value.is_a?(expected)
-                     elsif NON_NUMERIC_SCALARS.include?(type)
-                       COMPOSITE_SHAPES.any? { |shape| value.is_a?(shape) }
-                     else
-                       false
-                     end
-          if mistyped
-            raise TypeMismatch,
-                  RefusalWording.render_site("TypeMismatch", "numeric_field",
-                                             type: owner.hecks_name, field: attribute.name,
-                                             expected: type, offered: Rendering.describe(value))
-          end
-
-          check_numeric_bounds(owner.hecks_name, attribute.name, value)
-        end
-
-        # C3.3/C3.4 — value bounds enforced at every boundary: an Integer must fit
-        # signed 64 bits, a Float must be finite.
-        INT64_RANGE = (-(2**63))..((2**63) - 1)
-
-        private def check_numeric_bounds(type_name, field_name, given)
-          if given.is_a?(Integer) && !INT64_RANGE.cover?(given)
-            raise TypeMismatch,
-                  RefusalWording.render_site("TypeMismatch", "integer_range",
-                                             type: type_name, field: field_name, offered: Rendering.describe(given))
-          end
-          return unless given.is_a?(Float) && !given.finite?
-
-          raise TypeMismatch,
-                RefusalWording.render_site("TypeMismatch", "non_finite_field",
-                                           type: type_name, field: field_name, offered: Rendering.describe(given))
-        end
-
-        # A value object refuses an undeclared key the same way a command's own
-        # payload does, checked before any other field-content check.
-        private def check_unknown_fields(value_object, fields)
-          known   = value_object.attributes.map { |attribute| attribute.name.to_sym }
-          unknown = (fields.keys.map(&:to_sym) - known).sort
-          return if unknown.empty?
-
-          declared = value_object.attributes.map(&:name)
-          raise UnknownArgument,
-                RefusalWording.render_site("UnknownArgument", "unknown_args",
-                                           command: value_object.hecks_name, unknown: unknown,
-                                           declared: declared)
-        end
-
-        # C3.7 — every non-optional, non-list field must arrive (or construction
-        # refuses); a `default:` has already been filled in by `apply_defaults`.
-        private def check_required_fields(value_object, fields)
-          value_object.attributes.each do |attribute|
-            next if attribute.optional? || attribute.list?
-            next unless fields[attribute.name].nil?
-
-            raise TypeMismatch,
-                  RefusalWording.render_site("TypeMismatch", "numeric_field",
-                                             type: value_object.hecks_name, field: attribute.name,
-                                             expected: attribute.type, offered: "nil")
-          end
-        end
-
-        # Checked before invariants, because an invariant reading a mistyped field
-        # is exactly the thing that would otherwise explode.
-        NUMERIC = { "Integer" => Integer, "Float" => Numeric }.freeze
-        private def check_numeric_fields(value_object, fields)
-          value_object.attributes.each do |attribute|
-            expected = NUMERIC[attribute.type.to_s]
-            next unless expected
-
-            given = fields[attribute.name]
-            next if given.nil?
-
-            unless given.is_a?(expected)
-              raise TypeMismatch,
-                    RefusalWording.render_site("TypeMismatch", "numeric_field",
-                                               type: value_object.hecks_name, field: attribute.name,
-                                               expected: attribute.type, offered: Rendering.describe(given))
-            end
-
-            # `is_a?(expected)` alone waves NaN/Infinity through — both are real
-            # Floats. `-0.0` is deliberately left unchecked: finite and legitimate.
-            check_numeric_bounds(value_object.hecks_name, attribute.name, given)
-          end
-        end
-
-        # A scalar field (String, or a boolean) must not arrive as a composite
-        # (Array/Hash) standing in for a leaf value. A String field additionally
-        # must not arrive as any other scalar, except inside `judge_bootstrapping?`.
-        COMPOSITE_SHAPES = [Array, ::Hash].freeze
-        NON_NUMERIC_SCALARS = %w[String TrueClass FalseClass].freeze
-        private def check_scalar_shapes(value_object, fields)
-          value_object.attributes.each do |attribute|
-            type = attribute.type.to_s
-            next unless NON_NUMERIC_SCALARS.include?(type)
-
-            given = fields[attribute.name]
-            next if given.nil?
-
-            composite = COMPOSITE_SHAPES.any? { |shape| given.is_a?(shape) }
-            non_string_scalar = type == "String" && !composite && !given.is_a?(String) && !judge_bootstrapping?
-            next unless composite || non_string_scalar
-
-            raise TypeMismatch,
-                  RefusalWording.render_site("TypeMismatch", "numeric_field",
-                                             type: value_object.hecks_name, field: attribute.name,
-                                             expected: attribute.type, offered: Rendering.describe(given))
-          end
-        end
-
-        # A field declared with a pattern must match it, refused as a TypeMismatch
-        # rather than surfacing later as a broken predicate. The pattern itself is
-        # already vetted by PatternSubset when the bluebook is declared.
-        private def check_patterns(value_object, fields)
-          value_object.attributes.each do |attribute|
-            pattern = attribute.pattern
-            next unless pattern
-
-            given = fields[attribute.name]
-            next if given.nil?
-            next if given.is_a?(String) && Regexp.new(pattern).match?(given)
-
-            raise TypeMismatch,
-                  RefusalWording.render_site("TypeMismatch", "pattern_mismatch",
-                                             type: value_object.hecks_name, field: attribute.name,
-                                             pattern: pattern, offered: Rendering.describe(given))
-          end
         end
       end
     end

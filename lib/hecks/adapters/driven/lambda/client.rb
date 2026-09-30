@@ -7,7 +7,7 @@ module Hecks
       # Runtime::RemoteDispatcher's writes: one Lambda invoke, one JSON round trip.
       #
       # The function name defaults to `"hecks-#{domain.downcase}"`, matching
-      # `bin/project_deploy`'s `stack_name` computation. A domain whose stack
+      # `hecks deploy project`'s `stack_name` computation. A domain whose stack
       # name doesn't follow that pattern must pass `function` explicitly, via
       # a `.world`'s `persisted_by("Lambda")`/`dispatched_by("Lambda")` block.
       class Client

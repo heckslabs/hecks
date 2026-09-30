@@ -5,18 +5,23 @@ require "hecks/ports/persistence/plugins/era"
 # era to era, and the newest lands on the shape the bluebook declares today.
 # Nothing else reads them: Fuzzing::IsolatedBoot strips translations/ before every sweep.
 RSpec.describe "the committed translation edges" do
+  # The QA ledger's chapter ships in lib/, so its directory holds no bluebook of its own to be
+  # swept; its edges stay beside the wiring and the world that name its database.
   def self.domains_with_edges
-    Hecks::Corpus.sweepable_domains.select { |domain| File.directory?(File.join(domain, "bluebook", "translations")) }
+    ledgers = Hecks::Corpus::ROTATION_LEDGER.values.map { |path| File.join(InMemoryDomain::ROOT, File.dirname(path)) }
+    (Hecks::Corpus.sweepable_domains | ledgers)
+      .select { |domain| File.directory?(File.join(domain, "bluebook", "translations")) }
   end
 
   def chapter_in(bluebook_dir)
+    files = Hecks::Corpus.bluebook_files(bluebook_dir)
     registry = Hecks::Runtime::Registry.new
     Hecks.with_registry(registry) do
       Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
       Kernel.load(InMemoryDomain::EXTRACTION_PORT)
       Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
       Kernel.load(InMemoryDomain::PRISM_ADAPTER)
-      load_bluebook_files(bluebook_dir)
+      load_bluebook_files(files)
     end
     registry.bluebooks.values.first
   end

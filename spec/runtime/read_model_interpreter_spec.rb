@@ -1076,7 +1076,7 @@ RSpec.describe "a read model's query options" do
 
       Widgets::Shelf.open!(ref: { value: "s-empty" })
       # `any` of nothing is false; `all` of nothing is true (the ordinary
-      # OR-identity/AND-identity vacuous-truth reading, ADR 0078).
+      # `or`-identity/`and`-identity vacuous-truth reading, ADR 0078).
       expect(runtime.query("Widgets.shelf_has_flagged", shelf: "s-empty").first[:widgets]).to be false
       expect(runtime.query("Widgets.shelf_all_flagged", shelf: "s-empty").first[:widgets]).to be true
     end

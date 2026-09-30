@@ -15,7 +15,7 @@ gem "aws-sdk-lambda", "~> 1.0"
 # Used by qa/lambda_handler.rb to fetch secrets at Lambda cold start.
 gem "aws-sdk-secretsmanager", "~> 1.0"
 
-# The forms app needs only Rack::Request/Response; rackup and webrick serve bin/present.
+# The forms app needs only Rack::Request/Response; rackup and webrick serve hecks present.
 gem "rack", "~> 3.0"
 gem "rackup", "~> 2.0"
 gem "webrick", "~> 1.9"

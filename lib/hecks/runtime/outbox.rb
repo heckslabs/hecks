@@ -240,7 +240,7 @@ module Hecks
           when "policy"
             policy = @registry.bluebook(home)&.policies&.find { |candidate| candidate.name == name } ||
                      raise(WiringError, "outbox row #{row.delivery_id} names policy #{fqn}, which no bluebook declares")
-            @policies.react(event, row.domain, only: [policy, home])
+            @policies.react(event, row.domain, only: [policy, home], event_uid: row.event_uid)
           when "saga"
             process_manager = @registry.bluebook(home)&.process_managers&.find { |candidate| candidate.name == name } ||
                               raise(WiringError,

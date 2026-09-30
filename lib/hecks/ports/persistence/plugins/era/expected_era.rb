@@ -59,13 +59,26 @@ module Hecks
         # @raise [Unreachable] if the request fails or the status is not `200`
         # @raise [BadResponse] if the body is not JSON or its `era` is not a non-empty string
         def fetch_era(url, timeout: 10)
+          fetch_version(url, timeout: timeout).fetch("era")
+        end
+
+        # Asks a host for its `/version` document.
+        #
+        # @param url [String] the host's base URL, or its `/version` URL
+        # @param timeout [Numeric] seconds allowed for connecting and for reading
+        # @return [Hash{String => String}] `"era"` (never empty) and `"version"` (empty when the
+        #   host reports none)
+        # @raise [Unreachable] if the request fails or the status is not `200`
+        # @raise [BadResponse] if the body is not JSON or its `era` is not a non-empty string
+        def fetch_version(url, timeout: 10)
           response = get(version_url(url), timeout)
           raise Unreachable, "#{version_url(url)} answered #{response.code}" unless response.code == "200"
 
-          era = JSON.parse(response.body)["era"]
+          document = JSON.parse(response.body)
+          era = document["era"]
           raise BadResponse, "#{version_url(url)} carries no era" unless era.is_a?(String) && !era.empty?
 
-          era
+          { "era" => era, "version" => document["version"].to_s }
         rescue JSON::ParserError, TypeError
           raise BadResponse, "#{version_url(url)} did not answer a JSON version document"
         end

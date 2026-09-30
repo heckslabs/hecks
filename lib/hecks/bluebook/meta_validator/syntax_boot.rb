@@ -85,9 +85,12 @@ module Hecks
 
         def disk_cache_key(chapters)
           names = chapters.map { |name, _chapter| name }
-          Digest::SHA256.hexdigest("#{names.join(',')}:#{grammar_content_digest}")
+          Digest::SHA256.hexdigest("#{names.join(',')}:#{grammar_content_digest}:#{VerdictCache.code_digest}")
         end
 
+        # The key also carries `VerdictCache.code_digest` (all of `lib/`), so an
+        # edit to Ruby that builds or judges the grammar misses too.
+        #
         # Covers every chapter's grammar files, not just the core ones —
         # coarser than strictly necessary, but under-covering this set would
         # let a stale table survive a real grammar edit.

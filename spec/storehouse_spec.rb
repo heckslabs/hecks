@@ -2,9 +2,9 @@ require "spec_helper"
 require "hecks/ports/persistence/plugins/era"
 
 # Storehouse's dispatch/query/state/etc. reuse the same machinery
-# `CliRunner`/`Facade::JsonDoor` already use, so these specs prove
+# `CliRunner`/`Doors::JsonDoor` already use, so these specs prove
 # composition, not verb resolution or JSON materialization from scratch.
-# `bin/hecks_mcp_door` is one door onto this bus, not the bus itself.
+# `hecks mcp` is one door onto this bus, not the bus itself.
 RSpec.describe Hecks::Storehouse do
   # The audit log is real disk state keyed only by domain name, so a fresh
   # in-memory `runtime` per example is not a fresh log. Each example gets
@@ -434,7 +434,7 @@ RSpec.describe Hecks::Storehouse do
   end
 
   # `spec/mcp_servers_spec.rb` proves the same refusals reach a caller of the real
-  # `bin/hecks_mcp_door` process. What is proved here is the bus itself: identity is a
+  # `hecks mcp` process. What is proved here is the bus itself: identity is a
   # string the caller supplies, the bus refuses a role-gated command when none is
   # supplied, and it does not gate anything that declares no role. `create_pizza`
   # declares `role "Chef"`; `order.purchase` declares `role "Customer"`; queries cannot

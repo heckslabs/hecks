@@ -3,7 +3,7 @@
 # KeywordSeed under lib/hecks/language/).
 #
 # Do not edit. spec/bootstrap_table_spec.rb re-projects this in memory
-# and refuses a diff — run bin/project_bootstrap_table instead.
+# and refuses a diff — run hecks project_bootstrap_table instead.
 #
 # Plain data, no requires: this is read while the grammar table it was
 # projected from is still being built (`MetaValidator.bootstrapping?`).
@@ -88,6 +88,7 @@ module Hecks
           ["DomainPort", "operation"] => :tells_impl,
           ["DomainPort", "tells"] => :tells_impl,
           ["DomainPort", "asks"] => :asks_impl,
+          ["DomainPort", "answers_query"] => :answers_query_impl,
           ["Hecksagon", "port"] => :port_impl,
           ["PortOperation", "reference_to"] => :reference_to_impl,
           ["PortOperation", "attribute"] => :attribute_impl,

@@ -3,7 +3,7 @@ require_relative "../../rust/project"
 
 # `creates_owner?` decides whether a command builds the owner record from scratch. A command whose
 # argument merely shares a name with an owner identity component (a list append) must not count.
-# Fixtures are projector-shaped hashes, as `bin/project_rust` feeds them.
+# Fixtures are projector-shaped hashes, as `hecks project_rust` feeds them.
 RSpec.describe RustProjection::Projector do
   # Owner shaped like the meta-domain's Aggregate, `identified_by :bluebook, :name`.
   CREATES_OWNER_SPEC_AGGREGATE = {

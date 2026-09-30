@@ -4,6 +4,7 @@ require "tempfile"
 require "json"
 require_relative "isolated_boot"
 require_relative "../naming"
+require_relative "../quality_control/cli/child"
 
 module Hecks
   module Fuzzing
@@ -61,7 +62,7 @@ module Hecks
         lockable = []
         probe_errors = []
         boot_preserving_schema(domain_path, database: database, schema: schema) do |copy|
-          runtime = Hecks.boot(copy)
+          runtime = Hecks.boot(copy, environment: nil)
           verbs.each do |verb|
             lockable << verb if verb_cross_process_lockable?(runtime, verb, probe_errors)
           end
@@ -104,7 +105,7 @@ module Hecks
       def reference_outcomes(domain_path, setup_steps, race_step, database:, schema:)
         outcomes = []
         IsolatedBoot.call(domain_path, adapter: :postgres_era, database: database, schema: schema) do |copy|
-          runtime = Hecks.boot(copy)
+          runtime = Hecks.boot(copy, environment: nil)
           dispatch_all!(runtime, setup_steps)
           outcomes << dispatch_one(runtime, race_step)
           outcomes << dispatch_one(runtime, race_step)
@@ -120,18 +121,18 @@ module Hecks
       # Postgres connection, which corrupted it when tried here.
       def concurrent_outcomes(domain_path, setup_steps, race_step, database:, schema:)
         IsolatedBoot.call(domain_path, adapter: :postgres_era, database: database, schema: schema) do |copy|
-          dispatch_all!(Hecks.boot(copy), setup_steps)
+          dispatch_all!(Hecks.boot(copy, environment: nil), setup_steps)
         end
 
         root = File.expand_path("../../..", __dir__)
-        racer = File.join(root, "bin/qa_concurrency_racer")
         args_json = JSON.generate(race_step["args"] || {})
         logs = Array.new(2) { Tempfile.new(["qa-concurrency-racer-", ".log"]) }
         logs.each(&:unlink)
 
         pids = logs.map do |log|
-          Process.spawn("bundle", "exec", "ruby", racer, domain_path, database, schema, race_step["verb"], args_json,
-                        out: log, err: log, chdir: root)
+          racer = Hecks::QualityControlCli::Child.argv(root, "qa_concurrency_racer", domain_path, database, schema,
+                                                       race_step["verb"], args_json)
+          Process.spawn(*racer, out: log, err: log, chdir: root)
         end
 
         pids.each { |pid| Process.wait(pid) }
@@ -139,7 +140,7 @@ module Hecks
           log.rewind
           output = log.read
           log.close
-          output.strip.empty? ? "crashed:no output from bin/qa_concurrency_racer" : output.lines.last.chomp
+          output.strip.empty? ? "crashed:no output from the concurrency racer" : output.lines.last.chomp
         end
       end
 

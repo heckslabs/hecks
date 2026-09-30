@@ -175,13 +175,25 @@ RSpec.describe Hecks::Projector::CliProjector do
       expect(help).to include("status is not open")
     end
 
+    it "words a given as what must hold, so the verb is refused unless it does" do
+      help  = described_class.call(bluebook: registry.bluebook("Banking"),
+                                   options:  { verb: "account.freeze_account" })[:usage]
+      lines = help.lines.map(&:chomp)
+
+      unless_at = lines.index("refused unless:")
+      expect(unless_at).not_to be_nil
+      expect(lines[unless_at + 1]).to eq("  customer is not closed")
+      expect(lines[(lines.index("refused when:") + 1)..].take_while { |l| l.start_with?("  ") })
+        .not_to include("  customer is not closed")
+    end
+
     # Without `ask:` a question's help prints the command that shares its name.
     it "picks the namespace the caller asked about" do
       question = described_class.call(bluebook: registry.bluebook("Banking"),
                                       options:  { verb: "account.open", ask: true })[:usage]
 
       expect(question).to include("reads Banking::Account.Open")
-      expect(question).to include("bin/run ask open")
+      expect(question).to include("hecks run ask open")
     end
   end
 end

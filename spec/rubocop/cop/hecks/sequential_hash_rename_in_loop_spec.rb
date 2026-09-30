@@ -12,7 +12,7 @@ RSpec.describe RuboCop::Cop::Hecks::SequentialHashRenameInLoop do
 
   subject(:cop) { described_class.new(config) }
 
-  # Off so offense messages match the cop's MSG without the cop-name badge.
+  # Off so offense messages match the cop's `MSG` without the cop-name badge.
   let(:config) { RuboCop::Config.new("AllCops" => { "DisplayCopNames" => false }) }
 
   # Fixture rebuilding the buggy `apply_renames` shape, so the cop is proven to catch it.
