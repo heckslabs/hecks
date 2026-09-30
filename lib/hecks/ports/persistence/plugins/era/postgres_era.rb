@@ -130,7 +130,7 @@ module Hecks
       def initialize(aggregate:, settings: {}, root: nil)
         @aggregate = aggregate
         @settings  = settings
-        @db = PostgresSharedConnection.for(aggregate.name, settings)
+        @db = PostgresSharedConnection.for(aggregate.name, settings, connector: self.class)
         # Journal name: the owning bluebook's declared name, matching the key rust/host derives its
         # advisory lock from (ADR 0036). A bare aggregate with no owner falls back to its own name.
         @domain = self.class.setting(
