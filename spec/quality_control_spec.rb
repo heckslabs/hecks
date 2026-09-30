@@ -4,7 +4,7 @@ require "hecks/fuzzing"
 # The QA ledger booted against Memory so runs never touch the real ledger; only wiring is swapped.
 # Written through the facade; the two helpers at the top are where it reaches past it.
 RSpec.describe "QualityControl" do
-  QC_ROOT = File.join(InMemoryDomain::ROOT, "qa/bluebook").freeze
+  QC_ROOT = File.join(InMemoryDomain::ROOT, "lib/hecks/quality_control").freeze
 
   class StubTracker
     # The answer is spread into the event payload and a policy re-enters with it verbatim, so
@@ -748,15 +748,17 @@ RSpec.describe "QualityControl" do
   # `gh pr create`, when its number, branch and commit are already known.
   describe "tracking a pull request" do
     def a_bug_needing_a_patch
-      a_bug(a_sweep)
+      bug = a_bug(a_sweep)
+      bug.investigate!(site: { value: "lib/x.rb" }, cause: { value: "c" })
+      bug.fix!(reference: { value: "BUG#1" }, commit: { value: "4f2a19c" })
     end
 
-    def open_patch(bug, number: 538, branch: "loop-parity/some-slug", commit: "4f2a19c", now: 1_000)
+    def open_patch(bug, number: 538, branch: "qa/some-slug", commit: "4f2a19c", now: 1_000)
       QualityControl::Patch.open!(
         bug: bug.id, number: { value: number },
         url: { value: "https://github.com/heckslabs/hecks/pull/#{number}" },
         branch: { value: branch }, commit: { value: commit },
-        title: { value: "loop-parity: #{branch}" },
+        title: { value: "qa: #{branch}" },
         now: { value: now }
       )
     end
@@ -783,6 +785,38 @@ RSpec.describe "QualityControl" do
       expect(open_numbers).to eq([538])
     end
 
+    # The rules for opening a pull request are `given`s on `Open`, so a dry run of the command
+    # answers them before a pull request exists.
+    it "refuses a branch this practice does not recognise as its own" do
+      bug = a_bug_needing_a_patch
+
+      expect { open_patch(bug, branch: "loop-parity/old-habit") }
+        .to raise_error(Hecks::Runtime::GivenNotMet, /branch is one this practice recognises/)
+      expect(open_numbers).to be_empty
+    end
+
+    it "refuses a bug that is not fixed" do
+      logged = a_bug(a_sweep)
+
+      expect { open_patch(logged) }.to raise_error(Hecks::Runtime::GivenNotMet, /the bug is fixed/)
+      expect(open_numbers).to be_empty
+    end
+
+    it "answers a dry run without recording anything" do
+      bug = a_bug_needing_a_patch
+
+      expect(runtime.dry_run?("QualityControl::Patch.Open", bug: bug.id, number: { value: 538 },
+                                url: { value: "https://example.com/pull/538" }, branch: { value: "qa/x" },
+                                commit: { value: "4f2a19c" }, title: { value: "x" }, now: { value: 1 })).to be(true)
+      expect(open_numbers).to be_empty
+    end
+
+    it "spells the branch prefix the dial names" do
+      source = File.read(File.join(QC_ROOT, "quality_control.bluebook"))
+
+      expect(source).to include(%(branch.value.start_with?("#{QualityControlDials::BRANCH_PREFIX}")))
+    end
+
     it "drops out of the worklist once GitHub merges it" do
       patch = open_patch(a_bug_needing_a_patch)
       patch.merge!
@@ -802,8 +836,8 @@ RSpec.describe "QualityControl" do
     # Same shape as `Ticket.ForBug`, restated here rather than shared.
     it "finds every patch ever opened for one bug" do
       bug = a_bug_needing_a_patch
-      open_patch(bug, number: 538, branch: "loop-parity/first")
-      open_patch(bug, number: 540, branch: "loop-parity/second")
+      open_patch(bug, number: 538, branch: "qa/first")
+      open_patch(bug, number: 540, branch: "qa/second")
 
       numbers = rows("Patch.ForBug", bug_id: { value: bug.id }).map { |row| row[:number][:value] }
       expect(numbers).to contain_exactly(538, 540)
@@ -823,9 +857,9 @@ RSpec.describe "QualityControl" do
 
     it "lists every patch ever opened, whatever became of it" do
       bug = a_bug_needing_a_patch
-      merged = open_patch(bug, number: 538, branch: "loop-parity/first")
+      merged = open_patch(bug, number: 538, branch: "qa/first")
       merged.merge!
-      open_patch(bug, number: 540, branch: "loop-parity/second")
+      open_patch(bug, number: 540, branch: "qa/second")
 
       numbers = rows("Patch.All").map { |row| row[:number][:value] }
       expect(numbers).to contain_exactly(538, 540)
@@ -859,6 +893,22 @@ RSpec.describe "QualityControl" do
           branch: { value: "x" }, title: { value: "x" }, now: { value: 1_000 }
         )
       end.to raise_error(Hecks::Runtime::NotFound)
+    end
+
+    it "refuses a branch this practice does not recognise as its own" do
+      expect { open_improvement(branch: "loop-parity/old-habit") }
+        .to raise_error(Hecks::Runtime::GivenNotMet, /branch is one this practice recognises/)
+      expect(open_numbers).to be_empty
+    end
+
+    it "refuses an angle nobody has picked up, and admits it once somebody has" do
+      angle = an_angle(reference: "ANGLE-1")
+
+      expect { open_improvement(angle: angle) }
+        .to raise_error(Hecks::Runtime::GivenNotMet, /the angle is under investigation/)
+
+      angle.investigate!
+      expect(open_improvement(angle: angle).status).to eq("opened")
     end
 
     it "is born opened, with no commit on the record yet" do

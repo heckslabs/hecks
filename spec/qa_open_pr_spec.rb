@@ -116,7 +116,7 @@ RSpec.describe "bin/qa_open_pr", :io do
     _stdout, stderr, status = open_pr("--bug", "BUG#1", "--title", "fix")
 
     expect(status.exitstatus).to eq(1)
-    expect(stderr).to include("does not start with QualityControlDials::BRANCH_PREFIX")
+    expect(stderr).to include("the branch is one this practice recognises as its own", "QualityControlDials::BRANCH_PREFIX")
     expect(gh_calls).to be_empty
     expect(patches_on_file).to be_empty
   end
@@ -128,7 +128,7 @@ RSpec.describe "bin/qa_open_pr", :io do
     _stdout, stderr, status = open_pr("--bug", "BUG#1", "--title", "fix")
 
     expect(status.exitstatus).to eq(1)
-    expect(stderr).to include('BUG#1 is "logged", not "fixed"')
+    expect(stderr).to include("the bug is fixed", %(BUG#1 is "logged"))
     expect(gh_calls).to be_empty
   end
 
@@ -185,7 +185,7 @@ RSpec.describe "bin/qa_open_pr", :io do
 
     _stdout, stderr, status = open_pr("--improvement", "--angle", "ANGLE-1", "--title", "qa: build it")
     expect(status.exitstatus).to eq(1)
-    expect(stderr).to include('ANGLE-1 is "proposed", not "investigating"')
+    expect(stderr).to include("the angle is under investigation", %(ANGLE-1 is "proposed"))
 
     angle.investigate!
     stdout, stderr, status = open_pr("--improvement", "--angle", "ANGLE-1", "--title", "qa: build it")

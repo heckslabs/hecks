@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require_relative "../../lib/hecks/adapters/driving/github_webhook"
+require_relative "../../adapters/driving/github_webhook"
 require_relative "clearance_recorder"
 
 module Hecks

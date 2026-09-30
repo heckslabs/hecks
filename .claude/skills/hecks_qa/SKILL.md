@@ -7,8 +7,9 @@ description: Run one tick of hecks's adversarial QA practice — bin/qa_tick (CI
 
 **This skill does not itself loop.** It runs exactly one tick. For
 continuous operation the *caller* wraps it: `/loop hecks_qa`. Everything
-mechanical lives in scripts and in `qa/bluebook/quality_control.bluebook`
-(read its header once — three rules: a CHECK compares an expectation
+mechanical lives in scripts and in `lib/hecks/quality_control/quality_control.bluebook`
+(the chapter, with its ports and adapters beside it; `qa/` keeps this repository's
+ledger wiring, world, settings and stress domains) (read its header once — three rules: a CHECK compares an expectation
 against an answer; a BUG is logged with the failing test that proves it or
 not at all; everything else is a GATE, refusable, waivable only by a
 person). What is left here is judgment.
@@ -97,11 +98,13 @@ in order:
    runner worktree; move the bug through `bin/run qa/bluebook
    bug.investigate id=BUG#n …`, `fix id=BUG#n reference.value=BUG#n
    commit.value=<sha>`, `verify id=BUG#n evidence.value="<what ran>"`;
-   then `bin/qa_open_pr --bug BUG#n --title "…"`. It refuses a branch
-   off `BRANCH_PREFIX`, a bug that is not `fixed`, a fix commit not on
-   HEAD, and a day already at `PR_CAP_PER_DAY`; it records the PR in the
-   ledger itself and queues auto-merge per `AUTO_MERGE`. Return the
-   worktree to `main`, clean, before finishing.
+   then `bin/qa_open_pr --bug BUG#n --title "…"`. It asks the ledger
+   first, as a dry run of `Patch.Open`, whose `given`s refuse a branch
+   off `BRANCH_PREFIX` and a bug that is not `fixed`; the `GitPr` adapter
+   refuses a fix commit not on HEAD and a day already at
+   `PR_CAP_PER_DAY`. It records the PR in the ledger itself and queues
+   auto-merge per `AUTO_MERGE`. Return the worktree to `main`, clean,
+   before finishing.
 5. **If `bigger`:** leave the Bug open and unclaimed. The ledger IS the
    tracker — no GitHub issue (`Ticket` stays dormant).
 
@@ -151,7 +154,7 @@ subagent's judgments:
 Only when a person asks for it ("mine new combinations", "have an agent
 look for new bug shapes"): `bin/qa_mine_combinations [--candidates N]
 [--rust]`. It censuses `qa/stress_domains/*` and `examples/*`, asks an
-agent (`claude -p` by default) to write N candidate bluebooks aimed at
+agent (the `Agent` adapter: `claude -p` by default) to write N candidate bluebooks aimed at
 unmet form pairs and recent bug mechanisms, each with a HYPOTHESIS.md,
 gives non-booting ones back for one repair round, and checks the rest
 through `bin/qa_generated_domains --source`. `--brief` prints the prompt

@@ -1,9 +1,10 @@
 require "spec_helper"
 require "hecks/chapters"
 
-# `attaches` brings a chapter the gem carries (the language, Expression, Tenancy, Deploy) into a
-# domain by name (ADR 0080, section 4). Like `uses_framework`, the attached chapter is a bounded
-# context, and the consumer's sibling hecksagon for it is the anti-corruption layer.
+# `attaches` brings a chapter the gem carries (the language, Expression, Tenancy, Deploy,
+# QualityControl) into a domain by name (ADR 0080, section 4). Like `uses_framework`, the attached
+# chapter is a bounded context, and the consumer's sibling hecksagon for it is the
+# anti-corruption layer.
 RSpec.describe "a hecksagon attaching a chapter the gem carries" do
   def registry_with(&block)
     registry = Hecks::Runtime::Registry.new
@@ -69,6 +70,39 @@ RSpec.describe "a hecksagon attaching a chapter the gem carries" do
 
   it "refuses a name no attachable chapter has, listing the ones that exist" do
     expect { attach("Nowhere") }.to raise_error(Hecks::Runtime::WiringError, /no attachable chapter named "Nowhere".*Deploy/)
+  end
+
+  # QualityControl ships its ports and adapters beside its bluebook, so every hecksagon that
+  # attaches it (the Hecks chapter, the QA ledger) gets the same contract.
+  describe "a chapter that ships its ports and adapters" do
+    let(:registry) { attach("QualityControl") }
+
+    it "declares the chapter's ports on its aggregates" do
+      quality_control = registry.bluebook("QualityControl")
+
+      expect(quality_control.aggregate("Ticket").port("IssueTracker")).not_to be_nil
+      expect(quality_control.aggregate("Clearance").port("CI")).not_to be_nil
+    end
+
+    it "loads the adapters that bind them, one per port" do
+      bound = registry.adapters.values.to_h { |adapter| [adapter.name, adapter.port] }
+
+      expect(bound).to include("GithubIssues" => "IssueTracker", "GithubChecks" => "CI",
+                               "GitPr" => "GitPr", "Agent" => "Agent")
+    end
+
+    it "loads nothing twice when a second hecksagon attaches the chapter" do
+      registry_with do
+        declare_console
+        Hecks::Chapters.load!("QualityControl")
+
+        expect(Hecks::Chapters.load!("QualityControl")).to be_nil
+      end
+    end
+
+    it "leaves a chapter with no ports file or adapters as it was" do
+      expect(attach("Deploy").adapters.keys).not_to include("GithubIssues")
+    end
   end
 
   it "offers only the language's Translation chapter, never the grammar's" do

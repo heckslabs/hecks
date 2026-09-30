@@ -24,7 +24,7 @@ RSpec.describe "the model checker" do
       hecksagons = if File.directory?(bluebook)
                      Dir.glob(File.join(bluebook, "*.hecksagon"))
                    else
-                     [bluebook.sub(/\.bluebook\z/, ".hecksagon")]
+                     [".hecksagon", ".ports.hecksagon"].map { |suffix| bluebook.sub(/\.bluebook\z/, suffix) }
                    end
       hecksagons.each { |hecksagon| Kernel.load(hecksagon) if File.exist?(hecksagon) }
     end
@@ -154,9 +154,9 @@ RSpec.describe "the model checker" do
     end
 
     # A policy triggering an `asks`/`tells` port operation (three segments) is not an
-    # `unknown_trigger`; qa/bluebook/quality_control.bluebook's FileWhenSubmitted is the real case.
+    # `unknown_trigger`; the QualityControl chapter's FileWhenSubmitted is the real case.
     it "does not flag a policy triggering a real, declared port operation (BUG#23)" do
-      quality_control = File.join(ROOT_DIR, "qa/bluebook/quality_control.bluebook")
+      quality_control = File.join(ROOT_DIR, "lib/hecks/quality_control/quality_control.bluebook")
       real_findings = call_model_check(boot(quality_control))
 
       unknown_triggers = real_findings.select { |f| f.kind == :unknown_trigger }

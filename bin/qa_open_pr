@@ -6,9 +6,12 @@
 #   bin/qa_open_pr --bug bug#n --title "…" [--body "…"]
 #   bin/qa_open_pr --improvement [--angle angle-n] --title "…" [--body "…"]
 
-# Refuses (exit 1, nothing opened or recorded) unless: the branch starts with `BRANCH_PREFIX`;
-# the tree is clean; `PR_CAP_PER_DAY` (0 = uncapped) is unmet since local midnight; with `--bug`,
-# the bug is `fixed` and its commit is an ancestor of HEAD; with `--angle`, it is `investigating`.
+# Refuses (exit 1, nothing opened or recorded) unless the ledger's own `Open` command would take
+# the record and the `GitPr` adapter agrees. The command's `given`s are the rules, asked as a dry
+# run before anything is opened: the branch starts with the practice's prefix; with `--bug`, the
+# bug is `fixed`; with `--angle`, it is `investigating`. The adapter answers the rest: the tree
+# is clean, `PR_CAP_PER_DAY` (0 = uncapped) is unmet since local midnight, and with `--bug`, the
+# bug's commit is an ancestor of `HEAD`.
 # Idempotent: an open PR is not re-created and a recorded number is not re-recorded.
 # `QA_REPO_DIR` picks the checkout `git` runs in, so a spec can use a throwaway repo and fake `gh`.
 
@@ -20,8 +23,7 @@ $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
 require "hecks"
 # The era subsystem does not load with core (ADR 0033); see bin/run.
 require "hecks/ports/persistence/plugins/era"
-require "json"
-require "open3"
+require "hecks/quality_control/adapters/git_pr"
 
 ROOT       = File.expand_path("..", __dir__)
 DOMAIN_DIR = ENV.fetch("QA_SWEEP_DOMAIN_DIR", File.join(ROOT, "qa/bluebook"))
@@ -34,6 +36,9 @@ USAGE = "usage: bin/qa_open_pr --bug BUG#n --title \"…\" [--body \"…\"]\n   
         "bin/qa_open_pr --improvement [--angle ANGLE-n] --title \"…\" [--body \"…\"]".freeze
 
 SHA_PATTERN = /\A[0-9a-fA-F]{7,40}\z/
+
+# Stands in for the commit of a bug that is not fixed yet, so its dry run reaches the `given`.
+PLACEHOLDER_COMMIT = "0000000".freeze
 
 options = {}
 until ARGV.empty?
@@ -58,24 +63,17 @@ abort "#{USAGE}\ngive --bug BUG#n OR --improvement, not both" if options[:bug] &
 abort "#{USAGE}\ngive --bug BUG#n or --improvement" unless options.key?(:bug) || options.key?(:improvement)
 abort "#{USAGE}\n--angle only means something with --improvement" if options[:angle] && !options[:improvement]
 
-def git(*)
-  out, err, status = Open3.capture3("git", *, chdir: REPO_DIR)
-  [out.strip, err.strip, status]
+git_pr = Hecks::Adapters::GitPr.new(repo_dir: REPO_DIR)
+
+# Every rule the adapter enforces refuses the same way: exit 1, nothing opened or recorded.
+def refusing
+  yield
+rescue Hecks::Adapters::GitPr::Refusal => e
+  abort "refused: #{e.message}"
 end
 
-def gh(*)
-  out, err, status = Open3.capture3("gh", *, chdir: REPO_DIR)
-  [out.strip, err.strip, status]
-end
-
-branch, _err, status = git("rev-parse", "--abbrev-ref", "HEAD")
-abort "refused: not a git checkout at #{REPO_DIR}" unless status.success?
-
-dirty, _err, status = git("status", "--porcelain")
-abort "refused: could not read git status at #{REPO_DIR}" unless status.success?
-abort "refused: the working tree at #{REPO_DIR} is dirty — commit or discard first:\n#{dirty}" unless dirty.empty?
-
-head, _err, = git("rev-parse", "HEAD")
+branch = refusing { git_pr.branch }
+refusing { git_pr.assert_clean_tree! }
 
 runtime = begin
   Hecks.boot(DOMAIN_DIR)
@@ -86,7 +84,7 @@ end
 
 def q(runtime, name, **args) = runtime.query("QualityControl::#{name}", **args)
 
-# Falls back to a dial-less fixture ledger's values: uncapped, non-draft, no auto-merge, `qa/`.
+# Falls back to a dial-less fixture ledger's values: uncapped, non-draft, no auto-merge.
 def dial(name, fallback)
   return fallback unless defined?(QualityControlDials) && QualityControlDials.const_defined?(name)
 
@@ -96,11 +94,63 @@ end
 PR_CAP_PER_DAY = dial(:PR_CAP_PER_DAY, 0)
 DRAFT_ONLY     = dial(:DRAFT_ONLY, false)
 AUTO_MERGE     = dial(:AUTO_MERGE, false)
-BRANCH_PREFIX  = dial(:BRANCH_PREFIX, "qa/")
 
-unless branch.start_with?(BRANCH_PREFIX)
-  abort "refused: branch #{branch.inspect} does not start with QualityControlDials::BRANCH_PREFIX " \
-        "(#{BRANCH_PREFIX.inspect}) — a PR this practice opens is on a branch it can recognise as its own"
+bug = angle = nil
+
+if options[:bug]
+  bug = QualityControl::Bug.find(options[:bug])
+  abort "refused: no such bug #{options[:bug].inspect}" unless bug
+end
+
+if options[:angle]
+  angle = QualityControl::Angle.find(options[:angle])
+  abort "refused: no such angle #{options[:angle].inspect}" unless angle
+end
+
+# What a refused `given` says to do next, by the rule's own wording; nothing for a rule it does
+# not know.
+def hint_for(rule, bug, angle, branch)
+  case rule
+  when "the bug is fixed"
+    " (#{bug.id} is #{bug.status.inspect} — dispatch investigate and fix first " \
+    "(bin/run qa/bluebook fix id=#{bug.id} reference.value=#{bug.id} commit.value=<sha>))"
+  when "the angle is under investigation"
+    " (#{angle.id} is #{angle.status.inspect} — dispatch angle.investigate first, so the lead " \
+    "reads as picked up before something is built from it)"
+  when "the branch is one this practice recognises as its own"
+    " (the branch is #{branch.inspect}; a PR this practice opens is on a branch it can recognise " \
+    "as its own, QualityControlDials::BRANCH_PREFIX)"
+  else ""
+  end
+end
+
+# Asks the ledger whether `verb` would take these facts, without recording anything. The number is
+# one no record holds yet, so the dry run reaches the `given`s rather than `AlreadyExists`.
+def refuse_unless_ledger_takes(runtime, verb, bug, angle, branch, **facts)
+  runtime.dry_run?(verb, **facts)
+rescue Hecks::Runtime::GivenNotMet => e
+  hint = hint_for(e.message.split(" — ", 2).last, bug, angle, branch)
+  abort "refused: #{e.message}#{hint} — a dry run of #{verb}, so nothing was opened or recorded"
+end
+
+def next_number(runtime, aggregate)
+  q(runtime, "#{aggregate}.All").map { |row| row[:number][:value] }.max.to_i + 1
+end
+
+now = Time.now.to_i
+recorded = { url: { value: "https://github.com/pull/0" }, title: { value: options[:title] },
+             branch: { value: branch }, now: { value: now } }
+
+if bug
+  commit = bug.commit.to_h[:value].to_s
+  refuse_unless_ledger_takes(runtime, "QualityControl::Patch.Open", bug, angle, branch,
+                             bug: bug.id, number: { value: next_number(runtime, "Patch") },
+                             commit: { value: commit.match?(SHA_PATTERN) ? commit : PLACEHOLDER_COMMIT },
+                             **recorded)
+else
+  refuse_unless_ledger_takes(runtime, "QualityControl::Improvement.Open", bug, angle, branch,
+                             **(angle ? { angle: angle.id } : {}),
+                             number: { value: next_number(runtime, "Improvement") }, **recorded)
 end
 
 if PR_CAP_PER_DAY.positive?
@@ -108,51 +158,17 @@ if PR_CAP_PER_DAY.positive?
   midnight = Time.new(today.year, today.month, today.day).to_i
   opened_today = q(runtime, "Patch.OpenedSince", since: { value: midnight }).size +
                  q(runtime, "Improvement.OpenedSince", since: { value: midnight }).size
-  if opened_today >= PR_CAP_PER_DAY
-    abort "refused: #{opened_today} PR(s) already opened since local midnight, and QualityControlDials::" \
-          "PR_CAP_PER_DAY is #{PR_CAP_PER_DAY} — leave this as an open Bug/Angle and open it tomorrow, or " \
-          "raise the dial in qa/bluebook/quality_control.bluebook"
-  end
+  refusing { git_pr.assert_under_daily_cap!(opened_today: opened_today, cap: PR_CAP_PER_DAY) }
 end
 
-bug = angle = nil
-
-if options[:bug]
-  bug = QualityControl::Bug.find(options[:bug])
-  abort "refused: no such bug #{options[:bug].inspect}" unless bug
-  unless bug.status == "fixed"
-    abort "refused: #{bug.id} is #{bug.status.inspect}, not \"fixed\" — dispatch investigate/fix first " \
-          "(bin/run qa/bluebook fix id=#{bug.id} reference.value=#{bug.id} commit.value=<sha>)"
-  end
+if bug
   commit = bug.commit.to_h[:value].to_s
   abort "refused: #{bug.id} carries no commit" unless commit.match?(SHA_PATTERN)
-  _out, _err, ancestor = git("merge-base", "--is-ancestor", commit, "HEAD")
-  unless ancestor.success?
-    abort "refused: #{bug.id}'s own fix commit #{commit[0, 7]} is not an ancestor of HEAD (#{head[0, 7]}) on " \
-          "#{branch} — the PR must carry the commit the ledger says fixes it"
-  end
+
+  refusing { git_pr.assert_ancestor!(commit: commit, owner: bug.id) }
 end
 
-if options[:angle]
-  angle = QualityControl::Angle.find(options[:angle])
-  abort "refused: no such angle #{options[:angle].inspect}" unless angle
-  unless angle.status == "investigating"
-    abort "refused: #{angle.id} is #{angle.status.inspect}, not \"investigating\" — dispatch angle.investigate " \
-          "first, so the lead reads as picked up before something is built from it"
-  end
-end
-
-VIEW_FIELDS = "number,url,headRefName,headRefOid,title,state".freeze
-
-def view_pr(branch)
-  out, _err, status = gh("pr", "view", branch, "--json", VIEW_FIELDS)
-  return nil unless status.success?
-
-  view = JSON.parse(out, symbolize_names: true)
-  view[:state] == "OPEN" ? view : nil
-end
-
-view = view_pr(branch)
+view = git_pr.open_pull_request(branch)
 if view
   puts "PR ##{view[:number]} already open for #{branch} — not re-creating"
 else
@@ -161,13 +177,14 @@ else
           elsif angle then "Builds #{angle.id}."
           else "Deliberate work, no Bug or Angle behind it."
           end
-  body   = options[:body] || "#{cited}\n\nOpened by bin/qa_open_pr and recorded in the QualityControl ledger."
-  create = ["pr", "create", "--head", branch, "--title", options[:title], "--body", body]
-  create << "--draft" if DRAFT_ONLY
-  out, err, status = gh(*create)
-  abort "gh pr create failed — #{err.empty? ? out : err}" unless status.success?
+  body = options[:body] || "#{cited}\n\nOpened by bin/qa_open_pr and recorded in the QualityControl ledger."
+  begin
+    git_pr.create_pull_request(branch: branch, title: options[:title], body: body, draft: DRAFT_ONLY)
+  rescue Hecks::Adapters::GitPr::CommandFailed => e
+    abort e.message
+  end
 
-  view = view_pr(branch)
+  view = git_pr.open_pull_request(branch)
   abort "gh pr create returned, but gh pr view #{branch} shows no open PR — record nothing" unless view
 end
 
@@ -207,8 +224,11 @@ else
 end
 
 if AUTO_MERGE
-  _out, err, status = gh("pr", "merge", number.to_s, "--auto", "--squash")
-  abort "recorded, but gh pr merge --auto failed — #{err}" unless status.success?
+  begin
+    git_pr.merge_when_green(number)
+  rescue Hecks::Adapters::GitPr::CommandFailed => e
+    abort "recorded, but #{e.message}"
+  end
   puts "auto-merge queued for ##{number} (QualityControlDials::AUTO_MERGE)"
 end
 

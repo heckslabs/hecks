@@ -1,15 +1,20 @@
+require_relative "naming"
 require_relative "runtime/registry"
 require_relative "bluebook/meta_validator"
 
 module Hecks
   # The chapters the gem carries that a hecksagon can attach by name (ADR 0080): the language
-  # declared in itself, Expression, Tenancy and Deploy. Framework members stay in `Framework`.
+  # declared in itself, Expression, Tenancy, Deploy and QualityControl. Framework members stay in
+  # `Framework`.
   #
   # A chapter is named by the `Hecks.bluebook "Name"` header of its files, and may span several.
+  # Beside its bluebook a chapter may carry what every hecksagon attaching it needs, whatever
+  # its store: `<snake_name>.ports.hecksagon` (the ports it declares, as a `Hecks.hecksagon`
+  # block that merges into the attaching one) and `adapters/*.adapter` (the adapters binding them).
   module Chapters
     # Where attachable chapters live, relative to `lib/hecks/`.
     GLOBS = %w[language/**/*.bluebook grammar/expression.bluebook tenancy/bluebook/*.bluebook
-               deploy/bluebook/*.bluebook].freeze
+               deploy/bluebook/*.bluebook quality_control/*.bluebook].freeze
 
     # Every attachable chapter, by name, with the files that declare it.
     #
@@ -24,7 +29,8 @@ module Hecks
     # Loads a chapter's files into the current registry, unless it already holds the chapter.
     #
     # The files load together inside `MetaValidator.defer`, so a chapter spread over several files
-    # is judged once, whole.
+    # is judged once, whole. The chapter's ports file and adapters load after it, since a port
+    # names the chapter's aggregates.
     #
     # @param name [String] the chapter's name, such as `"Deploy"`
     # @return [Boolean, nil] true when this call loaded the chapter, nil when it was already held
@@ -39,8 +45,22 @@ module Hecks
 
       Bluebook::MetaValidator.defer { paths.each { |path| Kernel.load(path) } }
       Bluebook::MetaValidator.judge_deferred!(registry)
+      load_wiring(name.to_s, paths)
       true
     end
+
+    # Loads what a chapter ships beside its bluebook: its ports file, then its adapters.
+    #
+    # @param name [String] the chapter's name
+    # @param paths [Array<String>] the chapter's bluebook files
+    # @return [void]
+    def self.load_wiring(name, paths)
+      directory = File.dirname(paths.first)
+      ports     = File.join(directory, "#{Naming.snake(name)}.ports.hecksagon")
+      Kernel.load(ports) if File.file?(ports)
+      Dir.glob(File.join(directory, "adapters", "*.adapter")).each { |adapter| Kernel.load(adapter) }
+    end
+    private_class_method :load_wiring
 
     # The name a file's `Hecks.bluebook "Name"` header declares, or nil for a file without one.
     def self.chapter_name(path)

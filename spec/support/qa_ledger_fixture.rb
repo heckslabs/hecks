@@ -7,7 +7,7 @@ require_relative "qa_ledger_role"
 # A disposable Postgres-backed `QualityControl` ledger for specs that run the `bin/qa_*` scripts
 # as subprocesses; one database per spec file so parallel_rspec workers do not scrub each other.
 module QaLedgerFixture
-  # Mirrors `qa/bluebook/quality_control.hecksagon`, with the `CI`/`IssueTracker` ports unbound.
+  # Mirrors the ledger wiring in `qa/bluebook/quality_control.hecksagon`, with the ports unbound.
   HECKSAGON = <<~RUBY.freeze
     Hecks.hecksagon "QualityControl" do
       uses_framework "Governance"
@@ -56,7 +56,7 @@ module QaLedgerFixture
       @root = Dir.mktmpdir("qa_ledger_fixture")
       @dir  = File.join(@root, "bluebook")
       FileUtils.mkdir_p(@dir)
-      FileUtils.ln_s(File.join(InMemoryDomain::ROOT, "qa/bluebook/quality_control.bluebook"),
+      FileUtils.ln_s(File.join(InMemoryDomain::ROOT, "lib/hecks/quality_control/quality_control.bluebook"),
                      File.join(@dir, "quality_control.bluebook"))
       File.write(File.join(@dir, "quality_control.hecksagon"), HECKSAGON)
       File.write(File.join(@dir, "context_map.hecksagon"), InMemoryDomain::GOVERNANCE_POSTGRES_ERA_HECKSAGON)

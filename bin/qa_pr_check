@@ -19,8 +19,7 @@ $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
 require "hecks"
 # The ledger's `persisted_by "PostgresEra"` binding needs the era plugin, which core does not load.
 require "hecks/ports/persistence/plugins/era"
-require "json"
-require "open3"
+require "hecks/quality_control/adapters/git_pr"
 
 ROOT       = File.expand_path("..", __dir__)
 # Lets `spec/qa_tick_spec.rb` point `bin/qa_tick` at a disposable fixture ledger,
@@ -44,13 +43,11 @@ unless ARGV.empty?
         "QualityControl::Improvement tracks as open, every time"
 end
 
-# Runs `gh` and returns stdout, stderr and the status.
-# With `--json`, gh exits 0 whatever the checks say, so the status only means the call succeeded.
-def gh(*)
-  Open3.capture3("gh", *)
-end
+# Every `gh` call goes through the `GitPr` adapter. With `--json`, gh exits 0 whatever the checks
+# say, so a failure means only that the call did not succeed.
+GIT_PR = Hecks::Adapters::GitPr.new(repo_dir: Dir.pwd)
 
-# Only this boot binds `GithubChecks` to the CI port; other loads leave the port dormant.
+# A boot that loads the QualityControl chapter binds `GithubChecks` to the CI port.
 
 runtime = begin
   Hecks.boot(DOMAIN_DIR)
@@ -101,18 +98,21 @@ def retire_if_settled?(view, number, label, runtime, aggregate)
   end
 end
 
+# Runs a read against `gh`; a failure is appended to `operational_errors` and answers nil.
+def reading_gh(label, operational_errors)
+  yield
+rescue Hecks::Adapters::GitPr::CommandFailed => e
+  operational_errors << "#{label}: #{e.message}"
+  nil
+end
+
 # True when every check has finished, so a verdict is worth asking for. Pending stays out here
 # because the CI port cannot express "ask again later". A gh failure is appended to
 # `operational_errors`.
 def checks_settled?(number, label, citation, sha, operational_errors)
-  checks_out, checks_err, checks_status = gh("pr", "checks", number.to_s,
-                                             "--json", "name,state,bucket,workflow")
-  unless checks_status.success?
-    operational_errors << "#{label}: gh pr checks failed — #{checks_err.strip.empty? ? checks_out.strip : checks_err.strip}"
-    return false
-  end
+  checks = reading_gh(label, operational_errors) { GIT_PR.checks(number) }
+  return false unless checks
 
-  checks = JSON.parse(checks_out, symbolize_names: true)
   if checks.empty?
     puts "#{label}, #{citation}, #{sha[0, 7]}: gh reports no checks at all yet — skipping this run"
     return false
@@ -134,14 +134,8 @@ def check_one_pr(row, runtime, newly_red, operational_errors, aggregate:, citati
   citation = cited ? "#{citation_label} #{cited}" : "no #{citation_label} cited"
   label    = "#{aggregate} PR ##{number} (#{field(row, :branch, :value)})"
 
-  view_out, view_err, view_status = gh("pr", "view", number.to_s,
-                                       "--json", "state,headRefOid,url")
-  unless view_status.success?
-    operational_errors << "#{label}: gh pr view failed — #{view_err.strip.empty? ? view_out.strip : view_err.strip}"
-    return
-  end
-
-  view = JSON.parse(view_out, symbolize_names: true)
+  view = reading_gh(label, operational_errors) { GIT_PR.pull_request(number) }
+  return unless view
   return if retire_if_settled?(view, number, label, runtime, aggregate)
 
   sha = view[:headRefOid].to_s

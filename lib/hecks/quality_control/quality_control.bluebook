@@ -1398,7 +1398,7 @@ Hecks.bluebook "QualityControl" do
       transition "Close"   => "closed",     from: "filed"
     end
 
-    # The port is declared in `quality_control.hecksagon`, where wiring lives.
+    # The port is declared in `quality_control.ports.hecksagon`, where wiring lives.
 
     command "Raise" do
       role "QA engineer"
@@ -1612,6 +1612,10 @@ Hecks.bluebook "QualityControl" do
 
     # Dispatched only by `bin/qa_open_pr --bug`, which reads the facts back from `gh pr view`, so
     # the record is written by the process that made it true. `now` is that script's clock read.
+    # The script asks `dry_run?` of this command before it opens anything, so the two `given`s are
+    # the rules for opening a PR at all: the branch is one this practice recognises as its own, and
+    # the bug it fixes is fixed. The prefix repeats `BRANCH_PREFIX` as a literal, as `WaivedBy`
+    # repeats `AUTOMATED_ENGINEER`; `spec/quality_control_spec.rb` pins the two equal.
     command "Open" do
       role "QA engineer"
       goal "Record that a fix has been opened as a pull request, the moment its number, branch and commit are already known"
@@ -1623,6 +1627,9 @@ Hecks.bluebook "QualityControl" do
       attribute :commit, CommitRef
       attribute :title,  PatchTitle
       attribute :now,    Instant
+
+      given("the branch is one this practice recognises as its own") { branch.value.start_with?("qa/") }
+      given("the bug is fixed") { bug.status == "fixed" }
 
       sets :opened_at, to: :now
 
@@ -1744,7 +1751,9 @@ Hecks.bluebook "QualityControl" do
     end
 
     # Dispatched by `bin/qa_open_pr --improvement`, which then dispatches `Land` in the same run so
-    # `ImprovementCiWatch` is watching before the script exits.
+    # `ImprovementCiWatch` is watching before the script exits. The `given`s are `Patch.Open`'s
+    # rules with the angle in place of the bug: a lead is picked up (`investigating`) before
+    # something is built from it, and work with no angle behind it is admitted.
     command "Open" do
       role "QA engineer"
       goal "Record that a deliberate, non-bugfix piece of work has been opened as a pull request, before its own commit is known to be worth watching"
@@ -1755,6 +1764,9 @@ Hecks.bluebook "QualityControl" do
       attribute :branch, ImprovementBranch
       attribute :title,  ImprovementTitle
       attribute :now,    Instant
+
+      given("the branch is one this practice recognises as its own") { branch.value.start_with?("qa/") }
+      given("the angle is under investigation") { angle.unset? || angle.status == "investigating" }
 
       sets :opened_at, to: :now
 

@@ -763,7 +763,7 @@ seed_offset = seeds_override ? 0 : Hecks::Fuzzing::SweepDepth.seed_offset(curren
 if persistence_parity_mode && seeds > QualityControlDials::PERSISTENCE_PARITY_SEED_CAP
   puts "note: --seeds #{seeds} exceeds QualityControlDials::PERSISTENCE_PARITY_SEED_CAP " \
        "(#{QualityControlDials::PERSISTENCE_PARITY_SEED_CAP}) — clamping down. Real PostgresEra I/O per " \
-       "dispatch is genuinely expensive; edit that dial in qa/bluebook/quality_control.bluebook to run more."
+       "dispatch is genuinely expensive; edit that dial in qa/settings.yml to run more."
   seeds = QualityControlDials::PERSISTENCE_PARITY_SEED_CAP
 end
 
@@ -772,7 +772,7 @@ end
 if active_modes.include?(:concurrency) && seeds > QualityControlDials::CONCURRENCY_SEED_CAP
   puts "note: --seeds #{seeds} exceeds QualityControlDials::CONCURRENCY_SEED_CAP " \
        "(#{QualityControlDials::CONCURRENCY_SEED_CAP}) — clamping down. Each seed forks two real racers against " \
-       "real PostgresEra I/O; edit that dial in qa/bluebook/quality_control.bluebook to run more."
+       "real PostgresEra I/O; edit that dial in qa/settings.yml to run more."
   seeds = QualityControlDials::CONCURRENCY_SEED_CAP
 end
 

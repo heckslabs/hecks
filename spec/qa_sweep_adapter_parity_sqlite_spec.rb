@@ -99,7 +99,7 @@ RSpec.describe "bin/qa_sweep adapter_parity_sqlite", :io do
     @fixture_root = Dir.mktmpdir("qa_sweep_adapter_parity_sqlite_spec")
     @fixture_dir  = File.join(@fixture_root, "bluebook")
     FileUtils.mkdir_p(@fixture_dir)
-    FileUtils.ln_s(File.join(InMemoryDomain::ROOT, "qa/bluebook/quality_control.bluebook"),
+    FileUtils.ln_s(File.join(InMemoryDomain::ROOT, "lib/hecks/quality_control/quality_control.bluebook"),
                    File.join(@fixture_dir, "quality_control.bluebook"))
     File.write(File.join(@fixture_dir, "quality_control.hecksagon"), LEDGER_HECKSAGON_FOR_ADAPTER_PARITY_SQLITE_SPEC)
     File.write(File.join(@fixture_dir, "context_map.hecksagon"), InMemoryDomain::GOVERNANCE_POSTGRES_ERA_HECKSAGON)

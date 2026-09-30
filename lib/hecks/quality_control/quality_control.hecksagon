@@ -1,0 +1,13 @@
+# The QualityControl chapter, bound so it boots standing alone (a fuzz or model_check boot of this
+# directory). The QA ledger binds PostgresEra in qa/bluebook/quality_control.hecksagon, and the
+# Hecks chapter binds it through its world's `default_adapter`; the ports every one of them shares
+# are in quality_control.ports.hecksagon.
+Hecks.hecksagon "QualityControl" do
+  uses_framework "Governance"
+  persisted_by "Memory"
+end
+
+# The anti-corruption layer for Governance, which the chapter's roles are checked against.
+Hecks.hecksagon "Governance" do
+  persisted_by "Memory"
+end
