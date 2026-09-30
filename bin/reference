@@ -1,34 +1,13 @@
 #!/usr/bin/env ruby
 
 # Regenerates docs/implemented/reference/ from the language's Syntax chapter.
-# Tables come from the declaration, prose is kept from the committed pages.
-#
-#   bin/reference
+# The body lives in lib/hecks/cli/reference.rb;
+# this file only starts it.
 
 require_relative "../lib/hecks/three_zero"
 Hecks::ThreeZero.notice("reference")
 
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
+require "hecks/cli/reference"
 
-require "hecks"
-require "hecks/projection_files"
-
-root      = File.expand_path("..", __dir__)
-directory = File.join(root, "docs/implemented/reference")
-
-written = Hecks::ProjectionFiles.write(:reference, root: root)
-
-puts "wrote #{written.size - 1} pages to docs/implemented/reference/, and regenerated README.md's own indexes"
-
-# Both coverage gates, reported together; bin/doc_coverage asks the same as an exit status.
-{
-  "prose"             => Hecks::Doc::Reference.undocumented(directory),
-  "a running example" => Hecks::Doc::Reference.unexemplified(directory)
-}.each do |owed, missing|
-  if missing.empty?
-    puts "every live word carries #{owed}."
-  else
-    puts "#{missing.size} word(s) still carry no #{owed}:"
-    missing.each { |word| puts "  #{word}" }
-  end
-end
+exit(Hecks::CLI::Reference.call(root: File.expand_path("..", __dir__)))

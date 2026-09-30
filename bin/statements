@@ -1,21 +1,13 @@
 #!/usr/bin/env ruby
 
-# Prints a booted domain's declared facts as plain English sentences, via Projections::Statements.
-#
-#   bin/statements <domain-path> <ChapterName>
-#   bin/statements examples/pizzas Pizzas
+# Prints a booted domain's declared facts as plain English sentences.
+# The body lives in lib/hecks/cli/statements.rb;
+# this file only starts it.
 
 require_relative "../lib/hecks/three_zero"
 Hecks::ThreeZero.notice("statements")
 
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
+require "hecks/cli/statements"
 
-require "hecks"
-
-domain_path  = ARGV[0] or abort "usage: bin/statements <domain-path> <ChapterName>"
-chapter_name = ARGV[1] or abort "usage: bin/statements <domain-path> <ChapterName>"
-
-runtime = Hecks.boot(File.expand_path(domain_path, Dir.pwd))
-chapter = runtime.registry.bluebook(chapter_name)
-
-Hecks::Projector.call(:statements, bluebook: chapter).each { |statement| puts statement }
+exit(Hecks::CLI::Statements.call(ARGV))

@@ -1,17 +1,13 @@
 #!/usr/bin/env ruby
 
-# Runs one spec file filtered to one example, through RSpec::Core::Runner directly, so a
-# `bin/qa_log_bug --demonstration` string needs no rspec `-e` quoting by hand.
-#
-#   bin/spec_example <spec_file> <example description substring>
-#
-# The exit status is RSpec's own: 0 when every example passed.
+# Runs one spec file filtered to one example.
+# The body lives in lib/hecks/cli/spec_example.rb;
+# this file only starts it.
 
 require_relative "../lib/hecks/three_zero"
 Hecks::ThreeZero.notice("spec_example")
 
-require "rspec/core"
+$LOAD_PATH.unshift File.expand_path("../lib", __dir__)
+require "hecks/cli/spec_example"
 
-abort "usage: bin/spec_example <spec_file> <example description substring>" if ARGV.length != 2
-
-exit RSpec::Core::Runner.run(["--example", ARGV[1], ARGV[0]])
+exit(Hecks::CLI::SpecExample.call(ARGV))

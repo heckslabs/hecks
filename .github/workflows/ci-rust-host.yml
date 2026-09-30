@@ -8,6 +8,8 @@ on:
     secrets:
       HECKS_CI_ATTEST_KEY:
         required: false
+      HECKS_JOURNAL_DATABASE:
+        required: false
 
 jobs:
   # Same detector-plus-gated-job shape as ci-rspec.yml's own ci_attestation_rspec —
@@ -58,6 +60,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-ruby
+      - uses: ./.github/actions/hecks-environment
+        with:
+          database: ${{ secrets.HECKS_JOURNAL_DATABASE }}
 
       # Preinstalled Postgres rather than a `services:` container; see the action header.
       - uses: ./.github/actions/postgres
@@ -73,9 +78,9 @@ jobs:
 
       - name: Build banking + checkout_fixture wasm
         run: |
-          bundle exec bin/project_wasm examples/banking
-          bundle exec bin/project_wasm spec/fixtures/rust_host/checkout_fixture
-          # bin/project_wasm regenerates tracked rust/src/generated +
+          bundle exec exe/hecks build_wasm domain=examples/banking --wait
+          bundle exec exe/hecks build_wasm domain=spec/fixtures/rust_host/checkout_fixture --wait
+          # hecks build_wasm regenerates tracked rust/src/generated +
           # rust/Cargo.toml as a side effect; put them back.
           git checkout -- rust/src/generated rust/Cargo.toml
           git clean -fdq rust/src/generated

@@ -24,6 +24,10 @@ jobs:
 
       - uses: ./.github/actions/setup-ruby
 
+      - uses: ./.github/actions/hecks-environment
+        with:
+          database: ${{ secrets.HECKS_JOURNAL_DATABASE }}
+
       - uses: ./.github/actions/cargo-cache
         with:
           name: main
@@ -40,9 +44,9 @@ jobs:
 
       - name: Warm wasm cross-compile builds (banking, pizzas, roster)
         run: |
-          ruby bin/project_wasm examples/banking
-          ruby bin/project_wasm examples/pizzas
-          ruby bin/project_wasm examples/roster
+          bundle exec exe/hecks build_wasm domain=examples/banking --wait
+          bundle exec exe/hecks build_wasm domain=examples/pizzas --wait
+          bundle exec exe/hecks build_wasm domain=examples/roster --wait
 
   # Mirrors rspec_rust_io_build's cache step.
   warm_build_crate:
