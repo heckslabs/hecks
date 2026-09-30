@@ -616,7 +616,7 @@ mod lineage_tests {
         // The fenced app role — the same connection shape a real deployed
         // rust/host uses (never the table-owning role, which bypasses RLS).
         let (client, connection) =
-            tokio_postgres::connect(&format!("host=localhost dbname={db} user={app_role}"), NoTls)
+            tokio_postgres::connect(&crate::test_pg::conninfo_as(&db, &app_role), NoTls)
                 .await
                 .expect("connect as the app role");
         tokio::spawn(async move {
@@ -677,7 +677,7 @@ mod lineage_tests {
         // Owner-authenticated: hecks_eras/hecks_approvals aren't grantable
         // to the app role by design — only the mint path reads them, not
         // the RLS-fenced data path the test above exists to prove.
-        let (client, connection) = tokio_postgres::connect(&format!("host=localhost dbname={db} user={owner_role}"), NoTls)
+        let (client, connection) = tokio_postgres::connect(&crate::test_pg::conninfo_as(&db, &owner_role), NoTls)
             .await
             .expect("connect as owner");
         tokio::spawn(async move {
@@ -713,7 +713,7 @@ mod lineage_tests {
     // a bare existence check can't.
     #[tokio::test]
     async fn current_era_tells_unminted_apart_from_stale_and_finds_the_live_ordinal() {
-        let (client, connection) = tokio_postgres::connect("host=localhost dbname=postgres", NoTls)
+        let (client, connection) = tokio_postgres::connect(&crate::test_pg::conninfo("postgres"), NoTls)
             .await
             .expect("connect to postgres");
         tokio::spawn(async move {
@@ -768,7 +768,7 @@ mod lineage_tests {
     // reproducing Ruby's mint path; that correctness is lineage_spec.rb's job.
     #[tokio::test]
     async fn read_lineage_head_reads_any_aggregates_view_generically() {
-        let (client, connection) = tokio_postgres::connect("host=localhost dbname=postgres", NoTls)
+        let (client, connection) = tokio_postgres::connect(&crate::test_pg::conninfo("postgres"), NoTls)
             .await
             .expect("connect to postgres");
         tokio::spawn(async move {
@@ -828,7 +828,7 @@ mod lineage_tests {
 
     #[tokio::test]
     async fn record_dead_letter_writes_a_real_durable_row() {
-        let (client, connection) = tokio_postgres::connect("host=localhost dbname=postgres", NoTls)
+        let (client, connection) = tokio_postgres::connect(&crate::test_pg::conninfo("postgres"), NoTls)
             .await
             .expect("connect to postgres");
         tokio::spawn(async move {

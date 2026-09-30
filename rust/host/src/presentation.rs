@@ -587,7 +587,7 @@ mod tests {
     // `cargo test`'s parallelism doesn't race two against one table.
 
     async fn scratch_db(name: &str) -> Mutex<Client> {
-        let (admin, conn) = tokio_postgres::connect("host=localhost dbname=postgres", tokio_postgres::NoTls)
+        let (admin, conn) = tokio_postgres::connect(&crate::test_pg::conninfo("postgres"), tokio_postgres::NoTls)
             .await
             .expect("connect to postgres");
         tokio::spawn(async move {
@@ -596,7 +596,7 @@ mod tests {
         admin.batch_execute(&format!("DROP DATABASE IF EXISTS {name} WITH (FORCE)")).await.unwrap();
         admin.batch_execute(&format!("CREATE DATABASE {name}")).await.unwrap();
 
-        let (client, conn) = tokio_postgres::connect(&format!("host=localhost dbname={name}"), tokio_postgres::NoTls)
+        let (client, conn) = tokio_postgres::connect(&crate::test_pg::conninfo(&name), tokio_postgres::NoTls)
             .await
             .expect("connect to scratch db");
         tokio::spawn(async move {
