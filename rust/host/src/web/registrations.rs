@@ -535,10 +535,10 @@ pub(crate) async fn registrations_route(
     }
 
     // The domain's reaction has already subscribed the address by now; a
-    // registrant who ticked the box gets the same signed confirm link as the
-    // footer form. Best effort: the registration stands whatever mail does.
+    // registrant who ticked the box is confirmed on the spot, like the footer
+    // form. Best effort: the registration stands whatever the confirm does.
     if forwards_newsletter && news_signup {
-        super::newsletter::send_confirmation_if_pending(email, client, wasm_path).await;
+        let _ = super::newsletter::confirm_if_pending(email, client, wasm_path, config, invoker).await;
     }
 
     if let Some(embedded) = embedded_checkout {
