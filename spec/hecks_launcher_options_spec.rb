@@ -126,6 +126,21 @@ RSpec.describe "the launcher's opt-in options" do
       expect(out).to include("must match")
     end
 
+    it "makes a question fail when its refusal or its report names a gap" do
+      text, status = run_verb("ask", "rust_coverage", "module_name=nosuchmodule", "--wait")
+
+      expect(status).to eq(1)
+      expect(text).to include("no such generated module")
+    end
+
+    it "reads a `GAP (n)` heading above zero as a gap, and nothing else" do
+      gap = Hecks::Facade::LauncherOptions.method(:gap_reported?)
+
+      expect(gap.call("GAP (2) — missing, and NOT on the allowlist")).to be(true)
+      expect(gap.call("\nGAP (0) — missing, and NOT on the allowlist")).to be(false)
+      expect(gap.call(nil)).to be(false)
+    end
+
     it "is left to a verb that declares its own wait argument" do
       spec = { arguments: [{ path: "wait", type: "Integer" }] }
 

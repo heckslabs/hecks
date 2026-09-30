@@ -133,7 +133,7 @@ jobs:
   # Every leg computes the identical 8-way split (`-n 8`, same committed baseline) and
   # `--only-group` selects its own slice, so balancing stays parallel_tests' own.
   #
-  # One process per leg is load-bearing: bin/qa_postgres_role creates the cluster-global
+  # One process per leg is load-bearing: hecks quality_control create_ledger_role creates the cluster-global
   # role `hecks_qa` check-then-create, and two qa_sweep_all specs provisioning at once
   # collided on `pg_authid_rolname_index`.
   #

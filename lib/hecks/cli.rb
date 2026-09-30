@@ -45,9 +45,9 @@ module Hecks
       ),
       "model_check"      => Command.new(
         "Statically check a domain's IR for dead states and unreachable steps.",
-        "hecks model_check [--strict] [--profile client] <domain> [<domain> …]",
+        "hecks model_check [--strict] [--profile client] [--wait] [<domain> …]",
         "cli/model_check",
-        ->(argv, program, _name) { ModelCheck.call(argv, program: program) }
+        ->(argv, program, _name) { ModelCheck.call(argv, program: program, root: checkout_root) }
       ),
       "smoke_test"       => Command.new(
         "Boot a domain and dispatch every declared command and report once.",
@@ -133,6 +133,15 @@ module Hecks
       ThreeZero.route_notice(name)
       require_relative command.file
       command.run.call(argv, "hecks #{name}", name)
+    end
+
+    # The checkout `hecks` runs from, when it runs from one: the repository whose `lib/` holds this
+    # file, which `model_check` sweeps when it is given no domain. An installed gem has none.
+    #
+    # @return [String, nil] the checkout's root, or nil when this is not a checkout
+    def checkout_root
+      root = File.expand_path("../..", __dir__)
+      root if File.exist?(File.join(root, "hecks.gemspec"))
     end
 
     # @api private

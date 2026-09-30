@@ -141,12 +141,11 @@ jobs:
       # transitions, saga states no handler chain reaches. Boots every corpus
       # member plus the language's own meta chapters.
       #
-      # Still bin/model_check: `hecks model_check` is one of the ten legacy routes in exe/hecks,
-      # which hands it to `Hecks::CLI` with no checkout root, so it cannot sweep the corpus and
-      # takes no `--wait`. Moves to `hecks model_check --wait` once the route reaches the launcher.
+      # `hecks model_check` sweeps the corpus from the checkout it runs in when it is given no
+      # domain, and exits 1 on any finding, so `--wait` only says so.
       - name: model check
         if: steps.attest.outputs.attested != 'true'
-        run: bundle exec bin/model_check
+        run: bundle exec exe/hecks model_check --wait
 
       # For every comparator the grammar declares, checks both that
       # `QuerySpecification::Common::Comparison` has a shared `when` case for
@@ -205,7 +204,7 @@ jobs:
       # Regenerates every domain whose Bluebook source lives in this
       # checkout and fails on any diff from the committed rust/src/generated/
       # tree, so a Bluebook change with no matching regen is caught on the
-      # push that caused it, not whenever someone next runs bin/rust_coverage
+      # push that caused it, not whenever someone next runs hecks ask rust_coverage
       # by hand. The domain list and order come from
       # `Hecks::Corpus.rust_regen_order` (every corpus directory that already
       # has committed generated output, sorted by full path) rather than a
@@ -229,16 +228,16 @@ jobs:
       # Checks whether hecks project_rust generated something for every
       # construct each domain's own IR declares, from the already-committed
       # manifest.json + ir.json — no build needed first (see
-      # bin/rust_coverage's own header for how this differs from equivalence
-      # checking). `bin/corpus --rust-coverage` walks every
+      # hecks ask rust_coverage's own header for how this differs from equivalence
+      # checking). `hecks ask corpus_rust_coverage` walks every
       # rust/src/generated/ module; an entry on
       # `Hecks::Corpus::RUST_COVERAGE_PENDING` must still fail, so a fixed
       # gap breaks the build until its entry is deleted.
       #
-      # Still bin/corpus: `hecks ask corpus_rust_coverage` is a query, which answers exit 0
-      # whatever it reports, so it cannot fail the job; a command with a failure state replaces it.
+      # `--wait` on a question makes it fail the job: a refused check exits 1, and so does a
+      # report that names a gap.
       - name: "rust coverage: every generated module"
-        run: bundle exec bin/corpus --rust-coverage
+        run: bundle exec exe/hecks ask corpus_rust_coverage --wait
 
       # The same check against hecks-codegen's own manifest (ADR 0054a):
       # `--codegen=rust` regenerates each domain's manifest.json with
@@ -250,15 +249,11 @@ jobs:
           name: codegen
           crate-root: rust/codegen
 
-      #
-      # Still bin/rust_coverage, for the reason `bin/corpus` gives above (a query never fails).
       - name: "rust coverage (hecks-codegen): pizzas, governance, identity, banking, meta"
         run: |
-          bundle exec bin/rust_coverage pizzas --codegen=rust
-          bundle exec bin/rust_coverage governance --codegen=rust
-          bundle exec bin/rust_coverage identity --codegen=rust
-          bundle exec bin/rust_coverage banking --codegen=rust
-          bundle exec bin/rust_coverage meta --codegen=rust
+          for module in pizzas governance identity banking meta; do
+            bundle exec exe/hecks ask rust_coverage module_name=$module codegen=rust --wait
+          done
 
       # The other half of the kernel's own generated-code guarantee: a
       # capability whose enum variant compiles clean but has no

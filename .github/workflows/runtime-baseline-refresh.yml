@@ -6,7 +6,7 @@ name: Refresh rspec runtime baselines (scheduled)
 # doesn't just cost total suite time: it actively worsens the max-shard "long pole", since
 # the packer keeps a file's shard allocation pinned to whatever it cost the last time the
 # baseline was refreshed, even after a real fix changes that file's actual cost (this is
-# exactly what happened after #898 sped up bin/qa_tick — the packer kept budgeting the old,
+# exactly what happened after #898 sped up hecks quality_control tick — the packer kept budgeting the old,
 # slower time for those specs until #900 manually refreshed the baseline).
 #
 # SCHEDULED, NOT PER-MERGE — the postgres-io legs only run on `pull_request`/`merge_group`
