@@ -1,7 +1,8 @@
 #!/usr/bin/env ruby
 
 # Sorts a JSON document's object keys, recursively.
-# The body lives in lib/hecks/cli/canonicalise.rb; this file only starts it.
+# The body lives in lib/hecks/cli/canonicalise.rb;
+# this file only starts it.
 
 require_relative "../lib/hecks/three_zero"
 Hecks::ThreeZero.notice("canonicalise")

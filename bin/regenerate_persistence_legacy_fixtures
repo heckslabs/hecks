@@ -1,7 +1,8 @@
 #!/usr/bin/env ruby
 
 # Regenerates spec/fixtures/persistence_legacy/ via the real adapters; needs Postgres and sqlite3.
-# Regenerates spec/fixtures/persistence_legacy/ via the real adapters (needs Postgres, sqlite3).
+# The body lives in lib/hecks/cli/regenerate_persistence_legacy_fixtures.rb;
+# this file only starts it.
 
 require_relative "../lib/hecks/three_zero"
 Hecks::ThreeZero.notice("regenerate_persistence_legacy_fixtures")

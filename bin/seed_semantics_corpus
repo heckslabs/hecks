@@ -1,7 +1,8 @@
 #!/usr/bin/env ruby
 
 # Seeds the expect block of semantics-corpus fixtures from the Ruby runtime.
-# The body lives in lib/hecks/cli/seed_semantics_corpus.rb; this file only starts it.
+# The body lives in lib/hecks/cli/seed_semantics_corpus.rb;
+# this file only starts it.
 
 require_relative "../lib/hecks/three_zero"
 Hecks::ThreeZero.notice("seed_semantics_corpus")

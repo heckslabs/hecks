@@ -34,7 +34,7 @@ module Hecks
 
         files = Dir.glob("spec/**/*_spec.rb", base: root)
         if files.empty?
-          abort "bin/rspec_shard_files: found ZERO spec files under spec/ - " \
+          abort "bin/rspec_shard_files: found ZERO spec files under spec/ — " \
                 "refusing to hand parallel_rspec nothing to run"
         end
 

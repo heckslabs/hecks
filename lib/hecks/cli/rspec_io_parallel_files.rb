@@ -71,7 +71,7 @@ module Hecks
         return unless candidates.empty?
 
         abort "bin/rspec_io_parallel_files: found ZERO candidate spec files after applying the exclude " \
-              "pattern - that's almost certainly a broken pattern or an empty checkout, not a real empty " \
+              "pattern — that's almost certainly a broken pattern or an empty checkout, not a real empty " \
               "test suite. Refusing to silently hand parallel_rspec nothing to run."
       end
 
@@ -89,7 +89,7 @@ module Hecks
         stdout, stderr, status = Open3.capture3(*command, chdir: root)
         unless status.success?
           err.puts stderr
-          abort "bin/rspec_io_parallel_files: `#{command.join(' ')}` exited #{status.exitstatus} - " \
+          abort "bin/rspec_io_parallel_files: `#{command.join(' ')}` exited #{status.exitstatus} — " \
                 "see stderr above. Refusing to guess a file list from a failed dry run."
         end
 
@@ -101,7 +101,7 @@ module Hecks
         return [files, examples.size] unless files.empty?
 
         abort "bin/rspec_io_parallel_files: #{candidates.size} candidate files, but the dry run matched ZERO " \
-              "examples under `#{tag_args.join(' ')}` - that's almost certainly a broken tag filter, not a " \
+              "examples under `#{tag_args.join(' ')}` — that's almost certainly a broken tag filter, not a " \
               "real empty set. Refusing to silently hand parallel_rspec nothing to run."
       end
 

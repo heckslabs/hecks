@@ -1,7 +1,8 @@
 #!/usr/bin/env ruby
 
 # Tags the merged release commit, publishes the gem, and gets @hecks/client published to npm.
-# The body lives in lib/hecks/cli/release.rb; this file only starts it.
+# The body lives in lib/hecks/cli/release.rb;
+# this file only starts it.
 
 require_relative "../lib/hecks/three_zero"
 Hecks::ThreeZero.notice("release")

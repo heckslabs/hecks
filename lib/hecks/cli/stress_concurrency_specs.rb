@@ -36,7 +36,7 @@ module Hecks
                            index).
           --parallel N    How many parallel-safe-group runs to have going as
                            separate OS processes AT THE SAME TIME (default: this
-                           machine's own core count, via Etc.nprocessors) - real
+                           machine's own core count, via Etc.nprocessors) — real
                            concurrent scheduler/CPU contention, not just varied
                            seeds one after another. The Postgres-backed group
                            always runs one process at a time regardless of this
@@ -155,18 +155,18 @@ module Hecks
       def report(root, results, out)
         failures = results.reject { |r| r[:success] }
         if failures.empty?
-          out.puts "CLEAN - #{results.size}/#{results.size} runs passed. " \
+          out.puts "CLEAN — #{results.size}/#{results.size} runs passed. " \
                    "No new flakiness beyond a single ordinary `rspec` run found in this many tries."
           return 0
         end
 
         dir = File.join(root, "tmp/stress-failures")
         FileUtils.mkdir_p(dir)
-        out.puts "FOUND FLAKINESS - #{failures.size}/#{results.size} runs failed:"
+        out.puts "FOUND FLAKINESS — #{failures.size}/#{results.size} runs failed:"
         failures.each do |failure|
           path = File.join(dir, "#{failure[:label].tr(' ', '_').gsub(/[()]/, '')}-seed#{failure[:seed]}.log")
           File.write(path, failure[:output])
-          out.puts "  [#{failure[:label]}] seed #{failure[:seed]} - output saved to #{path.sub("#{root}/", '')}"
+          out.puts "  [#{failure[:label]}] seed #{failure[:seed]} — output saved to #{path.sub("#{root}/", '')}"
           out.puts "    reproduce: #{failure[:reproduce]}"
         end
         out.puts

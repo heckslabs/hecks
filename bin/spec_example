@@ -1,7 +1,8 @@
 #!/usr/bin/env ruby
 
 # Runs one spec file filtered to one example.
-# The body lives in lib/hecks/cli/spec_example.rb; this file only starts it.
+# The body lives in lib/hecks/cli/spec_example.rb;
+# this file only starts it.
 
 require_relative "../lib/hecks/three_zero"
 Hecks::ThreeZero.notice("spec_example")

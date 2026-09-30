@@ -59,10 +59,10 @@ module Hecks
       # @return [void]
       def report(out, seeded)
         if seeded.empty?
-          out.puts "nothing to seed - every fixture carries its expect (pass SEED=<name> to re-seed one deliberately)"
+          out.puts "nothing to seed — every fixture carries its expect (pass SEED=<name> to re-seed one deliberately)"
         else
           out.puts "seeded: #{seeded.join(', ')}"
-          out.puts "review each expect against docs/semantics/bluebook-semantics.md before committing - " \
+          out.puts "review each expect against docs/semantics/bluebook-semantics.md before committing — " \
                    "it is the definition now"
         end
       end

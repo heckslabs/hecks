@@ -1,7 +1,8 @@
 #!/usr/bin/env ruby
 
 # Fails when a query engine re-grows its own comparator dispatch.
-# The body lives in lib/hecks/cli/check_engine_agreement.rb; this file only starts it.
+# The body lives in lib/hecks/cli/check_engine_agreement.rb;
+# this file only starts it.
 
 require_relative "../lib/hecks/three_zero"
 Hecks::ThreeZero.notice("check_engine_agreement")

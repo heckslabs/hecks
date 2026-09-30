@@ -1,0 +1,142 @@
+# frozen_string_literal: true
+
+require_relative "../../../hecks"
+# The era/lineage plugin has to be loaded before `Hecks.boot` for a real (non-Memory) adapter
+# (ADR 0033).
+require_relative "../../ports/persistence/plugins/era"
+
+module Hecks
+  module QualityControlCli
+    # The command behind `bin/qa_seed_angles`: seeds the QualityControl ledger's `Angle` backlog
+    # with the practice's starting leads. It is idempotent: only references not already on file
+    # are proposed.
+    class QaSeedAngles
+      # A `resolution:` present means the lead was already chased down: it is proposed,
+      # investigated and built in one pass. Its absence means the lever is still open.
+      SEED = [
+        {
+          reference:  "ANGLE-1",
+          premise:    "None of BUG#1-5 touched saga/process_manager machinery at all, despite this " \
+                      "session having just built a real one (BugCiWatch) — a stress domain specifically " \
+                      "exercising process-manager correlation, multi-step handler chains, and compensation " \
+                      "legs was a natural, and the highest-priority, next target.",
+          citation:   "BugCiWatch (lib/hecks/quality_control/quality_control.bluebook, \"noticing when a fix " \
+                      "stops holding\"); BUG#1-5, none of which touched saga machinery",
+          proposer:   "Claude QA",
+          resolution: "BUG#6 — SagaInterpreter#qualified cannot tell a same-domain nested-entity " \
+                      "command reference (dispatch Manifest::Slot::Fill) apart from a genuine " \
+                      "cross-domain qualifier, so the leg is silently read as targeting a nonexistent " \
+                      "domain and refuses every time; found by qa/stress_domains/waybill on its first " \
+                      "real run, before fuzzing was even needed. PR #530 (merged)."
+        },
+        {
+          reference: "ANGLE-2",
+          premise:   "nested_pieces (qa/stress_domains/nested_pieces) proves two-level ENTITY nesting " \
+                     "fuzzes and dispatches correctly, but nothing in the corpus exercises deep " \
+                     "reference_to HOPS — a chain of reference-typed lookups across aggregates — or a " \
+                     "governance/authorization-shaped construct combined with existence-checking. Entity " \
+                     "nesting and reference hopping are different DSL mechanisms entirely (entity " \
+                     "addressing vs CommandRules::References#resolve_references / " \
+                     "resolve_state_references), and ADR 0037's own Finding 5 already shows reference " \
+                     "resolution is exactly the kind of place Ruby and Rust structurally diverge — a " \
+                     "stress domain built around multi-hop references, or a scope/authorization check " \
+                     "combined with existence-checking, is a genuinely different construct combination " \
+                     "from anything the six bugs found this session actually touched.",
+          citation:  "qa/stress_domains/nested_pieces (entity nesting, not reference hops); " \
+                     "docs/decisions/0037-generated-sequence-fuzz-bridge-found-real-gaps-two-fixed-" \
+                     "three-catalogued.md, Finding 5 (resolve_state_references never ported to Rust)",
+          proposer:  "Claude QA"
+        },
+        {
+          reference: "ANGLE-3",
+          premise:   "BUG#1/#3/#4 were specifically ENGINE-DIVERGENCE bugs — Ruby and Rust disagreeing " \
+                     "on the same dispatch — a class Ruby-only property/exception fuzzing structurally " \
+                     "cannot see, because there is no second engine to disagree with. " \
+                     "spec/rust_conformance_fuzz_spec.rb's own DOMAINS list wires up only pizzas and " \
+                     "banking for CI-gated differential fuzzing. rust/Cargo.toml already declares " \
+                     "compiled-binary features for compliance and roster (plus embryonaut and meta) that " \
+                     "sit unused for this purpose; examples/chess and examples/directory have no Cargo " \
+                     "feature at all — bin/project_rust has never regenerated a binary for either. " \
+                     "Widening either list would let differential fuzzing catch a whole bug class " \
+                     "Ruby-only fuzzing cannot, on domains the practice already owns.",
+          citation:  "BUG#1/#3/#4 (engine-divergence bugs); spec/rust_conformance_fuzz_spec.rb DOMAINS " \
+                     "(pizzas/banking only); rust/Cargo.toml [features] (compliance/roster/embryonaut/" \
+                     "meta have binaries and are not wired in; chess/directory have no feature at all)",
+          proposer:  "Claude QA"
+        },
+        {
+          reference: "ANGLE-4",
+          premise:   "lib/hecks/bluebook/model_check.rb's ALLOWED_FINDINGS, " \
+                     "spec/fuzzing/meta_domain_coverage_spec.rb's META_DOMAIN_GUARANTEED_BY_CONSTRUCTION " \
+                     "and META_DOMAIN_KNOWN_GAPS, and ADR 0037's own catalogued Findings 3-5 are all " \
+                     "places where something once labeled 'known, not a bug' could be re-examined — a " \
+                     "gap accepted a year ago is not guaranteed to still be the right call once the " \
+                     "surrounding code has moved. This session's own waybill finding (BUG#6) confirmed a " \
+                     "SECOND instance of exactly the family ALLOWED_FINDINGS[\"quality_control\"] already " \
+                     "named once (Naming.command_ref's bare-constant rewrite conflating a genuine " \
+                     "cross-domain qualifier with mere nesting) — proof the allowlists are themselves a " \
+                     "live source of leads, not just a static ledger of settled questions.",
+          citation:  "lib/hecks/bluebook/model_check.rb ALLOWED_FINDINGS; " \
+                     "spec/fuzzing/meta_domain_coverage_spec.rb META_DOMAIN_GUARANTEED_BY_CONSTRUCTION / " \
+                     "META_DOMAIN_KNOWN_GAPS; docs/decisions/0037-generated-sequence-fuzz-bridge-found-" \
+                     "real-gaps-two-fixed-three-catalogued.md Findings 3-5",
+          proposer:  "Claude QA"
+        }
+      ].freeze
+
+      # Proposes the leads the ledger lacks.
+      #
+      # @param root [String] the repository root, where `qa/bluebook` is the ledger
+      # @param out [IO] where each lead's outcome goes
+      # @return [Integer] 0 once seeded
+      # @raise [SystemExit] when the ledger does not boot
+      def self.call(root:, out: $stdout)
+        new(root: root, out: out).call
+      end
+
+      # @param root [String] the repository root
+      # @param out [IO] where each lead's outcome goes
+      def initialize(root:, out: $stdout)
+        @domain_dir = File.join(root, "qa/bluebook")
+        @out = out
+      end
+
+      # @return [Integer] 0 once seeded
+      # @raise [SystemExit] when the ledger does not boot
+      def call
+        runtime = begin
+          Hecks.boot(@domain_dir)
+        rescue StandardError => e
+          abort "the QualityControl ledger did not boot — fix the ledger itself before seeding it " \
+                "(#{e.class}: #{e.message})"
+        end
+        existing = runtime.query("QualityControl::Angle.All").map { |row| row[:reference][:value] }
+        SEED.each do |angle|
+          if existing.include?(angle[:reference])
+            @out.puts "already on file: #{angle[:reference]}"
+          else
+            propose(angle)
+          end
+        end
+        0
+      end
+
+      private
+
+      def propose(angle)
+        record = ::QualityControl::Angle.propose!(
+          reference: { value: angle[:reference] }, premise: { value: angle[:premise] },
+          citation: { value: angle[:citation] }, proposer: { value: angle[:proposer] },
+          now: { value: Time.now.to_i }
+        )
+        if angle[:resolution]
+          record = record.investigate!
+          record.build!(resolution: { value: angle[:resolution] })
+          @out.puts "proposed, investigated, and built: #{angle[:reference]}"
+        else
+          @out.puts "proposed: #{angle[:reference]}"
+        end
+      end
+    end
+  end
+end

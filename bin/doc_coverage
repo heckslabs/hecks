@@ -1,7 +1,8 @@
 #!/usr/bin/env ruby
 
 # Refuses unless every live reference word has prose and a running example.
-# The body lives in lib/hecks/cli/doc_coverage.rb; this file only starts it.
+# The body lives in lib/hecks/cli/doc_coverage.rb;
+# this file only starts it.
 
 require_relative "../lib/hecks/three_zero"
 Hecks::ThreeZero.notice("doc_coverage")

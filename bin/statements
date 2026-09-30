@@ -1,7 +1,8 @@
 #!/usr/bin/env ruby
 
 # Prints a booted domain's declared facts as plain English sentences.
-# The body lives in lib/hecks/cli/statements.rb; this file only starts it.
+# The body lives in lib/hecks/cli/statements.rb;
+# this file only starts it.
 
 require_relative "../lib/hecks/three_zero"
 Hecks::ThreeZero.notice("statements")

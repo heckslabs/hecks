@@ -1,7 +1,8 @@
 #!/usr/bin/env ruby
 
 # Prints the spec files with at least one example matching an RSpec tag filter.
-# The body lives in lib/hecks/cli/rspec_io_parallel_files.rb; this file only starts it.
+# The body lives in lib/hecks/cli/rspec_io_parallel_files.rb;
+# this file only starts it.
 
 require_relative "../lib/hecks/three_zero"
 Hecks::ThreeZero.notice("rspec_io_parallel_files")

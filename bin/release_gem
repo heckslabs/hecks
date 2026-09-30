@@ -1,7 +1,8 @@
 #!/usr/bin/env ruby
 
 # Builds the hecks gem and pushes it to rubygems.org with a 1Password push key.
-# The body lives in lib/hecks/cli/release_gem.rb; this file only starts it.
+# The body lives in lib/hecks/cli/release_gem.rb;
+# this file only starts it.
 
 require_relative "../lib/hecks/three_zero"
 Hecks::ThreeZero.notice("release_gem")

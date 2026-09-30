@@ -96,7 +96,7 @@ module Hecks
         conclusion = JSON.parse(out)["conclusion"]
         return if conclusion == "success"
 
-        abort "bin/refresh_rspec_runtime_baseline: run #{run_id} concluded #{conclusion.inspect} - " \
+        abort "bin/refresh_rspec_runtime_baseline: run #{run_id} concluded #{conclusion.inspect} — " \
               "refusing to write a baseline from anything but a successful run"
       end
 
@@ -125,7 +125,7 @@ module Hecks
         end
         return unless written.zero?
 
-        abort "bin/refresh_rspec_runtime_baseline: run #{run_id} had no complete artifact family - nothing written"
+        abort "bin/refresh_rspec_runtime_baseline: run #{run_id} had no complete artifact family — nothing written"
       end
 
       # @param root [String] the checkout
@@ -140,7 +140,7 @@ module Hecks
 
         formatters = "--tag ~io --tag ~fuzzing --format progress --format ParallelTests::RSpec::RuntimeLogger --out #{raw}"
         green = system("bundle", "exec", "parallel_rspec", "spec", "-n", workers, "-o", formatters, chdir: root)
-        abort "bin/refresh_rspec_runtime_baseline: the spec run failed - not writing a baseline from a red suite" unless green
+        abort "bin/refresh_rspec_runtime_baseline: the spec run failed — not writing a baseline from a red suite" unless green
 
         write_baseline(root, families(root).fetch("rspec-runtime-group")[:baseline],
                        baseline_lines([File.join(root, raw)]), out)
