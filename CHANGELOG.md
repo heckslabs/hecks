@@ -11,6 +11,53 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 - **Scripts and routes.** Each `bin/` script and `exe/hecks` route prints its 3.0.0 form to stderr, for example "bin/compact is removed in 3.0.0; it becomes `hecks compact <domain> [aggregates=A,B] --confirm`". It prints only when stderr is a terminal, so pipes, CI logs and the MCP stdio doors see nothing, and `HECKS_NO_3_0_NOTICE` silences it everywhere.
 - **Generated deploy files.** Files from `bin/project_deploy` carry a comment naming the 3.0.0 form of each `bin/` script they call, so regenerate them before upgrading.
 
+**Breaking (3.0.0): `bin/` is removed; every script is a `hecks <verb>` command (ADR 0080).**
+Each script is now a command on the Hecks domain, run through the launcher `hecks project_cli`
+generates as `exe/hecks`. `exe/hecks` stops being a hand-written router: the command names stay,
+but arguments are projected from the bluebook, so flags and argument order change. The verb for a
+script is the one the 2.10 notice printed (`bin/compact` is `hecks compact <domain> [aggregates=A,B]
+--confirm`). Two launcher names differ from the command's own: `mcp` runs `ServeMcp` (also
+`hecks serve_mcp`) and `console` runs `OpenConsole` (also `hecks open_console`). Two consequences
+reach client repositories:
+- A `Makefile` or shell script `bin/project_deploy` generated calls `bin/<name>`, and stops working;
+  regenerate it with `hecks deploy project <domain>`, which now writes `hecks <verb>` calls.
+- A CI job, hook or doc that runs `bin/<name>` moves to `hecks <verb>`. Every script has a row in
+  the ADR 0080 command table; `hecks <verb> --help` says what it takes.
+
+**Breaking (3.0.0): the Hecks chapters' constants live under `Hecks::Domain`.**
+`hecks.bluebook` declares `namespace "Hecks::Domain"` (a new chapter word), so `Release`,
+`Codemod`, `Corpus`, `Fuzzing` and `Kernel` no longer collide with the gem's own `Hecks` module.
+Code that reached a Hecks-chapter constant as `Hecks::<Name>` reaches it as
+`Hecks::Domain::<Name>`.
+
+**Breaking (3.0.0): `Hecks::Facade` is now `Hecks::Doors`.**
+`Hecks::Facade` is now `Hecks::Doors` (`Surface` is `Doors::RubyDoor`, the MCP door lives beside
+it); `install_facade:` is now `install_doors:`; old names work for one release and warn;
+regenerate launchers with `hecks project_cli`.
+
+**Breaking (3.0.0): `answered_by` is removed from the language.**
+A `query` no longer names the port that answers it. The binding from a query to its port moves to
+the hecksagon, beside the other adapter bindings, so a bluebook says what is asked and the
+hecksagon says who answers. Move each `answered_by` binding into the domain's hecksagon.
+
+**Breaking (3.0.0): two Hecks lifecycle commands are renamed.**
+`Era.Admit` is `Era.Permit` (the lifecycle's `admitted` state and the request that reaches it are
+unchanged), and `Release.Publish` is `Release.MarkPublished`; `Release.Verify` now also runs from
+`verified`, so a repeated verification is not refused. Anything that dispatches the old names by
+string uses the new name.
+
+**Breaking (3.0.0): an era edge's approval is a committed file, `translations/<from>-<to>.approval`.**
+A translation edge is approved by a JSON file beside the edge, and the host reads it at its next
+boot; it is valid while its digest matches the edge. A journal approval bound to the tip still
+satisfies the check, so a deployed edge approved before 3.0.0 keeps booting; a new approval is
+written as the file, and a file whose digest no longer matches the edge is refused.
+
+**Breaking (3.0.0): the gem ships `rust/` and the tooling.**
+The gem's files are `lib/` whole, `rust/` (without `rust/tests/`, `rust/src/generated/` and any
+`target/`), and `exe/hecks`. It is larger, and `hecks build_wasm` and the other Build commands work
+from an installed gem: a build copies the workspace to `.hecks/rust/<version>/` and never writes
+into the gem. Anything that read the gem's file list to leave the tooling out no longer can.
+
 ## [2.9.0] - 2026-09-28
 
 **Feature: `POST /members/delete` soft-deletes a disabled member.**
