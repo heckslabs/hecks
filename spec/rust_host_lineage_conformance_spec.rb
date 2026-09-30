@@ -45,6 +45,13 @@ RSpec.describe "Rust/Ruby lineage parity (rust/host)", :io do
     RuntimeError.new("`cargo build --bin #{name}` could not run in #{RUST_HOST_DIR}: #{e.message}")
   end
 
+  # A role the example later connects as needs the environment's password when the server asks
+  # for one (libpq, the Ruby era and the Rust harnesses all read `PGPASSWORD`).
+  def login_clause(connection)
+    password = ENV.fetch("PGPASSWORD", "")
+    password.empty? ? "LOGIN" : "LOGIN PASSWORD #{connection.escape_literal(password)}"
+  end
+
   def drop_scratch!(db_name, owner_role, app_role)
     require "pg"
     admin = PG.connect(dbname: "postgres")
@@ -149,9 +156,9 @@ RSpec.describe "Rust/Ruby lineage parity (rust/host)", :io do
     admin.exec("DROP DATABASE IF EXISTS #{db_name} WITH (FORCE)")
     admin.exec("CREATE DATABASE #{db_name}")
     admin.exec("DROP ROLE IF EXISTS #{owner_role}")
-    admin.exec("CREATE ROLE #{owner_role} LOGIN")
+    admin.exec("CREATE ROLE #{owner_role} #{login_clause(admin)}")
     admin.exec("DROP ROLE IF EXISTS #{app_role}")
-    admin.exec("CREATE ROLE #{app_role} LOGIN")
+    admin.exec("CREATE ROLE #{app_role} #{login_clause(admin)}")
     admin.close
     grant = PG.connect(dbname: db_name)
     grant.exec("GRANT CONNECT ON DATABASE #{db_name} TO #{owner_role}")

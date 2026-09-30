@@ -153,12 +153,14 @@ RSpec.describe "Committed approval rehearsal", :io do
 
   around do |example|
     saved_password = ENV.fetch("PGPASSWORD", nil)
-    ENV["PGPASSWORD"] = SCRATCH_PASSWORD
+    # The admin connections (create and drop) keep the environment's own credentials; only the
+    # example, which connects as the scratch owner, sees the scratch password.
     create_scratch!(SecureRandom.hex(4))
+    ENV["PGPASSWORD"] = SCRATCH_PASSWORD
     Dir.mktmpdir("committed-approval-") { |dir| (@dir = dir) && example.run }
   ensure
-    drop_scratch!
     saved_password ? ENV["PGPASSWORD"] = saved_password : ENV.delete("PGPASSWORD")
+    drop_scratch!
   end
 
   describe "Ruby (LineageManager.check!)" do

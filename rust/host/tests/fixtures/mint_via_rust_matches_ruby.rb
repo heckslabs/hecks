@@ -23,10 +23,12 @@ RUBY_DB = "mvr_ruby_#{suffix}"
 RUST_DB = "mvr_rust_#{suffix}"
 OWNER = "mvr_owner_#{suffix}"
 
+# A role the test connects as later needs the admin password when the server asks for one.
+LOGIN_CLAUSE = ENV["PGPASSWORD"] ? "LOGIN PASSWORD '#{ENV["PGPASSWORD"].gsub("'", "''")}'" : "LOGIN"
 admin = PG.connect(dbname: "postgres")
 [RUBY_DB, RUST_DB].each { |db| admin.exec("DROP DATABASE IF EXISTS #{db} WITH (FORCE)") }
 admin.exec("DROP ROLE IF EXISTS #{OWNER}")
-admin.exec("CREATE ROLE #{OWNER} LOGIN")
+admin.exec("CREATE ROLE #{OWNER} #{LOGIN_CLAUSE}")
 [RUBY_DB, RUST_DB].each do |db|
   admin.exec("CREATE DATABASE #{db}")
   conn = PG.connect(dbname: db)

@@ -23,6 +23,8 @@ mod resend;
 mod secrets;
 mod server;
 mod storage_shape;
+#[cfg(test)]
+mod test_pg;
 mod ui_schema;
 mod wasm_runner;
 mod web;
