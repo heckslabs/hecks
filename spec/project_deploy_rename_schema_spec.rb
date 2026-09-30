@@ -1,10 +1,11 @@
+require_relative "support/project_deploy_runner"
 require "tmpdir"
 require "fileutils"
 require "open3"
 
 # Pins the `^[A-Za-z_][A-Za-z0-9_]*$` allowlist guard on `make rename-schema OLD=.. NEW=..`.
-# Reads a generated fixture Makefile, since bin/project_deploy is a script, not a library.
-RSpec.describe "bin/project_deploy's rename-schema OLD/NEW allowlist, in its own generated Makefile", :io do
+# Reads a generated fixture Makefile, since the recipe generator writes files rather than returning them.
+RSpec.describe "hecks deploy project's rename-schema OLD/NEW allowlist, in its own generated Makefile", :io do
   RENAME_SCHEMA_FIXTURE_BASENAME = "project_deploy_rename_schema_spec_fixture".freeze
 
   before(:context) do
@@ -42,8 +43,8 @@ RSpec.describe "bin/project_deploy's rename-schema OLD/NEW allowlist, in its own
         end
       WORLD
 
-      _stdout, stderr, status = Open3.capture3("ruby", File.join(root, "bin/project_deploy"), domain_dir)
-      status.success? or raise "bin/project_deploy failed: #{stderr}"
+      _stdout, stderr, status = ProjectDeployRunner.run(domain_dir, root: root)
+      status.success? or raise "hecks deploy project failed: #{stderr}"
     end
 
     @makefile = File.read(File.join(@generated_dir, "Makefile"))
