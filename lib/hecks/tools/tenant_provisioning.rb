@@ -100,7 +100,8 @@ module Hecks
           abort "tenant #{slug.inspect} is invalid: #{e.message}"
         end
 
-        record = dispatcher.registry.repository("Deploy", dispatcher.registry.bluebook("Deploy").aggregate("Tenant")).find(slug)
+        tenant = dispatcher.registry.bluebook("Deploy").aggregate("Tenant")
+        record = dispatcher.registry.repository("Deploy", tenant).find(slug)
         refused = record&.state&.dig(:refusal)
         refused = refused[:value] if refused.is_a?(Hash)
         record&.state&.dig(:status) == "refused" and

@@ -87,11 +87,6 @@
       "role": null
     },
     {
-      "scope": "deploy:tenant.declare",
-      "verb": "Deploy::Tenant.Declare",
-      "role": null
-    },
-    {
       "scope": "deploy:tenant.provision",
       "verb": "Deploy::Tenant.Provision",
       "role": null

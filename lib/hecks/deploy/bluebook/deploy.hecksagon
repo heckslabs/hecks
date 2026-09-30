@@ -2,8 +2,7 @@
 Hecks.hecksagon "Deploy" do
   persisted_by "Memory"
 
-  # `bin/project_tenant` dispatches this after `Tenant.Declare` validates, and `Tenant.Provision`
-  # dispatches it through a policy; `directory` is a real filesystem path, which `Tenant`'s
+  # `Tenant.Provision` and `Tenant.Reprovision` dispatch this through their policies; `directory` is a real filesystem path, which `Tenant`'s
   # declared `domain` name cannot supply. `adapter` may be left to the record, which leaves it to
   # the adapter's PostgresEra.
   Deploy::Tenant.port "TenantProvisioning" do
