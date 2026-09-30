@@ -35,7 +35,7 @@ module Hecks
 
         # Files older than this that do not match the current code digest are
         # pruned on write.
-        STALE_AFTER = 24 * 60 * 60
+        STALE_AFTER = 60 * 60
 
         # Whether the disk cache is on; `HECKS_VERDICT_CACHE=off` disables it.
         #
@@ -58,18 +58,22 @@ module Hecks
         # code was loaded.
         #
         # @return [String] a hex SHA-256
-        def code_digest
-          @code_digest ||= begin
-            lib   = File.expand_path("../../..", __dir__)
-            state = Digest::SHA256.new
-            state << "#{FORMAT}\0#{RUBY_VERSION}\0#{Hecks::VERSION}\0"
-            Dir.glob(File.join(lib, "**", "*"), File::FNM_DOTMATCH).sort.each do |file|
-              next unless File.file?(file)
+        def code_digest = @code_digest ||= digest_of(File.expand_path("../../..", __dir__))
 
-              state << file.delete_prefix(lib) << "\0" << File.binread(file) << "\0"
-            end
-            state.hexdigest
+        # The digest `code_digest` reports, for any tree.
+        #
+        # @param lib [String] the directory whose files decide a verdict
+        # @return [String] a hex SHA-256 over `FORMAT`, the versions and every
+        #   file's relative path and bytes, in sorted order
+        def digest_of(lib)
+          state = Digest::SHA256.new
+          state << "#{FORMAT}\0#{RUBY_VERSION}\0#{Hecks::VERSION}\0"
+          Dir.glob(File.join(lib, "**", "*"), File::FNM_DOTMATCH).sort.each do |file|
+            next unless File.file?(file)
+
+            state << file.delete_prefix(lib) << "\0" << File.binread(file) << "\0"
           end
+          state.hexdigest
         end
 
         # Loads the stored verdicts, once per process; later calls return an
