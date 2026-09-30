@@ -21,14 +21,17 @@ module Hecks
 
         # Brings the tag to the state described above, saying what it did; returns
         # false only when the person declined the confirmation.
-        def ensure!(facts)
+        #
+        # @param facts [#version, #sha] the release
+        # @param note [String, nil] what pushing the tag sets off, worded into the question
+        def ensure!(facts, note: nil)
           tag = "v#{facts.version}"
           local = local_commit(tag)
           remote = remote_commit(tag)
           refuse_elsewhere(tag, facts.sha, local: local, remote: remote)
           return true.tap { already_there(tag) } if remote
           return true.tap { preview(tag, facts.sha, local) } if @dry_run
-          return false unless @console.confirm?(question(tag, facts.sha, local))
+          return false unless @console.confirm?(question(tag, facts.sha, local, note))
 
           create(tag, facts.sha) unless local
           push(tag)
@@ -63,9 +66,9 @@ module Hecks
           @console.say("Would push #{tag} to origin.")
         end
 
-        def question(tag, sha, local)
+        def question(tag, sha, local, note)
           verb = local ? "Push" : "Create and push"
-          "#{verb} annotated tag #{tag} at #{sha[0, 7]} to origin?"
+          "#{verb} annotated tag #{tag} at #{sha[0, 7]} to origin#{" (#{note})" if note}?"
         end
 
         def create(tag, sha)

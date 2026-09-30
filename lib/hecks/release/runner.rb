@@ -126,8 +126,12 @@ module Hecks
         facts = preflight
         pending = pending_steps(facts.version)
         require_workflow(pending)
+        # Nothing is tagged or pushed until the person has agreed to the publish: the tag push
+        # is what starts CI's npm publish.
+        return declined unless @options.dry_run || pending.empty? || publish_confirmed?(facts.version, pending)
+
         tagger = Tagger.new(git: @git, console: @console, dry_run: @options.dry_run)
-        return declined unless tagger.ensure!(facts)
+        return declined unless tagger.ensure!(facts, note: tag_note(facts.version, pending))
 
         @steps << :tagged if tagger.changed?
         publish(facts, pending)
@@ -188,9 +192,14 @@ module Hecks
           @verified = registries_list?(facts.version, in_scope) unless @options.dry_run
           return 0
         end
-        return declined unless @options.dry_run || publish_confirmed?(facts.version, pending)
-
         run_steps(facts.version, pending)
+      end
+
+      # What pushing the tag sets off, for the tag question; nothing when CI publishes nothing.
+      def tag_note(version, pending)
+        return unless ci_publishes?(pending)
+
+        "CI then publishes @hecks/client #{version} to npm from the tag, which cannot be undone"
       end
 
       def publish_confirmed?(version, pending)

@@ -533,12 +533,28 @@ RSpec.describe Hecks::Release::Runner do
       expect(err.string).to include("Aborted")
     end
 
-    it "does not publish when the publish question is answered no, but keeps the tag" do
-      expect(release(input: "y\nn\n")).to eq(1)
+    it "pushes nothing when the publish question is answered no, since the tag push starts CI's npm publish" do
+      expect(release(input: "n\n")).to eq(1)
 
-      expect(commands.ran?("git", "push", "origin", tag)).to be(true)
+      expect(commands.ran?("git", "push")).to be(false)
+      expect(commands.ran?("git", "tag")).to be(false)
       expect(npm_published?).to be(false)
       expect(gem_pushed?).to be(false)
+      expect(err.string).to include("Aborted; nothing was published.")
+    end
+
+    it "keeps nothing pushed when the tag question is declined after the publish was agreed" do
+      expect(release(input: "y\nn\n")).to eq(1)
+
+      expect(commands.ran?("git", "push")).to be(false)
+      expect(gem_pushed?).to be(false)
+    end
+
+    it "says in the tag question that the push makes CI publish the client" do
+      published_gem!
+      release(input: "n\n")
+
+      expect(out.string).to include("CI then publishes @hecks/client #{version} to npm from the tag")
     end
 
     it "treats a closed input as no" do
