@@ -125,6 +125,24 @@ RSpec.describe "publishing a release" do
       expect(out).to include("the working tree is clean")
     end
 
+    it "--wait exits 1 on a dirty tree and shows the refused reaction" do
+      commands.answer("git", "status", "--porcelain", stdout: " M lib/hecks/version.rb\n")
+
+      out, status = launch("publish", "run=dirty-wait", "--wait")
+
+      expect(status).to eq(1)
+      expect(out).to include("refused_reactions", "the working tree is clean")
+    end
+
+    it "without --wait still exits 0 on a dirty tree (the refusal is only reported)" do
+      commands.answer("git", "status", "--porcelain", stdout: " M lib/hecks/version.rb\n")
+
+      out, status = launch("publish", "run=dirty-nowait")
+
+      expect(status).to eq(0)
+      expect(out).to include("refused_reactions")
+    end
+
     it "refuses a client package at another version" do
       File.write(File.join(root, "packages/hecks-client/package.json"),
                  JSON.generate("name" => "@hecks/client", "version" => "9.9.8"))

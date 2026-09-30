@@ -16,12 +16,17 @@ module Hecks
     # already Lambda-backed. Writes cannot: givens and constraints must run in Rust,
     # not be pre-checked here against incomplete local state.
     class RemoteDispatcher
-      Result = Struct.new(:verb, :instance, :events, :refused_reactions, keyword_init: true) do
+      Result = Struct.new(:verb, :instance, :events, :refused_reactions, :blocking_reactions, keyword_init: true) do
         # Lists the policy reactions this dispatch caused that the routed runtime refused.
         #
         # @return [Array<Hash{Symbol => Object}>] one `{ policy:, trigger:, reason: }` per refused
         #   reaction, oldest first; empty when every reaction was delivered
         def refused_reactions = self[:refused_reactions] || []
+
+        # Lists the refused reactions that block the run, as opposed to a benign non-match.
+        #
+        # @return [Array<Hash{Symbol => Object}>] the subset of `refused_reactions` that blocks
+        def blocking_reactions = self[:blocking_reactions] || []
 
         # The settled record's identity.
         #
@@ -103,7 +108,8 @@ module Hecks
                                 state: JSON.parse(JSON.generate(mutation["state"]), symbolize_names: true))
 
         Result.new(verb: verb, instance: instance, events: step_events(response),
-                   refused_reactions: refused_reactions_of(response))
+                   refused_reactions: refused_reactions_of(response),
+                   blocking_reactions: ReactionOutcome.blocking(step_reactions(response)))
       end
 
       # Delegates to the local `Dispatcher`; see `Dispatcher#query`.
@@ -126,10 +132,13 @@ module Hecks
       # The newest step's reactions the remote runtime refused, from its `reactions_per_step`
       # log (the whole-run `reactions` would also carry the replayed history's).
       def refused_reactions_of(response)
-        Array(response.fetch("reactions_per_step", []).last)
+        step_reactions(response)
           .select { |entry| entry["delivered"] == false }
           .map { |entry| { policy: entry["policy"], trigger: entry["trigger"], reason: entry["reason"] } }
       end
+
+      # Every reaction the newest step caused, delivered or not.
+      def step_reactions(response) = Array(response.fetch("reactions_per_step", []).last)
 
       def step_events(response)
         response.fetch("events", []).map { |e| build_event(e) }

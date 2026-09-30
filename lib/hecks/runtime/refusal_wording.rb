@@ -19,6 +19,19 @@ module Hecks
         substitute(template(refusal, site), values)
       end
 
+      # Whether `reason` is the AlreadyExists refusal for a duplicate creation, matched by the
+      # template's own wording so a remote host's reason reads the same as a local one.
+      #
+      # @param reason [String, nil] the refusal message
+      # @return [Boolean]
+      def already_exists?(reason)
+        @already_exists ||= begin
+          parts = TEMPLATES.fetch(%w[AlreadyExists creating_duplicate]).split(/\{\w+\}/, -1)
+          Regexp.new("\\A#{parts.map { |part| Regexp.escape(part) }.join('.*')}\\z", Regexp::MULTILINE)
+        end
+        @already_exists.match?(reason.to_s)
+      end
+
       # Renders a site's template from raw `arguments`, formatting each per its row.
       # Raises ArgumentError on a missing or undeclared argument, KeyError on an unknown site.
       def render_site(refusal, site, **arguments)

@@ -106,11 +106,17 @@ module Hecks
       end
 
       # The answer `--wait` gives: the record re-read from its repository after every reaction
-      # has run, with all its events, and a status of 1 when its lifecycle ended in a failure state.
+      # has run, with all its events, and a status of 1 when its lifecycle ended in a failure
+      # state or a reaction the domain refused blocks the run.
+      #
+      # A refusal blocks unless a sibling reaction to the same event delivered another command on
+      # the same aggregate (`Runtime::ReactionOutcome`): a given-gated policy pair, one of which
+      # always declines, stays a pass. The refusal is shown under `refused_reactions` either way.
       #
       # @return [Array(String, Integer)] the JSON and the status
       def settled(runtime, spec, handle, bluebook, launcher, extra)
-        return [JSON.pretty_generate(answered(handle).merge(extra)), 0] if handle.state.nil?
+        blocked = blocked?(handle)
+        return [JSON.pretty_generate(answered(handle).merge(extra)), blocked ? 1 : 0] if handle.state.nil?
 
         aggregate = aggregate_of(bluebook, spec)
         state     = reread(runtime, bluebook, aggregate, handle) || handle.state
@@ -118,7 +124,13 @@ module Hecks
         events    = runtime.events.select { |event| event.aggregate == fqn && event.id == handle.id }
         answer    = { id: handle.id, state: JsonDoor.materialize(state),
                       events: (events.empty? ? handle.events : events).map(&:name) }.merge(extra)
-        [JSON.pretty_generate(answer), LauncherOptions.failed?(aggregate, state, launcher) ? 1 : 0]
+        failed = blocked || LauncherOptions.failed?(aggregate, state, launcher)
+        [JSON.pretty_generate(answer), failed ? 1 : 0]
+      end
+
+      # Whether a reaction the domain refused blocks the run the handle reports.
+      def blocked?(handle)
+        handle.respond_to?(:blocking_reactions) && !handle.blocking_reactions.empty?
       end
 
       # The aggregate a top-level command belongs to; nil for an entity command or a port.
