@@ -383,6 +383,50 @@ Hecks.bluebook "QualityControl" do
       description "Every chapter ever written down — the inventory a runner walking the repository checks its findings against."
       order_by :reference
     end
+
+    # The commands that enrol, generate and judge chapters. TargetTools answers each by running the
+    # script's own command as a child process (lib/hecks/quality_control/adapters/target_tools.rb) and
+    # handing back what it printed; none reads or writes this aggregate's records, so each is a query.
+    # `arguments` is the command's own flags as one string, such as `--domains 3 --rust`.
+    value_object "Words" do
+      attribute :value, String, pattern: '[^\n\r]'
+    end
+
+    value_object "DomainPath" do
+      attribute :value, String, pattern: '[^\t\n\r]'
+
+      invariant("a domain is named by its path") { !value.to_s.empty? }
+    end
+
+    query "Seed" do
+      description "Identify every corpus domain as a rotation target, printing each one's inferred capabilities; one already on file is skipped."
+      answered_by "TargetTools"
+    end
+
+    query "CheckGeneratedDomains" do
+      description "Generate domains nobody wrote and check them the way the rotation does: a domain that does not boot is invalid, never a finding."
+      attribute :arguments, Words, optional: true
+      answered_by "TargetTools"
+    end
+
+    query "MineCombinations" do
+      description "Ask an agent to mine the adversarial corpus for new domain combinations, then check the ones that boot; opt-in, since an agent call costs money."
+      attribute :arguments, Words, optional: true
+      answered_by "TargetTools"
+    end
+
+    query "JudgeNovelty" do
+      description "Whether a new stress domain puts two forms together on one aggregate that no existing target does: the gate before it becomes a target."
+      attribute :domain,    DomainPath
+      attribute :arguments, Words, optional: true
+      answered_by "TargetTools"
+    end
+
+    query "DiscoverExternalDomains" do
+      description "Sibling-repo domains that already depend on the hecks gem but are not enrolled yet; it reports and never enrols."
+      attribute :arguments, Words, optional: true
+      answered_by "TargetTools"
+    end
   end
 
   aggregate "Sweep" do
@@ -668,6 +712,97 @@ Hecks.bluebook "QualityControl" do
     query "All" do
       description "Every pass ever made — what a runner mints the next reference from."
       order_by :reference
+    end
+
+    # The commands that work a whole pass. SweepTools answers each by running the script's own command
+    # as a child process (lib/hecks/quality_control/adapters/sweep_tools.rb) and handing back what it
+    # printed: a run that found something is an answer, an operational error a refusal with its
+    # report. They log their own checks through the commands above; none of these queries reads this
+    # aggregate's records. `arguments` is the command's own flags as one string, such as `--all`.
+    value_object "Words" do
+      attribute :value, String, pattern: '[^\n\r]'
+    end
+
+    value_object "DomainPath" do
+      attribute :value, String, pattern: '[^\t\n\r]'
+
+      invariant("a domain is named by its path") { !value.to_s.empty? }
+    end
+
+    value_object "DataPath" do
+      attribute :value, String, pattern: '[^\t\n\r]'
+
+      invariant("a data directory is named by its path") { !value.to_s.empty? }
+    end
+
+    value_object "DatabaseName" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+
+      invariant("a database is named") { !value.to_s.empty? }
+    end
+
+    value_object "RoleName" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+
+      invariant("a role is named") { !value.to_s.empty? }
+    end
+
+    value_object "SchemaName" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+
+      invariant("a schema is named") { !value.to_s.empty? }
+    end
+
+    value_object "StepVerb" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+
+      invariant("a step names its verb") { !value.to_s.empty? }
+    end
+
+    # A step's arguments as JSON text, which is how the racer's command line carries them.
+    value_object "StepArguments" do
+      attribute :value, String
+
+      invariant("a step carries its arguments, `{}` for none") { !value.to_s.empty? }
+    end
+
+    query "Tick" do
+      description "One QA tick: a clean tree, a rebase on origin/main, the PR check, a sweep of the whole rotation and the generated domains, then one report. It never logs a bug, releases a hold or opens a PR."
+      answered_by "SweepTools"
+    end
+
+    query "Run" do
+      description "One claim, sweep, conclude and release cycle against a target (the rotation's pick when none is named), or every waiting target with `--all`; the first surprised check ends it with a report."
+      attribute :target,    TargetRef, optional: true
+      attribute :arguments, Words,     optional: true
+      answered_by "SweepTools"
+    end
+
+    query "MigrateLedgerFromHeki" do
+      description "Copy each aggregate's current state from a Heki data directory into the repository the domain's bindings name today; a dry run unless `--force` is in the arguments, and an id held under a different state is always refused."
+      attribute :domain,    DomainPath
+      attribute :data,      DataPath
+      attribute :arguments, Words, optional: true
+      answered_by "SweepTools"
+    end
+
+    query "CreateLedgerRole" do
+      description "Create the ordinary Postgres role the ledger connects as and make it own the database; idempotent, and refuses a superuser or BYPASSRLS role, which the era write-fence cannot bind."
+      attribute :database, DatabaseName
+      attribute :role,     RoleName, optional: true
+      answered_by "SweepTools"
+    end
+
+    # Runs only as a child process a concurrency sweep starts, two at a time, so it is not something a
+    # person types.
+    query "Race" do
+      description "One racer of a concurrent dispatch: boot a domain against a schema and dispatch one step; the answer is `succeeded`, `refused` or `crashed:<class>: <message>`."
+      attribute :domain,         DomainPath
+      attribute :database,       DatabaseName
+      attribute :schema,         SchemaName
+      attribute :verb,           StepVerb
+      attribute :step_arguments, StepArguments
+      answered_by "SweepTools"
     end
   end
 
@@ -1309,6 +1444,13 @@ Hecks.bluebook "QualityControl" do
       description "Every angle ever proposed — what a runner mints the next reference from."
       order_by :reference
     end
+
+    # AngleTools answers this by running the script's own command as a child process
+    # (lib/hecks/quality_control/adapters/angle_tools.rb); it reads no record of this aggregate.
+    query "Seed" do
+      description "Propose the practice's starting leads that are not on file yet; a lead already chased down is proposed, investigated and built in one pass."
+      answered_by "AngleTools"
+    end
   end
 
   # Raise an issue only for a bug you could not fix yourself. `Raise` checks that the reference
@@ -1925,6 +2067,14 @@ Hecks.bluebook "QualityControl" do
     query "All" do
       description "Every CI run ever recorded, one per commit."
       order_by :commit
+    end
+
+    # ClearanceTools answers this by running the script's own command as a child process
+    # (lib/hecks/quality_control/adapters/clearance_tools.rb). The command starts the clearances and
+    # lets the CI port's policies record each verdict; a newly red PR ends it with a report.
+    query "CheckPullRequests" do
+      description "Check CI for every PR the ledger tracks as open, a Patch or an Improvement: retire one GitHub reports merged or closed, and start a clearance for each unsettled head commit."
+      answered_by "ClearanceTools"
     end
   end
 

@@ -11,18 +11,18 @@ module Hecks
       # `call(ARGV)` and `:root` is `call(root:)`. A command lives in
       # `hecks/quality_control/cli/<command>`.
       COMMANDS = {
-        "qa_tick" => ["QaTick", :argv_root],
-        "qa_sweep" => ["QaSweep", :argv_root],
-        "qa_pr_check" => ["QaPrCheck", :argv_root],
-        "qa_generated_domains" => ["QaGeneratedDomains", :argv_root],
-        "qa_mine_combinations" => ["QaMineCombinations", :argv_root],
-        "qa_domain_novelty" => ["QaDomainNovelty", :argv_root],
+        "qa_tick"                      => ["QaTick", :argv_root],
+        "qa_sweep"                     => ["QaSweep", :argv_root],
+        "qa_pr_check"                  => ["QaPrCheck", :argv_root],
+        "qa_generated_domains"         => ["QaGeneratedDomains", :argv_root],
+        "qa_mine_combinations"         => ["QaMineCombinations", :argv_root],
+        "qa_domain_novelty"            => ["QaDomainNovelty", :argv_root],
         "qa_discover_external_domains" => ["QaDiscoverExternalDomains", :argv_root],
-        "qa_concurrency_racer" => ["QaConcurrencyRacer", :argv_root],
-        "qa_postgres_migrate" => ["QaPostgresMigrate", :argv],
-        "qa_postgres_role" => ["QaPostgresRole", :argv],
-        "qa_seed_angles" => ["QaSeedAngles", :root],
-        "qa_seed_targets" => ["QaSeedTargets", :root]
+        "qa_concurrency_racer"         => ["QaConcurrencyRacer", :argv_root],
+        "qa_postgres_migrate"          => ["QaPostgresMigrate", :argv],
+        "qa_postgres_role"             => ["QaPostgresRole", :argv],
+        "qa_seed_angles"               => ["QaSeedAngles", :root],
+        "qa_seed_targets"              => ["QaSeedTargets", :root]
       }.freeze
 
       module_function

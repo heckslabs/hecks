@@ -1,6 +1,12 @@
 require "spec_helper"
 require "json"
 require "hecks/hecks/adapters/codebase/source_tree"
+require "hecks/cli/pattern_cases"
+require "hecks/cli/refresh_rspec_runtime_baseline"
+require "hecks/cli/rspec_io_parallel_files"
+require "hecks/cli/rspec_shard_files"
+require "hecks/cli/seed_semantics_corpus"
+require "hecks/cli/stress_concurrency_specs"
 require_relative "../../support/fake_codebase_shell"
 
 RSpec.describe Hecks::Adapters::Codebase::TestSuite do

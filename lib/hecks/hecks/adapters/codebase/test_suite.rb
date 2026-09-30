@@ -1,12 +1,6 @@
 # frozen_string_literal: true
 
 require_relative "tree"
-require_relative "../../../cli/pattern_cases"
-require_relative "../../../cli/refresh_rspec_runtime_baseline"
-require_relative "../../../cli/rspec_io_parallel_files"
-require_relative "../../../cli/rspec_shard_files"
-require_relative "../../../cli/seed_semantics_corpus"
-require_relative "../../../cli/stress_concurrency_specs"
 require_relative "test_runner"
 require_relative "sqlite_fixture"
 
@@ -34,6 +28,16 @@ module Hecks
 
         module_function
 
+        # Loads the command a `Hecks::CLI` file defines, the first time an ask needs it: several
+        # read the checkout's specs or need a development gem, which an installed gem lacks.
+        #
+        # @param file [String] the command's file under `lib/hecks/cli/`, without the extension
+        # @return [Module] the command, named as the file is, in camel case
+        def command(file)
+          require_relative "../../../cli/#{file}"
+          Hecks::CLI.const_get(file.split("_").map(&:capitalize).join)
+        end
+
         # Carries out one operation.
         #
         # @param operation [String] one of `OPERATIONS`
@@ -48,11 +52,11 @@ module Hecks
           when "refresh_runtime_baseline" then refresh(args, tree)
           when "run_spec_example" then TestRunner.new(tree).run(file: args[:file], example: args[:example])
           when "stress_concurrency"
-            answer { Hecks::CLI::StressConcurrencySpecs.call(stress_flags(args), root: tree.root) }
+            answer { command("stress_concurrency_specs").call(stress_flags(args), root: tree.root) }
           when "regenerate_legacy_fixtures"
             SqliteFixture.new(tree, shell: shell).regenerate(confirm: args[:confirm] == true)
           when "seed_semantics_corpus"
-            answer { Hecks::CLI::SeedSemanticsCorpus.call(root: tree.root, env: seed_env(args)) }
+            answer { command("seed_semantics_corpus").call(root: tree.root, env: seed_env(args)) }
           else write_list(args, tree)
           end
         end
@@ -68,10 +72,10 @@ module Hecks
         def report(operation, args, tree, shell: nil)
           case operation
           when "shard_specs"
-            read { |out| Hecks::CLI::RspecShardFiles.call(shard_args(args), root: tree.root, out: out) }
+            read { |out| command("rspec_shard_files").call(shard_args(args), root: tree.root, out: out) }
           when "list_io_parallel_specs"
-            read { |out| Hecks::CLI::RspecIoParallelFiles.call(list_args(args), root: tree.root, out: out) }
-          else read { |out| Hecks::CLI::PatternCases.call(out: out) }
+            read { |out| command("rspec_io_parallel_files").call(list_args(args), root: tree.root, out: out) }
+          else read { |out| command("pattern_cases").call(out: out) }
           end
         end
 
@@ -124,7 +128,7 @@ module Hecks
         # @raise [ConsoleCapture::Failure] when the refresh ends badly
         def refresh(args, tree)
           source = args[:from_run] ? ["--from-run", args[:from_run]] : [*args[:workers]&.to_s]
-          return answer { Hecks::CLI::RefreshRspecRuntimeBaseline.call(source, root: tree.root) } if args[:confirm] == true
+          return answer { command("refresh_rspec_runtime_baseline").call(source, root: tree.root) } if args[:confirm] == true
 
           "dry run, would #{args[:from_run] ? "read CI run #{args[:from_run]}'s timings" : 'time a local run'} " \
             "and rewrite #{BASELINES.join(', ')} (add --confirm)"
@@ -148,7 +152,7 @@ module Hecks
         def write_list(args, tree)
           if args[:confirm] == true
             words = ["--write", args[:write], args[:exclude], "--", *tag_words(args)]
-            answer { Hecks::CLI::RspecIoParallelFiles.call(words, root: tree.root) }
+            answer { command("rspec_io_parallel_files").call(words, root: tree.root) }
             return "wrote #{args[:write]}"
           end
 
