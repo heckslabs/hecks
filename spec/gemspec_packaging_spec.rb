@@ -196,7 +196,7 @@ RSpec.describe "gem packaging" do
 
         out, err, status = run.call(File.join(dir, "exe/hecks"), "--help")
         expect(status).to be_success, err
-        expect(out).to include("usage: hecks <command>")
+        expect(out).to include("hecks <verb> [name=value")
       end
     end
   end
