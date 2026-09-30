@@ -22,14 +22,23 @@ module Hecks
       # Whether `reason` is the AlreadyExists refusal for a duplicate creation, matched by the
       # template's own wording so a remote host's reason reads the same as a local one.
       #
+      # With `command` (and `aggregate`), the sentence must be that command's own: text that only
+      # resembles the template but names another command is not a duplicate creation.
+      #
       # @param reason [String, nil] the refusal message
+      # @param command [String, nil] the bare name of the creating command that was refused
+      # @param aggregate [String, nil] the bare name of the aggregate it creates
       # @return [Boolean]
-      def already_exists?(reason)
-        @already_exists ||= begin
-          parts = TEMPLATES.fetch(%w[AlreadyExists creating_duplicate]).split(/\{\w+\}/, -1)
-          Regexp.new("\\A#{parts.map { |part| Regexp.escape(part) }.join('.*')}\\z", Regexp::MULTILINE)
-        end
-        @already_exists.match?(reason.to_s)
+      def already_exists?(reason, command: nil, aggregate: nil)
+        given   = { "command" => command, "aggregate" => aggregate }
+        pieces  = TEMPLATES.fetch(%w[AlreadyExists creating_duplicate]).split(/(\{\w+\})/, -1)
+        pattern = pieces.map do |piece|
+          name = piece[/\A\{(\w+)\}\z/, 1]
+          next Regexp.escape(piece) unless name
+
+          given[name] ? Regexp.escape(given[name]) : ".*"
+        end.join
+        Regexp.new("\\A#{pattern}\\z", Regexp::MULTILINE).match?(reason.to_s)
       end
 
       # Renders a site's template from raw `arguments`, formatting each per its row.

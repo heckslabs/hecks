@@ -191,7 +191,7 @@ module Hecks
         Result.new(verb: verb, instance: instance, events: announced,
                    execution_plan: execution_plan, persistence_outcome: persistence_outcome,
                    refused_reactions: refused_from(reactions),
-                   blocking_reactions: ReactionOutcome.blocking(reactions))
+                   blocking_reactions: ReactionOutcome.blocking(reactions, event_of: @registry.method(:reaction_event)))
       end
       private :dispatch_collecting
 
