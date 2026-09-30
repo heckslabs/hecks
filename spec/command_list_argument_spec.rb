@@ -41,6 +41,12 @@ RSpec.describe "a command's list_of argument" do
           emits Attached
         end
 
+        command "Replace" do
+          attribute :only, String
+          sets :labels, to: :only
+          emits Replaced
+        end
+
         command "Detach" do
           attribute :label, String
           sets :labels, remove: :label
@@ -84,6 +90,12 @@ RSpec.describe "a command's list_of argument" do
     id = open_folder([]).id
     expect { @runtime.dispatch("Binder::Folder.Relabel", to: id, with: { labels: "b" }) }
       .to raise_error(Hecks::Runtime::TypeMismatch, /Relabel\.labels expects list_of\(Label\)/)
+  end
+
+  it "refuses a plain sets of a list from a lone scalar, though append and remove take one element" do
+    id = open_folder([]).id
+    expect { @runtime.dispatch("Binder::Folder.Replace", to: id, with: { only: "x" }) }
+      .to raise_error(Hecks::Runtime::TypeMismatch, /labels expects list_of\(Label\), got "x"/)
   end
 
   it "keeps the single-element form for the append and remove effects" do
