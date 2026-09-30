@@ -26,6 +26,12 @@ module Hecks
         def ok? = status.success?
       end
 
+      # The library the sweep child loads `Hecks::Tools` from.
+      LIB = File.expand_path("../../..", __dir__)
+
+      # What the sweep child runs: the `fuzz` tool, which takes the flags that follow.
+      ENTRY = 'require "hecks/tools"; Hecks::Tools.script("fuzz", ARGV)'
+
       # Signals passed on to a running child's process group.
       FORWARDED = %w[INT TERM].freeze
 
@@ -53,13 +59,13 @@ module Hecks
                                          "needs a hecks checkout"
         end
 
-        command = [RbConfig.ruby, script("fuzz")]
+        command = [RbConfig.ruby, "-I", LIB, "-e", ENTRY, "--"]
         command << plain(held[:domain]) if plain(held[:domain])
         { "--seeds" => :seeds, "--steps" => :steps, "--workers" => :workers, "--adapter" => :adapter }.each do |flag, key|
           command.push(flag, plain(held[key]).to_s) unless plain(held[key]).nil?
         end
 
-        answer(run(command, env: { "HECKS_NO_3_0_NOTICE" => "1" }))
+        answer(run(command))
       end
 
       # Starts a child, forwards interrupts to it, and waits for it to end.
@@ -99,8 +105,6 @@ module Hecks
 
         { report: { value: finished.output } }
       end
-
-      def script(name) = File.expand_path("../../../../bin/#{name}", __dir__)
 
       def plain(argument) = argument.is_a?(Hash) ? argument[:value] : argument
     end

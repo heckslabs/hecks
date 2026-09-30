@@ -64,15 +64,16 @@ RSpec.describe Hecks::Adapters::ProcessPool do
 
     let(:clean) { described_class::Finished.new("CLEAN\n", Struct.new(:success?, :exitstatus).new(true, 0)) }
 
-    it "runs bin/fuzz with the flags the record holds, and answers its report" do
+    it "runs the fuzz tool with the flags the record holds, and answers its report" do
       asked = start_with(clean)
 
       answer = pool.sweep(domain: { value: "domains/pizzas" }, seeds: { value: 5 }, steps: { value: 7 },
                           workers: { value: 2 }, adapter: { value: "sqlite" })
 
       command = asked.first.fetch(:command)
-      expect(File.basename(command[1])).to eq("fuzz")
-      expect(command.drop(2)).to eq(%w[domains/pizzas --seeds 5 --steps 7 --workers 2 --adapter sqlite])
+      expect(command[1..3]).to eq(["-I", described_class::LIB, "-e"])
+      expect(command[4]).to include('Hecks::Tools.script("fuzz", ARGV)')
+      expect(command.drop(6)).to eq(%w[domains/pizzas --seeds 5 --steps 7 --workers 2 --adapter sqlite])
       expect(answer).to eq(report: { value: "CLEAN\n" })
     end
 
@@ -81,7 +82,7 @@ RSpec.describe Hecks::Adapters::ProcessPool do
 
       pool.sweep(domain: { value: "domains/pizzas" })
 
-      expect(asked.first.fetch(:command).drop(2)).to eq(["domains/pizzas"])
+      expect(asked.first.fetch(:command).drop(6)).to eq(["domains/pizzas"])
     end
 
     it "refuses with what the sweep printed when it found something" do

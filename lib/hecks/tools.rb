@@ -16,21 +16,28 @@ module Hecks
     # Each tool by the name of the `bin/` script it replaced: the file that defines it, and its
     # constant.
     REGISTRY = {
-      "standardize_comments"      => ["tools/comment_style", "CommentStyle"],
-      "standardize_comments_rust" => ["tools/rust_comment_style", "RustCommentStyle"],
-      "regen_codegen_domains"     => ["tools/regeneration_run", "RegenerationRun"],
-      "argument_gate_matrix"      => ["tools/argument_gate_matrix", "ArgumentGateMatrix"],
-      "project_deploy"            => ["tools/deploy_recipe", "DeployRecipe"],
-      "lint_deploy_recipes"       => ["tools/deploy_recipe_lint", "DeployRecipeLint"],
-      "project_oidc"              => ["tools/oidc_manifests", "OidcManifests"],
-      "project_tenant"            => ["tools/tenant_provisioning", "TenantProvisioning"],
-      "translation_audit"         => ["tools/translation_audit", "TranslationAudit"],
-      "scaffold_translation"      => ["tools/translation_scaffold", "TranslationScaffold"],
-      "reattest_era"              => ["tools/era_reattest", "EraReattest"],
-      "merge_tail"                => ["tools/tail_merge", "TailMerge"],
-      "backfill_era_projections"  => ["tools/era_projection_backfill", "EraProjectionBackfill"],
-      "compact"                   => ["tools/journal_compaction", "JournalCompaction"],
-      "heki_compact"              => ["tools/heki_compaction", "HekiCompaction"]
+      "standardize_comments"           => ["tools/comment_style", "CommentStyle"],
+      "standardize_comments_rust"      => ["tools/rust_comment_style", "RustCommentStyle"],
+      "regen_codegen_domains"          => ["tools/regeneration_run", "RegenerationRun"],
+      "argument_gate_matrix"           => ["tools/argument_gate_matrix", "ArgumentGateMatrix"],
+      "project_deploy"                 => ["tools/deploy_recipe", "DeployRecipe"],
+      "lint_deploy_recipes"            => ["tools/deploy_recipe_lint", "DeployRecipeLint"],
+      "project_oidc"                   => ["tools/oidc_manifests", "OidcManifests"],
+      "project_tenant"                 => ["tools/tenant_provisioning", "TenantProvisioning"],
+      "translation_audit"              => ["tools/translation_audit", "TranslationAudit"],
+      "scaffold_translation"           => ["tools/translation_scaffold", "TranslationScaffold"],
+      "reattest_era"                   => ["tools/era_reattest", "EraReattest"],
+      "merge_tail"                     => ["tools/tail_merge", "TailMerge"],
+      "backfill_era_projections"       => ["tools/era_projection_backfill", "EraProjectionBackfill"],
+      "compact"                        => ["tools/journal_compaction", "JournalCompaction"],
+      "heki_compact"                   => ["tools/heki_compaction", "HekiCompaction"],
+      "fuzz"                           => ["tools/fuzz_sweep", "FuzzSweep"],
+      "generate"                       => ["tools/sequence_script", "SequenceScript"],
+      "corpus"                         => ["tools/corpus_report", "CorpusReport"],
+      "evolve"                         => ["tools/evolve_run", "EvolveRun"],
+      "query_ir"                       => ["tools/query_ir_run", "QueryIrRun"],
+      "codemod_hoist_local_givens"     => ["tools/hoist_local_givens", "HoistLocalGivens"],
+      "codemod_implicit_append_fields" => ["tools/drop_implicit_append_fields", "DropImplicitAppendFields"]
     }.freeze
 
     module_function
