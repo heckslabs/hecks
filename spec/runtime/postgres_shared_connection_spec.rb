@@ -149,4 +149,24 @@ RSpec.describe "Postgres shares one connection across a domain's aggregates", :i
       expect(connections_to_spec_database).to be <= 2
     end
   end
+
+  it "keeps the parent's connection alive when a forked child boots adapters and exits" do
+    registry = Hecks::Runtime::Registry.new
+    Hecks.with_registry(registry) do
+      domain = many_aggregate_domain(2)
+      adapters = adapters_for(domain, database: owner_url)
+      parent_pid = adapters.first.pg_exec("SELECT pg_backend_pid()")[0]["pg_backend_pid"]
+
+      child = fork do
+        adapters_for(domain, database: owner_url).each(&:count)
+        GC.start
+        exit(0)
+      end
+      _, status = Process.wait2(child)
+
+      expect(status.success?).to be(true)
+      expect(adapters.map(&:count)).to eq([0, 0])
+      expect(adapters.first.pg_exec("SELECT pg_backend_pid()")[0]["pg_backend_pid"]).to eq(parent_pid)
+    end
+  end
 end

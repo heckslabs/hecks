@@ -16,6 +16,31 @@ module Hecks
       REGISTRY_LOCK = Mutex.new
       private_constant :REGISTRY, :REGISTRY_LOCK
 
+      # Runs in a forked child right after the fork, before any of its code.
+      #
+      # A child inherits its parent's sockets, and libpq sends a Terminate on the socket when
+      # the child's copy of the connection is finalized at exit, which would end the parent's
+      # session. The child's copy of each socket fd is pointed at the null device, so that
+      # Terminate goes nowhere, and the child forgets the handles without `finish`.
+      #
+      # @return [void]
+      def self.disown_inherited!
+        REGISTRY.each_value(&:disown!)
+        REGISTRY.clear
+      end
+
+      # Prepended to `Process` so every `fork`, `Process.fork` and `Kernel#fork` disowns the
+      # shared connections in the child.
+      module ForkGuard
+        # @return [Integer, nil] the child's pid in the parent, nil in the child
+        def _fork
+          pid = super
+          PostgresSharedConnection.disown_inherited! if pid.zero?
+          pid
+        end
+      end
+      Process.singleton_class.prepend(ForkGuard)
+
       # Returns the process's shared connection for a database and schema, opening it on first use.
       #
       # The key includes the pid, so a forked child opens its own instead of sharing its
@@ -130,6 +155,20 @@ module Hecks
           @conn.close unless @conn.finished?
           @conn = @connector.connect_for(@name, @settings)
         end
+      end
+
+      # Detaches this handle's socket from the parent's session in a forked child: the child's
+      # fd is repointed at the null device, so nothing the child's copy of the connection writes
+      # (statements, Terminate) reaches the parent's server session. Takes no lock, since the
+      # child holds none of the parent's monitors.
+      #
+      # @return [void]
+      def disown!
+        return if @conn.finished?
+
+        IO.for_fd(@conn.socket, autoclose: false).reopen(File::NULL, "r+")
+      rescue StandardError
+        nil
       end
 
       # Closes the underlying connection.
