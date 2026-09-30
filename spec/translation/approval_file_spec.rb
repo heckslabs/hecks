@@ -57,6 +57,28 @@ RSpec.describe Hecks::Translation::ApprovalFile do
       end
     end
 
+    it "refuses a rehearsal field that is not a String, as rust/host does" do
+      [{ "snapshot" => 42 }, { "host_version" => 3.0 }, { "at" => nil }].each do |bad|
+        rehearsal = REHEARSAL.merge(bad)
+        expect do
+          described_class.build(edge: edge, approved_by: "Ada", approved_at: "2026-09-28T12:30:00Z", rehearsal: rehearsal)
+        end.to raise_error(ArgumentError, /approved on a rehearsal that passed/)
+      end
+    end
+
+    it "names who approved it and when, as a time that exists" do
+      ["", " ", nil, 7].each do |who|
+        expect { described_class.build(edge: edge, approved_by: who, approved_at: "2026-09-28T12:30:00Z", rehearsal: REHEARSAL) }
+          .to raise_error(ArgumentError, /names who approved it/)
+      end
+      ["", "yesterday", nil, "2026-13-01T00:00:00Z", "2026-02-30T00:00:00Z", "2026-09-28T25:00:00Z", "2026-09-28"].each do |at|
+        expect { described_class.build(edge: edge, approved_by: "Ada", approved_at: at, rehearsal: REHEARSAL) }
+          .to raise_error(ArgumentError, /names who approved it/)
+      end
+      expect(described_class.build(edge: edge, approved_by: "Ada", approved_at: "2026-09-28T12:30:00.5+02:00",
+                                   rehearsal: REHEARSAL)).to include("approved_by" => "Ada")
+    end
+
     it "needs no rehearsal for an edge whose rules an audit's samples can vouch for" do
       renamed = registry_with(RENAMED_EDGE).translations.first
 
@@ -94,6 +116,17 @@ RSpec.describe Hecks::Translation::ApprovalFile do
       File.write(path, File.read(path).sub('"pass"', '"fail"'))
 
       expect(described_class.applicable(@dir, edge)).to be_nil
+    end
+
+    it "does not apply once approved_by or approved_at was blanked or a rehearsal field made a number" do
+      path = approve!
+      original = File.read(path)
+      [['"approved_by": "Ada"', '"approved_by": ""'], ['"2026-09-28T12:30:00Z"', '"someday"'],
+       ['"rds:ledger-2026-09-28"', "20260928"], ['"3.0.0"', '""']].each do |from, to|
+        File.write(path, original.sub(from, to))
+
+        expect(described_class.applicable(@dir, edge)).to be_nil
+      end
     end
 
     it "skips a file that is not JSON, since it approves nothing" do

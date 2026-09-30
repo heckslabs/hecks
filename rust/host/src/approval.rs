@@ -46,8 +46,37 @@ pub struct Committed {
     pub rehearsal: Option<Rehearsal>,
 }
 
+/// Whether `value` is an RFC 3339 time that exists on the calendar, the shape Ruby's
+/// `ApprovalFile::TIMESTAMP` accepts: `2026-09-28T12:30:00Z`, with optional fraction and `+HH:MM`.
+fn is_timestamp(value: &str) -> bool {
+    static SHAPE: std::sync::OnceLock<regex::Regex> = std::sync::OnceLock::new();
+    let shape = SHAPE.get_or_init(|| {
+        regex::Regex::new(r"^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$").expect("timestamp pattern")
+    });
+    let Some(parts) = shape.captures(value) else { return false };
+    let part = |index: usize| parts[index].parse::<u32>().unwrap_or(u32::MAX);
+    let (year, month, day, hour, minute, second) = (part(1), part(2), part(3), part(4), part(5), part(6));
+    let leap = (year % 4 == 0 && year % 100 != 0) || year % 400 == 0;
+    let days = match month {
+        1 | 3 | 5 | 7 | 8 | 10 | 12 => 31,
+        4 | 6 | 9 | 11 => 30,
+        2 if leap => 29,
+        2 => 28,
+        _ => return false,
+    };
+    (1..=days).contains(&day) && hour < 24 && minute < 60 && second < 60
+}
+
 impl Committed {
-    /// Whether the approval records a rehearsal that passed, every field named.
+    /// Whether the approval names who approved it and when, the two things a reviewer signs.
+    pub fn attributed(&self) -> bool {
+        !self.approved_by.trim().is_empty() && is_timestamp(&self.approved_at)
+    }
+
+    /// Whether the approval records a rehearsal that passed, every field named. `host_version` is
+    /// recorded for the reviewer and only required to be named: the rehearsal is a person's claim
+    /// about a run, and gating on the running host's version would void every approval at each
+    /// release (Ruby's `ApprovalFile` does the same).
     pub fn rehearsed(&self) -> bool {
         self.rehearsal.as_ref().is_some_and(|r| {
             [&r.snapshot, &r.host_version, &r.result, &r.at].iter().all(|field| !field.trim().is_empty()) && r.result == "pass"
@@ -79,11 +108,12 @@ pub fn committed(ir: &Value) -> Vec<Committed> {
         .collect()
 }
 
-/// The committed approval that lets `edge` mint: its digest is the edge's, and a rehearsal that
-/// passed is recorded, since a compute or rekey is verified by nothing else.
+/// The committed approval that lets `edge` mint: its digest is the edge's, it names who approved it
+/// and when, and a rehearsal that passed is recorded, since a compute or rekey is verified by
+/// nothing else.
 pub fn applicable<'a>(committed: &'a [Committed], edge: &Value) -> Option<&'a Committed> {
     let digest = edge_digest(edge);
-    committed.iter().find(|approval| approval.edge_digest == digest && approval.rehearsed())
+    committed.iter().find(|approval| approval.edge_digest == digest && approval.attributed() && approval.rehearsed())
 }
 
 /// Refuses to mint unless a compute/rekey edge has an approval: one from the journal whose digest
@@ -239,6 +269,19 @@ mod tests {
         });
 
         assert_eq!(edge_digest(&edge), "3803f00c11d5c613d2abb4f289a8a668e5885d2f36681134e509ed98408d520c");
+    }
+
+    // A backfill default or convert value is untyped JSON, and Ruby digests the text `JSON.generate`
+    // wrote for it: `1.0e+20`, `1.0e-05`, `1.0`, and integers past u64. The literals below are
+    // Ruby's own ir.json output for that edge and 0afbe95b... is Ruby's `edge_digest` of it.
+    #[test]
+    fn edge_digest_matches_ruby_for_floats_and_integers_beyond_u64_in_untyped_json() {
+        let ir: Value = serde_json::from_str(
+            r#"{"translations":[{"domain":"F","from":"aaaaaa","to":"bbbbbb","retired":[],"aggregates":[{"name":"Account","was":null,"renames":{},"moves":[],"converts":[{"from":"k","to":"k2","values":[[1.0e+20,12345678901234567890]]}],"drops":[],"retypes":[],"computes":[],"rekeys":[],"backfills":[{"name":"a","default":1.0e+20},{"name":"b","default":100000000000000000000},{"name":"c","default":1.0e-05},{"name":"d","default":1.0}]}]}]}"#,
+        )
+        .expect("Ruby's export is JSON");
+
+        assert_eq!(edge_digest(&ir["translations"][0]), "0afbe95b13fc8dbdab470acda48184eca6f898c4b736dd72b77a41977d7c0077");
     }
 
     #[test]
@@ -420,6 +463,36 @@ mod tests {
             assert!(applicable(&[approval], &edge).is_none());
         }
         assert!(applicable(&[committed_for(&edge, passed())], &edge).is_some());
+    }
+
+    // Ruby's `ApprovalFile` refuses the same: a non-String rehearsal field, a blank approver, an
+    // approved_at that is not a time on the calendar.
+    #[test]
+    fn a_committed_approval_needs_a_string_rehearsal_and_a_named_approver_and_time() {
+        let edge = compute_rekey_edge("D");
+        for rehearsal in [
+            serde_json::json!({ "snapshot": 42, "host_version": "3.0.0", "result": "pass", "at": "2026-09-28T12:00:00Z" }),
+            serde_json::json!({ "snapshot": "s", "host_version": 3.0, "result": "pass", "at": "2026-09-28T12:00:00Z" }),
+            serde_json::json!({ "snapshot": "s", "host_version": "3.0.0", "result": "pass", "at": null }),
+        ] {
+            assert!(applicable(&[committed_for(&edge, rehearsal)], &edge).is_none());
+        }
+
+        let mut approval = committed_for(&edge, passed());
+        assert!(applicable(std::slice::from_ref(&approval), &edge).is_some());
+        for who in ["", "  "] {
+            approval.approved_by = who.to_string();
+            assert!(applicable(std::slice::from_ref(&approval), &edge).is_none(), "blank approver {who:?}");
+        }
+        approval.approved_by = "Ada".to_string();
+        for at in ["", "yesterday", "2026-13-01T00:00:00Z", "2026-02-30T00:00:00Z", "2025-02-29T00:00:00Z", "2026-09-28T25:00:00Z", "2026-09-28"] {
+            approval.approved_at = at.to_string();
+            assert!(applicable(std::slice::from_ref(&approval), &edge).is_none(), "approved_at {at:?}");
+        }
+        for at in ["2026-09-28T12:30:00.5+02:00", "2024-02-29T00:00:00Z"] {
+            approval.approved_at = at.to_string();
+            assert!(applicable(std::slice::from_ref(&approval), &edge).is_some(), "approved_at {at:?}");
+        }
     }
 
     #[test]
