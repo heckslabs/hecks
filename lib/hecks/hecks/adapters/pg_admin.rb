@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require "uri"
 require_relative "console_capture"
 
 module Hecks
@@ -14,6 +15,16 @@ module Hecks
     class PgAdmin
       # The role the QA ledger connects as when none is named.
       DEFAULT_ROLE = "hecks_qa"
+
+      # What every database this adapter drops must start with, and be followed by a name.
+      SCRATCH = /\Ascratch_\w+\z/
+
+      # Databases that are never dropped, whatever their name: the maintenance and template
+      # databases.
+      SYSTEM_DATABASES = %w[postgres template0 template1].freeze
+
+      # The environment variables that name the ledger or production database in use.
+      CONFIGURED_DATABASES = %w[PGDATABASE HECKS_LEDGER_DATABASE HECKS_DATABASE].freeze
 
       # Relation kinds in `pg_class` mapped to the `ALTER` keyword that changes their owner.
       # Partitions are their own rows, so `ALTER TABLE ... OWNER` on a parent does not reach them.
@@ -76,14 +87,18 @@ module Hecks
         end
       end
 
-      # Drops a database if it is there, ending other sessions on it first so a scratch database
-      # left open by a crashed run does not block the drop.
+      # Drops a scratch database if it is there, ending other sessions on it first so one left
+      # open by a crashed run does not block the drop. Ending every session on a database is
+      # only safe for a throwaway one, so a name must start with `scratch_` and must not be the
+      # ledger or production database the environment names.
       #
       # @param held [Hash] `database` (required)
       # @return [Hash{Symbol => Hash}] `report:` what happened
-      # @raise [ConsoleCapture::Failure] if no database is named
+      # @raise [ConsoleCapture::Failure] if no database is named, it is not a scratch name, or it
+      #   is a configured ledger or production database
       def drop_database(**held)
         database = named(held)
+        refuse_to_drop!(database)
         with(dbname: "postgres") do |admin|
           if exists?(admin, database)
             admin.exec_params("SELECT pg_terminate_backend(pid) FROM pg_stat_activity " \
@@ -97,6 +112,26 @@ module Hecks
       end
 
       private
+
+      def refuse_to_drop!(database)
+        if SYSTEM_DATABASES.include?(database.downcase) || configured_databases.include?(database)
+          raise ConsoleCapture::Failure, "refusing to drop #{database}: it is the ledger, production or " \
+                                         "a system database"
+        end
+        return if database.match?(SCRATCH)
+
+        raise ConsoleCapture::Failure, "refusing to drop #{database}: only databases named scratch_<name> " \
+                                       "are dropped"
+      end
+
+      def configured_databases
+        named = CONFIGURED_DATABASES.filter_map { |variable| ENV.fetch(variable, nil) }
+        url = ENV.fetch("DATABASE_URL", nil)
+        named << URI.parse(url).path.to_s.delete_prefix("/") if url && !url.empty?
+        named.reject(&:empty?)
+      rescue URI::InvalidURIError
+        named
+      end
 
       def named(held)
         database = plain(held[:database])

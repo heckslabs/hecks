@@ -72,11 +72,15 @@ module Hecks
     # @param name [String] a script's name, as under `bin/`
     # @param argv [Array<String>] the arguments the script took
     # @param root [String] the checkout to work on
-    # @return [Integer] the exit status: 0 when the tool ends normally
+    # @return [Integer] the exit status: 0 when the tool ends normally; 1, with the error's class
+    #   and message on `$stderr`, when the tool raises
     def run(name, argv, root: ROOT)
       Dir.chdir(root) { fetch(name).main(argv, root: root) || 0 }
     rescue SystemExit => e
       e.status
+    rescue StandardError, ScriptError => e
+      warn "#{name}: #{e.class}: #{e.message}"
+      1
     end
   end
 end
