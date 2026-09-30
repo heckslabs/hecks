@@ -51,10 +51,10 @@ end
 # CARGO_TARGET_DIR keeps build output and the dependency cache in rust/target.
 require "fileutils"
 scratch = if ENV.key?("HECKS_RUST_DIR")
-  File.join(rust_dir, "scratch", "project_wasm")
-else
-  File.join(root, "tmp", "project_wasm", "rust")
-end
+            File.join(rust_dir, "scratch", "project_wasm")
+          else
+            File.join(root, "tmp", "project_wasm", "rust")
+          end
 FileUtils.rm_rf(scratch)
 FileUtils.mkdir_p(scratch)
 %w[Cargo.toml Cargo.lock src].each { |entry| FileUtils.cp_r(File.join(rust_dir, entry), scratch) }

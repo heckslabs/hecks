@@ -87,7 +87,7 @@ RSpec.describe "every live DSL word, used somewhere real" do
                                            "which ADR 0080's 3.0 build adds when Hecks attaches the language chapters " \
                                            "(commit 6 of 11); that commit drops this exemption. " \
                                            "spec/hecksagon_attaches_spec.rb covers the word meanwhile.",
-    "cursor (Query)"                  =>
+    "cursor (Query)"                    =>
                                            "refused unconditionally at build (QueryBuilder#seal_cursor) — no interpreter " \
                                            "implements cursor pagination, so any real declaration would refuse the bluebook " \
                                            "that carried it. \"A real chapter uses cursor\" and \"the corpus builds\" are " \

@@ -118,7 +118,7 @@ module Hecks
           }
         ),
 
-        "Entity"       => Contract.new(
+        "Entity"         => Contract.new(
           holder: Entity, make: :declare,
           fields: {
             name:          [:name,          :plain],

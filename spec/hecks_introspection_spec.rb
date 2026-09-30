@@ -66,12 +66,12 @@ RSpec.describe "hecks introspection through the launcher" do
   end
 
   it "answers files as a JSON map, and writes none" do
-    before = Dir.glob(File.join(@dir, "**/*")).sort
+    before = Dir.glob(File.join(@dir, "**/*"))
     out, status = run_verb("glossary", @dir, "chapter=Shelf")
 
     expect(status).to eq(0)
     expect(JSON.parse(out).first.fetch("files")).not_to be_empty
-    expect(Dir.glob(File.join(@dir, "**/*")).sort).to eq(before)
+    expect(Dir.glob(File.join(@dir, "**/*"))).to eq(before)
   end
 
   it "words a missing domain as a refusal, not a backtrace" do

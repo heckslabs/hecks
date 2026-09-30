@@ -454,8 +454,8 @@ RSpec.describe "the Hecks command table through the launcher" do
       JSON.parse(run_verb("result", run).first).first
     end
 
-    def toolchain_says(out: "", err: "", ok: true)
-      status = Struct.new(:success?, :exitstatus).new(ok, ok ? 0 : 1)
+    def toolchain_says(out: "", err: "", passed: true)
+      status = Struct.new(:success?, :exitstatus).new(passed, passed ? 0 : 1)
       answer = Struct.new(:out, :err, :status) { def ok? = status.success? }.new(out, err, status)
       log = asked
       Hecks::Adapters::RustToolchain.shell = Object.new.tap do |shell|
@@ -482,7 +482,7 @@ RSpec.describe "the Hecks command table through the launcher" do
     end
 
     it "keeps a build the toolchain refused as faulted, with its reason, and faulted lists it" do
-      toolchain_says(err: "wasm32-wasip1 isn't installed for this toolchain\n", ok: false)
+      toolchain_says(err: "wasm32-wasip1 isn't installed for this toolchain\n", passed: false)
 
       run_verb("build_wasm", @shelf, "run=wasm-1")
 
@@ -545,10 +545,10 @@ RSpec.describe "the Hecks command table through the launcher" do
       JSON.parse(run_verb("conclusion", run).first).first
     end
 
-    def pool_says(output, ok: true)
+    def pool_says(output, passed: true)
       log = started
-      finished = Struct.new(:output, :ok?).new(output, ok)
-      status = Struct.new(:success?, :exitstatus).new(ok, ok ? 0 : 1)
+      finished = Struct.new(:output, :ok?).new(output, passed)
+      status = Struct.new(:success?, :exitstatus).new(passed, passed ? 0 : 1)
       Hecks::Adapters::ProcessPool.starter = lambda do |command, _env, _chdir|
         log << [File.basename(command[1]), *command.drop(2)]
         Hecks::Adapters::ProcessPool::Finished.new(finished.output, status)
@@ -580,7 +580,7 @@ RSpec.describe "the Hecks command table through the launcher" do
     end
 
     it "keeps a sweep that found something as halted, and halted lists it" do
-      pool_says("FUZZ FOUND SOMETHING.\n", ok: false)
+      pool_says("FUZZ FOUND SOMETHING.\n", passed: false)
 
       run_verb("fuzz", @shelf, "run=sweep-2")
 

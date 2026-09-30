@@ -46,6 +46,8 @@ RSpec.describe Hecks::Adapters::InProcessBoot do
     end
   RUBY
 
+  subject(:adapter) { described_class.new }
+
   before(:all) do
     @dir = Dir.mktmpdir("in_process_boot")
     FileUtils.mkdir_p(File.join(@dir, "bluebook"))
@@ -54,8 +56,6 @@ RSpec.describe Hecks::Adapters::InProcessBoot do
   end
 
   after(:all) { FileUtils.rm_rf(@dir) }
-
-  subject(:adapter) { described_class.new }
 
   let(:domain) { { value: @dir } }
 
@@ -103,14 +103,14 @@ RSpec.describe Hecks::Adapters::InProcessBoot do
   end
 
   it "answers diagrams and the glossary as files, and writes none" do
-    before = Dir.glob(File.join(@dir, "**/*")).sort
+    before = Dir.glob(File.join(@dir, "**/*"))
 
     diagrams = adapter.project_diagrams(domain: domain, chapter: { value: "Shelf" })
     glossary = adapter.glossary(domain: domain, chapter: { value: "Shelf" })
 
     expect(diagrams.fetch(:files)).not_to be_empty
     expect(glossary.fetch(:files).keys).to include(a_string_matching(/glossary/))
-    expect(Dir.glob(File.join(@dir, "**/*")).sort).to eq(before)
+    expect(Dir.glob(File.join(@dir, "**/*"))).to eq(before)
   end
 
   it "answers one generated sequence as a replayable script, the same one for the same seed" do

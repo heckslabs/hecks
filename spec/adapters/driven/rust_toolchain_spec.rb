@@ -21,8 +21,8 @@ RSpec.describe Hecks::Adapters::RustToolchain do
       @answers = []
     end
 
-    def answer(out: "", err: "", ok: true)
-      @answers << Result.new(out, err, Status.new(ok, ok ? 0 : 1))
+    def answer(out: "", err: "", passed: true)
+      @answers << Result.new(out, err, Status.new(passed, passed ? 0 : 1))
     end
 
     def capture(*command, env: {}, chdir: nil)
@@ -106,7 +106,8 @@ RSpec.describe Hecks::Adapters::RustToolchain do
 
     it "keeps a copy per gem version" do
       toolchain.generate(domain: { value: "domains/pizzas" })
-      newer = Hecks::Adapters::RustWorkspace.new(gem_root: File.join(dir, "gem"), project_root: File.join(dir, "app"), version: "10.0.0")
+      newer = Hecks::Adapters::RustWorkspace.new(gem_root: File.join(dir, "gem"), project_root: File.join(dir, "app"),
+                                                 version: "10.0.0")
       described_class.workspace = newer
       toolchain.generate(domain: { value: "domains/pizzas" })
 
@@ -184,7 +185,7 @@ RSpec.describe Hecks::Adapters::RustToolchain do
     end
 
     it "refuses with what a failed child printed, its own stderr first" do
-      shell.answer(out: "partial\n", err: "the domain name is not a module name\n", ok: false)
+      shell.answer(out: "partial\n", err: "the domain name is not a module name\n", passed: false)
 
       expect { toolchain.generate(domain: { value: "d/pizzas" }) }
         .to raise_error(Hecks::Adapters::ConsoleCapture::Failure, "the domain name is not a module name\npartial")
@@ -276,13 +277,13 @@ RSpec.describe Hecks::Adapters::RustToolchain do
     end
 
     it "answers a report that found gaps, since the gaps are what it reports" do
-      shell.answer(out: "#{'=' * 72}\nGAP (2)\n", ok: false)
+      shell.answer(out: "#{'=' * 72}\nGAP (2)\n", passed: false)
 
       expect(toolchain.rust_coverage(module_name: { value: "pizzas" })).to include("GAP (2)")
     end
 
     it "refuses when the script stopped before it could report at all" do
-      shell.answer(err: "rust/src/generated/none: no such generated module\n", ok: false)
+      shell.answer(err: "rust/src/generated/none: no such generated module\n", passed: false)
 
       expect { toolchain.rust_coverage(module_name: { value: "none" }) }
         .to raise_error(Hecks::Adapters::ConsoleCapture::Failure, /no such generated module/)

@@ -59,7 +59,8 @@ out_dir = File.join(rust_dir, "dist", "browser", target_mod_name)
 require "fileutils"
 FileUtils.mkdir_p(out_dir)
 
-built = File.join(ENV.fetch("CARGO_TARGET_DIR", File.join(web_dir, "target")), "wasm32-unknown-unknown", "release", "rust_web.wasm")
+built = File.join(ENV.fetch("CARGO_TARGET_DIR", File.join(web_dir, "target")), "wasm32-unknown-unknown", "release",
+                  "rust_web.wasm")
 puts "== wasm-bindgen --target web =="
 system("wasm-bindgen", "--target", "web", "--out-dir", out_dir, "--out-name", target_mod_name, built, exception: true)
 

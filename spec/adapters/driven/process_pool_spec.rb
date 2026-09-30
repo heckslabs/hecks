@@ -92,6 +92,7 @@ RSpec.describe Hecks::Adapters::ProcessPool do
     end
 
     it "refuses to sweep every domain outside a hecks checkout, and names how to sweep one" do
+      # rubocop:disable-next RSpec/AnyInstance
       allow_any_instance_of(Hecks::Adapters::RustWorkspace).to receive(:checkout?).and_return(false)
       asked = start_with(clean)
 

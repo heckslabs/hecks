@@ -48,14 +48,11 @@ RSpec.describe Hecks::Adapters::Terminal do
 
     it "starts the real door, whose stdio guard refuses an unknown HECKS_MCP_ variable" do
       stub_const("ENV", ENV.to_h.merge("HECKS_MCP_BOGUS" => "1"))
-      saved = $stderr
-      $stderr = StringIO.new
 
-      expect { described_class.new.serve(stdio: { value: true }) }
-        .to raise_error(Hecks::Adapters::ConsoleCapture::Failure, /refused to start \(status 2\)/)
-      expect($stderr.string).to include("HECKS_MCP_BOGUS")
-    ensure
-      $stderr = saved
+      expect do
+        expect { described_class.new.serve(stdio: { value: true }) }
+          .to raise_error(Hecks::Adapters::ConsoleCapture::Failure, /refused to start \(status 2\)/)
+      end.to output(/HECKS_MCP_BOGUS/).to_stderr
     end
   end
 

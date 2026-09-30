@@ -92,7 +92,11 @@ module Hecks
         end
 
         answer = adapter.public_send(method, **Value.materialize(args))
-        Freezer.deep(answer.is_a?(Array) ? answer : [answer.is_a?(Hash) ? answer : { answered: answer }])
+        Freezer.deep(if answer.is_a?(Array)
+                       answer
+                     else
+                       [answer.is_a?(Hash) ? answer : { answered: answer }]
+                     end)
       end
 
       def declared_query(aggregate, query_name)
