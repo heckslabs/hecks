@@ -57,8 +57,12 @@ RSpec.describe Hecks::RustBuild::ConformanceFuzz do
   end
 
   it "never writes into the gem's own tmp/" do
+    before_entries = Dir.exist?(root) ? Dir.children(root).sort : nil
+
     expect { described_class.call(["examples/pizzas", "native", "1", "1"]) }.to output.to_stdout
 
-    expect(Dir.exist?(root)).to be(false)
+    # Compared with what was there before, so a directory an older checkout left behind
+    # does not fail the run; only a write made by this call does.
+    expect(Dir.exist?(root) ? Dir.children(root).sort : nil).to eq(before_entries)
   end
 end

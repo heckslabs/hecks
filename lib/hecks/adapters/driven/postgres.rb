@@ -49,7 +49,11 @@ module Hecks
         # **Lazy, on purpose** — same reasoning as PostgresEra's own
         # connect_for: a domain that never wires Postgres should never
         # need the gem installed.
-        require "pg"
+        begin
+          require "pg"
+        rescue LoadError
+          raise LoadError, "#{name} binds Postgres, which needs the pg gem: add `gem \"pg\"` to the Gemfile"
+        end
 
         declared = settings.key?(:database) ? settings[:database] : settings["database"]
         if declared.to_s.empty?
@@ -75,7 +79,10 @@ module Hecks
         # boot after the first, not news.
         connection.exec("SET client_min_messages = warning")
         connection
-      rescue PG::Error => e
+      rescue StandardError => e
+        # PG is only defined once the gem loads, so the clause cannot name it.
+        raise unless defined?(PG::Error) && e.is_a?(PG::Error)
+
         raise Runtime::WiringError,
               "cannot bind Postgres at #{declared} for #{name}: #{e.message.strip}"
       end

@@ -115,7 +115,7 @@ module Hecks
         end
         puts "  #{label}  ->  #{name}"
         :current
-      rescue StandardError => e
+      rescue StandardError, LoadError => e
         refuse(path, "cannot boot — #{e.message.lines.first.to_s.strip}")
       end
 
