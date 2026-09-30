@@ -29,9 +29,10 @@ Gem::Specification.new do |spec|
   # corpus domains' generated modules (a build generates the client's own). `rust/Cargo.toml`
   # lists a feature per corpus domain, so `RustWorkspace` writes the copy's list clean.
   # spec/gemspec_packaging_spec.rb holds each of these.
-  not_shipped = %r{\Arust/(tests/|src/generated/|(.+/)?target/)}
+  # `qa/settings.yml` ships too: `Fuzzing::QaSettings` reads its dials when the Hecks chapter boots.
+  not_shipped =%r{\Arust/(tests/|src/generated/|(.+/)?target/)}
   spec.files = Dir.chdir(__dir__) do
-    (Dir.glob("lib/**/*", File::FNM_DOTMATCH) + Dir.glob("rust/**/*", File::FNM_DOTMATCH) + ["exe/hecks"])
+    (Dir.glob("lib/**/*", File::FNM_DOTMATCH) + Dir.glob("rust/**/*", File::FNM_DOTMATCH) + ["exe/hecks", "qa/settings.yml"])
       .select { |f| File.file?(f) }
       .grep_v(not_shipped)
   end

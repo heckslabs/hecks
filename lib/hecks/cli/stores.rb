@@ -13,10 +13,9 @@ module Hecks
       # @param argv [Array<String>] the domain directory, first
       # @param program [String] the name the error message calls this command by
       # @return [void]
-      # @raise [IndexError] when `argv` is empty
-      # @raise [SystemExit] when the domain directory does not exist
+      # @raise [SystemExit] when `argv` is empty or the domain directory does not exist
       def call(argv, program:)
-        domain = argv.fetch(0)
+        domain = argv.first or abort "usage: #{program} <domain>"
         unless Dir.exist?(domain)
           warn "#{program}: no such domain #{domain.inspect}"
           exit 1
