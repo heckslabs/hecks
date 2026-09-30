@@ -11,6 +11,7 @@ require_relative "properties/dispatch_and_mutations"
 require_relative "properties/invariants_and_aggregation"
 require_relative "properties/corrections"
 require_relative "properties/outbox"
+require_relative "properties/engine_guarantees"
 
 module Hecks
   module Fuzzing
@@ -27,6 +28,7 @@ module Hecks
       extend InvariantsAndAggregation
       extend Corrections
       extend Outbox
+      extend EngineGuarantees
 
       module_function
 
@@ -63,6 +65,9 @@ module Hecks
         # Another runtime door, not a grammar construct — same reasoning as
         # dry_runs_leave_no_trace above.
         outbox_rows_match_reactions:                      [],
+        # The dispatch pipeline itself, not a grammar construct.
+        refusals_leave_state_untouched:                   [],
+        state_changes_are_journaled:                      [],
         # Reads command.mutations for :corrects ops — the same list
         # mutations_match_recompute reads, for a different question.
         corrections_reference_an_emitted_event:           %w[Command#mutations],
@@ -152,7 +157,9 @@ module Hecks
           mutations_match_recompute:                        mutations_match_recompute(history),
           dry_runs_leave_no_trace:                          dry_runs_leave_no_trace(history),
           corrections_reference_an_emitted_event:           corrections_reference_an_emitted_event(history),
-          outbox_rows_match_reactions:                      outbox_rows_match_reactions(history) }
+          outbox_rows_match_reactions:                      outbox_rows_match_reactions(history),
+          refusals_leave_state_untouched:                   refusals_leave_state_untouched(history),
+          state_changes_are_journaled:                      state_changes_are_journaled(history) }
       end
     end
   end

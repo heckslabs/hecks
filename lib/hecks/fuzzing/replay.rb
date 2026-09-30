@@ -49,6 +49,7 @@ module Hecks
           guard_checks    = []
           mutation_traces = []
           outbox_traces   = []
+          dispatch_traces = []
 
           # Every `[domain, aggregate_name]` a `for_each` policy could query, resolved
           # once from every loaded bluebook's own fanning-out policies. Empty when no
@@ -132,6 +133,9 @@ module Hecks
             end
 
             begin
+              # Before/after of every real dispatch, accepted or refused, for EngineGuarantees.
+              trace_before = { instances: deep_copy(snapshot_instances(runtime)), events: runtime.events.size }
+
               # Taken before dispatch, so this step's own reactions can be sliced out
               # after and matched against an independent recomputation of what a
               # `for_each` policy should have fanned out over.
@@ -170,6 +174,7 @@ module Hecks
               # ambient caller for exactly this one dispatch, then unbinds, so
               # back-to-back steps with different (or no) `role:` never leak into each other.
               result = as_step_caller(step) { runtime.dispatch_flat(step["verb"], args) }
+              dispatch_traces << dispatch_trace(runtime, step["verb"], trace_before, refused: false)
 
               fan_outs.concat(fan_out_findings(runtime, fan_out_snapshot, result.events, runtime.reactions[reaction_mark..]))
 
@@ -194,6 +199,7 @@ module Hecks
               # refusal templates share the same wording, so only the class tells a
               # guard refusal apart from the rest.
               refusals << { verb: step["verb"], error: e.message, kind: refusal_kind(e) }
+              dispatch_traces << dispatch_trace(runtime, step["verb"], trace_before, refused: true) if trace_before
               # Only a refusal raised by the guard itself counts here. A refusal from a
               # stage before or after enforce_givens can share TypeMismatch's class, so
               # anything outside the two guard classes is left out — inconclusive, not a pass.
@@ -230,6 +236,7 @@ module Hecks
                       queries: queries, dry_runs: dry_runs, dry_run_traces: dry_run_traces,
                       fan_outs: fan_outs, guard_checks: guard_checks,
                       mutation_traces: mutation_traces, outbox_traces: outbox_traces,
+                      dispatch_traces: dispatch_traces,
                       saga_dispatches: runtime.saga_dispatches, policy_dispatches: runtime.policy_dispatches,
                       bluebook: runtime.registry.bluebooks.values.first,
                       bluebooks: runtime.registry.bluebooks.dup }
@@ -248,6 +255,24 @@ module Hecks
         return yield unless step["role"]
 
         Hecks.as_caller(role: step["role"], actor_id: step["actor_id"], &)
+      end
+
+      # One dispatch's before/after pair; `before` was taken ahead of the dispatch.
+      def dispatch_trace(runtime, verb, before, refused:)
+        { verb: verb, refused: refused, before: before,
+          after: { instances: snapshot_instances(runtime), events: runtime.events.size } }
+      end
+
+      # A structural copy, so a later in-place mutation of a record's state cannot
+      # rewrite a snapshot already taken.
+      def deep_copy(value)
+        case value
+        when Hash  then value.to_h { |k, v| [k, deep_copy(v)] }
+        when Array then value.map { |v| deep_copy(v) }
+        else value.dup
+        end
+      rescue TypeError
+        value
       end
 
       # Every persisted record's state, keyed by `"Domain::Aggregate#id"`. Called once
