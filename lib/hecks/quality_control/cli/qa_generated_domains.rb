@@ -29,10 +29,11 @@ module Hecks
       EXIT_FOUND = 2
       RESULT_MARKER = "QA_GENERATED_RESULT "
 
-      USAGE = "usage: bin/qa_generated_domains [--domains N] [--start SEED] [--forms a,b] [--seeds K] " \
-              "[--steps M] [--adversarial F] [--rust] [--shrink-budget B] [--domain-shrink-budget D]\n       " \
-              "bin/qa_generated_domains --source <file.bluebook> [--source …] [--rust] …\n       " \
-              "bin/qa_generated_domains --promote <finding-dir> --name <stress_domain_name>"
+      USAGE = "usage: hecks quality_control check_generated_domains [--domains N] [--start SEED] " \
+              "[--forms a,b] [--seeds K] [--steps M] [--adversarial F] [--rust] [--shrink-budget B] " \
+              "[--domain-shrink-budget D]\n       " \
+              "hecks quality_control check_generated_domains --source <file.bluebook> [--source …] [--rust] …\n       " \
+              "hecks quality_control check_generated_domains --promote <finding-dir> --name <stress_domain_name>"
 
       Generator = Hecks::Fuzzing::DomainGenerator
 

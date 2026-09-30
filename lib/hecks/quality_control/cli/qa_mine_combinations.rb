@@ -26,7 +26,8 @@ module Hecks
       EXIT_ERROR = 1
       RESULT_MARKER = "QA_GENERATED_RESULT "
 
-      USAGE = "usage: bin/qa_mine_combinations [--candidates N] [--rust] [--seeds K] [--steps M] " \
+      USAGE = "usage: hecks quality_control mine_combinations [--candidates N] [--rust] [--seeds K] " \
+              "[--steps M] " \
               "[--adversarial F] [--repair-rounds R] [--agent CMD] [--from <candidates-dir>] " \
               "[--against <domain> …] [--brief]"
 

@@ -10,7 +10,7 @@ module Hecks
     #
     #   bin/qa_postgres_role <database> [--role <role>]   # role defaults to hecks_qa
     class QaPostgresRole
-      USAGE = "usage: bin/qa_postgres_role <database> [--role <role>]"
+      USAGE = "usage: hecks quality_control create_ledger_role <database> [--role <role>]"
 
       # `relkind` of each relation to the word `ALTER` takes for it. Partitions are their own
       # rows; `ALTER TABLE ... OWNER` on the parent does not recurse.

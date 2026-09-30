@@ -21,7 +21,7 @@ module Hecks
     class QaLogBug
       EXIT_OK = 0
 
-      USAGE = "usage: bin/qa_log_bug --sweep <sweep-id> --title \"…\" " \
+      USAGE = "usage: hecks quality_control log --sweep <sweep-id> --title \"…\" " \
               "--demonstration \"<command that must FAIL>\" --symptom \"…\" --expectation \"…\" " \
               "--submitter \"<who>\" --triage self_contained|bigger [--tag word]… [--reproduced yes|no]"
 

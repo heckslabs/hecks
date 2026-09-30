@@ -14,8 +14,8 @@ module Hecks
     #   bin/qa_discover_external_domains --max-depth 4
     #   bin/qa_discover_external_domains --known-path <path> ...   # bypass the ledger read
     class QaDiscoverExternalDomains
-      USAGE = "usage: bin/qa_discover_external_domains [--projects-dir <path>] [--max-depth N] " \
-              "[--known-path <path> ...]"
+      USAGE = "usage: hecks quality_control discover_external_domains [--projects-dir <path>] " \
+              "[--max-depth N] [--known-path <path> ...]"
 
       DEFAULT_PROJECTS_DIR = File.expand_path("~/Projects").freeze
       DEFAULT_MAX_DEPTH = 3

@@ -20,7 +20,8 @@ module Hecks
     # `<storage_name>.heki` file in the Heki directory are considered; trailing names (`hecks_name`
     # or `storage_name`) narrow further.
     class QaPostgresMigrate
-      USAGE = "usage: bin/qa_postgres_migrate <domain_dir> <heki_data_dir> [aggregate_name ...] [--force]"
+      USAGE = "usage: hecks quality_control migrate_ledger_from_heki <domain_dir> <heki_data_dir> " \
+              "[aggregate_name ...] [--force]"
 
       # Migrates, or reports what a migration would do.
       #

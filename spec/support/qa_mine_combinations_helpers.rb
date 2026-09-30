@@ -1,6 +1,6 @@
-require "open3"
+require_relative "qa_lib_cli"
 
-# Shared by the three `bin/qa_mine_combinations` spec files.
+# Shared by the three `hecks quality_control mine_combinations` spec files.
 # Split in three so parallel_rspec can spread their subprocess examples across workers.
 module QaMineCombinationsHelpers
   FIXTURES = File.join(InMemoryDomain::ROOT, "spec/fixtures/qa_mine_combinations").freeze
@@ -9,7 +9,6 @@ module QaMineCombinationsHelpers
 
   def run_miner(*, mode: "valid")
     env = { "FAKE_AGENT_MODE" => mode, "QA_MINER_AGENT" => "ruby #{File.join(FIXTURES, 'fake_agent')}" }
-    Open3.capture2e(env, "bundle", "exec", "ruby", File.join(InMemoryDomain::ROOT, "bin/qa_mine_combinations"),
-                    "--against", CORPUS, *, chdir: InMemoryDomain::ROOT)
+    QaLibCli.capture2e("qa_mine_combinations", "--against", CORPUS, *, env: env)
   end
 end

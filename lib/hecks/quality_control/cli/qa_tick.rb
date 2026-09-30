@@ -21,7 +21,7 @@ module Hecks
       EXIT_ERROR = 1
       EXIT_FOUND_SOMETHING = 2
 
-      USAGE = "usage: bin/qa_tick"
+      USAGE = "usage: hecks quality_control tick"
 
       # A target's own per-seed "seed N: held (...)" line is the only thing this command ever drops
       # from what it prints, and only where it falls outside a `FOUND SOMETHING`/`OPERATIONAL

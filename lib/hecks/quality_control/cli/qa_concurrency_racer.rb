@@ -18,7 +18,7 @@ module Hecks
     # It prints one line, `succeeded`, `refused` or `crashed:<class>: <message>`, and always exits
     # 0.
     class QaConcurrencyRacer
-      USAGE = "usage: bin/qa_concurrency_racer <domain-path> <database> <schema> <verb> <args-json>"
+      USAGE = "usage: hecks quality_control race <domain-path> <database> <schema> <verb> <args-json>"
 
       # Dispatches the one step and prints how it went.
       #

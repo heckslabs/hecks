@@ -1,12 +1,13 @@
 require "hecks"
 require "hecks/ports/persistence/plugins/era"
 require_relative "support/qa_ledger_fixture"
+require_relative "support/qa_lib_cli"
 require "json"
 require "tmpdir"
 
-# `bin/qa_open_pr` as a real subprocess against a disposable PostgresEra ledger and a
-# throwaway repository; a fake `gh` on `PATH` keeps GitHub itself out of reach.
-RSpec.describe "bin/qa_open_pr", :io do
+# `hecks quality_control patch.open` as a real subprocess against a disposable PostgresEra
+# ledger and a throwaway repository; a fake `gh` on `PATH` keeps GitHub itself out of reach.
+RSpec.describe "hecks quality_control patch.open and improvement.open", :io do
   FAKE_GH = <<~'RUBY'.freeze
     #!/usr/bin/env ruby
     require "json"
@@ -81,7 +82,7 @@ RSpec.describe "bin/qa_open_pr", :io do
   def open_pr(*args)
     env = { "PATH" => "#{@shim_dir}:#{ENV.fetch('PATH')}", "QA_REPO_DIR" => @repo,
             "FAKE_GH_LOG" => @gh_log, "FAKE_GH_STATE" => @gh_state }
-    @ledger.run("qa_open_pr", *args, env: env)
+    QaLibCli.run(@ledger, "qa_open_pr", *args, env: env)
   end
 
   def gh_calls = File.exist?(@gh_log) ? File.readlines(@gh_log, chomp: true) : []
@@ -211,7 +212,7 @@ RSpec.describe "bin/qa_open_pr", :io do
     env = { "PATH" => "#{@shim_dir}:#{ENV.fetch('PATH')}", "QA_REPO_DIR" => @repo,
             "FAKE_GH_LOG" => @gh_log, "FAKE_GH_STATE" => @gh_state,
             "HECKS_QA_SETTINGS_PATH" => capped_settings }
-    _stdout, stderr, status = @ledger.run("qa_open_pr", "--bug", "BUG#1", "--title", "one too many", env: env)
+    _stdout, stderr, status = QaLibCli.run(@ledger, "qa_open_pr", "--bug", "BUG#1", "--title", "one too many", env: env)
 
     expect(status.exitstatus).to eq(1)
     expect(stderr).to include("1 PR(s) already opened since local midnight", "PR_CAP_PER_DAY is 1")
