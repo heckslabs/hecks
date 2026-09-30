@@ -15,6 +15,12 @@
 #[path = "../journal.rs"]
 mod journal;
 
+// journal.rs's Postgres tests connect through `crate::test_pg`, so the harness's own test build
+// carries the same connection-string helpers.
+#[cfg(test)]
+#[path = "../test_pg.rs"]
+mod test_pg;
+
 use serde_json::{json, Value};
 use std::io::Read;
 use tokio_postgres::NoTls;
