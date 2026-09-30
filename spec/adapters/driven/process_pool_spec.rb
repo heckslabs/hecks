@@ -52,6 +52,31 @@ RSpec.describe Hecks::Adapters::ProcessPool do
     expect(finished.status.signaled?).to be(true)
   end
 
+  %w[INT TERM HUP QUIT].each do |name|
+    it "forwards a #{name} that arrives while the child is still being spawned" do
+      real = Process.method(:spawn)
+      allow(pool).to receive(:spawn) do |*args, **opts|
+        Process.kill(name, Process.pid)
+        sleep 0.05
+        real.call(*args, **opts)
+      end
+
+      finished = pool.run(["sh", "-c", "sleep 30"])
+
+      expect(finished.status.signaled?).to be(true)
+      expect(finished.status.termsig).to eq(Signal.list.fetch(name))
+    end
+  end
+
+  it "restores the previous signal handlers afterwards" do
+    before = %w[INT TERM HUP QUIT].to_h { |name| [name, trap(name, "DEFAULT")] }
+    pool.run(["true"])
+    after = %w[INT TERM HUP QUIT].to_h { |name| [name, trap(name, "DEFAULT")] }
+    expect(after.values).to all(eq("DEFAULT"))
+  ensure
+    before&.each { |name, handler| trap(name, handler) }
+  end
+
   describe "#sweep" do
     def start_with(finished)
       asked = []
