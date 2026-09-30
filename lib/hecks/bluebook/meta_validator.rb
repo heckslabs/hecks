@@ -1,5 +1,6 @@
 require "digest"
 require "json"
+require_relative "meta_validator/verdict_cache"
 
 module Hecks
   module Bluebook
@@ -150,9 +151,13 @@ module Hecks
       # Process-wide judging cache, keyed on a SHA-256 digest of the judged
       # artifact so a changed bluebook is always re-judged.
       #
-      # @return [Hash{String => Array<String>}] refusal messages per digest
-      #   (`[]` when well formed)
-      def self.verdicts = @verdicts ||= {}
+      # Seeded once per process with the chapter verdicts earlier processes
+      # stored (see `VerdictCache`); every other verdict starts empty.
+      #
+      # @return [Hash{String => Object}] refusal messages per digest for a
+      #   world/port/adapter/translation (`[]` when well formed); the held
+      #   verdict Hash for a chapter
+      def self.verdicts = @verdicts ||= VerdictCache.seed
 
       # Judges `world` through the meta-domain's own `WorldJudge` door.
       #
@@ -248,7 +253,7 @@ module Hecks
         end
 
         key = Digest::SHA256.hexdigest(JSON.generate(bluebook.to_h))
-        held = verdicts[key] ||= hold(bluebook)
+        held = verdicts[key] || (verdicts[key] = hold(bluebook).tap { |fresh| VerdictCache.record(key, fresh) })
 
         unless held[:refusals].empty?
           raise DSL::Malformed,
