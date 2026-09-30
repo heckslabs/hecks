@@ -29,6 +29,10 @@ RSpec.describe Hecks::Adapters::GitPr do
   before do
     @repo = Dir.mktmpdir("git_pr_spec")
     git("init", "-q", "-b", "main")
+    # A commit can start detached background maintenance, which creates and removes
+    # `.git/objects/maintenance.lock` while `after` deletes the repository.
+    git("config", "maintenance.auto", "false")
+    git("config", "gc.auto", "0")
     @first = commit_file("one")
   end
 
