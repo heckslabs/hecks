@@ -18,6 +18,7 @@ use tokio_postgres::Client;
 
 mod newsletter;
 mod newsletter_send;
+mod registration_receipt;
 mod registrations;
 
 use registrations::payments_routes;
