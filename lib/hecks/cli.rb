@@ -56,8 +56,9 @@ module Hecks
         ->(argv, _program, _name) { SmokeTest.call(argv, root: Dir.pwd) }
       ),
       "project_diagrams" => Command.new(
-        "Write a domain's Mermaid diagrams under ./docs/generated/diagrams/.",
-        "hecks project_diagrams <domain-path> <ChapterName>",
+        "Write a domain's Mermaid diagrams under ./docs/generated/diagrams/ (positional form only).",
+        "hecks project_diagrams <domain-path> <ChapterName>  (writes) | " \
+        "hecks project_diagrams domain=<path> chapter=<Name>  (prints; writes nothing)",
         "cli/project_diagrams",
         ->(argv, program, _name) { ProjectDiagrams.call(argv, program: program, root: Dir.pwd) }
       ),
@@ -76,6 +77,40 @@ module Hecks
     }.freeze
 
     HELP_FLAGS = ["--help", "-h"].freeze
+
+    # The launcher's flags that mean the same for every subcommand here: `--wait` (a subcommand
+    # exits with its own verdict, so waiting changes nothing) and `--confirm` (nothing here asks
+    # for one). Each may carry a Boolean word, as at the launcher.
+    GENERIC_FLAGS = ["--wait", "--confirm"].freeze
+
+    # A launcher word: `name=value`, where the name has no path characters.
+    NAME_VALUE = /\A[A-Za-z_][\w-]*=/
+
+    # The launcher's `name=value` spellings of a subcommand's positional arguments.
+    #
+    # `slots` lists, in positional order, the names that fill each place (`domain` before
+    # `aggregate`); `many` lets the first slot repeat and take a comma list; `exists` makes
+    # the first slot's values paths that must exist; `flags` and `options` are `--name`
+    # switches and `--name value` pairs; `ignored` names a launcher argument this form has no
+    # use for. A subcommand absent here (`run`, whose pairs are the verb's own, `mcp`, and
+    # `project_diagrams`, whose launcher form answers instead of writing) keeps its words.
+    LAUNCHER_FORMS = {
+      "docs"        => { slots: [%w[domain], %w[aggregate]], exists: true },
+      "narrate"     => { slots: [%w[domain], %w[aggregate]], exists: true },
+      "ir"          => { slots: [%w[domain]], flags: %w[translations meta], exists: true },
+      "stores"      => { slots: [%w[domain]], exists: true },
+      "model_check" => { slots: [%w[domains domain]], many: true, flags: %w[strict],
+                         options: %w[profile], ignored: %w[run] },
+      "smoke_test"  => { slots: [%w[subject domain]], ignored: %w[run] },
+      "project_cli" => { slots: [%w[domain]], many: true }
+    }.freeze
+
+    # Subcommands whose words are their own: `run`'s pairs and `mcp`'s flags are not the launcher's.
+    UNTOUCHED = %w[run mcp].freeze
+
+    # Subcommands whose `name=value` form is the launcher's own question, which answers
+    # differently from the positional form: `project_diagrams` writes files, the question prints.
+    LAUNCHER_ANSWERS = ["project_diagrams"].freeze
 
     # Printed above the usage line by `overview`, on every path that reaches it
     # (a bare `hecks`, `hecks --help`, and an unknown subcommand alike).
@@ -111,9 +146,12 @@ module Hecks
     # @param argv [Array<String>] the command line, subcommand first
     # @param out [#puts] where help goes
     # @param err [#puts] where usage errors go
-    # @return [Integer] the process exit status for a subcommand that returns; a
-    #   subcommand that fails exits the process itself
+    # @return [Integer] the process exit status: 2 for a bad command, 1 for a bad word, the
+    #   subcommand's own Integer when it returns one, else 0; a subcommand that fails exits
+    #   the process itself
     def start(argv, out: $stdout, err: $stderr)
+      Encoding.default_external = Encoding::UTF_8
+      Encoding.default_internal = Encoding::UTF_8
       name, *rest = argv
       if name.nil? || !COMMANDS.key?(name)
         asked = HELP_FLAGS.include?(name) || name == "help"
@@ -122,12 +160,95 @@ module Hecks
         return asked ? 0 : USAGE_STATUS
       end
 
-      if rest.length == 1 && HELP_FLAGS.include?(rest.first)
+      if help_asked?(name, rest)
         help(COMMANDS.fetch(name), out)
-      else
-        dispatch(name, rest)
+        return 0
       end
-      0
+
+      words, problem = launcher_words(name, rest)
+      if problem
+        err.puts "hecks #{name}: #{problem}"
+        return 1
+      end
+
+      result = dispatch(name, words)
+      result.is_a?(Integer) ? result : 0
+    end
+
+    # Whether the words ask for a subcommand's usage: a lone flag for `run`, whose other words are
+    # the verb's own, and the flag anywhere for the rest.
+    # @api private
+    def help_asked?(name, rest)
+      return rest.length == 1 && HELP_FLAGS.include?(rest.first) if name == "run"
+
+      rest.any? { |word| HELP_FLAGS.include?(word) }
+    end
+
+    # Whether a command line is the launcher's own form of a subcommand that answers differently
+    # from its positional form, so the executable leaves it to the launcher.
+    #
+    # @param argv [Array<String>] the command line, subcommand first
+    # @return [Boolean]
+    def launcher_form?(argv)
+      LAUNCHER_ANSWERS.include?(argv.first) && argv.drop(1).any? { |word| word.match?(NAME_VALUE) }
+    end
+
+    # Rewrites the launcher's spellings into the subcommand's own: drops the generic flags and
+    # turns `name=value` words into the positionals and flags the subcommand reads.
+    #
+    # @param name [String] a key of `COMMANDS`
+    # @param rest [Array<String>] the words after the subcommand
+    # @return [Array(Array<String>, String)] the words to run with, and a refusal (nil when
+    #   there is none)
+    def launcher_words(name, rest)
+      return [rest, nil] if UNTOUCHED.include?(name)
+
+      require_relative "facade/cli_door"
+      words = strip_generic(rest)
+      form  = LAUNCHER_FORMS[name]
+      return [words, nil] unless form && words.any? { |word| word.match?(NAME_VALUE) }
+
+      slots = Array.new(form[:slots].length) { [] }
+      extra = []
+      words.grep(NAME_VALUE).each do |word|
+        key, value = word.split("=", 2)
+        key  = key.tr("-", "_")
+        slot = form[:slots].index { |names| names.include?(key) }
+        if slot
+          slots[slot].concat(form[:many] ? value.split(",") : [value])
+        elsif Array(form[:flags]).include?(key)
+          extra << "--#{key.tr('_', '-')}" if Facade::CliDoor.boolean(value)
+        elsif Array(form[:options]).include?(key)
+          extra.push("--#{key}", value)
+        elsif !Array(form[:ignored]).include?(key)
+          known = form[:slots].flatten + Array(form[:flags]) + Array(form[:options])
+          return [nil, "no argument #{key.inspect} — this verb takes #{known.sort.join(', ')}"]
+        end
+      end
+      missing = slots.first.find { |path| !File.exist?(path) } if form[:exists]
+      return [nil, "no such domain #{missing.inspect}"] if missing
+
+      [words.grep_v(NAME_VALUE) + extra + slots.flatten, nil]
+    rescue Runtime::TypeMismatch => e
+      [nil, e.message]
+    end
+
+    # Takes `--wait` and `--confirm`, each with an optional Boolean word, out of `words`.
+    # @api private
+    def strip_generic(words)
+      queue = words.dup
+      kept  = []
+      until queue.empty?
+        word = queue.shift
+        flag, value = word.split("=", 2)
+        if GENERIC_FLAGS.include?(flag)
+          value ||= Facade::CliDoor::BOOLEAN_WORDS.key?(queue.first.to_s.downcase) ? queue.shift : "true"
+          Facade::CliDoor.boolean(value)
+        else
+          kept << word
+        end
+      end
+      kept
     end
 
     # Runs one known subcommand with the working directory as its root.

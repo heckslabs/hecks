@@ -16,7 +16,8 @@ module Hecks
     # already Lambda-backed. Writes cannot: givens and constraints must run in Rust,
     # not be pre-checked here against incomplete local state.
     class RemoteDispatcher
-      Result = Struct.new(:verb, :instance, :events, :refused_reactions, :blocking_reactions, keyword_init: true) do
+      Result = Struct.new(:verb, :instance, :events, :refused_reactions, :blocking_reactions,
+                          :reaction_defects, keyword_init: true) do
         # Lists the policy reactions this dispatch caused that the routed runtime refused.
         #
         # @return [Array<Hash{Symbol => Object}>] one `{ policy:, trigger:, reason: }` per refused
@@ -27,6 +28,9 @@ module Hecks
         #
         # @return [Array<Hash{Symbol => Object}>] the subset of `refused_reactions` that blocks
         def blocking_reactions = self[:blocking_reactions] || []
+
+        # @return [Array<Hash{Symbol => Object}>] the reactions the host reported as crashed
+        def reaction_defects = self[:reaction_defects] || []
 
         # The settled record's identity.
         #
@@ -109,7 +113,8 @@ module Hecks
 
         Result.new(verb: verb, instance: instance, events: step_events(response),
                    refused_reactions: refused_reactions_of(response),
-                   blocking_reactions: ReactionOutcome.blocking(step_reactions(response)))
+                   blocking_reactions: ReactionOutcome.blocking(step_reactions(response)),
+                   reaction_defects: ReactionOutcome.defects(step_reactions(response)))
       end
 
       # Delegates to the local `Dispatcher`; see `Dispatcher#query`.

@@ -275,7 +275,7 @@ RSpec.describe "client launcher smoke" do
 
     it "exits 1 under --wait when the record settles in a failure state, printing that state" do
       expect(@opted[:wait][:status]).to eq(1)
-      expect(JSON.parse(@opted[:wait][:err]).dig("state", "status")).to eq("available")
+      expect(JSON.parse(@opted[:wait][:out]).dig("state", "status")).to eq("available")
       expect(@opted[:plain][:status]).to eq(0)
     end
 

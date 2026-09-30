@@ -18,7 +18,8 @@ module Hecks
       # @param bluebook [Bluebook::Chapter] the booted domain to project
       # @param options [Hash{Symbol => Object}] `:program` (default `"hecks run"`) for the usage
       #   text; `:verb` and `:ask` select one verb's `--help` text; `:names` maps a launcher
-      #   name to the command it stands for (`{ "mcp" => "serve_mcp" }`)
+      #   name to the command it stands for (`{ "mcp" => "serve_mcp" }`); `:mint_run_keys` makes a
+      #   creating verb's `run` key optional, since the launcher mints it
       # @return [Hash{Symbol => Object}] `:verbs`, `:questions`, `:names` (alias tables) and
       #   `:usage` (pre-rendered help text)
       # @raise [Bluebook::DSL::Malformed] if two verbs project to the same command-line name
@@ -51,6 +52,8 @@ module Hecks
           claim(questions, Naming.snake(model.hecks_name), report_spec(bluebook, model))
         end
 
+        mint_run_keys(verbs) if options[:mint_run_keys]
+
         # The display name is the shortest unambiguous one; both spellings are accepted.
         display_names([verbs, questions], options[:names])
 
@@ -69,6 +72,20 @@ module Hecks
         specs.each do |name, spec|
           tail = name.split(".").last
           spec[:short] = tails[tail].length == 1 ? tail : name
+        end
+      end
+
+      # Marks the `run` key of each creating verb `minted`: optional, and never filled by a bare
+      # word, since the launcher makes one when it is left out.
+      def mint_run_keys(verbs)
+        verbs.each_value do |spec|
+          next unless spec[:creates]
+
+          spec[:arguments] = spec[:arguments].map do |argument|
+            next argument unless argument[:path] == "run.value"
+
+            argument.merge(required: false, minted: true, note: "minted when omitted")
+          end
         end
       end
 
@@ -239,7 +256,7 @@ module Hecks
         end
 
         { verb: fqn(bluebook, aggregate, query, entity), kind: :query,
-          summary: query.description, arguments: arguments }
+          summary: query.description, arguments: arguments, returns: query.returns }
       end
 
       # Flattens an attribute into one option per leaf field. A value object becomes

@@ -7,5 +7,6 @@
 # `--wait` reports a faulted, flagged, drifted or refused run as exit 1.
 Hecks.world "Deploy" do
   launcher "Launcher", run_keys: true,
-                       failure_states: %w[flagged failed drifted unreachable refused faulted halted]
+                       failure_states: %w[flagged failed drifted unreachable refused faulted halted stopped
+                                          abandoned red needs_fix]
 end

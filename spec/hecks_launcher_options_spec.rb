@@ -54,6 +54,12 @@ RSpec.describe "the launcher's opt-in options" do
     File.write(full, text)
   end
 
+  def hecks_spec(verb)
+    cli = Hecks::Projector.call(:cli, bluebook: @hecks.registry.bluebook("Hecks"),
+                                      options:  { program: "hecks", mint_run_keys: true })
+    cli[:verbs].fetch(cli[:names][:command].fetch(verb))
+  end
+
   def run_verb(*argv) = Hecks::Facade::CliRunner.call(runtime: @hecks, argv: argv, program: "hecks")
 
   describe "run keys" do
@@ -64,6 +70,30 @@ RSpec.describe "the launcher's opt-in options" do
       expect(status).to eq(0)
       expect(key).not_to be_empty
       expect(JSON.parse(run_verb("verdict", key).first).first.dig("run", "value")).to eq(key)
+    end
+
+    it "refuses, saying to name a key, when no identity adapter can mint one" do
+      allow(Hecks::Ports::IdentityGeneration).to receive(:uuid)
+        .and_raise(Hecks::Runtime::WiringError, "no identity adapter bound")
+      spec = { creates: true, arguments: [{ path: "run.value" }] }
+
+      expect { Hecks::Facade::LauncherOptions.run_key(@hecks, spec, {}, { run_keys: true }) }
+        .to raise_error(Hecks::Runtime::NotFound, /cannot mint a run key.*run=<key>/)
+    end
+
+    it "never fills the minted run key from a bare word, and says so" do
+      out, status = run_verb("check_engine_agreement", "bogus")
+
+      expect(status).to eq(1)
+      expect(out).to include("only argument is its run key", "run=<key>")
+    end
+
+    it "shows the minted run key as optional in help, and fills the next argument from a bare word" do
+      help, = run_verb("run_behaviors", "--help")
+
+      expect(help).to match(/run\.value\s+.*minted when omitted; optional/)
+      expect(Hecks::Facade::CliDoor.arguments(hecks_spec("run_behaviors"), ["examples/banking"]))
+        .to eq(subject: { value: "examples/banking" })
     end
 
     it "keeps an explicit key" do
@@ -139,6 +169,16 @@ RSpec.describe "the launcher's opt-in options" do
       expect(gap.call("GAP (2) — missing, and NOT on the allowlist")).to be(true)
       expect(gap.call("\nGAP (0) — missing, and NOT on the allowlist")).to be(false)
       expect(gap.call(nil)).to be(false)
+    end
+
+    it "accepts --wait=true, --wait=false and --wait yes, and refuses --wait=maybe" do
+      spec = { arguments: [] }
+      take = Hecks::Facade::LauncherOptions.method(:take_wait)
+
+      expect(take.call(spec, ["--wait=true", "x=1"])).to eq([["x=1"], true])
+      expect(take.call(spec, ["--wait=false"])).to eq([[], false])
+      expect(take.call(spec, ["--wait", "yes"])).to eq([[], true])
+      expect { take.call(spec, ["--wait=maybe"]) }.to raise_error(Hecks::Runtime::TypeMismatch, /not Boolean/)
     end
 
     it "is left to a verb that declares its own wait argument" do

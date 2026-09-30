@@ -156,8 +156,33 @@ RSpec.describe Hecks::Facade::CliRunner do
       expect(blocking.([alone.merge(on: "Other"), delivered, declined])).to eq(["D::Run.Accept"])
     end
 
+    it "fails --wait on a reaction that crashed, and shows the defect" do
+      defect = { policy: "Boom", on: "Went", trigger: "D::A.Next", delivered: false,
+                 reason: "undefined method", defect: true, error_class: "NoMethodError" }
+      shown  = defect.slice(:policy, :trigger, :reason, :error_class)
+      found  = Hecks::Runtime::ReactionOutcome.defects([defect])
+      handle = Hecks::Runtime::Dispatcher::Result.new(verb: "D::A.Go", instance: nil, events: [],
+                                                      reaction_defects: found)
+      text, status, reason = described_class.settled(nil, { verb: "D::A.Go" }, handle, nil, nil,
+                                                     described_class.refused_answer(handle))
+
+      expect(Hecks::Runtime::ReactionOutcome.blocking([defect])).to eq([])
+      expect(status).to eq(1)
+      expect(reason).to eq("reaction Boom crashed (NoMethodError): undefined method")
+      expect(JSON.parse(text)["reaction_defects"]).to eq([JSON.parse(JSON.generate(shown))])
+    end
+
     it "leaves a dispatch that caused no refusal answered exactly as before" do
       expect(JSON.parse(a_pizza.first)).not_to have_key("refused_reactions")
+    end
+  end
+
+  describe "text_answer" do
+    it "prints one row raw only for a query declared to return a Document" do
+      expect(described_class.text_answer({ returns: "Document" }, [{ text: "# Title" }])).to eq("# Title")
+      expect(described_class.text_answer({ returns: "Note" }, [{ text: "one" }])).to be_nil
+      expect(described_class.text_answer({ returns: "Note" }, [{ text: "one" }, { text: "two" }])).to be_nil
+      expect(described_class.text_answer({ returns: nil }, [{ text: "one" }])).to be_nil
     end
   end
 

@@ -41,6 +41,24 @@ RSpec.describe Hecks::Facade::CliDoor do
       expect(described_class.arguments(spec, ["wanted=no"])[:wanted]).to be(false)
     end
 
+    it "reads every Boolean word in any letter case" do
+      %w[true YES 1 On].each { |word| expect(described_class.arguments(spec, ["wanted=#{word}"])[:wanted]).to be(true) }
+      %w[false No 0 OFF].each { |word| expect(described_class.arguments(spec, ["wanted=#{word}"])[:wanted]).to be(false) }
+    end
+
+    it "refuses a Boolean word it does not know instead of reading it as false" do
+      ["wanted=ture", "wanted=y", "wanted=", "--wanted="].each do |word|
+        expect { described_class.arguments(spec, [word]) }
+          .to raise_error(Hecks::Runtime::TypeMismatch, /is not Boolean — use true, false, yes, no, 1, 0, on or off/)
+      end
+    end
+
+    it "takes a Boolean word after a flag as its value, not as the first argument" do
+      expect(described_class.arguments(spec, ["--wanted", "no"])).to eq(wanted: false)
+      expect(described_class.arguments(spec, ["--wanted", "yes"])).to eq(wanted: true)
+      expect(described_class.arguments(spec, ["--wanted", "A-1"])).to eq(id: "A-1", wanted: true)
+    end
+
     it "refuses a value the declared type cannot hold, naming the type" do
       expect { described_class.arguments(spec, ["sequence.value=soon"]) }
         .to raise_error(Hecks::Runtime::TypeMismatch, /"soon" is not Integer/)

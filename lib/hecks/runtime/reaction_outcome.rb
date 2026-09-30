@@ -11,7 +11,8 @@ module Hecks
     # is also benign when the creating command it triggered reports the record already exists (a
     # re-run's idempotent registration: the record the run wanted is there). Every other refusal
     # (a release's `Accept` refused by a dirty tree, with no alternative) blocks the outcome. A
-    # crash (`defect`) is never a refusal and is warned where it happens.
+    # crash (`defect`) is never a refusal: it is warned where it happens and listed by
+    # `defects`.
     module ReactionOutcome
       # A reaction entry, with the identity of the event instance it answered, when known.
       Row = Struct.new(:fields, :event) do
@@ -68,6 +69,20 @@ module Hecks
         return { command: target&.split("::")&.last } unless command
 
         { command: command.split(".").last, aggregate: target.split("::").last }
+      end
+
+      # Picks the reactions that crashed, which no refusal rule excuses.
+      #
+      # A chain that crashes halfway leaves its record short of the state the run was meant to
+      # reach, so a caller that waits on the run must treat every one as a failure.
+      #
+      # @param entries [Array<Hash>] every reaction one dispatch caused, keys as for `blocking`
+      # @return [Array<Hash{Symbol => Object}>] `{ policy:, trigger:, reason:, error_class: }`
+      #   per crashed reaction
+      def defects(entries)
+        Array(entries).map { |entry| entry.transform_keys(&:to_sym) }
+                      .select { |row| row[:defect] }
+                      .map { |row| row.slice(:policy, :trigger, :reason, :error_class) }
       end
     end
   end

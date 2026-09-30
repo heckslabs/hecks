@@ -14,13 +14,15 @@ module Hecks
       # @param program [String] the name the usage message calls this command by
       # @return [void]
       # @raise [SystemExit] always: 0 when every test passed, 1 when any failed, errored or did
-      #   not parse
+      #   not parse, or when a directory holds no `.behaviors` file
       def call(argv, program:)
         target = argv.first or abort "usage: #{program} <file.behaviors | directory>"
         abort "no such file or directory: #{target}" unless File.exist?(target)
 
         if File.directory?(target)
           sweep = Hecks::Behaviors.run_all(target)
+          abort "no .behaviors files under #{target}" if sweep.files_swept.zero?
+
           sweep.files.each { |file| report_file(file) }
           summary = sweep.summary
           puts
