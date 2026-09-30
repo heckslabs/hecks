@@ -7,6 +7,8 @@
 # requested before its DeployToolchain port is asked, and what came of it after. No command
 # declares a role: the chapter boots standing alone, without Governance to check one against.
 Hecks.bluebook "Deploy" do
+  vision "Generate, check and compare deploy recipes, project OIDC manifests and provision tenants."
+
   aggregate "LambdaTarget" do
     description "One domain's validated AWS Lambda deploy target — what deployed_to(\"AwsLambda\") must resolve to before bin/project_deploy generates anything from it."
 
@@ -235,7 +237,7 @@ Hecks.bluebook "Deploy" do
     # A declared tenant is a `requested` record on its slug, so `Provision` (a creating command)
     # cannot run on that slug again: `Reprovision` writes the overlay for it.
     command "Declare" do
-      goal "Validate one tenant's shape before bin/project_tenant provisions its schema and overlay world"
+      goal "Validate one tenant's shape before hecks deploy provision writes its overlay world"
 
       attribute :slug,   Slug
       attribute :domain, DomainName
