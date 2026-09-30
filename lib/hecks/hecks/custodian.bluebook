@@ -1112,6 +1112,24 @@ policy "RecordTheEra" do
     }
   end
 
+  # `Permit` refuses when a rule is unmet and emits nothing, so this reaction is its complement:
+  # it holds the same rules negated, so an examined change that is not let through is abandoned
+  # rather than left `requested`.
+  policy "AbandonWhenNotPermitted" do
+    on      "Era.EraExamined"
+    where do
+      (!capable.value && operation.value != "compact" && operation.value != "compact_heki") ||
+        (operation.value == "hold_first" && held.value != 0) ||
+        (operation.value == "merge_tail" && (held.value <= 1 || forks.value != 0 || contested.value != 0)) ||
+        ((operation.value == "compact" || operation.value == "compact_heki") &&
+          (candidates.value <= 0 || bound.value != 0)) ||
+        (operation.value == "approve_translation" &&
+          (edges.value != 1 || !audited.value || (rehearsal_needed.value && !rehearsal_recorded.value))) ||
+        (operation.value == "reattest" && (!drifted.value || !loadable.value || !shape_kept.value))
+    end
+    trigger Era::Abandon, with: { refusal: "the journal's facts do not admit this change" }
+  end
+
   policy "ChangeWhenPermitted" do
     on      "Era.EraPermitted"
     trigger Era::JournalStore::Apply, with: { run: :run }

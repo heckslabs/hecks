@@ -24,11 +24,13 @@ module Hecks
         #
         # @param held [Hash] the `Era` record: `operation`, `domain`, and whichever of `winners`,
         #   `era`, `aggregates` and the rehearsal fields the request carried
-        # @return [Hash{Symbol => Hash}] every fact, as `{ value: x }`
+        # @return [Hash{Symbol => Hash}] every fact, as `{ value: x }`, and the request's own
+        #   `operation`, which the reactions to the examination read
         # @raise [Runtime::NotFound] if the domain cannot be loaded or has no such era
         def examine(**held)
           found = send(:"examine_#{plain(held[:operation])}", held)
           NEUTRAL.merge(found).transform_values { |fact| { value: fact } }
+                 .merge(operation: { value: plain(held[:operation]) })
         end
 
         private

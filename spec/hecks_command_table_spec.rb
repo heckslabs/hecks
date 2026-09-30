@@ -347,7 +347,7 @@ RSpec.describe "the Hecks command table through the launcher" do
       # The JournalStore adapter stands in for a Postgres journal: it reports the facts an
       # examination of a held text finds, and counts the changes it is asked to make.
       def examined_as(**found)
-        facts = Hecks::Adapters::JournalStore::Examination::NEUTRAL.merge(capable: true, **found)
+        facts = Hecks::Adapters::JournalStore::Examination::NEUTRAL.merge(capable: true, operation: "reattest", **found)
         @applied = 0
         counter = -> { @applied += 1 }
         store = Object.new
@@ -377,7 +377,9 @@ RSpec.describe "the Hecks command table through the launcher" do
 
         expect(reattest("attest-2"))
           .to eq(["Permit refused — the held text no longer matches its digest: there is nothing to re-attest"])
-        expect(settlement_of("attest-2").fetch("status")).to eq("requested")
+        expect(settlement_of("attest-2").fetch("status")).to eq("refused")
+        expect(JSON.parse(run_verb("abandoned").first).map { |change| change.dig("run", "value") })
+          .to include("attest-2")
         expect(@applied).to eq(0)
       end
 
@@ -424,7 +426,9 @@ RSpec.describe "the Hecks command table through the launcher" do
       expect(JSON.parse(out).fetch("refused_reactions").first)
         .to include("policy" => "PermitWhenExamined",
                     "reason" => "Permit refused — no projection reads the journal that would be emptied")
-      expect(settlement_of("compact-2").fetch("status")).to eq("requested")
+      expect(settlement_of("compact-2").fetch("status")).to eq("refused")
+      expect(JSON.parse(run_verb("abandoned").first).map { |change| change.dig("run", "value") })
+        .to include("compact-2")
     end
 
     it "keeps a domain that is not there as a refused change, with the reason" do

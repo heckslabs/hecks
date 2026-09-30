@@ -145,6 +145,38 @@ RSpec.describe "the Codebase rows of the ADR command table" do
     end
   end
 
+  it "leaves a run the checkout rule refused as a faulted record that the aggregate's query lists" do
+    Dir.mktmpdir("not_a_checkout") do |dir|
+      Dir.mkdir(File.join(dir, "lib"))
+      Hecks::Adapters::Codebase::Tree.root = dir
+
+      out, status = launch(["project_vocabulary", "run=refused-1", "--wait"])
+      row = JSON.parse(out).fetch("state")
+
+      expect(status).to eq(1)
+      expect(row.fetch("status")).to eq("faulted")
+      expect(row.dig("refusal", "value")).to include("needs a hecks checkout")
+      expect(JSON.parse(launch(["language_faulted"]).first).map { |run| run.dig("run", "value") })
+        .to include("refused-1")
+    end
+  end
+
+  %w[publish publish_gem].each do |verb|
+    it "leaves `hecks #{verb}` outside a checkout as a faulted run that publishing_faulted lists" do
+      Dir.mktmpdir("not_a_checkout") do |dir|
+        Dir.mkdir(File.join(dir, "lib"))
+        Hecks::Adapters::Codebase::Tree.root = dir
+
+        out, status = launch([verb, "run=refused-#{verb}", "--wait"])
+
+        expect(status).to eq(1)
+        expect(JSON.parse(out).dig("state", "status")).to eq("faulted")
+        expect(JSON.parse(launch(["publishing_faulted"]).first).map { |run| run.dig("run", "value") })
+          .to include("refused-#{verb}")
+      end
+    end
+  end
+
   it "lists every command of the table once, and gives each aggregate at least one row" do
     expect(CODEBASE_ROWS.map { |row| [row.aggregate, row.name] }.uniq.size).to eq(CODEBASE_ROWS.size)
     expect(CODEBASE_ROWS.select(&:renamed).map(&:renamed)).to all(be_a(String))
