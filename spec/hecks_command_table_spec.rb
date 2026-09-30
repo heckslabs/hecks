@@ -431,6 +431,25 @@ RSpec.describe "the Hecks command table through the launcher" do
         .to include("compact-2")
     end
 
+    it "does not make a change its gate refused when `apply` is asked for the run anyway" do
+      target = seeded_heki("heki-apply")
+      journal = File.join(@dir, "data", "gadget.heki.journal")
+      none = Hecks::Adapters::JournalStore::Examination::NEUTRAL.merge(operation: "compact_heki")
+      allow_any_instance_of(Hecks::Adapters::JournalStore)
+        .to receive(:examine).and_return(none.transform_values { |fact| { value: fact } })
+      run_verb("compact_heki", target, "run=apply-1", "--confirm")
+      expect(settlement_of("apply-1").fetch("status")).to eq("refused")
+      size = File.size(journal)
+
+      run_verb("apply", "to=apply-1", "run=apply-1")
+
+      expect(size).to be_positive
+      expect(File.size(journal)).to eq(size)
+      expect(settlement_of("apply-1").fetch("status")).to eq("refused")
+    ensure
+      FileUtils.rm_rf(File.join(@dir, "data"))
+    end
+
     it "keeps a domain that is not there as a refused change, with the reason" do
       run_verb("compact", File.join(@dir, "nowhere"), "run=compact-3", "--confirm")
 

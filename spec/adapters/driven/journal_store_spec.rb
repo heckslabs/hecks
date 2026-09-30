@@ -182,7 +182,7 @@ RSpec.describe Hecks::Adapters::JournalStore, :io do
   end
 
   def request(operation, **fields)
-    { operation: { value: operation }, domain: { value: @domain } }.merge(fields)
+    { operation: { value: operation }, domain: { value: @domain }, status: "admitted" }.merge(fields)
   end
 
   def facts(operation, **fields)
