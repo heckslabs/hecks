@@ -1,10 +1,11 @@
 require "fileutils"
 require "tmpdir"
 require "open3"
+require "hecks/quality_control/cli/child"
 require_relative "postgres_probe"
 require_relative "qa_ledger_role"
 
-# A disposable Postgres-backed `QualityControl` ledger for specs that run the `bin/qa_*` scripts
+# A disposable Postgres-backed `QualityControl` ledger for specs that run the `qa_*` commands
 # as subprocesses; one database per spec file so parallel_rspec workers do not scrub each other.
 module QaLedgerFixture
   # Mirrors the ledger wiring in `qa/bluebook/quality_control.hecksagon`, with the ports unbound.
@@ -110,14 +111,14 @@ module QaLedgerFixture
       @boot ||= Hecks.boot(@dir)
     end
 
-    # The subprocess environment; `QA_SWEEP_DOMAIN_DIR` is the seam the `bin/qa_*` scripts honour.
+    # The subprocess environment; `QA_SWEEP_DOMAIN_DIR` is the seam the `qa_*` commands honour.
     def env(extra = {})
       { "QA_SWEEP_DOMAIN_DIR" => @dir }.merge(extra)
     end
 
-    # Runs `bundle exec ruby bin/<script>`; returns captured stdout, stderr and status.
+    # Runs one `QualityControlCli::Child` command; returns captured stdout, stderr and status.
     def run(script, *, env: {}, chdir: InMemoryDomain::ROOT)
-      Open3.capture3(self.env(env), "bundle", "exec", "ruby", File.join(InMemoryDomain::ROOT, "bin", script), *,
+      Open3.capture3(self.env(env), *Hecks::QualityControlCli::Child.argv(InMemoryDomain::ROOT, script, *),
                      chdir: chdir)
     end
   end

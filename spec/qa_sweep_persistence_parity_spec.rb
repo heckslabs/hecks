@@ -3,12 +3,13 @@ require "hecks/ports/persistence/plugins/era"
 require_relative "support/postgres_probe"
 require_relative "support/qa_ledger_role"
 require "open3"
+require "hecks/quality_control/cli/child"
 require "fileutils"
 require "pathname"
 
-# `bin/qa_sweep --persistence-parity` against a real subprocess and the real `examples/directory`,
+# `qa_sweep --persistence-parity` against a real subprocess and the real `examples/directory`,
 # whose `compute`/`rekey` edge exercises PostgresEra SQL compilation.
-RSpec.describe "bin/qa_sweep --persistence-parity", :io do
+RSpec.describe "qa_sweep --persistence-parity", :io do
   QA_SWEEP_PERSISTENCE_PARITY_DATABASE = "hecks_qa_sweep_persistence_parity_spec".freeze
 
   # Same as `FIXTURE_HECKSAGON` in `spec/support/qa_sweep_all_fixture.rb`, under another name:
@@ -92,7 +93,7 @@ RSpec.describe "bin/qa_sweep --persistence-parity", :io do
     RUBY
     File.write(File.join(@fixture_dir, "governance.world"), InMemoryDomain.governance_postgres_era_world(url))
 
-    # Inside the real repo `ROOT`, because `bin/qa_sweep` resolves a target path against it.
+    # Inside the real repo `ROOT`, because `qa_sweep` resolves a target path against it.
     @ineligible_dir = Dir.mktmpdir("qa_sweep_persistence_parity_spec_target-", InMemoryDomain::ROOT)
     File.write(File.join(@ineligible_dir, "ineligible.bluebook"), INELIGIBLE_TARGET_BLUEBOOK)
     File.write(File.join(@ineligible_dir, "ineligible.hecksagon"), INELIGIBLE_TARGET_HECKSAGON)
@@ -135,7 +136,7 @@ RSpec.describe "bin/qa_sweep --persistence-parity", :io do
   def run_qa_sweep(*args)
     Open3.capture3(
       { "QA_SWEEP_DOMAIN_DIR" => @fixture_dir },
-      "bundle", "exec", "ruby", File.join(InMemoryDomain::ROOT, "bin/qa_sweep"), *args,
+      *Hecks::QualityControlCli::Child.argv(InMemoryDomain::ROOT, "qa_sweep", *args),
       chdir: InMemoryDomain::ROOT
     )
   end

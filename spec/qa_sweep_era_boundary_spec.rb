@@ -3,12 +3,13 @@ require "hecks/ports/persistence/plugins/era"
 require_relative "support/postgres_probe"
 require_relative "support/qa_ledger_role"
 require "open3"
+require "hecks/quality_control/cli/child"
 require "fileutils"
 require "pathname"
 
-# `bin/qa_sweep`'s `era_boundary` mode against a real subprocess and disposable fixtures. Seedless:
+# `qa_sweep`'s `era_boundary` mode against a real subprocess and disposable fixtures. Seedless:
 # it runs once per sweep regardless of `--seeds`.
-RSpec.describe "bin/qa_sweep era_boundary", :io do
+RSpec.describe "qa_sweep era_boundary", :io do
   QA_SWEEP_ERA_BOUNDARY_LEDGER_DATABASE = "hecks_qa_sweep_era_boundary_spec".freeze
   QA_SWEEP_ERA_BOUNDARY_TARGET_DATABASE = "hecks_qa_sweep_era_boundary_target_spec".freeze
 
@@ -49,7 +50,7 @@ RSpec.describe "bin/qa_sweep era_boundary", :io do
   # `translations/*.bluebook` file; the file's content is never read by the mode.
   ERA_BOUNDARY_TARGET_BLUEBOOK = <<~RUBY.freeze
     Hecks.bluebook "QaSweepEraBoundaryFixtureTarget" do
-      vision "A trivially well-behaved sweep target, authored only to prove bin/qa_sweep's era_boundary mode reaches a real PostgresEra-bound domain, never this repository's own live, actively-changing QA corpus."
+      vision "A trivially well-behaved sweep target, authored only to prove qa_sweep's era_boundary mode reaches a real PostgresEra-bound domain, never this repository's own live, actively-changing QA corpus."
 
       aggregate "Widget" do
         description "One numbered widget — nothing a fuzzer can ever catch."
@@ -170,7 +171,7 @@ RSpec.describe "bin/qa_sweep era_boundary", :io do
   def run_qa_sweep(*args)
     Open3.capture3(
       { "QA_SWEEP_DOMAIN_DIR" => @fixture_dir },
-      "bundle", "exec", "ruby", File.join(InMemoryDomain::ROOT, "bin/qa_sweep"), *args,
+      *Hecks::QualityControlCli::Child.argv(InMemoryDomain::ROOT, "qa_sweep", *args),
       chdir: InMemoryDomain::ROOT
     )
   end

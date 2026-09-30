@@ -2,12 +2,12 @@ require "hecks"
 require "hecks/ports/persistence/plugins/era"
 require_relative "support/qa_sweep_all_fixture"
 
-# `bin/qa_sweep --all`: the persistence-parity second wave.
+# `qa_sweep --all`: the persistence-parity second wave.
 # Own throwaway database: `hecks_qa_sweep_all_parity_wave_spec`.
-RSpec.describe "bin/qa_sweep --all", :io do
+RSpec.describe "qa_sweep --all", :io do
   include_context "with a qa_sweep_all fixture", "hecks_qa_sweep_all_parity_wave_spec"
 
-  # Wave 2 runs persistence parity as its own `bin/qa_sweep pg_one --persistence-parity` child
+  # Wave 2 runs persistence parity as its own `qa_sweep pg_one --persistence-parity` child
   # for each clean PostgresEra-bound target; `heki_one` is not bound, so only one child runs.
   it "runs persistence parity as a second wave over PostgresEra-bound targets that came back clean" do
     identify_targets!("heki_one" => @target_domain_relpath, "pg_one" => @pg_target_domain_relpath)
