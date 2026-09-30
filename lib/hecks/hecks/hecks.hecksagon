@@ -1,5 +1,9 @@
 Hecks.hecksagon "Hecks" do
   uses_framework "Governance"
+
+  # The chapters the gem carries: the language declared in itself (Paging comes with Bluebook),
+  # Expression, Tenancy and Deploy.
+  %w[Bluebook Hecksagon World Adapter Port Translation Expression Tenancy Deploy].each { |chapter| attaches chapter }
   # Persistence is not bound here: hecks.world's `default_adapter` binds every aggregate, so
   # environments/memory.world can swap the whole domain without a double bind.
 
