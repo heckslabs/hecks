@@ -2,7 +2,8 @@ require_relative "../../hecks"
 
 module Hecks
   module CLI
-    # The logic behind `bin/project` and Custodian's `Operation.RefreshProjections`: forces every
+    # The logic behind `hecks refresh_projections` and Custodian's `Operation.RefreshProjections`:
+    # forces every
     # read-model projection a booted domain declares to catch up now, the same catch-up a boot
     # runs lazily on first read.
     module RefreshProjections

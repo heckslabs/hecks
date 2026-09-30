@@ -3,7 +3,7 @@
 require "json"
 require_relative "tree"
 require_relative "ruby_child"
-require_relative "../../../canonical_json"
+require "hecks/canonical_json"
 
 module Hecks
   module Adapters

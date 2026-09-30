@@ -1,5 +1,6 @@
-# `require_relative` is needed because the `.adapter` glob never loads the sibling `.rb`.
-require_relative "source_tree"
+# Required by name, not relative to this file: a fuzz or model check boots a copy of this directory,
+# and the implementation must load once, from `lib/`, not from the copy.
+require "hecks/hecks/adapters/codebase/source_tree"
 
 Hecks.adapter "SourceTree" do
   port "SourceTree"

@@ -45,6 +45,17 @@ module Hecks
         [words - [WAIT], true]
       end
 
+      # Whether a question's text answer reports a gap, which `--wait` turns into a failing exit.
+      #
+      # The coverage checks end their report with a `GAP (n)` heading; a non-zero count is a
+      # finding, and a CI stage that waits on the question fails on it.
+      #
+      # @param text [String, nil] the question's text answer
+      # @return [Boolean] whether a `GAP (n)` heading with n above zero is in the text
+      def gap_reported?(text)
+        text.is_a?(String) && text.match?(/^GAP \((?!0\))\d+\)/)
+      end
+
       # Mints the `run` key a creating command was not given, when the domain opted in.
       #
       # An explicit key always wins. Nothing is minted for a command that acts on an existing

@@ -6,7 +6,7 @@ module Hecks
   module Adapters
     class PostgresEra
       module LineageManager
-        # Tail-merge (bin/merge_tail): interleaves the stale world's post-cut writes into the
+        # Tail-merge (hecks merge_tail): interleaves the stale world's post-cut writes into the
         # head by global ordinal, audited, in one transaction.
         module MergeCoordinator
           # Merges writes old checkouts made after the last mint into the current era's head.

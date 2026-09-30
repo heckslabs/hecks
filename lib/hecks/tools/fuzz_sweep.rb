@@ -16,7 +16,7 @@ module Hecks
     #
     # The sweep is single-runtime on purpose; the cross-runtime differential is
     # `spec/rust_conformance_fuzz_spec.rb`. Without a domain it sweeps every domain
-    # `Hecks::Corpus.sweepable_domains` finds, one forked child per core.
+    # `Hecks::Corpus.fuzzable_domains` finds, one forked child per core.
     module FuzzSweep
       # How many seeds are drawn for each seed that must execute.
       DRAW_LIMIT = 5
@@ -52,7 +52,7 @@ module Hecks
 
         # Every discoverable domain, so one added anywhere is swept without a list. Paths the sweep
         # cannot boot are routed by Hecks::Corpus::ROUTES to the check that owns them.
-        domains = options[:domain] ? [options[:domain]] : Hecks::Corpus.sweepable_domains(root)
+        domains = options[:domain] ? [options[:domain]] : Hecks::Corpus.fuzzable_domains(root)
         # One child per core; a real Postgres runs one at a time.
         workers = options[:workers] || (options[:adapter] == :postgres ? 1 : Etc.nprocessors)
         ok = sweep(domains, workers, options, root)

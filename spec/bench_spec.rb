@@ -188,7 +188,7 @@ RSpec.describe Hecks::Bench do
       err = quiet
 
       expect(described_class.run(%w[--targets ruby:heki], out: quiet, err: err)).to eq(2)
-      expect(err.string).to include("bin/bench: unknown target")
+      expect(err.string).to include("hecks bench: unknown target")
       expect(described_class.run(%w[--nonsense], out: quiet, err: err)).to eq(2)
     end
   end

@@ -45,7 +45,7 @@ module Hecks
       ),
       "model_check"      => Command.new(
         "Statically check a domain's IR for dead states and unreachable steps.",
-        "hecks model_check [--strict] [--profile client] <domain> [<domain> …]",
+        "hecks model_check [--strict] [--profile client] [--wait] [<domain> …]",
         "cli/model_check",
         ->(argv, program, _name) { ModelCheck.call(argv, program: program, root: checkout_root) }
       ),

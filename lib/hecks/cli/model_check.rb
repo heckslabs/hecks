@@ -3,7 +3,7 @@ require_relative "../bluebook/model_check"
 
 module Hecks
   module CLI
-    # The command behind `bin/model_check` and `hecks model_check`: static analysis
+    # The command behind `hecks model_check`: static analysis
     # over the IR, printed per domain, exiting non-zero when any error-severity
     # finding is left — unreachable lifecycle states, dead transitions, unreached
     # saga states, dispatches to a nonexistent command, handlers for an event
@@ -24,7 +24,8 @@ module Hecks
 
       # Runs the model check `argv` describes and exits with its verdict.
       #
-      # @param argv [Array<String>] `--strict`, `--profile NAME` and domain paths
+      # @param argv [Array<String>] `--strict`, `--profile NAME`, `--wait` and domain paths;
+      #   `--wait` is accepted for the launcher's sake, as the verdict is always the exit status
       # @param program [String] the name the usage message calls this command by
       # @param root [String, nil] the repository root, for the corpus sweep and the
       #   Rust-target check; nil when there is no checkout
@@ -34,6 +35,7 @@ module Hecks
       def call(argv, program:, root: nil)
         argv = argv.dup
         strict = !argv.delete("--strict").nil?
+        argv.delete("--wait")
         profile = take_profile(argv)
         unless profile.nil? || Bluebook::ModelCheck::PROFILES.include?(profile)
           warn "unknown profile #{profile.inspect} (known: #{Bluebook::ModelCheck::PROFILES.join(', ')})"

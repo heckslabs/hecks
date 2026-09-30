@@ -657,12 +657,17 @@ RSpec.describe "the Hecks command table through the launcher" do
       finished = Struct.new(:output, :ok?).new(output, passed)
       status = Struct.new(:success?, :exitstatus).new(passed, passed ? 0 : 1)
       Hecks::Adapters::ProcessPool.starter = lambda do |command, _env, _chdir|
-        log << [File.basename(command[1]), *command.drop(2)]
+        # A sweep starts as `ruby -I lib -e <program> -- <flags>`; a script as
+        # `ruby <script> <flags>`.
+        log << if command[1] == "-I" then ["fuzz", *command.drop(command.index("--") + 1)]
+               else [File.basename(command[1]), *command.drop(2)]
+               end
         Hecks::Adapters::ProcessPool::Finished.new(finished.output, status)
       end
       Hecks::Adapters::RustToolchain.pool = Object.new.tap do |pool|
         pool.define_singleton_method(:run) do |command, **|
-          log << [File.basename(command[1]), *command.drop(2)]
+          # The benchmark starts as `ruby -I lib -e <program> -- <flags>`.
+          log << ["bench", *command.drop(command.index("--") + 1)]
           finished
         end
       end

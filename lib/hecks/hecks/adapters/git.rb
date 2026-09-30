@@ -4,8 +4,8 @@ require "stringio"
 require_relative "shell"
 require_relative "console_capture"
 require_relative "codebase/publishing"
-require_relative "../../vendoring/git_environment"
-require_relative "../../embryonaut_bluebook/vendor_cli"
+require "hecks/vendoring/git_environment"
+require "hecks/embryonaut_bluebook/vendor_cli"
 
 module Hecks
   module Adapters

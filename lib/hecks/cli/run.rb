@@ -6,7 +6,7 @@ require_relative "../ports/persistence/plugins/era"
 
 module Hecks
   module CLI
-    # The command behind `bin/run` and `hecks run`: dispatches one verb from the
+    # The command behind `hecks run`: dispatches one verb from the
     # command line, or executes a JSON step list and reports instances, events,
     # refusals, reactions, sagas and query rows.
     #

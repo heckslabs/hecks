@@ -10,7 +10,6 @@ RSpec.describe "bin/project_rust opt-in Rust pipeline parity", :io do
   # Not aliased to a local `ROOT`: a bare `ROOT` collides with word_coverage_spec.rb's.
   GENERATED_ROOT = File.join(InMemoryDomain::ROOT, "rust/src/generated")
   CARGO_TOML = File.join(InMemoryDomain::ROOT, "rust/Cargo.toml")
-  PROJECT_RUST = File.join(InMemoryDomain::ROOT, "bin/project_rust")
 
   # [domain, dirs its run touches]: the target, `meta`, and any attached framework chapters.
   # `roster` has a policy with a real `where` (OnSeatAssignedHonorFront), pinning `where_ast`.
@@ -45,7 +44,7 @@ RSpec.describe "bin/project_rust opt-in Rust pipeline parity", :io do
 
   def run_project_rust!(domain, extra_env)
     env = { "PATH" => ENV.fetch("PATH", nil) }.merge(extra_env)
-    _out, err, status = Open3.capture3(env, PROJECT_RUST, domain, chdir: InMemoryDomain::ROOT)
+    _out, err, status = Open3.capture3(env, *RepoTool.argv("project_rust"), domain, chdir: InMemoryDomain::ROOT)
     raise "bin/project_rust #{extra_env.inspect} #{domain} failed:\n#{err}" unless status.success?
   end
 

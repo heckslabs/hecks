@@ -7,9 +7,9 @@ require_relative "../adapters/git_pr"
 
 module Hecks
   module QualityControlCli
-    # The command behind `bin/qa_pr_check`: checks CI for every PR the QualityControl ledger
-    # tracks as open (`Patch` and `Improvement`). It starts a `Clearance` per unsettled head
-    # commit and lets the CI port's policies record the verdict.
+    # The command behind `hecks quality_control check_pull_requests`: checks CI for every PR the
+    # QualityControl ledger tracks as open (`Patch` and `Improvement`). It starts a `Clearance` per
+    # unsettled head commit and lets the CI port's policies record the verdict.
     #
     # Exit codes: 0 nothing to act on; 1 operational error (`gh`, bad sha, ledger boot);
     # 2 a newly red PR, with the details on stdout. A commit's `Clearance` is minted once and never

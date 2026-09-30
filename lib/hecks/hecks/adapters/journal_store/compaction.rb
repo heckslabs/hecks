@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require_relative "../../../../hecks"
+require "hecks"
 
 module Hecks
   module Adapters

@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 require_relative "console_capture"
-require_relative "../../cli/console"
+require "hecks/cli/console"
 
 module Hecks
   module Adapters
@@ -57,7 +57,7 @@ module Hecks
         if server
           server.call(argv)
         else
-          require_relative "../../cli/mcp"
+          require "hecks/cli/mcp"
           CLI::Mcp.call(argv)
         end
 

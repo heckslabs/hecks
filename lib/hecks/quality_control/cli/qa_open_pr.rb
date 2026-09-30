@@ -7,8 +7,8 @@ require_relative "../adapters/git_pr"
 
 module Hecks
   module QualityControlCli
-    # The command behind `bin/qa_open_pr`: opens a PR and records it in the QualityControl ledger
-    # in one step. It is the only door into `QualityControl::Patch.Open` and
+    # The command behind `hecks quality_control patch.open`: opens a PR and records it in the
+    # QualityControl ledger in one step. It is the only door into `QualityControl::Patch.Open` and
     # `QualityControl::Improvement.Open`.
     #
     # It refuses (exit 1, nothing opened or recorded) unless the ledger's own `Open` command would
@@ -141,7 +141,7 @@ module Hecks
         case rule
         when "the bug is fixed"
           " (#{@bug.id} is #{@bug.status.inspect} — dispatch investigate and fix first " \
-          "(exe/hecks run qa/bluebook fix id=#{@bug.id} reference.value=#{@bug.id} commit.value=<sha>))"
+          "(hecks run qa/bluebook fix id=#{@bug.id} reference.value=#{@bug.id} commit.value=<sha>))"
         when "the angle is under investigation"
           " (#{@angle.id} is #{@angle.status.inspect} — dispatch angle.investigate first, so the lead " \
           "reads as picked up before something is built from it)"
@@ -239,7 +239,8 @@ module Hecks
                 elsif @angle then "Builds #{@angle.id}."
                 else "Deliberate work, no Bug or Angle behind it."
                 end
-        body = @options[:body] || "#{cited}\n\nOpened by bin/qa_open_pr and recorded in the QualityControl ledger."
+        body = @options[:body] ||
+               "#{cited}\n\nOpened by hecks quality_control patch.open and recorded in the QualityControl ledger."
         begin
           @git_pr.create_pull_request(branch: @branch, title: @options[:title], body: body,
                                       draft: dial(:DRAFT_ONLY, false))

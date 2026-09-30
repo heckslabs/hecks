@@ -4,7 +4,7 @@ require_relative "../projection_files"
 
 module Hecks
   module CLI
-    # The command behind `bin/expression_projection`: projects the expression machinery's
+    # The command behind `hecks project_expression_tables`: projects the expression machinery's
     # operator and normalisation tables from the grammar chapter into
     # `lib/hecks/bluebook/expression/projection.json`.
     #

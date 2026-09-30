@@ -3,11 +3,11 @@
 require "json"
 require "time"
 require_relative "console_capture"
-require_relative "../../cli/run"
-require_relative "../../cli/model_check"
-require_relative "../../cli/smoke_test"
-require_relative "../../cli/behaviors"
-require_relative "../../cli/refresh_projections"
+require "hecks/cli/run"
+require "hecks/cli/model_check"
+require "hecks/cli/smoke_test"
+require "hecks/cli/behaviors"
+require "hecks/cli/refresh_projections"
 
 module Hecks
   module Adapters
@@ -19,7 +19,7 @@ module Hecks
     # it printed. An answer records a success; a raise records a refusal, so a check that finds
     # something, or a run that fails, is refused with the report as its reason.
     module InProcessOperations
-      # The chapters `bin/model_check` and `hecks model_check` sweep when no domain is named need a
+      # The chapters `hecks model_check` sweep when no domain is named need a
       # checkout; an installed gem has none.
       CHECKOUT_MARKER = "hecks.gemspec"
 

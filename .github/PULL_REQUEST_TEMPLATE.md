@@ -9,8 +9,8 @@
 - [ ] `bundle exec rspec` passes
 - [ ] `bundle exec rubocop -c .rubocop.yml` is clean
 - [ ] Touched a `.bluebook`, the DSL builder, the runtime, or the IR? →
-      `exe/hecks model_check` and `bin/fuzz` are clean
-- [ ] Added or changed a DSL keyword/argument? → `bin/doc_coverage` is
+      `hecks model_check --wait` and `hecks fuzz --wait` are clean
+- [ ] Added or changed a DSL keyword/argument? → `hecks measure_doc_coverage` is
       clean, and `docs/implemented/reference/` has real prose (not the
       `TODO` sentinel) with a runnable example
 - [ ] Edited a `ruby`-fenced example in the README or `docs/implemented/guides/`?

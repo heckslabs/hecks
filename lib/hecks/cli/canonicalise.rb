@@ -4,7 +4,7 @@ require_relative "../canonical_json"
 
 module Hecks
   module CLI
-    # The command behind `bin/canonicalise`: prints a JSON document with every object's keys
+    # The command behind `hecks canonicalise`: prints a JSON document with every object's keys
     # sorted, recursively. Key order is not semantics, so a diff a person reads should not have
     # to notice it moved.
     module Canonicalise

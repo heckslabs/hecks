@@ -3,7 +3,7 @@
 require "rbconfig"
 require_relative "../shell"
 require_relative "../console_capture"
-require_relative "../../../tools"
+require "hecks/tools"
 
 module Hecks
   module Adapters

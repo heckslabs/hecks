@@ -7,10 +7,11 @@ require_relative "../../ports/persistence/plugins/era"
 
 module Hecks
   module QualityControlCli
-    # The command behind `bin/qa_log_bug`: logs a bug to the QualityControl ledger, proven,
-    # numbered and triaged. It runs `--demonstration` first and refuses unless it exits non-zero.
+    # The command behind `hecks quality_control log`: logs a bug to the QualityControl ledger,
+    # proven, numbered and triaged. It runs `--demonstration` first and refuses unless it exits
+    # non-zero.
     #
-    #   bin/qa_log_bug --sweep <sweep-id> --title "…" \
+    #   hecks quality_control log --sweep <sweep-id> --title "…" \
     #     --demonstration "bundle exec rspec spec/x_spec.rb -e 'the case'" \
     #     --symptom "…" --expectation "…" --submitter "<who>" \
     #     --triage self_contained|bigger [--tag word]… [--reproduced yes|no]
@@ -61,7 +62,7 @@ module Hecks
         runtime = boot_ledger
         sweep = ::QualityControl::Sweep.find(options[:sweep])
         unless sweep
-          abort "no such sweep: #{options[:sweep].inspect} — the sweep id is on bin/qa_sweep's own " \
+          abort "no such sweep: #{options[:sweep].inspect} — the sweep id is on hecks quality_control ask run's own " \
                 "FOUND SOMETHING report"
         end
 

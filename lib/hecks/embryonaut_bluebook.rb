@@ -31,7 +31,7 @@ module Hecks
       if files.empty?
         raise Runtime::WiringError,
               "no vendored embryonaut bluebook named #{name.inspect} at #{dir} — " \
-              "vendor it with bin/vendor_bluebook #{name}"
+              "vendor it with hecks vendor #{name}"
       end
 
       # Loaded in the glob's alphabetical order; a package with several

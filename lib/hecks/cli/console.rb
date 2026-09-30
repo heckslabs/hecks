@@ -6,7 +6,7 @@ require_relative "../ports/persistence/plugins/era"
 
 module Hecks
   module CLI
-    # The command behind `bin/console` and Custodian's `Operation.OpenConsole`: boots a domain
+    # The command behind `hecks console` and Custodian's `Operation.OpenConsole`: boots a domain
     # (pizzas on Memory by default) and drops into IRB with its door installed, for dispatching a
     # real command by hand. No argument needs no database (ADR 0073); a domain directory boots as
     # it is wired, which may bind PostgresEra.

@@ -72,7 +72,7 @@ module Hecks
 
       attr_reader :coverage, :verbs
 
-      # Sum of every `Result#events` length across the run; bin/fuzz declares it as the
+      # Sum of every `Result#events` length across the run; hecks fuzz declares it as the
       # script's `expectations.events` claim. Zero means no interesting state was reached.
       attr_reader :event_count
 

@@ -196,6 +196,26 @@ module Hecks
       end
     end
 
+    # Sweepable domains a fuzz cannot boot from its copy, by repo-relative directory, each with
+    # the reason. A fuzz boots a tmpdir copy of a domain to isolate its state.
+    FUZZ_UNBOOTABLE = {
+      "lib/hecks/hecks" =>
+        "the gem's own chapter, which the boot accepts only from the gem's directory " \
+        "(`Registry::Verification::GEM_CHAPTER_DIR`); `hecks model_check` and the chapter's own " \
+        "specs cover it",
+      "spec/fixtures/qa_discover_external_domains/projects/hecks" =>
+        "a sibling-repo fixture that declares the reserved chapter name `Hecks`, which the boot " \
+        "refuses by design; the discovery tool's spec reads it as a directory"
+    }.freeze
+
+    # Every sweepable domain a fuzz can boot: `sweepable_domains` less `FUZZ_UNBOOTABLE`.
+    #
+    # @param root [String] repository root to search under
+    # @return [Array<String>] absolute paths of the domain directories `hecks fuzz` sweeps
+    def fuzzable_domains(root = ROOT)
+      sweepable_domains(root) - FUZZ_UNBOOTABLE.keys.map { |dir| File.join(root, dir) }
+    end
+
     # The domain directory a member stands for, spelled the way
     # `sweepable_domains` spells it: a `bluebook/` folder is its parent.
     #

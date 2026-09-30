@@ -207,7 +207,7 @@ module Hecks
         Dir.mktmpdir do |dir|
           domain_dir = write_fixture(dir, basename, world_body, env_local: env_local)
           outcome = Hecks::Adapters::ConsoleCapture.capture { DeployRecipe.main([domain_dir], root: root) }
-          outcome.ok? or raise "bin/project_deploy failed generating the #{basename} fixture: #{outcome.output}"
+          outcome.ok? or raise "hecks deploy project failed generating the #{basename} fixture: #{outcome.output}"
         end
         File.join(root, "deploy", basename)
       end
@@ -246,7 +246,7 @@ module Hecks
             end
           else
             argv.each do |path|
-              File.exist?(path) or abort "bin/lint_deploy_recipes: no such file #{path}"
+              File.exist?(path) or abort "hecks deploy lint: no such file #{path}"
               violations.concat(lint(File.read(path), source: path))
             end
           end
@@ -258,7 +258,7 @@ module Hecks
 
       # @return [Integer] 0, after printing the usage
       def usage
-        puts "usage: bin/lint_deploy_recipes [Makefile ...]"
+        puts "usage: hecks deploy lint [Makefile ...]"
         puts "  no args: generates 3 representative fixture domains (own/shared/oauth)"
         puts "           via the real deploy generator, lints each one's Makefile"
         puts "  with args: lints the given Makefile(s) directly (e.g. deploy/<domain>/Makefile)"
@@ -269,11 +269,11 @@ module Hecks
       # @return [Integer] 0 when there are none, 1 after printing them to stderr
       def report(violations)
         if violations.empty?
-          puts "bin/lint_deploy_recipes: no violations found."
+          puts "hecks deploy lint: no violations found."
           return 0
         end
 
-        warn "bin/lint_deploy_recipes: #{violations.size} violation(s) found:\n\n"
+        warn "hecks deploy lint: #{violations.size} violation(s) found:\n\n"
         violations.each { |v| warn "  #{v}\n" }
         1
       end

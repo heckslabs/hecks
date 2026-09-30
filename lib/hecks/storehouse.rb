@@ -56,7 +56,7 @@ module Hecks
     end
 
     # The same alias table CliRunner resolves against, kept here so dispatch
-    # and query never drift from what a human typing bin/run sees.
+    # and query never drift from what a human typing hecks run sees.
     # :nodoc:
     def resolve!(cli, name, asking:)
       pool = asking ? cli[:questions] : cli[:verbs]
@@ -346,7 +346,7 @@ module Hecks
     end
 
     # One aggregate's (or the whole chapter's) full usage documentation — the
-    # same document bin/docs renders for a human.
+    # same document hecks docs renders for a human.
     #
     # @param runtime [Runtime::Registry] the booted domain to describe
     # @param aggregate [String, Symbol, nil] one aggregate's name, or nil for the
