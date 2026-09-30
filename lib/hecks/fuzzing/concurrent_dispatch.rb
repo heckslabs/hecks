@@ -4,6 +4,7 @@ require "tempfile"
 require "json"
 require_relative "isolated_boot"
 require_relative "../naming"
+require_relative "../quality_control/cli/child"
 
 module Hecks
   module Fuzzing
@@ -124,14 +125,14 @@ module Hecks
         end
 
         root = File.expand_path("../../..", __dir__)
-        racer = File.join(root, "bin/qa_concurrency_racer")
         args_json = JSON.generate(race_step["args"] || {})
         logs = Array.new(2) { Tempfile.new(["qa-concurrency-racer-", ".log"]) }
         logs.each(&:unlink)
 
         pids = logs.map do |log|
-          Process.spawn("bundle", "exec", "ruby", racer, domain_path, database, schema, race_step["verb"], args_json,
-                        out: log, err: log, chdir: root)
+          racer = Hecks::QualityControlCli::Child.argv(root, "qa_concurrency_racer", domain_path, database, schema,
+                                                       race_step["verb"], args_json)
+          Process.spawn(*racer, out: log, err: log, chdir: root)
         end
 
         pids.each { |pid| Process.wait(pid) }
@@ -139,7 +140,7 @@ module Hecks
           log.rewind
           output = log.read
           log.close
-          output.strip.empty? ? "crashed:no output from bin/qa_concurrency_racer" : output.lines.last.chomp
+          output.strip.empty? ? "crashed:no output from the concurrency racer" : output.lines.last.chomp
         end
       end
 

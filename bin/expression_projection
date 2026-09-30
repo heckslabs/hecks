@@ -1,32 +1,13 @@
 #!/usr/bin/env ruby
 
-# Projects the expression machinery's operator and normalisation tables from the grammar
-# chapter into lib/hecks/bluebook/expression/projection.json.
-#
-#   bin/expression_projection            # rewrites the file in place
-#   bin/expression_projection --stdout   # prints instead (the spec's diff mode)
-#
-# Never redirect with `>`: the shell truncates the file the framework requires at boot, so
-# the run dies with nothing written. The default mode replaces the file atomically.
-#
-# Refuses to write a projection that drops a self-bearing operator, one the chapter's own
-# `status != "retired"` givens evaluate through, since that would wedge every later boot.
-# Recover a broken file with `git checkout -- lib/hecks/bluebook/expression/projection.json`.
+# Projects the expression operator tables into lib/hecks/bluebook/expression/projection.json.
+# The body lives in lib/hecks/cli/expression_projection.rb;
+# this file only starts it.
 
 require_relative "../lib/hecks/three_zero"
 Hecks::ThreeZero.notice("expression_projection")
 
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
-require "hecks/projection_files"
+require "hecks/cli/expression_projection"
 
-begin
-  result = Hecks::ProjectionFiles.build(:expression_tables)
-rescue Hecks::ProjectionFiles::Refused => e
-  abort e.message
-end
-
-if ARGV.include?("--stdout")
-  print result.content.values.first
-else
-  puts Hecks::ProjectionFiles.write(:expression_tables)
-end
+exit(Hecks::CLI::ExpressionProjection.call(ARGV))

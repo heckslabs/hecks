@@ -1,42 +1,13 @@
 #!/usr/bin/env ruby
-# frozen_string_literal: true
 
-# Prints the spec files assigned to one group (1-indexed) of a runtime-balanced N-way split.
-# `rspec_shard` in ci-rspec.yml passes the committed runtime baseline so every leg agrees.
-#
-# Why not `parallel_rspec --only-group`: it forces one process per leg, and this suite is
-# CPU-bound, so each leg would use one of four vCPUs. The group's list comes from
-# `tests_in_groups`, leaving `parallel_rspec` its own workers.
-#
-# Usage: bin/rspec_shard_files <group 1-indexed> <num_groups> [runtime_log_path]
+# Prints the spec files assigned to one group of a runtime-balanced N-way split.
+# The body lives in lib/hecks/cli/rspec_shard_files.rb;
+# this file only starts it.
 
 require_relative "../lib/hecks/three_zero"
 Hecks::ThreeZero.notice("rspec_shard_files")
 
-require "parallel_tests/test/runner"
+$LOAD_PATH.unshift File.expand_path("../lib", __dir__)
+require "hecks/cli/rspec_shard_files"
 
-group_arg, num_groups_arg, runtime_log = ARGV
-abort "usage: #{$PROGRAM_NAME} <group 1-indexed> <num_groups> [runtime_log_path]" unless group_arg && num_groups_arg
-
-group = Integer(group_arg)
-num_groups = Integer(num_groups_arg)
-abort "group must be between 1 and #{num_groups}, got #{group}" unless (1..num_groups).cover?(group)
-
-files = Dir["spec/**/*_spec.rb"]
-abort "bin/rspec_shard_files: found ZERO spec files under spec/ — refusing to hand parallel_rspec nothing to run" if files.empty?
-
-options = { group_by: :runtime, allowed_missing_percent: 100 }
-options[:runtime_log] = runtime_log if runtime_log && File.exist?(runtime_log)
-
-# `allowed_missing_percent` covers gaps inside a log, not a missing file (`Runner.runtimes`
-# raises `ENOENT`), so a cold cache falls back to file size.
-groups = begin
-  ParallelTests::Test::Runner.tests_in_groups(files, num_groups, **options)
-rescue Errno::ENOENT
-  ParallelTests::Test::Runner.tests_in_groups(files, num_groups, group_by: :filesize)
-end
-selected = groups[group - 1] || []
-
-warn "bin/rspec_shard_files: group #{group}/#{num_groups} has #{selected.size} of #{files.size} files"
-
-puts selected
+exit(Hecks::CLI::RspecShardFiles.call(ARGV))

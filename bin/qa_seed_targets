@@ -1,47 +1,13 @@
 #!/usr/bin/env ruby
 
-# Identifies every corpus domain as a rotation `Target`, printing each one's inferred capabilities.
-# Idempotent: references already on file are skipped whatever their status (re-Identify refuses).
-#
-# Skipped on purpose: examples/embryonaut (external product) and lib/hecks/framework (no
-# standalone Rust binary).
-#
-#   bin/qa_seed_targets
+# Identifies every corpus domain as a rotation Target.
+# The body lives in lib/hecks/quality_control/cli/qa_seed_targets.rb;
+# this file only starts it.
 
 require_relative "../lib/hecks/three_zero"
 Hecks::ThreeZero.notice("qa_seed_targets")
 
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
-require "hecks"
-# Load the era plugin before `Hecks.boot` (see bin/run).
-require "hecks/ports/persistence/plugins/era"
-require "hecks/fuzzing"
-require "hecks/corpus"
+require "hecks/quality_control/cli/qa_seed_targets"
 
-ROOT       = File.expand_path("..", __dir__)
-DOMAIN_DIR = ENV.fetch("QA_SWEEP_DOMAIN_DIR", File.join(ROOT, "qa/bluebook"))
-
-# reference => path relative to the repository root, discovered from the corpus.
-SEED = Hecks::Corpus.rotation_targets(root: ROOT)
-
-runtime = begin
-  Hecks.boot(DOMAIN_DIR)
-rescue StandardError => e
-  abort "the QualityControl ledger did not boot — fix the ledger itself before seeding it " \
-        "(#{e.class}: #{e.message})"
-end
-
-existing = runtime.query("QualityControl::Target.All").map { |row| row[:reference][:value] }
-
-SEED.each do |reference, path|
-  capabilities = Hecks::Fuzzing::TargetCapabilities.infer(File.join(ROOT, path)).join(",")
-  if existing.include?(reference)
-    puts "already on file: #{reference} (#{path}; capabilities #{capabilities})"
-    next
-  end
-
-  abort "#{reference} names a path that does not exist on disk: #{path}" unless File.directory?(File.join(ROOT, path))
-
-  QualityControl::Target.identify!(reference: { value: reference }, path: { value: path })
-  puts "identified: #{reference} (#{path}; capabilities #{capabilities})"
-end
+exit(Hecks::QualityControlCli::QaSeedTargets.call(root: File.expand_path("..", __dir__)))
