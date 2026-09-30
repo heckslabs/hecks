@@ -20,8 +20,10 @@ RSpec.describe "bin/stores" do
   end
 
   it "requires a domain argument at all" do
-    _stdout, _stderr, status = Open3.capture3(BIN_STORES_SCRIPT)
+    _stdout, stderr, status = Open3.capture3(BIN_STORES_SCRIPT)
 
     expect(status).not_to be_success
+    expect(stderr).to include("usage:")
+    expect(stderr).not_to include("IndexError")
   end
 end
