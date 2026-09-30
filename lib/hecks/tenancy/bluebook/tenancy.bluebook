@@ -17,7 +17,7 @@ Hecks.bluebook "Tenancy" do
     attribute :status, Status, default: { value: "Active" }
 
     value_object "Slug" do
-      attribute :value, String, pattern: '\A[a-z][a-z0-9_]*\z'
+      attribute :value, String, pattern: '^[a-z][a-z0-9_]*$'
       invariant("a tenant slug is named") { !value.to_s.empty? }
     end
 
@@ -32,7 +32,7 @@ Hecks.bluebook "Tenancy" do
     end
 
     value_object "Schema" do
-      attribute :value, String, pattern: '\A[a-z][a-z0-9_]*\z'
+      attribute :value, String, pattern: '^[a-z][a-z0-9_]*$'
       invariant("a schema is named") { !value.to_s.empty? }
     end
 

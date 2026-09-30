@@ -185,7 +185,7 @@ Hecks.bluebook "Deploy" do
     # Lowercase, no spaces: a slug becomes the `environments/<slug>.world` filename and, by
     # convention only, the schema name (`schema` is separate so a tenant can differ).
     value_object "Slug" do
-      attribute :value, String, pattern: '\A[a-z][a-z0-9_]*\z'
+      attribute :value, String, pattern: '^[a-z][a-z0-9_]*$'
       invariant("a tenant slug is named") { !value.to_s.empty? }
     end
 
@@ -203,18 +203,18 @@ Hecks.bluebook "Deploy" do
     # identifier limit is not checked: the invariant expression grammar has no `bytesize`, and
     # Postgres refuses a too-long identifier itself.
     value_object "Schema" do
-      attribute :value, String, pattern: '\A[a-z][a-z0-9_]*\z'
+      attribute :value, String, pattern: '^[a-z][a-z0-9_]*$'
       invariant("a schema is named") { !value.to_s.empty? }
     end
 
     # A database name or a `postgres://` URL, whichever the overlay's `database` setting takes.
     value_object "DatabaseName" do
-      attribute :value, String, pattern: '\A[^\t\n\r]+\z'
+      attribute :value, String, pattern: '[^\t\n\r]'
     end
 
     # The persistence adapter the overlay binds; PostgresEra when a request names none.
     value_object "AdapterName" do
-      attribute :value, String, pattern: '\A[A-Z][A-Za-z0-9]*\z'
+      attribute :value, String, pattern: '^[A-Z][A-Za-z0-9]*$'
     end
 
     # The domain's own directory on disk, where `environments/<slug>.world` is written.
@@ -376,11 +376,11 @@ Hecks.bluebook "Deploy" do
 
     # A tenant of a shared-database domain: its stack is the domain's own, suffixed with the slug.
     value_object "TenantSlug" do
-      attribute :value, String, pattern: '\A[a-z][a-z0-9_]*\z'
+      attribute :value, String, pattern: '^[a-z][a-z0-9_]*$'
     end
 
     value_object "SchemaName" do
-      attribute :value, String, pattern: '\A[a-z][a-z0-9_]*\z'
+      attribute :value, String, pattern: '^[a-z][a-z0-9_]*$'
     end
 
     # Where the recipe is written, for a domain that lives in a client's repository.
@@ -390,7 +390,7 @@ Hecks.bluebook "Deploy" do
 
     # An `environments/<name>.world` overlay of the domain, which must exist.
     value_object "EnvironmentName" do
-      attribute :value, String, pattern: '\A[A-Za-z][A-Za-z0-9_]*\z'
+      attribute :value, String, pattern: '^[A-Za-z][A-Za-z0-9_]*$'
     end
 
     value_object "Report" do

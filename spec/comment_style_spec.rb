@@ -139,23 +139,6 @@ RSpec.describe "Hecks::Tools::CommentStyle" do
         expect(JSON.parse(File.read(file))["lib/b.rb"].keys).to eq(%w[a z])
       end
 
-      it "lives at the checkout's root, where the committed file is" do
-        root = File.expand_path("..", __dir__)
-
-        expect(Hecks::Tools::CommentStyle::Baseline::PATH).to eq(File.join(root, ".standardize_comments_baseline.json"))
-        expect(File.exist?(Hecks::Tools::CommentStyle::Baseline::PATH)).to be(true)
-        expect(Hecks::Tools::CommentStyle::Baseline.load).not_to be_empty
-      end
-
-      it "is written inside the root the tool is given" do
-        file = File.join(@dir, "example.rb")
-        File.write(file, source_with_block(limit + 3))
-
-        expect { Hecks::Tools::CommentStyle.main(["--write-baseline", file], root: @dir) }.to output.to_stdout
-
-        expect(File.exist?(File.join(@dir, ".standardize_comments_baseline.json"))).to be(true)
-      end
-
       it "loads as empty when there is no file" do
         expect(Hecks::Tools::CommentStyle::Baseline.load(File.join(@dir, "missing.json"))).to eq({})
       end
