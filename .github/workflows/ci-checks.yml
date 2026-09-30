@@ -141,12 +141,11 @@ jobs:
       # transitions, saga states no handler chain reaches. Boots every corpus
       # member plus the language's own meta chapters.
       #
-      # Still bin/model_check: `hecks model_check` is one of the ten legacy routes in exe/hecks,
-      # which hands it to `Hecks::CLI` with no checkout root, so it cannot sweep the corpus and
-      # takes no `--wait`. Moves to `hecks model_check --wait` once the route reaches the launcher.
+      # `model_check` is one of the legacy routes in exe/hecks: it sweeps the corpus of the checkout
+      # it is loaded from and exits with the verdict.
       - name: model check
         if: steps.attest.outputs.attested != 'true'
-        run: bundle exec bin/model_check
+        run: bundle exec exe/hecks model_check
 
       # For every comparator the grammar declares, checks both that
       # `QuerySpecification::Common::Comparison` has a shared `when` case for

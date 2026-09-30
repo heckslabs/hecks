@@ -141,7 +141,7 @@ module Hecks
         case rule
         when "the bug is fixed"
           " (#{@bug.id} is #{@bug.status.inspect} — dispatch investigate and fix first " \
-          "(bin/run qa/bluebook fix id=#{@bug.id} reference.value=#{@bug.id} commit.value=<sha>))"
+          "(exe/hecks run qa/bluebook fix id=#{@bug.id} reference.value=#{@bug.id} commit.value=<sha>))"
         when "the angle is under investigation"
           " (#{@angle.id} is #{@angle.status.inspect} — dispatch angle.investigate first, so the lead " \
           "reads as picked up before something is built from it)"

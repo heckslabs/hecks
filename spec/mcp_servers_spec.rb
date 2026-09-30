@@ -19,9 +19,7 @@ RSpec.describe "the stdio MCP servers" do
   # The programs the two verbs run, by verb name.
   MCP_CHILD_PROGRAMS = {
     "mcp"                => 'require "hecks/cli/mcp"; Hecks::CLI::Mcp.call(ARGV)',
-    "serve_query_ir_mcp" => 'require "hecks/mcp_stdio_guard"; ' \
-                            'Hecks::McpStdioGuard.enforce_stdio!(server: "hecks-query-ir"); ' \
-                            'require "hecks"; require "hecks/query_ir_mcp"; Hecks::QueryIrMcp.start(argv: ARGV)'
+    "serve_query_ir_mcp" => 'require "hecks/cli/serve_query_ir_mcp"; Hecks::CLI::ServeQueryIrMcp.call(ARGV)'
   }.freeze
 
   # @return [Array<String>] the command that starts the verb's server

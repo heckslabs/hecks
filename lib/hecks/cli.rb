@@ -47,7 +47,7 @@ module Hecks
         "Statically check a domain's IR for dead states and unreachable steps.",
         "hecks model_check [--strict] [--profile client] <domain> [<domain> …]",
         "cli/model_check",
-        ->(argv, program, _name) { ModelCheck.call(argv, program: program) }
+        ->(argv, program, _name) { ModelCheck.call(argv, program: program, root: checkout_root) }
       ),
       "smoke_test"       => Command.new(
         "Boot a domain and dispatch every declared command and report once.",
@@ -93,6 +93,15 @@ module Hecks
     USAGE_STATUS = 2
 
     module_function
+
+    # The checkout this library is loaded from, which a corpus sweep needs; an installed gem has
+    # none.
+    #
+    # @return [String, nil] the repository root, or nil when `hecks.gemspec` is not beside `lib/`
+    def checkout_root
+      root = File.expand_path("../..", __dir__)
+      root if File.exist?(File.join(root, "hecks.gemspec"))
+    end
 
     # Routes `argv` to its subcommand and runs it.
     #

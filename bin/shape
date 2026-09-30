@@ -1,46 +1,13 @@
 #!/usr/bin/env ruby
 
-# Prints the storage-shape projection of a bluebook, the same hash
-# PostgresEra mints an era's label from — diff two runs to see if a
-# bluebook change would bump an era.
-#
-#   bin/shape path/to/pizzas.bluebook   # the projection, as JSON
-#   bin/shape path/to/bluebook_dir      # one "<Domain> <label>" line per domain
-#
-# A directory prints every domain's label (files in subdirectories are
-# not read).
+# Prints the storage-shape projection of a bluebook, or one era label per domain.
+# The body lives in lib/hecks/cli/shape.rb;
+# this file only starts it.
 
 require_relative "../lib/hecks/three_zero"
 Hecks::ThreeZero.notice("shape")
 
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
+require "hecks/cli/shape"
 
-require "hecks"
-# The `:shape` projection needs the era persistence plugin loaded
-# (Runtime::StorageShape lives there, ADR 0033).
-require "hecks/ports/persistence/plugins/era"
-require "json"
-
-target = ARGV.shift or abort "usage: bin/shape <bluebook | directory of *.bluebook files>"
-
-abort "#{target} does not exist" unless File.exist?(target)
-
-directory = File.directory?(target)
-files = directory ? Dir[File.join(target, "*.bluebook")] : [target]
-abort "no *.bluebook files in #{target}" if files.empty?
-
-registry = Hecks::Runtime::Registry.new
-loading = Hecks::Ports::Loading.bootstrap
-Hecks.with_registry(registry) do
-  loading.load_library
-  files.each { |file| Kernel.eval(File.read(file), TOPLEVEL_BINDING, File.expand_path(file), 1) }
-end
-
-if directory
-  registry.bluebooks.sort_by { |name, _| name.to_s }.each do |name, bluebook|
-    puts "#{name} #{Hecks::Runtime::StorageShape.mint_label(bluebook)}"
-  end
-else
-  bluebook = registry.bluebooks.values.first or abort "#{target} declares no bluebook"
-  puts JSON.pretty_generate(Hecks::Projector.call(:shape, bluebook: bluebook))
-end
+Hecks::CLI::Shape.call(ARGV)

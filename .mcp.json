@@ -1,10 +1,12 @@
 {
   "mcpServers": {
     "hecks-query-ir": {
-      "command": "bin/hecks_query_ir_mcp"
+      "command": "ruby",
+      "args": ["-I", "lib", "-e", "require 'hecks/cli/serve_query_ir_mcp'; Hecks::CLI::ServeQueryIrMcp.call(ARGV)", "--"]
     },
     "hecks-door": {
-      "command": "bin/hecks_mcp_door"
+      "command": "ruby",
+      "args": ["-I", "lib", "-e", "require 'hecks/cli/mcp'; Hecks::CLI::Mcp.call(ARGV)", "--"]
     }
   }
 }
