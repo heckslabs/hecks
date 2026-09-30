@@ -88,6 +88,7 @@ module Hecks
           ["DomainPort", "operation"] => :tells_impl,
           ["DomainPort", "tells"] => :tells_impl,
           ["DomainPort", "asks"] => :asks_impl,
+          ["DomainPort", "answers_query"] => :answers_query_impl,
           ["Hecksagon", "port"] => :port_impl,
           ["PortOperation", "reference_to"] => :reference_to_impl,
           ["PortOperation", "attribute"] => :attribute_impl,

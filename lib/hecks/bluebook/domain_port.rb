@@ -58,20 +58,63 @@ module Hecks
       end
     end
 
-    # A named group of operations an aggregate exposes to whatever adapter calls in.
+    # A query the hecksagon binds to a port's adapter: the bluebook declares the question, and
+    # this declares that something outside the domain answers it, and in what shape.
+    class QueryAnswer
+      include Hecks::IR
+
+      # The shapes an adapter's answer may take: one document of text, one row, or many rows.
+      SHAPES = %i[text row rows].freeze
+
+      emits_ir(name: :name, shape: :shape_name)
+
+      attr_reader :name, :shape
+
+      # @param name [String, Symbol] the bound query's declared name
+      # @param shape [Symbol, String] `:text`, `:row` or `:rows`
+      # @raise [Bluebook::DSL::Malformed] if `shape` is none of `SHAPES`
+      def initialize(name:, shape:)
+        @name  = name.to_s
+        @shape = shape.to_sym
+        return if SHAPES.include?(@shape)
+
+        raise DSL::Malformed, "#{@name} answers as #{shape.inspect} — a query answer is one of " \
+                              "#{SHAPES.map(&:inspect).join(', ')}"
+      end
+
+      # @return [String] the shape as written in the IR
+      def shape_name = @shape.to_s
+    end
+
+    # A named group of operations an aggregate exposes to whatever adapter calls in, plus the
+    # queries its adapter answers.
     class DomainPort
       include Hecks::IR
       include Behaviour::DomainPort
 
       emits_ir(name: :name, operations: many(:operations))
 
-      attr_reader :name, :operations
+      attr_reader :name, :operations, :answered_queries
 
       # @param name [String, Symbol] the port's declared name
       # @param operations [Array<Bluebook::PortOperation>] the port's declared operations
-      def initialize(name:, operations: [])
-        @name       = name.to_s
-        @operations = operations
+      # @param answered_queries [Array<Bluebook::QueryAnswer>] the queries this port's adapter
+      #   answers instead of the aggregate's stored records
+      def initialize(name:, operations: [], answered_queries: [])
+        @name             = name.to_s
+        @operations       = operations
+        @answered_queries = answered_queries
+      end
+
+      # `answered_queries` is merged in only when there are some, so a port that binds no query
+      # emits the shape it always did.
+      #
+      # @return [Hash] the port's IR
+      def to_h
+        shape = super
+        return shape if @answered_queries.empty?
+
+        shape.merge(answered_queries: @answered_queries.map(&:to_h))
       end
     end
   end

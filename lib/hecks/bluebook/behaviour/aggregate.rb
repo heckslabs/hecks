@@ -64,6 +64,19 @@ module Hecks
         #   none is attached under that name
         def port(named)         = @ports_by_name[named.to_s]
 
+        # Finds the port whose adapter answers a query, and how it is bound there.
+        #
+        # @param named [String, Symbol] the query's declared name
+        # @return [Array(Bluebook::DomainPort, Bluebook::QueryAnswer), nil] the port and the
+        #   binding it gives the query, or `nil` if the hecksagon binds no port to it
+        def query_binding(named)
+          @ports.each do |port|
+            answer = port.answer_for(named)
+            return [port, answer] if answer
+          end
+          nil
+        end
+
         # Attaches a port declared in the hecksagon, after the aggregate exists.
         # `HecksagonBuilder` stamps each operation's reference attributes with
         # `declared_in = self` before calling it.

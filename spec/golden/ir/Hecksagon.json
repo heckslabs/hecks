@@ -312,6 +312,16 @@
           "pattern": null,
           "relationship": null,
           "type": "PortAnswer"
+        },
+        {
+          "admits": null,
+          "default": null,
+          "list": true,
+          "name": "answered_queries",
+          "optional": false,
+          "pattern": null,
+          "relationship": null,
+          "type": "QueryBinding"
         }
       ],
       "commands": [
@@ -495,6 +505,120 @@
 
           ],
           "name": "PortAnswer"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "name",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "shape",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+            {
+              "ast": {
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "name"
+                      ]
+                    }
+                  }
+                },
+                "op": "not"
+              },
+              "canonical": "!name.to_s.empty?",
+              "description": "a bound query is named"
+            },
+            {
+              "ast": {
+                "left": {
+                  "cmp": {
+                    "equal": true,
+                    "less_than": false,
+                    "negated": false
+                  },
+                  "left": {
+                    "op": "lookup",
+                    "path": [
+                      "shape"
+                    ]
+                  },
+                  "op": "compare",
+                  "right": {
+                    "op": "str",
+                    "value": "text"
+                  }
+                },
+                "op": "or",
+                "right": {
+                  "left": {
+                    "cmp": {
+                      "equal": true,
+                      "less_than": false,
+                      "negated": false
+                    },
+                    "left": {
+                      "op": "lookup",
+                      "path": [
+                        "shape"
+                      ]
+                    },
+                    "op": "compare",
+                    "right": {
+                      "op": "str",
+                      "value": "row"
+                    }
+                  },
+                  "op": "or",
+                  "right": {
+                    "cmp": {
+                      "equal": true,
+                      "less_than": false,
+                      "negated": false
+                    },
+                    "left": {
+                      "op": "lookup",
+                      "path": [
+                        "shape"
+                      ]
+                    },
+                    "op": "compare",
+                    "right": {
+                      "op": "str",
+                      "value": "rows"
+                    }
+                  }
+                }
+              },
+              "canonical": "shape == \"text\" || shape == \"row\" || shape == \"rows\"",
+              "description": "a bound query has a known shape"
+            }
+          ],
+          "members": [
+
+          ],
+          "name": "QueryBinding"
         },
         {
           "attributes": [
@@ -770,6 +894,36 @@
               [
                 "fills",
                 "answers"
+              ]
+            ],
+            [
+              [
+                "word",
+                "answers_query"
+              ],
+              [
+                "context",
+                "DomainPort"
+              ],
+              [
+                "body",
+                "none"
+              ],
+              [
+                "inner",
+                ""
+              ],
+              [
+                "opens",
+                ""
+              ],
+              [
+                "fills",
+                "answered_queries"
+              ],
+              [
+                "calls",
+                "answers_query_impl"
               ]
             ]
           ],
@@ -1111,6 +1265,66 @@
               [
                 "fills",
                 "answers"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "answers_query"
+              ],
+              [
+                "context",
+                "DomainPort"
+              ],
+              [
+                "at",
+                1
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "text"
+              ],
+              [
+                "required",
+                true
+              ],
+              [
+                "fills",
+                "name"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "answers_query"
+              ],
+              [
+                "context",
+                "DomainPort"
+              ],
+              [
+                "at",
+                ""
+              ],
+              [
+                "named",
+                "shape"
+              ],
+              [
+                "kind",
+                "symbol"
+              ],
+              [
+                "required",
+                true
+              ],
+              [
+                "fills",
+                "shape"
               ]
             ],
             [

@@ -7,7 +7,7 @@ module Hecks
       # `extra_options_to_h` for serializing it.
       class Options
         attr_reader :wheres, :order_by, :limit, :offset, :cursor,
-                    :authorization, :null_semantics, :inspection, :answered_by
+                    :authorization, :null_semantics, :inspection
 
         # @param wheres [Array<WhereClause>] the filter clauses, all of which must hold
         # @param order_by [OrderBy, nil] the single ordering; `nil` leaves identity order
@@ -16,14 +16,14 @@ module Hecks
         # @param cursor [CursorSpec, nil] the cursor declaration; `nil` when none is declared
         # @param authorization [AuthorizationSpec, nil] the declared policy and tenant field;
         #   `nil` when the query declares no `authorize`
-        # @param inspection [InspectionSpec, nil] the `inspect_query` request, or `nil`
-        # @param answered_by [AnsweredBySpec, nil] the port answering the query, or `nil`
+        # @param inspection [InspectionSpec, nil] the `inspect_query` request; `nil` when
+        #   the query asks for none
         # @param null_semantics [NullSemantics, nil] where nulls sort; stored as given, so
         #   an explicit `nil` (what `ReadModelBuilder` passes when `nulls` was never
         #   written) stays `nil` rather than becoming the `native` default
         def initialize(wheres: [], order_by: nil, limit: nil, offset: nil, cursor: nil,
                        authorization: nil,
-                       inspection: nil, answered_by: nil, null_semantics: NullSemantics.default)
+                       inspection: nil, null_semantics: NullSemantics.default)
           @wheres = wheres
           @order_by = order_by
           @limit = limit
@@ -32,7 +32,6 @@ module Hecks
           @authorization = authorization
           @null_semantics = null_semantics
           @inspection = inspection
-          @answered_by = answered_by
         end
 
         # Serializes every shared option, declared or not, so a subclass's `to_h`
@@ -40,13 +39,12 @@ module Hecks
         #
         # @return [Hash{Symbol => Array<Hash>, Hash, nil}] keys `:wheres` (an Array of clause
         #   Hashes, `[]` when none), `:order_by`, `:limit`, `:offset`, `:cursor`,
-        #   `:authorization`, `:null_semantics`, `:inspection` and `:answered_by`, each that
-        #   spec's own `to_h` or `nil` when undeclared
+        #   `:authorization`, `:null_semantics` and `:inspection`, each that spec's own
+        #   `to_h` or `nil` when undeclared
         def options_to_h
           { wheres: @wheres.map(&:to_h), order_by: @order_by&.to_h, limit: @limit&.to_h,
             offset: @offset&.to_h, cursor: @cursor&.to_h, authorization: @authorization&.to_h,
-            null_semantics: @null_semantics&.to_h, inspection: @inspection&.to_h,
-            answered_by: @answered_by&.to_h }
+            null_semantics: @null_semantics&.to_h, inspection: @inspection&.to_h }
         end
 
         # Serializes only the declared options beyond the settled three, so a

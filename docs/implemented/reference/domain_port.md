@@ -32,6 +32,10 @@ Hecks.bluebook "DomainPortReference" do
       sets :note
       emits "ShipmentBooked"
     end
+
+    query "Whereabouts" do
+      attribute :waybill, Waybill
+    end
   end
 end
 ```
@@ -49,6 +53,10 @@ class RefCarrier
     raise "no service to that address" if args[:waybill].to_s.include?("remote")
 
     { "price" => { "cents" => 1_200 } }
+  end
+
+  def whereabouts(**)
+    { at: "the depot" }
   end
 end
 
@@ -69,6 +77,8 @@ Hecks.hecksagon("DomainPortReference") do
       attribute :waybill, Hecks::Bluebook::Reference.new("Shipment")
       emits "DeliveryReported"
     end
+
+    answers_query "Whereabouts", shape: :row
   end
 
   # A PORT IS A `verb` OR ONE-OR-MORE `operation`s, never both — so the
@@ -278,5 +288,45 @@ runtime.registry.ports["Ledger"].signal  # => :reply
 
 ```ruby
 runtime.registry.ports["extraction"].answers  # => [:canonical]
+```
+
+## answers_query
+
+<!-- generated:begin word=answers_query -->
+`answers_query name, shape:` — fills `answered_queries`
+
+| argument | kind | required | fills |
+|---|---|---|---|
+| positional 1 | text | true | name |
+| `shape:` | symbol | true | shape |
+<!-- generated:end -->
+
+Binds one of the aggregate's own queries to this port's adapter, so the answer comes from
+outside the domain instead of from stored records. The bluebook declares only the question: a
+`query` with attributes and no `where`. It never names a port or an adapter; the hecksagon does,
+here, and states the shape the answer takes:
+
+- `:text` — one document; it comes back as the single row `{ answered: text }`
+- `:row` — one Hash, which is the single row
+- `:rows` — an Array of Hashes, which are the rows
+
+The adapter bound to the port is asked by the query's snake-cased name, with the query's
+arguments as plain data. An answer that is not the declared shape is refused with a
+`WiringError`, as is a port with no adapter, or two. The aggregate is never read and no event is
+written, and every row carries `taken_at`, the moment the adapter looked, so a reader knows
+"as of when". The answer is not in the journal, so it cannot be replayed.
+
+A query that takes arguments but declares no `where`, `order_by` or `limit`, and is bound by no
+port, is refused when the domain boots: its arguments select nothing, so only an outside answer
+could use them. (A query with no arguments and no clause is still the plain list of every record.)
+A binding that names a query the aggregate does not declare, or one that also filters stored
+records, is refused too.
+
+A behaviors file swaps the adapter without touching the bluebook: it loads a sibling
+`adapters/` folder whose adapter implements the same port with canned answers.
+
+```ruby
+where = runtime.query("DomainPortReference::Shipment.Whereabouts", waybill: { value: "wb-1" }).first
+[where[:at], where.key?(:taken_at)]  # => ["the depot", true]
 ```
 

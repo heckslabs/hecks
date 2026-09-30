@@ -32,11 +32,11 @@ module Hecks
       def initialize(name:, description: nil, attributes: [], wheres: [],
                      order_by: nil, limit: nil, offset: nil, cursor: nil,
                      authorization: nil, null_semantics: nil,
-                     inspection: nil, answered_by: nil)
+                     inspection: nil)
         null_semantics ||= QuerySpecification::Common::NullSemantics.default
         super(wheres: wheres, order_by: order_by, limit: limit, offset: offset, cursor: cursor,
               authorization: authorization,
-              null_semantics: null_semantics, inspection: inspection, answered_by: answered_by)
+              null_semantics: null_semantics, inspection: inspection)
         @name        = name.to_s
         @hecks_name  = @name
         @description = description

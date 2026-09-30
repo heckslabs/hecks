@@ -27,15 +27,6 @@ module Hecks
         # @return [String] the description as stored
         def description(value) = @description = value
 
-        # Hands the query to a port's bound adapter, instead of a scan over the aggregate's records.
-        #
-        # The adapter is asked by the query's snake-cased name with the query's arguments, and
-        # whatever it answers is the query's result; the aggregate is never read.
-        #
-        # @param port [String] the port's name, as its adapter's `.adapter` declaration spells it
-        # @return [QuerySpecification::Common::AnsweredBySpec] the port just recorded
-        def answered_by(port) = @answered_by = QuerySpecification::Common::AnsweredBySpec.new(port: port)
-
         # Declares a query parameter that names another aggregate's identity.
         #
         # A plain attribute typed as a reference; a query has no root of its own to act on.
@@ -70,8 +61,7 @@ module Hecks
             cursor:         @cursor,
             authorization:  @authorization,
             null_semantics: @null_semantics,
-            inspection:     @inspection,
-            answered_by:    @answered_by
+            inspection:     @inspection
           )
         end
 

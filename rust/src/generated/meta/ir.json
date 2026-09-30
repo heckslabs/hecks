@@ -19655,32 +19655,6 @@
                 "fills",
                 "options"
               ]
-            ],
-            [
-              [
-                "word",
-                "answered_by"
-              ],
-              [
-                "context",
-                "Query"
-              ],
-              [
-                "body",
-                "none"
-              ],
-              [
-                "inner",
-                ""
-              ],
-              [
-                "opens",
-                ""
-              ],
-              [
-                "fills",
-                "options"
-              ]
             ]
           ]
         },
@@ -20367,36 +20341,6 @@
               [
                 "fills",
                 "mode"
-              ]
-            ],
-            [
-              [
-                "keyword",
-                "answered_by"
-              ],
-              [
-                "context",
-                "Query"
-              ],
-              [
-                "at",
-                1
-              ],
-              [
-                "named",
-                ""
-              ],
-              [
-                "kind",
-                "text"
-              ],
-              [
-                "required",
-                true
-              ],
-              [
-                "fills",
-                "port"
               ]
             ]
           ]

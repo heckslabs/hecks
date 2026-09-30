@@ -34,60 +34,51 @@ Hecks.bluebook "Hecks" do
       attribute :domain,       DomainPath, optional: true
       attribute :translations, Boolean,    optional: true
       attribute :meta,         Boolean,    optional: true
-      answered_by "DomainRuntime"
     end
 
     query "Shape" do
       description "The storage shape an era's label is minted from: a bluebook file or a directory of them."
       attribute :domain, DomainPath
-      answered_by "DomainRuntime"
     end
 
     query "Stores" do
       description "Every aggregate's current records: the head, not the journal."
       attribute :domain, DomainPath
-      answered_by "DomainRuntime"
     end
 
     query "History" do
       description "Every journal entry a domain's append-only adapters hold: the whole write history."
       attribute :domain, DomainPath
-      answered_by "DomainRuntime"
     end
 
     query "Statements" do
       description "A chapter's declared facts, as plain English sentences."
       attribute :domain,  DomainPath
       attribute :chapter, ChapterName
-      answered_by "DomainRuntime"
     end
 
     query "Narrate" do
       description "A domain read back in English, whole or for one aggregate."
       attribute :domain,    DomainPath,    optional: true
       attribute :aggregate, AggregateName, optional: true
-      answered_by "DomainRuntime"
     end
 
     query "Docs" do
       description "A domain's usage document, whole or for one aggregate."
       attribute :domain,    DomainPath,    optional: true
       attribute :aggregate, AggregateName, optional: true
-      answered_by "DomainRuntime"
     end
 
     query "ProjectDiagrams" do
       description "A chapter's Mermaid diagrams, as file names mapped to their text; nothing is written."
       attribute :domain,  DomainPath
       attribute :chapter, ChapterName
-      answered_by "DomainRuntime"
     end
 
     query "Glossary" do
       description "A chapter's Ubiquitous Language glossary, as file names mapped to their text; nothing is written."
       attribute :domain,  DomainPath
       attribute :chapter, ChapterName
-      answered_by "DomainRuntime"
     end
   end
 
@@ -440,7 +431,6 @@ Hecks.bluebook "Hecks" do
       attribute :from_now,  Boolean, optional: true
       attribute :wait,      Integer, optional: true
       attribute :interval,  Float,   optional: true
-      answered_by "DomainRuntime"
     end
   end
 
@@ -1010,27 +1000,23 @@ policy "RecordTheEra" do
     query "ScaffoldTranslation" do
       description "The edge file that would lead the latest held era to the current shape."
       attribute :domain, DomainPath
-      answered_by "JournalStore"
     end
 
     query "AuditTranslation" do
       description "The audit of the edge that leads the latest held era to the current shape."
       attribute :domain, DomainPath
-      answered_by "JournalStore"
     end
 
     query "Attestation" do
       description "An era's held text as it now stands, and whether it still matches its digest."
       attribute :domain, DomainPath
       attribute :era,    Ordinal
-      answered_by "JournalStore"
     end
 
     query "Compaction" do
       description "What compacting the domain's journals would delete, without deleting it."
       attribute :domain,     DomainPath
       attribute :aggregates, AggregateList, optional: true
-      answered_by "JournalStore"
     end
   end
 
@@ -1534,7 +1520,6 @@ policy "RecordTheEra" do
       description "Whether each construct of a generated module has a routed Rust implementation."
       attribute :module_name, ModuleName
       attribute :codegen,     CodegenName, optional: true
-      answered_by "RustToolchain"
     end
   end
 
@@ -1759,7 +1744,6 @@ policy "RecordTheEra" do
       attribute :seed,        Integer,    optional: true
       attribute :steps,       Integer,    optional: true
       attribute :adversarial, Float,      optional: true
-      answered_by "DomainRuntime"
     end
   end
 

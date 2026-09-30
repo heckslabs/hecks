@@ -100,12 +100,6 @@ Hecks.bluebook "QueryReference" do
       where(:"warden/status" => "off_duty")
       order_by :tag
     end
-
-    # Answered by whatever adapter binds the "Rota" port; no record is read.
-    query "OnRota" do
-      description "Sightings by whoever the rota adapter says is on the rota."
-      answered_by "Rota"
-    end
   end
 end
 ```
@@ -421,35 +415,6 @@ query itself does and would not exercise any path this doctest above
 doesn't already. The honest gap is upstream of the DSL word — an
 adapter that actually implements `inspect_query` is what would give
 this a real corpus use worth having.
-
-## answered_by
-
-<!-- generated:begin word=answered_by -->
-`answered_by port` — fills `options`
-
-| argument | kind | required | fills |
-|---|---|---|---|
-| positional 1 | text | true | port |
-<!-- generated:end -->
-
-Hands the query to a port's bound adapter instead of scanning the
-aggregate's records. The adapter is asked by the query's snake-cased
-name (`on_rota` here), with the query's arguments as plain data, and
-whatever it answers is the query's result: a Hash is one row, an Array
-is the rows, anything else answers as `{ answered: value }`. The
-aggregate is never read and nothing is written, so it suits a question
-about something outside the domain, one no stored record holds.
-
-Nothing else on the query applies, since there are no records to
-filter, order or page. The port's name must match an adapter's own
-`port` declaration; asking with none bound refuses with a
-`WiringError` naming the port and the query. Ruby only: no Rust
-runtime serves an answered query.
-
-```ruby
-rota = runtime.registry.bluebook("QueryReference").aggregate("Sighting").queries.find { |q| q.hecks_name == "OnRota" }
-rota.answered_by.port  # => "Rota"
-```
 
 ## limit
 

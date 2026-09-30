@@ -42,6 +42,8 @@ Hecks.hecksagon "Hecks" do
       answers "OperationAnswered"
       refuses "OperationRefused"
     end
+
+    answers_query "Follow", shape: :row
   end
 
   Hecks::Operation.port "Terminal" do
@@ -72,6 +74,11 @@ Hecks.hecksagon "Hecks" do
       answers "EraChanged"
       refuses "EraRefused"
     end
+
+    answers_query "ScaffoldTranslation", shape: :text
+    answers_query "AuditTranslation", shape: :text
+    answers_query "Attestation", shape: :text
+    answers_query "Compaction", shape: :text
   end
 
   Hecks::Package.port "Git" do
@@ -134,6 +141,8 @@ Hecks.hecksagon "Hecks" do
       answers "BuildAnswered"
       refuses "BuildRefused"
     end
+
+    answers_query "RustCoverage", shape: :text
   end
 
   Hecks::FuzzRun.port "ProcessPool" do
@@ -174,6 +183,8 @@ Hecks.hecksagon "Hecks" do
       answers "LanguageAnswered"
       refuses "LanguageRefused"
     end
+
+    answers_query "WordStatus", shape: :text
   end
 
   Hecks::KernelRun.port "SourceTree" do
@@ -230,6 +241,9 @@ Hecks.hecksagon "Hecks" do
       answers "StyleAnswered"
       refuses "StyleRefused"
     end
+
+    answers_query "ReportComments", shape: :text
+    answers_query "ReportRustComments", shape: :text
   end
 
   Hecks::CodemodRun.port "SourceTree" do
@@ -258,6 +272,10 @@ Hecks.hecksagon "Hecks" do
       answers "TestSuiteAnswered"
       refuses "TestSuiteRefused"
     end
+
+    answers_query "ShardSpecs", shape: :text
+    answers_query "ListIoParallelSpecs", shape: :text
+    answers_query "RecordPatternCases", shape: :text
   end
 
   Hecks::CorpusRun.port "SourceTree" do
@@ -272,6 +290,13 @@ Hecks.hecksagon "Hecks" do
       answers "CorpusAnswered"
       refuses "CorpusRefused"
     end
+
+    answers_query "RustDomains", shape: :text
+    answers_query "RegenOrder", shape: :text
+    answers_query "CorpusRustCoverage", shape: :text
+    answers_query "IrConstructs", shape: :text
+    answers_query "IrDuplicates", shape: :text
+    answers_query "IrImpact", shape: :text
   end
 
   Hecks::PublishingRun.port "SourceTree" do
@@ -331,6 +356,27 @@ Hecks.hecksagon "Hecks" do
       answers "ManifestAnswered"
       refuses "ManifestRefused"
     end
+  end
+
+  # Queries answered from outside the domain. The bluebook declares the question and never says
+  # who answers it; each `answers_query` here binds it to the port's adapter and states the shape
+  # the adapter answers in (`:text` a document, `:row` one Hash, `:rows` many). Every row comes
+  # back stamped `taken_at`, the moment the adapter looked. The queries on the ports above
+  # (Follow, the Era readings, WordStatus and the rest) are bound the same way.
+  Hecks::Introspection.port "DomainRuntime" do
+    answers_query "Ir", shape: :text
+    answers_query "Shape", shape: :text
+    answers_query "Stores", shape: :text
+    answers_query "History", shape: :text
+    answers_query "Statements", shape: :text
+    answers_query "Narrate", shape: :text
+    answers_query "Docs", shape: :text
+    answers_query "ProjectDiagrams", shape: :row
+    answers_query "Glossary", shape: :row
+  end
+
+  Hecks::FuzzRun.port "DomainRuntime" do
+    answers_query "GenerateSequence", shape: :text
   end
 end
 

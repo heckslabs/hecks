@@ -18,7 +18,8 @@ RSpec.describe "the QualityControl tool queries" do
   def tool_queries
     @chapter.aggregates.flat_map do |aggregate|
       aggregate.queries.filter_map do |query|
-        [aggregate, query, query.answered_by.port] if query.answered_by
+        port, = aggregate.query_binding(query.name)
+        [aggregate, query, port.name] if port
       end
     end
   end

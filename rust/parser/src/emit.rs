@@ -540,12 +540,6 @@ fn query_options_json(o: &ir::QueryOptions) -> Vec<(String, JsonValue)> {
             JsonValue::Object(vec![("mode".to_string(), JsonValue::str(mode.clone()))]),
         ));
     }
-    if let Some(port) = &o.answered_by {
-        pairs.push((
-            "answered_by".to_string(),
-            JsonValue::Object(vec![("port".to_string(), JsonValue::str(port.clone()))]),
-        ));
-    }
     pairs
 }
 

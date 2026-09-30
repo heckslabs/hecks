@@ -16,12 +16,12 @@ survives regeneration.
 - [Handler](handler.md) — 1 word
 - [Dispatch](dispatch.md) — 1 word
 - [ReadModel](read_model.md) — 21 words
-- [Query](query.md) — 12 words
+- [Query](query.md) — 11 words
 - [ValueObject](value_object.md) — 4 words
 - [OneOf](one_of.md) — 1 word
 - [Type](type.md) — 2 words
 - [World](world.md) — 4 words
-- [DomainPort](domain_port.md) — 6 words
+- [DomainPort](domain_port.md) — 7 words
 - [Hecksagon](hecksagon.md) — 7 words
 - [PortOperation](port_operation.md) — 5 words
 - [Port](port.md) — 3 words

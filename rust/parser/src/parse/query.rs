@@ -9,14 +9,7 @@ pub fn not_implemented(file: &str, line: usize, word: &str) -> Diagnostic {
     Diagnostic::not_yet_implemented(file, line, format!("Query.{word}"))
 }
 
-const OPTION_WORDS: &[&str] = &[
-    "offset",
-    "cursor",
-    "authorize",
-    "nulls",
-    "inspect_query",
-    "answered_by",
-];
+const OPTION_WORDS: &[&str] = &["offset", "cursor", "authorize", "nulls", "inspect_query"];
 
 /// Parses a `query "Name" do ... end` body.
 pub fn parse_body(

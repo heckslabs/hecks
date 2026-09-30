@@ -48,10 +48,6 @@ pub fn apply(
             };
             options.inspection = Some(mode);
         }
-        // The port's name, as written: a quoted string.
-        "answered_by" => {
-            options.answered_by = Some(parse::positional_text(file, line, word, args, 1)?);
-        }
         other => unreachable!("build::query_options::apply called with an unhandled word: {other}"),
     }
     Ok(())
@@ -92,14 +88,6 @@ mod tests {
         let args = args_with(vec![(1, ":native")], vec![]);
         apply("f.bluebook", 1, "nulls", &args, &mut options).unwrap();
         assert_eq!(options.null_semantics, None);
-    }
-
-    #[test]
-    fn keeps_the_port_an_answered_by_names() {
-        let mut options = ir::QueryOptions::default();
-        let args = args_with(vec![(1, "\"DomainRuntime\"")], vec![]);
-        apply("f.bluebook", 1, "answered_by", &args, &mut options).unwrap();
-        assert_eq!(options.answered_by, Some("DomainRuntime".to_string()));
     }
 
     #[test]
