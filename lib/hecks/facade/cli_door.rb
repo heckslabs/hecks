@@ -35,6 +35,7 @@ module Hecks
           full     = options.key?(path) ? path : expand(path, options)
           argument = options.key?(full) ? options[full] : raise(Runtime::NotFound, unknown(path, options.keys))
 
+          next words(args, full.split("."), value, argument[:type]) if argument[:words]
           next append(args, full.split("."), cast(value, argument[:type])) if argument[:list]
 
           bury(args, full.split("."), cast(value, argument[:type]))
@@ -157,6 +158,24 @@ module Hecks
         list   = holder[branches.last] ||= []
 
         list << { leaf => value }
+        hash
+      end
+
+      # Adds the words of a `list_of` scalar argument to its Array: a comma-separated value is
+      # several elements and a repeated name adds more, each cast to the element type. The
+      # runtime refuses a lone scalar for a list, so the door is where every spelling becomes an
+      # Array.
+      #
+      # @param hash [Hash{Symbol => Object}] the arguments built so far
+      # @param path [Array<String>] the argument's dotted path
+      # @param value [String] the word after `=`
+      # @param type [String] the element type
+      # @return [Hash{Symbol => Object}] `hash`
+      def words(hash, path, value, type)
+        *branches, leaf = path.map(&:to_sym)
+        holder = branches.reduce(hash) { |node, key| node[key] ||= {} }
+        list   = holder[leaf] ||= []
+        list.concat(value.split(",").map { |word| cast(word.strip, type) })
         hash
       end
 

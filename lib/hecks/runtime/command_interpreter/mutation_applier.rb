@@ -30,6 +30,10 @@ module Hecks
                       @rules.resolve_source(mutation.source,
                                             args)
                     end
+            # A plain `sets` of a list takes the whole list; only `append:` and `remove:` take
+            # one element.
+            list_attribute = aggregate.attribute(mutation.target)
+            Value.refuse_scalar_list(aggregate, list_attribute, value) if list_attribute && !mutation.source.is_a?(StateRef)
             instance[mutation.target] = Value.for(aggregate, mutation.target, value)
           when :append
             instance[mutation.target] = appended(pre, aggregate, mutation, args)

@@ -62,6 +62,7 @@ module Hecks
           next unless normalized.key?(attribute.name)
 
           Value.refuse_object_reference(command, attribute, normalized[attribute.name])
+          Value.refuse_scalar_list(command, attribute, normalized[attribute.name])
           normalized[attribute.name] = Value.for_attribute(aggregate, attribute, normalized[attribute.name], argument: true)
         end
       end

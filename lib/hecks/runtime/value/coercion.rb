@@ -454,6 +454,26 @@ module Hecks
                                            known_by: known_by(attribute))
         end
 
+        # A list argument is an Array whatever its element type, so a lone scalar offered for
+        # it is refused; nil stays legitimate, as for any optional argument. The single-element
+        # form belongs to the `append`/`remove` effects, which take one element and are
+        # coerced against the aggregate's own list, never through this gate.
+        #
+        # @param command [#hecks_name] what `attribute` is declared on, named in a refusal
+        # @param attribute [Bluebook::Attribute] the attribute to check; a no-op unless list-typed
+        #   (a `has_many` reference list has its own refusal)
+        # @param value [Object] the offered value
+        # @return [void]
+        # @raise [Runtime::TypeMismatch] if `value` is neither nil nor an Array
+        def refuse_scalar_list(command, attribute, value)
+          return unless attribute.list? && !attribute.reference? && !value.nil? && !value.is_a?(Array)
+
+          raise TypeMismatch, RefusalWording.render_site(
+            "TypeMismatch", "numeric_field", type: command.hecks_name, field: attribute.name,
+            expected: "list_of(#{attribute.type})", offered: Rendering.describe(value)
+          )
+        end
+
         # "an object" for the Hash/Value shape; `Rendering.describe` otherwise —
         # the same rendering every other TypeMismatch in this file uses.
         #
