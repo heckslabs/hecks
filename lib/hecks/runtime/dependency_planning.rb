@@ -46,6 +46,13 @@ module Hecks
       module ExpressionReads
         module_function
 
+        # Paths by canonical text: parsing is a pure function of the text, and the analyzer asks
+        # for the same rule text on every dispatch of a command. A text that fails to parse
+        # raises before it is stored, so a failure is never cached.
+        # rubocop:disable-next Style/MutableConstant
+        PATHS_CACHE = {}
+        private_constant :PATHS_CACHE
+
         # Finds every dotted path a canonical expression reads.
         #
         # Walks the parsed nodes the evaluator uses; only Lookup nodes carry dependencies.
@@ -53,7 +60,7 @@ module Hecks
         # @param canonical [String] the canonical expression text
         # @return [Array<String>] the dotted paths the expression reads
         def paths(canonical)
-          collect(Bluebook::Expression::Evaluator.parse(canonical), Set.new)
+          PATHS_CACHE[canonical] ||= collect(Bluebook::Expression::Evaluator.parse(canonical), Set.new).freeze
         end
 
         # Walks one parsed node, skipping names bound by an enclosing block predicate.

@@ -187,6 +187,44 @@ RSpec.describe Hecks::Ports::Persistence::StateCodec do
     end
   end
 
+  describe ".decoded?" do
+    let(:decoded_menu) do
+      { code: { value: "M1" }, price: { base: { cents: 1 }, extras: [{ cents: 2 }, { cents: 3 }] } }
+    end
+
+    it "accepts the shape decode produces, list elements included" do
+      expect(codec.decoded?(menu_ir, decoded_menu)).to be(true)
+    end
+
+    it "refuses a string key in any element of a list of value objects" do
+      raw = decoded_menu.merge(price: { base: { cents: 1 }, extras: [{ cents: 2 }, { "cents" => 3 }] })
+
+      expect(codec.decoded?(menu_ir, raw)).to be(false)
+    end
+
+    it "agrees with decode: whatever decode respells, decoded? refuses, and its output passes" do
+      raw = { "code" => { "value" => "M1" }, "price" => { "base" => { "cents" => 1 }, "extras" => [{ "cents" => 2 }] } }
+
+      expect(codec.decoded?(menu_ir, raw)).to be(false)
+      expect(codec.decoded?(menu_ir, codec.decode(menu_ir, raw))).to be(true)
+    end
+
+    it "passes a list's non-Hash elements and an unresolvable element type without looking further" do
+      raw = decoded_menu.merge(price: { base: { cents: 1 }, extras: [1, nil, "x"] })
+
+      expect(codec.decoded?(menu_ir, raw)).to be(true)
+    end
+
+    it "resolves a list's element type once, however many elements the list holds" do
+      # Once for the `base` field, once for the whole `extras` list.
+      allow(Hecks::Runtime::Value).to receive(:value_object_for).and_call_original
+      expect(Hecks::Runtime::Value).to receive(:value_object_for).with(anything, "Money").twice.and_call_original
+      raw = decoded_menu.merge(price: { base: { cents: 1 }, extras: Array.new(5) { { cents: 1 } } })
+
+      codec.decoded?(menu_ir, raw)
+    end
+  end
+
   describe ".copy" do
     let(:live) { fixture.instances.find { |instance| instance.aggregate.name == "Account" } }
 

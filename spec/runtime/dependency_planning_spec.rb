@@ -158,4 +158,32 @@ RSpec.describe Hecks::Runtime::DependencyPlanning do
       expect(plan.read_set).to include(:status)
     end
   end
+
+  describe Hecks::Runtime::DependencyPlanning::ExpressionReads do
+    let(:evaluator) { Hecks::Bluebook::Expression::Evaluator }
+
+    it "answers the paths a rule reads, the same on every ask" do
+      first = described_class.paths("amount > 0 && parent.limit > amount")
+
+      expect(first).to eq(%w[amount parent.limit amount])
+      expect(described_class.paths("amount > 0 && parent.limit > amount")).to eq(first)
+    end
+
+    it "parses a rule's text once, however many times a command is analyzed" do
+      text = "quantity_unique_to_this_example > 0"
+      expect(evaluator).to receive(:parse).with(text).once.and_call_original
+
+      3.times { described_class.paths(text) }
+    end
+
+    it "hands out a frozen answer, so one caller cannot change what the next reads" do
+      expect(described_class.paths("frozen_probe > 0")).to be_frozen
+    end
+
+    it "never remembers a text that fails to parse" do
+      expect(evaluator).to receive(:parse).with("broken_probe ???").twice.and_raise(ArgumentError, "unparseable")
+
+      2.times { expect { described_class.paths("broken_probe ???") }.to raise_error(ArgumentError) }
+    end
+  end
 end
