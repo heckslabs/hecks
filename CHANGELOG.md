@@ -11,6 +11,8 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 **Security: `rust/host` dependencies.** wasmtime and wasmtime-wasi 47.0.3 to 49.0.1 (RUSTSEC-2026-0269 filesystem sandbox escape, 0268, 0314, 0315, 0316), rustls 0.23.43 to 0.23.45 (0285), h2 0.4.15 to 0.4.16 (0258). `cargo audit` on `rust/host` reports only the unmaintained `rustls-pemfile` and a yanked `chacha20`.
 
+**Security: code generation refuses declared names that are not plain identifiers.** The parser accepts any characters in a quoted symbol (`attribute :"name: String, pub evil: u8", String`), and the generator wrote attribute, command, event, query and port names into the generated Rust as field, struct and function names, so a bluebook from outside the project could inject code into the crate the host compiles. `RustProjection::DomainGenerator.call` and `hecks-codegen` now refuse, before writing anything, any declared name outside `[A-Za-z_][A-Za-z0-9_]*`, with the same message from both (`Projector.unsafe_name_refusal` / `naming::unsafe_name_refusal`). Every IR in the repository passes.
+
 ## [3.0.1] - 2026-09-30
 
 **Binding Postgres or PostgresEra without the `pg` gem now says so.** `connect_for` raises a `LoadError` naming the domain and telling the project to add `gem "pg"`; before, a `rescue PG::Error` clause evaluated `PG` while the `LoadError` propagated and replaced it with `uninitialized constant ...::PG`. `hecks project_cli` reports the missing gem as "cannot boot" instead of crashing. `hecks model_check` reports a malformed bluebook on stderr and exits 1 instead of printing a stack trace.
