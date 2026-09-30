@@ -104,9 +104,12 @@ RSpec.describe "Rust/Ruby expression parity (rust/host expr_json)", :io do
     [:leaf, 'x.start_with?("a")', { "x" => nil }],
     [:leaf, 'x.end_with?("a")', { "x" => [1] }],
     # block predicates
-    [:leaf, "seats.any? { |s| s.taken == false }", { "seats" => [{ "n" => 1, "taken" => true }, { "n" => 2, "taken" => false }] }],
-    [:leaf, "seats.all? { |s| s.taken == false }", { "seats" => [{ "n" => 1, "taken" => true }, { "n" => 2, "taken" => false }] }],
-    [:leaf, "seats.none? { |s| s.taken == false }", { "seats" => [{ "n" => 1, "taken" => true }, { "n" => 2, "taken" => false }] }],
+    [:leaf, "seats.any? { |s| s.taken == false }",
+     { "seats" => [{ "n" => 1, "taken" => true }, { "n" => 2, "taken" => false }] }],
+    [:leaf, "seats.all? { |s| s.taken == false }",
+     { "seats" => [{ "n" => 1, "taken" => true }, { "n" => 2, "taken" => false }] }],
+    [:leaf, "seats.none? { |s| s.taken == false }",
+     { "seats" => [{ "n" => 1, "taken" => true }, { "n" => 2, "taken" => false }] }],
     [:leaf, "seats.all? { |s| s.taken == false }", { "seats" => [] }],
     [:leaf, "seats.any? { |s| s.taken == false }", { "seats" => [] }],
     [:leaf, "seats.none? { |s| s.taken == false }", { "seats" => [] }],
@@ -122,7 +125,8 @@ RSpec.describe "Rust/Ruby expression parity (rust/host expr_json)", :io do
     [:leaf, "xs.any? { |x| x.include?(\"a\") }", { "xs" => %w[a b] }],
     [:leaf, "xs.all? { |x| x.present? }", { "xs" => ["a", ""] }],
     # find
-    [:leaf, "legs.find { |l| l.open == true }.to", { "legs" => [{ "to" => "A", "open" => false }, { "to" => "B", "open" => true }] }],
+    [:leaf, "legs.find { |l| l.open == true }.to",
+     { "legs" => [{ "to" => "A", "open" => false }, { "to" => "B", "open" => true }] }],
     [:leaf, "legs.find { |l| l.open == true }.nope", { "legs" => [{ "to" => "A", "open" => true }] }],
     [:leaf, "legs.find { |l| l.open == true }.to", { "legs" => [{ "to" => "A", "open" => false }] }],
     [:leaf, "legs.find { |l| l.open == true }.to", { "legs" => [] }],
@@ -225,7 +229,11 @@ RSpec.describe "Rust/Ruby expression parity (rust/host expr_json)", :io do
     ops = Hecks::Bluebook::Expression::AstJson::OPS
     covered = EXPR_PARITY_CASES.flat_map { |kind, text, state| ruby_answer(kind, text, state).first }
     seen = []
-    covered.each { |ast| Hecks::Bluebook::Expression::AstJson.each_node(ast) { |node| seen << node["op"] if node.is_a?(Hash) && node["op"] } }
+    covered.each do |ast|
+      Hecks::Bluebook::Expression::AstJson.each_node(ast) do |node|
+        seen << node["op"] if node.is_a?(Hash) && node["op"]
+      end
+    end
     expect(ops - seen.uniq).to be_empty, "ops with no differential case: #{(ops - seen.uniq).inspect}"
   end
 end
