@@ -1,19 +1,18 @@
-use super::newsletter_send::{site_url, unsubscribe_token, unsubscribe_token_matches, unsubscribe_url};
+#[cfg(test)]
+use super::newsletter_send::unsubscribe_token;
+use super::newsletter_send::unsubscribe_token_matches;
 use super::{instances_for, last_refusal, respond};
 use crate::auth;
 use crate::dispatch;
 use crate::ir::{ir, newsletter_provider, NewsletterProvider};
 use crate::journal::LineageConfig;
 use crate::lambda_client::LambdaInvoker;
-use crate::resend::{Email, Mailer};
 use serde_json::{json, Value};
 use std::collections::HashMap;
 use std::path::Path;
-use std::sync::OnceLock;
 use tokio::sync::Mutex;
 use tokio_postgres::Client;
 
-mod cooldown;
 #[cfg(test)]
 mod tests;
 
@@ -90,12 +89,13 @@ async fn newsletter_subscribe_route(
         if !outcome.accepted {
             return respond(422, "application/json", &last_refusal(&outcome.result).to_string());
         }
-        send_confirmation(email).await;
+        if let Err(failure) = confirm_if_pending(email, client, wasm_path, config, invoker).await {
+            return failure;
+        }
     }
 
-    // Confirm is not dispatched here: a new subscriber stays `pending`
-    // until they follow the confirm link (the route below). This route only
-    // reports where the subscriber ended up.
+    // A signup is confirmed on the spot: the address is subscribed without a
+    // confirmation email. This route then reports where the subscriber ended up.
     let read = match dispatch::read(client, wasm_path).await {
         Ok(r) => r,
         Err(e) => return respond(500, "text/plain", &format!("{e:#}")),
@@ -134,11 +134,13 @@ async fn newsletter_subscribers_list_route(provider: &NewsletterProvider, client
 const CONFIRM_PURPOSE: &str = "newsletter-confirm";
 const CONFIRM_TTL_SECS: u64 = 14 * 24 * 60 * 60;
 
-// SESSION_SECRET; unset means no confirm link can be signed and none is sent.
+// SESSION_SECRET; unset means no confirm link verifies. New signups are confirmed on
+// the spot, so this only serves links emailed before that change.
 fn confirm_secret() -> Option<String> {
     std::env::var("SESSION_SECRET").ok().filter(|s| !s.is_empty())
 }
 
+#[cfg(test)]
 fn confirm_token(secret: &str, email: &str) -> String {
     auth::purpose_token(secret, CONFIRM_PURPOSE, json!({ "email": email }), CONFIRM_TTL_SECS)
 }
@@ -149,74 +151,22 @@ fn confirm_token_matches(secret: &str, token: &str, email: &str) -> bool {
         .unwrap_or(false)
 }
 
-// Percent-encodes the address so a '+' in the local part survives the URL.
-fn confirm_url(site_url: &str, email: &str, token: &str) -> String {
-    let mut url = reqwest::Url::parse(&format!("{site_url}/newsletter-confirmed.html")).unwrap_or_else(|_| reqwest::Url::parse("http://invalid.invalid/").unwrap());
-    url.query_pairs_mut().append_pair("email", email).append_pair("token", token);
-    url.to_string()
-}
-
-// Per-process only (not shared across instances); see `ConfirmationCooldown`.
-fn confirmation_cooldown() -> &'static cooldown::ConfirmationCooldown {
-    static COOLDOWN: OnceLock<cooldown::ConfirmationCooldown> = OnceLock::new();
-    COOLDOWN.get_or_init(|| cooldown::ConfirmationCooldown::new(cooldown::WINDOW, cooldown::CAPACITY))
-}
-
-fn confirmation_body(confirm_url: &str) -> String {
-    format!(
-        "Please confirm your newsletter subscription by opening this link:\n\n{confirm_url}\n\nIf you didn't ask for this, you can ignore this email and nothing will be sent to you.\n"
-    )
-}
-
-// Best-effort: failures are swallowed (subscriber stays `pending`) so a
-// flaky mail provider never surfaces as a signup error. Cooldown-gated so
-// the form can't be used to flood an address with repeat confirmations.
-pub(super) async fn send_confirmation(email: &str) {
-    let Some(secret) = confirm_secret() else {
-        eprintln!("newsletter: SESSION_SECRET is not set, so no confirmation link can be signed; the subscriber stays pending");
-        return;
-    };
-    let mailer = match Mailer::from_env() {
-        Ok(Some(mailer)) => mailer,
-        Ok(None) => {
-            eprintln!("newsletter: email delivery is not configured (RESEND_API_KEY and RESEND_FROM), so the confirmation was not sent");
-            return;
-        }
-        Err(e) => {
-            eprintln!("newsletter: {e}");
-            return;
-        }
-    };
-    if !confirmation_cooldown().try_acquire(email) {
-        eprintln!("newsletter: a confirmation was already emailed to this address in the last 10 minutes, so none was sent; the subscriber stays pending");
-        return;
-    }
-    let site = site_url();
-    let link = confirm_url(&site, email, &confirm_token(&secret, email));
-    let unsubscribe = unsubscribe_url(&site, email, &unsubscribe_token(&secret, email));
-    let delivery = mailer
-        .deliver(&Email { to: email, subject: "Confirm your newsletter subscription", body: &confirmation_body(&link), unsubscribe_url: Some(&unsubscribe) })
-        .await;
-    if !delivery.ok {
-        eprintln!("newsletter: the confirmation email was not delivered: {}", delivery.reason.unwrap_or_default());
-    }
-}
-
-// Only mails when the address is now `pending`; an already-confirmed or
-// unsubscribed registrant is left alone.
-pub(super) async fn send_confirmation_if_pending(email: &str, client: &Mutex<Client>, wasm_path: &Path) {
+// Confirms a subscriber who is still `pending`; an already-confirmed or
+// unsubscribed address is left alone (an unsubscribed one stays unsubscribed).
+pub(super) async fn confirm_if_pending(email: &str, client: &Mutex<Client>, wasm_path: &Path, config: &LineageConfig, invoker: &dyn LambdaInvoker) -> Result<(), Value> {
     let Some(provider) = ir().and_then(newsletter_provider) else {
-        return;
+        return Ok(());
     };
-    let Ok(read) = dispatch::read(client, wasm_path).await else {
-        return;
-    };
+    let read = dispatch::read(client, wasm_path).await.map_err(|e| respond(500, "text/plain", &format!("{e:#}")))?;
     let pending = instances_for(&read, &provider.instance_prefix())
         .iter()
         .any(|(id, subscriber)| id == email && subscriber.get("status").and_then(|v| v.as_str()) == Some("pending"));
     if pending {
-        send_confirmation(email).await;
+        dispatch::handle_routed(client, wasm_path, &provider.confirm, json!(email), json!({}), None, config, invoker)
+            .await
+            .map_err(|e| respond(500, "text/plain", &format!("{e:#}")))?;
     }
+    Ok(())
 }
 
 // The token must have been minted for this exact address (`confirm_token`);

@@ -28,19 +28,6 @@ fn an_expired_or_garbled_token_is_refused() {
     assert!(!confirm_token_matches("s3cret-value", "", "a@example.com"));
 }
 
-#[test]
-fn the_confirm_url_carries_the_encoded_address_and_the_token() {
-    let url = confirm_url("https://example.com", "a+b@example.com", "tok.en");
-    assert_eq!(url, "https://example.com/newsletter-confirmed.html?email=a%2Bb%40example.com&token=tok.en");
-}
-
-#[test]
-fn the_confirmation_email_holds_the_link_and_says_it_can_be_ignored() {
-    let body = confirmation_body("https://example.com/newsletter-confirmed.html?email=a%40b.c&token=t");
-    assert!(body.contains("https://example.com/newsletter-confirmed.html?email=a%40b.c&token=t"));
-    assert!(body.contains("ignore this email"));
-}
-
 fn unsubscribe_query(pairs: &[(&str, &str)]) -> HashMap<String, String> {
     pairs.iter().map(|(k, v)| (k.to_string(), v.to_string())).collect()
 }
