@@ -8,7 +8,7 @@ The machine SLEEPS between tool calls, so wall-clock time is meaningless: judge 
 ## Done (oldest first)
 1 guard spec 5e4f8c47; 2a-2e launcher forms, `attaches`, routing, `namespace` word fea89025; 3 Hecks root e3dfc6e6; 3b `answered_by` query word 9a653b5c;
 4a Introspection 5f443c7f; 4b ModelCheck+Operation de85d5d1; 4c Host 2373d681; 4d Package d142ed5c; 4e Door c64d5eda; 4f Era + committed approval 752873ac; 4g Build 6531bed5; 4h FuzzRun + complete Custodian table 5debd9be;
-5a LanguageRun d8abd41e; 5b Kernel/Conformance befe6a66; 5c Regeneration/Style 4a8ab3cc; 5d Codemod/TestSuite 9923946a; 5e Corpus 85472792; 5f Publishing 99fc8959 + 43400fb4; 5g PostgresEra binding 70aa35c8.
+5a LanguageRun d8abd41e; 5b Kernel/Conformance befe6a66; 5c Regeneration/Style 4a8ab3cc; 5d Codemod/TestSuite 9923946a; 5e Corpus 85472792; 5f Publishing 99fc8959 + 43400fb4; 5g PostgresEra binding 70aa35c8; 6a attaches 7bda9af; 6b Deploy commands (Recipe.Project, MakefileCheck.Lint, TemplateComparison.Diff, OidcManifest.ProjectOidc, Tenant.Provision/Reprovision; DeployToolchain adapter; the TenantProvisioning ask is now WriteOverlay).
 Also: 2.10.0 warning release on branch `hecks-2-10-warnings` (6bcaba8a); Step 0 codegen-race fix on the ADR branch (8df45d3c) cherry-picked.
 
 ## Launcher work "5h": done, commit e1069289
@@ -20,7 +20,7 @@ The agent's last full run had 2 order-dependent failures in spec/world_builder_a
 5 constant collisions: temporarily remove_const a colliding Hecks::<Name> (today only Release) while the Hecks hecksagon builds, restore in ensure; spec with aggregates named "Fuzzing"/"Release".
 
 ## Remaining plan steps
-6 attach language chapters, Tenancy, Deploy (+Project/Lint/Diff/ProjectOidc/Tenant.Provision), drop the `attaches` word_coverage exemption;
+6 DONE (6a, 6b above); left over: Project/Lint/ProjectOidc run the bin/ scripts as children until step 11 moves their bodies into lib/, and a tenant's boot + capability check (the rest of bin/project_tenant) is not a command yet;
 7 move QualityControl into lib/hecks/quality_control/ (rules as givens, IssueTracker + Agent adapters);
 8 package the Rust workspace + gemspec (drop the dev_tooling filter; ship rust/ without target/tests/generated);
 9 generated exe/hecks via project_cli (keep the ten ADR 0066 names; needs the alias table);

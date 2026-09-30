@@ -286,4 +286,59 @@ Hecks.hecksagon "Hecks" do
       refuses "PublishingRefused"
     end
   end
+
+  # Deploy, attached above: its bluebook loads without deploy.hecksagon, so the outside its
+  # commands reach is named here as well. TenantProvisioning writes a tenant's overlay world;
+  # DeployToolchain generates and checks a recipe and projects the OIDC manifests.
+  Deploy::Tenant.port "TenantProvisioning" do
+    asks "WriteOverlay", to: Tenant do
+      attribute :database,  DatabaseName
+      attribute :adapter,   AdapterName, optional: true
+      attribute :directory, DirectoryPath
+      answers "TenantProvisioned"
+      refuses "ProvisioningRefused"
+    end
+  end
+
+  Deploy::Recipe.port "DeployToolchain" do
+    asks "Generate", to: Recipe do
+      attribute :run, RunKey
+      answers "RecipeAnswered"
+      refuses "RecipeRefused"
+    end
+  end
+
+  Deploy::MakefileCheck.port "DeployToolchain" do
+    asks "Scan", to: MakefileCheck do
+      attribute :run, RunKey
+      answers "LintAnswered"
+      refuses "LintRefused"
+    end
+  end
+
+  Deploy::TemplateComparison.port "DeployToolchain" do
+    asks "Compare", to: TemplateComparison do
+      attribute :run, RunKey
+      answers "ComparisonAnswered"
+      refuses "ComparisonUnreadable"
+    end
+  end
+
+  Deploy::OidcManifest.port "DeployToolchain" do
+    asks "Manifest", to: OidcManifest do
+      attribute :run, RunKey
+      answers "ManifestAnswered"
+      refuses "ManifestRefused"
+    end
+  end
+end
+
+# The one seam where Deploy's "Tenant" (a validated request) becomes Tenancy's "Tenant" (a fact),
+# as tenancy.hecksagon declares it for the chapters booted on their own: `hecks deploy provision`
+# registers the tenant it provisioned. It sits here, after `attaches` has loaded both chapters.
+Hecks.hecksagon "Tenancy" do
+  translates "RegisterProvisionedTenant" do
+    on Tenant::TenantProvisioned
+    trigger Tenant::Register, with: { slug: :slug, domain: :domain, realm: :realm, schema: :schema }
+  end
 end
