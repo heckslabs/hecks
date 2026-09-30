@@ -135,7 +135,7 @@ RSpec.describe Hecks::Facade::CliRunner do
       expect(described_class.refused_answer(result_with(refused))).to eq(refused_reactions: refused)
     end
 
-    it "adds nothing when every reaction was delivered, or the result is a remote one" do
+    it "adds nothing when every reaction was delivered, or the result carries no reaction log" do
       expect(described_class.refused_answer(result_with([]))).to eq({})
       expect(described_class.refused_answer(Struct.new(:events).new([]))).to eq({})
     end
