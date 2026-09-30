@@ -206,7 +206,7 @@ reactive `rspec` loops into what should be one:
 
 ## 6. Proactive checks — run these YOURSELF before the first commit
 
-Don't let the post-commit hook or a fifth `bundle exec rspec` discover
+Don't let the pre-push hook or a fifth `bundle exec rspec` discover
 these one at a time. Run explicitly, before committing:
 
 ```
@@ -234,7 +234,7 @@ bundle exec rspec spec/parser_parity_spec.rb --tag io   # confirm again post-Rus
 git add -A && git commit -m "..."
 ```
 
-**If the post-commit hook (or anything) surfaces a real gap anyway**, fix
+**If the pre-push hook (or anything) surfaces a real gap anyway**, fix
 it, then `git commit --amend` — never leave a red commit in history, and
 never layer a second "fix" commit on top. Re-run the full gate sweep
 after amending, as the official bug-free confirmation, before merging.

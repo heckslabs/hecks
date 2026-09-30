@@ -89,8 +89,8 @@ fi
 
 printf '\n[pre-push] spec/fuzzing — excluded from the parallel run above like any other local rspec\n\n'
 
-# `parallel_rspec spec` excludes spec/fuzzing, so it is re-run here for commits made with
-# --no-verify or SKIP_POST_COMMIT_FUZZING=1.
+# `parallel_rspec spec` excludes spec/fuzzing, so it runs here as its own check: this hook is
+# the one local place it runs.
 cat "$WORKDIR/fuzzing.log"
 if [ "$(exit_of fuzzing)" -ne 0 ]; then
   printf '\n[pre-push] BLOCKED — spec/fuzzing is red.\n'

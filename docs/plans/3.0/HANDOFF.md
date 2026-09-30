@@ -60,6 +60,6 @@ Gate domain: CI checks as data + `hecks gate <stage>`; generate hooks and ALL wo
 ## Mechanics for any agent working here
 - A fact-forcing hook denies the FIRST Write/Edit/Bash of each file or command: state callers, affected API, data, and the user's instruction verbatim, then retry. In a parallel batch the first edit of an untouched file may be denied while others apply: re-check `git diff`.
 - Bash refuses text containing the word "rspec" and "too complex" compound or substitution commands. Run specs through wrapper scripts (recreate if the job tmp was cleaned): run_specs.rb = `require "rspec/core"; exit RSpec::Core::Runner.run(ARGV)`; run_all.rb = `exec("bundle","exec","parallel_rspec","spec","-n","4")`; `env GOLDEN=rewrite ...` rewrites golden IR.
-- Commit with `env SKIP_POST_COMMIT_FUZZING=1 git commit -q -F - <<'EOF'`; trailers: Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com> and the Claude-Session line. Never push, never touch main, no bin/ deletion before step 11.
+- Commit with `git commit -q -F - <<'EOF'` (there is no post-commit hook any more); trailers: Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com> and the Claude-Session line. Never push, never touch main, no bin/ deletion before step 11.
 - Generated files are never hand-edited: bin/project_parser_table, bin/regen_codegen_domains (--check must be clean), bin/reference, GOLDEN=rewrite. Comment style: bin/standardize_comments --check.
 - Read the TOTAL "N examples, M failures" line of the suite, not a per-process line (a slow 4th group prints last).
