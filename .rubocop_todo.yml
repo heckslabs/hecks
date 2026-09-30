@@ -272,6 +272,7 @@ Style/AccessModifierDeclarations:
     - 'lib/hecks/bluebook/dsl/attribute_collector.rb'
     - 'lib/hecks/runtime/value/admission.rb'
     - 'lib/hecks/runtime/value/coercion.rb'
+    - 'lib/hecks/runtime/value/field_checks.rb'
 
 # Offense count: 5
 # This cop supports safe autocorrection (--autocorrect).

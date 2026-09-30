@@ -60,7 +60,10 @@ module Hecks
         modules = Hecks::Corpus.generated_modules
         pending = Hecks::Corpus::RUST_COVERAGE_PENDING
         unknown = pending.keys - modules
-        abort "hecks corpus_rust_coverage: RUST_COVERAGE_PENDING names #{unknown.join(', ')}, which has no generated module" if unknown.any?
+        if unknown.any?
+          abort "hecks corpus_rust_coverage: RUST_COVERAGE_PENDING names #{unknown.join(', ')}, " \
+                "which has no generated module"
+        end
 
         results = coverage_results(modules)
         problems = modules.filter_map do |name|

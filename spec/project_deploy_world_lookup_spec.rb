@@ -34,7 +34,7 @@ RSpec.describe "hecks deploy project world lookup", :io do
 
   it "picks the world named after the chapter the hecksagon attaches among several" do
     Dir.mktmpdir do |dir|
-      domain = write_domain(dir, worlds: %w[governance quality_control],
+      domain = write_domain(dir, worlds:    %w[governance quality_control],
                                  hecksagon: %(Hecks::Chapters.load!("QualityControl")\n))
 
       expect(recipe.world_file_for(domain)).to eq(File.join(domain, "bluebook", "quality_control.world"))

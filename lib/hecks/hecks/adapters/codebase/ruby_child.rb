@@ -55,7 +55,7 @@ module Hecks
         # @param env [Hash{String => String}] unused; a tool reads this process's environment
         # @return [Shell::Result] its output (stderr included) and status
         # @raise [KeyError] when no tool has that name
-        def capture(script, *args, env: {}) # rubocop:disable Lint/UnusedMethodArgument
+        def capture(script, *args, env: {})
           in_process(script, args)
         end
 

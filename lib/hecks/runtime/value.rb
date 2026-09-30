@@ -1,6 +1,7 @@
 require "json"
 require_relative "../rendering"
 require_relative "value/invariant_violation"
+require_relative "value/field_checks"
 require_relative "value/coercion"
 require_relative "value/entity_list_coercion"
 require_relative "value/admission"
@@ -8,8 +9,10 @@ require_relative "value/admission"
 module Hecks
   module Runtime
     # A typed value object: frozen fields, read by name.
-    # Construction lives in value/coercion.rb, entity_list_coercion.rb and admission.rb.
+    # Construction lives in value/coercion.rb, field_checks.rb, entity_list_coercion.rb and
+    # admission.rb.
     class Value
+      extend FieldChecks
       extend Coercion
       extend EntityListCoercion
       extend Admission

@@ -13,7 +13,7 @@ require_relative "hecks/construct"
 require_relative "hecks/ir"
 require_relative "hecks/literal"
 require_relative "hecks/doors"
-require_relative "hecks/facade.rb"
+require_relative "hecks/facade"
 require_relative "hecks/query_specification"
 
 require_relative "hecks/ports"

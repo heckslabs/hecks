@@ -308,11 +308,11 @@ module Hecks
     # The stamp hecks project_rust writes into metadata.rs, e.g.
     # `examples/pizzas` or `the self-hosted language (...)`, with any
     # ` (uses_framework "X")`/` (uses_embryonaut_bluebook "X")` suffix stripped.
-    SOURCE_STAMP = %r{
+    SOURCE_STAMP = /
       GENERATED\ by\ hecks\ project_rust\ —\ (.+?)
       (?:\ \((?:uses_framework|uses_embryonaut_bluebook)\ "\w+"\))?
       's\ own\ canonical\ IR,
-    }x
+    /x
 
     # Where a generated module came from, read off the stamp `hecks project_rust`
     # writes into its metadata.rs.

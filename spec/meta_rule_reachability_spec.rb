@@ -16,10 +16,6 @@ RSpec.describe "reachability of the meta-domain's own given/invariant/ensures ru
 
   # Each citation names the example (file:line) that dispatches bad input at this declared site
   # and watches this rule refuse.
-  #
-  # The repo-wide `table` HashAlignment style leaves long strings no room under LineLength,
-  # so it is off for exactly these two hash literals.
-  # rubocop:disable Layout/HashAlignment
   META_RULE_PROVEN = {
     ["given", "Aggregate.Identify", "an identity part names something"]                      =>
         "spec/meta_rules_spec.rb:243-249 (Aggregate.Identify with path: \"\")",
@@ -182,7 +178,6 @@ RSpec.describe "reachability of the meta-domain's own given/invariant/ensures ru
         "META-DOMAIN-ONLY grammar table, same reasoning as Syntax::SyntaxName — Vocabulary is static declaration read by " \
         "spec/vocabulary_conformance_spec.rb, never dispatched with a blank name"
   }.freeze
-  # rubocop:enable Layout/HashAlignment
 
   it "proves, or names a gap for, every given/invariant/ensures the language declares" do
     accounted = META_RULE_PROVEN.keys.to_set | META_RULE_KNOWN_GAPS.keys.to_set
