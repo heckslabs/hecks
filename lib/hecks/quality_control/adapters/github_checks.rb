@@ -14,14 +14,23 @@ module Hecks
       # Check-run conclusions that count as green; `skipped` covers path-filtered workflows.
       PASSING = %w[success neutral skipped].freeze
 
+      # A commit sha as GitHub accepts it in an API path.
+      SHA_PATTERN = /\A[0-9a-fA-F]{7,40}\z/
+
+      # Check runs asked for per page; GitHub's maximum.
+      PER_PAGE = 100
+
       # Asks GitHub by commit sha, matching `Clearance`'s identity, so it works after the
       # branch is gone. `{owner}/{repo}` is a `gh api` template resolved from the git remote.
       #
       # @param commit [Hash, String] a materialized value object (`{value: sha}`) or a bare sha
       # @return [Hash] `{ summary: { value: ... } }` when every check is green
-      # @raise [RuntimeError] when no checks exist, any are incomplete, or any failed
+      # @raise [RuntimeError] when the sha is malformed, `gh` is missing or fails, no checks
+      #   exist, any are incomplete, or any failed
       def run(commit:, **)
         sha = sha_of(commit)
+        raise "not a commit sha: #{sha.inspect}" unless sha.match?(SHA_PATTERN)
+
         runs = check_runs(sha)
 
         raise "gh reports no checks at all against #{sha}" if runs.empty?
@@ -46,11 +55,28 @@ module Hecks
         (commit.key?(:value) ? commit[:value] : commit["value"]).to_s
       end
 
+      # Every page of check runs: a red run past the first page must still be seen.
       def check_runs(sha)
-        out, err, status = Open3.capture3("gh", "api", "repos/{owner}/{repo}/commits/#{sha}/check-runs")
+        runs = []
+        page = 1
+        loop do
+          batch = check_run_page(sha, page)["check_runs"] || []
+          runs.concat(batch)
+          break if batch.length < PER_PAGE
+
+          page += 1
+        end
+        runs
+      end
+
+      def check_run_page(sha, page)
+        path = "repos/{owner}/{repo}/commits/#{sha}/check-runs?per_page=#{PER_PAGE}&page=#{page}"
+        out, err, status = Open3.capture3("gh", "api", path)
         raise "gh api check-runs failed for #{sha}: #{err.strip.empty? ? out.strip : err.strip}" unless status.success?
 
-        JSON.parse(out)["check_runs"] || []
+        JSON.parse(out)
+      rescue Errno::ENOENT
+        raise "gh is not installed or not on PATH — cannot read check runs for #{sha}"
       end
     end
   end
