@@ -139,6 +139,7 @@ Order: Introspection, Operation, Host, Era, Package, Door, Build, Fuzzing.
   - `ApproveTranslation --confirm` writes `translations/<edge>.approval` as JSON: `edge`, `edge_digest`, `approved_by` (git identity), `approved_at`, and a `rehearsal` block required for compute or rekey edges.
   - `rust/host/src/approval.rs` also accepts a committed approval matching the edge digest, and writes it into the journal when it applies it.
   - This needs a Rust change plus a parity spec against Ruby's `ApprovalDigest`.
+  - `host_version` is enforced: the host reports the Hecks release it was built for (`rust/host/HECKS_RELEASE`, equal to `Hecks::VERSION`, checked by the release preflight and a spec), and a rehearsal counts only when its `host_version` has the same `major.minor` as that release. Ruby (`ApprovalFile`, on boot) and Rust (`approval.rs`) refuse with the same wording naming both versions; `ApproveTranslation` records `Hecks::VERSION` when `host_version` is omitted.
 
 ### 5. Codebase, one commit per aggregate
 Order: Language, Kernel, Conformance, Regeneration, Style, Codemod, TestSuite, Corpus, Publishing.

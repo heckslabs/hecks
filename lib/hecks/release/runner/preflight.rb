@@ -21,6 +21,7 @@ module Hecks
         }.freeze
         VERSION_LINE = /^\s*VERSION\s*=\s*"(?<version>[^"]+)"/
         CLIENT_PACKAGE = "packages/hecks-client/package.json".freeze
+        HOST_RELEASE_FILE = "rust/host/HECKS_RELEASE".freeze
 
         def initialize(root:, commands:, git:, tools:)
           @root = root
@@ -45,6 +46,7 @@ module Hecks
           check_clean
           version = declared_version
           check_client_version(version)
+          check_host_release(version)
           check_changelog(version)
           Facts.new(version: version, sha: git("rev-parse", "HEAD").strip)
         end
@@ -98,6 +100,17 @@ module Hecks
           return if client == version
 
           raise Refusal, "packages/hecks-client is at #{client} but Hecks::VERSION is #{version}; bump the package first."
+        end
+
+        # The Rust host reports the Hecks release it was built for from this file, and the
+        # committed-approval gate compares rehearsals against it.
+        def check_host_release(version)
+          path = File.join(@root, HOST_RELEASE_FILE)
+          host = File.exist?(path) ? File.read(path).strip : nil
+          return if host == version
+
+          raise Refusal, "#{HOST_RELEASE_FILE} says #{host.inspect} but Hecks::VERSION is #{version}; " \
+                         "write #{version} into it in the release PR."
         end
 
         def check_changelog(version)

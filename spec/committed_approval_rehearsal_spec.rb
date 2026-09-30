@@ -52,7 +52,7 @@ RSpec.describe "Committed approval rehearsal", :io do
     end
   BLUEBOOK
 
-  REHEARSAL_BLOCK = { "snapshot" => "rds:ledger-2026-09-28", "host_version" => "3.0.0",
+  REHEARSAL_BLOCK = { "snapshot" => "rds:ledger-2026-09-28", "host_version" => Hecks::VERSION,
                       "result" => "pass", "at" => "2026-09-28T12:00:00Z" }.freeze
 
   before(:all) do
@@ -192,6 +192,13 @@ RSpec.describe "Committed approval rehearsal", :io do
       expect { boot_v2! }.to raise_error(Hecks::Runtime::WiringError, /compute or rekey/)
     end
 
+    it "refuses a committed approval rehearsed on another host release, naming both versions" do
+      commit_approval(@dir, edge, rehearsal: REHEARSAL_BLOCK.merge("host_version" => "1.0.0"))
+
+      expect { boot_v2! }.to raise_error(Hecks::Runtime::WiringError, /Hecks 1\.0\.0.*Hecks #{Regexp.escape(Hecks::VERSION)}/)
+      expect(journal_approvals).to eq(0)
+    end
+
     it "boots on a committed approval, applies it to the journal, and mints era 2" do
       commit_approval(@dir, edge)
 
@@ -265,6 +272,16 @@ RSpec.describe "Committed approval rehearsal", :io do
 
       expect(status).not_to be_success
       expect(err).to include("compute or rekey")
+      expect(journal_approvals).to eq(0)
+    end
+
+    it "refuses a committed approval rehearsed on another host release, naming both versions" do
+      commit_approval(@dir, edge, rehearsal: REHEARSAL_BLOCK.merge("host_version" => "1.0.0"))
+
+      _out, err, status = mint(v2_ir)
+
+      expect(status).not_to be_success
+      expect(err).to include("Hecks 1.0.0", "Hecks #{Hecks::VERSION}")
       expect(journal_approvals).to eq(0)
     end
 

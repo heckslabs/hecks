@@ -267,7 +267,7 @@ RSpec.describe Hecks::Adapters::JournalStore, :io do
 
     it "asks a rehearsal of an edge with a compute or rekey, and applies the committed file at the mint" do
       write_domain(edge: JS_COMPUTED_EDGE)
-      rehearsal = { snapshot: { value: "rds:ledger-2026-09-28" }, host_version: { value: "3.0.0" },
+      rehearsal = { snapshot: { value: "rds:ledger-2026-09-28" }, host_version: { value: Hecks::VERSION },
                     rehearsal: { value: "pass" }, rehearsed_at: { value: "2026-09-28T12:00:00Z" } }
 
       expect(facts("approve_translation")).to include(rehearsal_needed: true, rehearsal_recorded: false)
@@ -283,9 +283,21 @@ RSpec.describe Hecks::Adapters::JournalStore, :io do
       expect(sql("SELECT edge_digest FROM hecks_approvals").size).to eq(1)
     end
 
+    it "records the release it ran on when the rehearsal names no host version" do
+      write_domain(edge: JS_COMPUTED_EDGE)
+      rehearsal = { snapshot: { value: "rds:x" }, rehearsal: { value: "pass" },
+                    rehearsed_at: { value: "2026-09-28T12:00:00Z" } }
+
+      store.apply(**request("approve_translation", **rehearsal))
+
+      path = Dir[File.join(@domain, "bluebook", "translations", "*.approval")].first
+      expect(JSON.parse(File.read(path)).dig("rehearsal", "host_version")).to eq(Hecks::VERSION)
+      expect { mint_v2 }.not_to raise_error
+    end
+
     it "does not mint on a committed approval whose edge changed since" do
       write_domain(edge: JS_COMPUTED_EDGE)
-      rehearsal = { snapshot: { value: "rds:x" }, host_version: { value: "3.0.0" },
+      rehearsal = { snapshot: { value: "rds:x" }, host_version: { value: Hecks::VERSION },
                     rehearsal: { value: "pass" }, rehearsed_at: { value: "2026-09-28T12:00:00Z" } }
       store.apply(**request("approve_translation", **rehearsal))
       to = label_of(JS_V2)
