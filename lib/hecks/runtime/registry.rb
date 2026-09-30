@@ -105,6 +105,17 @@ module Hecks
       # @return [Bluebook::Chapter] `item`, unchanged
       def add_bluebook(item) = @bluebooks[item.name] = item
 
+      # Drops a chapter and the open builder and source record that accumulated it, so the
+      # chapter can be loaded again from nothing.
+      #
+      # @param name [String, Symbol] the chapter name to forget
+      # @return [void]
+      def forget_chapter(name)
+        @bluebooks.delete(name.to_s)
+        @bluebook_builders.delete(name.to_s)
+        @bluebook_sources.delete(name.to_s)
+      end
+
       # Tracks which .bluebook file(s) contributed to a chapter name (a boot-time loading
       # fact, never Rust-mirrored) so refuse_cross_package_bluebook_merge! can catch two
       # unrelated packages accumulating into the same name by coincidence.

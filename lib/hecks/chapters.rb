@@ -40,14 +40,45 @@ module Hecks
         raise Runtime::WiringError,
               "no attachable chapter named #{name.inspect} — known: #{index.keys.join(', ')}"
       end
-      registry = Hecks.current_registry
-      return if registry.bluebook(name.to_s)
+      registry = Hecks.current_registry or
+        raise Runtime::WiringError, "attaches #{name.to_s.inspect} outside a boot: no registry is open"
+      return refuse_own_chapter(registry, name.to_s) if registry.bluebook(name.to_s)
 
-      Bluebook::MetaValidator.defer { paths.each { |path| Kernel.load(path) } }
-      Bluebook::MetaValidator.judge_deferred!(registry)
-      load_wiring(name.to_s, paths)
+      load_atomically(registry, name.to_s, paths)
       true
     end
+
+    # Loads a chapter whole or not at all: a raise anywhere leaves the registry as it was, so a
+    # retry loads the chapter again instead of finding a half-built one already held.
+    def self.load_atomically(registry, name, paths)
+      queued = Bluebook::MetaValidator.deferred_chapters.dup
+      ports    = registry.ports.keys
+      adapters = registry.adapters.keys
+      Bluebook::MetaValidator.defer { paths.each { |path| Kernel.load(path) } }
+      Bluebook::MetaValidator.judge_deferred!(registry)
+      load_wiring(name, paths)
+    rescue Exception # rubocop:disable Lint/RescueException -- rolls back, then re-raises
+      registry.forget_chapter(name)
+      Bluebook::MetaValidator.deferred_chapters.replace(queued)
+      registry.ports.delete_if { |key, _| !ports.include?(key) }
+      registry.adapters.delete_if { |key, _| !adapters.include?(key) }
+      raise
+    end
+    private_class_method :load_atomically
+
+    # Returns nil for a chapter this gem already loaded; raises for a chapter of the same name
+    # that a user's own file declared, which `attaches` would otherwise silently take for the
+    # gem's.
+    def self.refuse_own_chapter(registry, name)
+      foreign = Array(registry.bluebook_sources[name]).compact
+                                                      .reject { |path| File.expand_path(path).start_with?("#{__dir__}/") }
+      return if foreign.empty?
+
+      raise Runtime::WiringError,
+            "attaches #{name.inspect}, but a chapter named #{name.inspect} is already declared in " \
+            "#{foreign.join(', ')} — rename it, since the gem's own #{name} chapter cannot merge into it"
+    end
+    private_class_method :refuse_own_chapter
 
     # Loads what a chapter ships beside its bluebook: its ports file, then its adapters.
     #
