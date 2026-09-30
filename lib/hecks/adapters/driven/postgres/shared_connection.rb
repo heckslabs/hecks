@@ -2,8 +2,10 @@ require "monitor"
 
 module Hecks
   module Adapters
-    # One Postgres connection shared by every `PostgresEra` adapter of a process that targets the
-    # same database and schema, so a domain's connection count does not grow with its aggregates.
+    # One Postgres connection shared by every `Postgres` or `PostgresEra` adapter of a process
+    # that targets the same database and schema, so a domain's connection count does not grow
+    # with its aggregates. Each adapter class shares only with its own kind, because each opens
+    # its connection its own way.
     #
     # Every call runs under one re-entrant monitor, and a transaction holds it from BEGIN to
     # COMMIT, so a second thread's statements never interleave into another thread's
@@ -21,17 +23,27 @@ module Hecks
       #
       # @param name [String] the domain or aggregate name, used only in refusal messages
       # @param settings [Hash{Symbol, String => Object}] `database` and optional `schema`
+      # @param connector [#connect_for] the adapter class that opens the connection
       # @return [PostgresSharedConnection] the shared handle, connected
       # @raise [Runtime::WiringError] if `database` is missing or the connection is refused
-      def self.for(name, settings)
-        key = [Process.pid, PostgresEra.setting(settings, :database).to_s,
-               PostgresEra.setting(settings, :schema).to_s]
+      def self.for(name, settings, connector:)
+        key = [Process.pid, connector, setting(settings, :database), setting(settings, :schema)]
         REGISTRY_LOCK.synchronize do
-          handle = REGISTRY[key] ||= new(name, settings)
+          handle = REGISTRY[key] ||= new(name, settings, connector: connector)
           handle.reconnect! if handle.dead?
           handle
         end
       end
+
+      # Reads one setting under its Symbol or String spelling as a string.
+      #
+      # @param settings [Hash{Symbol, String => Object}] the binding's settings
+      # @param key [Symbol] the setting's name
+      # @return [String] the value, empty when absent
+      def self.setting(settings, key)
+        (settings.key?(key) ? settings[key] : settings[key.to_s]).to_s
+      end
+      private_class_method :setting
 
       # Counts the shared connections this process holds open.
       #
@@ -50,12 +62,14 @@ module Hecks
 
       # @param name [String] the domain or aggregate name, used only in refusal messages
       # @param settings [Hash{Symbol, String => Object}] `database` and optional `schema`
+      # @param connector [#connect_for] the adapter class that opens the connection
       # @raise [Runtime::WiringError] if `database` is missing or the connection is refused
-      def initialize(name, settings)
+      def initialize(name, settings, connector:)
         @name = name
         @settings = settings
+        @connector = connector
         @monitor = Monitor.new
-        @conn = PostgresEra.connect_for(name, settings)
+        @conn = connector.connect_for(name, settings)
       end
 
       # Runs one parameterless statement under the connection's monitor.
@@ -89,6 +103,11 @@ module Hecks
         end
       end
 
+      # Reports the server process id serving the connection.
+      #
+      # @return [Integer] the backend pid
+      def backend_pid = @monitor.synchronize { @conn.backend_pid }
+
       # Quotes an identifier; needs no connection round trip.
       #
       # @param name [String, Symbol] the identifier
@@ -109,7 +128,7 @@ module Hecks
           next unless dead?
 
           @conn.close unless @conn.finished?
-          @conn = PostgresEra.connect_for(@name, @settings)
+          @conn = @connector.connect_for(@name, @settings)
         end
       end
 
