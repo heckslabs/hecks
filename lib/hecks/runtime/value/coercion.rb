@@ -654,8 +654,7 @@ module Hecks
 
         # A field declared with a pattern must match it, refused as a TypeMismatch
         # rather than surfacing later as a broken predicate. The pattern itself is
-        # already vetted by PatternSubset when the bluebook is declared. `^` and `$` match the
-        # whole value, as in Rust, so a newline cannot smuggle text past an anchored pattern.
+        # already vetted by PatternSubset when the bluebook is declared.
         private def check_patterns(value_object, fields)
           value_object.attributes.each do |attribute|
             pattern = attribute.pattern
@@ -663,7 +662,7 @@ module Hecks
 
             given = fields[attribute.name]
             next if given.nil?
-            next if given.is_a?(String) && Regexp.new(Hecks::Bluebook::PatternSubset.whole_string(pattern)).match?(given)
+            next if given.is_a?(String) && Regexp.new(pattern).match?(given)
 
             raise TypeMismatch,
                   RefusalWording.render_site("TypeMismatch", "pattern_mismatch",
