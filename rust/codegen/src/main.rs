@@ -121,6 +121,9 @@ fn write_domain(
     if let Some(refusal) = naming::reserved_name_refusal(source_label, mod_name, &aggregate_names) {
         return Err(refusal);
     }
+    if let Some(refusal) = naming::unsafe_name_refusal(source_label, ir) {
+        return Err(refusal);
+    }
 
     std::fs::create_dir_all(out_dir).map_err(|e| format!("creating {out_dir}: {e}"))?;
 
