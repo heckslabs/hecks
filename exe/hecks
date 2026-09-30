@@ -9,6 +9,9 @@
 #   exe/hecks                  every verb, and every question
 #   exe/hecks <verb> --help    what it wants, and how it refuses
 
+Encoding.default_external = Encoding::UTF_8
+Encoding.default_internal = Encoding::UTF_8
+
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
 
 # The names the gem has always shipped keep their positional forms.
@@ -26,7 +29,14 @@ rescue StandardError => e
   abort "cannot open Hecks: #{e.message.lines.first.strip}"
 end
 
-text, status = Hecks::Facade::CliRunner.call(
+text, status, reason = Hecks::Facade::CliRunner.call(
   runtime: runtime, argv: ARGV, program: "hecks"
 )
+# A `--wait` run that failed answers its settled record on stdout, so `| jq` reads it
+# either way, and says why on stderr.
+if reason
+  puts text
+  warn reason
+  exit status
+end
 status.zero? ? puts(text) : abort(text)

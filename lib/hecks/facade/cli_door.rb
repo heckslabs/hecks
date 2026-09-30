@@ -86,10 +86,15 @@ module Hecks
         raise Runtime::NotFound, "--#{name} is a flag, but this verb has no Boolean argument #{name.inspect}"
       end
 
-      # The one bare word, as a pair for the verb's first argument.
+      # The one bare word, as a pair for the verb's first argument the launcher does not mint.
       def positional(word, spec)
-        first = spec[:arguments].first
+        first = spec[:arguments].find { |argument| !argument[:minted] }
         return "#{first[:path]}=#{word}" if first
+
+        if spec[:arguments].any?
+          raise Runtime::NotFound, "#{word.inspect} is not name=value; this verb's only argument is its run key, " \
+                                   "which is minted when omitted (run=<key> names one)"
+        end
 
         raise Runtime::NotFound, "#{word.inspect} is not name=value, and this verb takes no arguments"
       end

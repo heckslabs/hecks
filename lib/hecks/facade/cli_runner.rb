@@ -26,7 +26,7 @@ module Hecks
       def call(runtime:, argv:, program: "bin/run")
         bluebook, argv, program = chapter_for(runtime, argv, program)
         launcher = LauncherOptions.settings(runtime, bluebook.name)
-        options  = { program: program, names: launcher && launcher[:names] }
+        options  = LauncherOptions.projection(launcher, program)
         cli = Projector.call(:cli, bluebook: bluebook, options: options)
 
         name = argv.first
@@ -81,7 +81,7 @@ module Hecks
 
         if spec[:kind] == :query
           rows = runtime.query(spec[:verb], **args)
-          return [text_answer(rows) || JSON.pretty_generate(rows.map { |row| JsonDoor.materialize(row) }), 0]
+          return [text_answer(spec, rows) || JSON.pretty_generate(rows.map { |row| JsonDoor.materialize(row) }), 0]
         end
 
         args, minted = LauncherOptions.run_key(runtime, spec, args, launcher)
@@ -105,18 +105,19 @@ module Hecks
         [e.message, 1]
       end
 
-      # The answer `--wait` gives: the record re-read from its repository after every reaction
-      # has run, with all its events, and a status of 1 when its lifecycle ended in a failure
-      # state, a reaction the domain refused blocks the run, or a reaction crashed.
+      # The answer `--wait` gives: the record re-read after every reaction has run, with all its
+      # events, and a status of 1 when its lifecycle ended in a failure state, a refused reaction
+      # blocks the run or a reaction crashed.
       #
-      # A refusal blocks unless a sibling reaction to the same event delivered another command on
-      # the same aggregate (`Runtime::ReactionOutcome`): a given-gated policy pair, one of which
-      # always declines, stays a pass. The refusal is shown under `refused_reactions` either way.
+      # A refusal blocks unless a sibling reaction delivered another command on the same
+      # aggregate (`Runtime::ReactionOutcome`). The settled record is always the text, so a failed
+      # run pipes like a passing one; the reason a human reads is a third element.
       #
-      # @return [Array(String, Integer)] the JSON and the status
+      # @return [Array(String, Integer)] the JSON and the status, plus (Array(String, Integer,
+      #   String)) why the run failed when it did
       def settled(runtime, spec, handle, bluebook, launcher, extra)
-        blocked = blocked?(handle) || defective?(handle)
-        return [JSON.pretty_generate(answered(handle).merge(extra)), blocked ? 1 : 0] if handle.state.nil?
+        why = reactions_failed(handle)
+        return finish(JSON.pretty_generate(answered(handle).merge(extra)), why) if handle.state.nil?
 
         aggregate = aggregate_of(bluebook, spec)
         state     = reread(runtime, bluebook, aggregate, handle) || handle.state
@@ -124,13 +125,25 @@ module Hecks
         events    = runtime.events.select { |event| event.aggregate == fqn && event.id == handle.id }
         answer    = { id: handle.id, state: JsonDoor.materialize(state),
                       events: (events.empty? ? handle.events : events).map(&:name) }.merge(extra)
-        failed = blocked || LauncherOptions.failed?(aggregate, state, launcher)
-        [JSON.pretty_generate(answer), failed ? 1 : 0]
+        if LauncherOptions.failed?(aggregate, state, launcher)
+          field = aggregate.lifecycle.field
+          why  += ["#{aggregate.hecks_name} ended in the failure state #{state[field.to_sym].to_s.inspect}"]
+        end
+        finish(JSON.pretty_generate(answer), why)
       end
 
-      # Whether a reaction crashed while the run the handle reports settled.
-      def defective?(handle)
-        handle.respond_to?(:reaction_defects) && !handle.reaction_defects.empty?
+      # The answer and its status: 0 when nothing failed, else 1 with the reasons joined.
+      def finish(text, reasons)
+        reasons.empty? ? [text, 0] : [text, 1, reasons.join("\n")]
+      end
+
+      # What the reactions of the run the handle reports did wrong: each refusal that blocks it
+      # and each crash, as one sentence apiece.
+      def reactions_failed(handle)
+        blocking = handle.respond_to?(:blocking_reactions) ? handle.blocking_reactions : []
+        crashed  = handle.respond_to?(:reaction_defects) ? handle.reaction_defects : []
+        blocking.map { |row| "reaction #{row[:policy]} was refused (#{row[:trigger]}): #{row[:reason]}" } +
+          crashed.map { |row| "reaction #{row[:policy]} crashed (#{row[:error_class]}): #{row[:reason]}" }
       end
 
       # Whether a reaction the domain refused blocks the run the handle reports.
@@ -155,14 +168,17 @@ module Hecks
 
       # The text a query answered by a port gave, when that is the whole answer.
       #
-      # A query that returns a value object of the single String attribute `text` (the `Document`
-      # shape) answers one document; printing it raw keeps the document (JSON, Markdown,
-      # sentences) readable and pipeable instead of quoted inside another JSON document.
+      # A query declared `returns Document` (one value object of the single String attribute
+      # `text`) answers one document; printing it raw keeps the document (JSON, Markdown,
+      # sentences) readable and pipeable instead of quoted inside another JSON document. What a
+      # query declares decides it, not how many rows came back: any other query prints JSON,
+      # so a script reading it sees an array whether it held one row or two.
       #
+      # @param spec [Hash] the question's projected spec
       # @param rows [Array<Hash>] the query's rows
-      # @return [String, nil] the text, or nil when the rows are anything else
-      def text_answer(rows)
-        return unless rows.length == 1 && rows.first.keys == [:text]
+      # @return [String, nil] the text, or nil when the query does not return a Document
+      def text_answer(spec, rows)
+        return unless spec[:returns] == "Document" && rows.length == 1 && rows.first.keys == [:text]
         return unless rows.first[:text].is_a?(String)
 
         rows.first[:text]

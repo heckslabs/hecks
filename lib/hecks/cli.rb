@@ -160,7 +160,7 @@ module Hecks
         return asked ? 0 : USAGE_STATUS
       end
 
-      if name != "run" && rest.any? { |word| HELP_FLAGS.include?(word) }
+      if help_asked?(name, rest)
         help(COMMANDS.fetch(name), out)
         return 0
       end
@@ -173,6 +173,15 @@ module Hecks
 
       result = dispatch(name, words)
       result.is_a?(Integer) ? result : 0
+    end
+
+    # Whether the words ask for a subcommand's usage: a lone flag for `run`, whose other words are
+    # the verb's own, and the flag anywhere for the rest.
+    # @api private
+    def help_asked?(name, rest)
+      return rest.length == 1 && HELP_FLAGS.include?(rest.first) if name == "run"
+
+      rest.any? { |word| HELP_FLAGS.include?(word) }
     end
 
     # Whether a command line is the launcher's own form of a subcommand that answers differently
