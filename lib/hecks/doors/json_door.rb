@@ -6,7 +6,7 @@ require_relative "../runtime/errors"
 require_relative "../runtime/value"
 
 module Hecks
-  module Facade
+  module Doors
     # The JSON door: translates URL segments and parsed JSON bodies to and from the facade.
     # No HTTP lives here; every miss raises `Runtime::NotFound`, distinguished by message.
     module JsonDoor
@@ -23,7 +23,7 @@ module Hecks
       # @param name [String, Symbol] the aggregate's declared name, such as `"Customer"`
       # @return [Module] the aggregate door installed at `domain::name`
       # @raise [Runtime::NotFound] if the chapter or its aggregate is not declared
-      # @raise [NameError] if the aggregate has no facade constant (`install_facade: false`)
+      # @raise [NameError] if the aggregate has no facade constant (`install_doors: false`)
       def aggregate(dispatcher, domain, name)
         ir = dispatcher.registry.bluebook(domain)&.aggregate(name)
         raise Runtime::NotFound, "#{domain} declares no aggregate named #{name.inspect}" unless ir
@@ -67,7 +67,7 @@ module Hecks
       #
       # @param klass [Module] an aggregate door, as `aggregate` returns
       # @param id [String] the record's identity, as the URL carried it
-      # @return [Facade::Handle] the record in hand
+      # @return [Doors::Handle] the record in hand
       # @raise [Runtime::NotFound] if the repository holds no record with that id
       def find!(klass, id)
         klass.find(id) or raise Runtime::NotFound, "no #{klass.ir.hecks_name} found for id #{id.inspect}"
@@ -93,7 +93,7 @@ module Hecks
       # Delegates to `Runtime::Value.materialize`; the only addition is `#to_h` on a
       # `Handle`, which `materialize` does not recognize.
       #
-      # @param value [Facade::Handle, Runtime::Value, Hash, Array, Object] what to unwrap;
+      # @param value [Doors::Handle, Runtime::Value, Hash, Array, Object] what to unwrap;
       #   a `Handle` is read through its `to_h`, so its `:id` comes along
       # @return [Hash, Array, Object] the same data with every `Runtime::Value` replaced
       #   by a Hash of its fields; any other value is returned as it came

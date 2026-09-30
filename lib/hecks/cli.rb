@@ -203,7 +203,7 @@ module Hecks
     def launcher_words(name, rest)
       return [rest, nil] if UNTOUCHED.include?(name)
 
-      require_relative "facade/cli_door"
+      require_relative "doors/cli_door"
       words = strip_generic(rest)
       form  = LAUNCHER_FORMS[name]
       return [words, nil] unless form && words.any? { |word| word.match?(NAME_VALUE) }
@@ -248,7 +248,7 @@ module Hecks
     # @return [String, nil] a refusal when the form takes no such argument
     def bind_flag_or_option(form, key, value, extra)
       if Array(form[:flags]).include?(key)
-        extra << "--#{key.tr('_', '-')}" if Facade::CliDoor.boolean(value)
+        extra << "--#{key.tr('_', '-')}" if Doors::CliDoor.boolean(value)
         nil
       elsif Array(form[:options]).include?(key)
         extra.push("--#{key}", value)
@@ -268,8 +268,8 @@ module Hecks
         word = queue.shift
         flag, value = word.split("=", 2)
         if GENERIC_FLAGS.include?(flag)
-          value ||= Facade::CliDoor::BOOLEAN_WORDS.key?(queue.first.to_s.downcase) ? queue.shift : "true"
-          Facade::CliDoor.boolean(value)
+          value ||= Doors::CliDoor::BOOLEAN_WORDS.key?(queue.first.to_s.downcase) ? queue.shift : "true"
+          Doors::CliDoor.boolean(value)
         else
           kept << word
         end

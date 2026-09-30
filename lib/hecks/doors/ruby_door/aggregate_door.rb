@@ -8,8 +8,8 @@ require_relative "../handle"
 require_relative "../../naming"
 
 module Hecks
-  module Facade
-    module Surface
+  module Doors
+    module RubyDoor
       # One aggregate's door: creating verbs and queries as module methods, CRUD
       # delegation, and the `.hecksagon` binding/port hooks it lands on.
       module AggregateDoor

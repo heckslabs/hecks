@@ -86,7 +86,7 @@ RSpec.describe "the Hecks command table through the launcher" do
     write("clean/bluebook/clean.bluebook", CLEAN_BLUEBOOK.sub('"Shelf"', '"Clean"'))
     write("eras.txt", "abc123\n")
     write("clean/bluebook/clean.hecksagon", SHELF_HECKSAGON.sub('"Shelf"', '"Clean"'))
-    @hecks = Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/hecks"), install_facade: false)
+    @hecks = Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/hecks"), install_doors: false)
   end
 
   after(:all) { FileUtils.rm_rf(@dir) }
@@ -98,7 +98,7 @@ RSpec.describe "the Hecks command table through the launcher" do
   end
 
   def run_verb(*argv)
-    Hecks::Facade::CliRunner.call(runtime: @hecks, argv: argv, program: "hecks")
+    Hecks::Doors::CliRunner.call(runtime: @hecks, argv: argv, program: "hecks")
   end
 
   def verdict_of(run)
@@ -320,7 +320,7 @@ RSpec.describe "the Hecks command table through the launcher" do
     def seeded_heki(name)
       target = File.join(@dir, name)
       FileUtils.cp_r(HEKI_FIXTURE, target)
-      runtime = Hecks.boot(target, install_facade: false)
+      runtime = Hecks.boot(target, install_doors: false)
       aggregate = runtime.registry.bluebook("HekiCompactFixture").aggregate("Gadget")
       repository = runtime.registry.repository("HekiCompactFixture", aggregate)
       3.times do |i|

@@ -123,7 +123,7 @@ RSpec.describe Hecks::Bluebook::SmokeTest do
       end
     RUBY
 
-    real_runtime = Hecks.boot(dir, install_facade: false)
+    real_runtime = Hecks.boot(dir, install_doors: false)
     real_runtime.dispatch_flat("SmokeWidget::Item.Add", name: { value: "smoke-test" })
     repository = real_runtime.registry.repository("SmokeWidget", real_runtime.registry.bluebook("SmokeWidget").aggregate("Item"))
     expect(repository.all.size).to eq(1)
@@ -131,7 +131,7 @@ RSpec.describe Hecks::Bluebook::SmokeTest do
     described_class.call(dir)
 
     # A fresh boot re-reads the Heki file from disk instead of trusting in-memory objects.
-    reread = Hecks.boot(dir, install_facade: false)
+    reread = Hecks.boot(dir, install_doors: false)
     reread_repository = reread.registry.repository("SmokeWidget", reread.registry.bluebook("SmokeWidget").aggregate("Item"))
     expect(reread_repository.all.map(&:id)).to eq(["smoke-test"])
   end

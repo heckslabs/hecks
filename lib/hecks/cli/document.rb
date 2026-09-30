@@ -31,7 +31,7 @@ module Hecks
         refuse_without_domain(program, root) unless path
 
         begin
-          runtime = Hecks.boot(path, install_facade: false)
+          runtime = Hecks.boot(path, install_doors: false)
         rescue StandardError => e
           abort "cannot read #{path}: #{e.message.lines.first.strip}"
         end

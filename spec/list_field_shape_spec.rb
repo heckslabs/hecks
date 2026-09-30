@@ -39,7 +39,7 @@ RSpec.describe "a value object's list_of field" do
     Dir.mktmpdir("shelving") do |dir|
       FileUtils.mkdir_p(File.join(dir, "bluebook"))
       File.write(File.join(dir, "bluebook/shelving.bluebook"), SHELVING_BLUEBOOK)
-      @runtime = Hecks.boot(dir, install_facade: false)
+      @runtime = Hecks.boot(dir, install_doors: false)
       example.run
     end
   end

@@ -1,9 +1,9 @@
 require "json"
 require_relative "../../hecks"
-require_relative "mcp"
+require_relative "../cli/mcp"
 
 module Hecks
-  module CLI
+  module Doors
     # The MCP door onto the storehouse bus: hand-rolled JSON-RPC over stdio, one
     # server per booted domain. All logic and the JSON shape answered with live in
     # `Storehouse`; this is plumbing only. A `role:`/`actor_id:` a caller sends is
@@ -235,7 +235,7 @@ module Hecks
       # Read once, so a bad setting refuses to start the door before anything is
       # written to stdout.
       def scope
-        @scope ||= McpDoorScope.start!(server: Mcp::SERVER)
+        @scope ||= McpDoorScope.start!(server: CLI::Mcp::SERVER)
       end
 
       # The standing notes, then what this door's scope says about `domain:`.
@@ -244,7 +244,7 @@ module Hecks
       end
 
       def serve
-        McpStdioGuard.warn!(server: Mcp::SERVER, notes: warning_notes)
+        McpStdioGuard.warn!(server: CLI::Mcp::SERVER, notes: warning_notes)
         $stdout.sync = true
 
         $stdin.each_line do |line|
@@ -269,7 +269,7 @@ module Hecks
       # `domain:` is confined to `Storehouse::BOOT_ROOT`, and further to a reader
       # door's `HECKS_DOOR_DOMAINS`, before anything boots.
       def boot(domain)
-        Hecks.boot(Storehouse.confine!(scope.admit_domain!(domain), "domain"), install_facade: false)
+        Hecks.boot(Storehouse.confine!(scope.admit_domain!(domain), "domain"), install_doors: false)
       end
 
       # One `when` per tool, so the shared `rescue` catches every branch's escape
@@ -315,7 +315,7 @@ module Hecks
         end
       rescue StandardError => e
         # A defect, not a refusal: reaching here means a bad domain path or an
-        # argument shape `Facade::JsonDoor` could not symbolize.
+        # argument shape `Doors::JsonDoor` could not symbolize.
         { ok: false, error: "#{e.class}: #{e.message}" }
       end
 
@@ -347,7 +347,7 @@ module Hecks
           send_response(id, {
                           protocolVersion: PROTOCOL_VERSION,
                           capabilities:    { tools: {} },
-                          serverInfo:      { name: Mcp::SERVER, version: "1.1.0" }
+                          serverInfo:      { name: CLI::Mcp::SERVER, version: "1.1.0" }
                         })
         when "notifications/initialized"
           nil # a notification — no id, no response

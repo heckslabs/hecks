@@ -259,7 +259,7 @@ Customer's own field, not anything the querying aggregate declares
 itself; `where(:"customer.status" => ...)` never hops, whatever
 `customer` names — it dead-ends the same way any dotted path onto a
 non-value-object does. The hop's own segment name is the same one
-`Facade::Handle`'s reference accessors answer to (`account.customer` in
+`Doors::Handle`'s reference accessors answer to (`account.customer` in
 Ruby, `:"customer/status"` in a query — one name, both places),
 multi-hop chains read left to right (`:"engagement/client/status"`),
 and a hop is `where`-only — `order_by` through a hop is refused

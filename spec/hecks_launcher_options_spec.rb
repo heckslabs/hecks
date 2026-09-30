@@ -43,7 +43,7 @@ RSpec.describe "the launcher's opt-in options" do
     write("shelf/bluebook/shelf.hecksagon", "Hecks.hecksagon \"Shelf\" do\n  persisted_by \"Memory\"\nend\n")
     write("clean/bluebook/clean.bluebook", SHELF.sub('"Shelf"', '"Clean"').sub(/    lifecycle.*?    end\n\n/m, ""))
     write("clean/bluebook/clean.hecksagon", "Hecks.hecksagon \"Clean\" do\n  persisted_by \"Memory\"\nend\n")
-    @hecks = Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/hecks"), install_facade: false)
+    @hecks = Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/hecks"), install_doors: false)
   end
 
   after(:all) { FileUtils.rm_rf(@dir) }
@@ -60,7 +60,7 @@ RSpec.describe "the launcher's opt-in options" do
     cli[:verbs].fetch(cli[:names][:command].fetch(verb))
   end
 
-  def run_verb(*argv) = Hecks::Facade::CliRunner.call(runtime: @hecks, argv: argv, program: "hecks")
+  def run_verb(*argv) = Hecks::Doors::CliRunner.call(runtime: @hecks, argv: argv, program: "hecks")
 
   describe "run keys" do
     it "mints the key of a creating command given none, and answers it" do
@@ -77,7 +77,7 @@ RSpec.describe "the launcher's opt-in options" do
         .and_raise(Hecks::Runtime::WiringError, "no identity adapter bound")
       spec = { creates: true, arguments: [{ path: "run.value" }] }
 
-      expect { Hecks::Facade::LauncherOptions.run_key(@hecks, spec, {}, { run_keys: true }) }
+      expect { Hecks::Doors::LauncherOptions.run_key(@hecks, spec, {}, { run_keys: true }) }
         .to raise_error(Hecks::Runtime::NotFound, /cannot mint a run key.*run=<key>/)
     end
 
@@ -92,7 +92,7 @@ RSpec.describe "the launcher's opt-in options" do
       help, = run_verb("run_behaviors", "--help")
 
       expect(help).to match(/run\.value\s+.*minted when omitted; optional/)
-      expect(Hecks::Facade::CliDoor.arguments(hecks_spec("run_behaviors"), ["examples/banking"]))
+      expect(Hecks::Doors::CliDoor.arguments(hecks_spec("run_behaviors"), ["examples/banking"]))
         .to eq(subject: { value: "examples/banking" })
     end
 
@@ -105,7 +105,7 @@ RSpec.describe "the launcher's opt-in options" do
 
     it "leaves a chapter that did not opt in alone" do
       runtime = boot_in_memory
-      expect(Hecks::Facade::LauncherOptions.settings(runtime, "Pizzas")).to be_nil
+      expect(Hecks::Doors::LauncherOptions.settings(runtime, "Pizzas")).to be_nil
     end
   end
 
@@ -164,7 +164,7 @@ RSpec.describe "the launcher's opt-in options" do
     end
 
     it "reads a `GAP (n)` heading above zero as a gap, and nothing else" do
-      gap = Hecks::Facade::LauncherOptions.method(:gap_reported?)
+      gap = Hecks::Doors::LauncherOptions.method(:gap_reported?)
 
       expect(gap.call("GAP (2) — missing, and NOT on the allowlist")).to be(true)
       expect(gap.call("\nGAP (0) — missing, and NOT on the allowlist")).to be(false)
@@ -173,7 +173,7 @@ RSpec.describe "the launcher's opt-in options" do
 
     it "accepts --wait=true, --wait=false and --wait yes, and refuses --wait=maybe" do
       spec = { arguments: [] }
-      take = Hecks::Facade::LauncherOptions.method(:take_wait)
+      take = Hecks::Doors::LauncherOptions.method(:take_wait)
 
       expect(take.call(spec, ["--wait=true", "x=1"])).to eq([["x=1"], true])
       expect(take.call(spec, ["--wait=false"])).to eq([[], false])
@@ -184,7 +184,7 @@ RSpec.describe "the launcher's opt-in options" do
     it "is left to a verb that declares its own wait argument" do
       spec = { arguments: [{ path: "wait", type: "Integer" }] }
 
-      expect(Hecks::Facade::LauncherOptions.take_wait(spec, ["--wait"])).to eq([["--wait"], false])
+      expect(Hecks::Doors::LauncherOptions.take_wait(spec, ["--wait"])).to eq([["--wait"], false])
     end
   end
 

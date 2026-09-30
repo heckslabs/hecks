@@ -22,7 +22,7 @@
 # edge is written only when such a change is made.
 #
 # **launcher** switches on the opt-in parts of the generated `hecks` launcher (see
-# `Facade::LauncherOptions`): `run_keys` mints a `run` key for a creating command given none,
+# `Doors::LauncherOptions`): `run_keys` mints a `run` key for a creating command given none,
 # `failure_states` are the lifecycle states `--wait` reports as exit 1 (every failure state the
 # chapter's lifecycles declare), `names` gives a command the launcher name clients type,
 # `executable` is where `hecks project_cli` writes this chapter's launcher (the gem's

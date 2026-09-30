@@ -29,7 +29,7 @@ RSpec.describe "publishing a release" do
 
   before do
     build_checkout
-    @hecks = Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/hecks"), install_facade: false)
+    @hecks = Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/hecks"), install_doors: false)
     Hecks::Adapters::Codebase::Tree.root = root
     Hecks::Adapters::Codebase::Publishing.commands = commands
     Hecks::Adapters::Codebase::Publishing.release_options = { pause: ->(_) {}, now: -> { 0 } }
@@ -43,7 +43,7 @@ RSpec.describe "publishing a release" do
   end
 
   def launch(*argv)
-    Hecks::Facade::CliRunner.call(runtime: @hecks, argv: argv, program: "hecks")
+    Hecks::Doors::CliRunner.call(runtime: @hecks, argv: argv, program: "hecks")
   end
 
   def outcome(run) = launch("publishing_outcome", "run=#{run}").first

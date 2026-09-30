@@ -26,7 +26,7 @@ RSpec.describe "committed OIDC manifests (hecks deploy project_oidc)" do
 
     # `:io` on every example: a domain that commits an oidc.json may be PostgresEra-bound.
     it "#{relative} is exactly what hecks deploy project_oidc would regenerate right now", :io do
-      runtime  = Hecks.boot(File.join(ROOT, domain), install_facade: false)
+      runtime  = Hecks.boot(File.join(ROOT, domain), install_doors: false)
       name     = runtime.registry.bluebooks.keys.first
       bluebook = runtime.registry.bluebook(name)
 

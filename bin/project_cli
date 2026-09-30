@@ -7,7 +7,7 @@
 #   bin/project_cli qa                 # just this one
 #   qa/quality_control bug.discover --help
 #
-# A launcher, not a generated CLI: it dispatches to `Facade::CliRunner`, so editing a chapter
+# A launcher, not a generated CLI: it dispatches to `Doors::CliRunner`, so editing a chapter
 # changes behavior with no regenerating. Re-run only when a domain is added or renamed.
 
 require_relative "../lib/hecks/three_zero"

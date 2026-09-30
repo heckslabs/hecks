@@ -24,12 +24,12 @@ end
 require "hecks"
 
 runtime = begin
-  Hecks.boot(File.expand_path("../lib/hecks/hecks", __dir__), install_facade: false)
+  Hecks.boot(File.expand_path("../lib/hecks/hecks", __dir__), install_doors: false)
 rescue StandardError => e
   abort "cannot open Hecks: #{e.message.lines.first.strip}"
 end
 
-text, status, reason = Hecks::Facade::CliRunner.call(
+text, status, reason = Hecks::Doors::CliRunner.call(
   runtime: runtime, argv: ARGV, program: "hecks"
 )
 # A `--wait` run that failed answers its settled record on stdout, so `| jq` reads it

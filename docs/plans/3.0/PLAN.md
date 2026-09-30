@@ -74,7 +74,7 @@ This plan builds it. **Out of scope:** ADR 0081 (outside facts, 3.x), ADR 0082 (
 - **Next, 2e/2f (in progress):**
   - **Decision (user):** the Hecks chapter's constants nest under `Hecks::Domain`, through a new chapter word `namespace "Hecks::Domain"`. This avoids Release, Codemod, Corpus, Fuzzing and Kernel colliding with the gem's own `Hecks` module.
   - **Ruby:** mirror `formerly_known_as` in grammar rows, `BluebookBuilder`, `Chapter` IR, Rust `ir.rs`/`emit.rs`/`parse/chapter.rs`, and the goldens (`GOLDEN=rewrite`).
-  - **Install paths:** `Facade.install` / `surface/chapter.rb`, and `router/namespace_installer.rb#namespace_for`.
+  - **Install paths:** `Doors.install` / `ruby_door/chapter.rb`, and `router/namespace_installer.rb#namespace_for`.
   - **Refusal (2e):** refuse any chapter whose module would be `::Hecks` itself.
 - **Working notes:**
   - Commit with `SKIP_POST_COMMIT_FUZZING=1`, since the post-commit hook runs the whole fuzz suite synchronously.
@@ -97,12 +97,12 @@ Each commit runs the full pre-push gate green. `bin/` scripts keep working until
 ### 1. Runtime-boundary guard spec
 - New file `spec/hecks_domain_boundary_spec.rb` (ADR section 10).
 - **After `require "hecks"`:** nothing under `lib/hecks/hecks/` is in `$LOADED_FEATURES`.
-- **After a client boot:** a boot plus a dispatch through `Hecks::Facade::CliRunner` loads nothing there either.
+- **After a client boot:** a boot plus a dispatch through `Hecks::Doors::CliRunner` loads nothing there either.
 - **Registry:** the client's registry has no `Hecks` chapter unless its hecksagon attaches it.
 - It passes trivially now, and guards every later commit.
 
 ### 2. Launcher changes, plus routing to attached chapters
-Four changes in `lib/hecks/facade/cli_runner.rb` and `lib/hecks/facade/cli_door.rb` (`CliDoor.arguments`):
+Four changes in `lib/hecks/doors/cli_runner.rb` and `lib/hecks/doors/cli_door.rb` (`CliDoor.arguments`):
 - **Positional identity.** The first identifying argument may be positional.
 - **Booleans.** `--name` sets a boolean.
 - **Bare queries.** A bare name resolves to a query; `ask` is needed only when a command and a query share the name.

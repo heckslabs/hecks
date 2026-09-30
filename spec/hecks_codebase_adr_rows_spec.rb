@@ -66,12 +66,12 @@ RSpec.describe "the Codebase rows of the ADR table" do
                         CorpusRun PublishingRun].freeze
 
   before(:all) do
-    @hecks = Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/hecks"), install_facade: false)
+    @hecks = Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/hecks"), install_doors: false)
     @bluebook = @hecks.registry.bluebook("Hecks")
   end
 
   def launch(argv)
-    Hecks::Facade::CliRunner.call(runtime: @hecks, argv: argv, program: "hecks")
+    Hecks::Doors::CliRunner.call(runtime: @hecks, argv: argv, program: "hecks")
   end
 
   # Every verb a maintainer may run: a command a Maintainer role holds, or a query.

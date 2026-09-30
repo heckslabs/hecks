@@ -1268,6 +1268,7 @@ policy "RecordTheEra" do
     trigger Package::Abandon, with: { refusal: :refusal }
   end
 
+  # A run record for opening a door onto the framework, not a door: the doors live in `Hecks::Doors`.
   aggregate "Door" do
     description "A way into the framework opened for a project: its launchers, or an MCP server."
 

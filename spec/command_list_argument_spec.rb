@@ -60,7 +60,7 @@ RSpec.describe "a command's list_of argument" do
     Dir.mktmpdir("binder") do |dir|
       FileUtils.mkdir_p(File.join(dir, "bluebook"))
       File.write(File.join(dir, "bluebook/binder.bluebook"), BINDER_BLUEBOOK)
-      @runtime = Hecks.boot(dir, install_facade: false)
+      @runtime = Hecks.boot(dir, install_doors: false)
       example.run
     end
   end
@@ -108,7 +108,7 @@ RSpec.describe "a command's list_of argument" do
   end
 end
 
-RSpec.describe Hecks::Facade::CliDoor, "list-of-words arguments" do
+RSpec.describe Hecks::Doors::CliDoor, "list-of-words arguments" do
   let(:spec) do
     { arguments: [{ path: "labels", type: "String", required: true, list: true, words: true },
                   { path: "counts", type: "Integer", required: false, list: true, words: true },

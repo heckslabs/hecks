@@ -68,7 +68,7 @@ RSpec.describe Hecks::Fuzzing::IsolatedBoot do
         domain = project(root, uses: %w[widgets])
 
         booted = described_class.call(domain) do |copy|
-          Hecks.boot(copy, install_facade: false).registry.bluebook("Widgets")
+          Hecks.boot(copy, install_doors: false).registry.bluebook("Widgets")
         end
 
         expect(booted).not_to be_nil
@@ -104,7 +104,7 @@ RSpec.describe Hecks::Fuzzing::IsolatedBoot do
       Dir.mktmpdir do |root|
         domain = project(root, uses: %w[widgets], vendored: [])
 
-        expect { described_class.call(domain) { |copy| Hecks.boot(copy, install_facade: false) } }
+        expect { described_class.call(domain) { |copy| Hecks.boot(copy, install_doors: false) } }
           .to raise_error(Hecks::Runtime::WiringError, /no vendored embryonaut bluebook named "widgets"/)
       end
     end
@@ -265,7 +265,7 @@ RSpec.describe Hecks::Fuzzing::IsolatedBoot do
 
     def bind_adapter_in_copy(root, adapter)
       described_class.call(default_adapter_project(root), adapter: adapter) do |copy|
-        registry = Hecks.boot(copy, install_facade: false).registry
+        registry = Hecks.boot(copy, install_doors: false).registry
         aggregate = registry.bluebook("Widgets").aggregates.find { |a| a.hecks_name == "Widget" }
         Hecks::Ports::Persistence::BindingPolicy.resolve(registry, "Widgets", aggregate).adapter
       end
@@ -290,7 +290,7 @@ RSpec.describe Hecks::Fuzzing::IsolatedBoot do
 
       qa = File.join(InMemoryDomain::ROOT, "qa")
       expect do
-        described_class.call(qa, adapter: :postgres) { |copy| Hecks.boot(copy, install_facade: false) }
+        described_class.call(qa, adapter: :postgres) { |copy| Hecks.boot(copy, install_doors: false) }
       end.not_to raise_error
     end
   end
@@ -305,7 +305,7 @@ RSpec.describe Hecks::Fuzzing::IsolatedBoot do
       framework = File.join(InMemoryDomain::ROOT, "lib/hecks/framework")
       expect do
         described_class.call(framework, adapter: :postgres) do |copy|
-          registry = Hecks.boot(copy, install_facade: false).registry
+          registry = Hecks.boot(copy, install_doors: false).registry
           registry.bluebook("Privacy").aggregates.each { |aggregate| registry.repository("Privacy", aggregate) }
         end
       end.not_to raise_error

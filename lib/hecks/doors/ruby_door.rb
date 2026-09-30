@@ -1,15 +1,15 @@
 require_relative "../chapters"
-require_relative "surface/chapter"
-require_relative "surface/aggregate_door"
+require_relative "ruby_door/chapter"
+require_relative "ruby_door/aggregate_door"
 
 module Hecks
-  module Facade
+  module Doors
     # The door without classes: anonymous per-boot modules whose singleton methods
     # dispatch by FQN, installed by `Loader.bind_runtime` and replaced whole on the next boot.
     #
     # `persisted_by("Heki")` in a `.hecksagon` file lands on the module's `method_missing`,
     # which records a `Bind` into the open `HecksagonBuilder.collector`.
-    module Surface
+    module RubyDoor
       # Names that would shadow the machinery a Handle runs on; a field with one gets no reader.
       RESERVED = %i[id state events reload inspect to_h hash class].freeze
 

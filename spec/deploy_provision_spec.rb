@@ -130,8 +130,8 @@ RSpec.describe "hecks deploy provision", :io do
       run_project_tenant(dir, "acme", domain: "Scratch", realm: "Acme", schema: "acme", database: DB_URL)
       run_project_tenant(dir, "bloom", domain: "Scratch", realm: "Bloom", schema: "bloom", database: DB_URL)
 
-      acme  = Hecks.boot(dir, environment: "acme", install_facade: false)
-      bloom = Hecks.boot(dir, environment: "bloom", install_facade: false)
+      acme  = Hecks.boot(dir, environment: "acme", install_doors: false)
+      bloom = Hecks.boot(dir, environment: "bloom", install_doors: false)
 
       register = Hecks::Bluebook::ProjectRegister.new
       register.register([acme.registry.bluebook("Scratch")], acme.registry, acme, dir)

@@ -1,6 +1,6 @@
 require "spec_helper"
 
-RSpec.describe Hecks::Facade::JsonDoor do
+RSpec.describe Hecks::Doors::JsonDoor do
   let(:json_door) { described_class }
 
   # Pizzas::Order booted against Memory via `boot_in_memory`.
@@ -12,7 +12,7 @@ RSpec.describe Hecks::Facade::JsonDoor do
   end
 
   describe ".aggregate" do
-    it "resolves a domain module name and an aggregate name to the installed Facade class" do
+    it "resolves a domain module name and an aggregate name to the installed door class" do
       dispatcher = boot_in_memory
 
       expect(json_door.aggregate(dispatcher, "Pizzas", "Order")).to equal(Pizzas::Order)

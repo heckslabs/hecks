@@ -27,7 +27,7 @@ RSpec.describe "hecks compact_heki" do
   end
 
   def seed_gadget(bluebook_dir, writes: 5)
-    runtime    = Hecks.boot(bluebook_dir, install_facade: false)
+    runtime    = Hecks.boot(bluebook_dir, install_doors: false)
     registry   = runtime.registry
     aggregate  = registry.bluebook("HekiCompactFixture").aggregate("Gadget")
     repository = registry.repository("HekiCompactFixture", aggregate)
@@ -61,7 +61,7 @@ RSpec.describe "hecks compact_heki" do
       expect(compaction(bluebook_dir).apply!.join("\n")).to include("COMPACTED gadget")
       expect(File.size(journal_path)).to eq(0)
 
-      runtime    = Hecks.boot(bluebook_dir, install_facade: false)
+      runtime    = Hecks.boot(bluebook_dir, install_doors: false)
       aggregate  = runtime.registry.bluebook("HekiCompactFixture").aggregate("Gadget")
       repository = runtime.registry.repository("HekiCompactFixture", aggregate)
       expect(repository.find("g1")[:label].to_h).to eq(value: "label4")

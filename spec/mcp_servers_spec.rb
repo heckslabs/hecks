@@ -184,7 +184,7 @@ RSpec.describe "the stdio MCP servers" do
       )
       results = results_of(run)
 
-      expect(results[1]["tools"].map { |tool| tool["name"] }).to match_array(Hecks::McpDoorScope::READER_TOOLS)
+      expect(results[1]["tools"].map { |tool| tool["name"] }).to match_array(Hecks::Doors::McpDoorScope::READER_TOOLS)
       expect([2, 3, 4].map { |id| results[id]["isError"] }).to all(be false)
       expect(payload(results[2])["aggregates"].map { |aggregate| aggregate["name"] }).to include("Order")
       expect(payload(results[4])["count"]).to eq(0)
@@ -245,7 +245,7 @@ RSpec.describe "the stdio MCP servers" do
         result = run_over_pipes(door, [initialize_request],
                                 env: { "HECKS_STOREHOUSE_ROOT" => sandbox_root }.merge(settings))
 
-        expect(result[:status].exitstatus).to eq(Hecks::McpDoorScope::EXIT_STATUS)
+        expect(result[:status].exitstatus).to eq(Hecks::Doors::McpDoorScope::EXIT_STATUS)
         expect(result[:err]).to include("refusing to start")
         expect(result[:out]).to be_empty
       end

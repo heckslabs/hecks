@@ -8,7 +8,7 @@ module Hecks
     # `Hecks.bluebook "QualityControl"` in `qa/` becomes `qa/quality_control`.
     #
     # Each launcher is a dozen lines pinning one directory and handing over to
-    # `Facade::CliRunner`; the surface itself is projected at the moment it runs,
+    # `Doors::CliRunner`; the surface itself is projected at the moment it runs,
     # so editing a chapter changes behaviour without regenerating anything.
     #
     # A chapter whose world's `launcher` setting names an `executable` gets its launcher
@@ -95,9 +95,9 @@ module Hecks
       #   when `check` found it out of date, `:failed` when the domain could not be read or its
       #   launcher could not be made
       def one(root, path, program, check, remove_stale_bin)
-        runtime = Hecks.boot(File.join(root, path), install_facade: false)
+        runtime = Hecks.boot(File.join(root, path), install_doors: false)
         name    = runtime.registry.bluebooks.keys.first or raise "it loads no bluebook"
-        setting    = Facade::LauncherOptions.settings(runtime, name) || {}
+        setting    = Doors::LauncherOptions.settings(runtime, name) || {}
         snake      = Naming.snake(name)
         executable = setting[:executable]
         label      = executable || "#{path}/#{snake}"
@@ -195,12 +195,12 @@ module Hecks
           require "hecks"
 
           runtime = begin
-            Hecks.boot(#{boot}, install_facade: false)
+            Hecks.boot(#{boot}, install_doors: false)
           rescue StandardError => e
             abort "cannot open #{name}: \#{e.message.lines.first.strip}"
           end
 
-          text, status#{', reason' if opted} = Hecks::Facade::CliRunner.call(
+          text, status#{', reason' if opted} = Hecks::Doors::CliRunner.call(
             runtime: runtime, argv: ARGV, program: "#{shown}"
           )
           #{ending}

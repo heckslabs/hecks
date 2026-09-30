@@ -1,4 +1,4 @@
-require_relative "../facade/surface"
+require_relative "../doors/ruby_door"
 require_relative "../ports/loading"
 require_relative "../ports/persistence"
 require_relative "dispatcher"
@@ -17,7 +17,7 @@ module Hecks
 
       # Boots `path`: loads its bluebook directory into a fresh Registry, runs
       # every registered boot gate, and returns the bound dispatcher. Pass
-      # `install_facade: false` to skip the `Widget::Item.Add(...)` global
+      # `install_doors: false` to skip the `Widget::Item.Add(...)` global
       # facade sugar (only a caller dispatching by FQN string needs to).
       #
       # @param path [String] a domain directory to boot
@@ -27,7 +27,7 @@ module Hecks
       # @return [Runtime::Dispatcher, Runtime::RemoteDispatcher] the booted dispatcher
       # @raise [Errno::ENOENT] if `path` names no domain directory
       # @raise [Runtime::WiringError] if a boot gate finds a wiring problem
-      def self.boot(path, shared: nil, install_facade: true, environment: FROM_ENV)
+      def self.boot(path, shared: nil, install_doors: true, install_facade: nil, environment: FROM_ENV)
         loading   = Ports::Loading.bootstrap
         directory = loading.bluebook_directory(path)
         root      = loading.shared_root(shared, directory)
@@ -43,7 +43,7 @@ module Hecks
         dispatcher = dispatcher_for(registry)
         redrive_outbox!(dispatcher)
         seed_privacy_markings!(dispatcher, registry)
-        install_facade ? bind_runtime(dispatcher) : dispatcher
+        Doors.install?(install_doors, install_facade) ? bind_runtime(dispatcher) : dispatcher
       end
 
       # The overlay a boot loads: the caller's own choice (nil meaning none), else the
@@ -99,7 +99,7 @@ module Hecks
       #   defaults to `HECKS_ENVIRONMENT`, and an explicit nil loads none
       # @return [Runtime::Dispatcher, Runtime::RemoteDispatcher] the booted dispatcher
       # @raise [Runtime::WiringError] if a boot gate finds a wiring problem
-      def self.boot_files(paths, shared: nil, install_facade: true, environment: FROM_ENV)
+      def self.boot_files(paths, shared: nil, install_doors: true, install_facade: nil, environment: FROM_ENV)
         loading   = Ports::Loading.bootstrap
         files     = Array(paths).map { |path| File.expand_path(path) }
         directory = File.dirname(files.first)
@@ -114,7 +114,7 @@ module Hecks
 
         run_boot_gates!(registry, directory)
         dispatcher = dispatcher_for(registry)
-        install_facade ? bind_runtime(dispatcher) : dispatcher
+        Doors.install?(install_doors, install_facade) ? bind_runtime(dispatcher) : dispatcher
       end
 
       # Runs every registered boot gate against `registry`, in order:
@@ -194,7 +194,7 @@ module Hecks
       # `dispatcher`. The binding lives in the facade's own modules, not a
       # class-level global, so two boots in one process don't share one name.
       def self.bind_runtime(dispatcher)
-        Facade::Surface.install(dispatcher)
+        Doors::RubyDoor.install(dispatcher)
         dispatcher
       end
     end

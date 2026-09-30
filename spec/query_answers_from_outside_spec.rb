@@ -141,7 +141,7 @@ RSpec.describe "a query answered by a port the hecksagon binds" do
 
   def boot_domain(**options)
     write_domain(@dir, **options)
-    Hecks.boot(@dir, install_facade: false)
+    Hecks.boot(@dir, install_doors: false)
   end
 
   # The bluebook with `returns Heard` swapped for another line of Echo's body.
@@ -382,7 +382,7 @@ RSpec.describe "a query answered by a port the hecksagon binds" do
       File.write(path, File.read(path).sub("def initialize(aggregate: nil, settings: {}, root: nil)",
                                            "def initialize(token)"))
 
-      expect { Hecks.boot(@dir, install_facade: false) }
+      expect { Hecks.boot(@dir, install_doors: false) }
         .to raise_error(Hecks::Runtime::WiringError, /constructor requires token/)
     end
 

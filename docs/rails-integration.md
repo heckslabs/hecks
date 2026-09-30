@@ -38,11 +38,11 @@ domain is structurally identical to `hecks console` or `hecks run` — just anot
 adapter. The domain doesn't know or need to know which one called it. This has one
 hard consequence for the design: **core `Handle`/`AggregateDoor` must never gain a
 Rails or ActiveModel dependency.** Anything Rails-specific lives in a decoration layer
-built on top of the core facade, applied once at boot — never inside
-`lib/hecks/facade/`.
+built on top of the core doors, applied once at boot — never inside
+`lib/hecks/doors/`.
 
 ```ruby skip
-lib/hecks/facade/handle.rb      core, adapter-agnostic, used by hecks console too
+lib/hecks/doors/handle.rb       core, adapter-agnostic, used by hecks console too
   ↓ decorated once, at boot, for Rails specifically
 WebHandle (Rails-only)               ActiveModel::Conversion + a real ActiveModel::Errors
 WebDoor   (Rails-only)               wraps every Handle AggregateDoor hands out
@@ -268,7 +268,7 @@ class Handle
   @ir.attributes.select { |a| a.type.is_a?(IR::Reference) }.each do |ref|
     target = ref.type.target_name
     define_singleton_method("#{ref.name}_#{Naming.snake(target)}") do
-      Facade.const_get(target).find(self[ref.name])
+      Doors.const_get(target).find(self[ref.name])
     end
   end
 end

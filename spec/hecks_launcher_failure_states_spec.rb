@@ -8,10 +8,10 @@ RSpec.describe "the launcher's failure states" do
   FAILURE_NAMED = /fail|fault|flag|drift|unreach|refus|halt|stop|abandon|\Ared\z|needs_fix|error|broken/
 
   before(:all) do
-    @runtime = Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/hecks"), install_facade: false)
+    @runtime = Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/hecks"), install_doors: false)
   end
 
-  def listed(chapter) = Array(Hecks::Facade::LauncherOptions.settings(@runtime, chapter)&.fetch(:failure_states, nil))
+  def listed(chapter) = Array(Hecks::Doors::LauncherOptions.settings(@runtime, chapter)&.fetch(:failure_states, nil))
 
   def declared
     @runtime.registry.bluebooks.flat_map do |name, chapter|

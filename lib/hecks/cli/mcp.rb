@@ -23,8 +23,8 @@ module Hecks
       #   set up for stdio
       def call(argv)
         McpStdioGuard.enforce_stdio!(server: SERVER, argv: argv)
-        require_relative "mcp_door"
-        McpDoor.serve
+        require_relative "../doors/mcp_door"
+        Doors::McpDoor.serve
       end
     end
   end

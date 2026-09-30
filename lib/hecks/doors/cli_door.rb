@@ -1,7 +1,7 @@
 require_relative "../runtime/errors"
 
 module Hecks
-  module Facade
+  module Doors
     # Turns `path=value` command-line words into a nested, typed argument Hash.
     # Types come from the projection, never from guessing at the value ("99" may be a String).
     module CliDoor

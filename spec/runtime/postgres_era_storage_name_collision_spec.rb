@@ -168,7 +168,7 @@ RSpec.describe "PostgresEra domain-qualifies head_view/head_snapshot/matview (do
       Dir.mktmpdir do |dir|
         domain_dir = write_domain(dir)
 
-        dispatcher = Hecks.boot(domain_dir, install_facade: false)
+        dispatcher = Hecks.boot(domain_dir, install_doors: false)
 
         dispatcher.dispatch_flat("Target::Note.Make", ref: { value: "target-owns-this" })
         dispatcher.dispatch_flat("Notes::Note.Write", ref: { value: "notes-owns-this" })
@@ -196,8 +196,8 @@ RSpec.describe "PostgresEra domain-qualifies head_view/head_snapshot/matview (do
       Dir.mktmpdir do |dir|
         domain_dir = write_domain(dir)
 
-        Hecks.boot(domain_dir, install_facade: false)
-        dispatcher = Hecks.boot(domain_dir, install_facade: false)
+        Hecks.boot(domain_dir, install_doors: false)
+        dispatcher = Hecks.boot(domain_dir, install_doors: false)
 
         dispatcher.dispatch_flat("Target::Note.Make", ref: { value: "still-here" })
         expect(dispatcher.query("Target::Note.All").map { |r| r[:ref][:value] }).to eq(["still-here"])
@@ -264,7 +264,7 @@ RSpec.describe "PostgresEra domain-qualifies head_view/head_snapshot/matview (do
       Dir.mktmpdir do |dir|
         domain_dir = write_domain(dir)
 
-        dispatcher = Hecks.boot(domain_dir, install_facade: false)
+        dispatcher = Hecks.boot(domain_dir, install_doors: false)
         registry = dispatcher.registry
 
         # Repository-level: building a repository never requires a role grant
@@ -511,7 +511,7 @@ RSpec.describe "PostgresEra domain-qualifies head_view/head_snapshot/matview (do
         # Pinned: pre-fix, Notes' era-1 self-mint (ensure_first_head!) would
         # drop and recompile the shared, unqualified note_head view back to
         # era-1 form, taking Target's already-compiled era-2 union down with it.
-        dispatcher = Hecks.boot(File.join(dir, "bluebook"), install_facade: false)
+        dispatcher = Hecks.boot(File.join(dir, "bluebook"), install_doors: false)
 
         target_rows = dispatcher.query("Target::Note.All")
         expect(target_rows.map { |r| r[:heading][:value] }).to eq(["Original Title"])

@@ -871,7 +871,7 @@ Hecks.bluebook "QualityControl" do
       invariant("a bug sequence is positive") { value.positive? }
     end
 
-    # Prefixed on purpose: `Facade::Surface.install` puts every aggregate name on Object, so a
+    # Prefixed on purpose: `Doors::RubyDoor.install` puts every aggregate name on Object, so a
     # value object sharing a word with any aggregate resolves to that class once the other domain
     # boots.
     value_object "BugTitle" do

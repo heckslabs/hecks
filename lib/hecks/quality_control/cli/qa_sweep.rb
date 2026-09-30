@@ -118,7 +118,7 @@ module Hecks
         @trace_last = now
       end
 
-      # Default `install_facade` so `QualityControl::Target` and friends are top-level constants.
+      # Default `install_doors` so `QualityControl::Target` and friends are top-level constants.
       def boot_ledger
         Hecks.boot(@domain_dir)
       rescue StandardError => e

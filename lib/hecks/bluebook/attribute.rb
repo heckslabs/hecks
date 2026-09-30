@@ -49,7 +49,7 @@ module Hecks
 
       # A bare constant in a bluebook is a name, even when Ruby has heard of it.
       #
-      # `Facade::Surface` installs aggregate names as top-level constants, which would win
+      # `Doors::RubyDoor` installs aggregate names as top-level constants, which would win
       # over the `const_missing` resolver and silently rebind the attribute. Demodulising
       # spells `:Target` and `QualityControl::Target` the same.
       def spell(type)

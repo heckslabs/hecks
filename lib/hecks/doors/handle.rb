@@ -3,7 +3,7 @@ require_relative "../runtime/caller"
 require_relative "../ports/authorization"
 
 module Hecks
-  module Facade
+  module Doors
     # A record in hand: what `Pizza.create_pizza!(...)` and `Pizza.find(id)`
     # give back. One shared class per aggregate; verbs are per-handle singleton methods.
     #
@@ -59,7 +59,7 @@ module Hecks
       # Refreshes this handle's state from the repository, picking up writes made through
       # another handle or door. Keeps the current state when the record is not found.
       #
-      # @return [Facade::Handle] this handle, so the call chains
+      # @return [Doors::Handle] this handle, so the call chains
       # @raise [Runtime::WiringError] if the aggregate's persistence bind cannot be
       #   resolved into a repository
       def reload

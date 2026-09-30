@@ -3,8 +3,8 @@ require_relative "../../bluebook/dsl/const_shim"
 require_relative "../../bluebook/dsl/hecksagon_builder"
 
 module Hecks
-  module Facade
-    module Surface
+  module Doors
+    module RubyDoor
       # One chapter's module: vision and aggregate list on the singleton, one
       # aggregate door per declared head, and a `const_missing` hook for undeclared names.
       module Chapter
@@ -15,7 +15,7 @@ module Hecks
         # @param dispatcher [Runtime::Dispatcher, Runtime::RemoteDispatcher] the booted
         #   dispatcher each aggregate door closes over
         # @param bluebook [Bluebook::Chapter] the chapter to project into a module
-        # @return [Module] a fresh, unnamed module; `Surface.install` gives it its
+        # @return [Module] a fresh, unnamed module; `RubyDoor.install` gives it its
         #   top-level name
         # @raise [NameError] if an aggregate's name is not a valid constant name
         def chapter_module(dispatcher, bluebook)

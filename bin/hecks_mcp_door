@@ -2,7 +2,7 @@
 
 # An MCP door onto the storehouse bus: one server per booted domain, exposing
 # dispatch/query/state/catalog/describe/validate/domains/history/behaviors/follow.
-# Logic lives in `Hecks::Storehouse`; JSON-RPC plumbing in `Hecks::CLI::McpDoor`.
+# Logic lives in `Hecks::Storehouse`; JSON-RPC plumbing in `Hecks::Doors::McpDoor`.
 #
 # Stdio only, enforced — `Hecks::CLI::Mcp.call` refuses another transport or an
 # internet-protocol socket. `role:`/`actor_id:` are caller-asserted, not a

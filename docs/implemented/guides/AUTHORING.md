@@ -123,7 +123,7 @@ guides do — with two rules the guides do not have.
   it for exactly this reason).
 - Chapter names are claimed once across the guides AND the reference
   together — `spec/support/doctest_names.rb` enforces it, because
-  `Facade::Surface.install` puts both chapter and bare aggregate names on
+  `Doors::RubyDoor.install` puts both chapter and bare aggregate names on
   `Object` and never removes them.
 - A claim marker must sit on a single-line expression. Assign to a local
   first rather than wrapping a call across lines.
