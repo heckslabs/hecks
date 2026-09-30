@@ -14,38 +14,6 @@ Hecks::ThreeZero.notice("project_oidc")
 require "bundler/setup"
 
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
+require "hecks/tools"
 
-require "hecks"
-
-ROOT   = File.expand_path("..", __dir__)
-FOLDER = Hecks::Adapters::Folder.new
-
-# Every `.hecksagon` names a domain root; rust/, deploy/, tmp/ and coverage/ are never domains.
-def domains
-  Dir.glob(File.join(ROOT, "**/*.hecksagon"))
-     .map { |path| FOLDER.domain_root(File.dirname(path)) }
-     .compact
-     .map { |path| path.delete_prefix("#{ROOT}/") }
-     .grep_v(%r{\A(rust|deploy|tmp|coverage)/})
-     .uniq.sort
-end
-
-wanted = ARGV.empty? ? domains : ARGV.map { |path| path.delete_prefix("#{ROOT}/").chomp("/") }
-
-wanted.each do |path|
-  runtime = Hecks.boot(File.join(ROOT, path), install_facade: false)
-  name    = runtime.registry.bluebooks.keys.first
-
-  unless name
-    warn "  #{path}: no bluebook found — skipped"
-    next
-  end
-
-  bluebook = runtime.registry.bluebook(name)
-  out      = File.join(ROOT, path, "oidc.json")
-
-  Hecks::Projector.write(Hecks::Projector.call(:oidc, bluebook: bluebook), out)
-  puts "  #{path}/oidc.json  <-  #{name}"
-rescue StandardError => e
-  warn "  #{path}: cannot project — #{e.message.lines.first.strip}"
-end
+Hecks::Tools.script("project_oidc", ARGV)

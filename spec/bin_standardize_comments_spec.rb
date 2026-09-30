@@ -2,15 +2,14 @@ require "tmpdir"
 require "open3"
 require "fileutils"
 
-# Loads bin/standardize_comments here so CommentStyle is defined without
-# running main (which only runs when this file is the program).
-load File.join(InMemoryDomain::ROOT, "bin/standardize_comments") unless defined?(CommentStyle)
+# The linter is `Hecks::Tools::CommentStyle`; `bin/standardize_comments` is its shim.
+require "hecks/tools/comment_style"
 
 RSpec.describe "bin/standardize_comments" do
   describe "design_history" do
     def history_found(comment)
       source = "# #{comment}\nclass Example\nend\n"
-      CommentStyle::SourceFile.new("lib/hecks/example.rb", source).violations(only: ["design_history"])
+      Hecks::Tools::CommentStyle::SourceFile.new("lib/hecks/example.rb", source).violations(only: ["design_history"])
     end
 
     ["This is no longer built here.", "There is no cache any more.", "It is not stored anymore."].each do |comment|
@@ -29,7 +28,7 @@ RSpec.describe "bin/standardize_comments" do
   end
 
   describe "long_block" do
-    let(:limit) { CommentStyle::MAX_BLOCK }
+    let(:limit) { Hecks::Tools::CommentStyle::MAX_BLOCK }
     let(:path)  { "lib/hecks/example.rb" }
 
     # A class opened by a comment block of `lines` lines, the first reading `opening`.
@@ -39,7 +38,7 @@ RSpec.describe "bin/standardize_comments" do
     end
 
     def long_block_violations(source, baseline: {})
-      CommentStyle::SourceFile.new(path, source).violations(only: ["long_block"], baseline: baseline)
+      Hecks::Tools::CommentStyle::SourceFile.new(path, source).violations(only: ["long_block"], baseline: baseline)
     end
 
     it "names the decided threshold as a constant" do
@@ -94,7 +93,7 @@ RSpec.describe "bin/standardize_comments" do
     it "ends a block at a blank source line" do
       more = Array.new(limit) { "# more" }
       split = ["# first half", *more, "", "# second half", *more, "class Example", "end", ""]
-      lengths = CommentStyle::SourceFile.new(path, split.join("\n")).long_blocks.map(&:lines)
+      lengths = Hecks::Tools::CommentStyle::SourceFile.new(path, split.join("\n")).long_blocks.map(&:lines)
 
       expect(lengths).to eq([limit + 1, limit + 1])
     end
@@ -102,7 +101,7 @@ RSpec.describe "bin/standardize_comments" do
     it "numbers blocks that open with the same text" do
       first = source_with_block(limit + 1).sub("class Example\nend\n", "")
       twice = [first, source_with_block(limit + 1)].join("\n")
-      keys = CommentStyle::SourceFile.new(path, twice).long_blocks.map(&:key)
+      keys = Hecks::Tools::CommentStyle::SourceFile.new(path, twice).long_blocks.map(&:key)
 
       expect(keys).to eq(["Explains the example at length.", "Explains the example at length. #2"])
     end
@@ -132,29 +131,29 @@ RSpec.describe "bin/standardize_comments" do
         file = File.join(@dir, "baseline.json")
         held = { "lib/b.rb" => { "z" => 60, "a" => 55 }, "lib/a.rb" => { "m" => 70 } }
 
-        CommentStyle::Baseline.dump(held, file)
+        Hecks::Tools::CommentStyle::Baseline.dump(held, file)
 
-        expect(CommentStyle::Baseline.load(file)).to eq(held)
+        expect(Hecks::Tools::CommentStyle::Baseline.load(file)).to eq(held)
         expect(JSON.parse(File.read(file)).keys).to eq(["lib/a.rb", "lib/b.rb"])
         expect(JSON.parse(File.read(file))["lib/b.rb"].keys).to eq(%w[a z])
       end
 
       it "loads as empty when there is no file" do
-        expect(CommentStyle::Baseline.load(File.join(@dir, "missing.json"))).to eq({})
+        expect(Hecks::Tools::CommentStyle::Baseline.load(File.join(@dir, "missing.json"))).to eq({})
       end
 
       it "is recorded from a run and then tolerates exactly what it recorded" do
         file = File.join(@dir, "example.rb")
         File.write(file, source_with_block(limit + 3))
 
-        held = CommentStyle::Run.new([file], baseline: {}).long_block_baseline
+        held = Hecks::Tools::CommentStyle::Run.new([file], baseline: {}).long_block_baseline
         expect(held).to eq(file => { "Explains the example at length." => limit + 3 })
 
-        tolerated = CommentStyle::Run.new([file], only: ["long_block"], baseline: held)
+        tolerated = Hecks::Tools::CommentStyle::Run.new([file], only: ["long_block"], baseline: held)
         expect(tolerated.violations).to be_empty
 
         File.write(file, source_with_block(limit + 4))
-        grown = CommentStyle::Run.new([file], only: ["long_block"], baseline: held)
+        grown = Hecks::Tools::CommentStyle::Run.new([file], only: ["long_block"], baseline: held)
         expect(grown.violations.map(&:category)).to eq(["long_block"])
       end
 

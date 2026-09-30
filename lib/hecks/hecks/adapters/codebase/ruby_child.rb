@@ -3,22 +3,23 @@
 require "rbconfig"
 require_relative "../shell"
 require_relative "../console_capture"
+require_relative "../../../tools"
 
 module Hecks
   module Adapters
     module Codebase
-      # Runs one of this repository's own scripts in a child Ruby process, from the checkout's root.
+      # Runs one of this repository's own scripts from the checkout's root.
       #
-      # Most tools of Codebase are reached in this process. A child is used where isolation is the
-      # point or the script owns its process: a comment linter that reads files with its own
-      # options, or a generator that boots several throwaway domains. The child is told not to
-      # print the 3.0 notice, so what it prints is only its own report.
+      # A script whose body lives in `Hecks::Tools` runs in this process from the checkout's root,
+      # its output and exit status captured: the gem carries it, so no `bin/` script is needed. Any
+      # other script runs as a child, which is told not to print the 3.0 notice, so what it prints
+      # is only its own report.
       class RubyChild
         # What a child is told, so its output is only its report.
         QUIET = { "HECKS_NO_3_0_NOTICE" => "1" }.freeze
 
         # @param tree [Tree] the checkout the script belongs to
-        # @param shell [#capture] starts the process; a `Shell` when nil
+        # @param shell [#capture, nil] starts the process; a `Shell` when nil
         def initialize(tree, shell: nil)
           @tree = tree
           @shell = shell || Shell.new
@@ -55,17 +56,31 @@ module Hecks
           raise ConsoleCapture::Failure, printed(result, "ended with status #{result.status.exitstatus}")
         end
 
-        # Runs `bin/<script>` with the arguments and hands back how it ended.
+        # Runs the script with the arguments and hands back how it ended.
         #
         # @param script [String] the script's name in `bin/`
         # @param args [Array<String>] its arguments
         # @param env [Hash{String => String}] variables to set for it
-        # @return [Shell::Result] its output and status
-        def capture(script, *, env: {})
-          @shell.capture(RbConfig.ruby, @tree.path("bin", script), *, env: QUIET.merge(env), chdir: @tree.root)
+        # @return [Shell::Result] its output (stderr included, for a tool run here) and status
+        def capture(script, *args, env: {})
+          return in_process(script, args) if Tools.tool?(script)
+
+          @shell.capture(RbConfig.ruby, @tree.path("bin", script), *args, env: QUIET.merge(env), chdir: @tree.root)
         end
 
         private
+
+        def in_process(script, args)
+          code = nil
+          outcome = ConsoleCapture.capture { code = Tools.run(script, args, root: @tree.root) }
+          Shell::Result.new(outcome.output, "", Status.new(code))
+        end
+
+        # How a tool run in this process ended, answering as a `Process::Status` does.
+        Status = Struct.new(:exitstatus) do
+          # @return [Boolean] whether it ended with status 0
+          def success? = exitstatus.zero?
+        end
 
         def printed(result, otherwise = "")
           text = [result.out, result.err].map(&:strip).reject(&:empty?).join("\n")

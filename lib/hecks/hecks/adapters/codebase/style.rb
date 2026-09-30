@@ -12,8 +12,8 @@ module Hecks
       # (Ruby's `docs/COMMENT_STYLE_GUIDE.md`, Rust's `docs/COMMENT_STYLE_GUIDE_RUST.md`), and
       # writing a JSON document with its keys in order.
       #
-      # The linters are `bin/standardize_comments` and `bin/standardize_comments_rust`, which own
-      # their options, so each ask runs one in a child process from the checkout's root. A check
+      # The linters are `Hecks::Tools::CommentStyle` and `Hecks::Tools::RustCommentStyle`, which own
+      # their options, so each ask runs one in this process from the checkout's root. A check
       # that finds violations refuses with the list. A fix rewrites files, so unconfirmed it lists
       # what it would rewrite (the fixable categories only) and writes nothing.
       module Style
@@ -42,7 +42,7 @@ module Hecks
         # @param operation [String] one of `OPERATIONS`
         # @param held [Hash] the `StyleRun` record's fields
         # @param tree [Tree] the working tree, already known to be a hecks checkout
-        # @param shell [#capture, nil] starts the linter's child process
+        # @param shell [#capture, nil] unused: the linters run in this process
         # @return [String] what the linter printed, or the file in order
         # @raise [ConsoleCapture::Failure] when a check finds a violation, or the linter or file is
         #   refused
@@ -64,7 +64,7 @@ module Hecks
         # @param operation [String] `report_comments` or `report_rust_comments`
         # @param args [Hash] the query's plain arguments: `paths`, `only`, `json`, `top`
         # @param tree [Tree] the checkout
-        # @param shell [#capture, nil] starts the linter's child process
+        # @param shell [#capture, nil] unused: the linters run in this process
         # @return [String] the linter's report
         # @raise [ConsoleCapture::Failure] when the linter refuses its arguments
         def report(operation, args, tree, shell: nil)

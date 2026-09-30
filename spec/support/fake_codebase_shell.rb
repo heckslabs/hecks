@@ -24,8 +24,28 @@ class FakeCodebaseShell
   # @return [Hecks::Adapters::Shell::Result] the canned answer
   def capture(*command, env: {}, chdir: nil)
     @asked << { command: command[1..], env: env, chdir: chdir, program: command.first }
-    out, status = @answers[[@asked.size, @answers.size].min - 1]
-    status ||= 0
+    out, status = next_answer
     Hecks::Adapters::Shell::Result.new(out, "", Struct.new(:success?, :exitstatus).new(status.zero?, status))
+  end
+
+  # Stands in for `Hecks::Tools.run`: records the tool asked for (as `command`, the tool's name
+  # then its arguments), prints the next output as the tool would, and answers its status.
+  #
+  # @example
+  #   allow(Hecks::Tools).to receive(:run, &shell.method(:run_tool))
+  # @return [Integer] the canned exit status
+  def run_tool(name, argv, root: nil)
+    @asked << { command: [name, *argv], env: {}, chdir: root, program: name }
+    out, status = next_answer
+    # The tool prints and the caller captures it, so this must reach `$stdout`.
+    print out # rubocop:disable RSpec/Output
+    status
+  end
+
+  private
+
+  def next_answer
+    out, status = @answers[[@asked.size, @answers.size].min - 1]
+    [out, status || 0]
   end
 end

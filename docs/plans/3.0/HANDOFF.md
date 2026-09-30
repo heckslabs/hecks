@@ -30,12 +30,12 @@ The chapter, its ports and its adapters ship in lib/hecks/quality_control/; the 
 - A tick against the moved chapter was not run against the live ledger database.
 
 ## Remaining plan steps
-6 DONE (6a, 6b above); left over: Project/Lint/ProjectOidc run the bin/ scripts as children until step 11 moves their bodies into lib/, and a tenant's boot + capability check (the rest of bin/project_tenant) is not a command yet;
+6 DONE (6a, 6b above); left over: (Project/Lint/ProjectOidc now run `Hecks::Tools` in-process, see step 11) a tenant's boot + capability check (the rest of bin/project_tenant) is not a command yet;
 7 DONE (see "QualityControl move" below): QualityControl into lib/hecks/quality_control/;
 8 DONE (69ec808): the gem ships rust/ and the tooling; installed-gem Build still needs the bin/ scripts moved into lib/ (step 11);
 9 generated exe/hecks via project_cli (keep the ten ADR 0066 names; needs the alias table);
 10 CI, hooks, docs point at `hecks <verb>` using --wait (Gate domain and generate-everything are FOLLOW-UPS);
-11 delete bin/ (first move script bodies into lib/: RegenerationRun, ArgumentGateMatrix, RustToolchain children, SqliteFixture, comment linters still run bin/ scripts), spec that bin/ holds no hand-written script, CHANGELOG `Breaking:`.
+11 delete bin/ (first half of the moves DONE in lib/hecks/tools/, registry in lib/hecks/tools.rb, bin/ files are shims: regen_codegen_domains, argument_gate_matrix, project_deploy, lint_deploy_recipes, project_oidc, project_tenant, standardize_comments(_rust), project_glossary (lib/hecks/cli), the project_* table generators via `ProjectionFiles.run`; still to move: RustToolchain children, SqliteFixture, conformance; RubyChild runs any script named in `Hecks::Tools::REGISTRY` in-process; RegenerationRun still loads bin/project_rust in its forks), spec that bin/ holds no hand-written script, CHANGELOG `Breaking:`.
 Then: regenerate 2.10.0 warning text/forms.yml from the real command set (branch hecks-2-10-warnings); ADR 0080 notes on its branch; the gaps below; final gates.
 
 ## Gap register (all must be covered)

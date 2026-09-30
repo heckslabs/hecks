@@ -41,7 +41,7 @@ RSpec.describe "gem packaging" do
     let(:tooling) do
       ["lib/hecks/fuzzing/", "lib/hecks/fuzzing.rb", "lib/hecks/bench/", "lib/hecks/bench.rb",
        "lib/hecks/corpus.rb", "lib/hecks/codemod.rb", "lib/hecks/query_ir.rb",
-       "lib/hecks/grammar/evolve.rb", "lib/hecks/doc/"]
+       "lib/hecks/grammar/evolve.rb", "lib/hecks/doc/", "lib/hecks/tools/", "lib/hecks/tools.rb"]
     end
     let(:in_tooling) { ->(file) { tooling.any? { |path| file == path || file.start_with?(path) } } }
 

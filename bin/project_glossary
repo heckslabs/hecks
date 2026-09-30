@@ -9,34 +9,10 @@
 #   # => examples/banking/glossary/glossary.md
 #   #    examples/banking/glossary/html/index.html
 
-# A field the deployment marks sensitive (`has_phi(readable_by:)` in the
-# domain's `.hecksagon`) is tagged in the glossary with its category.
-#
-# spec/glossary_spec.rb re-projects every one and refuses a diff, so the
-# committed glossary can never lag the bluebook it describes.
-
 require_relative "../lib/hecks/three_zero"
 Hecks::ThreeZero.notice("project_glossary")
 
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
+require "hecks/cli/project_glossary"
 
-require "hecks"
-
-domain_path  = ARGV[0] or abort "usage: bin/project_glossary <domain-path> <ChapterName>"
-chapter_name = ARGV[1] or abort "usage: bin/project_glossary <domain-path> <ChapterName>"
-
-domain  = File.expand_path(domain_path, Dir.pwd)
-runtime = Hecks.boot(domain)
-chapter = runtime.registry.bluebook(chapter_name)
-
-markings = runtime.registry.pending_privacy_markings.select do |marking|
-  marking[:domain].to_s.start_with?("#{chapter_name}::")
-end
-
-written = Hecks::Projector.write(
-  Hecks::Projector.call(:glossary, bluebook: chapter, options: { markings: markings }),
-  File.join(domain, "glossary"), as: :files
-)
-
-puts "wrote #{written.size} file(s):"
-written.each { |path| puts "  #{path}" }
+Hecks::CLI::ProjectGlossary.call(ARGV)

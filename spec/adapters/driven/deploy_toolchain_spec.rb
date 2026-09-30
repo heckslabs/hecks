@@ -1,35 +1,34 @@
 require "spec_helper"
 require "tmpdir"
+require "hecks/tools"
 require_relative "../../support/fake_codebase_shell"
 require_relative "../../../lib/hecks/hecks/adapters/deploy_toolchain"
 
 # The DeployToolchain port's adapter asks the scripts that generate a recipe, lint it and project
-# the OIDC manifests, and compares two templates itself. A fake shell stands in for every child, so
-# what is asked of the tools is tested without running one.
+# the OIDC manifests, and compares two templates itself. The tools run in this process, so a fake
+# stands in for `Hecks::Tools.run`, and what is asked of the tools is tested without running one.
 RSpec.describe Hecks::Adapters::DeployToolchain do
   let(:adapter) { described_class.new }
 
   after do
-    described_class.shell = nil
     Hecks::Adapters::Codebase::Tree.root = nil
   end
 
   def shell_answering(*answers)
-    described_class.shell = FakeCodebaseShell.new(*answers)
+    FakeCodebaseShell.new(*answers).tap do |shell|
+      allow(Hecks::Tools).to receive(:run, &shell.method(:run_tool))
+    end
   end
 
   describe "#generate" do
-    it "runs bin/project_deploy with the flags the record holds, and the domain last" do
+    it "runs the project_deploy tool with the flags the record holds, and the domain last" do
       shell = shell_answering("wrote deploy/shop/template.yaml\n")
 
       answer = adapter.generate(domain: { value: "shop" }, tenant: { value: "acme" }, schema: nil,
                                 out: { value: "/tmp/out" }, environment: nil)
 
       expect(answer).to eq(output: { value: "wrote deploy/shop/template.yaml\n" })
-      expect(shell.asked.first[:program]).to eq(RbConfig.ruby)
-      expect(shell.command.first).to end_with("bin/project_deploy")
-      expect(shell.command.drop(1)).to eq(%w[--tenant=acme --out=/tmp/out shop])
-      expect(shell.env).to eq("HECKS_NO_3_0_NOTICE" => "1")
+      expect(shell.command).to eq(%w[project_deploy --tenant=acme --out=/tmp/out shop])
     end
 
     it "refuses with what the generator printed when it ends non-zero" do
@@ -52,14 +51,13 @@ RSpec.describe Hecks::Adapters::DeployToolchain do
   end
 
   describe "#scan" do
-    it "runs bin/lint_deploy_recipes on each Makefile named" do
+    it "runs the lint_deploy_recipes tool on each Makefile named" do
       shell = shell_answering("no violations found.\n")
 
       answer = adapter.scan(makefiles: { value: "a/Makefile, b/Makefile" })
 
       expect(answer).to eq(report: { value: "no violations found.\n" })
-      expect(shell.command.first).to end_with("bin/lint_deploy_recipes")
-      expect(shell.command.drop(1)).to eq(%w[a/Makefile b/Makefile])
+      expect(shell.command).to eq(%w[lint_deploy_recipes a/Makefile b/Makefile])
     end
 
     it "lints the generated fixture domains when no Makefile is named" do
@@ -67,7 +65,7 @@ RSpec.describe Hecks::Adapters::DeployToolchain do
 
       adapter.scan(makefiles: nil)
 
-      expect(shell.command.drop(1)).to eq([])
+      expect(shell.command).to eq(%w[lint_deploy_recipes])
     end
 
     it "refuses with the linter's report when it finds a violation" do
@@ -79,14 +77,13 @@ RSpec.describe Hecks::Adapters::DeployToolchain do
   end
 
   describe "#manifest" do
-    it "runs bin/project_oidc on each domain named" do
+    it "runs the project_oidc tool on each domain named" do
       shell = shell_answering("  examples/banking/oidc.json  <-  Banking\n")
 
       answer = adapter.manifest(domains: { value: "examples/banking,examples/pizzas" })
 
       expect(answer.dig(:output, :value)).to include("Banking")
-      expect(shell.command.first).to end_with("bin/project_oidc")
-      expect(shell.command.drop(1)).to eq(%w[examples/banking examples/pizzas])
+      expect(shell.command).to eq(%w[project_oidc examples/banking examples/pizzas])
     end
   end
 
