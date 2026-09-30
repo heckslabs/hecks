@@ -33,7 +33,8 @@ Hecks.world "Hecks" do
   default_adapter "PostgresEra"
   default_database ENV.fetch("HECKS_DATABASE", "postgres://hecks@localhost/hecks")
   launcher "Launcher", run_keys: true,
-                       failure_states: %w[flagged failed drifted unreachable refused faulted halted],
+                       failure_states: %w[flagged failed drifted unreachable refused faulted halted stopped
+                                          abandoned red needs_fix],
                        names: { "mcp" => "serve_mcp", "console" => "open_console" },
                        executable: "exe/hecks",
                        legacy: %w[run docs narrate ir stores model_check smoke_test
