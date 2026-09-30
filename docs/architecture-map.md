@@ -10,7 +10,7 @@ lib/hecks/
   translation/  domain-version translation — eras and lineage.
   projector/    IR serialization — the translation-edge digest reads it.
 
-  facade/               the door.  Class-free, per boot.
+  doors/                the doors.  Class-free, per boot.
   router/               project-wide dispatch; installs each chapter's namespace at boot.
   ports/                domain ports — auth, identity, persistence, query.
   query_specification/  a query's shape, held apart from any engine that answers it.

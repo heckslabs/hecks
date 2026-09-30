@@ -106,7 +106,7 @@ RSpec.describe "QualityControl" do
   end
 
   describe "the clock" do
-    def cli(*argv) = Hecks::Facade::CliRunner.call(runtime: runtime, argv: argv, program: "bin/qc")
+    def cli(*argv) = Hecks::Doors::CliRunner.call(runtime: runtime, argv: argv, program: "bin/qc")
 
     def target = @target ||= a_target("banking")
 
@@ -190,7 +190,7 @@ RSpec.describe "QualityControl" do
     it "is a question the command line offers" do
       a_logged_bug("BUG#1")
 
-      text, code = Hecks::Facade::CliRunner.call(
+      text, code = Hecks::Doors::CliRunner.call(
         runtime: runtime, argv: %w[ask bugs_by_status], program: "qa/quality_control"
       )
 
@@ -590,7 +590,7 @@ RSpec.describe "QualityControl" do
     # facade's Ruby method always wants it named.
     it "fills proposed_at from the clock when the caller leaves it out" do
       runtime
-      text, code = Hecks::Facade::CliRunner.call(
+      text, code = Hecks::Doors::CliRunner.call(
         runtime: runtime, program: "bin/qc",
         argv: ["propose", "reference.value=ANGLE-1", "premise.value=#{'a' * 60}",
                "citation.value=BUG#1", "proposer.value=Claude QA"]

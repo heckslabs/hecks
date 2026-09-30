@@ -27,7 +27,7 @@ RSpec.describe "a constructed aggregate" do
                                   pizza: { price_cents: { cents: 1200 },
                                            size:        { value: "large" } })
 
-      expect(pizza).to be_a(Hecks::Facade::Handle)
+      expect(pizza).to be_a(Hecks::Doors::Handle)
       expect(pizza.name.to_h).to eq(value: "Margherita")
       expect(pizza.pizza.price_cents.to_h).to eq(cents: 1200)
       expect(pizza.status).to eq("available")

@@ -164,7 +164,7 @@ RSpec.describe "Domain.project" do
     end
   end
 
-  # The registry-first path suits order-sensitive callers: Facade::Namespace.install keeps a
+  # The registry-first path suits order-sensitive callers: Doors::Namespace.install keeps a
   # pre-existing constant (a domain named `Set` gets none) and a prior boot's module can linger.
   it "agrees with calling the registry directly, without any constant" do
     expect(Hecks::Projector.call(:oidc, bluebook: bluebook))

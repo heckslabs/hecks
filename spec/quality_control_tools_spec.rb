@@ -8,11 +8,11 @@ RSpec.describe "the QualityControl tool queries" do
   NOVELTY_FIXTURES_DIR = File.join(InMemoryDomain::ROOT, "spec/fixtures/qa_domain_novelty").freeze
 
   before(:all) do
-    @hecks = Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/hecks"), install_facade: false)
+    @hecks = Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/hecks"), install_doors: false)
     @chapter = @hecks.registry.bluebook("QualityControl")
   end
 
-  def launch(*argv) = Hecks::Facade::CliRunner.call(runtime: @hecks, argv: argv, program: "hecks")
+  def launch(*argv) = Hecks::Doors::CliRunner.call(runtime: @hecks, argv: argv, program: "hecks")
 
   # Every query the chapter answers by a port, with the port's name and the aggregate it belongs to.
   def tool_queries

@@ -180,7 +180,7 @@ RSpec.describe "gem packaging" do
         end
 
         commands = ["run", "document", "ir", "stores", "model_check", "smoke_test", "project_diagrams",
-                    "project_cli", "mcp", "mcp_door"]
+                    "project_cli", "mcp"]
         script = <<~RUBY
           require "hecks"
           #{commands.map { |name| "require \"hecks/cli/#{name}\"" }.join("\n")}

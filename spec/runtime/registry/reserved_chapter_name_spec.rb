@@ -27,7 +27,7 @@ RSpec.describe "the reserved chapter name Hecks, checked at verify!" do
   end
 
   # Boots `dir` as a client project; `verify!` runs inside the boot.
-  def boot(dir) = Hecks.boot(dir, install_facade: false)
+  def boot(dir) = Hecks.boot(dir, install_doors: false)
 
   it "refuses a client chapter named Hecks and names the word, the file and the fix" do
     Dir.mktmpdir do |dir|

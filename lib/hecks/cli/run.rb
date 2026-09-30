@@ -55,8 +55,8 @@ module Hecks
       # near miss deserves the runner's "did you mean" rather than the step-list
       # form's "no such script".
       def cli_form(domain, argv, program)
-        runtime = Hecks.boot(domain, install_facade: false)
-        text, status = Facade::CliRunner.call(runtime: runtime, argv: argv, program: program)
+        runtime = Hecks.boot(domain, install_doors: false)
+        text, status = Doors::CliRunner.call(runtime: runtime, argv: argv, program: program)
         status.zero? ? puts(text) : abort(text)
         exit 0
       end

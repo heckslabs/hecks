@@ -2,7 +2,7 @@ require "spec_helper"
 require "hecks/ports/persistence/plugins/era"
 
 # Storehouse's dispatch/query/state/etc. reuse the same machinery
-# `CliRunner`/`Facade::JsonDoor` already use, so these specs prove
+# `CliRunner`/`Doors::JsonDoor` already use, so these specs prove
 # composition, not verb resolution or JSON materialization from scratch.
 # `bin/hecks_mcp_door` is one door onto this bus, not the bus itself.
 RSpec.describe Hecks::Storehouse do

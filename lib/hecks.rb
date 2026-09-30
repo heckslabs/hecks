@@ -12,7 +12,8 @@ require_relative "hecks/construct"
 # extends this to declare what it emits.
 require_relative "hecks/ir"
 require_relative "hecks/literal"
-require_relative "hecks/facade"
+require_relative "hecks/doors"
+require_relative "hecks/facade.rb"
 require_relative "hecks/query_specification"
 
 require_relative "hecks/ports"
@@ -28,11 +29,11 @@ require_relative "hecks/projector"
 require_relative "hecks/projections"
 # After `Projector` (dispatches against the `:cli` projection) and
 # `Ports::Clock` (fills a staleness rule's `now` at the door) both exist.
-require_relative "hecks/facade/cli_door"
-require_relative "hecks/facade/cli_runner"
+require_relative "hecks/doors/cli_door"
+require_relative "hecks/doors/cli_runner"
 require_relative "hecks/storehouse"
 require_relative "hecks/mcp_stdio_guard"
-require_relative "hecks/mcp_door_scope"
+require_relative "hecks/doors/mcp_door_scope"
 require_relative "hecks/framework"
 require_relative "hecks/vendoring"
 require_relative "hecks/embryonaut_bluebook"
@@ -55,12 +56,14 @@ module Hecks
     # the `HECKS_ENVIRONMENT` variable; pass a name to choose one, or `nil` for none.
     # @param path [String] path to a domain directory, or a file inside one
     # @param shared [String, nil] a shared-root override; see `Runtime::Loader.boot`
-    # @param install_facade [Boolean] install the `Widget::Item.Add`-style facade
+    # @param install_doors [Boolean] install the `Widget::Item.Add`-style facade
+    # @param install_facade [Boolean, nil] the deprecated spelling of `install_doors`; warns
     # @param environment [String, nil] env name; its `.hecksagon`/`.world` overlay,
     #   if present, loads after the domain's own. Defaults to `HECKS_ENVIRONMENT`; nil loads none
     # @return [Runtime::Dispatcher, Runtime::RemoteDispatcher] dispatcher bound to the domain
-    def boot(path, shared: nil, install_facade: true, environment: Runtime::Loader::FROM_ENV)
-      Runtime.boot(path, shared: shared, install_facade: install_facade, environment: environment)
+    def boot(path, shared: nil, install_doors: true, install_facade: nil, environment: Runtime::Loader::FROM_ENV)
+      Runtime.boot(path, shared: shared, install_doors: install_doors, environment: environment,
+        install_facade: install_facade)
     end
 
     # Boots a domain from an explicit list of files (a `.bluebook`, its
@@ -68,11 +71,13 @@ module Hecks
     # see `Runtime::Loader.boot_files` for why this exists beside `boot`.
     # @param paths [String, Array<String>] one or more file paths within the domain
     # @param shared [String, nil] a shared-root override; see `Runtime::Loader.boot_files`
-    # @param install_facade [Boolean] install the `Widget::Item.Add`-style facade
+    # @param install_doors [Boolean] install the `Widget::Item.Add`-style facade
+    # @param install_facade [Boolean, nil] the deprecated spelling of `install_doors`; warns
     # @param environment [String, nil] environment name passed to the selected-file loader
     # @return [Runtime::Dispatcher, Runtime::RemoteDispatcher] dispatcher bound to the domain
-    def boot_files(paths, shared: nil, install_facade: true, environment: Runtime::Loader::FROM_ENV)
-      Runtime.boot_files(paths, shared: shared, install_facade: install_facade, environment: environment)
+    def boot_files(paths, shared: nil, install_doors: true, install_facade: nil, environment: Runtime::Loader::FROM_ENV)
+      Runtime.boot_files(paths, shared: shared, install_doors: install_doors, environment: environment,
+        install_facade: install_facade)
     end
 
     # Binds the ambient registry for the duration of the block.

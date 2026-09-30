@@ -7,7 +7,7 @@ require_relative "../projector"
 require_relative "../ports/clock"
 
 module Hecks
-  module Facade
+  module Doors
     # Parses and dispatches a command line against a `Projector::CliProjector` projection.
     # Does no IO: it answers `[text, status]` and leaves printing and exiting to `bin/` scripts.
     module CliRunner

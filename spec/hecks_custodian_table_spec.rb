@@ -97,7 +97,7 @@ RSpec.describe "the Custodian rows of the ADR command table" do
   ].freeze
 
   before(:all) do
-    @hecks = Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/hecks"), install_facade: false)
+    @hecks = Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/hecks"), install_doors: false)
     @bluebook = @hecks.registry.bluebook("Hecks")
   end
 
@@ -112,7 +112,7 @@ RSpec.describe "the Custodian rows of the ADR command table" do
     it "answers #{row.script} as #{row.aggregate}.#{row.name}, `hecks #{row.verb}`" do
       expect(declared?(row)).to be(true), "#{row.aggregate}.#{row.name} is not declared in the Hecks domain"
 
-      out, status = Hecks::Facade::CliRunner.call(runtime: @hecks, argv: [row.verb, "--help"], program: "hecks")
+      out, status = Hecks::Doors::CliRunner.call(runtime: @hecks, argv: [row.verb, "--help"], program: "hecks")
 
       expect(status).to eq(0)
       # The help names the command as the launcher lists it (hecks.world `names`).

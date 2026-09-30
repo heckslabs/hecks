@@ -50,7 +50,7 @@ RSpec.describe Hecks::Runtime::RemoteDispatcher do
     refused = { "policy" => "Gate", "trigger" => "D::Admit", "delivered" => false, "reason" => "no" }
     result  = dispatcher_answering(response([[refused]])).dispatch_flat(verb, {})
 
-    expect(Hecks::Facade::CliRunner.refused_answer(result))
+    expect(Hecks::Doors::CliRunner.refused_answer(result))
       .to eq(refused_reactions: [{ policy: "Gate", trigger: "D::Admit", reason: "no" }])
   end
 
@@ -76,8 +76,8 @@ RSpec.describe Hecks::Runtime::RemoteDispatcher do
       blocked = dispatcher_answering(response([[accept]])).dispatch_flat(verb, {})
       benign  = dispatcher_answering(response([[match, drift]])).dispatch_flat(verb, {})
 
-      expect(Hecks::Facade::CliRunner.blocked?(blocked)).to be(true)
-      expect(Hecks::Facade::CliRunner.blocked?(benign)).to be(false)
+      expect(Hecks::Doors::CliRunner.blocked?(blocked)).to be(true)
+      expect(Hecks::Doors::CliRunner.blocked?(benign)).to be(false)
     end
   end
 end

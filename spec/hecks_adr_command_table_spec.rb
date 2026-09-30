@@ -133,7 +133,7 @@ RSpec.describe "the ADR 0080 command table, every row" do
   NOT_USER_FACING = %w[race].freeze
 
   before(:all) do
-    @hecks = Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/hecks"), install_facade: false)
+    @hecks = Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/hecks"), install_doors: false)
     @bluebooks = Hash.new { |cache, chapter| cache[chapter] = @hecks.registry.bluebook(chapter) }
   end
 
@@ -151,7 +151,7 @@ RSpec.describe "the ADR 0080 command table, every row" do
   end
 
   def answers_help?(row)
-    out, status = Hecks::Facade::CliRunner.call(runtime: @hecks, argv: [*row.argv, "--help"], program: "hecks")
+    out, status = Hecks::Doors::CliRunner.call(runtime: @hecks, argv: [*row.argv, "--help"], program: "hecks")
     status.zero? && out.start_with?(LAUNCHER_HELP_NAME.fetch(row.verb, row.help_name)) && names_its_own_command?(row, out)
   end
 

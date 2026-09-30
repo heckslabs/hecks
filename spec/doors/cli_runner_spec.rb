@@ -2,7 +2,7 @@ require "spec_helper"
 
 # The runner behind a projected CLI: returns text plus a status, printing and exiting
 # nothing. Run against pizzas so nothing passes by knowing its own chapter.
-RSpec.describe Hecks::Facade::CliRunner do
+RSpec.describe Hecks::Doors::CliRunner do
   let(:runtime) { boot_in_memory }
 
   def run(*argv) = described_class.call(runtime: runtime, argv: argv, program: "bin/run")

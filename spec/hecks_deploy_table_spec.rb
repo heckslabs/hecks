@@ -24,7 +24,7 @@ RSpec.describe "the Deploy rows of the ADR command table" do
   ].freeze
 
   before(:all) do
-    @hecks = Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/hecks"), install_facade: false)
+    @hecks = Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/hecks"), install_doors: false)
     @bluebook = @hecks.registry.bluebook("Deploy")
   end
 
@@ -38,7 +38,7 @@ RSpec.describe "the Deploy rows of the ADR command table" do
   end
 
   def launch(argv)
-    Hecks::Facade::CliRunner.call(runtime: @hecks, argv: ["deploy", *argv], program: "hecks")
+    Hecks::Doors::CliRunner.call(runtime: @hecks, argv: ["deploy", *argv], program: "hecks")
   end
 
   def answer(argv)

@@ -1,7 +1,7 @@
 require_relative "../runtime/errors"
 
 module Hecks
-  module Facade
+  module Doors
     # Turns an external command request into the dispatcher's `to:`/`with:` envelope.
     #
     #   aggregate command: { to: "record-id", with: { declared: "facts" } }

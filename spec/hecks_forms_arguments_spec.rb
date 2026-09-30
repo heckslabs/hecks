@@ -5,12 +5,12 @@ require "yaml"
 # own `--help` lists, so a form cannot keep an argument the command dropped.
 RSpec.describe "the 3.0 forms' arguments" do
   before(:all) do
-    @runtime = Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/hecks"), install_facade: false)
+    @runtime = Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/hecks"), install_doors: false)
     @forms   = YAML.load_file(File.join(InMemoryDomain::ROOT, "lib/hecks/three_zero/forms.yml"))
   end
 
   def help_for(words)
-    Hecks::Facade::CliRunner.call(runtime: @runtime, argv: [*words, "--help"], program: "hecks").first
+    Hecks::Doors::CliRunner.call(runtime: @runtime, argv: [*words, "--help"], program: "hecks").first
   end
 
   # One `hecks …` command of a form: the words that name its verb, and the arguments it names.

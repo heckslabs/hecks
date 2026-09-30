@@ -308,7 +308,7 @@ RSpec.describe "the DSL surface" do
       root = File.expand_path("../examples/pizzas", __dir__)
       runtime = Hecks.boot_files(
         [File.join(root, "bluebook/pizzas.bluebook"), File.join(root, "pizzas_behaviors.hecksagon")],
-        install_facade: false
+        install_doors: false
       )
 
       expect(runtime).to be_a(Hecks::Runtime::Dispatcher)

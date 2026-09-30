@@ -49,7 +49,7 @@ module Hecks
       # @param path [String] a domain directory, relative to `root`
       # @return [void]
       def project(root, path)
-        runtime = Hecks.boot(File.join(root, path), install_facade: false)
+        runtime = Hecks.boot(File.join(root, path), install_doors: false)
         name    = runtime.registry.bluebooks.keys.first
 
         unless name

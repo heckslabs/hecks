@@ -452,8 +452,8 @@ RSpec.describe Hecks::Adapters::JournalStore, :io do
 
   describe "through the launcher" do
     def run_verb(*argv)
-      @hecks ||= Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/hecks"), install_facade: false)
-      Hecks::Facade::CliRunner.call(runtime: @hecks, argv: argv, program: "hecks")
+      @hecks ||= Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/hecks"), install_doors: false)
+      Hecks::Doors::CliRunner.call(runtime: @hecks, argv: argv, program: "hecks")
     end
 
     it "holds the first era when confirmed, and refuses a merge before a second exists" do

@@ -3,7 +3,7 @@ require "spec_helper"
 # Flat strings in, nested typed arguments out — the translation a command line
 # needs and `JsonDoor` does not, because JSON arrives already nested and
 # already typed.
-RSpec.describe Hecks::Facade::CliDoor do
+RSpec.describe Hecks::Doors::CliDoor do
   let(:spec) do
     { arguments: [
       { path: "id",                      type: "String"  },

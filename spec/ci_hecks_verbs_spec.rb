@@ -24,12 +24,12 @@ RSpec.describe "CI and hook calls of the hecks launcher" do
     calls = code_lines.flat_map do |_, line|
       line.scan(%r{exe/hecks ((?:ask |deploy )?)([a-z_]+)}).map { |kind, verb| [kind.strip, verb] }
     end.uniq
-    hecks = Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/hecks"), install_facade: false)
+    hecks = Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/hecks"), install_doors: false)
 
     expect(calls).not_to be_empty
     calls.each do |kind, verb|
       argv = [*(kind == "ask" ? [] : [kind]), verb, "--help"].reject(&:empty?)
-      _, status = Hecks::Facade::CliRunner.call(runtime: hecks, argv: argv, program: "hecks")
+      _, status = Hecks::Doors::CliRunner.call(runtime: hecks, argv: argv, program: "hecks")
 
       expect(status).to eq(0), "hecks #{[kind, verb].reject(&:empty?).join(' ')} does not resolve"
     end

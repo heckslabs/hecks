@@ -3,7 +3,7 @@ require_relative "../runtime/errors"
 require_relative "cli_door"
 
 module Hecks
-  module Facade
+  module Doors
     # What a domain's world file adds to its generated launcher, all of it opt-in.
     #
     # A `.world` that declares a `launcher` setting switches these on for that chapter; a

@@ -48,7 +48,7 @@ RSpec.describe "a chapter's namespace" do
 
   it "installs the chapter at its namespace, with its aggregates inside it and none at the top level" do
     registry = declare("NsNested", nest: "NsOuter::Inner")
-    Hecks::Facade::Surface.install(Hecks::Runtime::Dispatcher.new(registry))
+    Hecks::Doors::RubyDoor.install(Hecks::Runtime::Dispatcher.new(registry))
 
     expect(NsOuter::Inner.const_defined?(:Widget, false)).to be true
     expect(Object.const_defined?(:NsNested, false)).to be false
