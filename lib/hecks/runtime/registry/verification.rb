@@ -331,11 +331,15 @@ module Hecks
         # An entity's query reads the elements of its aggregate's list, and nothing outside can
         # be bound to one, so declaring a value object to return leaves it no answer.
         def refuse_entity_answer_path!(chapter, aggregate, entity, query)
-          return unless query.returns
+          where = "#{chapter.name}::#{aggregate.hecks_name}.#{entity.hecks_name}.#{query.hecks_name}"
+          if query.returns
+            raise WiringError, "#{where} has no answer path: it returns #{query.returns}, but " \
+                               "only an aggregate's queries can be bound to a port"
+          end
+          return if derivable?(query)
 
-          raise WiringError, "#{chapter.name}::#{aggregate.hecks_name}.#{entity.hecks_name}." \
-                             "#{query.hecks_name} has no answer path: it returns #{query.returns}, but " \
-                             "only an aggregate's queries can be bound to a port"
+          raise WiringError, "#{where} has no answer path: it declares no where and returns nothing — its " \
+                             "arguments (#{query.attributes.map(&:name).join(', ')}) select nothing"
         end
 
         # Refuses a binding that names a query its aggregate does not declare, or names one twice

@@ -413,6 +413,26 @@ RSpec.describe "a query answered by a port the hecksagon binds" do
     end
   end
 
+  describe "an entity's query with arguments that select nothing" do
+    it "is refused at boot, as an aggregate's is" do
+      bluebook = OUTSIDE_BLUEBOOK.sub("    command \"Write\" do", <<~RUBY.chomp)
+        entity "Line" do
+          attribute :text, Title
+          identified_by :text
+
+          query "Spoken" do
+            attribute :text, Title
+          end
+        end
+
+        command "Write" do
+      RUBY
+
+      expect { boot_domain(bluebook: bluebook) }
+        .to raise_error(Hecks::Runtime::WiringError, /Lookup::Note\.Line\.Spoken has no answer path.*\(text\)/)
+    end
+  end
+
   describe "a query answered from the aggregate's records" do
     it "keeps a query with no arguments, no clause and no return as the plain list of records" do
       runtime = boot_domain
