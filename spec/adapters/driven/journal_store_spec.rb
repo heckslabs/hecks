@@ -325,22 +325,33 @@ RSpec.describe Hecks::Adapters::JournalStore, :io do
 
       shown = store.attestation(domain: { value: @domain }, era: { value: 1 })
       expect(shown).to include("does NOT match its recorded digest", "# a comment added by hand", "shape:    unchanged")
-      expect(facts("reattest", era: { value: 1 })).to include(capable: true)
+      expect(facts("reattest", era: { value: 1 }))
+        .to include(capable: true, drifted: true, loadable: true, shape_kept: true)
 
       report = store.apply(**request("reattest", era: { value: 1 })).dig(:report, :value)
 
       expect(report).to start_with("ATTESTED: era 1 re-frozen as ")
       expect(sql("SELECT count(*)::int AS n FROM hecks_attestations").first["n"].to_i).to eq(1)
       expect(store.attestation(domain: { value: @domain }, era: { value: 1 })).to include("nothing to re-attest")
+      expect(facts("reattest", era: { value: 1 })).to include(drifted: false)
     end
 
-    it "refuses an edit that changed the era's shape, whatever was confirmed" do
+    it "reports an edit that changed the era's shape, for Era.Permit to refuse whatever was confirmed" do
       sql("UPDATE hecks_eras SET held_text = $1 WHERE ordinal = 1", JS_V2)
 
-      expect { store.apply(**request("reattest", era: { value: 1 })) }
-        .to raise_error(Hecks::Runtime::WiringError, /changed the era's SHAPE/)
+      expect(facts("reattest", era: { value: 1 })).to include(drifted: true, loadable: true, shape_kept: false)
       expect { store.attestation(domain: { value: @domain }, era: { value: 1 }) }
         .to raise_error(Hecks::Runtime::NotFound, /changed the era's SHAPE/)
+    end
+
+    it "reports a text that no longer loads as a bluebook" do
+      sql("UPDATE hecks_eras SET held_text = $1 WHERE ordinal = 1", "Hecks.bluebook \"Ledger\" do\n  ((((\nend\n")
+
+      expect(facts("reattest", era: { value: 1 })).to include(drifted: true, loadable: false, shape_kept: false)
+    end
+
+    it "reports a text that matches its digest as nothing to attest" do
+      expect(facts("reattest", era: { value: 1 })).to include(drifted: false)
     end
 
     it "refuses an era that is not held" do
@@ -447,6 +458,28 @@ RSpec.describe Hecks::Adapters::JournalStore, :io do
       again, = run_verb("hold_first", @domain, "run=first-2", "--confirm")
       expect(JSON.parse(again).fetch("refused_reactions").first.fetch("reason"))
         .to eq("Permit refused — no era is held yet")
+    end
+
+    it "attests an edited text only when the givens admit it, and says why when they do not" do
+      write_domain(edge: JS_EDGE)
+      hold_v1_with_a_record
+      reason = lambda do |run|
+        out, = run_verb("reattest", @domain, "era=1", "run=#{run}", "--confirm")
+        JSON.parse(out).fetch("refused_reactions", []).map { |reaction| reaction.fetch("reason") }
+      end
+
+      expect(reason.call("att-1"))
+        .to eq(["Permit refused — the held text no longer matches its digest: there is nothing to re-attest"])
+
+      sql("UPDATE hecks_eras SET held_text = $1 WHERE ordinal = 1", JS_V2)
+      expect(reason.call("att-2"))
+        .to eq(["Permit refused — the edit kept the era's shape, not just its text: " \
+                "restore a text with the original shape"])
+
+      sql("UPDATE hecks_eras SET held_text = $1 WHERE ordinal = 1", "# a comment added by hand\n#{JS_V1}")
+      expect(reason.call("att-3")).to be_empty
+      row = JSON.parse(run_verb("settlement", "att-3").first).first
+      expect([row.fetch("status"), row.dig("report", "value")]).to match(["settled", /\AATTESTED: era 1 re-frozen as /])
     end
 
     it "words the store-keeps-eras rule for a domain on Memory" do

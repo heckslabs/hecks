@@ -187,6 +187,30 @@ RSpec.describe "the Hecks command table through the launcher" do
       expect(JSON.parse(run_verb("failed").first).map { |failed| failed.dig("run", "value") }).to include("verb-2")
     end
 
+    it "run refuses a request that names neither a script nor a verb, and records nothing" do
+      out, status = run_verb("run", "run=neither-1", "subject=#{@shelf}")
+
+      expect(status).to eq(1)
+      expect(out).to include("exactly one of a script and a verb is named")
+      expect(run_verb("outcome", "neither-1").first).not_to include("neither-1")
+    end
+
+    it "run refuses a request that names both a script and a verb, and records nothing" do
+      out, status = run_verb("run", "run=both-1", "subject=#{@shelf}", "script=steps.json", "verb=shelve")
+
+      expect(status).to eq(1)
+      expect(out).to include("exactly one of a script and a verb is named")
+      expect(run_verb("outcome", "both-1").first).not_to include("both-1")
+    end
+
+    it "run accepts a script alone, and keeps its failure as the operation's" do
+      run_verb("run", "run=script-1", "subject=#{@shelf}", "script=#{File.join(@dir, 'no-such-steps.json')}")
+
+      row = outcome_of("script-1")
+      expect(row.fetch("status")).to eq("failed")
+      expect(row.dig("script", "value")).to end_with("no-such-steps.json")
+    end
+
     it "smoke_test dispatches one call per command" do
       run_verb("smoke_test", "run=smoke-1", "subject=#{File.join(@dir, 'clean')}")
 
@@ -315,6 +339,63 @@ RSpec.describe "the Hecks command table through the launcher" do
         expect(run_verb("settlement", "unconfirmed-#{verb}").first).not_to include("unconfirmed")
       end
       expect(run_verb("reattest", @shelf, "era=1", "run=unconfirmed-reattest").last).to eq(1)
+    end
+
+    describe "reattest, once the journal store has examined the era's text" do
+      # The JournalStore adapter stands in for a Postgres journal: it reports the facts an
+      # examination of a held text finds, and counts the changes it is asked to make.
+      def examined_as(**found)
+        facts = Hecks::Adapters::JournalStore::Examination::NEUTRAL.merge(capable: true, **found)
+        @applied = 0
+        counter = -> { @applied += 1 }
+        store = Object.new
+        store.define_singleton_method(:examine) { |**| facts.transform_values { |fact| { value: fact } } }
+        store.define_singleton_method(:apply) do |**|
+          counter.call
+          { report: { value: "ATTESTED: era 1 re-frozen" } }
+        end
+        allow(Hecks::Adapters::JournalStore).to receive(:new).and_return(store)
+      end
+
+      def reattest(run)
+        out, = run_verb("reattest", @shelf, "era=1", "run=#{run}", "--confirm")
+        JSON.parse(out).fetch("refused_reactions", []).map { |reaction| reaction.fetch("reason") }
+      end
+
+      it "attests a text that drifted from its digest, loads, and kept the era's shape" do
+        examined_as(drifted: true, loadable: true, shape_kept: true)
+
+        expect(reattest("attest-1")).to be_empty
+        expect(settlement_of("attest-1").fetch("status")).to eq("settled")
+        expect(@applied).to eq(1)
+      end
+
+      it "refuses a text that still matches its digest: there is nothing to re-attest" do
+        examined_as
+
+        expect(reattest("attest-2"))
+          .to eq(["Permit refused — the held text no longer matches its digest: there is nothing to re-attest"])
+        expect(settlement_of("attest-2").fetch("status")).to eq("requested")
+        expect(@applied).to eq(0)
+      end
+
+      it "refuses an edited text that does not load as a bluebook" do
+        examined_as(drifted: true, loadable: false, shape_kept: false)
+
+        expect(reattest("attest-3"))
+          .to eq(["Permit refused — the edited text loads as a bluebook: restore a loadable text"])
+        expect(@applied).to eq(0)
+      end
+
+      it "refuses an edit that changed the era's shape, whatever was confirmed" do
+        examined_as(drifted: true, loadable: true, shape_kept: false)
+
+        expect(reattest("attest-4")).to eq(
+          ["Permit refused — the edit kept the era's shape, not just its text: " \
+           "restore a text with the original shape"]
+        )
+        expect(@applied).to eq(0)
+      end
     end
 
     it "previews a compaction, then compacts once confirmed, and keeps what was done" do
