@@ -2,6 +2,8 @@ require "spec_helper"
 
 # A `.world` aggregate-qualified bind (`Pizzas::Order.charged_by("Stripe") do ... end`) must
 # resolve the bareword aggregate name; WorldBuilder wraps instance_eval in ConstShim like siblings.
+# The name must be one no spec boots as a real domain: a booted domain leaves a top-level
+# constant behind, and the bareword would then resolve to it instead of reaching ConstShim.
 RSpec.describe "WorldBuilder aggregate-qualified bind mirror" do
   def build_world(&block) = Hecks::Bluebook::DSL::WorldBuilder.build("AggregateQualifiedGrowth", &block)
 
@@ -9,7 +11,7 @@ RSpec.describe "WorldBuilder aggregate-qualified bind mirror" do
     qualified = build_world do
       realm "Examples"
       latest "v1"
-      Widgets::Thing.persisted_by("Heki") do
+      Gizmos::Thing.persisted_by("Heki") do
         dir "data"
       end
     end
@@ -29,7 +31,7 @@ RSpec.describe "WorldBuilder aggregate-qualified bind mirror" do
     world = build_world do
       realm "Examples"
       latest "v1"
-      Widgets::Thing.projected_by("SqliteProjection") do
+      Gizmos::Thing.projected_by("SqliteProjection") do
         database "data/thing.sqlite3"
       end
     end
