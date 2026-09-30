@@ -1,5 +1,6 @@
 require_relative "errors"
 require_relative "refusal_wording"
+require_relative "reaction_outcome"
 require_relative "caller"
 require_relative "invocation"
 require_relative "command_rules"
@@ -20,7 +21,7 @@ module Hecks
       MAX_REACTION_DEPTH = 5
 
       Result = Struct.new(:verb, :instance, :events, :execution_plan, :persistence_outcome,
-                          :refused_reactions, keyword_init: true) do
+                          :refused_reactions, :blocking_reactions, keyword_init: true) do
         # Lists the policy reactions this dispatch caused that the domain refused.
         #
         # A policy's trigger that a `given` or invariant refuses does not undo the command that
@@ -30,6 +31,14 @@ module Hecks
         # @return [Array<Hash{Symbol => Object}>] one `{ policy:, trigger:, reason: }` per refused
         #   reaction, oldest first; empty when every reaction was delivered
         def refused_reactions = self[:refused_reactions] || []
+
+        # Lists the refused reactions that block the run, as opposed to a benign non-match.
+        #
+        # See `ReactionOutcome`: a refusal is benign when a sibling reaction to the same event
+        # delivered another command on the same aggregate. `--wait` exits 1 on any that remain.
+        #
+        # @return [Array<Hash{Symbol => Object}>] the subset of `refused_reactions` that blocks
+        def blocking_reactions = self[:blocking_reactions] || []
 
         # Reads the identity of the record the dispatch settled on.
         #
@@ -181,7 +190,8 @@ module Hecks
 
         Result.new(verb: verb, instance: instance, events: announced,
                    execution_plan: execution_plan, persistence_outcome: persistence_outcome,
-                   refused_reactions: refused_from(reactions))
+                   refused_reactions: refused_from(reactions),
+                   blocking_reactions: ReactionOutcome.blocking(reactions))
       end
       private :dispatch_collecting
 
