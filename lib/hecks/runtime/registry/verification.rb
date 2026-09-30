@@ -314,11 +314,6 @@ module Hecks
             raise WiringError, "#{where} has two answer paths: it is bound to the #{port.name} port but " \
                                "also declares where, order_by or limit over stored records"
           end
-          if query.authorization
-            raise WiringError, "#{where} is bound to the #{port.name} port but declares authorize — " \
-                               "an outside answer is never tenant-scoped or authorized, so drop the " \
-                               "authorize or answer the query from records"
-          end
           unless Value.value_object_for(aggregate, query.returns_name)
             raise WiringError, "#{where} returns #{query.returns_name}, but #{aggregate.hecks_name} " \
                                "declares no such value object"
