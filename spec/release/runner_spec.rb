@@ -111,6 +111,13 @@ RSpec.describe Hecks::Release::Runner do
       expect(err.string).to include("packages/hecks-client is at 9.9.8 but Hecks::VERSION is #{version}; bump the package first.")
     end
 
+    it "refuses when the Rust host's release file is at another version" do
+      File.write(File.join(root, "rust/host/HECKS_RELEASE"), "9.9.8\n")
+
+      expect(release(yes: true)).to eq(1)
+      expect(err.string).to include("rust/host/HECKS_RELEASE says \"9.9.8\" but Hecks::VERSION is #{version}")
+    end
+
     it "refuses when the changelog has no heading for the version" do
       File.write(File.join(root, "CHANGELOG.md"), "# Changelog\n\n## [Unreleased]\n")
 

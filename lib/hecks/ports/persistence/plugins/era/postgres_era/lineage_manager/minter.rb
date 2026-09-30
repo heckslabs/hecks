@@ -60,8 +60,8 @@ module Hecks
           # A compute or rekey's only verification is a human-approved audit sample. Two approvals
           # satisfy it: one recorded in the journal that matches the edge and the journal's current
           # tip, or a committed `translations/<edge>.approval` that matches the edge's digest and
-          # records a passed rehearsal on a compatible host release. A committed approval that applies is written into the
-          # journal, so the journal stays the single history.
+          # records a passed rehearsal on a compatible host release. A committed approval that
+          # applies is written into the journal, so the journal stays the single history.
           def ensure_compute_rekey_approved!(bluebook, lineage, edge, ordinal, directory: nil)
             return unless Translation::ApprovalFile.needs_rehearsal?(edge)
 
