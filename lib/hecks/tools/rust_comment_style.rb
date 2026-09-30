@@ -619,6 +619,8 @@ module Hecks
       end
 
       # The CLI entry point: parses `argv` and runs the requested mode.
+      #
+      # Paths after a `--` are never read as flags, and a path that does not exist is refused.
       def self.main(argv, **)
         options = { mode: :report, top: 20 }
         parser = option_parser(options)
@@ -626,6 +628,8 @@ module Hecks
         unknown = Array(options[:only]) - CATEGORIES.keys
         abort "unknown categories: #{unknown.join(', ')}" unless unknown.empty?
         abort parser.help if paths.empty?
+        missing = paths.reject { |path| File.exist?(path) }
+        abort "no such path: #{missing.join(', ')}" unless missing.empty?
 
         run = Run.new(paths, only: options[:only])
         case options[:mode]
