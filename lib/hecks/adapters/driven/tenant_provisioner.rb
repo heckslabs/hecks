@@ -44,6 +44,7 @@ module Hecks
         values.each { |name, value| check(name, value) }
 
         overlay_path = overlay_path_for(unwrap(directory), values[:slug])
+        refuse_missing_directory(unwrap(directory))
         FileUtils.mkdir_p(File.dirname(overlay_path))
         File.write(overlay_path, render(values))
 
@@ -52,6 +53,14 @@ module Hecks
       end
 
       private
+
+      # A tenant overlay belongs to a domain that exists: a missing directory is a mistyped path,
+      # not a place to create.
+      def refuse_missing_directory(directory)
+        return if File.directory?(directory.to_s)
+
+        raise Refused, "directory #{directory.to_s.inspect} is not an existing domain directory"
+      end
 
       def render(values)
         <<~WORLD

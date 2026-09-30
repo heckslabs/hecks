@@ -32,6 +32,16 @@ RSpec.describe Hecks::Adapters::TenantProvisioner, "#write_overlay" do
     end
   end
 
+  it "refuses a directory that does not exist, and creates nothing" do
+    Dir.mktmpdir("provisioner") do |dir|
+      missing = File.join(dir, "no", "such", "domain")
+
+      expect { adapter.write_overlay(**tenant, directory: missing) }
+        .to raise_error(described_class::Refused, /not an existing domain directory/)
+      expect(File.exist?(File.join(dir, "no"))).to be(false)
+    end
+  end
+
   it "refuses a slug that climbs out of environments/, even without a newline" do
     Dir.mktmpdir("provisioner") do |dir|
       expect { adapter.write_overlay(**tenant, slug: "../escaped", directory: dir) }

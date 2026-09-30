@@ -249,8 +249,10 @@ module Hecks
     def bind_flag_or_option(form, key, value, extra)
       if Array(form[:flags]).include?(key)
         extra << "--#{key.tr('_', '-')}" if Facade::CliDoor.boolean(value)
+        nil
       elsif Array(form[:options]).include?(key)
         extra.push("--#{key}", value)
+        nil
       elsif !Array(form[:ignored]).include?(key)
         known = form[:slots].flatten + Array(form[:flags]) + Array(form[:options])
         "no argument #{key.inspect} — this verb takes #{known.sort.join(', ')}"
